@@ -47,6 +47,13 @@ import app.resound.push.PushChannel
 import app.resound.push.PushChannels
 import app.resound.push.PushFormat
 import app.resound.push.PushKind
+import app.resound.push.FolderLayout
+import app.resound.push.LinesMode
+import app.resound.push.RecordTrigger
+import app.resound.push.RecordKind
+import app.resound.push.PushChannelStatus
+import app.resound.push.PushCapabilities
+import app.resound.push.PushSubscription
 import app.resound.push.PushLog
 import app.resound.push.PushTopic
 import app.resound.ui.theme.Rs
@@ -74,7 +81,7 @@ fun PushPage(repo: PushChannels, bottomPadding: Dp) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("手机通知照常发。加一个通道，还能把每日回顾、每天的记忆文档推到微信、飞书、钉钉、邮件、Obsidian，或你自己的 Agent。",
+            Text("手机通知照常发。加一个通道，还能把每日回顾、每天的记忆文档推到微信、飞书、钉钉、邮件；想交给你自己的智能体读，用“坚果云同步文件夹”或自定义接口。",
                 style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(horizontal = 4.dp))
         }
         item {
@@ -118,7 +125,7 @@ private fun ChannelRow(ch: PushChannel, onToggle: (Boolean) -> Unit, onOpen: () 
         Column(Modifier.weight(1f)) {
             Text(ch.name, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                (if (ch.topics.isEmpty()) "还没选推什么" else ch.topics.joinToString("、") { it.title }) + " · " + ch.format.title,
+                subscriptionLine(ch.subscription),
                 style = RsType.caption, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
@@ -154,10 +161,14 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
     val values = remember { mutableStateMapOf<String, String>() }
     var topics by remember { mutableStateOf(ch?.topics ?: setOf(PushTopic.DailyReview)) }
     var format by remember { mutableStateOf(ch?.format ?: PushFormat.Markdown) }
-    var withLines by remember { mutableStateOf(ch?.memoryWithLines ?: false) }
+    var sub by remember { mutableStateOf(ch?.subscription ?: PushSubscription.PhoneNotice) }
+    var linked by remember { mutableStateOf(ch?.useLinkedNutstore ?: true) }
+    val linkedAccount by repo.linkedNutstoreAccount.collectAsState(initial = null)
+    val caps = remember(kind) { repo.capabilities(kind) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Result<String>?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmRebuild by remember { mutableStateOf(false) }
     val fields = remember(kind) { repo.fields(kind) }
 
     RsSheet(if (ch == null) "添加推送通道" else ch.name, ch?.summary, onDismiss = { if (!busy) onDismiss() }, fixedHeight = true) {
@@ -168,7 +179,12 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                 kinds.chunked(3).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { k ->
-                            KindTile(k, k == kind, Modifier.weight(1f)) { kind = k; values.clear(); result = null; topics = topics intersect repo.topics(k) }
+                            KindTile(k, k == kind, Modifier.weight(1f)) {
+                                kind = k; values.clear(); result = null; topics = topics intersect repo.topics(k)
+                                // 换通道时给一个合适的起点：文件夹类默认“给智能体用”，其余默认“手机通知”
+                                if (ch == null) sub = if (repo.capabilities(k).records) PushSubscription.ForAgents else PushSubscription.PhoneNotice
+                                if (ch == null && k == PushKind.MarkdownFolder && values["folder"].isNullOrBlank()) values["folder"] = "Resound-Memory"
+                            }
                         }
                         repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
@@ -177,32 +193,24 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         }
         Label("名字")
         Field(name, "例如：我的微信", secret = false) { name = it.take(20) }
-        fields.forEach { f ->
+        val folderKind = kind == PushKind.MarkdownFolder
+        if (folderKind) {
+            Label("坚果云账号")
+            app.resound.ui.skills.Segments(listOf("用已连接的坚果云", "单独配置"), if (linked) 0 else 1) { linked = it == 0 }
+            if (linked) Text(linkedAccount?.let { "用数据备份里已连接的 $it，不用再填账号密码" } ?: "数据备份里还没连接坚果云，先去连接，或改为单独配置",
+                style = RsType.caption, color = if (linkedAccount == null) c.critical else c.textSecondary)
+        }
+        fields.filter { !(folderKind && linked && it.key != "folder") }.forEach { f ->
             Label(f.label)
             Field(values[f.key] ?: "", if (ch != null && f.secret) "已保存，留空表示不改" else f.hint, f.secret) { values[f.key] = it.trim() }
         }
-        Label("推什么")
         val allowed = remember(kind) { repo.topics(kind) }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PushTopic.entries.filter { it in allowed }.forEach { t -> Choice(t.title, t in topics) { topics = if (t in topics) topics - t else topics + t } }
-        }
-        if (PushTopic.DailyMemory !in allowed) {
-            Text("这种通道有长度限制，不能推“每日记忆文档”；想给自己的 Agent 用，选自定义接口、Obsidian / 笔记文件夹、邮件、Telegram 或 Notion。",
-                style = RsType.caption, color = c.textTertiary)
-        } else if (PushTopic.DailyMemory in topics) {
-            Text("每晚生成回顾后，把当天完整的记忆（回顾、时间线、技能卡片、待办、灵感）整理成 Markdown 推过去，方便你自己的 Agent 再加工。",
-                style = RsType.caption, color = c.textSecondary)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("附上当天原话", style = RsType.body, color = c.text)
-                    Text("更完整，但内容多、更私密", style = RsType.caption, color = c.textSecondary)
-                }
-                Switch(withLines) { withLines = it }
+        SubscriptionEditor(sub, caps, isNew = ch == null) { sub = it }
+        if (caps.formats.size > 1) {
+            Label("格式")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PushFormat.entries.filter { it in caps.formats }.forEach { f -> Choice(f.title, f == format) { format = f } }
             }
-        }
-        Label("格式")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PushFormat.entries.forEach { f -> Choice(f.title, f == format) { format = f } }
         }
         result?.let { r ->
             Text(r.getOrNull() ?: r.exceptionOrNull()?.message ?: "没成功", style = RsType.subhead, color = if (r.isSuccess) c.good else c.critical)
@@ -210,17 +218,32 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         Spacer(Modifier.height(4.dp))
         // 新建时：保存后自动发一条测试；编辑时可单独测试
         // 新建时至少要填第一项（token / 地址）；其余项可选
-        val canSave = name.isNotBlank() && !busy && (ch != null || fields.firstOrNull()?.let { (values[it.key] ?: "").isNotBlank() } != false)
+        val needFirst = !(kind == PushKind.MarkdownFolder && linked)
+        val canSave = name.isNotBlank() && !busy && (ch != null || !needFirst || fields.firstOrNull()?.let { (values[it.key] ?: "").isNotBlank() } != false)
         ActionButton(if (busy) "正在保存…" else if (ch == null) "保存并测试" else "保存", ActionKind.Primary, enabled = canSave) {
             busy = true; result = null
             scope.launch {
-                val saved = repo.save(ch?.id, kind, name.trim(), values.toMap(), topics intersect allowed, format, withLines)
+                val saved = repo.saveWithSubscription(ch?.id, kind, name.trim(), values.toMap(), sub, format, kind == PushKind.MarkdownFolder && linked)
                 result = saved.fold({ id -> if (ch == null) repo.test(id) else Result.success("已保存") }, { Result.failure(it) })
                 busy = false
                 if (saved.isSuccess && result?.isSuccess == true) onDismiss()
             }
         }
         if (ch != null) {
+            // 推送状态 + 现在推一次 / 全部重新生成
+            val st by remember(ch.id) { repo.status(ch.id) }.collectAsState(initial = null)
+            st?.let { s -> StatusLine(s) }
+            if (caps.records && (ch.subscription.records.isNotEmpty() || ch.subscription.lines != LinesMode.Off)) {
+                ActionButton(if (st?.running == true) "正在推…" else "现在推一次", ActionKind.Secondary, enabled = !busy && st?.running != true) {
+                    busy = true; result = null
+                    scope.launch { result = repo.pushNow(ch.id); busy = false }
+                }
+                if (caps.folder) ActionButton(if (confirmRebuild) "确定全部重新生成？再点一次" else "全部重新生成", ActionKind.Secondary, enabled = !busy && st?.running != true) {
+                    if (!confirmRebuild) { confirmRebuild = true; return@ActionButton }
+                    confirmRebuild = false; busy = true; result = null
+                    scope.launch { result = repo.rebuild(ch.id); busy = false }
+                }
+            }
             ActionButton(if (busy) "正在发送…" else "测试一下", ActionKind.Secondary, enabled = !busy) {
                 busy = true; result = null
                 scope.launch { result = repo.test(ch.id); busy = false }
@@ -306,4 +329,166 @@ private fun kindColor(k: PushKind) = when (k) {
     PushKind.Email -> Color(0xFFD0743C)
     PushKind.Notion -> Color(0xFF5F5A54)
     PushKind.MarkdownFolder -> Color(0xFF7C5CC4)
+}
+
+
+/** 列表里一行概括订阅：如“摘要 · 提醒 · 整理结果 5 类 · 有新内容就推 · 增量” */
+private fun subscriptionLine(s: PushSubscription): String = buildList {
+    if (s.summaries) add("摘要")
+    if (s.reminders) add("提醒")
+    if (s.records.isNotEmpty()) add("整理结果 ${s.records.size} 类")
+    if (s.lines != LinesMode.Off) add("原话")
+    if (s.records.isNotEmpty() || s.lines != LinesMode.Off) {
+        add(when (val t = s.trigger) {
+            is RecordTrigger.OnChange -> "有新内容就推"
+            is RecordTrigger.Schedule -> t.times.sorted().joinToString("、") { "%d:%02d".format(it / 60, it % 60) } + " 推"
+            RecordTrigger.Manual -> "只手动推"
+        })
+        add(if (s.incremental) "增量" else "全量")
+    }
+}.ifEmpty { listOf("还没选推什么") }.joinToString(" · ")
+
+@Composable
+private fun StatusLine(s: PushChannelStatus) {
+    val c = Rs.colors
+    val text = when {
+        s.running -> "正在推送…"
+        s.lastError != null -> "上次没推成功：${s.lastError}"
+        s.lastPushAt != null -> "上次 ${formatClock(s.lastPushAt)}" + (s.lastResult?.let { " · $it" } ?: "")
+        else -> "还没推过"
+    }
+    Text(text, style = RsType.subhead, color = if (s.lastError != null && !s.running) c.critical else c.textSecondary)
+}
+
+private fun hm(m: Int) = "%d:%02d".format(m / 60, m % 60)
+
+/**
+ * 推送订阅：模板 → 推什么 → 整理结果什么时候推 → 增量还是全量 → 范围 → 文件夹布局。
+ * 只显示这种通道能用的选项（caps）；所有默认值都能改，模板只是预先填好。
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, isNew: Boolean, onChange: (PushSubscription) -> Unit) {
+    val c = Rs.colors
+    // 一键模板
+    val templates = buildList {
+        add("手机通知" to PushSubscription.PhoneNotice)
+        if (caps.records) { add("给智能体用" to PushSubscription.ForAgents); add("完整归档" to PushSubscription.FullArchive) }
+    }
+    if (templates.size > 1) {
+        Label("一键模板（选了再细调）")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            templates.forEach { (n, t) ->
+                val fixed = if (caps.incremental) t else t.copy(incremental = false, fullCheckAt = null)
+                Choice(n, sub == fixed) { onChange(fixed) }
+            }
+        }
+    }
+
+    Label("推什么")
+    ToggleRow("摘要", "每日回顾、每周回顾、技能卡片，生成后自动推", sub.summaries) { onChange(sub.copy(summaries = it)) }
+    ToggleRow("提醒", "待办到期、标了重点 3 天没进展，到点推", sub.reminders) { onChange(sub.copy(reminders = it)) }
+    if (!caps.records) {
+        Text("这种通道只能发短消息，推不了整理结果和原话；想给智能体读，用坚果云同步文件夹或自定义接口。", style = RsType.caption, color = c.textTertiary)
+        return
+    }
+    Text("整理结果", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 4.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        RecordKind.entries.forEach { k ->
+            Choice(k.title, k in sub.records) { onChange(sub.copy(records = if (k in sub.records) sub.records - k else sub.records + k)) }
+        }
+    }
+    Text("原话", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 4.dp))
+    app.resound.ui.skills.Segments(LinesMode.entries.map { it.title }, sub.lines.ordinal) { onChange(sub.copy(lines = LinesMode.entries[it])) }
+    if (sub.lines != LinesMode.Off) Text("原话会以明文推出去，注意保管；“只推我说的”只含声纹认出是你的话。", style = RsType.caption, color = c.warning)
+
+    if (sub.records.isEmpty() && sub.lines == LinesMode.Off) return
+
+    Label("整理结果和原话什么时候推")
+    val ti = when (sub.trigger) { is RecordTrigger.OnChange -> 0; is RecordTrigger.Schedule -> 1; RecordTrigger.Manual -> 2 }
+    app.resound.ui.skills.Segments(listOf("有新内容就推", "按时间推", "只手动"), ti) {
+        onChange(sub.copy(trigger = when (it) {
+            0 -> sub.trigger as? RecordTrigger.OnChange ?: RecordTrigger.OnChange(30)
+            1 -> sub.trigger as? RecordTrigger.Schedule ?: RecordTrigger.Schedule(listOf(22 * 60))
+            else -> RecordTrigger.Manual
+        }))
+    }
+    when (val t = sub.trigger) {
+        is RecordTrigger.OnChange -> {
+            Text("两次之间至少隔", style = RsType.caption, color = c.textSecondary)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(15, 30, 60, 120, 240).forEach { m -> Choice(if (m < 60) "$m 分钟" else "${m / 60} 小时", t.minGapMinutes == m) { onChange(sub.copy(trigger = RecordTrigger.OnChange(m))) } }
+            }
+        }
+        is RecordTrigger.Schedule -> {
+            Text("每天这些时间推（可多选）", style = RsType.caption, color = c.textSecondary)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(7, 9, 12, 15, 18, 21, 22, 23).map { it * 60 }.forEach { m ->
+                    Choice(hm(m), m in t.times) {
+                        val next = if (m in t.times) t.times - m else t.times + m
+                        if (next.isNotEmpty()) onChange(sub.copy(trigger = t.copy(times = next.sorted())))
+                    }
+                }
+            }
+            Text("哪几天", style = RsType.caption, color = c.textSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("一", "二", "三", "四", "五", "六", "日").forEachIndexed { i, w ->
+                    val d = i + 1
+                    val on = t.weekdays.isEmpty() || d in t.weekdays
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.background).springClick {
+                        val cur = t.weekdays.ifEmpty { (1..7).toSet() }
+                        val next = if (d in cur) cur - d else cur + d
+                        if (next.isNotEmpty()) onChange(sub.copy(trigger = t.copy(weekdays = if (next.size == 7) emptySet() else next)))
+                    }, contentAlignment = Alignment.Center) { Text(w, style = RsType.subhead, color = if (on) Color.White else c.textSecondary) }
+                }
+            }
+        }
+        RecordTrigger.Manual -> Text("只在通道详情里点“现在推一次”时推。", style = RsType.caption, color = c.textSecondary)
+    }
+
+    if (caps.incremental) {
+        Label("增量还是全量")
+        app.resound.ui.skills.Segments(listOf("增量（只推变化）", "全量（每次完整）"), if (sub.incremental) 0 else 1) { onChange(sub.copy(incremental = it == 0)) }
+        if (sub.incremental) {
+            Text("每天全量校对一次，防止漏推", style = RsType.caption, color = c.textSecondary)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                (listOf<Int?>(null) + listOf(21, 22, 23).map { it * 60 }).forEach { m ->
+                    Choice(m?.let { hm(it) } ?: "不校对", sub.fullCheckAt == m) { onChange(sub.copy(fullCheckAt = m)) }
+                }
+            }
+        }
+    }
+
+    Label("范围")
+    Text("只推最近", style = RsType.caption, color = c.textSecondary)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf<Int?>(7, 30, 90, 365, null).forEach { d -> Choice(d?.let { "$it 天" } ?: "不限", sub.rangeDays == d) { onChange(sub.copy(rangeDays = d)) } }
+    }
+    ToggleRow("排除电视、视频和旁人", "外放的剧、视频，和旁边别人的对话不推", sub.excludeMedia) { onChange(sub.copy(excludeMedia = it)) }
+    if (isNew) {
+        Text("第一次开启时，补推以前的", style = RsType.caption, color = c.textSecondary)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf<Pair<String, Int?>>("从今天开始" to 0, "最近 30 天" to 30, "全部" to null).forEach { (n, d) ->
+                Choice(n, sub.backfillDays == d) { onChange(sub.copy(backfillDays = d)) }
+            }
+        }
+    }
+    if (caps.folder) {
+        Label("文件怎么放")
+        app.resound.ui.skills.Segments(FolderLayout.entries.map { it.title }, sub.layout.ordinal) { onChange(sub.copy(layout = FolderLayout.entries[it])) }
+        Text(if (sub.layout == FolderLayout.ByCategory) "重点、待办、灵感、决定各一个汇总文件，再加每天一个文件；适合给智能体读。"
+            else "只按天放，每天一个文件写全当天内容；适合归档。", style = RsType.caption, color = c.textTertiary)
+    }
+}
+
+@Composable
+private fun ToggleRow(title: String, desc: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    val c = Rs.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = RsType.body, color = c.text)
+            Text(desc, style = RsType.caption, color = c.textSecondary)
+        }
+        Switch(on, onChange)
+    }
 }

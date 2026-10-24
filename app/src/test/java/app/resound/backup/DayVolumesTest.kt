@@ -104,8 +104,11 @@ class DayVolumesTest {
         db.capture().segment(app.resound.data.SegmentEntity(1, now, now + 1000, "mic", "/old/audio.ogg", 100, "Done"))
         db.transcribe().insertLines(listOf(app.resound.data.TranscriptLineEntity(segmentId = 1, startAt = now, endAt = now + 1000, text = "hello world", speakerTag = null)))
         val feature = File(context.applicationInfo.dataDir, BackupArchive.FEATURES + "a".repeat(64)).apply { parentFile!!.mkdirs(); writeBytes(byteArrayOf(1, 2, 3)) }
+        // 自定义技能和改过的要求也在备份里（原卡 031 的整包往返测试移到这里）
+        val skill = File(context.filesDir, "skills/mine/my_meeting/prompt.md").apply { parentFile!!.mkdirs(); writeText("自定义要求") }
         sync(); val saved = restore()
         assertArrayEquals(feature.readBytes(), File(saved, BackupArchive.FEATURES + feature.name).readBytes())
+        assertEquals("自定义要求", File(saved, "files/skills/mine/my_meeting/prompt.md").readText()); skill.delete()
         val room = CaptureDatabase.open(context, File(saved, BackupArchive.DATABASE).path)
         try {
             val sql = room.openHelper.writableDatabase

@@ -137,27 +137,6 @@ class IdeasMood040Test {
         assertEquals(listOf(at() + 2000, at() + 3000), memory.mergedItems(1).first().map { it.at })
     }
 
-    @Test fun dayMoodsWeightRoundExcludeAndReactWithEmptyDates() = runBlocking {
-        event(1, duration = 60_001, emotion = "愉快", intensity = 3)
-        event(2, duration = 0, emotion = "低落", intensity = 1)
-        event(3, scene = "媒体", emotion = "低落")
-        event(4, scene = "旁人", emotion = "低落")
-        event(5, emotion = "低落", deleted = true)
-        event(6, emotion = "")
-        val updates = Channel<List<DayMood>>(Channel.UNLIMITED)
-        val job = launch { memory.dayMoods(day, day.plusDays(1)).collect { updates.send(it) } }
-        val first = withTimeout(5000) { updates.receive() }
-        assertEquals(mapOf("愉快" to 2, "低落" to 1), first[0].minutesByEmotion)
-        assertEquals("愉快", first[0].mainEmotion); assertEquals(86, first[0].energy)
-        assertEquals(2, first[0].events)
-        assertNull(first[1].energy); assertTrue(first[1].minutesByEmotion.isEmpty())
-        assertEquals(50, DayMoodCalculator.energy(0.0, 2.0)); assertNull(DayMoodCalculator.energy(0.0, 0.0))
-        db.memory().deleteEvent(1)
-        val next = withTimeout(5000) { var x = updates.receive(); while (x[0].energy != 0) x = updates.receive(); x }
-        assertEquals("低落", next[0].mainEmotion)
-        job.cancelAndJoin()
-    }
-
     @Test fun importantEventsAreCrossDayNewestFirstWithItemsAndLimit() = runBlocking {
         idea(1, at(day.minusDays(1))); idea(2)
         db.memory().setImportant(1, true); db.memory().setImportant(2, true)

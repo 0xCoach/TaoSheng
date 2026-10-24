@@ -282,7 +282,7 @@ fun MemoryScreen(
                             RsCard(padding = PaddingValues(vertical = 4.dp)) {
                                 evs.forEachIndexed { i, e ->
                                     app.resound.ui.today.SwipeEvent(e, { memory.setImportant(e.id, !e.important) }, { deletingEvent = e }) {
-                                        app.resound.ui.today.TimelineLine(e) { openedEvent = e }
+                                        lp -> app.resound.ui.today.TimelineLine(e, lp) { openedEvent = e }
                                     }
                                     if (i != evs.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                                 }

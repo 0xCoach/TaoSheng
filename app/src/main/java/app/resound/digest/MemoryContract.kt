@@ -52,18 +52,6 @@ data class MemoryItem(
     val mergedInto: Long? = null,
 )
 
-/** 某一天的心力与情绪（卡 040）：由当天事件的情绪、强度、时长算出；媒体、旁人场景不算 */
-data class DayMood(
-    val date: LocalDate,
-    /** 各种情绪各占多少分钟（按事件时长），如 {"平静": 120, "焦虑": 15} */
-    val minutesByEmotion: Map<String, Int>,
-    /** 占时最多的情绪；当天没有事件为 null */
-    val mainEmotion: String?,
-    /** 心力 0～100：越高越有劲、越愉快；当天没有事件为 null */
-    val energy: Int?,
-    /** 参与计算的事件数 */
-    val events: Int,
-)
 
 /** 某一天的条目（不含 Ignored） */
 data class DayItems(
@@ -140,9 +128,6 @@ interface MemoryRepository {
 
     /** 标了重点的事（跨天，新的在前） */
     fun importantEvents(): Flow<List<MemoryEvent>> = kotlinx.coroutines.flow.flowOf(emptyList())
-
-    /** from..to 每天的心力与情绪（含两端，按日期先后；没有事件的日子也给一条、energy 为 null） */
-    fun dayMoods(from: LocalDate, to: LocalDate): Flow<List<DayMood>> = kotlinx.coroutines.flow.flowOf(emptyList())
 
     /** 被并进这一条的其他灵感（每条带自己的原话出处），按时间先后 */
     fun mergedItems(itemId: Long): Flow<List<MemoryItem>> = kotlinx.coroutines.flow.flowOf(emptyList())

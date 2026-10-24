@@ -51,17 +51,6 @@ class RoomMemoryRepository(
             events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
         }.flowOn(Dispatchers.IO)
 
-    override fun dayMoods(from: LocalDate, to: LocalDate): Flow<List<DayMood>> {
-        require(!to.isBefore(from))
-        val zone = ZoneId.systemDefault()
-        return dao.events(from.atStartOfDay(zone).toInstant().toEpochMilli(),
-            to.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()).map { events ->
-            val byDay = events.groupBy { Instant.ofEpochMilli(it.startAt).atZone(zone).toLocalDate() }
-            generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }
-                .map { DayMoodCalculator.calculate(it, byDay[it].orEmpty()) }.toList()
-        }.flowOn(Dispatchers.IO)
-    }
-
     override fun mergedItems(itemId: Long): Flow<List<MemoryItem>> = listed(dao.mergedItems(itemId))
 
     override fun unmerge(itemId: Long) { scope.launch { dao.unmerge(itemId) } }

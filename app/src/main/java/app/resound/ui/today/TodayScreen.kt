@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -605,7 +606,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
         RsCard(padding = PaddingValues(vertical = 4.dp)) {
             entries.forEachIndexed { i, e ->
                 when (e) {
-                    is TimelineEntry.Event -> SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { TimelineLine(e.event) { onOpen(e.event) } }
+                    is TimelineEntry.Event -> SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { lp -> TimelineLine(e.event, lp) { onOpen(e.event) } }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
@@ -631,11 +632,13 @@ private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit)
 }
 
 @Composable
-internal fun TimelineLine(event: MemoryEvent, onOpen: () -> Unit) {
+internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null, onOpen: () -> Unit) {
     val c = Rs.colors
     val quiet = event.scene in QUIET_SCENES
     Row(
-        Modifier.fillMaxWidth().alpha(if (quiet) 0.55f else 1f).springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
+        Modifier.fillMaxWidth().alpha(if (quiet) 0.55f else 1f)
+            .then(if (onLongPress != null) Modifier.combinedClickable(onLongClick = onLongPress, onClick = onOpen) else Modifier.springClick(onOpen))
+            .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
     ) {
         Text(
             formatClock(event.startAt),
@@ -739,8 +742,11 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             }
 
             Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill(if (important) "取消重要" else "标为重要", filled = !important) {
+            // 有隐私接口时删除会连录音和原话一起删；否则只从时间线删掉这件事
+            val forget = app.resound.AppGraph.isPrivacyReady
+            val scope = rememberCoroutineScope()
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill(if (important) "取消重点" else "★ 标重点", filled = !important) {
                     important = !important
                     memory.setImportant(event.id, important)
                 }
@@ -755,20 +761,16 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                     )
                     onClose(); app.resound.ui.ShellNav.go(1)
                 }
+                // 删除：点一下变成“再点一次删除”，再点才真删
+                Text(if (confirmDelete) "再点一次删除" else "删除", style = RsType.subhead, color = c.critical,
+                    modifier = Modifier.springClick {
+                        if (!confirmDelete) { confirmDelete = true; return@springClick }
+                        if (forget) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(event.id) } } else memory.deleteEvent(event.id)
+                        onClose()
+                    }.clip(CircleShape).background(c.critical.copy(alpha = if (confirmDelete) 0.18f else 0.08f)).padding(horizontal = 16.dp, vertical = 9.dp))
             }
-            Spacer(Modifier.height(16.dp))
-            // 有隐私接口时“这段别记”连录音和原话彻底删除；否则只从时间线删掉这件事
-            val forget = app.resound.AppGraph.isPrivacyReady
-            val scope = rememberCoroutineScope()
-            ActionButton(
-                if (confirmDelete) "确定删除？再点一次" else if (forget) "这段别记" else "删除这件事", ActionKind.Danger,
-            ) {
-                if (!confirmDelete) { confirmDelete = true; return@ActionButton }
-                if (forget) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(event.id) } } else memory.deleteEvent(event.id)
-                onClose()
-            }
-            Text(if (forget) "这件事的录音、原话和提取出的内容一起彻底删除，无法恢复。" else "从时间线里删掉这件事。",
-                style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 6.dp))
+            if (confirmDelete) Text(if (forget) "会把这件事的录音、原话和提取出的内容一起删掉，无法恢复。" else "会从时间线里删掉这件事。",
+                style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 6.dp))
         }
         }
     }
@@ -873,36 +875,38 @@ private fun SheetSection(title: String) {
 }
 
 /**
- * 时间线上的一件事：左滑标重点 / 取消重点，右滑删除（松手后弹确认）。滑动只触发动作，行本身弹回原位。
+ * 时间线上的一件事：左滑标重点，再左滑一次取消。往左拖过约 72dp（不用滑到底）就算数，过线时轻震、文字变“松手…”。
+ * 删除不放在滑动里，在详情面板“就这个问问”旁边。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable () -> Unit) {
+internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(confirmValueChange = { v ->
-        when (v) {
-            androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); onStar() }
-            androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> onDelete()
-            else -> Unit
-        }
-        false
-    })
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = { v ->
+            if (v == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart) onStar()
+            false // 行弹回原位
+        },
+        positionalThreshold = { with(density) { 72.dp.toPx() } },
+    )
+    val armed = state.targetValue == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+    androidx.compose.runtime.LaunchedEffect(armed) { if (armed) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
     androidx.compose.material3.SwipeToDismissBox(
         state,
+        enableDismissFromStartToEnd = false,
         backgroundContent = {
-            val left = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
-            val right = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
-            Box(
-                Modifier.fillMaxSize().background(when { right -> c.accent; left -> c.critical; else -> Color.Transparent })
-                    .padding(horizontal = 24.dp),
-                contentAlignment = if (left) Alignment.CenterStart else Alignment.CenterEnd,
-            ) {
-                if (right) Text(if (event.important) "取消重点" else "★ 标重点", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
-                if (left) Text("删除", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+            val swiping = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+            Box(Modifier.fillMaxSize().background(if (swiping) (if (armed) c.accent else c.accent.copy(alpha = 0.55f)) else Color.Transparent)
+                .padding(horizontal = 24.dp), contentAlignment = Alignment.CenterEnd) {
+                if (swiping) {
+                    val label = if (event.important) "取消重点" else "★ 标重点"
+                    Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+                }
             }
         },
-    ) { Box(Modifier.background(c.card)) { content() } }
+    ) { Box(Modifier.background(c.card)) { content(null) } }
 }
 
 /** 删除一件事前确认 */

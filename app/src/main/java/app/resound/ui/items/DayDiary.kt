@@ -257,7 +257,7 @@ internal fun LazyListScope.dayDiary(
                     bottomStart = if (last) 22.dp else 0.dp, bottomEnd = if (last) 22.dp else 0.dp)
                 Column(Modifier.padding(bottom = if (last) 16.dp else 0.dp).clip(shape).background(Rs.colors.card)
                     .padding(top = if (i == 0) 4.dp else 0.dp, bottom = if (last) 4.dp else 0.dp)) {
-                    app.resound.ui.today.SwipeEvent(e, { onStar(e) }, { onDelete(e) }) { TimelineLine(e) { onOpenEvent(e) } }
+                    app.resound.ui.today.SwipeEvent(e, { onStar(e) }, { onDelete(e) }) { lp -> TimelineLine(e, lp) { onOpenEvent(e) } }
                     if (!last) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(Rs.colors.separator))
                 }
             }

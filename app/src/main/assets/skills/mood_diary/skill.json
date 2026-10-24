@@ -54,5 +54,6 @@
   ],
   "maxCardsPerDay": 1,
   "push": false,
+  "enabled": false,
   "order": 3
 }

@@ -75,7 +75,7 @@ class Skills031Test {
     }
 
     @Test fun parsesOfficialAndRejectsInvalidKeyTypeAndBounds() {
-        assertEquals(listOf("timeline", "review", "meeting", "evening_note", "weekly"), files.skills.value.map { it.id })
+        assertEquals(listOf("timeline", "review", "meeting", "evening_note", "weekly", "mood_diary"), files.skills.value.map { it.id })
         val text = SkillJson.encode(official().first().first)
         listOf(JSONObject(text).put("id", "../escape"), JSONObject(text).put("maxCardsPerDay", 21),
             JSONObject(text).put("trigger", JSONObject().put("type", "Daily").put("minutes", 1440))).forEach {
@@ -190,22 +190,13 @@ class Skills031Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(12, migrated.openHelper.writableDatabase.version)
+            assertEquals(13, migrated.openHelper.writableDatabase.version)
             assertEquals(12L, migrated.memory().observeUsage().first().single().promptTokens)
             assertNotNull(migrated.skills().merge(card(), 8)); assertEquals(1, migrated.skills().cards(day.toEpochDay()).first().size)
         } finally { migrated.close(); context.deleteDatabase(name) }
     }
-    @Test fun backupRoundTripRestoresSkillsAndRejectsTraversal() {
-        val skillRoot = File(context.filesDir, "skills").apply { deleteRecursively() }
-        val stored = SkillFiles(skillRoot, ::official)
-        stored.savePrompt("meeting", "自定义要求").getOrThrow(); stored.copyAsMine("meeting").getOrThrow()
-        val zip = File(root, "backup.zip")
-        BackupArchive.create(context, db, File(root, "stage").apply { mkdirs() }, zip, clock)
-        val verified = File(root, "verified"); BackupArchive.verify(zip, verified, 12)
-        assertTrue(File(verified, "files/skills/mine/my_meeting/skill.json").isFile)
-        stored.savePrompt("meeting", "应被恢复覆盖").getOrThrow()
-        BackupRestore.stage(context, verified); BackupRestore.applyPending(context)
-        assertEquals("自定义要求", SkillFiles(skillRoot, ::official).prompt("meeting"))
+    @Test fun skillPathsRejectTraversal() {
+        // 技能文件随备份往返已在 DayVolumesTest 覆盖；这里只保留路径白名单
         assertFalse(BackupArchive.allowed("files/skills/../secret")); assertFalse(BackupArchive.allowed("files/skills/prompts/../../secret.md"))
     }
     @Test fun trialRetriesFormatOnceAndAccountsTokensWithoutPersistingCards() = runBlocking {
@@ -256,7 +247,7 @@ class Skills031Test {
         }
         val copy = CaptureDatabase.open(context, path)
         try {
-            assertEquals(12, copy.openHelper.writableDatabase.version)
+            assertEquals(13, copy.openHelper.writableDatabase.version)
             for (s in skillsForProbe()) {
                 val input = SkillInputs.load(copy.skills(), s, day, null, start + 86_399_999)
                 val json = JSONObject().put("skillId", s.id).put("date", day.toString())

@@ -181,7 +181,7 @@ class SkillGeneration047Test {
         assertEquals(day.toString(), shadowOf(failure.contentIntent).savedIntent.getStringExtra("date"))
         val card = db.skills().dayRows(key.first, day.toEpochDay()).single().card()
         val multi = SkillGenerationNotice.from("收工打卡", day, SkillRunResult.Cards(listOf(card, card.copy(id = 99))))
-        assertEquals("出了 2 张", multi.body); assertEquals("resound://review?open=review&date=$day", multi.link)
+        assertEquals("出了 2 张", multi.body); assertEquals("resound://day?open=day&date=$day", multi.link)
         assertEquals(0, pushes.get())
     }
 

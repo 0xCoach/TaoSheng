@@ -58,6 +58,8 @@ import app.resound.ui.verify.VerifyScreen
 class MainActivity : ComponentActivity() {
     /** 点“今日回顾”通知进来：要打开的那天，和对底栏的切页请求 */
     private var openReview by mutableStateOf<LocalDate?>(null)
+    /** 只跳到那一天，不弹回顾（技能生成通知用） */
+    private var dayOnly by mutableStateOf(false)
     private var tabRequest by mutableStateOf<Pair<Int, Long>?>(null)
     /** 从技能卡通知点进来：打开这张卡 */
     private var openCardId by mutableStateOf<Long?>(null)
@@ -76,7 +78,9 @@ class MainActivity : ComponentActivity() {
             openCardId = (intent.data?.getQueryParameter("id") ?: intent.getStringExtra("id"))?.toLongOrNull()
             return
         }
-        if (intent?.getStringExtra("open") != "review") return
+        val open = intent?.getStringExtra("open")
+        if (open != "review" && open != "day") return
+        dayOnly = open == "day"
         openReview = intent.getStringExtra("date")?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
         tabRequest = 2 to System.nanoTime() // 第 3 页“记忆”
     }
@@ -124,7 +128,7 @@ class MainActivity : ComponentActivity() {
                         "问问" to { AskScreen(ask, ShellBottomPadding) },
                         "记忆" to {
                             MemoryScreen(memory, if (AppGraph.isReviewReady) AppGraph.review else null, transcripts,
-                                if (AppGraph.isDiaryReady) AppGraph.diary else null, openReview, { openReview = null }, ShellBottomPadding)
+                                if (AppGraph.isDiaryReady) AppGraph.diary else null, openReview, { openReview = null }, ShellBottomPadding, showReview = !dayOnly)
                         },
                         "待办" to { TodoScreen(memory, ShellBottomPadding) },
                         "设置" to {

@@ -247,6 +247,8 @@ fun MemoryScreen(
     openReview: LocalDate?,
     onReviewShown: () -> Unit,
     bottomPadding: Dp,
+    /** false 时只跳到那天，不弹回顾 */
+    showReview: Boolean = true,
 ) {
     val c = Rs.colors
     var byDay by rememberSaveable { mutableStateOf(true) }
@@ -304,6 +306,7 @@ fun MemoryScreen(
     // 从通知点进来：切到按天、那一天，回顾出来后打开
     LaunchedEffect(openReview) { openReview?.let { byDay = true; epochDay = it.toEpochDay() } }
     LaunchedEffect(openReview, review) {
+        if (openReview != null && !showReview) { onReviewShown(); return@LaunchedEffect }
         if (openReview != null && review?.date == openReview) { openedReview = review; onReviewShown() }
     }
 

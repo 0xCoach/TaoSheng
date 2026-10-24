@@ -115,7 +115,7 @@ class SkillGeneration(
 internal data class SkillGenerationNotice(val title: String, val body: String, val link: String) {
     companion object {
         fun from(name: String, date: LocalDate, result: SkillRunResult): SkillGenerationNotice {
-            val dayLink = "resound://review?open=review&date=$date"
+            val dayLink = "resound://day?open=day&date=$date"
             return when (result) {
                 is SkillRunResult.Cards -> SkillGenerationNotice("回响 · ${name}已生成",
                     if (result.cards.size == 1) result.cards.single().summary else "出了 ${result.cards.size} 张",

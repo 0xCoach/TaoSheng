@@ -87,7 +87,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>) 
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            listOf("0", "6", "12", "18", "24").forEachIndexed { i, t ->
+            // 每 6 小时一格，刻度对齐到这一格的第一根柱子
+            listOf("0", "6", "12", "18").forEach { t ->
                 Text(t, style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
             }
         }

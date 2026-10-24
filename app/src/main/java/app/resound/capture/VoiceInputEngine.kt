@@ -223,7 +223,7 @@ internal class VoiceInputEngine(
         dbg("收尾：新增字数=${text.length}")
         if (text.isBlank()) return
         output(InputChange.Save(InputRecord(UUID.randomUUID().toString(), w.at, text,
-            VoiceInputMeta(w.screen.app, w.screen.packageName, w.screen.title,
+            VoiceInputMeta(w.screen.app, w.screen.packageName, w.screen.title?.takeIf { w.screen.packageName in VoiceInputOcr.TITLED },
                 if (w.settings.context) VoiceInputText.context(w.screen.lines) else null, null), null)))
     }
 }

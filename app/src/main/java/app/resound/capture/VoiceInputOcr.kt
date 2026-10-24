@@ -4,7 +4,9 @@ package app.resound.capture
 internal data class OcrLine(val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int, val block: Int = 0)
 internal data class OcrLayout(val width: Int, val height: Int, val contentTop: Int, val contentBottom: Int, val imeTop: Int?)
 /** text 为输入框（输入法上方最贴近的一段）；bubble 为聊天区最下面靠右的气泡（已发送的那句），没有为 null */
-internal data class OcrInput(val text: String, val context: List<String>, val title: String?, val bubble: String? = null)
+internal data class OcrInput(val text: String, val context: List<String>, val title: String?, val bubble: String? = null,
+    /** 是不是从终端提示符那一行取的 */
+    val prompt: Boolean = false)
 
 internal object VoiceInputChrome {
     val send = setOf("发送", "Send", "send", "提交", "回车")
@@ -12,22 +14,26 @@ internal object VoiceInputChrome {
     private val time = Regex("[0-9]{1,2}[:：][0-9]{2}")
     // 终端键盘上方的按键行，如“Ctrl+C Ctrl+V”“ESC TAB ↑ ↓”：整行只有键名，不是原话
     private val keys = Regex("(?i)^(\\s*(ctrl|alt|shift|esc|tab|fn|home|end|pgup|pgdn|del|enter|[↑↓←→]|[a-z])(\\s*\\+\\s*[a-z0-9]+)?\\s*)+$")
-    fun keep(text: String) = text.isNotBlank() && text.trim() !in words && !time.matches(text.trim()) && !keys.matches(text.trim())
+    private val edge = "()（）[]【】<>《》|｜丨:：·•. ".toSet()
+    fun keep(text: String): Boolean {
+        val t = text.trim(); val core = t.trim { it in edge }
+        return t.isNotBlank() && core.isNotEmpty() && t !in words && core !in words && !time.matches(core) && !keys.matches(t)
+    }
 }
 
 internal object VoiceInputOcr {
     /** 按应用类型：聊天类上下文标“我 / 对方”，终端不取标题 */
     fun extract(source: List<OcrLine>, layout: OcrLayout, pkg: String): OcrInput? {
         val r = extract(source, layout) ?: return null
-        val noTitle = pkg in TERMINAL
-        if (pkg !in CHAT) return if (noTitle) r.copy(title = null) else r
+        if (pkg in TERMINAL && !r.prompt) return null // 终端只认提示符那一行，找不到宁可不记
+        if (pkg !in CHAT) return r.copy(title = r.title?.takeIf { pkg in TITLED })
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
         val inputTop = source.filter { VoiceInputChrome.keep(it.text) && joinLines(listOf(it.text.trim())).let { t -> r.text.contains(t) } && it.bottom <= keyboard }
             .minOfOrNull { it.top } ?: keyboard
         val above = source.filter { it.top >= layout.contentTop && it.bottom <= inputTop && VoiceInputChrome.keep(it.text) && it.text.trim() != r.title }
             .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left })
             .filter { r.title == null || it.bottom > layout.contentTop + layout.height / 8 }
-        return r.copy(context = sided(above, layout.width).takeLast(20))
+        return r.copy(context = sided(above, layout.width, pkg).takeLast(20), title = r.title?.takeIf { pkg in TITLED })
     }
     fun extract(source: List<OcrLine>, layout: OcrLayout): OcrInput? {
         if (layout.width <= 0 || layout.height <= 0) return null
@@ -45,7 +51,7 @@ internal object VoiceInputOcr {
             if (text.isNotBlank()) {
                 val above = lines.filter { it.bottom <= prompt.top }
                 val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 && looksLikeTitle(it.text) }
-                return OcrInput(text.take(8000), above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
+                return OcrInput(text.take(8000), above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim(), prompt = true)
             }
         }
         val last = lines.maxByOrNull { it.bottom } ?: return null
@@ -84,37 +90,44 @@ internal object VoiceInputOcr {
     val CHAT = setOf("com.tencent.mm", "com.openai.chatgpt", "com.google.android.apps.bard", "com.google.android.googlequicksearchbox", "com.twitter.android")
     /** 终端类：没有标题 */
     val TERMINAL = setOf("com.netease.uuremote", "com.termux")
+    /** 谁说的：离右边更近的是我；离左边更近的是对方；两边一样近（整行铺满）在 AI 应用里是 AI 的回答，算对方，其他应用不标 */
+    fun side(l: OcrLine, width: Int, pkg: String?): String {
+        val dl = l.left; val dr = width - l.right; val gap = width * .05
+        return when { dl - dr > gap -> "我"; dr - dl > gap -> "对方"; pkg in AI -> "对方"; else -> "" }
+    }
+    val AI = setOf("com.openai.chatgpt", "com.google.android.apps.bard", "com.google.android.googlequicksearchbox")
+    /** 只有微信的标题是联系人名字，其他应用的标题（日期、会话名）不取 */
+    val TITLED = setOf("com.tencent.mm")
     /** 上下文按左右标上谁说的，同一侧相邻的几行合成一条 */
-    fun sided(lines: List<OcrLine>, width: Int): List<String> {
+    fun sided(lines: List<OcrLine>, width: Int, pkg: String? = null): List<String> {
         val out = mutableListOf<Pair<String, String>>()
         for (l in lines) {
-            val c = (l.left + l.right) / 2
-            val who = when { c > width * .55 -> "我"; c < width * .45 && l.left < width * .2 -> "对方"; else -> "" }
+            val who = side(l, width, pkg)
             val last = out.lastOrNull()
             if (last != null && last.first == who && who.isNotEmpty()) out[out.lastIndex] = who to joinLines(listOf(last.second, l.text.trim()))
             else out += who to l.text.trim()
         }
         return out.map { (w, t) -> if (w.isEmpty()) t else "$w：$t" }
     }
-    private val PROMPT = Regex("^[>》❯$#➜»›]+\\s*")
+    private val PROMPT = Regex("^[>》❯$#➜»›＞]+\\s*")
     /** 输入框自动折行的几行接回一句：中文直接接上，英文之间补空格 */
     fun joinLines(parts: List<String>) = parts.filter(String::isNotBlank).fold("") { acc, p ->
         if (acc.isEmpty()) p else if (acc.last().isLetterOrDigit() && acc.last().code < 128 && p.first().isLetterOrDigit() && p.first().code < 128) "$acc $p" else acc + p
     }
 
-    /** 聊天区最下面靠右的气泡：文字中心在宽度 55% 以右，取最靠下的一组相邻行 */
+    /** 聊天区最下面“我”这一侧的气泡（离右边比离左边近），取最靠下的一组相邻行 */
     fun lastRightBubble(source: List<OcrLine>, layout: OcrLayout): String? {
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
         val bottom = minOf(keyboard, layout.contentBottom)
         val right = source.filter { it.top >= layout.contentTop + layout.height / 10 && it.bottom <= bottom &&
-            (it.left + it.right) / 2 > layout.width * .55 && VoiceInputChrome.keep(it.text) }.sortedBy { it.top }
+            side(it, layout.width, null) == "我" && VoiceInputChrome.keep(it.text) }.sortedBy { it.top }
         val last = right.lastOrNull() ?: return null
         val group = mutableListOf(last)
         for (c in right.dropLast(1).asReversed()) {
             val first = group.first()
             if (c.block == last.block || first.top - c.bottom <= (last.bottom - last.top) * .65) group.add(0, c) else break
         }
-        return group.joinToString("") { it.text.trim() }.ifBlank { null }
+        return joinLines(group.map { it.text.trim() }).ifBlank { null }
     }
 
     /** 检查应用内容区域，状态栏亮点不能使被保护的黑屏通过。 */

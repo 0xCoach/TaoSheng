@@ -215,4 +215,24 @@ class VoiceInput049Test {
             assertEquals(listOf("对方：你好呀合成", "对方：新的回复合成"), rows.map { VoiceInputMetadata.read(it.voiceInputJson)!!.before })
         } finally { db.close() }
     }
+    @Test fun sidesByEdgeDistanceAndStrictTerminal() {
+        fun at(l: Int, r: Int) = OcrLine("合成", l, 500, r, 540)
+        // 微信里我发的长消息（离右边近）、对方的长消息（离左边近）、居中的时间（不标）
+        assertEquals("我", VoiceInputOcr.side(at(250, 830), 1000, "com.tencent.mm"))
+        assertEquals("对方", VoiceInputOcr.side(at(170, 750), 1000, "com.tencent.mm"))
+        assertEquals("", VoiceInputOcr.side(at(420, 580), 1000, "com.tencent.mm"))
+        // AI 的回答整行铺满：算对方
+        assertEquals("对方", VoiceInputOcr.side(at(50, 950), 1000, "com.google.android.googlequicksearchbox"))
+        // 按钮带了括号也认得出
+        assertFalse(VoiceInputChrome.keep("(发送")); assertFalse(VoiceInputChrome.keep("发送）"))
+        // 终端：没有提示符行、或提示符行是空的，宁可不记
+        val noPrompt = listOf(line("屏幕上的输出合成", 900), line("状态合成", 1000))
+        assertNull(VoiceInputOcr.extract(noPrompt, layout, "com.netease.uuremote"))
+        assertNull(VoiceInputOcr.extract(noPrompt + line("》", 950, 4), layout, "com.netease.uuremote"))
+        assertEquals("合成输入", VoiceInputOcr.extract(noPrompt + line("》合成输入", 950, 4), layout, "com.netease.uuremote")!!.text)
+        // 标题只给微信
+        val chat = listOf(line("老王", 80), line("合成上文", 600), line("合成输入框", 1140, 9))
+        assertNull(VoiceInputOcr.extract(chat, layout, "com.openai.chatgpt")!!.title)
+        assertEquals("老王", VoiceInputOcr.extract(chat, layout, "com.tencent.mm")!!.title)
+    }
 }

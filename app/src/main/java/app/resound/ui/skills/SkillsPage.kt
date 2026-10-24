@@ -471,13 +471,17 @@ private fun TryCard(s: Skill, repo: SkillRepository, prompt: String?) {
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<SkillRunResult?>(null) }
     var saved by remember { mutableStateOf(false) }
+    val date = LocalDate.now().minusDays(day.toLong())
+    // 生成走后台（切页面不中断），试跑只是预览、留在本页
+    val generating = (s.id to date) in repo.generating.collectAsState().value
+    val generated = repo.generated.collectAsState().value[s.id to date]
+    if (saved && !generating && generated != null) result = generated
     fun go(save: Boolean) {
-        if (busy) return
-        busy = true; result = null; saved = save
-        scope.launch {
-            val date = LocalDate.now().minusDays(day.toLong())
-            result = try { if (save) repo.runNow(s.id, date) else repo.trial(s.id, date, prompt) } finally { busy = false }
-        }
+        if (busy || generating) return
+        result = null; saved = save
+        if (save) { repo.generate(s.id, date); return }
+        busy = true
+        scope.launch { result = try { repo.trial(s.id, date, prompt) } finally { busy = false } }
     }
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Text("试一下", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
@@ -486,8 +490,8 @@ private fun TryCard(s: Skill, repo: SkillRepository, prompt: String?) {
         Segments(listOf("今天", "昨天", "前天"), day) { day = it }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ActionButton(if (busy && !saved) "试跑中…" else "试跑", ActionKind.Secondary, Modifier.weight(1f), enabled = !busy) { go(false) }
-            ActionButton(if (busy && saved) "生成中…" else "生成", ActionKind.Primary, Modifier.weight(1f), enabled = !busy) { go(true) }
+            ActionButton(if (busy) "试跑中…" else "试跑", ActionKind.Secondary, Modifier.weight(1f), enabled = !busy && !generating) { go(false) }
+            ActionButton(if (generating) "后台生成中…" else "生成", ActionKind.Primary, Modifier.weight(1f), enabled = !busy && !generating) { go(true) }
         }
         when (val r = result) {
             null -> Unit

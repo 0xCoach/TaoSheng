@@ -244,6 +244,19 @@ interface SkillRepository {
      */
     suspend fun runNow(skillId: String, date: LocalDate): SkillRunResult
 
+    /**
+     * 卡 047：后台正式生成（手动点“生成 / 重新生成”都走这里）。立即返回；切页面、锁屏、退出都不中断。
+     * 手动生成不受“删过这天的卡”拦截（会清掉删除记录再出卡）；自动运行仍跳过删过的。
+     * 跑完发一条系统通知：出了卡点开直达那张卡；没出卡或失败写清原因。同一技能同一天正在跑时重复调用不再排队。
+     */
+    fun generate(skillId: String, date: LocalDate) {}
+
+    /** 正在后台生成的（技能 id, 日期） */
+    val generating: StateFlow<Set<Pair<String, LocalDate>>> get() = kotlinx.coroutines.flow.MutableStateFlow(emptySet())
+
+    /** 最近一次后台生成的结果，界面停在页面上时直接显示；进程重启后可为空 */
+    val generated: StateFlow<Map<Pair<String, LocalDate>, SkillRunResult>> get() = kotlinx.coroutines.flow.MutableStateFlow(emptyMap())
+
     /** 试跑：用某天的真实数据跑一次，只返回预览，不存库、不推送；可传入还没保存的要求 */
     suspend fun trial(skillId: String, date: LocalDate, promptOverride: String? = null): SkillRunResult
 

@@ -180,7 +180,7 @@ class VoiceInputService : AccessibilityService() {
                 metrics.bounds.height() - insets.bottom, ime)
         }.getOrNull()
         if (layout == null) { e.recognized(request, null); return }
-        ocr.capture(layout, ::valid) { result -> e.recognized(request, result) }
+        ocr.capture(layout, request.screen.packageName, ::valid) { result -> e.recognized(request, result) }
     }
 
     private var lastSnapLog = ""

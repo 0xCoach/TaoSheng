@@ -22,10 +22,14 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
             if (dao.extend(prev.id, record.text) > 0) return@withTransaction prev.id
         }
         val sameChat = recent.filter { VoiceInputDedup.title(it.second.title) == VoiceInputDedup.title(record.meta.title) }
+        // 上下文带“我：/对方：”前缀，比较时去掉前缀；我自己发过的话已是单独记录，不再进后面的上下文
         val known = sameChat.flatMap { (row, meta) ->
             meta.before.orEmpty().lines() + row.text.lines() + row.text
-        }.map(VoiceInputDedup::key).filter(String::isNotEmpty).toSet()
-        val before = VoiceInputText.context(record.meta.before.orEmpty().lines().filter { VoiceInputDedup.key(it) !in known })
+        }.map(VoiceInputDedup::bare).filter(String::isNotEmpty).toSet()
+        val before = VoiceInputText.context(record.meta.before.orEmpty().lines().filter { line ->
+            val k = VoiceInputDedup.bare(line)
+            k !in known && known.none { it.length >= 6 && VoiceInputDedup.sameAs(it, k) }
+        })
         val meta = record.meta.copy(before = before, after = null)
         val segment = dao.segment(SegmentEntity(startAt = record.at, endAt = record.at + 1,
             sourceId = "voice-input", path = path, sizeBytes = 0, status = "Done",
@@ -47,10 +51,29 @@ internal object VoiceInputDedup {
     fun key(text: String) = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKC)
         .trim().replace(Regex("\\s+"), " ")
     fun title(text: String?) = text?.let(::key)?.ifBlank { null }
-    /** next 是不是在 prev 后面接着说的（识字可能把前半句个别字认得不一样，前半段相似也算） */
+    /** 去掉“我：/对方：”前缀后的比较键 */
+    fun bare(line: String) = key(line.trim().removePrefix("我：").removePrefix("对方："))
+    /** 两段是不是同一句（识字误差内）：按顺序对得上的字占较长一段的 85% 以上 */
+    fun sameAs(a: String, b: String): Boolean {
+        val x = VoiceInputText.normalized(a); val y = VoiceInputText.normalized(b)
+        if (x.isEmpty() || y.isEmpty()) return false
+        return lcs(x, y) >= maxOf(x.length, y.length) * 0.85
+    }
+    /** next 是不是在 prev 后面接着说的（还没发送、输入框越说越长）：prev 的字按顺序大部分出现在 next 开头一段里 */
     fun continues(prev: String, next: String): Boolean {
         val a = VoiceInputText.normalized(prev); val b = VoiceInputText.normalized(next)
         if (a.isEmpty() || b.length <= a.length) return false
-        return b.startsWith(a) || VoiceInputText.similar(a, b.take(a.length))
+        if (b.startsWith(a)) return true
+        return a.length >= 4 && lcs(a, b.take(a.length + a.length / 4 + 2)) >= a.length * 0.75
+    }
+    private fun lcs(x: String, y: String): Int {
+        if (x.length > 3000 || y.length > 3000) return 0
+        var prev = IntArray(y.length + 1)
+        for (i in x.indices) {
+            val cur = IntArray(y.length + 1)
+            for (j in y.indices) cur[j + 1] = if (x[i] == y[j]) prev[j] + 1 else maxOf(prev[j + 1], cur[j])
+            prev = cur
+        }
+        return prev[y.length]
     }
 }

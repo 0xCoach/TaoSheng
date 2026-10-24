@@ -53,17 +53,18 @@ class VoiceInput049Test {
         val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()
         val e = VoiceInputEngine(requests::add, changes::add)
         e.recording(true, 0, screen, settings); e.recording(false, 100, screen, settings)
-        for (t in listOf(599L, 600L, 1100L, 3100L, 4000L)) {
+        for (t in listOf(599L, 600L, 1300L, 3100L, 6100L, 7000L)) {
             val here = if (leaveAt != null && t >= leaveAt) screen.copy(packageName = "other") else screen
             e.tick(t, here, settings.copy(replies = true))
-            requests.filter { e.accepts(it) }.forEach { e.recognized(it, results[it.shot]) }
+            requests.filter { e.accepts(it) }.forEach { e.recognized(it, results.getOrElse(it.shot) { results.last() }) }
         }
         return requests to changes
     }
     private fun saved(changes: List<InputChange>) = changes.filterIsInstance<InputChange.Save>().single().record
     @Test fun oneScreenshotAfterOneSecondAndNoRepliesEvenIfLegacySettingEnabled() {
         val (requests, changes) = run(listOf(output.copy(text = "我的原"), output, output))
-        assertEquals(listOf(0, 1, 2), requests.map { it.shot })
+        // 3 秒时还没发出（输入框还有字、没有新气泡）：再截 6 秒那张
+        assertEquals(listOf(0, 1, 2, 3), requests.map { it.shot })
         val record = saved(changes)
         assertEquals("我的原话", record.text); assertNull(record.meta.after); assertNull(record.replyUntil)
         assertEquals(listOf(1), changes.map { 1 })
@@ -80,7 +81,7 @@ class VoiceInput049Test {
         val (r0, c0) = run(listOf(output, output, output), leaveAt = 500)
         assertTrue(r0.isEmpty()); assertTrue(c0.isEmpty())
         // 1 秒后离开：已截的两张照用，3 秒那张不再截
-        val (r1, c1) = run(listOf(output, output, output), leaveAt = 1200)
+        val (r1, c1) = run(listOf(output, output, output), leaveAt = 1400)
         assertEquals(listOf(0, 1), r1.map { it.shot }); assertEquals("我的原话", saved(c1).text)
     }
     @Test fun readableNodesOrDisabledOcrNeverScreenshot() {
@@ -90,7 +91,7 @@ class VoiceInput049Test {
             val before = if (restoreNodes) screen else screen.copy(field = "field", text = "")
             val after = screen.copy(field = "field", text = "可读原文")
             e.recording(true, 0, before, settings); e.recording(false, 100, after, settings)
-            e.tick(1100, after, settings); e.tick(3100, after, settings)
+            e.tick(1100, after, settings); e.tick(3100, after, settings); e.tick(61000, after, settings)
             assertTrue(requests.isEmpty()); assertEquals("可读原文", changes.filterIsInstance<InputChange.Save>().single().record.text)
         }
         val requests = mutableListOf<OcrRequest>(); val e = VoiceInputEngine(requests::add) {}
@@ -103,7 +104,7 @@ class VoiceInput049Test {
         assertFalse(VoiceInputOcr.black(100, 200, 20, 120) { _, _ -> 0xffffff })
         // 三张都失败：每张只截一次，不重试，不记
         val (requests, changes) = run(listOf(null, null, null))
-        assertEquals(3, requests.size); assertTrue(changes.isEmpty())
+        assertEquals(4, requests.size); assertTrue(changes.isEmpty())
         // 暂停（reset）后迟到的结果作废
         val req = mutableListOf<OcrRequest>(); val ch = mutableListOf<InputChange>()
         val e = VoiceInputEngine(req::add, ch::add)
@@ -191,5 +192,27 @@ class VoiceInput049Test {
     @Test fun titleNeedsRealText() {
         assertFalse(VoiceInputOcr.looksLikeTitle("く")); assertFalse(VoiceInputOcr.looksLikeTitle("<"))
         assertTrue(VoiceInputOcr.looksLikeTitle("老王"))
+    }
+    @Test fun chatContextIsSidedAndOwnSentBubbleWins() {
+        // 右边是我、左边是对方
+        val ctx = VoiceInputOcr.sided(listOf(line("对方说的合成一句", 400, 1, left = 60), line("我回的合成一句", 500, 2, left = 600)), 1000)
+        assertEquals(listOf("对方：对方说的合成一句", "我：我回的合成一句"), ctx)
+        // 1 秒时输入框已清空（只剩残渣）：用 0.5 秒那张；3 秒出现新的右侧气泡，以气泡为准
+        val (_, c) = run(listOf(OcrInput("合成的一句完整的话", listOf("旧"), "老王"), OcrInput("(の|", listOf("旧"), "老王"),
+            OcrInput("", listOf("旧"), "老王", "合成的一句完整的话。")))
+        assertEquals("合成的一句完整的话。", saved(c).text)
+        assertNull(VoiceInputOcr.clean("(の|")); assertEquals("合成一句", VoiceInputOcr.clean("合成一句|"))
+        assertFalse(VoiceInputOcr.looksLikeTitle("<1344")); assertFalse(VoiceInputOcr.looksLikeTitle("+putOcr.looksLike(\"く\")"))
+    }
+    @Test fun ownEarlierMessagesNeverReappearInLaterContext() = runBlocking {
+        val db = database()
+        try {
+            val store = VoiceInputStore(db)
+            store.save(record(1000, "我发的第一段合成话", "对方：你好呀合成"))
+            // 第二段的上下文里出现了“我：我发的第一段合成话”（识字差一个字），不再存
+            store.save(record(9000, "我发的第二段合成话", "对方：你好呀合成\n我：我发的第一段合成活\n对方：新的回复合成"))
+            val rows = db.voiceInput().observed().first().reversed()
+            assertEquals(listOf("对方：你好呀合成", "对方：新的回复合成"), rows.map { VoiceInputMetadata.read(it.voiceInputJson)!!.before })
+        } finally { db.close() }
     }
 }

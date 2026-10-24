@@ -16,6 +16,19 @@ internal object VoiceInputChrome {
 }
 
 internal object VoiceInputOcr {
+    /** 按应用类型：聊天类上下文标“我 / 对方”，终端不取标题 */
+    fun extract(source: List<OcrLine>, layout: OcrLayout, pkg: String): OcrInput? {
+        val r = extract(source, layout) ?: return null
+        val noTitle = pkg in TERMINAL
+        if (pkg !in CHAT) return if (noTitle) r.copy(title = null) else r
+        val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
+        val inputTop = source.filter { VoiceInputChrome.keep(it.text) && joinLines(listOf(it.text.trim())).let { t -> r.text.contains(t) } && it.bottom <= keyboard }
+            .minOfOrNull { it.top } ?: keyboard
+        val above = source.filter { it.top >= layout.contentTop && it.bottom <= inputTop && VoiceInputChrome.keep(it.text) && it.text.trim() != r.title }
+            .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left })
+            .filter { r.title == null || it.bottom > layout.contentTop + layout.height / 8 }
+        return r.copy(context = sided(above, layout.width).takeLast(20))
+    }
     fun extract(source: List<OcrLine>, layout: OcrLayout): OcrInput? {
         if (layout.width <= 0 || layout.height <= 0) return null
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height }
@@ -56,8 +69,33 @@ internal object VoiceInputOcr {
         return OcrInput(text, above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
     }
 
-    /** 标题至少两个字、要有正常文字（返回箭头“く”“<”这类不算） */
-    fun looksLikeTitle(text: String) = text.trim().count { it.isLetterOrDigit() } >= 2
+    /** 标题像个名字：2～20 个字，有字母或汉字（不是纯数字、未读数），不带代码符号；返回箭头“く”“<”这类不算 */
+    fun looksLikeTitle(text: String): Boolean {
+        val t = text.trim().trimStart('<', 'く', '‹', '〈', ' ')
+        return t.length in 2..20 && t.any { it.isLetter() } && t.none { it in CODE }
+    }
+    private const val CODE = "()（）+=/\\;{}[]\"'`$&|"
+    /** 去掉光标“|”和首尾空白；只剩一两个字的残渣当没读到 */
+    fun clean(text: String?): String? {
+        val t = text?.trim()?.trim('|', '｜', '丨')?.trim() ?: return null
+        return t.takeIf { it.count { c -> c.isLetterOrDigit() } >= 2 }
+    }
+    /** 聊天类：右边是我、左边是对方 */
+    val CHAT = setOf("com.tencent.mm", "com.openai.chatgpt", "com.google.android.apps.bard", "com.google.android.googlequicksearchbox", "com.twitter.android")
+    /** 终端类：没有标题 */
+    val TERMINAL = setOf("com.netease.uuremote", "com.termux")
+    /** 上下文按左右标上谁说的，同一侧相邻的几行合成一条 */
+    fun sided(lines: List<OcrLine>, width: Int): List<String> {
+        val out = mutableListOf<Pair<String, String>>()
+        for (l in lines) {
+            val c = (l.left + l.right) / 2
+            val who = when { c > width * .55 -> "我"; c < width * .45 && l.left < width * .2 -> "对方"; else -> "" }
+            val last = out.lastOrNull()
+            if (last != null && last.first == who && who.isNotEmpty()) out[out.lastIndex] = who to joinLines(listOf(last.second, l.text.trim()))
+            else out += who to l.text.trim()
+        }
+        return out.map { (w, t) -> if (w.isEmpty()) t else "$w：$t" }
+    }
     private val PROMPT = Regex("^[>》❯$#➜»›]+\\s*")
     /** 输入框自动折行的几行接回一句：中文直接接上，英文之间补空格 */
     fun joinLines(parts: List<String>) = parts.filter(String::isNotBlank).fold("") { acc, p ->

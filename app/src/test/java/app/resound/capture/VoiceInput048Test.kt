@@ -45,17 +45,28 @@ class VoiceInput048Test {
     @After fun cleanup() { db.close() }
 
     @Test fun windowWaitsThreeSecondsAndSeparatesConsecutiveDictations() {
+        // 负责人定：以发送为界。同一输入框里停顿后接着说 = 同一条；发送（一下清空）才定稿
         val out = mutableListOf<InputChange>(); val e = VoiceInputEngine(out::add)
         e.recording(true, 0, screen(), settings)
         e.tick(100, screen("草稿第一句"), settings)
         e.recording(false, 200, screen("草稿第一句"), settings)
-        e.tick(3199, screen("草稿第一句"), settings); assertTrue(out.isEmpty())
-        e.tick(3200, screen("草稿第一句"), settings)
+        e.tick(3200, screen("草稿第一句"), settings); assertTrue(out.isEmpty())
         e.recording(true, 3300, screen("草稿第一句"), settings)
         e.tick(3400, screen("草稿第一句第二句"), settings)
         e.recording(false, 3500, screen("草稿第一句第二句"), settings)
-        e.tick(6500, screen("草稿第一句第二句"), settings); e.tick(7000, screen(), settings)
-        assertEquals(listOf("第一句", "第二句"), out.filterIsInstance<InputChange.Save>().map { it.record.text })
+        e.tick(6500, screen("草稿第一句第二句"), settings); assertTrue(out.isEmpty())
+        e.tick(7000, screen(""), settings)
+        assertEquals(listOf("第一句第二句"), out.filterIsInstance<InputChange.Save>().map { it.record.text })
+        // 发完再说一段，是新的一条
+        e.recording(true, 8000, screen(""), settings); e.tick(8100, screen("第三句"), settings)
+        e.recording(false, 8200, screen("第三句"), settings); e.tick(9000, screen(""), settings)
+        assertEquals(listOf("第一句第二句", "第三句"), out.filterIsInstance<InputChange.Save>().map { it.record.text })
+        // 不发送也不离开：停 60 秒算说完（备忘录）
+        val memo = mutableListOf<InputChange>(); val m = VoiceInputEngine(memo::add)
+        m.recording(true, 0, screen(""), settings); m.tick(100, screen("备忘一句"), settings)
+        m.recording(false, 200, screen("备忘一句"), settings); m.tick(59000, screen("备忘一句"), settings); assertTrue(memo.isEmpty())
+        m.tick(60300, screen("备忘一句"), settings)
+        assertEquals("备忘一句", memo.filterIsInstance<InputChange.Save>().single().record.text)
     }
     @Test fun insertedTextSupportsMiddleAndAppendButNotDeletionOrReplacement() {
         assertEquals("明天", VoiceInputText.inserted("我交报告", "我明天交报告"))
@@ -65,15 +76,17 @@ class VoiceInput048Test {
         assertEquals("", VoiceInputText.inserted("草稿", ""))
     }
     @Test fun sentClearUsesLastTextButDeletedDraftIsNotSaved() {
+        // 一下子清空 = 发送（ChatGPT/Gemini 的发送键是图标）；一点点删光 = 删掉
         fun scenario(sent: Boolean): List<InputChange> {
             val out = mutableListOf<InputChange>(); val e = VoiceInputEngine(out::add)
             e.recording(true, 0, screen(""), settings)
-            e.tick(10, screen("合成一句"), settings)
-            e.tick(20, screen("", if (sent) listOf("报告明天能交吗", "合成一句") else listOf("报告明天能交吗")), settings)
+            e.tick(10, screen("合成一句话"), settings)
+            if (!sent) { e.tick(15, screen("合成"), settings); e.tick(18, screen("合"), settings) }
+            e.tick(20, screen("", listOf("报告明天能交吗")), settings)
             e.recording(false, 30, screen(""), settings); e.tick(3030, screen(""), settings)
             return out
         }
-        assertEquals("合成一句", scenario(true).filterIsInstance<InputChange.Save>().single().record.text)
+        assertEquals("合成一句话", scenario(true).filterIsInstance<InputChange.Save>().single().record.text)
         assertTrue(scenario(false).isEmpty())
         val later = mutableListOf<InputChange>(); val engine = VoiceInputEngine(later::add)
         engine.recording(true, 0, screen(""), settings); engine.tick(10, screen("稍后发送"), settings)

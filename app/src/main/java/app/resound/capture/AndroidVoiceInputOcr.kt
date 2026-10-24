@@ -11,7 +11,7 @@ import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 /** 每次请求只有一次系统截图；位图只活到本地识字任务完成，不创建文件、不传输图片。 */
 internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
     // 三张截图各自独立识字（0.5 / 1 / 3 秒），不能因上一张还在识字就拒绝下一张
-    fun capture(layout: OcrLayout, valid: () -> Boolean, complete: (OcrInput?) -> Unit) {
+    fun capture(layout: OcrLayout, pkg: String, valid: () -> Boolean, complete: (OcrInput?) -> Unit) {
         if (Build.VERSION.SDK_INT < 30 || !valid()) { complete(null); return }
         fun finish(result: OcrInput?) { complete(if (valid()) result else null) }
         try {
@@ -45,7 +45,7 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.getOrNull()
                                     val lines = if (hans == null) raw else raw.map { it.copy(text = hans.transliterate(it.text)) }
                                     val bubble = VoiceInputOcr.lastRightBubble(lines, layout)
-                                    val input = VoiceInputOcr.extract(lines, layout)?.copy(bubble = bubble)
+                                    val input = VoiceInputOcr.extract(lines, layout, pkg)?.copy(bubble = bubble)
                                         ?: bubble?.let { OcrInput("", emptyList(), null, it) }
                                     dbg("识字完成：块数=${blocks.size} 输入框字数=${input?.text?.length ?: 0} 右侧气泡字数=${bubble?.length ?: 0}")
                                     input

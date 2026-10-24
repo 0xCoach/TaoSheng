@@ -59,6 +59,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     internal abstract fun push(): app.resound.push.PushDao
     abstract fun privacy(): PrivacyDao
     abstract fun capture(): CaptureDao
+    abstract fun voiceInput(): VoiceInputDao
     abstract fun transcribe(): TranscribeDao
     abstract fun memory(): MemoryDao
     abstract fun voiceprint(): VoiceprintDao
@@ -67,7 +68,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 16
+        const val VERSION = 17
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -201,8 +202,14 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE memory_items ADD COLUMN reminderVersion INTEGER NOT NULL DEFAULT 0")
             }
         }
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transcript_lines ADD COLUMN voiceInputJson TEXT")
+                db.execSQL("ALTER TABLE transcript_lines ADD COLUMN voiceInputPendingUntil INTEGER")
+            }
+        }
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
             .addCallback(app.resound.search.SearchIndex.callback).build()
     }
 }

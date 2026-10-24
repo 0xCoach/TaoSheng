@@ -9,7 +9,7 @@ import java.io.File
 /** 密钥容器必须解密后导出，绝不能复制绑定旧手机 Keystore 的密文 XML。 */
 internal object BackupSettings {
     val prefs = setOf("transcribe", "local-asr", "capture", "ui", "review", "push", "diary", "digest", "setup",
-        "backup", "ask-selection", "usage", "inputs")
+        "backup", "ask-selection", "usage", "inputs", "voice-input")
     val stores = mapOf("digest-secrets" to "resound-llm-aes-v1", "push-secrets" to "resound-push-aes-v1",
         "backup-secrets" to "resound-backup-aes-v1", "transcribe" to "resound-asr-aes-v1")
     private val asrKeys = setOf("encryptedKey", "customEncryptedKey")

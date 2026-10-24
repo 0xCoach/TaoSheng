@@ -38,7 +38,7 @@ internal object Subscriptions {
             RecordTrigger.Manual -> JSONObject().put("type", "manual")
         }).put("incremental", s.incremental).put("fullCheckAt", s.fullCheckAt ?: JSONObject.NULL)
         .put("layout", s.layout.name).put("rangeDays", s.rangeDays ?: JSONObject.NULL).put("excludeMedia", s.excludeMedia)
-        .put("backfillDays", s.backfillDays ?: JSONObject.NULL)
+        .put("backfillDays", s.backfillDays ?: JSONObject.NULL).put("lineContext", s.lineContext)
     fun read(j: JSONObject): PushSubscription {
         val t = j.getJSONObject("trigger")
         fun number(key: String) = if (j.isNull(key)) null else j.getInt(key)
@@ -48,7 +48,7 @@ internal object Subscriptions {
                 "change" -> RecordTrigger.OnChange(t.getInt("gap"))
                 "schedule" -> RecordTrigger.Schedule(t.getJSONArray("times").strings().map(String::toInt), t.getJSONArray("weekdays").strings().map(String::toInt).toSet())
                 else -> RecordTrigger.Manual
-            }, j.getBoolean("incremental"), number("fullCheckAt"), FolderLayout.valueOf(j.getString("layout")), number("rangeDays"), j.getBoolean("excludeMedia"), number("backfillDays"))
+            }, j.getBoolean("incremental"), number("fullCheckAt"), FolderLayout.valueOf(j.getString("layout")), number("rangeDays"), j.getBoolean("excludeMedia"), number("backfillDays"), lineContext = j.optBoolean("lineContext", true))
     }
     fun nextSchedule(t: RecordTrigger.Schedule, after: ZonedDateTime): Long = (0L..7L).flatMap { offset ->
         val date = after.toLocalDate().plusDays(offset)

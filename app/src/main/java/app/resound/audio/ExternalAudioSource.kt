@@ -153,6 +153,7 @@ internal class RoutedRecording(
                     .setSampleRate(rate).setChannelMask(mask).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
                     .setBufferSizeInBytes(maxOf(minimum, rate * count * 2 / 5)).build()
                 if (record.state != AudioRecord.STATE_INITIALIZED || !record.setPreferredDevice(port)) continue
+                OwnRecordingSessions.add(record.audioSessionId)
                 record.startRecording()
                 if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { keep = true; return record }
             } catch (_: IllegalArgumentException) { /* 下一种原生格式 */ }

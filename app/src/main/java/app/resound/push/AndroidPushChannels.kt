@@ -42,7 +42,7 @@ class AndroidPushChannels internal constructor(
     )
 
     internal var phoneReminders: PhoneReminders? = null
-    internal var memoryDocument: suspend (java.time.LocalDate?, Boolean) -> PushMessage? = { _, _ -> null }
+    internal var memoryDocument: suspend (java.time.LocalDate?, Boolean, Boolean) -> PushMessage? = { _, _, _ -> null }
 
     private val mutableChannels = MutableStateFlow(readChannels().map(::publicChannel))
     override val channels = mutableChannels.asStateFlow()
@@ -277,7 +277,7 @@ class AndroidPushChannels internal constructor(
         var snapshot = message
         val result = try {
             if (message.memoryDate != null && message.memory == null) {
-                snapshot = memoryDocument(java.time.LocalDate.parse(message.memoryDate), message.memoryWithLines)
+                snapshot = memoryDocument(java.time.LocalDate.parse(message.memoryDate), message.memoryWithLines, channel.subscription.lineContext)
                     ?: return Attempt(Result.success(Unit), message) // 已无内容，不发送、不记成功日志。
             }
             transport.send(channel.kind, channel.format, values, snapshot)

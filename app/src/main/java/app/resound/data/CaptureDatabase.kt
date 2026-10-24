@@ -56,6 +56,7 @@ interface CaptureDao {
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
     app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
+    internal abstract fun push(): app.resound.push.PushDao
     abstract fun privacy(): PrivacyDao
     abstract fun capture(): CaptureDao
     abstract fun transcribe(): TranscribeDao

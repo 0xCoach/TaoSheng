@@ -262,6 +262,10 @@ class CaptureService : Service() {
                 }
                 if (!busy) { store.event(WatchdogEventType.MicBusy, "${e.reason}: ${e.message}"); busy = true }
                 transition(CaptureState.MicBusy)
+            } catch (e: Exception) {
+                // 外接设备的意外错误也只换回手机，不停整个录音
+                if (e is CancellationException || route.device.kind == InputKind.Phone) throw e
+                throw AudioSourceException(AudioSourceException.Reason.Unknown, "${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
                 controller.level(0f)

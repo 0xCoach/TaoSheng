@@ -30,9 +30,8 @@ internal object VoiceInputOcr {
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
         val inputTop = source.filter { VoiceInputChrome.keep(it.text) && joinLines(listOf(it.text.trim())).let { t -> r.text.contains(t) } && it.bottom <= keyboard }
             .minOfOrNull { it.top } ?: keyboard
-        val above = source.filter { it.top >= layout.contentTop && it.bottom <= inputTop && VoiceInputChrome.keep(it.text) && it.text.trim() != r.title }
+        val above = source.filter { it.top >= titleBarBottom(layout) && it.bottom <= inputTop && VoiceInputChrome.keep(it.text) }
             .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left })
-            .filter { r.title == null || it.bottom > layout.contentTop + layout.height / 8 }
         val title = r.title?.takeIf { pkg in TITLED }
         // 微信单聊：标题就是对方的名字，上下文里的“对方”换成名字；群聊（标题后带人数）分不清谁说的，仍标“对方”
         val name = title?.takeIf { !GROUP.containsMatchIn(it) }
@@ -54,8 +53,8 @@ internal object VoiceInputOcr {
             val text = joinLines(same.map { it.text.trim() }).replaceFirst(PROMPT, "").trim()
             if (text.isNotBlank()) {
                 val above = lines.filter { it.bottom <= prompt.top }
-                val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 && looksLikeTitle(it.text) }
-                return OcrInput(text.take(8000), above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim(), prompt = true)
+                val title = title(above, layout)
+                return OcrInput(text.take(8000), above.filter { it.top >= titleBarBottom(layout) }.map { it.text.trim() }.takeLast(20), title, prompt = true)
             }
         }
         val last = lines.maxByOrNull { it.bottom } ?: return null
@@ -74,16 +73,36 @@ internal object VoiceInputOcr {
         }
         val inputTop = input.minOf { it.top }
         val above = lines.filter { it.bottom <= inputTop && it !in input }
-        val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 && looksLikeTitle(it.text) }
+        val title = title(above, layout)
         val text = joinLines(input.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text.trim() }).take(8000)
-        return OcrInput(text, above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
+        return OcrInput(text, above.filter { it.top >= titleBarBottom(layout) }.map { it.text.trim() }.takeLast(20), title)
     }
 
-    /** 标题像个名字：2～20 个字，有字母或汉字（不是纯数字、未读数），不带代码符号；返回箭头“く”“<”这类不算 */
-    fun looksLikeTitle(text: String): Boolean {
-        val t = text.trim().trimStart('<', 'く', '‹', '〈', ' ').replace(GROUP, "")
-        return t.length in 2..20 && t.any { it.isLetter() } && t.none { it in CODE }
+    /** 从应用内容顶部起，固定取屏幕高度的 8%；键盘弹出不改变标题栏范围。 */
+    fun titleBarBottom(layout: OcrLayout): Int = layout.contentTop + (layout.height * .08).toInt()
+
+    fun title(lines: List<OcrLine>, layout: OcrLayout): String? = lines
+        .filter { it.top >= layout.contentTop && it.bottom <= titleBarBottom(layout) &&
+            it.bottom > it.top && it.left >= 0 && it.right <= layout.width && it.right > it.left }
+        .mapNotNull { line -> cleanTitle(line.text)?.let { line to it } }
+        .minWithOrNull(compareBy<Pair<OcrLine, String>> {
+            kotlin.math.abs((it.first.left.toLong() + it.first.right) - layout.width)
+        }.thenBy { it.first.top })?.second
+
+    /** 只去掉左侧导航符和未读数，保留名字里的表情、数字以及末尾群人数。 */
+    fun cleanTitle(text: String): String? {
+        val t = text.trim().trimStart { it in "<く‹〈←❮《＜" || it.isWhitespace() }
+            .replace(UNREAD_PREFIX, "").trim()
+        val name = t.replace(GROUP, "")
+        val points = name.codePoints().toArray()
+        return t.takeIf {
+            points.size in 1..20 && VoiceInputChrome.keep(t) &&
+                points.any { Character.isLetter(it) || Character.getType(it) == Character.OTHER_SYMBOL.toInt() } &&
+                name.none { it in CODE }
+        }
     }
+    fun looksLikeTitle(text: String): Boolean = cleanTitle(text) != null
+    private val UNREAD_PREFIX = Regex("^(?:[(（][0-9]+[+]?[)）]\\s*|[0-9]+[+]?\\s+)")
     private const val CODE = "()（）+=/\\;{}[]\"'`$&|"
     /** 去掉光标“|”和首尾空白；只剩一两个字的残渣当没读到 */
     fun clean(text: String?): String? {

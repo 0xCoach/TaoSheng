@@ -106,9 +106,11 @@ class VoiceInputService : AccessibilityService() {
                 val field = editable?.let { "${it.windowId}:${it.viewIdResourceName}:${it.hashCode()}" }
                 val text = editable?.text?.toString()?.take(8000)
                 val lines = mutableListOf<String>()
-                var title: String? = null
+                val titleCandidates = mutableListOf<OcrLine>()
                 var visited = 0
                 val rootBounds = Rect(); root.getBoundsInScreen(rootBounds)
+                val titleLayout = OcrLayout(rootBounds.width(), resources.displayMetrics.heightPixels,
+                    rootBounds.top, rootBounds.bottom, null)
                 fun walk(node: AccessibilityNodeInfo, depth: Int) {
                     if (++visited > 400 || depth > 30 || !node.isVisibleToUser || node.isPassword || node.isEditable) return
                     val cls = node.className?.toString().orEmpty()
@@ -116,16 +118,16 @@ class VoiceInputService : AccessibilityService() {
                     val value = node.text?.toString()?.trim()?.take(1500)
                     val rect = Rect(); node.getBoundsInScreen(rect)
                     if (!value.isNullOrBlank() && VoiceInputChrome.keep(value)) {
-                        val id = node.viewIdResourceName.orEmpty().lowercase()
-                        if (title == null && value.length <= 80 && (node.isHeading || id.contains("title") ||
-                            rect.bottom < rootBounds.top + rootBounds.height() / 6)) title = value
-                        else if (!node.isClickable || value.length > 12) lines.add(value)
+                        if (rect.top < VoiceInputOcr.titleBarBottom(titleLayout)) {
+                            titleCandidates.add(OcrLine(value, rect.left - rootBounds.left, rect.top,
+                                rect.right - rootBounds.left, rect.bottom))
+                        } else if (!node.isClickable || value.length > 12) lines.add(value)
                     }
                     for (i in 0 until node.childCount) node.getChild(i)?.let { child ->
                         try { walk(child, depth + 1) } finally { recycle(child) }
                     }
                 }
-                // title 也是上下文；关闭上下文时不遍历整棵树。
+                // 关闭上下文时不遍历整棵树；标题栏只用于标题，不计入正文。
                 if (settings.context) walk(root, 0)
                 val label = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
                 // 标题是猜的（滚动、弹出语音面板都会变），不能用来判断是否换了页面
@@ -136,7 +138,7 @@ class VoiceInputService : AccessibilityService() {
                         if (!node.isPassword && !node.isEditable) send = node.text?.toString() in VoiceInputChrome.send || node.contentDescription?.toString() in VoiceInputChrome.send
                     } finally { recycle(node) } }
                 }
-                return InputScreen(pkg, label, page, title, field, text, lines = lines.takeLast(20), send = send)
+                return InputScreen(pkg, label, page, VoiceInputOcr.title(titleCandidates, titleLayout), field, text, lines = lines.takeLast(20), send = send)
             } finally { focus?.let(::recycle) }
         } finally { recycle(root) }
     }

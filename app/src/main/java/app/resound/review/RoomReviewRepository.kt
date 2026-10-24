@@ -58,19 +58,27 @@ class RoomReviewRepository(
             val minutes = state.value.dailyAtMinutes
             val start = ReviewTime.cutoff(date.minusDays(1), minutes, timezone).toInstant().toEpochMilli()
             val end = ReviewTime.cutoff(date, minutes, timezone).toInstant().toEpochMilli()
-            val source = dao.input(start, end)
-            // 即使有旧回顾，用户已删空当天事件时也不再推送。
-            if (source.events.isEmpty()) { error(null); return@withLock false }
+            val source = dao.reviewInput(start, end)
+            // 没有当天事件且没有历史重点需要跟进时，不推送旧回顾。
+            if (source.events.isEmpty() && source.starredStale.isEmpty()) { error(null); return@withLock false }
             var row = if (scheduled) dao.daily(date.toString()).first()?.takeIf { it.generatedAt >= end } else null
             if (row == null) {
-                val (preset, key) = credentials()
-                if (key.isBlank()) { error("还没填写大模型密钥"); return@withLock false }
-                val reply = chat(preset, key, ReviewPrompt.system(template(), appName), ReviewPrompt.input(date, source, timezone, minutes))
-                // 格式错误的成功调用也实际消耗了 token。
-                memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens)
-                val (brief, sections) = ReviewPrompt.parse(reply.content, source.events.map { it.id }.toSet())
+                val model: String
+                val result = if (source.events.isEmpty()) {
+                    model = "local-starred-followup"
+                    ReviewPrompt.staleOnly(source, timezone)
+                } else {
+                    val (preset, key) = credentials()
+                    if (key.isBlank()) { error("还没填写大模型密钥"); return@withLock false }
+                    val reply = chat(preset, key, ReviewPrompt.system(template(), appName), ReviewPrompt.input(date, source, timezone, minutes))
+                    // 格式错误的成功调用也实际消耗了 token。
+                    memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens)
+                    model = preset.model
+                    ReviewPrompt.parse(reply.content, source, timezone)
+                }
+                val (brief, sections) = result
                 row = ReviewEntity(startDate = date.toString(), endDate = date.toString(), brief = brief,
-                    sectionsJson = ReviewPrompt.encode(sections), generatedAt = now(), model = preset.model)
+                    sectionsJson = ReviewPrompt.encode(sections), generatedAt = now(), model = model)
                 dao.save(row)
             }
             if (scheduled) dailyMemory(date)

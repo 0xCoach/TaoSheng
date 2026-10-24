@@ -4,7 +4,7 @@
   "name": "每周回顾",
   "summary": "从本周事件和每日回顾中找出要紧的事",
   "icon": "calendar_week",
-  "version": 1,
+  "version": 2,
   "trigger": {
     "type": "Daily",
     "minutes": 1260,
@@ -30,6 +30,13 @@
       "label": "本周要紧的",
       "type": "Bullets",
       "hint": "有记录支撑的重要进展",
+      "required": false
+    },
+    {
+      "key": "starred",
+      "label": "本周你标的重点",
+      "type": "Bullets",
+      "hint": "每条写这件事及标重点之后的进展；没有依据则写还没进展",
       "required": false
     },
     {

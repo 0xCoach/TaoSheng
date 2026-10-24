@@ -58,6 +58,10 @@
           "to": {
             "type": "string",
             "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "starred_only": {
+            "type": "boolean",
+            "description": "只查用户标的重点；没有关键词时按标重点时间倒序"
           }
         },
         "required": [],
@@ -176,7 +180,7 @@
               "item_status",
               "create_item",
               "item_due",
-              "event_important"
+              "event_star"
             ]
           },
           "id": {
@@ -208,7 +212,7 @@
             ],
             "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm；null 清除截止时间"
           },
-          "important": {
+          "starred": {
             "type": "boolean"
           }
         },

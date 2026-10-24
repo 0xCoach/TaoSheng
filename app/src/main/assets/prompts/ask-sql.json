@@ -14,7 +14,7 @@
     "kind": "line"
   },
   "search_events": {
-    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote",
+    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at",
     "table": "memory_events e",
     "where": "e.deleted=0",
     "time": "e.startAt",
@@ -27,7 +27,7 @@
     "kind": "event"
   },
   "get_day": {
-    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote",
+    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at",
     "table": "memory_events e",
     "where": "e.deleted=0",
     "time": "e.startAt",

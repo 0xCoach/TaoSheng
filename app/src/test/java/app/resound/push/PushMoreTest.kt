@@ -238,7 +238,7 @@ class PushMoreTest {
         assertEquals(setOf("type", "version", "app", "date", "generatedAt", "markdown", "data"), j.keys().asSequence().toSet())
         val data = j.getJSONObject("data")
         assertEquals(setOf("review", "events", "items", "cards", "lines"), data.keys().asSequence().toSet())
-        assertEquals(setOf("id", "start", "end", "title", "summary", "scene", "people", "important"), data.getJSONArray("events").getJSONObject(0).keys().asSequence().toSet())
+        assertEquals(setOf("id", "start", "end", "title", "summary", "scene", "people", "important", "starred"), data.getJSONArray("events").getJSONObject(0).keys().asSequence().toSet())
         assertEquals(setOf("id", "category", "kind", "content", "due", "who", "status"), data.getJSONArray("items").getJSONObject(0).keys().asSequence().toSet())
         assertEquals("会议纪要", data.getJSONArray("cards").getJSONObject(0).getString("skill")); assertEquals("我", data.getJSONArray("lines").getJSONObject(0).getString("speaker"))
         val message = document().copy(memory = j)

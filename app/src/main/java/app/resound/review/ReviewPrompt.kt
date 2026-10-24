@@ -27,17 +27,56 @@ object ReviewPrompt {
             JSONObject().put("id", e.id).put("startAt", time(e.startAt)).put("endAt", time(e.endAt))
                 .put("scene", e.scene).put("title", e.title).put("summary", e.summary)
                 .put("points", JSONArray(e.pointsJson)).put("emotion", e.emotion ?: JSONObject.NULL)
-                .put("intensity", e.intensity ?: JSONObject.NULL).put("important", e.important)
+                .put("intensity", e.intensity ?: JSONObject.NULL).put("important", e.important).put("starred", e.starred)
+                .put("starredAt", e.starredAt?.let(::time) ?: JSONObject.NULL)
                 .put("items", JSONArray(items[e.id].orEmpty().map { i ->
                     JSONObject().put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
                         .put("content", i.content).put("status", i.status).put("createdAt", time(i.createdAt))
                         .put("dueText", i.dueText ?: JSONObject.NULL).put("dueAt", i.dueAt?.let(::time) ?: JSONObject.NULL)
                 }))
+        })).put("starred_stale", JSONArray(source.starredStale.map { e ->
+            JSONObject().put("id", e.id).put("title", e.title).put("starred", true)
+                .put("starredAt", time(e.starredAt!!)).put("reminder", staleReminder(e, zone))
         })).toString()
     }
 
+    private fun staleReminder(event: app.resound.data.MemoryEventEntity, zone: ZoneId): String {
+        val day = Instant.ofEpochMilli(event.starredAt!!).atZone(zone).toLocalDate()
+        return "你 ${day.monthValue} 月 ${day.dayOfMonth} 日标过重点的「${event.title}」，还没进展"
+    }
+
+    fun staleOnly(source: ReviewInput, zone: ZoneId): Pair<String, List<ReviewSection>> =
+        "有 ${source.starredStale.size} 件重点还没进展" to listOf(
+            ReviewSection("值得留意", source.starredStale.map { staleReminder(it, zone) }, source.starredStale.map { it.id }))
+
+    fun parse(content: String, source: ReviewInput, zone: ZoneId): Pair<String, List<ReviewSection>> {
+        val starred = source.events.filter { it.starred }.sortedByDescending { it.starredAt }
+        val limit = if (starred.size > 3) 5 else 3
+        val (brief, parsed) = parseSections(content, (source.events + source.starredStale).map { it.id }.toSet(), limit)
+        val sections = parsed.associateBy { it.title }.toMutableMap()
+        if (starred.isNotEmpty()) {
+            val old = sections["要紧的"]
+            val lines = starred.map { event ->
+                val index = old?.eventIds?.indexOf(event.id) ?: -1
+                (if (index >= 0) old!!.lines[index] else event.title) to event.id
+            } + old?.lines.orEmpty().mapIndexed { i, text -> text to old!!.eventIds[i] }
+            val selected = lines.distinctBy { it.second }.take(limit)
+            sections["要紧的"] = ReviewSection("要紧的", selected.map { it.first }, selected.map { it.second })
+        }
+        if (source.starredStale.isNotEmpty()) {
+            val old = sections["值得留意"]
+            val lines = source.starredStale.map { staleReminder(it, zone) to it.id } +
+                old?.lines.orEmpty().mapIndexed { i, text -> text to old!!.eventIds[i] }
+            val selected = lines.distinctBy { it.second }.take(3)
+            sections["值得留意"] = ReviewSection("值得留意", selected.map { it.first }, selected.map { it.second })
+        }
+        return brief to limits.keys.mapNotNull { sections[it] }
+    }
+
     /** 越界出处整条丢弃，缺少可选栏目合法，必需栏目缺失则不保存残缺回顾。 */
-    fun parse(content: String, eventIds: Set<Long>): Pair<String, List<ReviewSection>> {
+    fun parse(content: String, eventIds: Set<Long>): Pair<String, List<ReviewSection>> = parseSections(content, eventIds, 3)
+
+    private fun parseSections(content: String, eventIds: Set<Long>, importantLimit: Int): Pair<String, List<ReviewSection>> {
         try {
             val json = JSONObject(content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```"))
             val brief = (json.opt("brief") as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: error("brief")
@@ -55,7 +94,7 @@ object ReviewPrompt {
                         if (text.isNotEmpty() && id in eventIds) lines += text to id!!
                     }
                 }
-                lines.distinct().take(limit).takeIf { it.isNotEmpty() }?.let {
+                lines.distinct().take(if (title == "要紧的") importantLimit else limit).takeIf { it.isNotEmpty() }?.let {
                     ReviewSection(title, it.map { p -> p.first }, it.map { p -> p.second })
                 }
             }

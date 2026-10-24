@@ -21,7 +21,7 @@ internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: Strin
     .put("generatedAt", generatedAt).put("markdown", markdown).put("data", JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
         .put("events", JSONArray(input.events.map { e -> JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
-            .put("title", e.title).put("summary", e.summary).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important) }))
+            .put("title", e.title).put("summary", e.summary).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) }))
         .put("items", JSONArray(input.items.filter { it.status != "Ignored" }.map { i -> JSONObject().put("id", i.id).put("category", i.category)
             .put("kind", i.kind ?: JSONObject.NULL).put("content", i.content).put("due", i.dueAt ?: i.dueText ?: JSONObject.NULL)
             .put("who", i.who ?: JSONObject.NULL).put("status", i.status) }))
@@ -44,7 +44,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         override fun events(date: LocalDate) = flow {
             val source = input(date)
             emit(source.events.map { e -> MemoryEvent(e.id, e.startAt, e.endAt, e.scene, e.title, e.summary,
-                strings(e.pointsJson), strings(e.peopleJson), e.place, e.emotion, e.intensity, e.important, emptyList()) })
+                strings(e.pointsJson), strings(e.peopleJson), e.place, e.emotion, e.intensity, e.important, emptyList(), e.starred, e.starredAt) })
         }
         override fun dayItems(date: LocalDate) = flow {
             val rows = input(date).items.filter { it.status != "Ignored" }.map { i -> MemoryItem(i.id, i.eventId, i.category, i.kind, i.content,

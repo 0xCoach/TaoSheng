@@ -142,6 +142,8 @@ fun TodayScreen(
     val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
+    val segments by remember(date) { transcripts.day(date) }.collectAsState(initial = emptyList())
+    val dayLines = remember(segments) { segments.flatMap { it.lines }.sortedBy { it.startAt } }
     val importing = if (app.resound.AppGraph.isImporterReady)
         app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
 
@@ -156,6 +158,7 @@ fun TodayScreen(
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
         if (settingsOpen || !hasKey) item(key = "model") { ModelCard(settings) { settingsOpen = false } }
+        if (dayRhythm(events.orEmpty(), dayLines) != null) item(key = "rhythm") { RhythmCard(events.orEmpty(), dayLines) }
         if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
         if (pending.isNotEmpty()) {
             item {

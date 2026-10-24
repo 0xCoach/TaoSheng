@@ -29,7 +29,9 @@ class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase
     private fun enabled() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         ?.split(':')?.any { ComponentName.unflattenFromString(it) == component } == true
     private val service = MutableStateFlow(enabled())
-    override val serviceEnabled = service.asStateFlow()
+    // 设置里开着且服务真的连上了才算；只开着没运行时界面提示“关掉再打开”
+    override val serviceEnabled = combine(service, VoiceInputService.connected) { on, running -> on && running }
+        .stateIn(scope, SharingStarted.Eagerly, false)
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) { service.value = enabled() }
     }

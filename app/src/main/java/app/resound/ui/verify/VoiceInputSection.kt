@@ -50,8 +50,8 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
             }
             if (s.enabled) {
                 if (!on) Column(Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.warning.copy(alpha = 0.1f)).padding(12.dp)) {
-                    Text("无障碍权限没开，或被系统关掉了", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.warning)
-                    Text("在系统设置 → 无障碍里找到“回响”并打开。小米有时会自动关掉，关了这里会提示。", style = RsType.caption, color = c.textSecondary)
+                    Text("语音输入记录没在运行", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.warning)
+                    Text("在系统设置 → 无障碍里找到“回响语音输入记录”：没开就打开；显示开着的，先关掉再打开一次。小米有时开着却没真正启动，或者更新后需要重开。", style = RsType.caption, color = c.textSecondary)
                     Spacer(Modifier.height(8.dp))
                     Pill("去打开", filled = true) { openSettings() }
                 }

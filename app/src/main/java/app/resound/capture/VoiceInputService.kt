@@ -42,6 +42,7 @@ class VoiceInputService : AccessibilityService() {
     }
     override fun onServiceConnected() {
         super.onServiceConnected()
+        connected.value = true
         engine = VoiceInputEngine { capture?.accept(it) }
         manager = getSystemService(AudioManager::class.java)
         capture?.let { c -> scope.launch {
@@ -92,7 +93,9 @@ class VoiceInputService : AccessibilityService() {
             val pkg = root.packageName?.toString() ?: return null
             val settings = capture!!.settings.value
             if (!VoiceInputText.allowed(settings, AppGraph.capture.status.value.state, pkg, packageName, false)) return null
-            val focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            // 有的应用（如微信）在语音面板弹出时 findFocus 拿不到输入框：退而在界面里找“有焦点的可编辑框”，再不行用唯一的可编辑框
+            val focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable } ?: findEditable(root)
+            dbgSnap("界面 应用=$pkg 输入框=${focus?.className} 可编辑=${focus?.isEditable} 可见=${focus?.isVisibleToUser}")
             try {
                 if (focus?.isPassword == true) return null
                 val editable = focus?.takeIf { it.isEditable && it.isVisibleToUser }
@@ -121,7 +124,8 @@ class VoiceInputService : AccessibilityService() {
                 // title 也是上下文；关闭上下文时不遍历整棵树。
                 if (settings.context) walk(root, 0)
                 val label = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
-                val page = "$pkg:${root.windowId}:${title ?: root.className}"
+                // 标题是猜的（滚动、弹出语音面板都会变），不能用来判断是否换了页面
+                val page = "$pkg:${root.windowId}:${root.className}"
                 var send = false
                 if (event?.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED && event.packageName?.toString() == pkg) {
                     event.source?.let { node -> try {
@@ -132,10 +136,33 @@ class VoiceInputService : AccessibilityService() {
             } finally { focus?.let(::recycle) }
         } finally { recycle(root) }
     }
+    /** 找输入框：按层找（输入框一般在底部，逐个深挖会先耗在长长的聊天记录里），优先有焦点的，没有就取唯一一个 */
+    private fun findEditable(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val found = mutableListOf<AccessibilityNodeInfo>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(AccessibilityNodeInfo.obtain(root))
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 3000) {
+            val node = queue.removeFirst(); visited++
+            if (node.isEditable && node.isVisibleToUser && !node.isPassword) found += node
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::add)
+            if (node !in found) recycle(node)
+        }
+        queue.forEach(::recycle)
+        val pick = found.firstOrNull { it.isFocused } ?: found.singleOrNull()
+        dbgSnap("找输入框：看了 $visited 个元素，可编辑 ${found.size} 个，选中=${pick != null}")
+        found.filter { it !== pick }.forEach(::recycle)
+        return pick
+    }
+    private var lastSnapLog = ""
+    private fun dbgSnap(msg: String) { if (msg != lastSnapLog) { lastSnapLog = msg; runCatching { android.util.Log.d("VoiceInputDbg", msg) } } }
+
     override fun onInterrupt() { engine?.reset() }
-    override fun onDestroy() { stopMonitoring(); scope.cancel(); super.onDestroy() }
+    override fun onDestroy() { connected.value = false; stopMonitoring(); scope.cancel(); super.onDestroy() }
     @Suppress("DEPRECATION") private fun recycle(node: AccessibilityNodeInfo) { node.recycle() }
     companion object {
+        /** 服务是否真的在运行：小米上常见“设置里开着、系统却没启动服务” */
+        val connected = kotlinx.coroutines.flow.MutableStateFlow(false)
         private val SEND = setOf("发送", "Send", "send", "提交", "回车")
         private val CHROME = SEND + setOf("返回", "更多", "搜索", "取消", "确定", "语音输入", "按住说话", "切换到键盘", "表情", "Back", "More")
     }

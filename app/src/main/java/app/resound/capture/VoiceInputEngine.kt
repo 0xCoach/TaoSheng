@@ -69,19 +69,22 @@ internal class VoiceInputEngine(private val output: (InputChange) -> Unit) {
     fun recording(active: Boolean, now: Long, screen: InputScreen?, settings: VoiceInputSettings) {
         tick(now, screen, settings)
         if (active && !recording) {
+            dbg("语音窗口开始：有界面=${screen != null} 有输入框=${screen?.field != null} 原有字数=${screen?.text?.length}")
             finishWindow(now, screen)
             window = screen?.takeIf { !it.password && it.field != null && it.text != null }?.let {
                 Window(now, it, settings, it.text!!)
             }
             releaseAt = null
-        } else if (!active && recording) releaseAt = now
+        } else if (!active && recording) { releaseAt = now; dbg("别的应用停止录音，3 秒后收尾") }
         recording = active
     }
     fun tick(now: Long, screen: InputScreen?, settings: VoiceInputSettings) {
         val iterator = replies.iterator()
         while (iterator.hasNext()) {
             val reply = iterator.next()
-            val same = screen != null && screen.packageName == reply.record.meta.packageName && screen.page == reply.page
+            // 补记回复时再用标题防止串到别的聊天（两边都读到标题才比较）
+            val same = screen != null && screen.packageName == reply.record.meta.packageName && screen.page == reply.page &&
+                (screen.title == null || reply.record.meta.title == null || screen.title == reply.record.meta.title)
             if (reply.until?.let { now >= it } == true || !same || !settings.context || !settings.replies) {
                 output(InputChange.Finish(reply.record.token, if (settings.context && settings.replies) VoiceInputText.context(reply.lines.toList()) else null))
                 iterator.remove()
@@ -111,9 +114,11 @@ internal class VoiceInputEngine(private val output: (InputChange) -> Unit) {
         }
         window?.let { w ->
             if (screen == null || screen.password || screen.packageName != w.screen.packageName || screen.page != w.screen.page) {
+                dbg("提前收尾：界面=${screen != null} 同应用=${screen?.packageName == w.screen.packageName} 同页面=${screen?.page == w.screen.page}")
                 finishWindow(now, null)
             } else if (!w.saved) {
                 if (screen.field != null && screen.field != w.screen.field) {
+                    dbg("输入框变了，放弃")
                     window = null // 换输入框不能串读。
                 } else {
                     w.sendHint = w.sendHint || screen.send
@@ -138,6 +143,7 @@ internal class VoiceInputEngine(private val output: (InputChange) -> Unit) {
     private fun save(w: Window, now: Long, screen: InputScreen?, sent: Boolean) {
         w.saved = true
         val text = VoiceInputText.inserted(w.screen.text!!, w.last)
+        dbg("收尾：新增字数=${text.length} 已发送=$sent 被清空=${w.cleared}")
         if (text.isBlank()) return
         val follow = w.settings.context && w.settings.replies && w.screen.title != null && screen != null
         val record = InputRecord(UUID.randomUUID().toString(), w.at, text,
@@ -153,3 +159,6 @@ internal class VoiceInputEngine(private val output: (InputChange) -> Unit) {
         }
     }
 }
+
+/** 诊断日志：只写步骤和字数，绝不写文字内容 */
+private fun dbg(msg: String) { runCatching { android.util.Log.d("VoiceInputDbg", msg) } }

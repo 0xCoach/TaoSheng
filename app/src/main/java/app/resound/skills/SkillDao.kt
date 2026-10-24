@@ -34,6 +34,12 @@ data class SkillRunRow(
     val purpose: String = "skill:$skillId",
 )
 
+sealed interface SkillMergeResult {
+    data class Saved(val row: SkillCardRow, val isNew: Boolean) : SkillMergeResult
+    data object Deleted : SkillMergeResult
+    data class Full(val count: Int) : SkillMergeResult
+}
+
 @Dao
 abstract class SkillDao {
     @Query("SELECT MAX(date) FROM skill_cards WHERE deletedAt IS NULL")
@@ -72,31 +78,35 @@ abstract class SkillDao {
     @Query("SELECT * FROM reviews WHERE type = 'daily' AND startDate >= :start AND endDate <= :end ORDER BY startDate")
     abstract suspend fun reviews(start: String, end: String): List<ReviewEntity>
 
-    /** 合并与日上限在同一事务检查，删除和并发生成不能复活旧卡。 */
+    open suspend fun merge(incoming: SkillCardRow, max: Int, manual: Boolean = false): Pair<SkillCardRow, Boolean>? =
+        (mergeWithReason(incoming, max, manual) as? SkillMergeResult.Saved)?.let { it.row to it.isNew }
+
+    /** 删除判断、手动恢复、合并和日上限在同一事务里完成。 */
     @Transaction
-    open suspend fun merge(incoming: SkillCardRow, max: Int): Pair<SkillCardRow, Boolean>? {
+    open suspend fun mergeWithReason(incoming: SkillCardRow, max: Int, manual: Boolean = false): SkillMergeResult {
         val existing = dayRows(incoming.skillId, incoming.date)
-        if (existing.any { it.deletedAt != null && incoming.entity in it.entities() }) return null
-        var matches = existing.filter { it.deletedAt == null && incoming.entity in it.entities() }
+        if (!manual && existing.any { it.deletedAt != null && incoming.entity in it.entities() }) return SkillMergeResult.Deleted
+        var matches = existing.filter { (manual || it.deletedAt == null) && incoming.entity in it.entities() }
         var start = minOf(incoming.at, matches.minOfOrNull { it.at } ?: incoming.at)
         var end = (matches.mapNotNull { it.endAt } + listOfNotNull(incoming.endAt)).maxOrNull()
         // 闭包处理：新时段可能连上两张此前分开的会议卡。
         if (incoming.endAt != null) do {
             val previous = matches.size
-            if (existing.any { it.deletedAt != null && it.endAt != null && it.at <= end!! && it.endAt >= start }) return null
-            matches = existing.filter { it.deletedAt == null && (it in matches || (it.endAt != null && it.at <= end!! && it.endAt >= start)) }
+            if (!manual && existing.any { it.deletedAt != null && it.endAt != null && it.at <= end!! && it.endAt >= start }) return SkillMergeResult.Deleted
+            matches = existing.filter { (manual || it.deletedAt == null) && (it in matches || (it.endAt != null && it.at <= end!! && it.endAt >= start)) }
             start = minOf(start, matches.minOfOrNull { it.at } ?: start)
             end = (matches.mapNotNull { it.endAt } + listOfNotNull(end)).maxOrNull()
         } while (matches.size != previous)
-        if (matches.isEmpty() && existing.count { it.deletedAt == null } >= max) return null
+        val activeCount = existing.count { it.deletedAt == null }
+        if (matches.none { it.deletedAt == null } && activeCount >= max) return SkillMergeResult.Full(activeCount)
         val keep = matches.minByOrNull { it.id }
         val allEvidence = (matches.flatMap { JSONArray(it.evidenceJson).elements() } + JSONArray(incoming.evidenceJson).elements()).distinct()
         val merged = incoming.copy(id = keep?.id ?: 0, entity = keep?.entity ?: incoming.entity,
             at = if (incoming.endAt != null) start else incoming.at, endAt = end,
             aliasesJson = JSONArray((matches.flatMap { it.entities() } + incoming.entity).distinct()).toString(),
-            evidenceJson = JSONArray(allEvidence).toString())
+            evidenceJson = JSONArray(allEvidence).toString(), deletedAt = null)
         if (matches.size > 1) removeMerged(matches.filter { it.id != keep!!.id }.map { it.id })
         val id = save(merged)
-        return merged.copy(id = if (merged.id == 0L) id else merged.id) to (keep == null)
+        return SkillMergeResult.Saved(merged.copy(id = if (merged.id == 0L) id else merged.id), matches.none { it.deletedAt == null })
     }
 }

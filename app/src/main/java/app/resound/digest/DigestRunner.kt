@@ -96,7 +96,11 @@ class DigestRunner(
         val preset = settings.preset
         val (text, indexed) = DigestPrompt.transcript(lines)
         return try {
-            val reply = request(preset, key, DigestPrompt.system(template(), LocalDate.now(), appName), DigestPrompt.withHotwords(text, hotwords()))
+            val unfinished = dao.unfinishedForDigest()
+            val candidates = unfinished.map { it.id }.toSet()
+            val ignored = dao.ignoredForDigest(now() - 60L * 86_400_000)
+            val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), unfinished, ignored)
+            val reply = request(preset, key, DigestPrompt.system(template(), LocalDate.now(), appName), input)
             dao.addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest)
             val (events, items) = DigestPrompt.parse(reply.content, indexed)
             val at = now()
@@ -120,6 +124,8 @@ class DigestRunner(
                 },
                 allLineIds = lines.map { it.id },
                 at = at,
+                doneHints = DigestPrompt.doneHints(reply.content, indexed, candidates),
+                hintCandidates = candidates,
             )
             if (events.isNotEmpty()) onEvents()
             runCatching { app.resound.search.EmbeddingScheduler.enqueue(appContext) }

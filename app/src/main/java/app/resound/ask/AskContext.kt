@@ -13,7 +13,7 @@ class AskContextReader(private val db: CaptureDatabase) {
         // 只信库里的当前内容；不用调用方传来的标题/摘要，以免已删除内容继续被上传。
         val item = source.kind == "item"
         val sql = if (item) """SELECT e.id,e.title,e.summary,e.startAt,i.content,i.category FROM memory_items i
-            JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND e.deleted=0"""
+            JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND e.deleted=0"""
             else "SELECT id,title,summary,startAt FROM memory_events WHERE id=? AND deleted=0"
         val data = JSONObject(); val sources = mutableListOf<AskSource>()
         val event = db.query(SimpleSQLiteQuery(sql, arrayOf(source.id))).use { c ->

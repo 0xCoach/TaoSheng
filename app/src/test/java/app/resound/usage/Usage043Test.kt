@@ -75,7 +75,7 @@ class Usage043Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(15, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             val rows = migrated.memory().usageByPurpose("2026-10-23", "2026-10-24").first()
             assertEquals(listOf("Other", "Other"), rows.map { it.purpose })
             assertEquals(32L, rows.sumOf { it.promptTokens }); assertEquals(8L, rows.sumOf { it.completionTokens })

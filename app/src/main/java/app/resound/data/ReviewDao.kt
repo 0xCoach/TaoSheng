@@ -38,14 +38,14 @@ abstract class ReviewDao {
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND (scene NOT IN ('媒体', '旁人') OR starred = 1) AND startAt > :start AND startAt <= :end ORDER BY startAt, id")
     abstract suspend fun events(start: Long, end: Long): List<MemoryEventEntity>
 
-    @Query("SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId WHERE e.deleted = 0 AND i.mergedInto IS NULL AND (e.scene NOT IN ('媒体', '旁人') OR e.starred = 1) AND e.startAt > :start AND e.startAt <= :end ORDER BY i.createdAt, i.id")
+    @Query("SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND (e.scene NOT IN ('媒体', '旁人') OR e.starred = 1) AND e.startAt > :start AND e.startAt <= :end ORDER BY i.createdAt, i.id")
     abstract suspend fun items(start: Long, end: Long): List<MemoryItemEntity>
 
     @Query("""SELECT e.* FROM memory_events e WHERE e.deleted = 0 AND e.starred = 1
         AND e.starredAt <= :before AND EXISTS
-        (SELECT 1 FROM memory_items i WHERE i.eventId = e.id AND i.mergedInto IS NULL
+        (SELECT 1 FROM memory_items i WHERE i.deleted = 0 AND i.eventId = e.id AND i.mergedInto IS NULL
          AND i.category IN ('待办', '约定') AND i.status IN ('Accepted', 'Pending'))
-        AND NOT EXISTS (SELECT 1 FROM memory_items i WHERE i.eventId = e.id
+        AND NOT EXISTS (SELECT 1 FROM memory_items i WHERE i.deleted = 0 AND i.eventId = e.id
             AND i.doneAt > e.starredAt AND i.doneAt <= :end)
         ORDER BY e.starredAt, e.id""")
     abstract suspend fun staleCandidates(before: Long, end: Long): List<MemoryEventEntity>

@@ -47,7 +47,7 @@ class EmbeddingStore(private val db: CaptureDatabase) {
     data class Document(val kind: String, val id: Long, val text: String)
     private val documents = """SELECT 'event' AS kind,id,title||char(10)||summary||char(10)||pointsJson AS text
         FROM memory_events WHERE deleted=0 UNION ALL
-        SELECT 'item',i.id,i.category||char(10)||i.content FROM memory_items i JOIN memory_events e ON e.id=i.eventId WHERE e.deleted=0"""
+        SELECT 'item',i.id,i.category||char(10)||i.content FROM memory_items i JOIN memory_events e ON e.id=i.eventId WHERE i.deleted=0 AND e.deleted=0"""
     fun pending(model: String): List<Document> = db.query(SimpleSQLiteQuery("""SELECT d.* FROM ($documents) d
         LEFT JOIN embeddings v ON v.kind=d.kind AND v.refId=d.id AND v.model=? WHERE v.refId IS NULL LIMIT 64""", arrayOf(model))).use { c ->
         buildList { while (c.moveToNext()) add(Document(c.getString(0), c.getLong(1), c.getString(2))) }

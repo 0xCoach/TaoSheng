@@ -41,6 +41,7 @@ class AndroidPushChannels internal constructor(
         { RecordPushScheduler(context).cancel(it) },
     )
 
+    internal var phoneReminders: PhoneReminders? = null
     internal var memoryDocument: suspend (java.time.LocalDate?, Boolean) -> PushMessage? = { _, _ -> null }
 
     private val mutableChannels = MutableStateFlow(readChannels().map(::publicChannel))

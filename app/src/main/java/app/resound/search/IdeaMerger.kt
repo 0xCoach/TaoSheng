@@ -12,7 +12,7 @@ class IdeaMerger(private val db: CaptureDatabase) {
         val ideas = db.query(SimpleSQLiteQuery("""SELECT i.id,v.vector,v.dim FROM memory_items i
             JOIN memory_events e ON e.id=i.eventId
             JOIN embeddings v ON v.kind='item' AND v.refId=i.id AND v.model=?
-            WHERE e.deleted=0 AND i.category='灵感' AND i.mergedInto IS NULL AND i.noMerge=0
+            WHERE i.deleted=0 AND e.deleted=0 AND i.category='灵感' AND i.mergedInto IS NULL AND i.noMerge=0 AND i.editedAt IS NULL
             ORDER BY i.createdAt,i.id""", arrayOf(model))).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) {

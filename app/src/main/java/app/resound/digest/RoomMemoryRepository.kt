@@ -25,37 +25,38 @@ class RoomMemoryRepository(
     private val runner: DigestRunner,
     private val runNowAction: () -> Unit,
     private val scope: CoroutineScope,
+    private val reminderSettings: AndroidAppointmentSettings? = null,
 ) : MemoryRepository {
 
     override fun events(date: LocalDate): Flow<List<MemoryEvent>> {
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        return combine(dao.events(start, end), dao.itemsBetween(start, end), dao.repeatCounts()) { events, items, counts ->
+        return combine(dao.events(start, end), dao.itemsBetween(start, end), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
             val repeats = counts.associate { it.id to it.repeats }
             val byEvent = items.groupBy { it.eventId }
-            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
+            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
         }.flowOn(Dispatchers.IO)
     }
 
     private fun listed(source: Flow<List<MemoryItemEntity>>): Flow<List<MemoryItem>> =
-        combine(source, dao.repeatCounts()) { rows, counts ->
+        combine(source, dao.repeatCounts(), dao.doneHintLines()) { rows, counts, lines ->
             val repeats = counts.associate { it.id to it.repeats }
-            rows.map { it.toModel(repeats[it.id] ?: 1) }
+            rows.map { it.toModel(repeats[it.id] ?: 1, lines.associateBy { line -> line.id }) }
         }.flowOn(Dispatchers.IO)
 
     override fun importantEvents(): Flow<List<MemoryEvent>> =
-        combine(dao.importantEvents(), dao.importantItems(), dao.repeatCounts()) { events, items, counts ->
+        combine(dao.importantEvents(), dao.importantItems(), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
             val byEvent = items.groupBy { it.eventId }
             val repeats = counts.associate { it.id to it.repeats }
-            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
+            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
         }.flowOn(Dispatchers.IO)
 
     override fun starredEvents(): Flow<List<MemoryEvent>> =
-        combine(dao.starredEvents(), dao.starredItems(), dao.repeatCounts()) { events, items, counts ->
+        combine(dao.starredEvents(), dao.starredItems(), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
             val byEvent = items.groupBy { it.eventId }
             val repeats = counts.associate { it.id to it.repeats }
-            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
+            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
         }.flowOn(Dispatchers.IO)
 
     override fun setStarred(eventId: Long, starred: Boolean) { scope.launch { dao.setStarred(eventId, starred) } }
@@ -78,6 +79,22 @@ class RoomMemoryRepository(
     override fun inProgress(): Flow<List<MemoryItem>> = listed(dao.inProgress())
 
     override fun appointments(): Flow<List<MemoryItem>> = listed(dao.appointments())
+
+    override fun ongoing(): Flow<List<MemoryItem>> = listed(dao.ongoing())
+    override fun doneItems(from: LocalDate): Flow<List<MemoryItem>> =
+        listed(dao.doneItems(from.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()))
+    override fun deleteItem(id: Long) { scope.launch { dao.deleteItem(id) } }
+    override fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {
+        scope.launch { dao.updateItem(id, content, dueAt, hasTime, who) }
+    }
+    override fun setItemsStatus(ids: List<Long>, status: ItemStatus) {
+        val snapshot = ids.toList()
+        scope.launch { dao.setItemsStatus(snapshot, status.name) }
+    }
+    override fun dismissDoneHint(id: Long) { scope.launch { dao.dismissDoneHint(id) } }
+    override val appointmentReminders: StateFlow<AppointmentReminders> =
+        reminderSettings?.state ?: kotlinx.coroutines.flow.MutableStateFlow(AppointmentReminders())
+    override fun setAppointmentReminders(value: AppointmentReminders) { reminderSettings?.set(value) }
 
     override fun reorder(ids: List<Long>) {
         val snapshot = ids.toList()
@@ -123,14 +140,15 @@ class RoomMemoryRepository(
 
     override fun runNow() = runNowAction()
 
-    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>) = MemoryEvent(
+    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryEvent(
         id, startAt, endAt, scene, title, summary, pointsJson.strings(), peopleJson.strings(), place, emotion, intensity, important,
-        items.map { it.toModel(repeats[it.id] ?: 1) }, starred, starredAt,
+        items.map { it.toModel(repeats[it.id] ?: 1, lines) }, starred, starredAt,
     )
 
-    private fun MemoryItemEntity.toModel(repeats: Int = 1) = MemoryItem(
+    private fun MemoryItemEntity.toModel(repeats: Int = 1, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryItem(
         id, eventId, category, kind, content, dueText, dueAt, who,
-        runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto,
+        runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto, editedAt,
+        lines[doneHintLineId]?.let { DoneHint(it.id, it.text, doneHintAt ?: it.startAt) },
     )
 
     private fun String.strings(): List<String> = runCatching {

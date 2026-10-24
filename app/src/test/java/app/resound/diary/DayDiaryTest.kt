@@ -93,7 +93,7 @@ class DayDiaryTest {
                 CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7,
                 CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
         try {
-            assertEquals(10, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             assertEquals("/old", migrated.transcribe().segment(1).path)
             if (version == 9) {
                 val rows = migrated.memory().itemsByCategory(listOf("待办", "备忘")).first().associateBy { it.id }

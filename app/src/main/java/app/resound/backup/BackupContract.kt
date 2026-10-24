@@ -55,6 +55,20 @@ interface BackupRepository {
     /** 备份加密：设了口令就加密之后的备份（AES，口令不上传、忘了无法恢复）；null 关闭。云端和本机共用 */
     fun setEncryption(passphrase: String?) {}
 
+    // ---------- 按天分卷（卡 037）：恢复全部 ----------
+
+    /** 云端按天分卷的概况；还没有分卷备份时为 null */
+    suspend fun cloudSummary(): Result<BackupSummary?> = Result.success(null)
+
+    /** 用云端全部分卷恢复：记录、设置、密钥、账号全部还原；成功后 App 自动重启 */
+    suspend fun restoreAllFromCloud(passphrase: String? = null): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** 本机文件夹里按天分卷的概况 */
+    suspend fun localSummary(): Result<BackupSummary?> = Result.success(null)
+
+    /** 用本机文件夹里的全部分卷恢复 */
+    suspend fun restoreAllFromLocal(passphrase: String? = null): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     // ---------- 本机备份 ----------
 
     val local: StateFlow<LocalBackupState>
@@ -90,6 +104,25 @@ data class RemoteBackup(
     val full: Boolean = true,
     /** 增量所依赖的那份完整备份的文件名；完整备份为 null。恢复增量时会自动连同它一起下载 */
     val baseName: String? = null,
+)
+
+/**
+ * 按天分卷备份的概况（卡 037）：云端或本机文件夹里一共存了多少天的记录。
+ * 每天一个分卷 + 一个“当前状态”分卷（设置、密钥、账号、技能、人物等），每晚只传变了的分卷。
+ */
+data class BackupSummary(
+    /** 存了多少天的记录 */
+    val days: Int,
+    /** 全部分卷合计大小（字节） */
+    val bytes: Long,
+    /** 最近一次成功备份的时间 */
+    val lastAt: Long?,
+    /** 上一次备份传了多大（字节） */
+    val lastUploadBytes: Long?,
+    /** 备份里含密钥和账号 */
+    val includesSecrets: Boolean,
+    /** 分卷是加密的 */
+    val encrypted: Boolean,
 )
 
 /** 本机备份：存到手机里用户选的文件夹（系统文件选择器授权），不用坚果云也能备份和恢复 */

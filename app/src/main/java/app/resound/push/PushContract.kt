@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 enum class PushKind(val title: String) {
     // 顺序即界面顺序（按名字存储，调顺序不影响已存的通道）：消息推送 → 文档与笔记 → 自定义接口放最后
     PushPlus("PushPlus"), WeCom("企业微信机器人"), ServerChan("Server酱"), Feishu("飞书机器人"), DingTalk("钉钉机器人"), Telegram("Telegram"),
-    Email("邮件"), Notion("Notion"), MarkdownFolder("Obsidian / 笔记文件夹"),
+    Email("邮件"), Notion("Notion"), MarkdownFolder("坚果云同步文件夹"),
     Webhook("自定义接口（Webhook）"),
 }
 

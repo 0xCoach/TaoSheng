@@ -13,6 +13,9 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var inputs: app.resound.audio.InputDevices
+    val isInputsReady: Boolean get() = ::inputs.isInitialized
+
     lateinit var usage: app.resound.usage.UsageRepository
     val isUsageReady: Boolean get() = ::usage.isInitialized
 

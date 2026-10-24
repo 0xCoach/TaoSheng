@@ -147,8 +147,10 @@ private fun SettingsList(
         item {
             Section("记录") {
                 Group {
+                    val inputLabel = if (app.resound.AppGraph.isInputsReady)
+                        app.resound.AppGraph.inputs.status.collectAsState().value.using.let { if (it.kind == app.resound.audio.InputKind.Phone) null else it.name } else null
                     Row1("录音与后台", when (status.state) {
-                        CaptureState.Listening, CaptureState.Recording -> "正在聆听"
+                        CaptureState.Listening, CaptureState.Recording -> "正在聆听" + (inputLabel?.let { " · $it" } ?: "")
                         CaptureState.Paused -> "已暂停"
                         CaptureState.MicBusy -> "麦克风被占用"
                         CaptureState.Stopped -> "未开启"

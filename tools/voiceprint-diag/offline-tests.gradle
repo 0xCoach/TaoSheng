@@ -1,0 +1,7 @@
+// Robolectric 也强制离线；Gradle --offline 本身不能限制测试 JVM 的依赖解析器。
+allprojects {
+    tasks.withType(Test).configureEach {
+        systemProperty 'robolectric.offline', 'true'
+        systemProperty 'robolectric.dependency.dir', System.getenv('ROBOLECTRIC_JARS')
+    }
+}

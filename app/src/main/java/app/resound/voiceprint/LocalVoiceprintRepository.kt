@@ -78,9 +78,12 @@ class LocalVoiceprintRepository(
         }
     }
     suspend fun isReady(): Boolean = dao.allSamples().groupBy { it.personId }.values.any(::ready)
-    private fun ready(samples: List<VoiceprintSampleEntity>) = samples.size >= 3 && samples.sumOf { it.durationMillis } >= 30_000
+    private fun ready(samples: List<VoiceprintSampleEntity>): Boolean {
+        val trusted = WindowedVoiceprint.trusted(samples)
+        return trusted.size >= 3 && trusted.sumOf { it.durationMillis } >= 30_000
+    }
     private fun representative(samples: List<VoiceprintSampleEntity>) =
-        VoiceprintMath.representative(samples.map { VoiceprintMath.decode(it.vector) })
+        VoiceprintMath.representative(WindowedVoiceprint.trusted(samples).map { VoiceprintMath.decode(it.vector) })
     private fun pin(id: Long) { reading[id] = (reading[id] ?: 0) + 1 }
     private suspend fun unpin(id: Long) = withContext(NonCancellable) {
         gate.withLock { if (reading.getValue(id) == 1) reading.remove(id) else reading[id] = reading.getValue(id) - 1 }
@@ -104,11 +107,15 @@ class LocalVoiceprintRepository(
         val line = requireNotNull(dao.line(lineId))
         val segment = db.transcribe().segment(line.segmentId)
         val key = VoiceprintAudio.groupKey(line)
-        val lines = dao.lines(segment.id).filter { VoiceprintAudio.groupKey(it) == key }
+        val allLines = dao.lines(segment.id)
+        val lines = allLines.filter { VoiceprintAudio.groupKey(it) == key }
         val cacheKey = cache.key(segment, lines)
         val sample = dao.allSamples().firstOrNull { it.segmentId == segment.id && it.groupKey == key }
         val feature = sample?.let { VoiceprintFeatureCache.Feature(VoiceprintMath.decode(it.vector), it.durationMillis) }
             ?: cache.read(cacheKey)
+            ?: WindowedVoiceprint.windows(segment.startAt, segment.endAt, listOf(line)).mapNotNull {
+                cache.read(cache.windowKey(segment, allLines, it))?.takeIf { feature -> feature.vector != null }
+            }.firstOrNull()
         return Group(segment, key, lines, cacheKey, feature)
     }
     override fun markMe(lineId: Long) = assignPerson(lineId, 0)
@@ -135,24 +142,41 @@ class LocalVoiceprintRepository(
         val personName = if (personId == 0L) "我" else requireNotNull(dao.people().find { it.id == personId }).name
         val group = gate.withLock { group(lineId).also { pin(it.segment.id) } }
         try {
-            val feature = group.feature ?: if (!File(group.segment.path).isFile) null else run {
-                val pcm = VoiceprintAudio.group(readPcm(File(group.segment.path)), group.segment.startAt, group.lines)
-                if (pcm.size < VoiceprintAudio.MIN_SAMPLES) null else
-                    VoiceprintFeatureCache.Feature(engine { VoiceprintMath.unit(it.compute(pcm)) }, pcm.size / 16L)
+            val feature = if (!File(group.segment.path).isFile) group.feature else {
+                // 用户确认仍按约定锁定整组；补样本只使用所点句子的连续窗口。
+                val clicked = group.lines.first { it.id == lineId }
+                val pcm = readPcm(File(group.segment.path))
+                val slices = WindowedVoiceprint.windows(group.segment.startAt, group.segment.endAt, listOf(clicked))
+                    .mapNotNull { window ->
+                        val from = ((window.start - group.segment.startAt) * 16).coerceIn(0, pcm.size.toLong()).toInt()
+                        val to = ((window.end - group.segment.startAt) * 16).coerceIn(from.toLong(), pcm.size.toLong()).toInt()
+                        VoiceprintAudio.trimSilence(pcm.copyOfRange(from, to)).takeIf { it.size >= VoiceprintAudio.MIN_SAMPLES }
+                    }
+                if (slices.isEmpty()) null else engine { model ->
+                    val vectors = slices.map { VoiceprintMath.unit(model.compute(it)) }
+                    val coherent = vectors.indices.all { i -> (0 until i).all { j ->
+                        VoiceprintMath.cosine(vectors[i], vectors[j]) >= 0.65f
+                    } }
+                    if (!coherent) null
+                    else VoiceprintFeatureCache.Feature(vectors.first(), slices.first().size / 16L)
+                }
             }
             val vector = feature?.vector
             gate.withLock {
                 // 转写若被替换，不能将旧向量写给新句子。
                 require(group.cacheKey == group(lineId).cacheKey)
-                if (feature != null) cache.write(group.cacheKey, feature)
                 db.withTransaction {
                     val existing = dao.allSamples().firstOrNull { it.segmentId == group.segment.id && it.groupKey == group.key }
                     require(personId == 0L || dao.people().any { it.id == personId })
                     // 自动样本经用户确认后晋升为手动样本，保留 id，永不自动淘汰。
-                    if (vector != null) dao.saveSample(existing?.copy(source = "line", sourceLineId = lineId, personId = personId)
+                    if (vector != null) dao.saveSample(existing?.copy(source = "line", sourceLineId = lineId, personId = personId,
+                        vector = VoiceprintMath.encode(vector), durationMillis = feature.durationMillis)
                         ?: VoiceprintSampleEntity(source = "line", sourceLineId = lineId, segmentId = group.segment.id,
                             groupKey = group.key, vector = VoiceprintMath.encode(vector),
                             durationMillis = feature.durationMillis, createdAt = now(), personId = personId))
+                    // 明确重标但无法提取一致声音时，保留人工记录并隔离旧向量。
+                    if (vector == null && existing != null && existing.source != "auto")
+                        dao.saveSample(existing.copy(source = "line-review", sourceLineId = lineId, personId = personId))
                     dao.unexclude(group.segment.id, group.key)
                     dao.identity(group.lines.map { it.id }, personId, personName, 1f, true)
                     dao.invalidate() // 后台复用缓存重打分；不在本次点击中遍历历史录音。
@@ -213,76 +237,128 @@ class LocalVoiceprintRepository(
 
     /** 返回 true 表示仍需重试。并发 worker 串行；每轮自动补样本只在下一轮参与平均。 */
     suspend fun run(): Boolean = withContext(Dispatchers.IO) { rounds.withLock { process() } }
-    private suspend fun process(): Boolean {
+    data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
+
+    /** 只返回样本状态，不返回声音/向量；供后续界面展示人工样本离群提示。 */
+    suspend fun sampleHealth(): List<SampleHealth> = gate.withLock {
+        dao.allSamples().groupBy { it.personId }.values.flatMap { samples ->
+            val manual = WindowedVoiceprint.trusted(samples)
+            val center = if (manual.isEmpty()) null else representative(manual)
+            samples.map { sample ->
+                val score = center?.let { runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), it) }.getOrDefault(0f) }
+                SampleHealth(sample.id, sample.source == "auto", sample.source == "line-review" || score == null || score < WindowedVoiceprint.OUTLIER)
+            }
+        }
+    }
+
+    /** 仅本地声纹重算；不调用转写/整理调度，不改变已过期录音的结果。 */
+    suspend fun recomputeRecent(days: Int): Boolean = withContext(Dispatchers.IO) {
+        require(days in 1..30)
+        rounds.withLock {
+            val since = now() - days * 86_400_000L
+            val retained = db.transcribe().observeSegments().first().filter {
+                it.status == "Done" && it.startAt >= since && File(it.path).isFile
+            }
+            process(retained)
+        }
+    }
+
+    private suspend fun process(selected: List<SegmentEntity>? = null): Boolean {
         val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people()) }
         val canIdentify = round.samples.groupBy { it.personId }.values.any(::ready)
         // 导入音频转写后就删除；即使还没有注册声纹，也先缓存特征供日后从原话补样本。
-        val pending = dao.pending().filter { canIdentify || it.sourceId == "import" }
+        val pending = (selected ?: dao.pending()).filter { canIdentify || it.sourceId == "import" }
         if (pending.isEmpty()) return false
         var retry = false
         var lastError: String? = null
         var model: SpeakerEmbedding? = null
         try {
-            val candidates = round.samples.groupBy { it.personId }.filterValues(::ready).mapNotNull { (id, samples) ->
-                val name = if (id == 0L) "我" else round.people.find { it.id == id }?.name ?: return@mapNotNull null
-                SpeakerIdentity.Candidate(id, name, representative(samples))
-            }
             for (segment in pending) {
                 currentCoroutineContext().ensureActive()
                 val input = gate.withLock {
                     if (revision != round.revision) return true
                     val lines = dao.lines(segment.id)
                     val excluded = dao.exclusions(segment.id).toSet()
-                    val samples = dao.allSamples()
                     val groups = lines.groupBy(VoiceprintAudio::groupKey).map { (key, group) ->
                         val cacheKey = cache.key(segment, group)
-                        val sample = samples.firstOrNull { it.segmentId == segment.id && it.groupKey == key }
-                        Group(segment, key, group, cacheKey, cache.read(cacheKey) ?: sample?.let {
-                            VoiceprintFeatureCache.Feature(VoiceprintMath.decode(it.vector), it.durationMillis)
-                        })
+                        Group(segment, key, group, cacheKey, null)
                     }
                     pin(segment.id)
                     SegmentInput(lines, excluded, groups)
                 }
                 try {
-                    val needAudio = input.groups.any { it.feature == null }
-                    val pcm = if (needAudio && File(segment.path).isFile) readPcm(File(segment.path)) else null
-                    if (needAudio && pcm == null) lastError = "部分旧录音已过期，无法补算声纹；已放行整理"
-                    val features = input.groups.associateWith { group ->
-                        group.feature ?: if (pcm == null) null else {
-                            val speech = VoiceprintAudio.group(pcm, segment.startAt, group.lines)
+                    // 同段样本不参与自己判定；自动样本不进中心。
+                    val candidates = round.samples.filter { it.segmentId != segment.id }.groupBy { it.personId }
+                        .filterValues(::ready).mapNotNull { (id, samples) ->
+                            val name = if (id == 0L) "我" else round.people.find { it.id == id }?.name ?: return@mapNotNull null
+                            SpeakerIdentity.Candidate(id, name, representative(samples),
+                                WindowedVoiceprint.trusted(samples).map { VoiceprintMath.decode(it.vector) }, WindowedVoiceprint.SURE)
+                        }
+                    // 音频过期时只保留结果，不用旧混合向量冒充窗口向量。
+                    if (!File(segment.path).isFile) {
+                        gate.withLock {
+                            if (revision != round.revision) return true
+                            dao.processed(segment.id, now())
+                        }
+                        continue
+                    }
+                    val layout = input.groups.associateWith { group ->
+                        WindowedVoiceprint.windows(segment.startAt, segment.endAt, group.lines)
+                    }
+                    val saved = gate.withLock { layout.values.flatten().distinct().associateWith { window ->
+                        cache.read(cache.windowKey(segment, input.lines, window))
+                    } }
+                    val pcm = if (saved.values.any { it == null }) readPcm(File(segment.path)) else null
+                    val features = layout.mapValues { (_, windows) -> windows.map { window ->
+                        val feature = saved[window] ?: run {
+                            val audio = requireNotNull(pcm)
+                            val from = ((window.start - segment.startAt) * 16).coerceIn(0, audio.size.toLong()).toInt()
+                            val to = ((window.end - segment.startAt) * 16).coerceIn(from.toLong(), audio.size.toLong()).toInt()
+                            val speech = VoiceprintAudio.trimSilence(audio.copyOfRange(from, to))
                             val vector = if (speech.size < VoiceprintAudio.MIN_SAMPLES) null else {
                                 val activeModel = model ?: createEngine().also { model = it }
                                 VoiceprintMath.unit(activeModel.compute(speech))
                             }
                             VoiceprintFeatureCache.Feature(vector, speech.size / 16L)
                         }
-                    }
+                        WindowedVoiceprint.Observation(window, feature)
+                    } }
                     gate.withLock {
                         val currentLines = dao.lines(segment.id)
                         if (cache.key(segment, currentLines) != cache.key(segment, input.lines)) {
                             retry = true
                         } else {
                             // 人工纠正后仍可保存纯特征，避免下轮重新推理；reset 后则不得复活缓存。
-                            if (resetGeneration == round.generation) for ((group, feature) in features) {
-                                if (feature != null) cache.write(group.cacheKey, feature)
+                            if (resetGeneration == round.generation) for (observations in features.values) {
+                                for ((window, feature) in observations) if (feature != null)
+                                    cache.write(cache.windowKey(segment, input.lines, window), feature)
                             }
                             if (revision != round.revision) return true
                             db.withTransaction {
-                                for ((group, feature) in features) {
-                                    val match = SpeakerIdentity.match(feature?.vector?.takeUnless { group.lines.any { line -> line.speakerTag?.startsWith("uncertain:") == true } },
-                                        candidates.filter { it.id != 0L || group.key !in input.excluded })
-                                    // 人工指定/未知均锁定，自动结果不得覆盖。
-                                    dao.identity(group.lines.map { it.id }, match.personId, match.name, match.score)
-                                    // 保留原单人自学习；多人模式只用人工确认样本，防止互相污染。
-                                    if (round.people.isEmpty() && match.personId == 0L && (match.score ?: 0f) >= AUTO_SCORE && feature != null &&
-                                        feature.durationMillis >= AUTO_MILLIS && group.lines.none { it.speakerManual } &&
-                                        dao.allSamples().none { it.segmentId == segment.id && it.groupKey == group.key }) {
-                                        dao.saveSample(VoiceprintSampleEntity(source = "auto", sourceLineId = group.lines.first().id,
-                                            segmentId = segment.id, groupKey = group.key, vector = VoiceprintMath.encode(requireNotNull(feature.vector)),
-                                            durationMillis = feature.durationMillis, createdAt = now()))
+                                // 清理旧自动样本的离群/超长向量；用户手动样本绝不删除。
+                                val me = candidates.find { it.id == 0L }
+                                if (me != null) for (sample in dao.allSamples().filter { it.source == "auto" }) {
+                                    val score = runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), me.vector) }.getOrDefault(0f)
+                                    if (sample.durationMillis > WindowedVoiceprint.WINDOW_MILLIS || score < WindowedVoiceprint.AUTO_SCORE) {
+                                        sample.segmentId?.let { id -> sample.groupKey?.let { key -> dao.removeSample(id, key) } }
                                     }
-
+                                }
+                                for ((group, observations) in features) {
+                                    val allowed = candidates.filter { it.id != 0L || group.key !in input.excluded }
+                                    for (line in group.lines) {
+                                        val match = if (line.speakerTag?.startsWith("uncertain:") == true)
+                                            SpeakerIdentity.Match(null, null, null)
+                                        else WindowedVoiceprint.vote(line, observations, allowed)
+                                        dao.identity(listOf(line.id), match.personId, match.name, match.score)
+                                    }
+                                    val auto = if (round.people.isEmpty() && segment.playbackMillis == 0L &&
+                                        group.lines.none { it.speakerManual || it.speakerTag?.startsWith("uncertain:") == true })
+                                        WindowedVoiceprint.autoSample(observations, allowed) else null
+                                    if (auto != null && dao.allSamples().none { it.segmentId == segment.id && it.groupKey == group.key }) {
+                                        dao.saveSample(VoiceprintSampleEntity(source = "auto", sourceLineId = group.lines.first().id,
+                                            segmentId = segment.id, groupKey = group.key, vector = VoiceprintMath.encode(requireNotNull(auto.vector)),
+                                            durationMillis = auto.durationMillis, createdAt = now()))
+                                    }
                                 }
                                 dao.trimAutoSamples()
                                 dao.processed(segment.id, now())
@@ -313,7 +389,12 @@ class LocalVoiceprintRepository(
     }
 
     internal fun removeFeatures(segment: SegmentEntity, lines: List<TranscriptLineEntity>) {
-        lines.groupBy(VoiceprintAudio::groupKey).values.forEach { cache.remove(cache.key(segment, it)) }
+        lines.groupBy(VoiceprintAudio::groupKey).values.forEach { group ->
+            cache.remove(cache.key(segment, group))
+            WindowedVoiceprint.windows(segment.startAt, segment.endAt, group).forEach {
+                cache.remove(cache.windowKey(segment, lines, it))
+            }
+        }
     }
 
     suspend fun cleanupAudio() = gate.withLock {
@@ -327,8 +408,4 @@ class LocalVoiceprintRepository(
         }
     }
 
-    private companion object {
-        const val AUTO_SCORE = 0.80f
-        const val AUTO_MILLIS = 3_000L
-    }
 }

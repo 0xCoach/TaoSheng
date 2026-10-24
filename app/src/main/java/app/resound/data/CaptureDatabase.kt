@@ -50,7 +50,7 @@ interface CaptureDao {
 
 @Database(entities = [SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,
-    MemoryEventEntity::class, MemoryItemEntity::class, LlmUsageEntity::class, AppPowerEntity::class,
+    MemoryEventEntity::class, MemoryItemEntity::class, LlmUsageV2Entity::class, AppPowerEntity::class,
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, app.resound.search.LineFts::class, app.resound.search.EventFts::class,
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
@@ -67,7 +67,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 14
+        const val VERSION = 15
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -184,8 +184,15 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE memory_events ADD COLUMN starredAt INTEGER")
             }
         }
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS llm_usage_v2 (day TEXT NOT NULL, purpose TEXT NOT NULL, promptTokens INTEGER NOT NULL, completionTokens INTEGER NOT NULL, calls INTEGER NOT NULL, PRIMARY KEY(day, purpose))")
+                db.execSQL("INSERT INTO llm_usage_v2 (day, purpose, promptTokens, completionTokens, calls) SELECT day, 'Other', promptTokens, completionTokens, calls FROM llm_usage")
+                db.execSQL("DROP TABLE llm_usage")
+            }
+        }
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
             .addCallback(app.resound.search.SearchIndex.callback).build()
     }
 }

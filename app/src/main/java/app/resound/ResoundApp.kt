@@ -36,6 +36,8 @@ class ResoundApp : Application() {
         // 仅回收上个进程遗留的转码/密钥测试临时文件；原录音在 files/segments。
         cacheDir.listFiles()?.filter { it.name.startsWith("asr-") && it.extension in setOf("pcm", "ogg") }
             ?.forEach { it.delete() }
+        AppGraph.usage = app.resound.usage.RoomUsageRepository(database.memory(), database.transcribe(),
+            getSharedPreferences("usage", MODE_PRIVATE))
         AppGraph.prompts = app.resound.prompts.LocalPromptTemplates(this)
         AppGraph.playbackSkip = AndroidPlaybackSkipSettings(this)
         CaptureNotifications.channels(this)
@@ -76,7 +78,10 @@ class ResoundApp : Application() {
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
         val llm = LlmClient()
-        val digestSettings = AndroidDigestSettings(this, llm)
+        val digestSettings = AndroidDigestSettings(this, llm) { reply ->
+            database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
+                reply.completionTokens, app.resound.usage.UsagePurpose.Other)
+        }
         val skillScheduler = app.resound.skills.SkillScheduler(this)
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)

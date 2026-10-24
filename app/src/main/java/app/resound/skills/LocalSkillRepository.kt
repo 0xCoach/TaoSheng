@@ -1,5 +1,7 @@
 package app.resound.skills
 
+import app.resound.usage.UsagePurpose
+
 import app.resound.data.MemoryDao
 import app.resound.digest.*
 import app.resound.push.Notifier
@@ -76,7 +78,7 @@ class LocalSkillRepository(
         for (attempt in 0..1) {
             try {
                 val reply = request(preset, key, SkillDrafter.SYSTEM, SkillDrafter.user(conversation))
-                withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(now()).toString(), reply.promptTokens, reply.completionTokens) }
+                withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(now()).toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Draft) }
                 return Result.success(SkillDrafter.step(reply.content, id, mustFinish))
             } catch (e: CancellationException) { throw e }
             catch (e: LlmException) {
@@ -129,7 +131,7 @@ class LocalSkillRepository(
                             try {
                                 val reply = request(preset, key, SkillPrompt.system(skill, promptOverride ?: files.prompt(id), date), SkillInputs.user(input, hotwords()))
                                 tokens += reply.promptTokens + reply.completionTokens
-                                withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(started).toString(), reply.promptTokens, reply.completionTokens) }
+                                withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(started).toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
                                 parsed = SkillOutput.parse(reply.content, skill, date, input, now(), manual = !auto)
                                 break
                             } catch (e: LlmException) {

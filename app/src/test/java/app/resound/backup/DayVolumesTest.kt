@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import okhttp3.mockwebserver.*
 import org.json.JSONObject
 import org.junit.*
@@ -240,4 +241,40 @@ class DayVolumesTest {
             assertTrue(File(restore(), BackupArchive.DATABASE).isFile)
         } finally { server.shutdown() }
     }
+    @Test fun usageV2BelongsToDayAndRestoresBothPurposes() = runBlocking {
+        db.memory().addUsage("2026-10-24", 10, 2, app.resound.usage.UsagePurpose.Digest)
+        db.memory().addUsage("2026-10-24", 20, 3, app.resound.usage.UsagePurpose.Ask)
+        db.memory().addUsage("2026-10-23", 7, 1)
+        assertEquals(2, sync().days)
+        val current = state()
+        assertFalse(File(current.directory, "rows.jsonl").readText().contains("llm_usage"))
+        val dayDir = File(root, "usage-day")
+        DayVolumes.unzip(File(remote, "days/resound-day-2026-10-24.zip"), dayDir) { it == "rows.jsonl" }
+        val text = File(dayDir, "rows.jsonl").readText()
+        assertTrue(text.contains("llm_usage_v2")); assertFalse(text.contains("2026-10-23"))
+        val room = CaptureDatabase.open(context, File(restore(), BackupArchive.DATABASE).path)
+        try {
+            val repo = app.resound.usage.RoomUsageRepository(room.memory(), room.transcribe(), context.getSharedPreferences("usage", 0))
+            val rows = repo.llm(LocalDate.parse("2026-10-23"), LocalDate.parse("2026-10-24")).first()
+            assertEquals(3, rows.size); assertEquals(37L, rows.sumOf { it.promptTokens })
+            assertEquals(setOf(app.resound.usage.UsagePurpose.Digest, app.resound.usage.UsagePurpose.Ask, app.resound.usage.UsagePurpose.Other), rows.map { it.purpose }.toSet())
+        } finally { room.close() }
+    }
+
+    @Test fun oldUsageVolumeRestoresAsOtherAlongsideNewPurpose() = runBlocking {
+        val state = File(root, "usage-state.jsonl").apply { writeText("") }
+        val rows = File(root, "usage-old.jsonl").apply { writeText("""{"table":"llm_usage","values":{"day":"2026-10-24","promptTokens":12,"completionTokens":3,"calls":2}}
+{"table":"llm_usage_v2","values":{"day":"2026-10-24","purpose":"Ask","promptTokens":20,"completionTokens":4,"calls":1}}
+""") }
+        val target = File(root, "usage-old.db")
+        DayVolumeRows.rebuild(context, target, 14, state, listOf(rows))
+        val room = CaptureDatabase.open(context, target.path)
+        try {
+            val usage = room.memory().usageByPurpose("2026-10-24", "2026-10-24").first()
+            val other = usage.single { it.purpose == "Other" }
+            assertEquals(12L, other.promptTokens); assertEquals(3L, other.completionTokens); assertEquals(2, other.calls)
+            assertEquals(32L, room.memory().observeUsage().first().single().promptTokens)
+        } finally { room.close() }
+    }
+
 }

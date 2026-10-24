@@ -1,5 +1,7 @@
 package app.resound.review
 
+import app.resound.usage.UsagePurpose
+
 import android.content.SharedPreferences
 import app.resound.data.MemoryDao
 import app.resound.data.ReviewDao
@@ -72,7 +74,7 @@ class RoomReviewRepository(
                     if (key.isBlank()) { error("还没填写大模型密钥"); return@withLock false }
                     val reply = chat(preset, key, ReviewPrompt.system(template(), appName), ReviewPrompt.input(date, source, timezone, minutes))
                     // 格式错误的成功调用也实际消耗了 token。
-                    memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens)
+                    memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)
                     model = preset.model
                     ReviewPrompt.parse(reply.content, source, timezone)
                 }

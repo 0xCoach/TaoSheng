@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.usage.UsagePurpose
+
 import android.content.Context
 import app.resound.appName
 import app.resound.data.MemoryDao
@@ -95,7 +97,7 @@ class DigestRunner(
         val (text, indexed) = DigestPrompt.transcript(lines)
         return try {
             val reply = request(preset, key, DigestPrompt.system(template(), LocalDate.now(), appName), DigestPrompt.withHotwords(text, hotwords()))
-            dao.addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens)
+            dao.addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest)
             val (events, items) = DigestPrompt.parse(reply.content, indexed)
             val at = now()
             dao.saveDigest(

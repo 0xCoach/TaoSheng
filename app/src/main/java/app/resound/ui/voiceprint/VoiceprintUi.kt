@@ -66,9 +66,39 @@ fun VoiceprintCard(repo: VoiceprintRepository) {
             modifier = Modifier.padding(horizontal = 4.dp))
         Spacer(Modifier.height(10.dp))
         SpeakerSegmentationSettings()
+        if (state.ready) RecomputeCard()
         state.lastError?.let { Text(it, style = RsType.caption, color = c.critical, modifier = Modifier.padding(horizontal = 4.dp)) }
         if (state.pendingSegments > 0) Text("还有 ${state.pendingSegments} 段等着匹配声音", style = RsType.caption, color = c.textTertiary,
             modifier = Modifier.padding(horizontal = 4.dp))
+    }
+}
+
+/** 卡 044：用新判定把最近几天（录音还在的）重新认一遍；人工标过的不动 */
+@Composable
+private fun RecomputeCard() {
+    val c = Rs.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val infos by remember {
+        androidx.work.WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(app.resound.voiceprint.VoiceprintRecomputeWork.NAME)
+    }.collectAsState(initial = emptyList())
+    val latest = infos.lastOrNull()?.state
+    val running = latest == androidx.work.WorkInfo.State.RUNNING || latest == androidx.work.WorkInfo.State.ENQUEUED
+    var days by remember { mutableStateOf(1) } // 0=1 天 1=7 天 2=30 天
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("重新认一遍", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, modifier = Modifier.weight(1f))
+            app.resound.ui.skills.Segments(listOf("今天", "7 天", "30 天"), days) { days = it }
+        }
+        Text("识别方法升级了。用新方法把这段时间里录音还在的话重新判断一遍是谁说的；你亲手标过的不会变。",
+            style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
+        app.resound.ui.verify.ActionButton(if (running) "正在重新判断…" else "开始", app.resound.ui.verify.ActionKind.Secondary, enabled = !running) {
+            app.resound.voiceprint.VoiceprintRecomputeWork.enqueue(context, listOf(1, 7, 30)[days])
+        }
+        when (latest) {
+            androidx.work.WorkInfo.State.SUCCEEDED -> "上次已完成"
+            androidx.work.WorkInfo.State.FAILED -> "上次没做完，可以再试一次"
+            else -> null
+        }?.let { Text(it, style = RsType.caption, color = if (latest == androidx.work.WorkInfo.State.FAILED) c.critical else c.textTertiary, modifier = Modifier.padding(top = 8.dp)) }
     }
 }
 

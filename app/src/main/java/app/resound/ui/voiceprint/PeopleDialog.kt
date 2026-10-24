@@ -247,7 +247,7 @@ private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
     val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
     val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
     Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.padding(start = x).size(26.dp).clip(CircleShape).background(Color.White))
+        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
     }
 }
 

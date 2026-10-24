@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -157,7 +158,7 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     var kind by remember { mutableStateOf(ch?.kind ?: PushKind.PushPlus) }
-    var name by remember { mutableStateOf(ch?.name ?: "") }
+    var name by remember { mutableStateOf(ch?.name ?: shortName(PushKind.PushPlus)) }
     val values = remember { mutableStateMapOf<String, String>() }
     var topics by remember { mutableStateOf(ch?.topics ?: setOf(PushTopic.DailyReview)) }
     var format by remember { mutableStateOf(ch?.format ?: PushFormat.Markdown) }
@@ -180,6 +181,8 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { k ->
                             KindTile(k, k == kind, Modifier.weight(1f)) {
+                                // 名字没改过就跟着类型走，免得保存按钮因为没填名字一直是灰的
+                                if (ch == null && (name.isBlank() || name == shortName(kind))) name = shortName(k)
                                 kind = k; values.clear(); result = null; topics = topics intersect repo.topics(k)
                                 // 换通道时给一个合适的起点：文件夹类默认“给智能体用”，其余默认“手机通知”
                                 if (ch == null) sub = if (repo.capabilities(k).records) PushSubscription.ForAgents else PushSubscription.PhoneNotice
@@ -274,7 +277,8 @@ private fun Field(value: String, hint: String, secret: Boolean, onChange: (Strin
 @Composable
 private fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (on) c.accent else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "pushChoice")
+    // 未选中用白底：放在浅色分块里也看得清
+    val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "pushChoice")
     val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "pushChoiceFg")
     Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
         modifier = Modifier.springClick(onClick).clip(CircleShape).background(bg).padding(horizontal = 14.dp, vertical = 8.dp))
@@ -286,19 +290,19 @@ private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
     val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
     val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
     Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.padding(start = x).size(26.dp).clip(CircleShape).background(Color.White))
+        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
     }
 }
 
 private val KIND_GROUPS = listOf(
     "消息推送" to listOf(PushKind.PushPlus, PushKind.WeCom, PushKind.ServerChan, PushKind.Feishu, PushKind.DingTalk, PushKind.Telegram),
-    "文档与笔记（可推每日记忆文档）" to listOf(PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder),
+    "资料（可推整理结果，给智能体读）" to listOf(PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder),
     "自定义" to listOf(PushKind.Webhook),
 )
 
 private fun shortName(k: PushKind) = when (k) {
     PushKind.WeCom -> "企业微信"; PushKind.Feishu -> "飞书"; PushKind.DingTalk -> "钉钉"
-    PushKind.MarkdownFolder -> "Obsidian"; PushKind.Webhook -> "自定义接口"; else -> k.title
+    PushKind.MarkdownFolder -> "坚果云同步"; PushKind.Webhook -> "自定义接口"; else -> k.title
 }
 
 /** 类型小方块：选中时底色换成该通道的颜色 */
@@ -375,8 +379,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
         add("手机通知" to PushSubscription.PhoneNotice)
         if (caps.records) { add("给智能体用" to PushSubscription.ForAgents); add("完整归档" to PushSubscription.FullArchive) }
     }
-    if (templates.size > 1) {
-        Label("一键模板（选了再细调）")
+    if (templates.size > 1) Block("一键模板", "选了再细调，所有设置都能改") {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             templates.forEach { (n, t) ->
                 val fixed = if (caps.incremental) t else t.copy(incremental = false, fullCheckAt = null)
@@ -385,26 +388,26 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
         }
     }
 
-    Label("推什么")
+    Block("推什么") {
     ToggleRow("摘要", "每日回顾、每周回顾、技能卡片，生成后自动推", sub.summaries) { onChange(sub.copy(summaries = it)) }
     ToggleRow("提醒", "待办到期、标了重点 3 天没进展，到点推", sub.reminders) { onChange(sub.copy(reminders = it)) }
     if (!caps.records) {
         Text("这种通道只能发短消息，推不了整理结果和原话；想给智能体读，用坚果云同步文件夹或自定义接口。", style = RsType.caption, color = c.textTertiary)
-        return
-    }
-    Text("整理结果", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 4.dp))
+    } else {
+    SubLabel("整理结果（可多选）")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         RecordKind.entries.forEach { k ->
             Choice(k.title, k in sub.records) { onChange(sub.copy(records = if (k in sub.records) sub.records - k else sub.records + k)) }
         }
     }
-    Text("原话", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 4.dp))
+    SubLabel("原话")
     app.resound.ui.skills.Segments(LinesMode.entries.map { it.title }, sub.lines.ordinal) { onChange(sub.copy(lines = LinesMode.entries[it])) }
     if (sub.lines != LinesMode.Off) Text("原话会以明文推出去，注意保管；“只推我说的”只含声纹认出是你的话。", style = RsType.caption, color = c.warning)
+    }
+    }
+    if (!caps.records || (sub.records.isEmpty() && sub.lines == LinesMode.Off)) return
 
-    if (sub.records.isEmpty() && sub.lines == LinesMode.Off) return
-
-    Label("整理结果和原话什么时候推")
+    Block("什么时候推", "摘要生成后自动推、提醒到点推；下面只管整理结果和原话") {
     val ti = when (sub.trigger) { is RecordTrigger.OnChange -> 0; is RecordTrigger.Schedule -> 1; RecordTrigger.Manual -> 2 }
     app.resound.ui.skills.Segments(listOf("有新内容就推", "按时间推", "只手动"), ti) {
         onChange(sub.copy(trigger = when (it) {
@@ -415,13 +418,13 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
     }
     when (val t = sub.trigger) {
         is RecordTrigger.OnChange -> {
-            Text("两次之间至少隔", style = RsType.caption, color = c.textSecondary)
+            SubLabel("两次之间至少隔")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(15, 30, 60, 120, 240).forEach { m -> Choice(if (m < 60) "$m 分钟" else "${m / 60} 小时", t.minGapMinutes == m) { onChange(sub.copy(trigger = RecordTrigger.OnChange(m))) } }
             }
         }
         is RecordTrigger.Schedule -> {
-            Text("每天这些时间推（可多选）", style = RsType.caption, color = c.textSecondary)
+            SubLabel("每天这些时间推（可多选）")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(7, 9, 12, 15, 18, 21, 22, 23).map { it * 60 }.forEach { m ->
                     Choice(hm(m), m in t.times) {
@@ -430,7 +433,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
                     }
                 }
             }
-            Text("哪几天", style = RsType.caption, color = c.textSecondary)
+            SubLabel("哪几天")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("一", "二", "三", "四", "五", "六", "日").forEachIndexed { i, w ->
                     val d = i + 1
@@ -445,12 +448,12 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
         }
         RecordTrigger.Manual -> Text("只在通道详情里点“现在推一次”时推。", style = RsType.caption, color = c.textSecondary)
     }
+    }
 
-    if (caps.incremental) {
-        Label("增量还是全量")
+    if (caps.incremental) Block("增量还是全量") {
         app.resound.ui.skills.Segments(listOf("增量（只推变化）", "全量（每次完整）"), if (sub.incremental) 0 else 1) { onChange(sub.copy(incremental = it == 0)) }
         if (sub.incremental) {
-            Text("每天全量校对一次，防止漏推", style = RsType.caption, color = c.textSecondary)
+            SubLabel("每天全量校对一次，防止漏推")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 (listOf<Int?>(null) + listOf(21, 22, 23).map { it * 60 }).forEach { m ->
                     Choice(m?.let { hm(it) } ?: "不校对", sub.fullCheckAt == m) { onChange(sub.copy(fullCheckAt = m)) }
@@ -459,26 +462,43 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
         }
     }
 
-    Label("范围")
-    Text("只推最近", style = RsType.caption, color = c.textSecondary)
+    Block("范围") {
+    SubLabel("只推最近")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf<Int?>(7, 30, 90, 365, null).forEach { d -> Choice(d?.let { "$it 天" } ?: "不限", sub.rangeDays == d) { onChange(sub.copy(rangeDays = d)) } }
     }
     ToggleRow("排除电视、视频和旁人", "外放的剧、视频，和旁边别人的对话不推", sub.excludeMedia) { onChange(sub.copy(excludeMedia = it)) }
     if (isNew) {
-        Text("第一次开启时，补推以前的", style = RsType.caption, color = c.textSecondary)
+        SubLabel("第一次开启时，补推以前的")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf<Pair<String, Int?>>("从今天开始" to 0, "最近 30 天" to 30, "全部" to null).forEach { (n, d) ->
                 Choice(n, sub.backfillDays == d) { onChange(sub.copy(backfillDays = d)) }
             }
         }
     }
-    if (caps.folder) {
-        Label("文件怎么放")
+    }
+    if (caps.folder) Block("文件怎么放") {
         app.resound.ui.skills.Segments(FolderLayout.entries.map { it.title }, sub.layout.ordinal) { onChange(sub.copy(layout = FolderLayout.entries[it])) }
         Text(if (sub.layout == FolderLayout.ByCategory) "重点、待办、灵感、决定各一个汇总文件，再加每天一个文件；适合给智能体读。"
             else "只按天放，每天一个文件写全当天内容；适合归档。", style = RsType.caption, color = c.textTertiary)
     }
+}
+
+/** 订阅设置里的一块：浅底圆角，标题统一样式 */
+@Composable
+private fun Block(title: String, desc: String? = null, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val c = Rs.colors
+    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).background(c.background).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+        desc?.let { Text(it, style = RsType.caption, color = c.textTertiary) }
+        content()
+    }
+}
+
+@Composable
+private fun SubLabel(text: String) {
+    Text(text, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = Rs.colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
 }
 
 @Composable

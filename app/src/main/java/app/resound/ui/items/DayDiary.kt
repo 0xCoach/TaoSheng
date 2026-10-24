@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -556,7 +557,7 @@ private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
     val x by androidx.compose.animation.core.animateDpAsState(if (on) 20.dp else 0.dp,
         spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
     Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.padding(start = x).size(26.dp).clip(CircleShape).background(Color.White))
+        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
     }
 }
 

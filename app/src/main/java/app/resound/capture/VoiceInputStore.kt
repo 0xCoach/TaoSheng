@@ -17,6 +17,10 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
         // 原话只比较同应用上一条；上下文累计比较同聊天的已存行，避免第三段重新带回第一段。
         if (recent.firstOrNull()?.first?.text?.let { VoiceInputDedup.key(it) == VoiceInputDedup.key(record.text) } == true)
             return@withTransaction null
+        // 中间停顿被拆成两次语音输入时，后一次是“前一句 + 接着说的”：更新上一条，不另存
+        recent.firstOrNull()?.first?.takeIf { record.at - it.startAt <= 120_000 && VoiceInputDedup.continues(it.text, record.text) }?.let { prev ->
+            if (dao.extend(prev.id, record.text) > 0) return@withTransaction prev.id
+        }
         val sameChat = recent.filter { VoiceInputDedup.title(it.second.title) == VoiceInputDedup.title(record.meta.title) }
         val known = sameChat.flatMap { (row, meta) ->
             meta.before.orEmpty().lines() + row.text.lines() + row.text
@@ -43,4 +47,10 @@ internal object VoiceInputDedup {
     fun key(text: String) = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKC)
         .trim().replace(Regex("\\s+"), " ")
     fun title(text: String?) = text?.let(::key)?.ifBlank { null }
+    /** next 是不是在 prev 后面接着说的（识字可能把前半句个别字认得不一样，前半段相似也算） */
+    fun continues(prev: String, next: String): Boolean {
+        val a = VoiceInputText.normalized(prev); val b = VoiceInputText.normalized(next)
+        if (a.isEmpty() || b.length <= a.length) return false
+        return b.startsWith(a) || VoiceInputText.similar(a, b.take(a.length))
+    }
 }

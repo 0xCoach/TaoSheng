@@ -31,7 +31,7 @@ internal object VoiceInputOcr {
             val text = joinLines(same.map { it.text.trim() }).replaceFirst(PROMPT, "").trim()
             if (text.isNotBlank()) {
                 val above = lines.filter { it.bottom <= prompt.top }
-                val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 }
+                val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 && looksLikeTitle(it.text) }
                 return OcrInput(text.take(8000), above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
             }
         }
@@ -51,11 +51,13 @@ internal object VoiceInputOcr {
         }
         val inputTop = input.minOf { it.top }
         val above = lines.filter { it.bottom <= inputTop && it !in input }
-        val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 }
+        val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 && looksLikeTitle(it.text) }
         val text = joinLines(input.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text.trim() }).take(8000)
         return OcrInput(text, above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
     }
 
+    /** 标题至少两个字、要有正常文字（返回箭头“く”“<”这类不算） */
+    fun looksLikeTitle(text: String) = text.trim().count { it.isLetterOrDigit() } >= 2
     private val PROMPT = Regex("^[>》❯$#➜»›]+\\s*")
     /** 输入框自动折行的几行接回一句：中文直接接上，英文之间补空格 */
     fun joinLines(parts: List<String>) = parts.filter(String::isNotBlank).fold("") { acc, p ->

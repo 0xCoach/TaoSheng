@@ -38,9 +38,12 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                             val result = try {
                                 if (!task.isSuccessful || !valid()) null else {
                                     val blocks = task.result.textBlocks
-                                    val lines = blocks.flatMapIndexed { index, block -> block.lines.mapNotNull { line ->
+                                    val raw = blocks.flatMapIndexed { index, block -> block.lines.mapNotNull { line ->
                                         line.boundingBox?.let { OcrLine(line.text, it.left, it.top, it.right, it.bottom, index) }
                                     } }
+                                    // 识字偶尔出繁体（測、輸），统一转简体
+                                    val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.getOrNull()
+                                    val lines = if (hans == null) raw else raw.map { it.copy(text = hans.transliterate(it.text)) }
                                     val bubble = VoiceInputOcr.lastRightBubble(lines, layout)
                                     val input = VoiceInputOcr.extract(lines, layout)?.copy(bubble = bubble)
                                         ?: bubble?.let { OcrInput("", emptyList(), null, it) }

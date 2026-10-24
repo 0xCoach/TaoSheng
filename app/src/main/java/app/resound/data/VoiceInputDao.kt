@@ -19,6 +19,9 @@ abstract class VoiceInputDao {
     abstract suspend fun finish(id: Long, json: String): Int
     @Query("UPDATE transcript_lines SET voiceInputPendingUntil=:until WHERE segmentId IN (SELECT id FROM segments WHERE path=:token) AND voiceInputPendingUntil IS NOT NULL")
     abstract suspend fun sent(token: String, until: Long)
+    /** 接着说的那一段：把上一条更新成完整的一句（只改还没整理过的） */
+    @Query("UPDATE transcript_lines SET text=:text WHERE id=:id AND digestedAt IS NULL")
+    abstract suspend fun extend(id: Long, text: String): Int
     @Query("UPDATE transcript_lines SET voiceInputPendingUntil=NULL WHERE voiceInputPendingUntil IS NOT NULL")
     abstract suspend fun recover()
 }

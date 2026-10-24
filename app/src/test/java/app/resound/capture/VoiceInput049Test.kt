@@ -174,4 +174,22 @@ class VoiceInput049Test {
         assertEquals("是合成的一句话，折行了也接回来", VoiceInputOcr.joinLines(listOf("是合成的一句话，折行", "了也接回来")))
         assertEquals("hello world", VoiceInputOcr.joinLines(listOf("hello", "world")))
     }
+    @Test fun pausedDictationExtendsPreviousLineInsteadOfAddingOne() = runBlocking {
+        val db = database()
+        try {
+            val store = VoiceInputStore(db)
+            val first = store.save(record(1000, "合成的前半句话我在", "上下文"))!!
+            // 识字把前半句个别字认得不一样，后面接着说
+            assertEquals(first, store.save(record(5000, "合成的前半句活我在测试后半句", "上下文")))
+            val rows = db.voiceInput().observed().first()
+            assertEquals(1, rows.size); assertEquals("合成的前半句活我在测试后半句", rows.single().text)
+            // 超过 2 分钟就是新的一条
+            assertNotNull(store.save(record(200000, "合成的前半句活我在测试后半句再加一点", "上下文")))
+            assertEquals(2, db.voiceInput().observed().first().size)
+        } finally { db.close() }
+    }
+    @Test fun titleNeedsRealText() {
+        assertFalse(VoiceInputOcr.looksLikeTitle("く")); assertFalse(VoiceInputOcr.looksLikeTitle("<"))
+        assertTrue(VoiceInputOcr.looksLikeTitle("老王"))
+    }
 }

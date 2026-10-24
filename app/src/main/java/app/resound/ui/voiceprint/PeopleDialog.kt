@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.resound.AppGraph
 import app.resound.transcribe.local.LocalModels
 import app.resound.ui.theme.Rs
@@ -33,6 +34,13 @@ import app.resound.voiceprint.*
 import kotlinx.coroutines.*
 
 private const val RECORD_SECONDS = 15
+
+/** 朗读录入用的三段短文：日常口语，带数字、人名、问句和不同语气 */
+private val READ_PASSAGES = listOf(
+    "今天上午九点出门，先去公司开了个会，中午和同事一起吃了碗牛肉面，下午把上周的报告改完发了出去，忙到快六点才歇下来。",
+    "这个方案我觉得还可以再想想。预算大概二十万左右，时间上最好下个月十五号之前定下来。你们看这样行不行？有问题直接跟我说。",
+    "晚上回家路上顺便买了点水果，苹果、香蕉，还有一盒草莓。周末打算带家里人去公园走走，好久没出去放松了，真开心！",
+)
 
 /** 一个人的详情：头像、学习进度、录入声音、改名、删除（“我”可清空声纹） */
 @Composable
@@ -58,6 +66,7 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
     }
     fun dismiss() { recording?.cancel(); onDismiss() }
     val me = person.id == 0L
+    var passageIndex by remember { mutableStateOf(0) }
 
     RsSheet(person.name, onDismiss = { dismiss() }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -75,7 +84,15 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
             style = RsType.caption, color = c.textTertiary,
         )
 
-        // 录入
+        // 录入：“我”照着屏幕上的短文朗读，三段轮流，比随便说话样本更全
+        if (me) {
+            val passage = READ_PASSAGES[passageIndex % READ_PASSAGES.size]
+            RsCard(color = c.background, padding = PaddingValues(16.dp)) {
+                Text("朗读第 ${passageIndex % READ_PASSAGES.size + 1} / ${READ_PASSAGES.size} 段 · 用平常说话的音量和语速", style = RsType.caption, color = c.textTertiary)
+                Spacer(Modifier.height(8.dp))
+                Text(passage, style = RsType.body.copy(lineHeight = 26.sp), color = c.text)
+            }
+        }
         val job = recording
         if (job != null) {
             RsCard(color = c.accentSoft, padding = PaddingValues(16.dp)) {
@@ -89,13 +106,16 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
             }
             ActionButton("取消录入", ActionKind.Secondary) { job.cancel() }
         } else {
-            ActionButton("录入 $RECORD_SECONDS 秒声音", ActionKind.Primary) {
+            ActionButton(if (me) "开始朗读（$RECORD_SECONDS 秒）" else "录入 $RECORD_SECONDS 秒声音", ActionKind.Primary) {
                 if (editing) return@ActionButton
                 seconds = 0; note = null
                 recording = scope.launch {
                     try {
                         val pcm = VoiceprintRecorder.record(AppGraph.capture) { seconds = it }
-                        note = repo.enrollPerson(person.id, pcm).fold({ "已保存${person.name}的声音" }, { "没录到足够的说话声，再试一次" })
+                        note = repo.enrollPerson(person.id, pcm).fold({
+                            if (me) { passageIndex++; if (passageIndex % READ_PASSAGES.size == 0) "三段都录好了，认你会更准" else "这段录好了，接着读下一段" }
+                            else "已保存${person.name}的声音"
+                        }, { "没录到足够的说话声，再试一次" })
                     } catch (e: CancellationException) { throw e }
                     catch (_: Exception) { note = "录音没完成，请检查麦克风是否被占用" }
                     finally { recording = null }

@@ -101,7 +101,7 @@ private val TODO_TABS = listOf(
     Tab("已完成", Grouping.Done) { it.items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Done)) },
 )
 
-private val MEMORY_TABS = listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
+private val MEMORY_TABS = listOf(Tab("重点", Grouping.Mentioned) { flowOf(emptyList()) }) + listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
     Tab("卡片", Grouping.Mentioned) { flowOf(emptyList()) }
 
 /** 待办：分段 待确认 · 进行中（可拖动排序）· 约定（按时间）· 已完成；点圆圈完成，点一行看详情和原话 */
@@ -199,9 +199,11 @@ fun MemoryScreen(
     val dayCards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var makingCard by remember { mutableStateOf(false) }
+    var deletingEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
     val cardSkillIds by remember { skills.skillsWithCards }.collectAsState(initial = emptyList())
     val skillNames = skills.skills.collectAsState().value.associate { it.id to it.name }
     var chipIndex by rememberSaveable { mutableStateOf(0) }
+    val starred by remember { memory.importantEvents() }.collectAsState(initial = null)
     // “卡片”分类的第二排小胶囊：回顾 + 出过卡的技能（按最近出卡排序）
     val chips = (if (reviews != null) listOf("review") else emptyList()) + cardSkillIds.filter { it != "review" }
     val chip = chips.getOrNull(chipIndex.coerceIn(0, (chips.size - 1).coerceAtLeast(0)))
@@ -264,10 +266,31 @@ fun MemoryScreen(
                 cards = dayCards,
                 onOpenCard = { openedCard = it },
                 onMakeCard = { makingCard = true },
+                onStar = { memory.setImportant(it.id, !it.important) },
+                onDelete = { deletingEvent = it },
             )
         } else {
             item(key = "caps") { Capsules(tabs.map { it.name }, tabIndex) { tabIndex = it } }
-            if (tab.name == "卡片") {
+            if (tab.name == "重点") {
+                val list = starred
+                if (list != null && list.isEmpty()) item { Empty("在时间线上把一件事往左滑，就能标成重点，会集中放在这里") }
+                list.orEmpty().groupBy { dateOf(it.startAt) }.forEach { (d, evs) ->
+                    item(key = "star$d") {
+                        Column(Modifier.padding(bottom = 16.dp)) {
+                            Text(dayLabel(d), style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
+                                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+                            RsCard(padding = PaddingValues(vertical = 4.dp)) {
+                                evs.forEachIndexed { i, e ->
+                                    app.resound.ui.today.SwipeEvent(e, { memory.setImportant(e.id, !e.important) }, { deletingEvent = e }) {
+                                        app.resound.ui.today.TimelineLine(e) { openedEvent = e }
+                                    }
+                                    if (i != evs.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (tab.name == "卡片") {
                 if (chips.size > 1) item(key = "chips") {
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         chips.forEachIndexed { i, id ->
@@ -336,6 +359,7 @@ fun MemoryScreen(
     openedReview?.let { r -> ReviewSheet(r) { openedReview = null } }
     openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }
     if (makingCard) app.resound.ui.skills.MakeCardSheet(date, skills) { makingCard = false }
+    deletingEvent?.let { e -> app.resound.ui.today.DeleteEventSheet(e, { memory.deleteEvent(e.id) }) { deletingEvent = null } }
     if (exporting && diary != null) ExportSheet(diary, date) { exporting = false }
 }
 
@@ -443,6 +467,7 @@ internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit,
                 item.dueAt?.let { add(friendlyDue(it, item.dueText)) }
                 item.who?.takeIf { it != "我" }?.let { add(it) }
                 if (item.at > 0) add(formatClock(item.at) + " 提到")
+                if (item.repeats > 1) add("说过 ${item.repeats} 次")
             }
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

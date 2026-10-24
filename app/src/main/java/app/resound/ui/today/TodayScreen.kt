@@ -141,6 +141,7 @@ fun TodayScreen(
     val skills = remember { app.resound.ui.skills.skillRepo() }
     val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
+    var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
     val importing = if (app.resound.AppGraph.isImporterReady)
         app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
 
@@ -184,17 +185,20 @@ fun TodayScreen(
             Section(if (list.isNotEmpty()) "时间线 · ${list.size} 件事" else "时间线", trailing = {
                 DaySwitcher(dayOffset, compact = true) { dayOffset = it }
             }) {
-                groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it }) { opened = it } }
+                groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it },
+                    onStar = { memory.setImportant(it.id, !it.important) }, onDelete = { deleting = it }) { opened = it } }
                 if (events != null && list.isEmpty()) EmptyTimeline(memory)
             }
         }
         items(groups.drop(1), key = { it.first }) { (part, evs) ->
-            TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it }) { opened = it }
+            TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it },
+                onStar = { memory.setImportant(it.id, !it.important) }, onDelete = { deleting = it }) { opened = it }
         }
     }
 
     opened?.let { event -> EventSheet(event, memory) { opened = null } }
     openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }
+    deleting?.let { e -> DeleteEventSheet(e, { memory.deleteEvent(e.id) }) { deleting = null } }
     openedItem?.let { item ->
         ItemSheet(
             item, memory,
@@ -588,7 +592,8 @@ internal sealed interface TimelineEntry {
 /** 一个时段一张卡，组内每件事一行，细线分隔：比一事一卡更轻、更紧凑 */
 @Composable
 internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier: Modifier = Modifier,
-                           onOpenCard: (app.resound.skills.SkillCard) -> Unit = {}, onOpen: (MemoryEvent) -> Unit) {
+                           onOpenCard: (app.resound.skills.SkillCard) -> Unit = {},
+                           onStar: (MemoryEvent) -> Unit = {}, onDelete: (MemoryEvent) -> Unit = {}, onOpen: (MemoryEvent) -> Unit) {
     val c = Rs.colors
     val count = entries.count { it is TimelineEntry.Event }
     Column(modifier) {
@@ -597,7 +602,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
         RsCard(padding = PaddingValues(vertical = 4.dp)) {
             entries.forEachIndexed { i, e ->
                 when (e) {
-                    is TimelineEntry.Event -> TimelineLine(e.event) { onOpen(e.event) }
+                    is TimelineEntry.Event -> SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { TimelineLine(e.event) { onOpen(e.event) } }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
@@ -819,6 +824,26 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                     Text("“${source.text}”", style = RsType.body, color = c.text)
                 } else Text(if (lines.isEmpty()) "原话加载中…" else "没有找到对应的原话", style = RsType.subhead, color = c.textTertiary)
             }
+            // 相似的想法被并进来的那几次：各自的时间和内容，可以拆出来
+            val merged by remember(item.id) { memory.mergedItems(item.id) }.collectAsState(initial = emptyList())
+            if (merged.isNotEmpty()) {
+                SheetSection("还说过 ${merged.size} 次")
+                RsCard(padding = PaddingValues(vertical = 4.dp)) {
+                    merged.forEachIndexed { i, m ->
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(friendlyDate(m.at), style = RsType.caption, color = c.textTertiary)
+                                Text(m.content, style = RsType.subhead, color = c.text)
+                            }
+                            Text("拆开", style = RsType.caption, color = c.accent,
+                                modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { memory.unmerge(m.id) }.padding(horizontal = 10.dp, vertical = 4.dp))
+                        }
+                        if (i != merged.lastIndex) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                    }
+                }
+                Text("意思很像的想法会自动并成一条。并错了就点“拆开”，以后不会再并。", style = RsType.caption, color = c.textTertiary,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+            }
             Spacer(Modifier.height(22.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (item.status == ItemStatus.Pending) {
@@ -832,9 +857,56 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
     }
 }
 
+private fun friendlyDate(at: Long): String {
+    val t = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault())
+    return t.format(java.time.format.DateTimeFormatter.ofPattern("M月d日 HH:mm"))
+}
+
 @Composable
 private fun SheetSection(title: String) {
     Spacer(Modifier.height(22.dp))
     Text(title, style = RsType.section, color = Rs.colors.textSecondary)
     Spacer(Modifier.height(10.dp))
+}
+
+/**
+ * 时间线上的一件事：左滑标重点 / 取消重点，右滑删除（松手后弹确认）。滑动只触发动作，行本身弹回原位。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val c = Rs.colors
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(confirmValueChange = { v ->
+        when (v) {
+            androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); onStar() }
+            androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> onDelete()
+            else -> Unit
+        }
+        false
+    })
+    androidx.compose.material3.SwipeToDismissBox(
+        state,
+        backgroundContent = {
+            val left = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
+            val right = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+            Box(
+                Modifier.fillMaxSize().background(when { right -> c.accent; left -> c.critical; else -> Color.Transparent })
+                    .padding(horizontal = 24.dp),
+                contentAlignment = if (left) Alignment.CenterStart else Alignment.CenterEnd,
+            ) {
+                if (right) Text(if (event.important) "取消重点" else "★ 标重点", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+                if (left) Text("删除", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+            }
+        },
+    ) { Box(Modifier.background(c.card)) { content() } }
+}
+
+/** 删除一件事前确认 */
+@Composable
+internal fun DeleteEventSheet(event: MemoryEvent, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    app.resound.ui.verify.RsSheet("删除“${event.title}”？", "只删这件事和从中提取的条目，原话还在原话页里。", onDismiss = onDismiss) {
+        app.resound.ui.verify.ActionButton("删除", app.resound.ui.verify.ActionKind.Danger) { onConfirm(); onDismiss() }
+        app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary) { onDismiss() }
+    }
 }

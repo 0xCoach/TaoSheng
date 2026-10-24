@@ -18,7 +18,8 @@ object VoiceprintRecorder {
             if (resume) { controller.pause(2); delay(500) }
             val min = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             require(min > 0)
-            val active = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO,
+            // 和日常录音用同一个音源（MIC）：VOICE_RECOGNITION 会压低离嘴远的人声，录出来的声纹和日常收音对不上
+            val active = AudioRecord(MediaRecorder.AudioSource.MIC, 16000, AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, maxOf(min * 2, 32000)).also { recorder = it }
             check(active.state == AudioRecord.STATE_INITIALIZED)
             active.startRecording()

@@ -17,6 +17,8 @@ data class VoiceInputSettings(
     val replies: Boolean = true,
     /** 这些应用不记（包名） */
     val excludedPackages: Set<String> = emptySet(),
+    /** 卡 049：读不到界面时（微信、终端等）改用截屏识字；截图只在内存里识别，识完即丢，只留文字 */
+    val screenOcr: Boolean = true,
 )
 
 data class InputApp(val packageName: String, val label: String)

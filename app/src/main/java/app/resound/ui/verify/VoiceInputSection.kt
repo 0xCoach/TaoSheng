@@ -61,6 +61,8 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
                     Divider()
                     Toggle("记发出后的回复", "发出后 2 分钟内，同一界面里新出现的回复（对方消息、AI 回答、终端输出）补记一次", s.replies) { capture.update(s.copy(replies = it)) }
                 }
+                Divider()
+                Toggle("读不到时截屏识字", "微信、终端这类不让读取界面的应用，改为截屏在手机上识别文字。图片不保存、不上传，识完就丢", s.screenOcr) { capture.update(s.copy(screenOcr = it)) }
                 if (apps.isNotEmpty()) {
                     Divider()
                     Text("这些应用不记", style = RsType.body, color = c.text)

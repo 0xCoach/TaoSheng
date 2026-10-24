@@ -165,7 +165,8 @@ private fun SettingsList(
                     val skillList = app.resound.ui.skills.skillRepo().skills.collectAsState().value
                     Row1("整理技能", "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个", dot = null) { onOpen(SettingsPage.Skills) }
                     Divider()
-                    Row1("整理模型", if (llmKey) digestSettings.presets.firstOrNull { it.id == preset }?.name ?: "" else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
+                    val todayUse = todayTokensText()
+                    Row1("整理模型", if (llmKey) (digestSettings.presets.firstOrNull { it.id == preset }?.name ?: "") + (todayUse?.let { " · $it" } ?: "") else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
                     if (app.resound.AppGraph.isHotwordsReady) {
                         val words = app.resound.AppGraph.hotwords.words.collectAsState().value
                         Divider()

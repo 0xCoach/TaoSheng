@@ -129,6 +129,7 @@ fun TranscriptScreen(
         }
         // 收起时不占位置（用列表自带的出现/消失动画）
         if (settingsOpen || !hasKey) item(key = "settings") { SettingsCard(settings, onSaved = { settingsOpen = false }) }
+        if (app.resound.AppGraph.isUsageReady) item(key = "asrUsage") { app.resound.ui.settings.AsrUsageCard(app.resound.AppGraph.usage) }
         item {
             val list = segments.orEmpty()
             Section("录音原话", trailing = {

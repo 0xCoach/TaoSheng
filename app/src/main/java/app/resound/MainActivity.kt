@@ -147,7 +147,11 @@ class MainActivity : ComponentActivity() {
                                     }
                                     SettingsPage.Capture -> VerifyScreen(capture, stats, setup, mode, setMode)
                                     SettingsPage.Transcript -> TranscriptScreen(transcripts, transcribeSettings, bottom)
-                                    SettingsPage.Model -> Box(Modifier.padding(16.dp)) { ModelCard(digestSettings) {} }
+                                    SettingsPage.Model -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = bottom + 24.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        ModelCard(digestSettings) {}
+                                        if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)
+                                    }
                                     SettingsPage.Voiceprint -> LocalVoiceprint.current?.let { Box(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) { VoiceprintCard(it) } }
                                     SettingsPage.Prompts -> if (AppGraph.isPromptsReady) app.resound.ui.settings.PromptsPage(AppGraph.prompts, bottom)
                                     SettingsPage.Hotwords -> if (AppGraph.isHotwordsReady)

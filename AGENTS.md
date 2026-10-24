@@ -34,3 +34,4 @@
 
 - 安卓的正则（ICU）比电脑上的 Java 严格：`}` 必须写成 `\\}`，否则电脑单测能过、手机一启动就崩（10-24 LocalPromptTemplates 事故）。
 - 迁移测试里“升到最新版本”的断言用 `CaptureDatabase.VERSION`，不要写死数字（否则下一次升级就会失败）。
+- 迁移测试建库一律 `.addMigrations(*CaptureDatabase.MIGRATIONS)`，不要自己列迁移清单；新增数据库版本只在 `CaptureDatabase.MIGRATIONS` 里加一条（10-25 曾有 9 个测试因各写一份清单而全部失败）。

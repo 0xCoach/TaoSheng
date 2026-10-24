@@ -89,9 +89,7 @@ class DayDiaryTest {
             old.version = version
         }
         val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
-            .addMigrations(CaptureDatabase.MIGRATION_1_2, CaptureDatabase.MIGRATION_2_3, CaptureDatabase.MIGRATION_3_4,
-                CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7,
-                CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
+            .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
             assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             assertEquals("/old", migrated.transcribe().segment(1).path)

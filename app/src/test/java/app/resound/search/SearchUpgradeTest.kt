@@ -87,9 +87,7 @@ class SearchUpgradeTest {
                 old.version = version
             }
             val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).allowMainThreadQueries().addCallback(SearchIndex.callback)
-                .addMigrations(CaptureDatabase.MIGRATION_1_2,CaptureDatabase.MIGRATION_2_3,CaptureDatabase.MIGRATION_3_4,
-                    CaptureDatabase.MIGRATION_4_5,CaptureDatabase.MIGRATION_5_6,CaptureDatabase.MIGRATION_6_7,
-                    CaptureDatabase.MIGRATION_7_8,CaptureDatabase.MIGRATION_8_9,CaptureDatabase.MIGRATION_9_10,CaptureDatabase.MIGRATION_10_11).build()
+                .addMigrations(*CaptureDatabase.MIGRATIONS).build()
             try {
                 assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 验证 schema。
                 assertEquals("old", db.transcribe().segment(1).path)
@@ -191,8 +189,8 @@ class SearchUpgradeTest {
             assertEquals(1,scalar(db,"SELECT count(*) FROM memory_items WHERE content='带雨伞' AND status='Accepted'"))
             apply("""{"operation":"item_due","id":1,"due":"2026-10-25 10:00"}""")
             assertEquals(AskTools.timestamp("2026-10-25 10:00",false,ZoneId.systemDefault()),scalar(db,"SELECT dueAt FROM memory_items WHERE id=1"))
-            apply("""{"operation":"event_important","id":1,"important":true}""")
-            assertEquals(1,scalar(db,"SELECT important FROM memory_events WHERE id=1"))
+            apply("""{"operation":"event_star","id":1,"starred":true}""")
+            assertEquals(1,scalar(db,"SELECT starred FROM memory_events WHERE id=1"))
             val stale = save(db,changes.propose(JSONObject("""{"operation":"item_status","id":1,"status":"Done"}"""),listOf(source())))
             db.memory().setItemStatus(1,"Ignored",at)
             changes.resolve(stale,true)

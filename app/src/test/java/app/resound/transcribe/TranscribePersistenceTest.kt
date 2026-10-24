@@ -132,7 +132,7 @@ class TranscribePersistenceTest {
             old.version = 1
         }
         val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
-            .addMigrations(CaptureDatabase.MIGRATION_1_2, CaptureDatabase.MIGRATION_2_3, CaptureDatabase.MIGRATION_3_4, CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7, CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
+            .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
             val writable = migrated.openHelper.writableDatabase // Room 逐表、列、索引和外键校验真实迁移。
             val segment = migrated.transcribe().segment(7)

@@ -39,7 +39,7 @@ class VoiceprintMigrationTest {
             old.execSQL("INSERT INTO voiceprint_exclusions VALUES(1,'tag:1',1000)")
             old.version = 8
         }
-        val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).addMigrations(CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
+        val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
             assertEquals(0L,db.voiceprint().samples().single().personId)
             assertEquals(0L,db.voiceprint().line(2)!!.speakerPersonId)
@@ -70,7 +70,7 @@ class VoiceprintMigrationTest {
             old.version = 3
         }
         val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
-            .addMigrations(CaptureDatabase.MIGRATION_1_2, CaptureDatabase.MIGRATION_2_3, CaptureDatabase.MIGRATION_3_4, CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7, CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
+            .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
             assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 校验所有表/列/索引/外键。
             val line = db.voiceprint().line(2)!!

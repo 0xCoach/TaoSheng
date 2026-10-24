@@ -56,7 +56,7 @@ class AskPersistenceTest {
                     CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7, CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
             var db = open()
             try {
-                assertEquals(10, db.openHelper.writableDatabase.version) // Room 验证全部表、列、索引和外键。
+                assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 验证全部表、列、索引和外键。
                 assertEquals(if (version == 1) "Pending" else "Done", db.transcribe().segment(1).status)
                 if (version == 5) {
                     assertEquals("旧原话", db.voiceprint().line(7)!!.text)

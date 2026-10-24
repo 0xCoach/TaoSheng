@@ -90,11 +90,12 @@ class ResoundApp : Application() {
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         }, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { skillScheduler.afterDigest() })
         AppGraph.digestProgress = digestRunner.progress
+        val appointmentSettings = AndroidAppointmentSettings(this)
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             digestRunner.forceOnce = true
             transcripts.retryFailed()
-        }, scope)
+        }, scope, appointmentSettings)
         AppGraph.digestSettings = digestSettings
         val reviewScheduler = app.resound.review.ReviewScheduler(this)
         lateinit var reviews: app.resound.review.RoomReviewRepository
@@ -127,7 +128,7 @@ class ResoundApp : Application() {
         app.resound.search.EmbeddingScheduler.start(this)
         val backupRepository = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
         AppGraph.backup = backupRepository
-        pushChannels.attachSubscriptions(database, backupRepository, scope)
+        pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         ImportAudioCleanupWork.schedule(this)
         if (store.prefs.getBoolean("enabled", false)) CaptureWatchdog.schedule(this)

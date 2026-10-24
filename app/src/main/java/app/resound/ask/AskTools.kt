@@ -38,7 +38,7 @@ class AskTools(
         if (a.has("starred_only")) require(a.get("starred_only") is Boolean)
         val starredOnly = a.optBoolean("starred_only", false)
         if (starredOnly) where += "e.starred = 1"
-        if (name == "list_items") where += "i.mergedInto IS NULL"
+        if (name == "list_items") where += "i.deleted = 0 AND i.mergedInto IS NULL"
         for ((field, op) in listOf("from" to ">=", "to" to "<")) if (a.has(field) && !a.isNull(field)) {
             where += s.getString("time") + op + "?"; args += timestamp(a.getString(field), field == "to", zone)
         }

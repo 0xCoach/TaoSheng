@@ -24,6 +24,7 @@ internal class SubscriptionRuntime(
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
+    var reminderSettings: () -> app.resound.digest.AppointmentReminders = { app.resound.digest.AppointmentReminders() }
     var source: suspend (LocalDate?, Boolean) -> PushSnapshot = { _, _ -> throw PushFailure("记忆数据尚未就绪") }
     private val gates = ConcurrentHashMap<Long, Mutex>()
     private val states = ConcurrentHashMap<Long, MutableStateFlow<PushChannelStatus>>()
@@ -55,7 +56,7 @@ internal class SubscriptionRuntime(
     fun reminderSchedule(channel: PushChannel, data: PushSnapshot) {
         change(channel.id) { j ->
             j.remove("reminderAt")
-            if (channel.subscription.reminders) SubscriptionReminders.candidates(data, channel.subscription, j.optJSONObject("reminded") ?: JSONObject())
+            if (channel.subscription.reminders) SubscriptionReminders.candidates(data, channel.subscription, j.optJSONObject("reminded") ?: JSONObject(), reminderSettings(), zone(), now())
                 .minOfOrNull { it.at }?.let { j.put("reminderAt", maxOf(now(), it)) }
         }
         plan(channel.id)
@@ -143,16 +144,14 @@ internal class SubscriptionRuntime(
                     listOf("scheduleAt", "fullAt", "changeAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } })
                 val raw = source(since, s.lines != LinesMode.Off)
                 val reminderDue = !manual && due.optLong("reminderAt").let { it > 0 && it <= started }
-                val reminders = if (reminderDue) SubscriptionReminders.candidates(raw, s, due.optJSONObject("reminded") ?: JSONObject()).filter { it.at <= started } else emptyList()
+                val reminders = if (reminderDue) SubscriptionReminders.candidates(raw, s, due.optJSONObject("reminded") ?: JSONObject(), reminderSettings(), zone(), started).filter { it.at <= started } else emptyList()
                 val reminderOnly = reminderDue && listOf("scheduleAt", "fullAt", "changeAt", "summaryAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } }
                 if (reminders.isNotEmpty()) {
                     sendReminders(channel, values, reminders, state, started)
                     change(id) { j ->
                         val sent = j.optJSONObject("reminded") ?: JSONObject()
-                        reminders.forEach { sent.put(it.key, started) }
-                        // 只保留仍存在的候选身份，避免无限增长。
-                        val valid = SubscriptionReminders.candidates(raw, s, JSONObject()).map { it.key }.toSet()
-                        sent.keys().asSequence().toList().filter { it !in valid }.forEach { sent.remove(it) }
+                        reminders.flatMap { it.keys }.forEach { sent.put(it, started) }
+                        // 保留已发身份；切换状态或开关后也不能重发同一时间版本。
                         j.put("reminded", sent)
                     }
                 }
@@ -222,7 +221,15 @@ internal class SubscriptionRuntime(
     private suspend fun sendReminders(channel: PushChannel, values: Map<String, String>, reminders: List<SubscriptionReminder>, state: PushSyncState, at: Long) {
         val body = reminders.joinToString("\n") { "- ${it.text}" }
         if (channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.Notion)) {
-            transport.send(channel.kind, channel.format, values, PushMessage("回响 · 到期提醒", body, PushTopic.TodoReminder, null, at)).getOrThrow()
+            for (reminder in reminders) {
+                transport.send(channel.kind, channel.format, values,
+                    PushMessage("回响 · 待办提醒", reminder.text, PushTopic.TodoReminder, null, at)).getOrThrow()
+                change(channel.id) { j ->
+                    val sent = j.optJSONObject("reminded") ?: JSONObject()
+                    reminder.keys.forEach { sent.put(it, at) }
+                    j.put("reminded", sent)
+                }
+            }
             return
         }
         val date = day(at, zone()); val path = MemoryFolder.dailyPath(date)

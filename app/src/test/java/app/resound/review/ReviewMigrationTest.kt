@@ -46,7 +46,7 @@ class ReviewMigrationTest {
                     CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7, CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
             var db = open()
             try {
-                assertEquals(10, db.openHelper.writableDatabase.version) // Room 校验所有表、索引、外键。
+                assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 校验所有表、索引、外键。
                 assertEquals("/old", db.transcribe().segment(1).path)
                 assertEquals(0L, db.transcribe().segment(1).playbackMillis)
                 if (version == 7) assertEquals(10L, db.memory().observeUsage().first().single().promptTokens)

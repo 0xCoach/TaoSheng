@@ -91,7 +91,7 @@ class SearchUpgradeTest {
                     CaptureDatabase.MIGRATION_4_5,CaptureDatabase.MIGRATION_5_6,CaptureDatabase.MIGRATION_6_7,
                     CaptureDatabase.MIGRATION_7_8,CaptureDatabase.MIGRATION_8_9,CaptureDatabase.MIGRATION_9_10,CaptureDatabase.MIGRATION_10_11).build()
             try {
-                assertEquals(11,db.openHelper.writableDatabase.version) // Room 验证 schema。
+                assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 验证 schema。
                 assertEquals("old", db.transcribe().segment(1).path)
                 if (version == 10) {
                     for (tool in listOf("search_lines","search_events","list_items")) assertEquals(1, found(db,tool,"""{"keywords":["发票"]}""").length())

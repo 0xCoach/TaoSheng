@@ -1,0 +1,774 @@
+{
+  "date": "2026-10-24",
+  "synthetic_only": true,
+  "results": [
+    {
+      "id": "done-1",
+      "dialogue": "样品我刚在柜台寄给小周了，快递已经揽收。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "给小周寄样品",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": true,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "寄样品给小周",
+            "summary": "负责人说明样品已在柜台寄给小周，快递已揽收。",
+            "points": [
+              "样品已在柜台寄出",
+              "快递已揽收"
+            ],
+            "people": [
+              "我",
+              "小周"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 2,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": [
+          {
+            "item_id": 101,
+            "line_id": 1
+          }
+        ]
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1864,
+        "completion_tokens": 104,
+        "total_tokens": 1968,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1864
+      }
+    },
+    {
+      "id": "done-2",
+      "dialogue": "工作室本月的电费我已经缴清了，付款回执也收到了。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "缴清工作室本月电费",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": true,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "确认缴清工作室电费",
+            "summary": "负责人说明工作室本月电费已缴清，并已收到付款回执。",
+            "points": [
+              "工作室本月电费已缴清",
+              "付款回执已收到"
+            ],
+            "people": [
+              "我"
+            ],
+            "place": "工作室",
+            "emotion": "平静",
+            "intensity": 2,
+            "important": true
+          }
+        ],
+        "items": [],
+        "done_hints": [
+          {
+            "item_id": 101,
+            "line_id": 1
+          }
+        ]
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1867,
+        "completion_tokens": 109,
+        "total_tokens": 1976,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1867
+      }
+    },
+    {
+      "id": "done-3",
+      "dialogue": "我和阿宁已经逐个核对完参会人数，最终是十二个人。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "和阿宁核对参会人数",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": true,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "核对参会人数结果",
+            "summary": "负责人说明已与阿宁逐个核对完参会人数，最终为十二人。",
+            "points": [
+              "参会人数最终确定为十二人"
+            ],
+            "people": [
+              "我",
+              "阿宁"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 2,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": [
+          {
+            "item_id": 101,
+            "line_id": 1
+          }
+        ]
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1866,
+        "completion_tokens": 103,
+        "total_tokens": 1969,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1866
+      }
+    },
+    {
+      "id": "done-4",
+      "dialogue": "备用钥匙刚才我亲手交给小许了，他当面收下了。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "把备用钥匙交给小许",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": true,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "确认已把备用钥匙交给小许",
+            "summary": "负责人陈述备用钥匙已亲手交给小许，对方当面收下。",
+            "points": [
+              "备用钥匙已交给小许",
+              "小许当面收下"
+            ],
+            "people": [
+              "我",
+              "小许"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 2,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": [
+          {
+            "item_id": 101,
+            "line_id": 1
+          }
+        ]
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1867,
+        "completion_tokens": 111,
+        "total_tokens": 1978,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 203
+      }
+    },
+    {
+      "id": "done-5",
+      "dialogue": "我打算晚饭后预约周末洗车，现在还没操作。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "预约周末洗车",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "计划晚饭后预约洗车",
+            "summary": "负责人说自己打算晚饭后预约周末洗车，目前还没操作。",
+            "points": [
+              "打算晚饭后预约周末洗车",
+              "现在还没操作"
+            ],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 1,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1863,
+        "completion_tokens": 94,
+        "total_tokens": 1957,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 199
+      }
+    },
+    {
+      "id": "done-6",
+      "dialogue": "隔壁老李说他联系物业把他家的水表换好了，我家的还没联系。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "联系物业更换自家水表",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "提到邻居已换水表",
+            "summary": "负责人提到隔壁老李已联系物业换好自家水表，而自己家还没联系。",
+            "points": [
+              "老李家的水表已由物业更换完成",
+              "负责人家的水表还没联系更换"
+            ],
+            "people": [
+              "我",
+              "老李"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 2,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1870,
+        "completion_tokens": 110,
+        "total_tokens": 1980,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 206
+      }
+    },
+    {
+      "id": "done-7",
+      "dialogue": "展架底座我装好了，上面的板子还没装，今天只做了一半。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "完成展架安装",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "展架安装进度汇报",
+            "summary": "负责人说明展架底座已装好，上面的板子还没装，今天只完成了一半。",
+            "points": [
+              "展架底座已安装完成",
+              "上面的板子尚未安装",
+              "今天只做了一半"
+            ],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 2,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1868,
+        "completion_tokens": 105,
+        "total_tokens": 1973,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 204
+      }
+    },
+    {
+      "id": "done-8",
+      "dialogue": "验收表那个事情吧，我已经……算了，等下再说。",
+      "context": {
+        "unfinished_items": [
+          {
+            "id": 101,
+            "category": "待办",
+            "content": "提交项目验收表",
+            "who": "我",
+            "due": null
+          }
+        ],
+        "ignored_items": []
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "提到验收表又搁置",
+            "summary": "负责人提到验收表的事，说到一半停下，表示等会儿再说。",
+            "points": [
+              "提到验收表的事",
+              "话没说完就搁置"
+            ],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 1,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1863,
+        "completion_tokens": 95,
+        "total_tokens": 1958,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 199
+      }
+    },
+    {
+      "id": "ignore-1",
+      "dialogue": "帮我把这一页放大到一百五十，再切一下预览，现在操作就行。",
+      "context": {
+        "unfinished_items": [],
+        "ignored_items": [
+          {
+            "category": "待办",
+            "content": "把编辑器字体临时调大"
+          }
+        ]
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "让助手放大页面并切换预览",
+            "summary": "负责人让助手把当前页面放大到 150 并切换到预览，属于当场操作。",
+            "points": [],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 1,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1853,
+        "completion_tokens": 88,
+        "total_tokens": 1941,
+        "prompt_tokens_details": {
+          "cached_tokens": 1536
+        },
+        "prompt_cache_hit_tokens": 1536,
+        "prompt_cache_miss_tokens": 317
+      }
+    },
+    {
+      "id": "ignore-2",
+      "dialogue": "这个界面的卡片要是换成圆角，再加一点阴影，我觉得可能更好看。",
+      "context": {
+        "unfinished_items": [],
+        "ignored_items": [
+          {
+            "category": "灵感",
+            "content": "希望界面换一种颜色"
+          }
+        ]
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "设想界面卡片样式",
+            "summary": "负责人提出把界面卡片改成圆角并加阴影，认为可能更好看。",
+            "points": [
+              "想把卡片改成圆角",
+              "想加一点阴影"
+            ],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 1,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1851,
+        "completion_tokens": 94,
+        "total_tokens": 1945,
+        "prompt_tokens_details": {
+          "cached_tokens": 1536
+        },
+        "prompt_cache_hit_tokens": 1536,
+        "prompt_cache_miss_tokens": 315
+      }
+    },
+    {
+      "id": "ignore-3",
+      "dialogue": "哪天闲下来也许学学陶艺吧，只是随口想想，还没决定。",
+      "context": {
+        "unfinished_items": [],
+        "ignored_items": [
+          {
+            "category": "待办",
+            "content": "有空也许学一种乐器"
+          }
+        ]
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "随口提到想学陶艺",
+            "summary": "负责人随口说以后有空也许学学陶艺，还没决定。",
+            "points": [],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 1,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1851,
+        "completion_tokens": 82,
+        "total_tokens": 1933,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 187
+      }
+    },
+    {
+      "id": "ignore-4",
+      "dialogue": "再启动一次模拟器，把当前报错复现一下，这一轮调试继续。",
+      "context": {
+        "unfinished_items": [],
+        "ignored_items": [
+          {
+            "category": "待办",
+            "content": "现在重启服务测试接口"
+          }
+        ]
+      },
+      "expected": false,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "重启模拟器复现报错",
+            "summary": "负责人让再启动一次模拟器，复现当前报错，继续这一轮调试。",
+            "points": [
+              "再启动一次模拟器",
+              "复现当前报错",
+              "继续这一轮调试"
+            ],
+            "people": [
+              "我"
+            ],
+            "place": null,
+            "emotion": "平静",
+            "intensity": 2,
+            "important": false
+          }
+        ],
+        "items": [],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1853,
+        "completion_tokens": 105,
+        "total_tokens": 1958,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 189
+      }
+    },
+    {
+      "id": "ignore-5",
+      "dialogue": "我答应蒋老师，明天下午三点前把盖章的证明送到教务处，不能耽误报名。",
+      "context": {
+        "unfinished_items": [],
+        "ignored_items": [
+          {
+            "category": "待办",
+            "content": "把编辑器字体临时调大"
+          }
+        ]
+      },
+      "expected": true,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "承诺送盖章证明到教务处",
+            "summary": "负责人说明已答应蒋老师，明天下午三点前把盖章的证明送到教务处，以免耽误报名。",
+            "points": [
+              "对象是蒋老师",
+              "截止时间是明天下午三点前",
+              "材料是盖章的证明",
+              "地点是教务处",
+              "目的是不耽误报名"
+            ],
+            "people": [
+              "我",
+              "蒋老师"
+            ],
+            "place": "教务处",
+            "emotion": "紧张",
+            "intensity": 3,
+            "important": true
+          }
+        ],
+        "items": [
+          {
+            "category": "待办",
+            "kind": "我答应别人",
+            "content": "把盖章的证明送到教务处交给蒋老师，不能耽误报名",
+            "due": "2026-10-25 15:00",
+            "who": "蒋老师",
+            "line": 1
+          }
+        ],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1855,
+        "completion_tokens": 169,
+        "total_tokens": 2024,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 191
+      }
+    },
+    {
+      "id": "ignore-6",
+      "dialogue": "我和小方约好了明天上午十点到市图书馆门口见面，一起参加讲座。",
+      "context": {
+        "unfinished_items": [],
+        "ignored_items": [
+          {
+            "category": "灵感",
+            "content": "希望界面换一种颜色"
+          }
+        ]
+      },
+      "expected": true,
+      "passed": true,
+      "output": {
+        "events": [
+          {
+            "from": 1,
+            "to": 1,
+            "scene": "独白",
+            "title": "约定明天图书馆见面",
+            "summary": "负责人说明天上午十点与小方在市图书馆门口见面，一起参加讲座。",
+            "points": [
+              "见面时间是明天上午十点",
+              "地点是市图书馆门口",
+              "同行人是小方",
+              "目的是参加讲座"
+            ],
+            "people": [
+              "我",
+              "小方"
+            ],
+            "place": "市图书馆门口",
+            "emotion": "平静",
+            "intensity": 2,
+            "important": true
+          }
+        ],
+        "items": [
+          {
+            "category": "约定",
+            "kind": null,
+            "content": "我明天上午十点与小方在市图书馆门口见面，一起参加讲座",
+            "due": "2026-10-25 10:00",
+            "who": "小方",
+            "line": 1
+          }
+        ],
+        "done_hints": []
+      },
+      "model": "deepseek-flash",
+      "usage": {
+        "prompt_tokens": 1851,
+        "completion_tokens": 158,
+        "total_tokens": 2009,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 187
+      }
+    }
+  ]
+}

@@ -42,7 +42,7 @@ class AppPowerMigrationTest {
         val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
             .addMigrations(CaptureDatabase.MIGRATION_3_4, CaptureDatabase.MIGRATION_4_5, CaptureDatabase.MIGRATION_5_6, CaptureDatabase.MIGRATION_6_7, CaptureDatabase.MIGRATION_7_8, CaptureDatabase.MIGRATION_8_9, CaptureDatabase.MIGRATION_9_10).build()
         try {
-            assertEquals(10, db.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version)
             assertEquals(80, db.capture().batteries(0, 2000).first().single().percent)
             val date = LocalDate.now()
             val start = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()

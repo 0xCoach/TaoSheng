@@ -29,7 +29,7 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
         fun snapshot() = JSONObject().put("content", content).put("status", status).put("dueAt", dueAt).toString()
     }
     private fun item(id: Long): Target? = db.query(SimpleSQLiteQuery("""SELECT i.content,i.status,i.dueAt
-        FROM memory_items i JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND e.deleted=0""", arrayOf(id))).use { c ->
+        FROM memory_items i JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND e.deleted=0""", arrayOf(id))).use { c ->
         if (c.moveToFirst()) Target(c.getString(0), c.getString(1), if (c.isNull(2)) null else c.getLong(2)) else null
     }
     private fun event(id: Long): Target? = db.query(SimpleSQLiteQuery("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id))).use { c ->
@@ -120,8 +120,10 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
         }
         when (proposal.operation) {
             "item_status" -> db.memory().setItemStatus(id, args.getString("status"), now())
-            "item_due" -> db.openHelper.writableDatabase.execSQL("UPDATE memory_items SET dueAt=?,dueText=? WHERE id=?",
-                arrayOf<Any?>(due(args), args.optString("due").takeIf { args.has("due") && !args.isNull("due") }, id))
+            "item_due" -> {
+                val row = db.memory().itemIncludingDeleted(id) ?: throw StaleChange()
+                db.memory().updateItem(id, row.content, due(args), args.optString("due").length > 10, row.who, now())
+            }
             "event_star" -> db.memory().setStarred(id, args.getBoolean("starred"), now())
             "create_item" -> {
                 val at = now()

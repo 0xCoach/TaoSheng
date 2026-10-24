@@ -98,6 +98,8 @@ enum class WatchdogEventType {
     MicBusy,
     MicReleased,
     BootRestart,
+    /** 卡 045：录音输入换了设备 */
+    InputSwitched,
 }
 
 data class WatchdogEvent(

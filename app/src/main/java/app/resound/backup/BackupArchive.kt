@@ -13,7 +13,7 @@ import java.util.zip.ZipOutputStream
 
 internal object BackupArchive {
     // 新增设置文件必须先审查再加入；默认不包含任何未知文件或密钥容器。
-    val safePrefs = setOf("capture.xml", "transcribe.xml", "digest.xml", "diary.xml", "push.xml")
+    val safePrefs = setOf("capture.xml", "transcribe.xml", "digest.xml", "diary.xml", "push.xml", "inputs.xml")
     const val DATABASE = "databases/capture.db"
     const val FEATURES = "databases/capture.db.voiceprint-features/"
     const val SKILLS = "files/skills/"

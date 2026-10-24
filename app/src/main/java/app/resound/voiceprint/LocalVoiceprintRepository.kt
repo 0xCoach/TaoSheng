@@ -232,7 +232,7 @@ class LocalVoiceprintRepository(
         }
     }
 
-    private data class Round(val samples: List<VoiceprintSampleEntity>, val revision: Long, val generation: Long, val people: List<VoiceprintPersonEntity>)
+    private data class Round(val samples: List<VoiceprintSampleEntity>, val revision: Long, val generation: Long, val people: List<VoiceprintPersonEntity>, val inputs: Map<Long, String?>)
     private data class SegmentInput(val lines: List<TranscriptLineEntity>, val excluded: Set<String>, val groups: List<Group>)
 
     /** 返回 true 表示仍需重试。并发 worker 串行；每轮自动补样本只在下一轮参与平均。 */
@@ -264,7 +264,7 @@ class LocalVoiceprintRepository(
     }
 
     private suspend fun process(selected: List<SegmentEntity>? = null): Boolean {
-        val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people()) }
+        val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people(), dao.sampleInputs().associate { it.sampleId to it.sourceId }) }
         val canIdentify = round.samples.groupBy { it.personId }.values.any(::ready)
         // 导入音频转写后就删除；即使还没有注册声纹，也先缓存特征供日后从原话补样本。
         val pending = (selected ?: dao.pending()).filter { canIdentify || it.sourceId == "import" }
@@ -289,6 +289,8 @@ class LocalVoiceprintRepository(
                 try {
                     // 同段样本不参与自己判定；自动样本不进中心。
                     val candidates = round.samples.filter { it.segmentId != segment.id }.groupBy { it.personId }
+                        .mapValues { (id, samples) -> if (id == 0L)
+                            WindowedVoiceprint.forInput(samples, segment.sourceId, round.inputs) else samples }
                         .filterValues(::ready).mapNotNull { (id, samples) ->
                             val name = if (id == 0L) "我" else round.people.find { it.id == id }?.name ?: return@mapNotNull null
                             SpeakerIdentity.Candidate(id, name, representative(samples),

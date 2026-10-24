@@ -21,6 +21,12 @@ class CaptureStore(val context: Context, val dao: CaptureDao) {
         dao.event(EventEntity(at = System.currentTimeMillis(), type = type.name, detail = detail,
             batteryPercent = p, charging = c, gapStart = gapStart, gapEnd = gapEnd))
     }
+    /** 045 新的持久日志类型；旧 UI 枚举尚未接入，不借用 MicBusy 污染统计。 */
+    suspend fun inputSwitched(detail: String) {
+        val (p, c) = battery()
+        dao.event(EventEntity(at = System.currentTimeMillis(), type = "InputSwitched", detail = detail,
+            batteryPercent = p, charging = c))
+    }
     suspend fun sampleBattery() {
         val (p, c) = battery()
         dao.battery(BatteryEntity(at = System.currentTimeMillis(), percent = p, charging = c))

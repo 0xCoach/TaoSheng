@@ -478,6 +478,7 @@ private fun EventRow(e: WatchdogEvent, last: Boolean) {
         WatchdogEventType.Resumed -> "恢复" to c.good
         WatchdogEventType.MicBusy -> "麦克风让给别的应用" to c.warning
         WatchdogEventType.MicReleased -> "收回麦克风" to c.good
+        WatchdogEventType.InputSwitched -> "录音输入切换" to c.accent
         WatchdogEventType.BootRestart ->
             (if (e.detail?.contains("PACKAGE_REPLACED") == true) "App 升级后待恢复" else "开机后待恢复") to c.warning
     }

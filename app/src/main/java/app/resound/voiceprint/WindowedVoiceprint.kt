@@ -68,6 +68,13 @@ internal object WindowedVoiceprint {
         return manual
     }
 
+    /** 只为“我”选择设备样本；调用方先排除待判定片段，避免自己匹配自己。 */
+    fun forInput(samples: List<VoiceprintSampleEntity>, sourceId: String, sources: Map<Long, String?>): List<VoiceprintSampleEntity> {
+        val manual = trusted(samples)
+        val same = manual.filter { sources[it.id] == sourceId }
+        return if (same.size >= 3 && same.sumOf { it.durationMillis } >= 30_000) same else manual
+    }
+
     fun autoSample(observations: List<Observation>, candidates: List<SpeakerIdentity.Candidate>): VoiceprintFeatureCache.Feature? {
         // 整组各有效窗一致才允许取其中一窗；这只是单人代理证据，不是分离重叠人声。
         if (observations.isEmpty() || observations.any { it.feature?.vector == null }) return null

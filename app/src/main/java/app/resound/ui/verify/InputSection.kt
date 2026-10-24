@@ -40,16 +40,31 @@ fun InputSection(inputs: InputDevices) {
     val devices by inputs.devices.collectAsState()
     val status by inputs.status.collectAsState()
     val external = devices.filter { it.kind != InputKind.Phone }
+    // 安卓 12 起用蓝牙耳机录音要“附近设备”权限；选的时候再要，拒绝了后台会退回手机麦克风
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var pending by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<InputChoice?>(null) }
+    val askBluetooth = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { pending?.let(inputs::choose); pending = null }
+    fun isBluetooth(k: InputKind) = k == InputKind.BluetoothCall || k == InputKind.BluetoothLe
+    fun pick(next: InputChoice) {
+        val needs = android.os.Build.VERSION.SDK_INT >= 31 && when (next) {
+            is InputChoice.Device -> devices.firstOrNull { it.key == next.key }?.let { isBluetooth(it.kind) } == true
+            InputChoice.AutoExternal -> external.any { isBluetooth(it.kind) }
+            InputChoice.Phone -> false
+        } && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needs) { pending = next; askBluetooth.launch(android.Manifest.permission.BLUETOOTH_CONNECT) } else inputs.choose(next)
+    }
     Section("录音输入") {
         RsCard(padding = PaddingValues(vertical = 4.dp)) {
-            ChoiceRow("手机麦克风", "默认", "手", c.textSecondary, choice == InputChoice.Phone) { inputs.choose(InputChoice.Phone) }
+            ChoiceRow("手机麦克风", "默认", "手", c.textSecondary, choice == InputChoice.Phone) { pick(InputChoice.Phone) }
             Divider()
-            ChoiceRow("自动", "接上外接麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { inputs.choose(InputChoice.AutoExternal) }
+            ChoiceRow("自动", "接上外接麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { pick(InputChoice.AutoExternal) }
             external.forEach { d ->
                 Divider()
                 ChoiceRow(d.name, if (d.connected) d.kind.title else "${d.kind.title} · 没接着",
                     kindGlyph(d.kind), kindColor(d.kind), (choice as? InputChoice.Device)?.key == d.key, dim = !d.connected) {
-                    inputs.choose(InputChoice.Device(d.key, d.name))
+                    pick(InputChoice.Device(d.key, d.name))
                 }
             }
         }

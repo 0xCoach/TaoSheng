@@ -64,7 +64,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
                     val confirmed = File(partial.path + ".confirmed")
                     if (confirmed.exists() && partial.length() >= CaptureTuning.MIN_SPEECH_SAMPLES * 2) {
                         if (partial.renameTo(File(spool, partial.nameWithoutExtension + ".pcm"))) confirmed.delete()
-                    } else { partial.delete(); confirmed.delete() }
+                    } else { partial.delete(); confirmed.delete(); File(spool, partial.nameWithoutExtension + ".source").delete() }
                 }
                 ready.complete(Unit)
             } catch (e: Exception) {
@@ -98,12 +98,16 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         val values = metadata.takeIf { it.exists() }?.readText()?.split(":")
         val playbackMillis = (values?.firstOrNull()?.toLongOrNull() ?: 0).coerceIn(0, end - start)
         val skip = PlaybackPolicy.skip(end - start, playbackMillis, values?.getOrNull(1) != "false")
-        dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = "mic", path = file.absolutePath, sizeBytes = file.length(),
+        dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = readSourceId(pcm), path = file.absolutePath, sizeBytes = file.length(),
             playbackMillis = playbackMillis, status = if (skip) "SkippedPlayback" else "Pending",
             completedAt = if (skip) end else null))
-        metadata.delete()
         check(pcm.delete())
+        metadata.delete()
+        File(spool, pcm.nameWithoutExtension + ".source").delete()
     }
+    internal fun readSourceId(pcm: File): String = File(spool, pcm.nameWithoutExtension + ".source")
+        .takeIf { it.isFile }?.readText()?.takeIf { it.isNotBlank() } ?: "mic"
+
     /** 先等当前编码提交，再持锁删除数据库和暂存，队列旧引用之后只会跳过。 */
     suspend fun <T> withRecentDeletion(from: Long, until: Long, block: suspend () -> T): T {
         awaitReady()
@@ -121,7 +125,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         }
     }
 
-    fun sink(epoch: Long): SpeechSegmenter.Sink = object : SpeechSegmenter.Sink {
+    fun sink(epoch: Long, sourceId: String = "mic"): SpeechSegmenter.Sink = object : SpeechSegmenter.Sink {
         private var file: File? = null
         private var output: OutputStream? = null
         private var playbackSamples = 0L
@@ -143,6 +147,8 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         override fun begin(startSample: Long) {
             val start = epoch + startSample * 1000 / CaptureTuning.SAMPLE_RATE
             file = File(spool, "${start}_${java.util.UUID.randomUUID()}.recording")
+            // 与暂存音频同寿命；进程重启后编码仍能恢复真实 sourceId。
+            File(spool, file!!.nameWithoutExtension + ".source").writeText(sourceId)
             output = file!!.outputStream().buffered()
             playbackSamples = 0; savedMillis = -1000
         }

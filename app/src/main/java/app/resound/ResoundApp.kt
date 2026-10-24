@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.first
 
 class ResoundApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
     val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
@@ -39,6 +40,7 @@ class ResoundApp : Application() {
         AppGraph.usage = app.resound.usage.RoomUsageRepository(database.memory(), database.transcribe(),
             getSharedPreferences("usage", MODE_PRIVATE))
         AppGraph.prompts = app.resound.prompts.LocalPromptTemplates(this)
+        AppGraph.inputs = inputs
         AppGraph.playbackSkip = AndroidPlaybackSkipSettings(this)
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)

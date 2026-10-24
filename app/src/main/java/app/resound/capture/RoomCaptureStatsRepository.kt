@@ -23,7 +23,12 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
     }
     override fun watchdogEvents(date: LocalDate): Flow<List<WatchdogEvent>> {
         val (a, b) = bounds(date)
-        return dao.events(a, b).map { rows -> rows.filter { it.at in a until b }.map { WatchdogEvent(it.at, WatchdogEventType.valueOf(it.type), it.detail, it.batteryPercent, it.charging) } }
+        return dao.events(a, b).map { rows -> rows.filter { it.at in a until b }.mapNotNull { row ->
+            // 新后端日志可先落库，待约定/UI 扩展后自动展示；未知类型不使统计页崩溃。
+            WatchdogEventType.entries.find { it.name == row.type }?.let { type ->
+                WatchdogEvent(row.at, type, row.detail, row.batteryPercent, row.charging)
+            }
+        } }
     }
     override fun dayStats(date: LocalDate): Flow<DayStats> {
         val (a, b) = bounds(date)

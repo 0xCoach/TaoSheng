@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,45 +72,55 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
     val configured = s.account != null && s.hasPassword
     var settingPass by remember { mutableStateOf(false) }
     var restoring by remember { mutableStateOf<app.resound.backup.RemoteBackup?>(null) }
-    var remote by remember { mutableStateOf<Result<List<app.resound.backup.RemoteBackup>>?>(null) }
-    var cloud by remember { mutableStateOf<app.resound.backup.BackupSummary?>(null) }
-    var restoringAll by remember { mutableStateOf<String?>(null) } // "cloud" / "local"
-    androidx.compose.runtime.LaunchedEffect(configured, s.lastBackupAt) {
-        if (configured) { remote = repo.remoteBackups(); cloud = repo.cloudSummary().getOrNull() }
-    }
+    val cache = remember(repo) { BackupPageCache.forRepository(repo) }
+    val cloudCache = remember(cache, s.account, configured) { cache.cloud(s.account, configured) }
+    var remote by remember(cloudCache) { mutableStateOf(cloudCache.backups) }
+    var cloud by remember(cloudCache) { mutableStateOf(cloudCache.summary) }
+    var cloudReadError by remember(cloudCache) { mutableStateOf<String?>(null) }
+    var restoringAll by remember { mutableStateOf<String?>(null) }
     val local by repo.local.collectAsState()
-    // 默认打开正在用的那一边；都没用时先看本机（不用注册账号就能用）
     var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(if (configured && local.folder == null) 1 else 0) }
+    androidx.compose.runtime.LaunchedEffect(cloudCache, s.lastBackupAt, tab) {
+        if (configured && tab == 1) {
+            cloudReadError = null
+            val overview = repo.cloudSummary()
+            cloudCache.acceptSummary(overview); cloud = cloudCache.summary
+            if (overview.isFailure) cloudReadError = overview.exceptionOrNull()?.message ?: "请稍后重试"
+            // 限流或断网时避免追加请求；口令不匹配时仍允许查看历史版本。
+            if ((overview.exceptionOrNull() as? app.resound.backup.BackupFailure)?.retryable != true) {
+                val files = repo.remoteBackups()
+                cloudCache.acceptBackups(files); remote = cloudCache.backups
+                if (files.isFailure) cloudReadError = files.exceptionOrNull()?.message ?: "请稍后重试"
+            }
+        }
+    }
+    val success = latestBackupSuccess(cloud, s.lastBackupAt, s.lastBackupBytes)
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         app.resound.ui.skills.Segments(listOf("本机", "坚果云"), tab) { tab = it }
-        if (tab == 0) LocalBackupSection(repo, local, { restoringAll = "local" }) { restoring = it }
+        if (tab == 0) LocalBackupSection(repo, cache, local, { restoringAll = "local" }) { restoring = it }
         else {
         // 状态
-        RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
+        RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Dot(when { s.lastError != null -> c.critical; s.running -> c.accent; s.lastBackupAt != null -> c.good; else -> c.textTertiary }, 9.dp)
+                Dot(when { s.running -> c.accent; success.at != null -> c.good; s.lastError != null -> c.critical; else -> c.textTertiary }, 9.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    when {
-                        s.running -> "正在备份…"
-                        s.lastError != null -> "上次备份没成功"
-                        s.lastBackupAt != null -> "已备份"
-                        configured -> "还没备份过"
-                        else -> "还没连接坚果云"
-                    },
+                    backupHeadline(false, configured, s.running, success.at, s.lastError),
                     style = RsType.headline, color = c.text,
                 )
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                s.lastError ?: summaryLine(cloud, s.lastBackupAt).ifEmpty { "每天凌晨自动备份：记录、设置、密钥和账号全都备份，每晚只传有变化的那几天。录音音频不备份。" },
+                summaryLine(cloud, s.lastBackupAt, s.lastBackupBytes).ifEmpty { "每天凌晨自动备份：记录、设置、密钥和账号全都备份，每晚只传有变化的那几天。录音音频不备份。" },
                 style = RsType.subhead,
-                color = if (s.lastError != null) c.critical else c.textSecondary,
+                color = c.textSecondary,
             )
+            if (!s.running) s.lastError?.let { Spacer(Modifier.height(6.dp)); Text("最近一次操作未完成：$it", style = RsType.caption, color = c.warning) }
+            cloudReadError?.let { Spacer(Modifier.height(6.dp)); Text("备份信息暂未刷新：$it", style = RsType.caption, color = c.warning) }
             if (configured) {
                 Spacer(Modifier.height(14.dp))
                 Pill(if (s.running) "备份中…" else "立即备份", filled = !s.running) { if (!s.running) repo.backupNow() }
@@ -169,10 +180,13 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
 
         }
 
-        // 云端恢复：新格式一键恢复全部；旧格式备份收在下面
+        // 云端恢复：新格式一键恢复全部；历史版本收在下面
         if (configured) {
-            if (cloud != null) ActionRow("从云端恢复全部", "记录、设置、密钥和账号全部还原", "恢复") { restoringAll = "cloud" }
-            LegacyList(remote) { restoring = it }
+            androidx.compose.animation.AnimatedVisibility(cloud != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+                ActionRow("从云端恢复全部", "记录、设置、密钥和账号全部还原", "恢复") { restoringAll = "cloud" }
+            }
+            HistoryRetention(s.keep, repo::setKeep)
+            HistoryList(remote) { restoring = it }
         }
         }
 
@@ -230,7 +244,7 @@ private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 }
 
 private fun dateTime(at: Long): String =
-    Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日")) + " " + formatClock(at)
+    Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 HH:mm:ss"))
 
 /** 设加密口令：输两遍一致才保存 */
 @Composable
@@ -275,26 +289,33 @@ private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (S
 
 
 /** 概况一句话：共几天 · 合计多大 · 上次几点、传了多少 */
-private fun summaryLine(sum: app.resound.backup.BackupSummary?, lastAt: Long?): String = listOfNotNull(
-    sum?.let { "共 ${it.days} 天的记录" }, sum?.let { "合计 ${formatBytes(it.bytes)}" },
-    (sum?.lastAt ?: lastAt)?.let { "上次 ${dateTime(it)}" }, sum?.lastUploadBytes?.let { "传了 ${formatBytes(it)}" },
-).joinToString(" · ")
+private fun summaryLine(sum: app.resound.backup.BackupSummary?, lastAt: Long?, lastBytes: Long?): String {
+    val success = latestBackupSuccess(sum, lastAt, lastBytes)
+    return listOfNotNull(
+        sum?.let { "共 ${it.days} 天的记录" }, sum?.let { "合计 ${formatBytes(it.bytes)}" },
+        success.at?.let { "最近成功 ${dateTime(it)}" }, success.uploadedBytes?.let { "传了 ${formatBytes(it)}" },
+    ).joinToString(" · ")
+}
 
-/** 旧格式备份（卡 037 之前的完整 / 增量包）：默认收起，仍可恢复 */
+/** 可选择的历史恢复点，默认展开。 */
 @Composable
-private fun LegacyList(list: Result<List<app.resound.backup.RemoteBackup>>?, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
+private fun HistoryList(list: Result<List<app.resound.backup.RemoteBackup>>?, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
     val c = Rs.colors
     val items = list?.getOrNull().orEmpty()
-    if (items.isEmpty()) return
-    var open by remember { mutableStateOf(false) }
-    Text("旧格式备份 · ${items.size} 份 ${if (open) "▾" else "▸"}", style = RsType.section, color = c.textSecondary,
+    if (items.isEmpty()) {
+        Text("历史版本", style = RsType.section, color = c.textSecondary)
+        Text("完成下一次备份后，会在这里保留可按时间恢复的版本。", style = RsType.caption, color = c.textTertiary)
+        return
+    }
+    var open by remember { mutableStateOf(true) }
+    Text("历史版本 · ${items.size} 份 ${if (open) "▾" else "▸"}", style = RsType.section, color = c.textSecondary,
         modifier = Modifier.springClick { open = !open }.padding(start = 4.dp, top = 4.dp))
     if (open) RsCard(padding = PaddingValues(vertical = 4.dp)) {
         items.forEachIndexed { i, b ->
             Row(Modifier.fillMaxWidth().springClick { onRestore(b) }.padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(dateTime(b.at), style = RsType.body, color = c.text)
-                    Text(backupLine(b), style = RsType.caption, color = c.textTertiary)
+                    Text("增量恢复点 · " + formatBytes(b.bytes) + if (b.encrypted) " · 已加密" else "", style = RsType.caption, color = c.textTertiary)
                 }
                 Text("恢复 ›", style = RsType.subhead, color = c.accent)
             }
@@ -331,18 +352,32 @@ private const val LOCAL_TAG = "local:"
 
 /** 本机备份：选文件夹、每晚自动、只留最新几份、立即备份、导出一份、从文件恢复 */
 @Composable
-private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.LocalBackupState, onRestoreAll: () -> Unit, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
+private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l: app.resound.backup.LocalBackupState, onRestoreAll: () -> Unit, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
-    var list by remember { mutableStateOf<Result<List<app.resound.backup.RemoteBackup>>?>(null) }
+    var folderEpoch by remember { mutableIntStateOf(0) }
+    val localCache = remember(cache, l.folder, folderEpoch) { cache.local(l.folder) }
+    var list by remember(localCache) { mutableStateOf(localCache.backups) }
     var note by remember { mutableStateOf<String?>(null) }
+    var readError by remember(localCache) { mutableStateOf<String?>(null) }
     var fileRestore by remember { mutableStateOf<android.net.Uri?>(null) }
-    var summary by remember { mutableStateOf<app.resound.backup.BackupSummary?>(null) }
-    androidx.compose.runtime.LaunchedEffect(l.folder, l.lastAt, l.count) {
-        if (l.folder != null) { list = repo.localBackups(); summary = repo.localSummary().getOrNull() }
+    var summary by remember(localCache) { mutableStateOf(localCache.summary) }
+    androidx.compose.runtime.LaunchedEffect(localCache, l.lastAt, l.count) {
+        if (l.folder != null) {
+            readError = null
+            val overview = repo.localSummary()
+            localCache.acceptSummary(overview); summary = localCache.summary
+            if (overview.isFailure) readError = overview.exceptionOrNull()?.message ?: "请稍后重试"
+            if ((overview.exceptionOrNull() as? app.resound.backup.BackupFailure)?.retryable != true) {
+                val files = repo.localBackups()
+                localCache.acceptBackups(files); list = localCache.backups
+                if (files.isFailure) readError = files.exceptionOrNull()?.message ?: "请稍后重试"
+            }
+        }
     }
+    val success = latestBackupSuccess(summary, l.lastAt, l.lastBytes)
     val pickFolder = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
-        uri?.let { repo.setLocalFolder(it) }
+        uri?.let { cache.invalidateLocal(); repo.setLocalFolder(it); folderEpoch++ }
     }
     val export = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let { scope.launch { note = repo.exportTo(it).fold({ "已导出" }, { e -> e.message ?: "没导出成功" }) } }
@@ -352,21 +387,17 @@ private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.Loc
     }
 
     // 状态
-    RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
+    RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Dot(when { l.lastError != null -> c.critical; l.running -> c.accent; l.lastAt != null -> c.good; else -> c.textTertiary }, 9.dp)
+            Dot(when { l.running -> c.accent; success.at != null -> c.good; l.lastError != null -> c.critical; else -> c.textTertiary }, 9.dp)
             Spacer(Modifier.width(8.dp))
-            Text(when {
-                l.running -> "正在备份…"
-                l.lastError != null -> "上次备份没成功"
-                l.lastAt != null -> "已备份到本机"
-                l.folder != null -> "还没备份过"
-                else -> "还没选备份文件夹"
-            }, style = RsType.headline, color = c.text)
+            Text(backupHeadline(true, l.folder != null, l.running, success.at, l.lastError), style = RsType.headline, color = c.text)
         }
         Spacer(Modifier.height(6.dp))
-        Text(l.lastError ?: summaryLine(summary, l.lastAt).ifEmpty { "不用注册账号：记录、设置、密钥和账号都存到你选的文件夹，每晚只写有变化的那几天。换手机时把文件夹拷过去就能恢复。录音音频不备份。" },
-            style = RsType.subhead, color = if (l.lastError != null) c.critical else c.textSecondary)
+        Text(summaryLine(summary, l.lastAt, l.lastBytes).ifEmpty { "不用注册账号：记录、设置、密钥和账号都存到你选的文件夹，每晚只写有变化的那几天。换手机时把文件夹拷过去就能恢复。录音音频不备份。" },
+            style = RsType.subhead, color = c.textSecondary)
+        if (!l.running) l.lastError?.let { Spacer(Modifier.height(6.dp)); Text("最近一次操作未完成：$it", style = RsType.caption, color = c.warning) }
+        readError?.let { Spacer(Modifier.height(6.dp)); Text("备份信息暂未刷新：$it", style = RsType.caption, color = c.warning) }
         Spacer(Modifier.height(14.dp))
         Row {
             if (l.folder != null) {
@@ -393,8 +424,11 @@ private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.Loc
             }
         }
 
-        if (summary != null) ActionRow("从本机文件夹恢复全部", "记录、设置、密钥和账号全部还原", "恢复", onRestoreAll)
-        LegacyList(list?.map { all -> all.map { it.copy(name = LOCAL_TAG + it.name) } }, onRestore)
+        androidx.compose.animation.AnimatedVisibility(summary != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+            ActionRow("从本机文件夹恢复全部", "记录、设置、密钥和账号全部还原", "恢复", onRestoreAll)
+        }
+        HistoryRetention(l.keep, repo::setLocalKeep)
+        HistoryList(list?.map { all -> all.map { it.copy(name = LOCAL_TAG + it.name) } }, onRestore)
     }
 
     // 从任意文件恢复（比如从旧手机拷来的、从坚果云网页下载的）
@@ -403,5 +437,19 @@ private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.Loc
         val name = uri.lastPathSegment?.substringAfterLast('/') ?: "所选文件"
         RestoreSheet(app.resound.backup.RemoteBackup(name, System.currentTimeMillis(), 0, name.endsWith(".enc")),
             { pass -> repo.restoreFrom(uri, pass) }, title = "用所选文件恢复") { fileRestore = null }
+    }
+}
+
+@Composable
+private fun HistoryRetention(keep: Int, onChange: (Int) -> Unit) {
+    val c = Rs.colors
+    RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
+        Text("历史版本保留", style = RsType.body, color = c.text)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(3, 7, 30).forEach { count -> Pill("$count 份", filled = keep == count) { onChange(count) } }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("每次成功备份保留一个恢复点，未变化的数据共用。下次备份时按所选数量清理。", style = RsType.caption, color = c.textSecondary)
     }
 }

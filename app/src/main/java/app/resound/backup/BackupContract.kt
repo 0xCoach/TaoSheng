@@ -20,7 +20,7 @@ data class BackupState(
     val lastError: String?,
     /** 备份加密已开启 */
     val encrypted: Boolean = false,
-    /** 云端保留最近几个恢复点（每晚一个）：3 / 7 / 30，默认 7；被保留的增量所依赖的完整备份也会留着（只清理 Resound-Backup 目录） */
+    /** 云端保留最近几个恢复点（每次成功备份一个）：3 / 7 / 30，默认 7；保留点共用未变化的数据对象 */
     val keep: Int = 7,
 )
 
@@ -43,12 +43,12 @@ interface BackupRepository {
     /** 测试能否连上并有写入权限；成功返回简短说明 */
     suspend fun test(): Result<String>
 
-    /** 云端的备份（新的在前） */
+    /** 云端的历史恢复点（新的在前） */
     suspend fun remoteBackups(): Result<List<RemoteBackup>> = Result.success(emptyList())
 
     /**
      * 用某一份备份恢复：先下载校验，再替换本机数据库和设置；成功后 App 自动重启。
-     * 恢复前会先把本机当前数据做一份本地快照（保留到下次成功备份）。密钥类不在备份里，恢复后需重填。
+     * 恢复前会先把本机当前数据做一份本地快照（保留到下次成功备份）。配置与密钥一并恢复；备份里没有的配置保留本机已有值。
      */
     suspend fun restore(name: String, passphrase: String? = null): Result<Unit> = Result.failure(UnsupportedOperationException())
 
@@ -72,20 +72,20 @@ interface BackupRepository {
     // ---------- 本机备份 ----------
 
     val local: StateFlow<LocalBackupState>
-        get() = kotlinx.coroutines.flow.MutableStateFlow(LocalBackupState(null, false, 3, false, null, null, null, null))
+        get() = kotlinx.coroutines.flow.MutableStateFlow(LocalBackupState(null, false, 7, false, null, null, null, null))
 
     /** 用户在系统选择器里选的文件夹（ACTION_OPEN_DOCUMENT_TREE 返回的地址），要长期保留访问权限 */
     fun setLocalFolder(tree: android.net.Uri) {}
 
     fun setLocalAuto(enabled: Boolean) {}
 
-    /** 只保留最新几份：1、3 或 7 */
+    /** 只保留最新几份：3、7 或 30，默认 7（兼容旧配置 1 份） */
     fun setLocalKeep(count: Int) {}
 
     /** 立即备份一份到本机文件夹 */
     fun backupLocalNow() {}
 
-    /** 本机文件夹里的备份（新的在前） */
+    /** 本机文件夹里的历史恢复点（新的在前） */
     suspend fun localBackups(): Result<List<RemoteBackup>> = Result.success(emptyList())
 
     /** 用本机文件夹里的某一份恢复（流程同云端恢复） */
@@ -131,7 +131,7 @@ data class LocalBackupState(
     val folder: String?,
     /** 每晚自动备份到这个文件夹 */
     val auto: Boolean,
-    /** 保留最近几个恢复点（1 / 3 / 7），多的自动删；被保留的增量所依赖的完整备份也会留着 */
+    /** 保留最近几个恢复点（3 / 7 / 30，默认 7），多的自动删；保留点共用未变化的数据对象 */
     val keep: Int,
     val running: Boolean,
     val lastAt: Long?,

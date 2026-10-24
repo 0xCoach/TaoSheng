@@ -63,16 +63,21 @@ internal class WebDavClient(
         return (quiet(directory) + runCatching { quiet(legacyDirectory) }.getOrDefault(emptyList()))
             .sortedWith(compareByDescending<RemoteBackup> { it.at }.thenByDescending { it.name })
     }
-    private fun listIn(dir: HttpUrl): List<RemoteBackup> = request("PROPFIND", dir, "".toRequestBody(), mapOf("Depth" to "1")).use { response ->
+    private fun listIn(dir: HttpUrl): List<RemoteBackup> = listFilesIn(dir).mapNotNull { item ->
+        metadata(item.path, item.bytes)?.takeIf { folderOf(it.name) == dir }
+    }.sortedWith(compareByDescending<RemoteBackup> { it.at }.thenByDescending { it.name })
+    private fun listFilesIn(dir: HttpUrl): List<VolumeFile> = request("PROPFIND", dir, "".toRequestBody(), mapOf("Depth" to "1")).use { response ->
         // Android 自带 PullParser；不用各 Android 版本支持不一致的 DOM 安全 feature。
         val parser = XmlPullParserFactory.newInstance().apply { isNamespaceAware = true }.newPullParser()
-        val names = linkedMapOf<String, RemoteBackup>()
+        val names = linkedMapOf<String, VolumeFile>()
         response.body!!.byteStream().use { input ->
             parser.setInput(input, "UTF-8")
             var href: String? = null
             var collection = false
             var success = false
             var size = 0L
+            var modified = 0L
+            var propModified = 0L
             var propSize = 0L
             var propSuccess = false
             var inPropstat = false
@@ -85,10 +90,13 @@ internal class WebDavClient(
                 if (event == XmlPullParser.END_DOCUMENT) break
                 if (parser.namespace != "DAV:") continue
                 if (event == XmlPullParser.START_TAG) when (parser.name) {
-                    "response" -> { inResponse = true; href = null; collection = false; success = false; size = 0L }
+                    "response" -> { inResponse = true; href = null; collection = false; success = false; size = 0L; modified = 0L }
                     "href" -> if (inResponse) href = parser.nextText()
                     "collection" -> if (inResponse) collection = true
-                    "propstat" -> { inPropstat = true; propSuccess = false; propSize = 0L }
+                    "propstat" -> { inPropstat = true; propSuccess = false; propSize = 0L; propModified = 0L }
+                    "getlastmodified" -> if (inResponse) propModified = runCatching {
+                        java.time.ZonedDateTime.parse(parser.nextText(),java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli()
+                    }.getOrDefault(0L)
                     "getcontentlength" -> if (inResponse) propSize = parser.nextText().toLongOrNull()?.coerceAtLeast(0) ?: 0
                     "status" -> if (inResponse) {
                         val ok = parser.nextText().contains(" 200 ")
@@ -96,7 +104,7 @@ internal class WebDavClient(
                     }
                 }
                 if (event == XmlPullParser.END_TAG && parser.name == "propstat") {
-                    if (propSuccess) { success = true; size = maxOf(size, propSize) }
+                    if (propSuccess) { success = true; size = maxOf(size, propSize); modified = maxOf(modified,propModified) }
                     inPropstat = false
                 }
                 if (event == XmlPullParser.END_TAG && parser.name == "response") {
@@ -106,13 +114,13 @@ internal class WebDavClient(
                     val inDirectory = resolved != null && resolved.scheme == dir.scheme && resolved.host == dir.host && resolved.port == dir.port &&
                         resolved.pathSegments.dropLast(1) == dir.pathSegments.dropLast(1)
                     if (!collection && success && !name.isNullOrEmpty() && inDirectory) {
-                        metadata(name, size)?.takeIf { folderOf(name) == dir }?.let { names[name] = it }
+                        names[name] = VolumeFile(name,size,modified)
                     }
                     inResponse = false
                 }
             }
         }
-        names.values.sortedWith(compareByDescending<RemoteBackup> { it.at }.thenByDescending { it.name })
+        names.values.toList()
     }
 
     fun upload(file: File, name: String) {
@@ -159,7 +167,8 @@ internal class WebDavClient(
     /** 固定英文分卷路径；404 才表示缺失，鉴权/网络错误不能当作空清单。 */
     fun volumes(): VolumeStore = object : VolumeStore {
         private fun target(path: String): HttpUrl {
-            require(volumePath(path) || ('/' !in path && path.startsWith("resound-") && metadata(path) != null))
+            require(volumePath(path) || ('/' !in path && metadata(path) != null))
+            if ('/' !in path && metadata(path) != null) return url(path)
             return directory.newBuilder().apply { path.split('/').forEach { addPathSegment(it) } }.build()
         }
         private fun missing(block: () -> Unit): Boolean = try { block(); true } catch (e: BackupFailure) {
@@ -203,7 +212,18 @@ internal class WebDavClient(
             parents(to)
             request("COPY", target(from), headers = mapOf("Destination" to target(to).toString(), "Overwrite" to "T")).close()
         }
-        override fun legacy() = listIn(directory).filter { it.name.startsWith("resound-") }.map { it.name }
+        override fun legacy(): List<String> {
+            fun known(dir: HttpUrl) = try { listIn(dir) } catch(e: BackupFailure) {
+                if(e.human=="备份目录不存在") emptyList() else throw e
+            }
+            return (known(directory)+known(legacyDirectory)).map { it.name }
+        }
+        override fun files(directory: String): List<VolumeFile> {
+            require(directory in setOf("history", "objects"))
+            val dir = this@WebDavClient.directory.newBuilder().addPathSegment(directory).addPathSegment("").build()
+            return try { listFilesIn(dir).filter { volumePath("$directory/${it.path}") }.map { it.copy(path="$directory/${it.path}") } }
+            catch(e: BackupFailure) { if(e.human=="备份目录不存在") emptyList() else throw e }
+        }
     }
 
     fun testWrite() {

@@ -171,7 +171,7 @@ class IdeasMood040Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(13, migrated.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             val item = migrated.memory().itemsByCategory(listOf("灵感")).first().single()
             assertEquals("旧灵感", item.content); assertNull(item.mergedInto); assertFalse(item.noMerge)
         } finally { migrated.close() }

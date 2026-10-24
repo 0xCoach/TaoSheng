@@ -54,7 +54,7 @@ interface CaptureDao {
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, app.resound.search.LineFts::class, app.resound.search.EventFts::class,
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
-    app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = 14, exportSchema = true)
+    app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
     abstract fun privacy(): PrivacyDao
     abstract fun capture(): CaptureDao
@@ -65,6 +65,9 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun review(): ReviewDao
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
+        /** 当前数据库版本；加迁移时同步改这里 */
+        const val VERSION = 14
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE segments ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")

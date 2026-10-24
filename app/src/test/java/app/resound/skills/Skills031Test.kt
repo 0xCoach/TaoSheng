@@ -190,7 +190,7 @@ class Skills031Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(13, migrated.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             assertEquals(12L, migrated.memory().observeUsage().first().single().promptTokens)
             assertNotNull(migrated.skills().merge(card(), 8)); assertEquals(1, migrated.skills().cards(day.toEpochDay()).first().size)
         } finally { migrated.close(); context.deleteDatabase(name) }
@@ -247,7 +247,7 @@ class Skills031Test {
         }
         val copy = CaptureDatabase.open(context, path)
         try {
-            assertEquals(13, copy.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, copy.openHelper.writableDatabase.version)
             for (s in skillsForProbe()) {
                 val input = SkillInputs.load(copy.skills(), s, day, null, start + 86_399_999)
                 val json = JSONObject().put("skillId", s.id).put("date", day.toString())

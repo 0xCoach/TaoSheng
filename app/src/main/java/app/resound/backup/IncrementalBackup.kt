@@ -186,14 +186,16 @@ internal object IncrementalBackup {
             if (expectedName != null) require(BackupNames.metadata(expectedName)?.baseName == baseName)
             val download = File(workspace, "base.download")
             try { (fetchBase ?: throw BackupFailure(MISSING_BASE))(baseName, download) }
-            catch (_: Exception) { throw BackupFailure(MISSING_BASE) }
+            catch (e: Exception) { android.util.Log.w("ResoundBackup", "取基准失败: ${e.javaClass.simpleName}: ${e.message}"); throw BackupFailure(MISSING_BASE) }
             // 口令错误保持原提示；解密后的基准损坏使用稳定的依赖错误。
             val baseZip = plain(download, "base.zip")
             val baseStage = File(workspace, "base")
             try {
                 BackupArchive.verify(baseZip, baseStage, expectedVersion)
-                require(BackupArchive.sha(File(baseStage, BackupArchive.DATABASE)) == info.getString("baseSha256"))
-            } catch (_: Exception) { throw BackupFailure(MISSING_BASE) }
+                val actual = BackupArchive.sha(File(baseStage, BackupArchive.DATABASE))
+                if (actual != info.getString("baseSha256")) android.util.Log.w("ResoundBackup", "基准数据库校验码不符: ${actual.take(12)} ≠ ${info.getString("baseSha256").take(12)}")
+                require(actual == info.getString("baseSha256"))
+            } catch (e: Exception) { android.util.Log.w("ResoundBackup", "基准校验失败: ${e.javaClass.simpleName}: ${e.message}"); throw BackupFailure(MISSING_BASE) }
             val delta = File(workspace, "delta")
             BackupArchive.extract(zip, delta, incremental = true)
             val before = files(JSONObject(File(baseStage, "manifest.json").readText())); val after = files(info)

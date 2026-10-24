@@ -202,6 +202,7 @@ internal object BackupArchive {
                 }
             }
         } catch (e: Exception) {
+            android.util.Log.w("ResoundBackup", "校验失败: ${e.javaClass.simpleName}: ${e.message} @ ${e.stackTrace.firstOrNull { it.className.startsWith("app.resound") }}")
             staging.deleteRecursively()
             throw (e as? BackupFailure ?: BackupFailure("备份校验失败，未恢复数据"))
         }
@@ -223,11 +224,17 @@ internal object BackupArchive {
                 require(file.isFile && file.length() == item.getLong("size") && sha(file) == item.getString("sha256"))
             }
             require(DATABASE in declared && declared + "manifest.json" == names)
-            SQLiteDatabase.openDatabase(File(staging, DATABASE).path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+            // 校验的是暂存副本，可写打开：安卓的 FTS4 完整性检查要写临时数据，只读打开会报“attempt to write a readonly database”
+            SQLiteDatabase.openDatabase(File(staging, DATABASE).path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
                 require(db.version == sourceVersion)
-                db.rawQuery("PRAGMA integrity_check", null).use { require(it.moveToFirst() && it.getString(0) == "ok") }
+                db.rawQuery("PRAGMA integrity_check", null).use {
+                    val rows = buildList { while (it.moveToNext()) add(it.getString(0)) }
+                    if (rows != listOf("ok")) android.util.Log.w("ResoundBackup", "完整性检查: ${rows.take(5)}")
+                    require(rows == listOf("ok"))
+                }
             }
         } catch (e: Exception) {
+            android.util.Log.w("ResoundBackup", "校验失败: ${e.javaClass.simpleName}: ${e.message} @ ${e.stackTrace.firstOrNull { it.className.startsWith("app.resound") }}")
             staging.deleteRecursively()
             throw (e as? BackupFailure ?: BackupFailure("备份校验失败，未恢复数据"))
         }

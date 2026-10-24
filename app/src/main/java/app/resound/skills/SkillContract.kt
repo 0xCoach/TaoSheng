@@ -244,9 +244,6 @@ interface SkillRepository {
      */
     suspend fun runNow(skillId: String, date: LocalDate): SkillRunResult
 
-    /** 只用 [from, to] 这段时间的原话跑一次（手动速记用），正式存库；不受每天自动次数限制 */
-    suspend fun runWindow(skillId: String, from: Long, to: Long): SkillRunResult = SkillRunResult.Failed("暂不支持")
-
     /** 试跑：用某天的真实数据跑一次，只返回预览，不存库、不推送；可传入还没保存的要求 */
     suspend fun trial(skillId: String, date: LocalDate, promptOverride: String? = null): SkillRunResult
 

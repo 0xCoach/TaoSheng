@@ -243,4 +243,13 @@ class VoiceInput049Test {
         assertEquals("今天天气不错", VoiceInputHotwords.correct("今天天气不错", listOf("马正涛")))
         assertEquals("远程会议", VoiceInputHotwords.correct("远程会议", emptyList()))
     }
+    @Test fun wechatUsesContactNameInContext() {
+        fun chat(title: String) = listOf(line(title, 80), OcrLine("报告明天能交吗合成", 60, 600, 600, 640, 1), OcrLine("好的合成", 700, 700, 950, 740, 2),
+            line("合成输入框", 1140, 9))
+        val single = VoiceInputOcr.extract(chat("马正涛"), layout, "com.tencent.mm")!!
+        assertEquals("马正涛", single.title)
+        assertEquals(listOf("马正涛：报告明天能交吗合成", "我：好的合成"), single.context)
+        val group = VoiceInputOcr.extract(chat("周五团建(12)"), layout, "com.tencent.mm")!!
+        assertEquals(listOf("对方：报告明天能交吗合成", "我：好的合成"), group.context)
+    }
 }

@@ -33,7 +33,11 @@ internal object VoiceInputOcr {
         val above = source.filter { it.top >= layout.contentTop && it.bottom <= inputTop && VoiceInputChrome.keep(it.text) && it.text.trim() != r.title }
             .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left })
             .filter { r.title == null || it.bottom > layout.contentTop + layout.height / 8 }
-        return r.copy(context = sided(above, layout.width, pkg).takeLast(20), title = r.title?.takeIf { pkg in TITLED })
+        val title = r.title?.takeIf { pkg in TITLED }
+        // 微信单聊：标题就是对方的名字，上下文里的“对方”换成名字；群聊（标题后带人数）分不清谁说的，仍标“对方”
+        val name = title?.takeIf { !GROUP.containsMatchIn(it) }
+        val context = sided(above, layout.width, pkg).map { if (name != null && it.startsWith("对方：")) name + it.removePrefix("对方") else it }
+        return r.copy(context = context.takeLast(20), title = title)
     }
     fun extract(source: List<OcrLine>, layout: OcrLayout): OcrInput? {
         if (layout.width <= 0 || layout.height <= 0) return null
@@ -77,7 +81,7 @@ internal object VoiceInputOcr {
 
     /** 标题像个名字：2～20 个字，有字母或汉字（不是纯数字、未读数），不带代码符号；返回箭头“く”“<”这类不算 */
     fun looksLikeTitle(text: String): Boolean {
-        val t = text.trim().trimStart('<', 'く', '‹', '〈', ' ')
+        val t = text.trim().trimStart('<', 'く', '‹', '〈', ' ').replace(GROUP, "")
         return t.length in 2..20 && t.any { it.isLetter() } && t.none { it in CODE }
     }
     private const val CODE = "()（）+=/\\;{}[]\"'`$&|"
@@ -98,6 +102,8 @@ internal object VoiceInputOcr {
     val AI = setOf("com.openai.chatgpt", "com.google.android.apps.bard", "com.google.android.googlequicksearchbox")
     /** 只有微信的标题是联系人名字，其他应用的标题（日期、会话名）不取 */
     val TITLED = setOf("com.tencent.mm")
+    /** 群聊标题后面带人数，如“周五团建(12)” */
+    val GROUP = Regex("[(（][0-9]+[)）]\\s*$")
     /** 上下文按左右标上谁说的，同一侧相邻的几行合成一条 */
     fun sided(lines: List<OcrLine>, width: Int, pkg: String? = null): List<String> {
         val out = mutableListOf<Pair<String, String>>()

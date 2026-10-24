@@ -52,7 +52,7 @@ internal object VoiceInputDedup {
         .trim().replace(Regex("\\s+"), " ")
     fun title(text: String?) = text?.let(::key)?.ifBlank { null }
     /** 去掉“我：/对方：”前缀后的比较键 */
-    fun bare(line: String) = key(line.trim().removePrefix("我：").removePrefix("对方："))
+    fun bare(line: String) = key(line.trim().removePrefix("我：").removePrefix("对方：").replaceFirst(Regex("^[^：]{1,20}：(?=.)"), ""))
     /** 两段是不是同一句（识字误差内）：按顺序对得上的字占较长一段的 85% 以上 */
     fun sameAs(a: String, b: String): Boolean {
         val x = VoiceInputText.normalized(a); val y = VoiceInputText.normalized(b)

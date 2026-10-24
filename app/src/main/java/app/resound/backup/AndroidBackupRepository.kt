@@ -54,14 +54,17 @@ class AndroidBackupRepository internal constructor(
         require(email.contains('@') && ':' !in email && email.none { it.isISOControl() } && appPassword.isNotBlank()) { "请填写邮箱和应用密码" }
         try {
             secrets.write("password", appPassword)
-            check(prefs.edit().putString("account", email).remove("error").commit())
+            check(prefs.edit().apply {
+                if (prefs.getString("account", null) != email) remove("lastAt").remove("lastBytes").remove("count")
+            }.putString("account", email).remove("error").commit())
             refresh(); schedule()
         } catch (_: Exception) { error("账号保存失败，请重试") }
     }
     @Synchronized override fun clearCredentials() {
         try {
             secrets.remove("password")
-            check(prefs.edit().remove("account").putBoolean("enabled", false).remove("error").commit())
+            check(prefs.edit().remove("account").putBoolean("enabled", false).remove("error")
+                .remove("lastAt").remove("lastBytes").remove("count").commit())
             scheduler.cancelCloud(); refresh(); schedule()
         } catch (_: Exception) { error("账号清除失败，请重试") }
     }
@@ -174,7 +177,9 @@ class AndroidBackupRepository internal constructor(
             val count = runCatching {
                 withWorkspace { DayVolumes.readState(localFiles.volumes(tree), it, runCatching { passphrases.read() }.getOrNull())?.summary()?.days ?: 0 }
             }.getOrDefault(-1)
-            check(prefs.edit().putString("localTree", tree.toString()).putString("localFolderName", name)
+            check(prefs.edit().apply {
+                if (prefs.getString("localTree", null) != tree.toString()) remove("localLastAt").remove("localLastBytes")
+            }.putString("localTree", tree.toString()).putString("localFolderName", name)
                 .putInt("localCount", count).remove("localError").commit())
             refreshLocal(); schedule()
         } catch (_: Exception) { localError(LocalBackupFiles.INACCESSIBLE) }
@@ -193,7 +198,7 @@ class AndroidBackupRepository internal constructor(
     private fun localTree(): Uri = prefs.getString("localTree", null)?.let(Uri::parse)
         ?: throw BackupFailure(LocalBackupFiles.INACCESSIBLE)
     override fun backupLocalNow() { scheduler.runLocalNow() }
-    override suspend fun localBackups(): Result<List<RemoteBackup>> = localOperation {
+    override suspend fun localBackups(): Result<List<RemoteBackup>> = localOperation(readOnly = true) {
         localFiles.list(localTree())
     }
     internal suspend fun runLocalBackup(periodic: Boolean): Boolean {
@@ -222,10 +227,10 @@ class AndroidBackupRepository internal constructor(
         val workspace = File(context.cacheDir, "resound-volumes-${UUID.randomUUID()}").apply { check(mkdirs()) }
         return try { block(workspace) } finally { workspace.deleteRecursively() }
     }
-    override suspend fun cloudSummary(): Result<BackupSummary?> = cloudOperation {
+    override suspend fun cloudSummary(): Result<BackupSummary?> = cloudOperation(readOnly = true) {
         withWorkspace { DayVolumes.readState(client().volumes(), it, runCatching { passphrases.read() }.getOrNull())?.summary() }
     }
-    override suspend fun localSummary(): Result<BackupSummary?> = localOperation {
+    override suspend fun localSummary(): Result<BackupSummary?> = localOperation(readOnly = true) {
         withWorkspace { DayVolumes.readState(localFiles.volumes(localTree()), it, runCatching { passphrases.read() }.getOrNull())?.summary() }
     }
     override suspend fun restoreAllFromCloud(passphrase: String?): Result<Unit> = cloudOperation {
@@ -238,13 +243,13 @@ class AndroidBackupRepository internal constructor(
         BackupRestore.restoreVolumes(context, store, database, runCatching { passphrases.read() }.getOrNull(),
             passphrase, database::close, restartProcess)
     }
-    private suspend fun <T> cloudOperation(block: () -> T): Result<T> = withContext(Dispatchers.IO) {
+    private suspend fun <T> cloudOperation(readOnly: Boolean = false, block: () -> T): Result<T> = withContext(Dispatchers.IO) {
         gate.withLock {
-            refresh(true)
-            try { ensureActive(); Result.success(block()).also { error(null) } }
+            if (!readOnly) refresh(true)
+            try { ensureActive(); Result.success(block()).also { if (!readOnly) error(null) } }
             catch (e: CancellationException) { throw e }
-            catch (e: Exception) { val failure = backupError(e); error(failure.human); Result.failure(failure) }
-            finally { refresh(false) }
+            catch (e: Exception) { val failure = backupError(e); if (!readOnly) error(failure.human); Result.failure(failure) }
+            finally { if (!readOnly) refresh(false) }
         }
     }
     override suspend fun restoreLocal(name: String, passphrase: String?): Result<Unit> = localOperation {
@@ -263,17 +268,17 @@ class AndroidBackupRepository internal constructor(
                 fetchBase = { base, target -> localFiles.read(localFiles.source(localTree(), base), target) }, expectedName = name)
         } finally { download.delete() }
     }
-    private suspend fun <T> localOperation(block: () -> T): Result<T> = withContext(Dispatchers.IO) {
+    private suspend fun <T> localOperation(readOnly: Boolean = false, block: () -> T): Result<T> = withContext(Dispatchers.IO) {
         gate.withLock {
-            refreshLocal(true)
-            try { ensureActive(); val result = block(); localError(null); Result.success(result) }
+            if (!readOnly) refreshLocal(true)
+            try { ensureActive(); val result = block(); if (!readOnly) localError(null); Result.success(result) }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 val failure = e as? BackupFailure ?: BackupFailure(
                     if (e is SecurityException || e is java.io.FileNotFoundException) LocalBackupFiles.INACCESSIBLE
                     else "本机备份处理失败，请重试")
-                localError(failure.human); Result.failure(failure)
-            } finally { refreshLocal(false) }
+                if (!readOnly) localError(failure.human); Result.failure(failure)
+            } finally { if (!readOnly) refreshLocal(false) }
         }
     }
     companion object { private val gate = Mutex() }

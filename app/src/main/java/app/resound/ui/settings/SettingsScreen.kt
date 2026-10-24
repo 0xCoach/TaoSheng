@@ -192,11 +192,11 @@ private fun SettingsList(
                     val last = listOfNotNull(b?.lastBackupAt, lb?.lastAt).maxOrNull()
                     Row1("数据备份", when {
                         b == null -> "开发中"
-                        failed -> "上次失败"
                         last != null -> listOfNotNull(lb?.lastAt?.let { "本机" }, b.lastBackupAt?.let { "坚果云" }).joinToString("、") + "已备份"
+                        failed -> "尚无成功备份"
                         b.account == null && lb?.folder == null -> "未开启"
                         else -> "还没备份"
-                    }, dot = when { b == null || (b.account == null && lb?.folder == null) -> null; failed -> c.critical; else -> c.good }) { onOpen(SettingsPage.Backup) }
+                    }, dot = when { b == null -> null; last != null -> c.good; failed -> c.critical; b.account == null && lb?.folder == null -> null; else -> c.warning }) { onOpen(SettingsPage.Backup) }
                 }
             }
         }

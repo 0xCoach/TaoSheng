@@ -13,8 +13,8 @@ data class VoiceInputSettings(
     val enabled: Boolean = false,
     /** 记当时屏幕上的上下文 */
     val context: Boolean = true,
-    /** 发出后 2 分钟内同一界面的回复也补记一次 */
-    val replies: Boolean = true,
+    /** 发出后 2 分钟内同一界面的回复也补记一次。负责人定（10-24）不补记：对方回了自己还会再回，下次自然带上；默认关、界面不再提供 */
+    val replies: Boolean = false,
     /** 这些应用不记（包名） */
     val excludedPackages: Set<String> = emptySet(),
     /** 卡 049：读不到界面时（微信、终端等）改用截屏识字；截图只在内存里识别，识完即丢，只留文字 */

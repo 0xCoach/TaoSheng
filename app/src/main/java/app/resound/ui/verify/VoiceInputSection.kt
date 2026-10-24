@@ -56,11 +56,7 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
                     Pill("去打开", filled = true) { openSettings() }
                 }
                 Divider()
-                Toggle("记当时的上下文", "同时截下屏幕上正在进行的对话（最近二十来行），帮整理看懂你那句话", s.context) { capture.update(s.copy(context = it)) }
-                if (s.context) {
-                    Divider()
-                    Toggle("记发出后的回复", "发出后 2 分钟内，同一界面里新出现的回复（对方消息、AI 回答、终端输出）补记一次", s.replies) { capture.update(s.copy(replies = it)) }
-                }
+                Toggle("记当时的上下文", "同时记下屏幕上正在进行的对话（最近二十来行），帮整理看懂你那句话；连续几段时重复的内容只记一次", s.context) { capture.update(s.copy(context = it)) }
                 Divider()
                 Toggle("读不到时截屏识字", "微信、终端这类不让读取界面的应用，改为截屏在手机上识别文字。图片不保存、不上传，识完就丢", s.screenOcr) { capture.update(s.copy(screenOcr = it)) }
                 if (apps.isNotEmpty()) {

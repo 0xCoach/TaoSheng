@@ -140,6 +140,54 @@ internal class LocalBackupFiles(
             }
         } ?: throw BackupFailure(INACCESSIBLE)
     }
+    fun volumes(tree: Uri): VolumeStore = object : VolumeStore {
+        private fun locate(path: String, create: Boolean = false): DocumentFile? = access {
+            val base = path.removeSuffix(".part").removeSuffix(".previous")
+            require(volumePath(base) || ('/' !in base && base.startsWith("resound-") && BackupNames.metadata(base) != null))
+            var parent = folder(tree)
+            val pieces = path.split('/')
+            for (piece in pieces.dropLast(1)) {
+                parent = parent.findFile(piece) ?: if (create) parent.createDirectory(piece)
+                    ?: throw BackupFailure(INACCESSIBLE) else return@access null
+                require(parent.isDirectory)
+            }
+            parent.findFile(pieces.last()) ?: if (create) parent.createFile("application/octet-stream", pieces.last()) else null
+        }
+        override fun read(path: String, target: File): Boolean = access {
+            val file = locate(path) ?: locate("$path.previous") ?: return@access false
+            this@LocalBackupFiles.read(file.uri, target); true
+        }
+        override fun exists(path: String): Boolean = access { locate(path)?.isFile == true || locate("$path.previous")?.isFile == true }
+        override fun put(path: String, source: File): Unit = access {
+            val name = path.substringAfterLast('/')
+            // 两阶段改名。读者在正式文件缺失的窗口读取 previous；新文件先回读校验。
+            val recovery = locate("$path.previous")
+            if (locate(path) == null && recovery != null) check(recovery.renameTo(name))
+            locate("$path.part")?.let { check(it.delete()) }
+            val part = locate("$path.part", true) ?: throw BackupFailure(INACCESSIBLE)
+            try {
+                export(source, part.uri)
+                locate("$path.previous")?.let { check(it.delete()) }
+                locate(path)?.let { check(it.renameTo("$name.previous")) }
+                check(part.renameTo(name) && part.name == name)
+                locate("$path.previous")?.let { check(it.delete()) }
+            } catch (e: Exception) {
+                if (locate(path) == null) locate("$path.previous")?.renameTo(name)
+                part.takeIf { it.name == "$name.part" }?.delete()
+                throw e
+            }
+        }
+        override fun delete(path: String) = access {
+            for (name in listOf(path, "$path.previous", "$path.part")) {
+                val target = locate(name); check(target == null || target.delete())
+            }
+        }
+        override fun copy(from: String, to: String): Unit = access {
+            val temporary = File.createTempFile("volume-copy-", ".tmp", context.cacheDir)
+            try { check(read(from, temporary)); put(to, temporary) } finally { temporary.delete() }
+        }
+        override fun legacy() = list(tree).filter { it.name.startsWith("resound-") }.map { it.name }
+    }
     private inline fun <T> access(block: () -> T): T = try { block() }
         catch (e: BackupFailure) { throw e }
         catch (_: Exception) { throw BackupFailure(INACCESSIBLE) }

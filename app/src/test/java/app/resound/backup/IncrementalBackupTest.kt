@@ -201,10 +201,11 @@ class IncrementalBackupTest {
         var restarted = false
         val repository = AndroidBackupRepository(context, db, localFiles = local, restartProcess = { restarted = true })
         repository.setLocalFolder(Uri.parse("content://test/tree")); repository.setLocalKeep(1)
-        repository.runLocalBackup(false); change(); repository.runLocalBackup(false)
+        // 新写入入口已经改用日分卷；这里显式放入旧 full/inc，验证旧恢复入口。
+        val full = generated().also { it.committed() }; change(); val delta = generated(listOf(full))
+        local.write(Uri.parse("content://test/tree"), full); local.write(Uri.parse("content://test/tree"), delta)
         val backups = repository.localBackups().getOrThrow()
         assertEquals(2, backups.size); assertFalse(backups.first().full)
-        assertEquals(backups.first().bytes, repository.local.value.lastBytes)
         assertTrue(repository.restoreLocal(backups.first().name).isSuccess); assertTrue(restarted)
         BackupRestore.applyPending(context)
     }
@@ -232,17 +233,13 @@ class IncrementalBackupTest {
             val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "test@example.com", "test")
             var restarted = false
             val repository = AndroidBackupRepository(context, db, clientFactory = { client }, restartProcess = { restarted = true })
-            repository.setKeep(3)
-            repository.runBackup(false)
-            val base = repository.remoteBackups().getOrThrow().single()
-            repeat(4) { change(it); repository.runBackup(false) }
+            val full = generated().also { it.committed() }; change(); val delta = generated(listOf(full))
+            storage[full.name] = full.file.readBytes(); storage[delta.name] = delta.file.readBytes()
             val backups = repository.remoteBackups().getOrThrow()
-            assertEquals(4, backups.size); assertFalse(backups.first().full)
-            assertEquals(base.name, backups.first().baseName)
-            assertEquals(backups.first().bytes, repository.state.value.lastBackupBytes)
-            assertEquals(4, repository.state.value.remoteCount)
+            assertEquals(2, backups.size); assertFalse(backups.first().full)
+            assertEquals(full.name, backups.first().baseName)
             assertTrue(repository.restore(backups.first().name).isSuccess); assertTrue(restarted)
-            assertEquals(listOf(backups.first().name, base.name), gets)
+            assertEquals(listOf(delta.name, full.name), gets)
         } finally { server.shutdown() }
     }
 }

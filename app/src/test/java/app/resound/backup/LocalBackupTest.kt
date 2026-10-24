@@ -66,20 +66,19 @@ class LocalBackupTest {
         val invalid = File(folder, "resound-2026-02-30-0310.zip").apply { writeText("keep") }
         val old = (1..4).map { File(folder, "resound-2026-01-0$it-0310.zip").apply { writeText("old") } }
         assertFalse(repository.runLocalBackup(false))
-        assertEquals(4, repository.local.value.count) // 3 份英文 + 只读旧中文备份
-        assertFalse(old[0].exists()); assertFalse(old[1].exists()); assertTrue(old[2].exists())
+        assertEquals(0, repository.local.value.count) // 空库没有日分卷；旧备份迁移期保留
+        assertTrue(old.all { it.exists() })
         assertEquals("keep", foreign.readText()); assertEquals("keep", legacy.readText()); assertEquals("keep", invalid.readText())
         assertTrue(repository.local.value.lastBytes!! > 0); assertNotNull(repository.local.value.lastAt)
         assertFalse(repository.local.value.running); assertNull(repository.local.value.lastError)
         repository.setLocalKeep(1)
         repository.setLocalAuto(true)
         assertFalse(repository.runLocalBackup(true))
-        assertEquals(3, repository.local.value.count) // 最新增量 + 依赖完整 + 旧中文备份
+        assertEquals(0, repository.local.value.count) // keep 不影响日分卷
         val reopened = newRepository()
         assertEquals(repository.local.value, reopened.local.value)
-        val latest = repository.localBackups().getOrThrow().first()
-        assertFalse(latest.full); assertNotNull(latest.baseName)
-        assertTrue(repository.restoreLocal(latest.name).isSuccess)
+        assertEquals(5, repository.localBackups().getOrThrow().size)
+        assertTrue(repository.restoreAllFromLocal().isSuccess)
         assertTrue(restarted)
         assertTrue(File(context.noBackupFilesDir, "before-restore").listFiles()!!.isNotEmpty())
     }
@@ -102,7 +101,7 @@ class LocalBackupTest {
         repository.setEncryption("test-passphrase")
         val export = File(root, "user-selected.zip")
         assertTrue(repository.exportTo(Uri.fromFile(export)).isSuccess)
-        assertTrue(BackupEncryption.isEncrypted(export))
+        assertTrue(DayVolumes.isBundle(export)) // 单文件外层 ZIP，内部各分卷独立加密
         repository.setEncryption(null)
         assertEquals("这份备份加了密，请输入口令", repository.restoreFrom(Uri.fromFile(export)).exceptionOrNull()!!.message)
         assertTrue(db.isOpen); assertFalse(restarted)
@@ -118,11 +117,13 @@ class LocalBackupTest {
         val backup = folder.listFiles()!!.single()
         val server = MockWebServer().apply { start() }
         try {
+            server.enqueue(MockResponse().setResponseCode(404)) // 没有加密状态
             server.enqueue(MockResponse().setBody(okio.Buffer().write(backup.readBytes())))
             val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "改名后", "test@example.com", "test")
             val cloud = newRepository { client }
-            assertTrue(cloud.restore(backup.name).isSuccess)
+            assertTrue(cloud.restoreAllFromCloud().isSuccess)
             assertTrue(restarted)
+            server.takeRequest()
             assertEquals(listOf("dav", WebDavClient.FOLDER, backup.name), server.takeRequest().requestUrl!!.pathSegments)
         } finally { server.shutdown() }
     }
@@ -134,6 +135,7 @@ class LocalBackupTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {
                 fail -> MockResponse().setResponseCode(503)
+                request.method == "GET" || request.method == "HEAD" -> MockResponse().setResponseCode(404)
                 request.method == "PROPFIND" -> MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'/>")
                 request.method == "PUT" -> { uploaded = request.body.readByteArray(); MockResponse().setResponseCode(201) }
                 else -> MockResponse().setResponseCode(204)
@@ -149,7 +151,9 @@ class LocalBackupTest {
             cloud.runLocalBackup(true)
             assertFalse(cloud.runBackup(true)); assertNotNull(cloud.state.value.lastBackupAt)
             assertEquals(LocalBackupFiles.INACCESSIBLE, cloud.local.value.lastError)
-            val imported = File(root, "from-cloud.zip").apply { writeBytes(requireNotNull(uploaded)) }
+            assertNotNull(uploaded)
+            val imported = File(root, "from-cloud.zip")
+            assertTrue(cloud.exportTo(Uri.fromFile(imported)).isSuccess)
             assertTrue(cloud.restoreFrom(Uri.fromFile(imported)).isSuccess)
             assertTrue(restarted)
         } finally { server.shutdown() }

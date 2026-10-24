@@ -118,14 +118,10 @@ class AndroidBackupRepository internal constructor(
                 check(workspace.mkdirs())
                 val client = client()
                 client.ensureDirectory()
-                val backup = generate(workspace, "cloud", client.backups())
                 ensureActive()
-                client.upload(backup.file, backup.name)
-                backup.committed()
-                check(prefs.edit().putLong("lastAt", backup.at).putLong("lastBytes", backup.file.length()).commit())
-                client.retain(state.value.keep)
-                val count = client.backups().size
-                check(prefs.edit().putInt("count", count).remove("error").commit())
+                val summary = DayVolumes.sync(context, database, client.volumes(), workspace, backupPassphrase())
+                check(prefs.edit().putLong("lastAt", summary.lastAt!!).putLong("lastBytes", summary.lastUploadBytes!!)
+                    .putInt("count", summary.days).remove("error").commit())
                 BackupRestore.clearSnapshots(context)
                 if (periodic) syncDiary(client)
                 false
@@ -174,7 +170,10 @@ class AndroidBackupRepository internal constructor(
     @Synchronized override fun setLocalFolder(tree: Uri) {
         try {
             val name = localFiles.select(tree)
-            val count = localFiles.list(tree).size
+            // 换手机时还没有备份口令，也必须先保存文件夹，随后恢复入口才能接收用户输入的口令。
+            val count = runCatching {
+                withWorkspace { DayVolumes.readState(localFiles.volumes(tree), it, runCatching { passphrases.read() }.getOrNull())?.summary()?.days ?: 0 }
+            }.getOrDefault(-1)
             check(prefs.edit().putString("localTree", tree.toString()).putString("localFolderName", name)
                 .putInt("localCount", count).remove("localError").commit())
             refreshLocal(); schedule()
@@ -195,48 +194,58 @@ class AndroidBackupRepository internal constructor(
         ?: throw BackupFailure(LocalBackupFiles.INACCESSIBLE)
     override fun backupLocalNow() { scheduler.runLocalNow() }
     override suspend fun localBackups(): Result<List<RemoteBackup>> = localOperation {
-        localFiles.list(localTree()).also {
-            check(prefs.edit().putInt("localCount", it.size).commit())
-        }
+        localFiles.list(localTree())
     }
     internal suspend fun runLocalBackup(periodic: Boolean): Boolean {
         if (periodic && !local.value.auto) return false
         val result = localOperation {
             val tree = localTree()
-            // 先检查授权，再生成可能很大的归档。
-            val available = localFiles.list(tree)
-            withGenerated("local", available) { backup ->
-                localFiles.write(tree, backup)
-                backup.committed()
-                check(prefs.edit().putLong("localLastAt", backup.at).putLong("localLastBytes", backup.file.length()).commit())
-                val count = localFiles.retain(tree, local.value.keep)
-                check(prefs.edit().putInt("localCount", count).commit())
+            withWorkspace { work ->
+                val summary = DayVolumes.sync(context, database, localFiles.volumes(tree), work, backupPassphrase())
+                check(prefs.edit().putLong("localLastAt", summary.lastAt!!).putLong("localLastBytes", summary.lastUploadBytes!!)
+                    .putInt("localCount", summary.days).commit())
                 BackupRestore.clearSnapshots(context)
             }
         }
         return (result.exceptionOrNull() as? BackupFailure)?.retryable == true
     }
     override suspend fun exportTo(target: Uri): Result<Unit> = localOperation {
-        withGenerated { backup ->
-            localFiles.export(backup.file, target)
-            check(prefs.edit().putLong("localLastAt", backup.at).putLong("localLastBytes", backup.file.length()).commit())
+        withWorkspace { work ->
+            val file = File(work, "export.zip")
+            DayVolumes.export(context, database, work, file, backupPassphrase())
+            localFiles.export(file, target)
+            check(prefs.edit().putLong("localLastAt", System.currentTimeMillis()).putLong("localLastBytes", file.length()).commit())
             BackupRestore.clearSnapshots(context)
         }
     }
-    private fun generate(workspace: File, channel: String?, available: List<RemoteBackup>): GeneratedBackup {
-        val passphrase = backupPassphrase()
-        val backup = generateBackup(context, database, workspace, passphrase, channel, available)
-        return backup.copy(committed = {
-            synchronized(this) {
-                // 备份途中更改口令时，旧口令生成的包可完成写入，但不能成为新口令的基准。
-                if (backupPassphrase() == passphrase) backup.committed()
-            }
-        })
+    private fun <T> withWorkspace(block: (File) -> T): T {
+        val workspace = File(context.cacheDir, "resound-volumes-${UUID.randomUUID()}").apply { check(mkdirs()) }
+        return try { block(workspace) } finally { workspace.deleteRecursively() }
     }
-    private fun <T> withGenerated(channel: String? = null, available: List<RemoteBackup> = emptyList(), block: (GeneratedBackup) -> T): T {
-        val workspace = File(context.cacheDir, "resound-backup-${UUID.randomUUID()}")
-        return try { block(generate(workspace, channel, available)) }
-        finally { workspace.deleteRecursively() }
+    override suspend fun cloudSummary(): Result<BackupSummary?> = cloudOperation {
+        withWorkspace { DayVolumes.readState(client().volumes(), it, runCatching { passphrases.read() }.getOrNull())?.summary() }
+    }
+    override suspend fun localSummary(): Result<BackupSummary?> = localOperation {
+        withWorkspace { DayVolumes.readState(localFiles.volumes(localTree()), it, runCatching { passphrases.read() }.getOrNull())?.summary() }
+    }
+    override suspend fun restoreAllFromCloud(passphrase: String?): Result<Unit> = cloudOperation {
+        restoreVolumes(client().volumes(), passphrase)
+    }
+    override suspend fun restoreAllFromLocal(passphrase: String?): Result<Unit> = localOperation {
+        restoreVolumes(localFiles.volumes(localTree()), passphrase)
+    }
+    private fun restoreVolumes(store: VolumeStore, passphrase: String?) {
+        BackupRestore.restoreVolumes(context, store, database, runCatching { passphrases.read() }.getOrNull(),
+            passphrase, database::close, restartProcess)
+    }
+    private suspend fun <T> cloudOperation(block: () -> T): Result<T> = withContext(Dispatchers.IO) {
+        gate.withLock {
+            refresh(true)
+            try { ensureActive(); Result.success(block()).also { error(null) } }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { val failure = backupError(e); error(failure.human); Result.failure(failure) }
+            finally { refresh(false) }
+        }
     }
     override suspend fun restoreLocal(name: String, passphrase: String?): Result<Unit> = localOperation {
         restoreSource(localFiles.source(localTree(), name), passphrase, name)

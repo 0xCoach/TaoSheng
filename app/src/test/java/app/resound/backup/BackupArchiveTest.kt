@@ -89,7 +89,7 @@ class BackupArchiveTest {
         db.close()
         BackupRestore.stage(context, verified)
         BackupRestore.applyPending(context)
-        assertNull(context.getSharedPreferences("digest-secrets", 0).getString("test", null))
+        assertEquals("digest-secrets", context.getSharedPreferences("digest-secrets", 0).getString("test", null))
         assertTrue(File(features, "a".repeat(64)).exists())
         BackupRestore.applyPending(context) // 已完成的恢复不会再次覆盖。
     }

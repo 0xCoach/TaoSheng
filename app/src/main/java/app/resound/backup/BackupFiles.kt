@@ -143,7 +143,7 @@ internal class LocalBackupFiles(
     fun volumes(tree: Uri): VolumeStore = object : VolumeStore {
         private fun locate(path: String, create: Boolean = false): DocumentFile? = access {
             val base = path.removeSuffix(".part").removeSuffix(".previous")
-            require(volumePath(base) || ('/' !in base && base.startsWith("resound-") && BackupNames.metadata(base) != null))
+            require(volumePath(base) || ('/' !in base && BackupNames.metadata(base) != null))
             var parent = folder(tree)
             val pieces = path.split('/')
             for (piece in pieces.dropLast(1)) {
@@ -186,7 +186,14 @@ internal class LocalBackupFiles(
             val temporary = File.createTempFile("volume-copy-", ".tmp", context.cacheDir)
             try { check(read(from, temporary)); put(to, temporary) } finally { temporary.delete() }
         }
-        override fun legacy() = list(tree).filter { it.name.startsWith("resound-") }.map { it.name }
+        override fun legacy() = list(tree).map { it.name }
+        override fun files(directory: String): List<VolumeFile> = access {
+            require(directory in setOf("history", "objects"))
+            val dir = folder(tree).findFile(directory) ?: return@access emptyList()
+            check(dir.isDirectory)
+            dir.listFiles().filter { it.isFile && volumePath("$directory/${it.name}") }
+                .map { VolumeFile("$directory/${it.name}",it.length(),it.lastModified()) }
+        }
     }
     private inline fun <T> access(block: () -> T): T = try { block() }
         catch (e: BackupFailure) { throw e }

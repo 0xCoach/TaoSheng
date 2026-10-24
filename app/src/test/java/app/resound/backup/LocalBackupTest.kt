@@ -57,18 +57,18 @@ class LocalBackupTest {
         passphrases = passphrases, localFiles = files, restartProcess = { restarted = true }, clientFactory = client)
     @After fun cleanup() { db.close(); root.deleteRecursively(); BackupScheduler(context).cancel() }
 
-    @Test fun writesRetainsOnlyRecognizedEnglishFilesAndRestoresLocal() = runBlocking {
+    @Test fun writesHistoryRemovesRecognizedLegacyFilesAndRestoresLocal() = runBlocking {
         repository.setLocalFolder(tree)
         assertEquals(tree, granted); assertEquals("Resound", repository.local.value.folder)
-        assertEquals(3, repository.local.value.keep)
+        assertEquals(7, repository.local.value.keep)
         val foreign = File(folder, "notes.zip").apply { writeText("keep") }
         val legacy = File(folder, "回响-2026-01-01-0310.zip").apply { writeText("keep") }
         val invalid = File(folder, "resound-2026-02-30-0310.zip").apply { writeText("keep") }
         val old = (1..4).map { File(folder, "resound-2026-01-0$it-0310.zip").apply { writeText("old") } }
         assertFalse(repository.runLocalBackup(false))
-        assertEquals(0, repository.local.value.count) // 空库没有日分卷；旧备份迁移期保留
-        assertTrue(old.all { it.exists() })
-        assertEquals("keep", foreign.readText()); assertEquals("keep", legacy.readText()); assertEquals("keep", invalid.readText())
+        assertEquals(0, repository.local.value.count) // 空库没有日分卷；旧格式按用户要求删除
+        assertTrue(old.none { it.exists() })
+        assertEquals("keep", foreign.readText()); assertFalse(legacy.exists()); assertEquals("keep", invalid.readText())
         assertTrue(repository.local.value.lastBytes!! > 0); assertNotNull(repository.local.value.lastAt)
         assertFalse(repository.local.value.running); assertNull(repository.local.value.lastError)
         repository.setLocalKeep(1)
@@ -77,7 +77,7 @@ class LocalBackupTest {
         assertEquals(0, repository.local.value.count) // keep 不影响日分卷
         val reopened = newRepository()
         assertEquals(repository.local.value, reopened.local.value)
-        assertEquals(5, repository.localBackups().getOrThrow().size)
+        assertEquals(1, repository.localBackups().getOrThrow().size)
         assertTrue(repository.restoreAllFromLocal().isSuccess)
         assertTrue(restarted)
         assertTrue(File(context.noBackupFilesDir, "before-restore").listFiles()!!.isNotEmpty())
@@ -86,12 +86,13 @@ class LocalBackupTest {
     @Test fun lostFolderPermissionHasStableErrorAndKeepsPreviousBackups() = runBlocking {
         repository.setLocalFolder(tree)
         repository.runLocalBackup(false)
-        val existing = folder.listFiles()!!.single().readBytes()
+        fun hashes() = folder.walkTopDown().filter { it.isFile }.associate { it.relativeTo(folder).path to BackupArchive.sha(it) }
+        val existing = hashes()
         revoked = true
         assertFalse(repository.runLocalBackup(false))
         assertEquals(LocalBackupFiles.INACCESSIBLE, repository.local.value.lastError)
         assertTrue(repository.localBackups().isFailure)
-        assertArrayEquals(existing, folder.listFiles()!!.single().readBytes())
+        assertEquals(existing, hashes())
         assertFalse(repository.local.value.running)
         repository.setLocalFolder(tree)
         assertEquals(LocalBackupFiles.INACCESSIBLE, repository.local.value.lastError)
@@ -113,17 +114,19 @@ class LocalBackupTest {
     }
 
     @Test fun localArchiveCanBeDownloadedAndRestoredThroughCloudFlow() = runBlocking {
-        repository.setLocalFolder(tree); repository.runLocalBackup(false)
-        val backup = folder.listFiles()!!.single()
+        // 旧的按天分卷仍可读取；新历史格式由 BackupHistoryTest 验证。
+        DayVolumes.sync(context, db, DirectoryVolumeStore(folder), File(root,"legacy-work"), null)
+        val backup = File(folder,"resound-state.zip")
         val server = MockWebServer().apply { start() }
         try {
+            server.enqueue(MockResponse().setResponseCode(404)) // 没有历史目录，回退旧的按天分卷
             server.enqueue(MockResponse().setResponseCode(404)) // 没有加密状态
             server.enqueue(MockResponse().setBody(okio.Buffer().write(backup.readBytes())))
             val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "改名后", "test@example.com", "test")
             val cloud = newRepository { client }
             assertTrue(cloud.restoreAllFromCloud().isSuccess)
             assertTrue(restarted)
-            server.takeRequest()
+            server.takeRequest(); server.takeRequest()
             assertEquals(listOf("dav", WebDavClient.FOLDER, backup.name), server.takeRequest().requestUrl!!.pathSegments)
         } finally { server.shutdown() }
     }
@@ -132,13 +135,20 @@ class LocalBackupTest {
         val server = MockWebServer().apply { start() }
         var uploaded: ByteArray? = null
         var fail = true
+        val objects = mutableMapOf<String,ByteArray>()
         server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse = when {
-                fail -> MockResponse().setResponseCode(503)
-                request.method == "GET" || request.method == "HEAD" -> MockResponse().setResponseCode(404)
-                request.method == "PROPFIND" -> MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'/>")
-                request.method == "PUT" -> { uploaded = request.body.readByteArray(); MockResponse().setResponseCode(201) }
-                else -> MockResponse().setResponseCode(204)
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val path = request.requestUrl!!.encodedPath
+                return when {
+                    fail -> MockResponse().setResponseCode(503)
+                    request.method == "GET" -> objects[path]?.let { MockResponse().setBody(okio.Buffer().write(it)) } ?: MockResponse().setResponseCode(404)
+                    request.method == "HEAD" -> MockResponse().setResponseCode(if(path in objects) 200 else 404)
+                    request.method == "PROPFIND" -> MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'/>")
+                    request.method == "PUT" -> { uploaded=request.body.readByteArray();objects[path]=uploaded!!;MockResponse().setResponseCode(201) }
+                    request.method == "MOVE" -> { objects[java.net.URI(request.getHeader("Destination")!!).rawPath]=objects.remove(path)!!;MockResponse().setResponseCode(201) }
+                    request.method == "DELETE" -> { objects.remove(path);MockResponse().setResponseCode(204) }
+                    else -> MockResponse().setResponseCode(204)
+                }
             }
         }
         try {

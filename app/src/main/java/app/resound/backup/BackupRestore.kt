@@ -64,13 +64,14 @@ internal object BackupRestore {
         } finally { workspace.deleteRecursively(); verified.deleteRecursively() }
     }
     fun restoreVolumes(context: Context, store: VolumeStore, database: app.resound.data.CaptureDatabase,
-        stored: String?, supplied: String?, closeDatabase: () -> Unit, restartProcess: () -> Unit) {
+        stored: String?, supplied: String?, closeDatabase: () -> Unit, restartProcess: () -> Unit, checkpoint: String? = null) {
         if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
         val id = java.util.UUID.randomUUID()
         val work = File(context.cacheDir, "resound-restore-$id").apply { check(mkdirs()) }
         val verified = File(context.noBackupFilesDir, "resound-restore-$id")
         try {
-            DayVolumes.restore(context, store, work, verified, stored, supplied)
+            val source = if (checkpoint == null) HistoryVolumes.latest(store, work) else HistoryVolumes.selected(store, checkpoint, work)
+            DayVolumes.restore(context, source, work, verified, stored, supplied)
             snapshot(context, database)
             stage(context, verified)
             closeDatabase()

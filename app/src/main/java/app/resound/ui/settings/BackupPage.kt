@@ -86,7 +86,7 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
             val overview = repo.cloudSummary()
             cloudCache.acceptSummary(overview); cloud = cloudCache.summary
             if (overview.isFailure) cloudReadError = overview.exceptionOrNull()?.message ?: "请稍后重试"
-            // 限流或断网时避免追加请求；口令不匹配时仍允许查看旧格式备份。
+            // 限流或断网时避免追加请求；口令不匹配时仍允许查看历史版本。
             if ((overview.exceptionOrNull() as? app.resound.backup.BackupFailure)?.retryable != true) {
                 val files = repo.remoteBackups()
                 cloudCache.acceptBackups(files); remote = cloudCache.backups
@@ -180,12 +180,13 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
 
         }
 
-        // 云端恢复：新格式一键恢复全部；旧格式备份收在下面
+        // 云端恢复：新格式一键恢复全部；历史版本收在下面
         if (configured) {
             androidx.compose.animation.AnimatedVisibility(cloud != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
                 ActionRow("从云端恢复全部", "记录、设置、密钥和账号全部还原", "恢复") { restoringAll = "cloud" }
             }
-            LegacyList(remote) { restoring = it }
+            HistoryRetention(s.keep, repo::setKeep)
+            HistoryList(remote) { restoring = it }
         }
         }
 
@@ -243,7 +244,7 @@ private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 }
 
 private fun dateTime(at: Long): String =
-    Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日")) + " " + formatClock(at)
+    Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 HH:mm:ss"))
 
 /** 设加密口令：输两遍一致才保存 */
 @Composable
@@ -296,21 +297,25 @@ private fun summaryLine(sum: app.resound.backup.BackupSummary?, lastAt: Long?, l
     ).joinToString(" · ")
 }
 
-/** 旧格式备份（卡 037 之前的完整 / 增量包）：默认收起，仍可恢复 */
+/** 可选择的历史恢复点，默认展开。 */
 @Composable
-private fun LegacyList(list: Result<List<app.resound.backup.RemoteBackup>>?, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
+private fun HistoryList(list: Result<List<app.resound.backup.RemoteBackup>>?, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
     val c = Rs.colors
     val items = list?.getOrNull().orEmpty()
-    if (items.isEmpty()) return
-    var open by remember { mutableStateOf(false) }
-    Text("旧格式备份 · ${items.size} 份 ${if (open) "▾" else "▸"}", style = RsType.section, color = c.textSecondary,
+    if (items.isEmpty()) {
+        Text("历史版本", style = RsType.section, color = c.textSecondary)
+        Text("完成下一次备份后，会在这里保留可按时间恢复的版本。", style = RsType.caption, color = c.textTertiary)
+        return
+    }
+    var open by remember { mutableStateOf(true) }
+    Text("历史版本 · ${items.size} 份 ${if (open) "▾" else "▸"}", style = RsType.section, color = c.textSecondary,
         modifier = Modifier.springClick { open = !open }.padding(start = 4.dp, top = 4.dp))
     if (open) RsCard(padding = PaddingValues(vertical = 4.dp)) {
         items.forEachIndexed { i, b ->
             Row(Modifier.fillMaxWidth().springClick { onRestore(b) }.padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(dateTime(b.at), style = RsType.body, color = c.text)
-                    Text(backupLine(b), style = RsType.caption, color = c.textTertiary)
+                    Text("增量恢复点 · " + formatBytes(b.bytes) + if (b.encrypted) " · 已加密" else "", style = RsType.caption, color = c.textTertiary)
                 }
                 Text("恢复 ›", style = RsType.subhead, color = c.accent)
             }
@@ -422,7 +427,8 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
         androidx.compose.animation.AnimatedVisibility(summary != null, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
             ActionRow("从本机文件夹恢复全部", "记录、设置、密钥和账号全部还原", "恢复", onRestoreAll)
         }
-        LegacyList(list?.map { all -> all.map { it.copy(name = LOCAL_TAG + it.name) } }, onRestore)
+        HistoryRetention(l.keep, repo::setLocalKeep)
+        HistoryList(list?.map { all -> all.map { it.copy(name = LOCAL_TAG + it.name) } }, onRestore)
     }
 
     // 从任意文件恢复（比如从旧手机拷来的、从坚果云网页下载的）
@@ -431,5 +437,19 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
         val name = uri.lastPathSegment?.substringAfterLast('/') ?: "所选文件"
         RestoreSheet(app.resound.backup.RemoteBackup(name, System.currentTimeMillis(), 0, name.endsWith(".enc")),
             { pass -> repo.restoreFrom(uri, pass) }, title = "用所选文件恢复") { fileRestore = null }
+    }
+}
+
+@Composable
+private fun HistoryRetention(keep: Int, onChange: (Int) -> Unit) {
+    val c = Rs.colors
+    RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
+        Text("历史版本保留", style = RsType.body, color = c.text)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(3, 7, 30).forEach { count -> Pill("$count 份", filled = keep == count) { onChange(count) } }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("每次成功备份保留一个恢复点，未变化的数据共用。下次备份时按所选数量清理。", style = RsType.caption, color = c.textSecondary)
     }
 }

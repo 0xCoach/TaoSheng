@@ -37,7 +37,7 @@ class AndroidBackupRepository internal constructor(
     private val mutableLocal = MutableStateFlow(readLocal())
     override val local = mutableLocal.asStateFlow()
     private fun readLocal() = LocalBackupState(prefs.getString("localFolderName", null),
-        prefs.getBoolean("localAuto", false), prefs.getInt("localKeep", 3), false,
+        prefs.getBoolean("localAuto", false), prefs.getInt("localKeep", 7), false,
         prefs.getLong("localLastAt", 0).takeIf { it > 0 }, prefs.getLong("localLastBytes", -1).takeIf { it >= 0 },
         prefs.getInt("localCount", -1).takeIf { it >= 0 }, prefs.getString("localError", null))
     @Synchronized private fun refreshLocal(running: Boolean = mutableLocal.value.running) {
@@ -89,7 +89,7 @@ class AndroidBackupRepository internal constructor(
     }
     override suspend fun remoteBackups(): Result<List<RemoteBackup>> = withContext(Dispatchers.IO) {
         gate.withLock {
-            try { Result.success(client().backups()) }
+            try { Result.success(HistoryVolumes.list(client().volumes())) }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { Result.failure(backupError(e)) }
         }
@@ -122,7 +122,7 @@ class AndroidBackupRepository internal constructor(
                 val client = client()
                 client.ensureDirectory()
                 ensureActive()
-                val summary = DayVolumes.sync(context, database, client.volumes(), workspace, backupPassphrase())
+                val summary = HistoryVolumes.sync(context, database, client.volumes(), workspace, backupPassphrase(), state.value.keep)
                 check(prefs.edit().putLong("lastAt", summary.lastAt!!).putLong("lastBytes", summary.lastUploadBytes!!)
                     .putInt("count", summary.days).remove("error").commit())
                 BackupRestore.clearSnapshots(context)
@@ -161,7 +161,8 @@ class AndroidBackupRepository internal constructor(
             refresh(true)
             try {
                 ensureActive()
-                BackupRestore.restore(context, client(), name, database,
+                if (historyPath(name)) restoreVolumes(client().volumes(), passphrase, name)
+                else BackupRestore.restore(context, client(), name, database,
                     storedPassphrase = runCatching { passphrases.read() }.getOrNull(), suppliedPassphrase = passphrase,
                     closeDatabase = database::close, restartProcess = restartProcess)
                 Result.success(Unit)
@@ -175,7 +176,7 @@ class AndroidBackupRepository internal constructor(
             val name = localFiles.select(tree)
             // 换手机时还没有备份口令，也必须先保存文件夹，随后恢复入口才能接收用户输入的口令。
             val count = runCatching {
-                withWorkspace { DayVolumes.readState(localFiles.volumes(tree), it, runCatching { passphrases.read() }.getOrNull())?.summary()?.days ?: 0 }
+                withWorkspace { HistoryVolumes.summary(localFiles.volumes(tree), it, runCatching { passphrases.read() }.getOrNull())?.days ?: 0 }
             }.getOrDefault(-1)
             check(prefs.edit().apply {
                 if (prefs.getString("localTree", null) != tree.toString()) remove("localLastAt").remove("localLastBytes")
@@ -192,21 +193,21 @@ class AndroidBackupRepository internal constructor(
         check(prefs.edit().putInt("keep", count).commit()); refresh()
     }
     @Synchronized override fun setLocalKeep(count: Int) {
-        require(count in setOf(1, 3, 7))
+        require(count in setOf(1, 3, 7, 30))
         check(prefs.edit().putInt("localKeep", count).commit()); refreshLocal()
     }
     private fun localTree(): Uri = prefs.getString("localTree", null)?.let(Uri::parse)
         ?: throw BackupFailure(LocalBackupFiles.INACCESSIBLE)
     override fun backupLocalNow() { scheduler.runLocalNow() }
     override suspend fun localBackups(): Result<List<RemoteBackup>> = localOperation(readOnly = true) {
-        localFiles.list(localTree())
+        HistoryVolumes.list(localFiles.volumes(localTree()))
     }
     internal suspend fun runLocalBackup(periodic: Boolean): Boolean {
         if (periodic && !local.value.auto) return false
         val result = localOperation {
             val tree = localTree()
             withWorkspace { work ->
-                val summary = DayVolumes.sync(context, database, localFiles.volumes(tree), work, backupPassphrase())
+                val summary = HistoryVolumes.sync(context, database, localFiles.volumes(tree), work, backupPassphrase(), local.value.keep)
                 check(prefs.edit().putLong("localLastAt", summary.lastAt!!).putLong("localLastBytes", summary.lastUploadBytes!!)
                     .putInt("localCount", summary.days).commit())
                 BackupRestore.clearSnapshots(context)
@@ -228,10 +229,10 @@ class AndroidBackupRepository internal constructor(
         return try { block(workspace) } finally { workspace.deleteRecursively() }
     }
     override suspend fun cloudSummary(): Result<BackupSummary?> = cloudOperation(readOnly = true) {
-        withWorkspace { DayVolumes.readState(client().volumes(), it, runCatching { passphrases.read() }.getOrNull())?.summary() }
+        withWorkspace { HistoryVolumes.summary(client().volumes(), it, runCatching { passphrases.read() }.getOrNull()) }
     }
     override suspend fun localSummary(): Result<BackupSummary?> = localOperation(readOnly = true) {
-        withWorkspace { DayVolumes.readState(localFiles.volumes(localTree()), it, runCatching { passphrases.read() }.getOrNull())?.summary() }
+        withWorkspace { HistoryVolumes.summary(localFiles.volumes(localTree()), it, runCatching { passphrases.read() }.getOrNull()) }
     }
     override suspend fun restoreAllFromCloud(passphrase: String?): Result<Unit> = cloudOperation {
         restoreVolumes(client().volumes(), passphrase)
@@ -239,9 +240,9 @@ class AndroidBackupRepository internal constructor(
     override suspend fun restoreAllFromLocal(passphrase: String?): Result<Unit> = localOperation {
         restoreVolumes(localFiles.volumes(localTree()), passphrase)
     }
-    private fun restoreVolumes(store: VolumeStore, passphrase: String?) {
+    private fun restoreVolumes(store: VolumeStore, passphrase: String?, checkpoint: String? = null) {
         BackupRestore.restoreVolumes(context, store, database, runCatching { passphrases.read() }.getOrNull(),
-            passphrase, database::close, restartProcess)
+            passphrase, database::close, restartProcess, checkpoint)
     }
     private suspend fun <T> cloudOperation(readOnly: Boolean = false, block: () -> T): Result<T> = withContext(Dispatchers.IO) {
         gate.withLock {
@@ -253,7 +254,8 @@ class AndroidBackupRepository internal constructor(
         }
     }
     override suspend fun restoreLocal(name: String, passphrase: String?): Result<Unit> = localOperation {
-        restoreSource(localFiles.source(localTree(), name), passphrase, name)
+        if (historyPath(name)) restoreVolumes(localFiles.volumes(localTree()), passphrase, name)
+        else restoreSource(localFiles.source(localTree(), name), passphrase, name)
     }
     override suspend fun restoreFrom(source: Uri, passphrase: String?): Result<Unit> = localOperation {
         restoreSource(source, passphrase)

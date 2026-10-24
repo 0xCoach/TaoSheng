@@ -186,7 +186,10 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                                 kind = k; values.clear(); result = null; topics = topics intersect repo.topics(k)
                                 // 换通道时给一个合适的起点：文件夹类默认“给智能体用”，其余默认“手机通知”
                                 if (ch == null) sub = if (repo.capabilities(k).records) PushSubscription.ForAgents else PushSubscription.PhoneNotice
-                                if (ch == null && k == PushKind.MarkdownFolder && values["folder"].isNullOrBlank()) values["folder"] = "Resound-Memory"
+                                if (ch == null && k == PushKind.MarkdownFolder) {
+                                    if (values["folder"].isNullOrBlank()) values["folder"] = "Resound-Memory"
+                                    if (values["url"].isNullOrBlank()) values["url"] = NUTSTORE_DAV
+                                }
                             }
                         }
                         repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
@@ -199,7 +202,11 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         val folderKind = kind == PushKind.MarkdownFolder
         if (folderKind) {
             Label("坚果云账号")
-            app.resound.ui.skills.Segments(listOf("用已连接的坚果云", "单独配置"), if (linked) 0 else 1) { linked = it == 0 }
+            app.resound.ui.skills.Segments(listOf("用已连接的坚果云", "单独配置"), if (linked) 0 else 1) {
+                linked = it == 0
+                // 单独配置时服务器地址直接填好坚果云的，只需填账号和应用密码
+                if (!linked && values["url"].isNullOrBlank()) values["url"] = NUTSTORE_DAV
+            }
             if (linked) Text(linkedAccount?.let { "用数据备份里已连接的 $it，不用再填账号密码" } ?: "数据备份里还没连接坚果云，先去连接，或改为单独配置",
                 style = RsType.caption, color = if (linkedAccount == null) c.critical else c.textSecondary)
         }
@@ -335,6 +342,8 @@ private fun kindColor(k: PushKind) = when (k) {
     PushKind.MarkdownFolder -> Color(0xFF7C5CC4)
 }
 
+
+private const val NUTSTORE_DAV = "https://dav.jianguoyun.com/dav/"
 
 /** 列表里一行概括订阅：如“摘要 · 提醒 · 整理结果 5 类 · 有新内容就推 · 增量” */
 private fun subscriptionLine(s: PushSubscription): String = buildList {

@@ -75,6 +75,7 @@ class RoomPrivacyActions(
                 items += dao.deleteEventItems(id)
                 deletedEvents += dao.deleteEvent(id)
             }
+            db.memory().repairMergedItems()
             ForgetResult(deletedSegments, lines, deletedEvents, items)
         }
         for ((segment, lines) in files) {

@@ -119,11 +119,18 @@ class DayVolumesTest {
     @Test fun oldMissingColumnDefaultsAndFutureVersionRefused() {
         val state = File(root, "state.jsonl").apply { writeText("") }
         val rows = File(root, "old.jsonl").apply { writeText("""{"table":"segments","values":{"id":1,"startAt":0,"endAt":1,"sourceId":"mic","path":"old","sizeBytes":0,"status":"Done"}}
+{"table":"memory_events","values":{"id":1,"startAt":0,"endAt":1,"scene":"独白","title":"旧事件","summary":"摘要","pointsJson":"[]","peopleJson":"[]","important":0,"createdAt":0,"model":"test"}}
+{"table":"memory_items","values":{"id":1,"eventId":1,"category":"灵感","content":"旧灵感","status":"Pending","createdAt":0}}
 """) }
         val target = File(root, "old.db")
         DayVolumeRows.rebuild(context, target, 1, state, listOf(rows))
         val room = CaptureDatabase.open(context, target.path)
-        try { room.openHelper.writableDatabase.query("SELECT attempts,playbackMillis FROM segments").use { it.moveToFirst(); assertEquals(0, it.getInt(0)); assertEquals(0, it.getInt(1)) } }
+        try {
+            room.openHelper.writableDatabase.query("SELECT attempts,playbackMillis FROM segments").use { it.moveToFirst(); assertEquals(0, it.getInt(0)); assertEquals(0, it.getInt(1)) }
+            room.openHelper.writableDatabase.query("SELECT content,mergedInto,noMerge FROM memory_items").use {
+                assertTrue(it.moveToFirst()); assertEquals("旧灵感", it.getString(0)); assertTrue(it.isNull(1)); assertEquals(0, it.getInt(2))
+            }
+        }
         finally { room.close() }
         val error = runCatching { DayVolumeRows.rebuild(context, File(root, "future.db"), 999, state, listOf(rows)) }.exceptionOrNull()
         assertEquals("备份数据库版本比 App 新，请先升级 App", error!!.message)

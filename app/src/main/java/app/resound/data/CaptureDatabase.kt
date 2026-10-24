@@ -54,7 +54,7 @@ interface CaptureDao {
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, app.resound.search.LineFts::class, app.resound.search.EventFts::class,
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
-    app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = 12, exportSchema = true)
+    app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = 13, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
     abstract fun privacy(): PrivacyDao
     abstract fun capture(): CaptureDao
@@ -168,8 +168,14 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_skill_runs_skillId_date ON skill_runs(skillId, date)")
             }
         }
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE memory_items ADD COLUMN mergedInto INTEGER")
+                db.execSQL("ALTER TABLE memory_items ADD COLUMN noMerge INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .addCallback(app.resound.search.SearchIndex.callback).build()
     }
 }

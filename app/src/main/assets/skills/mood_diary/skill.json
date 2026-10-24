@@ -1,0 +1,58 @@
+{
+  "formatVersion": 1,
+  "id": "mood_diary",
+  "name": "情绪日记",
+  "summary": "从自己的明确情绪表达里，温和地回看今天",
+  "icon": "heart",
+  "version": 1,
+  "trigger": {
+    "type": "Daily",
+    "minutes": 1335,
+    "weekdays": []
+  },
+  "scope": {
+    "range": "Day",
+    "speakers": "MeOnly",
+    "includeLines": true
+  },
+  "fields": [
+    {
+      "key": "one_line",
+      "label": "一句话",
+      "type": "Text",
+      "hint": "只概括有本人原话依据的情绪",
+      "required": true
+    },
+    {
+      "key": "feelings",
+      "label": "情绪",
+      "type": "Tags",
+      "hint": "仅本人明确表达过的情绪",
+      "required": false
+    },
+    {
+      "key": "causes",
+      "label": "起因",
+      "type": "Bullets",
+      "hint": "依据原话写起因；主观推断用可能或像是",
+      "required": false
+    },
+    {
+      "key": "quotes",
+      "label": "我的原话",
+      "type": "Quotes",
+      "hint": "仅引用标为我的明确情绪表达，最多3条",
+      "required": false
+    },
+    {
+      "key": "to_self",
+      "label": "给自己的一句话",
+      "type": "Text",
+      "hint": "温和、具体、不说教、不鸡汤",
+      "required": false
+    }
+  ],
+  "maxCardsPerDay": 1,
+  "push": false,
+  "order": 3
+}

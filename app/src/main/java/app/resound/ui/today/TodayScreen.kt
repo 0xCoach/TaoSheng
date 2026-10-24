@@ -147,6 +147,7 @@ fun TodayScreen(
     val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
+    val deleteNow = rememberDeleteEvent(memory)
     val segments by remember(date) { transcripts.day(date) }.collectAsState(initial = emptyList())
     val dayLines = remember(segments) { segments.flatMap { it.lines }.sortedBy { it.startAt } }
     val importing = if (app.resound.AppGraph.isImporterReady)
@@ -194,13 +195,13 @@ fun TodayScreen(
                 DaySwitcher(dayOffset, compact = true) { dayOffset = it }
             }) {
                 groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it },
-                    onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleting = it }) { opened = it } }
+                    onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }) { opened = it } }
                 if (events != null && list.isEmpty()) EmptyTimeline(memory)
             }
         }
         items(groups.drop(1), key = { it.first }) { (part, evs) ->
             TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it },
-                onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleting = it }) { opened = it }
+                onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }) { opened = it }
         }
     }
 
@@ -769,13 +770,16 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                     )
                     onClose(); app.resound.ui.ShellNav.go(1)
                 }
-                // 删除：点一下变成“再点一次删除”，再点才真删
-                Text(if (confirmDelete) "再点一次删除" else "删除", style = RsType.subhead, color = c.critical,
-                    modifier = Modifier.springClick {
+                // 删除：点一下原地变成红底“再点一次删除”，再点才真删。按长文字占好宽度，变化时不跳行
+                Box(Modifier.springClick {
                         if (!confirmDelete) { confirmDelete = true; return@springClick }
                         if (forget) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(event.id) } } else memory.deleteEvent(event.id)
                         onClose()
-                    }.clip(CircleShape).background(c.critical.copy(alpha = if (confirmDelete) 0.18f else 0.08f)).padding(horizontal = 16.dp, vertical = 9.dp))
+                    }.clip(CircleShape).background(if (confirmDelete) c.critical else c.critical.copy(alpha = 0.08f)).padding(horizontal = 16.dp, vertical = 9.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text("再点一次删除", style = RsType.subhead, color = Color.Transparent) // 只占位
+                    Text(if (confirmDelete) "再点一次删除" else "删除", style = RsType.subhead, color = if (confirmDelete) Color.White else c.critical)
+                }
             }
             if (confirmDelete) Text(if (forget) "会把这件事的录音、原话和提取出的内容一起删掉，无法恢复。" else "会从时间线里删掉这件事。",
                 style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 6.dp))
@@ -883,9 +887,8 @@ private fun SheetSection(title: String) {
 }
 
 /**
- * 时间线上的一件事：左滑标重点，再左滑一次取消。往左拖过 72dp（不用滑到底）松手就算数，过线时轻震、文字变“松手…”。
- * 自己处理拖动：系统的 SwipeToDismissBox 在“触发后弹回”的用法下隔一次才生效，取消不了重点。
- * 删除不放在滑动里，在详情面板“就这个问问”旁边。
+ * 时间线上的一件事：左滑标重点 / 再左滑取消；右滑删除要滑两次：第一次过线行变红、提示“再右滑一次删除”，3 秒内再右滑才删。
+ * 拖过 72dp 就算过线，过线那一刻轻震。自己处理拖动（系统 SwipeToDismissBox 在“触发后弹回”时隔一次才生效）。
  */
 @Composable
 internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
@@ -893,39 +896,66 @@ internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> 
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val density = androidx.compose.ui.platform.LocalDensity.current
     val star by androidx.compose.runtime.rememberUpdatedState(onStar)
+    val delete by androidx.compose.runtime.rememberUpdatedState(onDelete)
     val threshold = with(density) { 72.dp.toPx() }
     val offset = remember { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
     var armed by remember { mutableStateOf(false) }
+    // 第一次右滑过线后进入“待删除”，3 秒内再右滑一次才删
+    var deleteArmed by remember(event.id) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
     Box(Modifier.fillMaxWidth()) {
-        if (offset.value < 0f) Box(
-            Modifier.matchParentSize().background(if (armed) c.accent else c.accent.copy(alpha = 0.55f)).padding(horizontal = 24.dp),
-            contentAlignment = Alignment.CenterEnd,
+        val dx = offset.value
+        if (dx != 0f) Box(
+            Modifier.matchParentSize()
+                .background(if (dx < 0f) (if (armed) c.accent else c.accent.copy(alpha = 0.55f)) else (if (armed) c.critical else c.critical.copy(alpha = 0.55f)))
+                .padding(horizontal = 24.dp),
+            contentAlignment = if (dx < 0f) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
-            val label = if (event.starred) "取消重点" else "★ 标重点"
+            val label = if (dx < 0f) (if (event.starred) "取消重点" else "★ 标重点")
+                else if (deleteArmed) "删除" else "标记删除"
             Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
         }
         Box(
-            Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.roundToInt(), 0) }.background(c.card)
+            Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.roundToInt(), 0) }
+                .background(if (deleteArmed) androidx.compose.ui.graphics.lerp(c.card, c.critical, 0.12f) else c.card)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             val fire = armed
+                            val dir = offset.value
                             armed = false
                             scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.7f)) }
-                            if (fire) star()
+                            if (fire && dir < 0f) star()
+                            if (fire && dir > 0f) { if (deleteArmed) { deleteArmed = false; delete() } else deleteArmed = true }
                         },
                         onDragCancel = { armed = false; scope.launch { offset.animateTo(0f) } },
                     ) { change, drag ->
                         change.consume()
-                        val next = (offset.value + drag).coerceIn(-size.width * 0.6f, 0f)
+                        val next = (offset.value + drag).coerceIn(-size.width * 0.6f, size.width * 0.6f)
                         scope.launch { offset.snapTo(next) }
-                        val now = -next >= threshold
+                        val now = kotlin.math.abs(next) >= threshold
                         if (now && !armed) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                         armed = now
                     }
                 },
-        ) { content(null) }
+        ) {
+            content(null)
+            if (deleteArmed) Text("再右滑一次删除", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.critical,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 16.dp))
+        }
+    }
+}
+
+/** 删除一件事：有隐私接口时连录音和原话一起删（和详情里的“删除”一致） */
+@Composable
+internal fun rememberDeleteEvent(memory: MemoryRepository): (MemoryEvent) -> Unit {
+    val scope = rememberCoroutineScope()
+    return remember(memory) {
+        { e: MemoryEvent ->
+            if (app.resound.AppGraph.isPrivacyReady) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(e.id) } }
+            else memory.deleteEvent(e.id)
+        }
     }
 }
 

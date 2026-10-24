@@ -200,6 +200,7 @@ fun MemoryScreen(
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var makingCard by remember { mutableStateOf(false) }
     var deletingEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
+    val deleteNow = app.resound.ui.today.rememberDeleteEvent(memory)
     val cardSkillIds by remember { skills.skillsWithCards }.collectAsState(initial = emptyList())
     val skillNames = skills.skills.collectAsState().value.associate { it.id to it.name }
     var chipIndex by rememberSaveable { mutableStateOf(0) }
@@ -267,7 +268,7 @@ fun MemoryScreen(
                 onOpenCard = { openedCard = it },
                 onMakeCard = { makingCard = true },
                 onStar = { memory.setStarred(it.id, !it.starred) },
-                onDelete = { deletingEvent = it },
+                onDelete = { deleteNow(it) },
             )
         } else {
             item(key = "caps") { Capsules(tabs.map { it.name }, tabIndex) { tabIndex = it } }
@@ -281,7 +282,7 @@ fun MemoryScreen(
                                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
                             RsCard(padding = PaddingValues(vertical = 4.dp)) {
                                 evs.forEachIndexed { i, e ->
-                                    app.resound.ui.today.SwipeEvent(e, { memory.setStarred(e.id, !e.starred) }, { deletingEvent = e }) {
+                                    app.resound.ui.today.SwipeEvent(e, { memory.setStarred(e.id, !e.starred) }, { deleteNow(e) }) {
                                         lp -> app.resound.ui.today.TimelineLine(e, lp) { openedEvent = e }
                                     }
                                     if (i != evs.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))

@@ -283,7 +283,7 @@ internal class SubscriptionRuntime(
                 }
             }
             val payload = JSONObject().put("type", "daily_memory").put("version", 1).put("app", "回响").put("date", date).put("generatedAt", at)
-                .put("markdown", body.replace(MemoryFolder.UPDATED, Instant.ofEpochMilli(at).toString()))
+                .put("markdown", body.replace(MemoryFolder.UPDATED, MemoryFolder.updatedText(at)))
                 .put("data", JSONObject().apply {
                     listOf("event" to "events", "item" to "items", "card" to "cards", "review" to "reviews", "line" to "lines").forEach { (kind, key) ->
                         if (kind != "line" || s.lines != LinesMode.Off) put(key, JSONArray(records.filterKeys { it.startsWith("$kind:") }.values.toList()))

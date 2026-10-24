@@ -2,7 +2,7 @@
 类型: "每日记录"
 日期: "2026-10-24"
 内容: "回顾、时间线、当天条目、技能卡片"
-更新: "2026-10-24T02:00:00Z"
+更新: "2026-10-24 10:00"
 来源: 回响自动生成，请勿手动修改（改了会被覆盖）
 条数: 5
 ---
@@ -19,14 +19,14 @@
 场景：工作 · 参与人：我、小林
 确定虚构样例的验证范围
 - 采用模拟服务
-- I1 · 灵感 · 测试条目 1 · Accepted · repeats=3 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
-- I2 · 待办 · 测试条目 2 · Accepted · repeats=1 · 到期 2026-10-24 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
-- I3 · 灵感 · 测试条目 3 · Accepted · repeats=1 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
-- I4 · 知识 · 测试条目 4 · Accepted · repeats=1 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
+- I1 · 灵感 · 测试条目 1 · 进行中 · 说过 3 次 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
+- I2 · 待办 · 测试条目 2 · 进行中 · 到期 2026-10-24 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
+- I3 · 灵感 · 测试条目 3 · 进行中 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
+- I4 · 知识 · 测试条目 4 · 进行中 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]]
 ## 当天待办与提取项
-- I1 · 灵感 · 测试条目 1 · Accepted · repeats=3 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]] · 新提
-- I2 · 待办 · 测试条目 2 · Accepted · repeats=1 · 到期 2026-10-24 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]] · 新提 / 到期
-进展：I1 测试条目 1（Accepted）；I2 测试条目 2（Accepted）；I3 测试条目 3（Accepted）；I4 测试条目 4（Accepted）；标星后尚无完成。
+- I1 · 灵感 · 测试条目 1 · 进行中 · 说过 3 次 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]] · 新提
+- I2 · 待办 · 测试条目 2 · 进行中 · 到期 2026-10-24 · [[daily/2026-10/2026-10-24-Sat_daily-record.md#E1]] · 新提 / 到期
+进展：I1 测试条目 1（进行中）；I2 测试条目 2（进行中）；I3 测试条目 3（进行中）；I4 测试条目 4（进行中）；标星后尚无完成。
 <!-- resound:cards:start -->
 ## 技能卡片
 ### 测试卡片 · 测试清单

@@ -216,14 +216,14 @@ class PushChannelsTest {
             assertTrue(BackupArchive.allowed("shared_prefs/push.xml"))
             assertFalse(BackupArchive.allowed("shared_prefs/push-secrets.xml"))
             assertFalse(BackupArchive.allowed("shared_prefs/push-retries.xml"))
-            // 同机恢复也清除旧密钥和待重试消息。
+            // 负责人定（卡 037）：恢复不清手机上已填的密钥；待重试消息仍清掉
             context.getSharedPreferences("push-secrets", Context.MODE_PRIVATE).edit().putString("ref", "encrypted").commit()
             val stage = File(context.noBackupFilesDir, "push-restore-${UUID.randomUUID()}").apply { mkdirs() }
             File(context.applicationInfo.dataDir, "shared_prefs/push.xml").copyTo(
                 File(stage, "shared_prefs/push.xml").apply { parentFile!!.mkdirs() })
             BackupRestore.stage(context, stage)
             BackupRestore.applyPending(context)
-            assertTrue(context.getSharedPreferences("push-secrets", Context.MODE_PRIVATE).all.isEmpty())
+            assertEquals("encrypted", context.getSharedPreferences("push-secrets", Context.MODE_PRIVATE).getString("ref", null))
             assertTrue(context.getSharedPreferences("push-retries", Context.MODE_PRIVATE).all.isEmpty())
             secrets.items.clear()
             val restored = repository(fake, secrets)

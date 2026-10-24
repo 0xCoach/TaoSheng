@@ -103,7 +103,7 @@ internal class FolderSync(private val remote: FolderRemote, private val state: P
         if (rebuilding) { state.json.remove("rebuilding"); state.save() }
         val changed = files.filter { (path, content) -> state.files.optJSONObject(path)?.optString("sourceHash") != sha256(content) }
         changed.entries.take(limit).forEach { (path, template) ->
-            val content = template.replace(MemoryFolder.UPDATED, Instant.ofEpochMilli(now).toString())
+            val content = template.replace(MemoryFolder.UPDATED, MemoryFolder.updatedText(now))
             val part = "$path.part-${UUID.randomUUID()}"
             state.json.put("temporary", part); state.save()
             remote.putTemporary(part, content)

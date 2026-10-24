@@ -14,6 +14,10 @@ import java.util.Locale
 internal class MemoryFolder(private val today: LocalDate, private val zone: ZoneId = ZoneId.systemDefault()) {
     companion object {
         const val UPDATED = "{{RESOUND_UPDATED}}"
+
+        /** 说明卡里的“更新”时间：北京时间，如 2026-10-24 22:00 */
+        fun updatedText(at: Long): String = Instant.ofEpochMilli(at).atZone(ZoneId.of("Asia/Shanghai"))
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
         fun dailyPath(date: LocalDate) = "daily/${date.toString().take(7)}/${date}-${date.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH))}_daily-record.md"
         fun transcriptPath(date: LocalDate) = dailyPath(date).replace("daily/", "transcripts/").replace("_daily-record", "_transcript")
         fun weekPath(date: LocalDate): String {
@@ -25,14 +29,18 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         fun card(type: String, date: String, content: String, title: String, count: Int, body: String): String =
             "---\n类型: ${JSONObject.quote(type)}\n日期: ${JSONObject.quote(date)}\n内容: ${JSONObject.quote(content)}\n更新: \"$UPDATED\"\n来源: 回响自动生成，请勿手动修改（改了会被覆盖）\n条数: $count\n---\n# $title\n\n${body.trim()}\n"
     }
+    /** 给人看的状态：英文枚举名换成中文 */
+    private fun statusText(status: Any): String = when (status.toString()) {
+        "Pending" -> "待确认"; "Accepted" -> "进行中"; "Done" -> "已完成"; "Ignored" -> "已忽略"; else -> status.toString()
+    }
     private fun date(at: Long) = day(at, zone)
     private fun time(at: Long) = Instant.ofEpochMilli(at).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm"))
     private fun cn(date: LocalDate) = date.format(DateTimeFormatter.ofPattern("yyyy年M月d日 EEEE", Locale.CHINESE))
     private fun item(i: MemoryItemEntity, snapshot: PushSnapshot): String {
         val origin = snapshot.events.find { it.id == i.eventId }?.let { "[[${dailyPath(date(it.startAt))}#E${it.id}]]" }.orEmpty()
         val repeat = snapshot.repeats[i.id] ?: 1
-        return "- I${i.id} · ${i.category}${i.kind?.let { " / $it" }.orEmpty()} · ${i.content} · ${i.status}" +
-            " · repeats=$repeat" + (i.who?.let { " · $it" } ?: "") + (i.dueAt?.let { " · 到期 ${date(it)}" } ?: i.dueText?.let { " · $it" }.orEmpty()) + " · $origin"
+        return "- I${i.id} · ${i.category}${i.kind?.let { " / $it" }.orEmpty()} · ${i.content} · ${statusText(i.status)}" +
+            (if (repeat > 1) " · 说过 $repeat 次" else "") + (i.who?.let { " · $it" } ?: "") + (i.dueAt?.let { " · 到期 ${date(it)}" } ?: i.dueText?.let { " · $it" }.orEmpty()) + " · $origin"
     }
     private fun review(r: ReviewEntity): String = buildString {
         appendLine(r.brief)
@@ -152,6 +160,6 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
     private fun progress(e: MemoryEventEntity, data: PushSnapshot): String {
         val related = data.items.filter { it.eventId == e.id }
         val completed = related.any { (it.doneAt ?: 0) > (e.starredAt ?: Long.MAX_VALUE) }
-        return "进展：${related.joinToString("；") { "I${it.id} ${it.content}（${it.status}）" }.ifBlank { "暂无相关条目" }}；标星后${if (completed) "已有完成" else "尚无完成"}。"
+        return "进展：${related.joinToString("；") { "I${it.id} ${it.content}（${statusText(it.status)}）" }.ifBlank { "暂无相关条目" }}；标星后${if (completed) "已有完成" else "尚无完成"}。"
     }
 }

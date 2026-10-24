@@ -173,7 +173,7 @@ class Subscription042Test {
         val daily = files.getValue(MemoryFolder.dailyPath(date))
         assertTrue(daily.startsWith("---\n类型:")); assertTrue(daily.contains("来源: 回响自动生成，请勿手动修改（改了会被覆盖）"))
         assertTrue(daily.contains("# 2026年10月24日 星期六 · 讨论测试方案等 1 件事"))
-        assertTrue(daily.contains("E1")); assertTrue(daily.contains("repeats=3")); assertTrue(daily.contains("- [x] 模拟服务"))
+        assertTrue(daily.contains("E1")); assertTrue(daily.contains("说过 3 次")); assertTrue(daily.contains("进行中")); assertTrue(daily.contains("- [x] 模拟服务"))
         assertFalse(daily.contains("虚构测试原话")); assertTrue(daily.contains("[[transcripts/"))
         assertFalse(selected.select(s.copy(rangeDays = 1), date.plusDays(1), date.plusDays(1), zone).events.isNotEmpty())
     }
@@ -189,7 +189,7 @@ class Subscription042Test {
         val byDay = MemoryFolder(date, zone).generate(data, subscription.copy(layout = FolderLayout.ByDay))
         assertTrue(byDay.keys.all { it == "README.md" || it.startsWith("daily/") || it.startsWith("weekly/") || it.startsWith("transcripts/") })
         val output = File("build/outputs/042-sample/Resound-Memory")
-        files.forEach { (path, text) -> File(output, path).apply { parentFile!!.mkdirs(); writeText(text.replace(MemoryFolder.UPDATED, "2026-10-24T02:00:00Z")) } }
+        files.forEach { (path, text) -> File(output, path).apply { parentFile!!.mkdirs(); writeText(text.replace(MemoryFolder.UPDATED, "2026-10-24 10:00")) } }
         File(output, "inbox").mkdirs()
     }
     @Test fun folderDiffDeletionAndUnknownFilesAreProtected() {

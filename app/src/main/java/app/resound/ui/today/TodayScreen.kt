@@ -10,6 +10,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
+import kotlin.math.roundToInt
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -875,38 +879,50 @@ private fun SheetSection(title: String) {
 }
 
 /**
- * 时间线上的一件事：左滑标重点，再左滑一次取消。往左拖过约 72dp（不用滑到底）就算数，过线时轻震、文字变“松手…”。
+ * 时间线上的一件事：左滑标重点，再左滑一次取消。往左拖过 72dp（不用滑到底）松手就算数，过线时轻震、文字变“松手…”。
+ * 自己处理拖动：系统的 SwipeToDismissBox 在“触发后弹回”的用法下隔一次才生效，取消不了重点。
  * 删除不放在滑动里，在详情面板“就这个问问”旁边。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
-        confirmValueChange = { v ->
-            if (v == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart) onStar()
-            false // 行弹回原位
-        },
-        positionalThreshold = { with(density) { 72.dp.toPx() } },
-    )
-    val armed = state.targetValue == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
-    androidx.compose.runtime.LaunchedEffect(armed) { if (armed) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
-    androidx.compose.material3.SwipeToDismissBox(
-        state,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            val swiping = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
-            Box(Modifier.fillMaxSize().background(if (swiping) (if (armed) c.accent else c.accent.copy(alpha = 0.55f)) else Color.Transparent)
-                .padding(horizontal = 24.dp), contentAlignment = Alignment.CenterEnd) {
-                if (swiping) {
-                    val label = if (event.important) "取消重点" else "★ 标重点"
-                    Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
-                }
-            }
-        },
-    ) { Box(Modifier.background(c.card)) { content(null) } }
+    val star by androidx.compose.runtime.rememberUpdatedState(onStar)
+    val threshold = with(density) { 72.dp.toPx() }
+    val offset = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var armed by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth()) {
+        if (offset.value < 0f) Box(
+            Modifier.matchParentSize().background(if (armed) c.accent else c.accent.copy(alpha = 0.55f)).padding(horizontal = 24.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            val label = if (event.important) "取消重点" else "★ 标重点"
+            Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+        }
+        Box(
+            Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.roundToInt(), 0) }.background(c.card)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            val fire = armed
+                            armed = false
+                            scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.7f)) }
+                            if (fire) star()
+                        },
+                        onDragCancel = { armed = false; scope.launch { offset.animateTo(0f) } },
+                    ) { change, drag ->
+                        change.consume()
+                        val next = (offset.value + drag).coerceIn(-size.width * 0.6f, 0f)
+                        scope.launch { offset.snapTo(next) }
+                        val now = -next >= threshold
+                        if (now && !armed) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        armed = now
+                    }
+                },
+        ) { content(null) }
+    }
 }
 
 /** 删除一件事前确认 */

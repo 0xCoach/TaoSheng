@@ -43,7 +43,9 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     } }
                                     // 识字偶尔出繁体（測、輸），统一转简体
                                     val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.getOrNull()
-                                    val lines = if (hans == null) raw else raw.map { it.copy(text = hans.transliterate(it.text)) }
+                                    val hot = if (app.resound.AppGraph.isHotwordsReady) app.resound.AppGraph.hotwords.let { it.words.value + it.automatic.value } else emptyList()
+                                    // 繁转简，再按热词纠错
+                                    val lines = raw.map { l -> l.copy(text = VoiceInputHotwords.correct(hans?.transliterate(l.text) ?: l.text, hot)) }
                                     val bubble = VoiceInputOcr.lastRightBubble(lines, layout)
                                     val input = VoiceInputOcr.extract(lines, layout, pkg)?.copy(bubble = bubble)
                                         ?: bubble?.let { OcrInput("", emptyList(), null, it) }

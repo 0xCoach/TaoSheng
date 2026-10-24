@@ -142,3 +142,46 @@ internal object VoiceInputOcr {
         return true
     }
 }
+
+/** 截屏识字后按热词纠错：“Du远程”“叮远程”→“UU远程”。只纠和热词几乎一样的片段（长度差不超过 1、错字不超过约四分之一） */
+internal object VoiceInputHotwords {
+    /** 负责人常用应用的名字，热词表里没有也按这些纠 */
+    val BUILT_IN = listOf("UU远程", "ChatGPT", "Gemini", "Claude", "Codex")
+    fun correct(text: String, words: List<String>): String {
+        var out = text
+        for (w in (words + BUILT_IN).map(String::trim).filter { it.length >= 3 }.distinct().sortedByDescending { it.length }) {
+            out = replaceNear(out, w)
+        }
+        return out
+    }
+    private fun replaceNear(text: String, word: String): String {
+        val limit = maxOf(1, word.length / 4)
+        val sb = StringBuilder(); var i = 0
+        while (i < text.length) {
+            // 几种长度里挑最像的一段：错字最少，同样少时取和热词一样长的
+            var best: Int? = null; var bestScore = Int.MAX_VALUE
+            for (len in maxOf(1, word.length - 1)..(word.length + 1)) {
+                if (i + len > text.length) break
+                val part = text.substring(i, i + len)
+                val anchor = part.last().equals(word.last(), true) || part.first().equals(word.first(), true)
+                val d = distance(part.lowercase(), word.lowercase())
+                if (!anchor || d > limit) continue
+                val score = d * 10 + kotlin.math.abs(len - word.length)
+                if (score < bestScore) { bestScore = score; best = len }
+            }
+            if (best != null) { sb.append(word); i += best } else { sb.append(text[i]); i++ }
+        }
+        return sb.toString()
+    }
+    private fun distance(a: String, b: String): Int {
+        var prev = IntArray(b.length + 1) { it }
+        for (i in a.indices) {
+            val cur = IntArray(b.length + 1); cur[0] = i + 1
+            // 英文和汉字互认不算“认错一个字”（代价 2），避免把紧挨着的汉字吞进英文热词
+            for (j in b.indices) cur[j + 1] = minOf(cur[j] + 1, prev[j + 1] + 1,
+                prev[j] + if (a[i] == b[j]) 0 else if ((a[i].code < 128) != (b[j].code < 128)) 2 else 1)
+            prev = cur
+        }
+        return prev[b.length]
+    }
+}

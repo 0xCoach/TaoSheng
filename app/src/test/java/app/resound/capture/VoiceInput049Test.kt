@@ -235,4 +235,12 @@ class VoiceInput049Test {
         assertNull(VoiceInputOcr.extract(chat, layout, "com.openai.chatgpt")!!.title)
         assertEquals("老王", VoiceInputOcr.extract(chat, layout, "com.tencent.mm")!!.title)
     }
+    @Test fun hotwordsFixNearMissesOnly() {
+        assertEquals("我在UU远程里说的", VoiceInputHotwords.correct("我在Du远程里说的", emptyList()))
+        assertEquals("用ChatGPT问一下", VoiceInputHotwords.correct("用ChatGP问一下", emptyList()))
+        assertEquals("马正涛你好", VoiceInputHotwords.correct("马正滔你好", listOf("马正涛")))
+        // 不相干的词不动
+        assertEquals("今天天气不错", VoiceInputHotwords.correct("今天天气不错", listOf("马正涛")))
+        assertEquals("远程会议", VoiceInputHotwords.correct("远程会议", emptyList()))
+    }
 }

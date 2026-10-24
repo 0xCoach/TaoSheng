@@ -110,11 +110,13 @@ class BackupPrompts029Test {
         BackupRestore.restore(context, client, "回响-2026-10-23-0310.zip.enc", db,
             storedPassphrase = "outdated-test", suppliedPassphrase = "test-restore", closeDatabase = {
                 val snapshot = File(context.noBackupFilesDir, "before-restore").listFiles()!!.single()
-                ZipFile(snapshot).use {
-                    assertEquals(localText, it.getInputStream(it.getEntry("files/prompts/digest.md")).bufferedReader().readText())
-                    assertTrue(it.getInputStream(it.getEntry("shared_prefs/capture.xml")).bufferedReader().readText().contains("local-before"))
-                    assertFalse(it.entries().asSequence().any { entry -> "secret" in entry.name })
-                }
+                val bundle = File(root, "snapshot-bundle")
+                DayVolumes.unzip(snapshot, bundle, ::volumePath)
+                val work = File(root, "snapshot-read").apply { mkdirs() }
+                val saved = DayVolumes.readState(DirectoryVolumeStore(bundle), work, null)!!
+                assertEquals(localText, File(saved.directory, "files/prompts/digest.md").readText())
+                assertTrue(File(saved.directory, "settings.json").readText().contains("local-before"))
+                assertTrue(File(saved.directory, "secrets.json").exists())
                 calls += "close"; db.close()
             }, restartProcess = { calls += "restart" })
         assertEquals(listOf("close", "restart"), calls)
@@ -174,6 +176,7 @@ class BackupPrompts029Test {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 requests += request
                 return when {
+                    request.method == "GET" || request.method == "HEAD" -> MockResponse().setResponseCode(404)
                     request.method == "PROPFIND" -> listing(emptyList())
                     request.method == "PUT" && WebDavClient.DIARY_FOLDER !in request.requestUrl!!.pathSegments && failUpload -> MockResponse().setResponseCode(503)
                     else -> MockResponse().setResponseCode(201)
@@ -197,7 +200,7 @@ class BackupPrompts029Test {
         assertFalse(uploads[1].body.clone().readByteArray().take(2) == listOf(80.toByte(), 75.toByte()))
         assertEquals(listOf(80.toByte(), 75.toByte()), uploads[2].body.clone().readByteArray().take(2))
         assertEquals(4, requests.count { it.method == "PUT" && WebDavClient.DIARY_FOLDER in it.requestUrl!!.pathSegments })
-        assertTrue(requests.filter { it.method == "DELETE" }.all { it.requestUrl!!.pathSegments.last().endsWith(".part") })
+        assertTrue(requests.filter { it.method == "DELETE" }.all { it.requestUrl!!.pathSegments.last().let { name -> name.endsWith(".part") || name.startsWith("resound-state.") } })
         repository.setEnabled(false)
     }
     @Test fun templatesReadDefaultsAndPersistOverridesInBackup() {

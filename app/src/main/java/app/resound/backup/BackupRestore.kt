@@ -32,6 +32,14 @@ internal object BackupRestore {
         closeDatabase: () -> Unit, restartProcess: () -> Unit,
         fetchBase: ((String, File) -> Unit)? = null, expectedName: String? = null,
     ) {
+        if (DayVolumes.isBundle(source)) {
+            val bundle = File(context.cacheDir, "resound-bundle-${java.util.UUID.randomUUID()}")
+            try {
+                DayVolumes.unzip(source, bundle, ::volumePath)
+                restoreVolumes(context, DirectoryVolumeStore(bundle), database, storedPassphrase, suppliedPassphrase, closeDatabase, restartProcess)
+            } finally { bundle.deleteRecursively() }
+            return
+        }
         if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
         val id = java.util.UUID.randomUUID()
         val workspace = File(context.cacheDir, "resound-restore-$id").apply { check(mkdirs()) }
@@ -55,13 +63,27 @@ internal object BackupRestore {
             restartProcess()
         } finally { workspace.deleteRecursively(); verified.deleteRecursively() }
     }
+    fun restoreVolumes(context: Context, store: VolumeStore, database: app.resound.data.CaptureDatabase,
+        stored: String?, supplied: String?, closeDatabase: () -> Unit, restartProcess: () -> Unit) {
+        if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
+        val id = java.util.UUID.randomUUID()
+        val work = File(context.cacheDir, "resound-restore-$id").apply { check(mkdirs()) }
+        val verified = File(context.noBackupFilesDir, "resound-restore-$id")
+        try {
+            DayVolumes.restore(context, store, work, verified, stored, supplied)
+            snapshot(context, database)
+            stage(context, verified)
+            closeDatabase()
+            restartProcess()
+        } finally { work.deleteRecursively(); verified.deleteRecursively() }
+    }
     private fun snapshot(context: Context, database: app.resound.data.CaptureDatabase) {
         val directory = File(context.noBackupFilesDir, "before-restore").apply { check(isDirectory || mkdirs()) }
         val id = java.util.UUID.randomUUID()
         val stage = File(directory, ".$id-content").apply { check(mkdirs()) }
         val part = File(directory, ".$id.part")
         try {
-            BackupArchive.create(context, database, stage, part, System.currentTimeMillis())
+            DayVolumes.export(context, database, stage, part, null)
             check(part.renameTo(File(directory, "$id.zip")))
         } finally { stage.deleteRecursively(); part.delete() }
     }
@@ -87,13 +109,14 @@ internal object BackupRestore {
         // 旧备份没有自定义模板时，也必须清掉本机的覆盖文本。
         check(File(data, BackupArchive.PROMPTS).deleteRecursively())
         check(File(data, BackupArchive.SKILLS).deleteRecursively())
+        val volumes = File(pending, "day-volumes").isFile
+        if (volumes) BackupSettings.apply(context, pending)
         pending.walkTopDown().filter { it.isFile }.forEach { source ->
             val path = source.relativeTo(pending).invariantSeparatorsPath
-            if (path == "manifest.json") return@forEach
+            if (path == "manifest.json" || volumes && path in setOf("day-volumes", "settings.json", "secrets.json")) return@forEach
             require(BackupArchive.allowed(path))
-            if (path == "shared_prefs/transcribe.xml") {
-                // 本卡仅备份热词；不能用只有热词的 XML 覆盖原机转写配置和凭证。
-                restoreHotwords(context, source)
+            if (path.startsWith("shared_prefs/")) {
+                restorePreferences(context, source)
                 return@forEach
             }
             val target = File(data, path).apply { parentFile!!.mkdirs() }
@@ -102,45 +125,41 @@ internal object BackupRestore {
             try { source.inputStream().use { it.copyTo(stream) }; atomic.finishWrite(stream) }
             catch (e: Exception) { atomic.failWrite(stream); throw e }
         }
-        BackupArchive.safePrefs.forEach { name ->
-            if (name == "transcribe.xml") {
-                if (!File(pending, "shared_prefs/$name").exists())
-                    check(context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).edit().remove("hotwords").commit())
-                return@forEach
-            }
-            if (!File(pending, "shared_prefs/$name").exists()) {
-                val target = File(data, "shared_prefs/$name")
-                check(!target.exists() || target.delete())
-            }
-            File(data, "shared_prefs/$name.bak").let { check(!it.exists() || it.delete()) }
-        }
-        // 即使原机恢复也不复用推送凭据或旧消息；恢复后必须重新填写密钥。
-        listOf("push-secrets", "push-retries", "digest-secrets", "backup-secrets", "backup-encryption-secrets").forEach { name ->
-            check(context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit())
-        }
-        check(context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).edit()
-            .remove("encryptedKey").remove("customEncryptedKey").commit())
-        check(context.getSharedPreferences("backup", Context.MODE_PRIVATE).edit().putBoolean("enabled", false).commit())
+        // 队列是运行时数据，不能继续发送恢复前的消息；密钥与未出现的设置项全部保留。
+        check(context.getSharedPreferences("push-retries", Context.MODE_PRIVATE).edit().clear().commit())
         // 原子移走提交标记；清理中断不会再覆盖此后新增的数据。
         val done = File(context.noBackupFilesDir, "backup-restore-done")
         check(done.deleteRecursively())
         check(pending.renameTo(done))
         done.deleteRecursively()
     }
-    private fun restoreHotwords(context: Context, source: File) {
+    private fun restorePreferences(context: Context, source: File) {
         val parser = android.util.Xml.newPullParser()
-        var words = "[]"
+        val edit = context.getSharedPreferences(source.nameWithoutExtension, Context.MODE_PRIVATE).edit()
         source.inputStream().use { input ->
             parser.setInput(input, "UTF-8")
             while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                if (parser.eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name == "string" &&
-                    parser.getAttributeValue(null, "name") == "hotwords") words = parser.nextText()
+                if (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) continue
+                val name = parser.getAttributeValue(null, "name") ?: continue
+                if (name in setOf("encryptedKey", "customEncryptedKey")) continue
+                val value = parser.getAttributeValue(null, "value")
+                when (parser.name) {
+                    "string" -> edit.putString(name, parser.nextText())
+                    "boolean" -> edit.putBoolean(name, value.toBooleanStrict())
+                    "int" -> edit.putInt(name, value.toInt())
+                    "long" -> edit.putLong(name, value.toLong())
+                    "float" -> edit.putFloat(name, value.toFloat())
+                    "set" -> {
+                        val entries = mutableSetOf<String>()
+                        while (!(parser.next() == org.xmlpull.v1.XmlPullParser.END_TAG && parser.name == "set")) {
+                            if (parser.eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name == "string") entries += parser.nextText()
+                        }
+                        edit.putStringSet(name, entries)
+                    }
+                }
             }
         }
-        val array = org.json.JSONArray(words)
-        val normalized = app.resound.transcribe.Hotwords.normalize((0 until array.length()).map { array.getString(it) })
-        check(context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).edit()
-            .putString("hotwords", org.json.JSONArray(normalized).toString()).commit())
+        check(edit.commit())
     }
 
     fun restart(context: Context) {

@@ -59,12 +59,14 @@ class DiaryBackupTest {
                     diaryPath && request.method == "PROPFIND" -> MockResponse().setResponseCode(if (diaryDirectoryExists) 207 else 404)
                     diaryPath && request.method == "MKCOL" -> { diaryDirectoryExists = true; MockResponse().setResponseCode(201) }
                     diaryPath && request.method == "PUT" -> MockResponse().setResponseCode(if (failDiary) 503 else 204)
+                    request.method == "GET" || request.method == "HEAD" -> MockResponse().setResponseCode(404)
                     request.method == "PROPFIND" -> MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'/>")
                     request.method == "PUT" -> {
                         val zip = File(context.cacheDir, "diary-backup-upload.zip").apply { writeBytes(request.body.clone().readByteArray()) }
                         ZipFile(zip).use {
-                            assertNotNull(it.getEntry("shared_prefs/diary.xml"))
-                            assertNull(it.getEntry("shared_prefs/diary-sync.xml"))
+                            val settings = it.getInputStream(it.getEntry("settings.json")).bufferedReader().readText()
+                            assertTrue(org.json.JSONObject(settings).has("diary"))
+                            assertFalse(org.json.JSONObject(settings).has("diary-sync"))
                         }
                         zip.delete()
                         MockResponse().setResponseCode(201)

@@ -155,6 +155,49 @@ internal class WebDavClient(
             response.body!!.byteStream().use { input -> destination.outputStream().use { input.copyTo(it) } }
         }
     }
+    /** 固定英文分卷路径；404 才表示缺失，鉴权/网络错误不能当作空清单。 */
+    fun volumes(): VolumeStore = object : VolumeStore {
+        private fun target(path: String): HttpUrl {
+            require(volumePath(path) || ('/' !in path && path.startsWith("resound-") && metadata(path) != null))
+            return directory.newBuilder().apply { path.split('/').forEach { addPathSegment(it) } }.build()
+        }
+        private fun missing(block: () -> Unit): Boolean = try { block(); true } catch (e: BackupFailure) {
+            if (e.human == "备份目录不存在") false else throw e
+        }
+        private fun parents(path: String) {
+            if ('/' !in path) return
+            val dir = directory.newBuilder().addPathSegment(path.substringBefore('/')).addPathSegment("").build()
+            if (!missing { request("PROPFIND", dir, "".toRequestBody(), mapOf("Depth" to "0")).close() })
+                request("MKCOL", dir).close()
+        }
+        override fun read(path: String, target: File): Boolean = missing {
+            request("GET", target(path)).use { response ->
+                response.body!!.byteStream().use { input -> target.outputStream().use { output ->
+                    val buffer = ByteArray(65536); var total = 0L
+                    while (true) { val n = input.read(buffer); if (n < 0) break
+                        total += n; require(total <= 2L * 1024 * 1024 * 1024); output.write(buffer, 0, n) }
+                } }
+            }
+        }
+        override fun exists(path: String) = missing { request("HEAD", target(path)).close() }
+        override fun put(path: String, source: File) {
+            parents(path)
+            val destination = target(path)
+            val temporary = destination.newBuilder().setPathSegment(destination.pathSegments.lastIndex,
+                destination.pathSegments.last() + ".${UUID.randomUUID()}.part").build()
+            try {
+                request("PUT", temporary, source.asRequestBody()).close()
+                request("MOVE", temporary, headers = mapOf("Destination" to destination.toString(), "Overwrite" to "T")).close()
+            } finally { runCatching { request("DELETE", temporary).close() } }
+        }
+        override fun delete(path: String) { missing { request("DELETE", target(path)).close() } }
+        override fun copy(from: String, to: String) {
+            parents(to)
+            request("COPY", target(from), headers = mapOf("Destination" to target(to).toString(), "Overwrite" to "T")).close()
+        }
+        override fun legacy() = listIn(directory).filter { it.name.startsWith("resound-") }.map { it.name }
+    }
+
     fun testWrite() {
         ensureDirectory()
         val name = ".probe-${UUID.randomUUID()}.part"

@@ -6,7 +6,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class AndroidDigestSettings(context: Context, private val client: LlmClient) : DigestSettings {
+class AndroidDigestSettings(
+    context: Context, private val client: LlmClient,
+    private val recordUsage: suspend (LlmReply) -> Unit = {},
+) : DigestSettings {
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
     private val secrets = SecretStore(context, "digest-secrets", "resound-llm-aes-v1")
 
@@ -82,6 +85,7 @@ class AndroidDigestSettings(context: Context, private val client: LlmClient) : D
         if (key.isBlank()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
             val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.getOrNull().orEmpty()
             Result.success("可用（${preset.name}）${if (text.isNotBlank()) "：$text" else ""}")
         } catch (e: CancellationException) {

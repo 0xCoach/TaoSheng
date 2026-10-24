@@ -16,7 +16,7 @@ internal object DayVolumeRows {
         "segments" to "startAt", "transcript_lines" to "startAt", "memory_events" to "startAt",
         "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
         "ask_conversations" to "createdAt", "ask_messages" to "at",
-        "asr_attempts" to "at", "asr_usage" to "day", "llm_usage" to "day", "skill_runs" to "at",
+        "asr_attempts" to "at", "asr_usage" to "day", "llm_usage_v2" to "day", "skill_runs" to "at",
         "app_power" to "at", "battery" to "at", "heartbeats" to "at", "watchdog" to "at",
     )
     val global = setOf("voiceprint_people", "voiceprint_samples", "voiceprint_exclusions")
@@ -77,9 +77,12 @@ internal object DayVolumeRows {
     }
     fun insert(db: SupportSQLiteDatabase, rows: File, state: Boolean) {
         rows.bufferedReader().useLines { lines -> lines.forEach { line ->
-            val row = JSONObject(line); val table = row.getString("table")
+            val row = JSONObject(line)
+            val originalTable = row.getString("table")
+            val table = if (originalTable == "llm_usage") "llm_usage_v2" else originalTable
             require(table in if (state) global else dated.keys)
             val values = row.getJSONObject("values")
+            if (originalTable == "llm_usage") values.put("purpose", "Other")
             val columns = mutableListOf<String>()
             val args = mutableListOf<Any?>()
             db.query("PRAGMA table_info(`$table`)").use { c ->

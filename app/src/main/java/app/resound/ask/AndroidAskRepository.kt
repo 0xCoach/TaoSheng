@@ -1,5 +1,7 @@
 package app.resound.ask
 
+import app.resound.usage.UsagePurpose
+
 import android.content.Context
 import app.resound.appName
 import app.resound.data.CaptureDatabase
@@ -23,6 +25,7 @@ import java.time.LocalDate
 fun createAskRepository(
     context: Context, database: CaptureDatabase, client: LlmClient,
     settings: AndroidDigestSettings, scope: CoroutineScope,
+    readKey: () -> String = settings::readKey,
 ): RoomAskRepository {
     fun asset(name: String) = context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
     val definitions = JSONArray(asset("ask-tools.json"))
@@ -41,7 +44,7 @@ fun createAskRepository(
         },
         generate = { recent ->
             val preset = settings.preset
-            val key = settings.readKey()
+            val key = readKey()
             if (key.isBlank()) throw LlmException(LlmError.Auth)
             var prompt = 0L; var completion = 0L
             try {
@@ -54,7 +57,7 @@ fun createAskRepository(
                 val questions = JSONObject(reply.content).getJSONArray("questions")
                 (0 until questions.length()).map { questions.getString(it) }
             } finally {
-                withContext(NonCancellable) { database.memory().addUsage(LocalDate.now().toString(), prompt, completion) }
+                withContext(NonCancellable) { database.memory().addUsage(LocalDate.now().toString(), prompt, completion, UsagePurpose.Ask) }
             }
         },
     )
@@ -62,12 +65,12 @@ fun createAskRepository(
     val repository = RoomAskRepository(database.ask(), scope, { settings.hasKey.value }, engine = {
         // 一轮问答固定服务和密钥，避免用户切换设置后同一轮混用模型。
         val preset = settings.preset
-        val key = settings.readKey()
+        val key = readKey()
         if (key.isBlank()) throw LlmException(LlmError.Auth)
         AskEngine(AskStream { messages, requested, delta, usage ->
             // 即使额度耗尽也保留 tools 定义，同时 tool_choice=none，避免服务把工具语法泄漏进正文。
             client.streamChat(preset, key, messages, definitions, delta, usage, allowTools = requested.length() > 0)
-        }, definitions, tools::execute, { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c) }, changes::propose)
+        }, definitions, tools::execute, { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, changes::propose)
     }, system = {
         val today = LocalDate.now()
         DigestPrompt.system(app.resound.AppGraph.prompts.text("ask"), today, context.appName).replace("{{TODAY}}", today.toString())

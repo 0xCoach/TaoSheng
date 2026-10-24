@@ -33,6 +33,8 @@ abstract class TranscribeDao {
     @Query("SELECT * FROM segments WHERE startAt >= :start AND startAt < :end ORDER BY startAt DESC, id DESC")
     abstract fun day(start: Long, end: Long): Flow<List<SegmentWithLines>>
     @Query("SELECT * FROM segments") abstract fun observeSegments(): Flow<List<SegmentEntity>>
+    @Query("SELECT * FROM asr_usage WHERE day >= :from AND day <= :to ORDER BY day")
+    abstract fun usageBetween(from: String, to: String): Flow<List<AsrUsageEntity>>
     @Query("SELECT * FROM asr_usage") abstract fun observeUsage(): Flow<List<AsrUsageEntity>>
     // 超时只影响本段：到期后排在其他候选后面，避免长段反复占住队首。
     @Query("SELECT * FROM segments WHERE status = 'Pending' OR (status = 'Failed' AND attempts < 5 AND nextRetryAt <= :now) ORDER BY CASE WHEN error = '转写超时，等待重试' THEN 1 ELSE 0 END, startAt, id")

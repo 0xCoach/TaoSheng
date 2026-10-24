@@ -1,6 +1,7 @@
 package app.resound.data
 
 import androidx.room.*
+import app.resound.usage.UsagePurpose
 import kotlinx.coroutines.flow.Flow
 
 /** 大模型切出的一件事。points / people 存 JSON 数组文本。 */
@@ -52,9 +53,11 @@ data class MemoryItemEntity(
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)
 
-/** 大模型用量，按天累计 */
-@Entity(tableName = "llm_usage")
-data class LlmUsageEntity(@PrimaryKey val day: String, val promptTokens: Long, val completionTokens: Long, val calls: Int)
+/** 兼容现有每日总量消费者，查询时跨用途求和。 */
+data class LlmUsageEntity(val day: String, val promptTokens: Long, val completionTokens: Long, val calls: Int)
+
+@Entity(tableName = "llm_usage_v2", primaryKeys = ["day", "purpose"])
+data class LlmUsageV2Entity(val day: String, val purpose: String, val promptTokens: Long, val completionTokens: Long, val calls: Int)
 
 @Dao
 abstract class MemoryDao {
@@ -109,15 +112,19 @@ abstract class MemoryDao {
         markDigested(allLineIds, at)
     }
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: LlmUsageEntity)
-    @Query("UPDATE llm_usage SET promptTokens = promptTokens + :p, completionTokens = completionTokens + :c, calls = calls + 1 WHERE day = :day")
-    abstract suspend fun addUsageRow(day: String, p: Long, c: Long)
+    @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: LlmUsageV2Entity)
+    @Query("UPDATE llm_usage_v2 SET promptTokens = promptTokens + :p, completionTokens = completionTokens + :c, calls = calls + 1 WHERE day = :day AND purpose = :purpose")
+    abstract suspend fun addUsageRow(day: String, purpose: String, p: Long, c: Long)
     @Transaction
-    open suspend fun addUsage(day: String, prompt: Long, completion: Long) {
-        insertUsage(LlmUsageEntity(day, 0, 0, 0))
-        addUsageRow(day, prompt, completion)
+    open suspend fun addUsage(day: String, prompt: Long, completion: Long, purpose: UsagePurpose = UsagePurpose.Other) {
+        insertUsage(LlmUsageV2Entity(day, purpose.name, 0, 0, 0))
+        addUsageRow(day, purpose.name, prompt, completion)
     }
-    @Query("SELECT * FROM llm_usage") abstract fun observeUsage(): Flow<List<LlmUsageEntity>>
+    @Query("SELECT day, SUM(promptTokens) AS promptTokens, SUM(completionTokens) AS completionTokens, SUM(calls) AS calls FROM llm_usage_v2 GROUP BY day ORDER BY day")
+    abstract fun observeUsage(): Flow<List<LlmUsageEntity>>
+
+    @Query("SELECT * FROM llm_usage_v2 WHERE day >= :from AND day <= :to ORDER BY day, purpose")
+    abstract fun usageByPurpose(from: String, to: String): Flow<List<LlmUsageV2Entity>>
 
     // ---------- 界面 ----------
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end ORDER BY startAt DESC")

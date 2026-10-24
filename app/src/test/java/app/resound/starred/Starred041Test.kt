@@ -90,7 +90,7 @@ class Starred041Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(14, migrated.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             val rows = migrated.memory().events(0, 10).first().sortedBy { it.id }
             assertEquals(listOf(false, true), rows.map { it.important })
             assertTrue(rows.all { !it.starred && it.starredAt == null })

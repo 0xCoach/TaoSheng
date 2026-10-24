@@ -84,8 +84,11 @@ internal object VoiceInputOcr {
         return OcrInput(text, above.filter { it.top >= titleBarBottom(layout) }.map { it.text.trim() }.takeLast(20), title)
     }
 
-    /** 从应用内容顶部起，固定取屏幕高度的 8%；键盘弹出不改变标题栏范围。 */
-    fun titleBarBottom(layout: OcrLayout): Int = layout.contentTop + (layout.height * .08).toInt()
+    /** 从状态栏下沿起，标题栏约为屏幕宽度的 12%，且不超过屏幕高度的 8%。
+     * 按比例适配分辨率；键盘高度不参与计算，避免把聊天时间纳入标题栏。
+     */
+    fun titleBarBottom(layout: OcrLayout): Int =
+        layout.contentTop + minOf(layout.width * .12, layout.height * .08).toInt()
 
     fun title(lines: List<OcrLine>, layout: OcrLayout): String? = lines
         .filter { it.top >= layout.contentTop && it.bottom <= titleBarBottom(layout) &&
@@ -102,13 +105,19 @@ internal object VoiceInputOcr {
         val name = t.replace(GROUP, "")
         val points = name.codePoints().toArray()
         return t.takeIf {
-            points.size in 1..20 && VoiceInputChrome.keep(t) &&
+            points.size in 1..20 && VoiceInputChrome.keep(t) && !CHAT_TIME.matches(t) &&
                 points.any { Character.isLetter(it) || Character.getType(it) == Character.OTHER_SYMBOL.toInt() } &&
                 name.none { it in CODE }
         }
     }
     fun looksLikeTitle(text: String): Boolean = cleanTitle(text) != null
     private val UNREAD_PREFIX = Regex("^(?:[(（][0-9]+[+]?[)）]\\s*|[0-9]+[+]?\\s+)")
+    /** 聊天时间常比联系人标题更居中，必须先排除，不能拿来当说话人。 */
+    private val CHAT_TIME = Regex(
+        "(?:(?:[0-9]{4}年)?[0-9]{1,2}月[0-9]{1,2}日|今天|昨天|前天|(?:星期|周)[一二三四五六日天])" +
+            "(?:\\s*(?:凌晨|早上|上午|中午|下午|晚上)?\\s*[0-9]{1,2}[:：][0-9]{2})?" +
+            "|(?:凌晨|早上|上午|中午|下午|晚上)?\\s*[0-9]{1,2}[:：][0-9]{2}"
+    )
     private const val CODE = "()（）+=/\\;{}[]\"'`$&|"
     /** 去掉光标“|”和首尾空白；只剩一两个字的残渣当没读到 */
     fun clean(text: String?): String? {

@@ -33,8 +33,8 @@ class VoiceInputTitleTest {
     }
 
     @Test fun titleBoundaryIsFixedWhenKeyboardChangesAndOverlappingLineIsExcluded() {
-        val source = listOf(line("标题🌸", 350, 190, 650),
-            line("跨过标题栏边界", 100, 220, 600), input)
+        val source = listOf(line("标题🌸", 350, 150, 650),
+            line("跨过标题栏边界", 100, 180, 600), input)
         assertEquals("标题🌸", VoiceInputOcr.title(source, layout))
         assertEquals("标题🌸", VoiceInputOcr.title(source, layout.copy(imeTop = 900)))
         assertTrue(VoiceInputOcr.extract(source, layout)!!.context.isEmpty())
@@ -48,4 +48,38 @@ class VoiceInputTitleTest {
         assertEquals(listOf("历史输出"), result.context)
         assertEquals("执行命令", result.text)
     }
+    @Test fun centeredChatTimestampCannotReplaceContactName() {
+        val source = listOf(line("马正涛", 300, 100, 560),
+            line("8月20日 凌晨2:00", 300, 145, 700),
+            line("明天见", 60, 500, 450), input)
+        val result = VoiceInputOcr.extract(source, layout, "com.tencent.mm")!!
+        assertEquals("马正涛", result.title)
+        assertEquals(listOf("马正涛：明天见"), result.context)
+    }
+
+    @Test fun timestampsNeverBecomeNamesAndMissingNameStaysUnknown() {
+        for (text in listOf("8月20日 凌晨2:00", "昨天 18:30", "星期五 下午3:00", "2026年10月25日", "凌晨2:00")) {
+            assertNull(VoiceInputOcr.cleanTitle(text))
+        }
+        val result = VoiceInputOcr.extract(listOf(line("8月20日 凌晨2:00", 300, 145, 700),
+            line("明天见", 60, 500, 450), input), layout, "com.tencent.mm")!!
+        assertNull(result.title)
+        assertEquals(listOf("对方：明天见"), result.context)
+        assertEquals("夏天🌸", VoiceInputOcr.cleanTitle("夏天🌸"))
+    }
+
+    @Test fun measuredWechatTitleBandScalesAcrossResolutions() {
+        for (scale in listOf(1.0, 4.0 / 3.0, 0.5)) {
+            fun px(value: Int) = (value * scale).toInt()
+            val screen = OcrLayout(px(1080), px(2400), px(126), px(2332), px(1500))
+            val title = OcrLine("文件传输助手", px(399), px(168), px(670), px(212))
+            // 标题栏下面刚露出的聊天日期即使更居中，也不能参选。
+            val date = OcrLine("8月20日 凌晨2:00", px(300), px(270), px(780), px(305))
+            assertEquals("文件传输助手", VoiceInputOcr.title(listOf(date, title), screen))
+            assertTrue(VoiceInputOcr.titleBarBottom(screen) in px(254)..px(256))
+            assertEquals(VoiceInputOcr.titleBarBottom(screen),
+                VoiceInputOcr.titleBarBottom(screen.copy(imeTop = px(1000))))
+        }
+    }
+
 }

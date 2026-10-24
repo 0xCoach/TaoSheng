@@ -35,6 +35,7 @@ class AskTools(
             JSONObject().put("from", date).put("to", date)
         } else input
         val where = mutableListOf(s.getString("where")); val args = mutableListOf<Any>()
+        if (name == "list_items") where += "i.mergedInto IS NULL"
         for ((field, op) in listOf("from" to ">=", "to" to "<")) if (a.has(field) && !a.isNull(field)) {
             where += s.getString("time") + op + "?"; args += timestamp(a.getString(field), field == "to", zone)
         }

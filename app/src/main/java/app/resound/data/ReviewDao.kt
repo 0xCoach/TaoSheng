@@ -32,7 +32,7 @@ abstract class ReviewDao {
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND scene NOT IN ('媒体', '旁人') AND startAt > :start AND startAt <= :end ORDER BY startAt, id")
     abstract suspend fun events(start: Long, end: Long): List<MemoryEventEntity>
 
-    @Query("SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId WHERE e.deleted = 0 AND e.scene NOT IN ('媒体', '旁人') AND e.startAt > :start AND e.startAt <= :end ORDER BY i.createdAt, i.id")
+    @Query("SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId WHERE e.deleted = 0 AND i.mergedInto IS NULL AND e.scene NOT IN ('媒体', '旁人') AND e.startAt > :start AND e.startAt <= :end ORDER BY i.createdAt, i.id")
     abstract suspend fun items(start: Long, end: Long): List<MemoryItemEntity>
 
     @Transaction

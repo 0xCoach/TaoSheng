@@ -67,6 +67,7 @@ class EmbeddingWork(context: Context, params: WorkerParameters) : CoroutineWorke
                     if (!EmbeddingScheduler.powerAllowed(applicationContext)) return@withContext Result.retry()
                     store.save(document, embedder.model, embedder.embed(document.text))
                 }
+                IdeaMerger((applicationContext as ResoundApp).database).merge(embedder.model)
                 if (store.pending(embedder.model).isNotEmpty()) EmbeddingScheduler.enqueue(applicationContext, continuation = true)
                 Result.success()
             }

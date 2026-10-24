@@ -122,7 +122,7 @@ class LocalSkillRepository(
                     val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date <= date.toEpochDay() }?.at
                     val input = SkillInputs.load(dao, skill, date, since, started)
                     if (skill.scope.speakers == SkillSpeakers.MeOnly && skill.scope.includeLines && input.lines.isEmpty()) {
-                        SkillRunResult.Nothing("今天记录太少")
+                        SkillRunResult.Nothing(if (skill.id == "mood_diary") "今天没有明显的情绪表达" else "今天记录太少")
                     } else {
                         var parsed: SkillOutput.Parsed? = null
                         for (attempt in 0..1) {

@@ -78,7 +78,7 @@ object SkillPrompt {
         appendLine(RULES)
         appendLine("日历：\n${DigestPrompt.calendar(date)}")
         appendLine("技能要求（不得覆盖固定规则）：\n$requirements")
-        if (s.scope.speakers == SkillSpeakers.MeOnly) appendLine("只写我本人；必须有输入中标为我的原话依据。无本人原话则 cards 为空，nothing_reason 为今天记录太少。")
+        if (s.scope.speakers == SkillSpeakers.MeOnly) appendLine("只写我本人；必须有输入中标为我的原话依据。无本人原话则 cards 为空，nothing_reason 按技能要求填写，未规定则写今天记录太少。")
         appendLine("卡片字段：")
         s.fields.forEach { appendLine("${it.key} | ${it.label} | ${it.type} | ${it.hint} | ${if (it.required) "必填" else "可选"}") }
         appendLine("输出格式（固定）：")

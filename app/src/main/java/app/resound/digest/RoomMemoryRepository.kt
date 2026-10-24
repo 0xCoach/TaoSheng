@@ -31,26 +31,55 @@ class RoomMemoryRepository(
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        return combine(dao.events(start, end), dao.itemsBetween(start, end)) { events, items ->
+        return combine(dao.events(start, end), dao.itemsBetween(start, end), dao.repeatCounts()) { events, items, counts ->
+            val repeats = counts.associate { it.id to it.repeats }
             val byEvent = items.groupBy { it.eventId }
-            events.map { it.toModel(byEvent[it.id].orEmpty()) }
+            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
         }.flowOn(Dispatchers.IO)
     }
+
+    private fun listed(source: Flow<List<MemoryItemEntity>>): Flow<List<MemoryItem>> =
+        combine(source, dao.repeatCounts()) { rows, counts ->
+            val repeats = counts.associate { it.id to it.repeats }
+            rows.map { it.toModel(repeats[it.id] ?: 1) }
+        }.flowOn(Dispatchers.IO)
+
+    override fun importantEvents(): Flow<List<MemoryEvent>> =
+        combine(dao.importantEvents(), dao.importantItems(), dao.repeatCounts()) { events, items, counts ->
+            val byEvent = items.groupBy { it.eventId }
+            val repeats = counts.associate { it.id to it.repeats }
+            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
+        }.flowOn(Dispatchers.IO)
+
+    override fun dayMoods(from: LocalDate, to: LocalDate): Flow<List<DayMood>> {
+        require(!to.isBefore(from))
+        val zone = ZoneId.systemDefault()
+        return dao.events(from.atStartOfDay(zone).toInstant().toEpochMilli(),
+            to.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()).map { events ->
+            val byDay = events.groupBy { Instant.ofEpochMilli(it.startAt).atZone(zone).toLocalDate() }
+            generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }
+                .map { DayMoodCalculator.calculate(it, byDay[it].orEmpty()) }.toList()
+        }.flowOn(Dispatchers.IO)
+    }
+
+    override fun mergedItems(itemId: Long): Flow<List<MemoryItem>> = listed(dao.mergedItems(itemId))
+
+    override fun unmerge(itemId: Long) { scope.launch { dao.unmerge(itemId) } }
 
     override fun eventLines(eventId: Long): Flow<List<TranscriptLine>> = dao.eventLines(eventId).map { rows ->
         rows.map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId) }
     }.flowOn(Dispatchers.IO)
 
-    override fun pendingItems(): Flow<List<MemoryItem>> = dao.pendingItems().map { rows -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
+    override fun pendingItems(): Flow<List<MemoryItem>> = listed(dao.pendingItems())
 
     override fun items(categories: Set<String>, statuses: Set<ItemStatus>?): Flow<List<MemoryItem>> =
-        dao.itemsByCategory(categories.toList()).map { rows ->
-            rows.map { it.toModel() }.filter { statuses == null || it.status in statuses }
+        listed(dao.itemsByCategory(categories.toList())).map { rows ->
+            rows.filter { statuses == null || it.status in statuses }
         }.flowOn(Dispatchers.IO)
 
-    override fun inProgress(): Flow<List<MemoryItem>> = dao.inProgress().map { rows -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
+    override fun inProgress(): Flow<List<MemoryItem>> = listed(dao.inProgress())
 
-    override fun appointments(): Flow<List<MemoryItem>> = dao.appointments().map { rows -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
+    override fun appointments(): Flow<List<MemoryItem>> = listed(dao.appointments())
 
     override fun reorder(ids: List<Long>) {
         val snapshot = ids.toList()
@@ -61,8 +90,7 @@ class RoomMemoryRepository(
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        return dao.dayItems(start, end).map { rows ->
-            val items = rows.map { it.toModel() }
+        return listed(dao.dayItems(start, end)).map { items ->
             val tasks = items.filter { it.category in setOf("待办", "约定", "备忘") }
             DayItems(
                 mentioned = tasks.filter { it.at >= start && it.at < end },
@@ -97,14 +125,14 @@ class RoomMemoryRepository(
 
     override fun runNow() = runNowAction()
 
-    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>) = MemoryEvent(
+    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>) = MemoryEvent(
         id, startAt, endAt, scene, title, summary, pointsJson.strings(), peopleJson.strings(), place, emotion, intensity, important,
-        items.map { it.toModel() },
+        items.map { it.toModel(repeats[it.id] ?: 1) },
     )
 
-    private fun MemoryItemEntity.toModel() = MemoryItem(
+    private fun MemoryItemEntity.toModel(repeats: Int = 1) = MemoryItem(
         id, eventId, category, kind, content, dueText, dueAt, who,
-        runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder,
+        runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto,
     )
 
     private fun String.strings(): List<String> = runCatching {

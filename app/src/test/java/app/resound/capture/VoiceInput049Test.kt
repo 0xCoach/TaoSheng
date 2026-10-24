@@ -29,7 +29,7 @@ class VoiceInput049Test {
     @Test fun chatMergesMultilineInputAndExtractsTitleAndContext() {
         val result = VoiceInputOcr.extract(listOf(line("老王", 100), line("明天能交吗", 500, 1),
             line("第一行原话", 1080, 2), line("第二行原话", 1135, 2)), layout)!!
-        assertEquals("第一行原话\n第二行原话", result.text)
+        assertEquals("第一行原话第二行原话", result.text)
         assertEquals(listOf("明天能交吗"), result.context)
         assertEquals("老王", result.title)
     }
@@ -156,5 +156,22 @@ class VoiceInput049Test {
             val second = AndroidVoiceInputCapture(context, db, scope)
             assertFalse(second.settings.value.screenOcr); assertFalse(second.settings.value.replies)
         } finally { scope.cancel(); scope.coroutineContext[Job]!!.join(); db.close(); prefs.edit().clear().commit() }
+    }
+    @Test fun terminalTakesPromptLineNotStatusOrKeyRow() {
+        // 模拟终端：历史输出 → 提示符行（我正在输入的）→ 状态行 → 按键行 → 输入法
+        val source = listOf(line("历史输出一", 700), line("历史输出二", 760),
+            line("》合成的终端输入", 900, 5), line("状态 模型 合成 | 限额", 960, 6), line("auto mode On (shift+tab)", 1010, 7),
+            line("Ctrl+C Ctrl+V", 1120, 8))
+        val r = VoiceInputOcr.extract(source, layout)!!
+        assertEquals("合成的终端输入", r.text)
+        assertTrue("历史输出二" in r.context)
+    }
+    @Test fun keyRowsAreNeverTheUtterance() {
+        assertFalse(VoiceInputChrome.keep("Ctrl+C Ctrl+V")); assertFalse(VoiceInputChrome.keep("ESC TAB ↑ ↓"))
+        assertTrue(VoiceInputChrome.keep("帮我看下 ctrl 键的问题"))
+    }
+    @Test fun wrappedInputLinesJoinIntoOneSentence() {
+        assertEquals("是合成的一句话，折行了也接回来", VoiceInputOcr.joinLines(listOf("是合成的一句话，折行", "了也接回来")))
+        assertEquals("hello world", VoiceInputOcr.joinLines(listOf("hello", "world")))
     }
 }

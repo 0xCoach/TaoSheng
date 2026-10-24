@@ -10,7 +10,9 @@ internal object VoiceInputChrome {
     val send = setOf("发送", "Send", "send", "提交", "回车")
     val words = send + setOf("返回", "更多", "搜索", "取消", "确定", "语音输入", "按住说话", "切换到键盘", "表情", "Back", "More")
     private val time = Regex("[0-9]{1,2}[:：][0-9]{2}")
-    fun keep(text: String) = text.isNotBlank() && text.trim() !in words && !time.matches(text.trim())
+    // 终端键盘上方的按键行，如“Ctrl+C Ctrl+V”“ESC TAB ↑ ↓”：整行只有键名，不是原话
+    private val keys = Regex("(?i)^(\\s*(ctrl|alt|shift|esc|tab|fn|home|end|pgup|pgdn|del|enter|[↑↓←→]|[a-z])(\\s*\\+\\s*[a-z0-9]+)?\\s*)+$")
+    fun keep(text: String) = text.isNotBlank() && text.trim() !in words && !time.matches(text.trim()) && !keys.matches(text.trim())
 }
 
 internal object VoiceInputOcr {
@@ -22,6 +24,17 @@ internal object VoiceInputOcr {
         val lines = source.filter { it.left >= 0 && it.right <= layout.width && it.right > it.left &&
             it.top >= layout.contentTop && it.bottom <= bottom && it.bottom > it.top && VoiceInputChrome.keep(it.text) }
             .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left })
+        // 终端：输入法上方往往是状态行和按键行，你正在输入的是最后一个以提示符开头的那一行（> $ ❯ 等）
+        val prompt = lines.filter { it.top >= keyboard - layout.height * 2 / 5 && PROMPT.containsMatchIn(it.text.trim()) }.maxByOrNull { it.bottom }
+        if (prompt != null) {
+            val same = lines.filter { it.block == prompt.block && it.top >= prompt.top }.sortedBy { it.top }
+            val text = joinLines(same.map { it.text.trim() }).replaceFirst(PROMPT, "").trim()
+            if (text.isNotBlank()) {
+                val above = lines.filter { it.bottom <= prompt.top }
+                val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 }
+                return OcrInput(text.take(8000), above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
+            }
+        }
         val last = lines.maxByOrNull { it.bottom } ?: return null
         val lineHeight = last.bottom - last.top
         // 输入法上方必须确有文字，不能把远处的聊天气泡当作输入框。
@@ -39,8 +52,14 @@ internal object VoiceInputOcr {
         val inputTop = input.minOf { it.top }
         val above = lines.filter { it.bottom <= inputTop && it !in input }
         val titleLine = above.firstOrNull { it.bottom <= layout.contentTop + layout.height / 8 && it.text.trim().length <= 80 }
-        val text = input.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).joinToString("\n") { it.text.trim() }.take(8000)
+        val text = joinLines(input.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text.trim() }).take(8000)
         return OcrInput(text, above.filter { it !== titleLine }.map { it.text.trim() }.takeLast(20), titleLine?.text?.trim())
+    }
+
+    private val PROMPT = Regex("^[>》❯$#➜»›]+\\s*")
+    /** 输入框自动折行的几行接回一句：中文直接接上，英文之间补空格 */
+    fun joinLines(parts: List<String>) = parts.filter(String::isNotBlank).fold("") { acc, p ->
+        if (acc.isEmpty()) p else if (acc.last().isLetterOrDigit() && acc.last().code < 128 && p.first().isLetterOrDigit() && p.first().code < 128) "$acc $p" else acc + p
     }
 
     /** 聊天区最下面靠右的气泡：文字中心在宽度 55% 以右，取最靠下的一组相邻行 */

@@ -46,7 +46,7 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     val hot = if (app.resound.AppGraph.isHotwordsReady) app.resound.AppGraph.hotwords.let { it.words.value + it.automatic.value } else emptyList()
                                     // 繁转简，再按热词纠错
                                     val lines = raw.map { l -> l.copy(text = VoiceInputHotwords.correct(hans?.transliterate(l.text) ?: l.text, hot)) }
-                                    val bubble = VoiceInputOcr.lastRightBubble(lines, layout)
+                                    val bubble = if (pkg in VoiceInputOcr.CHAT) VoiceInputOcr.lastRightBubble(lines, layout) else null
                                     val input = VoiceInputOcr.extract(lines, layout, pkg)?.copy(bubble = bubble)
                                         ?: bubble?.let { OcrInput("", emptyList(), null, it) }
                                     dbg("识字完成：块数=${blocks.size} 输入框字数=${input?.text?.length ?: 0} 右侧气泡字数=${bubble?.length ?: 0}")

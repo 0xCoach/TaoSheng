@@ -165,7 +165,10 @@ internal class VoiceInputEngine(
     fun accepts(request: OcrRequest): Boolean = job?.let { it.token == request.token && !it.done[request.shot] } == true
     fun recognized(request: OcrRequest, result: OcrInput?) {
         val j = job?.takeIf { accepts(request) } ?: return
-        j.done[request.shot] = true; j.results[request.shot] = result
+        val accepted = if (j.screen.packageName in VoiceInputOcr.TERMINAL)
+            result?.takeIf { it.prompt && !VoiceInputOcr.terminalPlaceholder(it.text) }?.copy(bubble = null)
+        else result
+        j.done[request.shot] = true; j.results[request.shot] = accepted
         maybeFinish(j)
     }
     /** 三张都回来了，或已离开、剩下的不会再截且已发出的都回来了，就合成 */

@@ -14,7 +14,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
         val recent = dao.recent(record.at).mapNotNull { row ->
             VoiceInputMetadata.read(row.voiceInputJson)?.let { row to it }
         }.filter { it.second.packageName == record.meta.packageName }
-        // 原话只比较同应用上一条；上下文累计比较同聊天的已存行，避免第三段重新带回第一段。
+        // 原话只比较同应用上一条；上下文累计比较同聊天的已存上下文。
         if (recent.firstOrNull()?.first?.text?.let { VoiceInputDedup.key(it) == VoiceInputDedup.key(record.text) } == true)
             return@withTransaction null
         // 中间停顿被拆成两次语音输入时，后一次是“前一句 + 接着说的”：更新上一条，不另存
@@ -22,13 +22,15 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
             if (dao.extend(prev.id, record.text) > 0) return@withTransaction prev.id
         }
         val sameChat = recent.filter { VoiceInputDedup.title(it.second.title) == VoiceInputDedup.title(record.meta.title) }
-        // 上下文带“我：/对方：”前缀，比较时去掉前缀；我自己发过的话已是单独记录，不再进后面的上下文
-        val known = sameChat.flatMap { (row, meta) ->
-            meta.before.orEmpty().lines() + row.text.lines() + row.text
-        }.map(VoiceInputDedup::bare).filter(String::isNotEmpty).toSet()
+        // 只用此前保存的上下文去重；单独采集的语音原话不能充当“已存上下文”。
+        val known = sameChat.flatMap { (_, meta) -> meta.before.orEmpty().lines() }
+            .filter(String::isNotBlank).map(VoiceInputDedup::contextKey).toSet()
         val before = VoiceInputText.context(record.meta.before.orEmpty().lines().filter { line ->
-            val k = VoiceInputDedup.bare(line)
-            k !in known && known.none { it.length >= 6 && VoiceInputDedup.sameAs(it, k) }
+            val (speaker, text) = VoiceInputDedup.contextKey(line)
+            known.none { (oldSpeaker, oldText) ->
+                speaker == oldSpeaker && (text == oldText ||
+                    (oldText.length >= 6 && VoiceInputDedup.sameAs(oldText, text)))
+            }
         })
         val meta = record.meta.copy(before = before, after = null)
         val segment = dao.segment(SegmentEntity(startAt = record.at, endAt = record.at + 1,
@@ -51,8 +53,12 @@ internal object VoiceInputDedup {
     fun key(text: String) = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKC)
         .trim().replace(Regex("\\s+"), " ")
     fun title(text: String?) = text?.let(::key)?.ifBlank { null }
-    /** 去掉“我：/对方：”前缀后的比较键 */
-    fun bare(line: String) = key(line.trim().removePrefix("我：").removePrefix("对方：").replaceFirst(Regex("^[^：]{1,20}：(?=.)"), ""))
+    /** 说话人与正文分开比较，双方说相同内容不互相去重；旧的无前缀记录保持独立。 */
+    fun contextKey(line: String): Pair<String, String> {
+        val split = line.indexOf('：')
+        return if (split in 1..80) key(line.substring(0, split)) to key(line.substring(split + 1))
+        else "" to key(line)
+    }
     /** 两段是不是同一句（识字误差内）：按顺序对得上的字占较长一段的 85% 以上 */
     fun sameAs(a: String, b: String): Boolean {
         val x = VoiceInputText.normalized(a); val y = VoiceInputText.normalized(b)

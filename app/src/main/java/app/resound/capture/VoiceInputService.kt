@@ -105,7 +105,7 @@ class VoiceInputService : AccessibilityService() {
                 val editable = focus?.takeIf { it.isEditable && it.isVisibleToUser }
                 val field = editable?.let { "${it.windowId}:${it.viewIdResourceName}:${it.hashCode()}" }
                 val text = editable?.text?.toString()?.take(8000)
-                val lines = mutableListOf<String>()
+                val lines = mutableListOf<OcrLine>()
                 val titleCandidates = mutableListOf<OcrLine>()
                 var visited = 0
                 val rootBounds = Rect(); root.getBoundsInScreen(rootBounds)
@@ -121,7 +121,10 @@ class VoiceInputService : AccessibilityService() {
                         if (rect.top < VoiceInputOcr.titleBarBottom(titleLayout)) {
                             titleCandidates.add(OcrLine(value, rect.left - rootBounds.left, rect.top,
                                 rect.right - rootBounds.left, rect.bottom))
-                        } else if (!node.isClickable || value.length > 12) lines.add(value)
+                        } else if (pkg in VoiceInputOcr.CHAT || !node.isClickable || value.length > 12) {
+                            lines.add(OcrLine(value, rect.left - rootBounds.left, rect.top,
+                                rect.right - rootBounds.left, rect.bottom, visited))
+                        }
                     }
                     for (i in 0 until node.childCount) node.getChild(i)?.let { child ->
                         try { walk(child, depth + 1) } finally { recycle(child) }
@@ -138,7 +141,11 @@ class VoiceInputService : AccessibilityService() {
                         if (!node.isPassword && !node.isEditable) send = node.text?.toString() in VoiceInputChrome.send || node.contentDescription?.toString() in VoiceInputChrome.send
                     } finally { recycle(node) } }
                 }
-                return InputScreen(pkg, label, page, VoiceInputOcr.title(titleCandidates, titleLayout), field, text, lines = lines.takeLast(20), send = send)
+                val title = VoiceInputOcr.title(titleCandidates, titleLayout)
+                val context = if (pkg in VoiceInputOcr.CHAT)
+                    VoiceInputOcr.chatContext(lines, titleLayout.width, pkg, title)
+                else lines.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text }
+                return InputScreen(pkg, label, page, title, field, text, lines = context.takeLast(20), send = send)
             } finally { focus?.let(::recycle) }
         } finally { recycle(root) }
     }

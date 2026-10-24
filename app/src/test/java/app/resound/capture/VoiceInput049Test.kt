@@ -115,7 +115,7 @@ class VoiceInput049Test {
         InputRecord("$at-$text", at, text, VoiceInputMeta("聊天", pkg, title, before, "不应存的回复"), 999999L)
     private fun database() = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java)
         .allowMainThreadQueries().build()
-    @Test fun threeDictationsOnlyStoreNewContextAndNeverOwnPreviousWords() = runBlocking {
+    @Test fun threeDictationsDedupOnlyPreviouslyStoredContext() = runBlocking {
         val db = database()
         try {
             val store = VoiceInputStore(db)
@@ -125,7 +125,7 @@ class VoiceInput049Test {
             store.save(record(400, "我的第四句", "旧上下文\n新增甲\n新增乙"))
             assertNull(store.save(record(500, "  我的第四句  ", "别的上下文")))
             val rows = db.voiceInput().observed().first().reversed()
-            assertEquals(listOf("旧上下文", "新增甲", "新增乙", null), rows.map { VoiceInputMetadata.read(it.voiceInputJson)!!.before })
+            assertEquals(listOf("旧上下文", "我的第一句\n新增甲", "我的第二句\n新增乙", null), rows.map { VoiceInputMetadata.read(it.voiceInputJson)!!.before })
             assertTrue(rows.all { VoiceInputMetadata.read(it.voiceInputJson)!!.after == null && it.voiceInputPendingUntil == null })
         } finally { db.close() }
     }
@@ -204,15 +204,18 @@ class VoiceInput049Test {
         assertNull(VoiceInputOcr.clean("(の|")); assertEquals("合成一句", VoiceInputOcr.clean("合成一句|"))
         assertFalse(VoiceInputOcr.looksLikeTitle("<1344")); assertFalse(VoiceInputOcr.looksLikeTitle("+putOcr.looksLike(\"く\")"))
     }
-    @Test fun ownEarlierMessagesNeverReappearInLaterContext() = runBlocking {
+    @Test fun ownEarlierUtteranceCanEnterContextOnce() = runBlocking {
         val db = database()
         try {
             val store = VoiceInputStore(db)
             store.save(record(1000, "我发的第一段合成话", "对方：你好呀合成"))
-            // 第二段的上下文里出现了“我：我发的第一段合成话”（识字差一个字），不再存
+            // 已存为原话不代表已存为上下文：第一次出现必须保留，以后重复才去掉。
             store.save(record(9000, "我发的第二段合成话", "对方：你好呀合成\n我：我发的第一段合成活\n对方：新的回复合成"))
+            store.save(record(20000, "下一句完全不同的内容", "对方：你好呀合成\n我：我发的第一段合成话\n对方：新的回复合成\n我：我发的第二段合成话\n对方：接下来的回复"))
             val rows = db.voiceInput().observed().first().reversed()
-            assertEquals(listOf("对方：你好呀合成", "对方：新的回复合成"), rows.map { VoiceInputMetadata.read(it.voiceInputJson)!!.before })
+            assertEquals(listOf("对方：你好呀合成", "我：我发的第一段合成活\n对方：新的回复合成",
+                "我：我发的第二段合成话\n对方：接下来的回复"),
+                rows.map { VoiceInputMetadata.read(it.voiceInputJson)!!.before })
         } finally { db.close() }
     }
     @Test fun sidesByEdgeDistanceAndStrictTerminal() {
@@ -252,4 +255,17 @@ class VoiceInput049Test {
         val group = VoiceInputOcr.extract(chat("周五团建(12)"), layout, "com.tencent.mm")!!
         assertEquals(listOf("对方：报告明天能交吗合成", "我：好的合成"), group.context)
     }
+    @Test fun sameTextFromDifferentSpeakersIsNotDuplicateContext() = runBlocking {
+        val db = database()
+        try {
+            val store = VoiceInputStore(db)
+            store.save(record(1000, "第一句合成输入", "对方：明天见"))
+            store.save(record(9000, "第二段新的内容", "对方：明天见\n我：明天见"))
+            store.save(record(20000, "最后一段测试", "对方：明天见\n我：明天见\n对方：到时联系"))
+            val contexts = db.voiceInput().observed().first().reversed()
+                .map { VoiceInputMetadata.read(it.voiceInputJson)!!.before }
+            assertEquals(listOf("对方：明天见", "我：明天见", "对方：到时联系"), contexts)
+        } finally { db.close() }
+    }
+
 }

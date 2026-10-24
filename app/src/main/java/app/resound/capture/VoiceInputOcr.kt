@@ -24,8 +24,8 @@ internal object VoiceInputChrome {
 internal object VoiceInputOcr {
     /** 按应用类型：聊天类上下文标“我 / 对方”，终端不取标题 */
     fun extract(source: List<OcrLine>, layout: OcrLayout, pkg: String): OcrInput? {
-        val r = extract(source, layout) ?: return null
-        if (pkg in TERMINAL && !r.prompt) return null // 终端只认提示符那一行，找不到宁可不记
+        val r = extract(source, layout, pkg in TERMINAL) ?: return null
+        if (pkg in TERMINAL && (!r.prompt || terminalPlaceholder(r.text))) return null // 不记录空框占位提示
         if (pkg !in CHAT) return r.copy(title = r.title?.takeIf { pkg in TITLED })
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
         val inputTop = source.filter { VoiceInputChrome.keep(it.text) && joinLines(listOf(it.text.trim())).let { t -> r.text.contains(t) } && it.bottom <= keyboard }
@@ -33,12 +33,17 @@ internal object VoiceInputOcr {
         val above = source.filter { it.top >= titleBarBottom(layout) && it.bottom <= inputTop && VoiceInputChrome.keep(it.text) }
             .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left })
         val title = r.title?.takeIf { pkg in TITLED }
-        // 微信单聊：标题就是对方的名字，上下文里的“对方”换成名字；群聊（标题后带人数）分不清谁说的，仍标“对方”
-        val name = title?.takeIf { !GROUP.containsMatchIn(it) }
-        val context = sided(above, layout.width, pkg).map { if (name != null && it.startsWith("对方：")) name + it.removePrefix("对方") else it }
-        return r.copy(context = context.takeLast(20), title = title)
+        return r.copy(context = chatContext(above, layout.width, pkg, title).takeLast(20), title = title)
     }
-    fun extract(source: List<OcrLine>, layout: OcrLayout): OcrInput? {
+
+    /** 可见聊天按屏幕从上到下排列；单聊用联系人名，群聊仍保留“对方”。 */
+    fun chatContext(lines: List<OcrLine>, width: Int, pkg: String, title: String?): List<String> {
+        val name = title?.takeIf { pkg in TITLED && !GROUP.containsMatchIn(it) }
+        return sided(lines.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }), width, pkg)
+            .map { if (name != null && it.startsWith("对方：")) name + it.removePrefix("对方") else it }
+    }
+
+    fun extract(source: List<OcrLine>, layout: OcrLayout, rejectTerminalPlaceholder: Boolean = false): OcrInput? {
         if (layout.width <= 0 || layout.height <= 0) return null
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height }
             ?: (layout.height * .6).toInt()
@@ -49,6 +54,7 @@ internal object VoiceInputOcr {
         // 终端：输入法上方往往是状态行和按键行，你正在输入的是最后一个以提示符开头的那一行（> $ ❯ 等）
         val prompt = lines.filter { it.top >= keyboard - layout.height * 2 / 5 && PROMPT.containsMatchIn(it.text.trim()) }.maxByOrNull { it.bottom }
         if (prompt != null) {
+            if (rejectTerminalPlaceholder && terminalPlaceholder(prompt.text.trim().replaceFirst(PROMPT, ""))) return null
             val same = lines.filter { it.block == prompt.block && it.top >= prompt.top }.sortedBy { it.top }
             val text = joinLines(same.map { it.text.trim() }).replaceFirst(PROMPT, "").trim()
             if (text.isNotBlank()) {
@@ -123,17 +129,26 @@ internal object VoiceInputOcr {
     val TITLED = setOf("com.tencent.mm")
     /** 群聊标题后面带人数，如“周五团建(12)” */
     val GROUP = Regex("[(（][0-9]+[)）]\\s*$")
-    /** 上下文按左右标上谁说的，同一侧相邻的几行合成一条 */
+    /** 同一文字块内紧邻的折行才合并；同一人连续发送的不同气泡各占一行。 */
     fun sided(lines: List<OcrLine>, width: Int, pkg: String? = null): List<String> {
         val out = mutableListOf<Pair<String, String>>()
+        var previous: OcrLine? = null
         for (l in lines) {
             val who = side(l, width, pkg)
             val last = out.lastOrNull()
-            if (last != null && last.first == who && who.isNotEmpty()) out[out.lastIndex] = who to joinLines(listOf(last.second, l.text.trim()))
+            val prev = previous
+            val wrapped = prev != null && prev.block == l.block &&
+                l.top - prev.bottom in 0..(maxOf(prev.bottom - prev.top, l.bottom - l.top) * .65).toInt()
+            if (last != null && last.first == who && who.isNotEmpty() && wrapped) out[out.lastIndex] = who to joinLines(listOf(last.second, l.text.trim()))
             else out += who to l.text.trim()
+            previous = l
         }
         return out.map { (w, t) -> if (w.isEmpty()) t else "$w：$t" }
     }
+    /** Codex 空输入框占位符，不是用户输入；仅匹配整句，保留包含此词的真实指令。 */
+    fun terminalPlaceholder(text: String): Boolean =
+        CODEX_PLACEHOLDER.matches(text.trim().trimEnd('|', '｜', '丨').trim())
+    private val CODEX_PLACEHOLDER = Regex("(?i)^ask\\s+codex[.。…?？\\s]*$")
     private val PROMPT = Regex("^[>》❯$#➜»›＞]+\\s*")
     /** 输入框自动折行的几行接回一句：中文直接接上，英文之间补空格 */
     fun joinLines(parts: List<String>) = parts.filter(String::isNotBlank).fold("") { acc, p ->

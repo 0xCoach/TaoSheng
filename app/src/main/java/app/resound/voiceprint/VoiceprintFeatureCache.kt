@@ -22,6 +22,9 @@ internal class VoiceprintFeatureCache(private val directory: File?) {
             .joinToString("") { "%02x".format(it) }
     }
 
+    fun windowKey(segment: SegmentEntity, lines: List<TranscriptLineEntity>, window: WindowedVoiceprint.Window): String =
+        "w2-${key(segment, lines)}-${window.start}-${window.end}"
+
     fun read(key: String): Feature? {
         if (directory == null) return memory[key]
         return try {

@@ -43,6 +43,7 @@ internal class WebDavClient(
         if (response.isSuccessful) return response
         val code = response.code
         response.close()
+        android.util.Log.w("ResoundBackup", "坚果云拒绝: $method ${target.pathSegments.takeLast(2).joinToString("/")} → HTTP $code")
         throw when (code) {
             401, 403 -> BackupFailure("账号或应用密码不对")
             507 -> BackupFailure("坚果云空间不足")
@@ -187,7 +188,14 @@ internal class WebDavClient(
                 destination.pathSegments.last() + ".${UUID.randomUUID()}.part").build()
             try {
                 request("PUT", temporary, source.asRequestBody()).close()
-                request("MOVE", temporary, headers = mapOf("Destination" to destination.toString(), "Overwrite" to "T")).close()
+                try {
+                    request("MOVE", temporary, headers = mapOf("Destination" to destination.toString(), "Overwrite" to "T")).close()
+                } catch (e: BackupFailure) {
+                    // 坚果云不允许 MOVE 覆盖已存在的文件（返回 409）：先删旧的再移。旧内容覆盖前已按指纹留了 .previous 副本，中途失败也能恢复
+                    if (!exists(path)) throw e
+                    request("DELETE", destination).close()
+                    request("MOVE", temporary, headers = mapOf("Destination" to destination.toString(), "Overwrite" to "F")).close()
+                }
             } finally { runCatching { request("DELETE", temporary).close() } }
         }
         override fun delete(path: String) { missing { request("DELETE", target(path)).close() } }

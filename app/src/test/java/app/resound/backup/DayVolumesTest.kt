@@ -85,7 +85,8 @@ class DayVolumesTest {
         assertTrue(feature.exists())
         File(remote, "resound-state.zip").delete(); writes.clear(); sync()
         assertEquals(2, writes.count { it.startsWith("days/") }); assertEquals(2, state().summary().days)
-        assertFalse(writes.any { it.startsWith("features/") })
+        // 声纹特征按天打包（坚果云限流），清单丢失时和日分卷一样重传，只有一个包
+        assertEquals(1, writes.count { it.startsWith("features/resound-features-") })
     }
     @Test fun interruptionAfterOverwriteKeepsOldManifestRestorableAndRetryCommits() {
         add(1, "2026-10-21", "before"); add(2, "2026-10-24"); sync(); sync() // 已有上一轮清理记录

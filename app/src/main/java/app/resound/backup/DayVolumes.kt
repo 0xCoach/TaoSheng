@@ -153,27 +153,28 @@ internal object DayVolumes {
             publish(path, archive, prior)
             days.put(fileInfo(archive, path).put("date", date).put("fingerprint", fingerprint).put("schema", version))
         }
+        // 声纹特征文件按“生成那天”打成每天一个包：坚果云对请求次数有限制，几百个小文件逐个传会被限流（503）
         val featureRoot = File(context.applicationInfo.dataDir, BackupArchive.FEATURES)
-        val oldFeatures = old?.let { entries(it.manifest.getJSONArray("features")).associateBy { f -> f.getString("path") } }.orEmpty()
-        val sent = mutableMapOf<String, JSONObject>()
-        featureRoot.listFiles().orEmpty().filter { it.isFile && BackupArchive.allowed(BackupArchive.FEATURES + it.name) }.sortedBy { it.name }.forEach { file ->
-            val hash = BackupArchive.sha(file); val path = "features/$hash.bin$suffix"
-            val info = sent.getOrPut(path) {
-                val prior = oldFeatures[path]
-                val existing = File(work, "feature-existing-$hash")
-                val reusable = if (prior != null && store.exists(path)) prior else if (store.read(path, existing)) {
-                    val matches = runCatching { BackupArchive.sha(plaintext(existing, work, passphrase, null)) == hash }.getOrDefault(false)
-                    if (matches) fileInfo(existing, path).put("fingerprint", hash) else null
-                } else null
-                reusable ?: run {
-                    val copy = file.copyTo(File(work, "feature-$hash"), true)
-                    val archive = BackupEncryption.prepare(copy, passphrase)
-                    publish(path, archive, prior)
-                    fileInfo(archive, path).put("fingerprint", hash)
+        val oldFeatures = old?.let { entries(it.manifest.getJSONArray("features")).associateBy { f -> f.optString("date") } }.orEmpty()
+        featureRoot.listFiles().orEmpty().filter { it.isFile && BackupArchive.allowed(BackupArchive.FEATURES + it.name) }
+            .groupBy { java.time.Instant.ofEpochMilli(it.lastModified()).atZone(DayVolumeRows.zone).toLocalDate().toString() }
+            .toSortedMap().forEach { (date, files) ->
+                val list = files.sortedBy { it.name }.map { it.name to BackupArchive.sha(it) }
+                val fingerprint = BackupArchive.sha(File(work, "features-$date.txt").apply {
+                    writeText(list.joinToString("\n") { (n, h) -> "$n $h" }) })
+                val path = "features/resound-features-$date.zip$suffix"
+                val prior = oldFeatures[date]
+                val listing = JSONArray(list.map { (n, h) -> JSONObject().put("name", n).put("sha256", h) })
+                if (prior != null && old!!.encrypted == encrypted && prior.getString("fingerprint") == fingerprint && store.exists(path)) {
+                    features.put(prior); return@forEach
                 }
+                val dir = File(work, "features-$date").apply { mkdirs() }
+                files.forEach { it.copyTo(File(dir, it.name), true) }
+                val zip = File(work, "features-$date.zip"); zip(dir, zip)
+                val archive = BackupEncryption.prepare(zip, passphrase)
+                publish(path, archive, prior)
+                features.put(fileInfo(archive, path).put("date", date).put("fingerprint", fingerprint).put("files", listing))
             }
-            features.put(JSONObject(info.toString()).put("name", file.name))
-        }
         val startedAt = old?.manifest?.getLong("startedAt") ?: at
         val currentPaths = entries(days).map { it.getString("path") }.toSet()
         val featurePaths = entries(features).map { it.getString("path") }.toSet()
@@ -222,10 +223,15 @@ internal object DayVolumes {
         }
         check(verified.mkdirs())
         entries(manifest.getJSONArray("features")).forEach { item ->
-            val name = item.getString("name"); require(BackupArchive.allowed(BackupArchive.FEATURES + name))
-            val file = plaintext(fetch(store, item, work), work, stored, supplied)
-            require(BackupArchive.sha(file) == item.getString("fingerprint"))
-            file.copyTo(File(verified, BackupArchive.FEATURES + name).apply { parentFile!!.mkdirs() })
+            val dir = File(work, "features-${UUID.randomUUID()}")
+            val listing = entries(item.getJSONArray("files"))
+            val names = listing.map { it.getString("name") }.toSet()
+            unzip(plaintext(fetch(store, item, work), work, stored, supplied), dir) { it in names }
+            listing.forEach { f ->
+                val name = f.getString("name"); require(BackupArchive.allowed(BackupArchive.FEATURES + name))
+                val file = File(dir, name); require(BackupArchive.sha(file) == f.getString("sha256"))
+                file.copyTo(File(verified, BackupArchive.FEATURES + name).apply { parentFile!!.mkdirs() })
+            }
         }
         DayVolumeRows.rebuild(context, File(verified, BackupArchive.DATABASE), manifest.getInt("schema"), File(state.directory, "rows.jsonl"), rowFiles)
         state.directory.walkTopDown().filter { it.isFile && it.name !in setOf("manifest.json", "rows.jsonl") }.forEach {

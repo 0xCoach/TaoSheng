@@ -29,13 +29,15 @@ internal class BackupScheduler(private val context: Context) {
             timeInMillis = now; set(Calendar.HOUR_OF_DAY, 3); set(Calendar.MINUTE, 10); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             if (timeInMillis <= now) add(Calendar.DAY_OF_YEAR, 1)
         }
-        manager.enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.KEEP,
+        // 负责人定（10-24）：不等充电、WiFi、空闲，到点就备份；云端有网就传（手机流量也行），本机不需要网络。
+        // UPDATE：已排好的任务也换成新条件（KEEP 会沿用旧的“充电 + 空闲 + WiFi”）。
+        manager.enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.UPDATE,
             PeriodicWorkRequestBuilder<BackupWork>(1, TimeUnit.DAYS)
                 .setInitialDelay(next.timeInMillis - now, TimeUnit.MILLISECONDS)
                 .setInputData(workDataOf("periodic" to true, "local" to local))
-                .setConstraints(Constraints.Builder().setRequiresCharging(true).setRequiresDeviceIdle(true)
-                    .setRequiredNetworkType(if (local) NetworkType.NOT_REQUIRED else NetworkType.UNMETERED).build())
-                // requiresDeviceIdle 与显式 backoff 在 WorkManager 中不兼容；使用默认指数退避。
+                .setConstraints(Constraints.Builder()
+                    .setRequiredNetworkType(if (local) NetworkType.NOT_REQUIRED else NetworkType.CONNECTED).build())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
                 .build())
     }
     fun runNow() {

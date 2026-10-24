@@ -15,6 +15,7 @@ internal interface VolumeStore {
 internal fun volumePath(path: String): Boolean = path in setOf("resound-state.zip", "resound-state.zip.enc") ||
     path.matches(Regex("days/resound-day-\\d{4}-\\d{2}-\\d{2}[.]zip([.]enc)?")) ||
     path.matches(Regex("features/[a-f0-9]{64}[.]bin([.]enc)?")) ||
+    path.matches(Regex("features/resound-features-\\d{4}-\\d{2}-\\d{2}[.]zip([.]enc)?")) ||
     path.matches(Regex("(days|features)/[.]previous-[a-f0-9]{64}[.](zip|bin)([.]enc)?"))
 
 internal fun previousPath(path: String, hash: String): String {

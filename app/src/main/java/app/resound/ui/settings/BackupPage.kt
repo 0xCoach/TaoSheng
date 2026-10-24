@@ -72,7 +72,11 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
     var settingPass by remember { mutableStateOf(false) }
     var restoring by remember { mutableStateOf<app.resound.backup.RemoteBackup?>(null) }
     var remote by remember { mutableStateOf<Result<List<app.resound.backup.RemoteBackup>>?>(null) }
-    androidx.compose.runtime.LaunchedEffect(configured, s.lastBackupAt) { if (configured) remote = repo.remoteBackups() }
+    var cloud by remember { mutableStateOf<app.resound.backup.BackupSummary?>(null) }
+    var restoringAll by remember { mutableStateOf<String?>(null) } // "cloud" / "local"
+    androidx.compose.runtime.LaunchedEffect(configured, s.lastBackupAt) {
+        if (configured) { remote = repo.remoteBackups(); cloud = repo.cloudSummary().getOrNull() }
+    }
     val local by repo.local.collectAsState()
     // 默认打开正在用的那一边；都没用时先看本机（不用注册账号就能用）
     var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(if (configured && local.folder == null) 1 else 0) }
@@ -82,7 +86,7 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         app.resound.ui.skills.Segments(listOf("本机", "坚果云"), tab) { tab = it }
-        if (tab == 0) LocalBackupSection(repo, local) { restoring = it }
+        if (tab == 0) LocalBackupSection(repo, local, { restoringAll = "local" }) { restoring = it }
         else {
         // 状态
         RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
@@ -102,11 +106,7 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                s.lastError ?: listOfNotNull(
-                    s.lastBackupAt?.let { "上次 ${dateTime(it)}" },
-                    s.lastBackupBytes?.let { formatBytes(it) },
-                    s.remoteCount?.let { "云端 $it 份" },
-                ).joinToString(" · ").ifEmpty { "每晚充电且连着 WiFi 时自动备份，云端保留最近 ${s.keep} 天的恢复点。录音音频不备份。" },
+                s.lastError ?: summaryLine(cloud, s.lastBackupAt).ifEmpty { "每天凌晨自动备份：记录、设置、密钥和账号全都备份，每晚只传有变化的那几天。录音音频不备份。" },
                 style = RsType.subhead,
                 color = if (s.lastError != null) c.critical else c.textSecondary,
             )
@@ -162,43 +162,17 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("每晚自动备份", style = RsType.body, color = c.text)
-                    Text("充电、连着 WiFi、手机空闲时进行", style = RsType.caption, color = c.textSecondary)
+                    Text("每天凌晨 3 点左右，有网就传，手机流量也行", style = RsType.caption, color = c.textSecondary)
                 }
                 Toggle(s.enabled) { repo.setEnabled(it) }
             }
-            if (configured) {
-                Spacer(Modifier.height(14.dp))
-                Text("保留最近", style = RsType.body, color = c.text)
-                Text("每晚一个恢复点。每周传一份完整的，其余几天只传变化的部分，省流量", style = RsType.caption, color = c.textSecondary)
-                Spacer(Modifier.height(10.dp))
-                val options = listOf(3, 7, 30)
-                app.resound.ui.skills.Segments(options.map { "$it 天" }, options.indexOf(s.keep).coerceAtLeast(1)) { repo.setKeep(options[it]) }
-            }
+
         }
 
-        // 云端备份与恢复
+        // 云端恢复：新格式一键恢复全部；旧格式备份收在下面
         if (configured) {
-            Text("云端备份", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
-            RsCard(padding = PaddingValues(vertical = 4.dp)) {
-                val list = remote
-                when {
-                    list == null -> Text("正在读取…", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(16.dp))
-                    list.isFailure -> Text(list.exceptionOrNull()?.message ?: "读取失败", style = RsType.subhead, color = c.critical, modifier = Modifier.padding(16.dp))
-                    list.getOrThrow().isEmpty() -> Text("云端还没有备份", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(16.dp))
-                    else -> list.getOrThrow().forEachIndexed { i, b ->
-                        Row(Modifier.fillMaxWidth().springClick { restoring = b }.padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(dateTime(b.at), style = RsType.body, color = c.text)
-                                Text(backupLine(b), style = RsType.caption, color = c.textTertiary)
-                            }
-                            Text("恢复 ›", style = RsType.subhead, color = c.accent)
-                        }
-                        if (i != list.getOrThrow().lastIndex) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
-                    }
-                }
-            }
-            Text("恢复“增量”时会自动连同它那份完整备份一起取回。旧的“回响备份”文件夹里的不会自动删。恢复会替换手机上的全部记录，替换前会先在本机留一份快照。", style = RsType.caption, color = c.textTertiary,
-                modifier = Modifier.padding(horizontal = 4.dp))
+            if (cloud != null) ActionRow("从云端恢复全部", "记录、设置、密钥和账号全部还原", "恢复") { restoringAll = "cloud" }
+            LegacyList(remote) { restoring = it }
         }
         }
 
@@ -207,14 +181,19 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("备份加密", style = RsType.body, color = c.text)
-                    Text(if (s.encrypted) "已开启：之后的备份（本机和坚果云）都用你的口令加密" else "默认不加密。开启后口令只存在手机里，忘了就无法恢复",
-                        style = RsType.caption, color = c.textSecondary)
+                    Text(if (s.encrypted) "已开启：之后的备份（本机和坚果云）都用你的口令加密" else "备份里有你的密钥和账号，建议开启。口令只存在手机里，忘了就无法恢复",
+                        style = RsType.caption, color = if (s.encrypted) c.textSecondary else c.warning)
                 }
                 Toggle(s.encrypted) { on -> if (on) settingPass = true else repo.setEncryption(null) }
             }
         }
     }
     if (settingPass) PassphraseSheet { pass -> if (pass != null) repo.setEncryption(pass); settingPass = false }
+    restoringAll?.let { from ->
+        RestoreSheet(app.resound.backup.RemoteBackup("all", System.currentTimeMillis(), 0, s.encrypted),
+            { pass -> if (from == "cloud") repo.restoreAllFromCloud(pass) else repo.restoreAllFromLocal(pass) },
+            title = if (from == "cloud") "从云端恢复全部" else "从本机文件夹恢复全部") { restoringAll = null }
+    }
     restoring?.let { b -> RestoreSheet(b, { pass -> if (b.name.startsWith(LOCAL_TAG)) repo.restoreLocal(b.name.removePrefix(LOCAL_TAG), pass) else repo.restore(b.name, pass) }) { restoring = null } }
 }
 
@@ -276,7 +255,7 @@ private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (S
     var busy by remember { mutableStateOf(false) }
     var pass by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    app.resound.ui.verify.RsSheet(title ?: "恢复到 ${dateTime(b.at)}", "用这份备份替换手机上的全部记录。替换前会先在本机留一份快照。恢复后 App 会自动重启，转写、整理和推送的密钥需要重新填写。",
+    app.resound.ui.verify.RsSheet(title ?: "恢复到 ${dateTime(b.at)}", "用备份替换手机上的全部记录，设置、密钥和账号也一起还原（备份里没有的保留手机上现在的）。替换前会先在本机留一份快照，恢复后 App 会自动重启。",
         onDismiss = { if (!busy) onDismiss() }) {
         if (b.encrypted) Field(pass, "备份口令（本机记得的话可以不填）", KeyboardType.Password, secret = true) { pass = it }
         error?.let { Text(it, style = RsType.subhead, color = c.critical) }
@@ -294,6 +273,35 @@ private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (S
     }
 }
 
+
+/** 概况一句话：共几天 · 合计多大 · 上次几点、传了多少 */
+private fun summaryLine(sum: app.resound.backup.BackupSummary?, lastAt: Long?): String = listOfNotNull(
+    sum?.let { "共 ${it.days} 天的记录" }, sum?.let { "合计 ${formatBytes(it.bytes)}" },
+    (sum?.lastAt ?: lastAt)?.let { "上次 ${dateTime(it)}" }, sum?.lastUploadBytes?.let { "传了 ${formatBytes(it)}" },
+).joinToString(" · ")
+
+/** 旧格式备份（卡 037 之前的完整 / 增量包）：默认收起，仍可恢复 */
+@Composable
+private fun LegacyList(list: Result<List<app.resound.backup.RemoteBackup>>?, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
+    val c = Rs.colors
+    val items = list?.getOrNull().orEmpty()
+    if (items.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    Text("旧格式备份 · ${items.size} 份 ${if (open) "▾" else "▸"}", style = RsType.section, color = c.textSecondary,
+        modifier = Modifier.springClick { open = !open }.padding(start = 4.dp, top = 4.dp))
+    if (open) RsCard(padding = PaddingValues(vertical = 4.dp)) {
+        items.forEachIndexed { i, b ->
+            Row(Modifier.fillMaxWidth().springClick { onRestore(b) }.padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(dateTime(b.at), style = RsType.body, color = c.text)
+                    Text(backupLine(b), style = RsType.caption, color = c.textTertiary)
+                }
+                Text("恢复 ›", style = RsType.subhead, color = c.accent)
+            }
+            if (i != items.lastIndex) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+        }
+    }
+}
 
 /** 列表里每份备份的第二行：完整 / 增量 · 大小 · 是否加密 */
 private fun backupLine(b: app.resound.backup.RemoteBackup) =
@@ -323,13 +331,16 @@ private const val LOCAL_TAG = "local:"
 
 /** 本机备份：选文件夹、每晚自动、只留最新几份、立即备份、导出一份、从文件恢复 */
 @Composable
-private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.LocalBackupState, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
+private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.LocalBackupState, onRestoreAll: () -> Unit, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     var list by remember { mutableStateOf<Result<List<app.resound.backup.RemoteBackup>>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
     var fileRestore by remember { mutableStateOf<android.net.Uri?>(null) }
-    androidx.compose.runtime.LaunchedEffect(l.folder, l.lastAt, l.count) { if (l.folder != null) list = repo.localBackups() }
+    var summary by remember { mutableStateOf<app.resound.backup.BackupSummary?>(null) }
+    androidx.compose.runtime.LaunchedEffect(l.folder, l.lastAt, l.count) {
+        if (l.folder != null) { list = repo.localBackups(); summary = repo.localSummary().getOrNull() }
+    }
     val pickFolder = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let { repo.setLocalFolder(it) }
     }
@@ -354,9 +365,7 @@ private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.Loc
             }, style = RsType.headline, color = c.text)
         }
         Spacer(Modifier.height(6.dp))
-        Text(l.lastError ?: listOfNotNull(
-            l.lastAt?.let { "上次 ${dateTime(it)}" }, l.lastBytes?.let { formatBytes(it) }, l.count?.let { "本机 $it 份" },
-        ).joinToString(" · ").ifEmpty { "不用注册账号：备份存到手机里你选的文件夹，换手机时把文件拷过去就能恢复。录音音频不备份。" },
+        Text(l.lastError ?: summaryLine(summary, l.lastAt).ifEmpty { "不用注册账号：记录、设置、密钥和账号都存到你选的文件夹，每晚只写有变化的那几天。换手机时把文件夹拷过去就能恢复。录音音频不备份。" },
             style = RsType.subhead, color = if (l.lastError != null) c.critical else c.textSecondary)
         Spacer(Modifier.height(14.dp))
         Row {
@@ -382,43 +391,10 @@ private fun LocalBackupSection(repo: BackupRepository, l: app.resound.backup.Loc
                 }
                 Toggle(l.auto) { repo.setLocalAuto(it) }
             }
-            Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("保留最近", style = RsType.body, color = c.text)
-                    Text("每晚一个恢复点，多的自动删；文件夹里别的文件不动", style = RsType.caption, color = c.textSecondary)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            val options = listOf(1, 3, 7)
-            app.resound.ui.skills.Segments(options.map { "$it 天" }, options.indexOf(l.keep).coerceAtLeast(0)) { repo.setLocalKeep(options[it]) }
-            if (l.keep == 1) {
-                Spacer(Modifier.height(8.dp))
-                Text("只留 1 天时，万一最新这份出问题就没有退路，建议至少 3 天。", style = RsType.caption, color = c.textTertiary)
-            }
         }
 
-        // 本机的备份列表
-        Text("本机备份", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
-        RsCard(padding = PaddingValues(vertical = 4.dp)) {
-            val r = list
-            when {
-                r == null -> Text("正在读取…", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(16.dp))
-                r.isFailure -> Text(r.exceptionOrNull()?.message ?: "读取失败", style = RsType.subhead, color = c.critical, modifier = Modifier.padding(16.dp))
-                r.getOrThrow().isEmpty() -> Text("文件夹里还没有备份", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(16.dp))
-                else -> r.getOrThrow().forEachIndexed { i, b ->
-                    Row(Modifier.fillMaxWidth().springClick { onRestore(b.copy(name = LOCAL_TAG + b.name)) }.padding(horizontal = 16.dp, vertical = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(dateTime(b.at), style = RsType.body, color = c.text)
-                            Text(backupLine(b), style = RsType.caption, color = c.textTertiary)
-                        }
-                        Text("恢复 ›", style = RsType.subhead, color = c.accent)
-                    }
-                    if (i != r.getOrThrow().lastIndex) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
-                }
-            }
-        }
+        if (summary != null) ActionRow("从本机文件夹恢复全部", "记录、设置、密钥和账号全部还原", "恢复", onRestoreAll)
+        LegacyList(list?.map { all -> all.map { it.copy(name = LOCAL_TAG + it.name) } }, onRestore)
     }
 
     // 从任意文件恢复（比如从旧手机拷来的、从坚果云网页下载的）

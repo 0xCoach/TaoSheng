@@ -32,6 +32,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
                     (oldText.length >= 6 && VoiceInputDedup.sameAs(oldText, text)))
             }
         })
+        dbg("保存上下文：应用=${record.meta.packageName} 去重前行数=${record.meta.before.orEmpty().lines().count { it.isNotBlank() }} 去重后行数=${before.orEmpty().lines().count { it.isNotBlank() }}")
         val meta = record.meta.copy(before = before, after = null)
         val segment = dao.segment(SegmentEntity(startAt = record.at, endAt = record.at + 1,
             sourceId = "voice-input", path = path, sizeBytes = 0, status = "Done",

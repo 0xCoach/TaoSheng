@@ -146,28 +146,50 @@ internal object VoiceInputOcr {
         return out.map { (w, t) -> if (w.isEmpty()) t else "$w：$t" }
     }
     /** Codex 空输入框占位符，不是用户输入；仅匹配整句，保留包含此词的真实指令。 */
-    fun terminalPlaceholder(text: String): Boolean =
-        CODEX_PLACEHOLDER.matches(text.trim().trimEnd('|', '｜', '丨').trim())
-    private val CODEX_PLACEHOLDER = Regex("(?i)^ask\\s+codex[.。…?？\\s]*$")
+    fun terminalPlaceholder(text: String): Boolean {
+        val t = text.trim().trimEnd('|', '｜', '丨').trim()
+        return CODEX_PLACEHOLDER.matches(t)
+    }
+    // 兼容真机 OCR 的空格丢失、Ask -> As、to -> 七o、i -> 1；只匹配整句。
+    private val CODEX_PLACEHOLDER = Regex("(?i)^as[k]?\\s*codex(?:\\s*(?:to|七o)\\s*do\\s*anyth[i1]ng)?[.。…?？\\s]*$")
     private val PROMPT = Regex("^[>》❯$#➜»›＞]+\\s*")
     /** 输入框自动折行的几行接回一句：中文直接接上，英文之间补空格 */
     fun joinLines(parts: List<String>) = parts.filter(String::isNotBlank).fold("") { acc, p ->
         if (acc.isEmpty()) p else if (acc.last().isLetterOrDigit() && acc.last().code < 128 && p.first().isLetterOrDigit() && p.first().code < 128) "$acc $p" else acc + p
     }
 
+    /** 输入框已清空时也保留聊天快照，不能因改读已发送气泡就丢掉上下文。 */
+    fun screenshot(source: List<OcrLine>, layout: OcrLayout, pkg: String): OcrInput? {
+        val input = extract(source, layout, pkg)
+        if (pkg !in CHAT) return input
+        val bubbleLines = lastRightBubbleLines(source, layout)
+        val bubble = joinLines(bubbleLines.map { it.text.trim() }).ifBlank { null }
+        if (input != null) return input.copy(bubble = bubble)
+        val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height }
+            ?: (layout.height * .6).toInt()
+        val beforeBottom = bubbleLines.minOfOrNull { it.top } ?: minOf(keyboard, layout.contentBottom)
+        val title = title(source, layout)?.takeIf { pkg in TITLED }
+        val before = source.filter { it.top >= titleBarBottom(layout) && it.bottom <= beforeBottom &&
+            VoiceInputChrome.keep(it.text) }
+        return OcrInput("", chatContext(before, layout.width, pkg, title).takeLast(20), title, bubble)
+    }
+
     /** 聊天区最下面“我”这一侧的气泡（离右边比离左边近），取最靠下的一组相邻行 */
-    fun lastRightBubble(source: List<OcrLine>, layout: OcrLayout): String? {
+    fun lastRightBubble(source: List<OcrLine>, layout: OcrLayout): String? =
+        joinLines(lastRightBubbleLines(source, layout).map { it.text.trim() }).ifBlank { null }
+
+    private fun lastRightBubbleLines(source: List<OcrLine>, layout: OcrLayout): List<OcrLine> {
         val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
         val bottom = minOf(keyboard, layout.contentBottom)
         val right = source.filter { it.top >= layout.contentTop + layout.height / 10 && it.bottom <= bottom &&
             side(it, layout.width, null) == "我" && VoiceInputChrome.keep(it.text) }.sortedBy { it.top }
-        val last = right.lastOrNull() ?: return null
+        val last = right.lastOrNull() ?: return emptyList()
         val group = mutableListOf(last)
         for (c in right.dropLast(1).asReversed()) {
             val first = group.first()
             if (c.block == last.block || first.top - c.bottom <= (last.bottom - last.top) * .65) group.add(0, c) else break
         }
-        return joinLines(group.map { it.text.trim() }).ifBlank { null }
+        return group
     }
 
     /** 检查应用内容区域，状态栏亮点不能使被保护的黑屏通过。 */

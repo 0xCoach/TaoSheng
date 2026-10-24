@@ -8,7 +8,7 @@ class VoiceInputTerminalTest {
     private fun line(text: String) = OcrLine(text, 100, 1000, 800, 1040, 1)
 
     @Test fun codexPlaceholderIsNeverAnUtteranceEvenWithFooterInSameBlock() {
-        for (text in listOf("❯ Ask Codex", "> Ask Codex…", "› Ask Codex...", "❯ Ask Codex |")) {
+        for (text in listOf("❯ Ask Codex", "> Ask Codex…", "› Ask Codex...", "❯ Ask Codex |", "❯ AskCodex to do anything", "❯ AsCodex to do anything", "❯ AsCodex 七o do anything", "❯ AskCodex to do anyth1ng")) {
             assertNull(VoiceInputOcr.extract(listOf(line(text),
                 OcrLine("模型状态说明", 100, 1060, 800, 1100, 1)), layout, "com.netease.uuremote"))
         }

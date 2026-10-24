@@ -145,6 +145,7 @@ class VoiceInputService : AccessibilityService() {
                 val context = if (pkg in VoiceInputOcr.CHAT)
                     VoiceInputOcr.chatContext(lines, titleLayout.width, pkg, title)
                 else lines.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text }
+                dbgSnap("界面采集：应用=$pkg 有输入框=${editable != null} 上下文行数=${context.size} 有标题=${title != null}")
                 return InputScreen(pkg, label, page, title, field, text, lines = context.takeLast(20), send = send)
             } finally { focus?.let(::recycle) }
         } finally { recycle(root) }

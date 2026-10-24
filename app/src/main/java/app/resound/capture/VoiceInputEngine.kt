@@ -204,7 +204,9 @@ internal class VoiceInputEngine(
             box = if (prev == null || t.length >= prev.length * 0.6 || VoiceInputText.similar(t, prev.take(t.length))) (if (prev != null && t.length < prev.length && prev.startsWith(t)) prev else t) else prev
         }
         val sent = r.indices.reversed().firstNotNullOfOrNull { freshBubble(j, r[it]) }
-        val base = r.firstOrNull { !VoiceInputOcr.clean(it?.text).isNullOrEmpty() } ?: r.firstOrNull { it != null }
+        val base = r.firstOrNull { !VoiceInputOcr.clean(it?.text).isNullOrEmpty() }
+            ?: r.lastOrNull { sent != null && VoiceInputOcr.clean(it?.bubble) == sent }
+            ?: r.firstOrNull { it != null }
         val text = when {
             sent != null && (box == null || VoiceInputText.similar(sent, box) || VoiceInputText.normalized(sent).contains(VoiceInputText.normalized(box))) -> sent
             box != null -> box

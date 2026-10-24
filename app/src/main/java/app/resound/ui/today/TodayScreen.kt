@@ -194,13 +194,13 @@ fun TodayScreen(
                 DaySwitcher(dayOffset, compact = true) { dayOffset = it }
             }) {
                 groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it },
-                    onStar = { memory.setImportant(it.id, !it.important) }, onDelete = { deleting = it }) { opened = it } }
+                    onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleting = it }) { opened = it } }
                 if (events != null && list.isEmpty()) EmptyTimeline(memory)
             }
         }
         items(groups.drop(1), key = { it.first }) { (part, evs) ->
             TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it },
-                onStar = { memory.setImportant(it.id, !it.important) }, onDelete = { deleting = it }) { opened = it }
+                onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleting = it }) { opened = it }
         }
     }
 
@@ -654,9 +654,13 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(event.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                if (event.important) {
+                // ★ 只给你亲手标的重点；大模型判断的“要紧”用浅色小字，只作参考
+                if (event.starred) {
                     Spacer(Modifier.width(6.dp))
                     Text("★", style = RsType.caption, color = c.accent)
+                } else if (event.important) {
+                    Spacer(Modifier.width(6.dp))
+                    Text("要紧", style = RsType.caption, color = c.textTertiary)
                 }
             }
             Spacer(Modifier.height(2.dp))
@@ -689,7 +693,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
     val c = Rs.colors
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lines by remember(event.id) { memory.eventLines(event.id) }.collectAsState(initial = emptyList())
-    var important by remember(event.id) { mutableStateOf(event.important) }
+    var important by remember(event.id) { mutableStateOf(event.starred) }
     var confirmDelete by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheet, containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
@@ -752,7 +756,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill(if (important) "取消重点" else "★ 标重点", filled = !important) {
                     important = !important
-                    memory.setImportant(event.id, important)
+                    memory.setStarred(event.id, important)
                 }
                 Pill(if (copied) "已复制" else "复制全部", filled = false) {
                     clipboard.setText(AnnotatedString(eventText(event, lines)))
@@ -898,7 +902,7 @@ internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> 
             Modifier.matchParentSize().background(if (armed) c.accent else c.accent.copy(alpha = 0.55f)).padding(horizontal = 24.dp),
             contentAlignment = Alignment.CenterEnd,
         ) {
-            val label = if (event.important) "取消重点" else "★ 标重点"
+            val label = if (event.starred) "取消重点" else "★ 标重点"
             Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
         }
         Box(

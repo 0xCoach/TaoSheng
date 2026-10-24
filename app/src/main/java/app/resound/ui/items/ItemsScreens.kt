@@ -203,7 +203,7 @@ fun MemoryScreen(
     val cardSkillIds by remember { skills.skillsWithCards }.collectAsState(initial = emptyList())
     val skillNames = skills.skills.collectAsState().value.associate { it.id to it.name }
     var chipIndex by rememberSaveable { mutableStateOf(0) }
-    val starred by remember { memory.importantEvents() }.collectAsState(initial = null)
+    val starred by remember { memory.starredEvents() }.collectAsState(initial = null)
     // “卡片”分类的第二排小胶囊：回顾 + 出过卡的技能（按最近出卡排序）
     val chips = (if (reviews != null) listOf("review") else emptyList()) + cardSkillIds.filter { it != "review" }
     val chip = chips.getOrNull(chipIndex.coerceIn(0, (chips.size - 1).coerceAtLeast(0)))
@@ -266,22 +266,22 @@ fun MemoryScreen(
                 cards = dayCards,
                 onOpenCard = { openedCard = it },
                 onMakeCard = { makingCard = true },
-                onStar = { memory.setImportant(it.id, !it.important) },
+                onStar = { memory.setStarred(it.id, !it.starred) },
                 onDelete = { deletingEvent = it },
             )
         } else {
             item(key = "caps") { Capsules(tabs.map { it.name }, tabIndex) { tabIndex = it } }
             if (tab.name == "重点") {
                 val list = starred
-                if (list != null && list.isEmpty()) item { Empty("在时间线上把一件事往左滑，就能标成重点，会集中放在这里") }
-                list.orEmpty().groupBy { dateOf(it.startAt) }.forEach { (d, evs) ->
+                if (list != null && list.isEmpty()) item { Empty("在时间线上把一件事往左滑，就能标成重点。标过的事会集中放在这里，问问能查，每日和每周回顾也会跟进") }
+                list.orEmpty().groupBy { dateOf(it.starredAt ?: it.startAt) }.forEach { (d, evs) ->
                     item(key = "star$d") {
                         Column(Modifier.padding(bottom = 16.dp)) {
                             Text(dayLabel(d), style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
                                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
                             RsCard(padding = PaddingValues(vertical = 4.dp)) {
                                 evs.forEachIndexed { i, e ->
-                                    app.resound.ui.today.SwipeEvent(e, { memory.setImportant(e.id, !e.important) }, { deletingEvent = e }) {
+                                    app.resound.ui.today.SwipeEvent(e, { memory.setStarred(e.id, !e.starred) }, { deletingEvent = e }) {
                                         lp -> app.resound.ui.today.TimelineLine(e, lp) { openedEvent = e }
                                     }
                                     if (i != evs.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))

@@ -80,8 +80,13 @@ data class MemoryEvent(
     val emotion: String?,
     /** 1..5 */
     val intensity: Int?,
+    /** 大模型判断的“要紧”（钱、健康、家人、承诺、重要决定），只作参考，不进重点列表 */
     val important: Boolean,
     val items: List<MemoryItem>,
+    /** 用户亲手标的重点（卡 041）；只有用户能标、能取消 */
+    val starred: Boolean = false,
+    /** 标重点的时间 */
+    val starredAt: Long? = null,
 )
 
 data class DigestState(
@@ -126,7 +131,13 @@ interface MemoryRepository {
 
     fun setImportant(eventId: Long, important: Boolean)
 
-    /** 标了重点的事（跨天，新的在前） */
+    /** 用户标/取消重点（卡 041）。标上时，这件事里还在“待确认”的待办、备忘自动接受（进“进行中”） */
+    fun setStarred(eventId: Long, starred: Boolean) {}
+
+    /** 用户标了重点的事（跨天，按标重点时间新的在前，最多 500） */
+    fun starredEvents(): Flow<List<MemoryEvent>> = kotlinx.coroutines.flow.flowOf(emptyList())
+
+    /** 大模型标“要紧”的事（跨天，新的在前）；界面暂不用，保留给回顾等 */
     fun importantEvents(): Flow<List<MemoryEvent>> = kotlinx.coroutines.flow.flowOf(emptyList())
 
     /** 被并进这一条的其他灵感（每条带自己的原话出处），按时间先后 */

@@ -193,14 +193,26 @@ class CaptureService : Service() {
     }
     private suspend fun listen() {
         app.segmentFiles.awaitReady()
+        InputSwitchLoop(app.inputs.snapshots, SystemClock::elapsedRealtime).run(onUnchanged = { route, note ->
+            if (app.inputs.status.value.using.key == route.device.key) app.inputs.report(route.device, note)
+        }) { route, note ->
+            listenTo(route, note)
+        }
+    }
+    private suspend fun listenTo(route: InputRoute, note: String?) {
         var busy = false
+        var reported = false
         while (currentCoroutineContext().isActive) {
             var segmenter: SpeechSegmenter? = null
             try {
+                val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
+                else ExternalAudioSource(this, route.device,
+                    app.inputs.port(requireNotNull(route.portId))
+                        ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)
                 SileroVad(this).use { vad ->
                     var levelAt = 0L
                     var levelPeak = 0f
-                    MicAudioSource(this, micClock::setOpen).events().collect { event ->
+                    source.events().collect { event ->
                         when (event) {
                             is AudioEvent.Busy -> {
                                 // 让出麦克风期间：正在录的片段按正常结束收尾，恢复后从新片段开始计时
@@ -217,10 +229,17 @@ class CaptureService : Service() {
                             }
                             is AudioEvent.Frame -> Unit
                         }
+                        if (!reported) {
+                            val previous = app.inputs.status.value.using
+                            app.inputs.report(route.device, note)
+                            if (previous.key != route.device.key || note != null)
+                                store.inputSwitched("${previous.name} → ${route.device.name}；${note ?: "录音输入切换"}")
+                            reported = true
+                        }
                         val frame = (event as AudioEvent.Frame).samples
                         if (busy) { store.event(WatchdogEventType.MicReleased); busy = false }
                         val cutter = segmenter ?: SpeechSegmenter(app.segmentFiles.sink(
-                            System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE)).also { segmenter = it }
+                            System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE, source.id)).also { segmenter = it }
                         vad.accept(frame) { pcm, speech, level ->
                             cutter.accept(pcm, speech, playback.speakerPlaying)
                             val next = if (cutter.active) CaptureState.Recording else CaptureState.Listening
@@ -234,16 +253,19 @@ class CaptureService : Service() {
                     }
                 }
             } catch (e: AudioSourceException) {
+                // 外接失败立即交调度器切手机；蓝牙缺权限也不应停止手机录音。
+                if (route.device.kind != InputKind.Phone) throw e
                 if (e.reason == AudioSourceException.Reason.NoPermission) {
                     transition(CaptureState.NoPermission)
-                    fail("麦克风权限被撤销"); return
+                    fail("麦克风权限被撤销")
+                    awaitCancellation()
                 }
                 if (!busy) { store.event(WatchdogEventType.MicBusy, "${e.reason}: ${e.message}"); busy = true }
                 transition(CaptureState.MicBusy)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                fail("录音或 VAD 故障：${e.javaClass.simpleName}: ${e.message}"); return
-            } finally { if (discardOnFinish) segmenter?.discard() else segmenter?.finish() }
+            } finally {
+                if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
+                controller.level(0f)
+            }
             delay(CaptureTuning.MIC_RETRY_MS)
         }
     }

@@ -16,6 +16,8 @@ data class VoiceprintExclusionEntity(val segmentId: Long, val groupKey: String, 
 @Entity(tableName = "voiceprint_people", indices = [Index(value = ["name"], unique = true)])
 data class VoiceprintPersonEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val createdAt: Long)
 
+data class VoiceprintSampleInput(val sampleId: Long, val sourceId: String?)
+
 @Dao
 abstract class VoiceprintDao {
     @Query("SELECT * FROM voiceprint_people ORDER BY id") abstract fun observePeople(): Flow<List<VoiceprintPersonEntity>>
@@ -23,6 +25,8 @@ abstract class VoiceprintDao {
     @Insert abstract suspend fun insertPerson(row: VoiceprintPersonEntity): Long
     @Query("UPDATE voiceprint_people SET name = :name WHERE id = :id") abstract suspend fun renamePerson(id: Long, name: String)
     @Query("DELETE FROM voiceprint_people WHERE id = :id") abstract suspend fun deletePerson(id: Long)
+    @Query("SELECT v.id AS sampleId, CASE WHEN v.source = 'enroll' THEN 'mic' ELSE s.sourceId END AS sourceId FROM voiceprint_samples v LEFT JOIN segments s ON s.id = v.segmentId")
+    abstract suspend fun sampleInputs(): List<VoiceprintSampleInput>
     @Query("SELECT * FROM voiceprint_samples ORDER BY id") abstract suspend fun allSamples(): List<VoiceprintSampleEntity>
     @Query("SELECT * FROM voiceprint_samples ORDER BY id") abstract fun observeAllSamples(): Flow<List<VoiceprintSampleEntity>>
     @Query("DELETE FROM voiceprint_samples WHERE personId = :id") abstract suspend fun clearPersonSamples(id: Long)

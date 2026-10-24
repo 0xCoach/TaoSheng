@@ -110,6 +110,7 @@ fun VerifyScreen(
         item { Header(themeMode, onThemeMode) }
         item { StatusCard(capture) }
         if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
+        if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
         item {
             Section("每日统计") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

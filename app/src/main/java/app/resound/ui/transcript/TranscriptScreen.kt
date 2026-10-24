@@ -575,12 +575,18 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text(lineTime(first.startAt), style = RsType.caption, color = c.textTertiary)
+                            first.voiceInput?.let { v ->
+                                Spacer(Modifier.width(6.dp))
+                                Text("⌨ 语音输入 · ${v.app}" + (v.title?.let { " · $it" } ?: ""), style = RsType.caption.copy(fontWeight = FontWeight.Medium),
+                                    color = c.accent, maxLines = 1, modifier = Modifier.clip(CircleShape).background(c.accentSoft).padding(horizontal = 8.dp, vertical = 1.dp))
+                            }
                         }
                         group.forEach { line ->
                             Text(line.text, style = RsType.body, color = c.text, modifier = Modifier.fillMaxWidth().combinedClickable(
                                 interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
                                 onClick = {}, onLongClick = { menuFor = line.id },
                             ).padding(vertical = 2.dp))
+                            line.voiceInput?.let { VoiceInputContext(it) }
                         }
                     }
                 }
@@ -592,7 +598,8 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             menuFor = null
                             Toast.makeText(context, "已复制这段原话", Toast.LENGTH_SHORT).show()
                         })
-                        if (voiceprint != null) {
+                        // 语音输入的句子本来就是你说的，不用纠正说话人
+                        if (voiceprint != null && selected.voiceInput == null) {
                         DropdownMenuItem(text = { Text("这是谁 / 输入名字", style = RsType.body, color = c.text) }, onClick = {
                             assignFor = selected.id; menuFor = null
                         })
@@ -610,6 +617,30 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
             }
         }
     }
+    }
+}
+
+/** 语音输入时屏幕上的上下文：默认收起，点开看之前的内容和之后的回复 */
+@Composable
+private fun VoiceInputContext(v: app.resound.transcribe.VoiceInputMeta) {
+    val c = Rs.colors
+    if (v.before == null && v.after == null) return
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.padding(top = 4.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+        .background(c.background).springClick { open = !open }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Text(if (open) "当时的上下文 · 收起" else "当时的上下文 · 点开看", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary)
+        androidx.compose.animation.AnimatedVisibility(open) {
+            Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                v.before?.let {
+                    Text("之前", style = RsType.caption, color = c.textTertiary)
+                    Text(it, style = RsType.subhead, color = c.textSecondary)
+                }
+                v.after?.let {
+                    Text("之后的回复", style = RsType.caption, color = c.textTertiary)
+                    Text(it, style = RsType.subhead, color = c.textSecondary)
+                }
+            }
+        }
     }
 }
 

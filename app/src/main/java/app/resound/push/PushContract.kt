@@ -89,6 +89,8 @@ data class PushSubscription(
     val excludeMedia: Boolean = true,
     /** 第一次开启时补多少天：null 全部，0 从今天开始；默认 30 */
     val backfillDays: Int? = 30,
+    /** 卡 048：推原话时带上语音输入的上下文（别人的消息、AI 回复等） */
+    val lineContext: Boolean = true,
 ) {
     companion object {
         /** 一键模板：选了再细调 */

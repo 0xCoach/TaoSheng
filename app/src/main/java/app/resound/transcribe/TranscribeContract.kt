@@ -43,6 +43,21 @@ data class TranscriptLine(
     /** 声纹相似度 0..1（和 speakerName 对应的人比）；没比对为 null。界面据此显示“我”或“可能是我？” */
     val speakerScore: Float? = null,
     val segmentId: Long = 0,
+    /** 卡 048：这句来自语音输入（不是录音转写）时的来源和上下文；录音转写的为 null */
+    val voiceInput: VoiceInputMeta? = null,
+)
+
+/** 卡 048：语音输入的来源与当时屏幕上的上下文 */
+data class VoiceInputMeta(
+    /** 应用名，如“微信” */
+    val app: String,
+    val packageName: String,
+    /** 界面标题，如聊天对象“老王”；读不到为 null */
+    val title: String?,
+    /** 语音输入前屏幕上的最近内容（最多二十来行）；没开上下文或读不到为 null */
+    val before: String?,
+    /** 发出后 2 分钟内同一界面新出现的内容；没有为 null */
+    val after: String?,
 )
 
 /** 一段录音及其转写结果 */

@@ -411,6 +411,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
     }
     SubLabel("原话")
     app.resound.ui.skills.Segments(LinesMode.entries.map { it.title }, sub.lines.ordinal) { onChange(sub.copy(lines = LinesMode.entries[it])) }
+    if (sub.lines != LinesMode.Off) ToggleRow("带上语音输入的上下文", "语音输入时屏幕上的对话（别人的消息、AI 回复等）", sub.lineContext) { onChange(sub.copy(lineContext = it)) }
     if (sub.lines != LinesMode.Off) Text("原话会以明文推出去，注意保管；“只推我说的”只含声纹认出是你的话。", style = RsType.caption, color = c.warning)
     }
     }

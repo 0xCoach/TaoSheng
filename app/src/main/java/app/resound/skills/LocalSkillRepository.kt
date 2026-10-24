@@ -24,8 +24,16 @@ class LocalSkillRepository(
     private val notifier: Notifier,
     private val schedule: (Long?, Boolean) -> Unit,
     private val now: () -> Long = System::currentTimeMillis,
+    private val generation: SkillGeneration? = null,
 ) : SkillRepository {
     override val skills = files.skills
+    override val generating = generation?.generating ?: MutableStateFlow(emptySet<Pair<String, LocalDate>>()).asStateFlow()
+    override val generated = generation?.generated ?: MutableStateFlow(emptyMap<Pair<String, LocalDate>, SkillRunResult>()).asStateFlow()
+    override fun generate(skillId: String, date: LocalDate) {
+        checkNotNull(generation) { "后台生成未装配" }.generate(skillId, date)
+    }
+    internal suspend fun runGeneration(skillId: String, date: LocalDate, canRetry: Boolean = true) =
+        run(skillId, date, SkillSchedule.MANUAL, background = true, canRetry = canRetry)
     private val running = MutableStateFlow<Set<String>>(emptySet())
     private val state = MutableStateFlow<Map<String, SkillStatus>>(emptyMap())
     override val status = state.asStateFlow()
@@ -88,8 +96,8 @@ class LocalSkillRepository(
         }
         return Result.failure(IllegalStateException("没生成成功，换个说法再试一次"))
     }
-    override suspend fun runNow(skillId: String, date: LocalDate) = run(skillId, date, SkillSchedule.MANUAL)
-    override suspend fun trial(skillId: String, date: LocalDate, promptOverride: String?) = run(skillId, date, SkillSchedule.TRIAL, promptOverride)
+    override suspend fun runNow(skillId: String, date: LocalDate) = run(skillId, date, SkillSchedule.MANUAL).result
+    override suspend fun trial(skillId: String, date: LocalDate, promptOverride: String?) = run(skillId, date, SkillSchedule.TRIAL, promptOverride).result
 
     suspend fun runDue() {
         for (s in skills.value) isolated { run(s.id, SkillSchedule.date(now()), SkillSchedule.DAILY) }
@@ -100,19 +108,19 @@ class LocalSkillRepository(
     private suspend fun isolated(block: suspend () -> Unit) {
         try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 单个技能失败不阻断后续技能。 */ }
     }
-    private suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null): SkillRunResult = gate.withLock {
-        val skill = skills.value.find { it.id == id } ?: return@withLock SkillRunResult.Failed("技能不存在")
-        if (skill.origin == SkillOrigin.Core) return@withLock SkillRunResult.Nothing("请使用原来的整理或回顾设置")
+    private suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true): SkillAttempt = gate.withLock {
+        val skill = skills.value.find { it.id == id } ?: return@withLock SkillAttempt(SkillRunResult.Failed("技能不存在"))
+        if (skill.origin == SkillOrigin.Core) return@withLock SkillAttempt(SkillRunResult.Nothing("请使用原来的整理或回顾设置"))
         val started = now(); val history = dao.runsOf(id)
         val auto = kind == SkillSchedule.DAILY || kind == SkillSchedule.AFTER
         val preview = kind == SkillSchedule.TRIAL
         if (auto) {
-            if (!skill.enabled || SkillSchedule.autoCount(history, SkillSchedule.date(started)) >= 6) return@withLock SkillRunResult.Nothing("今天自动运行已达上限或技能已关闭")
-            if (kind == SkillSchedule.DAILY && SkillSchedule.next(skill, history, started) != started) return@withLock SkillRunResult.Nothing("尚未到运行时间")
+            if (!skill.enabled || SkillSchedule.autoCount(history, SkillSchedule.date(started)) >= 6) return@withLock SkillAttempt(SkillRunResult.Nothing("今天自动运行已达上限或技能已关闭"))
+            if (kind == SkillSchedule.DAILY && SkillSchedule.next(skill, history, started) != started) return@withLock SkillAttempt(SkillRunResult.Nothing("尚未到运行时间"))
             if (kind == SkillSchedule.AFTER) {
-                val trigger = skill.trigger as? SkillTrigger.AfterDigest ?: return@withLock SkillRunResult.Nothing("不是整理后技能")
+                val trigger = skill.trigger as? SkillTrigger.AfterDigest ?: return@withLock SkillAttempt(SkillRunResult.Nothing("不是整理后技能"))
                 val last = history.lastOrNull { it.kind != SkillSchedule.TRIAL }
-                if (last != null && started - last.at < TimeUnit.MINUTES.toMillis(trigger.minGapMinutes.toLong())) return@withLock SkillRunResult.Nothing("距离上次运行太近")
+                if (last != null && started - last.at < TimeUnit.MINUTES.toMillis(trigger.minGapMinutes.toLong())) return@withLock SkillAttempt(SkillRunResult.Nothing("距离上次运行太近"))
             }
         }
         running.value = running.value + id
@@ -140,35 +148,40 @@ class LocalSkillRepository(
                         }
                         val output = requireNotNull(parsed)
                         val cards = mutableListOf<SkillCard>()
+                        var skippedReason = output.reason
                         if (preview) cards += output.rows.take(skill.maxCardsPerDay).map { it.card() }
                         else {
                             for (row in output.rows) {
-                                val saved = dao.merge(row, skill.maxCardsPerDay) ?: continue
-                                cards.removeAll { it.id == saved.first.id }; cards += saved.first.card()
-                                if (auto && skill.push && saved.second) {
-                                    try { notifier.send("回响 · ${skill.name}", row.summary, "resound://card?open=card&id=${saved.first.id}", PushTopic.SkillCard) }
+                                val saved = when (val merged = dao.mergeWithReason(row, skill.maxCardsPerDay, manual = !auto)) {
+                                    SkillMergeResult.Deleted -> { skippedReason = "这天的卡你删过，自动运行跳过了"; continue }
+                                    is SkillMergeResult.Full -> { skippedReason = "今天已经有 ${merged.count} 张，达到每天上限"; continue }
+                                    is SkillMergeResult.Saved -> merged
+                                }
+                                cards.removeAll { it.id == saved.row.id }; cards += saved.row.card()
+                                if (auto && skill.push && saved.isNew) {
+                                    try { notifier.send("回响 · ${skill.name}", row.summary, "resound://card?open=card&id=${saved.row.id}", PushTopic.SkillCard) }
                                     catch (e: CancellationException) { throw e }
                                     catch (_: Exception) { /* 卡已保存；推送通道记录自己的错误，不重复生成。 */ }
                                 }
                             }
                         }
-                        if (cards.isEmpty()) SkillRunResult.Nothing(if (output.rows.isEmpty()) output.reason else "卡片已删除或今天卡片已达上限") else SkillRunResult.Cards(cards)
+                        if (cards.isEmpty()) SkillRunResult.Nothing(skippedReason) else SkillRunResult.Cards(cards)
                     }
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: LlmException) {
-                retryable = e.type in setOf(LlmError.Network, LlmError.Server)
+                retryable = canRetry && e.type in setOf(LlmError.Network, LlmError.Server)
                 SkillRunResult.Failed(when (e.type) {
-                    LlmError.Network, LlmError.Server -> "网络不通，稍后会再试"
+                    LlmError.Network, LlmError.Server -> if (canRetry) "网络不通，稍后会再试" else "网络或服务器异常，已重试 2 次，请稍后再试"
                     LlmError.Format -> "模型回复格式不对"
                     LlmError.Auth -> e.type.human
                 })
             } catch (_: Exception) { SkillRunResult.Failed("技能运行失败，请重试") }
             record(id, date, started, kind, result, tokens, retryable)
-            result
+            SkillAttempt(result, retryable)
         } catch (e: CancellationException) {
             // 被系统中断的已计费用量仍留痕；不会被当成成功的增量游标。
-            withContext(NonCancellable) { record(id, date, started, kind, SkillRunResult.Failed("运行已中断"), tokens, true) }
+            withContext(NonCancellable) { record(id, date, started, kind, SkillRunResult.Failed(if (background) "系统暂停，等待后台重试" else "运行已中断"), tokens, true) }
             throw e
         } finally { running.value = running.value - id }
     }
@@ -183,3 +196,5 @@ class LocalSkillRepository(
         dao.trimRuns(now() - TimeUnit.DAYS.toMillis(30))
     }
 }
+
+internal data class SkillAttempt(val result: SkillRunResult, val retryable: Boolean = false)

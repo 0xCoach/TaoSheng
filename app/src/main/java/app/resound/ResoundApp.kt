@@ -109,7 +109,8 @@ class ResoundApp : Application() {
         val skillRepository = app.resound.skills.LocalSkillRepository(
             app.resound.skills.SkillFiles(this), database.skills(), database.memory(), scope,
             digestSettings::skillCredentials, llm::chatJson, hotwords::merged,
-            app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), skillScheduler::schedule)
+            app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), skillScheduler::schedule,
+            generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope))
         AppGraph.skills = skillRepository
         scope.launch { skillRepository.reschedule() }
         AppGraph.review = reviews

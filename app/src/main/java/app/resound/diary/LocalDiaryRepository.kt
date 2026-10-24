@@ -55,11 +55,11 @@ class LocalDiaryRepository(
                 if (content.isNotBlank()) sections += "## 回顾\n$content"
             }
             cardsMarkdown(cards(date), zone).takeIf { it.isNotBlank() }?.let { sections += it }
-            val events = memory.events(date).first().filter { it.scene != "媒体" }.sortedBy { it.startAt }
+            val events = memory.events(date).first().filter { it.scene != "媒体" || it.starred }.sortedBy { it.startAt }
             if (events.isNotEmpty()) sections += "## 时间线\n" + events.joinToString("\n\n") { event ->
                 buildList {
                     val start = time(event.startAt, zone); val end = time(event.endAt, zone)
-                    add("### ${if (start == end) start else "$start–$end"} ${event.title}（${event.scene}）")
+                    add("### ${if (start == end) start else "$start–$end"} ${if (event.starred) "★ " else ""}${event.title}（${event.scene}）")
                     if (event.summary.isNotBlank()) add(event.summary)
                     addAll(event.points.filter { it.isNotBlank() }.map { "- $it" })
                     val detail = buildList {

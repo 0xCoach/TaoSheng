@@ -51,6 +51,15 @@ class RoomMemoryRepository(
             events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
         }.flowOn(Dispatchers.IO)
 
+    override fun starredEvents(): Flow<List<MemoryEvent>> =
+        combine(dao.starredEvents(), dao.starredItems(), dao.repeatCounts()) { events, items, counts ->
+            val byEvent = items.groupBy { it.eventId }
+            val repeats = counts.associate { it.id to it.repeats }
+            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats) }
+        }.flowOn(Dispatchers.IO)
+
+    override fun setStarred(eventId: Long, starred: Boolean) { scope.launch { dao.setStarred(eventId, starred) } }
+
     override fun mergedItems(itemId: Long): Flow<List<MemoryItem>> = listed(dao.mergedItems(itemId))
 
     override fun unmerge(itemId: Long) { scope.launch { dao.unmerge(itemId) } }
@@ -101,7 +110,7 @@ class RoomMemoryRepository(
 
     override fun setItemStatus(id: Long, status: ItemStatus) { scope.launch { dao.setItemStatus(id, status.name) } }
 
-    override fun setImportant(eventId: Long, important: Boolean) { scope.launch { dao.setImportant(eventId, important) } }
+    override fun setImportant(eventId: Long, important: Boolean) = setStarred(eventId, important)
 
     override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
 
@@ -116,7 +125,7 @@ class RoomMemoryRepository(
 
     private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>) = MemoryEvent(
         id, startAt, endAt, scene, title, summary, pointsJson.strings(), peopleJson.strings(), place, emotion, intensity, important,
-        items.map { it.toModel(repeats[it.id] ?: 1) },
+        items.map { it.toModel(repeats[it.id] ?: 1) }, starred, starredAt,
     )
 
     private fun MemoryItemEntity.toModel(repeats: Int = 1) = MemoryItem(

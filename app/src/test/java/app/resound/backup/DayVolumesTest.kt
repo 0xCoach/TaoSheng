@@ -122,13 +122,16 @@ class DayVolumesTest {
     @Test fun oldMissingColumnDefaultsAndFutureVersionRefused() {
         val state = File(root, "state.jsonl").apply { writeText("") }
         val rows = File(root, "old.jsonl").apply { writeText("""{"table":"segments","values":{"id":1,"startAt":0,"endAt":1,"sourceId":"mic","path":"old","sizeBytes":0,"status":"Done"}}
-{"table":"memory_events","values":{"id":1,"startAt":0,"endAt":1,"scene":"独白","title":"旧事件","summary":"摘要","pointsJson":"[]","peopleJson":"[]","important":0,"createdAt":0,"model":"test"}}
+{"table":"memory_events","values":{"id":1,"startAt":0,"endAt":1,"scene":"独白","title":"旧事件","summary":"摘要","pointsJson":"[]","peopleJson":"[]","important":1,"createdAt":0,"model":"test"}}
 {"table":"memory_items","values":{"id":1,"eventId":1,"category":"灵感","content":"旧灵感","status":"Pending","createdAt":0}}
 """) }
         val target = File(root, "old.db")
         DayVolumeRows.rebuild(context, target, 1, state, listOf(rows))
         val room = CaptureDatabase.open(context, target.path)
         try {
+            room.openHelper.writableDatabase.query("SELECT starred,starredAt,important FROM memory_events").use {
+                assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)); assertTrue(it.isNull(1)); assertEquals(1, it.getInt(2))
+            }
             room.openHelper.writableDatabase.query("SELECT attempts,playbackMillis FROM segments").use { it.moveToFirst(); assertEquals(0, it.getInt(0)); assertEquals(0, it.getInt(1)) }
             room.openHelper.writableDatabase.query("SELECT content,mergedInto,noMerge FROM memory_items").use {
                 assertTrue(it.moveToFirst()); assertEquals("旧灵感", it.getString(0)); assertTrue(it.isNull(1)); assertEquals(0, it.getInt(2))

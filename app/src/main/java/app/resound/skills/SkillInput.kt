@@ -49,6 +49,15 @@ object SkillInputs {
             appendLine("条目：")
             dao.items(ids).forEach { appendLine("${it.category} / ${it.status} / 谁：${it.who ?: "待确认"} / ${it.content}") }
             if (range == SkillRange.Week) {
+                appendLine("本周你标的重点（按标重点时间入选，可能是更早发生的事）：")
+                val starred = dao.starredEvents(start, end, until)
+                val starredItems = dao.items(starred.map { it.id }).groupBy { it.eventId }
+                starred.forEach { e ->
+                    appendLine("事件#${e.id} / starred=true / 标重点：${time(e.starredAt!!)} / 发生：${time(e.startAt)} / ${e.title}：${e.summary}")
+                    starredItems[e.id].orEmpty().forEach { i ->
+                        appendLine("  ${i.category} / ${i.status} / ${i.content} / 完成：${i.doneAt?.let(::time) ?: "未完成"} / 状态变更：${i.statusChangedAt?.let(::time) ?: "无"}")
+                    }
+                }
                 appendLine("每日回顾：")
                 dao.reviews(startDate.toString(), date.toString()).forEach { appendLine("${it.startDate} ${it.brief}\n${it.sectionsJson}") }
             }

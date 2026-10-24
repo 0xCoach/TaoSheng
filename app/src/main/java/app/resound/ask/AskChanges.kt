@@ -32,7 +32,7 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
         FROM memory_items i JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND e.deleted=0""", arrayOf(id))).use { c ->
         if (c.moveToFirst()) Target(c.getString(0), c.getString(1), if (c.isNull(2)) null else c.getLong(2)) else null
     }
-    private fun event(id: Long): Target? = db.query(SimpleSQLiteQuery("SELECT title,important FROM memory_events WHERE id=? AND deleted=0", arrayOf(id))).use { c ->
+    private fun event(id: Long): Target? = db.query(SimpleSQLiteQuery("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id))).use { c ->
         if (c.moveToFirst()) Target(c.getString(0), c.getInt(1).toString(), null) else null
     }
     private fun due(args: JSONObject): Long? = if (!args.has("due") || args.isNull("due")) null
@@ -47,7 +47,7 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
             "item_status" -> setOf("operation", "id", "status")
             "create_item" -> setOf("operation", "category", "content", "due")
             "item_due" -> setOf("operation", "id", "due")
-            "event_important" -> setOf("operation", "id", "important")
+            "event_star" -> setOf("operation", "id", "starred")
             else -> throw IllegalArgumentException("未知改动")
         }
         require(args.keys().asSequence().all { it in allowed })
@@ -61,7 +61,7 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
             detail = "$content\n截止：${date(due(args))}；确认后加入清单，并创建一件『问问新建』事件。"
         } else {
             val id = args.getLong("id"); require(id > 0)
-            val kind = if (op == "event_important") "event" else "item"
+            val kind = if (op == "event_star") "event" else "item"
             require(sources.any { it.kind == kind && it.id == id }) { "请先检索要修改的记录" }
             val target = (if (kind == "event") event(id) else item(id)) ?: throw IllegalArgumentException("记录已不存在")
             expected = target.snapshot()
@@ -77,9 +77,11 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
                     detail = "${target.content}\n截止：${date(target.dueAt)} → ${date(due(args))}"
                 }
                 else -> {
-                    val important = args.getBoolean("important")
-                    summary = "${if (important) "标重要" else "取消重要"}：${target.content.take(100)}"
-                    detail = "${target.content}\n重要：${target.status == "1"} → $important"
+                    require(args.get("starred") is Boolean)
+                    val starred = args.getBoolean("starred")
+                    summary = "${if (starred) "标重点" else "取消重点"}：${target.content.take(100)}"
+                    detail = "${target.content}\n重点：${target.status == "1"} → $starred" +
+                        if (starred) "；确认后，待确认的待办和备忘会加入进行中。" else "；条目状态保持不变。"
                 }
             }
         }
@@ -109,17 +111,18 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
     }
     private class StaleChange : Exception()
     private suspend fun apply(proposal: ProposedChange) {
+        require(proposal.operation in setOf("item_status", "item_due", "event_star", "create_item"))
         val args = proposal.args
         val id = args.optLong("id")
         if (proposal.operation != "create_item") {
-            val current = if (proposal.operation == "event_important") event(id) else item(id)
+            val current = if (proposal.operation == "event_star") event(id) else item(id)
             if (current?.snapshot() != proposal.expected) throw StaleChange()
         }
         when (proposal.operation) {
             "item_status" -> db.memory().setItemStatus(id, args.getString("status"), now())
             "item_due" -> db.openHelper.writableDatabase.execSQL("UPDATE memory_items SET dueAt=?,dueText=? WHERE id=?",
                 arrayOf<Any?>(due(args), args.optString("due").takeIf { args.has("due") && !args.isNull("due") }, id))
-            "event_important" -> db.memory().setImportant(id, args.getBoolean("important"))
+            "event_star" -> db.memory().setStarred(id, args.getBoolean("starred"), now())
             "create_item" -> {
                 val at = now()
                 val eventId = db.memory().insertEvent(MemoryEventEntity(startAt = at, endAt = at, scene = "其他",

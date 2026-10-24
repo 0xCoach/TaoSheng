@@ -21,6 +21,8 @@ data class MemoryEventEntity(
     @ColumnInfo(defaultValue = "0") val deleted: Boolean = false,
     val createdAt: Long,
     val model: String,
+    @ColumnInfo(defaultValue = "0") val starred: Boolean = false,
+    val starredAt: Long? = null,
 )
 
 /** 提取项：待办、约定、备忘、灵感、关键信息、决定、知识。 */
@@ -188,12 +190,33 @@ abstract class MemoryDao {
         AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id""")
     abstract suspend fun diaryLines(start: Long, end: Long): List<TranscriptLineEntity>
     @Query("""SELECT MAX(at) FROM (
-        SELECT startAt AS at FROM memory_events WHERE deleted = 0 AND scene NOT IN ('媒体', '旁人')
+        SELECT startAt AS at FROM memory_events WHERE deleted = 0 AND (scene NOT IN ('媒体', '旁人') OR starred = 1)
         UNION ALL SELECT l.startAt AS at FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
         LEFT JOIN memory_events e ON e.id = l.eventId WHERE :includeLines AND s.status = 'Done' AND l.text != '' AND (e.id IS NULL OR e.deleted = 0)
     )""")
     abstract suspend fun latestDiaryAt(includeLines: Boolean): Long?
     @Query("UPDATE memory_events SET important = :important WHERE id = :id") abstract suspend fun setImportant(id: Long, important: Boolean)
+    @Query("UPDATE memory_events SET starred = :starred, starredAt = :at WHERE id = :id AND deleted = 0")
+    protected abstract suspend fun updateStarred(id: Long, starred: Boolean, at: Long?)
+
+    @Query("""SELECT i.id FROM memory_items i JOIN memory_events e ON e.id = i.eventId
+        WHERE e.id = :id AND e.deleted = 0 AND i.mergedInto IS NULL
+        AND i.category IN ('待办', '备忘') AND i.status = 'Pending' ORDER BY i.createdAt, i.id""")
+    protected abstract suspend fun pendingStarredItems(id: Long): List<Long>
+
+    @Transaction
+    open suspend fun setStarred(id: Long, starred: Boolean, at: Long = System.currentTimeMillis()) {
+        updateStarred(id, starred, if (starred) at else null)
+        if (starred) pendingStarredItems(id).forEach { setItemStatus(it, "Accepted", at) }
+    }
+
+    @Query("SELECT * FROM memory_events WHERE deleted = 0 AND starred = 1 ORDER BY starredAt DESC, id DESC LIMIT 500")
+    abstract fun starredEvents(): Flow<List<MemoryEventEntity>>
+
+    @Query("""SELECT * FROM memory_items WHERE mergedInto IS NULL AND eventId IN
+        (SELECT id FROM memory_events WHERE deleted = 0 AND starred = 1 ORDER BY starredAt DESC, id DESC LIMIT 500)""")
+    abstract fun starredItems(): Flow<List<MemoryItemEntity>>
+
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND important = 1 ORDER BY startAt DESC, id DESC LIMIT 500")
     abstract fun importantEvents(): Flow<List<MemoryEventEntity>>
 

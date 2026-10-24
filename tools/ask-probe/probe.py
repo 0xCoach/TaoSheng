@@ -51,11 +51,13 @@ def timestamp(value,end=False):
 
 def query(name,args):
     spec=json.loads((ASSETS/'ask-sql.json').read_text())[name]
-    allowed={'search_lines':{'keywords','from','to','speaker'},'search_events':{'keywords','from','to'},'list_items':{'category','status','from','to'},'get_day':{'date'}}[name]
+    allowed={'search_lines':{'keywords','from','to','speaker'},'search_events':{'keywords','from','to','starred_only'},'list_items':{'category','status','from','to'},'get_day':{'date'}}[name]
     if not isinstance(args,dict) or set(args)-allowed: raise ValueError('arguments')
     if name=='search_lines' and 'keywords' not in args: raise ValueError('keywords')
     if name=='get_day' and len(args['date'])!=10: raise ValueError('date')
     where=[spec['where']]; params=[]
+    if 'starred_only' in args and not isinstance(args['starred_only'],bool): raise ValueError('starred_only')
+    if args.get('starred_only'): where.append('e.starred=1')
     if name=='get_day': args={'from':args['date'],'to':args['date']}
     for field,op in [('from','>='),('to','<')]:
         if args.get(field): where.append(spec['time']+op+'?'); params.append(timestamp(args[field],field=='to'))
@@ -76,7 +78,8 @@ def query(name,args):
             cols=spec[field] if isinstance(spec[field],list) else [spec[field]]
             where.append('('+' OR '.join(c+'=?' for c in cols)+')'); params.extend([args[field]]*len(cols))
     prefix='l' if name=='search_lines' else 'i' if name=='list_items' else 'e'
-    sql='SELECT '+spec['select']+' FROM '+spec['table']+' WHERE '+' AND '.join(where)+' ORDER BY '+spec['time']+' DESC, '+prefix+'.id DESC LIMIT 41'
+    order='e.starredAt' if args.get('starred_only') and not kws else spec['time']
+    sql='SELECT '+spec['select']+' FROM '+spec['table']+' WHERE '+' AND '.join(where)+' ORDER BY '+order+' DESC, '+prefix+'.id DESC LIMIT 41'
     return sql,params,spec['kind']
 
 class Search:
@@ -85,6 +88,7 @@ class Search:
         sql,params,kind=query(name,args); rows=self.db.execute(sql,params).fetchall(); result=[]; truncated=len(rows)>40
         for row in rows[:40]:
             r=dict(row)
+            if "starred" in r: r["starred"]=bool(r["starred"])
             for k,v in r.items():
                 if isinstance(v,str): r[k]=v[:900]
             source={'kind':kind,'id':r['id'],'at':r['at'],'title':r['title'],'quote':r['quote']}

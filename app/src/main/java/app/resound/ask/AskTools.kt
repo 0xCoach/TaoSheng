@@ -24,7 +24,7 @@ class AskTools(
         val s = spec.getJSONObject(name)
         val allowed = when (name) {
             "search_lines" -> setOf("keywords", "from", "to", "speaker")
-            "search_events" -> setOf("keywords", "from", "to")
+            "search_events" -> setOf("keywords", "from", "to", "starred_only")
             "list_items" -> setOf("keywords", "category", "status", "from", "to")
             else -> setOf("date")
         }
@@ -35,6 +35,9 @@ class AskTools(
             JSONObject().put("from", date).put("to", date)
         } else input
         val where = mutableListOf(s.getString("where")); val args = mutableListOf<Any>()
+        if (a.has("starred_only")) require(a.get("starred_only") is Boolean)
+        val starredOnly = a.optBoolean("starred_only", false)
+        if (starredOnly) where += "e.starred = 1"
         if (name == "list_items") where += "i.mergedInto IS NULL"
         for ((field, op) in listOf("from" to ">=", "to" to "<")) if (a.has(field) && !a.isNull(field)) {
             where += s.getString("time") + op + "?"; args += timestamp(a.getString(field), field == "to", zone)
@@ -67,7 +70,8 @@ class AskTools(
                 ?: listOf(s.getString(field))
             where += columns.joinToString(" OR ", "(", ")") { "$it=?" }; columns.forEach { args += value }
         }
-        return Query("SELECT ${s.getString("select")} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY ${s.getString("time")} DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
+        val order = if (starredOnly && words.isEmpty()) "e.starredAt" else s.getString("time")
+        return Query("SELECT ${s.getString("select")} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
     }
 
     private fun read(q: Query): List<JSONObject> = db.query(SimpleSQLiteQuery(q.sql, q.args.toTypedArray())).use { cursor ->
@@ -77,7 +81,8 @@ class AskTools(
                 cursor.columnNames.forEachIndexed { i, column ->
                     row.put(column, when {
                         cursor.isNull(i) -> JSONObject.NULL
-                        column in setOf("id", "at") -> cursor.getLong(i)
+                        column == "starred" -> cursor.getInt(i) != 0
+                        column in setOf("id", "at", "starred_at") -> cursor.getLong(i)
                         else -> cursor.getString(i).take(900)
                     })
                 }

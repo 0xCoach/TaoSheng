@@ -1,0 +1,8 @@
+flatbuffers==25.12.19
+kaldi-native-fbank==1.22.4
+numpy==2.5.4
+onnxruntime==1.31.0
+packaging==26.3
+protobuf==7.36.2
+sherpa-onnx-core==1.13.8
+sherpa_onnx==1.13.8

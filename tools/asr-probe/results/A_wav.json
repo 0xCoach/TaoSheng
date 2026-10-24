@@ -1,0 +1,32 @@
+{
+  "label": "A_wav",
+  "scheme": "A",
+  "resource_id": "volc.seedasr.auc",
+  "sample": "monologue",
+  "format": "wav",
+  "mode": null,
+  "pace": "fast",
+  "reserved_seconds": 20.0,
+  "started": "2026-10-23T04:29:22.829531+00:00",
+  "endpoint": "https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit",
+  "request": {
+    "audio": {
+      "format": "wav",
+      "codec": "raw",
+      "rate": 16000,
+      "bits": 16,
+      "channel": 1
+    },
+    "transport": "audio.data base64 (no URL)",
+    "request": {
+      "model_name": "bigmodel",
+      "enable_itn": true,
+      "enable_punc": true,
+      "enable_speaker_info": true,
+      "show_utterances": true
+    }
+  },
+  "exception_type": "ConnectionError",
+  "error": "网络/超时异常；为保护凭证不输出异常详情",
+  "total_seconds": 0.008
+}

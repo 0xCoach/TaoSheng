@@ -1,0 +1,536 @@
+{
+  "reserved_total_seconds": 280.0065,
+  "samples_sha256": {
+    "dialogue.json": "48dbec254ccb7bd99c3bafa7b0961f00f31ee8445e46c7d87b16b1708c9f4ee3",
+    "dialogue.ogg": "f2ea5e09c6aee753f058ce339e6c5377c2911e2a0b2711b9d31cead37b1a7ff0",
+    "dialogue.wav": "48e6a85b32030a87e51b09f85fdbdf137fad27e4b59c47077e1d63bfc9e3165f",
+    "monologue.json": "1acfd5dd9c369f85533095efd9f0f2c8069ab14d62f597e8a9628c54ca43e464",
+    "monologue.ogg": "dfed7fea2514f84d6f43b35a3fd9267c9da8ba9077d7229642b25fa8f664d80a",
+    "monologue.wav": "067b41ca3801c51847b29312a9b5744946fa24374ca568c1924eb4a6914f7712"
+  },
+  "probes": [
+    {
+      "label": "A_wav",
+      "scheme": "A",
+      "sample": "monologue",
+      "format": "wav",
+      "mode": null,
+      "pace": "fast",
+      "reserved_seconds": 20.0,
+      "total_seconds": 0.008,
+      "send_seconds": null,
+      "sent_bytes": null,
+      "http_status": null,
+      "exception_type": "ConnectionError",
+      "headers": null,
+      "message_count": 0,
+      "server_errors": [],
+      "has_final": false
+    },
+    {
+      "label": "A_wav_network",
+      "scheme": "A",
+      "sample": "monologue",
+      "format": "wav",
+      "mode": null,
+      "pace": "fast",
+      "reserved_seconds": 20.0,
+      "total_seconds": 0.252,
+      "send_seconds": null,
+      "sent_bytes": null,
+      "http_status": 403,
+      "exception_type": null,
+      "headers": {
+        "X-Api-Status-Code": "45000030",
+        "X-Api-Message": "[resource_id=volc.seedasr.auc] requested resource not granted",
+        "X-Tt-Logid": "2026102312295145B0BF2A2385000667D3"
+      },
+      "message_count": 0,
+      "server_errors": [],
+      "has_final": false
+    },
+    {
+      "label": "B_async_fast",
+      "scheme": "B",
+      "sample": "dialogue",
+      "format": "pcm",
+      "mode": "async",
+      "pace": "fast",
+      "reserved_seconds": 40.0,
+      "total_seconds": 2.635,
+      "send_seconds": 0.033,
+      "sent_bytes": 1280000,
+      "http_status": null,
+      "exception_type": null,
+      "headers": {
+        "X-Tt-Logid": "20261023123036AF48E113F45B2593C0F9"
+      },
+      "message_count": 17,
+      "server_errors": [],
+      "has_final": true,
+      "recognized_duration_ms": 40000,
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "reference_characters": 137,
+      "edit_distance": 0,
+      "normalized_cer": 0.0,
+      "utterances": [
+        {
+          "start_ms": null,
+          "diagnostic_start_ms": 0,
+          "end_ms": 9920,
+          "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 10280,
+          "diagnostic_start_ms": 10280,
+          "end_ms": 20302,
+          "text": "好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 20302,
+          "diagnostic_start_ms": 20302,
+          "end_ms": 38222,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy",
+            "Flo"
+          ],
+          "definite": true
+        }
+      ]
+    },
+    {
+      "label": "B_async_realtime",
+      "scheme": "B",
+      "sample": "dialogue",
+      "format": "pcm",
+      "mode": "async",
+      "pace": "realtime",
+      "reserved_seconds": 40.0,
+      "total_seconds": 40.233,
+      "send_seconds": 40.002,
+      "sent_bytes": 1280000,
+      "http_status": null,
+      "exception_type": null,
+      "headers": {
+        "X-Tt-Logid": "20261023123046C4A2182BBEAEF1726A66"
+      },
+      "message_count": 88,
+      "server_errors": [],
+      "has_final": true,
+      "recognized_duration_ms": 40000,
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "reference_characters": 137,
+      "edit_distance": 0,
+      "normalized_cer": 0.0,
+      "utterances": [
+        {
+          "start_ms": null,
+          "diagnostic_start_ms": 0,
+          "end_ms": 9920,
+          "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 10280,
+          "diagnostic_start_ms": 10280,
+          "end_ms": 20302,
+          "text": "好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 20302,
+          "diagnostic_start_ms": 20302,
+          "end_ms": 38222,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy",
+            "Flo"
+          ],
+          "definite": true
+        }
+      ]
+    },
+    {
+      "label": "B_nostream_fast",
+      "scheme": "B",
+      "sample": "dialogue",
+      "format": "pcm",
+      "mode": "nostream",
+      "pace": "fast",
+      "reserved_seconds": 40.0,
+      "total_seconds": 7.157,
+      "send_seconds": 0.044,
+      "sent_bytes": 1280000,
+      "http_status": null,
+      "exception_type": null,
+      "headers": {
+        "X-Tt-Logid": "20261023123005A5C8566CEBDBA1B5ABA1"
+      },
+      "message_count": 201,
+      "server_errors": [],
+      "has_final": true,
+      "recognized_duration_ms": 40000,
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "reference_characters": 137,
+      "edit_distance": 0,
+      "normalized_cer": 0.0,
+      "utterances": [
+        {
+          "start_ms": 80,
+          "diagnostic_start_ms": 80,
+          "end_ms": 4160,
+          "text": "早上好，我们确认一下今天的工作安排。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 4560,
+          "diagnostic_start_ms": 4560,
+          "end_ms": 9920,
+          "text": "上午10点和产品经理开会，讨论回响的录音功能。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 10280,
+          "diagnostic_start_ms": 10280,
+          "end_ms": 13120,
+          "text": "好的，我会带上测试手机。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 13320,
+          "diagnostic_start_ms": 13320,
+          "end_ms": 20000,
+          "text": "我们先检查后台录音，再看语音识别能不能区分不同的说话人。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 20460,
+          "diagnostic_start_ms": 20460,
+          "end_ms": 28300,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 28620,
+          "diagnostic_start_ms": 28620,
+          "end_ms": 37380,
+          "text": "没问题，测试结束以后我会把结果发给你，明天一起决定采用哪一种转写方案。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        }
+      ]
+    },
+    {
+      "label": "B_nostream_realtime",
+      "scheme": "B",
+      "sample": "dialogue",
+      "format": "pcm",
+      "mode": "nostream",
+      "pace": "realtime",
+      "reserved_seconds": 40.0,
+      "total_seconds": 40.426,
+      "send_seconds": 40.001,
+      "sent_bytes": 1280000,
+      "http_status": null,
+      "exception_type": null,
+      "headers": {
+        "X-Tt-Logid": "20261023123021E969C59AB3F8AB2D5E8A"
+      },
+      "message_count": 201,
+      "server_errors": [],
+      "has_final": true,
+      "recognized_duration_ms": 40000,
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "reference_characters": 137,
+      "edit_distance": 0,
+      "normalized_cer": 0.0,
+      "utterances": [
+        {
+          "start_ms": 80,
+          "diagnostic_start_ms": 80,
+          "end_ms": 4160,
+          "text": "早上好，我们确认一下今天的工作安排。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 4560,
+          "diagnostic_start_ms": 4560,
+          "end_ms": 9920,
+          "text": "上午10点和产品经理开会，讨论回响的录音功能。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 10280,
+          "diagnostic_start_ms": 10280,
+          "end_ms": 13120,
+          "text": "好的，我会带上测试手机。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 13320,
+          "diagnostic_start_ms": 13320,
+          "end_ms": 20000,
+          "text": "我们先检查后台录音，再看语音识别能不能区分不同的说话人。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 20460,
+          "diagnostic_start_ms": 20460,
+          "end_ms": 28300,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 28620,
+          "diagnostic_start_ms": 28620,
+          "end_ms": 37380,
+          "text": "没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        }
+      ]
+    },
+    {
+      "label": "B_ogg_fast",
+      "scheme": "B",
+      "sample": "dialogue",
+      "format": "ogg",
+      "mode": "nostream",
+      "pace": "fast",
+      "reserved_seconds": 40.0065,
+      "total_seconds": 6.4,
+      "send_seconds": 0.006,
+      "sent_bytes": 109946,
+      "http_status": null,
+      "exception_type": null,
+      "headers": {
+        "X-Tt-Logid": "20261023123059D4E7EF027BB92CF03D65"
+      },
+      "message_count": 202,
+      "server_errors": [],
+      "has_final": true,
+      "recognized_duration_ms": 40000,
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "reference_characters": 137,
+      "edit_distance": 0,
+      "normalized_cer": 0.0,
+      "utterances": [
+        {
+          "start_ms": 80,
+          "diagnostic_start_ms": 80,
+          "end_ms": 4160,
+          "text": "早上好，我们确认一下今天的工作安排。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 4560,
+          "diagnostic_start_ms": 4560,
+          "end_ms": 9920,
+          "text": "上午10点和产品经理开会，讨论回响的录音功能。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 10280,
+          "diagnostic_start_ms": 10280,
+          "end_ms": 13120,
+          "text": "好的，我会带上测试手机。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 13320,
+          "diagnostic_start_ms": 13320,
+          "end_ms": 19960,
+          "text": "我们先检查后台录音，再看语音识别能不能区分不同的说话人。",
+          "speaker_id": "1",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 20420,
+          "diagnostic_start_ms": 20420,
+          "end_ms": 28300,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 28580,
+          "diagnostic_start_ms": 28580,
+          "end_ms": 37340,
+          "text": "没问题，测试结束以后我会把结果发给你，明天一起决定采用哪一种转写方案。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Flo"
+          ],
+          "definite": true
+        }
+      ]
+    },
+    {
+      "label": "B_wav_monologue",
+      "scheme": "B",
+      "sample": "monologue",
+      "format": "wav",
+      "mode": "nostream",
+      "pace": "fast",
+      "reserved_seconds": 20.0,
+      "total_seconds": 3.249,
+      "send_seconds": 0.003,
+      "sent_bytes": 640044,
+      "http_status": null,
+      "exception_type": null,
+      "headers": {
+        "X-Tt-Logid": "20261023123114A3419F0C7AC40E7282AF"
+      },
+      "message_count": 102,
+      "server_errors": [],
+      "has_final": true,
+      "recognized_duration_ms": 20000,
+      "text": "这是一段个人工作记录。今天完成了录音服务测试，接下来要比较转写速度和文字准确度。请记住，周五下午3点联系张经理，确认下周的项目安排，并准备会议材料。",
+      "reference_characters": 67,
+      "edit_distance": 0,
+      "normalized_cer": 0.0,
+      "utterances": [
+        {
+          "start_ms": 40,
+          "diagnostic_start_ms": 40,
+          "end_ms": 2200,
+          "text": "这是一段个人工作记录。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 2480,
+          "diagnostic_start_ms": 2480,
+          "end_ms": 9440,
+          "text": "今天完成了录音服务测试，接下来要比较转写速度和文字准确度。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        },
+        {
+          "start_ms": 9680,
+          "diagnostic_start_ms": 9680,
+          "end_ms": 18120,
+          "text": "请记住，周五下午3点联系张经理，确认下周的项目安排，并准备会议材料。",
+          "speaker_id": "0",
+          "expected_voices": [
+            "Eddy"
+          ],
+          "definite": true
+        }
+      ]
+    },
+    {
+      "label": "C_wav",
+      "scheme": "C",
+      "sample": "monologue",
+      "format": "wav",
+      "mode": null,
+      "pace": "fast",
+      "reserved_seconds": 20.0,
+      "total_seconds": 0.265,
+      "send_seconds": null,
+      "sent_bytes": null,
+      "http_status": 403,
+      "exception_type": null,
+      "headers": {
+        "X-Api-Status-Code": "45000030",
+        "X-Api-Message": "[resource_id=volc.bigasr.auc_turbo] requested resource not granted",
+        "X-Tt-Logid": "202610231230128B957320024E8A95305E"
+      },
+      "message_count": 0,
+      "server_errors": [],
+      "has_final": false
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "label": "70_fast",
+    "seconds": 70.0065
+  },
+  {
+    "label": "70_fast_retry1",
+    "seconds": 70.0065
+  },
+  {
+    "label": "150_fast",
+    "seconds": 150.0065
+  },
+  {
+    "label": "290_fast",
+    "seconds": 290.0065
+  }
+]

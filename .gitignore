@@ -1,0 +1,19 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+.kotlin/
+.codex-logs/
+# 问问离线验证的只读快照和原始响应
+tools/ask-probe/private/
+tools/ask-probe/__pycache__/
+
+# 每日回顾离线验证的本机快照与原始请求/响应
+tools/review-probe/private/
+tools/review-probe/__pycache__/
+
+# 技能离线实测的本机数据及原始响应
+tools/skills-probe/private/
+tools/skills-probe/__pycache__/

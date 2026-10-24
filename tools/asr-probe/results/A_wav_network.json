@@ -1,0 +1,43 @@
+{
+  "label": "A_wav_network",
+  "scheme": "A",
+  "resource_id": "volc.seedasr.auc",
+  "sample": "monologue",
+  "format": "wav",
+  "mode": null,
+  "pace": "fast",
+  "reserved_seconds": 20.0,
+  "started": "2026-10-23T04:29:50.870158+00:00",
+  "endpoint": "https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit",
+  "request": {
+    "audio": {
+      "format": "wav",
+      "codec": "raw",
+      "rate": 16000,
+      "bits": 16,
+      "channel": 1
+    },
+    "transport": "audio.data base64 (no URL)",
+    "request": {
+      "model_name": "bigmodel",
+      "enable_itn": true,
+      "enable_punc": true,
+      "enable_speaker_info": true,
+      "show_utterances": true
+    }
+  },
+  "http_status": 403,
+  "headers": {
+    "X-Api-Status-Code": "45000030",
+    "X-Api-Message": "[resource_id=volc.seedasr.auc] requested resource not granted",
+    "X-Tt-Logid": "2026102312295145B0BF2A2385000667D3"
+  },
+  "response": {
+    "header": {
+      "reqid": "a8721287-37b9-4994-a38e-49a9bb47aeba",
+      "code": 45000030,
+      "message": "[resource_id=volc.seedasr.auc] requested resource not granted"
+    }
+  },
+  "total_seconds": 0.252
+}

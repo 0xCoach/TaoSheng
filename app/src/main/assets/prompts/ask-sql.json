@@ -1,0 +1,52 @@
+{
+  "search_lines": {
+    "select": "l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote",
+    "table": "transcript_lines l",
+    "where": "(l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0))",
+    "time": "l.startAt",
+    "keywords": [
+      "l.text"
+    ],
+    "speaker": [
+      "l.speakerName",
+      "l.speakerTag"
+    ],
+    "kind": "line"
+  },
+  "search_events": {
+    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote",
+    "table": "memory_events e",
+    "where": "e.deleted=0",
+    "time": "e.startAt",
+    "keywords": [
+      "e.title",
+      "e.summary",
+      "e.pointsJson",
+      "e.peopleJson"
+    ],
+    "kind": "event"
+  },
+  "get_day": {
+    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote",
+    "table": "memory_events e",
+    "where": "e.deleted=0",
+    "time": "e.startAt",
+    "keywords": [
+      "e.title",
+      "e.summary",
+      "e.pointsJson",
+      "e.peopleJson"
+    ],
+    "kind": "event"
+  },
+  "list_items": {
+    "select": "i.id, e.startAt AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),'') AS quote",
+    "table": "memory_items i JOIN memory_events e ON e.id=i.eventId",
+    "where": "e.deleted=0",
+    "time": "e.startAt",
+    "category": "i.category",
+    "status": "i.status",
+    "keywords": [],
+    "kind": "item"
+  }
+}

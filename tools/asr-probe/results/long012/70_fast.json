@@ -1,0 +1,12 @@
+{
+  "label": "70_fast",
+  "audio_seconds": 70.0065,
+  "sha256": "c69fe276d3c0fab8af9cef36cda69e70f3355c8a1f1c06022036ebf91776595a",
+  "timeout_seconds": 170,
+  "success": false,
+  "timed_out": false,
+  "packets": [],
+  "exception_type": "gaierror",
+  "total_seconds": 0.019,
+  "would_timeout_at_90s": false
+}

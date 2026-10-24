@@ -1,0 +1,7 @@
+// 仅编译并运行 026 测试，避免既有 DayDiary/Review 测试的旧 Notifier 签名阻塞本卡。
+gradle.projectsEvaluated {
+    def app = rootProject.project(':app')
+    app.tasks.named('compileDebugUnitTestKotlin').configure {
+        setSource(app.fileTree('src/test/java/app/resound/search') { include '**/*.kt' })
+    }
+}

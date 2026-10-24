@@ -1,0 +1,36 @@
+{
+  "baseline_apk_bytes": 54167214,
+  "final_apk_bytes": 80402165,
+  "delta_bytes": 26234951,
+  "apk_sha256": "c53a3ef76e1a633e120a3f0674f82c9841a78ead4e0b22b23a26a721805063df",
+  "bundled_model_sha256": "f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11",
+  "native_libraries": [
+    "lib/arm64-v8a/libandroidx.graphics.path.so",
+    "lib/arm64-v8a/libonnxruntime.so",
+    "lib/arm64-v8a/libonnxruntime4j_jni.so"
+  ],
+  "latest_targeted_tests": [
+    {
+      "name": "app.resound.voiceprint.VoiceprintMathTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.051"
+    },
+    {
+      "name": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.283"
+    },
+    {
+      "name": "app.resound.voiceprint.VoiceprintMigrationTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.055"
+    }
+  ],
+  "initial_tests": "14 executed: 13 passed incl 1->4 migration, retention and transcript persistence; v3 fixture reader fixed then rerun"
+}

@@ -1,0 +1,73 @@
+{
+  "model_revision": "75c43b069aac4d136ba6bc1122f995fedcfd2781",
+  "model_bytes": 24010842,
+  "dim": 512,
+  "onnx_inputs": [
+    "input_ids",
+    "attention_mask",
+    "token_type_ids"
+  ],
+  "question": "关于报销，我要准备什么？",
+  "keyword": "报销",
+  "before_like_ids": [],
+  "after_semantic_ranking": [
+    [
+      1,
+      0.4008804261684418
+    ],
+    [
+      2,
+      0.2916443645954132
+    ],
+    [
+      3,
+      0.22625000774860382
+    ]
+  ],
+  "tokenizer_examples": {
+    "你好，BGE 2026！": [
+      101,
+      872,
+      1962,
+      8024,
+      100,
+      9707,
+      8158,
+      8013,
+      102
+    ],
+    "école ABC foo-bar": [
+      101,
+      100,
+      100,
+      148,
+      8902,
+      118,
+      9054,
+      102
+    ],
+    "报销": [
+      101,
+      2845,
+      7218,
+      102
+    ]
+  },
+  "validation_scope": "电脑 CPU ONNX + 三条合成记录；不代表 Android 真机验收",
+  "cloud_requests": 1,
+  "cloud_model": "deepseek-flash",
+  "cloud_answer": "改前：没找到。\n\n改后：准备车费发票并整理票据，明天交给财务[^1]。",
+  "usage": {
+    "prompt_tokens": 163,
+    "completion_tokens": 129,
+    "total_tokens": 292,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 104
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 163
+  }
+}

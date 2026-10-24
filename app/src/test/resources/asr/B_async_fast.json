@@ -1,0 +1,61 @@
+{
+  "kind": 9,
+  "flags": 3,
+  "sequence": 16,
+  "code": null,
+  "payload": {
+    "audio_info": {
+      "duration": 40000
+    },
+    "result": {
+      "additions": {
+        "log_id": "20261023123036AF48E113F45B2593C0F9"
+      },
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "utterances": [
+        {
+          "additions": {
+            "all_matched_hotwords": "",
+            "fixed_prefix_result": "",
+            "invoke_type": "hard_vad",
+            "source": "two_pass",
+            "speaker_id": "0",
+            "use_bigasr_post_process": "true"
+          },
+          "definite": true,
+          "end_time": 9920,
+          "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。"
+        },
+        {
+          "additions": {
+            "all_matched_hotwords": "",
+            "fixed_prefix_result": "",
+            "invoke_type": "hard_vad",
+            "source": "two_pass",
+            "speaker_id": "1",
+            "use_bigasr_post_process": "true"
+          },
+          "definite": true,
+          "end_time": 20302,
+          "start_time": 10280,
+          "text": "好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。"
+        },
+        {
+          "additions": {
+            "all_matched_hotwords": "",
+            "fixed_prefix_result": "",
+            "invoke_type": "hard_vad",
+            "source": "two_pass",
+            "speaker_id": "0",
+            "use_bigasr_post_process": "true"
+          },
+          "definite": true,
+          "end_time": 38222,
+          "start_time": 20302,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后，我会把结果发给你，明天一起决定采用哪一种转写方案。"
+        }
+      ]
+    }
+  },
+  "elapsed_seconds": 2.492
+}

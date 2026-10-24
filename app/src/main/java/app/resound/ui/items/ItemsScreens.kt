@@ -1,0 +1,482 @@
+package app.resound.ui.items
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import app.resound.diary.DiaryRepository
+import app.resound.digest.ItemStatus
+import app.resound.digest.MemoryEvent
+import app.resound.digest.MemoryItem
+import app.resound.digest.MemoryRepository
+import app.resound.review.DailyReview
+import app.resound.review.ReviewRepository
+import app.resound.transcribe.TranscriptRepository
+import app.resound.ui.review.ReviewRow
+import app.resound.ui.review.ReviewSheet
+import app.resound.ui.theme.Rs
+import app.resound.ui.theme.RsType
+import app.resound.ui.today.CategoryChip
+import app.resound.ui.today.EventSheet
+import app.resound.ui.today.ItemSheet
+import app.resound.ui.today.friendlyDue
+import app.resound.ui.verify.RsCard
+import app.resound.ui.verify.formatClock
+import app.resound.ui.verify.springClick
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
+/** 列表怎么分组 */
+private enum class Grouping {
+    /** 按提到的那天 */
+    Mentioned,
+    /** 按截止/约定那天，没有时间的放最后 */
+    Due,
+    /** 按完成那天 */
+    Done,
+    /** 不分组，手动拖动排序 */
+    Manual,
+}
+
+/** 一个分段：名字 + 取数 + 分组方式 */
+private class Tab(val name: String, val grouping: Grouping, val source: (MemoryRepository) -> Flow<List<MemoryItem>>)
+
+private val TODO_TABS = listOf(
+    Tab("待确认", Grouping.Mentioned) { it.items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Pending)) },
+    Tab("进行中", Grouping.Manual) { it.inProgress() },
+    Tab("约定", Grouping.Due) { it.appointments() },
+    Tab("已完成", Grouping.Done) { it.items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Done)) },
+)
+
+private val MEMORY_TABS = listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
+    Tab("卡片", Grouping.Mentioned) { flowOf(emptyList()) }
+
+/** 待办：分段 待确认 · 进行中（可拖动排序）· 约定（按时间）· 已完成；点圆圈完成，点一行看详情和原话 */
+@Composable
+fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
+    val c = Rs.colors
+    var tabIndex by rememberSaveable { mutableStateOf(0) }
+    val tab = TODO_TABS[tabIndex]
+    val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
+    var opened by remember { mutableStateOf<MemoryItem?>(null) }
+    val listState = rememberLazyListState()
+    // 拖动时先在本地挪，松手再存；数据库发回新顺序后以它为准
+    var order by remember(items) { mutableStateOf(items.orEmpty()) }
+    val haptic = LocalHapticFeedback.current
+    val reorder = rememberReorderableLazyListState(listState) { from, to ->
+        val a = order.indexOfFirst { it.id == from.key }
+        val b = order.indexOfFirst { it.id == to.key }
+        if (a >= 0 && b >= 0) order = order.toMutableList().apply { add(b, removeAt(a)) }
+    }
+    val toggle: (MemoryItem) -> Unit = { memory.setItemStatus(it.id, if (it.status == ItemStatus.Done) ItemStatus.Accepted else ItemStatus.Done) }
+
+    LazyColumn(
+        Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
+        state = listState,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
+    ) {
+        item { PageTitle("待办"); Spacer(Modifier.height(12.dp)) }
+        item { Capsules(TODO_TABS.map { it.name }, tabIndex) { tabIndex = it }; Spacer(Modifier.height(16.dp)) }
+        val list = items
+        if (list != null && list.isEmpty()) item { Empty(emptyText(tab.name)) }
+        if (tab.grouping == Grouping.Manual) {
+            if (order.size > 1) item { Hint("长按拖动，调整先后") }
+            items(order, key = { it.id }) { item ->
+                ReorderableItem(reorder, key = item.id) { dragging ->
+                    val i = order.indexOf(item)
+                    val lift by animateDpAsState(if (dragging) 12.dp else 0.dp, label = "lift")
+                    val shape = segmentShape(i == 0 || dragging, i == order.lastIndex || dragging)
+                    Column(
+                        Modifier.shadow(lift, shape, ambientColor = c.shadow, spotColor = c.shadow).clip(shape).background(c.card)
+                            .longPressDraggableHandle(
+                                onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                onDragStopped = { memory.reorder(order.map { it.id }) },
+                            ),
+                    ) {
+                        ItemRow(item, checkable = true, onToggle = { toggle(item) }) { opened = item }
+                        if (i != order.lastIndex && !dragging) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                    }
+                }
+            }
+        } else {
+            groupedItems(list.orEmpty(), tab.grouping, checkable = true, keyPrefix = tab.name, onToggle = toggle) { opened = it }
+        }
+    }
+    opened?.let { item -> ItemSheet(item, memory, onOpenEvent = null) { opened = null } }
+}
+
+/** 记忆：按天（日期条 + 当天日记，可导出）· 按类（灵感 · 关键信息 · 决定 · 知识 · 回顾）。openReview 不为空时跳到那天并打开回顾 */
+@Composable
+fun MemoryScreen(
+    memory: MemoryRepository,
+    reviews: ReviewRepository?,
+    transcripts: TranscriptRepository?,
+    diary: DiaryRepository?,
+    openReview: LocalDate?,
+    onReviewShown: () -> Unit,
+    bottomPadding: Dp,
+) {
+    val c = Rs.colors
+    var byDay by rememberSaveable { mutableStateOf(true) }
+    var epochDay by rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    val date = LocalDate.ofEpochDay(epochDay)
+    var tabIndex by rememberSaveable { mutableStateOf(0) }
+    val tabs = MEMORY_TABS
+    val tab = tabs[tabIndex.coerceIn(0, tabs.lastIndex)]
+    var opened by remember { mutableStateOf<MemoryItem?>(null) }
+    var openedEvent by remember { mutableStateOf<MemoryEvent?>(null) }
+    var openedReview by remember { mutableStateOf<DailyReview?>(null) }
+    var exporting by remember { mutableStateOf(false) }
+    var linesOpen by remember(epochDay) { mutableStateOf(false) }
+    // 时间线顺序：记住上次的选择
+    val uiPrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
+    var newestFirst by remember { mutableStateOf(uiPrefs.getBoolean("timelineNewestFirst", false)) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val keys = remember { ArrayList<Any>() }
+    // 换了日期回到顶部，从回顾开始看
+    LaunchedEffect(epochDay) { if (listState.firstVisibleItemIndex > 1) listState.scrollToItem(0) }
+
+    // 按天要的数据
+    val review by remember(date, reviews) { reviews?.daily(date) ?: flowOf(null) }.collectAsState(initial = null)
+    val events by remember(date) { memory.events(date) }.collectAsState(initial = null)
+    val day by remember(date) { memory.dayItems(date) }.collectAsState(initial = null)
+    val segments by remember(date, transcripts) { transcripts?.day(date) ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val lines = remember(segments) { dayLines(segments) }
+    val skills = remember { app.resound.ui.skills.skillRepo() }
+    val dayCards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
+    var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
+    var makingCard by remember { mutableStateOf(false) }
+    val cardSkillIds by remember { skills.skillsWithCards }.collectAsState(initial = emptyList())
+    val skillNames = skills.skills.collectAsState().value.associate { it.id to it.name }
+    var chipIndex by rememberSaveable { mutableStateOf(0) }
+    // “卡片”分类的第二排小胶囊：回顾 + 出过卡的技能（按最近出卡排序）
+    val chips = (if (reviews != null) listOf("review") else emptyList()) + cardSkillIds.filter { it != "review" }
+    val chip = chips.getOrNull(chipIndex.coerceIn(0, (chips.size - 1).coerceAtLeast(0)))
+    val history by remember(chip) { if (chip == null || chip == "review") flowOf(emptyList()) else skills.cardsOf(chip) }.collectAsState(initial = emptyList())
+    val hourSlots = remember(events, newestFirst) {
+        val sorted = if (newestFirst) events.orEmpty().sortedByDescending { it.startAt } else events.orEmpty().sortedBy { it.startAt }
+        sorted.groupBy { eventHourOf(it.startAt) }.map { (h, list) ->
+            HourSlot(h, list.map { RailEntry("ev${it.id}", "${app.resound.ui.verify.formatClock(it.startAt)}  ${it.title}") })
+        }
+    }
+    // 跨了至少 3 个小时才有跳转的意义；全挤在一两个小时里只会显示孤零零一个数字
+    val showIndex = byDay && events.orEmpty().size >= 6 && hourSlots.size >= 3
+    // 按类要的数据
+    val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
+    val reviewList by remember(reviews) { reviews?.recent() ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val reviewState = reviews?.state?.collectAsState()?.value
+
+    // 从通知点进来：切到按天、那一天，回顾出来后打开
+    LaunchedEffect(openReview) { openReview?.let { byDay = true; epochDay = it.toEpochDay() } }
+    LaunchedEffect(openReview, review) {
+        if (openReview != null && review?.date == openReview) { openedReview = review; onReviewShown() }
+    }
+
+    Box(Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        state = listState,
+        // 有小时刻度时右边多留出刻度的宽度
+        contentPadding = PaddingValues(start = 16.dp, end = if (showIndex) 40.dp else 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
+        // 按天时各块自己留间距（时间线一件事一行要拼成整卡）
+        verticalArrangement = Arrangement.spacedBy(if (byDay) 0.dp else 16.dp),
+    ) {
+        keys.clear(); keys.add("title"); if (byDay) keys.add("strip")
+        item(key = "title") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PageTitle("记忆", Modifier.weight(1f))
+                if (byDay && diary != null) {
+                    Text("导出", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                        modifier = Modifier.springClick { exporting = true }.clip(CircleShape).background(c.accentSoft)
+                            .padding(horizontal = 14.dp, vertical = 7.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                ModeSwitch(byDay) { byDay = it }
+            }
+        }
+        if (byDay) {
+            item(key = "strip") { Box(Modifier.padding(top = 8.dp, bottom = 16.dp)) { DatePickerStrip(memory, date) { epochDay = it.toEpochDay() } } }
+            dayDiary(
+                date, review, events, day, lines, linesOpen,
+                onToggleLines = { linesOpen = !linesOpen },
+                onOpenReview = { openedReview = review },
+                onOpenEvent = { openedEvent = it },
+                onOpenItem = { opened = it },
+                onToggleDone = { memory.setItemStatus(it.id, if (it.status == ItemStatus.Done) ItemStatus.Accepted else ItemStatus.Done) },
+                onGenerate = reviews?.let { r -> { r.generateNow(date) } },
+                generating = reviewState?.generating == true,
+                newestFirst = newestFirst,
+                keysOut = keys,
+                onToggleOrder = { newestFirst = !newestFirst; uiPrefs.edit().putBoolean("timelineNewestFirst", newestFirst).apply() },
+                cards = dayCards,
+                onOpenCard = { openedCard = it },
+                onMakeCard = { makingCard = true },
+            )
+        } else {
+            item(key = "caps") { Capsules(tabs.map { it.name }, tabIndex) { tabIndex = it } }
+            if (tab.name == "卡片") {
+                if (chips.size > 1) item(key = "chips") {
+                    Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        chips.forEachIndexed { i, id ->
+                            val on = id == chip
+                            val name = if (id == "review") "回顾" else skillNames[id] ?: id
+                            Text(name, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = if (on) c.accent else c.textSecondary,
+                                modifier = Modifier.springClick { chipIndex = i }.clip(CircleShape).background(if (on) c.accentSoft else Color.Transparent)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp))
+                        }
+                    }
+                }
+                item(key = "chipGap") { Spacer(Modifier.height(12.dp)) }
+                when {
+                    chip == null -> item { Empty("开了技能以后，会议、收工打卡这些卡片会出现在这里") }
+                    chip == "review" -> if (reviewList.isEmpty()) item { Empty("每天晚上会自动生成当天的回顾") }
+                        else item {
+                            RsCard(padding = PaddingValues(vertical = 2.dp)) {
+                                reviewList.forEachIndexed { i, r ->
+                                    ReviewRow(r) { openedReview = r }
+                                    if (i != reviewList.lastIndex) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                                }
+                            }
+                        }
+                    else -> {
+                        history.groupBy { it.date }.forEach { (d, list) ->
+                            item(key = "h$chip$d") {
+                                Column(Modifier.padding(bottom = 16.dp)) {
+                                    Text(dayLabel(d), style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
+                                        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+                                    RsCard(padding = PaddingValues(vertical = 2.dp)) {
+                                        list.forEachIndexed { i, card ->
+                                            app.resound.ui.skills.SkillCardRow(card, Modifier.springClick { openedCard = card })
+                                            if (i != list.lastIndex) Box(Modifier.padding(start = 64.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                val list = items
+                if (list != null && list.isEmpty()) item { Empty(emptyText(tab.name)) }
+                groupedItems(list.orEmpty(), Grouping.Mentioned, checkable = false, keyPrefix = tab.name, onToggle = {}) { opened = it }
+            }
+        }
+    }
+    // 右侧时间刻度：点小时跳到那个小时，按住拖在事件之间连续滑并预览
+    if (showIndex) {
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        val currentKey by remember {
+            androidx.compose.runtime.derivedStateOf {
+                listState.layoutInfo.visibleItemsInfo.firstOrNull { (it.key as? String)?.startsWith("ev") == true }?.key
+            }
+        }
+        HourIndex(hourSlots, currentKey, Modifier.align(Alignment.TopEnd).padding(top = 150.dp, bottom = bottomPadding + 20.dp, end = 4.dp)) { key ->
+            val index = keys.indexOf(key)
+            if (index >= 0) scope.launch { listState.scrollToItem(index) }
+        }
+    }
+    }
+    opened?.let { item ->
+        ItemSheet(item, memory, onOpenEvent = events.orEmpty().firstOrNull { it.id == item.eventId }?.let { e -> { opened = null; openedEvent = e } }) { opened = null }
+    }
+    openedEvent?.let { e -> EventSheet(e, memory) { openedEvent = null } }
+    openedReview?.let { r -> ReviewSheet(r) { openedReview = null } }
+    openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }
+    if (makingCard) app.resound.ui.skills.MakeCardSheet(date, skills) { makingCard = false }
+    if (exporting && diary != null) ExportSheet(diary, date) { exporting = false }
+}
+
+/** 分组列表：每组一个小标题 + 一张卡 */
+private fun androidx.compose.foundation.lazy.LazyListScope.groupedItems(
+    list: List<MemoryItem>, grouping: Grouping, checkable: Boolean, keyPrefix: String,
+    onToggle: (MemoryItem) -> Unit, onOpen: (MemoryItem) -> Unit,
+) {
+    val groups: List<Pair<String, List<MemoryItem>>> = when (grouping) {
+        Grouping.Due -> list.groupBy { it.dueAt?.let(::dateOf) }.toList()
+            .sortedWith(compareBy<Pair<LocalDate?, List<MemoryItem>>> { it.first == null }.thenBy { it.first })
+            .map { (d, l) -> (d?.let { dueLabel(it) } ?: "没定时间") to l }
+        Grouping.Done -> list.groupBy { dateOf(it.doneAt ?: it.at) }.toList().sortedByDescending { it.first }.map { (d, l) -> "${dayLabel(d)} 完成" to l }
+        else -> list.groupBy { dateOf(it.at) }.toList().map { (d, l) -> dayLabel(d) to l }
+    }
+    items(groups, key = { keyPrefix + it.first }) { (label, dayItems) ->
+        val c = Rs.colors
+        Column(Modifier.padding(bottom = if (grouping == Grouping.Manual) 0.dp else 16.dp)) {
+            Text("$label · ${dayItems.size} 条", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
+                color = c.textTertiary, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+            RsCard(padding = PaddingValues(vertical = 2.dp)) {
+                dayItems.forEachIndexed { i, item ->
+                    ItemRow(item, checkable, onToggle = { onToggle(item) }) { onOpen(item) }
+                    if (i != dayItems.lastIndex) Box(Modifier.padding(start = if (checkable) 52.dp else 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                }
+            }
+        }
+    }
+}
+
+/** 拖动列表里每行自己画卡片：首行圆上角、末行圆下角，拼起来像一张卡；拖起时整行变圆角浮起 */
+private fun segmentShape(top: Boolean, bottom: Boolean) =
+    RoundedCornerShape(topStart = if (top) 22.dp else 0.dp, topEnd = if (top) 22.dp else 0.dp,
+        bottomStart = if (bottom) 22.dp else 0.dp, bottomEnd = if (bottom) 22.dp else 0.dp)
+
+@Composable
+private fun PageTitle(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = RsType.largeTitle, color = Rs.colors.text, modifier = modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, style = RsType.caption, color = Rs.colors.textTertiary, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+}
+
+@Composable
+private fun Empty(text: String) {
+    Text(text, style = RsType.subhead, color = Rs.colors.textTertiary, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(top = 60.dp))
+}
+
+/** 按天 / 按类 小切换 */
+@Composable
+private fun ModeSwitch(byDay: Boolean, onChange: (Boolean) -> Unit) {
+    val c = Rs.colors
+    Row(Modifier.clip(CircleShape).background(c.card).padding(3.dp)) {
+        listOf(true to "按天", false to "按类").forEach { (v, label) ->
+            val on = v == byDay
+            val bg by animateColorAsState(if (on) c.accentSoft else c.accentSoft.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "mode")
+            val fg by animateColorAsState(if (on) c.accent else c.textSecondary, label = "modeFg")
+            Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
+                modifier = Modifier.clip(CircleShape).background(bg).springClick { onChange(v) }.padding(horizontal = 12.dp, vertical = 6.dp))
+        }
+    }
+}
+
+@Composable
+private fun Capsules(names: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val c = Rs.colors
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        names.forEachIndexed { i, n ->
+            val on = i == selected
+            val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "cap")
+            val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "capFg")
+            Text(n, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
+                modifier = Modifier.springClick { onSelect(i) }.clip(CircleShape).background(bg).padding(horizontal = 16.dp, vertical = 8.dp))
+        }
+    }
+}
+
+@Composable
+internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit, onOpen: () -> Unit) {
+    val c = Rs.colors
+    val done = item.status == ItemStatus.Done
+    Row(Modifier.fillMaxWidth().springClick(onOpen).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.Top) {
+        if (checkable) {
+            // 完成圈：点一下完成，再点撤回
+            Box(
+                Modifier.padding(top = 1.dp).size(22.dp).clip(CircleShape)
+                    .then(if (done) Modifier.background(c.good) else Modifier.border(1.5.dp, c.textTertiary, CircleShape))
+                    .springClick(onToggle),
+                contentAlignment = Alignment.Center,
+            ) { if (done) Text("✓", style = RsType.caption.copy(fontWeight = FontWeight.Bold), color = Color.White) }
+            Spacer(Modifier.width(14.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.content,
+                style = RsType.body.copy(textDecoration = if (done) TextDecoration.LineThrough else null),
+                color = if (done) c.textTertiary else c.text,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val meta = buildList {
+                item.dueAt?.let { add(friendlyDue(it, item.dueText)) }
+                item.who?.takeIf { it != "我" }?.let { add(it) }
+                if (item.at > 0) add(formatClock(item.at) + " 提到")
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CategoryChip(item.category, item.kind)
+                if (meta.isNotEmpty()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(meta.joinToString(" · "), style = RsType.caption, color = if (item.dueAt != null && !done) c.accent else c.textTertiary, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+private fun dayLabel(day: LocalDate): String = when (ChronoUnit.DAYS.between(day, LocalDate.now())) {
+    0L -> "今天"
+    1L -> "昨天"
+    2L -> "前天"
+    else -> day.format(DateTimeFormatter.ofPattern("M月d日"))
+}
+
+/** 约定按将来的日子说：今天 / 明天 / 后天 / 10月28日 */
+private fun dueLabel(day: LocalDate): String = when (ChronoUnit.DAYS.between(LocalDate.now(), day)) {
+    0L -> "今天"
+    1L -> "明天"
+    2L -> "后天"
+    else -> day.format(DateTimeFormatter.ofPattern("M月d日"))
+}
+
+private fun emptyText(tab: String) = when (tab) {
+    "待确认" -> "没有要确认的了"
+    "进行中" -> "手上没有进行中的事"
+    "约定" -> "还没有记下的约定"
+    "已完成" -> "完成的事会出现在这里"
+    else -> "还没有$tab"
+}
+
+private fun eventHourOf(at: Long) = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault()).hour

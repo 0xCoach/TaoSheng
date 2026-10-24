@@ -1,0 +1,43 @@
+{
+  "label": "C_wav",
+  "scheme": "C",
+  "resource_id": "volc.bigasr.auc_turbo",
+  "sample": "monologue",
+  "format": "wav",
+  "mode": null,
+  "pace": "fast",
+  "reserved_seconds": 20.0,
+  "started": "2026-10-23T04:30:12.664901+00:00",
+  "endpoint": "https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash",
+  "request": {
+    "audio": {
+      "format": "wav",
+      "codec": "raw",
+      "rate": 16000,
+      "bits": 16,
+      "channel": 1
+    },
+    "transport": "audio.data base64 (no URL)",
+    "request": {
+      "model_name": "bigmodel",
+      "enable_itn": true,
+      "enable_punc": true,
+      "enable_speaker_info": true,
+      "show_utterances": true
+    }
+  },
+  "http_status": 403,
+  "headers": {
+    "X-Api-Status-Code": "45000030",
+    "X-Api-Message": "[resource_id=volc.bigasr.auc_turbo] requested resource not granted",
+    "X-Tt-Logid": "202610231230128B957320024E8A95305E"
+  },
+  "response": {
+    "header": {
+      "reqid": "e4d86e3d-be8e-4ded-b574-8a0940b669f0",
+      "code": 45000030,
+      "message": "[resource_id=volc.bigasr.auc_turbo] requested resource not granted"
+    }
+  },
+  "total_seconds": 0.265
+}

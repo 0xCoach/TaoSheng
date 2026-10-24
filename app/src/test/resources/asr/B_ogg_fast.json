@@ -1,0 +1,86 @@
+{
+  "kind": 9,
+  "flags": 3,
+  "sequence": 202,
+  "code": null,
+  "payload": {
+    "audio_info": {
+      "duration": 40000
+    },
+    "result": {
+      "additions": {
+        "log_id": "20261023123059D4E7EF027BB92CF03D65"
+      },
+      "text": "早上好，我们确认一下今天的工作安排。上午10点和产品经理开会，讨论回响的录音功能。好的，我会带上测试手机。我们先检查后台录音，再看语音识别能不能区分不同的说话人。下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。没问题，测试结束以后我会把结果发给你，明天一起决定采用哪一种转写方案。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": "",
+            "source": "stream",
+            "speaker_id": "0"
+          },
+          "definite": true,
+          "end_time": 4160,
+          "start_time": 80,
+          "text": "早上好，我们确认一下今天的工作安排。"
+        },
+        {
+          "additions": {
+            "fixed_prefix_result": "",
+            "source": "stream",
+            "speaker_id": "0"
+          },
+          "definite": true,
+          "end_time": 9920,
+          "start_time": 4560,
+          "text": "上午10点和产品经理开会，讨论回响的录音功能。"
+        },
+        {
+          "additions": {
+            "fixed_prefix_result": "",
+            "source": "stream",
+            "speaker_id": "1"
+          },
+          "definite": true,
+          "end_time": 13120,
+          "start_time": 10280,
+          "text": "好的，我会带上测试手机。"
+        },
+        {
+          "additions": {
+            "fixed_prefix_result": "",
+            "source": "stream",
+            "speaker_id": "1"
+          },
+          "definite": true,
+          "end_time": 19960,
+          "start_time": 13320,
+          "text": "我们先检查后台录音，再看语音识别能不能区分不同的说话人。"
+        },
+        {
+          "additions": {
+            "fixed_prefix_result": "",
+            "source": "stream",
+            "speaker_id": "0"
+          },
+          "definite": true,
+          "end_time": 28300,
+          "start_time": 20420,
+          "text": "下午3点请提醒我整理会议纪要，把客户的建议和下一步任务分别记录下来。"
+        },
+        {
+          "additions": {
+            "fixed_prefix_result": "",
+            "source": "stream",
+            "speaker_id": "0"
+          },
+          "definite": true,
+          "end_time": 37340,
+          "start_time": 28580,
+          "text": "没问题，测试结束以后我会把结果发给你，明天一起决定采用哪一种转写方案。"
+        }
+      ]
+    }
+  },
+  "elapsed_seconds": 6.257
+}

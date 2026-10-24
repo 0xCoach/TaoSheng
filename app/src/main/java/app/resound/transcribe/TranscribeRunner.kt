@@ -1,0 +1,152 @@
+package app.resound.transcribe
+
+import app.resound.data.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.File
+import java.time.LocalDate
+
+/** 一个进程只有一个实例；周期、手动与密钥测试共用同一把锁。 */
+class TranscribeRunner(
+    private val dao: TranscribeDao,
+    private val provider: AsrProvider,
+    private val key: () -> String,
+    private val updateState: (Long?, String?) -> Unit,
+    private val networkAllowed: () -> Boolean = { true },
+    private val now: () -> Long = System::currentTimeMillis,
+    private val today: () -> String = { LocalDate.now().toString() },
+    private val gate: Mutex = Mutex(),
+    private val deferAudioCleanup: Boolean = false,
+    private val updateProgress: (Int, Int) -> Unit = { _, _ -> },
+    private val identity: () -> String = key,
+    private val ready: () -> Boolean = { true },
+    private val afterImport: suspend () -> Unit = {},
+) {
+    suspend fun withIdleAudio(block: suspend () -> Unit) = gate.withLock { block() }
+
+    /** 启动恢复与上传共用 gate；若已有任务运行，由该任务自己的启动恢复负责。 */
+    suspend fun recoverOnStartup() {
+        if (!gate.tryLock()) return
+        try { dao.recoverInterrupted(now()) } finally { gate.unlock() }
+    }
+    /** true 表示仍有暂时错误，交 WorkManager 退避重试；鉴权失败立即结束本轮。 */
+    suspend fun run(): Boolean {
+        if (!gate.tryLock()) return false
+        try {
+            dao.recoverInterrupted(now())
+            if (!deferAudioCleanup) cleanup()
+            else cleanupImportedAudio(dao, now(), waitForVoiceprint = true)
+            val started = now()
+            val configuration = runCatching { identity() }.getOrDefault("")
+            if (!ready()) { updateState(started, "转写未就绪，请配置服务或下载本地模型"); return false }
+            val credential = try { key() } catch (_: Exception) {
+                updateState(started, "密钥安全读取失败，请重新填写"); return false
+            }
+            if (credential.isBlank()) { updateState(started, "还没填写转写密钥"); return false }
+            updateState(started, null)
+            val candidates = dao.candidates(now())
+            var done = 0
+            updateProgress(candidates.size, done)
+            for (candidate in candidates) {
+                currentCoroutineContext().ensureActive()
+                if (!networkAllowed()) { updateState(started, "等待不计流量网络"); return true }
+                // 清除/更换密钥后不继续使用本轮旧密钥。
+                if (runCatching { identity() }.getOrDefault("") != configuration) return false
+                // 清理任务或本轮前一段的声纹收尾可能已删除过期导入音频，不能上传旧快照。
+                if (candidate.sourceId == "import" && !File(candidate.path).isFile) continue
+                val running = candidate.copy(status = "Running", attempts = candidate.attempts + 1, nextRetryAt = null, error = null)
+                if (dao.claim(candidate.id) == 0) continue
+                val began = now()
+                var reserved = 0L
+                var outcome = "Failed"
+                var error: AsrError? = null
+                var logId: String? = null
+                try {
+                    val result = provider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0)), credential) {
+                        check(dao.findSegment(candidate.id) != null)
+                        reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
+                        dao.reserveAudio(today(), reserved, candidate.id)
+                    }
+                    logId = TranscribePolicy.safeLogId(result.logId, credential)
+                    outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
+                    val lines = result.sentences.map { line ->
+                        TranscriptLineEntity(segmentId = candidate.id, startAt = candidate.startAt + line.startMillis,
+                            endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = line.speakerTag)
+                    }
+                    dao.findSegment(candidate.id)?.let { current -> dao.complete(current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = null), lines) }
+                } catch (e: Exception) {
+                    error = when (e) {
+                        is CancellationException -> AsrError.Interrupted
+                        is AsrException -> e.type
+                        else -> AsrError.Storage
+                    }
+                    logId = TranscribePolicy.safeLogId((e as? AsrException)?.logId, credential)
+                    // 断网不是这一段的问题，不占它的重试次数。
+                    val attempts = if (error == AsrError.Network) candidate.attempts else running.attempts
+                    withContext(NonCancellable) {
+                        dao.findSegment(candidate.id)?.let { current -> dao.update(current.copy(status = "Failed", completedAt = null, error = error.human,
+                            attempts = attempts, nextRetryAt = TranscribePolicy.retryAt(error, attempts.coerceAtLeast(1), now()), logId = logId)) }
+                        updateState(started, error.human)
+                    }
+                    if (e is CancellationException) throw e
+                } finally {
+                    withContext(NonCancellable) {
+                        dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = outcome,
+                            errorType = error?.name, elapsedMillis = (now() - began).coerceAtLeast(0), sentMillis = reserved, logId = logId))
+                        updateProgress(candidates.size, ++done)
+                    }
+                }
+                if (candidate.sourceId == "import" && outcome in setOf("Done", "Empty")) {
+                    // 声纹失败不应把成功的转写改回失败；音频留待重试或三天上限清理。
+                    try { afterImport() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+                    if (!deferAudioCleanup) cleanupImportedAudio(dao, now())
+                }
+                if (error == AsrError.Auth) return false
+                // 网络或服务端出问题时后面的段大概率也失败：结束本轮，交给退避重试，不逐段耗时间和次数。
+                if (error in TranscribePolicy.ROUND_STOPPERS) return dao.candidates(Long.MAX_VALUE).isNotEmpty()
+            }
+            return dao.earliestRetry() != null
+        } finally {
+            try { updateProgress(0, 0) } finally { gate.unlock() }
+        }
+    }
+    private suspend fun cleanup() {
+        val timestamp = now()
+        cleanupImportedAudio(dao, timestamp)
+        for (segment in dao.expired(timestamp - TranscribePolicy.RETENTION_MILLIS)) {
+            if (TranscribePolicy.canDelete(segment.status, segment.completedAt, timestamp)) File(segment.path).delete()
+        }
+    }
+    suspend fun test(audio: AsrAudio, credential: String): Result<String> = gate.withLock {
+        val began = now()
+        var reserved = 0L
+        var result = "Failed"
+        var error: AsrError? = null
+        var logId: String? = null
+        try {
+            val response = provider.recognize(audio, credential) {
+                reserved = audio.durationMillis
+                dao.reserveAudio(today(), reserved, null)
+            }
+            result = if (response.sentences.isEmpty()) "Empty" else "Done"
+            logId = TranscribePolicy.safeLogId(response.logId, credential)
+            // 云端文字可能回显凭证：测试返回界面的内容额外去除密钥及其组成部分。
+            var text = response.sentences.joinToString("") { it.text }
+            (listOf(credential) + credential.split('-')).filter { it.isNotEmpty() }.forEach {
+                text = text.replace(it, "[已隐藏]", ignoreCase = true)
+            }
+            Result.success("可用，识别出：${text.take(120).ifBlank { "（没有文字）" }}")
+        } catch (e: Exception) {
+            error = if (e is CancellationException) AsrError.Interrupted else (e as? AsrException)?.type ?: AsrError.Storage
+            logId = TranscribePolicy.safeLogId((e as? AsrException)?.logId, credential)
+            if (e is CancellationException) throw e
+            Result.failure(AsrException(error))
+        } finally {
+            withContext(NonCancellable) {
+                dao.attempt(AsrAttemptEntity(segmentId = null, at = began, result = result, errorType = error?.name,
+                    elapsedMillis = (now() - began).coerceAtLeast(0), sentMillis = reserved, logId = logId))
+            }
+        }
+    }
+}

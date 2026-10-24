@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "weekly",
+  "name": "每周回顾",
+  "summary": "从本周事件和每日回顾中找出要紧的事",
+  "icon": "calendar_week",
+  "version": 1,
+  "trigger": {
+    "type": "Daily",
+    "minutes": 1260,
+    "weekdays": [
+      7
+    ]
+  },
+  "scope": {
+    "range": "Week",
+    "speakers": "All",
+    "includeLines": false
+  },
+  "fields": [
+    {
+      "key": "one_line",
+      "label": "这周一句话",
+      "type": "Text",
+      "hint": "客观概括本周有依据的主线",
+      "required": true
+    },
+    {
+      "key": "highlights",
+      "label": "本周要紧的",
+      "type": "Bullets",
+      "hint": "有记录支撑的重要进展",
+      "required": false
+    },
+    {
+      "key": "trends",
+      "label": "本周趋势",
+      "type": "Bullets",
+      "hint": "对比各天说话时长、话题变化和心力，没有数据就不判断",
+      "required": false
+    },
+    {
+      "key": "todo_review",
+      "label": "待办回看",
+      "type": "Bullets",
+      "hint": "按条目状态说明完成了什么、还挂着什么",
+      "required": false
+    },
+    {
+      "key": "next_week",
+      "label": "下周留意",
+      "type": "Bullets",
+      "hint": "只写已有计划和确需继续跟进的事项",
+      "required": false
+    }
+  ],
+  "maxCardsPerDay": 1,
+  "push": true,
+  "order": 2
+}

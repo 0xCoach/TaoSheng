@@ -3,7 +3,7 @@ package app.resound.capture
 import app.resound.transcribe.VoiceInputMeta
 import java.util.UUID
 
-/** 不持有无障碍节点；全部时钟由调用者传入，便于验证释放宽限和回复截止时间。 */
+/** 不持有无障碍节点；全部时钟由调用者传入，便于验证释放宽限与单次截图。 */
 internal data class InputScreen(
     val packageName: String, val app: String, val page: String, val title: String?,
     val field: String?, val text: String?, val password: Boolean = false,
@@ -50,115 +50,148 @@ internal object VoiceInputText {
             pkg != own && pkg !in settings.excludedPackages && !password
 }
 
-internal class VoiceInputEngine(private val output: (InputChange) -> Unit) {
+/** shot：0 = 停止录音后 0.5 秒，1 = 1 秒，2 = 3 秒（负责人定：三张最保险） */
+internal data class OcrRequest(val token: String, val at: Long, val screen: InputScreen, val context: Boolean, val shot: Int = 0)
+
+internal class VoiceInputEngine(
+    private val requestOcr: (OcrRequest) -> Unit,
+    private val output: (InputChange) -> Unit,
+) {
+    constructor(output: (InputChange) -> Unit) : this({}, output)
+
     private data class Window(val at: Long, val screen: InputScreen, val settings: VoiceInputSettings,
-        var last: String, var cleared: Boolean = false, var sendHint: Boolean = false, var saved: Boolean = false)
-    private data class Reply(val record: InputRecord, val page: String, val field: String?, val before: Set<String>, val baseline: MutableSet<String>,
-        var until: Long?, var sendHint: Boolean = false, val lines: LinkedHashSet<String> = linkedSetOf())
+        var last: String?, var cleared: Boolean = false, var sendHint: Boolean = false, var saved: Boolean = false)
     private var recording = false
     private var releaseAt: Long? = null
     private var window: Window? = null
-    private val replies = mutableListOf<Reply>()
-    val needsScreen: Boolean get() = recording || window != null || replies.isNotEmpty()
-
-    fun reset() {
-        // 用户暂停/关闭开关后不再读取；已有记录立即定稿，不追加内存里的上下文。
-        replies.forEach { output(InputChange.Finish(it.record.token, null)) }
-        replies.clear(); window = null; recording = false; releaseAt = null
+    /** 一次语音输入的截图识字：三张的结果凑齐（或不能再截）后合成一条 */
+    private class OcrJob(val token: String, val at: Long, val screen: InputScreen, val context: Boolean, val stopped: Long) {
+        val issued = BooleanArray(3); val done = BooleanArray(3); val results = arrayOfNulls<OcrInput>(3)
+        var closed = false
     }
+    private var job: OcrJob? = null
+    val needsScreen: Boolean get() = recording || window != null || job != null
+
+    fun reset() { window = null; job = null; recording = false; releaseAt = null }
+    private fun same(a: InputScreen, b: InputScreen?) = b != null && !b.password &&
+        a.packageName == b.packageName && a.page == b.page
+
     fun recording(active: Boolean, now: Long, screen: InputScreen?, settings: VoiceInputSettings) {
-        tick(now, screen, settings)
+        // 新录音优先取消异步识字，不能在新窗口开始时再截上一窗口。
         if (active && !recording) {
-            dbg("语音窗口开始：有界面=${screen != null} 有输入框=${screen?.field != null} 原有字数=${screen?.text?.length}")
-            finishWindow(now, screen)
-            window = screen?.takeIf { !it.password && it.field != null && it.text != null }?.let {
-                Window(now, it, settings, it.text!!)
-            }
+            finishWindow()
+            job?.let(::finishJob)
+            window = screen?.takeIf { !it.password }?.let { Window(now, it, settings, it.text) }
             releaseAt = null
-        } else if (!active && recording) { releaseAt = now; dbg("别的应用停止录音，3 秒后收尾") }
+            dbg("语音窗口开始：有界面=${screen != null} 有输入框=${screen?.field != null}")
+        }
+        tick(now, screen, settings)
+        if (!active && recording) { releaseAt = now; dbg("停止录音：1 秒检查识字，3 秒收尾原文") }
         recording = active
     }
     fun tick(now: Long, screen: InputScreen?, settings: VoiceInputSettings) {
-        val iterator = replies.iterator()
-        while (iterator.hasNext()) {
-            val reply = iterator.next()
-            // 补记回复时再用标题防止串到别的聊天（两边都读到标题才比较）
-            val same = screen != null && screen.packageName == reply.record.meta.packageName && screen.page == reply.page &&
-                (screen.title == null || reply.record.meta.title == null || screen.title == reply.record.meta.title)
-            if (reply.until?.let { now >= it } == true || !same || !settings.context || !settings.replies) {
-                output(InputChange.Finish(reply.record.token, if (settings.context && settings.replies) VoiceInputText.context(reply.lines.toList()) else null))
-                iterator.remove()
+        if (!settings.enabled) { reset(); return }
+        job?.let { j ->
+            if (!same(j.screen, screen) || !settings.screenOcr || screen!!.packageName in settings.excludedPackages) {
+                // 离开了：已识出的照用，没截的不再截
+                j.closed = true; maybeFinish(j)
             } else {
-                val current = screen!!
-                if (reply.until == null) {
-                    // 3 秒只结束文字采集；用户稍后点发送时，回复窗口从实际发送时刻重新计时。
-                    reply.sendHint = reply.sendHint || current.send
-                    val echoes = current.lines.filter { it !in reply.before &&
-                        VoiceInputText.normalized(it).contains(VoiceInputText.normalized(reply.record.text)) }
-                    if (current.field == reply.field && current.text == "" && (reply.sendHint || echoes.isNotEmpty())) {
-                        reply.until = now + 120000
-                        reply.baseline.addAll(echoes)
-                        output(InputChange.Sent(reply.record.token, reply.until!!))
-                    } else if (current.field != null && current.field != reply.field ||
-                        current.field == reply.field && !current.text.isNullOrEmpty() &&
-                        !VoiceInputText.normalized(current.text).contains(VoiceInputText.normalized(reply.record.text))) {
-                        output(InputChange.Finish(reply.record.token, null)); iterator.remove(); continue
-                    }
-                }
-                if (reply.until != null) {
-                    current.lines.filter { it !in reply.baseline && !VoiceInputText.similar(it, reply.record.text) }
-                        .forEach { reply.lines.add(it) }
-                    while (reply.lines.size > 20) reply.lines.remove(reply.lines.first())
-                }
+                if (now >= j.stopped + 1000) issue(j, 1)
+                if (now >= j.stopped + 3000) issue(j, 2)
             }
         }
         window?.let { w ->
-            if (screen == null || screen.password || screen.packageName != w.screen.packageName || screen.page != w.screen.page) {
-                dbg("提前收尾：界面=${screen != null} 同应用=${screen?.packageName == w.screen.packageName} 同页面=${screen?.page == w.screen.page}")
-                finishWindow(now, null)
-            } else if (!w.saved) {
-                if (screen.field != null && screen.field != w.screen.field) {
-                    dbg("输入框变了，放弃")
-                    window = null // 换输入框不能串读。
-                } else {
-                    w.sendHint = w.sendHint || screen.send
-                    if (screen.field == w.screen.field && screen.text != null) {
-                        if (screen.text.isEmpty() && w.last.isNotEmpty()) w.cleared = true
-                        else { w.last = screen.text; w.cleared = false }
-                    }
-                    val inserted = VoiceInputText.inserted(w.screen.text!!, w.last)
-                    val echoed = inserted.isNotBlank() && screen.lines.any {
-                        it !in w.screen.lines && (VoiceInputText.similar(it, w.last) || VoiceInputText.similar(it, inserted))
-                    }
-                    if (w.cleared && (w.sendHint || echoed)) save(w, now, screen, sent = true)
-                }
+            if (!same(w.screen, screen) || screen!!.packageName in settings.excludedPackages) {
+                // 已读到的原文沿用卡 048 收尾；截图候选离开后直接丢弃。
+                finishWindow(); return
             }
+            if (!w.saved && (w.screen.field == null || w.screen.text == null) &&
+                screen.field != null && !screen.text.isNullOrBlank()) {
+                // 面板退去后节点恢复时直接采用原文，不再截图。
+                window = w.copy(screen = screen.copy(text = ""), last = screen.text)
+                tick(now, screen, settings)
+                return
+            }
+            if (!w.saved && w.screen.field != null && w.screen.text != null) {
+                if (screen.field != null && screen.field != w.screen.field) { window = null; return }
+                w.sendHint = w.sendHint || screen.send
+                if (screen.field == w.screen.field && screen.text != null) {
+                    if (screen.text.isEmpty() && !w.last.isNullOrEmpty()) w.cleared = true
+                    else { w.last = screen.text; w.cleared = false }
+                }
+                val inserted = VoiceInputText.inserted(w.screen.text, w.last.orEmpty())
+                val echoed = inserted.isNotBlank() && screen.lines.any {
+                    it !in w.screen.lines && (VoiceInputText.similar(it, w.last.orEmpty()) || VoiceInputText.similar(it, inserted))
+                }
+                if (w.cleared && (w.sendHint || echoed)) save(w)
+            }
+            val stopped = releaseAt ?: return
+            val unreadable = w.screen.field == null || w.screen.text == null || screen.field == null ||
+                screen.text == null || (w.screen.text.isEmpty() && w.last.isNullOrEmpty())
+            val hasOriginal = w.screen.text != null && VoiceInputText.inserted(w.screen.text, w.last.orEmpty()).isNotBlank()
+            if (now >= stopped + 500 && unreadable && !hasOriginal && !w.saved && !w.cleared) {
+                window = null; releaseAt = null // 请求前消费窗口；失败也不重试。
+                if (settings.screenOcr && w.settings.screenOcr) {
+                    val j = OcrJob(UUID.randomUUID().toString(), w.at, screen, w.settings.context && settings.context, stopped)
+                    job = j
+                    issue(j, 0)
+                }
+            } else if (now >= stopped + 3000) finishWindow()
         }
-        if (releaseAt?.let { now >= it + 3000 } == true) finishWindow(now, screen)
     }
-    private fun finishWindow(now: Long, screen: InputScreen?) {
-        window?.let { if (!it.saved && !it.cleared) save(it, now, screen, sent = false) }
+    private fun issue(j: OcrJob, shot: Int) {
+        if (j.closed || j.issued[shot]) return
+        j.issued[shot] = true
+        dbg("截屏识字：第 ${shot + 1} 张")
+        requestOcr(OcrRequest(j.token, j.at, j.screen, j.context, shot))
+    }
+    fun accepts(request: OcrRequest): Boolean = job?.let { it.token == request.token && !it.done[request.shot] } == true
+    fun recognized(request: OcrRequest, result: OcrInput?) {
+        val j = job?.takeIf { accepts(request) } ?: return
+        j.done[request.shot] = true; j.results[request.shot] = result
+        maybeFinish(j)
+    }
+    /** 三张都回来了，或已离开、剩下的不会再截且已发出的都回来了，就合成 */
+    private fun maybeFinish(j: OcrJob) {
+        val waiting = (0..2).any { j.issued[it] && !j.done[it] }
+        val more = !j.closed && (0..2).any { !j.issued[it] }
+        if (!waiting && !more) finishJob(j)
+    }
+    private fun finishJob(j: OcrJob) {
+        if (job === j) job = null
+        val early = j.results[0]; val mid = j.results[1]; val late = j.results[2]
+        // 输入框：以 1 秒为准，没有用 0.5 秒
+        val box = mid?.text?.takeIf { it.isNotBlank() } ?: early?.text?.takeIf { it.isNotBlank() }
+        val base = mid?.takeIf { it.text.isNotBlank() } ?: early?.takeIf { it.text.isNotBlank() } ?: mid ?: early ?: late
+        // 3 秒：出现与输入框相近的新靠右气泡 = 真正发出去的那句，以它为准
+        val sent = late?.bubble?.takeIf { b -> base?.context?.none { VoiceInputText.normalized(it) == VoiceInputText.normalized(b) } != false }
+        val text = when {
+            box != null && sent != null && VoiceInputText.similar(sent, box) -> sent
+            box != null -> box
+            // 输入框没读到：只有前面截到过界面、且这条气泡是新冒出来的才算
+            sent != null && (early != null || mid != null) -> sent
+            else -> null
+        }
+        dbg("截屏识字合成：输入框字数=${box?.length ?: 0} 发出气泡字数=${sent?.length ?: 0} 采用=${if (text == null) "无" else if (text == sent) "气泡" else "输入框"}")
+        if (text.isNullOrBlank() || base == null) return
+        output(InputChange.Save(InputRecord(j.token, j.at, text,
+            VoiceInputMeta(j.screen.app, j.screen.packageName, if (j.context) base.title else null,
+                if (j.context) VoiceInputText.context(base.context) else null, null), null)))
+    }
+    private fun finishWindow() {
+        window?.let { if (!it.saved && !it.cleared) save(it) }
         window = null; releaseAt = null
     }
-    private fun save(w: Window, now: Long, screen: InputScreen?, sent: Boolean) {
+    private fun save(w: Window) {
         w.saved = true
-        val text = VoiceInputText.inserted(w.screen.text!!, w.last)
-        dbg("收尾：新增字数=${text.length} 已发送=$sent 被清空=${w.cleared}")
+        val text = w.screen.text?.let { VoiceInputText.inserted(it, w.last.orEmpty()) }.orEmpty()
+        dbg("收尾：新增字数=${text.length}")
         if (text.isBlank()) return
-        val follow = w.settings.context && w.settings.replies && w.screen.title != null && screen != null
-        val record = InputRecord(UUID.randomUUID().toString(), w.at, text,
+        output(InputChange.Save(InputRecord(UUID.randomUUID().toString(), w.at, text,
             VoiceInputMeta(w.screen.app, w.screen.packageName, w.screen.title,
-                if (w.settings.context) VoiceInputText.context(w.screen.lines) else null, null),
-            if (follow) { if (sent) now + 120000 else Long.MAX_VALUE } else null)
-        output(InputChange.Save(record))
-        if (follow) {
-            // 原始上下文作为基线，不能漏掉与清空同时到达的快速回复。
-            replies += Reply(record, w.screen.page, w.screen.field, w.screen.lines.toSet(), (w.screen.lines + w.last + text).toMutableSet(),
-                if (sent) now + 120000 else null,
-                lines = if (sent) screen!!.lines.filter { it !in w.screen.lines && !VoiceInputText.similar(it, w.last) && !VoiceInputText.similar(it, text) }.toCollection(linkedSetOf()) else linkedSetOf())
-        }
+                if (w.settings.context) VoiceInputText.context(w.screen.lines) else null, null), null)))
     }
 }
 
-/** 诊断日志：只写步骤和字数，绝不写文字内容 */
-private fun dbg(msg: String) { runCatching { android.util.Log.d("VoiceInputDbg", msg) } }
+/** 诊断日志：只写步骤和数字，绝不写文字内容。 */
+internal fun dbg(msg: String) { runCatching { android.util.Log.d("VoiceInputDbg", msg) } }

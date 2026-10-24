@@ -24,6 +24,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -53,6 +54,18 @@ fun ActionButton(text: String, kind: ActionKind, modifier: Modifier = Modifier, 
     }
 }
 
+/**
+ * 面板内容滚到底后还在往上甩的余量，不交给外面的面板：面板已经全展开，余量交出去它会被往上顶一下再弹回来，
+ * 快速上滑时就会上下弹好几次。往下的余量照常交出去，保留“下拉关闭”。
+ */
+private val KeepUpwardScroll = object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+    override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset,
+                              source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) =
+        if (available.y < 0f) available.copy(x = 0f) else androidx.compose.ui.geometry.Offset.Zero
+    override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) =
+        if (available.y < 0f) available.copy(x = 0f) else androidx.compose.ui.unit.Velocity.Zero
+}
+
 /** 从底部弹出的面板：标题 + 说明 + 内容；所有确认、编辑类弹窗统一用它 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +82,7 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
     ) {
         Column(
             Modifier.then(if (fixedHeight) Modifier.fillMaxHeight(0.92f) else Modifier)
+                .nestedScroll(KeepUpwardScroll)
                 .verticalScroll(rememberScrollState()).imePadding().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

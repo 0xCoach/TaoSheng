@@ -50,6 +50,22 @@ data class MemoryItem(
     val repeats: Int = 1,
     /** 被并进了哪一条；为 null 表示自己是独立的一条（列表里只显示独立的） */
     val mergedInto: Long? = null,
+    /** 卡 046：用户手动改过（文字/时间/和谁）的时间；改过的条目重新整理时不被覆盖 */
+    val editedAt: Long? = null,
+    /** 卡 046：“可能做完了”——整理时发现后来有句话说明这件事已经做了；用户确认或不理会前一直挂着 */
+    val doneHint: DoneHint? = null,
+)
+
+/** 卡 046：后来听到的、说明已经做完的那句原话 */
+data class DoneHint(val lineId: Long, val text: String, val at: Long)
+
+/** 卡 046：约定的提前提醒（随备份）。和“到期提醒”走同一条路：手机通知 + 订阅了提醒的推送通道 */
+data class AppointmentReminders(
+    /** 头一天晚上提醒一次，时刻为 [eveningAt]（一天中的分钟数，默认 21:00） */
+    val eveningBefore: Boolean = true,
+    val eveningAt: Int = 21 * 60,
+    /** 开始前多少分钟提醒；null 不提醒。界面可选 15 / 30 / 60 / 120 */
+    val leadMinutes: Int? = 60,
 )
 
 
@@ -147,6 +163,33 @@ interface MemoryRepository {
     fun unmerge(itemId: Long) {}
 
     fun deleteEvent(eventId: Long)
+
+    // ---- 卡 046：待办改造 ----
+
+    /** “进行中”：Accepted 的待办、约定、备忘（替代 inProgress + appointments）。界面把有 dueAt 的按时间排在上面，其余按 sortOrder */
+    fun ongoing(): Flow<List<MemoryItem>> = items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Accepted))
+
+    /** 已完成：doneAt 在 [from] 当天 0 点之后的待办/约定/备忘，按完成时间新的在前，不设 500 条上限 */
+    fun doneItems(from: LocalDate): Flow<List<MemoryItem>> = items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Done))
+
+    /** 删除一条（只删这条，事件和原话不动）。之后任何列表、回顾、问问、推送、提醒都不再出现；重新整理也不会再生成回来 */
+    fun deleteItem(id: Long) {}
+
+    /**
+     * 手动修改；dueAt 为 null 表示去掉时间。hasTime=false 表示只定了哪天（dueAt 取当天 0 点，dueText 写 "YYYY-MM-DD"），
+     * true 时 dueText 写 "YYYY-MM-DD HH:mm"。who 为空串或 null 表示不写。记 editedAt，提醒按新时间重排
+     */
+    fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {}
+
+    /** 批量改状态（待确认的“全部接受 / 全部忽略”），一个事务 */
+    fun setItemsStatus(ids: List<Long>, status: ItemStatus) { ids.forEach { setItemStatus(it, status) } }
+
+    /** “可能做完了”不对：清掉提示，这条以后不再因同一句话提示 */
+    fun dismissDoneHint(id: Long) {}
+
+    val appointmentReminders: StateFlow<AppointmentReminders> get() = kotlinx.coroutines.flow.MutableStateFlow(AppointmentReminders())
+
+    fun setAppointmentReminders(value: AppointmentReminders) {}
 
     val state: StateFlow<DigestState>
 

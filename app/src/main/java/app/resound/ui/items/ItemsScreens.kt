@@ -70,6 +70,7 @@ import app.resound.ui.today.friendlyDue
 import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.formatClock
 import app.resound.ui.verify.springClick
+import app.resound.ui.verify.Pill
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -94,27 +95,40 @@ private enum class Grouping {
 /** 一个分段：名字 + 取数 + 分组方式 */
 private class Tab(val name: String, val grouping: Grouping, val source: (MemoryRepository) -> Flow<List<MemoryItem>>)
 
-private val TODO_TABS = listOf(
-    Tab("待确认", Grouping.Mentioned) { it.items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Pending)) },
-    Tab("进行中", Grouping.Manual) { it.inProgress() },
-    Tab("约定", Grouping.Due) { it.appointments() },
-    Tab("已完成", Grouping.Done) { it.items(setOf("待办", "约定", "备忘"), setOf(ItemStatus.Done)) },
-)
-
 private val MEMORY_TABS = listOf(Tab("重点", Grouping.Mentioned) { flowOf(emptyList()) }) + listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
     Tab("卡片", Grouping.Mentioned) { flowOf(emptyList()) }
 
-/** 待办：分段 待确认 · 进行中（可拖动排序）· 约定（按时间）· 已完成；点圆圈完成，点一行看详情和原话 */
+private enum class TodoTab(val title: String) { Pending("待确认"), Ongoing("进行中"), Done("已完成") }
+
+private val TASKS = setOf("待办", "约定", "备忘")
+
+/**
+ * 待办：待确认（可全部接受/忽略，3 天前的收起）· 进行中（上面有时间的按时间排，下面随时做的长按拖动）· 已完成（默认最近 7 天，可往前翻）。
+ * 每行左滑完成（待确认里是接受），右滑两次删除；点圆圈完成，点一行看详情。
+ */
 @Composable
 fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     val c = Rs.colors
     var tabIndex by rememberSaveable { mutableStateOf(0) }
-    val tab = TODO_TABS[tabIndex]
-    val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
+    val tab = TodoTab.entries[tabIndex.coerceIn(0, TodoTab.entries.lastIndex)]
+    val today = remember { LocalDate.now() }
+    // 已完成默认看 7 天，“查看更早”每次再往前一个月
+    var doneDays by rememberSaveable { mutableStateOf(7) }
+    val items by remember(tab, doneDays) {
+        when (tab) {
+            TodoTab.Pending -> memory.items(TASKS, setOf(ItemStatus.Pending))
+            TodoTab.Ongoing -> memory.ongoing()
+            TodoTab.Done -> memory.doneItems(today.minusDays(doneDays - 1L))
+        }
+    }.collectAsState(initial = null)
     var opened by remember { mutableStateOf<MemoryItem?>(null) }
+    var reminders by remember { mutableStateOf(false) }
+    var olderOpen by rememberSaveable { mutableStateOf(false) }
+    var ignoreArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(ignoreArmed) { if (ignoreArmed) { kotlinx.coroutines.delay(3000); ignoreArmed = false } }
     val listState = rememberLazyListState()
-    // 拖动时先在本地挪，松手再存；数据库发回新顺序后以它为准
-    var order by remember(items) { mutableStateOf(items.orEmpty()) }
+    // 随时做的：拖动时先在本地挪，松手再存；数据库发回新顺序后以它为准
+    var order by remember(items, tab) { mutableStateOf(if (tab == TodoTab.Ongoing) items.orEmpty().filter { it.dueAt == null } else emptyList()) }
     val haptic = LocalHapticFeedback.current
     val reorder = rememberReorderableLazyListState(listState) { from, to ->
         val a = order.indexOfFirst { it.id == from.key }
@@ -122,6 +136,10 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
         if (a >= 0 && b >= 0) order = order.toMutableList().apply { add(b, removeAt(a)) }
     }
     val toggle: (MemoryItem) -> Unit = { memory.setItemStatus(it.id, if (it.status == ItemStatus.Done) ItemStatus.Accepted else ItemStatus.Done) }
+    val left: (MemoryItem) -> Unit = { if (it.status == ItemStatus.Pending) memory.setItemStatus(it.id, ItemStatus.Accepted) else toggle(it) }
+    val leftLabel: (MemoryItem) -> String = { when (it.status) { ItemStatus.Pending -> "接受"; ItemStatus.Done -> "撤回完成"; else -> "完成" } }
+    val delete: (MemoryItem) -> Unit = { memory.deleteItem(it.id) }
+    val swipe = RowSwipe(leftLabel, left, delete)
 
     LazyColumn(
         Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
@@ -129,33 +147,94 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
     ) {
         item { PageTitle("待办"); Spacer(Modifier.height(12.dp)) }
-        item { Capsules(TODO_TABS.map { it.name }, tabIndex) { tabIndex = it }; Spacer(Modifier.height(16.dp)) }
+        item { Capsules(TodoTab.entries.map { it.title }, tabIndex) { tabIndex = it }; Spacer(Modifier.height(16.dp)) }
         val list = items
-        if (list != null && list.isEmpty()) item { Empty(emptyText(tab.name)) }
-        if (tab.grouping == Grouping.Manual) {
-            if (order.size > 1) item { Hint("长按拖动，调整先后") }
-            items(order, key = { it.id }) { item ->
-                ReorderableItem(reorder, key = item.id) { dragging ->
-                    val i = order.indexOf(item)
-                    val lift by animateDpAsState(if (dragging) 12.dp else 0.dp, label = "lift")
-                    val shape = segmentShape(i == 0 || dragging, i == order.lastIndex || dragging)
-                    Column(
-                        Modifier.shadow(lift, shape, ambientColor = c.shadow, spotColor = c.shadow).clip(shape).background(c.card)
-                            .longPressDraggableHandle(
-                                onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
-                                onDragStopped = { memory.reorder(order.map { it.id }) },
-                            ),
-                    ) {
-                        ItemRow(item, checkable = true, onToggle = { toggle(item) }) { opened = item }
-                        if (i != order.lastIndex && !dragging) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+        if (list != null && list.isEmpty() && tab != TodoTab.Done) item { Empty(emptyText(tab.title)) }
+        when (tab) {
+            TodoTab.Pending -> {
+                val cutoff = System.currentTimeMillis() - 3 * 86_400_000L
+                val recent = list.orEmpty().filter { it.at >= cutoff }
+                val older = list.orEmpty().filter { it.at < cutoff }
+                if (list.orEmpty().size > 1) item {
+                    Row(Modifier.padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Pill("全部接受 ${list.orEmpty().size} 条", filled = true) { memory.setItemsStatus(list.orEmpty().map { it.id }, ItemStatus.Accepted) }
+                        // 全部忽略要点两次：第一次变红提示
+                        Text(if (ignoreArmed) "再点一次全部忽略" else "全部忽略", style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
+                            color = if (ignoreArmed) Color.White else c.textSecondary,
+                            modifier = Modifier.clip(CircleShape).background(if (ignoreArmed) c.critical else c.card).springClick {
+                                if (ignoreArmed) { ignoreArmed = false; memory.setItemsStatus(list.orEmpty().map { it.id }, ItemStatus.Ignored) } else ignoreArmed = true
+                            }.padding(horizontal = 16.dp, vertical = 8.dp))
+                    }
+                }
+                groupedItems(recent, Grouping.Mentioned, checkable = false, keyPrefix = "p", swipe = swipe, onToggle = toggle) { opened = it }
+                if (older.isNotEmpty()) {
+                    item(key = "older") {
+                        Row(Modifier.fillMaxWidth().springClick { olderOpen = !olderOpen }.padding(start = 4.dp, top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("更早没确认的 · ${older.size} 条", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.textSecondary, modifier = Modifier.weight(1f))
+                            Text(if (olderOpen) "收起" else "展开", style = RsType.caption, color = c.accent)
+                        }
+                    }
+                    if (olderOpen) groupedItems(older, Grouping.Mentioned, checkable = false, keyPrefix = "o", swipe = swipe, onToggle = toggle) { opened = it }
+                }
+            }
+            TodoTab.Ongoing -> {
+                val timed = list.orEmpty().filter { it.dueAt != null }.sortedBy { it.dueAt }
+                item(key = "ongoingHead") {
+                    Row(Modifier.padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (timed.isEmpty()) "随时做的" else "有时间的 · ${timed.size}", style = RsType.section, color = c.textSecondary,
+                            modifier = Modifier.weight(1f).padding(start = 4.dp))
+                        Pill("提醒", filled = false) { reminders = true }
+                    }
+                }
+                if (timed.isNotEmpty()) {
+                    groupedItems(timed, Grouping.Due, checkable = true, keyPrefix = "t", swipe = swipe, onToggle = toggle) { opened = it }
+                    if (order.isNotEmpty()) item(key = "freeHead") {
+                        Text("随时做的 · ${order.size}", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 10.dp))
+                    }
+                }
+                if (order.size > 1) item(key = "dragHint") { Hint("长按拖动，调整先后") }
+                items(order, key = { it.id }) { item ->
+                    ReorderableItem(reorder, key = item.id) { dragging ->
+                        val i = order.indexOf(item)
+                        val lift by animateDpAsState(if (dragging) 12.dp else 0.dp, label = "lift")
+                        val shape = segmentShape(i == 0 || dragging, i == order.lastIndex || dragging)
+                        Column(
+                            Modifier.shadow(lift, shape, ambientColor = c.shadow, spotColor = c.shadow).clip(shape).background(c.card)
+                                .longPressDraggableHandle(
+                                    onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onDragStopped = { memory.reorder(order.map { it.id }) },
+                                ),
+                        ) {
+                            swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { toggle(item) }) { opened = item } }
+                            if (i != order.lastIndex && !dragging) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                        }
                     }
                 }
             }
-        } else {
-            groupedItems(list.orEmpty(), tab.grouping, checkable = true, keyPrefix = tab.name, onToggle = toggle) { opened = it }
+            TodoTab.Done -> {
+                val label = if (doneDays == 7) "最近 7 天" else "最近 ${doneDays} 天"
+                item(key = "doneHead") {
+                    Text("${label}完成 ${list.orEmpty().size} 件", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
+                }
+                if (list != null && list.isEmpty()) item { Empty(emptyText(tab.title)) }
+                groupedItems(list.orEmpty(), Grouping.Done, checkable = true, keyPrefix = "d", swipe = swipe, onToggle = toggle) { opened = it }
+                item(key = "doneMore") {
+                    Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+                        Pill("查看更早", filled = false) { doneDays += 30 }
+                    }
+                }
+            }
         }
     }
     opened?.let { item -> ItemSheet(item, memory, onOpenEvent = null) { opened = null } }
+    if (reminders) ReminderSheet(memory) { reminders = false }
+}
+
+/** 一行的滑动动作：左滑 [label] / 右滑两次删除 */
+private class RowSwipe(val label: (MemoryItem) -> String, val left: (MemoryItem) -> Unit, val delete: (MemoryItem) -> Unit) {
+    @Composable
+    fun wrap(item: MemoryItem, content: @Composable () -> Unit) =
+        app.resound.ui.today.SwipeRow(item.id, label(item), { left(item) }, { delete(item) }, content)
 }
 
 /** 记忆：按天（日期条 + 当天日记，可导出）· 按类（灵感 · 关键信息 · 决定 · 知识 · 回顾）。openReview 不为空时跳到那天并打开回顾 */
@@ -367,7 +446,7 @@ fun MemoryScreen(
 /** 分组列表：每组一个小标题 + 一张卡 */
 private fun androidx.compose.foundation.lazy.LazyListScope.groupedItems(
     list: List<MemoryItem>, grouping: Grouping, checkable: Boolean, keyPrefix: String,
-    onToggle: (MemoryItem) -> Unit, onOpen: (MemoryItem) -> Unit,
+    swipe: RowSwipe? = null, onToggle: (MemoryItem) -> Unit, onOpen: (MemoryItem) -> Unit,
 ) {
     val groups: List<Pair<String, List<MemoryItem>>> = when (grouping) {
         Grouping.Due -> list.groupBy { it.dueAt?.let(::dateOf) }.toList()
@@ -383,7 +462,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.groupedItems(
                 color = c.textTertiary, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
             RsCard(padding = PaddingValues(vertical = 2.dp)) {
                 dayItems.forEachIndexed { i, item ->
-                    ItemRow(item, checkable, onToggle = { onToggle(item) }) { onOpen(item) }
+                    if (swipe != null) swipe.wrap(item) { ItemRow(item, checkable, onToggle = { onToggle(item) }) { onOpen(item) } }
+                    else ItemRow(item, checkable, onToggle = { onToggle(item) }) { onOpen(item) }
                     if (i != dayItems.lastIndex) Box(Modifier.padding(start = if (checkable) 52.dp else 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                 }
             }
@@ -473,9 +553,22 @@ internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit,
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CategoryChip(item.category, item.kind)
+                if (item.doneHint != null && item.status == ItemStatus.Accepted) {
+                    Spacer(Modifier.width(6.dp))
+                    Text("可能做完了", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.good,
+                        modifier = Modifier.clip(CircleShape).background(c.good.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 2.dp))
+                }
                 if (meta.isNotEmpty()) {
                     Spacer(Modifier.width(8.dp))
-                    Text(meta.joinToString(" · "), style = RsType.caption, color = if (item.dueAt != null && !done) c.accent else c.textTertiary, maxLines = 1)
+                    // 过了时间标红，24 小时内标橙，再远用主色
+                    val left = item.dueAt?.let { it - System.currentTimeMillis() }
+                    val tint = when {
+                        done || left == null -> c.textTertiary
+                        left < 0 -> c.critical
+                        left < 86_400_000L -> c.warning
+                        else -> c.accent
+                    }
+                    Text(meta.joinToString(" · "), style = RsType.caption, color = tint, maxLines = 1)
                 }
             }
         }
@@ -490,7 +583,8 @@ private fun dayLabel(day: LocalDate): String = when (ChronoUnit.DAYS.between(day
 }
 
 /** 约定按将来的日子说：今天 / 明天 / 后天 / 10月28日 */
-private fun dueLabel(day: LocalDate): String = when (ChronoUnit.DAYS.between(LocalDate.now(), day)) {
+private fun dueLabel(day: LocalDate): String = when (val d = ChronoUnit.DAYS.between(LocalDate.now(), day)) {
+    in Long.MIN_VALUE..-1L -> "已过 ${-d} 天 · " + day.format(DateTimeFormatter.ofPattern("M月d日"))
     0L -> "今天"
     1L -> "明天"
     2L -> "后天"
@@ -500,7 +594,6 @@ private fun dueLabel(day: LocalDate): String = when (ChronoUnit.DAYS.between(Loc
 private fun emptyText(tab: String) = when (tab) {
     "待确认" -> "没有要确认的了"
     "进行中" -> "手上没有进行中的事"
-    "约定" -> "还没有记下的约定"
     "已完成" -> "完成的事会出现在这里"
     else -> "还没有$tab"
 }

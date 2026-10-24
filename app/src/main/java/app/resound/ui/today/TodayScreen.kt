@@ -798,13 +798,18 @@ private fun eventText(event: MemoryEvent, lines: List<app.resound.transcribe.Tra
     }
 }.trimEnd()
 
-/** 一条提取项的详情：完整内容、时间、谁来做、依据的原话；可接受/忽略、跳到所属那件事 */
+/** 一条提取项的详情：完整内容、时间、谁来做、依据的原话；可接受/忽略、编辑、删除、跳到所属那件事 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: (() -> Unit)?, onClose: () -> Unit) {
     val c = Rs.colors
     val lines by remember(item.eventId) { memory.eventLines(item.eventId) }.collectAsState(initial = emptyList())
     val source = lines.firstOrNull { it.id == item.sourceLineId }
+    val task = item.category in setOf("待办", "约定", "备忘")
+    var editing by remember { mutableStateOf(false) }
+    var deleteArmed by remember(item.id) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
+    if (editing) app.resound.ui.items.EditItemSheet(item, memory) { editing = false }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
@@ -813,6 +818,21 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
             CategoryChip(item.category, item.kind)
             Spacer(Modifier.height(12.dp))
             Text(item.content, style = RsType.title, color = c.text)
+            // 整理时听到后来有句话说明已经做了：给出那句话，让用户一键确认
+            item.doneHint?.takeIf { item.status == ItemStatus.Accepted }?.let { hint ->
+                Spacer(Modifier.height(16.dp))
+                RsCard(padding = PaddingValues(16.dp)) {
+                    Text("可能已经做完了", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.good)
+                    Spacer(Modifier.height(6.dp))
+                    Text("${friendlyDate(hint.at)} 你说：", style = RsType.caption, color = c.textTertiary)
+                    Text("“${hint.text}”", style = RsType.body, color = c.text)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ActionChip("是，做完了", ChipTone.Accent, Modifier.weight(1f)) { memory.setItemStatus(item.id, ItemStatus.Done); onClose() }
+                        ActionChip("还没", ChipTone.Plain, Modifier.weight(1f)) { memory.dismissDoneHint(item.id) }
+                    }
+                }
+            }
             val facts = buildList {
                 item.dueAt?.let { add("时间" to friendlyDue(it, item.dueText)) }
                 item.who?.let { add("谁" to it) }
@@ -858,13 +878,22 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
             Spacer(Modifier.height(22.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (item.status == ItemStatus.Pending) {
-                    Pill(if (item.category == "约定") "记下" else "接受", filled = true) { memory.setItemStatus(item.id, ItemStatus.Accepted); onClose() }
-                    Pill("忽略", filled = false) { memory.setItemStatus(item.id, ItemStatus.Ignored); onClose() }
+            if (item.status == ItemStatus.Pending) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ActionChip("接受", ChipTone.Accent, Modifier.weight(1f)) { memory.setItemStatus(item.id, ItemStatus.Accepted); onClose() }
+                    ActionChip("忽略", ChipTone.Plain, Modifier.weight(1f)) { memory.setItemStatus(item.id, ItemStatus.Ignored); onClose() }
                 }
-                onOpenEvent?.let { Pill("查看这件事", filled = false, onClick = it) }
+                Spacer(Modifier.height(10.dp))
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (task) ActionChip("编辑", ChipTone.Plain, Modifier.weight(1f)) { editing = true }
+                onOpenEvent?.let { ActionChip("这件事", ChipTone.Plain, Modifier.weight(1f), onClick = it) }
+                // 删除：点一下原地变红“确认删除”，3 秒内再点才删
+                if (task) ActionChip(if (deleteArmed) "确认删除" else "删除", if (deleteArmed) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
+                    if (deleteArmed) { memory.deleteItem(item.id); onClose() } else deleteArmed = true
+                }
+            }
+            if (task) Text("删除只删这一条，那件事和原话都还在。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
         }
     }
@@ -882,23 +911,28 @@ private fun SheetSection(title: String) {
     Spacer(Modifier.height(10.dp))
 }
 
+/** 时间线上的一件事：左滑标重点 / 再左滑取消；右滑两次删除（见 [SwipeRow]） */
+@Composable
+internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) =
+    SwipeRow(event.id, if (event.starred) "取消重点" else "★ 标重点", onStar, onDelete) { content(null) }
+
 /**
- * 时间线上的一件事：左滑标重点 / 再左滑取消；右滑删除要滑两次：第一次过线行变红、提示“再右滑一次删除”，3 秒内再右滑才删。
+ * 可滑动的一行：左滑做 [leftLabel] 那件事；右滑删除要滑两次：第一次过线行变红、提示“再右滑一次删除”，3 秒内再右滑才删。
  * 拖过 72dp 就算过线，过线那一刻轻震。自己处理拖动（系统 SwipeToDismissBox 在“触发后弹回”时隔一次才生效）。
  */
 @Composable
-internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
+internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete: () -> Unit, content: @Composable () -> Unit) {
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val star by androidx.compose.runtime.rememberUpdatedState(onStar)
+    val left by androidx.compose.runtime.rememberUpdatedState(onLeft)
     val delete by androidx.compose.runtime.rememberUpdatedState(onDelete)
     val threshold = with(density) { 72.dp.toPx() }
     val offset = remember { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
     var armed by remember { mutableStateOf(false) }
     // 第一次右滑过线后进入“待删除”，3 秒内再右滑一次才删
-    var deleteArmed by remember(event.id) { mutableStateOf(false) }
+    var deleteArmed by remember(key) { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
     Box(Modifier.fillMaxWidth()) {
         val dx = offset.value
@@ -908,8 +942,7 @@ internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> 
                 .padding(horizontal = 24.dp),
             contentAlignment = if (dx < 0f) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
-            val label = if (dx < 0f) (if (event.starred) "取消重点" else "★ 标重点")
-                else if (deleteArmed) "删除" else "标记删除"
+            val label = if (dx < 0f) leftLabel else if (deleteArmed) "删除" else "标记删除"
             Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
         }
         Box(
@@ -922,7 +955,7 @@ internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> 
                             val dir = offset.value
                             armed = false
                             scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.7f)) }
-                            if (fire && dir < 0f) star()
+                            if (fire && dir < 0f) left()
                             if (fire && dir > 0f) { if (deleteArmed) { deleteArmed = false; delete() } else deleteArmed = true }
                         },
                         onDragCancel = { armed = false; scope.launch { offset.animateTo(0f) } },
@@ -936,7 +969,7 @@ internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> 
                     }
                 },
         ) {
-            content(null)
+            content()
             if (deleteArmed) Text("再右滑一次删除", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.critical,
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 16.dp))
         }

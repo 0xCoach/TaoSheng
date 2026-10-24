@@ -42,6 +42,23 @@ class AndroidPushChannels internal constructor(
     private val mutableLogs = MutableStateFlow(readLogs())
     override fun logs(limit: Int): Flow<List<PushLog>> = mutableLogs.map { it.take(limit.coerceIn(0, 100)) }
     override fun fields(kind: PushKind) = PushFields.fields(kind)
+
+    // ---------- 卡 042 实现前的占位 ----------
+    override fun capabilities(kind: PushKind) = when (kind) {
+        PushKind.PushPlus, PushKind.WeCom, PushKind.ServerChan, PushKind.Feishu, PushKind.DingTalk ->
+            PushCapabilities(records = false, incremental = false, folder = false, formats = setOf(PushFormat.Text, PushFormat.Markdown))
+        PushKind.Telegram, PushKind.Email -> PushCapabilities(records = true, incremental = false, folder = false, formats = setOf(PushFormat.Text, PushFormat.Markdown))
+        PushKind.Notion -> PushCapabilities(records = true, incremental = true, folder = false, formats = setOf(PushFormat.Markdown))
+        PushKind.MarkdownFolder -> PushCapabilities(records = true, incremental = true, folder = true, formats = setOf(PushFormat.Markdown))
+        PushKind.Webhook -> PushCapabilities(records = true, incremental = true, folder = false, formats = PushFormat.entries.toSet())
+    }
+    override val linkedNutstoreAccount: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null)
+    override suspend fun saveWithSubscription(id: Long?, kind: PushKind, name: String, values: Map<String, String>,
+                                              subscription: PushSubscription, format: PushFormat, useLinkedNutstore: Boolean): Result<Long> =
+        save(id, kind, name, values, topics(kind), format, subscription.lines != LinesMode.Off)
+    override suspend fun pushNow(id: Long): Result<String> = Result.failure(IllegalStateException("还在开发中"))
+    override suspend fun rebuild(id: Long): Result<String> = Result.failure(IllegalStateException("还在开发中"))
+    override fun status(id: Long): kotlinx.coroutines.flow.Flow<PushChannelStatus> = kotlinx.coroutines.flow.flowOf(PushChannelStatus(null, null, null, false))
     override fun topics(kind: PushKind): Set<PushTopic> =
         if (kind in setOf(PushKind.Webhook, PushKind.Email, PushKind.Notion, PushKind.Telegram, PushKind.MarkdownFolder)) PushTopic.entries.toSet()
         else PushTopic.entries.toSet() - PushTopic.DailyMemory

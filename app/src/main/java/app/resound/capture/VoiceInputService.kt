@@ -5,6 +5,9 @@ import android.app.KeyguardManager
 import android.graphics.Rect
 import android.media.AudioManager
 import android.media.AudioRecordingConfiguration
+import android.os.Build
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -17,10 +20,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-/** 仅在语音窗口和待补记回复期间读取节点；关闭、暂停、锁屏都立即丢弃内存快照。 */
+/** 仅在语音窗口及本次识字期间读取节点；关闭、暂停、锁屏都立即丢弃内存快照。 */
 class VoiceInputService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val ocr by lazy { AndroidVoiceInputOcr(this) }
     private var engine: VoiceInputEngine? = null
     private var manager: AudioManager? = null
     private var registered = false
@@ -43,7 +47,7 @@ class VoiceInputService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         connected.value = true
-        engine = VoiceInputEngine { capture?.accept(it) }
+        engine = VoiceInputEngine(::requestScreenshot) { capture?.accept(it) }
         manager = getSystemService(AudioManager::class.java)
         capture?.let { c -> scope.launch {
             combine(c.settings, AppGraph.capture.status) { settings, state -> settings to (state.state in setOf(CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy)) }
@@ -95,7 +99,7 @@ class VoiceInputService : AccessibilityService() {
             if (!VoiceInputText.allowed(settings, AppGraph.capture.status.value.state, pkg, packageName, false)) return null
             // 有的应用（如微信）在语音面板弹出时 findFocus 拿不到输入框：退而在界面里找“有焦点的可编辑框”，再不行用唯一的可编辑框
             val focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable } ?: findEditable(root)
-            dbgSnap("界面 应用=$pkg 输入框=${focus?.className} 可编辑=${focus?.isEditable} 可见=${focus?.isVisibleToUser}")
+            dbgSnap("界面：有输入框=${focus != null} 可编辑=${focus?.isEditable == true} 可见=${focus?.isVisibleToUser == true}")
             try {
                 if (focus?.isPassword == true) return null
                 val editable = focus?.takeIf { it.isEditable && it.isVisibleToUser }
@@ -111,7 +115,7 @@ class VoiceInputService : AccessibilityService() {
                     if (cls.contains("Button") || cls.contains("ImageView") || node.isCheckable) return
                     val value = node.text?.toString()?.trim()?.take(1500)
                     val rect = Rect(); node.getBoundsInScreen(rect)
-                    if (!value.isNullOrBlank() && value !in CHROME && !value.matches(Regex("[0-9]{1,2}:[0-9]{2}"))) {
+                    if (!value.isNullOrBlank() && VoiceInputChrome.keep(value)) {
                         val id = node.viewIdResourceName.orEmpty().lowercase()
                         if (title == null && value.length <= 80 && (node.isHeading || id.contains("title") ||
                             rect.bottom < rootBounds.top + rootBounds.height() / 6)) title = value
@@ -129,7 +133,7 @@ class VoiceInputService : AccessibilityService() {
                 var send = false
                 if (event?.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED && event.packageName?.toString() == pkg) {
                     event.source?.let { node -> try {
-                        if (!node.isPassword && !node.isEditable) send = node.text?.toString() in SEND || node.contentDescription?.toString() in SEND
+                        if (!node.isPassword && !node.isEditable) send = node.text?.toString() in VoiceInputChrome.send || node.contentDescription?.toString() in VoiceInputChrome.send
                     } finally { recycle(node) } }
                 }
                 return InputScreen(pkg, label, page, title, field, text, lines = lines.takeLast(20), send = send)
@@ -154,6 +158,31 @@ class VoiceInputService : AccessibilityService() {
         found.filter { it !== pick }.forEach(::recycle)
         return pick
     }
+    private fun requestScreenshot(request: OcrRequest) {
+        val e = engine ?: return
+        fun valid(): Boolean {
+            if (!allowed() || capture?.settings?.value?.screenOcr != true || !e.accepts(request)) return false
+            val current = safeSnapshot(null) ?: return false
+            return !current.password && current.packageName == request.screen.packageName && current.page == request.screen.page
+        }
+        if (Build.VERSION.SDK_INT < 30 || !valid()) { e.recognized(request, null); return }
+        val layout = runCatching {
+            val metrics = getSystemService(WindowManager::class.java).maximumWindowMetrics
+            val insets = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            val visible = windows
+            val ime = try {
+                visible.filter { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }.mapNotNull { w ->
+                    val bounds = Rect(); w.getBoundsInScreen(bounds)
+                    bounds.top.takeIf { bounds.width() > 0 && bounds.height() > 0 && it > insets.top }
+                }.minOrNull()
+            } finally { @Suppress("DEPRECATION") visible.forEach { it.recycle() } }
+            OcrLayout(metrics.bounds.width(), metrics.bounds.height(), insets.top,
+                metrics.bounds.height() - insets.bottom, ime)
+        }.getOrNull()
+        if (layout == null) { e.recognized(request, null); return }
+        ocr.capture(layout, ::valid) { result -> e.recognized(request, result) }
+    }
+
     private var lastSnapLog = ""
     private fun dbgSnap(msg: String) { if (msg != lastSnapLog) { lastSnapLog = msg; runCatching { android.util.Log.d("VoiceInputDbg", msg) } } }
 
@@ -163,7 +192,5 @@ class VoiceInputService : AccessibilityService() {
     companion object {
         /** 服务是否真的在运行：小米上常见“设置里开着、系统却没启动服务” */
         val connected = kotlinx.coroutines.flow.MutableStateFlow(false)
-        private val SEND = setOf("发送", "Send", "send", "提交", "回车")
-        private val CHROME = SEND + setOf("返回", "更多", "搜索", "取消", "确定", "语音输入", "按住说话", "切换到键盘", "表情", "Back", "More")
     }
 }

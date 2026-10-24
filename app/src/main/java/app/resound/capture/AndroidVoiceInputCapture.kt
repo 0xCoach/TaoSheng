@@ -18,12 +18,12 @@ import java.time.ZoneId
 class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase, scope: CoroutineScope) : VoiceInputCapture {
     private val prefs = context.getSharedPreferences("voice-input", Context.MODE_PRIVATE)
     private val mutable = MutableStateFlow(VoiceInputSettings(prefs.getBoolean("enabled", false),
-        prefs.getBoolean("context", true), prefs.getBoolean("replies", true), prefs.getStringSet("excluded", emptySet())!!.toSet()))
+        prefs.getBoolean("context", true), false, prefs.getStringSet("excluded", emptySet())!!.toSet(), prefs.getBoolean("screenOcr", true)))
     override val settings = mutable.asStateFlow()
     override fun update(settings: VoiceInputSettings) {
         check(prefs.edit().putBoolean("enabled", settings.enabled).putBoolean("context", settings.context)
-            .putBoolean("replies", settings.replies).putStringSet("excluded", settings.excludedPackages).commit())
-        mutable.value = settings.copy(excludedPackages = settings.excludedPackages.toSet())
+            .putBoolean("replies", false).putBoolean("screenOcr", settings.screenOcr).putStringSet("excluded", settings.excludedPackages).commit())
+        mutable.value = settings.copy(replies = false, excludedPackages = settings.excludedPackages.toSet())
     }
     private val component = ComponentName(context, VoiceInputService::class.java)
     private fun enabled() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)

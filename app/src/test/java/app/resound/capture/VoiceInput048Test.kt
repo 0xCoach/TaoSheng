@@ -80,9 +80,9 @@ class VoiceInput048Test {
         engine.recording(false, 100, screen("稍后发送"), settings)
         engine.tick(3100, screen("稍后发送"), settings)
         engine.tick(10000, screen("", listOf("稍后发送", "合成回复")), settings)
-        assertEquals(130000L, later.filterIsInstance<InputChange.Sent>().single().until)
+        assertTrue(later.none { it is InputChange.Sent })
         engine.tick(130000, screen(""), settings)
-        assertEquals("合成回复", later.filterIsInstance<InputChange.Finish>().single().after)
+        assertTrue(later.none { it is InputChange.Finish })
     }
     @Test fun privacyGatesAndPauseDiscardWindow() {
         for (state in listOf(CaptureState.Paused, CaptureState.Stopped, CaptureState.NoPermission))
@@ -95,15 +95,15 @@ class VoiceInput048Test {
         e.recording(true, 0, screen(""), settings); e.tick(1, screen("未完成"), settings)
         e.reset(); e.tick(5000, screen("未完成"), settings); assertTrue(out.isEmpty())
     }
-    @Test fun repliesFinalizeOnceAtDeadlineOrPageExitAndContextIsBounded() {
+    @Test fun repliesAreNeverAppendedAndContextIsBounded() {
         val out = mutableListOf<InputChange>(); val e = VoiceInputEngine(out::add)
         e.recording(true, 0, screen(""), settings); e.tick(1, screen("好的"), settings)
         e.tick(10, screen("", listOf("报告明天能交吗", "好的", "收到")), settings)
         e.tick(50, screen("", listOf("好的", "收到", "谢谢")), settings)
         e.tick(120010, screen("", listOf("收到", "谢谢", "过期内容")), settings)
         e.tick(120020, screen(""), settings)
-        val done = out.filterIsInstance<InputChange.Finish>().single()
-        assertEquals("收到\n谢谢", done.after)
+        assertTrue(out.none { it is InputChange.Finish })
+        assertNull(out.filterIsInstance<InputChange.Save>().single().record.meta.after)
         assertEquals(20, VoiceInputText.context((1..40).map { "第${it}行" })!!.lines().size)
         assertEquals(1500, VoiceInputText.context(List(20) { "字".repeat(100) })!!.length)
         val other = mutableListOf<InputChange>(); val second = VoiceInputEngine(other::add)
@@ -111,7 +111,7 @@ class VoiceInput048Test {
         second.tick(2, screen("", listOf("你好", "回复")), settings)
         second.tick(3, screen("").copy(page = "another"), settings)
         second.tick(4, screen(""), settings)
-        assertEquals("回复", other.filterIsInstance<InputChange.Finish>().single().after)
+        assertTrue(other.none { it is InputChange.Finish })
     }
     @Test fun disabledContextOrRepliesNeverCollectsReplies() {
         for (s in listOf(settings.copy(context = false), settings.copy(replies = false))) {
@@ -136,21 +136,15 @@ class VoiceInput048Test {
         assertNotNull(store.save(record(at = start + 31000, text = "请明天下午把合成报告交给我")))
     }
     @Test fun finalizationSurvivesMappingAndNeverEntersVoiceprint() = runBlocking {
+        // 负责人定不补记回复：存下即可整理，不等定稿
         val store = VoiceInputStore(db); val r = record(until = System.currentTimeMillis() + 120000)
         val id = store.save(r)!!
-        assertTrue(db.memory().undigestedLines().isEmpty())
-        db.voiceInput().sent("voice-input:${r.token}", start - 1)
-        assertEquals(start - 1, db.voiceprint().line(id)!!.voiceInputPendingUntil)
-        // 已过截止也须等定稿事务，不能在回复入库前抢先整理。
-        assertTrue(db.memory().undigestedLines().isEmpty())
-        store.finish(r.token, "合成回复"); store.finish(r.token, "不应覆盖")
         val line = db.voiceprint().line(id)!!
-        assertEquals("合成回复", line.voiceInputMeta()!!.after)
+        assertNull(line.voiceInputPendingUntil); assertNull(line.voiceInputMeta()!!.after)
         val segment = db.transcribe().segment(line.segmentId)
         assertEquals("voice-input", segment.sourceId); assertEquals("Done", segment.status)
         assertFalse(File(segment.path).isFile)
         assertTrue(line.speakerManual); assertEquals("我", line.speakerName)
-        assertEquals("合成回复", line.voiceInputMeta()!!.after)
         assertEquals(1, db.memory().undigestedLines().size)
         db.voiceprint().invalidate(); db.voiceprint().clearResults()
         db.voiceprint().identity(listOf(id), 99, "别人", .99f, true)

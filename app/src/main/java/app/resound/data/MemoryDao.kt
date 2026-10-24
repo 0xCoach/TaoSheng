@@ -71,7 +71,7 @@ abstract class MemoryDao {
     /** 已转写、还没整理过的句子（按时间） */
     @Query(
         """SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
-           WHERE l.digestedAt IS NULL AND s.status = 'Done' ORDER BY l.startAt, l.id""",
+           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedLines(): List<TranscriptLineEntity>
 

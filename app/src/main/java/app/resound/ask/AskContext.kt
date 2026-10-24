@@ -24,11 +24,16 @@ class AskContextReader(private val db: CaptureDatabase) {
             c.getLong(0)
         }
         val lines = JSONArray(); var budget = 12000 - data.toString().length
-        db.query(SimpleSQLiteQuery("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人') FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(event))).use { c ->
+        db.query(SimpleSQLiteQuery("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(event))).use { c ->
             while (c.moveToNext() && budget > 0) {
                 val quote = c.getString(2).take(minOf(900, budget))
                 sources += AskSource("line", c.getLong(0), c.getLong(1), c.getString(3), quote)
-                lines.put(JSONObject().put("ref", sources.size).put("text", quote).put("speaker", c.getString(3)))
+                val line = JSONObject().put("ref", sources.size).put("text", quote).put("speaker", c.getString(3))
+                if (!c.isNull(4)) app.resound.transcribe.VoiceInputMetadata.read(c.getString(4))?.let {
+                    val meta = app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(500), after = it.after?.take(500)))
+                    if (meta.toString().length < budget - quote.length - 100) { line.put("voice_input", meta); budget -= meta.toString().length }
+                }
+                lines.put(line)
                 budget -= quote.length + 100
             }
         }

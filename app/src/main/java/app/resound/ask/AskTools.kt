@@ -71,7 +71,7 @@ class AskTools(
             where += columns.joinToString(" OR ", "(", ")") { "$it=?" }; columns.forEach { args += value }
         }
         val order = if (starredOnly && words.isEmpty()) "e.starredAt" else s.getString("time")
-        return Query("SELECT ${s.getString("select")} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
+        return Query("SELECT ${s.getString("select")}${if (name == "search_lines") ", l.voiceInputJson" else ""} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
     }
 
     private fun read(q: Query): List<JSONObject> = db.query(SimpleSQLiteQuery(q.sql, q.args.toTypedArray())).use { cursor ->
@@ -79,8 +79,9 @@ class AskTools(
             while (cursor.moveToNext()) {
                 val row = JSONObject()
                 cursor.columnNames.forEachIndexed { i, column ->
-                    row.put(column, when {
+                    row.put(if (column == "voiceInputJson") "voice_input" else column, when {
                         cursor.isNull(i) -> JSONObject.NULL
+                        column == "voiceInputJson" -> app.resound.transcribe.VoiceInputMetadata.read(cursor.getString(i))?.let { app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(750), after = it.after?.take(750))) } ?: JSONObject.NULL
                         column == "starred" -> cursor.getInt(i) != 0
                         column in setOf("id", "at", "starred_at") -> cursor.getLong(i)
                         else -> cursor.getString(i).take(900)

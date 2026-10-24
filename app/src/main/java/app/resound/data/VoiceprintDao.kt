@@ -30,9 +30,9 @@ abstract class VoiceprintDao {
     @Query("SELECT * FROM voiceprint_samples ORDER BY id") abstract suspend fun allSamples(): List<VoiceprintSampleEntity>
     @Query("SELECT * FROM voiceprint_samples ORDER BY id") abstract fun observeAllSamples(): Flow<List<VoiceprintSampleEntity>>
     @Query("DELETE FROM voiceprint_samples WHERE personId = :id") abstract suspend fun clearPersonSamples(id: Long)
-    @Query("UPDATE transcript_lines SET speakerName = :name WHERE speakerPersonId = :id") abstract suspend fun renameResults(id: Long, name: String)
-    @Query("UPDATE transcript_lines SET speakerName = NULL, speakerScore = NULL, speakerPersonId = NULL, speakerManual = 0 WHERE speakerPersonId = :id") abstract suspend fun clearPersonResults(id: Long)
-    @Query("UPDATE transcript_lines SET speakerName = :name, speakerScore = :score, speakerPersonId = :personId, speakerManual = :manual WHERE id IN (:ids) AND (:manual = 1 OR (speakerManual = 0 AND (speakerPersonId IS NOT NULL OR speakerName IS NULL OR speakerName = '我')))")
+    @Query("UPDATE transcript_lines SET speakerName = :name WHERE speakerPersonId = :id AND voiceInputJson IS NULL") abstract suspend fun renameResults(id: Long, name: String)
+    @Query("UPDATE transcript_lines SET speakerName = NULL, speakerScore = NULL, speakerPersonId = NULL, speakerManual = 0 WHERE speakerPersonId = :id AND voiceInputJson IS NULL") abstract suspend fun clearPersonResults(id: Long)
+    @Query("UPDATE transcript_lines SET speakerName = :name, speakerScore = :score, speakerPersonId = :personId, speakerManual = :manual WHERE voiceInputJson IS NULL AND id IN (:ids) AND (:manual = 1 OR (speakerManual = 0 AND (speakerPersonId IS NOT NULL OR speakerName IS NULL OR speakerName = '我')))")
     abstract suspend fun identity(ids: List<Long>, personId: Long?, name: String?, score: Float?, manual: Boolean = false)
 
     @Query("SELECT * FROM voiceprint_samples WHERE personId = 0 ORDER BY id") abstract suspend fun samples(): List<VoiceprintSampleEntity>
@@ -53,17 +53,17 @@ abstract class VoiceprintDao {
     @Query("SELECT * FROM transcript_lines WHERE id = :id") abstract suspend fun line(id: Long): TranscriptLineEntity?
     @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
     abstract suspend fun lines(id: Long): List<TranscriptLineEntity>
-    @Query("SELECT * FROM segments WHERE status = 'Done' AND voiceprintProcessedAt IS NULL ORDER BY startAt, id")
+    @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done' AND voiceprintProcessedAt IS NULL ORDER BY startAt, id")
     abstract suspend fun pending(): List<SegmentEntity>
-    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName IS NULL OR speakerName = '我' THEN :name ELSE speakerName END, speakerScore = :score WHERE id IN (:ids)")
+    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName IS NULL OR speakerName = '我' THEN :name ELSE speakerName END, speakerScore = :score WHERE voiceInputJson IS NULL AND id IN (:ids)")
     abstract suspend fun result(ids: List<Long>, name: String?, score: Float?)
     @Query("UPDATE segments SET voiceprintProcessedAt = :at WHERE id = :id")
     abstract suspend fun processed(id: Long, at: Long)
-    @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE status = 'Done'")
+    @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE sourceId != 'voice-input' AND status = 'Done'")
     abstract suspend fun invalidate()
     /** 阈值调整后按已有分数重新标“我”（只动声纹写的“我”，不碰其他名字） */
-    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerScore >= :sure THEN '我' ELSE NULL END WHERE speakerManual = 0 AND speakerScore IS NOT NULL AND (speakerName IS NULL OR speakerName = '我')")
+    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerScore >= :sure THEN '我' ELSE NULL END WHERE voiceInputJson IS NULL AND speakerManual = 0 AND speakerScore IS NOT NULL AND (speakerName IS NULL OR speakerName = '我')")
     abstract suspend fun relabel(sure: Float)
-    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName = '我' THEN NULL ELSE speakerName END, speakerScore = NULL, speakerPersonId = NULL, speakerManual = 0 WHERE speakerPersonId = 0 OR speakerName = '我' OR (speakerPersonId IS NULL AND speakerManual = 0)")
+    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName = '我' THEN NULL ELSE speakerName END, speakerScore = NULL, speakerPersonId = NULL, speakerManual = 0 WHERE voiceInputJson IS NULL AND (speakerPersonId = 0 OR speakerName = '我' OR (speakerPersonId IS NULL AND speakerManual = 0))")
     abstract suspend fun clearResults()
 }

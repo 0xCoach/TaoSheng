@@ -45,6 +45,7 @@ class ResoundApp : Application() {
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)
         AppGraph.capture = controller
+        AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)
         val settings = AndroidTranscribeSettings(this)
         val scheduler = TranscribeScheduler(this, settings)
         transcribeScheduler = scheduler

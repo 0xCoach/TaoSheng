@@ -231,7 +231,7 @@ class DayDiaryTest {
         val uri = diary.exportFile(date, date, false)
         assertEquals("content", uri.scheme)
         assertEquals("${context.packageName}.files", uri.authority)
-        assertEquals(expected, File(context.cacheDir, "diary/回响日记_2026-10-23.md").readText())
+        assertEquals(expected, File(context.cacheDir, "diary/resound-diary_2026-10-23.md").readText())
         val rangeUri = diary.exportFile(date.minusDays(1), date, false)
         assertTrue(rangeUri.lastPathSegment!!.endsWith("2026-10-22至2026-10-23.md"))
         assertFalse(diary.cloudSync.value)
@@ -241,5 +241,14 @@ class DayDiaryTest {
         val multi = diary.markdown(date, date.plusDays(2), false)
         assertTrue(multi.startsWith(expected + "\n\n# 10月25日 星期日\n"))
         assertFalse(multi.contains("10月24日"))
+        val meta = app.resound.transcribe.VoiceInputMetadata.json(app.resound.transcribe.VoiceInputMeta(
+            "合成聊天", "synthetic.chat", "老王", "合成之前上下文", "合成之后回复")).toString()
+        db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET voiceInputJson=? WHERE id=2", arrayOf(meta))
+        val full = diary.markdownWithContext(date, date, true, true)
+        assertTrue(full.contains("**14:05 我**：先确认需求"))
+        assertTrue(full.contains("> 合成之前上下文")); assertTrue(full.contains("> 合成之后回复"))
+        val without = diary.markdownWithContext(date, date, true, false)
+        assertTrue(without.contains("⌨ 语音输入 · 合成聊天 · 老王"))
+        assertFalse(without.contains("合成之前上下文")); assertFalse(without.contains("合成之后回复"))
     }
 }

@@ -16,7 +16,7 @@ import java.time.ZoneId
 
 /** 对外 JSON 与内部数据读取分离，字段名和空值在此集中定义。时间均为 Unix 毫秒。 */
 internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput,
-    cards: List<SkillCard>, lines: List<TranscriptLineEntity>?): JSONObject = JSONObject()
+    cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = true): JSONObject = JSONObject()
     .put("type", "daily_memory").put("version", 1).put("app", "回响").put("date", date.toString())
     .put("generatedAt", generatedAt).put("markdown", markdown).put("data", JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
@@ -28,7 +28,7 @@ internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: Strin
         .put("cards", JSONArray(cards.map { c -> JSONObject().put("skill", c.skillName).put("title", c.title).put("summary", c.summary)
             .put("at", c.at).put("values", SkillJson.values(c.values)) }))
         .apply { if (lines != null) put("lines", JSONArray(lines.map { l -> JSONObject().put("id", l.id).put("at", l.startAt)
-            .put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text) })) })
+            .put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, lineContext)) } } })) })
 
 internal class DailyMemorySource(context: Context, memory: MemoryRepository, private val reviews: ReviewRepository,
     private val dao: MemoryDao, private val reviewDao: ReviewDao, private val skills: SkillDao) {
@@ -56,7 +56,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
     private val diary = LocalDiaryRepository(context, windowMemory, reviews, dao, ::cards) { date ->
         window(date).let { (start, end) -> (start + 1) to (end + 1) }
     }
-    suspend fun load(date: LocalDate?, withLines: Boolean): PushMessage? {
+    suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {
         val target = date ?: latestDate(withLines) ?: return null
         val source = input(target)
         val review = reviews.daily(target).first()
@@ -64,10 +64,10 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         val (start, end) = window(target)
         val lines = if (withLines) dao.diaryLines(start + 1, end + 1).filter { it.text.isNotBlank() } else null
         if (source.events.isEmpty() && source.items.isEmpty() && cards.isEmpty() && review == null && lines.isNullOrEmpty()) return null
-        val markdown = diary.markdown(target, target, withLines)
+        val markdown = diary.markdownWithContext(target, target, withLines, lineContext)
         if (markdown.isBlank()) return null
         val at = System.currentTimeMillis()
-        val json = dailyMemoryJson(target, at, markdown, review, source, cards, lines)
+        val json = dailyMemoryJson(target, at, markdown, review, source, cards, lines, lineContext)
         return PushMessage("每日记忆文档 · $target", review?.pushBody(PushFormat.Text) ?: "回响 · $target 的记忆文档", PushTopic.DailyMemory,
             "resound://review?open=review&date=$target", at, memory = json)
     }

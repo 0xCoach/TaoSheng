@@ -71,6 +71,7 @@ class LocalVoiceprintRepository(
     override fun clearIdentity(lineId: Long) = launchAction {
         gate.withLock {
             val line = requireNotNull(dao.line(lineId))
+            require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
             val ids = dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }
             db.withTransaction { dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); dao.invalidate() }
@@ -105,6 +106,7 @@ class LocalVoiceprintRepository(
     )
     private suspend fun group(lineId: Long): Group {
         val line = requireNotNull(dao.line(lineId))
+        require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
         val segment = db.transcribe().segment(line.segmentId)
         val key = VoiceprintAudio.groupKey(line)
         val allLines = dao.lines(segment.id)
@@ -123,6 +125,7 @@ class LocalVoiceprintRepository(
     override suspend fun nameAndAssign(lineId: Long, name: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             actions.withLock {
+                require(requireNotNull(dao.line(lineId)).voiceInputJson == null) { "语音输入不参与声纹" }
                 error.value = null
                 val id = gate.withLock {
                     if (name.trim() == "我") 0L else {
@@ -188,6 +191,7 @@ class LocalVoiceprintRepository(
     override fun markNotMe(lineId: Long) = launchAction {
         gate.withLock {
             val line = requireNotNull(dao.line(lineId))
+            require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
             db.withTransaction {
                 dao.removeSample(line.segmentId, key)

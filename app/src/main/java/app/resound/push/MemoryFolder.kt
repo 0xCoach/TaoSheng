@@ -111,7 +111,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             }
             files[dailyPath(d)] = card("每日记录", "$d", "回顾、时间线、当天条目、技能卡片", title, es.size + items.size + cs.size + rs.size, body)
             if (lines.isNotEmpty()) files[transcriptPath(d)] = card("原话", "$d", "按时间排列的原话", "${cn(d)} · 原话", lines.size,
-                lines.joinToString("\n\n") { "### L${it.id} · ${time(it.startAt)} · ${it.speakerName ?: it.speakerTag ?: "某人"}\n${it.text}" })
+                lines.joinToString("\n\n") { "### L${it.id} · ${time(it.startAt)} · ${it.speakerName ?: it.speakerTag ?: "某人"}\n${it.text}${app.resound.transcribe.VoiceInputMetadata.markdown(it.voiceInputJson, s.lineContext)}" })
         }
         data.reviews.filter { it.type != "daily" }.groupBy { weekPath(LocalDate.parse(it.startDate)) }.forEach { (path, rows) ->
             val monday = LocalDate.parse(rows.first().startDate).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)); val end = monday.plusDays(6)

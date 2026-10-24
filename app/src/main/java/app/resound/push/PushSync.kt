@@ -130,7 +130,7 @@ internal object RecordDelta {
         data.reviews.forEach { r -> put("review:${r.id}", JSONObject().put("id", r.id).put("type", r.type).put("startDate", r.startDate).put("endDate", r.endDate)
             .put("brief", r.brief).put("sections", JSONArray(r.sectionsJson))) }
         data.lines.forEach { l -> put("line:${l.id}", JSONObject().put("id", l.id).put("at", l.startAt).put("end", l.endAt)
-            .put("eventId", l.eventId ?: JSONObject.NULL).put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text)) }
+            .put("eventId", l.eventId ?: JSONObject.NULL).put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, s.lineContext)) } }) }
     }
     fun changes(current: Map<String, JSONObject>, old: JSONObject): JSONObject {
         val changes = JSONArray()

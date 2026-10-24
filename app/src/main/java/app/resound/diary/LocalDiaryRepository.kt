@@ -38,7 +38,10 @@ class LocalDiaryRepository(
         mutableCloudSync.value = enabled
     }
 
-    override suspend fun markdown(from: LocalDate, to: LocalDate, includeLines: Boolean): String = withContext(Dispatchers.IO) {
+    override suspend fun markdown(from: LocalDate, to: LocalDate, includeLines: Boolean): String =
+        markdownWithContext(from, to, includeLines, true)
+
+    internal suspend fun markdownWithContext(from: LocalDate, to: LocalDate, includeLines: Boolean, lineContext: Boolean): String = withContext(Dispatchers.IO) {
         require(!to.isBefore(from)) { "结束日期不能早于开始日期" }
         val zone = ZoneId.systemDefault()
         val days = mutableListOf<String>()
@@ -84,7 +87,7 @@ class LocalDiaryRepository(
                     date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
                 val lines = dao.diaryLines(start, end).filter { it.text.isNotBlank() }
                 if (lines.isNotEmpty()) sections += "## 原话\n" + lines.joinToString("\n") {
-                    "**${time(it.startAt, zone)} ${it.speakerName?.takeIf(String::isNotBlank) ?: "某人"}**：${it.text}"
+                    "**${time(it.startAt, zone)} ${it.speakerName?.takeIf(String::isNotBlank) ?: "某人"}**：${it.text}${app.resound.transcribe.VoiceInputMetadata.markdown(it.voiceInputJson, lineContext)}"
                 }
             }
             if (sections.isNotEmpty()) days += "# ${date.format(DAY)}\n\n${sections.joinToString("\n\n")}"

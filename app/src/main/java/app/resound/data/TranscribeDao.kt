@@ -12,7 +12,8 @@ data class TranscriptLineEntity(@PrimaryKey(autoGenerate = true) val id: Long = 
     /** 整理过的时间；null 表示还没整理 */
     val digestedAt: Long? = null, val speakerScore: Float? = null,
     val speakerPersonId: Long? = null,
-    @ColumnInfo(defaultValue = "0") val speakerManual: Boolean = false)
+    @ColumnInfo(defaultValue = "0") val speakerManual: Boolean = false,
+    val voiceInputJson: String? = null, val voiceInputPendingUntil: Long? = null)
 @Entity(tableName = "asr_usage")
 data class AsrUsageEntity(@PrimaryKey val day: String, val sentMillis: Long)
 /** 严格只存元数据；禁止异常原文、识别原文或请求头。 */

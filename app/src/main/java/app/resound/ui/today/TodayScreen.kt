@@ -754,31 +754,27 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             // 有隐私接口时删除会连录音和原话一起删；否则只从时间线删掉这件事
             val forget = app.resound.AppGraph.isPrivacyReady
             val scope = rememberCoroutineScope()
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill(if (important) "取消重点" else "★ 标重点", filled = !important) {
+            // 四个按钮一行等宽：重点 / 复制 / 问问 / 删除。删除点一下原地变红“确认删除”，再点才删
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionChip(if (important) "取消重点" else "★ 重点", if (important) ChipTone.Accent else ChipTone.AccentSoft, Modifier.weight(1f)) {
                     important = !important
                     memory.setStarred(event.id, important)
                 }
-                Pill(if (copied) "已复制" else "复制全部", filled = false) {
+                ActionChip(if (copied) "已复制" else "复制", ChipTone.Plain, Modifier.weight(1f)) {
                     clipboard.setText(AnnotatedString(eventText(event, lines)))
                     copied = true
                 }
-                if (app.resound.AppGraph.isAskReady) Pill("就这个问问", filled = false) {
+                if (app.resound.AppGraph.isAskReady) ActionChip("问问", ChipTone.Plain, Modifier.weight(1f)) {
                     app.resound.AppGraph.ask.askAbout(
                         app.resound.ask.AskSource("event", event.id, event.startAt, event.title, event.summary),
                         "关于“${event.title}”，还有哪些细节？",
                     )
                     onClose(); app.resound.ui.ShellNav.go(1)
                 }
-                // 删除：点一下原地变成红底“再点一次删除”，再点才真删。按长文字占好宽度，变化时不跳行
-                Box(Modifier.springClick {
-                        if (!confirmDelete) { confirmDelete = true; return@springClick }
-                        if (forget) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(event.id) } } else memory.deleteEvent(event.id)
-                        onClose()
-                    }.clip(CircleShape).background(if (confirmDelete) c.critical else c.critical.copy(alpha = 0.08f)).padding(horizontal = 16.dp, vertical = 9.dp),
-                    contentAlignment = Alignment.Center) {
-                    Text("再点一次删除", style = RsType.subhead, color = Color.Transparent) // 只占位
-                    Text(if (confirmDelete) "再点一次删除" else "删除", style = RsType.subhead, color = if (confirmDelete) Color.White else c.critical)
+                ActionChip(if (confirmDelete) "确认删除" else "删除", if (confirmDelete) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
+                    if (!confirmDelete) { confirmDelete = true; return@ActionChip }
+                    if (forget) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(event.id) } } else memory.deleteEvent(event.id)
+                    onClose()
                 }
             }
             if (confirmDelete) Text(if (forget) "会把这件事的录音、原话和提取出的内容一起删掉，无法恢复。" else "会从时间线里删掉这件事。",
@@ -956,6 +952,25 @@ internal fun rememberDeleteEvent(memory: MemoryRepository): (MemoryEvent) -> Uni
             if (app.resound.AppGraph.isPrivacyReady) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(e.id) } }
             else memory.deleteEvent(e.id)
         }
+    }
+}
+
+private enum class ChipTone { Accent, AccentSoft, Plain, Danger, DangerSoft }
+
+/** 详情里一行等宽的小按钮 */
+@Composable
+private fun ActionChip(text: String, tone: ChipTone, modifier: Modifier, onClick: () -> Unit) {
+    val c = Rs.colors
+    val (bg, fg) = when (tone) {
+        ChipTone.Accent -> c.accent to Color.White
+        ChipTone.AccentSoft -> c.accentSoft to c.accent
+        ChipTone.Plain -> c.card to c.text
+        ChipTone.Danger -> c.critical to Color.White
+        ChipTone.DangerSoft -> c.critical.copy(alpha = 0.08f) to c.critical
+    }
+    val animated by androidx.compose.animation.animateColorAsState(bg, label = "chip")
+    Box(modifier.springClick(onClick).clip(CircleShape).background(animated).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg, maxLines = 1)
     }
 }
 

@@ -46,6 +46,14 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
     private val http = PushHttp(client)
     private val notion = NotionPush(http)
     private val folder = MarkdownFolderPush(http)
+    internal fun syncFolder(values: Map<String, String>, state: PushSyncState, files: Map<String, String>, category: Boolean, now: Long, limit: Int = 20): SyncBatch {
+        PushFields.validate(PushKind.MarkdownFolder, values)
+        return FolderSync(FolderRemote(values, http), state).run(files, category, now, limit)
+    }
+    internal fun deleteNotionDay(values: Map<String, String>, date: String) {
+        notion.send(values, PushFormat.Markdown, PushMessage("", "", PushTopic.DailyMemory, null, now(),
+            memory = JSONObject().put("date", date).put("markdown", "")), archiveOnly = true)
+    }
     internal fun request(kind: PushKind, format: PushFormat, values: Map<String, String>, message: PushMessage): Request {
         PushFields.validate(kind, values)
         val builder = Request.Builder()

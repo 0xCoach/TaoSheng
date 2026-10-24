@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter
 internal class NotionPush(private val http: PushHttp) {
     // 按数据库和 token 隔离，避免更换账号后用到另一数据库的属性名。
     private val titles = java.util.concurrent.ConcurrentHashMap<String, String>()
-    @Synchronized fun send(values: Map<String, String>, format: PushFormat, message: PushMessage) {
+    @Synchronized fun send(values: Map<String, String>, format: PushFormat, message: PushMessage, archiveOnly: Boolean = false) {
         val database = PushFields.databaseId(values.getValue("databaseId"))
         fun call(path: String, method: String = "GET", json: JSONObject? = null): JSONObject {
             val request = Request.Builder().url("https://api.notion.com/v1/$path")
@@ -47,6 +47,7 @@ internal class NotionPush(private val http: PushHttp) {
             } while (cursor != null)
             oldPages.forEach { call("pages/$it", "PATCH", JSONObject().put("archived", true)) }
         }
+        if (archiveOnly) return
         val blocks = if (daily != null) blocks(daily.getString("markdown"), true) else blocks(message.rendered(if (format == PushFormat.Text) format else PushFormat.Markdown), false).take(90)
         val page = call("pages", "POST", JSONObject().put("parent", JSONObject().put("database_id", database))
             .put("properties", JSONObject().put(property, JSONObject().put("title", rich(title))))

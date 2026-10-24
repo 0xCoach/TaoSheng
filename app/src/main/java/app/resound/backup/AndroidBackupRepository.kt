@@ -102,6 +102,12 @@ class AndroidBackupRepository internal constructor(
         if (password.isBlank()) throw BackupFailure("请先填写坚果云账号和应用密码")
         return WebDavClient(config, context.appName, account, password)
     }
+    /** 同步文件夹现取安全区凭据，不复制到推送配置。 */
+    @Synchronized internal fun pushCredentials(): Map<String, String>? {
+        val account = prefs.getString("account", null)?.takeIf { it.isNotBlank() } ?: return null
+        val password = runCatching { secrets.read("password") }.getOrDefault("").takeIf { it.isNotBlank() } ?: return null
+        return mapOf("account" to account, "password" to password, "url" to config.endpoint)
+    }
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
         gate.withLock {
             refresh(true)

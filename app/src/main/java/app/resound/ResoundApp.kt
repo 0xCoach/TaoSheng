@@ -1,5 +1,7 @@
 package app.resound
 
+import app.resound.push.attachSubscriptions
+
 import android.app.Application
 import app.resound.capture.*
 import app.resound.data.CaptureDatabase
@@ -116,7 +118,9 @@ class ResoundApp : Application() {
         segmentFiles // 启动串行编码队列，重试完整暂存片段。
         scheduler.schedule()
         app.resound.search.EmbeddingScheduler.start(this)
-        AppGraph.backup = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
+        val backupRepository = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
+        AppGraph.backup = backupRepository
+        pushChannels.attachSubscriptions(database, backupRepository, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         ImportAudioCleanupWork.schedule(this)
         if (store.prefs.getBoolean("enabled", false)) CaptureWatchdog.schedule(this)

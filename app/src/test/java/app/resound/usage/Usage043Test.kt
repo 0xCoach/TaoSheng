@@ -124,7 +124,7 @@ class Usage043Test {
     }
 
     @Test fun pricesPersistValidateAndRoundTripThroughBackupIncludingNull() {
-        val repo = repo(); assertEquals(UsagePrice(), repo.price.value)
+        val repo = repo(); assertEquals(RoomUsageRepository.DEFAULT, repo.price.value)
         val price = UsagePrice(1.23456789, 0.0, 6.0)
         repo.setPrice(price); assertEquals(price, repo().price.value)
         listOf(UsagePrice(-1.0), UsagePrice(completionPerMillion = Double.NaN), UsagePrice(asrPerHour = Double.POSITIVE_INFINITY)).forEach {

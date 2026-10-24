@@ -13,11 +13,14 @@ class RoomUsageRepository(
     private val transcribe: TranscribeDao,
     private val prefs: SharedPreferences,
 ) : UsageRepository {
-    private fun read(key: String) = prefs.getString(key, null)?.toDoubleOrNull()
-        ?.takeIf { it.isFinite() && it >= 0 }
+    /** 从没设过用默认价；设过（含主动清空成空字符串）按设的来。 */
+    private fun read(key: String, default: Double) = if (!prefs.contains(key)) default
+        else prefs.getString(key, null)?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0 }
 
     private val currentPrice = MutableStateFlow(UsagePrice(
-        read("promptPerMillion"), read("completionPerMillion"), read("asrPerHour"),
+        read("promptPerMillion", DEFAULT.promptPerMillion!!),
+        read("completionPerMillion", DEFAULT.completionPerMillion!!),
+        read("asrPerHour", DEFAULT.asrPerHour!!),
     ))
     override val price = currentPrice.asStateFlow()
 
@@ -40,5 +43,10 @@ class RoomUsageRepository(
             .putString("asrPerHour", price.asrPerHour?.toString().orEmpty())
             .commit()) { "单价保存失败" }
         currentPrice.value = price
+    }
+
+    companion object {
+        /** 2026-10 官网价：DeepSeek 白天高峰 输入 2 元、输出 8 元 / 百万 token；豆包流式识别约 0.9 元 / 小时。可在界面改。 */
+        val DEFAULT = UsagePrice(2.0, 8.0, 0.9)
     }
 }

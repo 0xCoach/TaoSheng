@@ -185,7 +185,7 @@ private fun PriceSheet(repo: UsageRepository, price: UsagePrice, onDismiss: () -
     var p by remember { mutableStateOf(fmt(price.promptPerMillion)) }
     var o by remember { mutableStateOf(fmt(price.completionPerMillion)) }
     var a by remember { mutableStateOf(fmt(price.asrPerHour)) }
-    RsSheet("单价", "按你用的服务商官网价格填，只用来估算花费。留空就不显示花费。", onDismiss = onDismiss) {
+    RsSheet("单价", "已按官网价格预填（DeepSeek 白天高峰价、豆包流式识别），夜间半价时实际更便宜。只用来估算花费，留空就不显示。", onDismiss = onDismiss) {
         Text("大模型 输入（元 / 百万 token）", style = RsType.caption, color = c.textSecondary)
         SheetInput(p, "例如 1") { p = it.filter { ch -> ch.isDigit() || ch == '.' } }
         Text("大模型 输出（元 / 百万 token）", style = RsType.caption, color = c.textSecondary)

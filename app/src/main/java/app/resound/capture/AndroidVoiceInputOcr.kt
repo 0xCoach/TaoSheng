@@ -45,7 +45,11 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.getOrNull()
                                     val hot = if (app.resound.AppGraph.isHotwordsReady) app.resound.AppGraph.hotwords.let { it.words.value + it.automatic.value } else emptyList()
                                     // 繁转简，再按热词纠错
-                                    val lines = raw.map { l -> l.copy(text = VoiceInputHotwords.correct(hans?.transliterate(l.text) ?: l.text, hot)) }
+                                    val lines = raw.map { l ->
+                                        val corrected = l.copy(text = VoiceInputHotwords.correct(hans?.transliterate(l.text) ?: l.text, hot))
+                                        if (pkg == "com.tencent.mm") VoiceInputOcr.wechatBubble(corrected, layout, bitmap::getPixel)
+                                        else corrected
+                                    }
                                     val input = VoiceInputOcr.screenshot(lines, layout, pkg)
                                     dbg("识字完成：应用=$pkg 块数=${blocks.size} 输入框字数=${input?.text?.length ?: 0} 右侧气泡字数=${input?.bubble?.length ?: 0} 上下文行数=${input?.context?.size ?: 0} 有标题=${input?.title != null}")
                                     input

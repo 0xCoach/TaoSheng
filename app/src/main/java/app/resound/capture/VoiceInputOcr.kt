@@ -1,7 +1,7 @@
 package app.resound.capture
 
 /** ML Kit 行级位置，保留所属文字块；纯数据解析可用合成结果测试。 */
-internal data class OcrLine(val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int, val block: Int = 0)
+internal data class OcrLine(val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int, val block: Int = 0, val speakerHint: String? = null, val bubbleKey: String? = null)
 internal data class OcrLayout(val width: Int, val height: Int, val contentTop: Int, val contentBottom: Int, val imeTop: Int?)
 /** text 为输入框（输入法上方最贴近的一段）；bubble 为聊天区最下面靠右的气泡（已发送的那句），没有为 null */
 internal data class OcrInput(val text: String, val context: List<String>, val title: String?, val bubble: String? = null,
@@ -130,6 +130,7 @@ internal object VoiceInputOcr {
     val TERMINAL = setOf("com.netease.uuremote", "com.termux")
     /** 谁说的：离右边更近的是我；离左边更近的是对方；两边一样近（整行铺满）在 AI 应用里是 AI 的回答，算对方，其他应用不标 */
     fun side(l: OcrLine, width: Int, pkg: String?): String {
+        l.speakerHint?.let { return it }
         val dl = l.left; val dr = width - l.right; val gap = width * .05
         return when { dl - dr > gap -> "我"; dr - dl > gap -> "对方"; pkg in AI -> "对方"; else -> "" }
     }
@@ -138,21 +139,79 @@ internal object VoiceInputOcr {
     val TITLED = setOf("com.tencent.mm")
     /** 群聊标题后面带人数，如“周五团建(12)” */
     val GROUP = Regex("[(（][0-9]+[)）]\\s*$")
-    /** 同一文字块内紧邻的折行才合并；同一人连续发送的不同气泡各占一行。 */
-    fun sided(lines: List<OcrLine>, width: Int, pkg: String? = null): List<String> {
-        val out = mutableListOf<Pair<String, String>>()
-        var previous: OcrLine? = null
-        for (l in lines) {
-            val who = side(l, width, pkg)
-            val last = out.lastOrNull()
-            val prev = previous
-            val wrapped = prev != null && prev.block == l.block &&
-                l.top - prev.bottom in 0..(maxOf(prev.bottom - prev.top, l.bottom - l.top) * .65).toInt()
-            if (last != null && last.first == who && who.isNotEmpty() && wrapped) out[out.lastIndex] = who to joinLines(listOf(last.second, l.text.trim()))
-            else out += who to l.text.trim()
-            previous = l
+    /** 微信自己发送的绿色气泡：在文字矩形内均匀采样背景，不依赖文字长短或固定像素。 */
+    fun wechatSpeaker(line: OcrLine, width: Int, height: Int, pixel: (Int, Int) -> Int): String? {
+        if (line.left < 0 || line.top < 0 || line.right > width || line.bottom > height ||
+            line.right <= line.left || line.bottom <= line.top) return null
+        var green = 0
+        for (row in 0 until 7) for (col in 0 until 9) {
+            val x = line.left + ((col + .5) * (line.right - line.left) / 9).toInt()
+            val y = line.top + ((row + .5) * (line.bottom - line.top) / 7).toInt()
+            val color = pixel(x, y)
+            val r = color shr 16 and 255; val g = color shr 8 and 255; val b = color and 255
+            if (g >= 100 && g - r >= 25 && g - b >= 20) green++
         }
-        return out.map { (w, t) -> if (w.isEmpty()) t else "$w：$t" }
+        return if (green >= 25) "我" else null
+    }
+
+    /** 沿文字左/右内边距探测同色气泡的上下边界，跨 OCR 块保持一个气泡一个说话人。 */
+    fun wechatBubble(line: OcrLine, layout: OcrLayout, pixel: (Int, Int) -> Int): OcrLine {
+        val own = wechatSpeaker(line, layout.width, layout.height, pixel)
+        val fallback = line.copy(speakerHint = own)
+        val limitTop = titleBarBottom(layout)
+        val limitBottom = minOf(layout.contentBottom, layout.imeTop ?: layout.contentBottom)
+        if (line.top < limitTop || line.bottom > limitBottom || line.bottom <= line.top) return fallback
+        val y = (line.top + line.bottom) / 2
+        val pad = maxOf(2, (layout.width * .012).toInt())
+        fun channel(c: Int, shift: Int) = c shr shift and 255
+        fun distance(a: Int, b: Int) = maxOf(kotlin.math.abs(channel(a, 0) - channel(b, 0)),
+                kotlin.math.abs(channel(a, 8) - channel(b, 8)),
+                kotlin.math.abs(channel(a, 16) - channel(b, 16)))
+        for (x in listOf(line.left - pad, line.right + pad)) {
+            if (x !in 0 until layout.width) continue
+            val color = pixel(x, y)
+            val r = channel(color, 16); val g = channel(color, 8); val b = channel(color, 0)
+            val green = g >= 100 && g - r >= 25 && g - b >= 20
+            val neutral = maxOf(r, g, b) - minOf(r, g, b) <= 12 && g >= 24
+            // 时间、系统提示没有独立气泡；背景色与屏幕边缘相同时不推断说话人。
+            if ((!green && !neutral) || (own != null && !green) ||
+                distance(color, pixel(0, y)) < 12) continue
+            fun same(at: Int) = distance(color, pixel(x, at)) <= 10
+            var top = y; var bottom = y + 1
+            while (top > limitTop && same(top - 1)) top--
+            while (bottom < limitBottom && same(bottom)) bottom++
+            if (top >= line.top || bottom <= line.bottom) continue
+            val who = if (green) "我" else "对方"
+            return line.copy(speakerHint = who, bubbleKey = "$who:$top:$bottom")
+        }
+        return fallback
+    }
+
+    /** 同块、紧邻且横向相交的折行共用说话人；不同气泡仍各占一行。 */
+    fun sided(lines: List<OcrLine>, width: Int, pkg: String? = null): List<String> {
+        val groups = mutableListOf<MutableList<OcrLine>>()
+        for (line in lines) {
+            val group = groups.lastOrNull()
+            val prev = group?.lastOrNull()
+            val sameBubble = prev?.bubbleKey != null && prev.bubbleKey == line.bubbleKey
+            val wrapped = prev != null && prev.bubbleKey == null && line.bubbleKey == null && prev.block == line.block &&
+                line.left < prev.right && line.right > prev.left &&
+                line.top - prev.bottom in 0..(maxOf(prev.bottom - prev.top, line.bottom - line.top) * .8).toInt()
+            // 明确的颜色证据不同，不能把两个气泡合并。
+            val conflicts = line.speakerHint != null && group.orEmpty().any {
+                it.speakerHint != null && it.speakerHint != line.speakerHint
+            }
+            if ((sameBubble || wrapped) && !conflicts) group!!.add(line) else groups.add(mutableListOf(line))
+        }
+        return groups.map { group ->
+            val bounds = group.first().copy(left = group.minOf { it.left }, right = group.maxOf { it.right },
+                speakerHint = null)
+            val hints = group.mapNotNull { it.speakerHint }.distinct()
+            val sides = group.map { side(it, width, pkg) }.filter(String::isNotEmpty).distinct()
+            val who = hints.singleOrNull() ?: side(bounds, width, pkg).ifEmpty { sides.singleOrNull().orEmpty() }
+            val text = joinLines(group.map { it.text.trim() })
+            if (who.isEmpty()) text else "$who：$text"
+        }
     }
     /** Codex 空输入框占位符，不是用户输入；仅匹配整句，保留包含此词的真实指令。 */
     fun terminalPlaceholder(text: String): Boolean {
@@ -196,7 +255,10 @@ internal object VoiceInputOcr {
         val group = mutableListOf(last)
         for (c in right.dropLast(1).asReversed()) {
             val first = group.first()
-            if (c.block == last.block || first.top - c.bottom <= (last.bottom - last.top) * .65) group.add(0, c) else break
+            val sameBubble = last.bubbleKey != null && c.bubbleKey == last.bubbleKey
+            val legacy = last.bubbleKey == null && c.bubbleKey == null &&
+                (c.block == last.block || first.top - c.bottom <= (last.bottom - last.top) * .65)
+            if (sameBubble || legacy) group.add(0, c) else break
         }
         return group
     }

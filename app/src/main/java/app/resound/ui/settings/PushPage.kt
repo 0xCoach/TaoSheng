@@ -74,7 +74,7 @@ fun PushPage(repo: PushChannels, bottomPadding: Dp) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("手机通知照常发。加一个通道，还能把每日回顾、每天的记忆文档推到微信、飞书、钉钉、邮件、坚果云同步文件夹，或你自己的 Agent。",
+            Text("手机通知照常发。加一个通道，还能把每日回顾、每天的记忆文档推到微信、飞书、钉钉、邮件、Obsidian，或你自己的 Agent。",
                 style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(horizontal = 4.dp))
         }
         item {
@@ -187,7 +187,7 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
             PushTopic.entries.filter { it in allowed }.forEach { t -> Choice(t.title, t in topics) { topics = if (t in topics) topics - t else topics + t } }
         }
         if (PushTopic.DailyMemory !in allowed) {
-            Text("这种通道有长度限制，不能推“每日记忆文档”；想给自己的 Agent 用，选坚果云同步文件夹、自定义接口、邮件、Telegram 或 Notion。",
+            Text("这种通道有长度限制，不能推“每日记忆文档”；想给自己的 Agent 用，选自定义接口、Obsidian / 笔记文件夹、邮件、Telegram 或 Notion。",
                 style = RsType.caption, color = c.textTertiary)
         } else if (PushTopic.DailyMemory in topics) {
             Text("每晚生成回顾后，把当天完整的记忆（回顾、时间线、技能卡片、待办、灵感）整理成 Markdown 推过去，方便你自己的 Agent 再加工。",
@@ -275,7 +275,7 @@ private val KIND_GROUPS = listOf(
 
 private fun shortName(k: PushKind) = when (k) {
     PushKind.WeCom -> "企业微信"; PushKind.Feishu -> "飞书"; PushKind.DingTalk -> "钉钉"
-    PushKind.MarkdownFolder -> "坚果云同步"; PushKind.Webhook -> "自定义接口"; else -> k.title
+    PushKind.MarkdownFolder -> "Obsidian"; PushKind.Webhook -> "自定义接口"; else -> k.title
 }
 
 /** 类型小方块：选中时底色换成该通道的颜色 */

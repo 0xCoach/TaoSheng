@@ -1,6 +1,5 @@
 package app.resound.push
 
-import app.resound.appDisplayName
 import app.resound.data.*
 import app.resound.skills.*
 import org.json.JSONArray
@@ -28,7 +27,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             return "weekly/${monday.get(IsoFields.WEEK_BASED_YEAR)}-W${monday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR).toString().padStart(2, '0')}_${monday.format(md)}-${sunday.format(md)}_weekly-review.md"
         }
         fun card(type: String, date: String, content: String, title: String, count: Int, body: String): String =
-            "---\n类型: ${JSONObject.quote(type)}\n日期: ${JSONObject.quote(date)}\n内容: ${JSONObject.quote(content)}\n更新: \"$UPDATED\"\n来源: ${appDisplayName}自动生成，请勿手动修改（改了会被覆盖）\n条数: $count\n---\n# $title\n\n${body.trim()}\n"
+            "---\n类型: ${JSONObject.quote(type)}\n日期: ${JSONObject.quote(date)}\n内容: ${JSONObject.quote(content)}\n更新: \"$UPDATED\"\n来源: 自动生成，请勿手动修改（改了会被覆盖）\n条数: $count\n---\n# $title\n\n${body.trim()}\n"
     }
     /** 给人看的状态：英文枚举名换成中文 */
     private fun statusText(status: Any): String = when (status.toString()) {
@@ -143,7 +142,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 }
             }
         }
-        files["README.md"] = card("使用说明", "订阅范围", "文件与智能体使用方法", "${appDisplayName}记忆 · Resound-Memory", files.size, """
+        files["README.md"] = card("使用说明", "订阅范围", "文件与智能体使用方法", "记忆 · Resound-Memory", files.size, """
             | 文件 / 文件夹 | 内容 | 更新 |
             | --- | --- | --- |
             | daily/ | 每日回顾、时间线、条目、卡片 | 按订阅触发 |

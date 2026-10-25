@@ -1,6 +1,5 @@
 package app.resound.push
 
-import app.resound.appDisplayName
 import android.content.SharedPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -290,7 +289,7 @@ internal class SubscriptionRuntime(
                     else -> day(record.optLong("start", record.optLong("at")), zone()).toString() == date
                 }
             }
-            val payload = JSONObject().put("type", "daily_memory").put("version", 1).put("app", appDisplayName).put("date", date).put("generatedAt", at)
+            val payload = JSONObject().put("type", "daily_memory").put("version", 1).put("app", "resound").put("date", date).put("generatedAt", at)
                 .put("markdown", body.replace(MemoryFolder.UPDATED, MemoryFolder.updatedText(at)))
                 .put("data", JSONObject().apply {
                     listOf("event" to "events", "item" to "items", "card" to "cards", "review" to "reviews", "line" to "lines").forEach { (kind, key) ->

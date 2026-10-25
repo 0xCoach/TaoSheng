@@ -465,10 +465,19 @@ private fun IntervalChoice(interval: Int, onSet: (Int) -> Unit) {
         Column {
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SettingsInput(input, { t -> input = t.filter(Char::isDigit).take(3) }, "分钟数", Modifier.weight(1f))
+                // 最多三位数，用小胶囊框+数字键盘，不撑满整行
+                BasicTextField(input, { t -> input = t.filter(Char::isDigit).take(3) }, singleLine = true,
+                    textStyle = RsType.body.copy(color = c.text, textAlign = TextAlign.Center), cursorBrush = SolidColor(c.accent),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    modifier = Modifier.width(76.dp),
+                    decorationBox = { inner ->
+                        Box(Modifier.clip(CircleShape).background(c.background).padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                            if (input.isEmpty()) Text("如 20", style = RsType.body, color = c.textTertiary)
+                            inner()
+                        }
+                    })
                 Spacer(Modifier.width(8.dp))
-                Text("分钟", style = RsType.subhead, color = c.textSecondary)
-                Spacer(Modifier.width(10.dp))
+                Text("分钟", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
                 Pill(if (value == interval && valid) "已生效" else "保存", filled = valid && value != interval) {
                     if (valid && value != interval) onSet(value!!)
                 }

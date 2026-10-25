@@ -67,7 +67,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     } else runCatching{readKey().isNotBlank() && (source.value!=TranscribeSource.Custom || customEndpoint.isNotBlank() && customModel.isNotBlank())}.getOrDefault(false) }
     private val _hasKey = MutableStateFlow(runCatching { readKey().isNotBlank() }.getOrDefault(false))
     override val hasKey = _hasKey.asStateFlow()
-    private val _interval = MutableStateFlow(prefs.getInt("interval", 30).takeIf { it in setOf(30, 45, 60) } ?: 30)
+    private val _interval = MutableStateFlow(prefs.getInt("interval", 30).takeIf { it in MIN_INTERVAL..MAX_INTERVAL } ?: 30)
     override val intervalMinutes = _interval.asStateFlow()
     private val _wifi = MutableStateFlow(prefs.getBoolean("wifi", true))
     override val wifiOnly = _wifi.asStateFlow()
@@ -116,7 +116,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
         refreshReady(); onChanged()
     }
     override fun setIntervalMinutes(minutes: Int) {
-        require(minutes in setOf(30, 45, 60)) { "间隔仅支持30、45或60分钟" }
+        require(minutes in MIN_INTERVAL..MAX_INTERVAL) { "间隔需在 $MIN_INTERVAL～$MAX_INTERVAL 分钟之间" }
         check(prefs.edit().putInt("interval", minutes).commit())
         _interval.value = minutes; refreshReady(); onChanged()
     }

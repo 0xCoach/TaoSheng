@@ -88,6 +88,8 @@ import app.resound.transcribe.TranscribeSource
 import app.resound.transcribe.local.LocalBackend
 import app.resound.transcribe.local.LocalModels
 import app.resound.transcribe.TranscribeSettings
+import app.resound.transcribe.MIN_INTERVAL
+import app.resound.transcribe.MAX_INTERVAL
 import app.resound.transcribe.TranscriptLine
 import app.resound.transcribe.TranscriptRepository
 import app.resound.transcribe.TranscriptStatus
@@ -351,7 +353,7 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
 
         Text("多久转写一次", style = RsType.body, color = c.text)
         Spacer(Modifier.height(10.dp))
-        Choice(listOf(30, 45, 60), interval, { "$it 分钟" }) { settings.setIntervalMinutes(it) }
+        IntervalChoice(interval) { settings.setIntervalMinutes(it) }
 
         Divider()
 
@@ -446,6 +448,39 @@ private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, onSe
         }
     }
 }
+
+/** 常用间隔三选一，或“自定义”填分钟数（15～720，安卓后台定时最短 15 分钟）。 */
+@Composable
+private fun IntervalChoice(interval: Int, onSet: (Int) -> Unit) {
+    val c = Rs.colors
+    val presets = listOf(30, 45, 60)
+    var custom by remember { mutableStateOf(interval !in presets) }
+    var input by remember(interval) { mutableStateOf(if (interval in presets) "" else interval.toString()) }
+    val value = input.toIntOrNull()
+    val valid = value != null && value in MIN_INTERVAL..MAX_INTERVAL
+    Choice(presets + CUSTOM, if (custom) CUSTOM else interval, { if (it == CUSTOM) "自定义" else "$it 分钟" }) {
+        if (it == CUSTOM) custom = true else { custom = false; onSet(it) }
+    }
+    AnimatedVisibility(custom) {
+        Column {
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsInput(input, { t -> input = t.filter(Char::isDigit).take(3) }, "分钟数", Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
+                Text("分钟", style = RsType.subhead, color = c.textSecondary)
+                Spacer(Modifier.width(10.dp))
+                Pill(if (value == interval && valid) "已生效" else "保存", filled = valid && value != interval) {
+                    if (valid && value != interval) onSet(value!!)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(if (input.isEmpty() || valid) "可填 $MIN_INTERVAL～$MAX_INTERVAL 分钟；间隔越短越及时，也越费电" else "请填 $MIN_INTERVAL～$MAX_INTERVAL 之间的数",
+                style = RsType.caption, color = if (input.isEmpty() || valid) c.textTertiary else c.warning)
+        }
+    }
+}
+
+private const val CUSTOM = -1
 
 /** 苹果风格开关，暖橙底。 */
 @Composable

@@ -107,6 +107,10 @@ interface TranscriptRepository {
 }
 
 /** 转写服务设置。密钥只进系统安全区，任何地方都不回显。 */
+/** 自动转写间隔范围（分钟）；下限是安卓后台定时的最短周期。 */
+const val MIN_INTERVAL = 15
+const val MAX_INTERVAL = 720
+
 interface TranscribeSettings {
     /** 是否已填密钥 */
     val hasKey: StateFlow<Boolean>
@@ -118,7 +122,7 @@ interface TranscribeSettings {
 
     fun clearKey()
 
-    /** 定时间隔（分钟），可选 30 / 45 / 60 */
+    /** 定时间隔（分钟），常用 30 / 45 / 60，也可自定义 15～720（安卓后台定时最短 15 分钟） */
     val intervalMinutes: StateFlow<Int>
 
     fun setIntervalMinutes(minutes: Int)

@@ -32,7 +32,8 @@ class DigestRunner(
     private val voiceprintReady: suspend () -> Boolean = { false },
     private val readKey: () -> String = settings::readKey,
     private val hotwords: () -> List<String> = { emptyList() },
-    private val afterDigest: suspend () -> Unit = {},
+    /** 参数为 true 表示用户点了“现在整理”。 */
+    private val afterDigest: suspend (Boolean) -> Unit = {},
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = client::chatJson,
 ) {
     private val appContext = context.applicationContext
@@ -84,7 +85,7 @@ class DigestRunner(
             _running.value = false
             gate.unlock()
             if (madeEvents) {
-                try { afterDigest() }
+                try { afterDigest(force) }
                 catch (e: CancellationException) { throw e }
                 catch (_: Exception) { /* 技能调度失败不影响已完成的整理。 */ }
             }

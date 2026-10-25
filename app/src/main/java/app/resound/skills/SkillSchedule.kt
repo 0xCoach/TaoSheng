@@ -54,12 +54,12 @@ class SkillScheduler(private val context: Context) {
         // 在 Worker 末尾接续，避免 REPLACE 取消正在完成的本次任务。
         wm.enqueueUniqueWork(NAME, policy, request)
     }
-    fun afterDigest() {
+    fun afterDigest(manual: Boolean = false) {
         WorkManager.getInstance(context).enqueueUniqueWork(AFTER_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE,
-            OneTimeWorkRequestBuilder<SkillAfterDigestWork>()
+            OneTimeWorkRequestBuilder<SkillAfterDigestWork>().setInputData(workDataOf(MANUAL to manual))
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
     }
-    companion object { const val NAME = "skills-daily"; const val AFTER_NAME = "skills-after-digest" }
+    companion object { const val NAME = "skills-daily"; const val AFTER_NAME = "skills-after-digest"; const val MANUAL = "manual" }
 }
 class SkillWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -71,7 +71,7 @@ class SkillWork(context: Context, params: WorkerParameters) : CoroutineWorker(co
 }
 class SkillAfterDigestWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        (AppGraph.skills as LocalSkillRepository).afterDigest()
+        (AppGraph.skills as LocalSkillRepository).afterDigest(inputData.getBoolean(SkillScheduler.MANUAL, false))
         return Result.success()
     }
 }

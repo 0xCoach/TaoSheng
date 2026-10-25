@@ -230,6 +230,11 @@ class Skills031Test {
         assertEquals(7, requests.size); assertEquals(1, sent.size); assertEquals(1, r.cards(day).first().size)
         r.runNow("meeting", day); assertEquals(8, requests.size); assertEquals(1, sent.size)
     }
+    @Test fun manualDigestSkipsMinGap() = runBlocking {
+        seed(); val r = repo(); clock = start + 11 * 3_600_000
+        r.afterDigest(); r.afterDigest(); assertEquals(1, requests.size)
+        r.afterDigest(manual = true); assertEquals(2, requests.size)
+    }
     @Test fun lateDigestedMeetingCardBelongsToMeetingDay() = runBlocking {
         seed(); val r = repo()
         response = { _, input -> if (!input.contains("定方案")) LlmReply("""{"cards":[],"nothing_reason":"没有会议"}""", 10, 1) else LlmReply("""{"cards":[{"entity":"plan","title":"下午会","summary":"定方案","at":"15:00","end":"15:30","values":{"topic":"方案","conclusion":"先做原型"},"evidence":["L1"]}]}""", 10, 1) }

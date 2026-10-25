@@ -102,23 +102,24 @@ class LocalSkillRepository(
     suspend fun runDue() {
         for (s in skills.value) if (s.trigger !is SkillTrigger.AfterDigest) isolated { runDays(s, SkillSchedule.DAILY) }
     }
-    suspend fun afterDigest() {
-        for (s in skills.value) if (s.trigger is SkillTrigger.AfterDigest) isolated { runDays(s, SkillSchedule.AFTER) }
+    /** manual：用户点“现在整理”触发的，跳过最短间隔，整理完立刻出卡。 */
+    suspend fun afterDigest(manual: Boolean = false) {
+        for (s in skills.value) if (s.trigger is SkillTrigger.AfterDigest) isolated { runDays(s, SkillSchedule.AFTER, manual) }
     }
     /** “上次以来”的技能按事件发生日出卡：昨天下午的会凌晨才整理出来，先补跑昨天，卡片归昨天，再跑今天。 */
-    private suspend fun runDays(s: Skill, kind: String) {
+    private suspend fun runDays(s: Skill, kind: String, skipGap: Boolean = false) {
         val today = SkillSchedule.date(now())
         if (s.scope.range == SkillRange.SinceLastRun) {
             val last = dao.runsOf(s.id).lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL }?.at
             if (last != null) dao.newEventStarts(last, now()).map(SkillSchedule::date).distinct().filter { it < today }.sorted()
-                .forEach { day -> isolated { run(s.id, day, kind) } }
+                .forEach { day -> isolated { run(s.id, day, kind, skipGap = skipGap) } }
         }
-        run(s.id, today, kind)
+        run(s.id, today, kind, skipGap = skipGap)
     }
     private suspend fun isolated(block: suspend () -> Unit) {
         try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 单个技能失败不阻断后续技能。 */ }
     }
-    private suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true): SkillAttempt = gate.withLock {
+    private suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true, skipGap: Boolean = false): SkillAttempt = gate.withLock {
         val skill = skills.value.find { it.id == id } ?: return@withLock SkillAttempt(SkillRunResult.Failed("技能不存在"))
         if (skill.origin == SkillOrigin.Core) return@withLock SkillAttempt(SkillRunResult.Nothing("请使用原来的整理或回顾设置"))
         val started = now(); val history = dao.runsOf(id)
@@ -131,7 +132,7 @@ class LocalSkillRepository(
             if (kind == SkillSchedule.AFTER) {
                 val trigger = skill.trigger as? SkillTrigger.AfterDigest ?: return@withLock SkillAttempt(SkillRunResult.Nothing("不是整理后技能"))
                 val last = history.lastOrNull { it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }
-                if (last != null && started - last.at < TimeUnit.MINUTES.toMillis(trigger.minGapMinutes.toLong())) return@withLock SkillAttempt(SkillRunResult.Nothing("距离上次运行太近"))
+                if (!skipGap && last != null && started - last.at < TimeUnit.MINUTES.toMillis(trigger.minGapMinutes.toLong())) return@withLock SkillAttempt(SkillRunResult.Nothing("距离上次运行太近"))
             }
         }
         running.value = running.value + id

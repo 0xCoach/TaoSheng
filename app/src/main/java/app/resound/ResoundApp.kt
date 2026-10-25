@@ -90,7 +90,7 @@ class ResoundApp : Application() {
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        }, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { skillScheduler.afterDigest() })
+        }, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> skillScheduler.afterDigest(manual) })
         AppGraph.digestProgress = digestRunner.progress
         val appointmentSettings = AndroidAppointmentSettings(this)
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {

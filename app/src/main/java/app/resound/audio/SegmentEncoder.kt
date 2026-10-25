@@ -46,36 +46,39 @@ object SegmentEncoder {
             var lastProgress = android.os.SystemClock.elapsedRealtime()
             pcm.inputStream().buffered().use { input ->
                 val bytes = ByteArray(8192)
+                // 离线编码不等实时：喂满空闲输入、一次取光已出的帧，两边都没进展时才短等，否则只有约 2 倍速。
                 while (!eosOut) {
                     check(android.os.SystemClock.elapsedRealtime() - lastProgress < 15_000) { "编码器无进展" }
-                    if (!eosIn) {
-                        val index = codec.dequeueInputBuffer(10_000)
-                        if (index >= 0) {
-                            val buffer = codec.getInputBuffer(index)!!
-                            buffer.clear()
-                            buffer.order(ByteOrder.LITTLE_ENDIAN)
-                            val n = input.read(bytes, 0, minOf(bytes.size, buffer.remaining()) and -2)
-                            if (n < 0) { codec.queueInputBuffer(index, 0, 0, samples * 1_000_000 / 16_000, MediaCodec.BUFFER_FLAG_END_OF_STREAM); eosIn = true }
-                            else { buffer.put(bytes, 0, n); codec.queueInputBuffer(index, 0, n, samples * 1_000_000 / 16_000, 0); samples += n / 2 }
-                            lastProgress = android.os.SystemClock.elapsedRealtime()
-                        }
+                    var moved = false
+                    while (!eosIn) {
+                        val index = codec.dequeueInputBuffer(0)
+                        if (index < 0) break
+                        val buffer = codec.getInputBuffer(index)!!
+                        buffer.clear()
+                        buffer.order(ByteOrder.LITTLE_ENDIAN)
+                        val n = input.read(bytes, 0, minOf(bytes.size, buffer.remaining()) and -2)
+                        if (n < 0) { codec.queueInputBuffer(index, 0, 0, samples * 1_000_000 / 16_000, MediaCodec.BUFFER_FLAG_END_OF_STREAM); eosIn = true }
+                        else { buffer.put(bytes, 0, n); codec.queueInputBuffer(index, 0, n, samples * 1_000_000 / 16_000, 0); samples += n / 2 }
+                        lastProgress = android.os.SystemClock.elapsedRealtime(); moved = true
                     }
-                    val index = codec.dequeueOutputBuffer(info, 10_000)
-                    if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                        check(!started)
-                        track = muxer.addTrack(codec.outputFormat); muxer.start(); started = true
-                        lastProgress = android.os.SystemClock.elapsedRealtime()
-                    } else if (index >= 0) {
-                        try {
-                            if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
-                                check(started)
-                                val data = codec.getOutputBuffer(index)!!
-                                data.position(info.offset); data.limit(info.offset + info.size)
-                                muxer.writeSampleData(track, data, info)
-                            }
-                            eosOut = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
-                        } finally { codec.releaseOutputBuffer(index, false) }
-                        lastProgress = android.os.SystemClock.elapsedRealtime()
+                    while (!eosOut) {
+                        val index = codec.dequeueOutputBuffer(info, if (moved) 0 else 10_000)
+                        if (index == MediaCodec.INFO_TRY_AGAIN_LATER) break
+                        if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                            check(!started)
+                            track = muxer.addTrack(codec.outputFormat); muxer.start(); started = true
+                        } else if (index >= 0) {
+                            try {
+                                if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                                    check(started)
+                                    val data = codec.getOutputBuffer(index)!!
+                                    data.position(info.offset); data.limit(info.offset + info.size)
+                                    muxer.writeSampleData(track, data, info)
+                                }
+                                eosOut = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                            } finally { codec.releaseOutputBuffer(index, false) }
+                        }
+                        lastProgress = android.os.SystemClock.elapsedRealtime(); moved = true
                     }
                 }
             }

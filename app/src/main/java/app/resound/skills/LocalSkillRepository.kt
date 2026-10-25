@@ -125,7 +125,8 @@ class LocalSkillRepository(
         val auto = kind == SkillSchedule.DAILY || kind == SkillSchedule.AFTER
         val preview = kind == SkillSchedule.TRIAL
         if (auto) {
-            if (!skill.enabled || SkillSchedule.autoCount(history, SkillSchedule.date(started)) >= 6) return@withLock SkillAttempt(SkillRunResult.Nothing("今天自动运行已达上限或技能已关闭"))
+            // 每天 6 次只限定时技能；整理后技能已有“至少隔 N 分钟”，再限次数会让下午、晚上的事等到第二天（10-25 实测）。
+            if (!skill.enabled || (kind == SkillSchedule.DAILY && SkillSchedule.autoCount(history, SkillSchedule.date(started)) >= 6)) return@withLock SkillAttempt(SkillRunResult.Nothing("今天自动运行已达上限或技能已关闭"))
             if (kind == SkillSchedule.DAILY && date == SkillSchedule.date(started) && SkillSchedule.next(skill, history, started) != started) return@withLock SkillAttempt(SkillRunResult.Nothing("尚未到运行时间"))
             if (kind == SkillSchedule.AFTER) {
                 val trigger = skill.trigger as? SkillTrigger.AfterDigest ?: return@withLock SkillAttempt(SkillRunResult.Nothing("不是整理后技能"))

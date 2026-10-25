@@ -226,8 +226,9 @@ class Skills031Test {
         clock = start + 11 * 3_600_000
         r.afterDigest(); r.afterDigest(); assertEquals(1, requests.size)
         repeat(6) { clock += 3_600_000; r.afterDigest() }
-        assertEquals(6, requests.size); assertEquals(1, sent.size); assertEquals(1, r.cards(day).first().size)
-        r.runNow("meeting", day); assertEquals(7, requests.size); assertEquals(1, sent.size)
+        // 整理后技能只受间隔限制，不受每天 6 次限制
+        assertEquals(7, requests.size); assertEquals(1, sent.size); assertEquals(1, r.cards(day).first().size)
+        r.runNow("meeting", day); assertEquals(8, requests.size); assertEquals(1, sent.size)
     }
     @Test fun lateDigestedMeetingCardBelongsToMeetingDay() = runBlocking {
         seed(); val r = repo()

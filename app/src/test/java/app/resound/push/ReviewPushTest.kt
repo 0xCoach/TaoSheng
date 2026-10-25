@@ -87,7 +87,7 @@ class ReviewPushTest {
         save(null, PushKind.Webhook, format.name, mapOf("url" to "https://example.invalid/hook"), topics, format).getOrThrow()
 
     @Test fun formatsAndJsonKeepFullReviewAndRetryPayload() {
-        assertEquals("回响 · 10月23日回顾", review.pushTitle())
+        assertEquals("10月23日回顾", review.pushTitle())
         assertEquals(markdown, review.pushBody(PushFormat.Markdown))
         assertEquals(plain, review.pushBody(PushFormat.Text))
         val message = PushMessage(review.pushTitle(), plain, PushTopic.DailyReview, "resound://review?date=$date", 1234, review)
@@ -116,7 +116,7 @@ class ReviewPushTest {
             channels.setEnabled(id, false)
             assertEquals("已发送 10月23日的回顾", channels.test(id).getOrThrow())
             val sent = fake.requests.single()
-            assertEquals("测试 · 回响 · 10月23日回顾", sent.getString("title"))
+            assertEquals("测试 · 10月23日回顾", sent.getString("title"))
             assertEquals(plain, sent.getString("body"))
             assertEquals("2026-10-23", sent.getJSONObject("review").getString("date"))
             assertEquals(sent.getString("title"), channels.logs().first().first().title)
@@ -134,7 +134,7 @@ class ReviewPushTest {
         fixture { _, _, channels, fake, local ->
             assertEquals("测试消息已提交，请查看接收端", channels.test(channels.add()).getOrThrow())
             val sent = fake.requests.single()
-            assertEquals("回响 · 测试推送", sent.getString("title"))
+            assertEquals("测试推送", sent.getString("title"))
             assertEquals("如果你看到这条，说明通道可用", sent.getString("body"))
             assertFalse(sent.has("review"))
             assertTrue(sent.isNull("topic"))
@@ -153,7 +153,7 @@ class ReviewPushTest {
             assertFalse(reviews.run(date, scheduled = true))
             assertNull(reviews.state.value.lastError)
             assertEquals(review.brief, local.single().body)
-            assertEquals("回响 · 今日回顾", local.single().title)
+            assertEquals("今日回顾", local.single().title)
             assertEquals("resound://review?open=review&date=$date", local.single().deepLink)
             assertEquals(setOf(markdown, plain), fake.requests.map { it.getString("body") }.toSet())
             assertEquals(2, fake.requests.size)

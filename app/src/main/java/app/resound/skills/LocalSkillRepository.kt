@@ -159,7 +159,7 @@ class LocalSkillRepository(
                                 }
                                 cards.removeAll { it.id == saved.row.id }; cards += saved.row.card()
                                 if (auto && skill.push && saved.isNew) {
-                                    try { notifier.send("回响 · ${skill.name}", row.summary, "resound://card?open=card&id=${saved.row.id}", PushTopic.SkillCard) }
+                                    try { notifier.send(skill.name, row.summary, "resound://card?open=card&id=${saved.row.id}", PushTopic.SkillCard) }
                                     catch (e: CancellationException) { throw e }
                                     catch (_: Exception) { /* 卡已保存；推送通道记录自己的错误，不重复生成。 */ }
                                 }

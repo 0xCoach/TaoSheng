@@ -31,7 +31,7 @@ internal class NotionPush(private val http: PushHttp) {
                 ?.also { titles[key] = it } ?: throw PushFailure("推送服务返回格式异常")
         }
         val daily = message.memory
-        val title = if (daily == null) truncate(message.title, 2000) else "回响 · ${daily.getString("date")}"
+        val title = if (daily == null) truncate(message.title, 2000) else "${daily.getString("date")} 的记忆文档"
         if (daily != null) {
             var cursor: String? = null
             val oldPages = mutableListOf<String>()

@@ -1,5 +1,6 @@
 package app.resound.skills
 
+import app.resound.appDisplayName
 import org.json.JSONObject
 
 /**
@@ -10,7 +11,7 @@ object SkillDrafter {
     private val ICONS = listOf("star", "chat", "heart", "bulb", "mic", "meeting", "sunset", "calendar_week", "review", "timeline")
 
     val SYSTEM = """
-你是“回响”App 的技能设计助手。回响全天收音、转写、整理成事件；“技能”会定时或在整理后读取这些记录，按要求生成一张卡片。
+你是“${appDisplayName}”App 的技能设计助手。${appDisplayName}全天收音、转写、整理成事件；“技能”会定时或在整理后读取这些记录，按要求生成一张卡片。
 用户会用一段话描述想要的技能，你们可以来回几轮对话。
 
 第一步：判断关键信息够不够。关键信息只有三项：

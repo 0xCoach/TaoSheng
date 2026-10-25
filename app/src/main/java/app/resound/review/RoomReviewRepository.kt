@@ -88,9 +88,9 @@ class RoomReviewRepository(
                 try {
                     val deepLink = "resound://review?open=review&date=$date"
                     if (notifier is ChannelNotifier) {
-                        notifier.send("$appName · 今日回顾", row.brief, deepLink, PushTopic.DailyReview, remoteReview = row.toModel())
+                        notifier.send("今日回顾", row.brief, deepLink, PushTopic.DailyReview, remoteReview = row.toModel())
                     } else {
-                        notifier.send("$appName · 今日回顾", row.brief, deepLink, PushTopic.DailyReview)
+                        notifier.send("今日回顾", row.brief, deepLink, PushTopic.DailyReview)
                     }
                 } catch (e: CancellationException) { throw e }
                 catch (_: Exception) { error("回顾已生成，通知发送失败，请检查通知权限"); return@withLock false }

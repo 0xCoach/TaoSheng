@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal fun DailyReview.pushDate(): String = "${date.monthValue}月${date.dayOfMonth}日"
-internal fun DailyReview.pushTitle(): String = "回响 · ${pushDate()}回顾"
+internal fun DailyReview.pushTitle(): String = "${pushDate()}回顾"
 
 internal fun DailyReview.pushBody(format: PushFormat): String {
     val markdown = format == PushFormat.Markdown

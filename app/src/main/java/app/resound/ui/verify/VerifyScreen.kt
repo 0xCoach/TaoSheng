@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import app.resound.appDisplayName
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -324,7 +325,7 @@ private fun StatsGrid(day: DayStats?) {
             day?.let { if (it.killedCount > it.recoveredCount) c.critical else if (it.killedCount > 0) c.warning else c.good },
         ),
         Triple("漏录时长", day?.let { formatDuration(it.gapMillis) } ?: "—", day?.let { if (it.gapMillis > 0) c.warning else null }),
-        Triple("回响自身耗电（估算）", day?.appPowerPerHour?.let { String.format(Locale.CHINA, "约 %.1f%%/时", it) } ?: "数据不足", null),
+        Triple("${appDisplayName}自身耗电（估算）", day?.appPowerPerHour?.let { String.format(Locale.CHINA, "约 %.1f%%/时", it) } ?: "数据不足", null),
     )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(2).forEach { row ->
@@ -405,7 +406,7 @@ private fun humanDetail(raw: String?): String? {
         "watchdog" -> "定时检查发现后拉起"
         else -> null
     }
-    if (raw.contains("PACKAGE_REPLACED") || raw.contains("BOOT_COMPLETED")) return "安卓不允许后台自己开麦克风，打开回响或点通知即可恢复"
+    if (raw.contains("PACKAGE_REPLACED") || raw.contains("BOOT_COMPLETED")) return "安卓不允许后台自己开麦克风，打开${appDisplayName}或点通知即可恢复"
     Regex("约 (\\d+)ms").find(raw)?.let { m ->
         val sec = m.groupValues[1].toLong() / 1000
         return "中断约 " + if (sec >= 60) "${sec / 60} 分 ${sec % 60} 秒" else "$sec 秒"

@@ -1,5 +1,6 @@
 package app.resound.push
 
+import app.resound.appDisplayName
 import android.content.Context
 import app.resound.data.*
 import app.resound.diary.LocalDiaryRepository
@@ -17,7 +18,7 @@ import java.time.ZoneId
 /** 对外 JSON 与内部数据读取分离，字段名和空值在此集中定义。时间均为 Unix 毫秒。 */
 internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput,
     cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = true): JSONObject = JSONObject()
-    .put("type", "daily_memory").put("version", 1).put("app", "回响").put("date", date.toString())
+    .put("type", "daily_memory").put("version", 1).put("app", appDisplayName).put("date", date.toString())
     .put("generatedAt", generatedAt).put("markdown", markdown).put("data", JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
         .put("events", JSONArray(input.events.map { e -> JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
@@ -68,7 +69,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         if (markdown.isBlank()) return null
         val at = System.currentTimeMillis()
         val json = dailyMemoryJson(target, at, markdown, review, source, cards, lines, lineContext)
-        return PushMessage("每日记忆文档 · $target", review?.pushBody(PushFormat.Text) ?: "回响 · $target 的记忆文档", PushTopic.DailyMemory,
+        return PushMessage("每日记忆文档 · $target", review?.pushBody(PushFormat.Text) ?: "$target 的记忆文档", PushTopic.DailyMemory,
             "resound://review?open=review&date=$target", at, memory = json)
     }
     private suspend fun latestDate(withLines: Boolean): LocalDate? {

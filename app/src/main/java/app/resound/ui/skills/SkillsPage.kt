@@ -1,5 +1,6 @@
 package app.resound.ui.skills
 
+import app.resound.appDisplayName
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -154,7 +155,7 @@ private fun SkillList(skills: List<Skill>, status: Map<String, SkillStatus>, rep
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("回响会做的这些事，由你决定开哪些。每张卡都会放进“记忆”的当天里。", style = RsType.subhead, color = c.textSecondary,
+            Text("${appDisplayName}会做的这些事，由你决定开哪些。每张卡都会放进“记忆”的当天里。", style = RsType.subhead, color = c.textSecondary,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
         }
         if (core.isNotEmpty()) {

@@ -32,6 +32,7 @@ class ResoundApp : Application() {
         private set
     override fun onCreate() {
         super.onCreate()
+        appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
         app.resound.backup.BackupRestore.applyPending(this)
         // 仅回收上个进程遗留的转码/密钥测试临时文件；原录音在 files/segments。

@@ -27,7 +27,7 @@ internal class PhoneReminders(
         var failed = false
         if (send) for (reminder in candidates.filter { it.at <= now() }) {
             try {
-                notifier.send("回响 · 待办提醒", reminder.text, "resound://today?open=todos&reminder=${reminder.key}", PushTopic.TodoReminder)
+                notifier.send("待办提醒", reminder.text, "resound://today?open=todos&reminder=${reminder.key}", PushTopic.TodoReminder)
                 reminder.keys.forEach { sent.put(it, now()) }
                 check(prefs.edit().putString("sent", sent.toString()).commit())
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }

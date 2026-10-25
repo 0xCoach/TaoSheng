@@ -1,5 +1,6 @@
 package app.resound.push
 
+import app.resound.appDisplayName
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -106,7 +107,7 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
             fun part(type: String, text: String) = "Content-Type: $type; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${encoded(text)}\r\n"
             if (message.memory == null) return headers + if (format == PushFormat.Text) part("text/plain", message.rendered(format)) else part("text/html", markdownHtml(message.rendered(PushFormat.Markdown)))
             val boundary = "resound-${UUID.randomUUID()}"
-            val filename = "回响-${message.memory.getString("date")}.md"
+            val filename = "${appDisplayName}-${message.memory.getString("date")}.md"
             val encodedFilename = java.net.URLEncoder.encode(filename, "UTF-8").replace("+", "%20")
             return headers + "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n\r\n--$boundary\r\n" +
                 part("text/plain", "${message.body}\n\n完整记忆见附件") + "--$boundary\r\n" +

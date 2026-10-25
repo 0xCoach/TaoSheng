@@ -1,5 +1,6 @@
 package app.resound.ui.skills
 
+import app.resound.appDisplayName
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -152,7 +153,7 @@ fun SkillEditor(skill: Skill, prompt: String, repo: SkillRepository, isNew: Bool
         if (isNew) {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.accentSoft).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("✨ 智能生成", style = RsType.headline, color = c.accent)
-                Text("说说你想记什么、什么时候看。信息不够时回响会追问，问清楚了帮你把技能设计好。", style = RsType.caption, color = c.textSecondary)
+                Text("说说你想记什么、什么时候看。信息不够时${appDisplayName}会追问，问清楚了帮你把技能设计好。", style = RsType.caption, color = c.textSecondary)
                 // 对话：我的话靠右橙底，追问靠左白底
                 turns.forEach { t ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (t.fromUser) Arrangement.End else Arrangement.Start) {

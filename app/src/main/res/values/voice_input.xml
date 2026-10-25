@@ -1,4 +1,4 @@
 <resources>
-    <string name="voice_input_service_name">回响语音输入记录</string>
-    <string name="voice_input_description">仅在语音输入时读取输入框和当前对话，记下你说的话。读不到界面时会截屏在手机上识别文字，图片不保存。密码框永远不读。回响暂停、停止或本功能关闭时不采集，可排除应用。</string>
+    <string name="voice_input_service_name">涛声语音输入记录</string>
+    <string name="voice_input_description">仅在语音输入时读取输入框和当前对话，记下你说的话。读不到界面时会截屏在手机上识别文字，图片不保存。密码框永远不读。涛声暂停、停止或本功能关闭时不采集，可排除应用。</string>
 </resources>

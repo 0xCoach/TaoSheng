@@ -230,7 +230,7 @@ class AndroidPushChannels internal constructor(
         catch (_: Exception) { return Result.failure(PushFailure("回顾读取失败，请稍后重试")) }
         val message = if (review != null) PushMessage("测试 · ${review.pushTitle()}", review.pushBody(PushFormat.Text),
             PushTopic.DailyReview, "resound://review?open=review&date=${review.date}", System.currentTimeMillis(), review)
-        else PushMessage("回响 · 测试推送", "如果你看到这条，说明通道可用", null, null, System.currentTimeMillis())
+        else PushMessage("测试推送", "如果你看到这条，说明通道可用", null, null, System.currentTimeMillis())
         return deliver(id, message, testing = true).map {
             if (review != null) "已发送 ${review.pushDate()}的回顾" else "测试消息已提交，请查看接收端"
         }

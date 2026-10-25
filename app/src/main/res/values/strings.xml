@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App 显示名：桌面图标、通知、界面标题、诊断文件、整理提示词都从这里取。以后改名只改这一处。 -->
-    <string name="app_name">回响</string>
+    <string name="app_name">涛声</string>
 </resources>

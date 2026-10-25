@@ -1,5 +1,6 @@
 package app.resound.importer
 
+import app.resound.appDisplayName
 import android.content.Context
 import android.net.Uri
 import androidx.work.*
@@ -40,7 +41,7 @@ class AndroidAudioImporter internal constructor(
     init {
         scope.launch(Dispatchers.IO) {
             for (command in commands) try { command() }
-            catch (_: Exception) { reportError("导入队列保存失败，请重新打开回响重试") }
+            catch (_: Exception) { reportError("导入队列保存失败，请重新打开${appDisplayName}重试") }
         }
         File(context.cacheDir, "import-pcm").deleteRecursively()
         // 仅清理未被登记的半份复制；已排队缓存若被系统回收，由 worker 给出明确错误。
@@ -103,7 +104,7 @@ class AndroidAudioImporter internal constructor(
                     save()
                 }
                 enqueue()
-            } catch (_: Exception) { reportError("导入排队失败，请重新打开回响重试") }
+            } catch (_: Exception) { reportError("导入排队失败，请重新打开${appDisplayName}重试") }
         }
     }
     override fun discard(id: String) {

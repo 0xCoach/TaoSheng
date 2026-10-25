@@ -1,5 +1,6 @@
 package app.resound.push
 
+import app.resound.appDisplayName
 import android.content.SharedPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -223,7 +224,7 @@ internal class SubscriptionRuntime(
         if (channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.Notion)) {
             for (reminder in reminders) {
                 transport.send(channel.kind, channel.format, values,
-                    PushMessage("回响 · 待办提醒", reminder.text, PushTopic.TodoReminder, null, at)).getOrThrow()
+                    PushMessage("待办提醒", reminder.text, PushTopic.TodoReminder, null, at)).getOrThrow()
                 change(channel.id) { j ->
                     val sent = j.optJSONObject("reminded") ?: JSONObject()
                     reminder.keys.forEach { sent.put(it, at) }
@@ -289,7 +290,7 @@ internal class SubscriptionRuntime(
                     else -> day(record.optLong("start", record.optLong("at")), zone()).toString() == date
                 }
             }
-            val payload = JSONObject().put("type", "daily_memory").put("version", 1).put("app", "回响").put("date", date).put("generatedAt", at)
+            val payload = JSONObject().put("type", "daily_memory").put("version", 1).put("app", appDisplayName).put("date", date).put("generatedAt", at)
                 .put("markdown", body.replace(MemoryFolder.UPDATED, MemoryFolder.updatedText(at)))
                 .put("data", JSONObject().apply {
                     listOf("event" to "events", "item" to "items", "card" to "cards", "review" to "reviews", "line" to "lines").forEach { (kind, key) ->
@@ -297,7 +298,7 @@ internal class SubscriptionRuntime(
                     }
                     put("review", records.filterKeys { it.startsWith("review:") }.values.firstOrNull() ?: JSONObject.NULL)
                 })
-            transport.send(channel.kind, channel.format, values, PushMessage("每日记忆文档 · $date", "回响 · $date", PushTopic.DailyMemory, null, at, memory = payload)).getOrThrow()
+            transport.send(channel.kind, channel.format, values, PushMessage("每日记忆文档 · $date", "$date 的记忆文档", PushTopic.DailyMemory, null, at, memory = payload)).getOrThrow()
             state.files.put(path, JSONObject().put("sourceHash", hash))
             state.templates.put(path, files[path] ?: markdown)
             files.filterKeys { it.startsWith("weekly/") }.forEach { (key, value) -> state.templates.put(key, value) }

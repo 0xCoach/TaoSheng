@@ -1,5 +1,6 @@
 package app.resound.push
 
+import app.resound.appDisplayName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -30,7 +31,7 @@ internal data class PushMessage(val title: String, val body: String, val topic: 
             PushTopic.DailyReview -> "daily_review"; PushTopic.TodoReminder -> "todo_reminder"
             PushTopic.NewEvent -> "new_event"; PushTopic.SkillCard -> "skill_card"
             PushTopic.DailyMemory -> "daily_memory"; null -> "test"
-        }).put("version", 1).put("app", "回响")
+        }).put("version", 1).put("app", appDisplayName)
     companion object {
         fun from(json: JSONObject) = PushMessage(json.getString("title"), json.getString("body"),
             PushTopic.entries.find { it.name == json.optString("topic") },
@@ -115,7 +116,7 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
                     builder.url("$base/bot${values.getValue("token")}/sendDocument")
                     MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("chat_id", values.getValue("chatId"))
                         .addFormDataPart("caption", truncate(message.body, 1000))
-                        .addFormDataPart("document", "回响-${message.memory.getString("date")}.md", message.memory.getString("markdown").toRequestBody("text/markdown; charset=utf-8".toMediaType())).build()
+                        .addFormDataPart("document", "${appDisplayName}-${message.memory.getString("date")}.md", message.memory.getString("markdown").toRequestBody("text/markdown; charset=utf-8".toMediaType())).build()
                 } else {
                     builder.url("$base/bot${values.getValue("token")}/sendMessage")
                     // 先限制可见字符，再转义，保证不会截断 HTML 实体或标签。

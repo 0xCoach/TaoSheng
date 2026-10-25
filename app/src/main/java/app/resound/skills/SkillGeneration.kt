@@ -117,11 +117,11 @@ internal data class SkillGenerationNotice(val title: String, val body: String, v
         fun from(name: String, date: LocalDate, result: SkillRunResult): SkillGenerationNotice {
             val dayLink = "resound://day?open=day&date=$date"
             return when (result) {
-                is SkillRunResult.Cards -> SkillGenerationNotice("回响 · ${name}已生成",
+                is SkillRunResult.Cards -> SkillGenerationNotice("${name}已生成",
                     if (result.cards.size == 1) result.cards.single().summary else "出了 ${result.cards.size} 张",
                     if (result.cards.size == 1) "resound://card?open=card&id=${result.cards.single().id}" else dayLink)
-                is SkillRunResult.Nothing -> SkillGenerationNotice("回响 · ${name}没有出卡", result.reason, dayLink)
-                is SkillRunResult.Failed -> SkillGenerationNotice("回响 · ${name}生成失败", result.reason, dayLink)
+                is SkillRunResult.Nothing -> SkillGenerationNotice("${name}没有出卡", result.reason, dayLink)
+                is SkillRunResult.Failed -> SkillGenerationNotice("${name}生成失败", result.reason, dayLink)
             }
         }
     }
@@ -134,7 +134,7 @@ class SkillGenerationWork(context: Context, params: WorkerParameters) : Coroutin
         LocalNotifier(applicationContext, LocalNotifier.SKILL_GENERATION_CHANNEL)
         return ForegroundInfo(200 + (id.hashCode() and 0xffff),
             NotificationCompat.Builder(applicationContext, LocalNotifier.SKILL_GENERATION_CHANNEL)
-                .setSmallIcon(R.drawable.ic_notify).setContentTitle("回响 · 技能生成中")
+                .setSmallIcon(R.drawable.ic_notify).setContentTitle("技能生成中")
                 .setContentText("完成后会通知你").setOngoing(true).build())
     }
 

@@ -164,7 +164,7 @@ class SkillGeneration047Test {
         val cardId = success.outputData.getLongArray("cards")!!.single()
         val single = notifications().single().notification
         assertEquals(LocalNotifier.SKILL_GENERATION_CHANNEL, single.channelId)
-        assertEquals("回响 · 收工打卡已生成", single.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals("收工打卡已生成", single.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         assertEquals("完成项目推进", single.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         val intent = shadowOf(single.contentIntent).savedIntent
         assertEquals("card", intent.getStringExtra("open")); assertEquals(cardId.toString(), intent.data!!.getQueryParameter("id"))
@@ -172,11 +172,11 @@ class SkillGeneration047Test {
         response = { LlmReply("""{"cards":[],"nothing_reason":"今天没有会议"}""", 1, 1) }
         worker().doWork()
         val nothing = notifications().first { it.notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString().contains("没有出卡") }.notification
-        assertEquals("回响 · 收工打卡没有出卡", nothing.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals("收工打卡没有出卡", nothing.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         assertEquals("今天没有会议", nothing.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         response = { throw LlmException(LlmError.Auth) }; worker().doWork()
         val failure = notifications().first { it.notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString().contains("生成失败") }.notification
-        assertEquals("回响 · 收工打卡生成失败", failure.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals("收工打卡生成失败", failure.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         assertEquals(LlmError.Auth.human, failure.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         assertEquals(day.toString(), shadowOf(failure.contentIntent).savedIntent.getStringExtra("date"))
         val card = db.skills().dayRows(key.first, day.toEpochDay()).single().card()

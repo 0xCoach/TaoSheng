@@ -36,6 +36,7 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class PushMoreTest {
+    init { app.resound.appDisplayName = "涛声" }
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val date = LocalDate.parse("2026-10-24")
     private val at = 1_700_000_000_000L
@@ -104,7 +105,7 @@ class PushMoreTest {
             assertFalse(JSONObject(f.take().body.readUtf8()).has("parse_mode"))
             f.reply("{\"ok\":true}"); f.transport.send(PushKind.Telegram, PushFormat.Markdown, values, document().copy(body = "摘".repeat(1100))).getOrThrow()
             val request = f.take(); val body = request.body.readUtf8()
-            assertTrue(request.path!!.endsWith("sendDocument")); assertTrue(body.contains("回响-$date.md")); assertTrue(body.contains("# 记忆")); assertTrue(body.contains("已截断"))
+            assertTrue(request.path!!.endsWith("sendDocument")); assertTrue(body.contains("涛声-$date.md")); assertTrue(body.contains("# 记忆")); assertTrue(body.contains("已截断"))
         }
     }
     @Test fun smtpLocalAuthDataTlsModesAndMimeAttachment() {
@@ -147,7 +148,7 @@ class PushMoreTest {
                 val html = String(Base64.getMimeDecoder().decode(results[0].substringAfter("\r\n\r\n")))
                 assertTrue(html.contains("<h2>内容</h2>")); assertTrue(html.contains("<strong>要点</strong>")); assertTrue(html.contains("&lt;hello&gt;"))
                 assertTrue(SmtpSender.markdownHtml("- 条目").contains("<li>条目</li>"))
-                assertTrue(results[1].contains("multipart/mixed")); assertTrue(results[1].contains("filename*=UTF-8''%E5%9B%9E%E5%93%8D-2026-10-24.md"))
+                assertTrue(results[1].contains("multipart/mixed")); assertTrue(results[1].contains("filename*=UTF-8''%E6%B6%9B%E5%A3%B0-2026-10-24.md"))
                 assertTrue(results[1].contains(Base64.getEncoder().encodeToString(document().memory!!.getString("markdown").toByteArray())))
             } finally { executor.shutdownNow() }
         }
@@ -164,7 +165,7 @@ class PushMoreTest {
             val archive = f.take(); assertEquals("PATCH", archive.method); assertTrue(JSONObject(archive.body.readUtf8()).getBoolean("archived"))
             val create = f.take(); assertEquals("2022-06-28", create.getHeader("Notion-Version"))
             val page = JSONObject(create.body.readUtf8()); assertEquals(database, page.getJSONObject("parent").getString("database_id"))
-            assertEquals("回响 · $date", page.getJSONObject("properties").getJSONObject("名称").getJSONArray("title").getJSONObject(0).getJSONObject("text").getString("content"))
+            assertEquals("$date 的记忆文档", page.getJSONObject("properties").getJSONObject("名称").getJSONArray("title").getJSONObject(0).getJSONObject("text").getString("content"))
             val blocks = page.getJSONArray("children"); assertEquals(90, blocks.length())
             assertEquals("heading_1", blocks.getJSONObject(0).getString("type")); assertEquals("bulleted_list_item", blocks.getJSONObject(1).getString("type")); assertEquals("quote", blocks.getJSONObject(2).getString("type"))
             assertEquals(2000, blocks.getJSONObject(3).getJSONObject("paragraph").getJSONArray("rich_text").getJSONObject(0).getJSONObject("text").getString("content").length)
@@ -218,7 +219,7 @@ class PushMoreTest {
                 f.reply(code = 202)
                 f.transport.send(PushKind.Webhook, PushFormat.Json, hook + mapOf("authorization" to "Bearer fake", "headers" to "X-Agent: home", "signSecret" to "independent-key"), message.copy(topic = topic)).getOrThrow()
                 val r = f.take(); val bytes = r.body.readByteArray(); val j = JSONObject(String(bytes, Charsets.UTF_8))
-                assertEquals(type, j.getString("type")); assertEquals(1, j.getInt("version")); assertEquals("回响", j.getString("app")); assertEquals("home", r.getHeader("X-Agent"))
+                assertEquals(type, j.getString("type")); assertEquals(1, j.getInt("version")); assertEquals("涛声", j.getString("app")); assertEquals("home", r.getHeader("X-Agent"))
                 val mac = Mac.getInstance("HmacSHA256"); mac.init(SecretKeySpec("independent-key".toByteArray(), "HmacSHA256"))
                 mac.update((r.getHeader("X-Resound-Timestamp") + ".").toByteArray())
                 val signature = mac.doFinal(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }

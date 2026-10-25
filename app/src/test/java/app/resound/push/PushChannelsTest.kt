@@ -258,7 +258,7 @@ class PushChannelsTest {
             assertEquals(3, local.count)
             fake.reply("{\"code\":0}")
             assertTrue(repository.test(disabled).isSuccess)
-            assertEquals("回响 · 测试推送", repository.logs().first().first().title)
+            assertEquals("测试推送", repository.logs().first().first().title)
             assertEquals(3, fake.server.requestCount)
             repository.delete(disabled)
             assertEquals(2, repository.channels.first().size)

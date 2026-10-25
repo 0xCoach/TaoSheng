@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import app.resound.appDisplayName
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -45,13 +46,13 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
     fun openSettings() = runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     Section("语音输入") {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-            Toggle("记下语音输入的文字", "用输入法语音输入时，系统会把麦克风交给输入法，回响录不到。打开后改为记下你说出的文字。", s.enabled) {
+            Toggle("记下语音输入的文字", "用输入法语音输入时，系统会把麦克风交给输入法，${appDisplayName}录不到。打开后改为记下你说出的文字。", s.enabled) {
                 capture.update(s.copy(enabled = it)); if (it && !on) openSettings()
             }
             if (s.enabled) {
                 if (!on) Column(Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.warning.copy(alpha = 0.1f)).padding(12.dp)) {
                     Text("语音输入记录没在运行", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.warning)
-                    Text("在系统设置 → 无障碍里找到“回响语音输入记录”：没开就打开；显示开着的，先关掉再打开一次。小米有时开着却没真正启动，或者更新后需要重开。", style = RsType.caption, color = c.textSecondary)
+                    Text("在系统设置 → 无障碍里找到“${appDisplayName}语音输入记录”：没开就打开；显示开着的，先关掉再打开一次。小米有时开着却没真正启动，或者更新后需要重开。", style = RsType.caption, color = c.textSecondary)
                     Spacer(Modifier.height(8.dp))
                     Pill("去打开", filled = true) { openSettings() }
                 }

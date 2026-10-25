@@ -29,6 +29,7 @@ import java.util.UUID
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class Subscription042Test {
+    init { app.resound.appDisplayName = "涛声" }
     @get:Rule val temp = TemporaryFolder()
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val zone = ZoneId.of("Asia/Shanghai")
@@ -171,7 +172,7 @@ class Subscription042Test {
         assertEquals(listOf(1L), selected.events.map { it.id }); assertEquals(listOf(1L), selected.lines.map { it.id })
         val files = MemoryFolder(date, zone).generate(selected, s)
         val daily = files.getValue(MemoryFolder.dailyPath(date))
-        assertTrue(daily.startsWith("---\n类型:")); assertTrue(daily.contains("来源: 回响自动生成，请勿手动修改（改了会被覆盖）"))
+        assertTrue(daily.startsWith("---\n类型:")); assertTrue(daily.contains("来源: 涛声自动生成，请勿手动修改（改了会被覆盖）"))
         assertTrue(daily.contains("# 2026年10月24日 星期六 · 讨论测试方案等 1 件事"))
         assertTrue(daily.contains("E1")); assertTrue(daily.contains("说过 3 次")); assertTrue(daily.contains("进行中")); assertTrue(daily.contains("- [x] 模拟服务"))
         assertFalse(daily.contains("虚构测试原话")); assertTrue(daily.contains("[[transcripts/"))
@@ -359,7 +360,7 @@ class Subscription042Test {
             assertFalse(payload.getJSONObject("data").has("lines"))
             f.transport.send(PushKind.Telegram, PushFormat.Text, mapOf("token" to "123:fake", "chatId" to "123"),
                 PushMessage("文档", "摘要", PushTopic.DailyMemory, null, at, memory = payload)).getOrThrow()
-            assertTrue(f.requests.last().path!!.endsWith("/sendDocument")); assertTrue(f.requests.last().body.clone().readUtf8().contains("filename=\"回响-2026-10-24.md\""))
+            assertTrue(f.requests.last().path!!.endsWith("/sendDocument")); assertTrue(f.requests.last().body.clone().readUtf8().contains("filename=\"涛声-2026-10-24.md\""))
         }
     }
 }

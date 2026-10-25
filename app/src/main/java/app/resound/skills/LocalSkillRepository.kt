@@ -100,10 +100,20 @@ class LocalSkillRepository(
     override suspend fun trial(skillId: String, date: LocalDate, promptOverride: String?) = run(skillId, date, SkillSchedule.TRIAL, promptOverride).result
 
     suspend fun runDue() {
-        for (s in skills.value) isolated { run(s.id, SkillSchedule.date(now()), SkillSchedule.DAILY) }
+        for (s in skills.value) if (s.trigger !is SkillTrigger.AfterDigest) isolated { runDays(s, SkillSchedule.DAILY) }
     }
     suspend fun afterDigest() {
-        for (s in skills.value) if (s.trigger is SkillTrigger.AfterDigest) isolated { run(s.id, SkillSchedule.date(now()), SkillSchedule.AFTER) }
+        for (s in skills.value) if (s.trigger is SkillTrigger.AfterDigest) isolated { runDays(s, SkillSchedule.AFTER) }
+    }
+    /** “上次以来”的技能按事件发生日出卡：昨天下午的会凌晨才整理出来，先补跑昨天，卡片归昨天，再跑今天。 */
+    private suspend fun runDays(s: Skill, kind: String) {
+        val today = SkillSchedule.date(now())
+        if (s.scope.range == SkillRange.SinceLastRun) {
+            val last = dao.runsOf(s.id).lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL }?.at
+            if (last != null) dao.newEventStarts(last, now()).map(SkillSchedule::date).distinct().filter { it < today }.sorted()
+                .forEach { day -> isolated { run(s.id, day, kind) } }
+        }
+        run(s.id, today, kind)
     }
     private suspend fun isolated(block: suspend () -> Unit) {
         try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 单个技能失败不阻断后续技能。 */ }
@@ -116,10 +126,10 @@ class LocalSkillRepository(
         val preview = kind == SkillSchedule.TRIAL
         if (auto) {
             if (!skill.enabled || SkillSchedule.autoCount(history, SkillSchedule.date(started)) >= 6) return@withLock SkillAttempt(SkillRunResult.Nothing("今天自动运行已达上限或技能已关闭"))
-            if (kind == SkillSchedule.DAILY && SkillSchedule.next(skill, history, started) != started) return@withLock SkillAttempt(SkillRunResult.Nothing("尚未到运行时间"))
+            if (kind == SkillSchedule.DAILY && date == SkillSchedule.date(started) && SkillSchedule.next(skill, history, started) != started) return@withLock SkillAttempt(SkillRunResult.Nothing("尚未到运行时间"))
             if (kind == SkillSchedule.AFTER) {
                 val trigger = skill.trigger as? SkillTrigger.AfterDigest ?: return@withLock SkillAttempt(SkillRunResult.Nothing("不是整理后技能"))
-                val last = history.lastOrNull { it.kind != SkillSchedule.TRIAL }
+                val last = history.lastOrNull { it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }
                 if (last != null && started - last.at < TimeUnit.MINUTES.toMillis(trigger.minGapMinutes.toLong())) return@withLock SkillAttempt(SkillRunResult.Nothing("距离上次运行太近"))
             }
         }
@@ -129,7 +139,8 @@ class LocalSkillRepository(
             val result = try {
                 val (preset, key) = credentials(skill.presetId)
                 if (key.isBlank()) SkillRunResult.Failed("还没填写大模型密钥") else {
-                    val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date <= date.toEpochDay() }?.at
+                    // 每个归属日各记各的进度，别的日子的运行不算。
+                    val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }?.at
                     val input = SkillInputs.load(dao, skill, date, since, started)
                     if (skill.scope.speakers == SkillSpeakers.MeOnly && skill.scope.includeLines && input.lines.isEmpty()) {
                         SkillRunResult.Nothing(if (skill.id == "mood_diary") "今天没有明显的情绪表达" else "今天记录太少")

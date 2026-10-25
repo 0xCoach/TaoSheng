@@ -35,7 +35,8 @@ object SkillInputs {
         val range = skill.scope.range
         val dayStart = date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
         val startDate = if (range == SkillRange.Week) date.with(DayOfWeek.MONDAY) else date
-        val start = if (range == SkillRange.SinceLastRun) 0L else startDate.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+        // “上次以来”也只取归属日当天发生的事；别的日子的新事件由 runDays 按日补跑。
+        val start = startDate.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
         val events = dao.events(start, end, if (range == SkillRange.SinceLastRun) since ?: (dayStart - 1) else -1, until)
         val ids = events.map { it.id }

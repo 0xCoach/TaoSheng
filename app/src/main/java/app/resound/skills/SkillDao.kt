@@ -66,6 +66,8 @@ abstract class SkillDao {
 
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end AND createdAt > :since AND createdAt <= :until ORDER BY startAt, id")
     abstract suspend fun events(start: Long, end: Long, since: Long, until: Long): List<MemoryEventEntity>
+    @Query("SELECT DISTINCT startAt FROM memory_events WHERE deleted = 0 AND createdAt > :since AND createdAt <= :until")
+    abstract suspend fun newEventStarts(since: Long, until: Long): List<Long>
     @Query("""SELECT * FROM memory_events WHERE deleted = 0 AND starred = 1
         AND starredAt >= :start AND starredAt < :end AND starredAt <= :until ORDER BY starredAt, id""")
     abstract suspend fun starredEvents(start: Long, end: Long, until: Long): List<MemoryEventEntity>

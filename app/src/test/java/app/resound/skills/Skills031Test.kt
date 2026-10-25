@@ -229,6 +229,19 @@ class Skills031Test {
         assertEquals(6, requests.size); assertEquals(1, sent.size); assertEquals(1, r.cards(day).first().size)
         r.runNow("meeting", day); assertEquals(7, requests.size); assertEquals(1, sent.size)
     }
+    @Test fun lateDigestedMeetingCardBelongsToMeetingDay() = runBlocking {
+        seed(); val r = repo()
+        response = { _, input -> if (!input.contains("定方案")) LlmReply("""{"cards":[],"nothing_reason":"没有会议"}""", 10, 1) else LlmReply("""{"cards":[{"entity":"plan","title":"下午会","summary":"定方案","at":"15:00","end":"15:30","values":{"topic":"方案","conclusion":"先做原型"},"evidence":["L1"]}]}""", 10, 1) }
+        clock = start + 11 * 3_600_000; r.afterDigest()
+        // 当天 15:00 的会，次日 00:30 才整理出事件
+        val next = start + 24 * 3_600_000
+        db.memory().insertEvent(MemoryEventEntity(2, start + 54_000_000, start + 55_800_000, "会议", "下午会", "定方案", "[]", "[]", null, null, null, false, false, next + 1_800_000, "test"))
+        clock = next + 3_600_000; r.afterDigest()
+        val runs = db.skills().runsOf("meeting")
+        assertEquals(listOf(day.toEpochDay(), day.toEpochDay(), day.plusDays(1).toEpochDay()), runs.map { it.date })
+        assertEquals(listOf("下午会"), r.cards(day).first().map { it.title }.filter { it == "下午会" })
+        assertTrue(r.cards(day.plusDays(1)).first().isEmpty())
+    }
     @Test fun coreSettingsAreNoopsAndMissingKeyDoesNotCallModel() = runBlocking {
         val r = repo(); val core = skill("timeline")
         r.setEnabled("timeline", false); r.setPush("timeline", true); r.setPreset("timeline", "custom")

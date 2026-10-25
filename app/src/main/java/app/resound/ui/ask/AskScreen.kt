@@ -60,6 +60,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -230,18 +231,24 @@ private fun SourceRow(n: Int, s: AskSource, open: Boolean, onClick: () -> Unit) 
                 Text("$n", style = RsType.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = c.accent)
             }
             Spacer(Modifier.width(8.dp))
-            // 原话类出处的标题里已带时间，不再重复
-            if (s.kind != "line") {
-                Text(sourceTime(s.at), style = RsType.caption, color = c.textTertiary)
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(s.title, style = RsType.subhead, color = c.textSecondary, maxLines = 1, modifier = Modifier.weight(1f))
+            Text(sourceTime(s.at), style = RsType.caption, color = c.textTertiary)
+            Spacer(Modifier.width(6.dp))
+            // 原话类出处的 title 只是说话人（名字或临时编号），后面接一截原话才看得出是哪句
+            val title = if (s.kind == "line") "${lineSpeaker(s.title)}：${s.quote}" else s.title
+            Text(title, style = RsType.subhead, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
         AnimatedVisibility(open) {
             Text("“${s.quote}”", style = RsType.subhead, color = c.text,
                 modifier = Modifier.padding(start = 26.dp, top = 6.dp).clip(RoundedCornerShape(12.dp)).background(c.background).padding(10.dp))
         }
     }
+}
+
+/** 与原话页一致：临时编号 0 → 说话人 1，uncertain:* → 待确认，有名字直接用。 */
+private fun lineSpeaker(title: String): String = when {
+    title.startsWith("uncertain:") -> "待确认"
+    title.toIntOrNull() != null -> "说话人 ${title.toInt() + 1}"
+    else -> title
 }
 
 private fun sourceTime(at: Long): String =

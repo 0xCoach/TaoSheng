@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.map
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
@@ -33,11 +34,20 @@ object LocalModels {
         "24615ee884c897d9d2ba09bb4d30da6bb1b15e685065962db5b02e76e4996488", "model.onnx", 5992913,
         "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079", false)
     fun speakersEnabled(context: Context) = ready(context, speakers) && context.getSharedPreferences("local-asr",0).getBoolean("speakers-enabled", true)
-    fun enqueueSpeakers(context: Context) {
-        WorkManager.getInstance(context).enqueueUniqueWork("speaker-model", ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<ModelDownloadWork>().setInputData(workDataOf("speakers" to true))
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
+    /** retry=true：不管原来的下载卡在哪（排队、龟速、早已无响应），都换一个新任务从断点接着下 */
+    fun enqueueSpeakers(context: Context, retry: Boolean = false) =
+        enqueueDownload(context, SPEAKERS_WORK, workDataOf("speakers" to true), retry)
+    private fun enqueueDownload(context: Context, name: String, data: Data, retry: Boolean) {
+        WorkManager.getInstance(context).enqueueUniqueWork(name, if (retry) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<ModelDownloadWork>().setInputData(data)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
     }
+    const val SPEAKERS_WORK = "speaker-model"
+    fun workName(backend: LocalBackend) = "local-model-${backend.name}"
+    /** 下载任务的真实状态（RUNNING/ENQUEUED 才算在下载）；界面不能只看上次写下的进度文字，进程被杀后那段文字会一直停着 */
+    fun downloadActive(context: Context, name: String) = WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(name)
+        .map { infos -> infos.firstOrNull { !it.state.isFinished }?.state }
     fun spec(backend: LocalBackend) = if (backend == LocalBackend.Npu) npu else cpu
     fun directory(context: Context, spec: ModelSpec) = File(context.noBackupFilesDir, "asr-models/${spec.id}")
     /** NPU 检查结果的有效范围：App 版本或 NPU 模型文件变了就要重查 */
@@ -55,11 +65,9 @@ object LocalModels {
         file.inputStream().buffered().use { input -> val b = ByteArray(128 * 1024); while (true) { val n=input.read(b);if(n<0)break;digest.update(b,0,n) } }
         digest.digest().joinToString("") { "%02x".format(it) }
     }
-    fun enqueue(context: Context, backend: LocalBackend) {
+    fun enqueue(context: Context, backend: LocalBackend, retry: Boolean = false) {
         if (backend == LocalBackend.Npu && !npuSupported()) return
-        WorkManager.getInstance(context).enqueueUniqueWork("local-model-${backend.name}", ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<ModelDownloadWork>().setInputData(workDataOf("backend" to backend.name))
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
+        enqueueDownload(context, workName(backend), workDataOf("backend" to backend.name), retry)
     }
 }
 
@@ -76,11 +84,19 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
         if(LocalModels.ready(applicationContext,spec)){status("已下载并校验");return@withContext Result.success()}
         val archive=File(applicationContext.noBackupFilesDir,"${spec.id}.part")
         val staging=File(dir.parentFile,"${spec.id}.staging")
+        // “重试”会替换旧任务，旧任务可能还没完全停下；同一个文件只让一个任务写
+        val lock = synchronized(locks) { locks.getOrPut(spec.id) { kotlinx.coroutines.sync.Mutex() } }
+        lock.lock()
         try {
             setForeground(getForegroundInfo())
             if(applicationContext.noBackupFilesDir.usableSpace < (if(speakers) 30_000_000L else 650_000_000L)) {status("空间不足，请预留至少 650 MB");return@withContext Result.failure()}
             status("连接官方下载源…")
-            downloadModelFile(spec,archive,::status)
+            try { downloadModelFile(spec,archive,::status) }
+            catch(e: java.io.IOException) {
+                // 断网、龟速：保留已下载的部分，自动再试几次；用尽后等用户点“重试”
+                if(runAttemptCount < AUTO_RETRIES) {status("下载中断，稍后自动接着下（第 ${runAttemptCount+1}/$AUTO_RETRIES 次）· 也可点重试");return@withContext Result.retry()}
+                throw e
+            }
             status("校验下载文件…")
             if(archive.length()!=spec.archiveBytes || LocalModels.hash(archive)!=spec.archiveHash){archive.delete();error("checksum")}
             staging.deleteRecursively();staging.mkdirs()
@@ -103,8 +119,12 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
             archive.delete();status("已下载并校验")
             Result.success()
         } catch(e: kotlinx.coroutines.CancellationException){status("下载已暂停，可点击继续");throw e}
-        catch(_: Exception){status("下载未完成，请检查网络后重试（GitHub 国内可能不稳定）");Result.failure()}
-        finally{staging.deleteRecursively()}
+        catch(_: Exception){status("下载未完成，已下的部分会保留，点重试接着下（GitHub 国内可能不稳定）");Result.failure()}
+        finally{staging.deleteRecursively();lock.unlock()}
+    }
+    private companion object {
+        const val AUTO_RETRIES = 3
+        val locks = mutableMapOf<String, kotlinx.coroutines.sync.Mutex>()
     }
     override suspend fun getForegroundInfo(): ForegroundInfo {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("local-model","本地模型下载",NotificationManager.IMPORTANCE_LOW))
@@ -114,7 +134,8 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
 }
 
 /** ASR 与搜索共用的有界、可取消断点下载；调用方负责 SHA 校验和原子发布。 */
-suspend fun downloadModelFile(spec: ModelSpec, target: File, status: (String) -> Unit = {}) {
+suspend fun downloadModelFile(spec: ModelSpec, target: File, status: (String) -> Unit = {},
+    stallWindowNanos: Long = STALL_WINDOW_NANOS, stallMinBytes: Long = STALL_MIN_BYTES) {
         if(target.length()>spec.archiveBytes)target.delete()
         if(target.length()==spec.archiveBytes)return
         val offset=target.length()
@@ -122,15 +143,24 @@ suspend fun downloadModelFile(spec: ModelSpec, target: File, status: (String) ->
         val client=OkHttpClient.Builder().connectTimeout(30,TimeUnit.SECONDS).readTimeout(60,TimeUnit.SECONDS).build()
         val call=client.newCall(request)
         try { call.awaitResponse().use { response ->
-            check(response.isSuccessful)
+            if(!response.isSuccessful)throw java.io.IOException("HTTP ${response.code}")
             val resume=response.code==206 && offset>0
             if(resume)check(response.header("Content-Range")?.startsWith("bytes $offset-")==true)
             var count=if(resume)offset else 0L;var last=0L
+            // 龟速但没断开时不会超时；每 90 秒至少要下到 256 KB，否则当作卡住，交给上层重试
+            var windowAt=System.nanoTime();var windowBytes=count
             response.body!!.byteStream().use{input->java.io.FileOutputStream(target,resume).buffered().use{output->
                 val buffer=ByteArray(128*1024)
                 while(true){kotlin.coroutines.coroutineContext.ensureActive();val n=input.read(buffer);if(n<0)break;count+=n;check(count<=spec.archiveBytes);output.write(buffer,0,n)
                     if(count-last>=1024*1024){status("下载 ${count*100/spec.archiveBytes}% · ${count/1_000_000}/${spec.archiveBytes/1_000_000} MB");last=count}
+                    if(System.nanoTime()-windowAt>=stallWindowNanos){
+                        if(count-windowBytes<stallMinBytes)throw java.io.IOException("download stalled")
+                        windowAt=System.nanoTime();windowBytes=count
+                    }
                 }
             }}
         }} finally{call.cancel();client.dispatcher.executorService.shutdown();client.connectionPool.evictAll()}
     }
+
+private const val STALL_WINDOW_NANOS = 90_000_000_000L
+private const val STALL_MIN_BYTES = 256 * 1024L

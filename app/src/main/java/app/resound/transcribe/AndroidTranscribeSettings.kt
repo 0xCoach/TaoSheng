@@ -47,7 +47,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     init { localPrefs.registerOnSharedPreferenceChangeListener(listener) }
     fun downloadStatus(backend: app.resound.transcribe.local.LocalBackend) = localPrefs.getString("download-${backend.name}", "未下载")!!
     fun modelReady(backend: app.resound.transcribe.local.LocalBackend) = app.resound.transcribe.local.LocalModels.ready(context, app.resound.transcribe.local.LocalModels.spec(backend))
-    fun download(backend: app.resound.transcribe.local.LocalBackend) = app.resound.transcribe.local.LocalModels.enqueue(context, backend)
+    fun download(backend: app.resound.transcribe.local.LocalBackend, retry: Boolean = false) = app.resound.transcribe.local.LocalModels.enqueue(context, backend, retry)
     fun setLocalStatus(value: String) { _localStatus.value=value;localPrefs.edit().putString("actual",value).apply() }
     fun setSource(value: TranscribeSource) { prefs.edit().putString("source",value.name).commit();_source.value=value;_hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
     fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 加速，下次转写时检查一次" else "已选择 CPU 兼容");refreshReady();onChanged() }

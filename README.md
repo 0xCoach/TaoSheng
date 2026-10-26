@@ -149,6 +149,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 > 也可以直接用 Android Studio 打开项目，点运行。
+>
+> **骁龙 8 Elite / 8 Gen 5（Oryon 架构，如 OPPO Find N6）兼容说明**：`onnxruntime-android:1.23.2` 在检测到 `HWCAP2_SME` 时会错误派发至 KleidiAI SME2 算子（`ptrue pn9.b`），导致收音服务初始化 Silero VAD / CAM++ 时触发 `SIGILL` 闪退。`app/build.gradle.kts` 已内置原生库打包补丁钩子（`patchOnnxRuntimeOryonSme`），编译时会自动将 `libonnxruntime.so` 中 `MLAS_CPUIDINFO.has_arm_sme_` 置零并回退至标准 ARM64 NEON 算子；也可使用 `scripts/patch_onnxruntime_sme2.py` 独立校验或修补。
 
 ### 第一次使用（约 5 分钟）
 

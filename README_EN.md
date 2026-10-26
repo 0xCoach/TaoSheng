@@ -14,6 +14,8 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)
+
 [简体中文](README.md) | English
 
 </div>
@@ -112,6 +114,15 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 - 🔧 Every model is swappable — any OpenAI-compatible LLM, including self-hosted
 
 ## 🚀 Getting started
+
+### Download
+
+**v0.2.0** (2026-10-26, first public release): [TaoSheng-v0.2.0-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk) (~88 MB) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
+
+arm64 Android 10+ only. SHA-256: `487ca9bce84bec90a92d294d4c2b2c08470847a78ee186cbae7b97cba9d3b7ca`. The APK is signed with a development key; a future switch to a release key will require uninstalling first (back up in 数据备份 before that).
+
+### Build from source
+
 
 **You need:** Android 10+ (arm64; developed on Xiaomi 14 Pro / HyperOS 3), an ASR option (Doubao Speech API key, or on-device ASR), and an OpenAI-compatible LLM API key (DeepSeek by default).
 

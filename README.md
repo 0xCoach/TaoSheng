@@ -15,6 +15,8 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)
+
 简体中文 | [English](README_EN.md)
 
 </div>
@@ -119,7 +121,20 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 | 大模型 | 任意 OpenAI 兼容接口的 API Key，默认 [DeepSeek](https://platform.deepseek.com/) |
 | 可选 | 坚果云账号（备份）、任一推送通道 |
 
-### 编译安装
+### 下载安装（推荐）
+
+| 版本 | 发布日期 | 下载 | 说明 |
+| --- | --- | --- | --- |
+| **v0.2.0** | 2026-10-26 | [TaoSheng-v0.2.0-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)（约 88 MB） | 首个公开版（早期验证版） |
+
+- 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
+- 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
+- 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
+- 文件校验（SHA-256）：`487ca9bce84bec90a92d294d4c2b2c08470847a78ee186cbae7b97cba9d3b7ca`
+
+> 当前安装包使用开发签名。以后换成正式签名时，需要先卸载旧版再装新版（卸载前记得先在“数据备份”里备份一次）。
+
+### 从源码编译
 
 ```bash
 git clone https://github.com/0xCoach/TaoSheng.git

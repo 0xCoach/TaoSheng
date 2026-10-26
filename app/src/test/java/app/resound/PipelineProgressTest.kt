@@ -9,7 +9,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [29], manifest = Config.NONE)
+@Config(sdk = [29], manifest = Config.NONE, application = android.app.Application::class)
 class PipelineProgressTest {
     @After fun reset() = PipelineProgress.finish()
 

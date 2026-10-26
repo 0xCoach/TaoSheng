@@ -35,7 +35,9 @@ class InputPersistence045Test {
             assertFalse(File(recording.parentFile,recording.nameWithoutExtension+".source").exists())
             CaptureStore(context,db.capture()).inputSwitched("手机麦克风 → DJI；用户选择")
             val stats = RoomCaptureStatsRepository(context,db.capture())
-            assertTrue(stats.watchdogEvents(LocalDate.now()).first().isEmpty())
+            val event = stats.watchdogEvents(LocalDate.now()).first().single()
+            assertEquals(WatchdogEventType.InputSwitched, event.type)
+            assertEquals("手机麦克风 → DJI；用户选择", event.detail)
             assertTrue(stats.exportDiagnostics().readText().contains("InputSwitched"))
             stats.dayStats(LocalDate.now()).first() // 新类型不能触发枚举解析异常。
         } finally { scope.cancel(); scope.coroutineContext[Job]!!.join(); db.close() }

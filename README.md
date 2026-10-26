@@ -247,6 +247,7 @@ app/src/main/java/app/resound/
 
 ## 🙏 致谢
 
+- [@ethansunqing](https://github.com/ethansunqing)——在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中提供 OPPO Find N6 的 SIGILL 闪退报告、ONNX Runtime SME 指令派发问题分析、二进制补丁方案及作者侧真机验证，帮助涛声推进机型兼容性改进。
 - [Omi](https://github.com/BasedHardware/omi)——开源 AI 可穿戴设备，给了涛声最初的灵感
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0）——本地转写、分段与声纹的运行框架
 - [Silero VAD](https://github.com/snakers4/silero-vad)（MIT）——人声检测

@@ -61,6 +61,11 @@ abstract class VoiceprintDao {
     abstract suspend fun processed(id: Long, at: Long)
     @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE sourceId != 'voice-input' AND status = 'Done'")
     abstract suspend fun invalidate()
+    @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done'")
+    abstract suspend fun doneSegments(): List<SegmentEntity>
+    /** 只让指定的段重新匹配（录音还在的那些；录音已删的段重跑也只是原样标记完成） */
+    @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE id IN (:ids)")
+    abstract suspend fun invalidateSegments(ids: List<Long>)
     /** 阈值调整后按已有分数重新标“我”（只动声纹写的“我”，不碰其他名字） */
     @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerScore >= :sure THEN '我' ELSE NULL END WHERE voiceInputJson IS NULL AND speakerManual = 0 AND speakerScore IS NOT NULL AND (speakerName IS NULL OR speakerName = '我')")
     abstract suspend fun relabel(sure: Float)

@@ -66,7 +66,7 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 </tr>
 <tr>
 <td><b>🎙 Always listening, even when locked</b><br>Foreground service + watchdog. Records only when someone speaks (on-device Silero VAD), so it stays battery-friendly.</td>
-<td><b>🧑‍🤝‍🧑 Knows who's talking</b><br>On-device voiceprint recognizes you and the people you know. Recurring unknown voices get a "who is this?" prompt — like face grouping in a photo app.</td>
+<td><b>🧑‍🤝‍🧑 Knows who's talking</b><br>On-device voiceprint recognizes you and the people you know. Long-press any line and pick "who is this?" to teach it a new voice.</td>
 </tr>
 <tr>
 <td><img src="docs/media/organize.jpg"></td>

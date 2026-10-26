@@ -18,6 +18,7 @@ import java.time.LocalDate
 /**
  * 把已转写的句子整理成事件。按“段落”处理：相邻两句间隔超过 [GAP_MS] 就算另一段；
  * 一段要等最后一句过去 [GAP_MS]、且这段时间附近没有还没转写完的录音，才算说完了，才整理，避免一件事被切成两半。
+ * 一直在说、段落迟迟不结束时，超过 [LONG_MS] 就先在已过去 [GAP_MS] 的部分里挑最长的停顿切开，整理前半截。
  * 每段只整理一次；格式错误连续 [MAX_FORMAT_FAILURES] 次就放弃这段（标为已整理、不出事件），避免反复花钱。
  */
 class DigestRunner(
@@ -65,7 +66,9 @@ class DigestRunner(
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             var waiting = 0
             for (session in sessions) {
-                if (closed(session, force)) chunks.addAll(session.chunked(MAX_LINES)) else waiting += session.size
+                val ready = if (closed(session, force)) session else settledPrefix(session)
+                chunks.addAll(ready.chunked(MAX_LINES))
+                waiting += session.size - ready.size
             }
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
             for ((index, chunk) in chunks.withIndex()) {
@@ -154,6 +157,31 @@ class DigestRunner(
         return quietLongEnough && dao.unfinishedSegments(start - GAP_MS, if (force) end else end + GAP_MS) == 0
     }
 
+    /**
+     * 段落还没结束但已经说了很久：只看已过去 [GAP_MS] 的句子（后面不会再插进新句子），
+     * 前半截至少 [MIN_PREFIX_MS] 长，在其中最长的停顿处切开，返回可以先整理的前半截；不满足返回空。
+     */
+    internal suspend fun settledPrefix(session: List<TranscriptLineEntity>): List<TranscriptLineEntity> {
+        val start = session.first().startAt
+        val settled = now() - GAP_MS
+        if (settled - start < LONG_MS) return emptyList()
+        var cut = -1
+        var bestGap = -1L
+        var prefixEnd = Long.MIN_VALUE
+        for (i in 0 until session.size - 1) {
+            prefixEnd = maxOf(prefixEnd, session[i].endAt)
+            if (prefixEnd > settled) break
+            if (prefixEnd - start < MIN_PREFIX_MS) continue
+            val gap = session[i + 1].startAt - prefixEnd
+            if (gap >= bestGap) { bestGap = gap; cut = i }
+        }
+        if (cut < 0) return emptyList()
+        val prefix = session.subList(0, cut + 1)
+        if (voiceprintReady() && dao.voiceprintPending(prefix.map { it.segmentId }.distinct()) > 0) return emptyList()
+        val end = prefix.maxOf { it.endAt }
+        return if (dao.unfinishedSegments(start - GAP_MS, end) == 0) prefix else emptyList()
+    }
+
     private fun failed(firstLineId: Long): Int {
         val n = prefs.getInt("fail-$firstLineId", 0) + 1
         prefs.edit().putInt("fail-$firstLineId", n).apply()
@@ -169,6 +197,10 @@ class DigestRunner(
 
     companion object {
         const val GAP_MS = 10 * 60_000L
+        /** 段落持续这么久还没结束，就先整理前面已稳定的部分 */
+        const val LONG_MS = 30 * 60_000L
+        /** 先整理的前半截至少这么长，避免切出零碎的小事件 */
+        const val MIN_PREFIX_MS = 10 * 60_000L
         const val MAX_LINES = 300
         const val MAX_FORMAT_FAILURES = 3
 

@@ -1,0 +1,17 @@
+{
+  "runtime": "1.25.1",
+  "scope": "macOS CPU，合成人声和文本；不是 Android 真机验收",
+  "vad_frames": 95,
+  "speaker_dimensions": 192,
+  "search_dimensions": 512,
+  "search_scores": [
+    0.5120717287063599,
+    0.5063176155090332,
+    0.42259567975997925
+  ],
+  "comparison": {
+    "vad_max_abs": 0.0,
+    "speaker_cosine": 1.0,
+    "search_min_cosine": 0.9999998807907104
+  }
+}

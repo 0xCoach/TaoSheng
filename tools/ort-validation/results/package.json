@@ -1,0 +1,29 @@
+{
+  "libonnxruntime.so": {
+    "matches_official_1_25_1": true,
+    "sha256": "b87030d6d0876af371e00a99368f01a05ceb8ed36f88859e30ee8c3649811acd"
+  },
+  "libonnxruntime4j_jni.so": {
+    "matches_official_1_25_1": true,
+    "sha256": "cd11ea73f2e9b1d799b936d1dfc8a13719832a8244cd1b12d6f58bda1f2d1ddf"
+  },
+  "unchanged_native_libraries_and_models": [
+    "lib/arm64-v8a/libQnnHtp.so",
+    "lib/arm64-v8a/libQnnHtpV75Skel.so",
+    "lib/arm64-v8a/libQnnHtpV75Stub.so",
+    "lib/arm64-v8a/libQnnSystem.so",
+    "lib/arm64-v8a/libandroidx.graphics.path.so",
+    "lib/arm64-v8a/libmlkit_google_ocr_pipeline.so",
+    "lib/arm64-v8a/libresound_asr_ort.so",
+    "lib/arm64-v8a/libsherpa-onnx-jni.so",
+    "assets/silero_vad.onnx",
+    "assets/voiceprint/campplus.onnx"
+  ],
+  "abi": "arm64-v8a",
+  "retried_input_tests": {
+    "tests": 8,
+    "failures": 0
+  },
+  "apk_bytes": 94913228,
+  "apk_sha256": "9c47bda11d183c7e710a92091185ae2fe62b915c9bda4e49ea0559019eb6217a"
+}

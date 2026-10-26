@@ -17,7 +17,7 @@ android {
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 20
-        versionName = "0.2.6"
+        versionName = "0.2.6-ort1.25.1-test"
         // 只给小米 14 Pro 用：只打包 64 位 ARM 的原生库
         ndk { abiFilters += "arm64-v8a" }
     }
@@ -75,7 +75,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.25.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("org.json:json:20240303")

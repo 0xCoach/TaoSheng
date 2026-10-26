@@ -17,3 +17,8 @@ tools/review-probe/__pycache__/
 # 技能离线实测的本机数据及原始响应
 tools/skills-probe/private/
 tools/skills-probe/__pycache__/
+
+# 签名文件不进仓库
+*.jks
+*.keystore
+signing.properties

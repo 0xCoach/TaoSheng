@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -22,11 +24,24 @@ android {
 
     packaging { jniLibs { useLegacyPackaging = true } }
 
+    // 正式签名只放在负责人电脑上（~/.config/taosheng/signing.properties），不进仓库；
+    // 其他人编译时找不到就退回调试签名，不影响编译
+    val releaseSigning = File(System.getProperty("user.home"), ".config/taosheng/signing.properties")
+        .takeIf { it.isFile }
+        ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
+    signingConfigs {
+        if (releaseSigning != null) create("release") {
+            storeFile = File(releaseSigning.getProperty("storeFile"))
+            storePassword = releaseSigning.getProperty("storePassword")
+            keyAlias = releaseSigning.getProperty("keyAlias")
+            keyPassword = releaseSigning.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // 自用：正式版先用调试签名安装，之后再换自己的签名
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (releaseSigning != null) "release" else "debug")
         }
     }
 

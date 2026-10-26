@@ -119,7 +119,7 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 
 **v0.2.0** (2026-10-26, first public release): [TaoSheng-v0.2.0-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk) (~88 MB) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: `487ca9bce84bec90a92d294d4c2b2c08470847a78ee186cbae7b97cba9d3b7ca`. The APK is signed with a development key; a future switch to a release key will require uninstalling first (back up in 数据备份 before that).
+arm64 Android 10+ only. SHA-256: `a8355d3de06cb912db94d92be2a6cd615f3d4dcf1d094e7a78a5520c4c8caceb`.
 
 ### Build from source
 

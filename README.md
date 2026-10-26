@@ -130,9 +130,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 - 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
 - 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
 - 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
-- 文件校验（SHA-256）：`487ca9bce84bec90a92d294d4c2b2c08470847a78ee186cbae7b97cba9d3b7ca`
-
-> 当前安装包使用开发签名。以后换成正式签名时，需要先卸载旧版再装新版（卸载前记得先在“数据备份”里备份一次）。
+- 文件校验（SHA-256）：`a8355d3de06cb912db94d92be2a6cd615f3d4dcf1d094e7a78a5520c4c8caceb`
+- 正式签名证书指纹（SHA-256）：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`。只认这个签名的安装包，别处下载的改装版可能被动过手脚。
 
 ### 从源码编译
 

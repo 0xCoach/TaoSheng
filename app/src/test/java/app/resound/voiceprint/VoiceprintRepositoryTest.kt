@@ -117,11 +117,11 @@ class VoiceprintRepositoryTest {
         enroll()
         val cold = createRepository()
         assertTrue(cold.isReady()) // 不能用尚未刷新的 StateFlow 初值做整理门禁。
-        assertFalse(cold.run()); assertEquals(4, computations)
+        assertFalse(cold.run()); assertEquals(5, computations)
         val lines = db.voiceprint().lines(segment.id)
         assertTrue(lines.all { it.speakerName == "我" && it.speakerScore == 1f })
         assertEquals(clock, db.transcribe().segment(segment.id).voiceprintProcessedAt)
-        assertFalse(cold.run()); assertEquals(4, computations)
+        assertFalse(cold.run()); assertEquals(5, computations)
         assertTrue(DigestPrompt.transcript(lines).first.contains("我："))
         Unit
     }
@@ -133,7 +133,7 @@ class VoiceprintRepositoryTest {
         assertTrue(db.voiceprint().lines(different.id).all { it.speakerName == null && it.speakerScore == 0f })
         assertTrue(db.voiceprint().lines(short.id).all { it.speakerScore == null })
         assertNotNull(db.transcribe().segment(short.id).voiceprintProcessedAt)
-        assertEquals(4, computations)
+        assertEquals(5, computations)
     }
     @Test fun markMeIsGroupScopedDeduplicatedAndNotMeRemovesPoisonedSamplePermanently() = runBlocking {
         enroll()
@@ -141,7 +141,7 @@ class VoiceprintRepositoryTest {
         val (other, _) = segment(start = 10000, seconds = 2)
         action { repository.markMe(lines[0].id) }
         assertEquals(4, db.voiceprint().samples().size)
-        assertEquals(5000, db.voiceprint().samples().last().durationMillis)
+        assertEquals(2500, db.voiceprint().samples().last().durationMillis) // 只补所点句子，不再拼整组。
         action { repository.markMe(lines[1].id) }
         assertEquals(4, db.voiceprint().samples().size)
         action { repository.markNotMe(lines[1].id) }
@@ -239,20 +239,20 @@ class VoiceprintRepositoryTest {
         val (belowTime, _) = segment(start = 20000, seconds = 3)
         val (silentPart, _) = segment(start = 30000, seconds = 3)
         val (excluded, excludedLines) = segment(start = 40000, seconds = 3)
-        audio[boundary.path] = ShortArray(48000) { 800 }
-        audio[belowScore.path] = ShortArray(48000) { 799 }
-        audio[belowTime.path] = ShortArray(47999) { 1000 }
-        audio[silentPart.path] = ShortArray(48000) { if (it < 320) 0 else 1000 }
+        audio[boundary.path] = ShortArray(32000) { 850 }
+        audio[belowScore.path] = ShortArray(48000) { 849 }
+        audio[belowTime.path] = ShortArray(31999) { 1000 }
+        audio[silentPart.path] = ShortArray(32000) { if (it < 320) 0 else 1000 }
         repository = LocalVoiceprintRepository(db, scope, { audio.getValue(it.path) },
             { SpeakerEmbedding { scoredVector(it.first() / 1000f) } }, { scheduled.trySend(Unit); Unit }, { clock })
         action { repository.markNotMe(excludedLines.first().id) }
         assertFalse(repository.run())
         val auto = db.voiceprint().samples().filter { it.source == "auto" }
         assertEquals(listOf(boundary.id), auto.map { it.segmentId })
-        assertEquals(3000L, auto.single().durationMillis)
-        assertEquals(0.8f, db.voiceprint().lines(boundary.id).first().speakerScore!!, 0.00001f)
+        assertEquals(2000L, auto.single().durationMillis)
+        assertEquals(0.85f, db.voiceprint().lines(boundary.id).first().speakerScore!!, 0.00001f)
         assertNull(db.voiceprint().lines(excluded.id).first().speakerScore)
-        // 样本会改变下一轮平均向量；再次只排队已入样本的组，验证同组去重。
+        // 自动样本不参与打分；再次排队已入样本的组，验证同组去重。
         db.transcribe().update(db.transcribe().segment(boundary.id).copy(voiceprintProcessedAt = null))
         assertFalse(repository.run())
         assertEquals(1, db.voiceprint().samples().count { it.segmentId == boundary.id })
@@ -283,8 +283,10 @@ class VoiceprintRepositoryTest {
 
     @Test fun confirmingAutoSamplePromotesItWithoutDecodingAndProtectsItFromEviction() = runBlocking {
         enroll(); val (segment, lines) = segment(seconds = 3)
+        segment(start = 10000, seconds = 1) // 保留另一个有缓存的段，让后续处理执行自动样本淘汰。
         repository.run()
         val original = db.voiceprint().samples().single { it.source == "auto" }
+        assertTrue(File(segment.path).delete()) // 音频过期才复用已有样本，不重新解码。
         failDecode = true
         action { repository.markMe(lines.first().id) }
         val promoted = db.voiceprint().samples().single { it.segmentId == segment.id }
@@ -348,26 +350,32 @@ class VoiceprintRepositoryTest {
         db.transcribe().insertLines(namedLines.map { it.copy(speakerName = "同事") })
         repository = LocalVoiceprintRepository(db, scope, { file ->
             check(!failDecode); audio.getValue(file.path)
-        }, { SpeakerEmbedding { pcm -> computations++; if (pcm.first() == 700.toShort()) scoredVector(0.7f) else vector(0) } },
+        }, { SpeakerEmbedding { pcm -> computations++; if (pcm.first() == 700.toShort()) scoredVector(0.55f) else vector(0) } },
             { scheduled.trySend(Unit); Unit }, { clock })
         repository.run()
         assertEquals("我", db.voiceprint().lines(target.id).first().speakerName)
-        val (correction, correctionLines) = segment(start = 20000, seconds = 40, sign = -1)
-        // 新样本与目标相反，使目标分数从 0.70 降到低于 SURE。
+        assertEquals(0.55f, db.voiceprint().lines(target.id).first().speakerScore!!, 0.00001f)
+        val (correction, correctionLines) = segment(start = 20000, seconds = 3, sign = -1)
+        assertTrue(File(correction.path).delete()) // 此段仅触发排除，不引入未缓存音频。
+        // Top-3 不按时长加权：替换两条可信模板才会使 0.55 降到当前 SURE=0.50 以下。
+        val originalSamples = db.voiceprint().samples().filter { it.source == "enroll" }
         val correctedVector = FloatArray(192).apply { this[1] = -1f }
-        db.voiceprint().saveSample(VoiceprintSampleEntity(source = "line", sourceLineId = correctionLines.first().id,
-            segmentId = correction.id, groupKey = "tag:0", vector = VoiceprintMath.encode(correctedVector),
-            durationMillis = 40000, createdAt = clock))
+        originalSamples.take(2).forEach {
+            db.voiceprint().saveSample(it.copy(vector = VoiceprintMath.encode(correctedVector)))
+        }
+        // 排除纠正段，无需提取新声音；目标录音保留，后台必须命中窗口缓存。
         failDecode = true
         val before = computations
-        action { repository.markMe(correctionLines.first().id) }
+        action { repository.markNotMe(correctionLines.first().id) }
         assertFalse(repository.run())
         assertEquals(before, computations)
         assertNull(db.voiceprint().lines(target.id).first().speakerName)
-        assertTrue(db.voiceprint().lines(target.id).first().speakerScore!! < VoiceprintThresholds.SURE)
+        assertTrue(db.voiceprint().lines(target.id).first().speakerScore!! < WindowedVoiceprint.SURE)
         assertTrue(db.voiceprint().lines(named.id).all { it.speakerName == "同事" })
+        originalSamples.forEach { db.voiceprint().saveSample(it) }
         action { repository.markNotMe(correctionLines.first().id) }
         assertFalse(repository.run())
+        assertEquals(before, computations)
         assertEquals("我", db.voiceprint().lines(target.id).first().speakerName)
         action { repository.reset() }
         assertTrue(db.voiceprint().lines(named.id).all { it.speakerName == "同事" && it.speakerScore == null })
@@ -381,7 +389,12 @@ class VoiceprintRepositoryTest {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         repository = createRepository()
         enroll()
-        val (segment, lines) = segment(seconds = 2) // 不会成为自动样本，只能从缓存取向量。
+        val (segment, _) = segment(seconds = 3)
+        // 单句 1.5 秒，窗口键与点击范围一致，且低于自动补样本的 2 秒门槛。
+        db.transcribe().deleteLines(segment.id)
+        db.transcribe().insertLines(listOf(TranscriptLineEntity(segmentId = segment.id,
+            startAt = segment.startAt, endAt = segment.startAt + 1500, text = "短句", speakerTag = "0")))
+        val lines = db.voiceprint().lines(segment.id)
         repository.run()
         assertFalse(db.voiceprint().samples().any { it.segmentId == segment.id })
         scope.coroutineContext[Job]!!.cancelAndJoin(); db.close()
@@ -389,7 +402,7 @@ class VoiceprintRepositoryTest {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         repository = LocalVoiceprintRepository(db, scope, { error("不得重新解码") }, { error("不得重新加载模型") },
             { scheduled.trySend(Unit); Unit }, { clock })
-        File(segment.path).delete()
+        assertTrue(File(segment.path).delete())
         action { repository.markMe(lines.first().id) }
         assertFalse(repository.run())
         assertEquals("line", db.voiceprint().samples().single { it.segmentId == segment.id }.source)

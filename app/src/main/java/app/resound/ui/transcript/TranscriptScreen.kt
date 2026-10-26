@@ -365,6 +365,19 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
             Toggle(wifiOnly) { settings.setWifiOnly(it) }
         }
 
+        if (app.resound.AppGraph.isPlaybackSkipReady) {
+            val skip by app.resound.AppGraph.playbackSkip.enabled.collectAsState()
+            if (!local) Divider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("外放声音时不转写", style = RsType.body, color = c.text)
+                    Text(if (skip) "手机扬声器在放视频、音乐时录到的先不转写，原话里可单段“仍然转写”；戴耳机不受影响"
+                        else "外放时录到的也照常转写，视频里的声音可能混进原话", style = RsType.caption, color = c.textSecondary)
+                }
+                Toggle(skip) { app.resound.AppGraph.playbackSkip.setEnabled(it) }
+            }
+        }
+
         if (ready) {
             Divider()
             Row(verticalAlignment = Alignment.CenterVertically) {

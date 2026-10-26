@@ -5,6 +5,7 @@ import android.media.*
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -32,11 +33,23 @@ object PlaybackPolicy {
         return !external && outputs.any { it == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER || it == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE }
     }
 }
-/** 公共回调仅包含活跃播放器，身份被匿名化；本 App 当前没有音频播放器。 */
+/**
+ * 公共回调列出的是“还没释放”的播放器，不只是正在出声的：很多应用暂停、切走后播放器仍挂着，
+ * 只看列表会一直当成在外放。所以列表只用来判断“会不会走扬声器”，
+ * 真正在不在出声另问系统 isMusicActive（每 500 毫秒最多问一次）。本 App 当前没有音频播放器。
+ */
 class PlaybackMonitor(context: Context) : AutoCloseable {
     private val manager = context.getSystemService(AudioManager::class.java)
-    @Volatile var speakerPlaying = false
-        private set
+    @Volatile private var speakerPlayer = false
+    @Volatile private var musicActive = false
+    @Volatile private var checkedAt = 0L
+    @Volatile private var closed = false
+    val speakerPlaying: Boolean get() {
+        if (closed || !speakerPlayer) return false
+        val now = SystemClock.elapsedRealtime()
+        if (now - checkedAt >= ACTIVE_CHECK_MS) { musicActive = manager.isMusicActive; checkedAt = now }
+        return musicActive
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val callback = object : AudioManager.AudioPlaybackCallback() {
         override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) = update(configs)
@@ -54,7 +67,7 @@ class PlaybackMonitor(context: Context) : AutoCloseable {
     @Suppress("DEPRECATION")
     private fun update(configs: List<AudioPlaybackConfiguration>) {
         val outputs = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
-        speakerPlaying = configs.any {
+        speakerPlayer = configs.any {
             val routed = if (Build.VERSION.SDK_INT >= 33) it.audioDeviceInfo?.type else null
             PlaybackPolicy.speaker(it.audioAttributes.usage, routed, outputs)
         }
@@ -62,6 +75,7 @@ class PlaybackMonitor(context: Context) : AutoCloseable {
     override fun close() {
         manager.unregisterAudioPlaybackCallback(callback)
         manager.unregisterAudioDeviceCallback(devices)
-        speakerPlaying = false
+        closed = true
     }
+    private companion object { const val ACTIVE_CHECK_MS = 500L }
 }

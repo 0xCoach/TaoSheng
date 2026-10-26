@@ -40,6 +40,25 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 
 ## ✨ Highlights
 
+1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected.
+2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud, or any custom ASR.
+3. **⏱ Automatic transcribe + digest on your schedule** — every 15–720 minutes; review and skill times are configurable.
+4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker.
+5. **✅ Todos extracted automatically** — and marked done when you later say "sent it".
+6. **🃏 Daily cards & custom skills** — meeting notes, check-in, weekly review, mood diary; add your own with JSON + a prompt.
+7. **💬 Ask anything, with citations** — what you said or promised on any day, linked to the original lines.
+8. **🤖 Feed your agent** — daily transcripts + digests (Markdown + JSON) pushed as diffs to 10 channels.
+9. **☁️ Daily backup to WebDAV (Nutstore) and local** — incremental, 3 / 7 / 30-day versions, one-tap restore.
+10. **🧠 Bring your own LLM** — any OpenAI-compatible endpoint, including fully self-hosted.
+11. **🔒 Always on, even when locked** — foreground service + watchdog.
+12. **🔋 Records only speech** — on-device VAD; ~0.5% battery per hour in testing.
+13. **📺 Ignores media playback** and yields the mic to calls.
+14. **⌨️ Remembers keyboard dictation** (optional) with chat context.
+15. **🌙 Daily & weekly reviews**, pushed to you.
+16. **🔁 Repeated ideas merged** ("mentioned N times").
+17. **🔤 Hotwords**, **📂 audio import**, **🗂 timeline scrubbing & stars**.
+18. **🔐 Privacy first** — no account, keys in Keystore, audio deleted 24h after transcription, never hidden from people around you.
+
 <table>
 <tr>
 <td width="50%"><img src="docs/media/capture.jpg"></td>

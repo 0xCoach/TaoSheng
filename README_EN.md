@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -117,9 +117,9 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 
 ### Download
 
-**v0.2.0** (2026-10-26, first public release): [TaoSheng-v0.2.0-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk) (~88 MB) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
+**v0.2.1** (2026-10-26, latest): [TaoSheng-v0.2.1-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.1/TaoSheng-v0.2.1-arm64.apk) (~88 MB) — fixes false "speaker playback" detection, adds a toggle for transcribing during playback · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: `a8355d3de06cb912db94d92be2a6cd615f3d4dcf1d094e7a78a5520c4c8caceb`.
+arm64 Android 10+ only. SHA-256: `09b315efc59f972b10fb800dcecf279ebeb2e27fe641101fca843f2951333a2f`.
 
 ### Build from source
 

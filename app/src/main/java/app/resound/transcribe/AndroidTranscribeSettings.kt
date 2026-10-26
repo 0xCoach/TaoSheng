@@ -30,7 +30,13 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     val localStatus = _localStatus.asStateFlow()
     private val _modelRevision = MutableStateFlow(0)
     val modelRevision = _modelRevision.asStateFlow()
-    var npuFailed = false
+    /** 记住的 NPU 检查结果：true 通过、false 没通过、null 还没查过（或版本、模型变了） */
+    fun npuCheck(key: String): Boolean? = when (localPrefs.getString("npuCheck", null)) {
+        "pass:$key" -> true
+        "fail:$key" -> false
+        else -> null
+    }
+    fun recordNpuCheck(key: String, ok: Boolean) { localPrefs.edit().putString("npuCheck", "${if (ok) "pass" else "fail"}:$key").apply() }
     val customEndpoint get() = prefs.getString("endpoint", "")!!
     val customModel get() = prefs.getString("model", "")!!
     private val _ready = MutableStateFlow(false)
@@ -44,7 +50,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun download(backend: app.resound.transcribe.local.LocalBackend) = app.resound.transcribe.local.LocalModels.enqueue(context, backend)
     fun setLocalStatus(value: String) { _localStatus.value=value;localPrefs.edit().putString("actual",value).apply() }
     fun setSource(value: TranscribeSource) { prefs.edit().putString("source",value.name).commit();_source.value=value;_hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
-    fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;npuFailed=false;setLocalStatus("已选择 ${value.title}，下次转写时检查并使用");refreshReady();onChanged() }
+    fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 加速，下次转写时检查一次" else "已选择 CPU 兼容");refreshReady();onChanged() }
     fun saveCustom(endpoint: String, model: String) {
         OpenAiEndpoint.bases(endpoint)
         require(model.trim().isNotEmpty()) { "请填写模型名" }

@@ -30,9 +30,10 @@ class DigestLongSessionTest {
         })
     }
 
-    private fun runner(db: CaptureDatabase, now: Long, calls: MutableList<Int>): DigestRunner {
+    private fun runner(db: CaptureDatabase, now: Long, calls: MutableList<Int>, maxWait: Int? = null): DigestRunner {
         val client = LlmClient()
-        return DigestRunner(context, db.memory(), client, AndroidDigestSettings(context, client), { "测试" }, { true },
+        val settings = AndroidDigestSettings(context, client).also { s -> maxWait?.let(s::setMaxWaitMinutes) }
+        return DigestRunner(context, db.memory(), client, settings, { "测试" }, { true },
             now = { now }, readKey = { "synthetic" },
             request = { _, _, _, input -> calls += input.lines().count { it.contains("合成测试") }; LlmReply("""{"events":[],"items":[]}""", 1, 1) })
     }
@@ -67,5 +68,15 @@ class DigestLongSessionTest {
             assertFalse(runner(short, now = 35 * minute, calls).run())
             assertTrue(calls.isEmpty())
         } finally { short.close() }
+    }
+
+    @Test fun longerMaxWaitFromSettingsKeepsWaiting() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        try {
+            seed(db, minutes = 70)
+            val calls = mutableListOf<Int>()
+            assertFalse(runner(db, now = 70 * minute, calls, maxWait = 120).run())
+            assertTrue(calls.isEmpty())
+        } finally { db.close() }
     }
 }

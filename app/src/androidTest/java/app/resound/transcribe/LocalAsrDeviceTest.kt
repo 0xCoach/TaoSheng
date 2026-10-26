@@ -61,11 +61,11 @@ class LocalAsrDeviceTest {
                 var uploads=0
                 val result=provider.recognize(AsrAudio(audio,"ogg",3007),"local-model"){uploads++}
                 assertTrue(result.sentences.isNotEmpty());assertEquals(0,uploads)
-                assertTrue(settings.localStatus.value.contains(if(mode==LocalBackend.Npu) "NPU · 检查通过" else "CPU"))
+                assertTrue(settings.localStatus.value.contains(if(mode==LocalBackend.Npu) "NPU（检查已通过）" else "CPU"))
             }
-            settings.npuFailed=true
+            settings.recordNpuCheck(LocalModels.npuCheckKey(context),false)
             provider.recognize(AsrAudio(audio,"ogg",3007),"local-model"){fail("local must not upload")}
-            assertTrue(settings.localStatus.value.contains("回退 CPU"))
+            assertTrue(settings.localStatus.value.contains("改用 CPU"))
             val pcm=AsrAudioReader(context.cacheDir).readPcm(audio)
             CampPlusEmbedding(context).use{val embedding=it.compute(pcm);assertEquals(192,embedding.size);assertTrue(embedding.all{v->v.isFinite()})}
         } finally{settings.setBackend(backend);settings.setSource(source);settings.onChanged=changed;audio.delete()}

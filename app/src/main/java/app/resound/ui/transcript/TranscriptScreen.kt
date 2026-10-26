@@ -424,7 +424,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     Text("按设定间隔分批转写，完成后释放模型。录音不上传；识别时可能增加耗电。", style=RsType.caption,color=c.textSecondary)
     Spacer(Modifier.height(10.dp))
     Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
-    Text(if(supported) "检测到已适配芯片；首次运行检查 NPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
+    Text(if(supported) "检测到已适配芯片；第一次转写时检查一次 NPU，结果会记住。区分说话人始终用 CPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
     Text(actual,style=RsType.caption,color=c.accent)
     LocalBackend.entries.forEach { mode ->
         val downloaded=remember(revision,mode){settings.modelReady(mode)}

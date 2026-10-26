@@ -48,7 +48,7 @@ class LocalSessionDeviceTest {
         check(context.packageName.endsWith(".validation"))
         val settings = AppGraph.transcribeSettings as AndroidTranscribeSettings
         val source = settings.source.value; val backend = settings.backend.value
-        val failed = settings.npuFailed; val changed = settings.onChanged
+        val changed = settings.onChanged
         val prefs = context.getSharedPreferences("local-asr",0)
         val speakers = prefs.getBoolean("speakers-enabled",true)
         val connection = LocalAsrConnection.get(context)
@@ -87,7 +87,7 @@ class LocalSessionDeviceTest {
             val short = File(context.cacheDir,"session-short.ogg")
             context.assets.open("asr-test.ogg").use { input -> short.outputStream().use { input.copyTo(it) } }
             // 检查已判定 NPU 不可用时，实际成功运行 CPU 且复用同一服务进程。
-            settings.npuFailed = true
+            settings.recordNpuCheck(LocalModels.npuCheckKey(context), false)
             val fallback = LocalAsrProvider(context,settings).recognize(AsrAudio(short,"ogg",3007),"local") { fail("must not upload") }
             assertTrue(fallback.sentences.isNotEmpty())
             assertTrue(settings.localStatus.value.contains("回退 CPU"))
@@ -111,7 +111,7 @@ class LocalSessionDeviceTest {
             Unit
         } finally {
             prefs.edit().putBoolean("speakers-enabled",speakers).commit()
-            settings.setBackend(backend);settings.setSource(source);settings.npuFailed=failed;settings.onChanged=changed
+            settings.setBackend(backend);settings.setSource(source);settings.onChanged=changed
         }
     }
 }

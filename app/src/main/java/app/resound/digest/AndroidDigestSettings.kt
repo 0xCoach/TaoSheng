@@ -25,6 +25,20 @@ class AndroidDigestSettings(
                 .putString("customModel","doubao-seed-2-1-lite-260915").commit())
         }
     }
+    /** 两句话之间停多久算这段对话结束（分钟）；结束后才整理，避免一件事被切成两半 */
+    private val _pauseMinutes = MutableStateFlow(prefs.getInt("pauseMinutes", DEFAULT_PAUSE).coerceIn(PAUSE_RANGE))
+    val pauseMinutes = _pauseMinutes.asStateFlow()
+    /** 一直在说、对话迟迟不结束时，最多等多久先整理前面已稳定的部分（分钟） */
+    private val _maxWaitMinutes = MutableStateFlow(prefs.getInt("maxWaitMinutes", DEFAULT_MAX_WAIT).coerceIn(MAX_WAIT_RANGE))
+    val maxWaitMinutes = _maxWaitMinutes.asStateFlow()
+    fun setPauseMinutes(value: Int) {
+        val v = value.coerceIn(PAUSE_RANGE)
+        check(prefs.edit().putInt("pauseMinutes", v).commit()); _pauseMinutes.value = v
+    }
+    fun setMaxWaitMinutes(value: Int) {
+        val v = value.coerceIn(MAX_WAIT_RANGE)
+        check(prefs.edit().putInt("maxWaitMinutes", v).commit()); _maxWaitMinutes.value = v
+    }
     val customEndpoint get() = prefs.getString("customEndpoint","")!!
     val customModel get() = prefs.getString("customModel","")!!
     override val presets get() = listOf(
@@ -95,5 +109,12 @@ class AndroidDigestSettings(
         } catch (_: Exception) {
             Result.failure(IllegalStateException("测试失败，请重试"))
         }
+    }
+
+    companion object {
+        const val DEFAULT_PAUSE = 10
+        const val DEFAULT_MAX_WAIT = 30
+        val PAUSE_RANGE = 3..60
+        val MAX_WAIT_RANGE = 15..240
     }
 }

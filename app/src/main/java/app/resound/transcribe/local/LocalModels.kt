@@ -40,6 +40,11 @@ object LocalModels {
     }
     fun spec(backend: LocalBackend) = if (backend == LocalBackend.Npu) npu else cpu
     fun directory(context: Context, spec: ModelSpec) = File(context.noBackupFilesDir, "asr-models/${spec.id}")
+    /** NPU 检查结果的有效范围：App 版本或 NPU 模型文件变了就要重查 */
+    fun npuCheckKey(context: Context): String {
+        val version = context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+        return "$version:${File(directory(context, npu), npu.modelName).lastModified()}"
+    }
     fun ready(context: Context, spec: ModelSpec): Boolean {
         val d = directory(context, spec)
         return ModelVerification.matches(d,spec) || ModelVerification.legacy(d,spec)

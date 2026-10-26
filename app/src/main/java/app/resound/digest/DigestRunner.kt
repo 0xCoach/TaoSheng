@@ -88,6 +88,7 @@ class DigestRunner(
             _running.value = false
             gate.unlock()
             if (madeEvents) {
+                app.resound.PipelineProgress.stage(app.resound.PipelineProgress.Stage.Skills)
                 try { afterDigest(force) }
                 catch (e: CancellationException) { throw e }
                 catch (_: Exception) { /* 技能调度失败不影响已完成的整理。 */ }

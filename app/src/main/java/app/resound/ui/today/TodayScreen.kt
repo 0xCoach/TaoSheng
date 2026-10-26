@@ -66,6 +66,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import android.widget.Toast
 import app.resound.capture.CaptureStatsRepository
 import app.resound.transcribe.TranscriptRepository
+import app.resound.PipelineProgress.Stage
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -260,7 +261,9 @@ private fun OverviewCard(
     val recording = status.state == CaptureState.Recording
     // 还有录音没转写：按钮叫“立即转写”（同一个按钮会先转写、再整理）
     val toTranscribe = queue.pending + queue.failed
-    val busy = digest.running || queue.running
+    val pipeline by app.resound.PipelineProgress.state.collectAsState()
+    val stage = pipeline.stage
+    val busy = digest.running || queue.running || stage != null
     val stateText = when (status.state) {
         CaptureState.Recording -> "正在录音"
         CaptureState.Listening -> "正在聆听"
@@ -309,6 +312,7 @@ private fun OverviewCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when {
+                    stage != null -> stageLine(pipeline, queue.runDone, queue.runTotal)
                     digest.running -> "按已保存的原话计数"
                     queue.running -> "正在转写录音…"
                     toTranscribe > 0 -> "$toTranscribe 段录音待转写" + (queue.lastError?.let { " · $it" } ?: "")
@@ -331,13 +335,29 @@ private fun OverviewCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (busy) {
-                        // 转写阶段有真实进度（第几段/共几段），整理阶段转圈
-                        if (queue.running) ProgressRing(queue.runDone, queue.runTotal, Color(0xFFE8582A), Modifier.size(12.dp))
-                        else ProgressRing(digestProgress.done, digestProgress.total, Color(0xFFE8582A), Modifier.size(18.dp))
+                        // 转写、认人有真实进度（第几段/共几段），整理按批次，排队和生成卡片转圈
+                        val (done, total) = when {
+                            stage == Stage.Digest || (stage == null && digest.running) -> digestProgress.done to digestProgress.total
+                            stage == Stage.Transcribe && pipeline.total == 0 -> queue.runDone to queue.runTotal
+                            stage == Stage.Queued || stage == Stage.Skills -> 0 to 0
+                            stage != null -> pipeline.done to pipeline.total
+                            else -> queue.runDone to queue.runTotal
+                        }
+                        ProgressRing(done, total, Color(0xFFE8582A), Modifier.size(12.dp))
                         Spacer(Modifier.width(6.dp))
                     }
                     Text(
-                        when { queue.running -> runLabel(queue.runDone, queue.runTotal); busy -> digestProgress.label; else -> "现在整理" },
+                        when {
+                            stage == Stage.Queued -> "排队中"
+                            stage == Stage.Transcribe -> runLabel(if (pipeline.total > 0) pipeline.done else queue.runDone,
+                                if (pipeline.total > 0) pipeline.total else queue.runTotal, "转写")
+                            stage == Stage.Voiceprint -> runLabel(pipeline.done, pipeline.total, "认人")
+                            stage == Stage.Skills -> "生成卡片"
+                            stage == Stage.Digest -> digestProgress.label
+                            queue.running -> runLabel(queue.runDone, queue.runTotal)
+                            busy -> digestProgress.label
+                            else -> "现在整理"
+                        },
                         style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFFE8582A),
                     )
                 }
@@ -354,11 +374,48 @@ private fun OverviewCard(
         if (digest.running) {
             Spacer(Modifier.height(6.dp))
             DigestElapsedText(digestProgress, soft)
+        } else if (stage != null) {
+            Spacer(Modifier.height(6.dp))
+            StageElapsedText(pipeline, soft)
         } else if (digestProgress.completion != null) {
             Spacer(Modifier.height(6.dp))
             Text(digestProgress.completion!!, style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = soft)
         }
     }
+}
+
+/** 这一轮走到哪一步：第几步、做什么、做到第几段。转写段数在 runner 刚开始时可能还没报，先用转写队列的数 */
+private fun stageLine(p: app.resound.PipelineProgress.State, runDone: Int, runTotal: Int): String {
+    val steps = Stage.Digest.step
+    return when (val stage = p.stage) {
+        null -> ""
+        Stage.Queued -> "已排队 · ${p.detail ?: "马上开始…"}"
+        Stage.Transcribe -> {
+            val total = if (p.total > 0) p.total else runTotal
+            val done = if (p.total > 0) p.done else runDone
+            "第 1/$steps 步 · 转写录音" + if (total > 0) " ${minOf(done + 1, total)}/$total 段" else ""
+        }
+        Stage.Voiceprint -> "第 2/$steps 步 · 识别说话人" + if (p.total > 0) " ${minOf(p.done + 1, p.total)}/${p.total} 段" else ""
+        Stage.Digest -> "第 3/$steps 步 · ${stage.title}"
+        Stage.Skills -> "收尾 · ${stage.title}"
+    }
+}
+
+/** 本步已用多久，外加步骤里的细节（如本地转写正在“区分说话人 45%”）；每秒刷新，离开前台停止 */
+@Composable
+private fun StageElapsedText(p: app.resound.PipelineProgress.State, color: Color) {
+    var elapsed by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(owner) {
+        owner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) { elapsed = android.os.SystemClock.elapsedRealtime(); delay(1_000) }
+        }
+    }
+    val seconds = ((elapsed - p.since) / 1000).coerceAtLeast(0)
+    val used = if (seconds < 60) "$seconds 秒" else "${seconds / 60} 分 ${"%02d".format(seconds % 60)} 秒"
+    val detail = p.detail?.takeIf { p.stage != Stage.Queued }
+    Text((detail?.let { "$it · " } ?: "") + "这一步已用 $used",
+        style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 /** 仅让这一行跟随屏幕帧刷新；离开前台立即停止，后台任务不需要高频计时。 */

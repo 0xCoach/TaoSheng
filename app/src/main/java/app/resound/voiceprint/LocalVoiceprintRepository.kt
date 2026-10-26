@@ -248,7 +248,8 @@ class LocalVoiceprintRepository(
     private data class SegmentInput(val lines: List<TranscriptLineEntity>, val excluded: Set<String>, val groups: List<Group>)
 
     /** 返回 true 表示仍需重试。并发 worker 串行；每轮自动补样本只在下一轮参与平均。 */
-    suspend fun run(): Boolean = withContext(Dispatchers.IO) { rounds.withLock { process() } }
+    suspend fun run(onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): Boolean =
+        withContext(Dispatchers.IO) { rounds.withLock { process(onProgress = onProgress) } }
     data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
 
     /** 只返回样本状态，不返回声音/向量；供后续界面展示人工样本离群提示。 */
@@ -275,7 +276,7 @@ class LocalVoiceprintRepository(
         }
     }
 
-    private suspend fun process(selected: List<SegmentEntity>? = null): Boolean {
+    private suspend fun process(selected: List<SegmentEntity>? = null, onProgress: (Int, Int) -> Unit = { _, _ -> }): Boolean {
         val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people(), dao.sampleInputs().associate { it.sampleId to it.sourceId }) }
         val canIdentify = round.samples.groupBy { it.personId }.values.any(::ready)
         // 导入音频转写后就删除；即使还没有注册声纹，也先缓存特征供日后从原话补样本。
@@ -285,8 +286,9 @@ class LocalVoiceprintRepository(
         var lastError: String? = null
         var model: SpeakerEmbedding? = null
         try {
-            for (segment in pending) {
+            for ((index, segment) in pending.withIndex()) {
                 currentCoroutineContext().ensureActive()
+                onProgress(index, pending.size)
                 val input = gate.withLock {
                     if (revision != round.revision) return true
                     val lines = dao.lines(segment.id)

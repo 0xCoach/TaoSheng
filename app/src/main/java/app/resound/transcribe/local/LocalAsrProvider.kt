@@ -37,5 +37,5 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
         return call(audio,LocalBackend.Cpu).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "实际使用：CPU")}
     }
     private suspend fun call(audio:AsrAudio,backend:LocalBackend):AsrResult =
-        LocalAsrConnection.get(context).recognize(audio,backend,settings::setLocalStatus)
+        LocalAsrConnection.get(context).recognize(audio,backend){settings.setLocalStatus(it);app.resound.PipelineProgress.detail(it)}
 }

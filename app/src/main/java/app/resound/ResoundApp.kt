@@ -67,7 +67,7 @@ class ResoundApp : Application() {
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
-            updateProgress = transcripts::updateProgress, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
+            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
                 val network = connectivity.getNetworkCapabilities(connectivity.activeNetwork)

@@ -16,8 +16,8 @@ android {
         minSdk = 29
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 18
-        versionName = "0.2.4"
+        versionCode = 19
+        versionName = "0.2.5"
         // 只给小米 14 Pro 用：只打包 64 位 ARM 的原生库
         ndk { abiFilters += "arm64-v8a" }
     }

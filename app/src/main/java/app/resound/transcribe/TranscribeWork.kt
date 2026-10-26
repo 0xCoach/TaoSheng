@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.work.*
+import app.resound.PipelineProgress
+import app.resound.PipelineProgress.Stage
 import app.resound.ResoundApp
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -28,13 +30,16 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         if (!pipeline.tryLock()) return Result.retry()
         try {
             val app = applicationContext as ResoundApp
+            PipelineProgress.stage(Stage.Transcribe)
             val transcribeRetry = app.transcribeRunner.run()
-            val voiceprintRetry = app.voiceprintRepository.run()
+            PipelineProgress.stage(Stage.Voiceprint)
+            val voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
             app.voiceprintRepository.cleanupAudio()
+            PipelineProgress.stage(Stage.Digest)
             val digestRetry = app.voiceprintRepository.withStableResults { app.digestRunner.run() }
             app.voiceprintRepository.cleanupAudio()
             return if (transcribeRetry || voiceprintRetry || digestRetry) Result.retry() else Result.success()
-        } finally { pipeline.unlock() }
+        } finally { PipelineProgress.finish(); pipeline.unlock() }
     }
     companion object { private val pipeline = Mutex() }
 }
@@ -55,6 +60,7 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
      * 如果正在执行（上传中），追加一次后续运行，覆盖当前快照之后新增的导入段。查询 WorkManager 状态放到后台线程。
      */
     fun runNow() {
+        PipelineProgress.queued(waitingReason() ?: "马上开始…")
         Thread {
             val running = runCatching {
                 manager.getWorkInfosForUniqueWork(IMMEDIATE).get().any { it.state == WorkInfo.State.RUNNING }
@@ -65,6 +71,17 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
                     .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES).build())
         }.start()
     }
+    /** 点了马上跑但条件不满足时，给人看的原因；满足返回 null */
+    private fun waitingReason(): String? {
+        if ((settings as? AndroidTranscribeSettings)?.source?.value == TranscribeSource.Local) return null
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return "等网络连上后开始"
+        if (!caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)) return "等网络连上后开始"
+        if (settings.wifiOnly.value && !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
+            return "已设为只在 WiFi 下转写，连上 WiFi 后开始"
+        return null
+    }
+
     fun settingsChanged(scope: CoroutineScope) {
         schedule()
         scope.launch(Dispatchers.IO) {

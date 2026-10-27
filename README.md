@@ -15,7 +15,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.7-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.7/TaoSheng-v0.2.7-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -150,7 +150,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 > 也可以直接用 Android Studio 打开项目，点运行。
 >
-> **骁龙 8 Elite / 8 Gen 5（Oryon 架构，如 OPPO Find N6）兼容说明**：`onnxruntime-android:1.23.2` 在检测到 `HWCAP2_SME` 时会错误派发至 KleidiAI SME2 算子（`ptrue pn9.b`），导致收音服务初始化 Silero VAD / CAM++ 时触发 `SIGILL` 闪退。`app/build.gradle.kts` 已内置原生库打包补丁钩子（`patchOnnxRuntimeOryonSme`），编译时会自动将 `libonnxruntime.so` 中 `MLAS_CPUIDINFO.has_arm_sme_` 置零并回退至标准 ARM64 NEON 算子；也可使用 `scripts/patch_onnxruntime_sme2.py` 独立校验或修补。
+> **部分 Oryon 机型的闪退修复**：从 v0.2.7 起升级官方 `onnxruntime-android:1.25.1`，修复旧版在部分仅支持 SME1 的设备上错误派发 SME2 算子导致的 `SIGILL`。不再使用二进制补丁。基于相同依赖的测试版已获 OPPO Find N6 和小米 pandora（25098PN5AC）用户复测通过；其他机型仍欢迎反馈。
 
 ### 第一次使用（约 5 分钟）
 
@@ -247,6 +247,9 @@ app/src/main/java/app/resound/
 - 云端转写和大模型按服务商价格计费，费用由你自己的账号承担；用本地转写可以省掉转写费用。
 
 ## 🙏 致谢
+
+- [@ethansunqing](https://github.com/ethansunqing)：在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中报告并定位 OPPO Find N6 的 SIGILL 闪退，提供初始二进制补丁方案，并完成 ONNX Runtime 1.25.1 升级后的真机复测。
+- [@brookDeng](https://github.com/brookDeng)：补充小米 pandora（25098PN5AC）的独立故障分析，以及升级测试版后的覆盖安装、数据保留和前后台聆听复测。
 
 - [Omi](https://github.com/BasedHardware/omi)——开源 AI 可穿戴设备，给了涛声最初的灵感
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0）——本地转写、分段与声纹的运行框架

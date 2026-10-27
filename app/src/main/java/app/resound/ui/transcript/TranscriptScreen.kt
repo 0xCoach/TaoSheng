@@ -1,5 +1,7 @@
 package app.resound.ui.transcript
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -121,6 +123,7 @@ fun TranscriptScreen(
     val segments by remember(date) { repo.day(date) }.collectAsState(initial = null)
     val hasKey by settings.ready.collectAsState()
     val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsState()?.value == true
+    val local = (settings as? AndroidTranscribeSettings)?.source?.collectAsState()?.value == TranscribeSource.Local
     var settingsOpen by remember { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
@@ -128,7 +131,7 @@ fun TranscriptScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
-            QueueCard(repo, hasKey, realtime, settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
+            QueueCard(repo, hasKey, realtime, local, settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
         // 收起时不占位置（用列表自带的出现/消失动画）
         if (settingsOpen || !hasKey) item(key = "settings") { SettingsCard(settings, onSaved = { settingsOpen = false }) }
@@ -165,7 +168,7 @@ fun TranscriptScreen(
 // ---------- 队列状态 ----------
 
 @Composable
-private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boolean, settingsShown: Boolean, onToggleSettings: () -> Unit) {
+private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boolean, local: Boolean, settingsShown: Boolean, onToggleSettings: () -> Unit) {
     val c = Rs.colors
     val q by repo.queue.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -194,7 +197,7 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
             }
             Spacer(Modifier.weight(1f))
             Text(
-                if (settingsShown) "收起模型设置" else "模型设置",
+                if (settingsShown) "收起设置" else "模型和转写设置",
                 style = RsType.subhead,
                 color = c.accent,
                 modifier = Modifier.springClick(onToggleSettings).padding(4.dp),
@@ -210,8 +213,8 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
         AnimatedVisibility(q.running) {
             ProgressSweep(Modifier.fillMaxWidth().padding(top = 14.dp).height(4.dp))
         }
-        // 云端用量：用过才显示，一行小字；本地转写不计
-        if (q.usedSecondsTotal > 0) {
+        // 云端用量：用过才显示，一行小字；正在用本地转写时不显示（与本地无关）
+        if (q.usedSecondsTotal > 0 && !local) {
             Spacer(Modifier.height(12.dp))
             Text(
                 "云端转写 今天 ${usage(q.usedSecondsToday)} · 累计 ${usage(q.usedSecondsTotal)}，费用以账单为准",
@@ -431,7 +434,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     val revision by settings.modelRevision.collectAsState()
     val supported=LocalModels.npuSupported()
     Text("SenseVoice · 离线识别", style=RsType.body,color=c.text)
-    Text("录音不出手机。按上面“多久转写一次”识别；说话期间模型常驻，安静 6 分钟后释放内存。", style=RsType.caption,color=c.textSecondary)
+    Text("录音不出手机。按下面“多久转写一次”识别；说话期间模型常驻，安静 6 分钟后释放内存。", style=RsType.caption,color=c.textSecondary)
     Spacer(Modifier.height(10.dp))
     Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
     Text(if(supported) "检测到已适配芯片；第一次转写时检查一次 NPU，结果会记住。区分说话人始终用 CPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
@@ -472,14 +475,19 @@ private fun Divider() {
 
 /** 胶囊分段选择。 */
 @Composable
-private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, fill: Boolean = false, onSelect: (T) -> Unit) {
     val c = Rs.colors
-    Row(Modifier.clip(CircleShape).background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
+    // fill：选项多时平分整行、文字放不下自动缩小，不会挤出屏幕或折成竖排
+    Row(Modifier.then(if (fill) Modifier.fillMaxWidth() else Modifier).clip(CircleShape)
+        .background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
         options.forEach { option ->
             val on = option == selected
             val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
-            Box(Modifier.clip(CircleShape).background(bg).springClick { onSelect(option) }.padding(horizontal = 16.dp, vertical = 7.dp)) {
-                Text(label(option), style = RsType.subhead, color = if (on) c.text else c.textSecondary)
+            Box(Modifier.then(if (fill) Modifier.weight(1f) else Modifier).clip(CircleShape).background(bg).springClick { onSelect(option) }
+                .padding(horizontal = if (fill) 4.dp else 16.dp, vertical = 7.dp), contentAlignment = Alignment.Center) {
+                if (fill) Text(label(option), style = RsType.subhead, color = if (on) c.text else c.textSecondary, maxLines = 1, softWrap = false,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = RsType.subhead.fontSize))
+                else Text(label(option), style = RsType.subhead, color = if (on) c.text else c.textSecondary)
             }
         }
     }
@@ -499,7 +507,7 @@ internal fun IntervalChoice(interval: Int, realtime: Boolean? = null, onRealtime
     val valid = value != null && value in MIN_INTERVAL..MAX_INTERVAL
     val options = (if (realtime != null) listOf(REALTIME) else emptyList()) + presets + CUSTOM
     val selected = when { realtime == true -> REALTIME; custom -> CUSTOM; else -> interval }
-    Choice(options, selected, { when (it) { REALTIME -> "实时"; CUSTOM -> "自定义"; else -> "$it 分钟" } }) {
+    Choice(options, selected, { when (it) { REALTIME -> "实时"; CUSTOM -> "自定义"; else -> "${it}分钟" } }, fill = true) {
         when (it) {
             REALTIME -> { custom = false; onRealtime(true) }
             CUSTOM -> { custom = true; if (realtime == true) onRealtime(false) }

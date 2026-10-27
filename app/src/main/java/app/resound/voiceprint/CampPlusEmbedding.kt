@@ -14,7 +14,7 @@ fun interface SpeakerEmbedding {
 class CampPlusEmbedding(context: Context) : SpeakerEmbedding, AutoCloseable {
     private val env = OrtEnvironment.getEnvironment()
     private val session = OrtSession.SessionOptions().use { options ->
-        options.setIntraOpNumThreads(1); options.setInterOpNumThreads(1)
+        options.setIntraOpNumThreads(VoiceprintThreads.count); options.setInterOpNumThreads(1)
         env.createSession(context.assets.open("voiceprint/campplus.onnx").use { it.readBytes() }, options)
     }
     private val fbank = KaldiFbank()
@@ -32,4 +32,9 @@ class CampPlusEmbedding(context: Context) : SpeakerEmbedding, AutoCloseable {
         }
     }
     override fun close() = session.close()
+}
+
+/** 分人、声纹只能跑在 CPU 上：按核数用一半（8 核用 4 个，4 核用 2 个，2 核以下用 1 个），给录音和界面留余量 */
+internal object VoiceprintThreads {
+    val count = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)
 }

@@ -51,9 +51,6 @@ class DigestRunner(
         prefs.getString("lastError", null)?.takeUnless { it.contains("等待转写、声纹或对话结束") })
     val last = _last.asStateFlow()
 
-    /** 一段话为什么还不能整理；能整理返回 null */
-    internal enum class Wait { Voiceprint, Conversation, Transcribe }
-
     /** 用户点“现在整理”时置为 true：本轮不等 10 分钟，已转写完的都整理 */
     @Volatile var forceOnce = false
 
@@ -70,8 +67,7 @@ class DigestRunner(
             val sessions = sessions(dao.undigestedLines(), gapMillis())
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             for (session in sessions) {
-                val reason = waitReason(session, force)
-                val ready = if (reason == null) session else settledPrefix(session)
+                val ready = if (closed(session, force)) session else settledPrefix(session)
                 chunks.addAll(ready.chunked(MAX_LINES))
             }
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
@@ -156,35 +152,15 @@ class DigestRunner(
 
     private fun gapMillis() = settings.pauseMinutes.value * 60_000L
 
-    internal suspend fun closed(session: List<TranscriptLineEntity>, force: Boolean): Boolean = waitReason(session, force) == null
-
-    internal suspend fun waitReason(session: List<TranscriptLineEntity>, force: Boolean): Wait? {
+    internal suspend fun closed(session: List<TranscriptLineEntity>, force: Boolean): Boolean {
         val gap = gapMillis()
-        if (voiceprintReady() && dao.voiceprintPending(session.map { it.segmentId }.distinct()) > 0) return Wait.Voiceprint
+        if (voiceprintReady() && dao.voiceprintPending(session.map { it.segmentId }.distinct()) > 0) return false
         val start = session.first().startAt
         val end = session.maxOf { it.endAt }
-        if (!force && now() - end < gap) return Wait.Conversation
-        return if (dao.unfinishedSegments(start - gap, if (force) end else end + gap) == 0) null else Wait.Transcribe
+        val quietLongEnough = force || now() - end >= gap
+        return quietLongEnough && dao.unfinishedSegments(start - gap, if (force) end else end + gap) == 0
     }
 
-    /**
-     * 还没整理的句子此刻在等什么（只读本地数据库，不调大模型）：首页按实际原因说明，
-     * 如“3 句等这段对话结束（停 10 分钟算说完）”。“对话结束没有”随时间变化，由调用方定时重算。
-     */
-    suspend fun waitingNow(): String? {
-        val waiting = mutableMapOf<Wait, Int>()
-        for (session in sessions(dao.undigestedLines(), gapMillis()))
-            waitReason(session, false)?.let { waiting[it] = (waiting[it] ?: 0) + session.size }
-        return waitingText(waiting)
-    }
-
-    /** “3 句等对话停 10 分钟再整理”；多种原因用顿号连起来 */
-    private fun waitingText(waiting: Map<Wait, Int>): String? = waiting.entries.filter { it.value > 0 }
-        .sortedBy { it.key.ordinal }.joinToString("、") { (reason, n) -> when (reason) {
-            Wait.Conversation -> "$n 句等对话停 ${settings.pauseMinutes.value} 分钟再整理"
-            Wait.Transcribe -> "$n 句等附近录音转完"
-            Wait.Voiceprint -> "$n 句等认出说话人"
-        } }.ifEmpty { null }
 
     /**
      * 段落还没结束但已经说了很久：只看已过去停顿时长的句子（后面不会再插进新句子），

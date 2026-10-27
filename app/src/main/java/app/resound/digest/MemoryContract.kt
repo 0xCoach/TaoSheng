@@ -112,8 +112,6 @@ data class DigestState(
     val lastRunAt: Long?,
     val lastError: String?,
     val tokensToday: Long,
-    /** 还没整理的句子在等什么，例如“3 句等对话停 10 分钟再整理”；没有为 null */
-    val waiting: String? = null,
 )
 
 interface MemoryRepository {

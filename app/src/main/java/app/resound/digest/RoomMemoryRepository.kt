@@ -1,8 +1,5 @@
 package app.resound.digest
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.flow
 import app.resound.data.MemoryDao
 import app.resound.data.MemoryEventEntity
 import app.resound.data.MemoryItemEntity
@@ -134,16 +131,11 @@ class RoomMemoryRepository(
 
     override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
 
-    /** 待整理句数一变就重算原因，另每分钟重算一次（话停够久后原因会从“等对话结束”变成可以整理） */
-    private val waiting = combine(dao.observeUndigestedCount(), flow { while (true) { emit(Unit); delay(60_000) } }) { count, _ -> count }
-        .mapLatest { count -> if (count == 0) null else runCatching { runner.waitingNow() }.getOrNull() }
-
     override val state: StateFlow<DigestState> = combine(
-        dao.observeUndigestedCount(), runner.running, runner.last, dao.observeUsage(), waiting,
-    ) { pending, running, last, usage, waiting ->
+        dao.observeUndigestedCount(), runner.running, runner.last, dao.observeUsage(),
+    ) { pending, running, last, usage ->
         val today = usage.firstOrNull { it.day == LocalDate.now().toString() }
-        DigestState(pending, running, last.first, last.second, (today?.promptTokens ?: 0) + (today?.completionTokens ?: 0),
-            waiting.takeIf { pending > 0 })
+        DigestState(pending, running, last.first, last.second, (today?.promptTokens ?: 0) + (today?.completionTokens ?: 0))
     }.stateIn(scope, SharingStarted.Eagerly, DigestState(0, false, null, null, 0))
 
     override fun runNow() = runNowAction()

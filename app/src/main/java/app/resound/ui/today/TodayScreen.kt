@@ -324,7 +324,7 @@ private fun OverviewCard(
                     digest.running -> "按已保存的原话计数"
                     queue.running -> "正在转写录音…"
                     toTranscribe > 0 -> "$toTranscribe 段录音待转写" + (queue.lastError?.let { " · $it" } ?: "")
-                    else -> digestLine(digest.running, digest.pendingLines, digest.waiting, digest.lastRunAt, digest.lastError, hasKey, now)
+                    else -> digestLine(digest.running, digest.pendingLines, digest.lastRunAt, digest.lastError, hasKey, now)
                 },
                 style = RsType.caption,
                 color = soft,
@@ -459,7 +459,8 @@ private fun formatSpeech(ms: Long): String {
     }
 }
 
-private fun digestLine(running: Boolean, pending: Int, waiting: String?, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long): String = when {
+/** 只说结果：上次什么时候整理的；刚说的还没整理时加半句“刚说的稍后整理”，不讲句数和等待机制 */
+private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long): String = when {
     !hasKey -> "填好大模型密钥后，转写出的原话会自动整理成一件件事"
     running -> "正在把原话整理成事件…"
     error != null -> error
@@ -470,8 +471,7 @@ private fun digestLine(running: Boolean, pending: Int, waiting: String?, lastRun
         }
         if (pending > 0) {
             if (isNotEmpty()) append(" · ")
-            // 按实际原因说明在等什么；没有原因（还没算过）才只写句数
-            append(waiting ?: "$pending 句待整理")
+            append("刚说的稍后整理")
         }
         if (isEmpty()) append("还没整理过")
     }

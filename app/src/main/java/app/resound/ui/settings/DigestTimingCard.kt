@@ -55,7 +55,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings) {
         Text("对话超过 ${label(maxWait)} 还没结束，就在前面找个停顿切开，先整理前半截。",
             style = RsType.caption, color = c.textTertiary)
         Spacer(Modifier.height(10.dp))
-        Text("实际还要等下一次自动转写（在「原话与转写」里设间隔），或在“今天”页点“现在整理”。",
+        Text("转写是随说随转；整理在下一轮自动整理时进行（间隔在「原话与转写」里设），想马上看结果就在“今天”页点“现在整理”。",
             style = RsType.caption, color = c.textTertiary)
     }
 }

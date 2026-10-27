@@ -409,7 +409,7 @@ private fun stageLine(p: app.resound.PipelineProgress.State, runDone: Int, runTo
     }
 }
 
-/** 本步已用多久（毫秒，跟随屏幕帧刷新），外加步骤里的细节（如本地转写正在“区分说话人 45%”）；离开前台停止 */
+/** 本步已用多久（精确到 0.01 秒，跟随屏幕帧刷新），外加步骤里的细节（如本地转写正在“区分说话人 45%”）；离开前台停止 */
 @Composable
 private fun StageElapsedText(p: app.resound.PipelineProgress.State, color: Color) {
     var elapsed by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
@@ -419,7 +419,7 @@ private fun StageElapsedText(p: app.resound.PipelineProgress.State, color: Color
             while (true) withFrameMillis { elapsed = android.os.SystemClock.elapsedRealtime() }
         }
     }
-    val used = app.resound.formatMillis(elapsed - p.since)
+    val used = app.resound.formatElapsed(elapsed - p.since)
     val detail = p.detail?.takeIf { p.stage != Stage.Queued }
     Text((detail?.let { "$it · " } ?: "") + "这一步已用 $used",
         style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)

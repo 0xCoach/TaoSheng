@@ -10,7 +10,7 @@ import androidx.work.*
 import app.resound.PipelineProgress
 import app.resound.PipelineProgress.Stage
 import app.resound.ResoundApp
-import app.resound.formatMillis
+import app.resound.formatElapsed
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,15 +49,13 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             app.voiceprintRepository.cleanupAudio()
             val voiceprintMs = lap()
             var digestRetry = false
-            // 随说随转不整理，但要刷新“还没整理的句子在等什么”，首页说明才不会停在半小时前
-            if (early) runCatching { app.digestRunner.refreshWaiting() }
             if (!early) {
                 PipelineProgress.stage(Stage.Digest)
                 digestRetry = app.voiceprintRepository.withStableResults { app.digestRunner.run() }
                 app.voiceprintRepository.cleanupAudio()
             }
-            PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} ${if (early) "随说随转" else "完整"} 待转录音 ${formatMillis(pendingBefore)} · " +
-                "转写 ${formatMillis(transcribeMs)} · 声纹 ${formatMillis(voiceprintMs)}" + (if (early) "" else " · 整理 ${formatMillis(lap())}"))
+            PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} ${if (early) "随说随转" else "完整"} 待转录音 ${formatElapsed(pendingBefore)} · " +
+                "转写 ${formatElapsed(transcribeMs)} · 声纹 ${formatElapsed(voiceprintMs)}" + (if (early) "" else " · 整理 ${formatElapsed(lap())}"))
             return if (transcribeRetry || voiceprintRetry || digestRetry) Result.retry() else Result.success()
         } finally { PipelineProgress.finish(); pipeline.unlock() }
     }

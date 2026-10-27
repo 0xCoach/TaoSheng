@@ -28,11 +28,11 @@ class DigestProgressTest {
     private fun success() = LlmReply("""{"events":[],"items":[]}""", 1, 1)
     @Test fun elapsedShowsHundredthsAndFreezesAtCompletion() {
         val progress=DigestProgress(total=1,done=0,batch=1,batches=1,batchStartedAt=1000,startedAt=1000)
-        assertEquals("第 1/1 批 · 等待模型 1,259 毫秒",progress.detail(2259))
-        assertEquals("第 1/1 批 · 等待模型 1,260 毫秒",progress.detail(2260))
+        assertEquals("第 1/1 批 · 等待模型 1.25 秒",progress.detail(2259))
+        assertEquals("第 1/1 批 · 等待模型 1.26 秒",progress.detail(2260))
         val finished=progress.copy(done=1,finishedAt=2260)
-        assertEquals("本轮整理完成 · 用时 1,260 毫秒",finished.completion)
-        assertEquals("第 1/1 批 · 等待模型 1,260 毫秒",finished.detail(9000))
+        assertEquals("本轮整理完成 · 用时 1.26 秒",finished.completion)
+        assertEquals("第 1/1 批 · 等待模型 1.26 秒",finished.detail(9000))
         assertNull(progress.copy(finishedAt=2260).completion)
     }
     @Test fun countsOnlySavedBatchesAndFinishesAtTotal() = runBlocking {

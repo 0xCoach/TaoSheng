@@ -324,7 +324,7 @@ private fun OverviewCard(
                     digest.running -> "按已保存的原话计数"
                     queue.running -> "正在转写录音…"
                     toTranscribe > 0 -> "$toTranscribe 段录音待转写" + (queue.lastError?.let { " · $it" } ?: "")
-                    else -> digestLine(digest.running, digest.pendingLines, digest.lastRunAt, digest.lastError, hasKey, now)
+                    else -> digestLine(digest.running, digest.pendingLines, digest.waiting, digest.lastRunAt, digest.lastError, hasKey, now)
                 },
                 style = RsType.caption,
                 color = soft,
@@ -409,18 +409,17 @@ private fun stageLine(p: app.resound.PipelineProgress.State, runDone: Int, runTo
     }
 }
 
-/** 本步已用多久，外加步骤里的细节（如本地转写正在“区分说话人 45%”）；每秒刷新，离开前台停止 */
+/** 本步已用多久（毫秒，跟随屏幕帧刷新），外加步骤里的细节（如本地转写正在“区分说话人 45%”）；离开前台停止 */
 @Composable
 private fun StageElapsedText(p: app.resound.PipelineProgress.State, color: Color) {
     var elapsed by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(owner) {
         owner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-            while (true) { elapsed = android.os.SystemClock.elapsedRealtime(); delay(1_000) }
+            while (true) withFrameMillis { elapsed = android.os.SystemClock.elapsedRealtime() }
         }
     }
-    val seconds = ((elapsed - p.since) / 1000).coerceAtLeast(0)
-    val used = if (seconds < 60) "$seconds 秒" else "${seconds / 60} 分 ${"%02d".format(seconds % 60)} 秒"
+    val used = app.resound.formatMillis(elapsed - p.since)
     val detail = p.detail?.takeIf { p.stage != Stage.Queued }
     Text((detail?.let { "$it · " } ?: "") + "这一步已用 $used",
         style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -459,7 +458,7 @@ private fun formatSpeech(ms: Long): String {
     }
 }
 
-private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long): String = when {
+private fun digestLine(running: Boolean, pending: Int, waiting: String?, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long): String = when {
     !hasKey -> "填好大模型密钥后，转写出的原话会自动整理成一件件事"
     running -> "正在把原话整理成事件…"
     error != null -> error
@@ -470,7 +469,8 @@ private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: 
         }
         if (pending > 0) {
             if (isNotEmpty()) append(" · ")
-            append("$pending 句待整理")
+            // 按实际原因说明在等什么；没有原因（还没算过）才只写句数
+            append(waiting ?: "$pending 句待整理")
         }
         if (isEmpty()) append("还没整理过")
     }

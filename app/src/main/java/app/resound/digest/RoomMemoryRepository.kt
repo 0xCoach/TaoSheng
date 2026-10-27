@@ -132,10 +132,11 @@ class RoomMemoryRepository(
     override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
 
     override val state: StateFlow<DigestState> = combine(
-        dao.observeUndigestedCount(), runner.running, runner.last, dao.observeUsage(),
-    ) { pending, running, last, usage ->
+        dao.observeUndigestedCount(), runner.running, runner.last, dao.observeUsage(), runner.waiting,
+    ) { pending, running, last, usage, waiting ->
         val today = usage.firstOrNull { it.day == LocalDate.now().toString() }
-        DigestState(pending, running, last.first, last.second, (today?.promptTokens ?: 0) + (today?.completionTokens ?: 0))
+        DigestState(pending, running, last.first, last.second, (today?.promptTokens ?: 0) + (today?.completionTokens ?: 0),
+            waiting.takeIf { pending > 0 })
     }.stateIn(scope, SharingStarted.Eagerly, DigestState(0, false, null, null, 0))
 
     override fun runNow() = runNowAction()

@@ -40,3 +40,6 @@ object PipelineProgress {
 
     private fun now() = SystemClock.elapsedRealtime()
 }
+
+/** 处理用时统一按毫秒显示，如“12,810 毫秒”（整理、转写等各步的进度和完成提示共用） */
+fun formatMillis(ms: Long): String = "%,d 毫秒".format(java.util.Locale.CHINA, ms.coerceAtLeast(0))

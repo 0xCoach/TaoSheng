@@ -15,12 +15,9 @@ data class DigestProgress(
     fun detail(now: Long): String {
         if (batch == 0) return "正在统计待整理原话…"
         val elapsed = ((finishedAt ?: now) - batchStartedAt).coerceAtLeast(0)
-        return "第 $batch/$batches 批 · 等待模型 ${seconds(elapsed)}"
+        return "第 $batch/$batches 批 · 等待模型 ${app.resound.formatMillis(elapsed)}"
     }
     val completion: String? get() = finishedAt?.takeIf { total > 0 && done == total }?.let {
-        "本轮整理完成 · 用时 ${seconds((it - startedAt).coerceAtLeast(0))}"
-    }
-    private fun seconds(millis: Long): String {
-        return "${millis / 1000}.${((millis % 1000) / 10).toString().padStart(2, '0')} 秒"
+        "本轮整理完成 · 用时 ${app.resound.formatMillis(it - startedAt)}"
     }
 }

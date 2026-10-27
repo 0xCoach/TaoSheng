@@ -16,8 +16,8 @@ android {
         minSdk = 29
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 23
-        versionName = "0.2.8"
+        versionCode = 24
+        versionName = "0.2.9"
         // 只给小米 14 Pro 用：只打包 64 位 ARM 的原生库
         ndk { abiFilters += "arm64-v8a" }
     }
@@ -37,6 +37,9 @@ android {
             keyPassword = releaseSigning.getProperty("keyPassword")
         }
     }
+
+    // 升级前后核对数据的真机检查要与正式包同签名：-PtestBuildType=release
+    testBuildType = (project.findProperty("testBuildType") as String?) ?: "debug"
 
     buildTypes {
         release {

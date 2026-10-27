@@ -21,10 +21,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -441,7 +443,7 @@ private fun LinesHeader(n: Int, open: Boolean, onToggle: () -> Unit) {
 private fun LineRow(line: TranscriptLine) {
     val c = Rs.colors
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        Text(formatClock(line.startAt), style = RsType.caption, color = c.textTertiary, modifier = Modifier.width(44.dp).padding(top = 2.dp))
+        Text(formatClock(line.startAt), style = RsType.caption, color = c.textTertiary, modifier = Modifier.widthIn(min = 44.dp).padding(top = 2.dp))
         Column(Modifier.weight(1f)) {
             line.speakerName?.let { Text(it, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = if (it == "我") c.accent else c.textSecondary) }
             Text(line.text, style = RsType.body, color = c.text)
@@ -589,7 +591,7 @@ private fun RangePickerSheet(initial: Pair<LocalDate, LocalDate>, onPick: (Pair<
                 todayContentColor = c.accent,
                 dayInSelectionRangeContainerColor = c.accentSoft,
             )
-            DateRangePicker(state, Modifier.fillMaxWidth().height(460.dp), colors = colors, showModeToggle = false,
+            DateRangePicker(state, Modifier.fillMaxWidth().heightIn(max = 460.dp), colors = colors, showModeToggle = false,
                 title = null, headline = null)
             val s = state.selectedStartDateMillis
             val e = state.selectedEndDateMillis

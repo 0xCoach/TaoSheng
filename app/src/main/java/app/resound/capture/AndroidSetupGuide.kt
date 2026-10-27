@@ -17,13 +17,15 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
     private val prefs = context.getSharedPreferences("setup", Context.MODE_PRIVATE)
     override fun items(): List<SetupItem> {
         fun manual(key: String): Boolean? = if (prefs.getBoolean(key, false)) true else null
-        return listOf(
+        // 自启动、省电策略只有小米系（MIUI / 澎湃）有直达页面，别的品牌不显示，免得点进去打不开
+        val xiaomi = Build.MANUFACTURER.lowercase() in setOf("xiaomi", "redmi", "poco")
+        return listOfNotNull(
             SetupItem("mic", "麦克风权限", "在应用权限里允许使用麦克风。", ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
             SetupItem("notify", "通知权限", "允许通知，并允许录音中断提醒显示。", NotificationManagerCompat.from(context).areNotificationsEnabled() && (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)),
             SetupItem("battery", "忽略电池优化", "允许${context.appName}不受电池优化限制。", context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)),
-            SetupItem("autostart", "小米自启动", "在安全中心为${context.appName}开启自启动；系统不提供可靠查询，设置后请手动确认。", manual("autostart")),
-            SetupItem("powerkeeper", "省电策略：无限制", "将${context.appName}的省电策略设为无限制，设置后请手动确认。", manual("powerkeeper")),
-            SetupItem("lock", "最近任务锁定", "打开最近任务，长按${context.appName}卡片并点锁定；设置后请手动确认。", manual("lock")))
+            if (!xiaomi) null else SetupItem("autostart", "小米自启动", "在安全中心为${context.appName}开启自启动；系统不提供可靠查询，设置后请手动确认。", manual("autostart")),
+            if (!xiaomi) null else SetupItem("powerkeeper", "省电策略：无限制", "将${context.appName}的省电策略设为无限制，设置后请手动确认。", manual("powerkeeper")),
+            SetupItem("lock", "最近任务锁定", "打开最近任务，长按${context.appName}卡片并点锁定（不同手机叫法略有不同）；设置后请手动确认。", manual("lock")))
     }
     override fun open(key: String) {
         if (key == "lock") return // 最近任务锁定只有操作说明，没有可靠直达页面。

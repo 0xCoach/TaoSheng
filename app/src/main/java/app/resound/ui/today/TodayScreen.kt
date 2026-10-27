@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -437,9 +439,11 @@ private fun DigestElapsedText(progress: app.resound.digest.DigestProgress, color
 
 @Composable
 private fun BigStat(value: String, label: String, modifier: Modifier) {
-    Column(modifier) {
-        Text(value, style = RsType.number.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold), color = Color.White, maxLines = 1)
-        Text(label, style = RsType.caption, color = Color.White.copy(alpha = 0.8f))
+    Column(modifier.padding(end = 8.dp)) {
+        // 字体调大或屏幕窄时自动缩小，不截断“2小时14分”
+        Text(value, style = RsType.number.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold), color = Color.White, maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 24.sp))
+        Text(label, style = RsType.caption, color = Color.White.copy(alpha = 0.8f), maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = RsType.caption.fontSize))
     }
 }
 
@@ -551,10 +555,10 @@ private fun PendingCard(item: MemoryItem, modifier: Modifier, onOpen: () -> Unit
     val c = Rs.colors
     // 浅橙底：表示“需要你处理”，和下面的记录区分开
     RsCard(modifier.springClick(onOpen), padding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp), color = c.accentSoft) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // 放不下时日期换到下一行，不会被挤成一字一行
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, itemVerticalAlignment = Alignment.CenterVertically) {
             CategoryChip(item.category, item.kind)
-            Spacer(Modifier.weight(1f))
-            item.dueAt?.let { Text(friendlyDue(it, item.dueText), style = RsType.caption, color = c.accent) }
+            item.dueAt?.let { Text(friendlyDue(it, item.dueText), style = RsType.caption, color = c.accent, maxLines = 1, softWrap = false) }
         }
         Spacer(Modifier.height(8.dp))
         // 固定两行高度，并排的两张卡底部按钮对齐
@@ -582,7 +586,8 @@ private fun SmallPill(text: String, filled: Boolean, modifier: Modifier = Modifi
 fun CategoryChip(category: String, kind: String? = null) {
     val color = categoryColor(category)
     Box(Modifier.clip(CircleShape).background(color.copy(alpha = 0.13f)).padding(horizontal = 9.dp, vertical = 3.dp)) {
-        Text(if (kind != null && category == "待办") "待办 · $kind" else category, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = color)
+        Text(if (kind != null && category == "待办") "待办 · $kind" else category, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = color,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -686,7 +691,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
 private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit) {
     val c = Rs.colors
     Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.width(58.dp))
+        Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.widthIn(min = 58.dp))
         app.resound.ui.skills.SkillIcon(card.icon, 28.dp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -710,7 +715,7 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
             formatClock(event.startAt),
             style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold),
             color = if (quiet) c.textTertiary else c.accent,
-            modifier = Modifier.width(58.dp).padding(top = 1.dp),
+            modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp),
         )
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -903,7 +908,7 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                 RsCard(padding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
                     facts.forEachIndexed { i, (k, v) ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                            Text(k, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.width(56.dp))
+                            Text(k, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.widthIn(min = 56.dp))
                             Text(v, style = RsType.body, color = c.text)
                         }
                         if (i != facts.lastIndex) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))

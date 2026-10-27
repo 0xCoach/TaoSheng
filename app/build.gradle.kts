@@ -88,6 +88,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // 屏幕适配截图检查（Robolectric 在电脑上画界面，不需要模拟器）
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation("dev.chrisbanes.haze:haze:1.6.10")
     implementation("sh.calvin.reorderable:reorderable:2.4.3")

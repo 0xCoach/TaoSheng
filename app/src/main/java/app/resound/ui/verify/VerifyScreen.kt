@@ -1,5 +1,7 @@
 package app.resound.ui.verify
 
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.sp
 import app.resound.appDisplayName
 import android.Manifest
 import android.content.Intent
@@ -37,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -356,7 +359,7 @@ private fun StatTile(label: String, value: String, tint: Color?, modifier: Modif
         }
         Spacer(Modifier.height(6.dp))
         AnimatedContent(value, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "value") {
-            Text(it, style = RsType.number, color = c.text)
+            Text(it, style = RsType.number, color = c.text, maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = RsType.number.fontSize))
         }
     }
 }
@@ -486,7 +489,7 @@ private fun EventRow(e: WatchdogEvent, last: Boolean) {
             (if (e.detail?.contains("PACKAGE_REPLACED") == true) "App 升级后待恢复" else "开机后待恢复") to c.warning
     }
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Top) {
-        Text(formatClock(e.at), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.width(48.dp))
+        Text(formatClock(e.at), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.widthIn(min = 48.dp))
         Box(Modifier.padding(top = 5.dp, end = 12.dp)) { Dot(color, 8.dp) }
         Column(Modifier.weight(1f)) {
             Text(title, style = RsType.body, color = c.text)
@@ -507,7 +510,7 @@ private fun SetupSection(setup: SetupGuide) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { version++ }
     val items = remember(version) { setup.items() }
     val doneCount = items.count { it.done == true }
-    Section("小米后台设置", trailing = {
+    Section("后台设置", trailing = {
         Text("$doneCount / ${items.size} 已完成", style = RsType.caption, color = if (doneCount == items.size) c.good else c.accent)
     }) {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {

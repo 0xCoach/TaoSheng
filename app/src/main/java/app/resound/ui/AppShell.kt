@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.graphics.Brush
@@ -46,6 +47,10 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.runtime.CompositionLocalProvider
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.springClick
@@ -70,7 +75,10 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
     Box(Modifier.fillMaxSize().background(c.background)) {
         // 淡入淡出切换；各页的滚动位置等状态保留。页面是毛玻璃的取景来源
         Crossfade(tab, Modifier.hazeSource(haze), animationSpec = tween(200), label = "tab") { t ->
-            holder.SaveableStateProvider(t) { tabs[t].second() }
+            // 平板、折叠屏展开、横屏时内容不拉满：限制最大宽度并居中，手机上不受影响
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.widthIn(max = MaxContentWidth).fillMaxSize()) { holder.SaveableStateProvider(t) { tabs[t].second() } }
+            }
         }
         if (!keyboard) {
             // 页面底部渐隐：内容滚到底栏附近时慢慢淡进背景色，底栏不会和卡片撞色
@@ -108,18 +116,26 @@ private fun TabBar(labels: List<String>, selected: Int, onSelect: (Int) -> Unit,
             fallbackTint = HazeTint(c.card.copy(alpha = 0.96f))
             noiseFactor = 0f
         }.border(1.dp, rim, CircleShape))
+        // 底栏字最多放大到 1.15 倍（系统字体再大也不再跟），窄屏时收紧左右留白，保证五个页签一行放得下
+        val density = LocalDensity.current
+        val narrow = LocalConfiguration.current.screenWidthDp < 360
+        CompositionLocalProvider(LocalDensity provides Density(density.density, minOf(density.fontScale, 1.15f))) {
         Row(Modifier.padding(5.dp)) {
             labels.forEachIndexed { i, label ->
                 val on = i == selected
                 val bg by animateColorAsState(if (on) c.accentSoft else c.accentSoft.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "tabBg")
                 val fg by animateColorAsState(if (on) c.accent else c.textSecondary, label = "tabFg")
-                Box(Modifier.clip(CircleShape).background(bg).springClick { onSelect(i) }.padding(horizontal = 13.dp, vertical = 10.dp)) {
-                    Text(label, style = RsType.headline, color = fg)
+                Box(Modifier.clip(CircleShape).background(bg).springClick { onSelect(i) }.padding(horizontal = if (narrow) 9.dp else 13.dp, vertical = 10.dp)) {
+                    Text(label, style = RsType.headline, color = fg, maxLines = 1, softWrap = false)
                 }
             }
         }
+        }
     }
 }
+
+/** 宽屏上内容区的最大宽度，约等于大屏手机竖屏宽度的 1.5 倍。 */
+val MaxContentWidth = 640.dp
 
 /** 给页面底部留出悬浮胶囊的位置。 */
 val ShellBottomPadding = 76.dp

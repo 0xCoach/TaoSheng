@@ -9,6 +9,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -238,12 +239,15 @@ private fun Row1(title: String, value: String, dot: Color?, onClick: () -> Unit)
         Modifier.fillMaxWidth().springClick(onClick).padding(horizontal = 18.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
-        if (dot != null) {
-            Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(dot))
-            Spacer(Modifier.width(6.dp))
+        // 标题保持完整；右侧说明放不下时省略，不把标题挤成两行
+        Text(title, style = RsType.body, color = c.text, maxLines = 1, softWrap = false)
+        Row(Modifier.weight(1f).padding(start = 12.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            if (dot != null) {
+                Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(dot))
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(value, style = RsType.subhead, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         }
-        Text(value, style = RsType.subhead, color = c.textTertiary)
         Spacer(Modifier.width(8.dp))
         Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
     }

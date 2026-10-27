@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.resound.skills.CardQuote
@@ -173,10 +174,11 @@ fun SkillCardRow(card: SkillCard, modifier: Modifier = Modifier) {
         SkillIcon(card.icon, 36.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(card.skillName, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = skillInk(card.icon))
-                Text(" · " + cardTime(card), style = RsType.caption, color = c.textTertiary)
-            }
+            // 合成一段文字：放不下时自然换行，不会把时间挤成竖排
+            Text(androidx.compose.ui.text.buildAnnotatedString {
+                withStyle(androidx.compose.ui.text.SpanStyle(color = skillInk(card.icon), fontWeight = FontWeight.Medium)) { append(card.skillName) }
+                withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary)) { append(" · " + cardTime(card)) }
+            }, style = RsType.caption)
             Text(card.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 2)
             if (card.summary.isNotBlank()) Text(card.summary, style = RsType.subhead, color = c.textSecondary, maxLines = 2)
         }

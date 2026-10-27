@@ -18,21 +18,28 @@ import okhttp3.Request
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 
 enum class LocalBackend(val title: String) { Npu("NPU 加速"), Cpu("CPU 兼容") }
 data class ModelSpec(val id: String, val url: String, val archiveBytes: Long, val archiveHash: String,
-    val modelName: String, val modelBytes: Long, val modelHash: String, val needsTokens: Boolean = true)
+    val modelName: String, val modelBytes: Long, val modelHash: String, val needsTokens: Boolean = true,
+    val fallbackUrls: List<String> = emptyList())
+// 镜像保留上游原始压缩包；固定提交，跨源续传后仍校验完整 SHA-256。
+private const val MODEL_MIRROR = "https://modelscope.cn/models/OpenRecode/TaoSheng-models/resolve/8c9fb74a04920e12bf1d43f49649a841469ad5ef"
+private fun ModelSpec.withDomesticMirror() = copy(
+    url = "$MODEL_MIRROR/${url.substringAfterLast('/')}", fallbackUrls = listOf(url))
+
 object LocalModels {
     val cpu = ModelSpec("sense-cpu-v1", "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2",163002883,
-        "7d1efa2138a65b0b488df37f8b89e3d91a60676e416f515b952358d83dfd347e", "model.int8.onnx",239233841,"c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51")
+        "7d1efa2138a65b0b488df37f8b89e3d91a60676e416f515b952358d83dfd347e", "model.int8.onnx",239233841,"c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51").withDomesticMirror()
     val npu = ModelSpec("sense-sm8650-v1", "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models-qnn-binary/sherpa-onnx-qnn-SM8650-binary-30-seconds-sense-voice-zh-en-ja-ko-yue-2024-07-17-int8.tar.bz2",161991500,
-        "8d050c08b01898b73144329be150cb4d4cc8802d72d6cae6add16e96fb7f0ef5", "model.bin",255995904,"f66bc5b70ce1d0c7c5abab3f45bbe59fdc266952ab6defc99d9864149ffd0098")
+        "8d050c08b01898b73144329be150cb4d4cc8802d72d6cae6add16e96fb7f0ef5", "model.bin",255995904,"f66bc5b70ce1d0c7c5abab3f45bbe59fdc266952ab6defc99d9864149ffd0098").withDomesticMirror()
     val speakers = ModelSpec("speakers-v2", "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2", 6958444,
         "24615ee884c897d9d2ba09bb4d30da6bb1b15e685065962db5b02e76e4996488", "model.onnx", 5992913,
-        "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079", false)
+        "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079", false).withDomesticMirror()
     fun speakersEnabled(context: Context) = ready(context, speakers) && context.getSharedPreferences("local-asr",0).getBoolean("speakers-enabled", true)
     /** retry=true：不管原来的下载卡在哪（排队、龟速、早已无响应），都换一个新任务从断点接着下 */
     fun enqueueSpeakers(context: Context, retry: Boolean = false) =
@@ -90,15 +97,13 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
         try {
             setForeground(getForegroundInfo())
             if(applicationContext.noBackupFilesDir.usableSpace < (if(speakers) 30_000_000L else 650_000_000L)) {status("空间不足，请预留至少 650 MB");return@withContext Result.failure()}
-            status("连接官方下载源…")
+            status("连接国内模型源…")
             try { downloadModelFile(spec,archive,::status) }
             catch(e: java.io.IOException) {
                 // 断网、龟速：保留已下载的部分，自动再试几次；用尽后等用户点“重试”
                 if(runAttemptCount < AUTO_RETRIES) {status("下载中断，稍后自动接着下（第 ${runAttemptCount+1}/$AUTO_RETRIES 次）· 也可点重试");return@withContext Result.retry()}
                 throw e
             }
-            status("校验下载文件…")
-            if(archive.length()!=spec.archiveBytes || LocalModels.hash(archive)!=spec.archiveHash){archive.delete();error("checksum")}
             staging.deleteRecursively();staging.mkdirs()
             status("解压与校验模型…")
             TarArchiveInputStream(BZip2CompressorInputStream(archive.inputStream().buffered())).use { tar ->
@@ -119,7 +124,7 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
             archive.delete();status("已下载并校验")
             Result.success()
         } catch(e: kotlinx.coroutines.CancellationException){status("下载已暂停，可点击继续");throw e}
-        catch(_: Exception){status("下载未完成，已下的部分会保留，点重试接着下（GitHub 国内可能不稳定）");Result.failure()}
+        catch(_: Exception){status("下载未完成，请检查网络后重试；已校验失败的文件会重新下载");Result.failure()}
         finally{staging.deleteRecursively();lock.unlock()}
     }
     private companion object {
@@ -133,34 +138,101 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
     }
 }
 
-/** ASR 与搜索共用的有界、可取消断点下载；调用方负责 SHA 校验和原子发布。 */
+/** ASR 与搜索共用的有界、可取消下载；只有完整 SHA-256 通过后才返回。 */
 suspend fun downloadModelFile(spec: ModelSpec, target: File, status: (String) -> Unit = {},
     stallWindowNanos: Long = STALL_WINDOW_NANOS, stallMinBytes: Long = STALL_MIN_BYTES) {
-        if(target.length()>spec.archiveBytes)target.delete()
-        if(target.length()==spec.archiveBytes)return
-        val offset=target.length()
-        val request=Request.Builder().url(spec.url).apply{if(offset>0)header("Range","bytes=$offset-")}.build()
-        val client=OkHttpClient.Builder().connectTimeout(30,TimeUnit.SECONDS).readTimeout(60,TimeUnit.SECONDS).build()
-        val call=client.newCall(request)
-        try { call.awaitResponse().use { response ->
-            if(!response.isSuccessful)throw java.io.IOException("HTTP ${response.code}")
-            val resume=response.code==206 && offset>0
-            if(resume)check(response.header("Content-Range")?.startsWith("bytes $offset-")==true)
-            var count=if(resume)offset else 0L;var last=0L
-            // 龟速但没断开时不会超时；每 90 秒至少要下到 256 KB，否则当作卡住，交给上层重试
-            var windowAt=System.nanoTime();var windowBytes=count
-            response.body!!.byteStream().use{input->java.io.FileOutputStream(target,resume).buffered().use{output->
-                val buffer=ByteArray(128*1024)
-                while(true){kotlin.coroutines.coroutineContext.ensureActive();val n=input.read(buffer);if(n<0)break;count+=n;check(count<=spec.archiveBytes);output.write(buffer,0,n)
-                    if(count-last>=1024*1024){status("下载 ${count*100/spec.archiveBytes}% · ${count/1_000_000}/${spec.archiveBytes/1_000_000} MB");last=count}
-                    if(System.nanoTime()-windowAt>=stallWindowNanos){
-                        if(count-windowBytes<stallMinBytes)throw java.io.IOException("download stalled")
-                        windowAt=System.nanoTime();windowBytes=count
+    coroutineContext.ensureActive()
+    if (target.length() >= spec.archiveBytes) {
+        if (target.length() == spec.archiveBytes && LocalModels.hash(target) == spec.archiveHash) return
+        target.delete()
+    }
+    var failure: IOException? = null
+    for ((index, url) in (listOf(spec.url) + spec.fallbackUrls).distinct().withIndex()) {
+        coroutineContext.ensureActive()
+        if (index > 0) status("正在切换备用下载源…")
+        // 跨源续传可能沿用旧任务的损坏前缀；校验失败后允许当前源完整重下一次。
+        var canRestart = target.length() > 0
+        while (true) {
+            try {
+                downloadFromSource(spec, url, target, status, stallWindowNanos, stallMinBytes)
+                status("校验下载文件…")
+                coroutineContext.ensureActive()
+                if (LocalModels.hash(target) != spec.archiveHash) {
+                    target.delete()
+                    if (canRestart) {
+                        canRestart = false
+                        status("文件校验未通过，正在重新下载…")
+                        continue
+                    }
+                    throw IOException("Model checksum mismatch")
+                }
+                coroutineContext.ensureActive()
+                return
+            } catch (e: IOException) {
+                coroutineContext.ensureActive() // 取消任务不能触发备用源下载。
+                failure = e
+                break
+            }
+        }
+    }
+    throw failure ?: IOException("No model download source")
+}
+
+private suspend fun downloadFromSource(spec: ModelSpec, url: String, target: File, status: (String) -> Unit,
+    stallWindowNanos: Long, stallMinBytes: Long) {
+    val offset = target.length()
+    val request = Request.Builder().url(url).header("Accept-Encoding", "identity")
+        .apply { if (offset > 0) header("Range", "bytes=$offset-") }.build()
+    val client = OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).build()
+    val call = client.newCall(request)
+    try {
+        call.awaitResponse().use { response ->
+            if (response.code != 200 && response.code != 206) throw IOException("HTTP ${response.code}")
+            val resume = response.code == 206
+            if (resume) {
+                val range = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)")
+                    .matchEntire(response.header("Content-Range").orEmpty())
+                val start = range?.groupValues?.get(1)?.toLongOrNull()
+                val end = range?.groupValues?.get(2)?.toLongOrNull()
+                val total = range?.groupValues?.get(3)?.toLongOrNull()
+                if (start != offset || end == null || end < offset || end >= spec.archiveBytes || total != spec.archiveBytes)
+                    throw IOException("Invalid model Content-Range")
+            }
+            var count = if (resume) offset else 0L
+            var last = count
+            var windowAt = System.nanoTime()
+            var windowBytes = count
+            val body = response.body ?: throw IOException("Empty model response")
+            body.byteStream().use { input ->
+                java.io.FileOutputStream(target, resume).buffered().use { output ->
+                    val buffer = ByteArray(128 * 1024)
+                    while (true) {
+                        coroutineContext.ensureActive()
+                        val n = input.read(buffer)
+                        if (n < 0) break
+                        count += n
+                        if (count > spec.archiveBytes) throw IOException("Model exceeds expected size")
+                        output.write(buffer, 0, n)
+                        if (count - last >= 1024 * 1024) {
+                            status("下载 ${count * 100 / spec.archiveBytes}% · ${count / 1_000_000}/${spec.archiveBytes / 1_000_000} MB")
+                            last = count
+                        }
+                        if (System.nanoTime() - windowAt >= stallWindowNanos) {
+                            if (count - windowBytes < stallMinBytes) throw IOException("download stalled")
+                            windowAt = System.nanoTime()
+                            windowBytes = count
+                        }
                     }
                 }
-            }}
-        }} finally{call.cancel();client.dispatcher.executorService.shutdown();client.connectionPool.evictAll()}
+            }
+            if (count != spec.archiveBytes) throw IOException("Incomplete model download")
+        }
+    } finally {
+        call.cancel()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
     }
+}
 
 private const val STALL_WINDOW_NANOS = 90_000_000_000L
 private const val STALL_MIN_BYTES = 256 * 1024L

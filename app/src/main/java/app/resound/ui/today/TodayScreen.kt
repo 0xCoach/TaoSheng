@@ -162,6 +162,8 @@ fun TodayScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item { Header(date, themeMode, onThemeMode) }
+        // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
+        if (dayOffset == 0) item(key = "start") { StartChecklist(capture, hasKey) }
         item {
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pending.size,
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }

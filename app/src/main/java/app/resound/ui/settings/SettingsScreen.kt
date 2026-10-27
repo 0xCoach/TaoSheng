@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +81,8 @@ fun SettingsScreen(
     var open by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
     var inner by remember { mutableStateOf<InnerPage?>(null) }
     BackHandler(open != null) { open = null }
+    val requested by app.resound.ui.ShellNav.settingsPage.collectAsState()
+    LaunchedEffect(requested) { requested?.let { open = it; inner = null; app.resound.ui.ShellNav.settingsPage.value = null } }
     AnimatedContent(
         open,
         transitionSpec = {

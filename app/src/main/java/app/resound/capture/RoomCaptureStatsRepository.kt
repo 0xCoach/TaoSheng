@@ -55,6 +55,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
             out.appendLine("${context.appName}验证版；最近3个自然日（本地时区）；${Instant.now()}")
             out.appendLine(transcribeDiagnostics())
             out.appendLine(app.resound.audio.OggGuard.describe())
+            out.appendLine(app.resound.transcribe.PipelineTimes.dump(context))
             val diarySync = context.getSharedPreferences("diary-sync", Context.MODE_PRIVATE)
             if (diarySync.contains("lastFailureAt")) out.appendLine(
                 "最近一次日记上传失败：${diarySync.getLong("lastFailureAt", 0)} ${diarySync.getString("lastFailure", "")}")

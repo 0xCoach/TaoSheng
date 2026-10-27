@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import android.os.SystemClock
 import android.content.Context
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -29,22 +30,38 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         // 周期任务与立即任务不同 unique name，也必须整条流水线互斥。
         if (!pipeline.tryLock()) return Result.retry()
         try {
+            // 提前转写（录完就转）只做转写和认人，几十秒内结束；整理留给定时的完整一轮
+            val early = inputData.getBoolean(EARLY, false)
             // 转写、声纹、整理串在一个任务里，普通后台任务最多 10 分钟；一直有人说话（培训、吃饭）时积压多，
             // 会被系统中途停掉、等下一轮，看起来像不转写。申请成长时间任务就没有这个上限；系统不允许时照旧跑。
-            runCatching { setForeground(getForegroundInfo()) }
+            if (!early) runCatching { setForeground(getForegroundInfo()) }
             val app = applicationContext as ResoundApp
+            val began = SystemClock.elapsedRealtime()
+            var mark = began
+            fun lap(): Long = SystemClock.elapsedRealtime().let { now -> (now - mark).also { mark = now } }
+            val pendingBefore = app.database.transcribe().pendingMillis()
             PipelineProgress.stage(Stage.Transcribe)
             val transcribeRetry = app.transcribeRunner.run()
+            val transcribeMs = lap()
             PipelineProgress.stage(Stage.Voiceprint)
             val voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
             app.voiceprintRepository.cleanupAudio()
-            PipelineProgress.stage(Stage.Digest)
-            val digestRetry = app.voiceprintRepository.withStableResults { app.digestRunner.run() }
-            app.voiceprintRepository.cleanupAudio()
+            val voiceprintMs = lap()
+            var digestRetry = false
+            if (!early) {
+                PipelineProgress.stage(Stage.Digest)
+                digestRetry = app.voiceprintRepository.withStableResults { app.digestRunner.run() }
+                app.voiceprintRepository.cleanupAudio()
+            }
+            PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} ${if (early) "提前" else "完整"} 待转 ${pendingBefore / 1000}s · " +
+                "转写 ${transcribeMs / 1000}s · 声纹 ${voiceprintMs / 1000}s" + (if (early) "" else " · 整理 ${lap() / 1000}s"))
             return if (transcribeRetry || voiceprintRetry || digestRetry) Result.retry() else Result.success()
         } finally { PipelineProgress.finish(); pipeline.unlock() }
     }
-    companion object { private val pipeline = Mutex() }
+    companion object {
+        private val pipeline = Mutex()
+        const val EARLY = "early"
+    }
 }
 class TranscribeScheduler(private val context: Context, private val settings: TranscribeSettings) {
     private val manager get() = WorkManager.getInstance(context)
@@ -97,10 +114,22 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
             }
         }
     }
+    /** 每存好一段录音调用：本机转写马上转，云端攒满 10 分钟再转；电量低或偏热时不提前 */
+    suspend fun segmentSaved(pendingMillis: Long) {
+        val local = (settings as? AndroidTranscribeSettings)?.source?.value == TranscribeSource.Local
+        if (!settings.ready.value || !EarlyTranscribe.deviceAllows(context, local, pendingMillis)) return
+        // 正在跑时追加一轮，接上这段；还在排队时不重复排
+        val running = manager.getWorkInfosForUniqueWork(EARLY_WORK).get().any { it.state == WorkInfo.State.RUNNING }
+        manager.enqueueUniqueWork(EARLY_WORK, if (running) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<TranscribeWork>().setConstraints(constraints()).addTag(TAG)
+                .setInputData(workDataOf(TranscribeWork.EARLY to true))
+                .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build())
+    }
     fun observe() = manager.getWorkInfosByTagFlow(TAG)
     companion object {
         const val TAG = "transcribe"
         const val PERIODIC = "transcribe-periodic"
         const val IMMEDIATE = "transcribe-now"
+        const val EARLY_WORK = "transcribe-early"
     }
 }

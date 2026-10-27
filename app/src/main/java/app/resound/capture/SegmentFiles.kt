@@ -18,6 +18,8 @@ import java.time.format.DateTimeFormatter
 
 /** 先持久化完整 PCM 到队列，再串行编码；进程死亡后重试已经完成的片段。 */
 class SegmentFiles(private val context: Context, private val dao: CaptureDao, scope: CoroutineScope) {
+    /** 存好一段待转写录音后调用（录完就转）；由 ResoundApp 装配，失败不影响保存 */
+    @Volatile var onSaved: (suspend () -> Unit)? = null
     private val spool = File(context.filesDir, "segment-spool").apply { mkdirs() }
     private val encoding = Mutex()
     private val discardedPrefs = context.getSharedPreferences("privacy-spool", Context.MODE_PRIVATE)
@@ -104,6 +106,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         check(pcm.delete())
         metadata.delete()
         File(spool, pcm.nameWithoutExtension + ".source").delete()
+        if (!skip) runCatching { onSaved?.invoke() }
     }
     internal fun readSourceId(pcm: File): String = File(spool, pcm.nameWithoutExtension + ".source")
         .takeIf { it.isFile }?.readText()?.takeIf { it.isNotBlank() } ?: "mic"

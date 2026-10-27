@@ -51,6 +51,7 @@ class ResoundApp : Application() {
         val settings = AndroidTranscribeSettings(this)
         val scheduler = TranscribeScheduler(this, settings)
         transcribeScheduler = scheduler
+        segmentFiles.onSaved = { scheduler.segmentSaved(database.transcribe().pendingMillis()) }
         val hotwords = AndroidHotwordSettings(this, database.voiceprint(), scope)
         AppGraph.hotwords = hotwords
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope)

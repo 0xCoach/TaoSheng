@@ -163,8 +163,7 @@ private fun SettingsList(
                     Divider()
                     // 右侧一眼看清：用什么转写、多久转一次
                     val asr = transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings
-                    // 自定义服务显示它自己的模型名，不写死“自定义”
-                    val asrSource = asr?.source?.collectAsState()?.value?.let { if (it == app.resound.transcribe.TranscribeSource.Custom) asr.customModel.ifBlank { it.title } else it.title } ?: "豆包"
+                    val asrSource = asr?.source?.collectAsState()?.value?.let { if (it == app.resound.transcribe.TranscribeSource.Custom) shortModelName(asr.customModel) else it.title } ?: "豆包"
                     val asrRealtime = asr?.realtime?.collectAsState()?.value == true
                     val asrInterval = transcribeSettings.intervalMinutes.collectAsState().value
                     Row1("原话与转写", if (asrKey) "$asrSource · ${if (asrRealtime) "实时" else "每 $asrInterval 分钟"}" else "转写未就绪", dot = if (asrKey) c.good else c.warning) { onOpen(SettingsPage.Transcript) }
@@ -176,8 +175,7 @@ private fun SettingsList(
                 Group {
                     // 先模型后技能：技能都靠整理模型跑。右侧写模型和整理间隔，整理时机也在这一页里设
                     val digestInterval = (digestSettings as? app.resound.digest.AndroidDigestSettings)?.intervalMinutes?.collectAsState()?.value
-                    // 自定义模型显示它自己的模型名（如 doubao-seed-2-1-lite），不写死“自定义”
-                    val model = digestSettings.presets.firstOrNull { it.id == preset }?.let { if (it.id == "custom") it.model.ifBlank { it.name } else it.name } ?: ""
+                    val model = digestSettings.presets.firstOrNull { it.id == preset }?.let { if (it.id == "custom") shortModelName(it.model) else it.name } ?: ""
                     Row1("整理模型", if (llmKey) model + (digestInterval?.let { " · 每 $it 分钟" } ?: "") else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
                     Divider()
                     val skillList = app.resound.ui.skills.skillRepo().skills.collectAsState().value
@@ -243,6 +241,9 @@ private fun Group(content: @Composable () -> Unit) {
 private fun Divider() {
     Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(0.5.dp).background(Rs.colors.separator))
 }
+
+/** 自定义服务显示自己的模型名；名字太长（放不下，还会挤掉后面的“每 30 分钟”）就写“自定义” */
+private fun shortModelName(model: String) = model.trim().takeIf { it.isNotEmpty() && it.length <= 12 } ?: "自定义"
 
 @Composable
 private fun Row1(title: String, value: String, dot: Color?, onClick: () -> Unit) {

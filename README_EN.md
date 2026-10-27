@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.6-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.7-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.7/TaoSheng-v0.2.7-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -117,9 +117,9 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 
 ### Download
 
-**v0.2.6** (2026-10-26, latest): [TaoSheng-v0.2.6-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.6/TaoSheng-v0.2.6-arm64.apk) (~88 MB) — step-by-step progress on the home page, long conversations get digested in time, configurable digest timing, faster voiceprint relabeling, one-time NPU check, retryable model downloads · [all releases](https://github.com/0xCoach/TaoSheng/releases)
+**v0.2.7** (2026-10-27, latest): [TaoSheng-v0.2.7-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.7/TaoSheng-v0.2.7-arm64.apk) (~91 MB) — upgrades ONNX Runtime to 1.25.1 to fix SIGILL crashes when listening starts on affected Oryon devices · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: `a557d5bb9a7056c79c813be3aa34ca4895fb450a886214de97d243bad241bec2`.
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.7/SHA256SUMS).
 
 ### Build from source
 
@@ -169,6 +169,9 @@ Almost all code was written by AI: **Claude** did architecture, contracts and ev
 TaoSheng is a personal memory tool. Recording conversations is regulated in many places — follow your local laws and tell people around you when required. The persistent notification and mic indicator are intentional; please don't turn this into covert recording software.
 
 ## 🙏 Acknowledgements
+
+- [@ethansunqing](https://github.com/ethansunqing) — reported and diagnosed the OPPO Find N6 SIGILL crash, contributed the initial binary patch in [PR #1](https://github.com/0xCoach/TaoSheng/pull/1), and verified the official ONNX Runtime 1.25.1 upgrade on the device.
+- [@brookDeng](https://github.com/brookDeng) — independently diagnosed the crash on Xiaomi pandora (25098PN5AC) and verified the test APK upgrade, data preservation, and foreground/background listening.
 
 [Omi](https://github.com/BasedHardware/omi) · [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) · [Silero VAD](https://github.com/snakers4/silero-vad) · [3D-Speaker / CAM++](https://github.com/modelscope/3D-Speaker) · [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) · [pyannote](https://github.com/pyannote/pyannote-audio). Third-party sources and licenses: [`docs/third-party/`](docs/third-party).
 

@@ -22,7 +22,7 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
             context.assets.open("voiceprint/campplus.onnx").use { input -> embedding.outputStream().use { input.copyTo(it) } }
             try {
                 model=OfflineSpeakerDiarization(config=OfflineSpeakerDiarizationConfig(
-                    // 分人只能跑在 CPU 上；手机 8 核，用 4 个线程，一直有人说话时积压的长录音能快些分完
+                    // 分人只能跑在 CPU 上；按核数用一半（1～4 个），给录音和界面留余量
                     segmentation=OfflineSpeakerSegmentationModelConfig(pyannote=OfflineSpeakerSegmentationPyannoteModelConfig(model=segmentation.path),numThreads=DIARIZE_THREADS),
                     embedding=SpeakerEmbeddingExtractorConfig(model=embedding.path,numThreads=DIARIZE_THREADS),
                     clustering=FastClusteringConfig(numClusters=-1,threshold=0.7f),minDurationOn=0.3f,minDurationOff=0.3f))
@@ -40,7 +40,8 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
     }
     override fun close() {model?.release();model=null;stamp=-1}
     companion object {
-        private const val DIARIZE_THREADS = 4
+        /** 8 核用 4 个，4 核用 2 个，2 核以下用 1 个 */
+        private val DIARIZE_THREADS = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)
         fun turns(context:Context,pcm:ShortArray,progress:(Int,Int)->Unit)=LocalSpeakerDiarizer(context).use{it.turns(pcm,progress)}
     }
 }

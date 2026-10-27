@@ -5,6 +5,10 @@ import androidx.test.platform.app.InstrumentationRegistry
 import app.resound.ResoundApp
 import app.resound.backup.BackupArchive
 import app.resound.transcribe.local.LocalModels
+import app.resound.transcribe.local.LocalAsrConnection
+import app.resound.transcribe.local.LocalBackend
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -14,6 +18,29 @@ import java.io.File
 /** 同签名测试包：升级前导出标准备份，升级后仅核对数据与模型，不更改业务配置。 */
 @RunWith(AndroidJUnit4::class)
 class ModelSourceUpgradeDeviceTest {
+    /** 正式 APK 冒烟：直接调用本地引擎，不切换用户的转写来源或后端设置。 */
+    @Test fun releaseLocalRecognition() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        check(context.packageName == "app.resound")
+        val audio = File.createTempFile("release-smoke-", ".ogg", context.cacheDir)
+        val report = JSONObject()
+        try {
+            context.assets.open("asr-test.ogg").use { input -> audio.outputStream().use { input.copyTo(it) } }
+            withTimeout(90_000) {
+                for (backend in listOf(LocalBackend.Cpu, LocalBackend.Npu)) {
+                    assertTrue(LocalModels.ready(context, LocalModels.spec(backend)))
+                    val start = android.os.SystemClock.elapsedRealtime()
+                    val result = LocalAsrConnection.get(context).recognize(AsrAudio(audio, "ogg", 3007), backend) { }
+                    assertTrue(result.sentences.isNotEmpty())
+                    report.put(backend.name, JSONObject().put("sentences", result.sentences.size)
+                        .put("elapsedMs", android.os.SystemClock.elapsedRealtime() - start))
+                }
+            }
+            File(context.getExternalFilesDir(null), "modelscope-upgrade-check/release-smoke.json")
+                .writeText(report.toString(2))
+        } finally { audio.delete() }
+    }
+
     @Test fun snapshotAndCheck() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         check(context.packageName == "app.resound")

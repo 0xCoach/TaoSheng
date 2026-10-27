@@ -34,6 +34,7 @@ class ResoundApp : Application() {
         super.onCreate()
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
+        app.resound.audio.OggGuard.init(this)
         app.resound.backup.BackupRestore.applyPending(this)
         // 仅回收上个进程遗留的转码/密钥测试临时文件；原录音在 files/segments。
         cacheDir.listFiles()?.filter { it.name.startsWith("asr-") && it.extension in setOf("pcm", "ogg") }

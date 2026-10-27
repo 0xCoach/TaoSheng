@@ -120,6 +120,7 @@ fun TranscriptScreen(
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
     val segments by remember(date) { repo.day(date) }.collectAsState(initial = null)
     val hasKey by settings.ready.collectAsState()
+    val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsState()?.value == true
     var settingsOpen by remember { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
@@ -127,7 +128,7 @@ fun TranscriptScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
-            QueueCard(repo, hasKey, settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
+            QueueCard(repo, hasKey, realtime, settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
         // 收起时不占位置（用列表自带的出现/消失动画）
         if (settingsOpen || !hasKey) item(key = "settings") { SettingsCard(settings, onSaved = { settingsOpen = false }) }
@@ -156,7 +157,7 @@ fun TranscriptScreen(
             }
         }
         items(list.orEmpty(), key = { it.segmentId }) { seg ->
-            SegmentCard(seg, Modifier.animateItem()) { repo.transcribeAnyway(seg.segmentId) }
+            SegmentCard(seg, Modifier.animateItem(), realtime) { repo.transcribeAnyway(seg.segmentId) }
         }
     }
 }
@@ -164,7 +165,7 @@ fun TranscriptScreen(
 // ---------- 队列状态 ----------
 
 @Composable
-private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, settingsShown: Boolean, onToggleSettings: () -> Unit) {
+private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boolean, settingsShown: Boolean, onToggleSettings: () -> Unit) {
     val c = Rs.colors
     val q by repo.queue.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -201,7 +202,7 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, settingsShown
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            queueDetail(q, hasKey, now),
+            queueDetail(q, hasKey, realtime, now),
             style = RsType.subhead,
             color = if (hasKey && q.lastError != null && !q.running) c.critical else c.textSecondary,
             modifier = Modifier.padding(start = 17.dp),
@@ -241,13 +242,15 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, settingsShown
     }
 }
 
-private fun queueDetail(q: TranscribeQueueState, hasKey: Boolean, now: Long): String = when {
+private fun queueDetail(q: TranscribeQueueState, hasKey: Boolean, realtime: Boolean, now: Long): String = when {
     !hasKey -> "请配置云端服务，或下载本地模型后开始转写"
     q.running -> "逐段识别中，可以离开这个页面"
     q.lastError != null -> q.lastError
     else -> buildString {
-        q.lastRunAt?.let { append("上次 ${formatClock(it)}") }
-        q.nextRunAt?.let {
+        // 实时转写没有“下一轮”：录完就转
+        if (realtime) append("录完就转")
+        q.lastRunAt?.let { if (isNotEmpty()) append(" · "); append("上次 ${formatClock(it)}") }
+        if (!realtime) q.nextRunAt?.let {
             if (isNotEmpty()) append(" · ")
             val mins = ((it - now) / 60_000).coerceAtLeast(0)
             append(if (mins == 0L) "马上进行下一轮" else "约 $mins 分钟后下一轮")
@@ -353,7 +356,14 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
 
         Text("多久转写一次", style = RsType.body, color = c.text)
         Spacer(Modifier.height(10.dp))
-        IntervalChoice(interval) { settings.setIntervalMinutes(it) }
+        val realtime = advanced?.realtime?.collectAsState()?.value
+        IntervalChoice(interval, realtime, { advanced?.setRealtime(it) }) { settings.setIntervalMinutes(it) }
+        Spacer(Modifier.height(6.dp))
+        Text(when {
+            realtime == true && local -> "录完一段就转。电量低于 20% 或手机发热时先攒着，每 30 分钟补转一次。"
+            realtime == true -> "录完一段就上传转写，更及时，也更耗电和流量。电量低或手机发热时改为每 30 分钟一次。"
+            else -> "每 $interval 分钟把攒下的录音转写一次。整理成事件另在「整理模型」里设置。"
+        }, style = RsType.caption, color = c.textTertiary)
 
         Divider()
 
@@ -421,7 +431,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     val revision by settings.modelRevision.collectAsState()
     val supported=LocalModels.npuSupported()
     Text("SenseVoice · 离线识别", style=RsType.body,color=c.text)
-    Text("按设定间隔分批转写，完成后释放模型。录音不上传；识别时可能增加耗电。", style=RsType.caption,color=c.textSecondary)
+    Text("录音不出手机。按上面“多久转写一次”识别；说话期间模型常驻，安静 6 分钟后释放内存。", style=RsType.caption,color=c.textSecondary)
     Spacer(Modifier.height(10.dp))
     Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
     Text(if(supported) "检测到已适配芯片；第一次转写时检查一次 NPU，结果会记住。区分说话人始终用 CPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
@@ -475,19 +485,28 @@ private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, onSe
     }
 }
 
-/** 常用间隔三选一，或“自定义”填分钟数（15～720，安卓后台定时最短 15 分钟）。 */
+/**
+ * 常用间隔三选一，或“自定义”填分钟数（15～720，安卓后台定时最短 15 分钟）。
+ * 给了 [realtime] 时最前面多一个“实时”（转写用；整理不需要）。
+ */
 @Composable
-private fun IntervalChoice(interval: Int, onSet: (Int) -> Unit) {
+internal fun IntervalChoice(interval: Int, realtime: Boolean? = null, onRealtime: (Boolean) -> Unit = {}, onSet: (Int) -> Unit) {
     val c = Rs.colors
-    val presets = listOf(30, 45, 60)
+    val presets = listOf(15, 30, 60)
     var custom by remember { mutableStateOf(interval !in presets) }
     var input by remember(interval) { mutableStateOf(if (interval in presets) "" else interval.toString()) }
     val value = input.toIntOrNull()
     val valid = value != null && value in MIN_INTERVAL..MAX_INTERVAL
-    Choice(presets + CUSTOM, if (custom) CUSTOM else interval, { if (it == CUSTOM) "自定义" else "$it 分钟" }) {
-        if (it == CUSTOM) custom = true else { custom = false; onSet(it) }
+    val options = (if (realtime != null) listOf(REALTIME) else emptyList()) + presets + CUSTOM
+    val selected = when { realtime == true -> REALTIME; custom -> CUSTOM; else -> interval }
+    Choice(options, selected, { when (it) { REALTIME -> "实时"; CUSTOM -> "自定义"; else -> "$it 分钟" } }) {
+        when (it) {
+            REALTIME -> { custom = false; onRealtime(true) }
+            CUSTOM -> { custom = true; if (realtime == true) onRealtime(false) }
+            else -> { custom = false; if (realtime == true) onRealtime(false); onSet(it) }
+        }
     }
-    AnimatedVisibility(custom) {
+    AnimatedVisibility(custom && realtime != true) {
         Column {
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -516,6 +535,7 @@ private fun IntervalChoice(interval: Int, onSet: (Int) -> Unit) {
 }
 
 private const val CUSTOM = -1
+private const val REALTIME = -2
 
 /** 苹果风格开关，暖橙底。 */
 @Composable
@@ -531,7 +551,7 @@ private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 // ---------- 每段录音 ----------
 
 @Composable
-private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, onTranscribeAnyway: () -> Unit) {
+private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Boolean, onTranscribeAnyway: () -> Unit) {
     val c = Rs.colors
     RsCard(modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -550,7 +570,7 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, onTranscribe
             when (status) {
                 TranscriptStatus.Done -> SpeakerLines(seg.lines)
                 TranscriptStatus.Running -> Placeholder()
-                TranscriptStatus.Pending -> Note("等下一轮转写")
+                TranscriptStatus.Pending -> Note(if (realtime) "马上转写" else "等下一轮转写")
                 TranscriptStatus.Empty -> Note("只有声音，没识别出说话内容")
                 TranscriptStatus.Failed -> Note(seg.error ?: "没转成功，可以在上面点重试", c.critical)
                 TranscriptStatus.SkippedPlayback -> Row(verticalAlignment = Alignment.CenterVertically) {

@@ -103,6 +103,8 @@ class ResoundApp : Application() {
             transcripts.retryFailed()
         }, scope, appointmentSettings)
         AppGraph.digestSettings = digestSettings
+        scheduler.digestMinutes = { digestSettings.intervalMinutes.value }
+        digestSettings.onIntervalChanged = { scheduler.scheduleDigest() }
         val reviewScheduler = app.resound.review.ReviewScheduler(this)
         lateinit var reviews: app.resound.review.RoomReviewRepository
         val pushChannels = app.resound.push.AndroidPushChannels(this) { reviews.recent().first().firstOrNull() }

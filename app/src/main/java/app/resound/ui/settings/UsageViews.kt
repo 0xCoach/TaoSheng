@@ -67,16 +67,6 @@ private fun purposeColor(p: UsagePurpose): Color = when (p) {
     UsagePurpose.Other -> Color(0xFFB0A89E)
 }
 
-/** 设置首页“整理模型”一行右侧的小字：今天用了多少 */
-@Composable
-internal fun todayTokensText(): String? {
-    if (!app.resound.AppGraph.isUsageReady) return null
-    val today = remember { LocalDate.now() }
-    val rows by remember { app.resound.AppGraph.usage.llm(today, today) }.collectAsState(initial = emptyList())
-    val total = rows.sumOf { it.promptTokens + it.completionTokens }
-    return if (total == 0L) null else "今天 ${tokensText(total)}"
-}
-
 /**
  * 整理模型页底部的“用量”卡片：今天 / 本周 / 本月合计、估算花费、近 30 天柱状图、按用途拆分。
  */

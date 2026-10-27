@@ -49,7 +49,9 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun modelReady(backend: app.resound.transcribe.local.LocalBackend) = app.resound.transcribe.local.LocalModels.ready(context, app.resound.transcribe.local.LocalModels.spec(backend))
     fun download(backend: app.resound.transcribe.local.LocalBackend, retry: Boolean = false) = app.resound.transcribe.local.LocalModels.enqueue(context, backend, retry)
     fun setLocalStatus(value: String) { _localStatus.value=value;localPrefs.edit().putString("actual",value).apply() }
-    fun setSource(value: TranscribeSource) { prefs.edit().putString("source",value.name).commit();_source.value=value;_hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
+    fun setSource(value: TranscribeSource) { prefs.edit().putString("source",value.name).commit();_source.value=value
+        if(!prefs.contains("realtime"))_realtime.value=value==TranscribeSource.Local
+        _hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
     fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 加速，下次转写时检查一次" else "已选择 CPU 兼容");refreshReady();onChanged() }
     fun saveCustom(endpoint: String, model: String) {
         OpenAiEndpoint.bases(endpoint)
@@ -75,6 +77,10 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     override val hasKey = _hasKey.asStateFlow()
     private val _interval = MutableStateFlow(prefs.getInt("interval", 30).takeIf { it in MIN_INTERVAL..MAX_INTERVAL } ?: 30)
     override val intervalMinutes = _interval.asStateFlow()
+    /** 实时转写：录完一段就转。没手动设过时，本机默认开、云端默认关（云端每段都上传，更耗电和流量） */
+    private val _realtime = MutableStateFlow(prefs.getBoolean("realtime", _source.value == TranscribeSource.Local))
+    val realtime = _realtime.asStateFlow()
+    fun setRealtime(on: Boolean) { check(prefs.edit().putBoolean("realtime", on).commit()); _realtime.value = on; onChanged() }
     private val _wifi = MutableStateFlow(prefs.getBoolean("wifi", true))
     override val wifiOnly = _wifi.asStateFlow()
     var onChanged: () -> Unit = {}

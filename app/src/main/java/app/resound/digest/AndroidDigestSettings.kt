@@ -31,6 +31,17 @@ class AndroidDigestSettings(
     /** 一直在说、对话迟迟不结束时，最多等多久先整理前面已稳定的部分（分钟） */
     private val _maxWaitMinutes = MutableStateFlow(prefs.getInt("maxWaitMinutes", DEFAULT_MAX_WAIT).coerceIn(MAX_WAIT_RANGE))
     val maxWaitMinutes = _maxWaitMinutes.asStateFlow()
+    /** 多久整理一次（分钟）；第一次沿用原来“多久转写一次”的设置（以前两者是同一个定时任务） */
+    private val _intervalMinutes = MutableStateFlow(prefs.getInt("interval",
+        context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).getInt("interval", 30))
+        .coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL))
+    val intervalMinutes = _intervalMinutes.asStateFlow()
+    /** 间隔改了要重排整理任务；由 ResoundApp 装配 */
+    var onIntervalChanged: () -> Unit = {}
+    fun setIntervalMinutes(value: Int) {
+        val v = value.coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL)
+        check(prefs.edit().putInt("interval", v).commit()); _intervalMinutes.value = v; onIntervalChanged()
+    }
     fun setPauseMinutes(value: Int) {
         val v = value.coerceIn(PAUSE_RANGE)
         check(prefs.edit().putInt("pauseMinutes", v).commit()); _pauseMinutes.value = v

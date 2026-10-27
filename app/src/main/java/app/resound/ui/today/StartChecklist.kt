@@ -40,7 +40,7 @@ private class Step(
 
 /**
  * 首次使用的上手清单：开始聆听、转写方式、区分说话人、整理模型、后台不被关掉。
- * 本机转写可“一键准备”：按芯片选 NPU/CPU 下载转写模型，同时下载说话人模型并打开分人开关。
+ * 本机转写可“一键准备”：下载 CPU 转写模型（适配的芯片另加 NPU 版），同时下载说话人模型并打开分人开关。
  * 全部完成或点“不再显示”后不再出现。
  */
 @Composable
@@ -73,8 +73,10 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean) {
     val c = Rs.colors
     val prepare = {
         settings?.let { s ->
+            // 适配过 NPU 的芯片两个都下：NPU 跑不起来时自动退回 CPU，不至于没模型可用
             val chosen = if (LocalModels.npuSupported()) LocalBackend.Npu else LocalBackend.Cpu
             s.setBackend(chosen); s.setSource(TranscribeSource.Local); s.download(chosen)
+            if (chosen == LocalBackend.Npu) s.download(LocalBackend.Cpu)
         }
         asrPrefs.edit().putBoolean("speakers-enabled", true).apply()
         LocalModels.enqueueSpeakers(context)
@@ -83,7 +85,7 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean) {
     val steps = listOf(
         Step("开始聆听", "允许麦克风和通知，有人说话才会录", listening, SettingsPage.Capture),
         Step("选择转写方式",
-            if (asrDownloading) "正在准备本机转写" else "本机转写免费、录音不出手机（约 170 MB，建议连 WiFi）；或用豆包云端",
+            if (asrDownloading) "正在准备本机转写" else "本机转写免费、录音不出手机（约 ${if (LocalModels.npuSupported()) 330 else 170} MB，建议连 WiFi）；或用豆包云端",
             transcribeReady, SettingsPage.Transcript,
             progress = if (local && (asrDownloading || !transcribeReady)) downloadLine(settings, backend, asrPrefs) else null,
             actions = if (transcribeReady || asrDownloading) null else ({

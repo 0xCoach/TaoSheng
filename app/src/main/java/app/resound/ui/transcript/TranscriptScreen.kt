@@ -494,20 +494,21 @@ private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, fill
 }
 
 /**
- * 常用间隔三选一，或“自定义”填分钟数（15～720，安卓后台定时最短 15 分钟）。
- * 给了 [realtime] 时最前面多一个“实时”（转写用；整理不需要）。
+ * 常用间隔或“自定义”填分钟数（15～720，安卓后台定时最短 15 分钟）。
+ * 给了 [realtime] 时是转写用：实时 / 15 / 30 / 自定义；否则是整理用：15 / 30 / 60 / 自定义。
  */
 @Composable
 internal fun IntervalChoice(interval: Int, realtime: Boolean? = null, onRealtime: (Boolean) -> Unit = {}, onSet: (Int) -> Unit) {
     val c = Rs.colors
-    val presets = listOf(15, 30, 60)
+    // 转写：实时 / 15 / 30 / 自定义；整理：15 / 30 / 60 / 自定义。都是四个，一行放得下
+    val presets = if (realtime != null) listOf(15, 30) else listOf(15, 30, 60)
     var custom by remember { mutableStateOf(interval !in presets) }
     var input by remember(interval) { mutableStateOf(if (interval in presets) "" else interval.toString()) }
     val value = input.toIntOrNull()
     val valid = value != null && value in MIN_INTERVAL..MAX_INTERVAL
     val options = (if (realtime != null) listOf(REALTIME) else emptyList()) + presets + CUSTOM
     val selected = when { realtime == true -> REALTIME; custom -> CUSTOM; else -> interval }
-    Choice(options, selected, { when (it) { REALTIME -> "实时"; CUSTOM -> "自定义"; else -> "${it}分钟" } }, fill = true) {
+    Choice(options, selected, { when (it) { REALTIME -> "实时"; CUSTOM -> "自定义"; else -> "$it 分钟" } }, fill = true) {
         when (it) {
             REALTIME -> { custom = false; onRealtime(true) }
             CUSTOM -> { custom = true; if (realtime == true) onRealtime(false) }

@@ -122,6 +122,7 @@ fun VerifyScreen(
         }
         item { WatchdogSection(remember(events) { compactEvents(events.sortedByDescending { it.at }) }) }
         item { SetupSection(setup) }
+        item { MicHolderSection() }
         item { ExportRow(stats) }
     }
 }
@@ -247,7 +248,7 @@ private fun StatusCard(capture: CaptureController) {
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            stateDetail(status.state, now - status.since, status.pausedUntil),
+            stateDetail(status.state, now - status.since, status.pausedUntil, status.busyDetail),
             style = RsType.subhead,
             color = c.textSecondary,
             modifier = Modifier.padding(start = 17.dp),
@@ -284,12 +285,12 @@ private fun stateTitle(state: CaptureState) = when (state) {
     CaptureState.NoPermission -> "缺少权限"
 }
 
-private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?) = when (state) {
+private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?, busyDetail: String?) = when (state) {
     CaptureState.Stopped -> "点“开始聆听”后，有人说话才会录"
     CaptureState.Listening -> "安静中 · 已持续 ${formatDuration(elapsed)}"
     CaptureState.Recording -> "检测到人声 · 本段 ${formatDuration(elapsed, seconds = true)}"
     CaptureState.Paused -> pausedUntil?.let { "将在 ${formatClock(it)} 自动恢复" } ?: "手动暂停中"
-    CaptureState.MicBusy -> "通话或其他 App 在用麦克风，结束后自动恢复"
+    CaptureState.MicBusy -> busyDetail?.let { "$it，结束后自动恢复" } ?: "通话或其他 App 在用麦克风，结束后自动恢复"
     CaptureState.NoPermission -> "需要麦克风和通知权限"
 }
 
@@ -541,6 +542,26 @@ private fun SetupRow(item: SetupItem, onOpen: () -> Unit, onDone: () -> Unit) {
             Pill("我已设置", filled = false, onClick = onDone)
         } else if (item.done == false) {
             Text("去设置 ›", style = RsType.subhead, color = c.accent)
+        }
+    }
+}
+
+/** 可选权限：打开“使用情况访问”后，麦克风被占时能猜出前台是哪个应用。不计入上面的后台设置完成数。 */
+@Composable
+private fun MicHolderSection() {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val guess = remember { app.resound.capture.MicHolderGuess(context.applicationContext) }
+    var on by remember { mutableStateOf(guess.permitted()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { on = guess.permitted() }
+    Section("可选设置") {
+        RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
+            SetupRow(
+                SetupItem("usage", "看出谁占了麦克风",
+                    if (on) "麦克风被占时，会提示可能是哪个应用。"
+                    else "打开“使用情况访问”后，麦克风被占时提示可能是哪个应用；不打开也能下拉状态栏点绿点查看。", on),
+                onOpen = { if (!on) guess.openSettings() }, onDone = {},
+            )
         }
     }
 }

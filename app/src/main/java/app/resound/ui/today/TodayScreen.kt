@@ -268,7 +268,7 @@ private fun OverviewCard(
         CaptureState.Recording -> "正在录音"
         CaptureState.Listening -> "正在聆听"
         CaptureState.Paused -> "已暂停"
-        CaptureState.MicBusy -> "麦克风让给别的应用了"
+        CaptureState.MicBusy -> if (status.busyDetail == app.resound.audio.MicYield.IN_CALL) "通话中，暂停收音" else "麦克风让给别的应用了"
         CaptureState.Stopped -> "没在聆听"
         CaptureState.NoPermission -> "缺少权限"
     }
@@ -299,6 +299,10 @@ private fun OverviewCard(
             }
             Spacer(Modifier.width(12.dp))
             BreathingWave(status.level, active, recording, Modifier.weight(1f).height(22.dp), tint = white)
+        }
+        // 麦克风被占时补一句是谁（通话中 / 可能是哪个应用）
+        if (status.state == CaptureState.MicBusy) status.busyDetail?.let {
+            Text(it, style = RsType.caption, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 2.dp))
         }
         Spacer(Modifier.height(10.dp))
         Row {

@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 class AndroidCaptureController(private val context: Context, private val store: CaptureStore) : CaptureController {
     private val current = MutableStateFlow(CaptureStatus(CaptureState.Stopped, System.currentTimeMillis()))
     override val status = current.asStateFlow()
-    internal fun update(state: CaptureState, pausedUntil: Long? = null, level: Float = 0f) {
+    internal fun update(state: CaptureState, pausedUntil: Long? = null, level: Float = 0f, busyDetail: String? = null) {
         val old = current.value
-        current.value = old.copy(state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil, level = level)
+        current.value = old.copy(state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil, level = level,
+            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy })
         if (CaptureTilePolicy.action(old.state) != CaptureTilePolicy.action(state) || old.pausedUntil != pausedUntil) {
             CaptureTileService.refresh(context)
         }

@@ -27,6 +27,7 @@ class CaptureService : Service() {
     private var discardOnFinish = false
     private val app get() = application as ResoundApp
     private val store get() = app.store
+    private val holders by lazy { MicHolderGuess(this) }
     private val controller get() = app.controller
     private var capture: Job? = null
     private var resumeTimer: Job? = null
@@ -201,6 +202,7 @@ class CaptureService : Service() {
     }
     private suspend fun listenTo(route: InputRoute, note: String?) {
         var busy = false
+        var busyDetail: String? = null
         var reported = false
         while (currentCoroutineContext().isActive) {
             var segmenter: SpeechSegmenter? = null
@@ -217,9 +219,14 @@ class CaptureService : Service() {
                             is AudioEvent.Busy -> {
                                 // 让出麦克风期间：正在录的片段按正常结束收尾，恢复后从新片段开始计时
                                 segmenter?.finish(); segmenter = null
-                                if (!busy) { store.event(WatchdogEventType.MicBusy, event.reason); busy = true }
+                                if (!busy) {
+                                    // 被占的那一刻猜一次；之后前台换了也不重猜，免得猜成后来打开的应用
+                                    busyDetail = if (event.reason == MicYield.OTHER_APP) holders.describe() ?: event.reason else event.reason
+                                    store.event(WatchdogEventType.MicBusy, if (busyDetail == event.reason) event.reason else "${event.reason}；$busyDetail")
+                                    busy = true
+                                }
                                 controller.level(0f)
-                                transition(CaptureState.MicBusy)
+                                transition(CaptureState.MicBusy, detail = busyDetail)
                                 return@collect
                             }
                             AudioEvent.Available -> {
@@ -274,9 +281,9 @@ class CaptureService : Service() {
         }
     }
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy
-    private suspend fun transition(next: CaptureState, until: Long? = null) {
+    private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null) {
         if (initialized && running(state) != running(next)) beat()
-        state = next; controller.update(next, until)
+        state = next; controller.update(next, until, busyDetail = detail)
     }
     private suspend fun beat() = beatMutex.withLock {
         val now = System.currentTimeMillis()

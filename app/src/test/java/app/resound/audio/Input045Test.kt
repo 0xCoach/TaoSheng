@@ -137,14 +137,13 @@ class Input045Test {
         } finally { task.cancelAndJoin() }
     }
 
-    @Test fun ownBluetoothModeDoesNotYieldButRingingCallsAndOtherRecordersDo() {
+    @Test fun ownBluetoothModeIsNotCountedAsCallButRingingAndCallsAre() {
         assertFalse(MicYield.inCall(AudioManager.MODE_IN_COMMUNICATION,true))
         assertTrue(MicYield.inCall(AudioManager.MODE_IN_COMMUNICATION,false))
         assertTrue(MicYield.inCall(AudioManager.MODE_RINGTONE,true))
         assertTrue(MicYield.inCall(AudioManager.MODE_IN_CALL,true))
-        assertEquals(MicYield.IN_CALL,MicYield.whileOpen(MicYield.inCall(AudioManager.MODE_IN_CALL,true),false))
-        assertEquals(MicYield.OTHER_APP,MicYield.beforeOpen(false,1))
-        assertEquals(MicYield.OTHER_APP,MicYield.whileOpen(false,true))
+        assertEquals(MicYield.IN_CALL,MicYield.whileOpen(true) { MicYield.inCall(AudioManager.MODE_IN_CALL,true) })
+        assertEquals(MicYield.OTHER_APP,MicYield.whileOpen(true) { MicYield.inCall(AudioManager.MODE_IN_COMMUNICATION,true) })
     }
 
     @Test fun conversionKeeps480SampleMonoFramesAcrossOddStereoReadsAndNonIntegerRates() {

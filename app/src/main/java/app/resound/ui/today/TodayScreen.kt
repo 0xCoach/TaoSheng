@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -160,6 +162,8 @@ fun TodayScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item { Header(date, themeMode, onThemeMode) }
+        // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
+        if (dayOffset == 0) item(key = "start") { StartChecklist(capture, hasKey) }
         item {
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pending.size,
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
@@ -268,7 +272,7 @@ private fun OverviewCard(
         CaptureState.Recording -> "正在录音"
         CaptureState.Listening -> "正在聆听"
         CaptureState.Paused -> "已暂停"
-        CaptureState.MicBusy -> "麦克风让给别的应用了"
+        CaptureState.MicBusy -> if (status.busyDetail == app.resound.audio.MicYield.IN_CALL) "通话中，暂停收音" else "麦克风让给别的应用了"
         CaptureState.Stopped -> "没在聆听"
         CaptureState.NoPermission -> "缺少权限"
     }
@@ -300,6 +304,10 @@ private fun OverviewCard(
             Spacer(Modifier.width(12.dp))
             BreathingWave(status.level, active, recording, Modifier.weight(1f).height(22.dp), tint = white)
         }
+        // 麦克风被占时补一句是谁（通话中 / 可能是哪个应用）
+        if (status.state == CaptureState.MicBusy) status.busyDetail?.let {
+            Text(it, style = RsType.caption, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 2.dp))
+        }
         Spacer(Modifier.height(10.dp))
         Row {
             BigStat(speechMillis?.let { formatSpeech(it) } ?: "—", "今天说话", Modifier.weight(1.3f))
@@ -321,7 +329,8 @@ private fun OverviewCard(
                 style = RsType.caption,
                 color = soft,
                 modifier = Modifier.weight(1f),
-                maxLines = 1,
+                // 整理状态加原因可能较长，放不下就折到第二行，不截断
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (hasKey) {
@@ -401,18 +410,17 @@ private fun stageLine(p: app.resound.PipelineProgress.State, runDone: Int, runTo
     }
 }
 
-/** 本步已用多久，外加步骤里的细节（如本地转写正在“区分说话人 45%”）；每秒刷新，离开前台停止 */
+/** 本步已用多久（精确到 0.01 秒，跟随屏幕帧刷新），外加步骤里的细节（如本地转写正在“区分说话人 45%”）；离开前台停止 */
 @Composable
 private fun StageElapsedText(p: app.resound.PipelineProgress.State, color: Color) {
     var elapsed by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(owner) {
         owner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-            while (true) { elapsed = android.os.SystemClock.elapsedRealtime(); delay(1_000) }
+            while (true) withFrameMillis { elapsed = android.os.SystemClock.elapsedRealtime() }
         }
     }
-    val seconds = ((elapsed - p.since) / 1000).coerceAtLeast(0)
-    val used = if (seconds < 60) "$seconds 秒" else "${seconds / 60} 分 ${"%02d".format(seconds % 60)} 秒"
+    val used = app.resound.formatElapsed(elapsed - p.since)
     val detail = p.detail?.takeIf { p.stage != Stage.Queued }
     Text((detail?.let { "$it · " } ?: "") + "这一步已用 $used",
         style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -433,9 +441,11 @@ private fun DigestElapsedText(progress: app.resound.digest.DigestProgress, color
 
 @Composable
 private fun BigStat(value: String, label: String, modifier: Modifier) {
-    Column(modifier) {
-        Text(value, style = RsType.number.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold), color = Color.White, maxLines = 1)
-        Text(label, style = RsType.caption, color = Color.White.copy(alpha = 0.8f))
+    Column(modifier.padding(end = 8.dp)) {
+        // 字体调大或屏幕窄时自动缩小，不截断“2小时14分”
+        Text(value, style = RsType.number.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold), color = Color.White, maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 24.sp))
+        Text(label, style = RsType.caption, color = Color.White.copy(alpha = 0.8f), maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = RsType.caption.fontSize))
     }
 }
 
@@ -449,6 +459,7 @@ private fun formatSpeech(ms: Long): String {
     }
 }
 
+/** 只说结果：上次什么时候整理的；刚说的还没整理时加半句“刚说的稍后整理”，不讲句数和等待机制 */
 private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long): String = when {
     !hasKey -> "填好大模型密钥后，转写出的原话会自动整理成一件件事"
     running -> "正在把原话整理成事件…"
@@ -460,7 +471,7 @@ private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: 
         }
         if (pending > 0) {
             if (isNotEmpty()) append(" · ")
-            append("$pending 句待整理")
+            append("刚说的稍后整理")
         }
         if (isEmpty()) append("还没整理过")
     }
@@ -547,10 +558,10 @@ private fun PendingCard(item: MemoryItem, modifier: Modifier, onOpen: () -> Unit
     val c = Rs.colors
     // 浅橙底：表示“需要你处理”，和下面的记录区分开
     RsCard(modifier.springClick(onOpen), padding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp), color = c.accentSoft) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // 放不下时日期换到下一行，不会被挤成一字一行
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, itemVerticalAlignment = Alignment.CenterVertically) {
             CategoryChip(item.category, item.kind)
-            Spacer(Modifier.weight(1f))
-            item.dueAt?.let { Text(friendlyDue(it, item.dueText), style = RsType.caption, color = c.accent) }
+            item.dueAt?.let { Text(friendlyDue(it, item.dueText), style = RsType.caption, color = c.accent, maxLines = 1, softWrap = false) }
         }
         Spacer(Modifier.height(8.dp))
         // 固定两行高度，并排的两张卡底部按钮对齐
@@ -578,7 +589,8 @@ private fun SmallPill(text: String, filled: Boolean, modifier: Modifier = Modifi
 fun CategoryChip(category: String, kind: String? = null) {
     val color = categoryColor(category)
     Box(Modifier.clip(CircleShape).background(color.copy(alpha = 0.13f)).padding(horizontal = 9.dp, vertical = 3.dp)) {
-        Text(if (kind != null && category == "待办") "待办 · $kind" else category, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = color)
+        Text(if (kind != null && category == "待办") "待办 · $kind" else category, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = color,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -682,7 +694,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
 private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit) {
     val c = Rs.colors
     Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.width(58.dp))
+        Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.widthIn(min = 58.dp))
         app.resound.ui.skills.SkillIcon(card.icon, 28.dp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -706,7 +718,7 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
             formatClock(event.startAt),
             style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold),
             color = if (quiet) c.textTertiary else c.accent,
-            modifier = Modifier.width(58.dp).padding(top = 1.dp),
+            modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp),
         )
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -899,7 +911,7 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                 RsCard(padding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
                     facts.forEachIndexed { i, (k, v) ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                            Text(k, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.width(56.dp))
+                            Text(k, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.widthIn(min = 56.dp))
                             Text(v, style = RsType.body, color = c.text)
                         }
                         if (i != facts.lastIndex) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))

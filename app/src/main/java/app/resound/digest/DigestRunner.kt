@@ -46,7 +46,9 @@ class DigestRunner(
     val running = _running.asStateFlow()
     private val _progress = MutableStateFlow(DigestProgress())
     val progress = _progress.asStateFlow()
-    private val _last = MutableStateFlow(prefs.getLong("lastRunAt", 0).takeIf { it > 0 } to prefs.getString("lastError", null))
+    // 旧版把“N 句等待转写、声纹或对话结束后整理”当错误存着，升级后不再显示
+    private val _last = MutableStateFlow(prefs.getLong("lastRunAt", 0).takeIf { it > 0 } to
+        prefs.getString("lastError", null)?.takeUnless { it.contains("等待转写、声纹或对话结束") })
     val last = _last.asStateFlow()
 
     /** 用户点“现在整理”时置为 true：本轮不等 10 分钟，已转写完的都整理 */
@@ -64,11 +66,9 @@ class DigestRunner(
             if (key.isBlank()) { record(null, "还没填写大模型密钥"); return false }
             val sessions = sessions(dao.undigestedLines(), gapMillis())
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
-            var waiting = 0
             for (session in sessions) {
                 val ready = if (closed(session, force)) session else settledPrefix(session)
                 chunks.addAll(ready.chunked(MAX_LINES))
-                waiting += session.size - ready.size
             }
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
             for ((index, chunk) in chunks.withIndex()) {
@@ -81,7 +81,7 @@ class DigestRunner(
                     LlmError.Network, LlmError.Server, LlmError.Format -> { record(now(), outcome.human); return true }
                 }
             }
-            record(now(), if (waiting > 0) "$waiting 句等待转写、声纹或对话结束后整理" else null)
+            record(now(), null)
             return false
         } finally {
             _progress.value = _progress.value.copy(finishedAt = elapsed())
@@ -160,6 +160,7 @@ class DigestRunner(
         val quietLongEnough = force || now() - end >= gap
         return quietLongEnough && dao.unfinishedSegments(start - gap, if (force) end else end + gap) == 0
     }
+
 
     /**
      * 段落还没结束但已经说了很久：只看已过去停顿时长的句子（后面不会再插进新句子），

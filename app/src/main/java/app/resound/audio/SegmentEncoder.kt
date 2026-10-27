@@ -8,17 +8,19 @@ import app.resound.capture.CaptureTuning
 import java.io.File
 import java.nio.ByteOrder
 
-/** 离线流式编码暂存 PCM，Opus/OGG 的完整配置或写入失败均回退 AAC/M4A。 */
+/** 离线流式编码暂存 PCM，Opus/OGG 的完整配置或写入失败均回退 AAC/M4A；OGG 写入曾致进程崩溃时由 [OggGuard] 暂时直接用 AAC。 */
 object SegmentEncoder {
     fun encode(pcm: File, base: File): File {
         var opusError: Exception? = null
         for ((mime, ext, container) in listOf(
             Triple(MediaFormat.MIMETYPE_AUDIO_OPUS, "ogg", MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG),
             Triple(MediaFormat.MIMETYPE_AUDIO_AAC, "m4a", MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4))) {
+            val ogg = container == MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG
+            if (ogg && !OggGuard.oggAllowed()) continue
             val output = File(base.path + ".$ext")
             val partial = File(output.path + ".part")
             try {
-                encodeOne(pcm, partial, mime, container)
+                if (ogg) OggGuard.writing { encodeOne(pcm, partial, mime, container) } else encodeOne(pcm, partial, mime, container)
                 check(partial.length() > 0 && partial.renameTo(output)) { "编码文件落盘失败" }
                 return output
             } catch (e: Exception) {

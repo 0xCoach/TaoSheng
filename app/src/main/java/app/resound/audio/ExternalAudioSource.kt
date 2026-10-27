@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.*
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
@@ -43,15 +45,9 @@ internal class RoutedRecording(
         suspend fun report(next: String?) {
             if (next != reason) { reason = next; emit(if (next == null) AudioEvent.Available else AudioEvent.Busy(next)) }
         }
-        fun inCall(): Boolean = MicYield.inCall(manager.mode, ownsCommunication)
-        fun others(): Int = manager.activeRecordingConfigurations.count {
-            it.clientAudioSessionId != record?.audioSessionId && !it.isClientSilenced
-        }
+        val signals = MicSignals(manager)
+        fun yieldReason(): String? = MicYield.whileOpen(signals.silenced) { MicYield.inCall(manager.mode, ownsCommunication) }
         try {
-            while (true) {
-                val wait = MicYield.beforeOpen(inCall(), others()) ?: break
-                report(wait); delay(200)
-            }
             val port = target() ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入已断开")
             if (bluetooth) {
                 previousMode = manager.mode
@@ -73,47 +69,65 @@ internal class RoutedRecording(
             }
             val opened = open(port, bluetooth)
             record = opened
+            signals.attach(opened)
             onOpenChanged(true)
             val converter = PcmInputConverter(opened.sampleRate, opened.channelCount)
+            // 每次读满约 20 毫秒再返回：循环跟着声音的节奏走，不空转
             val buffer = ShortArray(maxOf(960, opened.sampleRate * opened.channelCount / 50))
             var verified = false
             var routeDeadline = SystemClock.elapsedRealtime() + 2_000
             var lastDataAt = SystemClock.elapsedRealtime()
-            var othersAt = 0L
-            var otherCount = 0
-            while (currentCoroutineContext().isActive) {
-                val elapsed = SystemClock.elapsedRealtime()
-                if (elapsed - othersAt >= 200) { otherCount = others(); othersAt = elapsed }
-                val silenced = opened.activeRecordingConfiguration?.isClientSilenced == true
-                val wait = MicYield.whileOpen(inCall(), silenced || otherCount > 0)
-                val wasBusy = reason != null
-                report(wait)
-                if (wait != null) {
-                    converter.reset(); verified = false
-                    routeDeadline = SystemClock.elapsedRealtime() + 2_000
-                    lastDataAt = SystemClock.elapsedRealtime()
-                } else if (wasBusy) routeDeadline = SystemClock.elapsedRealtime() + 2_000
-                val n = opened.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
-                if (n < 0) throw AudioSourceException(if (n == AudioRecord.ERROR_DEAD_OBJECT)
-                    AudioSourceException.Reason.Disconnected else AudioSourceException.Reason.Unknown, "AudioRecord read=$n")
-                val routed = opened.routedDevice
-                val matches = if (kind == InputKind.Phone) routed?.type == AudioDeviceInfo.TYPE_BUILTIN_MIC else routed?.id == port.id
-                if (wait == null) {
-                    if (!matches) {
-                        converter.reset()
-                        if (verified || SystemClock.elapsedRealtime() >= routeDeadline)
-                            throw AudioSourceException(AudioSourceException.Reason.Disconnected, "实际输入不是指定麦克风")
-                    } else {
-                        verified = true
-                        if (n > 0) {
-                            lastDataAt = SystemClock.elapsedRealtime()
-                            for (frame in converter.accept(buffer, n)) emit(AudioEvent.Frame(frame))
+            val lastReturnAt = java.util.concurrent.atomic.AtomicLong(SystemClock.elapsedRealtime())
+            val stalled = java.util.concurrent.atomic.AtomicBoolean(false)
+            coroutineScope {
+                // 阻塞读在设备不出声时会一直等；看门狗 2 秒没返回就停掉录音让它返回。取消时同样靠它解开阻塞。
+                val watchdog = launch {
+                    try {
+                        while (true) {
+                            delay(500)
+                            val now = SystemClock.elapsedRealtime()
+                            if (yieldReason() != null) lastReturnAt.set(now)
+                            else if (now - lastReturnAt.get() > 2_000) { stalled.set(true); runCatching { opened.stop() }; break }
                         }
-                        if (SystemClock.elapsedRealtime() - lastDataAt > 2_000)
-                            throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入设备没有送来声音")
-                    }
+                    } finally { if (!stalled.get()) runCatching { opened.stop() } }
                 }
-                if (n == 0 || wait != null || !matches) delay(5)
+                try {
+                    while (currentCoroutineContext().isActive) {
+                        signals.refresh()
+                        val wait = yieldReason()
+                        val wasBusy = reason != null
+                        report(wait)
+                        if (wait != null) {
+                            converter.reset(); verified = false
+                            routeDeadline = SystemClock.elapsedRealtime() + 2_000
+                            lastDataAt = SystemClock.elapsedRealtime()
+                        } else if (wasBusy) routeDeadline = SystemClock.elapsedRealtime() + 2_000
+                        val n = opened.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                        lastReturnAt.set(SystemClock.elapsedRealtime())
+                        if (stalled.get()) throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入设备没有送来声音")
+                        if (n < 0) throw AudioSourceException(if (n == AudioRecord.ERROR_DEAD_OBJECT)
+                            AudioSourceException.Reason.Disconnected else AudioSourceException.Reason.Unknown, "AudioRecord read=$n")
+                        val routed = signals.routed
+                        val matches = if (kind == InputKind.Phone) routed?.type == AudioDeviceInfo.TYPE_BUILTIN_MIC else routed?.id == port.id
+                        if (wait == null) {
+                            if (!matches) {
+                                converter.reset()
+                                if (verified || SystemClock.elapsedRealtime() >= routeDeadline)
+                                    throw AudioSourceException(AudioSourceException.Reason.Disconnected, "实际输入不是指定麦克风")
+                            } else {
+                                verified = true
+                                if (n > 0) {
+                                    lastDataAt = SystemClock.elapsedRealtime()
+                                    for (frame in converter.accept(buffer, n)) emit(AudioEvent.Frame(frame))
+                                }
+                                if (SystemClock.elapsedRealtime() - lastDataAt > 2_000)
+                                    throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入设备没有送来声音")
+                            }
+                        }
+                        // 正常情况下阻塞读自己控制节奏；个别系统读到 0 不等待时才歇一下，防止空转
+                        if (n == 0) delay(10)
+                    }
+                } finally { watchdog.cancel() }
             }
         } catch (e: SecurityException) {
             throw AudioSourceException(AudioSourceException.Reason.NoPermission, e.message)
@@ -133,6 +147,7 @@ internal class RoutedRecording(
                     else { @Suppress("DEPRECATION") runCatching { manager.stopBluetoothSco() } }
                 }
                 if (ownsCommunication && manager.mode == AudioManager.MODE_IN_COMMUNICATION) runCatching { manager.mode = previousMode }
+                signals.close()
             }
         }
     }.flowOn(Dispatchers.IO)
@@ -161,5 +176,44 @@ internal class RoutedRecording(
             finally { if (!keep) record?.let { runCatching { it.stop() }; it.release() } }
         }
         throw AudioSourceException(AudioSourceException.Reason.Busy, "无法打开输入设备")
+    }
+}
+
+/**
+ * 被系统静音、实际路由两项由系统回调推送，收音循环只读缓存，不每圈去问系统。
+ * 每 2 秒再主动核对一次，防个别系统漏发回调。
+ */
+private class MicSignals(private val manager: AudioManager) : AutoCloseable {
+    @Volatile var silenced = false
+        private set
+    @Volatile var routed: AudioDeviceInfo? = null
+        private set
+    private var record: AudioRecord? = null
+    private var checkedAt = 0L
+    private val handler = Handler(Looper.getMainLooper())
+    private val recordings = object : AudioManager.AudioRecordingCallback() {
+        override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>) {
+            val id = record?.audioSessionId ?: return
+            configs.firstOrNull { it.clientAudioSessionId == id }?.let { silenced = it.isClientSilenced }
+        }
+    }
+    private val routing = AudioRouting.OnRoutingChangedListener { routed = it.routedDevice }
+    init { manager.registerAudioRecordingCallback(recordings, handler) }
+    fun attach(opened: AudioRecord) {
+        record = opened
+        opened.addOnRoutingChangedListener(routing, handler)
+        checkedAt = 0L; refresh()
+    }
+    fun refresh() {
+        val opened = record ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (now - checkedAt < 2_000) return
+        checkedAt = now
+        silenced = opened.activeRecordingConfiguration?.isClientSilenced == true
+        routed = opened.routedDevice
+    }
+    override fun close() {
+        manager.unregisterAudioRecordingCallback(recordings)
+        record?.removeOnRoutingChangedListener(routing)
     }
 }

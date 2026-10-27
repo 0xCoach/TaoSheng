@@ -22,8 +22,9 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
             context.assets.open("voiceprint/campplus.onnx").use { input -> embedding.outputStream().use { input.copyTo(it) } }
             try {
                 model=OfflineSpeakerDiarization(config=OfflineSpeakerDiarizationConfig(
-                    segmentation=OfflineSpeakerSegmentationModelConfig(pyannote=OfflineSpeakerSegmentationPyannoteModelConfig(model=segmentation.path)),
-                    embedding=SpeakerEmbeddingExtractorConfig(model=embedding.path,numThreads=1),
+                    // 分人只能跑在 CPU 上；按核数用一半（1～4 个），给录音和界面留余量
+                    segmentation=OfflineSpeakerSegmentationModelConfig(pyannote=OfflineSpeakerSegmentationPyannoteModelConfig(model=segmentation.path),numThreads=VoiceprintThreads.count),
+                    embedding=SpeakerEmbeddingExtractorConfig(model=embedding.path,numThreads=VoiceprintThreads.count),
                     clustering=FastClusteringConfig(numClusters=-1,threshold=0.7f),minDurationOn=0.3f,minDurationOff=0.3f))
                 stamp=segmentation.lastModified()
             } finally { embedding.delete() }

@@ -1,5 +1,7 @@
 package app.resound.ui.today
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -100,8 +102,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>) 
 @Composable
 private fun Stat(label: String, value: String, modifier: Modifier) {
     val c = Rs.colors
-    Column(modifier) {
-        Text(value, style = RsType.headline, color = c.text)
-        Text(label, style = RsType.caption, color = c.textTertiary)
+    Column(modifier.padding(end = 6.dp)) {
+        Text(value, style = RsType.headline, color = c.text, maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = RsType.headline.fontSize))
+        Text(label, style = RsType.caption, color = c.textTertiary, maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = RsType.caption.fontSize))
     }
 }

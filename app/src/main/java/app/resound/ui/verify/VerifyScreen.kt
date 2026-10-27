@@ -1,5 +1,7 @@
 package app.resound.ui.verify
 
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.sp
 import app.resound.appDisplayName
 import android.Manifest
 import android.content.Intent
@@ -37,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -122,6 +125,7 @@ fun VerifyScreen(
         }
         item { WatchdogSection(remember(events) { compactEvents(events.sortedByDescending { it.at }) }) }
         item { SetupSection(setup) }
+        item { MicHolderSection() }
         item { ExportRow(stats) }
     }
 }
@@ -247,7 +251,7 @@ private fun StatusCard(capture: CaptureController) {
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            stateDetail(status.state, now - status.since, status.pausedUntil),
+            stateDetail(status.state, now - status.since, status.pausedUntil, status.busyDetail),
             style = RsType.subhead,
             color = c.textSecondary,
             modifier = Modifier.padding(start = 17.dp),
@@ -284,12 +288,12 @@ private fun stateTitle(state: CaptureState) = when (state) {
     CaptureState.NoPermission -> "缺少权限"
 }
 
-private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?) = when (state) {
+private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?, busyDetail: String?) = when (state) {
     CaptureState.Stopped -> "点“开始聆听”后，有人说话才会录"
     CaptureState.Listening -> "安静中 · 已持续 ${formatDuration(elapsed)}"
     CaptureState.Recording -> "检测到人声 · 本段 ${formatDuration(elapsed, seconds = true)}"
     CaptureState.Paused -> pausedUntil?.let { "将在 ${formatClock(it)} 自动恢复" } ?: "手动暂停中"
-    CaptureState.MicBusy -> "通话或其他 App 在用麦克风，结束后自动恢复"
+    CaptureState.MicBusy -> busyDetail?.let { "$it，结束后自动恢复" } ?: "通话或其他 App 在用麦克风，结束后自动恢复"
     CaptureState.NoPermission -> "需要麦克风和通知权限"
 }
 
@@ -355,7 +359,7 @@ private fun StatTile(label: String, value: String, tint: Color?, modifier: Modif
         }
         Spacer(Modifier.height(6.dp))
         AnimatedContent(value, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "value") {
-            Text(it, style = RsType.number, color = c.text)
+            Text(it, style = RsType.number, color = c.text, maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = RsType.number.fontSize))
         }
     }
 }
@@ -485,7 +489,7 @@ private fun EventRow(e: WatchdogEvent, last: Boolean) {
             (if (e.detail?.contains("PACKAGE_REPLACED") == true) "App 升级后待恢复" else "开机后待恢复") to c.warning
     }
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Top) {
-        Text(formatClock(e.at), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.width(48.dp))
+        Text(formatClock(e.at), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.widthIn(min = 48.dp))
         Box(Modifier.padding(top = 5.dp, end = 12.dp)) { Dot(color, 8.dp) }
         Column(Modifier.weight(1f)) {
             Text(title, style = RsType.body, color = c.text)
@@ -506,7 +510,7 @@ private fun SetupSection(setup: SetupGuide) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { version++ }
     val items = remember(version) { setup.items() }
     val doneCount = items.count { it.done == true }
-    Section("小米后台设置", trailing = {
+    Section("后台设置", trailing = {
         Text("$doneCount / ${items.size} 已完成", style = RsType.caption, color = if (doneCount == items.size) c.good else c.accent)
     }) {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
@@ -541,6 +545,26 @@ private fun SetupRow(item: SetupItem, onOpen: () -> Unit, onDone: () -> Unit) {
             Pill("我已设置", filled = false, onClick = onDone)
         } else if (item.done == false) {
             Text("去设置 ›", style = RsType.subhead, color = c.accent)
+        }
+    }
+}
+
+/** 可选权限：打开“使用情况访问”后，麦克风被占时能猜出前台是哪个应用。不计入上面的后台设置完成数。 */
+@Composable
+private fun MicHolderSection() {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val guess = remember { app.resound.capture.MicHolderGuess(context.applicationContext) }
+    var on by remember { mutableStateOf(guess.permitted()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { on = guess.permitted() }
+    Section("可选设置") {
+        RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
+            SetupRow(
+                SetupItem("usage", "看出谁占了麦克风",
+                    if (on) "麦克风被占时，会提示可能是哪个应用。"
+                    else "打开“使用情况访问”后，麦克风被占时提示可能是哪个应用；不打开也能下拉状态栏点绿点查看。", on),
+                onOpen = { if (!on) guess.openSettings() }, onDone = {},
+            )
         }
     }
 }

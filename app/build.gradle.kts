@@ -16,8 +16,8 @@ android {
         minSdk = 29
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 23
-        versionName = "0.2.8"
+        versionCode = 24
+        versionName = "0.2.9"
         // 只给小米 14 Pro 用：只打包 64 位 ARM 的原生库
         ndk { abiFilters += "arm64-v8a" }
     }
@@ -37,6 +37,9 @@ android {
             keyPassword = releaseSigning.getProperty("keyPassword")
         }
     }
+
+    // 升级前后核对数据的真机检查要与正式包同签名：-PtestBuildType=release
+    testBuildType = (project.findProperty("testBuildType") as String?) ?: "debug"
 
     buildTypes {
         release {
@@ -88,6 +91,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // 屏幕适配截图检查（Robolectric 在电脑上画界面，不需要模拟器）
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation("dev.chrisbanes.haze:haze:1.6.10")
     implementation("sh.calvin.reorderable:reorderable:2.4.3")

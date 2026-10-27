@@ -40,6 +40,8 @@ data class CaptureStatus(
     val sourceName: String = "手机麦克风",
     /** 实时音量 0..1，给界面画声波，约每 100 毫秒更新 */
     val level: Float = 0f,
+    /** 麦克风被占时的说明，例如“通话中”“可能是 小红书 或 讯飞输入法（语音输入）”；其他状态为 null */
+    val busyDetail: String? = null,
 )
 
 interface CaptureController {

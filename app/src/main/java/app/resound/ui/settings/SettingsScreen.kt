@@ -9,6 +9,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +81,8 @@ fun SettingsScreen(
     var open by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
     var inner by remember { mutableStateOf<InnerPage?>(null) }
     BackHandler(open != null) { open = null }
+    val requested by app.resound.ui.ShellNav.settingsPage.collectAsState()
+    LaunchedEffect(requested) { requested?.let { open = it; inner = null; app.resound.ui.ShellNav.settingsPage.value = null } }
     AnimatedContent(
         open,
         transitionSpec = {
@@ -157,18 +161,25 @@ private fun SettingsList(
                         CaptureState.NoPermission -> "缺少权限"
                     }, dot = if (status.state == CaptureState.Listening || status.state == CaptureState.Recording) c.good else c.warning) { onOpen(SettingsPage.Capture) }
                     Divider()
-                    Row1("原话与转写", if (asrKey) ((transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings)?.source?.collectAsState()?.value?.title ?: "豆包") + "转写已就绪" else "转写未就绪", dot = if (asrKey) c.good else c.warning) { onOpen(SettingsPage.Transcript) }
+                    // 右侧一眼看清：用什么转写、多久转一次
+                    val asr = transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings
+                    val asrSource = asr?.source?.collectAsState()?.value?.title ?: "豆包"
+                    val asrRealtime = asr?.realtime?.collectAsState()?.value == true
+                    val asrInterval = transcribeSettings.intervalMinutes.collectAsState().value
+                    Row1("原话与转写", if (asrKey) "$asrSource · ${if (asrRealtime) "实时" else "每 $asrInterval 分钟"}" else "转写未就绪", dot = if (asrKey) c.good else c.warning) { onOpen(SettingsPage.Transcript) }
                 }
             }
         }
         item {
             Section("智能") {
                 Group {
+                    // 先模型后技能：技能都靠整理模型跑。右侧写模型和整理间隔，整理时机也在这一页里设
+                    val digestInterval = (digestSettings as? app.resound.digest.AndroidDigestSettings)?.intervalMinutes?.collectAsState()?.value
+                    val model = digestSettings.presets.firstOrNull { it.id == preset }?.name ?: ""
+                    Row1("整理模型", if (llmKey) model + (digestInterval?.let { " · 每 $it 分钟" } ?: "") else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
+                    Divider()
                     val skillList = app.resound.ui.skills.skillRepo().skills.collectAsState().value
                     Row1("整理技能", "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个", dot = null) { onOpen(SettingsPage.Skills) }
-                    Divider()
-                    val todayUse = todayTokensText()
-                    Row1("整理模型", if (llmKey) (digestSettings.presets.firstOrNull { it.id == preset }?.name ?: "") + (todayUse?.let { " · $it" } ?: "") else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
                     if (app.resound.AppGraph.isHotwordsReady) {
                         val words = app.resound.AppGraph.hotwords.words.collectAsState().value
                         Divider()
@@ -238,12 +249,15 @@ private fun Row1(title: String, value: String, dot: Color?, onClick: () -> Unit)
         Modifier.fillMaxWidth().springClick(onClick).padding(horizontal = 18.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
-        if (dot != null) {
-            Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(dot))
-            Spacer(Modifier.width(6.dp))
+        // 标题保持完整；右侧说明放不下时省略，不把标题挤成两行
+        Text(title, style = RsType.body, color = c.text, maxLines = 1, softWrap = false)
+        Row(Modifier.weight(1f).padding(start = 12.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            if (dot != null) {
+                Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(dot))
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(value, style = RsType.subhead, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         }
-        Text(value, style = RsType.subhead, color = c.textTertiary)
         Spacer(Modifier.width(8.dp))
         Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
     }

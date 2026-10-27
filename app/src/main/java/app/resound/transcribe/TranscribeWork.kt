@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import android.os.SystemClock
 import android.content.Context
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,6 +10,7 @@ import androidx.work.*
 import app.resound.PipelineProgress
 import app.resound.PipelineProgress.Stage
 import app.resound.ResoundApp
+import app.resound.formatElapsed
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,29 +31,70 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         // 周期任务与立即任务不同 unique name，也必须整条流水线互斥。
         if (!pipeline.tryLock()) return Result.retry()
         try {
+            // 转写和整理各管各的：实时/定时转写只转写和认人，定时整理只整理；“现在整理”先补转再整理
+            val mode = inputData.getString(MODE) ?: MODE_FULL
+            val early = mode == MODE_REALTIME
+            val transcribe = mode != MODE_DIGEST
+            val digest = mode == MODE_FULL || mode == MODE_DIGEST
+            // 普通后台任务最多 10 分钟；积压多或整理慢时会被系统中途停掉。申请成长时间任务就没有这个上限；
+            // 系统不允许时照旧跑。实时转写一次只转刚录的一两段，不申请，免得通知栏频繁闪
+            if (!early) runCatching { setForeground(getForegroundInfo()) }
             val app = applicationContext as ResoundApp
-            PipelineProgress.stage(Stage.Transcribe)
-            val transcribeRetry = app.transcribeRunner.run()
-            PipelineProgress.stage(Stage.Voiceprint)
-            val voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
-            app.voiceprintRepository.cleanupAudio()
-            PipelineProgress.stage(Stage.Digest)
-            val digestRetry = app.voiceprintRepository.withStableResults { app.digestRunner.run() }
-            app.voiceprintRepository.cleanupAudio()
+            val began = SystemClock.elapsedRealtime()
+            var mark = began
+            fun lap(): Long = SystemClock.elapsedRealtime().let { now -> (now - mark).also { mark = now } }
+            val pendingBefore = app.database.transcribe().pendingMillis()
+            var transcribeRetry = false
+            var voiceprintRetry = false
+            val parts = mutableListOf<String>()
+            if (transcribe) {
+                PipelineProgress.stage(Stage.Transcribe)
+                transcribeRetry = app.transcribeRunner.run()
+                parts += "转写 ${formatElapsed(lap())}"
+                PipelineProgress.stage(Stage.Voiceprint)
+                voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
+                app.voiceprintRepository.cleanupAudio()
+                parts += "声纹 ${formatElapsed(lap())}"
+            }
+            var digestRetry = false
+            if (digest) {
+                PipelineProgress.stage(Stage.Digest)
+                digestRetry = app.voiceprintRepository.withStableResults { app.digestRunner.run() }
+                app.voiceprintRepository.cleanupAudio()
+                parts += "整理 ${formatElapsed(lap())}"
+            }
+            PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} ${MODE_NAMES[mode] ?: mode} 待转录音 ${formatElapsed(pendingBefore)} · " +
+                parts.joinToString(" · "))
             return if (transcribeRetry || voiceprintRetry || digestRetry) Result.retry() else Result.success()
         } finally { PipelineProgress.finish(); pipeline.unlock() }
     }
-    companion object { private val pipeline = Mutex() }
+    companion object {
+        private val pipeline = Mutex()
+        const val MODE = "mode"
+        const val MODE_REALTIME = "realtime"
+        const val MODE_TRANSCRIBE = "transcribe"
+        const val MODE_DIGEST = "digest"
+        const val MODE_FULL = "full"
+        private val MODE_NAMES = mapOf(MODE_REALTIME to "实时转写", MODE_TRANSCRIBE to "定时转写", MODE_DIGEST to "定时整理", MODE_FULL to "现在整理")
+    }
 }
 class TranscribeScheduler(private val context: Context, private val settings: TranscribeSettings) {
     private val manager get() = WorkManager.getInstance(context)
+    /** 整理要调大模型，只要求联网（与转写的 WiFi 设置无关） */
+    private fun digestConstraints() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+    /** 多久整理一次；由 ResoundApp 在整理设置就绪后装配 */
+    var digestMinutes: () -> Int = { 30 }
+    private val realtime get() = (settings as? AndroidTranscribeSettings)?.realtime?.value == true
     private fun constraints() = Constraints.Builder().setRequiredNetworkType(
         if ((settings as? AndroidTranscribeSettings)?.source?.value == TranscribeSource.Local) NetworkType.NOT_REQUIRED
         else if (settings.wifiOnly.value) NetworkType.UNMETERED else NetworkType.CONNECTED).build()
+    /** 定时转写和定时整理各排各的。选了实时转写时，定时转写只做兜底：每 30 分钟补转电量低等原因攒下的录音 */
     fun schedule() {
-        val minutes = settings.intervalMinutes.value.toLong()
+        scheduleDigest()
+        val minutes = if (realtime) REALTIME_FALLBACK_MINUTES else settings.intervalMinutes.value.toLong()
         manager.enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.UPDATE,
             PeriodicWorkRequestBuilder<TranscribeWork>(minutes, TimeUnit.MINUTES)
+                .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_TRANSCRIBE))
                 .setInitialDelay(minutes, TimeUnit.MINUTES).setConstraints(constraints()).addTag(TAG)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES).build())
     }
@@ -94,10 +137,30 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
             }
         }
     }
+    fun scheduleDigest() {
+        val minutes = digestMinutes().toLong()
+        manager.enqueueUniquePeriodicWork(DIGEST_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<TranscribeWork>(minutes, TimeUnit.MINUTES)
+                .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_DIGEST))
+                .setInitialDelay(minutes, TimeUnit.MINUTES).setConstraints(digestConstraints()).addTag(TAG).build())
+    }
+    /** 每存好一段录音调用：选了实时就马上转；电量低或偏热时先攒着，交给定时转写兜底 */
+    suspend fun segmentSaved(pendingMillis: Long) {
+        if (!settings.ready.value || !EarlyTranscribe.deviceAllows(context, realtime, pendingMillis)) return
+        // 正在跑时追加一轮，接上这段；还在排队时不重复排
+        val running = manager.getWorkInfosForUniqueWork(EARLY_WORK).get().any { it.state == WorkInfo.State.RUNNING }
+        manager.enqueueUniqueWork(EARLY_WORK, if (running) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<TranscribeWork>().setConstraints(constraints()).addTag(TAG)
+                .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_REALTIME))
+                .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build())
+    }
     fun observe() = manager.getWorkInfosByTagFlow(TAG)
     companion object {
         const val TAG = "transcribe"
         const val PERIODIC = "transcribe-periodic"
         const val IMMEDIATE = "transcribe-now"
+        const val EARLY_WORK = "transcribe-early"
+        const val DIGEST_PERIODIC = "digest-periodic"
+        const val REALTIME_FALLBACK_MINUTES = 30L
     }
 }

@@ -343,18 +343,22 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                             }
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("生成后推送", style = RsType.body, color = c.text)
-                            Text("发一条一句话通知，点开看整张卡", style = RsType.caption, color = c.textSecondary)
-                        }
-                        Toggle(s.push) { repo.setPush(s.id, it) }
-                    }
                 }
                 is SkillTrigger.AfterDigest -> Text("每轮整理之后自动看新内容，发现了就出卡；最多每 ${t.minGapMinutes} 分钟一次。也可以在下面手动生成。",
                     style = RsType.subhead, color = c.textSecondary)
                 SkillTrigger.Manual -> Text("只在你手动生成时运行。", style = RsType.subhead, color = c.textSecondary)
+            }
+            // 定时的和整理后自动出的都能推送；手动生成的本来就在眼前，不推
+            if (s.trigger !is SkillTrigger.Manual) {
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("生成后推送", style = RsType.body, color = c.text)
+                        Text(if (s.trigger is SkillTrigger.AfterDigest) "每出一张新卡推送一次，带上卡片内容" else "推送卡片内容，点开看整张卡",
+                            style = RsType.caption, color = c.textSecondary)
+                    }
+                    Toggle(s.push) { repo.setPush(s.id, it) }
+                }
             }
         }
 

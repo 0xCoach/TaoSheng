@@ -28,18 +28,26 @@ import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.springClick
 
-/** 整理时机：停多久算一段结束、一直在说时最多等多久先整理。改了下一轮整理生效。 */
+/** 整理时机：多久整理一次、停多久算一段结束、一直在说时最多等多久先整理。只管整理，转写在「原话与转写」里设置。 */
 @Composable
 fun DigestTimingCard(settings: AndroidDigestSettings) {
     val c = Rs.colors
+    val interval by settings.intervalMinutes.collectAsState()
     val pause by settings.pauseMinutes.collectAsState()
     val maxWait by settings.maxWaitMinutes.collectAsState()
     RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Text("什么时候整理", style = RsType.body, color = c.text)
         Spacer(Modifier.height(4.dp))
-        Text("转写完的话要等对话告一段落才整理，免得一件事被切成两半。", style = RsType.caption, color = c.textSecondary)
+        Text("把转写好的原话整理成一件件事。转写在「原话与转写」里单独设置。", style = RsType.caption, color = c.textSecondary)
 
         Spacer(Modifier.height(16.dp))
+        Text("多久整理一次", style = RsType.subhead, color = c.text)
+        Spacer(Modifier.height(8.dp))
+        app.resound.ui.transcript.IntervalChoice(interval) { settings.setIntervalMinutes(it) }
+        Spacer(Modifier.height(6.dp))
+        Text("整理要等转写完成；转写间隔比整理长时，以转写为准。", style = RsType.caption, color = c.textTertiary)
+
+        Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
         Text("停多久算说完了", style = RsType.subhead, color = c.text)
         Spacer(Modifier.height(8.dp))
         MinuteChoices(listOf(5, 10, 20), pause, settings::setPauseMinutes)
@@ -55,7 +63,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings) {
         Text("对话超过 ${label(maxWait)} 还没结束，就在前面找个停顿切开，先整理前半截。",
             style = RsType.caption, color = c.textTertiary)
         Spacer(Modifier.height(10.dp))
-        Text("实际还要等下一次自动转写（在「原话与转写」里设间隔），或在“今天”页点“现在整理”。",
+        Text("想马上看结果，在“今天”页点“现在整理”。",
             style = RsType.caption, color = c.textTertiary)
     }
 }

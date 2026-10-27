@@ -6,7 +6,7 @@ import app.resound.transcribe.*
 import kotlinx.coroutines.*
 import java.util.UUID
 
-/** 应用进程持有一个共享连接，最后一个请求结束后空闲 60 秒释放绑定。 */
+/** 应用进程持有一个共享连接，最后一个请求结束后空闲 [IDLE_MILLIS] 释放绑定（转写进程随之退出）。 */
 internal class LocalAsrConnection(private val context:Context) {
     data class Metrics(val pid:Int,val modelLoads:Int,val timedChunks:Int,val chunks:Int)
     private data class Pending(val started:CompletableDeferred<Unit>,val result:CompletableDeferred<AsrResult>,val progress:(String)->Unit,val backend:LocalBackend)
@@ -99,10 +99,12 @@ internal class LocalAsrConnection(private val context:Context) {
         } finally {
             if(!request.result.isCompleted)runCatching{messenger?.send(Message.obtain(null,7).apply{data=Bundle().apply{putString("id",id)}})}
             pending.remove(id)
-            if(pending.isEmpty())idle=scope.launch{delay(60_000);if(pending.isEmpty())disconnect()}
+            if(pending.isEmpty())idle=scope.launch{delay(IDLE_MILLIS);if(pending.isEmpty())disconnect()}
         }
     }
     companion object {
+        /** 比一段录音最长 5 分钟多 1 分钟：一直有人说话时模型常驻、录完就转不用反复加载；安静下来才退出省内存 */
+        val IDLE_MILLIS = app.resound.capture.CaptureTuning.MAX_SEGMENT_SAMPLES * 1000L / app.resound.capture.CaptureTuning.SAMPLE_RATE + 60_000L
         private val instances=mutableMapOf<String,LocalAsrConnection>()
         @Synchronized fun get(context:Context)=instances.getOrPut(context.packageName){LocalAsrConnection(context.applicationContext)}
     }

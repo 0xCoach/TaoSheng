@@ -40,3 +40,6 @@ object PipelineProgress {
 
     private fun now() = SystemClock.elapsedRealtime()
 }
+
+/** 处理用时统一显示成带两位小数的秒，如“1.21 秒”“12.81 秒”（整理、转写等各步的进度和完成提示共用） */
+fun formatElapsed(ms: Long): String = ms.coerceAtLeast(0).let { "${it / 1000}.${((it % 1000) / 10).toString().padStart(2, '0')} 秒" }

@@ -29,6 +29,9 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         // 周期任务与立即任务不同 unique name，也必须整条流水线互斥。
         if (!pipeline.tryLock()) return Result.retry()
         try {
+            // 转写、声纹、整理串在一个任务里，普通后台任务最多 10 分钟；一直有人说话（培训、吃饭）时积压多，
+            // 会被系统中途停掉、等下一轮，看起来像不转写。申请成长时间任务就没有这个上限；系统不允许时照旧跑。
+            runCatching { setForeground(getForegroundInfo()) }
             val app = applicationContext as ResoundApp
             PipelineProgress.stage(Stage.Transcribe)
             val transcribeRetry = app.transcribeRunner.run()

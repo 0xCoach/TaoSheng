@@ -12,7 +12,7 @@ import java.io.File
  * 所以写 OGG 前留一个标记、写完清掉；下次启动发现标记还在、且上次是原生崩溃，就改用 AAC [PAUSE_MS]，到期再试回 Opus。
  */
 object OggGuard {
-    const val PAUSE_MS = 7 * 86_400_000L
+    const val PAUSE_MS = 86_400_000L
     private var dir: File? = null
     private var prefs: android.content.SharedPreferences? = null
     @Volatile private var pausedUntil = 0L

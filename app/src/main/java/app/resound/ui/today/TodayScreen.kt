@@ -329,7 +329,8 @@ private fun OverviewCard(
                 style = RsType.caption,
                 color = soft,
                 modifier = Modifier.weight(1f),
-                maxLines = 1,
+                // 整理状态加原因可能较长，放不下就折到第二行，不截断
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (hasKey) {

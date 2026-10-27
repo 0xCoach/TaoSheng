@@ -178,12 +178,12 @@ class DigestRunner(
         return waitingText(waiting)
     }
 
-    /** “3 句等这段对话结束（停 10 分钟算说完）”；多种原因用顿号连起来 */
+    /** “3 句等对话停 10 分钟再整理”；多种原因用顿号连起来 */
     private fun waitingText(waiting: Map<Wait, Int>): String? = waiting.entries.filter { it.value > 0 }
         .sortedBy { it.key.ordinal }.joinToString("、") { (reason, n) -> when (reason) {
-            Wait.Conversation -> "$n 句等这段对话结束（停 ${settings.pauseMinutes.value} 分钟算说完）"
-            Wait.Transcribe -> "$n 句等附近的录音转完"
-            Wait.Voiceprint -> "$n 句等认出是谁说的"
+            Wait.Conversation -> "$n 句等对话停 ${settings.pauseMinutes.value} 分钟再整理"
+            Wait.Transcribe -> "$n 句等附近录音转完"
+            Wait.Voiceprint -> "$n 句等认出说话人"
         } }.ifEmpty { null }
 
     /**

@@ -424,22 +424,35 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     Text("按设定间隔分批转写，完成后释放模型。录音不上传；识别时可能增加耗电。", style=RsType.caption,color=c.textSecondary)
     Spacer(Modifier.height(10.dp))
     Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
-    Text(if(supported) "检测到已适配芯片；首次运行检查 NPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
+    Text(if(supported) "检测到已适配芯片；第一次转写时检查一次 NPU，结果会记住。区分说话人始终用 CPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
     Text(actual,style=RsType.caption,color=c.accent)
+    val context=androidx.compose.ui.platform.LocalContext.current
     LocalBackend.entries.forEach { mode ->
         val downloaded=remember(revision,mode){settings.modelReady(mode)}
+        val work by remember(mode){LocalModels.downloadActive(context,LocalModels.workName(mode))}.collectAsState(null)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("${mode.title} · ${if(mode==LocalBackend.Npu) "244" else "228"} MiB",style=RsType.subhead,color=c.text)
-                Text(if(downloaded) "已下载并校验" else settings.downloadStatus(mode),style=RsType.caption,color=c.textSecondary)
+                Text(if(downloaded) "已下载并校验" else downloadLine(settings.downloadStatus(mode),work),style=RsType.caption,color=c.textSecondary)
             }
-            val status=settings.downloadStatus(mode)
-            val downloading=status.startsWith("下载 ") || status.startsWith("连接") || status.startsWith("解压") || status.startsWith("校验")
-            if(!downloaded && (mode==LocalBackend.Cpu || supported)) Pill(if(downloading) "下载中" else if(status.contains("未完成")) "重试" else "下载",filled=false){settings.download(mode)}
+            // 有任务在跑或排队时也给“重试”：换新任务从断点接着下，不会被卡住的旧任务挡住
+            val active=work!=null
+            if(!downloaded && (mode==LocalBackend.Cpu || supported)) Pill(if(active || settings.downloadStatus(mode)!="未下载") "重试" else "下载",filled=false){
+                settings.download(mode,retry=active)
+            }
         }
     }
     Text("官方 GitHub 源，每份下载约 162 MB；国内网络可能不稳定。仅下载需要的模型，CPU 包用于手动选择或 NPU 失败回退。",style=RsType.caption,color=c.textTertiary)
+}
+
+/** 进度文字只在任务真的在跑时才可信；排队时说明在等什么，没任务时把过时的“下载 45%”改成可重试 */
+internal fun downloadLine(status: String, work: androidx.work.WorkInfo.State?): String = when (work) {
+    androidx.work.WorkInfo.State.RUNNING -> status
+    androidx.work.WorkInfo.State.ENQUEUED -> if (status.startsWith("下载中断")) status else "排队中：等网络连上后开始，或点重试"
+    androidx.work.WorkInfo.State.BLOCKED -> "排队中"
+    else -> if (status.startsWith("下载 ") || status.startsWith("连接") || status.startsWith("校验") || status.startsWith("解压"))
+        "下载中断（${status.substringAfter("下载 ").substringBefore(" ·")}），点重试接着下" else status
 }
 
 @Composable

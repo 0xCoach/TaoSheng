@@ -64,7 +64,7 @@ class LocalVoiceprintRepository(
     override fun deletePerson(id: Long) = launchAction {
         require(id != 0L)
         gate.withLock {
-            db.withTransaction { dao.clearPersonResults(id); dao.clearPersonSamples(id); dao.deletePerson(id); dao.invalidate() }
+            db.withTransaction { dao.clearPersonResults(id); dao.clearPersonSamples(id); dao.deletePerson(id); invalidateRetained() }
             revision++
         }
     }
@@ -74,7 +74,7 @@ class LocalVoiceprintRepository(
             require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
             val ids = dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }
-            db.withTransaction { dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); dao.invalidate() }
+            db.withTransaction { dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); invalidateRetained() }
             revision++
         }
     }
@@ -92,6 +92,14 @@ class LocalVoiceprintRepository(
     private suspend fun <T> engine(block: suspend (SpeakerEmbedding) -> T): T {
         val model = createEngine()
         try { return block(model) } finally { (model as? AutoCloseable)?.close() }
+    }
+    /**
+     * 声纹变了只需重配录音还在的段：录音已删的段 process() 也只是原样标记完成，
+     * 全部置回待处理只会让进度显示成“全量重配”，并让清理录音、整理白白多等一轮。
+     */
+    private suspend fun invalidateRetained() {
+        dao.doneSegments().filter { File(it.path).isFile }
+            .map { it.id }.chunked(500).forEach { dao.invalidateSegments(it) }
     }
     private fun launchAction(block: suspend () -> Unit) {
         scope.launch(Dispatchers.IO) {
@@ -182,7 +190,7 @@ class LocalVoiceprintRepository(
                         dao.saveSample(existing.copy(source = "line-review", sourceLineId = lineId, personId = personId))
                     dao.unexclude(group.segment.id, group.key)
                     dao.identity(group.lines.map { it.id }, personId, personName, 1f, true)
-                    dao.invalidate() // 后台复用缓存重打分；不在本次点击中遍历历史录音。
+                    invalidateRetained() // 后台复用缓存重打分；只重配录音还在的段，不在本次点击中遍历历史录音。
                 }
                 revision++
             }
@@ -197,7 +205,7 @@ class LocalVoiceprintRepository(
                 dao.removeSample(line.segmentId, key)
                 dao.exclude(VoiceprintExclusionEntity(line.segmentId, key, now()))
                 dao.identity(dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }, null, null, null, true)
-                dao.invalidate()
+                invalidateRetained()
             }
             revision++
         }
@@ -205,7 +213,7 @@ class LocalVoiceprintRepository(
     override fun reset() = launchAction {
         gate.withLock {
             cache.clear()
-            db.withTransaction { dao.clearSamples(); dao.clearExclusions(); dao.clearResults(); dao.invalidate() }
+            db.withTransaction { dao.clearSamples(); dao.clearExclusions(); dao.clearResults(); invalidateRetained() }
             revision++; resetGeneration++
         }
     }
@@ -221,7 +229,7 @@ class LocalVoiceprintRepository(
                         require(personId == 0L || dao.people().any { it.id == personId })
                         dao.saveSample(VoiceprintSampleEntity(source = "enroll", sourceLineId = null, segmentId = null, groupKey = null,
                             vector = VoiceprintMath.encode(vector), durationMillis = speech.size / 16L, createdAt = now(), personId = personId))
-                        dao.invalidate()
+                        invalidateRetained()
                     }
                     revision++
                     error.value = null
@@ -240,7 +248,8 @@ class LocalVoiceprintRepository(
     private data class SegmentInput(val lines: List<TranscriptLineEntity>, val excluded: Set<String>, val groups: List<Group>)
 
     /** 返回 true 表示仍需重试。并发 worker 串行；每轮自动补样本只在下一轮参与平均。 */
-    suspend fun run(): Boolean = withContext(Dispatchers.IO) { rounds.withLock { process() } }
+    suspend fun run(onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): Boolean =
+        withContext(Dispatchers.IO) { rounds.withLock { process(onProgress = onProgress) } }
     data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
 
     /** 只返回样本状态，不返回声音/向量；供后续界面展示人工样本离群提示。 */
@@ -267,7 +276,7 @@ class LocalVoiceprintRepository(
         }
     }
 
-    private suspend fun process(selected: List<SegmentEntity>? = null): Boolean {
+    private suspend fun process(selected: List<SegmentEntity>? = null, onProgress: (Int, Int) -> Unit = { _, _ -> }): Boolean {
         val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people(), dao.sampleInputs().associate { it.sampleId to it.sourceId }) }
         val canIdentify = round.samples.groupBy { it.personId }.values.any(::ready)
         // 导入音频转写后就删除；即使还没有注册声纹，也先缓存特征供日后从原话补样本。
@@ -277,8 +286,9 @@ class LocalVoiceprintRepository(
         var lastError: String? = null
         var model: SpeakerEmbedding? = null
         try {
-            for (segment in pending) {
+            for ((index, segment) in pending.withIndex()) {
                 currentCoroutineContext().ensureActive()
+                onProgress(index, pending.size)
                 val input = gate.withLock {
                     if (revision != round.revision) return true
                     val lines = dao.lines(segment.id)

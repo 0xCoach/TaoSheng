@@ -53,8 +53,10 @@ class ResoundApp : Application() {
         val hotwords = AndroidHotwordSettings(this, database.voiceprint(), scope)
         AppGraph.hotwords = hotwords
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope)
+        // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
+        val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
         voiceprintRepository = LocalVoiceprintRepository(database, scope, AsrAudioReader(cacheDir)::readPcm,
-            { CampPlusEmbedding(this) }, scheduler::runNow)
+            { CampPlusEmbedding(this) }, voiceprintRerun::request)
         AppGraph.voiceprint = voiceprintRepository
         AppGraph.privacy = app.resound.privacy.RoomPrivacyActions(database,
             discardRecording = CaptureService::discardCurrent,
@@ -65,7 +67,7 @@ class ResoundApp : Application() {
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
-            updateProgress = transcripts::updateProgress, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
+            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
                 val network = connectivity.getNetworkCapabilities(connectivity.activeNetwork)

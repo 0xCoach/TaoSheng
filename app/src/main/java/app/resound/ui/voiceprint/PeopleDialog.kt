@@ -202,6 +202,7 @@ fun SpeakerSegmentationSettings() {
     var enabled by remember { mutableStateOf(prefs.getBoolean("speakers-enabled", true)) }
     var downloaded by remember { mutableStateOf(LocalModels.ready(context, LocalModels.speakers)) }
     var downloadState by remember { mutableStateOf("") }
+    val work by remember { LocalModels.downloadActive(context, LocalModels.SPEAKERS_WORK) }.collectAsState(null)
     LaunchedEffect(downloaded) {
         while (!downloaded) {
             downloaded = LocalModels.ready(context, LocalModels.speakers)
@@ -233,9 +234,11 @@ fun SpeakerSegmentationSettings() {
         if (!downloaded) {
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Pill("下载模型", filled = true) { LocalModels.enqueueSpeakers(context) }
+                val retry = work != null || downloadState.isNotBlank()
+                Pill(if (retry) "重试" else "下载模型", filled = !retry) { LocalModels.enqueueSpeakers(context, retry = work != null) }
                 Spacer(Modifier.width(10.dp))
-                if (downloadState.isNotBlank()) Text(downloadState, style = RsType.caption, color = c.textTertiary)
+                if (downloadState.isNotBlank() || work != null)
+                    Text(app.resound.ui.transcript.downloadLine(downloadState, work), style = RsType.caption, color = c.textTertiary)
             }
         }
     }

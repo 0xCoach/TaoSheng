@@ -154,6 +154,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Model -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = bottom + 24.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                         ModelCard(digestSettings) {}
+                                        (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.DigestTimingCard(it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)
                                     }
                                     SettingsPage.Voiceprint -> LocalVoiceprint.current?.let { Box(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) { VoiceprintCard(it) } }

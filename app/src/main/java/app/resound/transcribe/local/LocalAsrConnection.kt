@@ -9,7 +9,7 @@ import java.util.UUID
 /** 应用进程持有一个共享连接，最后一个请求结束后空闲 60 秒释放绑定。 */
 internal class LocalAsrConnection(private val context:Context) {
     data class Metrics(val pid:Int,val modelLoads:Int,val timedChunks:Int,val chunks:Int)
-    private data class Pending(val started:CompletableDeferred<Unit>,val result:CompletableDeferred<AsrResult>,val progress:(String)->Unit)
+    private data class Pending(val started:CompletableDeferred<Unit>,val result:CompletableDeferred<AsrResult>,val progress:(String)->Unit,val backend:LocalBackend)
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
     private val pending=linkedMapOf<String,Pending>()
     private var idle:Job?=null
@@ -23,7 +23,12 @@ internal class LocalAsrConnection(private val context:Context) {
         val data=message.data
         val request=pending[data.getString("id")] ?: return@Handler true
         when(message.what){
-            2->request.progress("${data.getString("phase") ?: "本地转写"} · ${data.getInt("done")}/${data.getInt("total")}")
+            // 分人进度的数字是模型内部的分析窗口数，不是人数：显示成百分比，并注明分人始终在 CPU 上跑
+            2->{
+                val done=data.getInt("done");val total=data.getInt("total").coerceAtLeast(1)
+                request.progress(if(data.getString("phase")!=null) "区分说话人（CPU）· ${done*100/total}%"
+                    else "${if(request.backend==LocalBackend.Npu) "NPU" else "CPU"} 识别文字 · 第 $done/$total 小段")
+            }
             5->if(data.getInt("position")>1)request.progress("等待前面的本地转写 · 队列 ${data.getInt("position")}")
             6->request.started.complete(Unit)
             3->{
@@ -82,7 +87,7 @@ internal class LocalAsrConnection(private val context:Context) {
     suspend fun recognize(audio:AsrAudio,backend:LocalBackend,progress:(String)->Unit):AsrResult=withContext(Dispatchers.Main.immediate){
         idle?.cancel();idle=null
         val id=UUID.randomUUID().toString()
-        val request=Pending(CompletableDeferred(),CompletableDeferred(),progress)
+        val request=Pending(CompletableDeferred(),CompletableDeferred(),progress,backend)
         pending[id]=request
         var messenger:Messenger?=null
         try {

@@ -22,9 +22,12 @@ class CaptureWatchdog(context: Context, params: WorkerParameters) : CoroutineWor
 }
 class CaptureBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED,
+                Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, android.app.AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
+        val app = context.applicationContext as ResoundApp
+        app.rescheduleDigest(changed = true)
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
         val pending = goAsync()
-        val app = context.applicationContext as ResoundApp
         app.scope.launch {
             try {
                 if (app.store.prefs.getBoolean("enabled", false)) {

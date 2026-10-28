@@ -33,6 +33,7 @@ class RoomReviewRepository(
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val dailyMemory: suspend (LocalDate) -> Unit = {},
+    private val beforeReview: suspend () -> Unit = {},
 ) : ReviewRepository {
     private val gate = Mutex()
     private val mutable = MutableStateFlow(ReviewState(false, prefs.getString("lastError", null),
@@ -56,6 +57,7 @@ class RoomReviewRepository(
     internal suspend fun run(date: LocalDate, scheduled: Boolean): Boolean = gate.withLock {
         mutable.update { it.copy(generating = true) }
         try {
+            beforeReview()
             val timezone = zone()
             val minutes = state.value.dailyAtMinutes
             val start = ReviewTime.cutoff(date.minusDays(1), minutes, timezone).toInstant().toEpochMilli()

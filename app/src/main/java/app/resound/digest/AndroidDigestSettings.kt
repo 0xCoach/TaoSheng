@@ -10,6 +10,7 @@ class AndroidDigestSettings(
     context: Context, private val client: LlmClient,
     private val recordUsage: suspend (LlmReply) -> Unit = {},
 ) : DigestSettings {
+    val timing = AndroidDigestTiming(context)
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
     private val secrets = SecretStore(context, "digest-secrets", "resound-llm-aes-v1")
 

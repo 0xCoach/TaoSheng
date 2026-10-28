@@ -11,7 +11,7 @@ class ReviewWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
     override suspend fun doWork(): Result {
         val repository = AppGraph.review as RoomReviewRepository
         val date = ReviewTime.targetDate(ZonedDateTime.now(), repository.state.value.dailyAtMinutes)
-        val retry = repository.run(date, scheduled = true)
+        val retry = withReviewForeground { repository.run(date, scheduled = true) }
         return if (retry && runAttemptCount < 2) Result.retry() else Result.success()
     }
 }

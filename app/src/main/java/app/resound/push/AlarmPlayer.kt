@@ -56,12 +56,17 @@ internal object AlarmPlayer {
                 start()
             }
         }.getOrNull()
-        vibrator(app)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0),
-            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
+        // 每一步各自兜住：铃声、震动、电源键哪一样出错都不能让整个涛声崩掉（录音也在这个进程里）
+        runCatching {
+            vibrator(app)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
+        }
         // 按电源键灭屏 = 不再响
-        screenOff = object : BroadcastReceiver() {
-            override fun onReceive(c: Context, intent: Intent) { _ringing.value?.let(onPower) }
-        }.also { app.registerReceiver(it, IntentFilter(Intent.ACTION_SCREEN_OFF)) }
+        screenOff = runCatching {
+            object : BroadcastReceiver() {
+                override fun onReceive(c: Context, intent: Intent) { _ringing.value?.let(onPower) }
+            }.also { app.registerReceiver(it, IntentFilter(Intent.ACTION_SCREEN_OFF)) }
+        }.getOrNull()
         handler.postDelayed(timeout, RING_MS)
         appContext = app
     }
@@ -75,7 +80,7 @@ internal object AlarmPlayer {
         handler.removeCallbacks(timeout)
         player?.runCatching { stop(); release() }
         player = null
-        appContext?.let { vibrator(it)?.cancel() }
+        appContext?.let { runCatching { vibrator(it)?.cancel() } }
         screenOff?.let { r -> appContext?.runCatching { unregisterReceiver(r) } }
         screenOff = null
         wake?.runCatching { if (isHeld) release() }

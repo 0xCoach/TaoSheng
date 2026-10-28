@@ -103,7 +103,7 @@ internal object StrongReminders {
             .addAction(0, "不再响", broadcast(context, ACTION_STOP, id))
             .build()
         try { NotificationManagerCompat.from(context).notify(tag(id), ID, notification) } catch (_: SecurityException) { return }
-        AlarmPlayer.start(context, id) { ringingId -> dismiss(context, ringingId) }
+        runCatching { AlarmPlayer.start(context, id) { ringingId -> dismiss(context, ringingId) } }
         // 不理会就 5 分钟后再响，最多再响三次
         if (repeat < MAX_REPEATS) alarm(context, id, System.currentTimeMillis() + GAP_MS, repeat + 1) else cancelAlarm(context, id)
     }
@@ -169,6 +169,7 @@ internal object StrongReminders {
                     val item = (context.applicationContext as ResoundApp).database.memory().itemIncludingDeleted(id)
                     if (item == null || item.deleted || item.status != ItemStatus.Accepted.name || !item.strongReminder) stop(context, id)
                     else ring(context, id, body, intent.getIntExtra(EXTRA_REPEAT, 0))
+                } catch (_: Exception) { /* 再响失败只是少响一次，不能让涛声崩掉 */
                 } finally { finished() }
             }
             else -> finished()

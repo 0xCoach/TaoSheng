@@ -2,6 +2,7 @@ package app.resound.digest
 
 import app.resound.transcribe.TranscriptLine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
 
@@ -184,6 +185,10 @@ interface MemoryRepository {
      * true 时 dueText 写 "YYYY-MM-DD HH:mm"。who 为空串或 null 表示不写。记 editedAt，提醒按新时间重排
      */
     fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {}
+
+    /** 一条的最新内容（编辑、改状态后跟着变）；找不到（已删）给 null */
+    fun item(id: Long): Flow<MemoryItem?> = items(setOf("待办", "约定", "备忘", "灵感", "关键信息", "决定", "知识"), null)
+        .map { list -> list.firstOrNull { it.id == id } }
 
     /** 打开 / 关掉一条的到点强提醒 */
     fun setStrongReminder(id: Long, on: Boolean) {}

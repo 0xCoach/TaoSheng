@@ -890,8 +890,11 @@ private fun eventText(event: MemoryEvent, lines: List<app.resound.transcribe.Tra
 /** 一条提取项的详情：完整内容、时间、谁来做、依据的原话；可接受/忽略、编辑、删除、跳到所属那件事 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: (() -> Unit)?, onClose: () -> Unit) {
+internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent: (() -> Unit)?, onClose: () -> Unit) {
     val c = Rs.colors
+    // 跟着数据库走：编辑保存、改状态后，详情里马上是新的时间和内容
+    val latest by remember(opened.id) { memory.item(opened.id) }.collectAsState(initial = opened)
+    val item = latest ?: opened
     val lines by remember(item.eventId) { item.eventId?.let(memory::eventLines) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
     val source = lines.firstOrNull { it.id == item.sourceLineId }
     val task = item.category in setOf("待办", "约定", "备忘")

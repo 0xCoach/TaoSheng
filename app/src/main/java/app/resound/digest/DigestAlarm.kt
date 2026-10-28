@@ -37,6 +37,7 @@ class DigestAlarm(private val context: Context, private val timing: AndroidDiges
     companion object {
         const val TARGET = "digest-target"
         const val EXPIRES = "digest-expires"
+        const val NETWORK_GRACE_MS = 30 * 60_000L
         fun online(context: Context): Boolean {
             val cm = context.getSystemService(ConnectivityManager::class.java)
             return cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
@@ -48,13 +49,14 @@ class DigestAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as ResoundApp
         val target = intent.getLongExtra(DigestAlarm.TARGET, 0)
-        val expires = intent.getLongExtra(DigestAlarm.EXPIRES, 0)
+        // 到点时恰好断网（如 WiFi 重连）也等一会儿：30 分钟内联网照跑，超过或到了下一个点才算错过
+        val expires = minOf(intent.getLongExtra(DigestAlarm.EXPIRES, 0), target + DigestAlarm.NETWORK_GRACE_MS)
         val pending = goAsync()
         // 先接续闹钟，不等本次流水线结束。
         app.rescheduleDigest()
         app.scope.launch {
             try {
-                if (DigestTime.missed(System.currentTimeMillis(), target, expires) || !DigestAlarm.online(context)) {
+                if (DigestTime.missed(System.currentTimeMillis(), target, expires)) {
                     PipelineTimes.record(context, "${System.currentTimeMillis()} 到点整理 已错过，跳过")
                 } else app.enqueueTimedDigest(target, expires)?.await()
             } finally { pending.finish() }

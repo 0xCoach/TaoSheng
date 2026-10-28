@@ -439,27 +439,28 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     Text("SenseVoice · 离线识别", style=RsType.body,color=c.text)
     Text("录音不出手机。按下面“多久转写一次”识别；说话期间模型常驻，安静 6 分钟后释放内存。", style=RsType.caption,color=c.textSecondary)
     Spacer(Modifier.height(10.dp))
-    Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
-    Text(if(supported) "检测到已适配芯片；第一次转写时检查一次 NPU，结果会记住。区分说话人始终用 CPU。" else "本机 NPU 尚未适配，将使用 CPU。",style=RsType.caption,color=c.textSecondary)
+    // 不支持 NPU 的手机不给选项，免得看到了却用不了
+    if(supported) Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
+    Text(if(supported) "您的手机支持 NPU 识别，更快、更省电；不成功时自动改用 CPU。" else "您的手机暂不支持 NPU 识别，本机识别默认使用 CPU。",style=RsType.caption,color=c.textSecondary)
     Text(actual,style=RsType.caption,color=c.accent)
     val context=androidx.compose.ui.platform.LocalContext.current
-    LocalBackend.entries.forEach { mode ->
+    LocalBackend.entries.filter { it==LocalBackend.Cpu || supported }.forEach { mode ->
         val downloaded=remember(revision,mode){settings.modelReady(mode)}
         val work by remember(mode){LocalModels.downloadActive(context,LocalModels.workName(mode))}.collectAsState(null)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("${mode.title} · ${if(mode==LocalBackend.Npu) "244" else "228"} MiB",style=RsType.subhead,color=c.text)
+                Text("${mode.title}模型 · 下载约 ${LocalModels.spec(mode).archiveBytes/1_000_000} MB",style=RsType.subhead,color=c.text)
                 Text(if(downloaded) "已下载并校验" else downloadLine(settings.downloadStatus(mode),work),style=RsType.caption,color=c.textSecondary)
             }
             // 有任务在跑或排队时也给“重试”：换新任务从断点接着下，不会被卡住的旧任务挡住
             val active=work!=null
-            if(!downloaded && (mode==LocalBackend.Cpu || supported)) Pill(if(active || settings.downloadStatus(mode)!="未下载") "重试" else "下载",filled=false){
+            if(!downloaded) Pill(if(active || settings.downloadStatus(mode)!="未下载") "重试" else "下载",filled=false){
                 settings.download(mode,retry=active)
             }
         }
     }
-    Text("官方 GitHub 源，每份下载约 162 MB；国内网络可能不稳定。仅下载需要的模型，CPU 包用于手动选择或 NPU 失败回退。",style=RsType.caption,color=c.textTertiary)
+    Text(if(supported) "从官方 GitHub 下载，建议连 WiFi。CPU 模型作备用，NPU 识别不可用时自动改用。" else "从官方 GitHub 下载，建议连 WiFi。",style=RsType.caption,color=c.textTertiary)
 }
 
 /** 进度文字只在任务真的在跑时才可信；排队时说明在等什么，没任务时把过时的“下载 45%”改成可重试 */

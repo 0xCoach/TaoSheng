@@ -23,7 +23,7 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 
-enum class LocalBackend(val title: String) { Npu("NPU 加速"), Cpu("CPU 兼容") }
+enum class LocalBackend(val title: String) { Npu("NPU 识别"), Cpu("CPU 识别") }
 data class ModelSpec(val id: String, val url: String, val archiveBytes: Long, val archiveHash: String,
     val modelName: String, val modelBytes: Long, val modelHash: String, val needsTokens: Boolean = true,
     val fallbackUrls: List<String> = emptyList())
@@ -86,7 +86,7 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         speakers = inputData.getBoolean("speakers", false)
         backend = if (speakers) LocalBackend.Cpu else runCatching { LocalBackend.valueOf(inputData.getString("backend") ?: "") }.getOrElse { return@withContext Result.failure() }
-        if (backend == LocalBackend.Npu && !LocalModels.npuSupported()) { status("本机尚未适配 NPU，请下载 CPU 模型");return@withContext Result.failure() }
+        if (backend == LocalBackend.Npu && !LocalModels.npuSupported()) { status("您的手机暂不支持 NPU 识别，请下载 CPU 模型");return@withContext Result.failure() }
         val spec=if(speakers) LocalModels.speakers else LocalModels.spec(backend);val dir=LocalModels.directory(applicationContext,spec)
         if(LocalModels.ready(applicationContext,spec)){status("已下载并校验");return@withContext Result.success()}
         val archive=File(applicationContext.noBackupFilesDir,"${spec.id}.part")

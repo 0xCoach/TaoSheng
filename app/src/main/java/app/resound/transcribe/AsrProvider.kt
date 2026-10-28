@@ -11,7 +11,7 @@ data class AsrSentence(val startMillis: Long, val endMillis: Long, val text: Str
 data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?)
 enum class AsrError(val human: String, val retryable: Boolean = false) {
     Speakers("说话人分段失败，请重新下载分段模型或在人物与声纹中关闭多人分段"),
-    ModelMissing("请在转写设置中下载所需的本地模型"), LocalEngine("本地识别失败，请切换 CPU 或重新检查模型"), Auth("密钥无效或未开通"), Network("网络连接失败，等待重试", true), Timeout("转写超时，等待重试", true),
+    ModelMissing("请在转写设置中下载所需的本地模型"), LocalEngine("本机识别失败，可改用 CPU 识别或重新下载模型"), Auth("密钥无效或未开通"), Network("网络连接失败，等待重试", true), Timeout("转写超时，等待重试", true),
     Server("服务暂时不可用，等待重试", true), Protocol("识别响应不完整或格式异常"), Audio("录音文件不可读取或解码失败"),
     Interrupted("任务中断，等待重试", true), Storage("本地存储失败，等待重试", true)
 }

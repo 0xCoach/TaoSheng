@@ -26,7 +26,7 @@ internal class LocalAsrConnection(private val context:Context) {
             // 分人进度的数字是模型内部的分析窗口数，不是人数：显示成百分比，并注明分人始终在 CPU 上跑
             2->{
                 val done=data.getInt("done");val total=data.getInt("total").coerceAtLeast(1)
-                request.progress(if(data.getString("phase")!=null) "区分说话人（CPU）· ${done*100/total}%"
+                request.progress(if(data.getString("phase")!=null) "区分说话人 · ${done*100/total}%"
                     else "${if(request.backend==LocalBackend.Npu) "NPU" else "CPU"} 识别文字 · 第 $done/$total 小段")
             }
             5->if(data.getInt("position")>1)request.progress("等待前面的本地转写 · 队列 ${data.getInt("position")}")

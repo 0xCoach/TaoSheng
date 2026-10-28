@@ -52,7 +52,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun setSource(value: TranscribeSource) { prefs.edit().putString("source",value.name).commit();_source.value=value
         if(!prefs.contains("realtime"))_realtime.value=value==TranscribeSource.Local
         _hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
-    fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 加速，下次转写时检查一次" else "已选择 CPU 兼容");refreshReady();onChanged() }
+    fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
     fun saveCustom(endpoint: String, model: String) {
         OpenAiEndpoint.bases(endpoint)
         require(model.trim().isNotEmpty()) { "请填写模型名" }

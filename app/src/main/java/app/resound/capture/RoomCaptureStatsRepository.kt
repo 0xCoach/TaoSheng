@@ -52,7 +52,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
     override suspend fun exportDiagnostics(): File = withContext(Dispatchers.IO) {
         val file = File(context.cacheDir, "resound-diagnostics-${System.currentTimeMillis()}.txt")
         file.bufferedWriter().use { out ->
-            out.appendLine("${context.appName}验证版；最近3个自然日（本地时区）；${Instant.now()}")
+            out.appendLine("${context.appName}运行记录；最近3个自然日（本地时区）；${Instant.now()}")
             out.appendLine(transcribeDiagnostics())
             out.appendLine(app.resound.audio.OggGuard.describe())
             out.appendLine(app.resound.transcribe.PipelineTimes.dump(context))

@@ -91,7 +91,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** 验证版主页：录音状态、当天统计、守护记录、小米设置引导。 */
+/** 录音与后台页：录音状态、当天统计、守护记录、小米设置引导。 */
 @Composable
 fun VerifyScreen(
     capture: CaptureController,
@@ -136,7 +136,7 @@ private fun Header(themeMode: ThemeMode, onThemeMode: (ThemeMode) -> Unit) {
     val today = remember { LocalDate.now().format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)) }
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
-            Text("$today · 验证版", style = RsType.subhead, color = c.textSecondary)
+            Text(today, style = RsType.subhead, color = c.textSecondary)
             Spacer(Modifier.height(2.dp))
             Text(stringResource(R.string.app_name), style = RsType.largeTitle, color = c.text)
         }

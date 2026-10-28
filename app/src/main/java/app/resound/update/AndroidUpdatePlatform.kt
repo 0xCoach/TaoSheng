@@ -77,5 +77,6 @@ internal fun createUpdater(app: ResoundApp, backup: BackupRepository): UpdateEng
     @Suppress("DEPRECATION") val installed = app.packageManager.getPackageInfo(app.packageName, 0)
     return UpdateEngine(installed.longVersionCode, installed.versionName.orEmpty(), File(app.applicationInfo.sourceDir),
         File(app.filesDir, "update"), app.scope, AndroidUpdateStore(app), UpdateRemote(log = log),
-        AndroidUpdatePlatform(app, PreUpdateBackup(app, app.database, backup, log)), log)
+        AndroidUpdatePlatform(app, PreUpdateBackup(app, app.database, backup, log)), log,
+        reschedule = { enabled, preview -> UpdateWork.schedule(app, enabled, preview) })
 }

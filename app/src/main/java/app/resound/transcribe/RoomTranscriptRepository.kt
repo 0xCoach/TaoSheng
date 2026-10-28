@@ -56,7 +56,7 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
         val state = queue.value
         return buildString {
             appendLine("外放期间 ${dao.skippedPlaybackCount()} 段未转写")
-            appendLine("转写队列 pending=${state.pending} failed=${state.failed} running=${state.running} lastRunAt=${state.lastRunAt} nextRunAt=${state.nextRunAt} lastError=${state.lastError} usedSecondsToday=${state.usedSecondsToday} usedSecondsTotal=${state.usedSecondsTotal}")
+            appendLine("转写队列 pending=${state.pending} failed=${state.failed} running=${state.running} lastRunAt=${state.lastRunAt} nextRunAt=${state.nextRunAt} hasError=${state.lastError != null} usedSecondsToday=${state.usedSecondsToday} usedSecondsTotal=${state.usedSecondsTotal}")
             dao.recentAttempts().forEach { appendLine("转写元数据 $it") }
         }
     }

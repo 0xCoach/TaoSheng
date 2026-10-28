@@ -32,6 +32,8 @@ class ResoundApp : Application() {
         private set
     override fun onCreate() {
         super.onCreate()
+        val crashes = app.resound.diagnostics.CrashRecords(this)
+        crashes.installHandler()
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
         app.resound.audio.OggGuard.init(this)
@@ -139,8 +141,9 @@ class ResoundApp : Application() {
         AppGraph.backup = backupRepository
         val updater = app.resound.update.createUpdater(this, backupRepository)
         AppGraph.updater = updater
-        app.resound.update.UpdateWork.schedule(this)
-        scope.launch { updater.checkNow(startup = true) }
+        AppGraph.problemReports = app.resound.diagnostics.LocalProblemReports(this, crashes, AppGraph.stats, updater)
+        app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
+        registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         ImportAudioCleanupWork.schedule(this)

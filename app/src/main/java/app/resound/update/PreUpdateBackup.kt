@@ -43,8 +43,18 @@ internal class PreUpdateBackup(
         val stage = File(context.filesDir, "pre-update-staging")
         val target = File(context.filesDir, "pre-update")
         val previous = File(context.filesDir, "pre-update-previous")
-        // 若上次进程在目录替换中被杀，先恢复旧快照。
-        if (!target.exists() && previous.exists()) check(previous.renameTo(target))
+        // 兼容卡 051 的单份目录，以及迁移中被杀后留下的旧目录。
+        val legacy = File(context.filesDir, "pre-update-legacy")
+        if (File(target, "databases").exists()) {
+            check(!legacy.exists())
+            check(target.renameTo(legacy))
+        }
+        check(target.isDirectory || target.mkdirs())
+        listOf(previous, legacy).filter { it.exists() }.forEach { old ->
+            val latest = target.listFiles().orEmpty().maxOfOrNull { it.name.toLongOrNull() ?: 0 } ?: 0
+            val saved = File(target, "%019d".format(maxOf(old.lastModified(), latest + 1)))
+            check(old.renameTo(saved))
+        }
         check(stage.deleteRecursively()); check(stage.mkdirs())
         try {
             database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use {
@@ -65,13 +75,11 @@ internal class PreUpdateBackup(
                     }
             }
             File(stage, "snapshot.txt").writeText("涛声更新前备份\nat=${System.currentTimeMillis()}\ndatabaseVersion=${CaptureDatabase.VERSION}\n")
-            check(previous.deleteRecursively())
-            if (target.exists()) check(target.renameTo(previous))
-            if (!stage.renameTo(target)) {
-                if (previous.exists()) previous.renameTo(target)
-                error("snapshot_publish_failed")
-            }
-            check(previous.deleteRecursively())
+            val latest = target.listFiles().orEmpty().filter { it.isDirectory }.maxOfOrNull { it.name.toLongOrNull() ?: 0 } ?: 0
+            val published = File(target, "%019d".format(maxOf(System.currentTimeMillis(), latest + 1)))
+            check(stage.renameTo(published)) { "snapshot_publish_failed" }
+            target.listFiles().orEmpty().filter { it.isDirectory }.sortedByDescending { it.name }
+                .drop(3).forEach { check(it.deleteRecursively()) }
         } finally { stage.deleteRecursively() }
     }
 

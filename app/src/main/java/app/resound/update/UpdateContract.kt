@@ -34,7 +34,18 @@ interface AppUpdater {
 
     /** 系统设置里是否已允许涛声安装应用；false 时界面引导用户去打开 */
     fun canInstall(): Boolean
+
+    // ---- 卡 052：预览版通道 ----
+
+    /** 是否接收预览版。开着时正式版、预览版都查，取版本号大的；关掉后只等下一个比当前大的正式版 */
+    val previewChannel: StateFlow<Boolean> get() = NO_PREVIEW
+    fun setPreviewChannel(enabled: Boolean) {}
+
+    /** 当前装着的是预览版（版本名形如 0.2.12-preview.1；界面显示为“0.2.12 预览版 1”） */
+    val isPreviewBuild: Boolean get() = false
 }
+
+private val NO_PREVIEW: StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(false)
 
 /** 版本说明文件里给用户看的部分 */
 data class UpdateInfo(
@@ -45,6 +56,8 @@ data class UpdateInfo(
     /** 这次实际要下载的字节数（增量时是差异包大小） */
     val downloadBytes: Long,
     val incremental: Boolean,
+    /** 卡 052：这一版是预览版 */
+    val preview: Boolean = false,
 )
 
 sealed interface UpdateState {

@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.11-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.11/TaoSheng-v0.2.11-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.12-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -117,9 +117,9 @@ Existing options either need a dedicated recorder (Omi, AI pendants, recording c
 
 ### Download
 
-**v0.2.11** (2026-10-28, latest): [TaoSheng-v0.2.11-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.11/TaoSheng-v0.2.11-arm64.apk) (~91 MB) — in-app updates that download a small binary patch when possible and back up data before installing; every voice-input message is saved with its on-screen context (quick successive sends, Xiaohongshu and other apps) without duplicating the mic transcript; new “About TaoSheng” page · [all releases](https://github.com/0xCoach/TaoSheng/releases)
+**v0.2.12** (2026-10-28, latest): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.11/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/SHA256SUMS).
 
 ### Build from source
 

@@ -17,7 +17,9 @@ internal object SubscriptionReminders {
         val timed = items.filter { it.category in setOf("待办", "约定") && it.dueAt != null }
         fun identity(id: Long, due: Long?, version: Long) = if (version == 0L) "$id:$due" else "$id:$due:$version"
         val due = timed.map {
-            SubscriptionReminder("item:${identity(it.id, it.dueAt, it.reminderVersion)}", it.dueAt!!, "待办到期 · I${it.id} ${it.content}")
+            // 只有日期没有钟点的，手机上别半夜 0 点弹，改成当天早上 9 点
+            val at = if (s == PushSubscription.PhoneNotice && (it.dueText?.length ?: 0) <= 10) it.dueAt!! + 9 * 3_600_000L else it.dueAt!!
+            SubscriptionReminder("item:${identity(it.id, it.dueAt, it.reminderVersion)}", at, "待办到期 · I${it.id} ${it.content}")
         }
         val lead = settings.leadMinutes?.let { minutes -> timed.filter { (it.dueText?.length ?: 0) > 10 && it.dueAt!! > now }.map {
             SubscriptionReminder("lead:${identity(it.id, it.dueAt, it.reminderVersion)}", it.dueAt!! - minutes * 60_000L,

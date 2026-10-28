@@ -15,12 +15,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
-import androidx.compose.material3.TimePickerDefaults
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -168,21 +162,16 @@ private fun PointChip(text: String, onRemove: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** 添加时间点：底部面板 + 时、分滚轮（24 小时制） */
 @Composable
 private fun AddPointDialog(onDismiss: () -> Unit, onAdd: (Int) -> Unit) {
-    val c = Rs.colors
-    val state = rememberTimePickerState(0, 30, is24Hour = true)
-    AlertDialog(onDismissRequest = onDismiss, containerColor = c.background,
-        title = { Text("添加整理时间", style = RsType.body, color = c.text) },
-        confirmButton = { TextButton({ onAdd(state.hour * 60 + state.minute) }) { Text("添加", color = c.accent) } },
-        dismissButton = { TextButton(onDismiss) { Text("取消", color = c.textSecondary) } },
-        text = {
-            TimeInput(state, colors = TimePickerDefaults.colors(
-                timeSelectorSelectedContainerColor = c.accentSoft, timeSelectorSelectedContentColor = c.accent,
-                timeSelectorUnselectedContainerColor = c.card, timeSelectorUnselectedContentColor = c.text,
-            ))
-        })
+    var picked by remember { mutableStateOf(0 to 30) }
+    app.resound.ui.verify.RsSheet("添加整理时间", "24 小时制，上下滑动选择", onDismiss = onDismiss) {
+        app.resound.ui.verify.WheelTimePicker(picked.first, picked.second, { h, m -> picked = h to m })
+        app.resound.ui.verify.ActionButton("添加 ${clock(picked.first * 60 + picked.second)}", app.resound.ui.verify.ActionKind.Primary) {
+            onAdd(picked.first * 60 + picked.second)
+        }
+    }
 }
 
 private fun label(minutes: Int) = if (minutes % 60 == 0) "${minutes / 60} 小时" else "$minutes 分钟"

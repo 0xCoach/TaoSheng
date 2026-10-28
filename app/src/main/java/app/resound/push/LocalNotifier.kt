@@ -13,10 +13,12 @@ import app.resound.R
 import app.resound.capture.CaptureNotifications
 
 class LocalNotifier(private val context: Context, private val channel: String = CHANNEL) : Notifier {
-    private val channelName = if (channel == SKILL_GENERATION_CHANNEL) "技能生成" else "每日回顾"
+    private val channelName = when (channel) { SKILL_GENERATION_CHANNEL -> "技能生成"; TODO_CHANNEL -> "待办提醒"; else -> "每日回顾" }
+    // 待办到点要像闹钟一样弹出来，用高重要级；其余照旧
+    private val urgent = channel == TODO_CHANNEL
     init {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(channel, channelName, NotificationManager.IMPORTANCE_DEFAULT))
+            NotificationChannel(channel, channelName, if (urgent) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
@@ -34,13 +36,15 @@ class LocalNotifier(private val context: Context, private val channel: String = 
                 NotificationCompat.Builder(context, channel).setSmallIcon(R.drawable.ic_notify)
                     .setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body))
                     .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT).build())
+                    .setPriority(if (urgent) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+                    .apply { if (urgent) setCategory(NotificationCompat.CATEGORY_REMINDER) }.build())
         } catch (_: SecurityException) { throw IllegalStateException("请开启${channelName}通知权限") }
     }
 
     companion object {
         const val CHANNEL = "daily-review"
         const val SKILL_GENERATION_CHANNEL = "skill-generation"
+        const val TODO_CHANNEL = "todo-reminder"
         const val NOTIFICATION_ID = 100
     }
 }

@@ -24,7 +24,7 @@ class RoomManualTodos(
             withTimeoutOrNull(timeoutMillis) {
                 val (preset, key) = credentials()
                 if (key.isBlank()) return@withTimeoutOrNull fallback
-                val reply = chatJson(preset, key, ManualTodoPrompt.system(today()),
+                val reply = chatJson(preset, key, ManualTodoPrompt.system(today(), java.time.Instant.ofEpochMilli(now()).atZone(zone).toLocalTime()),
                     JSONObject().put("sourceText", text).toString())
                 withContext(NonCancellable) { recordUsage(reply) }
                 TodoDrafts(ManualTodoPrompt.parse(reply.content, zone), true)

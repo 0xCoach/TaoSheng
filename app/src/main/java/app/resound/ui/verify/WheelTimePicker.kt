@@ -1,0 +1,72 @@
+package app.resound.ui.verify
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import app.resound.ui.theme.Rs
+import app.resound.ui.theme.RsType
+
+private val ROW = 40.dp
+private const val VISIBLE = 5
+
+/** 24 小时制的时、分滚轮：上下滑动，停下时自动对齐到中间那一格 */
+@Composable
+fun WheelTimePicker(hour: Int, minute: Int, onChange: (hour: Int, minute: Int) -> Unit, modifier: Modifier = Modifier) {
+    val c = Rs.colors
+    var h = hour
+    var m = minute
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // 中间一格的底色，两个滚轮共用一条
+        Box(Modifier.width(200.dp).height(ROW).clip(RoundedCornerShape(12.dp)).background(c.accentSoft))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Wheel(24, hour) { h = it; onChange(h, m) }
+            Text(":", style = RsType.title, color = c.accent, modifier = Modifier.padding(horizontal = 12.dp))
+            Wheel(60, minute) { m = it; onChange(h, m) }
+        }
+    }
+}
+
+/** 一列循环滚轮：列表重复很多圈，从中间开始，上下都滑得动 */
+@Composable
+private fun Wheel(count: Int, initial: Int, onSelect: (Int) -> Unit) {
+    val c = Rs.colors
+    val loops = 200
+    val rowPx = with(LocalDensity.current) { ROW.toPx() }
+    val state = rememberLazyListState(count * (loops / 2) + initial - VISIBLE / 2)
+    // 吸附到列表顶端对齐，所以中间那格 = 顶上那格 + 2
+    val center by remember {
+        derivedStateOf { state.firstVisibleItemIndex + (if (state.firstVisibleItemScrollOffset > rowPx / 2) 1 else 0) + VISIBLE / 2 }
+    }
+    LaunchedEffect(center) { onSelect(center % count) }
+    LazyColumn(Modifier.width(72.dp).height(ROW * VISIBLE), state = state, flingBehavior = rememberSnapFlingBehavior(state)) {
+        items(count * loops) { i ->
+            val selected = i == center
+            Box(Modifier.fillMaxSize().height(ROW), contentAlignment = Alignment.Center) {
+                Text("%02d".format(i % count),
+                    style = if (selected) RsType.title.copy(fontWeight = FontWeight.SemiBold) else RsType.body,
+                    color = if (selected) c.accent else c.textTertiary)
+            }
+        }
+    }
+}

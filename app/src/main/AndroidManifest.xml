@@ -47,6 +47,7 @@
         <!-- ML Kit（截图识字）自带向 Google 上报使用统计的后台任务；只用离线识字，去掉上报，数据不出手机 -->
         <service android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery" tools:node="remove" />
         <service android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" tools:node="remove" />
+        <receiver android:name=".push.PhoneReminderReceiver" android:exported="false" />
         <receiver android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver" tools:node="remove" />
 
 

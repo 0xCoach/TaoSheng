@@ -155,6 +155,8 @@ fun TodayScreen(
     val dayLines = remember(segments) { segments.flatMap { it.lines }.sortedBy { it.startAt } }
     val importing = if (app.resound.AppGraph.isImporterReady)
         app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
+    val crashAt = if (app.resound.AppGraph.isProblemReportsReady)
+        app.resound.AppGraph.problemReports.lastCrashAt.collectAsState().value else null
 
     LazyColumn(
         Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
@@ -163,7 +165,8 @@ fun TodayScreen(
     ) {
         item { Header(date, themeMode, onThemeMode) }
         // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
-        if (dayOffset == 0) item(key = "crash") { app.resound.ui.settings.CrashNotice() }
+        // 只有真的闪退过才占一格，不然空格子也会多出一段间距
+        if (dayOffset == 0 && crashAt != null) item(key = "crash") { app.resound.ui.settings.CrashNotice() }
         if (dayOffset == 0) item(key = "start") { StartChecklist(capture, hasKey) }
         item {
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pending.size,

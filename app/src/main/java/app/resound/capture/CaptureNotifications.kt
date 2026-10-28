@@ -28,11 +28,16 @@ object CaptureNotifications {
         Intent(context, app.resound.MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra("open", "deleteRecent"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(context, 25,
+        Intent(context, app.resound.MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun ongoing(context: Context, paused: Boolean): Notification = NotificationCompat.Builder(context, "listening")
         .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(if (paused) "${context.appName} · 已暂停" else context.appName)
         .setContentText(if (paused) "到点自动恢复，也可点此立即恢复" else "后台运行中")
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
-        .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(action(context, CaptureService.RESUME))
+        // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
+        .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(if (paused) action(context, CaptureService.RESUME) else openApp(context))
         .addAction(0, if (paused) "恢复" else "暂停 30 分钟", action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE))
         .addAction(0, "删最近 10 分钟", deleteRequest(context))
         .build()

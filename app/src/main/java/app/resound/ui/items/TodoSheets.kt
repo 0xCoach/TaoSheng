@@ -112,7 +112,9 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
     val c = Rs.colors
     val today = LocalDate.now()
     var pickDay by remember { mutableStateOf(false) }
-    var pickTime by remember { mutableStateOf(false) }
+    val presets = remember { listOf(9, 12, 14, 18, 20).map { LocalTime.of(it, 0) } }
+    // 已经是自定义的时刻就直接展开滚轮，让人看到时间、也知道能改
+    var pickTime by remember { mutableStateOf(time != null && time !in presets) }
     Label("哪天")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Choice("不定", day == null) { onDay(null); onTime(null) }
@@ -123,13 +125,12 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
     if (day != null) {
         Label("几点")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("不定几点", time == null) { onTime(null) }
-            val presets = listOf(9, 12, 14, 18, 20).map { LocalTime.of(it, 0) }
-            presets.forEach { t -> Choice(t.format(DateTimeFormatter.ofPattern("H:mm")), time == t) { onTime(t) } }
-            val custom = time?.takeIf { it !in presets }
-            Choice(custom?.format(DateTimeFormatter.ofPattern("H:mm")) ?: "其他…", custom != null || pickTime) { pickTime = !pickTime }
+            Choice("不定几点", time == null && !pickTime) { onTime(null); pickTime = false }
+            presets.forEach { t -> Choice(t.format(DateTimeFormatter.ofPattern("H:mm")), time == t && !pickTime) { onTime(t); pickTime = false } }
+            // 按钮始终叫“自定义”，选好的时刻显示在下面的滚轮上，不和按钮混在一起
+            Choice("自定义", pickTime) { pickTime = true }
         }
-        // 点“其他…”或已选的时刻，在下面展开滚轮，滑到哪就是几点
+        // 点“自定义”在下面展开滚轮，滑到哪就是几点
         androidx.compose.animation.AnimatedVisibility(pickTime) {
             app.resound.ui.verify.WheelTimePicker(time?.hour ?: 9, time?.minute ?: 0, { h, m -> onTime(LocalTime.of(h, m)) },
                 Modifier.padding(top = 4.dp))

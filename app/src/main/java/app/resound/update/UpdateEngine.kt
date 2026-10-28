@@ -45,6 +45,9 @@ internal class UpdateEngine(
     private val gate = Mutex()
     private val mutable = MutableStateFlow<UpdateState>(UpdateState.Idle)
     override val state = mutable.asStateFlow()
+    private val auto = MutableStateFlow(store.long("autoOff") != 1L)
+    override val autoCheck = auto.asStateFlow()
+    override fun setAutoCheck(enabled: Boolean) { store.save("autoOff" to if (enabled) 0L else 1L); auto.value = enabled }
     private var restored = false
     private var manifest: UpdateManifest? = null
     private var patch: UpdatePatch? = null
@@ -56,6 +59,8 @@ internal class UpdateEngine(
         gate.withLock {
             restore()
             if (mutable.value is UpdateState.Installing || mutable.value is UpdateState.Ready) return@withLock
+            // 关了自动检查：后台和启动时都不查，只认手动
+            if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")
             if (startup && last > 0 && now() - last in 0 until HOUR) return@withLock
             val previous = mutable.value
@@ -63,7 +68,9 @@ internal class UpdateEngine(
             store.save("lastCheck" to now())
             try {
                 val result = remote.check()
-                if (!result.newerThan(versionCode)) {
+                // 跳过的版本：自动检查当作已是最新、不通知；手动检查照常显示，方便改主意
+                val skipped = !manual && store.long("skipVersion") >= result.versionCode
+                if (!result.newerThan(versionCode) || skipped) {
                     manifest = null; patch = null
                     store.save("manifest" to null, "ready" to null)
                     mutable.value = UpdateState.UpToDate(now())
@@ -237,6 +244,12 @@ internal class UpdateEngine(
         restore()
         manifest?.let { store.save("laterVersion" to it.versionCode.toLong(), "laterUntil" to now() + 24 * HOUR) }
         platform.dismissNotification()
+    } } }
+    override fun skip() { scope.launch(Dispatchers.IO) { gate.withLock {
+        restore()
+        manifest?.let { store.save("skipVersion" to it.versionCode.toLong()) }
+        platform.dismissNotification()
+        if (mutable.value is UpdateState.Available || mutable.value is UpdateState.Failed) mutable.value = UpdateState.UpToDate(now())
     } } }
     override fun canInstall() = platform.canInstall()
     private fun notifyOnce() {

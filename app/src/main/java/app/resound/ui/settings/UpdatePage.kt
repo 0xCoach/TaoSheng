@@ -49,6 +49,7 @@ import app.resound.ui.verify.Pill
 import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.formatBytes
 import app.resound.ui.verify.formatClock
+import app.resound.ui.verify.springClick
 
 /** 设置 → 关于 → 版本更新：当前版本、新版本内容、下载 / 安装。下载和安装都要用户点了才做 */
 @Composable
@@ -94,6 +95,19 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
                 if (state !is UpdateState.Checking && !state.busy()) updater.check(manual = true)
             }
         }
+
+        val auto by updater.autoCheck.collectAsState()
+        RsCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("自动检查更新", style = RsType.body, color = c.text)
+                    Spacer(Modifier.height(2.dp))
+                    Text(if (auto) "每 6 小时和打开涛声时检查，有新版发通知" else "只在点“检查更新”时检查",
+                        style = RsType.caption, color = c.textTertiary)
+                }
+                app.resound.ui.skills.Toggle(auto) { updater.setAutoCheck(it) }
+            }
+        }
     }
 }
 
@@ -112,9 +126,14 @@ private fun NewVersionCard(info: UpdateInfo, state: UpdateState, canInstall: Boo
         }
         Spacer(Modifier.height(16.dp))
         when (state) {
-            is UpdateState.Available -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill("下载", filled = true) { updater.download() }
-                Pill("稍后", filled = false) { updater.later() }
+            is UpdateState.Available -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Pill("下载", filled = true) { updater.download() }
+                    Pill("稍后", filled = false) { updater.later() }
+                    Spacer(Modifier.weight(1f))
+                    Text("跳过这个版本", style = RsType.subhead, color = c.textTertiary,
+                        modifier = Modifier.clip(CircleShape).springClick { updater.skip() }.padding(horizontal = 6.dp, vertical = 9.dp))
+                }
             }
             is UpdateState.Downloading -> {
                 Progress(if (state.totalBytes > 0) state.doneBytes.toFloat() / state.totalBytes else 0f)

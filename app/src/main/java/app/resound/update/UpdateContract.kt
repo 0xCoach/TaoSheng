@@ -25,6 +25,13 @@ interface AppUpdater {
     /** 用户点了“稍后”：这个版本今天不再通知 */
     fun later()
 
+    /** 用户点了“跳过这个版本”：自动检查和通知都不再提这一版，手动检查仍会显示 */
+    fun skip()
+
+    /** 自动检查（每 6 小时 + 打开 App 时）；关掉后只在手动点“检查更新”时查 */
+    val autoCheck: StateFlow<Boolean>
+    fun setAutoCheck(enabled: Boolean)
+
     /** 系统设置里是否已允许涛声安装应用；false 时界面引导用户去打开 */
     fun canInstall(): Boolean
 }

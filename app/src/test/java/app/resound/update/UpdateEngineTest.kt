@@ -17,6 +17,34 @@ import java.util.concurrent.CopyOnWriteArrayList
 class UpdateEngineTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun skippedVersionAndAutoCheckOffOnlyShowOnManualCheck() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val engine = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                server.enqueue(MockResponse().setBody(fixtureManifest().json()))
+                engine.checkNow()
+                engine.skip()
+                engine.awaitState { it is UpdateState.UpToDate }
+                // 跳过后：自动检查当作已是最新、不再通知；手动检查照样显示
+                server.enqueue(MockResponse().setBody(fixtureManifest().json()))
+                engine.checkNow()
+                assertTrue(engine.state.value is UpdateState.UpToDate)
+                server.enqueue(MockResponse().setBody(fixtureManifest().json()))
+                engine.checkNow(manual = true)
+                assertTrue(engine.state.value is UpdateState.Available)
+                // 关掉自动检查：后台检查不发请求
+                engine.setAutoCheck(false)
+                val before = server.requestCount
+                engine.checkNow()
+                assertEquals(before, server.requestCount)
+                assertFalse(engine.autoCheck.value)
+            } finally { scope.cancel() }
+        }
+    }
+
     @Test fun incrementalLifecycleWaitsForUserAndRestoresReadyAfterCancellationAndRestart() = runBlocking {
         MockWebServer().use { server ->
             server.start()

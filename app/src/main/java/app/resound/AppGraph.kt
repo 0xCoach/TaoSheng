@@ -13,6 +13,19 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    // 卡 052–054：界面先按约定接好，底层合并后由 ResoundApp 装配
+    lateinit var problemReports: app.resound.diagnostics.ProblemReports
+    val isProblemReportsReady: Boolean get() = ::problemReports.isInitialized
+
+    lateinit var digestTiming: app.resound.digest.DigestTiming
+    val isDigestTimingReady: Boolean get() = ::digestTiming.isInitialized
+
+    lateinit var manualTodos: app.resound.digest.ManualTodos
+    val isManualTodosReady: Boolean get() = ::manualTodos.isInitialized
+
+    lateinit var todoVoice: app.resound.digest.TodoVoiceInput
+    val isTodoVoiceReady: Boolean get() = ::todoVoice.isInitialized
+
     lateinit var updater: app.resound.update.AppUpdater
     val isUpdaterReady: Boolean get() = ::updater.isInitialized
 

@@ -265,6 +265,14 @@ private fun OverviewCard(
     val recording = status.state == CaptureState.Recording
     // 还有录音没转写：按钮叫“立即转写”（同一个按钮会先转写、再整理）
     val toTranscribe = queue.pending + queue.failed
+    // 按时间点整理：两个点之间不出新内容，告诉用户下次几点
+    val timing = if (app.resound.AppGraph.isDigestTimingReady) app.resound.AppGraph.digestTiming else null
+    val timedMode = timing?.mode?.collectAsState()?.value == app.resound.digest.DigestMode.TimePoints
+    val nextAt = timing?.nextDigestAt?.collectAsState()?.value
+    val nextDigest = if (!timedMode) null else nextAt?.let { at ->
+        val day = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        "下次整理 " + (if (day != java.time.LocalDate.now()) "明天 " else "") + formatClock(at)
+    } ?: "未设整理时间点"
     val pipeline by app.resound.PipelineProgress.state.collectAsState()
     val stage = pipeline.stage
     val busy = digest.running || queue.running || stage != null
@@ -324,7 +332,7 @@ private fun OverviewCard(
                     digest.running -> "按已保存的原话计数"
                     queue.running -> "正在转写录音…"
                     toTranscribe > 0 -> "$toTranscribe 段录音待转写" + (queue.lastError?.let { " · $it" } ?: "")
-                    else -> digestLine(digest.running, digest.pendingLines, digest.lastRunAt, digest.lastError, hasKey, now)
+                    else -> digestLine(digest.running, digest.pendingLines, digest.lastRunAt, digest.lastError, hasKey, now, nextDigest)
                 },
                 style = RsType.caption,
                 color = soft,
@@ -460,7 +468,8 @@ private fun formatSpeech(ms: Long): String {
 }
 
 /** 只说结果：上次什么时候整理的；刚说的还没整理时加半句“刚说的稍后整理”，不讲句数和等待机制 */
-private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long): String = when {
+/** [next] 是按时间点整理时的“下次整理 18:00”；按间隔时为空 */
+private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: String?, hasKey: Boolean, now: Long, next: String? = null): String = when {
     !hasKey -> "填好大模型密钥后，转写出的原话会自动整理成一件件事"
     running -> "正在把原话整理成事件…"
     error != null -> error
@@ -469,7 +478,10 @@ private fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error: 
             val mins = (now - it) / 60_000
             append(if (mins < 1) "刚整理过" else if (mins < 60) "$mins 分钟前整理过" else "上次整理 ${formatClock(it)}")
         }
-        if (pending > 0) {
+        if (next != null) {
+            if (isNotEmpty()) append(" · ")
+            append(next)
+        } else if (pending > 0) {
             if (isNotEmpty()) append(" · ")
             append("刚说的稍后整理")
         }

@@ -176,7 +176,11 @@ private fun SettingsList(
                     // 先模型后技能：技能都靠整理模型跑。右侧写模型和整理间隔，整理时机也在这一页里设
                     val digestInterval = (digestSettings as? app.resound.digest.AndroidDigestSettings)?.intervalMinutes?.collectAsState()?.value
                     val model = digestSettings.presets.firstOrNull { it.id == preset }?.name ?: ""
-                    Row1("整理模型", if (llmKey) model + (digestInterval?.let { " · 每 $it 分钟" } ?: "") else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
+                    val timing = if (app.resound.AppGraph.isDigestTimingReady) app.resound.AppGraph.digestTiming else null
+                    val timed = timing?.mode?.collectAsState()?.value == app.resound.digest.DigestMode.TimePoints
+                    val points = timing?.timePoints?.collectAsState()?.value.orEmpty()
+                    val when_ = if (timed) " · 每天 ${points.size} 个时间点" else digestInterval?.let { " · 每 $it 分钟" } ?: ""
+                    Row1("整理模型", if (llmKey) model + when_ else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
                     Divider()
                     val skillList = app.resound.ui.skills.skillRepo().skills.collectAsState().value
                     Row1("整理技能", "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个", dot = null) { onOpen(SettingsPage.Skills) }

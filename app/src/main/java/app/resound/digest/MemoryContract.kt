@@ -56,6 +56,8 @@ data class MemoryItem(
     val doneHint: DoneHint? = null,
     val origin: ItemOrigin = ItemOrigin.Digest,
     val sourceText: String? = null,
+    /** 到点强提醒：弹出、响铃、震动；关着时到点只发普通通知 */
+    val strongReminder: Boolean = false,
 )
 
 /** 卡 046：后来听到的、说明已经做完的那句原话 */
@@ -182,6 +184,9 @@ interface MemoryRepository {
      * true 时 dueText 写 "YYYY-MM-DD HH:mm"。who 为空串或 null 表示不写。记 editedAt，提醒按新时间重排
      */
     fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {}
+
+    /** 打开 / 关掉一条的到点强提醒 */
+    fun setStrongReminder(id: Long, on: Boolean) {}
 
     /** 批量改状态（待确认的“全部接受 / 全部忽略”），一个事务 */
     fun setItemsStatus(ids: List<Long>, status: ItemStatus) { ids.forEach { setItemStatus(it, status) } }

@@ -45,7 +45,8 @@ class RoomManualTodos(
                 content = draft.content.trim(), dueText = draft.dueText, dueAt = draft.dueAt,
                 who = draft.who?.trim()?.takeIf { it.isNotEmpty() }, lineId = null,
                 status = "Accepted", createdAt = at, statusChangedAt = at, noMerge = true,
-                origin = if (origin == ItemOrigin.Typed) "typed" else "voice", sourceText = sourceText)
+                origin = if (origin == ItemOrigin.Typed) "typed" else "voice", sourceText = sourceText,
+                strongReminder = draft.strongReminder && draft.dueAt != null)
         }
         scope.launch(Dispatchers.IO) { dao.addManualItems(rows) }
     }

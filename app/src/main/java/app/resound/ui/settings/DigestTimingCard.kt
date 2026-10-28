@@ -162,17 +162,10 @@ private fun PointChip(text: String, onRemove: () -> Unit) {
     }
 }
 
-/** 添加时间点：底部面板 + 时、分滚轮（24 小时制） */
+/** 添加时间点：共用的时刻滚轮面板 */
 @Composable
-private fun AddPointDialog(onDismiss: () -> Unit, onAdd: (Int) -> Unit) {
-    var picked by remember { mutableStateOf(0 to 30) }
-    app.resound.ui.verify.RsSheet("添加整理时间", "24 小时制，上下滑动选择", onDismiss = onDismiss) {
-        app.resound.ui.verify.WheelTimePicker(picked.first, picked.second, { h, m -> picked = h to m })
-        app.resound.ui.verify.ActionButton("添加 ${clock(picked.first * 60 + picked.second)}", app.resound.ui.verify.ActionKind.Primary) {
-            onAdd(picked.first * 60 + picked.second)
-        }
-    }
-}
+private fun AddPointDialog(onDismiss: () -> Unit, onAdd: (Int) -> Unit) =
+    app.resound.ui.verify.WheelTimeSheet("添加整理时间", 30, confirm = "添加", onDismiss = onDismiss, onPick = onAdd)
 
 private fun label(minutes: Int) = if (minutes % 60 == 0) "${minutes / 60} 小时" else "$minutes 分钟"
 

@@ -155,19 +155,23 @@ fun TodayScreen(
     val dayLines = remember(segments) { segments.flatMap { it.lines }.sortedBy { it.startAt } }
     val importing = if (app.resound.AppGraph.isImporterReady)
         app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
-    val crashAt = if (app.resound.AppGraph.isProblemReportsReady)
-        app.resound.AppGraph.problemReports.lastCrashAt.collectAsState().value else null
 
     LazyColumn(
         Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        item { Header(date, themeMode, onThemeMode) }
-        // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
-        // 只有真的闪退过才占一格，不然空格子也会多出一段间距
-        if (dayOffset == 0 && crashAt != null) item(key = "crash") { app.resound.ui.settings.CrashNotice() }
-        if (dayOffset == 0) item(key = "start") { StartChecklist(capture, hasKey) }
+        // 闪退提示、上手清单和标题放在同一格：不显示时不占位，录音卡紧挨着日期
+        item {
+            Column {
+                Header(date, themeMode, onThemeMode)
+                if (dayOffset == 0) {
+                    app.resound.ui.settings.CrashNotice(topGap = 20.dp)
+                    // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
+                    StartChecklist(capture, hasKey, topGap = 20.dp)
+                }
+            }
+        }
         item {
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pending.size,
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
@@ -938,7 +942,7 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                 // 手动或语音添加的没有对应的事和原话，显示当时写的、说的那句
                 SheetSection(if (item.origin == app.resound.digest.ItemOrigin.Voice) "语音添加" else "手动添加")
                 RsCard(padding = PaddingValues(16.dp)) {
-                    Text(friendlyDate(item.at) + " " + formatClock(item.at), style = RsType.caption, color = c.textTertiary)
+                    Text(friendlyDate(item.at), style = RsType.caption, color = c.textTertiary)
                     item.sourceText?.let {
                         Spacer(Modifier.height(4.dp))
                         Text("“$it”", style = RsType.body, color = c.text)

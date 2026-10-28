@@ -283,6 +283,7 @@ private class DraftState(d: TodoDraft) {
     var who by mutableStateOf(d.who?.takeIf { it != "我" }.orEmpty())
     var day by mutableStateOf<LocalDate?>(null)
     var time by mutableStateOf<LocalTime?>(null)
+    var strong by mutableStateOf(d.strongReminder)
 
     init {
         d.dueAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()) }?.let { at ->
@@ -296,7 +297,7 @@ private class DraftState(d: TodoDraft) {
         val at = day?.let { d -> (time?.let { d.atTime(it) } ?: d.atStartOfDay()).atZone(zone) }
         val text = at?.format(DateTimeFormatter.ofPattern(if (time != null) "yyyy-MM-dd HH:mm" else "yyyy-MM-dd"))
         return TodoDraft(category, if (category == "待办") kind ?: "我要做" else null, content.trim(), text,
-            at?.toInstant()?.toEpochMilli(), who.trim().ifEmpty { null })
+            at?.toInstant()?.toEpochMilli(), who.trim().ifEmpty { null }, strongReminder = strong && at != null)
     }
 }
 
@@ -329,6 +330,7 @@ private fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Unit
                     }
                 }
                 DueChoice(card.day, card.time, { card.day = it }, { card.time = it })
+                if (card.day != null) StrongReminderRow(card.strong) { card.strong = it }
                 Label("和谁（可不填）")
                 CardInput(card.who, "例如 老王") { card.who = it }
             }

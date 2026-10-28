@@ -166,7 +166,7 @@ private fun ImportSheet(importer: AudioImporter, pending: List<PendingImport>) {
     }
 }
 
-/** 改开始时间：日期（今天/昨天/前天/大前天）+ 时分输入 */
+/** 改开始时间：日期（今天/昨天/前天/大前天）+ 时分滚轮（24 小时制） */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StartEditor(start: Long, onChange: (Long) -> Unit) {
@@ -174,9 +174,9 @@ private fun StartEditor(start: Long, onChange: (Long) -> Unit) {
     val zone = ZoneId.systemDefault()
     val at = Instant.ofEpochMilli(start).atZone(zone)
     val today = LocalDate.now()
-    val time = rememberTimePickerState(at.hour, at.minute, is24Hour = true)
+    var time by remember { mutableStateOf(LocalTime.of(at.hour, at.minute)) }
     var day by remember { mutableStateOf(at.toLocalDate()) }
-    fun emit() = onChange(day.atTime(LocalTime.of(time.hour, time.minute)).atZone(zone).toInstant().toEpochMilli())
+    fun emit() = onChange(day.atTime(time).atZone(zone).toInstant().toEpochMilli())
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             (0L..3L).forEach { back ->
@@ -188,10 +188,7 @@ private fun StartEditor(start: Long, onChange: (Long) -> Unit) {
                     modifier = Modifier.clip(CircleShape).background(bg).springClick { day = d; emit() }.padding(horizontal = 12.dp, vertical = 7.dp))
             }
         }
-        TimeInput(time, colors = TimePickerDefaults.colors(
-            timeSelectorSelectedContainerColor = c.accentSoft, timeSelectorSelectedContentColor = c.accent,
-            timeSelectorUnselectedContainerColor = c.card, timeSelectorUnselectedContentColor = c.text,
-        ))
+        app.resound.ui.verify.WheelTimePicker(at.hour, at.minute, { h, m -> time = LocalTime.of(h, m) })
         Pill("用这个时间", filled = true) { emit() }
     }
 }

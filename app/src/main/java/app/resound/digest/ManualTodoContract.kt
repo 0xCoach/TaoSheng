@@ -19,6 +19,8 @@ data class TodoDraft(
     val dueText: String?,
     val dueAt: Long?,
     val who: String?,
+    /** 到点强提醒（弹出、响铃、震动），默认关 */
+    val strongReminder: Boolean = false,
 )
 
 data class TodoDrafts(

@@ -74,18 +74,34 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss
     var who by remember { mutableStateOf(item.who?.takeIf { it != "我" }.orEmpty()) }
     var day by remember { mutableStateOf(start?.toLocalDate()) }
     var time by remember { mutableStateOf(start?.takeIf { (item.dueText?.length ?: 0) > 10 }?.toLocalTime()) }
+    var strong by remember { mutableStateOf(item.strongReminder) }
 
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
         SheetInput(content, "要做的事") { content = it }
         DueChoice(day, time, { day = it }, { time = it })
+        if (day != null) StrongReminderRow(strong) { strong = it }
         Label("和谁（可不填）")
         SheetInput(who, "例如 老王") { who = it }
         ActionButton("保存", ActionKind.Primary, enabled = content.isNotBlank()) {
             val at = day?.let { d -> (time?.let { d.atTime(it) } ?: d.atStartOfDay()).atZone(zone).toInstant().toEpochMilli() }
             memory.updateItem(item.id, content.trim(), at, time != null, who.trim().ifEmpty { null })
+            if (strong != item.strongReminder || (at == null && item.strongReminder)) memory.setStrongReminder(item.id, strong && at != null)
             onDismiss()
         }
+    }
+}
+
+/** 强提醒开关：开了到点弹出、响铃、震动；关着照旧发普通通知。只有定了日子才显示 */
+@Composable
+internal fun StrongReminderRow(on: Boolean, onChange: (Boolean) -> Unit) {
+    val c = Rs.colors
+    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text("强提醒", style = RsType.body, color = c.text)
+            Text(if (on) "到点弹出、响铃、震动" else "到点只发普通通知", style = RsType.caption, color = c.textSecondary)
+        }
+        app.resound.ui.skills.Toggle(on, onChange)
     }
 }
 
@@ -111,7 +127,12 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
             val presets = listOf(9, 12, 14, 18, 20).map { LocalTime.of(it, 0) }
             presets.forEach { t -> Choice(t.format(DateTimeFormatter.ofPattern("H:mm")), time == t) { onTime(t) } }
             val custom = time?.takeIf { it !in presets }
-            Choice(custom?.format(DateTimeFormatter.ofPattern("H:mm")) ?: "其他…", custom != null) { pickTime = true }
+            Choice(custom?.format(DateTimeFormatter.ofPattern("H:mm")) ?: "其他…", custom != null || pickTime) { pickTime = !pickTime }
+        }
+        // 点“其他…”或已选的时刻，在下面展开滚轮，滑到哪就是几点
+        androidx.compose.animation.AnimatedVisibility(pickTime) {
+            app.resound.ui.verify.WheelTimePicker(time?.hour ?: 9, time?.minute ?: 0, { h, m -> onTime(LocalTime.of(h, m)) },
+                Modifier.padding(top = 4.dp))
         }
     }
 
@@ -120,18 +141,6 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
         DatePickerDialog(onDismissRequest = { pickDay = false }, confirmButton = {
             TextButton({ state.selectedDateMillis?.let { onDay(Instant.ofEpochMilli(it).atZone(ZoneId.of("UTC")).toLocalDate()) }; pickDay = false }) { Text("好", color = c.accent) }
         }, dismissButton = { TextButton({ pickDay = false }) { Text("取消", color = c.textSecondary) } }) { DatePicker(state) }
-    }
-    if (pickTime) {
-        val state = rememberTimePickerState(time?.hour ?: 9, time?.minute ?: 0, is24Hour = true)
-        androidx.compose.material3.AlertDialog(onDismissRequest = { pickTime = false }, containerColor = c.background,
-            confirmButton = { TextButton({ onTime(LocalTime.of(state.hour, state.minute)); pickTime = false }) { Text("好", color = c.accent) } },
-            dismissButton = { TextButton({ pickTime = false }) { Text("取消", color = c.textSecondary) } },
-            text = {
-                TimeInput(state, colors = TimePickerDefaults.colors(
-                    timeSelectorSelectedContainerColor = c.accentSoft, timeSelectorSelectedContentColor = c.accent,
-                    timeSelectorUnselectedContainerColor = c.card, timeSelectorUnselectedContentColor = c.text,
-                ))
-            })
     }
 }
 

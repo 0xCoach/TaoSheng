@@ -210,11 +210,25 @@ class Todo046Test {
         }, { next, _ -> plans += next }, { clock })
         assertFalse(runtime.refresh(true)); assertEquals(1, sent.size)
         runtime.refresh(true); assertEquals(1, sent.size)
-        dao.updateItem(1, "合成条目1", at + 12 * 3600000, true, null)
+        dao.updateItem(1, "合成条目1", at + 12 * 3600000, true, null, clock)
         runtime.refresh(); assertEquals(at + 11 * 3600000, plans.last())
         clock = at + 11 * 3600000; runtime.refresh(true); assertEquals(2, sent.size)
         dao.deleteItem(1); runtime.refresh(); assertNull(plans.last())
         clock = at + 13 * 3600000; runtime.refresh(true); assertEquals(2, sent.size)
+    }
+
+    @Test fun strongReminderGoesToStrongChannelOthersStayNormal() = runBlocking {
+        val clock = at + 10 * 3600000
+        dao.insertItems(listOf(item(1).copy(dueAt = clock, dueText = "2026-10-24 10:00", strongReminder = true),
+            item(2).copy(dueAt = clock, dueText = "2026-10-24 10:00")))
+        val normal = mutableListOf<String>(); val strong = mutableListOf<String>()
+        fun notifier(into: MutableList<String>) = object : Notifier {
+            override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) { into += body }
+        }
+        PhoneReminders(prefs(), { snapshot() }, { AppointmentReminders(false, leadMinutes = null) }, notifier(normal), { _, _ -> }, { clock },
+            strongNotifier = notifier(strong)).refresh(true)
+        // 手机上看的文字不带 I1 这样的编号
+        assertEquals(listOf("待办到期 · 合成条目1"), strong); assertEquals(listOf("待办到期 · 合成条目2"), normal)
     }
 
     @Test fun deleteRegeneratesFolderAndWebhookDelta() = runBlocking {

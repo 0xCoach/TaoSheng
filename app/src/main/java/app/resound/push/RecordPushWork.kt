@@ -39,7 +39,8 @@ internal fun AndroidPushChannels.attachSubscriptions(context: Context, database:
     subscriptions.source = { since, lines -> database.push().snapshot(since?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: Long.MIN_VALUE, lines) }
     subscriptions.reminderSettings = { AppGraph.memory.appointmentReminders.value }
     phoneReminders = PhoneReminders(context.getSharedPreferences("phone-reminders", Context.MODE_PRIVATE),
-        { subscriptions.source(null, false) }, subscriptions.reminderSettings, LocalNotifier(context, LocalNotifier.TODO_CHANNEL), { at, continuation -> schedulePhoneReminder(context, at, continuation) })
+        { subscriptions.source(null, false) }, subscriptions.reminderSettings, LocalNotifier(context), { at, continuation -> schedulePhoneReminder(context, at, continuation) },
+        strongNotifier = LocalNotifier(context, LocalNotifier.TODO_CHANNEL))
     scope.launch(Dispatchers.IO) {
         AppGraph.memory.appointmentReminders.collect {
             recordsChanged()

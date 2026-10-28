@@ -238,11 +238,12 @@ internal fun ExportProblemPill(label: String = "导出问题记录", onDone: () 
 
 /** 今天页顶部：上次闪退了，提示一次导出问题记录 */
 @Composable
-fun CrashNotice() {
+fun CrashNotice(topGap: Dp = 0.dp) {
     if (!AppGraph.isProblemReportsReady) return
     val c = Rs.colors
     val at by AppGraph.problemReports.lastCrashAt.collectAsState()
     if (at == null) return
+    Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
         Text("涛声上次意外退出了", style = RsType.body, color = c.text)
         Spacer(Modifier.height(2.dp))

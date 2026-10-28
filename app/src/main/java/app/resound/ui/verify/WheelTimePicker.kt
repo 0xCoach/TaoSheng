@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,5 +69,15 @@ private fun Wheel(count: Int, initial: Int, onSelect: (Int) -> Unit) {
                     color = if (selected) c.accent else c.textTertiary)
             }
         }
+    }
+}
+
+/** 选一个时刻的底部面板：标题 + 滚轮 + 确定按钮；[minutes] 为当天 0 点起的分钟数 */
+@Composable
+fun WheelTimeSheet(title: String, minutes: Int, confirm: String = "确定", onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    var picked by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(minutes) }
+    RsSheet(title, "24 小时制，上下滑动选择", onDismiss = onDismiss) {
+        WheelTimePicker(picked / 60, picked % 60, { h, m -> picked = h * 60 + m })
+        ActionButton("$confirm %02d:%02d".format(picked / 60, picked % 60), ActionKind.Primary) { onPick(picked) }
     }
 }

@@ -57,6 +57,8 @@ data class MemoryItemEntity(
     @ColumnInfo(defaultValue = "0") val reminderVersion: Long = 0,
     @ColumnInfo(defaultValue = "'digest'") val origin: String = "digest",
     val sourceText: String? = null,
+    /** 到点强提醒：弹出、响铃、震动（用户在待办卡或编辑里打开） */
+    @ColumnInfo(defaultValue = "0") val strongReminder: Boolean = false,
 )
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)
@@ -181,6 +183,9 @@ abstract class MemoryDao {
         val dismissed = org.json.JSONArray(row.dismissedDoneLinesJson).put(line)
         clearDoneHint(id, dismissed.toString())
     }
+
+    @Query("UPDATE memory_items SET strongReminder = :on WHERE id = :id")
+    abstract suspend fun setStrongReminder(id: Long, on: Boolean)
 
     @Query("""UPDATE memory_items SET deleted = 1, doneHintLineId = NULL, doneHintAt = NULL
         WHERE id = :id""")

@@ -87,6 +87,9 @@ class RoomMemoryRepository(
     override fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {
         scope.launch { dao.updateItem(id, content, dueAt, hasTime, who) }
     }
+    override fun setStrongReminder(id: Long, on: Boolean) {
+        scope.launch { dao.setStrongReminder(id, on) }
+    }
     override fun setItemsStatus(ids: List<Long>, status: ItemStatus) {
         val snapshot = ids.toList()
         scope.launch { dao.setItemsStatus(snapshot, status.name) }
@@ -150,6 +153,7 @@ class RoomMemoryRepository(
         runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto, editedAt,
         lines[doneHintLineId]?.let { DoneHint(it.id, it.text, doneHintAt ?: it.startAt) },
         ItemOrigin.entries.firstOrNull { it.name.equals(origin, ignoreCase = true) } ?: ItemOrigin.Digest, sourceText,
+        strongReminder,
     )
 
     private fun String.strings(): List<String> = runCatching {

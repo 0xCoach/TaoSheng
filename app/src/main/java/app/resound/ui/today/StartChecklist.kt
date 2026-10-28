@@ -44,7 +44,7 @@ private class Step(
  * 全部完成或点“不再显示”后不再出现。
  */
 @Composable
-fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean) {
+fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: androidx.compose.ui.unit.Dp = 0.dp) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("ui", Context.MODE_PRIVATE) }
     var dismissed by remember { mutableStateOf(prefs.getBoolean(DISMISSED, false)) }
@@ -112,6 +112,8 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean) {
     )
     val doneCount = steps.count { it.done }
     if (doneCount == steps.size) return
+    // 和上面的标题放在同一格里：清单不显示时不留空，显示时自己留出间距
+    Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("上手清单", style = RsType.headline, color = c.text)

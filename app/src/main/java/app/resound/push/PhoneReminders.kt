@@ -19,6 +19,8 @@ internal class PhoneReminders(
     private val notifier: Notifier,
     private val schedule: (Long?, Boolean) -> Unit,
     private val now: () -> Long = System::currentTimeMillis,
+    /** 打开了强提醒的待办走这个（弹出、响铃、震动）；其余照旧用 [notifier] */
+    private val strongNotifier: Notifier = notifier,
 ) {
     private val gate = Mutex()
     suspend fun refresh(send: Boolean = false): Boolean = gate.withLock {
@@ -28,7 +30,7 @@ internal class PhoneReminders(
         if (send) for (reminder in candidates.filter { it.at <= now() }) {
             try {
                 // 推给智能体的文字带 I123 / E45 这样的编号，手机上给人看的去掉
-                notifier.send("待办提醒", reminder.text.replace(Regex("""(?<=· )[IE]\d+ """), ""),
+                (if (reminder.strong) strongNotifier else notifier).send("待办提醒", reminder.text.replace(Regex("""(?<=· )[IE]\d+ """), ""),
                     "resound://today?open=todos&reminder=${reminder.key}", PushTopic.TodoReminder)
                 reminder.keys.forEach { sent.put(it, now()) }
                 check(prefs.edit().putString("sent", sent.toString()).commit())

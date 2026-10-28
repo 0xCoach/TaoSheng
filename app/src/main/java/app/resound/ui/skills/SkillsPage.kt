@@ -323,10 +323,17 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
             Spacer(Modifier.height(10.dp))
             when (val t = s.trigger) {
                 is SkillTrigger.Daily -> {
+                    // 点时间弹出滚轮（24 小时制），和其他时间设置一样
+                    var picking by remember { mutableStateOf(false) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Stepper("‹") { repo.setSchedule(s.id, (t.minutes - 30 + 1440) % 1440, t.weekdays) }
-                        Text(hm(t.minutes), style = RsType.number, color = c.text, modifier = Modifier.padding(horizontal = 16.dp))
-                        Stepper("›") { repo.setSchedule(s.id, (t.minutes + 30) % 1440, t.weekdays) }
+                        Text(hm(t.minutes), style = RsType.number, color = c.accent,
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(c.accentSoft).springClick { picking = true }
+                                .padding(horizontal = 16.dp, vertical = 6.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("点时间修改", style = RsType.caption, color = c.textTertiary)
+                    }
+                    if (picking) app.resound.ui.verify.WheelTimeSheet("什么时候运行", t.minutes, onDismiss = { picking = false }) {
+                        repo.setSchedule(s.id, it, t.weekdays); picking = false
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

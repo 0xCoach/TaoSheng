@@ -41,13 +41,37 @@ internal class UpdateEngine(
     private val log: (String) -> Unit,
     private val availableSpace: () -> Long = { directory.usableSpace },
     private val now: () -> Long = System::currentTimeMillis,
+    private val reschedule: (Boolean, Boolean) -> Unit = { _, _ -> },
 ) : AppUpdater {
     private val gate = Mutex()
     private val mutable = MutableStateFlow<UpdateState>(UpdateState.Idle)
     override val state = mutable.asStateFlow()
     private val auto = MutableStateFlow(store.long("autoOff") != 1L)
     override val autoCheck = auto.asStateFlow()
-    override fun setAutoCheck(enabled: Boolean) { store.save("autoOff" to if (enabled) 0L else 1L); auto.value = enabled }
+    override fun setAutoCheck(enabled: Boolean) {
+        store.save("autoOff" to if (enabled) 0L else 1L); auto.value = enabled
+        reschedule(enabled, preview.value)
+    }
+    private val preview = MutableStateFlow(store.long("previewChannel") == 1L)
+    override val previewChannel = preview.asStateFlow()
+    override val isPreviewBuild: Boolean get() = "-preview." in currentVersion
+    override fun setPreviewChannel(enabled: Boolean) {
+        store.save("previewChannel" to if (enabled) 1L else 0L)
+        preview.value = enabled
+        reschedule(auto.value, enabled)
+        scope.launch(Dispatchers.IO) {
+            gate.withLock { restore(); discardDisabledPreview() }
+            if (enabled) checkNow()
+        }
+    }
+    private fun discardDisabledPreview() {
+        if (!preview.value && manifest?.previewSource == true && mutable.value !is UpdateState.Installing) {
+            manifest = null; patch = null
+            store.save("manifest" to null, "ready" to null, "manifestPreview" to null)
+            mutable.value = UpdateState.Idle
+            platform.dismissNotification()
+        }
+    }
     private var restored = false
     private var manifest: UpdateManifest? = null
     private var patch: UpdatePatch? = null
@@ -58,16 +82,26 @@ internal class UpdateEngine(
     suspend fun checkNow(manual: Boolean = false, startup: Boolean = false) = withContext(Dispatchers.IO) {
         gate.withLock {
             restore()
-            if (mutable.value is UpdateState.Installing || mutable.value is UpdateState.Ready) return@withLock
+            discardDisabledPreview()
+            if (mutable.value is UpdateState.Installing) return@withLock
             // 关了自动检查：后台和启动时都不查，只认手动
             if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")
-            if (startup && last > 0 && now() - last in 0 until HOUR) return@withLock
+            if (startup && !preview.value && last > 0 && now() - last in 0 until HOUR) return@withLock
             val previous = mutable.value
             mutable.value = UpdateState.Checking
             store.save("lastCheck" to now())
             try {
-                val result = remote.check()
+                val result = remote.check(preview.value)
+                if (!preview.value && result.previewSource) {
+                    discardDisabledPreview()
+                    mutable.value = UpdateState.Idle
+                    return@withLock
+                }
+                if (previous is UpdateState.Ready && result.versionCode <= previous.info.versionCode) {
+                    mutable.value = previous
+                    return@withLock
+                }
                 // 跳过的版本：自动检查当作已是最新、不通知；手动检查照常显示，方便改主意
                 val skipped = !manual && store.long("skipVersion") >= result.versionCode
                 if (!result.newerThan(versionCode) || skipped) {
@@ -77,7 +111,7 @@ internal class UpdateEngine(
                 } else {
                     manifest = result
                     patch = result.patchFor(installedHash())
-                    store.save("manifest" to result.json(), "incremental" to if (patch != null) 1L else 0L)
+                    store.save("manifest" to result.json(), "manifestPreview" to if (result.previewSource) 1L else 0L, "incremental" to if (patch != null) 1L else 0L)
                     mutable.value = UpdateState.Available(info())
                     notifyOnce()
                 }
@@ -94,7 +128,7 @@ internal class UpdateEngine(
         if (restored) return
         kotlin.check(directory.isDirectory || directory.mkdirs())
         val seen = store.long("installedVersion")
-        val saved = store.string("manifest")?.let { runCatching { UpdateManifest.parse(it) }.getOrNull() }
+        val saved = store.string("manifest")?.let { runCatching { UpdateManifest.parse(it).let { release -> release.copy(previewSource = store.long("manifestPreview") == 1L || release.preview) } }.getOrNull() }
         if ((seen > 0 && seen != versionCode) || (saved != null && !saved.newerThan(versionCode))) {
             directory.listFiles()?.forEach { kotlin.check(it.deleteRecursively()) }
             store.save("manifest" to null, "ready" to null, "session" to null, "installedHash" to null)
@@ -134,6 +168,7 @@ internal class UpdateEngine(
     override fun download() { scope.launch(Dispatchers.IO) {
         gate.withLock {
             restore()
+            discardDisabledPreview()
             if (manifest == null || mutable.value is UpdateState.Ready || mutable.value is UpdateState.Installing) return@withLock
             val release = manifest!!
             val start = System.nanoTime()
@@ -185,7 +220,7 @@ internal class UpdateEngine(
 
     private fun fetch(asset: UpdateAsset, file: File, incremental: Boolean) {
         mutable.value = UpdateState.Downloading(info(), file.length(), asset.size)
-        remote.download(asset, manifest!!.versionName, file, incremental) { done ->
+        remote.download(asset, manifest!!.versionName, file, incremental, manifest!!.previewSource) { done ->
             mutable.value = UpdateState.Downloading(info(), done, asset.size)
         }
     }
@@ -204,6 +239,7 @@ internal class UpdateEngine(
     override fun install() { scope.launch(Dispatchers.IO) {
         gate.withLock {
             restore()
+            discardDisabledPreview()
             if (manifest == null || mutable.value is UpdateState.Installing || store.string("ready") != manifest!!.apk.sha256) return@withLock
             if (!canInstall()) { mutable.value = UpdateState.Ready(info()); return@withLock }
             val start = System.nanoTime()
@@ -230,6 +266,7 @@ internal class UpdateEngine(
         message: String? = null, diagnosticStatus: Int = 0) =
         withContext(Dispatchers.IO) { gate.withLock {
             restore()
+            discardDisabledPreview()
             if (manifest == null || session.toLong() != store.long("session")) return@withLock
             log("install session=$session status=$diagnosticStatus ms=${now() - store.long("installStarted")} result=${if (success) "success" else if (cancelled) "cancelled" else "failed"}")
             store.save("session" to null)

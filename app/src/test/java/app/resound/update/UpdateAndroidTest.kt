@@ -21,7 +21,7 @@ import java.io.File
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class UpdateAndroidTest {
-    @Test fun checkpointSnapshotIncludesWalAndPreferencesAndKeepsOnlyTheLatestCopy() {
+    @Test fun checkpointSnapshotIncludesWalAndPreferencesAndKeepsLatestThreeCopies() {
         val context = RuntimeEnvironment.getApplication() as Context
         context.deleteDatabase("capture.db")
         val database = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").allowMainThreadQueries().build()
@@ -33,15 +33,25 @@ class UpdateAndroidTest {
             context.getSharedPreferences("voice-input", 0).edit().putBoolean("enabled", true).putString("probe", "涛声<&").commit()
             val backup = PreUpdateBackup(context, database, EmptyBackup(), {})
             backup.snapshot()
-            sql.execSQL("UPDATE update_backup_probe SET value='latest'")
-            backup.snapshot()
-            SQLiteDatabase.openDatabase(File(target, "databases/capture.db").path, null, SQLiteDatabase.OPEN_READONLY).use { copy ->
+            // 模拟卡 051 的单份布局，后续快照应先迁移旧数据，再按时间保留三份。
+            val legacy = File(context.filesDir, "legacy-test")
+            check(target.listFiles()!!.single().renameTo(legacy))
+            check(target.delete()); check(legacy.renameTo(target)); check(target.setLastModified(1000))
+            val oldest = File(target, "%019d".format(1000L))
+            repeat(3) {
+                sql.execSQL("UPDATE update_backup_probe SET value='latest'")
+                backup.snapshot()
+            }
+            assertEquals(3, target.listFiles()!!.size)
+            assertFalse(oldest.exists())
+            val latest = target.listFiles()!!.maxBy { it.name }
+            SQLiteDatabase.openDatabase(File(latest, "databases/capture.db").path, null, SQLiteDatabase.OPEN_READONLY).use { copy ->
                 copy.rawQuery("SELECT value FROM update_backup_probe", null).use { cursor ->
                     assertTrue(cursor.moveToFirst()); assertEquals("latest", cursor.getString(0))
                 }
                 copy.rawQuery("PRAGMA quick_check", null).use { cursor -> assertTrue(cursor.moveToFirst()); assertEquals("ok", cursor.getString(0)) }
             }
-            val prefs = File(target, "shared_prefs/voice-input.xml").readText()
+            val prefs = File(latest, "shared_prefs/voice-input.xml").readText()
             assertTrue(prefs.contains("enabled")); assertTrue(prefs.contains("涛声&lt;&amp;"))
             assertFalse(File(context.filesDir, "pre-update-previous").exists())
             assertFalse(File(context.filesDir, "pre-update-staging").exists())

@@ -5,11 +5,17 @@ import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 
-/** 所有发布地址只在此处维护；没有测试版入口。 */
+/** 所有发布地址只在此处维护；正式和预览文件独立回退。 */
 internal object UpdateSources {
     const val MODELSCOPE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/"
     const val GITHUB_LATEST = "https://github.com/0xCoach/TaoSheng/releases/latest/download/update.json"
     const val GITHUB_RELEASE = "https://github.com/0xCoach/TaoSheng/releases/download/"
+    const val MODELSCOPE_PREVIEW = MODELSCOPE + "preview/"
+    const val GITHUB_PREVIEW = GITHUB_RELEASE + "preview-channel/update-preview.json"
+    val preview = listOf(
+        UpdateSource("modelscope-preview", MODELSCOPE_PREVIEW + "update-preview.json") { _, file -> MODELSCOPE_PREVIEW + file },
+        UpdateSource("github-preview", GITHUB_PREVIEW) { version, file -> "${GITHUB_RELEASE}v$version/$file" },
+    )
     val official = listOf(
         UpdateSource("modelscope", MODELSCOPE + "update.json") { _, file -> MODELSCOPE + file },
         UpdateSource("github", GITHUB_LATEST) { version, file -> "${GITHUB_RELEASE}v$version/$file" },
@@ -24,10 +30,12 @@ internal data class UpdatePatch(val fromSha256: String, val asset: UpdateAsset)
 internal data class UpdateManifest(
     val versionCode: Int, val versionName: String, val notes: String,
     val apk: UpdateAsset, val patches: List<UpdatePatch>,
+    val previewSource: Boolean = false,
 ) {
+    val preview: Boolean get() = "-preview." in versionName
     fun newerThan(installed: Long) = versionCode > installed
     fun patchFor(sha256: String?) = patches.firstOrNull { it.fromSha256.equals(sha256, ignoreCase = true) }
-    fun info(patch: UpdatePatch?) = UpdateInfo(versionCode, versionName, notes, patch?.asset?.size ?: apk.size, patch != null)
+    fun info(patch: UpdatePatch?) = UpdateInfo(versionCode, versionName, notes, patch?.asset?.size ?: apk.size, patch != null, preview)
     fun json(): String = JSONObject().put("versionCode", versionCode).put("versionName", versionName)
         .put("notes", notes).put("apk", apk.json()).put("patches", JSONArray().apply {
             patches.forEach { put(it.asset.json().put("fromSha256", it.fromSha256)) }
@@ -37,7 +45,7 @@ internal data class UpdateManifest(
         fun parse(text: String): UpdateManifest {
             val root = JSONObject(text)
             val code = integer(root, "versionCode").also { require(it in 1..Int.MAX_VALUE) }.toInt()
-            val version = string(root, "versionName").also { require(it.matches(Regex("[0-9]+(?:\\.[0-9]+)+"))) }
+            val version = string(root, "versionName").also { require(it.matches(Regex("[0-9]+(?:\\.[0-9]+)+(?:-preview\\.[0-9]+)?"))) }
             val notes = string(root, "notes")
             val apk = asset(root.getJSONObject("apk"))
             val items = root.getJSONArray("patches").also { require(it.length() <= 5) }

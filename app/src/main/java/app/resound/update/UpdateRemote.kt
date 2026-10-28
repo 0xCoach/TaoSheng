@@ -12,13 +12,22 @@ internal class UpdateRemote(
     private val log: (String) -> Unit = {},
     private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS).build(),
+    private val previewSources: List<UpdateSource> = UpdateSources.preview,
 ) {
     private val checks = client.newBuilder().callTimeout(15, TimeUnit.SECONDS).build()
-    fun check(): UpdateManifest {
-        for (source in sources) {
+    fun check(previewEnabled: Boolean = false): UpdateManifest {
+        val official = runCatching { checkChannel(sources, false) }.getOrNull()
+        val preview = if (previewEnabled) runCatching { checkChannel(previewSources, true) }.getOrNull() else null
+        return listOfNotNull(official, preview).maxByOrNull { it.versionCode }
+            ?: throw UpdateFailure(UPDATE_NETWORK_ERROR, "sources_exhausted")
+    }
+
+    private fun checkChannel(order: List<UpdateSource>, preview: Boolean): UpdateManifest {
+        for (source in order) {
             val start = System.nanoTime()
             try {
-                val manifest = checks.newCall(Request.Builder().url(source.manifestUrl).build()).execute().use { response ->
+                val call = checks.newCall(Request.Builder().url(source.manifestUrl).build())
+                val manifest = call.execute().use { response ->
                     if (!response.isSuccessful) throw UpdateTransportError("http_${response.code}")
                     val body = response.body ?: throw UpdateTransportError("empty_body")
                     val bytes = body.byteStream().use { input ->
@@ -32,7 +41,7 @@ internal class UpdateRemote(
                         output.toByteArray()
                     }
                     require(bytes.size <= MAX_MANIFEST)
-                    UpdateManifest.parse(bytes.toString(Charsets.UTF_8))
+                    UpdateManifest.parse(bytes.toString(Charsets.UTF_8)).also { require(preview || !it.preview) }.copy(previewSource = preview)
                 }
                 log("check source=${source.name} code=${manifest.versionCode} ms=${elapsed(start)} result=ok")
                 return manifest
@@ -43,12 +52,13 @@ internal class UpdateRemote(
         throw UpdateFailure(UPDATE_NETWORK_ERROR, "sources_exhausted")
     }
 
-    fun download(asset: UpdateAsset, version: String, target: File, incremental: Boolean, progress: (Long) -> Unit) {
+    fun download(asset: UpdateAsset, version: String, target: File, incremental: Boolean, previewSource: Boolean = "-preview." in version, progress: (Long) -> Unit) {
+        val downloadSources = if (previewSource) previewSources else sources
         if (target.length() > asset.size) check(target.delete())
         repeat(2) { integrityAttempt ->
             try {
                 if (target.length() != asset.size) transfer(asset, version, target, incremental,
-                    if (integrityAttempt == 0) sources else sources.reversed(), progress)
+                    if (integrityAttempt == 0) downloadSources else downloadSources.reversed(), progress)
                 if (target.length() == asset.size && target.updateSha256() == asset.sha256) {
                     progress(asset.size)
                     log("verify incremental=$incremental bytes=${target.length()} attempt=$integrityAttempt result=ok")

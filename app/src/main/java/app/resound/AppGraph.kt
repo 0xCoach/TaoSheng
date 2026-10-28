@@ -13,6 +13,9 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var problemReports: app.resound.diagnostics.ProblemReports
+    val isProblemReportsReady: Boolean get() = ::problemReports.isInitialized
+
     lateinit var updater: app.resound.update.AppUpdater
     val isUpdaterReady: Boolean get() = ::updater.isInitialized
 

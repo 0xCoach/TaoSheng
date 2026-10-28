@@ -25,9 +25,12 @@ class UpdateWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
         return Result.success()
     }
     companion object {
-        fun schedule(context: Context) {
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork("app-update-check", ExistingPeriodicWorkPolicy.KEEP,
-                PeriodicWorkRequestBuilder<UpdateWork>(6, TimeUnit.HOURS).setInitialDelay(6, TimeUnit.HOURS)
+        fun schedule(context: Context, enabled: Boolean = true, preview: Boolean = false) {
+            val manager = WorkManager.getInstance(context)
+            if (!enabled) { manager.cancelUniqueWork("app-update-check"); return }
+            val hours = if (preview) 1L else 6L
+            manager.enqueueUniquePeriodicWork("app-update-check", ExistingPeriodicWorkPolicy.UPDATE,
+                PeriodicWorkRequestBuilder<UpdateWork>(hours, TimeUnit.HOURS).setInitialDelay(hours, TimeUnit.HOURS)
                     .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
         }
     }

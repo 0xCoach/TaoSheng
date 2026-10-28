@@ -67,7 +67,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
             out.appendLine("enabled=${prefs.getBoolean("enabled", false)} unclean=${prefs.getBoolean("unclean", false)} lastHeartbeat=$last pausedUntil=${prefs.getLong("pausedUntil", 0)}")
             if (prefs.getBoolean("enabled", false) && now - last > CaptureTuning.HEARTBEAT_MS * 2)
                 out.appendLine("当前尚未恢复的心跳缺口 $last..$now，${now - last}ms（可能暂停/休眠）")
-            out.appendLine("最近一次片段保存错误（重试成功后仍保留历史）：${prefs.getString("lastSegmentError", null)}")
+            out.appendLine("最近一次片段保存错误（重试成功后仍保留历史）：${if (prefs.contains("lastSegmentError")) "有记录（原始错误已隐藏）" else "无"}")
             val spool = File(context.filesDir, "segment-spool").listFiles().orEmpty()
             out.appendLine("待处理暂存文件=${spool.size}，字节=${spool.sumOf { it.length() }}")
             out.appendLine("运行时长来自心跳确认区间；心跳可能因休眠延迟；Killed 缺口是最后心跳至下次启动的上界估计。")
@@ -77,7 +77,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
                 val date = LocalDate.now().minusDays(offset.toLong())
                 val (a, b) = bounds(date)
                 out.appendLine("\n${dayStats(date).first()}")
-                dao.events(a, b).first().forEach { out.appendLine("守护 $it") }
+                dao.events(a, b).first().forEach { out.appendLine("守护 ${it.copy(detail = null)}") }
                 val beats = dao.heartbeats(a, b).first()
                 beats.forEachIndexed { index, beat ->
                     out.appendLine("心跳 $beat")

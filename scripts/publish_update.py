@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-"""卡 051 发布：给已打好的正式包做差异包和 update.json，传到魔搭和 GitHub 发布页。
+"""涛声双通道发布：先传安装包和差异包，最后更新通道说明。
 
-用法（在 GitHub 上已建好 v<版本> 发布、整包已传上去之后）：
-  ~/.venvs/modelscope/bin/python scripts/publish_update.py <新版整包.apk> --notes 更新内容.txt [--dry-run]
-
-做的事：
-1. 从 GitHub 发布页取最近 5 个正式版整包，各做一个直达新版的 bsdiff 差异包；
-2. 写 update.json（版本号从安装包里读）；
-3. 先传整包和差异包，最后才传 update.json：魔搭 OpenRecode/TaoSheng-releases，GitHub 同名发布。
-密钥只从 ~/Downloads/UU/ModelScope.txt 读，不打印、不写进任何文件。
+正式发布延续已有 v<版本> 发布；预览发布用 --preview，自动建立预发布。
+--dry-run 完全离线、不读取凭证；可重复传 --base-apk 旧包路径验证差异包。
+真实发布从 GitHub 选最近 5 个正式/预览版本（排除 preview-channel）。
 """
 import argparse, hashlib, json, os, re, subprocess, sys, tempfile
 from pathlib import Path
@@ -41,11 +36,11 @@ def gh(*args: str, capture=True) -> str:
 
 
 def older_releases(new_name: str, work: Path) -> list[tuple[str, Path]]:
-    """最近 KEEP 个正式版（不含新版本身）的整包"""
-    tags = [l.split("\t")[2] for l in gh("release", "list", "--limit", "20", "--exclude-drafts", "--exclude-pre-releases").splitlines() if l.strip()]
+    """最近 KEEP 个正式/预览版（不含新版本身和固定通道）的整包"""
+    tags = [r["tagName"] for r in json.loads(gh("release", "list", "--limit", "100", "--exclude-drafts", "--json", "tagName"))]
     out = []
     for tag in tags:
-        if tag == f"v{new_name}" or len(out) >= KEEP:
+        if tag in (f"v{new_name}", "preview-channel") or not re.fullmatch(r"v[0-9]+(?:\.[0-9]+)+(?:-preview\.[0-9]+)?", tag) or len(out) >= KEEP:
             continue
         d = work / tag
         d.mkdir()
@@ -56,18 +51,62 @@ def older_releases(new_name: str, work: Path) -> list[tuple[str, Path]]:
     return out
 
 
+def validate_channel(name: str, preview: bool):
+    if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)+(?:-preview\.[0-9]+)?", name):
+        raise ValueError("安装包版本名格式不对")
+    if ("-preview." in name) != preview:
+        raise ValueError("通道与安装包版本名不一致：预览包必须加 --preview，正式包不能加")
+
+
+def channel_paths(preview: bool) -> tuple[str, str]:
+    manifest = "update-preview.json" if preview else "update.json"
+    prefix = "preview/" if preview else ""
+    assert not preview or (prefix + manifest == "preview/update-preview.json" and manifest != "update.json")
+    return prefix, manifest
+
+
+def ensure_prerelease(tag: str, title: str):
+    try:
+        gh("release", "view", tag, "--json", "tagName")
+    except subprocess.CalledProcessError:
+        gh("release", "create", tag, "--prerelease", "--latest=false", "--title", title, "--notes", "涛声预览版")
+    else:
+        gh("release", "edit", tag, "--prerelease", "--latest=false")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("apk", type=Path)
     ap.add_argument("--notes", type=Path, required=True)
     ap.add_argument("--dry-run", action="store_true", help="只在本地生成，不上传")
+    ap.add_argument("--preview", action="store_true", help="发布到预览通道")
+    ap.add_argument("--base-apk", type=Path, action="append", default=[], help="离线 dry-run 的旧包，可重复，最多 5 个")
     a = ap.parse_args()
+    if a.base_apk and (not a.dry_run or len(a.base_apk) > KEEP):
+        ap.error("--base-apk 仅用于 --dry-run，最多 5 个")
     code, name = badging(a.apk)
+    try:
+        validate_channel(name, a.preview)
+    except ValueError as error:
+        ap.error(str(error))
+    prefix, manifest_name = channel_paths(a.preview)
     apk_name = f"TaoSheng-v{name}-arm64.apk"
     work = Path(tempfile.mkdtemp(prefix="taosheng-update-"))
-    files = {apk_name: a.apk}
+    # 统一整包文件名，GitHub 附件名必须与说明文件一致。
+    import shutil
+    staged_apk = work / apk_name
+    shutil.copyfile(a.apk, staged_apk)
+    files = {apk_name: staged_apk}
     patches = []
-    for old_name, old in older_releases(name, work):
+    bases = [(badging(path)[1], path) for path in a.base_apk] if a.dry_run else older_releases(name, work)
+    seen = set()
+    for old_name, old in bases:
+        old_code, _ = badging(old)
+        validate_channel(old_name, "-preview." in old_name)
+        digest = sha256(old)
+        if old_code >= code or digest in seen:
+            continue
+        seen.add(digest)
         patch = work / f"TaoSheng-{old_name}-to-{name}.patch"
         subprocess.run(["bsdiff", str(old), str(a.apk), str(patch)], check=True)
         # 自检：用 bspatch 还原，必须和新包一模一样
@@ -81,9 +120,9 @@ def main():
         print(f"差异包 {old_name} → {name}：{patch.stat().st_size / 1e6:.1f} MB")
     manifest = {"versionCode": code, "versionName": name, "notes": a.notes.read_text().strip(),
                 "apk": {"file": apk_name, "sha256": sha256(a.apk), "size": a.apk.stat().st_size}, "patches": patches}
-    update = work / "update.json"
+    update = work / manifest_name
     update.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
-    print(f"update.json：{name}（{code}），差异包 {len(patches)} 个，目录 {work}")
+    print(f"{manifest_name}：{name}（{code}），差异包 {len(patches)} 个，目录 {work}")
     if a.dry_run:
         return
 
@@ -92,13 +131,17 @@ def main():
     api.login(TOKEN_FILE.read_text().strip())
     if not api.repo_exists(REPO_MS):
         api.create_repo(REPO_MS, visibility="public", license="mit")
-    # 先传安装包和差异包，最后才传 update.json，手机不会查到没传完的版本
+    if a.preview:
+        ensure_prerelease(f"v{name}", f"涛声 {name}")
+        ensure_prerelease("preview-channel", "涛声预览版通道")
+    # 预览发布的所有魔搭写入都限定在 preview/；通道文件必须最后上传。
+    assert not a.preview or (prefix == "preview/" and update.name == "update-preview.json")
     for file_name, path in files.items():
-        api.upload_file(path_or_fileobj=str(path), path_in_repo=file_name, repo_id=REPO_MS, commit_message=f"涛声 {name}：{file_name}")
-    gh("release", "upload", f"v{name}", *[str(p) for n, p in files.items() if n != apk_name], "--clobber")
-    api.upload_file(path_or_fileobj=str(update), path_in_repo="update.json", repo_id=REPO_MS, commit_message=f"涛声 {name}：版本说明")
-    gh("release", "upload", f"v{name}", str(update), "--clobber")
-    print("已发布：魔搭和 GitHub 的 update.json 都指向", name)
+        api.upload_file(path_or_fileobj=str(path), path_in_repo=prefix + file_name, repo_id=REPO_MS, commit_message=f"涛声 {name}：{file_name}")
+    gh("release", "upload", f"v{name}", *[str(p) for p in files.values()], "--clobber")
+    api.upload_file(path_or_fileobj=str(update), path_in_repo=prefix + manifest_name, repo_id=REPO_MS, commit_message=f"涛声 {name}：版本说明")
+    gh("release", "upload", "preview-channel" if a.preview else f"v{name}", str(update), "--clobber")
+    print(f"已发布：魔搭和 GitHub 的 {manifest_name} 都指向", name)
 
 
 if __name__ == "__main__":

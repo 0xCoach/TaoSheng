@@ -113,6 +113,17 @@ class VoiceInput049Test {
         assertEquals(listOf("老王：在吗", "老王：在吗\n我：第一段合成的话"), rows.map { it.meta.before })
         assertEquals(listOf("老王", "老王"), rows.map { it.meta.title })
     }
+    @Test fun boxThatClosesAfterSendCountsAsSent() {
+        // 小红书评论：分几段说完点发送，输入框整个收起（不是清空），原文照存，不去截图
+        val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()
+        val e = VoiceInputEngine(requests::add, changes::add)
+        val box = screen.copy(field = "field", text = "", lines = listOf("一", "二", "三"))
+        e.recording(true, 0, box, settings); e.recording(false, 100, box.copy(text = "第一段"), settings)
+        e.recording(true, 900, box.copy(text = "第一段"), settings); e.recording(false, 1500, box.copy(text = "第一段第二段"), settings)
+        e.tick(2000, box.copy(field = null, text = null), settings)
+        assertTrue(requests.isEmpty())
+        assertEquals("第一段第二段", saved(changes).text)
+    }
     @Test fun boxWithUnrelatedNewTextMeansEarlierWasSent() {
         // 没看到发送、开始说时那张也没看出来：之后输入框里换成了新话，上一段照样收尾，新话另起一条
         val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()

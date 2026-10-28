@@ -180,6 +180,10 @@ internal class VoiceInputEngine(
                 return
             }
             if (!w.saved && w.screen.field != null && w.screen.text != null) {
+                // 有的应用（小红书评论）发出后输入框直接收起、不是清空：框没了而原文已读到，就当发出去了
+                if (screen.field == null && !recording && VoiceInputText.inserted(w.screen.text, w.last.orEmpty()).isNotBlank()) {
+                    dbg("输入框收起：当作已发出"); save(w); window = null; return
+                }
                 if (screen.field != null && screen.field != w.screen.field) { window = null; return }
                 w.sendHint = w.sendHint || screen.send
                 if (screen.field == w.screen.field && screen.text != null) {
@@ -347,7 +351,7 @@ object VoiceInputTrace {
     private val time = java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS").withZone(java.time.ZoneId.systemDefault())
     @Synchronized fun add(msg: String) {
         lines.addLast("${time.format(java.time.Instant.now())} $msg")
-        while (lines.size > 600) lines.removeFirst()
+        while (lines.size > 2000) lines.removeFirst()
     }
     @Synchronized fun dump(): String = if (lines.isEmpty()) "语音输入：本次启动后还没有记录" else lines.joinToString("\n") { "语音输入 $it" }
 }

@@ -104,7 +104,9 @@ class VoiceInputService : AccessibilityService() {
                 if (focus?.isPassword == true) return null
                 val editable = focus?.takeIf { it.isEditable && it.isVisibleToUser }
                 val field = editable?.let { "${it.windowId}:${it.viewIdResourceName}:${it.hashCode()}" }
-                val text = editable?.text?.toString()?.take(8000)
+                // 输入框空着时有的应用（小红书）把灰色提示字当文字交出来：当成空框
+                val text = editable?.let { box -> if (box.isShowingHintText || box.hintText?.toString()?.let { it == box.text?.toString() } == true) ""
+                    else box.text?.toString()?.take(8000) }
                 val lines = mutableListOf<OcrLine>()
                 val titleCandidates = mutableListOf<OcrLine>()
                 var visited = 0
@@ -194,8 +196,12 @@ class VoiceInputService : AccessibilityService() {
         ocr.capture(layout, request.screen.packageName, ::valid) { result -> e.recognized(request, result) }
     }
 
-    private var lastSnapLog = ""
-    private fun dbgSnap(msg: String) { if (msg != lastSnapLog) { lastSnapLog = msg; dbg(msg) } }
+    private val lastSnapLog = mutableMapOf<String, String>()
+    /** 界面采集每秒好几次：同一类只在内容变了才记，免得挤掉真正的判断步骤 */
+    private fun dbgSnap(msg: String) {
+        val kind = msg.substringBefore('：')
+        if (lastSnapLog[kind] != msg) { lastSnapLog[kind] = msg; dbg(msg) }
+    }
 
     override fun onInterrupt() { engine?.reset() }
     override fun onDestroy() { connected.value = false; stopMonitoring(); scope.cancel(); super.onDestroy() }

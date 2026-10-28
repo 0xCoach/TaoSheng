@@ -145,9 +145,20 @@ class VoiceInput048Test {
         assertEquals(1, db.voiceInput().observed().first().size)
         db.capture().segment(SegmentEntity(id = 100, startAt = start, endAt = start + 2000, sourceId = "mic", path = "test.ogg", sizeBytes = 1, status = "Done"))
         db.transcribe().insertLines(listOf(TranscriptLineEntity(segmentId = 100, startAt = start, endAt = start + 1000, text = "请明天下午把合成报告交给我。", speakerTag = null)))
-        // 回响自己也录到了这句：语音输入这条照样存，上下文不能丢
+        // 回响自己也录到了这句：语音输入这条照样存，录音里那句不再单独记
         assertNotNull(store.save(record(text = "请明天下午把合成报告交给我！")))
-        assertNotNull(store.save(record(at = start + 31000, text = "请明天下午把合成报告交给我")))
+        assertTrue(db.voiceInput().micLines(0, Long.MAX_VALUE).isEmpty())
+    }
+    @Test fun micTranscriptArrivingLaterSkipsDictatedLinesButKeepsLongerOrOthers() = runBlocking {
+        VoiceInputStore(db).save(record(text = "第一段合成的话接着第二段合成的话"))
+        val seg = SegmentEntity(id = 200, startAt = start, endAt = start + 9000, sourceId = "mic", path = "b.ogg", sizeBytes = 1, status = "Running")
+        db.capture().segment(seg)
+        fun mic(at: Long, text: String, who: String? = null) = TranscriptLineEntity(segmentId = 200, startAt = at, endAt = at + 1000, text = text, speakerTag = null, speakerName = who)
+        // 分两段说：录音里是两句，都去掉；多说了别的那句、别人说的同样内容都保留
+        db.transcribe().complete(seg.copy(status = "Done"), listOf(mic(start + 1000, "第一段合成的话"), mic(start + 4000, "接着第二段合成的话"),
+            mic(start + 6000, "第一段合成的话然后对旁边的人又说了好多别的内容"), mic(start + 7000, "接着第二段合成的话", "老王")))
+        assertEquals(listOf("第一段合成的话然后对旁边的人又说了好多别的内容", "接着第二段合成的话"),
+            db.voiceInput().micLines(0, Long.MAX_VALUE).sortedBy { it.startAt }.map { it.text })
     }
     @Test fun finalizationSurvivesMappingAndNeverEntersVoiceprint() = runBlocking {
         // 负责人定不补记回复：存下即可整理，不等定稿

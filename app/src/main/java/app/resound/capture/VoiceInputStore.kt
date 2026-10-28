@@ -19,7 +19,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
             return@withTransaction null
         // 中间停顿被拆成两次语音输入时，后一次是“前一句 + 接着说的”：更新上一条，不另存
         recent.firstOrNull()?.first?.takeIf { record.at - it.startAt <= 120_000 && VoiceInputDedup.continues(it.text, record.text) }?.let { prev ->
-            if (dao.extend(prev.id, record.text) > 0) return@withTransaction prev.id
+            if (dao.extend(prev.id, record.text) > 0) { dropHeard(prev.startAt, record.text); return@withTransaction prev.id }
         }
         val sameChat = recent.filter { VoiceInputDedup.title(it.second.title) == VoiceInputDedup.title(record.meta.title) }
         // 只用此前保存的上下文去重；单独采集的语音原话不能充当“已存上下文”。
@@ -36,6 +36,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
         }.ifEmpty { lines.takeLast(CONTEXT_MIN_LINES) })
         dbg("保存上下文：应用=${record.meta.packageName} 去重前行数=${record.meta.before.orEmpty().lines().count { it.isNotBlank() }} 去重后行数=${before.orEmpty().lines().count { it.isNotBlank() }}")
         val meta = record.meta.copy(before = before, after = null)
+        dropHeard(record.at, record.text)
         val segment = dao.segment(SegmentEntity(startAt = record.at, endAt = record.at + 1,
             sourceId = "voice-input", path = path, sizeBytes = 0, status = "Done",
             completedAt = record.at, voiceprintProcessedAt = record.at))
@@ -43,6 +44,13 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
             text = record.text, speakerTag = null, speakerName = "我", speakerPersonId = 0,
             speakerManual = true, voiceInputJson = VoiceInputMetadata.json(meta).toString(),
             voiceInputPendingUntil = null))
+    }
+    /** 回响自己也录到了这句：录音转写里那几句不再单独记，留带上下文的语音输入这条 */
+    private suspend fun dropHeard(at: Long, text: String) {
+        val dao = db.voiceInput()
+        val heard = dao.micLines(at - VoiceInputDedup.MIC_BEFORE_MS, at + VoiceInputDedup.MIC_AFTER_MS)
+            .filter { VoiceInputDedup.heardByMic(at, text, it.startAt, it.text, it.speakerName) }
+        if (heard.isNotEmpty()) { dao.deleteLines(heard.map { it.id }); dbg("录音里重复的 ${heard.size} 句不再单独记") }
     }
     suspend fun finish(token: String, after: String?) = db.withTransaction {
         val row = db.voiceInput().byToken("voice-input:$token") ?: return@withTransaction
@@ -56,6 +64,16 @@ internal object VoiceInputDedup {
     fun key(text: String) = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKC)
         .trim().replace(Regex("\\s+"), " ")
     fun title(text: String?) = text?.let(::key)?.ifBlank { null }
+    /** 录音转写的这一句是不是语音输入那条里说过的：时间对得上，字按顺序八成以上能在那条里找到；比那条长（多说了别的）不算 */
+    fun heardByMic(voiceAt: Long, voiceText: String, micAt: Long, micText: String, micSpeaker: String?): Boolean {
+        if (micAt !in voiceAt - MIC_BEFORE_MS..voiceAt + MIC_AFTER_MS) return false
+        if (micSpeaker != null && micSpeaker != "我") return false
+        val mic = VoiceInputText.normalized(micText); val voice = VoiceInputText.normalized(voiceText)
+        if (mic.length < 4 || mic.length > voice.length + voice.length / 5 + 2) return false
+        return lcs(mic, voice) >= mic.length * 0.8
+    }
+    const val MIC_BEFORE_MS = 10_000L
+    const val MIC_AFTER_MS = 180_000L
     /** 说话人与正文分开比较，双方说相同内容不互相去重；旧的无前缀记录保持独立。 */
     fun contextKey(line: String): Pair<String, String> {
         val split = line.indexOf('：')
@@ -75,7 +93,7 @@ internal object VoiceInputDedup {
         if (b.startsWith(a)) return true
         return a.length >= 4 && lcs(a, b.take(a.length + a.length / 4 + 2)) >= a.length * 0.75
     }
-    private fun lcs(x: String, y: String): Int {
+    internal fun lcs(x: String, y: String): Int {
         if (x.length > 3000 || y.length > 3000) return 0
         var prev = IntArray(y.length + 1)
         for (i in x.indices) {

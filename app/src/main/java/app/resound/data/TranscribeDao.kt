@@ -61,11 +61,16 @@ abstract class TranscribeDao {
     @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun segment(id: Long): SegmentEntity
     @Query("DELETE FROM transcript_lines WHERE segmentId = :id") abstract suspend fun deleteLines(id: Long)
     @Insert abstract suspend fun insertLines(lines: List<TranscriptLineEntity>)
+    @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :from AND :to")
+    abstract suspend fun voiceInputs(from: Long, to: Long): List<TranscriptLineEntity>
     @Transaction
     open suspend fun complete(row: SegmentEntity, lines: List<TranscriptLineEntity>) {
         if (findSegment(row.id) == null) return
         deleteLines(row.id)
-        insertLines(lines)
+        // 语音输入那条已经记下的话（带上下文），录音转写里不再重复记；重转时同样过一遍
+        val voice = if (lines.isEmpty()) emptyList() else voiceInputs(lines.minOf { it.startAt } - app.resound.capture.VoiceInputDedup.MIC_AFTER_MS,
+            lines.maxOf { it.startAt } + app.resound.capture.VoiceInputDedup.MIC_BEFORE_MS)
+        insertLines(lines.filter { line -> voice.none { app.resound.capture.VoiceInputDedup.heardByMic(it.startAt, it.text, line.startAt, line.text, line.speakerName) } })
         update(row)
     }
     @Query("SELECT * FROM segments WHERE status IN ('Done', 'Empty', 'SkippedPlayback') AND completedAt <= :before")

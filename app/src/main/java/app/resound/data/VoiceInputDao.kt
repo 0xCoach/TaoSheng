@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 abstract class VoiceInputDao {
     @Insert abstract suspend fun segment(row: SegmentEntity): Long
     @Insert abstract suspend fun line(row: TranscriptLineEntity): Long
+    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.sourceId != 'voice-input' AND l.voiceInputJson IS NULL AND l.startAt BETWEEN :from AND :to")
+    abstract suspend fun micLines(from: Long, to: Long): List<TranscriptLineEntity>
+    @Query("DELETE FROM transcript_lines WHERE id IN (:ids) AND voiceInputJson IS NULL") abstract suspend fun deleteLines(ids: List<Long>)
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :at - 1800000 AND :at ORDER BY startAt DESC, id DESC")
     abstract suspend fun recent(at: Long): List<TranscriptLineEntity>
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC")

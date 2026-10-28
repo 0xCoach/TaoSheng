@@ -1,6 +1,19 @@
 package app.resound.ui.settings
 
 import android.content.Intent
+import android.content.Context
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
+import app.resound.AppGraph
+import app.resound.ui.verify.Pill
+import kotlinx.coroutines.launch
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -58,6 +71,10 @@ private val HIGHLIGHTS = listOf(
 @Composable
 fun AboutPage(version: String?, bottom: Dp) {
     val c = Rs.colors
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("ui", Context.MODE_PRIVATE) }
+    var devUnlocked by remember { mutableStateOf(prefs.getBoolean(DEV_UNLOCKED, false)) }
+    var taps by remember { mutableIntStateOf(0) }
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottom + 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -74,9 +91,21 @@ fun AboutPage(version: String?, bottom: Dp) {
             Text("替你听，替你记，替你想。", style = RsType.subhead, color = c.textSecondary)
             if (version != null) {
                 Spacer(Modifier.height(4.dp))
-                Text("版本 $version", style = RsType.caption, color = c.textTertiary)
+                // 连点 7 下打开开发者选项（预览版开关）；普通用户看不到
+                Text("版本 ${displayVersion(version)}", style = RsType.caption, color = c.textTertiary,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(interactionSource = null, indication = null) {
+                        if (devUnlocked) return@clickable
+                        taps++
+                        when {
+                            taps >= 7 -> { devUnlocked = true; prefs.edit().putBoolean(DEV_UNLOCKED, true).apply()
+                                Toast.makeText(context, "已打开开发者选项", Toast.LENGTH_SHORT).show() }
+                            taps >= 4 -> Toast.makeText(context, "再点 ${7 - taps} 下打开开发者选项", Toast.LENGTH_SHORT).show()
+                        }
+                    }.padding(horizontal = 6.dp, vertical = 2.dp))
             }
         }
+
+        if (devUnlocked && AppGraph.isUpdaterReady) PreviewCard()
 
         AboutCard("涛声是什么") {
             Text("一部安卓手机就够：全天收音 → 自动转写 → 认出谁在说 → AI 整理成待办、约定和记忆。",
@@ -98,6 +127,13 @@ fun AboutPage(version: String?, bottom: Dp) {
         AboutCard("隐私") {
             Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；录音转写后 24 小时自动删除。",
                 style = RsType.body, color = c.text)
+        }
+
+        AboutCard("问题反馈") {
+            Text("遇到闪退或功能不对，导出问题记录发给开发。只含运行情况和出错位置，不含原话、待办和密钥。",
+                style = RsType.body, color = c.textSecondary)
+            Spacer(Modifier.height(12.dp))
+            ExportProblemPill()
         }
 
         AboutCard("开源") {
@@ -143,4 +179,80 @@ private fun HomepageLink() {
     }
     Spacer(Modifier.height(4.dp))
     Text("长按可复制链接", style = RsType.caption, color = c.textTertiary)
+}
+
+private const val DEV_UNLOCKED = "devOptionsUnlocked"
+
+/** “0.2.12-preview.1” 显示成“0.2.12 预览版 1”；正式版原样 */
+fun displayVersion(version: String): String =
+    Regex("""^(.+)-preview\.(\d+)$""").matchEntire(version)?.let { "${it.groupValues[1]} 预览版 ${it.groupValues[2]}" } ?: version
+
+/** 开发者选项：接收预览版 */
+@Composable
+private fun PreviewCard() {
+    val c = Rs.colors
+    val updater = AppGraph.updater
+    val on by updater.previewChannel.collectAsState()
+    AboutCard("开发者选项") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("接收预览版", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(2.dp))
+                Text("给开发测试用的新版本，可能不稳定。关掉后等下一个正式版自动换回。",
+                    style = RsType.caption, color = c.textSecondary)
+            }
+            Spacer(Modifier.width(12.dp))
+            app.resound.ui.skills.Toggle(on) { updater.setPreviewChannel(it) }
+        }
+        if (updater.isPreviewBuild) {
+            Spacer(Modifier.height(8.dp))
+            Text("当前装的是预览版", style = RsType.caption, color = c.accent)
+        }
+    }
+}
+
+/** 导出问题记录并交给系统分享；底层没装配时不显示 */
+@Composable
+internal fun ExportProblemPill(label: String = "导出问题记录", onDone: () -> Unit = {}) {
+    if (!AppGraph.isProblemReportsReady) return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    Pill(if (busy) "正在导出…" else label, filled = false) {
+        if (busy) return@Pill
+        busy = true
+        scope.launch {
+            runCatching {
+                val file = AppGraph.problemReports.export()
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_STREAM, uri)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                context.startActivity(Intent.createChooser(send, "发送问题记录"))
+                AppGraph.problemReports.dismissCrashNotice()
+                onDone()
+            }.onFailure { Toast.makeText(context, "没能导出，请稍后再试", Toast.LENGTH_SHORT).show() }
+            busy = false
+        }
+    }
+}
+
+/** 今天页顶部：上次闪退了，提示一次导出问题记录 */
+@Composable
+fun CrashNotice() {
+    if (!AppGraph.isProblemReportsReady) return
+    val c = Rs.colors
+    val at by AppGraph.problemReports.lastCrashAt.collectAsState()
+    if (at == null) return
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
+        Text("涛声上次意外退出了", style = RsType.body, color = c.text)
+        Spacer(Modifier.height(2.dp))
+        Text("导出问题记录发给开发，方便查原因。", style = RsType.caption, color = c.textSecondary)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            ExportProblemPill()
+            Text("知道了", style = RsType.subhead, color = c.textSecondary,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable { AppGraph.problemReports.dismissCrashNotice() }
+                    .padding(horizontal = 12.dp, vertical = 8.dp))
+        }
+    }
 }

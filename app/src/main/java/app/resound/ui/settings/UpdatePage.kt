@@ -69,13 +69,13 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
     ) {
         RsCard(Modifier.animateContentSize()) {
             Text("当前版本", style = RsType.subhead, color = c.textSecondary)
-            Text("涛声 ${updater.currentVersion}", style = RsType.title, color = c.text)
+            Text("涛声 ${displayVersion(updater.currentVersion)}", style = RsType.title, color = c.text)
             Spacer(Modifier.height(4.dp))
             Text(
                 when (val s = state) {
                     UpdateState.Idle, UpdateState.Checking -> "正在检查…"
                     is UpdateState.UpToDate -> "已是最新 · ${formatClock(s.checkedAt)} 检查"
-                    is UpdateState.Failed -> if (s.info == null) s.message else "有新版本 ${s.info.versionName}"
+                    is UpdateState.Failed -> if (s.info == null) s.message else "有新版本 ${displayVersion(s.info.versionName)}"
                     else -> "有新版本"
                 },
                 style = RsType.subhead,
@@ -116,7 +116,7 @@ private fun NewVersionCard(info: UpdateInfo, state: UpdateState, canInstall: Boo
     val c = Rs.colors
     RsCard(Modifier.animateContentSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(info.versionName, style = RsType.title, color = c.text, modifier = Modifier.weight(1f))
+            Text(displayVersion(info.versionName), style = RsType.title, color = c.text, modifier = Modifier.weight(1f))
             Text((if (info.incremental) "增量更新 · " else "完整安装包 · ") + formatBytes(info.downloadBytes),
                 style = RsType.subhead, color = c.textTertiary)
         }
@@ -187,7 +187,7 @@ private fun UpdateState.busy() = this is UpdateState.Downloading || this is Upda
 /** 设置首页“版本更新”右侧那一小段 */
 fun updateSummary(current: String, state: UpdateState): Pair<String, Boolean> = when (state) {
     is UpdateState.Available, is UpdateState.Ready, is UpdateState.Failed ->
-        state.info()?.let { "有新版本 ${it.versionName}" to true } ?: (current to false)
+        state.info()?.let { "有新版本 ${displayVersion(it.versionName)}" to true } ?: (displayVersion(current) to false)
     is UpdateState.Downloading -> "正在下载 ${if (state.totalBytes > 0) state.doneBytes * 100 / state.totalBytes else 0}%" to true
     is UpdateState.Assembling, is UpdateState.Installing -> "正在更新" to true
     is UpdateState.UpToDate -> "$current · 已是最新" to false

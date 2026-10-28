@@ -232,6 +232,11 @@ internal class VoiceInputEngine(
             result?.takeIf { it.prompt && !VoiceInputOcr.terminalPlaceholder(it.text) }?.copy(bubble = null)
         else result
         val first = j.first
+        // 同一应用里换了聊天（微信的聊天和列表在系统看来常是同一页面）：标题变了就当已离开，这张不用
+        if (first?.title != null && accepted?.title != null && first.title != accepted.title) {
+            dbg("截屏识字：标题变了，当作已离开")
+            j.closed = true; maybeFinish(j); return
+        }
         if (first == null && accepted != null) j.first = accepted
         val t = VoiceInputOcr.clean(accepted?.text)
         val fresh = if (first == null) null else freshBubble(first, accepted)

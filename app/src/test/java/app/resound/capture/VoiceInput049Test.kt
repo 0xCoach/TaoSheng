@@ -93,6 +93,12 @@ class VoiceInput049Test {
         assertEquals("第一段接着第二段", record.text)
         assertEquals("对方：先前的话\n我：第一段接着第二段", record.meta.before)
     }
+    @Test fun switchedChatInSameAppIsNotUsedAsContext() {
+        // 10 秒那张已是另一个聊天（标题变了）：不用它，按之前的输入框存
+        val other = OcrInput("", listOf("别人：无关的消息"), "老李")
+        val record = saved(run(listOf(output.copy(text = "我的原"), output, other, other)).second)
+        assertEquals("我的原话", record.text); assertEquals("先前的话", record.meta.before)
+    }
     @Test fun leavingAppCancelsBeforeScreenshotAndKeepsWhatWasRead() {
         // 0.5 秒前就离开：一张不截、不记
         val (r0, c0) = run(listOf(output, output, output), leaveAt = 500)

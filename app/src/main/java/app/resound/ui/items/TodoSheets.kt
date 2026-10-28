@@ -79,7 +79,7 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, strongOn:
 
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
-        SheetInput(content, "要做的事") { content = it }
+        SheetInput(content, "要做的事", wrap = true) { content = it }
         // 先定重不重要，再定几点：强提醒紧跟在内容下面
         StrongReminderRow(strong) { on -> strong = on; if (on && day == null) day = today }
         DueChoice(day, time, { day = it }, { time = it })

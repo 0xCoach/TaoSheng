@@ -96,10 +96,11 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
 
 /** 面板里的输入框 */
 @Composable
-fun SheetInput(value: String, hint: String, onChange: (String) -> Unit) {
+fun SheetInput(value: String, hint: String, wrap: Boolean = false, onChange: (String) -> Unit) {
     val c = Rs.colors
+    // wrap：长内容自动折行显示（最多 6 行，再长可滚动）；仍是一段话，回车不插入换行
     BasicTextField(
-        value, onChange, singleLine = true, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
+        value, if (wrap) { v -> onChange(v.replace("\n", "")) } else onChange, singleLine = !wrap, maxLines = if (wrap) 6 else 1, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 16.dp, vertical = 14.dp),
         decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary); inner() } },
     )

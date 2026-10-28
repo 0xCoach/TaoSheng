@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import android.widget.Toast
@@ -120,7 +121,9 @@ fun TranscriptScreen(
     val c = Rs.colors
     var dayOffset by remember { mutableIntStateOf(0) }
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
-    val segments by remember(date) { repo.day(date) }.collectAsState(initial = null)
+    // 话都已记在语音输入那条里的录音段不显示
+    val segments by remember(date) { repo.day(date).map { day -> day.filterNot { it.status == TranscriptStatus.Done && it.lines.isEmpty() } } }
+        .collectAsState(initial = null)
     val hasKey by settings.ready.collectAsState()
     val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsState()?.value == true
     val local = (settings as? AndroidTranscribeSettings)?.source?.collectAsState()?.value == TranscribeSource.Local
@@ -577,8 +580,7 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
         Spacer(Modifier.height(10.dp))
         AnimatedContent(seg.status, transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) }, label = "segBody") { status ->
             when (status) {
-                // 转写出的话都已在语音输入那条里记下（带上下文），这里不再重复
-                TranscriptStatus.Done -> if (seg.lines.isEmpty()) Note("这段话已记在语音输入里") else SpeakerLines(seg.lines)
+                TranscriptStatus.Done -> SpeakerLines(seg.lines)
                 TranscriptStatus.Running -> Placeholder()
                 TranscriptStatus.Pending -> Note(if (realtime) "马上转写" else "等下一轮转写")
                 TranscriptStatus.Empty -> Note("只有声音，没识别出说话内容")

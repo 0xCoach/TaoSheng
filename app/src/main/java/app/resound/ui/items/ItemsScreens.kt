@@ -141,90 +141,94 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     val delete: (MemoryItem) -> Unit = { memory.deleteItem(it.id) }
     val swipe = RowSwipe(leftLabel, left, delete)
 
-    LazyColumn(
-        Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
-        state = listState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
-    ) {
-        item { PageTitle("待办"); Spacer(Modifier.height(12.dp)) }
-        item { Capsules(TodoTab.entries.map { it.title }, tabIndex) { tabIndex = it }; Spacer(Modifier.height(16.dp)) }
-        val list = items
-        if (list != null && list.isEmpty() && tab != TodoTab.Done) item { Empty(emptyText(tab.title)) }
-        when (tab) {
-            TodoTab.Pending -> {
-                val cutoff = System.currentTimeMillis() - 3 * 86_400_000L
-                val recent = list.orEmpty().filter { it.at >= cutoff }
-                val older = list.orEmpty().filter { it.at < cutoff }
-                if (list.orEmpty().size > 1) item {
-                    Row(Modifier.padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Pill("全部接受 ${list.orEmpty().size} 条", filled = true) { memory.setItemsStatus(list.orEmpty().map { it.id }, ItemStatus.Accepted) }
-                        // 全部忽略要点两次：第一次变红提示
-                        Text(if (ignoreArmed) "再点一次全部忽略" else "全部忽略", style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
-                            color = if (ignoreArmed) Color.White else c.textSecondary,
-                            modifier = Modifier.clip(CircleShape).background(if (ignoreArmed) c.critical else c.card).springClick {
-                                if (ignoreArmed) { ignoreArmed = false; memory.setItemsStatus(list.orEmpty().map { it.id }, ItemStatus.Ignored) } else ignoreArmed = true
-                            }.padding(horizontal = 16.dp, vertical = 8.dp))
-                    }
-                }
-                groupedItems(recent, Grouping.Mentioned, checkable = false, keyPrefix = "p", swipe = swipe, onToggle = toggle) { opened = it }
-                if (older.isNotEmpty()) {
-                    item(key = "older") {
-                        Row(Modifier.fillMaxWidth().springClick { olderOpen = !olderOpen }.padding(start = 4.dp, top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("更早没确认的 · ${older.size} 条", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.textSecondary, modifier = Modifier.weight(1f))
-                            Text(if (olderOpen) "收起" else "展开", style = RsType.caption, color = c.accent)
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
+            state = listState,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 100.dp),
+        ) {
+            item { PageTitle("待办"); Spacer(Modifier.height(12.dp)) }
+            item { Capsules(TodoTab.entries.map { it.title }, tabIndex) { tabIndex = it }; Spacer(Modifier.height(16.dp)) }
+            val list = items
+            if (list != null && list.isEmpty() && tab != TodoTab.Done) item { Empty(emptyText(tab.title)) }
+            when (tab) {
+                TodoTab.Pending -> {
+                    val cutoff = System.currentTimeMillis() - 3 * 86_400_000L
+                    val recent = list.orEmpty().filter { it.at >= cutoff }
+                    val older = list.orEmpty().filter { it.at < cutoff }
+                    if (list.orEmpty().size > 1) item {
+                        Row(Modifier.padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Pill("全部接受 ${list.orEmpty().size} 条", filled = true) { memory.setItemsStatus(list.orEmpty().map { it.id }, ItemStatus.Accepted) }
+                            // 全部忽略要点两次：第一次变红提示
+                            Text(if (ignoreArmed) "再点一次全部忽略" else "全部忽略", style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
+                                color = if (ignoreArmed) Color.White else c.textSecondary,
+                                modifier = Modifier.clip(CircleShape).background(if (ignoreArmed) c.critical else c.card).springClick {
+                                    if (ignoreArmed) { ignoreArmed = false; memory.setItemsStatus(list.orEmpty().map { it.id }, ItemStatus.Ignored) } else ignoreArmed = true
+                                }.padding(horizontal = 16.dp, vertical = 8.dp))
                         }
                     }
-                    if (olderOpen) groupedItems(older, Grouping.Mentioned, checkable = false, keyPrefix = "o", swipe = swipe, onToggle = toggle) { opened = it }
-                }
-            }
-            TodoTab.Ongoing -> {
-                val timed = list.orEmpty().filter { it.dueAt != null }.sortedBy { it.dueAt }
-                item(key = "ongoingHead") {
-                    Row(Modifier.padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (timed.isEmpty()) "随时做的" else "有时间的 · ${timed.size}", style = RsType.section, color = c.textSecondary,
-                            modifier = Modifier.weight(1f).padding(start = 4.dp))
-                        Pill("提醒", filled = false) { reminders = true }
+                    groupedItems(recent, Grouping.Mentioned, checkable = false, keyPrefix = "p", swipe = swipe, onToggle = toggle) { opened = it }
+                    if (older.isNotEmpty()) {
+                        item(key = "older") {
+                            Row(Modifier.fillMaxWidth().springClick { olderOpen = !olderOpen }.padding(start = 4.dp, top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("更早没确认的 · ${older.size} 条", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.textSecondary, modifier = Modifier.weight(1f))
+                                Text(if (olderOpen) "收起" else "展开", style = RsType.caption, color = c.accent)
+                            }
+                        }
+                        if (olderOpen) groupedItems(older, Grouping.Mentioned, checkable = false, keyPrefix = "o", swipe = swipe, onToggle = toggle) { opened = it }
                     }
                 }
-                if (timed.isNotEmpty()) {
-                    groupedItems(timed, Grouping.Due, checkable = true, keyPrefix = "t", swipe = swipe, onToggle = toggle) { opened = it }
-                    if (order.isNotEmpty()) item(key = "freeHead") {
-                        Text("随时做的 · ${order.size}", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 10.dp))
+                TodoTab.Ongoing -> {
+                    val timed = list.orEmpty().filter { it.dueAt != null }.sortedBy { it.dueAt }
+                    item(key = "ongoingHead") {
+                        Row(Modifier.padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (timed.isEmpty()) "随时做的" else "有时间的 · ${timed.size}", style = RsType.section, color = c.textSecondary,
+                                modifier = Modifier.weight(1f).padding(start = 4.dp))
+                            Pill("提醒", filled = false) { reminders = true }
+                        }
                     }
-                }
-                if (order.size > 1) item(key = "dragHint") { Hint("长按拖动，调整先后") }
-                items(order, key = { it.id }) { item ->
-                    ReorderableItem(reorder, key = item.id) { dragging ->
-                        val i = order.indexOf(item)
-                        val lift by animateDpAsState(if (dragging) 12.dp else 0.dp, label = "lift")
-                        val shape = segmentShape(i == 0 || dragging, i == order.lastIndex || dragging)
-                        Column(
-                            Modifier.shadow(lift, shape, ambientColor = c.shadow, spotColor = c.shadow).clip(shape).background(c.card)
-                                .longPressDraggableHandle(
-                                    onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
-                                    onDragStopped = { memory.reorder(order.map { it.id }) },
-                                ),
-                        ) {
-                            swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { toggle(item) }) { opened = item } }
-                            if (i != order.lastIndex && !dragging) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                    if (timed.isNotEmpty()) {
+                        groupedItems(timed, Grouping.Due, checkable = true, keyPrefix = "t", swipe = swipe, onToggle = toggle) { opened = it }
+                        if (order.isNotEmpty()) item(key = "freeHead") {
+                            Text("随时做的 · ${order.size}", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 10.dp))
+                        }
+                    }
+                    if (order.size > 1) item(key = "dragHint") { Hint("长按拖动，调整先后") }
+                    items(order, key = { it.id }) { item ->
+                        ReorderableItem(reorder, key = item.id) { dragging ->
+                            val i = order.indexOf(item)
+                            val lift by animateDpAsState(if (dragging) 12.dp else 0.dp, label = "lift")
+                            val shape = segmentShape(i == 0 || dragging, i == order.lastIndex || dragging)
+                            Column(
+                                Modifier.shadow(lift, shape, ambientColor = c.shadow, spotColor = c.shadow).clip(shape).background(c.card)
+                                    .longPressDraggableHandle(
+                                        onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                        onDragStopped = { memory.reorder(order.map { it.id }) },
+                                    ),
+                            ) {
+                                swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { toggle(item) }) { opened = item } }
+                                if (i != order.lastIndex && !dragging) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                            }
                         }
                     }
                 }
-            }
-            TodoTab.Done -> {
-                val label = if (doneDays == 7) "最近 7 天" else "最近 ${doneDays} 天"
-                item(key = "doneHead") {
-                    Text("${label}完成 ${list.orEmpty().size} 件", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
-                }
-                if (list != null && list.isEmpty()) item { Empty(emptyText(tab.title)) }
-                groupedItems(list.orEmpty(), Grouping.Done, checkable = true, keyPrefix = "d", swipe = swipe, onToggle = toggle) { opened = it }
-                item(key = "doneMore") {
-                    Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
-                        Pill("查看更早", filled = false) { doneDays += 30 }
+                TodoTab.Done -> {
+                    val label = if (doneDays == 7) "最近 7 天" else "最近 ${doneDays} 天"
+                    item(key = "doneHead") {
+                        Text("${label}完成 ${list.orEmpty().size} 件", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
+                    }
+                    if (list != null && list.isEmpty()) item { Empty(emptyText(tab.title)) }
+                    groupedItems(list.orEmpty(), Grouping.Done, checkable = true, keyPrefix = "d", swipe = swipe, onToggle = toggle) { opened = it }
+                    item(key = "doneMore") {
+                        Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+                            Pill("查看更早", filled = false) { doneDays += 30 }
+                        }
                     }
                 }
             }
         }
+        // 右下角：点按打字、按住说话添加待办
+        AddTodoHost(bottomPadding)
     }
     opened?.let { item -> ItemSheet(item, memory, onOpenEvent = null) { opened = null } }
     if (reminders) ReminderSheet(memory) { reminders = false }

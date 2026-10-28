@@ -51,7 +51,7 @@ import java.time.format.DateTimeFormatter
 
 /** 小胶囊点选 */
 @Composable
-private fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
+internal fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
     Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
@@ -59,7 +59,7 @@ private fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Label(text: String) =
+internal fun Label(text: String) =
     Text(text, style = RsType.caption, color = Rs.colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
 
 /** 编辑一条待办 / 约定 / 备忘：内容、哪天、几点、和谁 */
@@ -74,29 +74,11 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss
     var who by remember { mutableStateOf(item.who?.takeIf { it != "我" }.orEmpty()) }
     var day by remember { mutableStateOf(start?.toLocalDate()) }
     var time by remember { mutableStateOf(start?.takeIf { (item.dueText?.length ?: 0) > 10 }?.toLocalTime()) }
-    var pickDay by remember { mutableStateOf(false) }
-    var pickTime by remember { mutableStateOf(false) }
 
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
         SheetInput(content, "要做的事") { content = it }
-        Label("哪天")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("不定", day == null) { day = null; time = null }
-            listOf("今天", "明天", "后天").forEachIndexed { i, n -> today.plusDays(i.toLong()).let { d -> Choice(n, day == d) { day = d } } }
-            val custom = day?.takeIf { it.isBefore(today) || it.isAfter(today.plusDays(2)) }
-            Choice(custom?.format(DateTimeFormatter.ofPattern("M月d日")) ?: "选日期…", custom != null) { pickDay = true }
-        }
-        if (day != null) {
-            Label("几点")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Choice("不定几点", time == null) { time = null }
-                val presets = listOf(9, 12, 14, 18, 20).map { LocalTime.of(it, 0) }
-                presets.forEach { t -> Choice(t.format(DateTimeFormatter.ofPattern("H:mm")), time == t) { time = t } }
-                val custom = time?.takeIf { it !in presets }
-                Choice(custom?.format(DateTimeFormatter.ofPattern("H:mm")) ?: "其他…", custom != null) { pickTime = true }
-            }
-        }
+        DueChoice(day, time, { day = it }, { time = it })
         Label("和谁（可不填）")
         SheetInput(who, "例如 老王") { who = it }
         ActionButton("保存", ActionKind.Primary, enabled = content.isNotBlank()) {
@@ -105,17 +87,44 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss
             onDismiss()
         }
     }
+}
+
+/** 哪天（不定 / 今天 / 明天 / 后天 / 选日期）+ 几点（不定几点 / 常用整点 / 其他）；编辑待办和新加待办卡共用 */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) -> Unit, onTime: (LocalTime?) -> Unit) {
+    val c = Rs.colors
+    val today = LocalDate.now()
+    var pickDay by remember { mutableStateOf(false) }
+    var pickTime by remember { mutableStateOf(false) }
+    Label("哪天")
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Choice("不定", day == null) { onDay(null); onTime(null) }
+        listOf("今天", "明天", "后天").forEachIndexed { i, n -> today.plusDays(i.toLong()).let { d -> Choice(n, day == d) { onDay(d) } } }
+        val custom = day?.takeIf { it.isBefore(today) || it.isAfter(today.plusDays(2)) }
+        Choice(custom?.format(DateTimeFormatter.ofPattern("M月d日")) ?: "选日期…", custom != null) { pickDay = true }
+    }
+    if (day != null) {
+        Label("几点")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice("不定几点", time == null) { onTime(null) }
+            val presets = listOf(9, 12, 14, 18, 20).map { LocalTime.of(it, 0) }
+            presets.forEach { t -> Choice(t.format(DateTimeFormatter.ofPattern("H:mm")), time == t) { onTime(t) } }
+            val custom = time?.takeIf { it !in presets }
+            Choice(custom?.format(DateTimeFormatter.ofPattern("H:mm")) ?: "其他…", custom != null) { pickTime = true }
+        }
+    }
 
     if (pickDay) {
         val state = rememberDatePickerState(initialSelectedDateMillis = (day ?: today).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli())
         DatePickerDialog(onDismissRequest = { pickDay = false }, confirmButton = {
-            TextButton({ state.selectedDateMillis?.let { day = Instant.ofEpochMilli(it).atZone(ZoneId.of("UTC")).toLocalDate() }; pickDay = false }) { Text("好", color = c.accent) }
+            TextButton({ state.selectedDateMillis?.let { onDay(Instant.ofEpochMilli(it).atZone(ZoneId.of("UTC")).toLocalDate()) }; pickDay = false }) { Text("好", color = c.accent) }
         }, dismissButton = { TextButton({ pickDay = false }) { Text("取消", color = c.textSecondary) } }) { DatePicker(state) }
     }
     if (pickTime) {
         val state = rememberTimePickerState(time?.hour ?: 9, time?.minute ?: 0, is24Hour = true)
         androidx.compose.material3.AlertDialog(onDismissRequest = { pickTime = false }, containerColor = c.background,
-            confirmButton = { TextButton({ time = LocalTime.of(state.hour, state.minute); pickTime = false }) { Text("好", color = c.accent) } },
+            confirmButton = { TextButton({ onTime(LocalTime.of(state.hour, state.minute)); pickTime = false }) { Text("好", color = c.accent) } },
             dismissButton = { TextButton({ pickTime = false }) { Text("取消", color = c.textSecondary) } },
             text = {
                 TimeInput(state, colors = TimePickerDefaults.colors(

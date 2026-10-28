@@ -100,6 +100,9 @@ internal class VoiceInputEngine(
         /** 输入框刚空、还没看到发出的气泡：再截一张确认（发得快时截到的可能只是残渣） */
         var emptyShot: OcrInput? = null
         var emptied = false
+        /** 开始说下一段时截的那张：看上一段发出去没有 */
+        var boundary = -1
+        var boundaryAt = 0L
         fun plan(from: Long) { planned.clear(); SHOTS.forEach { planned += from + it } }
     }
     private var job: OcrJob? = null
@@ -121,7 +124,9 @@ internal class VoiceInputEngine(
             // 截图识字的应用里停顿后接着说：还没发送，还是同一条消息
             if (j != null && !j.closed && same(j.screen, screen)) {
                 j.recording = true; j.planned.clear(); recording = true; releaseAt = null
-                dbg("接着说：同一条消息（截图）")
+                // 连着发好几段时，上一段可能已经发出去了：先截一张看看，发了就收尾、这段另起一条
+                j.boundaryAt = now; j.boundary = j.seq; issue(j, now)
+                dbg("接着说：先看上一段发出去没有")
                 tick(now, screen, settings); return
             }
             val w = window
@@ -241,6 +246,11 @@ internal class VoiceInputEngine(
         val t = VoiceInputOcr.clean(accepted?.text)
         val fresh = if (first == null) null else freshBubble(first, accepted)
         val prev = j.box
+        if (request.shot == j.boundary) {
+            j.boundary = -1
+            val gone = prev != null && result != null && (fresh != null || t == null || !continuesBox(prev, t))
+            if (gone) { split(j, accepted, fresh); return }
+        }
         when {
             fresh != null && (prev == null || VoiceInputText.similar(fresh, prev) ||
                 VoiceInputText.normalized(fresh).contains(VoiceInputText.normalized(prev))) -> {
@@ -262,6 +272,20 @@ internal class VoiceInputEngine(
         }
         maybeFinish(j)
     }
+    private fun continuesBox(prev: String, now: String) = now.startsWith(prev) || VoiceInputText.similar(now, prev) ||
+        VoiceInputDedup.continues(prev, now) || VoiceInputText.normalized(now).contains(VoiceInputText.normalized(prev))
+    /** 上一段已经发出去了：上一段用这张收尾，正在说的这段另起一条（这张当它的底图，上一段的气泡就不算新的） */
+    private fun split(j: OcrJob, shot: OcrInput?, fresh: String?) {
+        val prev = j.box
+        if (fresh != null && prev != null && (VoiceInputText.similar(fresh, prev) ||
+                VoiceInputText.normalized(fresh).contains(VoiceInputText.normalized(prev)))) j.sent = fresh
+        j.sentShot = shot; j.closed = true
+        val next = OcrJob(UUID.randomUUID().toString(), j.boundaryAt, j.screen, j.context, j.active)
+        next.first = shot; next.recording = j.recording; next.now = j.now; next.planned += j.planned
+        dbg("上一段已发出：收尾，这段另起一条")
+        finishJob(j)
+        job = next
+    }
     private fun maybeFinish(j: OcrJob) { if (j.closed && j.waiting.isEmpty()) finishJob(j) }
     /** 这张图里最下面靠右的气泡，且第一张里没有（是新发出去的） */
     private fun freshBubble(first: OcrInput, r: OcrInput?): String? {
@@ -278,9 +302,12 @@ internal class VoiceInputEngine(
         val base = j.sentShot?.takeIf { it.context.isNotEmpty() } ?: j.emptyShot ?: j.boxShot ?: j.first
         dbg("截屏识字合成：张数=${j.seq} 输入框字数=${j.box?.length ?: 0} 发出气泡字数=${j.sent?.length ?: 0} 发送后截到=${j.sentShot != null} 采用=${if (text == null) "无" else if (text == j.sent) "气泡" else "输入框"}")
         if (text.isNullOrBlank() || base == null) return
+        // 发出去的这句自己不算上下文
+        val own = VoiceInputText.normalized(text)
+        val context = base.context.filterNot { VoiceInputText.normalized(it.substringAfter('：')) == own }
         output(InputChange.Save(InputRecord(j.token, j.at, text,
             VoiceInputMeta(j.screen.app, j.screen.packageName, if (j.context) base.title else null,
-                if (j.context) VoiceInputText.context(base.context) else null, null), null)))
+                if (j.context) VoiceInputText.context(context) else null, null), null)))
     }
     private fun finishWindow() {
         window?.let { if (!it.saved && !it.cleared) save(it) }

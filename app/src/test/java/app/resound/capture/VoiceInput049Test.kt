@@ -91,7 +91,27 @@ class VoiceInput049Test {
         e.tick(5200, screen, settings); answer(after)
         val record = saved(changes)
         assertEquals("第一段接着第二段", record.text)
-        assertEquals("对方：先前的话\n我：第一段接着第二段", record.meta.before)
+        // 刚发出的这句自己不算上下文
+        assertEquals("对方：先前的话", record.meta.before)
+    }
+    @Test fun quickSendsOneAfterAnotherEachGetContext() {
+        val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()
+        val e = VoiceInputEngine(requests::add, changes::add)
+        fun answer(r: OcrInput) = requests.filter { e.accepts(it) }.forEach { e.recognized(it, r) }
+        e.recording(true, 0, screen, settings); e.recording(false, 100, screen, settings)
+        e.tick(600, screen, settings); answer(OcrInput("第一段合成的话", listOf("老王：在吗"), "老王"))
+        // 点了发送，还没等到截图就开始说第二段：先截一张，上一段的气泡已经出来了
+        e.tick(1000, screen.copy(send = true), settings)
+        e.recording(true, 1200, screen, settings)
+        answer(OcrInput("", listOf("老王：在吗"), "老王", "第一段合成的话"))
+        e.recording(false, 1800, screen, settings)
+        e.tick(2300, screen, settings); answer(OcrInput("第二段合成的话", listOf("老王：在吗", "我：第一段合成的话"), "老王"))
+        e.tick(2600, screen.copy(send = true), settings); e.tick(3100, screen, settings)
+        answer(OcrInput("", listOf("老王：在吗", "我：第一段合成的话"), "老王", "第二段合成的话"))
+        val rows = changes.filterIsInstance<InputChange.Save>().map { it.record }
+        assertEquals(listOf("第一段合成的话", "第二段合成的话"), rows.map { it.text })
+        assertEquals(listOf("老王：在吗", "老王：在吗\n我：第一段合成的话"), rows.map { it.meta.before })
+        assertEquals(listOf("老王", "老王"), rows.map { it.meta.title })
     }
     @Test fun contextSwitchOffKeepsTextButNoContextOrName() {
         val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()

@@ -46,7 +46,7 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
     fun openSettings() = runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     Section("语音输入") {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-            Toggle("记下语音输入的文字", "用输入法语音输入时，系统会把麦克风交给输入法，${appDisplayName}录不到。打开后改为记下你说出的文字。", s.enabled) {
+            Toggle("语音输入时记上下文", "用输入法语音输入发出的每段话，连同当时屏幕上的对话一起记下；关掉则只按录音记你说的话", s.enabled) {
                 capture.update(s.copy(enabled = it)); if (it && !on) openSettings()
             }
             if (s.enabled) {
@@ -56,8 +56,6 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
                     Spacer(Modifier.height(8.dp))
                     Pill("去打开", filled = true) { openSettings() }
                 }
-                Divider()
-                Toggle("记当时的上下文", "同时记下屏幕上正在进行的对话（最近二十来行），帮整理看懂你那句话；连续几段时重复的内容只记一次", s.context) { capture.update(s.copy(context = it)) }
                 Divider()
                 Toggle("读不到时截屏识字", "微信、终端这类不让读取界面的应用，改为截屏在手机上识别文字。图片不保存、不上传，识完就丢", s.screenOcr) { capture.update(s.copy(screenOcr = it)) }
                 if (apps.isNotEmpty()) {

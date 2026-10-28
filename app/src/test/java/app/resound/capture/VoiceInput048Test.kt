@@ -234,7 +234,8 @@ class VoiceInput048Test {
             capture.update(VoiceInputSettings())
             BackupSettings.apply(context, directory) { _, _, _ -> }
             val prefs = context.getSharedPreferences("voice-input", 0)
-            assertTrue(prefs.getBoolean("enabled", false)); assertFalse(prefs.getBoolean("context", true))
+            // 上下文不再单独开关：记语音输入就一定带上下文
+            assertTrue(prefs.getBoolean("enabled", false)); assertTrue(prefs.getBoolean("context", false))
             assertEquals(setOf("excluded"), prefs.getStringSet("excluded", emptySet()))
             VoiceInputStore(db).save(record())
             withTimeout(5000) { capture.todayCount.first { it == 1 } }

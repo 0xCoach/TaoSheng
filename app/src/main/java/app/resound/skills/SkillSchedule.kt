@@ -3,6 +3,7 @@ package app.resound.skills
 import android.content.Context
 import androidx.work.*
 import app.resound.AppGraph
+import app.resound.review.withReviewForeground
 import java.time.Instant
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
@@ -64,7 +65,8 @@ class SkillScheduler(private val context: Context) {
 class SkillWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val repository = AppGraph.skills as LocalSkillRepository
-        repository.runDue()
+        if (repository.skills.value.any { it.id == "weekly" && it.enabled }) withReviewForeground { repository.runDue() }
+        else repository.runDue()
         repository.reschedule(runningWorker = true)
         return Result.success()
     }

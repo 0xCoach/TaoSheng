@@ -51,14 +51,15 @@ class DigestRunner(
         prefs.getString("lastError", null)?.takeUnless { it.contains("等待转写、声纹或对话结束") })
     val last = _last.asStateFlow()
 
-    /** 用户点“现在整理”时置为 true：本轮不等 10 分钟，已转写完的都整理 */
+    /** 兼容旧调用的单次 force；生产流水线用 run 的显式参数，避免自动任务消费手动意图。 */
     @Volatile var forceOnce = false
 
     /** true 表示有暂时性错误，希望稍后重试 */
-    suspend fun run(): Boolean {
+    suspend fun run(force: Boolean? = null, manual: Boolean = false): Boolean {
         if (!gate.tryLock()) return false
         var madeEvents = false
-        val force = forceOnce.also { forceOnce = false }
+        // force 只决定对话是否结束；manual 只决定技能是否跳过最短间隔。
+        val forceNow = force ?: forceOnce.also { forceOnce = false }
         _progress.value = DigestProgress(startedAt = elapsed())
         _running.value = true
         try {
@@ -67,7 +68,7 @@ class DigestRunner(
             val sessions = sessions(dao.undigestedLines(), gapMillis())
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             for (session in sessions) {
-                val ready = if (closed(session, force)) session else settledPrefix(session)
+                val ready = if (closed(session, forceNow)) session else settledPrefix(session)
                 chunks.addAll(ready.chunked(MAX_LINES))
             }
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
@@ -89,7 +90,7 @@ class DigestRunner(
             gate.unlock()
             if (madeEvents) {
                 app.resound.PipelineProgress.stage(app.resound.PipelineProgress.Stage.Skills)
-                try { afterDigest(force) }
+                try { afterDigest(manual) }
                 catch (e: CancellationException) { throw e }
                 catch (_: Exception) { /* 技能调度失败不影响已完成的整理。 */ }
             }

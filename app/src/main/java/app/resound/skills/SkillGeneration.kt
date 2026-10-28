@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.app.NotificationCompat
 import androidx.work.*
 import app.resound.AppGraph
+import app.resound.review.withReviewForeground
 import app.resound.R
 import app.resound.push.LocalNotifier
 import app.resound.push.Notifier
@@ -144,7 +145,9 @@ class SkillGenerationWork(context: Context, params: WorkerParameters) : Coroutin
         val date = runCatching { LocalDate.parse(inputData.getString(SkillGeneration.DATE)) }.getOrNull() ?: return Result.failure()
         val repository = AppGraph.skills as LocalSkillRepository
         // 不吞 CancellationException：系统停止后由 WorkManager 重新排队，不发布终态。
-        val attempt = repository.runGeneration(skillId, date, canRetry = runAttemptCount < 2)
+        val attempt = if (skillId == "weekly") withReviewForeground {
+            repository.runGeneration(skillId, date, canRetry = runAttemptCount < 2)
+        } else repository.runGeneration(skillId, date, canRetry = runAttemptCount < 2)
         if (attempt.retryable) return Result.retry()
         val result = attempt.result
         val notice = SkillGenerationNotice.from(repository.skills.value.find { it.id == skillId }?.name ?: "技能", date, result)

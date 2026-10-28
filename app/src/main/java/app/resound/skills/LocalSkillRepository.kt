@@ -25,6 +25,7 @@ class LocalSkillRepository(
     private val schedule: (Long?, Boolean) -> Unit,
     private val now: () -> Long = System::currentTimeMillis,
     private val generation: SkillGeneration? = null,
+    private val beforeWeeklyReview: suspend () -> Unit = {},
 ) : SkillRepository {
     override val skills = files.skills
     override val generating = generation?.generating ?: MutableStateFlow(emptySet<Pair<String, LocalDate>>()).asStateFlow()
@@ -122,7 +123,7 @@ class LocalSkillRepository(
     private suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true, skipGap: Boolean = false): SkillAttempt = gate.withLock {
         val skill = skills.value.find { it.id == id } ?: return@withLock SkillAttempt(SkillRunResult.Failed("技能不存在"))
         if (skill.origin == SkillOrigin.Core) return@withLock SkillAttempt(SkillRunResult.Nothing("请使用原来的整理或回顾设置"))
-        val started = now(); val history = dao.runsOf(id)
+        var started = now(); val history = dao.runsOf(id)
         val auto = kind == SkillSchedule.DAILY || kind == SkillSchedule.AFTER
         val preview = kind == SkillSchedule.TRIAL
         if (auto) {
@@ -138,6 +139,8 @@ class LocalSkillRepository(
         running.value = running.value + id
         var tokens = 0L; var retryable = false
         try {
+            // 每周回顾实际是内置 weekly 技能；通过共用入口覆盖自动、手动和试跑。
+            if (id == "weekly") { beforeWeeklyReview(); started = now() }
             val result = try {
                 val (preset, key) = credentials(skill.presetId)
                 if (key.isBlank()) SkillRunResult.Failed("还没填写大模型密钥") else {

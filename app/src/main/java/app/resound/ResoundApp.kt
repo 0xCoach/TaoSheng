@@ -21,6 +21,15 @@ class ResoundApp : Application() {
     val store by lazy { CaptureStore(this, database.capture()) }
     val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
     private lateinit var transcribeScheduler: TranscribeScheduler
+    fun rescheduleDigest(changed: Boolean = false) {
+        if (changed) transcribeScheduler.timingChanged() else transcribeScheduler.scheduleDigest()
+    }
+    fun enqueueTimedDigest(target: Long, expires: Long) = transcribeScheduler.enqueueTimed(target, expires)
+    fun timedDigestValid(target: Long): Boolean {
+        val timing = AppGraph.digestTiming
+        val local = java.time.Instant.ofEpochMilli(target).atZone(java.time.ZoneId.systemDefault())
+        return timing.mode.value == DigestMode.TimePoints && local.hour * 60 + local.minute in timing.timePoints.value
+    }
     fun runTranscriptionNow() = transcribeScheduler.runNow()
     lateinit var controller: AndroidCaptureController
         private set
@@ -99,10 +108,12 @@ class ResoundApp : Application() {
         val appointmentSettings = AndroidAppointmentSettings(this)
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
-            digestRunner.forceOnce = true
-            transcripts.retryFailed()
+            scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
         }, scope, appointmentSettings)
         AppGraph.digestSettings = digestSettings
+        AppGraph.digestTiming = digestSettings.timing
+        scheduler.digestTiming = digestSettings.timing
+        digestSettings.timing.onChanged = scheduler::timingChanged
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }
         digestSettings.onIntervalChanged = { scheduler.scheduleDigest() }
         val reviewScheduler = app.resound.review.ReviewScheduler(this)
@@ -113,12 +124,14 @@ class ResoundApp : Application() {
             getSharedPreferences("review", MODE_PRIVATE), scope,
             { digestSettings.preset to digestSettings.readKey() }, llm::chatJson, { AppGraph.prompts.text("review") }, appName,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), { reviewScheduler.schedule(it, changed = true) },
-            dailyMemory = pushChannels::dispatchDailyMemory)
+            dailyMemory = pushChannels::dispatchDailyMemory,
+            beforeReview = { app.resound.review.ReviewPreparation.run(this) })
         val skillRepository = app.resound.skills.LocalSkillRepository(
             app.resound.skills.SkillFiles(this), database.skills(), database.memory(), scope,
             digestSettings::skillCredentials, llm::chatJson, hotwords::merged,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), skillScheduler::schedule,
-            generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope))
+            generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope),
+            beforeWeeklyReview = { app.resound.review.ReviewPreparation.run(this) })
         AppGraph.skills = skillRepository
         scope.launch { skillRepository.reschedule() }
         AppGraph.review = reviews

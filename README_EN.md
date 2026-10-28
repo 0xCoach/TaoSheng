@@ -40,6 +40,18 @@ You say thousands of sentences a day. How many do you remember?
 
 Existing options either need a dedicated recorder (Omi, AI pendants, recording cards) or send all your audio to someone else's server. **TaoSheng uses the phone you already carry.** It quietly listens in the background, records only when someone is speaking, transcribes in batches, recognizes who said what, and lets an LLM organize it into events. When you need something, just ask — every answer links back to the original words.
 
+## 🧵 You're one string away from an AI pendant
+
+<div align="center">
+<img src="docs/media/string-pendant.jpg" alt="AI pendant ≈ Bluetooth earbud on a string" width="720">
+</div>
+
+Take apart an AI recording card or pendant and you'll find **a Bluetooth mic plus a battery**.
+
+TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang your Bluetooth earbuds around your neck on a string and you've got an AI pendant: no hardware to buy, and your data stays on your own phone.
+
+<sub>Bluetooth earbuds record through the call channel, so quality is a bit lower than the phone mic — fine in quiet rooms. If the earbuds die or disconnect, TaoSheng switches back to the phone mic automatically.</sub>
+
 ## ✨ Highlights
 
 1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected.

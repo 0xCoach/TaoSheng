@@ -52,8 +52,8 @@ internal object VoiceInputText {
             pkg != own && pkg !in settings.excludedPackages && !password
 }
 
-/** 截图识字时，每次停下说话后几毫秒截图看输入框；之后靠“点发送 / 界面变了”再截，没动静时 10、30 秒各补一张 */
-internal val SHOTS = longArrayOf(500, 3000, 10_000, 30_000)
+/** 截图识字时，每次停下说话后几毫秒截图看输入框：0.5、2、5 秒盖住最常见的发送时间，15 秒兜底；之后靠“点发送 / 界面变了”再截 */
+internal val SHOTS = longArrayOf(500, 2000, 5000, 15_000)
 /** 点了发送或界面变了，等这么久再截（让气泡先出来）；两张之间至少隔开这么久 */
 internal const val SEND_SHOT_DELAY = 500L
 internal const val SHOT_GAP = 1500L

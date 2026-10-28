@@ -229,7 +229,7 @@ internal object VoiceInputOcr {
     /** 输入框已清空时也保留聊天快照，不能因改读已发送气泡就丢掉上下文。 */
     fun screenshot(source: List<OcrLine>, layout: OcrLayout, pkg: String): OcrInput? {
         val input = extract(source, layout, pkg)
-        if (pkg !in CHAT) return input
+        if (pkg !in CHAT) return input ?: blank(source, layout, pkg)
         val bubbleLines = lastRightBubbleLines(source, layout)
         val bubble = joinLines(bubbleLines.map { it.text.trim() }).ifBlank { null }
         if (input != null) return input.copy(bubble = bubble)
@@ -240,6 +240,15 @@ internal object VoiceInputOcr {
         val before = source.filter { it.top >= titleBarBottom(layout) && it.bottom <= beforeBottom &&
             VoiceInputChrome.keep(it.text) }
         return OcrInput("", chatContext(before, layout.width, pkg, title).takeLast(20), title, bubble)
+    }
+
+    /** 截到了但找不到输入框里的字（任何应用发出后输入框都会空）：照样给出屏幕上的内容，让引擎知道输入框已空 */
+    private fun blank(source: List<OcrLine>, layout: OcrLayout, pkg: String): OcrInput {
+        val keyboard = layout.imeTop?.takeIf { it in (layout.contentTop + 1)..layout.height } ?: (layout.height * .6).toInt()
+        val bottom = minOf(keyboard, layout.contentBottom)
+        val lines = source.filter { it.top >= titleBarBottom(layout) && it.bottom <= bottom && VoiceInputChrome.keep(it.text) }
+            .sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text.trim() }
+        return OcrInput("", lines.takeLast(20), title(source, layout)?.takeIf { pkg in TITLED })
     }
 
     /** 聊天区最下面“我”这一侧的气泡（离右边比离左边近），取最靠下的一组相邻行 */

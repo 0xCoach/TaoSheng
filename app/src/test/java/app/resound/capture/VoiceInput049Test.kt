@@ -93,6 +93,25 @@ class VoiceInput049Test {
         assertEquals("第一段接着第二段", record.text)
         assertEquals("对方：先前的话\n我：第一段接着第二段", record.meta.before)
     }
+    @Test fun contextSwitchOffKeepsTextButNoContextOrName() {
+        val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()
+        val e = VoiceInputEngine(requests::add, changes::add)
+        val off = settings.copy(context = false)
+        e.recording(true, 0, screen, off); e.recording(false, 100, screen, off)
+        e.tick(600, screen, off); requests.filter(e::accepts).forEach { e.recognized(it, output) }
+        e.tick(1000, screen.copy(send = true), off); e.tick(1500, screen, off)
+        requests.filter(e::accepts).forEach { e.recognized(it, sentShot) }
+        val record = saved(changes)
+        assertEquals("我的原话！", record.text); assertNull(record.meta.before); assertNull(record.meta.title)
+    }
+    @Test fun anyAppEmptyBoxAfterSendIsSeen() {
+        // 不在聊天名单里的应用：输入框上方有字就是原话；发出后输入框空了也要给出“截到了、框是空的”
+        val layout = OcrLayout(1000, 2000, 70, 1950, 1200)
+        val typed = VoiceInputOcr.screenshot(listOf(OcrLine("页面内容", 50, 400, 900, 440), OcrLine("要发的话", 50, 1150, 900, 1190)), layout, "some.app")!!
+        assertEquals("要发的话", typed.text)
+        val empty = VoiceInputOcr.screenshot(listOf(OcrLine("页面内容", 50, 400, 900, 440), OcrLine("要发的话", 50, 600, 900, 640)), layout, "some.app")!!
+        assertEquals("", empty.text); assertEquals(listOf("页面内容", "要发的话"), empty.context)
+    }
     @Test fun switchedChatInSameAppIsNotUsedAsContext() {
         // 10 秒那张已是另一个聊天（标题变了）：不用它，按之前的输入框存
         val other = OcrInput("", listOf("别人：无关的消息"), "老李")

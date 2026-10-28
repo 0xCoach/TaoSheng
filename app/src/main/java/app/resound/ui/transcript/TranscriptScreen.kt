@@ -577,7 +577,8 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
         Spacer(Modifier.height(10.dp))
         AnimatedContent(seg.status, transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) }, label = "segBody") { status ->
             when (status) {
-                TranscriptStatus.Done -> SpeakerLines(seg.lines)
+                // 转写出的话都已在语音输入那条里记下（带上下文），这里不再重复
+                TranscriptStatus.Done -> if (seg.lines.isEmpty()) Note("这段话已记在语音输入里") else SpeakerLines(seg.lines)
                 TranscriptStatus.Running -> Placeholder()
                 TranscriptStatus.Pending -> Note(if (realtime) "马上转写" else "等下一轮转写")
                 TranscriptStatus.Empty -> Note("只有声音，没识别出说话内容")

@@ -40,7 +40,8 @@ internal object ManualTodoPrompt {
             require(kind == null || kind in setOf("我要做", "我答应别人", "别人答应我"))
             val due = field("dueText")
             val dueAt = due?.let { requireNotNull(DigestPrompt.parseDue(it, zone)) }
-            TodoDraft(category!!, kind, content, due, dueAt, field("who"))
+            // 自己添加的待办默认强提醒（有时间才生效）；AI 从对话里整理出来的默认不加
+            TodoDraft(category!!, kind, content, due, dueAt, field("who"), strongReminder = true)
         }
     }
 }

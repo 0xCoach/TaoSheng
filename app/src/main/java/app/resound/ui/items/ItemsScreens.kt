@@ -140,6 +140,17 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     val leftLabel: (MemoryItem) -> String = { when (it.status) { ItemStatus.Pending -> "接受"; ItemStatus.Done -> "撤回完成"; else -> "完成" } }
     val delete: (MemoryItem) -> Unit = { memory.deleteItem(it.id) }
     val swipe = RowSwipe(leftLabel, left, delete)
+    // 打开铃铛时手机设置还没开全：一天最多主动弹一次清单
+    var setupSheet by remember { mutableStateOf(false) }
+    val bellContext = androidx.compose.ui.platform.LocalContext.current
+    val bell: (MemoryItem, Boolean) -> Unit = { item, on ->
+        memory.setStrongReminder(item.id, on)
+        val prefs = bellContext.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
+        val today = LocalDate.now().toEpochDay()
+        if (on && prefs.getLong("strongSetupShown", -1) != today && app.resound.push.StrongSetup.missing(bellContext) > 0) {
+            prefs.edit().putLong("strongSetupShown", today).apply(); setupSheet = true
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -167,7 +178,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                                 }.padding(horizontal = 16.dp, vertical = 8.dp))
                         }
                     }
-                    groupedItems(recent, Grouping.Mentioned, checkable = false, keyPrefix = "p", swipe = swipe, onToggle = toggle) { opened = it }
+                    groupedItems(recent, Grouping.Mentioned, checkable = false, keyPrefix = "p", swipe = swipe, onToggle = toggle, onBell = bell) { opened = it }
                     if (older.isNotEmpty()) {
                         item(key = "older") {
                             Row(Modifier.fillMaxWidth().springClick { olderOpen = !olderOpen }.padding(start = 4.dp, top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -175,7 +186,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                                 Text(if (olderOpen) "收起" else "展开", style = RsType.caption, color = c.accent)
                             }
                         }
-                        if (olderOpen) groupedItems(older, Grouping.Mentioned, checkable = false, keyPrefix = "o", swipe = swipe, onToggle = toggle) { opened = it }
+                        if (olderOpen) groupedItems(older, Grouping.Mentioned, checkable = false, keyPrefix = "o", swipe = swipe, onToggle = toggle, onBell = bell) { opened = it }
                     }
                 }
                 TodoTab.Ongoing -> {
@@ -188,7 +199,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                         }
                     }
                     if (timed.isNotEmpty()) {
-                        groupedItems(timed, Grouping.Due, checkable = true, keyPrefix = "t", swipe = swipe, onToggle = toggle) { opened = it }
+                        groupedItems(timed, Grouping.Due, checkable = true, keyPrefix = "t", swipe = swipe, onToggle = toggle, onBell = bell) { opened = it }
                         if (order.isNotEmpty()) item(key = "freeHead") {
                             Text("随时做的 · ${order.size}", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 10.dp))
                         }
@@ -206,7 +217,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                                         onDragStopped = { memory.reorder(order.map { it.id }) },
                                     ),
                             ) {
-                                swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { toggle(item) }) { opened = item } }
+                                swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { toggle(item) }, onBell = { bell(item, it) }) { opened = item } }
                                 if (i != order.lastIndex && !dragging) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                             }
                         }
@@ -232,6 +243,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     }
     opened?.let { item -> ItemSheet(item, memory, onOpenEvent = null) { opened = null } }
     if (reminders) ReminderSheet(memory) { reminders = false }
+    if (setupSheet) StrongSetupSheet { setupSheet = false }
 }
 
 /** 一行的滑动动作：左滑 [label] / 右滑两次删除 */
@@ -453,7 +465,7 @@ fun MemoryScreen(
 /** 分组列表：每组一个小标题 + 一张卡 */
 private fun androidx.compose.foundation.lazy.LazyListScope.groupedItems(
     list: List<MemoryItem>, grouping: Grouping, checkable: Boolean, keyPrefix: String,
-    swipe: RowSwipe? = null, onToggle: (MemoryItem) -> Unit, onOpen: (MemoryItem) -> Unit,
+    swipe: RowSwipe? = null, onToggle: (MemoryItem) -> Unit, onBell: ((MemoryItem, Boolean) -> Unit)? = null, onOpen: (MemoryItem) -> Unit,
 ) {
     val groups: List<Pair<String, List<MemoryItem>>> = when (grouping) {
         Grouping.Due -> list.groupBy { it.dueAt?.let(::dateOf) }.toList()
@@ -469,8 +481,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.groupedItems(
                 color = c.textTertiary, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
             RsCard(padding = PaddingValues(vertical = 2.dp)) {
                 dayItems.forEachIndexed { i, item ->
-                    if (swipe != null) swipe.wrap(item) { ItemRow(item, checkable, onToggle = { onToggle(item) }) { onOpen(item) } }
-                    else ItemRow(item, checkable, onToggle = { onToggle(item) }) { onOpen(item) }
+                    val bell = onBell?.let { f -> { on: Boolean -> f(item, on) } }
+                    if (swipe != null) swipe.wrap(item) { ItemRow(item, checkable, onToggle = { onToggle(item) }, onBell = bell) { onOpen(item) } }
+                    else ItemRow(item, checkable, onToggle = { onToggle(item) }, onBell = bell) { onOpen(item) }
                     if (i != dayItems.lastIndex) Box(Modifier.padding(start = if (checkable) 52.dp else 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                 }
             }
@@ -529,7 +542,7 @@ private fun Capsules(names: List<String>, selected: Int, onSelect: (Int) -> Unit
 }
 
 @Composable
-internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit, onOpen: () -> Unit) {
+internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit, onBell: ((Boolean) -> Unit)? = null, onOpen: () -> Unit) {
     val c = Rs.colors
     val done = item.status == ItemStatus.Done
     Row(Modifier.fillMaxWidth().springClick(onOpen).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.Top) {
@@ -578,6 +591,11 @@ internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit,
                     Text(meta.joinToString(" · "), style = RsType.caption, color = tint, maxLines = 1)
                 }
             }
+        }
+        // 有时间、还没做完的待办和约定：右边一个铃铛，点一下切换强提醒
+        if (onBell != null && item.dueAt != null && !done && item.category in setOf("待办", "约定")) {
+            Spacer(Modifier.width(8.dp))
+            BellButton(item.strongReminder, onBell)
         }
     }
 }

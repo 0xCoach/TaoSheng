@@ -21,11 +21,15 @@ internal class PhoneReminders(
     private val now: () -> Long = System::currentTimeMillis,
     /** 打开了强提醒的待办走这个（弹出、响铃、震动）；其余照旧用 [notifier] */
     private val strongNotifier: Notifier = notifier,
+    /** 每次重算时把最新数据交出去：强提醒据此停掉已完成、已删、关了铃铛的那几条 */
+    private val onRefresh: (PushSnapshot) -> Unit = {},
 ) {
     private val gate = Mutex()
     suspend fun refresh(send: Boolean = false): Boolean = gate.withLock {
         val sent = JSONObject(prefs.getString("sent", "{}")!!)
-        val candidates = SubscriptionReminders.candidates(source(), PushSubscription.PhoneNotice, sent, settings(), ZoneId.systemDefault(), now())
+        val snapshot = source()
+        onRefresh(snapshot)
+        val candidates = SubscriptionReminders.candidates(snapshot, PushSubscription.PhoneNotice, sent, settings(), ZoneId.systemDefault(), now())
         var failed = false
         if (send) for (reminder in candidates.filter { it.at <= now() }) {
             try {

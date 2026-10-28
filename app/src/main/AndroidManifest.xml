@@ -14,6 +14,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -48,6 +49,7 @@
         <service android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery" tools:node="remove" />
         <service android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" tools:node="remove" />
         <receiver android:name=".push.PhoneReminderReceiver" android:exported="false" />
+        <receiver android:name=".push.StrongReminderReceiver" android:exported="false" />
         <receiver android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver" tools:node="remove" />
 
 
@@ -89,6 +91,15 @@
             <intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
         </receiver>
         <receiver android:name=".importer.CancelImportReceiver" android:exported="false" />
+        <!-- 强提醒整屏页：锁屏时亮屏盖在锁屏上 -->
+        <activity
+            android:name=".ui.alarm.StrongAlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.resound.alarm"
+            android:excludeFromRecents="true" />
         <activity
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize"

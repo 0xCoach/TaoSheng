@@ -231,6 +231,21 @@ class Todo046Test {
         assertEquals(listOf("待办到期 · 合成条目1"), strong); assertEquals(listOf("待办到期 · 合成条目2"), normal)
     }
 
+    @Test fun strongReminderPostsWithButtonsAfterEdit() = runBlocking {
+        var clock = at + 9 * 3600000
+        dao.insertItems(listOf(item(1).copy(eventId = null, dueAt = at + 10 * 3600000, dueText = "2026-10-24 10:00", strongReminder = true)))
+        val runtime = PhoneReminders(prefs(), { snapshot() }, { AppointmentReminders(false, leadMinutes = null) }, LocalNotifier(context), { _, _ -> }, { clock },
+            strongNotifier = StrongReminderNotifier(context), onRefresh = { StrongReminders.sweep(context, it) })
+        clock = at + 10 * 3600000; assertFalse(runtime.refresh(true))
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        val posted = org.robolectric.Shadows.shadowOf(manager).allNotifications
+        assertEquals(1, posted.size); assertEquals(3, posted.single().actions.size)
+        // 改到 11 点后再到点，要再弹一次
+        dao.updateItem(1, "合成条目1", at + 11 * 3600000, true, null, clock)
+        clock = at + 11 * 3600000; assertFalse(runtime.refresh(true))
+        assertEquals(2, org.robolectric.Shadows.shadowOf(manager).allNotifications.size + 1)
+    }
+
     @Test fun deleteRegeneratesFolderAndWebhookDelta() = runBlocking {
         dao.insertItems(listOf(item()))
         val sub = PushSubscription.ForAgents.copy(backfillDays = null)

@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -71,7 +73,6 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss
     val today = LocalDate.now(zone)
     val start = item.dueAt?.let { Instant.ofEpochMilli(it).atZone(zone) }
     var content by remember { mutableStateOf(item.content) }
-    var who by remember { mutableStateOf(item.who?.takeIf { it != "我" }.orEmpty()) }
     var day by remember { mutableStateOf(start?.toLocalDate()) }
     var time by remember { mutableStateOf(start?.takeIf { (item.dueText?.length ?: 0) > 10 }?.toLocalTime()) }
     var strong by remember { mutableStateOf(item.strongReminder) }
@@ -79,30 +80,43 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
         SheetInput(content, "要做的事") { content = it }
+        // 先定重不重要，再定几点：强提醒紧跟在内容下面
+        StrongReminderRow(strong) { on -> strong = on; if (on && day == null) day = today }
         DueChoice(day, time, { day = it }, { time = it })
-        if (day != null) StrongReminderRow(strong) { strong = it }
-        Label("和谁（可不填）")
-        SheetInput(who, "例如 老王") { who = it }
         ActionButton("保存", ActionKind.Primary, enabled = content.isNotBlank()) {
             val at = day?.let { d -> (time?.let { d.atTime(it) } ?: d.atStartOfDay()).atZone(zone).toInstant().toEpochMilli() }
-            memory.updateItem(item.id, content.trim(), at, time != null, who.trim().ifEmpty { null })
+            // “和谁”不再让改，沿用原来的
+            memory.updateItem(item.id, content.trim(), at, time != null, item.who)
             if (strong != item.strongReminder || (at == null && item.strongReminder)) memory.setStrongReminder(item.id, strong && at != null)
             onDismiss()
         }
     }
 }
 
-/** 强提醒开关：开了到点弹出、响铃、震动；关着照旧发普通通知。只有定了日子才显示 */
+/** 强提醒开关：开了到点弹出、响铃、震动，响到你回应；关着照旧发普通通知。打开时整行变成浅橙色 */
 @Composable
 internal fun StrongReminderRow(on: Boolean, onChange: (Boolean) -> Unit) {
     val c = Rs.colors
-    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+    val bg by animateColorAsState(if (on) c.accentSoft else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "strongRow")
+    var setup by remember { mutableStateOf(false) }
+    Column {
+    androidx.compose.foundation.layout.Row(
+        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(bg)
+            .springClick { onChange(!on) }.padding(start = 6.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BellButton(on, onChange)
+        androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
         Column(Modifier.weight(1f)) {
-            Text("强提醒", style = RsType.body, color = c.text)
-            Text(if (on) "到点弹出、响铃、震动" else "到点只发普通通知", style = RsType.caption, color = c.textSecondary)
+            Text("强提醒", style = RsType.body.copy(fontWeight = FontWeight.Medium), color = if (on) c.accent else c.text)
+            Text(if (on) "到点弹出、响铃、震动，直到你回应" else "到点只发普通通知", style = RsType.caption, color = c.textSecondary)
         }
         app.resound.ui.skills.Toggle(on, onChange)
     }
+    // 开着强提醒但手机设置没开全：提示一行，点了看清单
+    if (on) StrongSetupHint { setup = true }
+    }
+    if (setup) StrongSetupSheet { setup = false }
 }
 
 /** 哪天（不定 / 今天 / 明天 / 后天 / 选日期）+ 几点（不定几点 / 常用整点 / 其他）；编辑待办和新加待办卡共用 */
@@ -153,6 +167,18 @@ internal fun ReminderSheet(memory: MemoryRepository, onDismiss: () -> Unit) {
     val r by memory.appointmentReminders.collectAsState()
     fun set(v: AppointmentReminders) = memory.setAppointmentReminders(v)
     RsSheet("约定提醒", "有时间的约定和待办会提前提醒你，和到期提醒走同一个地方（手机通知和推送通道）。", onDismiss = onDismiss) {
+        var setup by remember { mutableStateOf(false) }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val missing = remember { app.resound.push.StrongSetup.missing(context) }
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .background(c.background).springClick { setup = true }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("强提醒需要打开的功能", style = RsType.body, color = c.text)
+                Text(if (missing == 0) "已经开好" else "还有 $missing 项没打开", style = RsType.caption, color = if (missing == 0) c.good else c.warning)
+            }
+            Text("›", style = RsType.headline, color = c.textTertiary)
+        }
+        if (setup) StrongSetupSheet { setup = false }
         androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("头一天晚上提醒", style = RsType.body, color = c.text)

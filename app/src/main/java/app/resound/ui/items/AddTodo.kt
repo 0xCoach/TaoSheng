@@ -283,7 +283,8 @@ private class DraftState(d: TodoDraft) {
     var who by mutableStateOf(d.who?.takeIf { it != "我" }.orEmpty())
     var day by mutableStateOf<LocalDate?>(null)
     var time by mutableStateOf<LocalTime?>(null)
-    var strong by mutableStateOf(d.strongReminder)
+    // 自己添加的默认强提醒；没解析出时间时也先开着，选了时间就生效
+    var strong by mutableStateOf(true)
 
     init {
         d.dueAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()) }?.let { at ->
@@ -323,6 +324,8 @@ private fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Unit
                         modifier = Modifier.clip(CircleShape).springClick { cards.removeAt(i) }.padding(horizontal = 8.dp, vertical = 4.dp))
                 }
                 CardInput(card.content, "要做的事") { card.content = it }
+                // 先定重不重要，再定几点
+                StrongReminderRow(card.strong) { on -> card.strong = on; if (on && card.day == null) card.day = LocalDate.now() }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TYPES.forEach { (label, category) ->
                         val on = card.category == category && (category != "待办" || (card.kind ?: "我要做") == label)
@@ -330,9 +333,6 @@ private fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Unit
                     }
                 }
                 DueChoice(card.day, card.time, { card.day = it }, { card.time = it })
-                if (card.day != null) StrongReminderRow(card.strong) { card.strong = it }
-                Label("和谁（可不填）")
-                CardInput(card.who, "例如 老王") { card.who = it }
             }
         }
         val valid = cards.isNotEmpty() && cards.all { it.content.isNotBlank() }

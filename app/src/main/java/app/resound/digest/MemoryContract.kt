@@ -26,7 +26,7 @@ enum class ItemStatus {
 /** 提取项：category 是 待办 / 约定 / 备忘 / 灵感 / 关键信息 / 决定 / 知识 */
 data class MemoryItem(
     val id: Long,
-    val eventId: Long,
+    val eventId: Long?,
     val category: String,
     /** 仅待办：我要做 / 我答应别人 / 别人答应我 */
     val kind: String?,
@@ -54,6 +54,8 @@ data class MemoryItem(
     val editedAt: Long? = null,
     /** 卡 046：“可能做完了”——整理时发现后来有句话说明这件事已经做了；用户确认或不理会前一直挂着 */
     val doneHint: DoneHint? = null,
+    val origin: ItemOrigin = ItemOrigin.Digest,
+    val sourceText: String? = null,
 )
 
 /** 卡 046：后来听到的、说明已经做完的那句原话 */

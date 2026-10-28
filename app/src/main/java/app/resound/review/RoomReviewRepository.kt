@@ -62,11 +62,11 @@ class RoomReviewRepository(
             val end = ReviewTime.cutoff(date, minutes, timezone).toInstant().toEpochMilli()
             val source = dao.reviewInput(start, end)
             // 没有当天事件且没有历史重点需要跟进时，不推送旧回顾。
-            if (source.events.isEmpty() && source.starredStale.isEmpty()) { error(null); return@withLock false }
+            if (source.events.isEmpty() && source.items.isEmpty() && source.starredStale.isEmpty()) { error(null); return@withLock false }
             var row = if (scheduled) dao.daily(date.toString()).first()?.takeIf { it.generatedAt >= end } else null
             if (row == null) {
                 val model: String
-                val result = if (source.events.isEmpty()) {
+                val result = if (source.events.isEmpty() && source.items.isEmpty()) {
                     model = "local-starred-followup"
                     ReviewPrompt.staleOnly(source, timezone)
                 } else {

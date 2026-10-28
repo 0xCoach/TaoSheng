@@ -122,7 +122,7 @@ internal object RecordDelta {
             put("event:${e.id}", JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt).put("title", e.title).put("summary", e.summary)
                 .put("points", JSONArray(e.pointsJson)).put("people", JSONArray(e.peopleJson)).put("scene", e.scene).put("important", e.important).put("starred", e.starred).put("starredAt", e.starredAt ?: JSONObject.NULL))
         }
-        data.items.forEach { i -> put("item:${i.id}", JSONObject().put("id", i.id).put("eventId", i.eventId).put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
+        data.items.forEach { i -> put("item:${i.id}", JSONObject().put("id", i.id).put("eventId", i.eventId ?: JSONObject.NULL).put("origin", i.origin).put("sourceText", i.sourceText ?: JSONObject.NULL).put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
             .put("content", i.content).put("status", i.status).put("at", i.createdAt).put("due", i.dueAt ?: i.dueText ?: JSONObject.NULL)
             .put("doneAt", i.doneAt ?: JSONObject.NULL).put("who", i.who ?: JSONObject.NULL).put("repeats", data.repeats[i.id] ?: 1)) }
         data.cards.forEach { c -> put("card:${c.id}", JSONObject().put("id", c.id).put("date", LocalDate.ofEpochDay(c.date)).put("title", c.title)

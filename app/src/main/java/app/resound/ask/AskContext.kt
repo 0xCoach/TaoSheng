@@ -12,8 +12,8 @@ class AskContextReader(private val db: CaptureDatabase) {
         require(source.kind in setOf("event", "item"))
         // 只信库里的当前内容；不用调用方传来的标题/摘要，以免已删除内容继续被上传。
         val item = source.kind == "item"
-        val sql = if (item) """SELECT e.id,e.title,e.summary,e.startAt,i.content,i.category FROM memory_items i
-            JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND e.deleted=0"""
+        val sql = if (item) """SELECT e.id,COALESCE(e.title,i.category),COALESCE(e.summary,i.sourceText,''),COALESCE(e.startAt,i.createdAt),i.content,i.category FROM memory_items i
+            LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)"""
             else "SELECT id,title,summary,startAt FROM memory_events WHERE id=? AND deleted=0"
         val data = JSONObject(); val sources = mutableListOf<AskSource>()
         val event = db.query(SimpleSQLiteQuery(sql, arrayOf(source.id))).use { c ->
@@ -21,7 +21,7 @@ class AskContextReader(private val db: CaptureDatabase) {
             data.put("title", c.getString(1).take(300)).put("summary", c.getString(2).take(2000))
             if (item) data.put("content", c.getString(4).take(2000)).put("category", c.getString(5))
             sources += AskSource(source.kind, source.id, c.getLong(3), if (item) c.getString(5) else c.getString(1), "")
-            c.getLong(0)
+            if (c.isNull(0)) null else c.getLong(0)
         }
         val lines = JSONArray(); var budget = 12000 - data.toString().length
         db.query(SimpleSQLiteQuery("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(event))).use { c ->

@@ -40,10 +40,10 @@
     "kind": "event"
   },
   "list_items": {
-    "select": "i.id, e.startAt AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),'') AS quote",
-    "table": "memory_items i JOIN memory_events e ON e.id=i.eventId",
-    "where": "e.deleted=0",
-    "time": "e.startAt",
+    "select": "i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote",
+    "table": "memory_items i LEFT JOIN memory_events e ON e.id=i.eventId",
+    "where": "(e.id IS NULL OR e.deleted=0)",
+    "time": "COALESCE(e.startAt,i.createdAt)",
     "category": "i.category",
     "status": "i.status",
     "keywords": [],

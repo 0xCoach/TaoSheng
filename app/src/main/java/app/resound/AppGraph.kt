@@ -13,6 +13,12 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var manualTodos: app.resound.digest.ManualTodos
+    val isManualTodosReady: Boolean get() = ::manualTodos.isInitialized
+
+    lateinit var todoVoice: app.resound.digest.TodoVoiceInput
+    val isTodoVoiceReady: Boolean get() = ::todoVoice.isInitialized
+
     lateinit var updater: app.resound.update.AppUpdater
     val isUpdaterReady: Boolean get() = ::updater.isInitialized
 

@@ -931,6 +931,17 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                     }
                 }
             }
+            if (item.origin != app.resound.digest.ItemOrigin.Digest) {
+                // 手动或语音添加的没有对应的事和原话，显示当时写的、说的那句
+                SheetSection(if (item.origin == app.resound.digest.ItemOrigin.Voice) "语音添加" else "手动添加")
+                RsCard(padding = PaddingValues(16.dp)) {
+                    Text(friendlyDate(item.at) + " " + formatClock(item.at), style = RsType.caption, color = c.textTertiary)
+                    item.sourceText?.let {
+                        Spacer(Modifier.height(4.dp))
+                        Text("“$it”", style = RsType.body, color = c.text)
+                    }
+                }
+            } else {
             SheetSection("依据的原话")
             RsCard(padding = PaddingValues(16.dp)) {
                 if (source != null) {
@@ -938,6 +949,7 @@ internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: 
                     Spacer(Modifier.height(4.dp))
                     Text("“${source.text}”", style = RsType.body, color = c.text)
                 } else Text(if (lines.isEmpty()) "原话加载中…" else "没有找到对应的原话", style = RsType.subhead, color = c.textTertiary)
+            }
             }
             // 相似的想法被并进来的那几次：各自的时间和内容，可以拆出来
             val merged by remember(item.id) { memory.mergedItems(item.id) }.collectAsState(initial = emptyList())

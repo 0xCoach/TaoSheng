@@ -29,9 +29,9 @@ import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 
 private val ROW = 40.dp
-private const val VISIBLE = 5
+private const val VISIBLE = 3
 
-/** 24 小时制的时、分滚轮：上下滑动，停下时自动对齐到中间那一格；[visible] 显示几行（单数），嵌在卡片里用 3 行省地方 */
+/** 24 小时制的时、分滚轮：上下滑动，停下时自动对齐到中间那一格；[visible] 显示几行（单数），默认 3 行省纵向空间 */
 @Composable
 fun WheelTimePicker(hour: Int, minute: Int, onChange: (hour: Int, minute: Int) -> Unit, modifier: Modifier = Modifier, visible: Int = VISIBLE) {
     val c = Rs.colors

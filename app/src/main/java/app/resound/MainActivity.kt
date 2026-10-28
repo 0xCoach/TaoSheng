@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
             openCardId = (intent.data?.getQueryParameter("id") ?: intent.getStringExtra("id"))?.toLongOrNull()
             return
         }
+        if (intent?.getBooleanExtra(app.resound.update.EXTRA_OPEN_UPDATE, false) == true) {
+            app.resound.ui.ShellNav.openSettings(SettingsPage.Update)
+            return
+        }
         val open = intent?.getStringExtra("open")
         if (open != "review" && open != "day") return
         dayOnly = open == "day"
@@ -165,6 +169,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Review -> if (AppGraph.isReviewReady) ReviewSettingsPage(AppGraph.review, bottom)
                                     SettingsPage.Backup -> if (AppGraph.isBackupReady) BackupPage(AppGraph.backup, bottom)
                                         else ComingSoon("坚果云备份", "每晚充电且连 WiFi 时，自动把数据备份到你的坚果云")
+                                    SettingsPage.Update -> if (AppGraph.isUpdaterReady) app.resound.ui.settings.UpdatePage(AppGraph.updater, bottom)
                                 }
                             }
                         },

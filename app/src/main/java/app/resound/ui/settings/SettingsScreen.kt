@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Box
@@ -62,7 +63,7 @@ data class InnerPage(val title: String, val backLabel: String, val onBack: () ->
 
 val LocalSettingsInner = androidx.compose.runtime.staticCompositionLocalOf<(InnerPage?) -> Unit> { {} }
 
-enum class SettingsPage(val title: String) { Skills("整理技能"), Capture("录音与后台"), Transcript("原话与转写"), Model("整理模型"), Voiceprint("声纹与人物"), Review("每日回顾"), Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), Backup("数据备份") }
+enum class SettingsPage(val title: String) { Skills("整理技能"), Capture("录音与后台"), Transcript("原话与转写"), Model("整理模型"), Voiceprint("声纹与人物"), Review("每日回顾"), Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), Backup("数据备份"), Update("版本更新") }
 
 /**
  * 设置：iOS 设置页式分组圆角列表。点一行进入二级页面，左上角返回或系统返回键回到列表。
@@ -229,6 +230,45 @@ private fun SettingsList(
                 }
             }
         }
+        item {
+            Section("关于") {
+                Group {
+                    if (app.resound.AppGraph.isUpdaterReady) {
+                        val updater = app.resound.AppGraph.updater
+                        val (summary, fresh) = updateSummary(updater.currentVersion, updater.state.collectAsState().value)
+                        Row1("版本更新", summary, dot = if (fresh) c.accent else null) { onOpen(SettingsPage.Update) }
+                        Divider()
+                    }
+                    LinkRow("开源地址", "GitHub", GITHUB_URL)
+                }
+            }
+        }
+    }
+}
+
+private const val GITHUB_URL = "https://github.com/0xCoach/TaoSheng"
+
+/** 点一下用浏览器打开；长按复制链接（国内打不开时方便发到电脑上） */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun LinkRow(title: String, value: String, url: String) {
+    val c = Rs.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    Row(
+        Modifier.fillMaxWidth().combinedClickable(
+            onClick = { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) } },
+            onLongClick = {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(url))
+                android.widget.Toast.makeText(context, "已复制链接", android.widget.Toast.LENGTH_SHORT).show()
+            },
+        ).padding(horizontal = 18.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+        Text(value, style = RsType.subhead, color = c.textTertiary)
+        Spacer(Modifier.width(8.dp))
+        Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
     }
 }
 

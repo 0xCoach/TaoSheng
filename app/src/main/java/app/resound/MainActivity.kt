@@ -170,6 +170,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Backup -> if (AppGraph.isBackupReady) BackupPage(AppGraph.backup, bottom)
                                         else ComingSoon("坚果云备份", "每晚充电且连 WiFi 时，自动把数据备份到你的坚果云")
                                     SettingsPage.Update -> if (AppGraph.isUpdaterReady) app.resound.ui.settings.UpdatePage(AppGraph.updater, bottom)
+                                    SettingsPage.About -> app.resound.ui.settings.AboutPage(if (AppGraph.isUpdaterReady) AppGraph.updater.currentVersion else null, bottom)
                                 }
                             }
                         },

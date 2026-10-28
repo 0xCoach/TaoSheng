@@ -38,10 +38,10 @@ class VoiceInputEmptyBoxContextTest {
         val baseline = VoiceInputOcr.screenshot(history, layout, screen.packageName)
         val sent = VoiceInputOcr.screenshot(history +
             OcrLine("明天上午十点", 650, 900, 950, 940, 4), layout, screen.packageName)
-        for (at in listOf(600L, 1300L, 3100L, 6100L)) {
+        for (at in listOf(600L, 3100L, 10100L)) {
             engine.tick(at, screen, settings)
             requests.filter(engine::accepts).forEach {
-                engine.recognized(it, if (it.shot < 2) baseline else sent)
+                engine.recognized(it, if (it.shot < 1) baseline else sent)
             }
         }
         val saved = changes.filterIsInstance<InputChange.Save>().single().record

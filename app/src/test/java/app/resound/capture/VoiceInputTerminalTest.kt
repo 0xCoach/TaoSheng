@@ -24,7 +24,7 @@ class VoiceInputTerminalTest {
         val settings = VoiceInputSettings(enabled = true)
         engine.recording(true, 0, screen, settings)
         engine.recording(false, 100, screen, settings)
-        for (at in listOf(600L, 1300L, 3100L, 6100L)) {
+        for (at in listOf(600L, 3100L, 10100L, 30100L, 64000L)) {
             engine.tick(at, screen, settings)
             requests.filter(engine::accepts).forEach { engine.recognized(it, results.getOrNull(it.shot)) }
         }

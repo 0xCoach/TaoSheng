@@ -146,7 +146,8 @@ class VoiceInputService : AccessibilityService() {
                     VoiceInputOcr.chatContext(lines, titleLayout.width, pkg, title)
                 else lines.sortedWith(compareBy<OcrLine> { it.top }.thenBy { it.left }).map { it.text }
                 dbgSnap("界面采集：应用=$pkg 有输入框=${editable != null} 上下文行数=${context.size} 有标题=${title != null}")
-                return InputScreen(pkg, label, page, title, field, text, lines = context.takeLast(20), send = send)
+                val changed = event?.packageName?.toString() == pkg && event.eventType in CHANGE_EVENTS
+                return InputScreen(pkg, label, page, title, field, text, lines = context.takeLast(20), send = send, changed = changed)
             } finally { focus?.let(::recycle) }
         } finally { recycle(root) }
     }
@@ -200,6 +201,7 @@ class VoiceInputService : AccessibilityService() {
     override fun onDestroy() { connected.value = false; stopMonitoring(); scope.cancel(); super.onDestroy() }
     @Suppress("DEPRECATION") private fun recycle(node: AccessibilityNodeInfo) { node.recycle() }
     companion object {
+        private val CHANGE_EVENTS = setOf(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED)
         /** 服务是否真的在运行：小米上常见“设置里开着、系统却没启动服务” */
         val connected = kotlinx.coroutines.flow.MutableStateFlow(false)
     }

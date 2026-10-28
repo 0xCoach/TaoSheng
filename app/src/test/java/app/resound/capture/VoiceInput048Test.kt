@@ -138,14 +138,15 @@ class VoiceInput048Test {
             assertTrue(out.none { it is InputChange.Finish })
         }
     }
-    @Test fun persistenceIsIdempotentAndDeduplicatesNearbyAudio() = runBlocking {
+    @Test fun persistenceIsIdempotentAndKeepsDictationHeardByMic() = runBlocking {
         val store = VoiceInputStore(db)
         val original = record()
         val id = store.save(original)!!; assertEquals(id, store.save(original))
         assertEquals(1, db.voiceInput().observed().first().size)
         db.capture().segment(SegmentEntity(id = 100, startAt = start, endAt = start + 2000, sourceId = "mic", path = "test.ogg", sizeBytes = 1, status = "Done"))
         db.transcribe().insertLines(listOf(TranscriptLineEntity(segmentId = 100, startAt = start, endAt = start + 1000, text = "请明天下午把合成报告交给我。", speakerTag = null)))
-        assertNull(store.save(record(text = "请明天下午把合成报告交给我！")))
+        // 回响自己也录到了这句：语音输入这条照样存，上下文不能丢
+        assertNotNull(store.save(record(text = "请明天下午把合成报告交给我！")))
         assertNotNull(store.save(record(at = start + 31000, text = "请明天下午把合成报告交给我")))
     }
     @Test fun finalizationSurvivesMappingAndNeverEntersVoiceprint() = runBlocking {

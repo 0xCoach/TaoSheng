@@ -10,7 +10,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
         val dao = db.voiceInput()
         val path = "voice-input:${record.token}"
         dao.byToken(path)?.let { return@withTransaction it.id }
-        if (dao.nearby(record.at).any { VoiceInputText.similar(record.text, it.text) }) return@withTransaction null
+        // 回响自己也录到这句时照样存：语音输入这条原文准、带上下文，不能被录音转写顶掉
         val recent = dao.recent(record.at).mapNotNull { row ->
             VoiceInputMetadata.read(row.voiceInputJson)?.let { row to it }
         }.filter { it.second.packageName == record.meta.packageName }
@@ -25,13 +25,15 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
         // 只用此前保存的上下文去重；单独采集的语音原话不能充当“已存上下文”。
         val known = sameChat.flatMap { (_, meta) -> meta.before.orEmpty().lines() }
             .filter(String::isNotBlank).map(VoiceInputDedup::contextKey).toSet()
-        val before = VoiceInputText.context(record.meta.before.orEmpty().lines().filter { line ->
+        val lines = record.meta.before.orEmpty().lines().filter(String::isNotBlank)
+        // 全都记过（对方没回新的）时留最后几行，单看这一条也知道在接谁的话
+        val before = VoiceInputText.context(lines.filter { line ->
             val (speaker, text) = VoiceInputDedup.contextKey(line)
             known.none { (oldSpeaker, oldText) ->
                 speaker == oldSpeaker && (text == oldText ||
                     (oldText.length >= 6 && VoiceInputDedup.sameAs(oldText, text)))
             }
-        })
+        }.ifEmpty { lines.takeLast(CONTEXT_MIN_LINES) })
         dbg("保存上下文：应用=${record.meta.packageName} 去重前行数=${record.meta.before.orEmpty().lines().count { it.isNotBlank() }} 去重后行数=${before.orEmpty().lines().count { it.isNotBlank() }}")
         val meta = record.meta.copy(before = before, after = null)
         val segment = dao.segment(SegmentEntity(startAt = record.at, endAt = record.at + 1,

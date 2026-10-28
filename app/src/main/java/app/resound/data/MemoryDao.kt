@@ -34,7 +34,7 @@ data class MemoryEventEntity(
 )
 data class MemoryItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val eventId: Long,
+    val eventId: Long?,
     val category: String,
     val kind: String?,
     val content: String,
@@ -55,6 +55,8 @@ data class MemoryItemEntity(
     val doneHintAt: Long? = null,
     @ColumnInfo(defaultValue = "'[]'") val dismissedDoneLinesJson: String = "[]",
     @ColumnInfo(defaultValue = "0") val reminderVersion: Long = 0,
+    @ColumnInfo(defaultValue = "'digest'") val origin: String = "digest",
+    val sourceText: String? = null,
 )
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)
@@ -93,6 +95,15 @@ abstract class MemoryDao {
 
     @Insert abstract suspend fun insertEvent(row: MemoryEventEntity): Long
     @Insert abstract suspend fun insertItems(rows: List<MemoryItemEntity>)
+    @Insert protected abstract suspend fun insertManualItem(row: MemoryItemEntity): Long
+    @Transaction
+    open suspend fun addManualItems(rows: List<MemoryItemEntity>) {
+        // 逆序插入再接受，使用户确认页的顺序保留在队首。
+        rows.asReversed().forEach { row ->
+            val id = insertManualItem(row)
+            setItemStatus(id, "Accepted", row.createdAt)
+        }
+    }
 
     @Query("UPDATE transcript_lines SET eventId = :eventId WHERE id IN (:ids)")
     abstract suspend fun assignLines(ids: List<Long>, eventId: Long)
@@ -124,7 +135,7 @@ abstract class MemoryDao {
                 (row.lineId != null && row.lineId == old.lineId) ||
                 old.content.trim() == row.content.trim() ||
                 // 同一旧事件内换行或换措辞时保守保护；缺失行号则按本批旧事件保护。
-                sourceEvents[row.lineId] == old.eventId || (row.lineId == null && old.eventId in oldEvents)
+                (old.eventId != null && sourceEvents[row.lineId] == old.eventId) || (row.lineId == null && old.eventId in oldEvents)
             )
         } }
         if (rows.isNotEmpty()) insertItems(rows)
@@ -144,20 +155,20 @@ abstract class MemoryDao {
     @Query("SELECT * FROM memory_items WHERE id = :id")
     abstract suspend fun itemIncludingDeleted(id: Long): MemoryItemEntity?
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL
         AND i.category IN ('待办', '约定') AND i.status IN ('Pending', 'Accepted')
         ORDER BY i.createdAt DESC, i.id DESC LIMIT 50""")
     abstract suspend fun unfinishedForDigest(): List<MemoryItemEntity>
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.status = 'Ignored' AND i.statusChangedAt >= :since
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.status = 'Ignored' AND i.statusChangedAt >= :since
         ORDER BY i.statusChangedAt DESC, i.id DESC LIMIT 30""")
     abstract suspend fun ignoredForDigest(since: Long): List<MemoryItemEntity>
 
     @Query("""UPDATE memory_items SET doneHintLineId = :line, doneHintAt = :at
         WHERE id = :id AND deleted = 0 AND mergedInto IS NULL AND status IN ('Pending', 'Accepted')
         AND category IN ('待办', '约定') AND doneHintLineId IS NULL
-        AND eventId IN (SELECT id FROM memory_events WHERE deleted = 0)""")
+        AND (eventId IS NULL OR eventId IN (SELECT id FROM memory_events WHERE deleted = 0))""")
     protected abstract suspend fun writeDoneHint(id: Long, line: Long, at: Long)
     @Query("SELECT l.* FROM transcript_lines l LEFT JOIN memory_events e ON e.id = l.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND l.id IN (SELECT doneHintLineId FROM memory_items WHERE deleted = 0)")
     abstract fun doneHintLines(): Flow<List<TranscriptLineEntity>>
@@ -191,12 +202,12 @@ abstract class MemoryDao {
         ids.distinct().forEach { setItemStatus(it, status, at) }
     }
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted'
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted'
         AND i.category IN ('待办', '约定', '备忘') ORDER BY i.sortOrder IS NULL, i.sortOrder, i.createdAt DESC, i.id DESC""")
     abstract fun ongoing(): Flow<List<MemoryItemEntity>>
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Done'
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Done'
         AND i.category IN ('待办', '约定', '备忘') AND i.doneAt >= :from ORDER BY i.doneAt DESC, i.id DESC""")
     abstract fun doneItems(from: Long): Flow<List<MemoryItemEntity>>
 
@@ -225,25 +236,25 @@ abstract class MemoryDao {
     abstract fun eventLines(eventId: Long): Flow<List<TranscriptLineEntity>>
 
     @Query(
-        """SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-           WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Pending' AND i.category IN ('待办', '约定', '备忘')
+        """SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+           WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Pending' AND i.category IN ('待办', '约定', '备忘')
            ORDER BY i.createdAt DESC""",
     )
     abstract fun pendingItems(): Flow<List<MemoryItemEntity>>
 
     @Query(
-        """SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-           WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.category IN (:categories) ORDER BY i.createdAt DESC, i.id DESC LIMIT 500""",
+        """SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+           WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.category IN (:categories) ORDER BY i.createdAt DESC, i.id DESC LIMIT 500""",
     )
     abstract fun itemsByCategory(categories: List<String>): Flow<List<MemoryItemEntity>>
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category IN ('待办', '备忘')
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category IN ('待办', '备忘')
         ORDER BY i.sortOrder IS NULL, i.sortOrder, i.createdAt DESC, i.id DESC""")
     abstract fun inProgress(): Flow<List<MemoryItemEntity>>
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category = '约定'
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category = '约定'
         ORDER BY i.dueAt IS NULL, i.dueAt, i.createdAt DESC, i.id DESC""")
     abstract fun appointments(): Flow<List<MemoryItemEntity>>
 
@@ -254,8 +265,8 @@ abstract class MemoryDao {
         doneAt = CASE WHEN :status = 'Done' THEN :at ELSE NULL END,
         sortOrder = CASE WHEN :status = 'Accepted' THEN
             (SELECT COALESCE(MIN(i.sortOrder) - 1, 0) FROM memory_items i
-             JOIN memory_events e ON e.id = i.eventId
-             WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category IN ('待办', '约定', '备忘'))
+             LEFT JOIN memory_events e ON e.id = i.eventId
+             WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category IN ('待办', '约定', '备忘'))
             ELSE sortOrder END WHERE id = :id AND deleted = 0""")
     abstract suspend fun setItemStatus(id: Long, status: String, at: Long = System.currentTimeMillis())
 
@@ -267,8 +278,8 @@ abstract class MemoryDao {
         ids.distinct().forEachIndexed { index, id -> setSortOrder(id, index.toLong()) }
     }
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status != 'Ignored' AND
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status != 'Ignored' AND
         ((i.createdAt >= :start AND i.createdAt < :end) OR
          (i.dueAt >= :start AND i.dueAt < :end) OR (i.doneAt >= :start AND i.doneAt < :end))
         ORDER BY i.createdAt, i.id""")
@@ -277,8 +288,8 @@ abstract class MemoryDao {
     @Query("SELECT startAt FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end")
     abstract fun activeEventTimes(start: Long, end: Long): Flow<List<Long>>
 
-    @Query("""SELECT i.createdAt FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL AND i.createdAt >= :start AND i.createdAt < :end""")
+    @Query("""SELECT i.createdAt FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.createdAt >= :start AND i.createdAt < :end""")
     abstract fun activeItemTimes(start: Long, end: Long): Flow<List<Long>>
 
     @Query("""SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
@@ -296,8 +307,8 @@ abstract class MemoryDao {
     @Query("UPDATE memory_events SET starred = :starred, starredAt = :at WHERE id = :id AND deleted = 0")
     protected abstract suspend fun updateStarred(id: Long, starred: Boolean, at: Long?)
 
-    @Query("""SELECT i.id FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.id = :id AND e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NULL
+    @Query("""SELECT i.id FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE e.id = :id AND (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL
         AND i.category IN ('待办', '备忘') AND i.status = 'Pending' ORDER BY i.createdAt, i.id""")
     protected abstract suspend fun pendingStarredItems(id: Long): List<Long>
 
@@ -317,17 +328,17 @@ abstract class MemoryDao {
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND important = 1 ORDER BY startAt DESC, id DESC LIMIT 500")
     abstract fun importantEvents(): Flow<List<MemoryEventEntity>>
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND e.important = 1 AND i.mergedInto IS NULL
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND e.important = 1 AND i.mergedInto IS NULL
         AND e.id IN (SELECT id FROM memory_events WHERE deleted = 0 AND important = 1 ORDER BY startAt DESC, id DESC LIMIT 500)""")
     abstract fun importantItems(): Flow<List<MemoryItemEntity>>
 
     @Query("""SELECT i.mergedInto AS id, COUNT(*) + 1 AS repeats FROM memory_items i
-        JOIN memory_events e ON e.id = i.eventId WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NOT NULL AND EXISTS (SELECT 1 FROM memory_items p JOIN memory_events pe ON pe.id = p.eventId WHERE p.id = i.mergedInto AND p.deleted = 0 AND pe.deleted = 0) GROUP BY i.mergedInto""")
+        LEFT JOIN memory_events e ON e.id = i.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NOT NULL AND EXISTS (SELECT 1 FROM memory_items p JOIN memory_events pe ON pe.id = p.eventId WHERE p.id = i.mergedInto AND p.deleted = 0 AND pe.deleted = 0) GROUP BY i.mergedInto""")
     abstract fun repeatCounts(): Flow<List<ItemRepeatCount>>
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto = :id AND EXISTS (SELECT 1 FROM memory_items p WHERE p.id = :id AND p.deleted = 0) ORDER BY i.createdAt, i.id""")
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto = :id AND EXISTS (SELECT 1 FROM memory_items p WHERE p.id = :id AND p.deleted = 0) ORDER BY i.createdAt, i.id""")
     abstract fun mergedItems(id: Long): Flow<List<MemoryItemEntity>>
 
     @Query("UPDATE memory_items SET mergedInto = NULL, noMerge = 1 WHERE id = :id AND deleted = 0 AND mergedInto IS NOT NULL AND EXISTS (SELECT 1 FROM memory_items p WHERE p.id = memory_items.mergedInto AND p.deleted = 0)")
@@ -336,8 +347,8 @@ abstract class MemoryDao {
     @Query("UPDATE memory_items SET mergedInto = :target WHERE deleted = 0 AND editedAt IS NULL AND (id = :id OR mergedInto = :id) AND :id != :target AND EXISTS (SELECT 1 FROM memory_items src WHERE src.id = :id AND src.deleted = 0 AND src.editedAt IS NULL) AND EXISTS (SELECT 1 FROM memory_items p WHERE p.id = :target AND p.deleted = 0 AND p.mergedInto IS NULL)")
     abstract suspend fun mergeInto(id: Long, target: Long)
 
-    @Query("""SELECT i.* FROM memory_items i JOIN memory_events e ON e.id = i.eventId
-        WHERE e.deleted = 0 AND i.deleted = 0 AND i.mergedInto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memory_items d WHERE d.id = i.mergedInto AND d.deleted = 1)
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memory_items d WHERE d.id = i.mergedInto AND d.deleted = 1)
         AND NOT EXISTS
         (SELECT 1 FROM memory_items p JOIN memory_events pe ON pe.id = p.eventId WHERE p.id = i.mergedInto AND pe.deleted = 0 AND p.deleted = 0)
         ORDER BY i.createdAt, i.id""")

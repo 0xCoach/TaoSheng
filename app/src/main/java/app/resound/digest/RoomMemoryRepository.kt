@@ -149,6 +149,7 @@ class RoomMemoryRepository(
         id, eventId, category, kind, content, dueText, dueAt, who,
         runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto, editedAt,
         lines[doneHintLineId]?.let { DoneHint(it.id, it.text, doneHintAt ?: it.startAt) },
+        ItemOrigin.entries.firstOrNull { it.name.equals(origin, ignoreCase = true) } ?: ItemOrigin.Digest, sourceText,
     )
 
     private fun String.strings(): List<String> = runCatching {

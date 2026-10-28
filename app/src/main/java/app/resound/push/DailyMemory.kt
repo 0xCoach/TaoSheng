@@ -48,7 +48,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         }
         override fun dayItems(date: LocalDate) = flow {
             val rows = input(date).items.filter { it.status != "Ignored" }.map { i -> MemoryItem(i.id, i.eventId, i.category, i.kind, i.content,
-                i.dueText, i.dueAt, i.who, ItemStatus.valueOf(i.status), i.lineId, i.createdAt, i.doneAt) }
+                i.dueText, i.dueAt, i.who, ItemStatus.valueOf(i.status), i.lineId, i.createdAt, i.doneAt, origin = app.resound.digest.ItemOrigin.entries.firstOrNull { it.name.equals(i.origin, true) } ?: app.resound.digest.ItemOrigin.Digest, sourceText = i.sourceText) }
             emit(DayItems(rows.filter { it.category in setOf("待办", "约定", "备忘") }, emptyList(), emptyList(),
                 rows.filter { it.category !in setOf("待办", "约定", "备忘") }))
         }

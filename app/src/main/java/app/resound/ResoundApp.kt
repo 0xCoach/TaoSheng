@@ -50,6 +50,8 @@ class ResoundApp : Application() {
         // 仅回收上个进程遗留的转码/密钥测试临时文件；原录音在 files/segments。
         cacheDir.listFiles()?.filter { it.name.startsWith("asr-") && it.extension in setOf("pcm", "ogg") }
             ?.forEach { it.delete() }
+        cacheDir.listFiles()?.filter { it.name.startsWith("todo-voice-") && it.extension == "wav" }
+            ?.forEach { it.delete() }
         AppGraph.usage = app.resound.usage.RoomUsageRepository(database.memory(), database.transcribe(),
             getSharedPreferences("usage", MODE_PRIVATE))
         AppGraph.prompts = app.resound.prompts.LocalPromptTemplates(this)
@@ -116,6 +118,16 @@ class ResoundApp : Application() {
         AppGraph.digestTiming = digestSettings.timing
         scheduler.digestTiming = digestSettings.timing
         digestSettings.timing.onChanged = scheduler::timingChanged
+        // 独立 20 秒 HTTP 上限也覆盖响应体读取；不改变日常整理的长请求上限。
+        val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
+            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
+        AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
+            { digestSettings.preset to digestSettings.readKey() }, todoLlm::chatJson, { reply ->
+                database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
+                    reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
+            })
+        AppGraph.todoVoice = AndroidTodoVoiceInput(controller, scope, cacheDir,
+            ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential)
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }
         digestSettings.onIntervalChanged = { scheduler.scheduleDigest() }
         val reviewScheduler = app.resound.review.ReviewScheduler(this)

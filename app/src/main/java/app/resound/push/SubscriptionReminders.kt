@@ -13,7 +13,7 @@ internal object SubscriptionReminders {
                    zone: ZoneId = ZoneId.systemDefault(), now: Long = System.currentTimeMillis()): List<SubscriptionReminder> {
         val events = data.events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体", "旁人")) }
         val ids = events.map { it.id }.toSet()
-        val items = data.items.filter { !it.deleted && it.eventId in ids && it.mergedInto == null && it.status == "Accepted" }
+        val items = data.items.filter { !it.deleted && (it.eventId == null || it.eventId in ids) && it.mergedInto == null && it.status == "Accepted" }
         val timed = items.filter { it.category in setOf("待办", "约定") && it.dueAt != null }
         fun identity(id: Long, due: Long?, version: Long) = if (version == 0L) "$id:$due" else "$id:$due:$version"
         val due = timed.map {

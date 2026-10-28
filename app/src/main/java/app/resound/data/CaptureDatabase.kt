@@ -68,7 +68,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 17
+        const val VERSION = 18
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -208,8 +208,22 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE transcript_lines ADD COLUMN voiceInputPendingUntil INTEGER")
             }
         }
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // 重建表会移除条目的搜索触发器；跨表触发器也先撤下，改名后统一恢复。
+                db.execSQL("DROP TRIGGER IF EXISTS search_event_hidden")
+                db.execSQL("CREATE TABLE memory_items_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, eventId INTEGER, category TEXT NOT NULL, kind TEXT, content TEXT NOT NULL, dueText TEXT, dueAt INTEGER, who TEXT, lineId INTEGER, status TEXT NOT NULL, createdAt INTEGER NOT NULL, doneAt INTEGER, statusChangedAt INTEGER, sortOrder INTEGER, mergedInto INTEGER, noMerge INTEGER NOT NULL DEFAULT 0, deleted INTEGER NOT NULL DEFAULT 0, editedAt INTEGER, doneHintLineId INTEGER, doneHintAt INTEGER, dismissedDoneLinesJson TEXT NOT NULL DEFAULT '[]', reminderVersion INTEGER NOT NULL DEFAULT 0, origin TEXT NOT NULL DEFAULT 'digest', sourceText TEXT, FOREIGN KEY(eventId) REFERENCES memory_events(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("INSERT INTO memory_items_new (id,eventId,category,kind,content,dueText,dueAt,who,lineId,status,createdAt,doneAt,statusChangedAt,sortOrder,mergedInto,noMerge,deleted,editedAt,doneHintLineId,doneHintAt,dismissedDoneLinesJson,reminderVersion) SELECT id,eventId,category,kind,content,dueText,dueAt,who,lineId,status,createdAt,doneAt,statusChangedAt,sortOrder,mergedInto,noMerge,deleted,editedAt,doneHintLineId,doneHintAt,dismissedDoneLinesJson,reminderVersion FROM memory_items")
+                db.execSQL("DROP TABLE memory_items")
+                db.execSQL("ALTER TABLE memory_items_new RENAME TO memory_items")
+                listOf("eventId", "status", "dueAt").forEach { column ->
+                    db.execSQL("CREATE INDEX index_memory_items_$column ON memory_items($column)")
+                }
+                app.resound.search.SearchIndex.install(db, backfill = false)
+            }
+        }
         /** 全部迁移，按版本顺序。新增版本只在这里加一条；App 和迁移测试都用它，不再各写一份清单 */
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).build()

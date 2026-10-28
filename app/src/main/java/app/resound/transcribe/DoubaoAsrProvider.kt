@@ -62,7 +62,7 @@ class DoubaoAsrProvider(
                     val ws = client.newWebSocket(request, listener)
                     socket = ws
                     opened.await()
-                    checkSend(ws.send(DoubaoProtocol.frame(1, 0, DoubaoProtocol.config(prepared.format, hotwords()), true).toByteString()))
+                    checkSend(ws.send(DoubaoProtocol.frame(1, 0, DoubaoProtocol.config(prepared.format, hotwords(), audio.separateSpeakers), true).toByteString()))
                     var accounted = false
                     AsrAudioReader.chunks(prepared) { bytes, last ->
                         coroutineContext.ensureActive()

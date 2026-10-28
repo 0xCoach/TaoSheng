@@ -29,7 +29,7 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
         fun snapshot() = JSONObject().put("content", content).put("status", status).put("dueAt", dueAt).toString()
     }
     private fun item(id: Long): Target? = db.query(SimpleSQLiteQuery("""SELECT i.content,i.status,i.dueAt
-        FROM memory_items i JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND e.deleted=0""", arrayOf(id))).use { c ->
+        FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)""", arrayOf(id))).use { c ->
         if (c.moveToFirst()) Target(c.getString(0), c.getString(1), if (c.isNull(2)) null else c.getLong(2)) else null
     }
     private fun event(id: Long): Target? = db.query(SimpleSQLiteQuery("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id))).use { c ->

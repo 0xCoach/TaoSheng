@@ -80,8 +80,6 @@ object AppGraph {
     lateinit var transcribeSettings: TranscribeSettings
 
     lateinit var memory: MemoryRepository
-    lateinit var digestTiming: app.resound.digest.DigestTiming
-    val isDigestTimingReady: Boolean get() = ::digestTiming.isInitialized
     lateinit var digestSettings: DigestSettings
 
     lateinit var ask: app.resound.ask.AskRepository

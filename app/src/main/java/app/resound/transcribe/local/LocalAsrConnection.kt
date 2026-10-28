@@ -92,7 +92,7 @@ internal class LocalAsrConnection(private val context:Context) {
         var messenger:Messenger?=null
         try {
             messenger=connect()
-            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("backend",backend.name)}})
+            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("backend",backend.name);putBoolean("separateSpeakers",audio.separateSpeakers)}})
             // 排队期间不消耗模型执行超时，调用方取消仍会立即生效。
             request.started.await()
             withTimeout(maxOf(300_000L,60_000L+audio.durationMillis*2)){request.result.await()}

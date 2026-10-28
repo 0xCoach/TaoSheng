@@ -20,7 +20,7 @@ class AsrAudioReader(private val cacheDir: File) {
     suspend fun prepare(audio: AsrAudio): Prepared = withContext(Dispatchers.IO) {
         if (!audio.file.isFile || audio.file.length() == 0L) throw AsrException(AsrError.Audio)
         when (audio.format) {
-            "ogg", "pcm" -> Prepared(audio.file, audio.format, false)
+            "ogg", "pcm", "wav" -> Prepared(audio.file, audio.format, false)
             "m4a" -> {
                 val target = File.createTempFile("asr-", ".pcm", cacheDir)
                 try { decode(audio.file, target); Prepared(target, "pcm", true) }

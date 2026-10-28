@@ -74,13 +74,14 @@ class LocalAsrService : Service() {
             require(audio.path.startsWith(filesDir.canonicalPath+"/") || audio.path.startsWith(cacheDir.canonicalPath+"/"))
             val pcm=AsrAudioReader(cacheDir).readPcm(audio)
             phase="speakers"
-            val turns=diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}}
+            val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
+            val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}}
             if(request.id in cancelled)return
             phase="asr"
             val rec=model(backend)
             val chunks=PauseChunks.split(pcm,turns)
             val sentences=TimedSentences()
-            val speakers=LocalModels.speakersEnabled(this)
+            val speakers=separateSpeakers && LocalModels.speakersEnabled(this)
             for((index,chunk) in chunks.withIndex()){
                 currentCoroutineContext().ensureActive()
                 if(request.id in cancelled)return

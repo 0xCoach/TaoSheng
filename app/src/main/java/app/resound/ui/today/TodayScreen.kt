@@ -885,7 +885,7 @@ private fun eventText(event: MemoryEvent, lines: List<app.resound.transcribe.Tra
 @Composable
 internal fun ItemSheet(item: MemoryItem, memory: MemoryRepository, onOpenEvent: (() -> Unit)?, onClose: () -> Unit) {
     val c = Rs.colors
-    val lines by remember(item.eventId) { memory.eventLines(item.eventId) }.collectAsState(initial = emptyList())
+    val lines by remember(item.eventId) { item.eventId?.let(memory::eventLines) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
     val source = lines.firstOrNull { it.id == item.sourceLineId }
     val task = item.category in setOf("待办", "约定", "备忘")
     var editing by remember { mutableStateOf(false) }

@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 internal fun customAsrBody(audio: AsrAudio, model: String, words: List<String>): MultipartBody {
-    val mime = if (audio.format == "ogg") "audio/ogg" else "audio/mp4"
+    val mime = when (audio.format) { "ogg" -> "audio/ogg"; "wav" -> "audio/wav"; else -> "audio/mp4" }
     return MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("model", model)
         .addFormDataPart("file", audio.file.name, audio.file.asRequestBody(mime.toMediaType()))
         .addFormDataPart("response_format", "json").apply {

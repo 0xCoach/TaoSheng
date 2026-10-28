@@ -1,0 +1,61 @@
+package app.resound.update
+
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * 卡 051 · 应用内更新的约定（Claude 定，Codex 实现，签名不要自行修改）。
+ *
+ * 只更新正式版；先查魔搭，失败再查 GitHub。有新版先通知，用户点了才下载（流量下也照样下），
+ * 下载好后用户点了才安装；安装前先做一次数据备份。能增量就下差异包，拼不成自动改下整包。
+ */
+interface AppUpdater {
+    /** 当前装着的版本，如 "0.2.10" */
+    val currentVersion: String
+    val state: StateFlow<UpdateState>
+
+    /** 查一次新版本。manual = 用户在更新页点了“检查更新”（失败要显示原因；自动检查失败静默） */
+    fun check(manual: Boolean)
+
+    /** 用户点了“下载”：优先差异包，失败改整包；断点续传 */
+    fun download()
+
+    /** 用户点了“安装”：先备份，再交给系统安装 */
+    fun install()
+
+    /** 用户点了“稍后”：这个版本今天不再通知 */
+    fun later()
+
+    /** 系统设置里是否已允许涛声安装应用；false 时界面引导用户去打开 */
+    fun canInstall(): Boolean
+}
+
+/** 版本说明文件里给用户看的部分 */
+data class UpdateInfo(
+    val versionCode: Int,
+    val versionName: String,
+    /** 更新内容，多行中文 */
+    val notes: String,
+    /** 这次实际要下载的字节数（增量时是差异包大小） */
+    val downloadBytes: Long,
+    val incremental: Boolean,
+)
+
+sealed interface UpdateState {
+    /** 还没查过 */
+    data object Idle : UpdateState
+    data object Checking : UpdateState
+    data class UpToDate(val checkedAt: Long) : UpdateState
+    data class Available(val info: UpdateInfo) : UpdateState
+    data class Downloading(val info: UpdateInfo, val doneBytes: Long, val totalBytes: Long) : UpdateState
+    /** 差异包已下好，正在和手机里的安装包拼成新版 */
+    data class Assembling(val info: UpdateInfo) : UpdateState
+    /** 下载好、校验通过，等用户点安装 */
+    data class Ready(val info: UpdateInfo) : UpdateState
+    /** 正在备份或已交给系统安装 */
+    data class Installing(val info: UpdateInfo, val backingUp: Boolean) : UpdateState
+    /** message 是给用户看的一句话，只说结果（如“网络不通，稍后再试”“手机空间不够，还差 120 MB”） */
+    data class Failed(val message: String, val info: UpdateInfo?) : UpdateState
+}
+
+/** 通知点开后跳到更新页：MainActivity 收到这个 extra 就打开设置 → 版本更新 */
+const val EXTRA_OPEN_UPDATE = "app.resound.open_update"

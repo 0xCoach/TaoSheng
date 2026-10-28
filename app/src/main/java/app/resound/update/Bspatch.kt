@@ -106,6 +106,8 @@ internal object Bspatch {
             }
             override fun close() = source.close()
         }
-        return try { BZip2CompressorInputStream(range) } catch (e: Exception) { range.close(); throw e }
+        // 解压时会逐字节读底层流：加一层缓冲，免得每个字节都去读一次文件
+        val buffered = java.io.BufferedInputStream(range, 64 * 1024)
+        return try { BZip2CompressorInputStream(buffered) } catch (e: Exception) { buffered.close(); throw e }
     }
 }

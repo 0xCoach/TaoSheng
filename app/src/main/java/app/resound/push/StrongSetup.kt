@@ -25,7 +25,7 @@ internal object StrongSetup {
         val channel = nm.getNotificationChannel(LocalNotifier.TODO_CHANNEL)
         val list = mutableListOf<Item>()
         list += Item("允许通知", "关了就收不到任何提醒", nm.areNotificationsEnabled()) { open(it, Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, pkg)) }
-        list += Item("待办提醒：悬浮、锁屏、声音、振动", "有的手机会把新通知默认静音、不弹出，请逐项打开",
+        list += Item("通知里的“待办提醒”", "在通知设置里：悬浮通知、锁屏通知、声音、振动都打开（有的手机会把新通知默认静音、不弹出）",
             if (channel == null || channel.importance < NotificationManager.IMPORTANCE_HIGH) false else if (vendor() != null) null else true) {
             open(it, Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
                 .putExtra(Settings.EXTRA_CHANNEL_ID, LocalNotifier.TODO_CHANNEL))
@@ -42,7 +42,8 @@ internal object StrongSetup {
             open(it, Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$pkg")))
         }
         vendor()?.let { brand ->
-            list += Item("锁屏显示、后台弹出界面", "${brand}手机需要这两项，整屏提醒才能盖在锁屏上", miuiLockScreenOk(context)) { openVendorPermissions(it) }
+            list += Item("应用权限里的“锁屏显示”“后台弹出界面”", "在涛声的应用权限 → 其他权限里，和通知里的“锁屏通知”不是同一个；${brand}手机要开这两项，整屏提醒才能盖在锁屏上",
+                miuiLockScreenOk(context)) { openVendorPermissions(it) }
         }
         return list
     }

@@ -148,7 +148,7 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
         // 点“自定义”在下面展开滚轮，滑到哪就是几点
         androidx.compose.animation.AnimatedVisibility(pickTime) {
             app.resound.ui.verify.WheelTimePicker(time?.hour ?: 9, time?.minute ?: 0, { h, m -> onTime(LocalTime.of(h, m)) },
-                Modifier.padding(top = 4.dp))
+                Modifier.padding(top = 4.dp), visible = 3)
         }
     }
 

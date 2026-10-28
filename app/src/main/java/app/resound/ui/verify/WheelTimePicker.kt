@@ -31,9 +31,9 @@ import app.resound.ui.theme.RsType
 private val ROW = 40.dp
 private const val VISIBLE = 5
 
-/** 24 小时制的时、分滚轮：上下滑动，停下时自动对齐到中间那一格 */
+/** 24 小时制的时、分滚轮：上下滑动，停下时自动对齐到中间那一格；[visible] 显示几行（单数），嵌在卡片里用 3 行省地方 */
 @Composable
-fun WheelTimePicker(hour: Int, minute: Int, onChange: (hour: Int, minute: Int) -> Unit, modifier: Modifier = Modifier) {
+fun WheelTimePicker(hour: Int, minute: Int, onChange: (hour: Int, minute: Int) -> Unit, modifier: Modifier = Modifier, visible: Int = VISIBLE) {
     val c = Rs.colors
     var h = hour
     var m = minute
@@ -41,26 +41,26 @@ fun WheelTimePicker(hour: Int, minute: Int, onChange: (hour: Int, minute: Int) -
         // 中间一格的底色，两个滚轮共用一条
         Box(Modifier.width(200.dp).height(ROW).clip(RoundedCornerShape(12.dp)).background(c.accentSoft))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Wheel(24, hour) { h = it; onChange(h, m) }
+            Wheel(24, hour, visible) { h = it; onChange(h, m) }
             Text(":", style = RsType.title, color = c.accent, modifier = Modifier.padding(horizontal = 12.dp))
-            Wheel(60, minute) { m = it; onChange(h, m) }
+            Wheel(60, minute, visible) { m = it; onChange(h, m) }
         }
     }
 }
 
 /** 一列循环滚轮：列表重复很多圈，从中间开始，上下都滑得动 */
 @Composable
-private fun Wheel(count: Int, initial: Int, onSelect: (Int) -> Unit) {
+private fun Wheel(count: Int, initial: Int, visible: Int, onSelect: (Int) -> Unit) {
     val c = Rs.colors
     val loops = 200
     val rowPx = with(LocalDensity.current) { ROW.toPx() }
-    val state = rememberLazyListState(count * (loops / 2) + initial - VISIBLE / 2)
-    // 吸附到列表顶端对齐，所以中间那格 = 顶上那格 + 2
+    val state = rememberLazyListState(count * (loops / 2) + initial - visible / 2)
+    // 吸附到列表顶端对齐，所以中间那格 = 顶上那格 + 半屏行数
     val center by remember {
-        derivedStateOf { state.firstVisibleItemIndex + (if (state.firstVisibleItemScrollOffset > rowPx / 2) 1 else 0) + VISIBLE / 2 }
+        derivedStateOf { state.firstVisibleItemIndex + (if (state.firstVisibleItemScrollOffset > rowPx / 2) 1 else 0) + visible / 2 }
     }
     LaunchedEffect(center) { onSelect(center % count) }
-    LazyColumn(Modifier.width(72.dp).height(ROW * VISIBLE), state = state, flingBehavior = rememberSnapFlingBehavior(state)) {
+    LazyColumn(Modifier.width(72.dp).height(ROW * visible), state = state, flingBehavior = rememberSnapFlingBehavior(state)) {
         items(count * loops) { i ->
             val selected = i == center
             Box(Modifier.fillMaxSize().height(ROW), contentAlignment = Alignment.Center) {

@@ -67,15 +67,15 @@ internal fun Label(text: String) =
 /** 编辑一条待办 / 约定 / 备忘：内容、哪天、几点、和谁 */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss: () -> Unit) {
+internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, strongOn: Boolean = false, onDismiss: () -> Unit) {
     val c = Rs.colors
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
     val start = item.dueAt?.let { Instant.ofEpochMilli(it).atZone(zone) }
     var content by remember { mutableStateOf(item.content) }
-    var day by remember { mutableStateOf(start?.toLocalDate()) }
+    var day by remember { mutableStateOf(start?.toLocalDate() ?: today.takeIf { strongOn }) }
     var time by remember { mutableStateOf(start?.takeIf { (item.dueText?.length ?: 0) > 10 }?.toLocalTime()) }
-    var strong by remember { mutableStateOf(item.strongReminder) }
+    var strong by remember { mutableStateOf(item.strongReminder || strongOn) }
 
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
@@ -88,6 +88,7 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, onDismiss
             // “和谁”不再让改，沿用原来的
             memory.updateItem(item.id, content.trim(), at, time != null, item.who)
             if (strong != item.strongReminder || (at == null && item.strongReminder)) memory.setStrongReminder(item.id, strong && at != null)
+            if (strong && at != null && item.status == app.resound.digest.ItemStatus.Pending) memory.setItemStatus(item.id, app.resound.digest.ItemStatus.Accepted)
             onDismiss()
         }
     }

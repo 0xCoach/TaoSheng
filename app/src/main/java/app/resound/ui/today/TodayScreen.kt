@@ -916,9 +916,11 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
     val source = lines.firstOrNull { it.id == item.sourceLineId }
     val task = item.category in setOf("待办", "约定", "备忘")
     var editing by remember { mutableStateOf(false) }
+    // 没定时间时打开强提醒：先进编辑页选时间，强提醒已帮你打开
+    var editingStrong by remember { mutableStateOf(false) }
     var deleteArmed by remember(item.id) { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
-    if (editing) app.resound.ui.items.EditItemSheet(item, memory) { editing = false }
+    if (editing || editingStrong) app.resound.ui.items.EditItemSheet(item, memory, strongOn = editingStrong) { editing = false; editingStrong = false }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
@@ -955,6 +957,19 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                             Text(v, style = RsType.body, color = c.text)
                         }
                         if (i != facts.lastIndex) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
+                    }
+                }
+            }
+            if (task && item.status != ItemStatus.Ignored && item.status != ItemStatus.Done) {
+                Spacer(Modifier.height(12.dp))
+                app.resound.ui.items.StrongReminderRow(item.strongReminder) { on ->
+                    when {
+                        on && item.dueAt == null -> editingStrong = true
+                        else -> {
+                            // 要强提醒说明这条要留：待确认的顺手接受（只有接受的才会到点响）
+                            if (on && item.status == ItemStatus.Pending) memory.setItemStatus(item.id, ItemStatus.Accepted)
+                            memory.setStrongReminder(item.id, on)
+                        }
                     }
                 }
             }
@@ -1008,7 +1023,7 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (task) ActionChip("编辑", ChipTone.Plain, Modifier.weight(1f)) { editing = true }
-                onOpenEvent?.let { ActionChip("这件事", ChipTone.Plain, Modifier.weight(1f), onClick = it) }
+                onOpenEvent?.let { ActionChip("查看来源", ChipTone.Plain, Modifier.weight(1f), onClick = it) }
                 // 删除：点一下原地变红“确认删除”，3 秒内再点才删
                 if (task) ActionChip(if (deleteArmed) "确认删除" else "删除", if (deleteArmed) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
                     if (deleteArmed) { memory.deleteItem(item.id); onClose() } else deleteArmed = true

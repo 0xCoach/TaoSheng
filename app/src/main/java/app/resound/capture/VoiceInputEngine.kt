@@ -246,20 +246,24 @@ internal class VoiceInputEngine(
         val t = VoiceInputOcr.clean(accepted?.text)
         val fresh = if (first == null) null else freshBubble(first, accepted)
         val prev = j.box
+        dbg("识字结果：第 ${request.shot + 1} 张 截到=${result != null} 输入框字数=${t?.length ?: 0} 原输入框字数=${prev?.length ?: 0} 新气泡字数=${fresh?.length ?: 0}${if (request.shot == j.boundary) " （开始说下一段时）" else ""}")
         if (request.shot == j.boundary) {
             j.boundary = -1
             val gone = prev != null && result != null && (fresh != null || t == null || !continuesBox(prev, t))
-            if (gone) { split(j, accepted, fresh); return }
+            if (gone) { split(j, accepted, fresh, t); return }
         }
+        // 输入框里换成了不相干的新话：上一段已经发出去了（没看到发送也一样），收尾、新话另起一条
+        if (prev != null && t != null && !continuesBox(prev, t) && !prev.startsWith(t) &&
+            !VoiceInputText.normalized(prev).contains(VoiceInputText.normalized(t))) { split(j, accepted, fresh, t); return }
         when {
             fresh != null && (prev == null || VoiceInputText.similar(fresh, prev) ||
                 VoiceInputText.normalized(fresh).contains(VoiceInputText.normalized(prev))) -> {
                 j.sent = fresh; j.sentShot = accepted; j.closed = true
             }
             t != null -> {
-                // 越说越长取新的；后一张明显变短又是前一张开头，说明正在发出，留前一张
-                val keep = prev != null && t.length < prev.length && (prev.startsWith(t) ||
-                    (t.length < prev.length * 0.6 && !VoiceInputText.similar(t, prev.take(t.length))))
+                // 越说越长取新的；变短且是前一张的一部分，说明正在发出或没认全，留前一张
+                val keep = prev != null && t.length < prev.length &&
+                    (prev.startsWith(t) || VoiceInputText.normalized(prev).contains(VoiceInputText.normalized(t)))
                 if (!keep) { if (t != prev) j.active = j.now; j.box = t; j.boxShot = accepted }
                 j.emptied = false
             }
@@ -275,13 +279,16 @@ internal class VoiceInputEngine(
     private fun continuesBox(prev: String, now: String) = now.startsWith(prev) || VoiceInputText.similar(now, prev) ||
         VoiceInputDedup.continues(prev, now) || VoiceInputText.normalized(now).contains(VoiceInputText.normalized(prev))
     /** 上一段已经发出去了：上一段用这张收尾，正在说的这段另起一条（这张当它的底图，上一段的气泡就不算新的） */
-    private fun split(j: OcrJob, shot: OcrInput?, fresh: String?) {
+    private fun split(j: OcrJob, shot: OcrInput?, fresh: String?, box: String?) {
         val prev = j.box
         if (fresh != null && prev != null && (VoiceInputText.similar(fresh, prev) ||
                 VoiceInputText.normalized(fresh).contains(VoiceInputText.normalized(prev)))) j.sent = fresh
         j.sentShot = shot; j.closed = true
-        val next = OcrJob(UUID.randomUUID().toString(), j.boundaryAt, j.screen, j.context, j.active)
+        // 新一条从最近一次开始说算起
+        val next = OcrJob(UUID.randomUUID().toString(), maxOf(j.boundaryAt, j.at), j.screen, j.context, j.active)
         next.first = shot; next.recording = j.recording; next.now = j.now; next.planned += j.planned
+        // 这张里已经是新话：直接当新一条的输入框
+        if (box != null && (j.box == null || !continuesBox(j.box!!, box))) { next.box = box; next.boxShot = shot }
         dbg("上一段已发出：收尾，这段另起一条")
         finishJob(j)
         job = next
@@ -332,4 +339,15 @@ internal class VoiceInputEngine(
 }
 
 /** 诊断日志：只写步骤和数字，绝不写文字内容。 */
-internal fun dbg(msg: String) { runCatching { android.util.Log.d("VoiceInputDbg", msg) } }
+internal fun dbg(msg: String) { VoiceInputTrace.add(msg); runCatching { android.util.Log.d("VoiceInputDbg", msg) } }
+
+/** 最近几百步语音输入判断，随“导出诊断记录”一起导出；同 dbg 一样只有步骤和数字，没有文字内容 */
+object VoiceInputTrace {
+    private val lines = ArrayDeque<String>()
+    private val time = java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS").withZone(java.time.ZoneId.systemDefault())
+    @Synchronized fun add(msg: String) {
+        lines.addLast("${time.format(java.time.Instant.now())} $msg")
+        while (lines.size > 600) lines.removeFirst()
+    }
+    @Synchronized fun dump(): String = if (lines.isEmpty()) "语音输入：本次启动后还没有记录" else lines.joinToString("\n") { "语音输入 $it" }
+}

@@ -195,7 +195,7 @@ class VoiceInputService : AccessibilityService() {
     }
 
     private var lastSnapLog = ""
-    private fun dbgSnap(msg: String) { if (msg != lastSnapLog) { lastSnapLog = msg; runCatching { android.util.Log.d("VoiceInputDbg", msg) } } }
+    private fun dbgSnap(msg: String) { if (msg != lastSnapLog) { lastSnapLog = msg; dbg(msg) } }
 
     override fun onInterrupt() { engine?.reset() }
     override fun onDestroy() { connected.value = false; stopMonitoring(); scope.cancel(); super.onDestroy() }

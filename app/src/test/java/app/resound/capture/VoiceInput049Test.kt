@@ -113,6 +113,22 @@ class VoiceInput049Test {
         assertEquals(listOf("老王：在吗", "老王：在吗\n我：第一段合成的话"), rows.map { it.meta.before })
         assertEquals(listOf("老王", "老王"), rows.map { it.meta.title })
     }
+    @Test fun boxWithUnrelatedNewTextMeansEarlierWasSent() {
+        // 没看到发送、开始说时那张也没看出来：之后输入框里换成了新话，上一段照样收尾，新话另起一条
+        val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()
+        val e = VoiceInputEngine(requests::add, changes::add)
+        fun answer(r: OcrInput) = requests.filter { e.accepts(it) }.forEach { e.recognized(it, r) }
+        e.recording(true, 0, screen, settings); e.recording(false, 100, screen, settings)
+        e.tick(600, screen, settings); answer(OcrInput("第一段合成的话", listOf("老王：在吗"), "老王"))
+        e.recording(true, 1200, screen, settings); answer(OcrInput("第一段合成的话", listOf("老王：在吗"), "老王"))
+        e.recording(false, 1800, screen, settings)
+        e.tick(2300, screen, settings); answer(OcrInput("完全另外一句", listOf("老王：在吗", "我：第一段合成的话"), "老王"))
+        e.tick(2600, screen.copy(send = true), settings); e.tick(3100, screen, settings)
+        answer(OcrInput("", listOf("老王：在吗", "我：第一段合成的话"), "老王", "完全另外一句"))
+        val rows = changes.filterIsInstance<InputChange.Save>().map { it.record }
+        assertEquals(listOf("第一段合成的话", "完全另外一句"), rows.map { it.text })
+        assertEquals(1200L, rows[1].at)
+    }
     @Test fun contextSwitchOffKeepsTextButNoContextOrName() {
         val requests = mutableListOf<OcrRequest>(); val changes = mutableListOf<InputChange>()
         val e = VoiceInputEngine(requests::add, changes::add)

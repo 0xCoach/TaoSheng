@@ -137,6 +137,10 @@ class ResoundApp : Application() {
         app.resound.search.EmbeddingScheduler.start(this)
         val backupRepository = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
         AppGraph.backup = backupRepository
+        val updater = app.resound.update.createUpdater(this, backupRepository)
+        AppGraph.updater = updater
+        app.resound.update.UpdateWork.schedule(this)
+        scope.launch { updater.checkNow(startup = true) }
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         ImportAudioCleanupWork.schedule(this)

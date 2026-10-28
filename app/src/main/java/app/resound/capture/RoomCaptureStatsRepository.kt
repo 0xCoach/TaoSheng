@@ -56,6 +56,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
             out.appendLine(transcribeDiagnostics())
             out.appendLine(app.resound.audio.OggGuard.describe())
             out.appendLine(app.resound.transcribe.PipelineTimes.dump(context))
+            out.appendLine(app.resound.update.UpdateDiagnostics.dump(context))
             out.appendLine(VoiceInputTrace.dump())
             val diarySync = context.getSharedPreferences("diary-sync", Context.MODE_PRIVATE)
             if (diarySync.contains("lastFailureAt")) out.appendLine(

@@ -17,8 +17,18 @@ class LocalNotifier(private val context: Context, private val channel: String = 
     // 待办到点要像闹钟一样弹出来，用高重要级；其余照旧
     private val urgent = channel == TODO_CHANNEL
     init {
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(channel, channelName, if (urgent) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT))
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel(channel, channelName,
+            if (urgent) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT).apply {
+            if (urgent) {
+                // 到点要做的事：响铃 + 连震三下 + 锁屏也显示
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 600, 300, 600, 300, 600)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            }
+        })
+        // 渠道建好后系统不让改震动，旧的无震动渠道删掉
+        if (urgent) manager.deleteNotificationChannel("todo-reminder")
     }
 
     override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
@@ -37,14 +47,14 @@ class LocalNotifier(private val context: Context, private val channel: String = 
                     .setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body))
                     .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
                     .setPriority(if (urgent) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
-                    .apply { if (urgent) setCategory(NotificationCompat.CATEGORY_REMINDER) }.build())
+                    .apply { if (urgent) setCategory(NotificationCompat.CATEGORY_REMINDER).setVisibility(NotificationCompat.VISIBILITY_PUBLIC) }.build())
         } catch (_: SecurityException) { throw IllegalStateException("请开启${channelName}通知权限") }
     }
 
     companion object {
         const val CHANNEL = "daily-review"
         const val SKILL_GENERATION_CHANNEL = "skill-generation"
-        const val TODO_CHANNEL = "todo-reminder"
+        const val TODO_CHANNEL = "todo-reminder-2"
         const val NOTIFICATION_ID = 100
     }
 }

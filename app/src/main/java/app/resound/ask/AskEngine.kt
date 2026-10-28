@@ -57,7 +57,10 @@ class AskEngine(
                 val error = when {
                     parsed.invalid -> "回答出处不完整，请重新提问"
                     parsed.text.isBlank() -> "没有收到回答，请重试"
-                    proposal == null && parsed.sources.isEmpty() && !parsed.text.contains("没找到") -> "回答缺少出处，请重新提问"
+                    // 一次都没查记录：多半是模型不支持工具调用，指给用户去检测，而不是只让重问
+                    proposal == null && parsed.sources.isEmpty() && !parsed.text.contains("没找到") ->
+                        if (count == 0 && sources.isEmpty()) "模型没查记录就作答，可能不支持工具调用，可在设置里检测模型"
+                        else "回答缺少出处，请重新提问；常出现可在设置里检测模型"
                     else -> null
                 }
                 emit(Update(parsed.text, parsed.sources, null, error)); return

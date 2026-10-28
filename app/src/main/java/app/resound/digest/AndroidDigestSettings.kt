@@ -123,6 +123,23 @@ class AndroidDigestSettings(
         }
     }
 
+    override suspend fun check(): Result<List<ModelCheckItem>> {
+        val selected=preset
+        if(selected.id=="custom" && (selected.baseUrl.isBlank() || selected.model.isBlank()))return Result.failure(IllegalStateException("请先保存服务地址和模型"))
+        val key = readKey()
+        if (key.isBlank()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        return Result.success(ModelCheck(
+            json = { system, user ->
+                client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
+            },
+            stream = { messages, tools ->
+                var prompt = 0L; var completion = 0L
+                try { client.streamChat(selected, key, messages, tools, {}, { p, c -> prompt = p; completion = c }) }
+                finally { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(LlmReply("", prompt, completion)) } }
+            },
+        ).run())
+    }
+
     companion object {
         const val DEFAULT_PAUSE = 10
         const val DEFAULT_MAX_WAIT = 30

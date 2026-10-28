@@ -508,7 +508,7 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
     var editing by remember(presetId) { mutableStateOf(false) }
     var input by remember(presetId) { mutableStateOf("") }
     var testing by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<Result<String>?>(null) }
+    var result by remember { mutableStateOf<Result<List<app.resound.digest.ModelCheckItem>>?>(null) }
 
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Text("整理用的大模型", style = RsType.body, color = c.text)
@@ -529,8 +529,8 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
                 "自定义（OpenAI 兼容聊天接口）",advanced::fetchModels,advanced::saveCustomAll)
             if(hasKey) {
                 Spacer(Modifier.height(14.dp))
-                Pill(if(testing) "测试中" else "测试连接",filled=false) {
-                    if(!testing){testing=true;scope.launch{result=settings.test();testing=false}}
+                Pill(if(testing) "检测中" else "检测模型",filled=false) {
+                    if(!testing){testing=true;result=null;scope.launch{result=settings.check();testing=false}}
                 }
             }
         } else if (hasKey && !editing) {
@@ -538,10 +538,10 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
                 Dot(c.good, 7.dp)
                 Spacer(Modifier.width(8.dp))
                 Text("密钥已填写", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
-                Pill(if (testing) "测试中" else "测试", filled = false) {
+                Pill(if (testing) "检测中" else "检测", filled = false) {
                     if (testing) return@Pill
-                    testing = true
-                    scope.launch { result = settings.test(); testing = false }
+                    testing = true; result = null
+                    scope.launch { result = settings.check(); testing = false }
                 }
                 Spacer(Modifier.width(8.dp))
                 Pill("更换", filled = false) { editing = true }
@@ -558,16 +558,33 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
                 }
             }
         }
-        result?.let { r ->
+        if (testing) {
             Spacer(Modifier.height(8.dp))
-            Text(
-                r.getOrNull() ?: r.exceptionOrNull()?.message ?: "测试没通过",
-                style = RsType.caption,
-                color = if (r.isSuccess) c.good else c.critical,
-            )
+            Text("正在逐项检测各功能，约需半分钟…", style = RsType.caption, color = c.textSecondary)
+        }
+        result?.let { r ->
+            Spacer(Modifier.height(10.dp))
+            val items = r.getOrNull()
+            if (items == null) Text(r.exceptionOrNull()?.message ?: "检测没通过", style = RsType.caption, color = c.critical)
+            else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { items.forEach { ModelCheckRow(it) } }
         }
         Spacer(Modifier.height(6.dp))
         if(presetId!="custom") Text("每种服务的密钥分开保存在手机安全区里，不会显示。", style = RsType.caption, color = c.textTertiary)
+    }
+}
+
+/** 检测结果的一行：圆点（绿=正常，红=有问题，灰=没测）+ 功能名 + 结果 */
+@Composable
+private fun ModelCheckRow(item: app.resound.digest.ModelCheckItem) {
+    val c = Rs.colors
+    val color = when (item.ok) { true -> c.good; false -> c.critical; null -> c.textTertiary }
+    Row(verticalAlignment = Alignment.Top) {
+        Box(Modifier.padding(top = 5.dp)) { Dot(color, 7.dp) }
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(item.feature, style = RsType.subhead, color = c.text)
+            Text(item.detail, style = RsType.caption, color = if (item.ok == false) c.critical else c.textSecondary)
+        }
     }
 }
 

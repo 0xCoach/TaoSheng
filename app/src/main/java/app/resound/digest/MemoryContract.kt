@@ -229,4 +229,7 @@ interface DigestSettings {
 
     /** 发一句很短的话确认能用 */
     suspend fun test(): Result<String>
+
+    /** 按功能逐项检测当前模型（连接、按格式回答、问问的流式回答/工具调用/标注出处）；没法开始检测（没填密钥等）给 failure */
+    suspend fun check(): Result<List<ModelCheckItem>> = test().map { listOf(ModelCheckItem(ModelCheck.CONNECT, true, it)) }
 }

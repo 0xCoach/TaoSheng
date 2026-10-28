@@ -24,8 +24,8 @@ enum class LlmError(val human: String, val retryable: Boolean) {
     Format("大模型返回的格式不对", true),
 }
 
-/** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。 */
-class LlmException(val type: LlmError) : Exception(type.human)
+/** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
+class LlmException(val type: LlmError, val status: Int = 0) : Exception(type.human)
 
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long)
 
@@ -53,8 +53,8 @@ class LlmClient(
         response.use {
             when (it.code) {
                 in 200..299 -> Unit
-                401, 403 -> throw LlmException(LlmError.Auth)
-                else -> throw LlmException(LlmError.Server)
+                401, 403 -> throw LlmException(LlmError.Auth, it.code)
+                else -> throw LlmException(LlmError.Server, it.code)
             }
             val json = try { JSONObject(it.body!!.string()) } catch (_: Exception) { throw LlmException(LlmError.Format) }
             val content = json.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
@@ -90,8 +90,8 @@ class LlmClient(
                     val reply = response.use {
                         when (it.code) {
                             in 200..299 -> Unit
-                            401, 403 -> throw LlmException(LlmError.Auth)
-                            else -> throw LlmException(LlmError.Server)
+                            401, 403 -> throw LlmException(LlmError.Auth, it.code)
+                            else -> throw LlmException(LlmError.Server, it.code)
                         }
                         val parser = LlmSseParser({ delta -> if (cont.isActive) onText(delta) }, onUsage)
                         val source = it.body?.source() ?: throw LlmException(LlmError.Format)

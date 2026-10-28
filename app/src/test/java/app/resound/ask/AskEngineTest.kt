@@ -50,6 +50,12 @@ class AskEngineTest {
             else { assertTrue(messages.toString().contains("参数无效")); LlmStreamReply("你已经答应了",emptyList()) }
         },JSONArray(),{_,_,_->error("不能执行")},{_,_->})
         engine.answer("",emptyList(),"问题",{result=it})
-        assertEquals("回答缺少出处，请重新提问",result!!.error)
+        assertEquals("回答缺少出处，请重新提问；常出现可在设置里检测模型",result!!.error)
+    }
+    @Test fun answerWithoutAnyLookupPointsToToolSupport() = runBlocking {
+        var result: AskEngine.Update?=null
+        val engine=AskEngine(AskStream { _,_,_,_-> LlmStreamReply("你明天要开会",emptyList()) },JSONArray(),{_,_,_->error("不会调用")},{_,_->})
+        engine.answer("",emptyList(),"明天干嘛",{result=it})
+        assertEquals("模型没查记录就作答，可能不支持工具调用，可在设置里检测模型",result!!.error)
     }
 }

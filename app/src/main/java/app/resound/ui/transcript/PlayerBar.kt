@@ -127,7 +127,9 @@ private fun Bar() {
                     IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
                 }
                 Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = Arrangement.Center) {
-                    listOf(idx - 1, idx, idx + 1).forEach { k ->
+                    // 三行一直排满：开头没有上一句时当前句往上顶，结尾没有下一句时往下沉
+                    val first = (idx - 1).coerceAtMost(lines.size - 3).coerceAtLeast(0)
+                    (first until first + 3).forEach { k ->
                         val main = k == idx
                         Text(lines.getOrNull(k)?.text ?: "", maxLines = if (main) 2 else 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             style = if (main) RsType.body.copy(fontWeight = FontWeight.SemiBold) else RsType.caption,

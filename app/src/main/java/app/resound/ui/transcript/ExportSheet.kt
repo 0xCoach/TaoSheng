@@ -251,7 +251,9 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
         if (cues.isNotEmpty()) {
             // 歌词式三行：上一句 / 当前这句（加粗）/ 下一句
             Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-                listOf(center - 1, center, center + 1).forEach { k ->
+                // 三行一直排满：开头没有上一句时当前句往上顶，结尾没有下一句时往下沉
+                val first = (center - 1).coerceAtMost(cues.size - 3).coerceAtLeast(0)
+                (first until first + 3).forEach { k ->
                     val cue = cues.getOrNull(k)
                     val main = k == center
                     androidx.compose.animation.AnimatedContent(cue, label = "cue$k", transitionSpec = {

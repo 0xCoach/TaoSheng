@@ -903,6 +903,7 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
             }
             Spacer(Modifier.height(2.dp))
             Text(event.summary, style = RsType.caption.copy(lineHeight = 18.sp), color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            app.resound.ui.envsound.EventEnvLine(event, Modifier.padding(top = 3.dp))
             val counts = event.items.groupingBy { it.category }.eachCount()
             if (counts.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
@@ -991,6 +992,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             }
             Spacer(Modifier.height(12.dp))
             Text(shown.summary, style = RsType.body, color = c.text)
+            app.resound.ui.envsound.EventEnvDetail(shown, Modifier.padding(top = 14.dp))
 
             if (shown.points.isNotEmpty()) {
                 SheetSection("要点")

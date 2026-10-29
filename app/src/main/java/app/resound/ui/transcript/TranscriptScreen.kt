@@ -190,6 +190,8 @@ fun TranscriptScreen(
                 }
             }) { DaySwitcher(dayOffset) { dayOffset = it } }
         }
+        // 环境音识别：这天被跳过 / 可跳过 / 疑似影视的录音，点开试听、找回
+        item(key = "env-$date") { app.resound.ui.envsound.EnvFlaggedRow(date) }
         val list = segments
         if (list != null && list.isEmpty()) {
             item {

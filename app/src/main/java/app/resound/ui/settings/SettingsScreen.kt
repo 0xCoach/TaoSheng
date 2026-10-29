@@ -62,7 +62,7 @@ data class InnerPage(val title: String, val backLabel: String, val onBack: () ->
 
 val LocalSettingsInner = androidx.compose.runtime.staticCompositionLocalOf<(InnerPage?) -> Unit> { {} }
 
-enum class SettingsPage(val title: String) { Skills("整理技能"), Capture("录音与后台"), Transcript("原话与转写"), Model("整理模型"), Voiceprint("声纹与人物"), Review("每日回顾"), Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), Backup("数据备份"), Update("版本更新"), About("关于涛声") }
+enum class SettingsPage(val title: String) { Skills("整理技能"), Capture("录音与后台"), Transcript("原话与转写"), Model("整理模型"), Voiceprint("声纹与人物"), Review("每日回顾"), Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境音识别"), Backup("数据备份"), Update("版本更新"), About("关于涛声") }
 
 /**
  * 设置：iOS 设置页式分组圆角列表。点一行进入二级页面，左上角返回或系统返回键回到列表。
@@ -170,6 +170,10 @@ private fun SettingsList(
                     val asrRealtime = asr?.realtime?.collectAsState()?.value == true
                     val asrInterval = transcribeSettings.intervalMinutes.collectAsState().value
                     Row1("原话与转写", if (asrKey) "$asrSource · ${if (asrRealtime) "实时" else "每 $asrInterval 分钟"}" else "转写未就绪", dot = if (asrKey) c.good else c.warning) { onOpen(SettingsPage.Transcript) }
+                    app.resound.ui.envsound.envSoundSummary()?.let { v ->
+                        Divider()
+                        Row1("环境音识别", v, dot = null) { onOpen(SettingsPage.EnvSound) }
+                    }
                 }
             }
         }

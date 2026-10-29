@@ -167,6 +167,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Prompts -> if (AppGraph.isPromptsReady) app.resound.ui.settings.PromptsPage(AppGraph.prompts, bottom)
                                     SettingsPage.Hotwords -> if (AppGraph.isHotwordsReady)
                                         Box(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 24.dp)) { app.resound.ui.transcript.HotwordCard(AppGraph.hotwords) }
+                                    SettingsPage.EnvSound -> if (AppGraph.isEnvSoundReady) app.resound.ui.envsound.EnvSoundPage(AppGraph.envSound, bottom)
                                     SettingsPage.Push -> if (AppGraph.isPushReady) app.resound.ui.settings.PushPage(AppGraph.push, bottom)
                                     SettingsPage.Review -> if (AppGraph.isReviewReady) ReviewSettingsPage(AppGraph.review, bottom)
                                     SettingsPage.Backup -> if (AppGraph.isBackupReady) BackupPage(AppGraph.backup, bottom)

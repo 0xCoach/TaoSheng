@@ -51,15 +51,20 @@ import java.time.format.DateTimeFormatter
  * 一件事 → “10月29日 14:05 项目进度讨论”；多件事 → 占时最长那件 + “等 N 件事”；没整理出事件 → “10月29日 18:30–18:45 录音”。
  */
 internal fun exportTitle(events: List<MemoryEvent>, startAt: Long, endAt: Long): String {
-    fun day(at: Long) = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日"))
+    // 文件和文件夹用：开头完整日期便于按名排序；时间用“.”代替“:”（电脑上冒号不能做文件名）
+    fun day(at: Long) = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+    fun hm(at: Long) = formatClock(at).replace(':', '.')
     val hit = events.filter { it.startAt < endAt && it.endAt > startAt }
     val main = hit.maxByOrNull { minOf(it.endAt, endAt) - maxOf(it.startAt, startAt) }
-    return when {
-        main == null -> "${day(startAt)} ${formatClock(startAt)}–${formatClock(endAt)} 录音"
-        hit.size == 1 -> "${day(main.startAt)} ${formatClock(main.startAt)} ${main.title}"
-        else -> "${day(main.startAt)} ${formatClock(main.startAt)} ${main.title} 等 ${hit.size} 件事"
-    }.replace(Regex("[/\\\\:*?\"<>|]"), " ").take(60)
+    return safeName(when {
+        main == null -> "${day(startAt)} ${hm(startAt)}-${hm(endAt)} 录音"
+        hit.size == 1 -> "${day(main.startAt)} ${hm(main.startAt)} ${main.title}"
+        else -> "${day(main.startAt)} ${hm(main.startAt)} ${main.title} 等 ${hit.size} 件事"
+    })
 }
+
+/** 去掉不能做文件名的字符，压掉多余空格，截到 60 字 */
+internal fun safeName(name: String) = name.replace(Regex("[/\\\\:*?\"<>|\\n\\r\\t]"), " ").replace(Regex(" +"), " ").trim().take(60)
 
 private fun prefs(context: android.content.Context) = context.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
 
@@ -81,6 +86,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     var job by remember { mutableStateOf<Job?>(null) }
     // 合成好的文件：有音频时先在面板里试听，确认后再分享
     var done by remember { mutableStateOf<List<java.io.File>?>(null) }
+    var savedTo by remember { mutableStateOf<String?>(null) }
     val exporter = if (app.resound.AppGraph.isAudioExporterReady) app.resound.AppGraph.audioExporter else null
     fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, withText, withSrt, skipMedia)
     val estimate by produceState<ExportEstimate?>(null, skipMedia, segmentIds) {
@@ -100,8 +106,16 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
             // 试听：播放/暂停 + 可拖动的进度条，拖到哪儿就从哪儿播
             ready.firstOrNull { it.extension.equals("m4a", true) }?.let { PreviewPlayer(it) }
             Text("已生成：" + ready.joinToString("、") { it.name }, style = RsType.caption, color = c.textTertiary)
-            ActionButton("分享", ActionKind.Primary) { share(context, ready); onDismiss() }
-            ActionButton("完成", ActionKind.Secondary) { onDismiss() }
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                ActionButton(if (savedTo != null) "已保存" else "保存", ActionKind.Primary, Modifier.weight(1f), enabled = savedTo == null) {
+                    scope.launch {
+                        savedTo = runCatching { saveToDownloads(context, ready, safeName(title.ifBlank { suggestedTitle })) }.getOrNull()
+                        LinePlayer.notice = savedTo?.let { "已保存到 下载 › 涛声 › $it" } ?: "保存失败，请稍后再试"
+                    }
+                }
+                ActionButton("分享", ActionKind.Secondary, Modifier.weight(1f)) { share(context, ready) }
+            }
+            savedTo?.let { Text("在 文件管理 › 下载 › 涛声 › $it 里", style = RsType.caption, color = c.textTertiary) }
         } else if (running != null) {
             LinearProgressIndicator(progress = { running }, color = c.accent, trackColor = c.accentSoft,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(CircleShape))
@@ -109,7 +123,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
             ActionButton("取消", ActionKind.Secondary) { job?.cancel(); job = null; progress = null }
         } else {
             val nothing = estimate?.let { it.audioSegments == 0 && !withText && !withSrt } == true
-            ActionButton(if (estimate?.audioSegments == 0) "只导出文字并分享" else "导出并分享", ActionKind.Primary, enabled = !nothing) {
+            ActionButton(if (estimate?.audioSegments == 0) "只导出文字" else "生成录音", ActionKind.Primary, enabled = !nothing) {
                 exporter.cleanup()
                 progress = 0f
                 job = scope.launch {
@@ -119,8 +133,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
                             is ExportProgress.Failed -> { progress = null; LinePlayer.notice = step.message }
                             is ExportProgress.Done -> {
                                 progress = null
-                                if (step.files.any { it.extension.equals("m4a", true) }) done = step.files
-                                else { share(context, step.files); onDismiss() }
+                                done = step.files
                             }
                         }
                     }
@@ -217,3 +230,29 @@ private fun PreviewPlayer(file: java.io.File) {
         }
     }
 }
+
+/**
+ * 保存到“下载/涛声/<名字>/”，每次一个文件夹，里面的文件同名（.m4a/.txt/.srt），播放器能自动认字幕。
+ * 同名文件夹已存在时加“（2）”“（3）”。安卓 10+ 用 MediaStore，不需要存储权限。返回实际的文件夹名。
+ */
+private suspend fun saveToDownloads(context: android.content.Context, files: List<java.io.File>, name: String): String =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val resolver = context.contentResolver
+        val base = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        fun taken(folder: String): Boolean = resolver.query(base, arrayOf(android.provider.MediaStore.MediaColumns._ID),
+            "${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ?", arrayOf("Download/涛声/$folder/"), null)?.use { it.count > 0 } ?: false
+        var folder = name; var n = 2
+        while (taken(folder)) folder = "$name（${n++}）"
+        files.forEach { f ->
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "$folder.${f.extension}")
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime(f))
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/涛声/$folder/")
+                put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val uri = requireNotNull(resolver.insert(base, values)) { "无法创建文件" }
+            resolver.openOutputStream(uri)!!.use { out -> f.inputStream().use { it.copyTo(out) } }
+            resolver.update(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        }
+        folder
+    }

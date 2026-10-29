@@ -97,10 +97,11 @@ private fun Bar() {
         expanded = false
     }
     Column(
-        // 阴影加深一点 + 一圈细描边：压在白色卡片上也能分出层次
+        // 阴影加深一点 + 一圈很淡的细边（和底部导航栏一个路子）：压在白色卡片上也能分出层次，又不像画了黑框
         Modifier.fillMaxWidth().shadow(if (c.isDark) 0.dp else 22.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.22f))
             .clip(RoundedCornerShape(24.dp)).background(c.card)
-            .border(1.dp, if (c.isDark) Color.White.copy(alpha = 0.10f) else c.separator, RoundedCornerShape(24.dp)).animateContentSize(),
+            .border(1.dp, if (c.isDark) androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.05f)))
+                else androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.04f), Color.Black.copy(alpha = 0.07f))), RoundedCornerShape(24.dp)).animateContentSize(),
     ) {
         if (!expanded) {
             // 收起：顶部细进度线 + 一行字幕；点字幕展开成完整卡片

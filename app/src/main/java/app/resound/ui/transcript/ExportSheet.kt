@@ -75,6 +75,9 @@ internal fun exportTitle(events: List<MemoryEvent>, startAt: Long, endAt: Long):
 /** 去掉不能做文件名的字符，压掉多余空格，截到 60 字 */
 internal fun safeName(name: String) = name.replace(Regex("[/\\\\:*?\"<>|\\n\\r\\t]"), " ").replace(Regex(" +"), " ").trim().take(60)
 
+/** 保存到手机的总文件夹：下载/Resound/ */
+private const val EXPORT_DIR = "Resound"
+
 private fun prefs(context: android.content.Context) = context.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
 
 /**
@@ -334,7 +337,7 @@ private fun SeekBar(fraction: Float, onDrag: (Float) -> Unit, onDone: (Float) ->
 }
 
 /**
- * 保存到“下载/涛声/<名字>/”，每次一个文件夹，里面的文件同名（.m4a/.txt/.srt），播放器能自动认字幕。
+ * 保存到“下载/Resound/<名字>/”，每次一个文件夹，里面的文件同名（.m4a/.txt/.srt），播放器能自动认字幕。
  * 同名文件夹已存在时加“（2）”“（3）”。安卓 10+ 用 MediaStore，不需要存储权限。返回实际的文件夹名。
  */
 private suspend fun saveToDownloads(context: android.content.Context, files: List<java.io.File>, name: String): String =
@@ -342,14 +345,14 @@ private suspend fun saveToDownloads(context: android.content.Context, files: Lis
         val resolver = context.contentResolver
         val base = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
         fun taken(folder: String): Boolean = resolver.query(base, arrayOf(android.provider.MediaStore.MediaColumns._ID),
-            "${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ?", arrayOf("Download/涛声/$folder/"), null)?.use { it.count > 0 } ?: false
+            "${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ?", arrayOf("Download/$EXPORT_DIR/$folder/"), null)?.use { it.count > 0 } ?: false
         var folder = name; var n = 2
         while (taken(folder)) folder = "$name（${n++}）"
         files.forEach { f ->
             val values = android.content.ContentValues().apply {
                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "$folder.${f.extension}")
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime(f))
-                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/涛声/$folder/")
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/$EXPORT_DIR/$folder/")
                 put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val uri = requireNotNull(resolver.insert(base, values)) { "无法创建文件" }
@@ -419,7 +422,7 @@ internal fun durationWords(ms: Long): String {
     return if (sec >= 60) "${sec / 60} 分 ${sec % 60} 秒" else "$sec 秒"
 }
 
-/** 合成好的结果：试听、保存到 下载/涛声/、分享（选一个文件） */
+/** 合成好的结果：试听、保存到 下载/Resound/、分享（选一个文件） */
 @Composable
 internal fun ExportResult(files: List<java.io.File>, name: String) {
     val c = Rs.colors
@@ -433,13 +436,13 @@ internal fun ExportResult(files: List<java.io.File>, name: String) {
         ActionButton(if (savedTo != null) "已保存" else "保存", ActionKind.Primary, Modifier.weight(1f), enabled = savedTo == null) {
             scope.launch {
                 savedTo = runCatching { saveToDownloads(context, files, name) }.getOrNull()
-                LinePlayer.notice = savedTo?.let { "已保存到 下载 › 涛声 › $it" } ?: "保存失败，请稍后再试"
+                LinePlayer.notice = savedTo?.let { "已保存到 下载 › $EXPORT_DIR › $it" } ?: "保存失败，请稍后再试"
             }
         }
         // 微信等一次只收一个文件：只有一个文件时直接分享，否则先选分享什么
         ActionButton("分享", ActionKind.Secondary, Modifier.weight(1f)) { if (files.size == 1) share(context, files) else picking = true }
     }
-    savedTo?.let { Text("在 文件管理 › 下载 › 涛声 › $it 里", style = RsType.caption, color = c.textTertiary) }
+    savedTo?.let { Text("在 文件管理 › 下载 › $EXPORT_DIR › $it 里", style = RsType.caption, color = c.textTertiary) }
     if (picking) ShareChooser(files, name) { picking = false }
 }
 

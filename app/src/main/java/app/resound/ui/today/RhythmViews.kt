@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.input.pointer.pointerInput
@@ -65,6 +67,9 @@ internal data class DayRhythm(
     /** 实际说话最长的一件事：句子时长之和（不含中间的安静） */
     val longest: Pair<MemoryEvent, Int>?,
     val mediaEvents: Int = 0,
+    val withItems: Int = 0,
+    val starred: Int = 0,
+    val ideas: Int = 0,
 )
 
 private fun overlaps(l: TranscriptLine, e: MemoryEvent) = l.startAt < e.endAt && l.endAt > e.startAt
@@ -91,14 +96,18 @@ internal fun dayRhythm(events: List<MemoryEvent>, lines: List<TranscriptLine>): 
         firstAt = kept.minOf { it.startAt }, lastAt = kept.maxOf { it.endAt },
         longest = longest,
         mediaEvents = media.size,
+        withItems = life.count(TimelineFilter.HasItems::matches),
+        starred = life.count { it.starred },
+        ideas = life.sumOf { e -> e.items.count { it.category == "灵感" } },
     )
 }
 
 /** “比平时多 30%”：至少 3 天记录才有平时；差别不到 15% 不显示 */
 private fun compare(today: Int, usual: Int?): String? {
     if (usual == null || usual <= 0) return null
+    // 只在变化很大（多一半或少一半）时给一个小箭头，不写百分比，免得“平时”天数少时比例夸张
     val pct = ((today - usual) * 100f / usual).toInt()
-    return when { pct >= 15 -> "↑$pct%"; pct <= -15 -> "↓${-pct}%"; else -> null }
+    return when { pct >= 50 -> "↑"; pct <= -50 -> "↓"; else -> null }
 }
 
 /** 停录时段（如睡眠）当天落在哪些小时，分布条上用浅底标出 */
@@ -118,7 +127,7 @@ private fun quietHours(rules: List<QuietRule>, date: LocalDate): Map<Int, String
  */
 @Composable
 internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, date: LocalDate, pendingSegments: Int,
-                        onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit) {
+                        onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit, onPeople: () -> Unit = {}) {
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
@@ -135,7 +144,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
             // 收起时标题这一行直接带上概要和一条迷你分布，一眼看完
             if (collapsed && r.speechMinutes >= 5) {
-                Text("  提到 ${r.people} 人" + (if (r.meetings > 0) " · 开会 ${r.meetings} 次" else ""), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
+                Text("  提到 ${r.people} 人 · 灵感 ${r.ideas} · 待办 ${r.withItems} · 重点 ${r.starred}", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
                     maxLines = 1, modifier = Modifier.weight(1f))
                 MiniBars(r, Modifier.padding(end = 8.dp).size(width = 64.dp, height = 16.dp))
             } else Spacer(Modifier.weight(1f))
@@ -147,29 +156,36 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Text("今天说话 ${r.speechMinutes} 分钟 · ${r.events} 件事", style = RsType.subhead, color = c.textSecondary)
             return@RsCard
         }
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth().padding(end = 6.dp)) {
             // 说话时长和件数在上面的录音卡里，这里只放它没有的，同一屏每个数字只出现一次
-            Stat("提到", "${r.people} 人", compare(r.people, base?.people), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
-            Stat("开会", if (r.meetings == 0) "没有" else "${r.meetings} 次", compare(r.meetings, base?.meetings), Modifier.weight(1f)) { if (r.meetings > 0) onFilter(TimelineFilter.Meeting) }
-            Stat("媒体", if (r.mediaEvents == 0) "没有" else "${r.mediaEvents} 件", null, Modifier.weight(1f)) { if (r.mediaEvents > 0) onFilter(TimelineFilter.Media) }
+            // 四个都能点，点了筛出对应的事，和下面的筛选胶囊一一对应；为 0 时写“没有”，位置不变
+            Stat("提到", r.people, "人", compare(r.people, base?.people), Modifier.weight(1f)) { if (r.people > 0) onPeople() }
+            Stat("灵感", r.ideas, "条", null, Modifier.weight(1f)) { if (r.ideas > 0) onFilter(TimelineFilter.Ideas) }
+            Stat("待办", r.withItems, "个", null, Modifier.weight(1f)) { if (r.withItems > 0) onFilter(TimelineFilter.HasItems) }
+            Stat("重点", r.starred, "件", null, Modifier.weight(1f)) { if (r.starred > 0) onFilter(TimelineFilter.Starred) }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(12.dp))
         Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour) }
     }
 }
 
+/** 一格数字：数字大、单位小一号灰色，底部对齐；为 0 写“没有”并整格变灰，四列始终对齐 */
 @Composable
-private fun Stat(label: String, value: String, delta: String?, modifier: Modifier, onClick: () -> Unit) {
+private fun Stat(label: String, count: Int, unit: String, delta: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     // 不裁圆角：圆角会切掉“提”字左下那一点这类贴边的笔画
     Column(modifier.padding(end = 6.dp).springClick(onClick)) {
-        Text(value, style = RsType.headline, color = c.text, maxLines = 1,
-            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = RsType.headline.fontSize))
-        // 和平时比的箭头跟在标签后面，不和数字抢宽度
+        Text(androidx.compose.ui.text.buildAnnotatedString {
+            if (count == 0) withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.subhead.fontSize)) { append("没有") }
+            else {
+                withStyle(androidx.compose.ui.text.SpanStyle(color = c.text, fontWeight = FontWeight.SemiBold)) { append("$count") }
+                withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, fontWeight = FontWeight.Normal)) { append(" $unit") }
+            }
+        }, style = RsType.title, maxLines = 1, modifier = Modifier.height(30.dp).wrapContentHeight(Alignment.Bottom))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = RsType.caption, color = c.textTertiary, maxLines = 1)
-            delta?.let { Text(" $it", style = RsType.caption.copy(fontSize = 10.sp), color = if (it.startsWith("↑")) c.accent else c.textTertiary, maxLines = 1) }
+            delta?.let { Text(" $it", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = if (it == "↑") c.accent else c.textTertiary, maxLines = 1) }
         }
     }
 }
@@ -192,8 +208,8 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
     Column {
         val width = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
         fun hourAt(x: Float) = ((x / width.intValue.coerceAtLeast(1)) * 24).toInt().coerceIn(0, 23)
-        Box(Modifier.fillMaxWidth().height(36.dp)) {
-        Row(Modifier.fillMaxWidth().height(36.dp)
+        Box(Modifier.fillMaxWidth().height(44.dp)) {
+        Row(Modifier.fillMaxWidth().height(44.dp)
             .onSizeChanged { width.intValue = it.width }
             .pointerInput(r) {
                 detectTapGestures(
@@ -225,7 +241,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
         // 看今天时，现在的位置画一条细竖线：右边是还没到的时间，不是漏录
         if (date == LocalDate.now()) {
             val now = java.time.LocalTime.now()
-            Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(now.hour + now.minute / 60f), 0f)).size(width = 1.5.dp, height = 36.dp)
+            Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(now.hour + now.minute / 60f), 0f)).size(width = 1.5.dp, height = 44.dp)
                 .background(c.accent.copy(alpha = 0.6f)))
         }
         }
@@ -261,8 +277,8 @@ private fun FoldButton(collapsed: Boolean) {
     val c = Rs.colors
     val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) 0f else 180f,
         androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "fold")
-    Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
-        androidx.compose.foundation.Canvas(Modifier.size(12.dp).graphicsLayer { rotationZ = turn }) {
+    Box(Modifier.size(24.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.size(10.dp).graphicsLayer { rotationZ = turn }) {
             val w = size.width; val h = size.height
             val path = androidx.compose.ui.graphics.Path().apply { moveTo(w * 0.15f, h * 0.35f); lineTo(w * 0.5f, h * 0.7f); lineTo(w * 0.85f, h * 0.35f) }
             drawPath(path, c.accent, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round,

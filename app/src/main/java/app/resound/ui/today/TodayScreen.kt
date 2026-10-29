@@ -163,7 +163,8 @@ fun TodayScreen(
     val list = events.orEmpty()
     // 筛选：全部 / 重点 / 有待办 / 会议 / 媒体 / 提到的人；换一天回到全部。筛选时技能卡不显示
     var filter by remember(date) { mutableStateOf<TimelineFilter>(TimelineFilter.All) }
-    val filterOptions = remember(list) { timelineFilters(list) }
+    val filterOptions = remember(list, filter) { timelineFilters(list, filter) }
+    var peopleOpen by remember { mutableStateOf(false) }
     LaunchedEffect(filterOptions) { if (filterOptions.none { it.first == filter }) filter = TimelineFilter.All }
     val shownEvents = if (filter == TimelineFilter.All) list else list.filter(filter::matches)
     // 时间线按时段分组；技能卡（会议、收工打卡等）按时间插进对应时段，只占一行提示
@@ -235,7 +236,7 @@ fun TodayScreen(
                     val gi = groups.indexOfFirst { it.first == part }
                     rhythmScope.launch { listState.animateScrollToItem(timelineIndex() + maxOf(gi, 0)) }
                 },
-                onOpen = { opened = it })
+                onOpen = { opened = it }, onPeople = { peopleOpen = true })
         }
         if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
         if (pending.isNotEmpty()) {
@@ -292,6 +293,9 @@ fun TodayScreen(
         upward = reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
     }
 
+    if (peopleOpen) PeopleSheet(list, onPick = { name ->
+        filter = TimelineFilter.Person(name); rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
+    }) { peopleOpen = false }
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
         BatchDeleteSheet(ids.size, deleteProgress, onConfirm = {

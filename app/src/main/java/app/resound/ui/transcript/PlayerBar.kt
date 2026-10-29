@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -127,8 +128,8 @@ private fun Bar() {
                 IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
             }
         } else {
-            // 展开（三行）：顶行 段数 · 回到来源 · 收起 · 关闭；三行字幕；进度条；控制行 下一段 · −15 播放 +15 · 倍速
-            Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 12.dp)) {
+            // 展开：顶行 段数 · 回到来源 · 倍速 · 收起 · 关闭；三行字幕；进度条；控制行 上一段 · −15 播放 +15 · 下一段
+            Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         Text(if (segs > 1) "第 ${segIdx + 1}/$segs 段录音" else "正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
@@ -139,6 +140,8 @@ private fun Bar() {
                                 modifier = Modifier.clip(CircleShape).springClick { goBack() }.padding(vertical = 4.dp))
                         }
                     }
+                    SpeedChip()
+                    Spacer(Modifier.width(6.dp))
                     IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
                     Spacer(Modifier.width(6.dp))
                     IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
@@ -158,26 +161,35 @@ private fun Bar() {
                     Text(mmss((frac * total).toLong()), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
                     Text(mmss(total), style = RsType.caption, color = c.textTertiary)
                 }
-                Box(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-                    // 左：下一段（图标 + 文字）；只有一段录音时不显示
-                    if (segs > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
-                        Row(Modifier.align(Alignment.CenterStart).height(32.dp).clip(CircleShape).background(c.accentSoft)
-                            .springClick { LinePlayer.skipSegment() }.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            NextIcon(c.accent)
-                            Spacer(Modifier.width(5.dp))
-                            Text("下一段", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
-                        }
+                Box(Modifier.fillMaxWidth()) {
+                    // 左右两端：上一段 / 下一段；只有一段录音时不显示，到头的那个变灰
+                    if (segs > 1) {
+                        SegmentPill("上一段", back = true, enabled = LinePlayer.segmentIndex > 0, Modifier.align(Alignment.CenterStart)) { LinePlayer.previousSegment() }
+                        SegmentPill("下一段", back = false, enabled = LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex, Modifier.align(Alignment.CenterEnd)) { LinePlayer.skipSegment() }
+                    }
                     Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
                         SkipCircle(back = true) { LinePlayer.skipBy(-15_000) }
-                        Spacer(Modifier.width(14.dp))
-                        PlayButton(50.dp)
-                        Spacer(Modifier.width(14.dp))
+                        Spacer(Modifier.width(12.dp))
+                        PlayButton(46.dp)
+                        Spacer(Modifier.width(12.dp))
                         SkipCircle(back = false) { LinePlayer.skipBy(15_000) }
                     }
-                    Box(Modifier.align(Alignment.CenterEnd)) { SpeedChip() }
                 }
             }
         }
+    }
+}
+
+/** 上一段/下一段胶囊：图标在外侧（上一段图标在左、下一段图标在右） */
+@Composable
+private fun SegmentPill(label: String, back: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = Rs.colors
+    val tint = if (enabled) c.accent else c.textTertiary.copy(alpha = 0.6f)
+    Row(modifier.height(30.dp).clip(CircleShape).background(if (enabled) c.accentSoft else c.background)
+        .then(if (enabled) Modifier.springClick(onClick) else Modifier).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (back) { NextIcon(tint, Modifier.graphicsLayer { scaleX = -1f }); Spacer(Modifier.width(4.dp)) }
+        Text(label, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = tint)
+        if (!back) { Spacer(Modifier.width(4.dp)); NextIcon(tint) }
     }
 }
 

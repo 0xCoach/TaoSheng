@@ -67,7 +67,7 @@ internal fun IconCircle(bg: Color, onClick: () -> Unit, icon: @Composable () -> 
 
 /** 下一段：三角 + 竖条 */
 @Composable
-internal fun NextIcon(color: Color) = androidx.compose.foundation.Canvas(Modifier.size(12.dp)) {
+internal fun NextIcon(color: Color, modifier: Modifier = Modifier) = androidx.compose.foundation.Canvas(modifier.size(12.dp)) {
     val w = size.width; val h = size.height
     val path = androidx.compose.ui.graphics.Path().apply { moveTo(0f, h * 0.1f); lineTo(w * 0.7f, h / 2); lineTo(0f, h * 0.9f); close() }
     drawPath(path, color)

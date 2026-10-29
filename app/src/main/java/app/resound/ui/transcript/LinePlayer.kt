@@ -168,6 +168,14 @@ object LinePlayer {
     /** 播放条上的“下一段” */
     fun skipSegment() { scope.launch { nextSegment() } }
 
+    /** 回到上一段录音的开头；已经是第一段就不动 */
+    fun previousSegment() {
+        val t = timeline ?: return
+        val prev = segmentOrder.getOrNull(segmentIndex - 1) ?: return
+        val span = t.spans.firstOrNull { it.segmentId == prev } ?: return
+        seekFraction(t.elapsed(prev, span.from).toFloat() / t.total)
+    }
+
     private suspend fun nextSegment() {
         val next = queue.dropWhile { it.segmentId == segmentId }.firstOrNull()
         if (next == null) { stop(); return }

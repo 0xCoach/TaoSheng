@@ -23,7 +23,7 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
             try {return call(audio,LocalBackend.Npu).also{if(checked!=true)settings.recordNpuCheck(key,true);settings.setLocalStatus("正在使用：NPU 识别")}}
             catch(e:CancellationException){throw e}
             catch(e:Exception){
-                if(e is AsrException && e.type==AsrError.Speakers)throw e
+                if(e is AsrException && e.type in setOf(AsrError.Speakers, AsrError.Audio))throw e
                 // 通过过的偶发失败只回退这一次，不记成“不可用”
                 if(checked!=true)settings.recordNpuCheck(key,false)
                 fallback="NPU 识别暂时不可用，已自动改用 CPU"

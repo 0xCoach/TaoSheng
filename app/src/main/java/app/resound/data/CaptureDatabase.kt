@@ -68,7 +68,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 19
+        const val VERSION = 20
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -227,8 +227,16 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE memory_items ADD COLUMN strongReminder INTEGER NOT NULL DEFAULT 0")
             }
         }
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE memory_events ADD COLUMN editedAt INTEGER")
+                db.execSQL("ALTER TABLE memory_events ADD COLUMN originalTitle TEXT")
+                db.execSQL("ALTER TABLE memory_events ADD COLUMN originalSummary TEXT")
+                db.execSQL("ALTER TABLE memory_events ADD COLUMN originalPointsJson TEXT")
+            }
+        }
         /** 全部迁移，按版本顺序。新增版本只在这里加一条；App 和迁移测试都用它，不再各写一份清单 */
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).build()

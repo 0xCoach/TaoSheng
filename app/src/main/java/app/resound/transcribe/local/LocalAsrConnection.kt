@@ -41,7 +41,11 @@ internal class LocalAsrConnection(private val context:Context) {
                 }.onFailure{request.result.completeExceptionally(AsrException(AsrError.Protocol))}
                 request.started.complete(Unit)
             }
-            4->{request.started.complete(Unit);request.result.completeExceptionally(AsrException(if(data.getString("phase")=="speakers")AsrError.Speakers else AsrError.LocalEngine))}
+            4->{
+                PipelineTimes.record(context, "${System.currentTimeMillis()} ${LocalAsrFailure.diagnostic(data)}")
+                request.started.complete(Unit)
+                request.result.completeExceptionally(LocalAsrFailure.exception(data))
+            }
         }
         true
     })

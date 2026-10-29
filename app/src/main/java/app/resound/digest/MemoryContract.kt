@@ -182,6 +182,9 @@ interface MemoryRepository {
     /** 卡 062：恢复成整理时的原样，清掉 editedAt */
     fun restoreEvent(eventId: Long) {}
 
+    /** 按 id 取一件事的当前内容（含编辑后的）；已删除或不存在为 null。问问的旧引用用它显示最新标题、打开详情 */
+    suspend fun eventById(eventId: Long): MemoryEvent? = null
+
     // ---- 卡 046：待办改造 ----
 
     /** “进行中”：Accepted 的待办、约定、备忘（替代 inProgress + appointments）。界面把有 dueAt 的按时间排在上面，其余按 sortOrder */

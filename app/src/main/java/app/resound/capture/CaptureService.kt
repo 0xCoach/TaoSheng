@@ -170,7 +170,14 @@ class CaptureService : Service() {
     }
     private suspend fun reconcilePause() {
         val plan = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh())
-        if (plan == null) resumeCapture() else pauseUntil(plan.until, plan.quietName)
+        if (plan != null) pauseUntil(plan.until, plan.quietName)
+        else if (playbackHeld) {
+            capture?.cancelAndJoin(); capture = null
+            releaseWakeLock()
+            // 临时让麦仍属于服务正常运行：不记手动暂停、MicBusy 或漏录。
+            transition(CaptureState.Listening)
+            refreshNotification(false)
+        } else resumeCapture()
     }
     private suspend fun pauseUntil(until: Long, quietName: String? = null) {
         val old = controller.status.value
@@ -193,6 +200,7 @@ class CaptureService : Service() {
         refreshNotification(true)
     }
     private suspend fun resumeCapture() {
+        if (playbackHeld) return
         val wasPaused = state == CaptureState.Paused || store.prefs.getLong("pausedUntil", 0) > 0
         resumeTimer?.cancel(); resumeTimer = null; cancelAlarm()
         store.prefs.edit().putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
@@ -339,6 +347,11 @@ class CaptureService : Service() {
     }
     override fun onBind(intent: Intent?): IBinder? = null
     companion object {
+        @Volatile private var playbackHeld = false
+        internal fun playbackHold(held: Boolean) {
+            playbackHeld = held
+            recheck()
+        }
         private const val DISCARD_CURRENT = "app.resound.capture.DISCARD_CURRENT"
         @Volatile private var instance: CaptureService? = null
         /** 进程内动作，未运行时直接返回，不启动服务。 */

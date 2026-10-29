@@ -25,6 +25,11 @@ data class SegmentWithLines(@Embedded val segment: SegmentEntity,
 
 @Dao
 abstract class TranscribeDao {
+    @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
+    @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e
+        WHERE e.starred = 1 AND e.deleted = 0 AND s.startAt < e.endAt AND s.endAt > e.startAt)""")
+    abstract suspend fun starredAudio(): List<Long>
+
     @Query("SELECT EXISTS(SELECT 1 FROM segments WHERE path IN (:ogg, :m4a))")
     abstract suspend fun hasImportPath(ogg: String, m4a: String): Boolean
     @Query("SELECT * FROM segments WHERE sourceId = 'import' AND status != 'Running'")

@@ -7,6 +7,7 @@ import app.resound.transcribe.TranscriptLine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -26,6 +27,7 @@ class RoomMemoryRepository(
     private val runNowAction: () -> Unit,
     private val scope: CoroutineScope,
     private val reminderSettings: AndroidAppointmentSettings? = null,
+    private val eventChanged: () -> Unit = {},
 ) : MemoryRepository {
 
     override fun events(date: LocalDate): Flow<List<MemoryEvent>> {
@@ -58,6 +60,20 @@ class RoomMemoryRepository(
             val repeats = counts.associate { it.id to it.repeats }
             events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
         }.flowOn(Dispatchers.IO)
+
+    override suspend fun eventById(eventId: Long): MemoryEvent? {
+        val row = dao.event(eventId)?.takeIf { !it.deleted } ?: return null
+        val day = java.time.Instant.ofEpochMilli(row.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        return events(day).first().firstOrNull { it.id == eventId }
+    }
+
+    override fun editEvent(eventId: Long, title: String, summary: String, points: List<String>) {
+        val json = JSONArray(points.toList()).toString()
+        scope.launch { dao.editEvent(eventId, title, summary, json, System.currentTimeMillis()); eventChanged() }
+    }
+    override fun restoreEvent(eventId: Long) {
+        scope.launch { dao.restoreEvent(eventId); eventChanged() }
+    }
 
     override fun setStarred(eventId: Long, starred: Boolean) { scope.launch { dao.setStarred(eventId, starred) } }
 
@@ -145,7 +161,9 @@ class RoomMemoryRepository(
 
     private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryEvent(
         id, startAt, endAt, scene, title, summary, pointsJson.strings(), peopleJson.strings(), place, emotion, intensity, important,
-        items.map { it.toModel(repeats[it.id] ?: 1, lines) }, starred, starredAt,
+        items.map { it.toModel(repeats[it.id] ?: 1, lines) }, starred, starredAt, editedAt,
+        if (originalTitle != null && originalSummary != null && originalPointsJson != null)
+            EventOriginal(originalTitle, originalSummary, originalPointsJson.strings()) else null,
     )
 
     private fun MemoryItemEntity.toModel(repeats: Int = 1, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryItem(

@@ -413,15 +413,14 @@ class LocalVoiceprintRepository(
         }
     }
 
-    suspend fun cleanupAudio() = gate.withLock {
-        val timestamp = now()
-        val waitForVoiceprint = isReady()
-        app.resound.transcribe.cleanupImportedAudio(db.transcribe(), timestamp, waitForVoiceprint = true, reading = reading.keys)
-        for (segment in db.transcribe().expired(timestamp - TranscribePolicy.RETENTION_MILLIS)) {
-            if (segment.id in reading) continue
-            if (waitForVoiceprint && segment.status == "Done" && segment.voiceprintProcessedAt == null) continue
-            if (TranscribePolicy.canDelete(segment.status, segment.completedAt, timestamp)) File(segment.path).delete()
+    internal var cleanupOriginalAudio: (suspend () -> Unit)? = null
+    internal suspend fun <T> withAudioCleanup(block: suspend (Set<Long>) -> T): T = gate.withLock { block(reading.keys.toSet()) }
+
+    suspend fun cleanupAudio() {
+        gate.withLock {
+            app.resound.transcribe.cleanupImportedAudio(db.transcribe(), now(), waitForVoiceprint = true, reading = reading.keys)
         }
+        cleanupOriginalAudio?.invoke()
     }
 
 }

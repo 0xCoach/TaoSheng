@@ -225,6 +225,13 @@ private fun Progress(text: String) {
 @Composable
 private fun SourceRow(n: Int, s: AskSource, open: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
+    // 引用的事件按 id 取当前内容：编辑过就显示新标题并标“已编辑”，点开详情看到的也是新的；回答正文是当时写的，不改
+    val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
+    val current by androidx.compose.runtime.produceState<app.resound.digest.MemoryEvent?>(null, s.id, s.kind) {
+        value = if (s.kind == "event") memory?.let { runCatching { it.eventById(s.id) }.getOrNull() } else null
+    }
+    var detail by remember { mutableStateOf(false) }
+    if (detail && memory != null) current?.let { e -> app.resound.ui.today.EventSheet(e, memory) { detail = false } }
     Column(Modifier.fillMaxWidth().springClick(onClick).padding(vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(18.dp).clip(CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
@@ -234,12 +241,20 @@ private fun SourceRow(n: Int, s: AskSource, open: Boolean, onClick: () -> Unit) 
             Text(sourceTime(s.at), style = RsType.caption, color = c.textTertiary)
             Spacer(Modifier.width(6.dp))
             // 原话类出处的 title 只是说话人（名字或临时编号），后面接一截原话才看得出是哪句
-            val title = if (s.kind == "line") "${lineSpeaker(s.title)}：${s.quote}" else s.title
-            Text(title, style = RsType.subhead, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            val title = if (s.kind == "line") "${lineSpeaker(s.title)}：${s.quote}" else current?.title ?: s.title
+            Text(title, style = RsType.subhead, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            if (current?.editedAt != null) {
+                Spacer(Modifier.width(6.dp))
+                Text("已编辑", style = RsType.caption, color = c.textTertiary)
+            }
         }
         AnimatedVisibility(open) {
-            Text("“${s.quote}”", style = RsType.subhead, color = c.text,
-                modifier = Modifier.padding(start = 26.dp, top = 6.dp).clip(RoundedCornerShape(12.dp)).background(c.background).padding(10.dp))
+            Column(Modifier.padding(start = 26.dp, top = 6.dp)) {
+                Text("“${s.quote}”", style = RsType.subhead, color = c.text,
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(c.background).padding(10.dp))
+                if (current != null) Text("查看这件事 ›", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                    modifier = Modifier.padding(top = 6.dp).springClick { detail = true })
+            }
         }
     }
 }

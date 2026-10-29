@@ -75,6 +75,11 @@ class ResoundApp : Application() {
         voiceprintRepository = LocalVoiceprintRepository(database, scope, AsrAudioReader(cacheDir)::readPcm,
             { CampPlusEmbedding(this) }, voiceprintRerun::request)
         AppGraph.voiceprint = voiceprintRepository
+        val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
+            guard = { block -> voiceprintRepository.withAudioCleanup(block) },
+            playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
+        AppGraph.originalAudio = originalAudio
+        voiceprintRepository.cleanupOriginalAudio = originalAudio::cleanup
         AppGraph.privacy = app.resound.privacy.RoomPrivacyActions(database,
             discardRecording = CaptureService::discardCurrent,
             recentFiles = { from, until, block -> segmentFiles.withRecentDeletion(from, until, block) },
@@ -115,7 +120,7 @@ class ResoundApp : Application() {
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
-        }, scope, appointmentSettings)
+        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) })
         AppGraph.digestSettings = digestSettings
         AppGraph.digestTiming = digestSettings.timing
         scheduler.digestTiming = digestSettings.timing

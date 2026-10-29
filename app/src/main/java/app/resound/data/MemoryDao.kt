@@ -24,6 +24,10 @@ data class MemoryEventEntity(
     val model: String,
     @ColumnInfo(defaultValue = "0") val starred: Boolean = false,
     val starredAt: Long? = null,
+    val editedAt: Long? = null,
+    val originalTitle: String? = null,
+    val originalSummary: String? = null,
+    val originalPointsJson: String? = null,
 )
 
 /** 提取项：待办、约定、备忘、灵感、关键信息、决定、知识。 */
@@ -71,6 +75,24 @@ data class LlmUsageV2Entity(val day: String, val purpose: String, val promptToke
 
 @Dao
 abstract class MemoryDao {
+    @Query("SELECT * FROM memory_events WHERE id = :id AND deleted = 0")
+    abstract suspend fun event(id: Long): MemoryEventEntity?
+
+    @Query("""UPDATE memory_events SET
+        originalTitle = CASE WHEN editedAt IS NULL THEN title ELSE originalTitle END,
+        originalSummary = CASE WHEN editedAt IS NULL THEN summary ELSE originalSummary END,
+        originalPointsJson = CASE WHEN editedAt IS NULL THEN pointsJson ELSE originalPointsJson END,
+        title = :title, summary = :summary, pointsJson = :points, editedAt = :at
+        WHERE id = :id AND deleted = 0""")
+    abstract suspend fun editEvent(id: Long, title: String, summary: String, points: String, at: Long)
+
+    @Query("""UPDATE memory_events SET title = originalTitle, summary = originalSummary,
+        pointsJson = originalPointsJson, editedAt = NULL, originalTitle = NULL,
+        originalSummary = NULL, originalPointsJson = NULL
+        WHERE id = :id AND deleted = 0 AND editedAt IS NOT NULL
+        AND originalTitle IS NOT NULL AND originalSummary IS NOT NULL AND originalPointsJson IS NOT NULL""")
+    abstract suspend fun restoreEvent(id: Long)
+
     // ---------- 整理 ----------
     /** 已转写、还没整理过的句子（按时间） */
     @Query(

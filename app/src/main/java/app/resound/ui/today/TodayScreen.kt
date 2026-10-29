@@ -1278,7 +1278,7 @@ object UndoBar {
 }
 
 /**
- * 可滑动的一行。左滑：过 72dp 是第一段（橙色，松手做 [leftLabel]）；有 [second] 时再滑过半行是第二段（绿色，松手做第二个动作），
+ * 可滑动的一行。左滑：过 36dp 是第一段（橙色，松手做 [leftLabel]）；有 [second] 时再滑过四分之一行是第二段（绿色，松手做第二个动作），
  * 每跨一段震一下（第二段震得重），往回拉退回上一段，拉回线内松手什么都不做。
  * 右滑删除要滑两次：第一次过线行变红、提示“再右滑一次删除”，3 秒内再右滑才删。
  * 自己处理拖动（系统 SwipeToDismissBox 在“触发后弹回”时隔一次才生效）。
@@ -1294,6 +1294,8 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
     val delete by androidx.compose.runtime.rememberUpdatedState(onDelete)
     val secondNow by androidx.compose.runtime.rememberUpdatedState(second)
     val threshold = with(density) { 72.dp.toPx() }
+    // 左滑两段都只要一半距离：36dp 标重点、四分之一行存待办（右滑删除仍是 72dp）
+    val leftThreshold = with(density) { 36.dp.toPx() }
     val offset = remember { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
     /** 0 = 没过线；1 = 第一段；2 = 第二段（只有左滑有） */
@@ -1340,8 +1342,9 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
                         val next = (offset.value + drag).coerceIn(-size.width * 0.75f, size.width * 0.6f)
                         scope.launch { offset.snapTo(next) }
                         val now = when {
-                            next < 0f && secondNow != null && -next >= size.width * 0.5f -> 2
-                            kotlin.math.abs(next) >= threshold -> 1
+                            next < 0f && secondNow != null && -next >= size.width * 0.25f -> 2
+                            next < 0f && -next >= leftThreshold -> 1
+                            next > 0f && next >= threshold -> 1
                             else -> 0
                         }
                         if (now != stage) {

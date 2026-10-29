@@ -1236,54 +1236,89 @@ private fun SheetSection(title: String) {
     Spacer(Modifier.height(10.dp))
 }
 
-/** 时间线上的一件事：左滑露出“重点 / 存待办”两个按钮；右滑两次删除（见 [SwipeRow]） */
+/** 时间线上的一件事：左滑一段标重点、再滑一段存待办；右滑两次删除（见 [SwipeRow]） */
 @Composable
 internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
     var saving by remember { mutableStateOf(false) }
-    SwipeRow(event.id, if (event.starred) "取消重点" else "★ 重点", onStar, onDelete,
-        second = if (app.resound.AppGraph.isManualTodosReady) "存待办" to { saving = true } else null) { content(null) }
+    val star by androidx.compose.runtime.rememberUpdatedState(onStar)
+    SwipeRow(event.id, if (event.starred) "取消重点" else "★ 标重点", {
+        val wasStarred = event.starred
+        star()
+        // 标重点没有确认步骤，给 3 秒撤销
+        UndoBar.show(if (wasStarred) "已取消重点" else "已标重点") { star() }
+    }, onDelete, second = if (app.resound.AppGraph.isManualTodosReady) "存待办" to { saving = true } else null) { content(null) }
     if (saving) app.resound.ui.items.SaveEventAsTodo(event) { saving = false }
 }
 
+/** 底部浮一条“已标重点 · 撤销”，3 秒后消失（AppShell 里显示） */
+object UndoBar {
+    var current by mutableStateOf<Pair<String, () -> Unit>?>(null)
+        private set
+    private var serial = 0
+    fun show(text: String, undo: () -> Unit) { current = text to undo; serial++ }
+    @Composable
+    fun Host(bottomPadding: Dp) {
+        val c = Rs.colors
+        val item = current
+        androidx.compose.runtime.LaunchedEffect(item, serial) { if (item != null) { kotlinx.coroutines.delay(3000); current = null } }
+        Box(Modifier.fillMaxSize().padding(bottom = bottomPadding + 20.dp), contentAlignment = Alignment.BottomCenter) {
+            androidx.compose.animation.AnimatedVisibility(item != null, enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
+                exit = androidx.compose.animation.fadeOut()) {
+                val shown = item ?: return@AnimatedVisibility
+                Row(Modifier.clip(CircleShape).background(c.text.copy(alpha = 0.88f)).padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(shown.first, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.background)
+                    Spacer(Modifier.width(10.dp))
+                    Text("撤销", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                        modifier = Modifier.clip(CircleShape).springClick { shown.second(); current = null }.padding(horizontal = 12.dp, vertical = 6.dp))
+                }
+            }
+        }
+    }
+}
+
 /**
- * 可滑动的一行：左滑做 [leftLabel] 那件事；右滑删除要滑两次：第一次过线行变红、提示“再右滑一次删除”，3 秒内再右滑才删。
- * 拖过 72dp 就算过线，过线那一刻轻震。自己处理拖动（系统 SwipeToDismissBox 在“触发后弹回”时隔一次才生效）。
+ * 可滑动的一行。左滑：过 72dp 是第一段（橙色，松手做 [leftLabel]）；有 [second] 时再滑过半行是第二段（绿色，松手做第二个动作），
+ * 每跨一段震一下（第二段震得重），往回拉退回上一段，拉回线内松手什么都不做。
+ * 右滑删除要滑两次：第一次过线行变红、提示“再右滑一次删除”，3 秒内再右滑才删。
+ * 自己处理拖动（系统 SwipeToDismissBox 在“触发后弹回”时隔一次才生效）。
  */
 @Composable
 internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete: () -> Unit,
-                      /** 有第二个动作时：左滑停在半开，露出 [左动作][第二个] 两个按钮，点了才做 */
                       second: Pair<String, () -> Unit>? = null, content: @Composable () -> Unit) {
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val view = androidx.compose.ui.platform.LocalView.current
     val density = androidx.compose.ui.platform.LocalDensity.current
     val left by androidx.compose.runtime.rememberUpdatedState(onLeft)
     val delete by androidx.compose.runtime.rememberUpdatedState(onDelete)
+    val secondNow by androidx.compose.runtime.rememberUpdatedState(second)
     val threshold = with(density) { 72.dp.toPx() }
     val offset = remember { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
-    var armed by remember { mutableStateOf(false) }
+    /** 0 = 没过线；1 = 第一段；2 = 第二段（只有左滑有） */
+    var stage by remember { mutableIntStateOf(0) }
     // 第一次右滑过线后进入“待删除”，3 秒内再右滑一次才删
     var deleteArmed by remember(key) { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
     Box(Modifier.fillMaxWidth()) {
         val dx = offset.value
-        val openPx = with(density) { 176.dp.toPx() }
-        if (second != null && dx < 0f) Row(Modifier.matchParentSize().padding(start = 16.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            // 两个按钮从右边露出来；点了做事并收起
-            Box(Modifier.width(88.dp).fillMaxHeight().background(c.accent.copy(alpha = 0.75f)).springClick {
-                scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.8f)) }; left()
-            }, contentAlignment = Alignment.Center) { Text(leftLabel, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White) }
-            Box(Modifier.width(88.dp).fillMaxHeight().background(c.accent).springClick {
-                scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.8f)) }; second.second()
-            }, contentAlignment = Alignment.Center) { Text(second.first, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White) }
-        } else if (dx != 0f) Box(
-            Modifier.matchParentSize()
-                .background(if (dx < 0f) (if (armed) c.accent else c.accent.copy(alpha = 0.55f)) else (if (armed) c.critical else c.critical.copy(alpha = 0.55f)))
-                .padding(horizontal = 24.dp),
+        val bg by androidx.compose.animation.animateColorAsState(when {
+            dx > 0f -> if (stage > 0) c.critical else c.critical.copy(alpha = 0.55f)
+            stage == 2 -> c.good
+            stage == 1 -> c.accent
+            else -> c.accent.copy(alpha = 0.55f)
+        }, androidx.compose.animation.core.tween(120), label = "swipeBg")
+        if (dx != 0f) Box(
+            Modifier.matchParentSize().background(bg).padding(horizontal = 24.dp),
             contentAlignment = if (dx < 0f) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
-            val label = if (dx < 0f) leftLabel else if (deleteArmed) "删除" else "标记删除"
-            Text(if (armed) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+            val label = when {
+                dx > 0f -> if (deleteArmed) "删除" else "标记删除"
+                stage == 2 -> second?.first ?: leftLabel
+                else -> leftLabel
+            }
+            Text(if (stage > 0) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
         }
         Box(
             Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.roundToInt(), 0) }
@@ -1291,31 +1326,34 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
-                            val fire = armed
+                            val fired = stage
                             val dir = offset.value
-                            armed = false
-                            // 有两个按钮时左滑过线就停在半开，等点按钮
-                            if (second != null && dir < 0f && fire) scope.launch { offset.animateTo(-openPx, spring(dampingRatio = 0.8f)) }
-                            else scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.7f)) }
-                            if (fire && dir < 0f && second == null) left()
-                            if (fire && dir > 0f) { if (deleteArmed) { deleteArmed = false; delete() } else deleteArmed = true }
+                            stage = 0
+                            scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.7f)) }
+                            if (dir < 0f && fired == 2) secondNow?.second?.invoke()
+                            else if (dir < 0f && fired >= 1) left()
+                            if (fired > 0 && dir > 0f) { if (deleteArmed) { deleteArmed = false; delete() } else deleteArmed = true }
                         },
-                        onDragCancel = { armed = false; scope.launch { offset.animateTo(0f) } },
+                        onDragCancel = { stage = 0; scope.launch { offset.animateTo(0f) } },
                     ) { change, drag ->
                         change.consume()
-                        val next = (offset.value + drag).coerceIn(-size.width * 0.6f, size.width * 0.6f)
+                        val next = (offset.value + drag).coerceIn(-size.width * 0.75f, size.width * 0.6f)
                         scope.launch { offset.snapTo(next) }
-                        val now = kotlin.math.abs(next) >= threshold
-                        if (now && !armed) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                        armed = now
+                        val now = when {
+                            next < 0f && secondNow != null && -next >= size.width * 0.5f -> 2
+                            kotlin.math.abs(next) >= threshold -> 1
+                            else -> 0
+                        }
+                        if (now != stage) {
+                            // 跨进第一段轻震、第二段重震；退回时也轻震一下
+                            if (now == 2) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            else if (now == 1 || stage > 0) view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                            stage = now
+                        }
                     }
                 },
         ) {
             content()
-            // 半开时点卡片任意处先收起，不误开详情
-            if (second != null && offset.value < -1f) Box(Modifier.matchParentSize().pointerInput(Unit) {
-                detectTapGestures { scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.8f)) } }
-            })
             if (deleteArmed) Text("再右滑一次删除", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.critical,
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 16.dp))
         }

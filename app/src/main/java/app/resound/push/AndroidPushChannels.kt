@@ -41,6 +41,13 @@ class AndroidPushChannels internal constructor(
         { RecordPushScheduler(context).cancel(it) },
     )
 
+    internal var audioPush: app.resound.recordings.RecordingAudioPush? = null
+    override fun audioStatus(id: Long): Flow<AudioPushStatus> = audioPush?.status(id)
+        ?: flowOf(AudioPushStatus(0, 0, 0, null, null, null))
+    internal fun resolveAudio(id: Long) = resolve(id)
+    internal fun recordAudio(channel: PushChannel, count: Int) {
+        record(channel, PushMessage("上传录音 $count 段", "", null, null, System.currentTimeMillis()), Result.success(Unit), emptyList())
+    }
     internal var phoneReminders: PhoneReminders? = null
     internal var memoryDocument: suspend (java.time.LocalDate?, Boolean, Boolean) -> PushMessage? = { _, _, _ -> null }
 
@@ -62,7 +69,7 @@ class AndroidPushChannels internal constructor(
             PushCapabilities(records = false, incremental = false, folder = false, formats = setOf(PushFormat.Text, PushFormat.Markdown))
         PushKind.Telegram, PushKind.Email -> PushCapabilities(records = true, incremental = false, folder = false, formats = setOf(PushFormat.Text, PushFormat.Markdown))
         PushKind.Notion -> PushCapabilities(records = true, incremental = true, folder = false, formats = setOf(PushFormat.Markdown))
-        PushKind.MarkdownFolder -> PushCapabilities(records = true, incremental = true, folder = true, formats = setOf(PushFormat.Markdown))
+        PushKind.MarkdownFolder -> PushCapabilities(records = true, incremental = true, folder = true, formats = setOf(PushFormat.Markdown), audio = true)
         PushKind.Webhook -> PushCapabilities(records = true, incremental = true, folder = false, formats = PushFormat.entries.toSet())
     }
     override val linkedNutstoreAccount: Flow<String?> get() = linkedAccount
@@ -349,7 +356,7 @@ class AndroidPushChannels internal constructor(
         repeat(minOf(logs.length(), 99)) { ring.put(logs.getJSONObject(it)) }
         check(prefs.edit().putString("logs", ring.toString()).commit())
         mutableLogs.value = readLogs()
-        if (!message.title.startsWith("同步文件夹 · ") && !message.title.startsWith("推送订阅 · ")) subscriptions.messageResult(channel.id, result.map { PushTrace.current()?.success(message.title) ?: message.title })
+        if (!message.title.startsWith("上传录音 ") && !message.title.startsWith("同步文件夹 · ") && !message.title.startsWith("推送订阅 · ")) subscriptions.messageResult(channel.id, result.map { PushTrace.current()?.success(message.title) ?: message.title })
     }
 
     private fun sensitiveValues(values: Map<String, String>): Collection<String> = values.values +

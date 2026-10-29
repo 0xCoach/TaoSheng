@@ -189,6 +189,7 @@ class ResoundApp : Application() {
         app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
+        app.resound.recordings.attachRecordingArchive(this, database, pushChannels, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         ImportAudioCleanupWork.schedule(this)
         if (store.prefs.getBoolean("enabled", false)) CaptureWatchdog.schedule(this)

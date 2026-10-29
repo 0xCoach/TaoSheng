@@ -91,6 +91,9 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
             // 底栏单独一块：只在选中页变化时重画，切页时页面重建不会牵连它
             TabBar(labels, tab, { tab = it }, haze, Modifier.align(Alignment.BottomCenter))
         }
+        // 听原声的迷你播放条（浮在底栏上方）；切到后台就停，收音同时恢复
+        app.resound.ui.transcript.PlayerBar(ShellBottomPadding + 8.dp)
+        androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { app.resound.ui.transcript.LinePlayer.stop() }
     }
 }
 

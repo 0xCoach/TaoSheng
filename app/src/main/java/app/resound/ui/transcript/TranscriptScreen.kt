@@ -70,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -139,6 +140,7 @@ fun TranscriptScreen(
         // 收起时不占位置（用列表自带的出现/消失动画）
         if (settingsOpen || !hasKey) item(key = "settings") { SettingsCard(settings, onSaved = { settingsOpen = false }) }
         if (app.resound.AppGraph.isUsageReady) item(key = "asrUsage") { app.resound.ui.settings.AsrUsageCard(app.resound.AppGraph.usage) }
+        if (app.resound.AppGraph.isOriginalAudioReady) item(key = "originalAudio") { OriginalAudioCard(app.resound.AppGraph.originalAudio) }
         item {
             val list = segments.orEmpty()
             Section("录音原话", trailing = {
@@ -647,6 +649,21 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     val multi = lines.mapNotNull { it.speakerKey() }.distinct().size > 1
     var menuFor by remember { mutableStateOf<Long?>(null) }
     var assignFor by remember { mutableStateOf<Long?>(null) }
+    var hotwordFrom by remember { mutableStateOf<String?>(null) }
+    // 哪些录音段还有原声：有的在时间旁显示 ▶，点句子就从这句播起
+    val playable by androidx.compose.runtime.produceState(emptySet<Long>(), lines) {
+        value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching {
+            app.resound.AppGraph.originalAudio.available(lines.map { it.segmentId }.filter { it > 0 }.toSet())
+        }.getOrDefault(emptySet()) else emptySet()
+    }
+    fun tap(line: TranscriptLine) {
+        when {
+            LinePlayer.currentLineId == line.id -> LinePlayer.toggle()
+            line.segmentId in playable -> LinePlayer.play(context, lines, lines.indexOf(line))
+            line.segmentId > 0 -> Toast.makeText(context, "这段录音已过保留期，只剩文字", Toast.LENGTH_SHORT).show()
+        }
+    }
+    hotwordFrom?.let { text -> AddHotwordSheet(text) { hotwordFrom = null } }
     androidx.compose.foundation.text.selection.DisableSelection {
         assignFor?.let { id -> voiceprint?.let { app.resound.ui.voiceprint.AssignPersonDialog(it, id) { assignFor = null } } }
     }
@@ -678,6 +695,10 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text(lineTime(first.startAt), style = RsType.caption, color = c.textTertiary)
+                            if (first.segmentId in playable) {
+                                Spacer(Modifier.width(6.dp))
+                                Text("▶", style = RsType.caption, color = c.accent)
+                            }
                             first.voiceInput?.let { v ->
                                 Spacer(Modifier.width(6.dp))
                                 Text("⌨ 语音输入 · ${v.app}" + (v.title?.let { " · $it" } ?: ""), style = RsType.caption.copy(fontWeight = FontWeight.Medium),
@@ -685,10 +706,16 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             }
                         }
                         group.forEach { line ->
-                            Text(line.text, style = RsType.body, color = c.text, modifier = Modifier.fillMaxWidth().combinedClickable(
+                            // 正在播的那句高亮，并滚到能看见的位置
+                            val now = LinePlayer.currentLineId == line.id
+                            val bg by androidx.compose.animation.animateColorAsState(if (now) c.accentSoft else Color.Transparent, label = "playing")
+                            val seen = remember(line.id) { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+                            androidx.compose.runtime.LaunchedEffect(now) { if (now) runCatching { seen.bringIntoView() } }
+                            Text(line.text, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
+                                .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
                                 interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
-                                onClick = {}, onLongClick = { menuFor = line.id },
-                            ).padding(vertical = 2.dp))
+                                onClick = { tap(line) }, onLongClick = { menuFor = line.id },
+                            ).padding(vertical = 2.dp, horizontal = if (now) 6.dp else 0.dp))
                             line.voiceInput?.let { VoiceInputContext(it) }
                         }
                     }
@@ -700,6 +727,13 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             clipboard.setText(androidx.compose.ui.text.AnnotatedString(selected.text))
                             menuFor = null
                             Toast.makeText(context, "已复制这段原话", Toast.LENGTH_SHORT).show()
+                        })
+                        if (selected.segmentId in playable) DropdownMenuItem(text = { Text("从这里播放", style = RsType.body, color = c.text) }, onClick = {
+                            LinePlayer.play(context, lines, lines.indexOf(selected)); menuFor = null
+                        })
+                        // 认错的词加进热词：以后转写认得准，整理时也会按热词纠正同音字
+                        if (app.resound.AppGraph.isHotwordsReady) DropdownMenuItem(text = { Text("加入热词", style = RsType.body, color = c.text) }, onClick = {
+                            hotwordFrom = selected.text; menuFor = null
                         })
                         // 语音输入的句子本来就是你说的，不用纠正说话人
                         if (voiceprint != null && selected.voiceInput == null) {

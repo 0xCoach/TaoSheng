@@ -885,24 +885,65 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
     val lines by remember(event.id) { memory.eventLines(event.id) }.collectAsState(initial = emptyList())
     var important by remember(event.id) { mutableStateOf(event.starred) }
     var confirmDelete by remember { mutableStateOf(false) }
+    // 编辑后就地显示新内容（打开时拿到的是快照）；恢复原样也就地切回
+    var shown by remember(event.id) { mutableStateOf(event) }
+    var editing by remember { mutableStateOf(false) }
+    var showOriginal by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    if (editing) EditEventSheet(shown, onSave = { t, s, pts ->
+        memory.editEvent(shown.id, t, s, pts)
+        shown = shown.copy(title = t, summary = s, points = pts, editedAt = System.currentTimeMillis(),
+            original = shown.original ?: app.resound.digest.EventOriginal(shown.title, shown.summary, shown.points))
+    }) { editing = false }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheet, containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
         var copied by remember { mutableStateOf(false) }
         var choosingCopy by remember { mutableStateOf(false) }
-        if (choosingCopy) CopySheet(listOf(event), memory, onDone = { copied = true }) { choosingCopy = false }
+        if (choosingCopy) CopySheet(listOf(shown), memory, onDone = { copied = true }) { choosingCopy = false }
         // 文字可长按选中复制
         SelectionContainer {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
-            Text("${relativeDate(event.startAt)} ${formatClock(event.startAt)} – ${formatClock(event.endAt)} · ${sceneLine(event)}", style = RsType.caption, color = c.textSecondary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${relativeDate(event.startAt)} ${formatClock(event.startAt)} – ${formatClock(event.endAt)} · ${sceneLine(event)}", style = RsType.caption,
+                    color = c.textSecondary, modifier = Modifier.weight(1f))
+                // 整理错了可以自己改标题、摘要、要点；原话不动
+                androidx.compose.foundation.text.selection.DisableSelection {
+                    Text("编辑", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                        modifier = Modifier.clip(CircleShape).springClick { editing = true }.padding(horizontal = 10.dp, vertical = 4.dp))
+                }
+            }
             Spacer(Modifier.height(4.dp))
-            Text(event.title, style = RsType.title, color = c.text)
+            Text(shown.title, style = RsType.title, color = c.text)
+            shown.original?.takeIf { shown.editedAt != null }?.let { orig ->
+                androidx.compose.foundation.text.selection.DisableSelection {
+                    Text(if (showOriginal) "已编辑 · 收起原样" else "已编辑 · 查看原样", style = RsType.caption, color = c.textTertiary,
+                        modifier = Modifier.padding(top = 4.dp).springClick { showOriginal = !showOriginal })
+                }
+                androidx.compose.animation.AnimatedVisibility(showOriginal) {
+                    RsCard(Modifier.padding(top = 8.dp), padding = PaddingValues(14.dp), color = c.background) {
+                        Text("整理时原来写的", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
+                        Spacer(Modifier.height(4.dp))
+                        Text(orig.title, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.textSecondary)
+                        Text(orig.summary, style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
+                        orig.points.forEach { Text("· $it", style = RsType.caption, color = c.textSecondary) }
+                        androidx.compose.foundation.text.selection.DisableSelection {
+                            Text("恢复原样", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                                modifier = Modifier.padding(top = 8.dp).springClick {
+                                    memory.restoreEvent(shown.id)
+                                    shown = shown.copy(title = orig.title, summary = orig.summary, points = orig.points, editedAt = null, original = null)
+                                    showOriginal = false
+                                })
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
-            Text(event.summary, style = RsType.body, color = c.text)
+            Text(shown.summary, style = RsType.body, color = c.text)
 
-            if (event.points.isNotEmpty()) {
+            if (shown.points.isNotEmpty()) {
                 SheetSection("要点")
-                event.points.forEach { p ->
+                shown.points.forEach { p ->
                     Row(Modifier.padding(vertical = 3.dp)) {
                         Box(Modifier.padding(top = 8.dp, end = 10.dp).size(5.dp).clip(CircleShape).background(c.accent))
                         Text(p, style = RsType.body, color = c.text)
@@ -934,7 +975,18 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                 }
             }
 
-            SheetSection("原话")
+            Spacer(Modifier.height(22.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("原话", style = RsType.section, color = c.textSecondary, modifier = Modifier.weight(1f))
+                // 从这件事的第一句一直播到最后一句
+                if (lines.isNotEmpty()) androidx.compose.foundation.text.selection.DisableSelection {
+                    Text("▶ 播放这件事", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                        modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
+                            app.resound.ui.transcript.LinePlayer.play(context, lines, 0)
+                        }.padding(horizontal = 12.dp, vertical = 6.dp))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             RsCard(padding = PaddingValues(16.dp)) {
                 if (lines.isEmpty()) Text("原话加载中…", style = RsType.subhead, color = c.textTertiary)
                 else SpeakerLines(lines)

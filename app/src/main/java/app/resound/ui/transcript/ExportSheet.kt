@@ -182,7 +182,7 @@ private fun mime(f: java.io.File) = when (f.extension.lowercase()) { "m4a" -> "a
 private fun Label2(text: String) = Text(text, style = RsType.caption, color = Rs.colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
 
 @Composable
-private fun OptionRow(title: String, sub: String, on: Boolean, onChange: (Boolean) -> Unit) {
+internal fun OptionRow(title: String, sub: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val c = Rs.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {

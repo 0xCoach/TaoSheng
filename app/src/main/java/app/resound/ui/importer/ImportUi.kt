@@ -159,9 +159,18 @@ private fun ImportSheet(importer: AudioImporter, pending: List<PendingImport>) {
                 AnimatedVisibility(editing == p.id) { StartEditor(start) { starts[p.id] = it } }
             }
         }
+        // 卡 071：这次用哪种方式转写（只对这次导入生效，不改设置）
+        val chooser = if (app.resound.AppGraph.isRedoReady) app.resound.AppGraph.redo.asr else null
+        var asr by remember { mutableStateOf(chooser?.lastChoice?.value) }
+        if (chooser != null && asr != null) {
+            Spacer(Modifier.height(4.dp))
+            Text("用哪个转写", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary)
+            app.resound.ui.redo.AsrChoice(chooser, pending.sumOf { it.info.durationMillis }, asr!!) { asr = it }
+        }
         Spacer(Modifier.height(4.dp))
         ActionButton(if (pending.size == 1) "开始导入" else "全部开始导入", ActionKind.Primary) {
-            pending.forEach { p -> importer.start(p.id, starts[p.id] ?: System.currentTimeMillis()) }
+            asr?.let { chooser?.remember(it) }
+            pending.forEach { p -> importer.start(p.id, starts[p.id] ?: System.currentTimeMillis(), asr) }
         }
     }
 }

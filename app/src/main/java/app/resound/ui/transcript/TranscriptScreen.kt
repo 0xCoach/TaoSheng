@@ -179,6 +179,7 @@ fun TranscriptScreen(
             QueueCard(repo, hasKey, realtime, local, settingsOpen || !hasKey, footer = {
                 if (app.resound.AppGraph.isUsageReady) app.resound.ui.settings.AsrUsageRow(app.resound.AppGraph.usage)
                 if (app.resound.AppGraph.isOriginalAudioReady) OriginalAudioRow(app.resound.AppGraph.originalAudio)
+                RecordingPackRow()
             }) { settingsOpen = !settingsOpen }
         }
         // 收起时不占位置（用列表自带的出现/消失动画）

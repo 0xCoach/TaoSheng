@@ -31,6 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.text.font.FontWeight
@@ -139,7 +142,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
     val prefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
     var collapsed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("rhythmCollapsed", false)) }
     RsCard(Modifier.animateContentSize(androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)),
-        padding = PaddingValues(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 12.dp)) {
+        padding = PaddingValues(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 6.dp)) {
         val toggle = { collapsed = !collapsed; prefs.edit().putBoolean("rhythmCollapsed", collapsed).apply() }
         Row(Modifier.fillMaxWidth().springClick(toggle), verticalAlignment = Alignment.CenterVertically) {
             Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
@@ -238,6 +241,17 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 }
             }
         }
+        // 按住柱子：详情用胶囊浮在柱子上方（手指在下面，不会挡住）
+        hover?.let { h ->
+            val talk = (r.speechByHour[h] + 59) / 60; val media = (r.mediaByHour[h] + 59) / 60
+            Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(h + 0.5f).coerceIn(-0.72f, 0.72f), -1f))
+                .offset(y = (-34).dp).zIndex(2f)
+                .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
+                .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
+                Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: ""),
+                    style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White, maxLines = 1)
+            }
+        }
         // 看今天时，现在的位置画一条细竖线：右边是还没到的时间，不是漏录
         if (date == LocalDate.now()) {
             val now = java.time.LocalTime.now()
@@ -251,17 +265,10 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(h.toFloat()), -1f)).size(width = 1.dp, height = 4.dp).background(c.separator))
             }
         }
-        // 平时显示 0·6·12·18·24；按住柱子时这一行换成那个小时的详情，不另占地方
-        Box(Modifier.fillMaxWidth().height(20.dp).padding(top = 1.dp)) {
-            val h = hover
-            if (h == null) listOf(0, 6, 12, 18, 24).forEach { t ->
-                Text("$t", style = RsType.caption, color = c.textTertiary, maxLines = 1,
+        Box(Modifier.fillMaxWidth().height(16.dp)) {
+            listOf(0, 6, 12, 18, 24).forEach { t ->
+                Text("$t", style = RsType.caption.copy(fontSize = 11.sp, lineHeight = 14.sp), color = c.textTertiary, maxLines = 1,
                     modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(t.toFloat()), 0f)))
-            } else {
-                val talk = (r.speechByHour[h] + 59) / 60; val media = (r.mediaByHour[h] + 59) / 60
-                Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: ""),
-                    style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent, maxLines = 1,
-                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(h + 0.5f).coerceIn(-0.7f, 0.7f), 0f)))
             }
         }
         quiet.values.firstOrNull()?.let { name ->

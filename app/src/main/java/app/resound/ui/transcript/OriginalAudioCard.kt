@@ -1,6 +1,8 @@
 package app.resound.ui.transcript
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,47 +40,60 @@ import app.resound.ui.verify.formatBytes
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.launch
 
-/** 原话与转写页的“原声”：保留几天、重点一直保留、占用多少、清除 */
+/** 状态卡里的一行：保留几天 · 重点是否长期保留 · 占用；点开在面板里改 */
 @Composable
-internal fun OriginalAudioCard(audio: OriginalAudio) {
+internal fun OriginalAudioRow(audio: OriginalAudio) {
+    val days by audio.retentionDays.collectAsState()
+    val keepStarred by audio.keepStarred.collectAsState()
+    val usage by audio.usage().collectAsState(initial = null)
+    var open by remember { mutableStateOf(false) }
+    SettingLine("原声", "保留 $days 天" + (if (keepStarred) " · 重点长期保留" else "") + (usage?.takeIf { it.bytes > 0 }?.let { " · 占用 ${formatBytes(it.bytes)}" } ?: "")) { open = true }
+    if (open) RsSheet("原声", usage?.let(::usageLine), onDismiss = { open = false }) { OriginalAudioSettings(audio) }
+}
+
+/** 一行设置：左边固定宽的灰色小标签，右边内容，最后 ›；上方一条细分隔线 */
+@Composable
+internal fun SettingLine(label: String, value: String, onClick: () -> Unit) {
+    val c = Rs.colors
+    Spacer(Modifier.height(12.dp))
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
+    Row(Modifier.fillMaxWidth().springClick(onClick).padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.width(64.dp))
+        Text(value, style = RsType.subhead, color = c.textSecondary, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Text("›", style = RsType.headline, color = c.textTertiary, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+/** 原声面板里的内容：保留几天、重点一直保留、清除 */
+@Composable
+private fun OriginalAudioSettings(audio: OriginalAudio) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     val days by audio.retentionDays.collectAsState()
     val keepStarred by audio.keepStarred.collectAsState()
-    val usage by audio.usage().collectAsState(initial = null)
     var shorten by remember { mutableStateOf<Pair<Int, AudioTrim>?>(null) }
     var clearing by remember { mutableStateOf(false) }
-    Section("原声", trailing = { usage?.let { Text(usageLine(it), style = RsType.caption, color = c.textTertiary) } }) {
-        RsCard {
-            Text("保留几天", style = RsType.body, color = c.text)
-            Spacer(Modifier.height(4.dp))
-            Text("点原话可以听原声；超过这些天的原声会删掉，原话文字一直保留", style = RsType.caption, color = c.textSecondary)
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RETENTION_DAY_OPTIONS.forEach { d ->
-                    Choice("$d 天", d == days) {
-                        if (d == days) return@Choice
-                        // 改短先算一下会删多少，确认后再改；改长直接生效
-                        if (d < days) scope.launch { shorten = d to audio.previewTrim(d) } else audio.setRetentionDays(d)
-                    }
-                }
-            }
-            if (days > 1) Text("已删除的原声无法恢复，改长只对以后的录音有效", style = RsType.caption, color = c.textTertiary,
-                modifier = Modifier.padding(top = 8.dp))
-            Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("重点一直保留", style = RsType.body, color = c.text)
-                    Text("标了重点的事，原声不随天数删除", style = RsType.caption, color = c.textSecondary)
-                }
-                Spacer(Modifier.width(12.dp))
-                Toggle(keepStarred) { audio.setKeepStarred(it) }
-            }
-            Spacer(Modifier.height(14.dp))
-            Text("清除原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.critical,
-                modifier = Modifier.springClick { clearing = true }.padding(vertical = 4.dp))
+    Text("保留几天", style = RsType.body, color = c.text)
+    Text("点原话可以听原声；超过这些天的原声会删掉，原话文字一直保留", style = RsType.caption, color = c.textSecondary)
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        app.resound.ui.skills.Segments(RETENTION_DAY_OPTIONS.map { "$it 天" }, RETENTION_DAY_OPTIONS.indexOf(days).coerceAtLeast(0)) { i ->
+            val d = RETENTION_DAY_OPTIONS[i]
+            if (d == days) return@Segments
+            // 改短先算一下会删多少，确认后再改；改长直接生效
+            if (d < days) scope.launch { shorten = d to audio.previewTrim(d) } else audio.setRetentionDays(d)
         }
     }
+    Text("已删除的原声无法恢复，改长只对以后的录音有效", style = RsType.caption, color = c.textTertiary)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("重点一直保留", style = RsType.body, color = c.text)
+            Text("标了重点的事，原声不随天数删除", style = RsType.caption, color = c.textSecondary)
+        }
+        Spacer(Modifier.width(12.dp))
+        Toggle(keepStarred) { audio.setKeepStarred(it) }
+    }
+    ActionButton("清除原声", ActionKind.Danger) { clearing = true }
     shorten?.let { (d, trim) ->
         RsSheet("改成保留 $d 天？", if (trim.bytes > 0) "超过 $d 天的原声会删掉，约 ${formatBytes(trim.bytes)}" else "目前没有超过 $d 天的原声", onDismiss = { shorten = null }) {
             if (trim.keptPending > 0) Text("还有 ${trim.keptPending} 段等待转写，暂不删除", style = RsType.caption, color = c.textSecondary)

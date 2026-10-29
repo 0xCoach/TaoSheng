@@ -135,12 +135,13 @@ fun TranscriptScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
-            QueueCard(repo, hasKey, realtime, local, settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
+            QueueCard(repo, hasKey, realtime, local, settingsOpen || !hasKey, footer = {
+                if (app.resound.AppGraph.isUsageReady) app.resound.ui.settings.AsrUsageRow(app.resound.AppGraph.usage)
+                if (app.resound.AppGraph.isOriginalAudioReady) OriginalAudioRow(app.resound.AppGraph.originalAudio)
+            }) { settingsOpen = !settingsOpen }
         }
         // 收起时不占位置（用列表自带的出现/消失动画）
         if (settingsOpen || !hasKey) item(key = "settings") { SettingsCard(settings, onSaved = { settingsOpen = false }) }
-        if (app.resound.AppGraph.isUsageReady) item(key = "asrUsage") { app.resound.ui.settings.AsrUsageCard(app.resound.AppGraph.usage) }
-        if (app.resound.AppGraph.isOriginalAudioReady) item(key = "originalAudio") { OriginalAudioCard(app.resound.AppGraph.originalAudio) }
         item {
             val list = segments.orEmpty()
             Section("录音原话", trailing = {
@@ -173,7 +174,8 @@ fun TranscriptScreen(
 // ---------- 队列状态 ----------
 
 @Composable
-private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boolean, local: Boolean, settingsShown: Boolean, onToggleSettings: () -> Unit) {
+private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boolean, local: Boolean, settingsShown: Boolean,
+                      footer: @Composable () -> Unit = {}, onToggleSettings: () -> Unit) {
     val c = Rs.colors
     val q by repo.queue.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -218,14 +220,6 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
         AnimatedVisibility(q.running) {
             ProgressSweep(Modifier.fillMaxWidth().padding(top = 14.dp).height(4.dp))
         }
-        // 云端用量：用过才显示，一行小字；正在用本地转写时不显示（与本地无关）
-        if (q.usedSecondsTotal > 0 && !local) {
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "云端转写 今天 ${usage(q.usedSecondsToday)} · 累计 ${usage(q.usedSecondsTotal)}，费用以账单为准",
-                style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(start = 17.dp),
-            )
-        }
         if (hasKey) {
             Spacer(Modifier.height(14.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -247,6 +241,8 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
                 app.resound.ui.importer.ImportButton()
             }
         }
+        // 下面接着两行设置：云端用量、原声（各自点开看详情）
+        footer()
     }
 }
 

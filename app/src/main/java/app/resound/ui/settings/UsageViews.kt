@@ -136,6 +136,22 @@ fun LlmUsageCard(repo: UsageRepository) {
     if (editing) PriceSheet(repo, price) { editing = false }
 }
 
+/** 原话与转写页状态卡里的一行：近 30 天没用过云端就不显示；点开看完整用量和单价 */
+@Composable
+fun AsrUsageRow(repo: UsageRepository) {
+    val today = remember { LocalDate.now() }
+    val rows by remember { repo.asr(today.minusDays(29), today) }.collectAsState(initial = emptyList())
+    val price by repo.price.collectAsState()
+    var open by remember { mutableStateOf(false) }
+    fun minutes(ms: Long) = (ms + 59_999) / 60_000
+    val todayMs = rows.filter { it.date == today }.sumOf { it.cloudMillis }
+    val monthMs = rows.sumOf { it.cloudMillis }
+    if (monthMs <= 0) return
+    val cost = price.asrPerHour?.let { " · 约 ${money(monthMs / 3_600_000.0 * it)}" } ?: ""
+    app.resound.ui.transcript.SettingLine("云端转写", "今天 ${minutes(todayMs)} 分钟 · 近 30 天 ${minutes(monthMs)} 分钟$cost") { open = true }
+    if (open) app.resound.ui.verify.RsSheet("云端转写用量", "用本地转写不花钱，不计入这里", onDismiss = { open = false }) { AsrUsageCard(repo) }
+}
+
 /** 原话与转写页：云端转写用了多久、估算花费 */
 @Composable
 fun AsrUsageCard(repo: UsageRepository) {

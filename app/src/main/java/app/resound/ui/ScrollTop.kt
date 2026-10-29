@@ -60,9 +60,11 @@ fun BoxScope.ScrollTopButton(state: LazyListState, bottomPadding: Dp, lift: Dp =
     // 放在屏幕中间偏下的右侧：大拇指自然够得着，不用往下够；也避开底部的操作栏和添加按钮
     AnimatedVisibility(far, Modifier.align(androidx.compose.ui.BiasAlignment(1f, 0.42f)).padding(end = end),
         enter = scaleIn(initialScale = 0.6f) + fadeIn(), exit = scaleOut(targetScale = 0.6f) + fadeOut()) {
-        // 浅橙底 + 细描边 + 阴影：压在白色卡片上也看得清
-        Box(Modifier.size(44.dp).shadow(if (c.isDark) 0.dp else 12.dp, CircleShape, ambientColor = c.accent, spotColor = c.accent)
-            .clip(CircleShape).background(c.accentSoft).border(1.dp, c.accent.copy(alpha = 0.25f), CircleShape)
+        // 玻璃感：半透明白底 + 上亮下淡的细边（和底部导航栏同一套）+ 柔和灰影
+        val rim = if (c.isDark) androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f), androidx.compose.ui.graphics.Color.White.copy(alpha = 0.05f)))
+        else androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.95f), androidx.compose.ui.graphics.Color.White.copy(alpha = 0.35f)))
+        Box(Modifier.size(44.dp).shadow(if (c.isDark) 0.dp else 14.dp, CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
+            .clip(CircleShape).background(c.card.copy(alpha = if (c.isDark) 0.62f else 0.78f)).border(1.dp, rim, CircleShape)
             .springClick { scope.launch { state.animateScrollToItem(0) } },
             contentAlignment = Alignment.Center) {
             app.resound.ui.transcript.ArrowUpIcon(c.accent)

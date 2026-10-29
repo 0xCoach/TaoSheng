@@ -96,6 +96,7 @@ import app.resound.capture.CaptureController
 import app.resound.capture.CaptureState
 import app.resound.digest.DigestSettings
 import app.resound.digest.ItemStatus
+import app.resound.digest.hasTime
 import app.resound.digest.MemoryEvent
 import app.resound.digest.MemoryItem
 import app.resound.digest.MemoryRepository
@@ -1142,9 +1143,10 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
             }
             if (task && item.status != ItemStatus.Ignored && item.status != ItemStatus.Done) {
                 Spacer(Modifier.height(12.dp))
-                app.resound.ui.items.StrongReminderRow(item.strongReminder) { on ->
+                app.resound.ui.items.StrongReminderRow(item.strongReminder && item.hasTime) { on ->
                     when {
-                        on && item.dueAt == null -> editingStrong = true
+                        // 强提醒要具体几点：没定到几点的先去编辑里选
+                        on && !item.hasTime -> editingStrong = true
                         else -> {
                             // 要强提醒说明这条要留：待确认的顺手接受（只有接受的才会到点响）
                             if (on && item.status == ItemStatus.Pending) memory.setItemStatus(item.id, ItemStatus.Accepted)

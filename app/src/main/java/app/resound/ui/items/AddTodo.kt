@@ -283,14 +283,15 @@ private class DraftState(d: TodoDraft) {
     var who by mutableStateOf(d.who?.takeIf { it != "我" }.orEmpty())
     var day by mutableStateOf<LocalDate?>(null)
     var time by mutableStateOf<LocalTime?>(null)
-    // 自己添加的默认强提醒；没解析出时间时也先开着，选了时间就生效
-    var strong by mutableStateOf(true)
+    // 自己添加的、说清了几点的默认强提醒；没说几点的默认关（强提醒必须有具体时间）
+    var strong by mutableStateOf(false)
 
     init {
         d.dueAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()) }?.let { at ->
             day = at.toLocalDate()
             time = at.toLocalTime().takeIf { (d.dueText?.length ?: 0) > 10 }
         }
+        strong = time != null
     }
 
     fun toDraft(): TodoDraft {
@@ -298,7 +299,7 @@ private class DraftState(d: TodoDraft) {
         val at = day?.let { d -> (time?.let { d.atTime(it) } ?: d.atStartOfDay()).atZone(zone) }
         val text = at?.format(DateTimeFormatter.ofPattern(if (time != null) "yyyy-MM-dd HH:mm" else "yyyy-MM-dd"))
         return TodoDraft(category, if (category == "待办") kind ?: "我要做" else null, content.trim(), text,
-            at?.toInstant()?.toEpochMilli(), who.trim().ifEmpty { null }, strongReminder = strong && at != null)
+            at?.toInstant()?.toEpochMilli(), who.trim().ifEmpty { null }, strongReminder = strong && at != null && time != null)
     }
 }
 
@@ -332,10 +333,10 @@ private fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Unit
                         Choice(label, on) { card.category = category; card.kind = if (category == "待办") label else null }
                     }
                 }
-                DueChoice(card.day, card.time, { card.day = it }, { card.time = it })
+                DueChoice(card.day, card.time, { card.day = it }, { card.time = it }, needTime = card.strong)
             }
         }
-        val valid = cards.isNotEmpty() && cards.all { it.content.isNotBlank() }
+        val valid = cards.isNotEmpty() && cards.all { it.content.isNotBlank() && !(it.strong && it.time == null) }
         ActionButton(if (cards.size > 1) "添加 ${cards.size} 条" else "添加", ActionKind.Primary, enabled = valid) {
             onConfirm(cards.map { it.toDraft() })
         }

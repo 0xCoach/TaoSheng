@@ -249,3 +249,6 @@ interface DigestSettings {
     /** 按功能逐项检测当前模型（连接、按格式回答、问问的流式回答/工具调用/标注出处）；没法开始检测（没填密钥等）给 failure */
     suspend fun check(): Result<List<ModelCheckItem>> = test().map { listOf(ModelCheckItem(ModelCheck.CONNECT, true, it)) }
 }
+
+/** 定到了具体几点（dueText 为 "YYYY-MM-DD HH:mm"）；只有日期或没时间为 false。强提醒只对这种开放 */
+val MemoryItem.hasTime: Boolean get() = dueAt != null && (dueText?.length ?: 0) > 10

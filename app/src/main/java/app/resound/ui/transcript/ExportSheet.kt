@@ -2,6 +2,13 @@ package app.resound.ui.transcript
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import app.resound.ui.verify.springClick
@@ -104,7 +111,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
         val ready = done
         if (ready != null) {
             // 试听：播放/暂停 + 可拖动的进度条，拖到哪儿就从哪儿播
-            ready.firstOrNull { it.extension.equals("m4a", true) }?.let { PreviewPlayer(it) }
+            ready.firstOrNull { it.extension.equals("m4a", true) }?.let { PreviewPlayer(it, ready.firstOrNull { f -> f.extension.equals("srt", true) }) }
             Text("已生成：" + ready.joinToString("、") { it.name }, style = RsType.caption, color = c.textTertiary)
             Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
                 ActionButton(if (savedTo != null) "已保存" else "保存", ActionKind.Primary, Modifier.weight(1f), enabled = savedTo == null) {
@@ -185,49 +192,125 @@ private fun OptionRow(title: String, sub: String, on: Boolean, onChange: (Boolea
     }
 }
 
-/** 合成录音的试听：▶/❚❚、可拖动进度条、当前/总时长；试听时暂停日常收音，离开面板自动停 */
+/** 一句字幕：在合成录音里的起止（毫秒）和文字 */
+private data class Cue(val start: Int, val end: Int, val text: String)
+
+/** 读 .srt：序号 / 时间轴 / 文字（可多行），空行分隔 */
+private fun parseSrt(file: java.io.File?): List<Cue> {
+    if (file == null || !file.exists()) return emptyList()
+    fun ms(t: String): Int { val (h, m, rest) = t.trim().split(":"); val (sec, milli) = rest.split(","); return ((h.toInt() * 60 + m.toInt()) * 60 + sec.toInt()) * 1000 + milli.toInt() }
+    return runCatching {
+        file.readText().replace("\r", "").split(Regex("\n\\s*\n")).mapNotNull { block ->
+            val lines = block.trim().lines()
+            val timeLine = lines.firstOrNull { "-->" in it } ?: return@mapNotNull null
+            val (a, b) = timeLine.split("-->")
+            Cue(ms(a), ms(b), lines.dropWhile { "-->" !in it }.drop(1).joinToString(" "))
+        }
+    }.getOrDefault(emptyList())
+}
+
+private val PREVIEW_SPEEDS = listOf(1f, 1.25f, 1.5f, 2f)
+
+/**
+ * 合成录音的试听：上方实时字幕（当前一句 + 淡灰的下一句），细进度条可点可拖，
+ * 下方 后退 15 秒 · 播放/暂停 · 前进 15 秒，右侧倍速（1×/1.25×/1.5×/2×，只改快慢不改音调）。
+ * 试听时暂停日常收音，离开面板自动停。
+ */
 @Composable
-private fun PreviewPlayer(file: java.io.File) {
+private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
     val c = Rs.colors
     val player = remember(file) { android.media.MediaPlayer().apply { setDataSource(file.absolutePath); prepare() } }
+    val cues = remember(srt) { parseSrt(srt) }
     var playing by remember { mutableStateOf(false) }
     var pos by remember { mutableStateOf(0) }
     var dragging by remember { mutableStateOf<Float?>(null) }
+    var speed by remember { mutableStateOf(1f) }
     val total = remember(player) { player.duration.coerceAtLeast(1) }
     fun hold(on: Boolean) {
         if (!app.resound.AppGraph.isOriginalAudioReady) return
         if (on) app.resound.AppGraph.originalAudio.beginPlayback() else app.resound.AppGraph.originalAudio.endPlayback()
     }
+    fun applySpeed() { if (player.isPlaying) runCatching { player.playbackParams = android.media.PlaybackParams().setSpeed(speed).setPitch(1f) } }
+    fun seek(to: Int) { val t = to.coerceIn(0, total); player.seekTo(t); pos = t }
     androidx.compose.runtime.DisposableEffect(player) {
         player.setOnCompletionListener { playing = false; hold(false) }
         onDispose { if (playing) hold(false); player.release() }
     }
     LaunchedEffect(playing) {
-        while (playing) { if (dragging == null) pos = runCatching { player.currentPosition }.getOrDefault(pos); kotlinx.coroutines.delay(200) }
+        while (playing) { if (dragging == null) pos = runCatching { player.currentPosition }.getOrDefault(pos); kotlinx.coroutines.delay(120) }
     }
     fun mmss(ms: Int) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
-    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
-        .background(c.background).padding(horizontal = 14.dp, vertical = 10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.foundation.layout.Box(Modifier.padding(end = 10.dp).size(40.dp).clip(CircleShape).background(c.accent)
-                .springClick {
-                    if (playing) { player.pause(); playing = false; hold(false) } else { hold(true); player.start(); playing = true }
-                }, contentAlignment = Alignment.Center) {
-                Text(if (playing) "❚❚" else "▶", style = RsType.subhead, color = androidx.compose.ui.graphics.Color.White)
-            }
-            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-                androidx.compose.material3.Slider(
-                    value = dragging ?: (pos / total.toFloat()),
-                    onValueChange = { dragging = it },
-                    onValueChangeFinished = { dragging?.let { f -> val to = (f * total).toInt(); player.seekTo(to); pos = to }; dragging = null },
-                    colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = c.accent, activeTrackColor = c.accent, inactiveTrackColor = c.accentSoft),
-                )
-                Row {
-                    Text(mmss(((dragging ?: (pos / total.toFloat())) * total).toInt()), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
-                    Text(mmss(total), style = RsType.caption, color = c.textTertiary)
+    val shown = dragging?.let { (it * total).toInt() } ?: pos
+    val now = cues.indexOfLast { it.start <= shown }.takeIf { it >= 0 && shown <= cues[it].end + 1500 }
+    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(22.dp)).background(c.background)
+        .padding(horizontal = 16.dp, vertical = 14.dp)) {
+        // 实时字幕：当前一句主色加粗，下一句淡灰；切换时淡入淡出
+        if (cues.isNotEmpty()) {
+            androidx.compose.animation.AnimatedContent(now, label = "cue", transitionSpec = {
+                (androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 3 }) togetherWith androidx.compose.animation.fadeOut()
+            }) { i ->
+                Column(Modifier.fillMaxWidth().height(72.dp)) {
+                    Text(i?.let { cues[it].text } ?: "（这里没有说话）", style = RsType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                        color = if (i != null) c.text else c.textTertiary, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    cues.getOrNull((i ?: cues.indexOfFirst { it.start > shown }.let { if (it < 0) cues.size else it - 1 }) + 1)?.let {
+                        Text(it.text, style = RsType.caption, color = c.textTertiary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp))
+                    }
                 }
             }
+            Spacer(Modifier.height(6.dp))
         }
+        // 细进度条：点哪儿跳哪儿，按住拖动预览
+        SeekBar(shown / total.toFloat(), onDrag = { dragging = it }, onDone = { f -> seek((f * total).toInt()); dragging = null })
+        Row(Modifier.padding(top = 4.dp)) {
+            Text(mmss(shown), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+            Text(mmss(total), style = RsType.caption, color = c.textTertiary)
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.weight(1f))
+            Text("−15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
+                modifier = Modifier.clip(CircleShape).springClick { seek(pos - 15_000) }.padding(12.dp))
+            Spacer(Modifier.width(14.dp))
+            androidx.compose.foundation.layout.Box(Modifier.size(52.dp).clip(CircleShape).background(c.accent).springClick {
+                if (playing) { player.pause(); playing = false; hold(false) } else { hold(true); player.start(); playing = true; applySpeed() }
+            }, contentAlignment = Alignment.Center) {
+                Text(if (playing) "❚❚" else "▶", style = RsType.headline, color = androidx.compose.ui.graphics.Color.White)
+            }
+            Spacer(Modifier.width(14.dp))
+            Text("+15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
+                modifier = Modifier.clip(CircleShape).springClick { seek(pos + 15_000) }.padding(12.dp))
+            Spacer(Modifier.weight(1f))
+        }
+        // 倍速放在右下角一颗小胶囊里，点一下换一档
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
+            Text(if (speed == 1f) "1×" else "${speed.toString().trimEnd('0').trimEnd('.')}×", style = RsType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                color = c.accent, modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
+                    speed = PREVIEW_SPEEDS[(PREVIEW_SPEEDS.indexOf(speed) + 1) % PREVIEW_SPEEDS.size]; applySpeed()
+                }.padding(horizontal = 12.dp, vertical = 5.dp))
+        }
+    }
+}
+
+/** 4dp 细轨 + 14dp 圆点；点任意位置跳过去，拖动时圆点放大 */
+@Composable
+private fun SeekBar(fraction: Float, onDrag: (Float) -> Unit, onDone: (Float) -> Unit) {
+    val c = Rs.colors
+    var width by remember { mutableStateOf(1) }
+    var active by remember { mutableStateOf(false) }
+    val knob by androidx.compose.animation.core.animateDpAsState(if (active) 18.dp else 14.dp, label = "knob")
+    fun at(x: Float) = (x / width).coerceIn(0f, 1f)
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(24.dp)
+        .onSizeChanged { width = it.width.coerceAtLeast(1) }
+        .pointerInput(Unit) { detectTapGestures { o -> onDone(at(o.x)) } }
+        .pointerInput(Unit) {
+            var last = 0f
+            detectHorizontalDragGestures(onDragStart = { active = true; last = at(it.x); onDrag(last) },
+                onDragEnd = { active = false; onDone(last) }, onDragCancel = { active = false; onDone(last) }) { change, _ -> last = at(change.position.x); onDrag(last) }
+        }, contentAlignment = Alignment.CenterStart) {
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(c.accentSoft))
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(4.dp).clip(CircleShape).background(c.accent))
+        androidx.compose.foundation.layout.Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(((width * fraction) - knob.toPx() / 2).toInt(), 0) }
+            .size(knob).clip(CircleShape).background(c.accent))
     }
 }
 

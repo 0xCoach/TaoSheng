@@ -75,20 +75,21 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, strongOn:
     var content by remember { mutableStateOf(item.content) }
     var day by remember { mutableStateOf(start?.toLocalDate() ?: today.takeIf { strongOn }) }
     var time by remember { mutableStateOf(start?.takeIf { (item.dueText?.length ?: 0) > 10 }?.toLocalTime()) }
-    var strong by remember { mutableStateOf(item.strongReminder || strongOn) }
+    var strong by remember { mutableStateOf((item.strongReminder && time != null) || strongOn) }
 
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
         SheetInput(content, "要做的事", wrap = true) { content = it }
         // 先定重不重要，再定几点：强提醒紧跟在内容下面
         StrongReminderRow(strong) { on -> strong = on; if (on && day == null) day = today }
-        DueChoice(day, time, { day = it }, { time = it })
-        ActionButton("保存", ActionKind.Primary, enabled = content.isNotBlank()) {
+        DueChoice(day, time, { day = it }, { time = it }, needTime = strong)
+        ActionButton("保存", ActionKind.Primary, enabled = content.isNotBlank() && !(strong && time == null)) {
             val at = day?.let { d -> (time?.let { d.atTime(it) } ?: d.atStartOfDay()).atZone(zone).toInstant().toEpochMilli() }
             // “和谁”不再让改，沿用原来的
             memory.updateItem(item.id, content.trim(), at, time != null, item.who)
-            if (strong != item.strongReminder || (at == null && item.strongReminder)) memory.setStrongReminder(item.id, strong && at != null)
-            if (strong && at != null && item.status == app.resound.digest.ItemStatus.Pending) memory.setItemStatus(item.id, app.resound.digest.ItemStatus.Accepted)
+            val timed = at != null && time != null
+            if (strong != item.strongReminder || (!timed && item.strongReminder)) memory.setStrongReminder(item.id, strong && timed)
+            if (strong && timed && item.status == app.resound.digest.ItemStatus.Pending) memory.setItemStatus(item.id, app.resound.digest.ItemStatus.Accepted)
             onDismiss()
         }
     }
@@ -123,7 +124,7 @@ internal fun StrongReminderRow(on: Boolean, onChange: (Boolean) -> Unit) {
 /** 哪天（不定 / 今天 / 明天 / 后天 / 选日期）+ 几点（不定几点 / 常用整点 / 其他）；编辑待办和新加待办卡共用 */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) -> Unit, onTime: (LocalTime?) -> Unit) {
+internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) -> Unit, onTime: (LocalTime?) -> Unit, needTime: Boolean = false) {
     val c = Rs.colors
     val today = LocalDate.now()
     var pickDay by remember { mutableStateOf(false) }
@@ -132,21 +133,25 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
     var pickTime by remember { mutableStateOf(time != null && time !in presets) }
     Label("哪天")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Choice("不定", day == null) { onDay(null); onTime(null) }
+        // 开了强提醒必须有日子和钟点，不给“不定”
+        if (!needTime) Choice("不定", day == null) { onDay(null); onTime(null) }
         listOf("今天", "明天", "后天").forEachIndexed { i, n -> today.plusDays(i.toLong()).let { d -> Choice(n, day == d) { onDay(d) } } }
         val custom = day?.takeIf { it.isBefore(today) || it.isAfter(today.plusDays(2)) }
         Choice(custom?.format(DateTimeFormatter.ofPattern("M月d日")) ?: "选日期…", custom != null) { pickDay = true }
     }
     if (day != null) {
         Label("几点")
+        if (needTime && time == null) Text("强提醒需要具体到几点", style = RsType.caption, color = c.accent, modifier = Modifier.padding(bottom = 6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("不定几点", time == null && !pickTime) { onTime(null); pickTime = false }
+            if (!needTime) Choice("不定几点", time == null && !pickTime) { onTime(null); pickTime = false }
             presets.forEach { t -> Choice(t.format(DateTimeFormatter.ofPattern("H:mm")), time == t && !pickTime) { onTime(t); pickTime = false } }
             // 按钮始终叫“自定义”，选好的时刻显示在下面的滚轮上，不和按钮混在一起
             Choice("自定义", pickTime) { pickTime = true }
         }
         // 点“自定义”在下面展开滚轮，滑到哪就是几点
         androidx.compose.animation.AnimatedVisibility(pickTime) {
+            // 展开就算选了：滚轮停在哪就是几点（不然停在 9:00 不动时没有时间，强提醒存不了）
+            androidx.compose.runtime.LaunchedEffect(Unit) { if (time == null) onTime(LocalTime.of(9, 0)) }
             app.resound.ui.verify.WheelTimePicker(time?.hour ?: 9, time?.minute ?: 0, { h, m -> onTime(LocalTime.of(h, m)) },
                 Modifier.padding(top = 4.dp))
         }

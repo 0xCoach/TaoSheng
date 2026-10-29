@@ -57,6 +57,7 @@ import app.resound.diary.DiaryRepository
 import app.resound.digest.ItemStatus
 import app.resound.digest.MemoryEvent
 import app.resound.digest.MemoryItem
+import app.resound.digest.hasTime
 import app.resound.digest.MemoryRepository
 import app.resound.review.DailyReview
 import app.resound.review.ReviewRepository
@@ -612,8 +613,8 @@ internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit,
                 }
             }
         }
-        // 有时间、还没做完的待办和约定：右边一个铃铛，点一下切换强提醒
-        if (onBell != null && item.dueAt != null && !done && item.category in setOf("待办", "约定")) {
+        // 定到几点、还没做完的待办和约定：右边一个铃铛，点一下切换强提醒；只有日期的不给强提醒
+        if (onBell != null && item.hasTime && !done && item.category in setOf("待办", "约定")) {
             Spacer(Modifier.width(8.dp))
             BellButton(item.strongReminder, onBell)
         }

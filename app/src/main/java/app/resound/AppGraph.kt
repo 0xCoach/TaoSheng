@@ -30,6 +30,10 @@ object AppGraph {
     lateinit var originalAudio: app.resound.transcribe.OriginalAudio
     val isOriginalAudioReady: Boolean get() = ::originalAudio.isInitialized
 
+    // 卡 070：环境音识别
+    lateinit var envSound: app.resound.envsound.EnvSoundRepository
+    val isEnvSoundReady: Boolean get() = ::envSound.isInitialized
+
     // 卡 056：停录时段
     lateinit var quietSchedule: app.resound.capture.QuietSchedule
     val isQuietScheduleReady: Boolean get() = ::quietSchedule.isInitialized

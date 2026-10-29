@@ -821,8 +821,10 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
     val c = Rs.colors
     val quiet = event.scene in QUIET_SCENES
     val selBg by androidx.compose.animation.animateColorAsState(if (selected == true) c.accentSoft.copy(alpha = 0.6f) else Color.Transparent, label = "rowSel")
+    // 媒体/旁人的事一直保持灰色（多选时也是，方便一眼挑出来批量处理）；勾选圈不变灰
+    val dim = if (quiet) 0.55f else 1f
     Row(
-        modifier.fillMaxWidth().background(selBg).alpha(if (quiet && selected == null) 0.55f else 1f)
+        modifier.fillMaxWidth().background(selBg)
             .then(if (onLongPress != null) Modifier.combinedClickable(onLongClick = onLongPress, onClick = onOpen) else Modifier.springClick(onOpen))
             .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
     ) {
@@ -835,9 +837,9 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
             formatClock(event.startAt),
             style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold),
             color = if (quiet) c.textTertiary else c.accent,
-            modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp),
+            modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp).alpha(dim),
         )
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).alpha(dim)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(event.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))

@@ -120,11 +120,21 @@ private fun Bar() {
                 IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
             }
         } else {
-            // 展开：三行字幕 · 可拖进度条 · −15 播放 +15 · 倍速；底部段数、下一段、回到来源
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            // 展开（三行）：顶行 段数 · 回到来源 · 收起 · 关闭；三行字幕；进度条；控制行 下一段 · −15 播放 +15 · 倍速
+            Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (segs > 1) "第 ${LinePlayer.segmentIndex + 1}/$segs 段录音" else "正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
+                            color = c.textTertiary, maxLines = 1)
+                        sourceLabel?.let {
+                            Text(" · ", style = RsType.caption, color = c.textTertiary)
+                            Text(it, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent, maxLines = 1,
+                                modifier = Modifier.clip(CircleShape).springClick { goBack() }.padding(vertical = 4.dp))
+                        }
+                    }
                     IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
+                    Spacer(Modifier.width(6.dp))
+                    IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
                 }
                 Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = Arrangement.Center) {
                     // 三行一直排满：开头没有上一句时当前句往上顶，结尾没有下一句时往下沉
@@ -136,34 +146,28 @@ private fun Bar() {
                             color = if (main) c.text else c.textTertiary, modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp))
                     }
                 }
-                Spacer(Modifier.height(8.dp))
                 SeekBar(frac, onDrag = { dragging = it }, onDone = { f -> LinePlayer.seekFraction(f); dragging = null })
-                Row(Modifier.padding(top = 2.dp)) {
+                Row {
                     Text(mmss((frac * total).toLong()), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
                     Text(mmss(total), style = RsType.caption, color = c.textTertiary)
                 }
-                Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                Box(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+                    // 左：下一段（图标 + 文字）；只有一段录音时不显示
+                    if (segs > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
+                        Row(Modifier.align(Alignment.CenterStart).height(32.dp).clip(CircleShape).background(c.accentSoft)
+                            .springClick { LinePlayer.skipSegment() }.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            NextIcon(c.accent)
+                            Spacer(Modifier.width(5.dp))
+                            Text("下一段", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
+                        }
                     Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
                         SkipCircle(back = true) { LinePlayer.skipBy(-15_000) }
-                        Spacer(Modifier.width(18.dp))
+                        Spacer(Modifier.width(14.dp))
                         PlayButton(50.dp)
-                        Spacer(Modifier.width(18.dp))
+                        Spacer(Modifier.width(14.dp))
                         SkipCircle(back = false) { LinePlayer.skipBy(15_000) }
                     }
                     Box(Modifier.align(Alignment.CenterEnd)) { SpeedChip() }
-                }
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (segs > 1) {
-                        Text("第 ${LinePlayer.segmentIndex + 1}/$segs 段", style = RsType.caption, color = c.textTertiary)
-                        if (LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex) {
-                            Spacer(Modifier.width(8.dp))
-                            IconCircle(c.accentSoft, onClick = { LinePlayer.skipSegment() }) { NextIcon(c.accent) }
-                        }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    sourceLabel?.let { Text(it, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
-                        modifier = Modifier.clip(CircleShape).springClick { goBack() }.padding(horizontal = 8.dp, vertical = 4.dp)) }
-                    Text("关闭", style = RsType.caption, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.stop() }.padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
         }

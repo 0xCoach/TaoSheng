@@ -14,6 +14,10 @@ import app.resound.transcribe.TranscriptRepository
  */
 object AppGraph {
     // 卡 052–054：界面先按约定接好，底层合并后由 ResoundApp 装配
+    // 卡 064：今日节奏的“平时”
+    lateinit var rhythm: app.resound.digest.RhythmStats
+    val isRhythmReady: Boolean get() = ::rhythm.isInitialized
+
     // 卡 062：原声保留与播放
     lateinit var originalAudio: app.resound.transcribe.OriginalAudio
     val isOriginalAudioReady: Boolean get() = ::originalAudio.isInitialized

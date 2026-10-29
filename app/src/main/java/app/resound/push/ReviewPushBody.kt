@@ -25,7 +25,14 @@ internal fun DailyReview.pushBody(format: PushFormat): String {
         }
     }
     val body = blocks.joinToString("\n\n")
-    return if (markdown) body else PushTransport.renderedBody(body, PushFormat.Text)
+    return when (format) {
+        PushFormat.Markdown -> body
+        // JSON 维持既有正文协议，包括列表前缀及链接只留文字的行为。
+        PushFormat.Json -> body.replace(Regex("(?m)^\\s{0,3}#{1,6}\\s+"), "")
+            .replace(Regex("!?\\[([^\\]]*)\\]\\([^)]+\\)"), "$1")
+            .replace("**", "").replace("__", "").replace("`", "")
+        PushFormat.Text -> PushTransport.renderedBody(body, PushFormat.Text)
+    }
 }
 
 /** 与通用网址和重试队列共用，不包含事件出处等内部信息。 */

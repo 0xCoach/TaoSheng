@@ -125,7 +125,13 @@ class PushChannelsTest {
                 val request = fake.take()
                 assertEquals("https://example.com/hook", fake.requests.last().url.toString())
                 assertEquals("Bearer fake-auth-123", request.getHeader("Authorization"))
-                val json = JSONObject(request.body.readUtf8())
+                val content = request.body.readUtf8()
+                if (format != PushFormat.Json) {
+                    assertEquals(if (format == PushFormat.Markdown) "# ${message.title}\n\n${message.body}"
+                        else "${message.title}\n今日\n完成任务", content)
+                    return@forEach
+                }
+                val json = JSONObject(content)
                 assertEquals(setOf("title", "body", "topic", "deepLink", "at", "type", "version", "app"), json.keys().asSequence().toSet())
                 assertEquals(message.title, json.getString("title"))
                 assertEquals("DailyReview", json.getString("topic"))

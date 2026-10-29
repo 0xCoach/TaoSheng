@@ -64,7 +64,7 @@ class DigestRunner(
         _running.value = true
         try {
             val key = readKey()
-            if (key.isBlank()) { record(null, "还没填写大模型密钥"); return false }
+            if (key.isBlank() && settings.preset.id != "custom") { record(null, "还没填写大模型密钥"); return false }
             val sessions = sessions(dao.undigestedLines(), gapMillis())
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             for (session in sessions) {
@@ -78,8 +78,8 @@ class DigestRunner(
                 val refreshed = dao.refreshLines(chunk.map { it.id })
                 when (val outcome = if (refreshed.isEmpty()) null else digest(refreshed, key) { madeEvents = true }) {
                     null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
-                    LlmError.Auth -> { record(now(), outcome.human); return false }
-                    LlmError.Network, LlmError.Server, LlmError.Format -> { record(now(), outcome.human); return true }
+                    LlmError.Auth -> { record(now(), failureDetail ?: outcome.human); return false }
+                    LlmError.Network, LlmError.Server, LlmError.Format -> { record(now(), failureDetail ?: outcome.human); return true }
                 }
             }
             record(now(), null)
@@ -97,8 +97,11 @@ class DigestRunner(
         }
     }
 
+    private var failureDetail: String? = null
+
     /** 整理一块；成功返回 null，否则返回错误类型 */
     private suspend fun digest(lines: List<TranscriptLineEntity>, key: String, onEvents: () -> Unit): LlmError? {
+        failureDetail = null
         val preset = settings.preset
         val (text, indexed) = DigestPrompt.transcript(lines)
         return try {
@@ -140,6 +143,7 @@ class DigestRunner(
         } catch (e: CancellationException) {
             throw e
         } catch (e: LlmException) {
+            failureDetail = e.detail
             if (e.type == LlmError.Format && failed(lines.first().id) >= MAX_FORMAT_FAILURES) {
                 // 这段连续几次都整理不出来：放弃，原话仍在“原话”页
                 dao.markDigested(lines.map { it.id }, now())

@@ -14,6 +14,10 @@ import app.resound.transcribe.TranscriptRepository
  */
 object AppGraph {
     // 卡 052–054：界面先按约定接好，底层合并后由 ResoundApp 装配
+    // 卡 056：停录时段
+    lateinit var quietSchedule: app.resound.capture.QuietSchedule
+    val isQuietScheduleReady: Boolean get() = ::quietSchedule.isInitialized
+
     lateinit var problemReports: app.resound.diagnostics.ProblemReports
     val isProblemReportsReady: Boolean get() = ::problemReports.isInitialized
 

@@ -19,6 +19,7 @@ class ResoundApp : Application() {
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
+    val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
     val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
     private lateinit var transcribeScheduler: TranscribeScheduler
     fun rescheduleDigest(changed: Boolean = false) {
@@ -60,6 +61,7 @@ class ResoundApp : Application() {
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)
         AppGraph.capture = controller
+        AppGraph.quietSchedule = quietSchedule
         AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)
         val settings = AndroidTranscribeSettings(this)
         val scheduler = TranscribeScheduler(this, settings)
@@ -139,7 +141,8 @@ class ResoundApp : Application() {
             { digestSettings.preset to digestSettings.readKey() }, llm::chatJson, { AppGraph.prompts.text("review") }, appName,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), { reviewScheduler.schedule(it, changed = true) },
             dailyMemory = pushChannels::dispatchDailyMemory,
-            beforeReview = { app.resound.review.ReviewPreparation.run(this) })
+            beforeReview = { app.resound.review.ReviewPreparation.run(this) },
+            work = androidx.work.WorkManager.getInstance(this))
         val skillRepository = app.resound.skills.LocalSkillRepository(
             app.resound.skills.SkillFiles(this), database.skills(), database.memory(), scope,
             digestSettings::skillCredentials, llm::chatJson, hotwords::merged,

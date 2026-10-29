@@ -318,6 +318,13 @@ fun MemoryScreen(
     val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
     val reviewList by remember(reviews) { reviews?.recent() ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
     val reviewState = reviews?.state?.collectAsState()?.value
+    // 卡 058：这天回顾的进度、原因和窗口；“生成回顾”是否出现与后端判断一致
+    val hasMaterial by remember(date, reviews) { reviews?.hasMaterial(date) ?: flowOf(false) }.collectAsState(initial = true)
+    val reviewWindow = remember(date, reviews, reviewState?.dailyAtMinutes) { reviews?.windowText(date).orEmpty() }
+    val reviewInfo = reviews?.let {
+        val note = reviewState?.lastError?.takeIf { reviewState.lastErrorDate == date }
+        app.resound.ui.items.ReviewInfo(reviewState?.stage, note, soft = note?.startsWith("已用现有内容生成") == true, hasMaterial = hasMaterial, window = reviewWindow)
+    }
 
     // 从通知点进来：切到按天、那一天，回顾出来后打开
     LaunchedEffect(openReview) { openReview?.let { byDay = true; epochDay = it.toEpochDay() } }
@@ -359,6 +366,7 @@ fun MemoryScreen(
                 onToggleDone = { memory.setItemStatus(it.id, if (it.status == ItemStatus.Done) ItemStatus.Accepted else ItemStatus.Done) },
                 onGenerate = reviews?.let { r -> { r.generateNow(date) } },
                 generating = reviewState?.generating == true,
+                reviewInfo = reviewInfo,
                 newestFirst = newestFirst,
                 keysOut = keys,
                 onToggleOrder = { newestFirst = !newestFirst; uiPrefs.edit().putBoolean("timelineNewestFirst", newestFirst).apply() },
@@ -373,7 +381,8 @@ fun MemoryScreen(
             if (tab.name == "重点") {
                 val list = starred
                 if (list != null && list.isEmpty()) item { Empty("在时间线上把一件事往左滑，就能标成重点。标过的事会集中放在这里，问问能查，每日和每周回顾也会跟进") }
-                list.orEmpty().groupBy { dateOf(it.starredAt ?: it.startAt) }.forEach { (d, evs) ->
+                // 按事情发生的日期分组，组标题和行内时刻一致（之前按标重点那天分组，容易误以为是那天发生的）
+                list.orEmpty().sortedByDescending { it.startAt }.groupBy { dateOf(it.startAt) }.forEach { (d, evs) ->
                     item(key = "star$d") {
                         Column(Modifier.padding(bottom = 16.dp)) {
                             Text(dayLabel(d), style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,

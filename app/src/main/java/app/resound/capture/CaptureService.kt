@@ -101,6 +101,7 @@ class CaptureService : Service() {
         return START_STICKY
     }
     private suspend fun handle(intent: Intent) {
+        if (intent.action == RECHECK && (!initialized || !store.prefs.getBoolean("enabled", false))) return
         if (intent.action == DISCARD_CURRENT) {
             val wasCapturing = capture?.isActive == true
             discardOnFinish = true
@@ -119,7 +120,7 @@ class CaptureService : Service() {
                 store.event(WatchdogEventType.ServiceStopped, "用户正常停止")
             }
             normalStop = true
-            store.prefs.edit().putBoolean("enabled", false).putBoolean("unclean", false).putLong("pausedUntil", 0).commit()
+            store.prefs.edit().putBoolean("enabled", false).putBoolean("unclean", false).putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
             transition(CaptureState.Stopped)
             heartbeat?.cancel()
             releaseWakeLock()
@@ -131,8 +132,9 @@ class CaptureService : Service() {
             val now = System.currentTimeMillis()
             if (store.prefs.getBoolean("unclean", false)) {
                 val lastHeartbeat = store.prefs.getLong("heartbeat", now).coerceAtMost(now)
-                val last = maxOf(lastHeartbeat, store.prefs.getLong("pausedUntil", 0).coerceAtMost(now))
-                store.event(WatchdogEventType.Killed, "上次未正常停止；最后心跳至恢复约 ${now - last}ms（上界估计）", last, now)
+                val gaps = QuietRules.recordingGaps(app.quietSchedule.rules.value, lastHeartbeat, now,
+                    java.time.ZoneId.systemDefault(), store.prefs.getLong("manualPausedUntil", 0), store.prefs.getLong("quietSkipUntil", 0))
+                for ((from, to) in gaps) store.event(WatchdogEventType.Killed, "上次未正常停止；排除暂停后缺口约 ${to - from}ms（上界估计）", from, to)
                 store.event(WatchdogEventType.Recovered, "恢复途径=${intent.getStringExtra("route") ?: "unknown"}")
             }
             store.prefs.edit().putBoolean("enabled", true).putBoolean("unclean", true).putLong("heartbeat", now).commit()
@@ -144,6 +146,7 @@ class CaptureService : Service() {
                 var batteryAt = SystemClock.elapsedRealtime()
                 while (isActive) {
                     delay(CaptureTuning.HEARTBEAT_MS); beat()
+                    commands.send(Command(Intent().setAction(RECHECK)))
                     if (SystemClock.elapsedRealtime() - batteryAt >= CaptureTuning.BATTERY_MS) {
                         store.sampleBattery(); samplePower(); batteryAt = SystemClock.elapsedRealtime()
                     }
@@ -154,31 +157,45 @@ class CaptureService : Service() {
         when (intent.action) {
             PAUSE -> {
                 val until = System.currentTimeMillis() + intent.getIntExtra("minutes", 60).coerceIn(1, 10080).toLong() * 60_000
-                pauseUntil(until)
-                store.event(WatchdogEventType.Paused, "暂停至 $until")
+                store.prefs.edit().putLong("manualPausedUntil", until).commit()
+                reconcilePause()
             }
-            RESUME -> resumeCapture()
-            else -> {
-                val until = store.prefs.getLong("pausedUntil", 0)
-                if (until > System.currentTimeMillis()) pauseUntil(until) else resumeCapture()
+            RESUME -> {
+                store.prefs.edit().putLong("manualPausedUntil", 0).commit()
+                app.quietSchedule.resume()
+                reconcilePause()
             }
+            else -> reconcilePause()
         }
     }
-    private suspend fun pauseUntil(until: Long) {
+    private suspend fun reconcilePause() {
+        val plan = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh())
+        if (plan == null) resumeCapture() else pauseUntil(plan.until, plan.quietName)
+    }
+    private suspend fun pauseUntil(until: Long, quietName: String? = null) {
+        val old = controller.status.value
+        if (state == CaptureState.Paused && old.pausedUntil == until && old.quietName == quietName) { refreshNotification(true); return }
         capture?.cancelAndJoin(); capture = null
         resumeTimer?.cancel()
-        transition(CaptureState.Paused, until)
+        transition(CaptureState.Paused, until, quietName = quietName)
         releaseWakeLock()
-        store.prefs.edit().putLong("pausedUntil", until).commit()
+        store.prefs.edit().putLong("pausedUntil", until).putString("quietName", quietName).commit()
+        val clock = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+        store.event(WatchdogEventType.Paused, if (quietName == null) "暂停至 $until" else "停录时段：$quietName，至 $clock")
         val manager = getSystemService(AlarmManager::class.java)
-        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, alarmIntent())
-        resumeTimer = scope.launch { delay((until - System.currentTimeMillis()).coerceAtLeast(0)); commands.send(Command(Intent().setAction(RESUME).putExtra("route", "pause-timer"))) }
+        if (until != Long.MAX_VALUE) {
+            try {
+                if (android.os.Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, alarmIntent())
+                else manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, alarmIntent())
+            } catch (_: SecurityException) { manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, alarmIntent()) }
+        }
+        resumeTimer = scope.launch { delay((until - System.currentTimeMillis()).coerceAtLeast(0)); commands.send(Command(Intent().setAction(RECHECK).putExtra("route", "pause-timer"))) }
         refreshNotification(true)
     }
     private suspend fun resumeCapture() {
         val wasPaused = state == CaptureState.Paused || store.prefs.getLong("pausedUntil", 0) > 0
         resumeTimer?.cancel(); resumeTimer = null; cancelAlarm()
-        store.prefs.edit().putLong("pausedUntil", 0).commit()
+        store.prefs.edit().putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
         if (wasPaused) store.event(WatchdogEventType.Resumed, "暂停结束或用户恢复")
         if (capture?.isActive == true) return
         wakeLock = getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "resound:capture").apply { acquire() }
@@ -281,9 +298,9 @@ class CaptureService : Service() {
         }
     }
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy
-    private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null) {
+    private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null, quietName: String? = null) {
         if (initialized && running(state) != running(next)) beat()
-        state = next; controller.update(next, until, busyDetail = detail)
+        state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
     }
     private suspend fun beat() = beatMutex.withLock {
         val now = System.currentTimeMillis()
@@ -298,6 +315,7 @@ class CaptureService : Service() {
         CaptureNotifications.interrupted(this)
         stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
     }
+    private fun plannedPause() = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh()) != null
     private fun alarmIntent() = PendingIntent.getBroadcast(this, 10, Intent(this, CaptureResumeReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun cancelAlarm() { getSystemService(AlarmManager::class.java).cancel(alarmIntent()) }
     private fun refreshNotification(paused: Boolean) {
@@ -316,7 +334,7 @@ class CaptureService : Service() {
         unregisterReceiver(powerReceiver)
         if (!normalStop && controller.status.value.state != CaptureState.NoPermission) controller.update(CaptureState.Stopped)
         scope.cancel(); dispatcher.close(); releaseWakeLock()
-        if (!normalStop && initialized) CaptureNotifications.interrupted(this)
+        if (!normalStop && initialized && !plannedPause()) CaptureNotifications.interrupted(this)
         super.onDestroy()
     }
     override fun onBind(intent: Intent?): IBinder? = null
@@ -330,6 +348,9 @@ class CaptureService : Service() {
             service.commands.send(Command(Intent().setAction(DISCARD_CURRENT), done))
             done.await()
         }
+        const val RECHECK = "app.resound.capture.RECHECK"
+        /** 规则改动、心跳和系统广播只通知已有服务，绝不在后台新建麦克风前台服务。 */
+        internal fun recheck() { instance?.commands?.trySend(Command(Intent().setAction(RECHECK))) }
         const val START = "app.resound.capture.START"
         const val STOP = "app.resound.capture.STOP"
         const val PAUSE = "app.resound.capture.PAUSE"

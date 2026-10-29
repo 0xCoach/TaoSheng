@@ -43,7 +43,6 @@ class TranscribeRunner(
             val credential = try { key() } catch (_: Exception) {
                 updateState(started, "密钥安全读取失败，请重新填写"); return false
             }
-            if (credential.isBlank()) { updateState(started, "还没填写转写密钥"); return false }
             updateState(started, null)
             val candidates = dao.candidates(now())
             var done = 0
@@ -85,9 +84,9 @@ class TranscribeRunner(
                     // 断网不是这一段的问题，不占它的重试次数。
                     val attempts = if (error == AsrError.Network) candidate.attempts else running.attempts
                     withContext(NonCancellable) {
-                        dao.findSegment(candidate.id)?.let { current -> dao.update(current.copy(status = "Failed", completedAt = null, error = error.human,
+                        dao.findSegment(candidate.id)?.let { current -> dao.update(current.copy(status = "Failed", completedAt = null, error = (e as? AsrException)?.detail ?: error.human,
                             attempts = attempts, nextRetryAt = TranscribePolicy.retryAt(error, attempts.coerceAtLeast(1), now()), logId = logId)) }
-                        updateState(started, error.human)
+                        updateState(started, (e as? AsrException)?.detail ?: error.human)
                     }
                     if (e is CancellationException) throw e
                 } finally {
@@ -141,7 +140,7 @@ class TranscribeRunner(
             error = if (e is CancellationException) AsrError.Interrupted else (e as? AsrException)?.type ?: AsrError.Storage
             logId = TranscribePolicy.safeLogId((e as? AsrException)?.logId, credential)
             if (e is CancellationException) throw e
-            Result.failure(AsrException(error))
+            Result.failure(AsrException(error, detail = (e as? AsrException)?.detail ?: error.human))
         } finally {
             withContext(NonCancellable) {
                 dao.attempt(AsrAttemptEntity(segmentId = null, at = began, result = result, errorType = error?.name,

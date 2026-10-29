@@ -10,8 +10,9 @@ import java.util.concurrent.TimeUnit
 
 class CaptureWatchdog(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val store = (applicationContext as ResoundApp).store
-        if (store.prefs.getBoolean("enabled", false) && System.currentTimeMillis() - store.prefs.getLong("heartbeat", 0) > CaptureTuning.HEARTBEAT_MS * 3)
+        val app = applicationContext as ResoundApp
+        val store = app.store
+        if (capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh()) == null && store.prefs.getBoolean("enabled", false) && System.currentTimeMillis() - store.prefs.getLong("heartbeat", 0) > CaptureTuning.HEARTBEAT_MS * 3)
             CaptureNotifications.interrupted(applicationContext)
         return Result.success()
     }
@@ -26,13 +27,15 @@ class CaptureBootReceiver : BroadcastReceiver() {
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, android.app.AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
         val app = context.applicationContext as ResoundApp
         app.rescheduleDigest(changed = true)
+        app.quietSchedule.refresh()
+        CaptureService.recheck()
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
         val pending = goAsync()
         app.scope.launch {
             try {
                 if (app.store.prefs.getBoolean("enabled", false)) {
                     app.store.event(WatchdogEventType.BootRestart, "${intent.action}：等待点击通知恢复，未从后台启动麦克风")
-                    CaptureNotifications.interrupted(context)
+                    if (capturePausePlan(System.currentTimeMillis(), app.store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh()) == null) CaptureNotifications.interrupted(context)
                     CaptureWatchdog.schedule(context)
                 }
             } finally { pending.finish() }
@@ -41,11 +44,11 @@ class CaptureBootReceiver : BroadcastReceiver() {
 }
 class CaptureResumeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val prefs = context.getSharedPreferences("capture", Context.MODE_PRIVATE)
+        val app = context.applicationContext as ResoundApp
+        val prefs = app.store.prefs
+        val quiet = app.quietSchedule.refresh()
         if (!prefs.getBoolean("enabled", false)) return
-        if (CaptureService.alive) {
-            try { context.startService(Intent(context, CaptureService::class.java).setAction(CaptureService.RESUME).putExtra("route", "pause-alarm")) }
-            catch (_: RuntimeException) { CaptureNotifications.interrupted(context) }
-        } else CaptureNotifications.interrupted(context)
+        if (CaptureService.alive) CaptureService.recheck()
+        else if (capturePausePlan(System.currentTimeMillis(), prefs.getLong("manualPausedUntil", 0), quiet) == null) CaptureNotifications.interrupted(context)
     }
 }

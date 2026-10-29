@@ -10,6 +10,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.util.Base64
+import java.net.URLEncoder
+import java.time.Instant
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -80,12 +83,29 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
                 builder.url(values.getValue("url"))
                 values["authorization"]?.takeIf(String::isNotBlank)?.let { builder.header("Authorization", it) }
                 PushFields.headers(values["headers"].orEmpty()).forEach { (key, value) -> builder.header(key, value) }
-                val content = message.envelope(format).toString()
+                val envelope = message.envelope(PushFormat.Json)
+                val content = when (format) {
+                    PushFormat.Json -> envelope.toString()
+                    PushFormat.Markdown -> message.memory?.getString("markdown")
+                        ?: "# ${message.title}\n\n${message.rendered(PushFormat.Markdown)}"
+                    PushFormat.Text -> renderedBody(message.memory?.getString("markdown")
+                        ?: "${message.title}\n${message.rendered(PushFormat.Text)}", PushFormat.Text)
+                }
+                val date = message.review?.date?.toString() ?: message.memoryDate
+                    ?: message.memory?.optString("date")?.takeIf(String::isNotBlank)
+                    ?: Instant.ofEpochMilli(now()).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                builder.header("X-Resound-Type", envelope.getString("type"))
+                    .header("X-Resound-Date", date)
+                    .header("X-Resound-Title", URLEncoder.encode(message.title, "UTF-8"))
                 values["signSecret"]?.takeIf(String::isNotBlank)?.let {
                     val timestamp = (now() / 1000).toString()
                     builder.header("X-Resound-Timestamp", timestamp).header("X-Resound-Signature", "sha256=" + hmac(it, "$timestamp.$content").joinToString("") { b -> "%02x".format(b.toInt() and 255) })
                 }
-                content.jsonBody()
+                content.toRequestBody(when (format) {
+                    PushFormat.Json -> "application/json; charset=utf-8"
+                    PushFormat.Markdown -> "text/markdown; charset=utf-8"
+                    PushFormat.Text -> "text/plain; charset=utf-8"
+                }.toMediaType())
             }
             PushKind.Feishu -> {
                 builder.url(values.getValue("webhook"))
@@ -162,7 +182,11 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
         internal fun dingTalkSign(timestamp: Long, secret: String) = Base64.getEncoder().encodeToString(hmac(secret, "$timestamp\n$secret"))
         internal fun renderedBody(body: String, format: PushFormat): String = if (format != PushFormat.Text) body else body
             .replace(Regex("(?m)^\\s{0,3}#{1,6}\\s+"), "")
-            .replace(Regex("!?\\[([^\\]]*)\\]\\([^)]+\\)"), "$1").replace("**", "").replace("__", "").replace("`", "")
+            .replace(Regex("!?\\[([^\\]]*)\\]\\(([^)]+)\\)"), "$1 ($2)")
+            .replace(Regex("(?m)^([ \\t]*)[-*+]\\s+\\[[ xX]\\]\\s*"), "$1")
+            .replace(Regex("(?m)^([ \\t]*)[-*+]\\s+"), "$1")
+            .replace(Regex("(?m)^\\s*>\\s?"), "")
+            .replace("**", "").replace("__", "").replace("`", "")
     }
 }
 internal fun hmac(secret: String, text: String): ByteArray = Mac.getInstance("HmacSHA256").run {

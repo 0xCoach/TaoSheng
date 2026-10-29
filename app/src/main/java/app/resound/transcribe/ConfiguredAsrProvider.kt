@@ -23,17 +23,17 @@ internal fun customAsrBody(audio: AsrAudio, model: String, words: List<String>):
 class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult=withContext(Dispatchers.IO){
         val endpoint=settings.customEndpoint;val model=settings.customModel
-        if(!endpoint.startsWith("https://") || model.isBlank())throw AsrException(AsrError.Protocol)
-        val client=OkHttpClient.Builder().callTimeout(8,TimeUnit.MINUTES).build()
+        if(OpenAiEndpoint.kind(endpoint)==EndpointKind.Invalid || model.isBlank())throw AsrException(AsrError.Protocol)
+        val client=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).build()
         val body = customAsrBody(audio, model, hotwords())
         var call: Call? = null
         try {
         for(url in OpenAiEndpoint.transcriptions(endpoint)) {
-        call=client.newCall(Request.Builder().url(url).header("Authorization","Bearer $key").post(body).build())
+        call=client.newCall(Request.Builder().url(url).apply { if(key.isNotBlank()) header("Authorization","Bearer $key") }.post(body).build())
             beforeAudio()
             call.awaitResponse().use { response->
                 if(response.code in setOf(404,405))return@use
-                if(response.code in setOf(401,403))throw AsrException(AsrError.Auth)
+                if(response.code in setOf(401,403))throw AsrException(AsrError.Auth, detail = "鉴权失败，请检查密钥")
                 if(!response.isSuccessful)throw AsrException(if(response.code>=500 || response.code==429)AsrError.Server else AsrError.Protocol)
                 val bytes=response.body!!.byteStream().use{ input -> val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192);while(out.size()<=1_000_000){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n)};out.toByteArray() }
                 if(bytes.size>1_000_000)throw AsrException(AsrError.Protocol)
@@ -43,7 +43,7 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
             }
         }
         throw AsrException(AsrError.Protocol)
-        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:AsrException){throw e}catch(_:java.io.IOException){throw AsrException(AsrError.Network)}
+        }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:AsrException){throw e}catch(e:java.io.IOException){throw AsrException(AsrError.Network, detail = modelServiceError(endpoint,e,AsrError.Network.human))}
         finally{call?.cancel();client.dispatcher.executorService.shutdown();client.connectionPool.evictAll()}
     }
 }

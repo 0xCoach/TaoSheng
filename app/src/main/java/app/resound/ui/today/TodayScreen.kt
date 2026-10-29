@@ -54,6 +54,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.withFrameMillis
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -156,9 +158,41 @@ fun TodayScreen(
     val importing = if (app.resound.AppGraph.isImporterReady)
         app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
 
+    val list = events.orEmpty()
+    // 时间线按时段分组；技能卡（会议、收工打卡等）按时间插进对应时段，只占一行提示
+    val newestFirst = list.size > 1 && list.first().startAt > list.last().startAt
+    val entries = (list.map { TimelineEntry.Event(it) } + cards.map { TimelineEntry.Card(it) })
+        .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
+    val groups = entries.groupBy { partOfDay(it.at) }.toList()
+
+    // 多选：换一天就重置；按显示顺序排好的事件 id 用来算“选到这儿”的范围
+    val selection = remember(date) { TimelineSelection() }
+    val order = remember(entries) { entries.mapNotNull { (it as? TimelineEntry.Event)?.event?.id } }
+    LaunchedEffect(order) { selection.retain(order); if (order.isEmpty() && selection.active) selection.exit() }
+    androidx.activity.compose.BackHandler(selection.active) { selection.exit() }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var topEdge by remember { mutableStateOf(0f) }
+    var bottomEdge by remember { mutableStateOf(Float.MAX_VALUE) }
+    // 勾选有变化后又滑动过、且已停下，才浮出“选到这儿”
+    var scrolledAt by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) scrolledAt = selection.version }
+    val reach = if (selection.active && !listState.isScrollInProgress && scrolledAt == selection.version)
+        selection.reachTarget(order, maxOf(viewport.top, topEdge), minOf(viewport.bottom, bottomEdge)) else null
+    val batchScope = rememberCoroutineScope()
+    var batchDeleting by remember { mutableStateOf<List<Long>?>(null) }
+    var batchCopying by remember { mutableStateOf<List<MemoryEvent>?>(null) }
+    var copyNote by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(copyNote) { if (copyNote != null) { delay(1800); copyNote = null } }
+    var deleteProgress by remember { mutableStateOf<Int?>(null) }
+
+    var boxTop by remember { mutableStateOf(0f) }
+    Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
     LazyColumn(
-        Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
+        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
+            .onGloballyPositioned { viewport = it.boundsInRoot() },
+        state = listState,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp + if (selection.active) 76.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // 闪退提示、上手清单和标题放在同一格：不显示时不占位，录音卡紧挨着日期
@@ -196,26 +230,52 @@ fun TodayScreen(
                 }
             }
         }
-        val list = events.orEmpty()
-        // 时间线按时段分组；技能卡（会议、收工打卡等）按时间插进对应时段，只占一行提示
-        val newestFirst = list.size > 1 && list.first().startAt > list.last().startAt
-        val entries = (list.map { TimelineEntry.Event(it) } + cards.map { TimelineEntry.Card(it) })
-            .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
-        val groups = entries.groupBy { partOfDay(it.at) }.toList()
         item {
             // 标题和第一组放在同一行，间距与“待确认”一致
             Section(if (list.isNotEmpty()) "时间线 · ${list.size} 件事" else "时间线", trailing = {
                 DaySwitcher(dayOffset, compact = true) { dayOffset = it }
             }) {
                 groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it },
-                    onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }) { opened = it } }
+                    onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it } }
                 if (events != null && list.isEmpty()) EmptyTimeline(memory)
             }
         }
         items(groups.drop(1), key = { it.first }) { (part, evs) ->
             TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it },
-                onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }) { opened = it }
+                onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it }
         }
+    }
+    SelectTopBar(selection, order) { topEdge = it }
+    val chosen = list.filter { it.id in selection.ids }
+    val allStarred = chosen.isNotEmpty() && chosen.all { it.starred }
+    SelectBottomBar(selection, allStarred, bottomPadding, onTop = { bottomEdge = it },
+        onStar = { chosen.forEach { memory.setStarred(it.id, !allStarred) }; selection.exit() },
+        onCopy = { batchCopying = list.filter { it.id in selection.ids } },
+        onDelete = { batchDeleting = order.filter { it in selection.ids } })
+    // 复制完的小提示：底部浮一下就消失
+    androidx.compose.animation.AnimatedVisibility(copyNote != null, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding + 24.dp),
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
+        exit = androidx.compose.animation.fadeOut()) {
+        Text(copyNote ?: "", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = Color.White,
+            modifier = Modifier.clip(CircleShape).background(c.accent).padding(horizontal = 18.dp, vertical = 10.dp))
+    }
+    ReachHereChip(reach, selection, boxTop,
+        upward = reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
+    }
+
+    batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
+    batchDeleting?.let { ids ->
+        BatchDeleteSheet(ids.size, deleteProgress, onConfirm = {
+            deleteProgress = 0
+            batchScope.launch {
+                // 逐件删除，与单条删除走同一条路径（有隐私接口时连录音和原话一起删）
+                ids.forEachIndexed { i, id ->
+                    if (app.resound.AppGraph.isPrivacyReady) runCatching { app.resound.AppGraph.privacy.forgetEvent(id) } else memory.deleteEvent(id)
+                    deleteProgress = i + 1
+                }
+                batchDeleting = null; deleteProgress = null; selection.exit()
+            }
+        }) { batchDeleting = null }
     }
 
     opened?.let { event -> EventSheet(event, memory) { opened = null } }
@@ -287,7 +347,7 @@ private fun OverviewCard(
     val stateText = when (status.state) {
         CaptureState.Recording -> "正在录音"
         CaptureState.Listening -> "正在聆听"
-        CaptureState.Paused -> "已暂停"
+        CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") + (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${formatClock(it)} 恢复" } ?: "")
         CaptureState.MicBusy -> if (status.busyDetail == app.resound.audio.MicYield.IN_CALL) "通话中，暂停收音" else "麦克风让给别的应用了"
         CaptureState.Stopped -> "没在聆听"
         CaptureState.NoPermission -> "缺少权限"
@@ -708,8 +768,12 @@ internal sealed interface TimelineEntry {
 @Composable
 internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier: Modifier = Modifier,
                            onOpenCard: (app.resound.skills.SkillCard) -> Unit = {},
-                           onStar: (MemoryEvent) -> Unit = {}, onDelete: (MemoryEvent) -> Unit = {}, onOpen: (MemoryEvent) -> Unit) {
+                           onStar: (MemoryEvent) -> Unit = {}, onDelete: (MemoryEvent) -> Unit = {},
+                           /** 首页传入：长按进入多选；其他页不传 */
+                           selection: TimelineSelection? = null, order: List<Long> = emptyList(),
+                           onOpen: (MemoryEvent) -> Unit) {
     val c = Rs.colors
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val count = entries.count { it is TimelineEntry.Event }
     Column(modifier) {
         Text(if (count > 0) "$part · $count 件" else part, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
@@ -717,7 +781,15 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
         RsCard(padding = PaddingValues(vertical = 4.dp)) {
             entries.forEachIndexed { i, e ->
                 when (e) {
-                    is TimelineEntry.Event -> SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { lp -> TimelineLine(e.event, lp) { onOpen(e.event) } }
+                    // 多选中：点一下勾选/取消，长按 = 选到这条；左右滑暂停，避免误删
+                    is TimelineEntry.Event -> if (selection?.active == true) {
+                        val id = e.event.id
+                        TimelineLine(e.event, onLongPress = { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); selection.rangeTo(id, order) },
+                            modifier = Modifier.trackRow(selection, id), selected = id in selection.ids) { selection.toggle(id, order) }
+                    } else SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { lp ->
+                        val start = selection?.let { s -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); s.start(e.event.id) } }
+                        TimelineLine(e.event, start ?: lp) { onOpen(e.event) }
+                    }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
@@ -743,14 +815,22 @@ private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit)
 }
 
 @Composable
-internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null, onOpen: () -> Unit) {
+internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null, modifier: Modifier = Modifier,
+                          /** 多选模式下为 true/false 表示是否选中；不在多选为 null */
+                          selected: Boolean? = null, onOpen: () -> Unit) {
     val c = Rs.colors
     val quiet = event.scene in QUIET_SCENES
+    val selBg by androidx.compose.animation.animateColorAsState(if (selected == true) c.accentSoft.copy(alpha = 0.6f) else Color.Transparent, label = "rowSel")
     Row(
-        Modifier.fillMaxWidth().alpha(if (quiet) 0.55f else 1f)
+        modifier.fillMaxWidth().background(selBg).alpha(if (quiet && selected == null) 0.55f else 1f)
             .then(if (onLongPress != null) Modifier.combinedClickable(onLongClick = onLongPress, onClick = onOpen) else Modifier.springClick(onOpen))
             .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
     ) {
+        androidx.compose.animation.AnimatedVisibility(selected != null,
+            enter = androidx.compose.animation.expandHorizontally() + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.shrinkHorizontally() + androidx.compose.animation.fadeOut()) {
+            Box(Modifier.padding(end = 12.dp, top = 1.dp)) { SelectCircle(selected == true) }
+        }
         Text(
             formatClock(event.startAt),
             style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold),
@@ -805,12 +885,13 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheet, containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
-        val clipboard = LocalClipboardManager.current
         var copied by remember { mutableStateOf(false) }
+        var choosingCopy by remember { mutableStateOf(false) }
+        if (choosingCopy) CopySheet(listOf(event), memory, onDone = { copied = true }) { choosingCopy = false }
         // 文字可长按选中复制
         SelectionContainer {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
-            Text("${formatClock(event.startAt)} – ${formatClock(event.endAt)} · ${sceneLine(event)}", style = RsType.caption, color = c.textSecondary)
+            Text("${relativeDate(event.startAt)} ${formatClock(event.startAt)} – ${formatClock(event.endAt)} · ${sceneLine(event)}", style = RsType.caption, color = c.textSecondary)
             Spacer(Modifier.height(4.dp))
             Text(event.title, style = RsType.title, color = c.text)
             Spacer(Modifier.height(12.dp))
@@ -866,10 +947,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                     important = !important
                     memory.setStarred(event.id, important)
                 }
-                ActionChip(if (copied) "已复制" else "复制", ChipTone.Plain, Modifier.weight(1f)) {
-                    clipboard.setText(AnnotatedString(eventText(event, lines)))
-                    copied = true
-                }
+                ActionChip(if (copied) "已复制" else "复制", ChipTone.Plain, Modifier.weight(1f)) { choosingCopy = true }
                 if (app.resound.AppGraph.isAskReady) ActionChip("问问", ChipTone.Plain, Modifier.weight(1f)) {
                     app.resound.AppGraph.ask.askAbout(
                         app.resound.ask.AskSource("event", event.id, event.startAt, event.title, event.summary),
@@ -891,18 +969,6 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
 }
 
 /** 复制用的纯文本：标题、时间、摘要、要点、提取项、原话 */
-private fun eventText(event: MemoryEvent, lines: List<app.resound.transcribe.TranscriptLine>): String = buildString {
-    appendLine(event.title)
-    appendLine("${formatClock(event.startAt)}–${formatClock(event.endAt)} · ${event.scene}")
-    appendLine()
-    appendLine(event.summary)
-    if (event.points.isNotEmpty()) { appendLine(); event.points.forEach { appendLine("· $it") } }
-    if (event.items.isNotEmpty()) { appendLine(); event.items.forEach { appendLine("【${it.category}】${it.content}") } }
-    if (lines.isNotEmpty()) {
-        appendLine(); appendLine("原话：")
-        lines.forEach { appendLine("${formatClock(it.startAt)} ${it.speakerName ?: it.speakerTag?.toIntOrNull()?.let { t -> "说话人${t + 1}" } ?: ""}：${it.text}") }
-    }
-}.trimEnd()
 
 /** 一条提取项的详情：完整内容、时间、谁来做、依据的原话；可接受/忽略、编辑、删除、跳到所属那件事 */
 @OptIn(ExperimentalMaterial3Api::class)

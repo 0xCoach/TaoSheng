@@ -45,7 +45,7 @@ fun createAskRepository(
         generate = { recent ->
             val preset = settings.preset
             val key = readKey()
-            if (key.isBlank()) throw LlmException(LlmError.Auth)
+            if (key.isBlank() && preset.id != "custom") throw LlmException(LlmError.Auth)
             var prompt = 0L; var completion = 0L
             try {
                 val reply = withTimeout(90_000) {
@@ -66,7 +66,7 @@ fun createAskRepository(
         // 一轮问答固定服务和密钥，避免用户切换设置后同一轮混用模型。
         val preset = settings.preset
         val key = readKey()
-        if (key.isBlank()) throw LlmException(LlmError.Auth)
+        if (key.isBlank() && preset.id != "custom") throw LlmException(LlmError.Auth)
         AskEngine(AskStream { messages, requested, delta, usage ->
             // 即使额度耗尽也保留 tools 定义，同时 tool_choice=none，避免服务把工具语法泄漏进正文。
             client.streamChat(preset, key, messages, definitions, delta, usage, allowTools = requested.length() > 0)

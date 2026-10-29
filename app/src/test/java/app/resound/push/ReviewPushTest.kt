@@ -45,10 +45,13 @@ class ReviewPushTest {
 
     private class FakeDelivery {
         val requests = Collections.synchronizedList(mutableListOf<JSONObject>())
+        val rawBodies = Collections.synchronizedList(mutableListOf<String>())
         var status = 200
         // 直接在应用拦截器返回响应，绝不访问网络或真实推送服务。
         val transport = PushTransport(OkHttpClient.Builder().addInterceptor { chain ->
-            requests += JSONObject(Buffer().also { chain.request().body!!.writeTo(it) }.readUtf8())
+            val raw = Buffer().also { chain.request().body!!.writeTo(it) }.readUtf8()
+            rawBodies += raw
+            if (chain.request().body!!.contentType()?.subtype == "json") requests += JSONObject(raw)
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(status)
                 .message("fake").body("".toResponseBody()).build()
         }.build())
@@ -89,7 +92,7 @@ class ReviewPushTest {
     @Test fun formatsAndJsonKeepFullReviewAndRetryPayload() {
         assertEquals("10月23日回顾", review.pushTitle())
         assertEquals(markdown, review.pushBody(PushFormat.Markdown))
-        assertEquals(plain, review.pushBody(PushFormat.Text))
+        assertEquals(plain.replace("- ", ""), review.pushBody(PushFormat.Text))
         val message = PushMessage(review.pushTitle(), plain, PushTopic.DailyReview, "resound://review?date=$date", 1234, review)
         val json = message.json()
         assertEquals(plain, json.getString("body"))
@@ -155,9 +158,9 @@ class ReviewPushTest {
             assertEquals(review.brief, local.single().body)
             assertEquals("今日回顾", local.single().title)
             assertEquals("resound://review?open=review&date=$date", local.single().deepLink)
-            assertEquals(setOf(markdown, plain), fake.requests.map { it.getString("body") }.toSet())
-            assertEquals(2, fake.requests.size)
-            assertTrue(fake.requests.all { it.getString("title") == review.pushTitle() })
+            assertEquals(setOf("# ${review.pushTitle()}\n\n$markdown",
+                "${review.pushTitle()}\n${plain.replace("- ", "")}"), fake.rawBodies.toSet())
+            assertEquals(2, fake.rawBodies.size)
         }
     }
 }

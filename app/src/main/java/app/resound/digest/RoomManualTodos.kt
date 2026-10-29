@@ -23,7 +23,7 @@ class RoomManualTodos(
         return try {
             withTimeoutOrNull(timeoutMillis) {
                 val (preset, key) = credentials()
-                if (key.isBlank()) return@withTimeoutOrNull fallback
+                if (key.isBlank() && preset.id != "custom") return@withTimeoutOrNull fallback
                 val reply = chatJson(preset, key, ManualTodoPrompt.system(today(), java.time.Instant.ofEpochMilli(now()).atZone(zone).toLocalTime()),
                     JSONObject().put("sourceText", text).toString())
                 withContext(NonCancellable) { recordUsage(reply) }

@@ -12,6 +12,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
+import app.resound.transcribe.EndpointKind
+import app.resound.transcribe.OpenAiEndpoint
 import app.resound.transcribe.RemoteModels
 import app.resound.ui.theme.*
 import app.resound.ui.verify.Pill
@@ -50,13 +52,24 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
         Spacer(Modifier.height(14.dp))
         Text("服务地址",style=RsType.body,color=c.text)
         Spacer(Modifier.height(8.dp))
-        SettingsInput(endpoint,{endpoint=it.trim();models=emptyList()},"https://…",Modifier.fillMaxWidth())
+        SettingsInput(endpoint,{endpoint=it.trim();models=emptyList()},"https://… 或 http://192.168.…",Modifier.fillMaxWidth())
         Spacer(Modifier.height(6.dp))
-        Text("可填根地址或带 /v1 的地址，自动匹配路径。",style=RsType.caption,color=c.textTertiary)
+        // 按地址类型给一行提示：局域网 http 放心用；公网 http 提醒未加密，但不拦
+        val kind=remember(endpoint){if(endpoint.isBlank())null else OpenAiEndpoint.kind(endpoint)}
+        when(kind) {
+            EndpointKind.LocalHttp->Text("局域网连接 · 可填根地址或带 /v1 的地址，自动匹配路径。",style=RsType.caption,color=c.textSecondary)
+            EndpointKind.PublicHttp->Text("未加密的公网连接，密钥和内容可能被截获，建议只在内网使用。",style=RsType.caption,color=c.warning)
+            EndpointKind.Invalid->Text("请填写 http:// 或 https:// 开头的地址。",style=RsType.caption,color=c.critical)
+            else->Text("可填根地址或带 /v1 的地址，自动匹配路径。",style=RsType.caption,color=c.textTertiary)
+        }
         Spacer(Modifier.height(16.dp))
-        Text("API Key",style=RsType.body,color=c.text)
+        Row(verticalAlignment=androidx.compose.ui.Alignment.Bottom) {
+            Text("API Key",style=RsType.body,color=c.text)
+            Spacer(Modifier.width(6.dp))
+            Text("可选",style=RsType.caption,color=c.textTertiary)
+        }
         Spacer(Modifier.height(8.dp))
-        SettingsInput(key,{key=it.trim()},if(hasKey)"已保存密钥，留空沿用" else "粘贴 API Key",Modifier.fillMaxWidth(),secret=true)
+        SettingsInput(key,{key=it.trim()},if(hasKey)"已保存，留空沿用" else "本地模型不需要可留空",Modifier.fillMaxWidth(),secret=true)
         Spacer(Modifier.height(16.dp))
         Text("模型",style=RsType.body,color=c.text)
         Spacer(Modifier.height(8.dp))
@@ -79,9 +92,9 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
                     finally{fetching=false}
                 }}
             }
-            Pill("保存",filled=endpoint.isNotBlank() && model.isNotBlank() && (hasKey || key.isNotBlank())) {
+            Pill("保存",filled=kind!=null && kind!=EndpointKind.Invalid && model.isNotBlank()) {
                 if(!fetching){error=false
-                    try{save(endpoint,model,key);key="";message="地址、密钥和模型已保存"}
+                    try{val withKey=key.isNotBlank() || hasKey;save(endpoint,model,key);key="";message=if(withKey)"地址、密钥和模型已保存" else "地址和模型已保存"}
                     catch(e:Exception){error=true;message=e.message ?: "保存失败"}
                 }
             }

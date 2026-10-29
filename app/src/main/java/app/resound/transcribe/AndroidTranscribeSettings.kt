@@ -62,7 +62,6 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun saveCustomAll(endpoint: String, model: String, key: String) {
         OpenAiEndpoint.bases(endpoint)
         require(model.trim().isNotEmpty()) { "请填写或选择模型" }
-        require(key.isNotBlank() || readKey().isNotBlank()) { "请填写 API Key" }
         if(key.isNotBlank()) saveKey(key)
         saveCustom(endpoint,model)
     }
@@ -72,8 +71,11 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun refreshReady() { _ready.value=if(source.value==TranscribeSource.Local) {
         if(backend.value==app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) modelReady(app.resound.transcribe.local.LocalBackend.Npu)
         else modelReady(app.resound.transcribe.local.LocalBackend.Cpu)
-    } else runCatching{readKey().isNotBlank() && (source.value!=TranscribeSource.Custom || customEndpoint.isNotBlank() && customModel.isNotBlank())}.getOrDefault(false) }
-    private val _hasKey = MutableStateFlow(runCatching { readKey().isNotBlank() }.getOrDefault(false))
+    } else usable()
+        _hasKey.value = usable()
+    }
+    private fun usable() = (source.value == TranscribeSource.Custom && customEndpoint.isNotBlank() && customModel.isNotBlank()) || runCatching { readKey().isNotBlank() }.getOrDefault(false)
+    private val _hasKey = MutableStateFlow(usable())
     override val hasKey = _hasKey.asStateFlow()
     private val _interval = MutableStateFlow(prefs.getInt("interval", 30).takeIf { it in MIN_INTERVAL..MAX_INTERVAL } ?: 30)
     override val intervalMinutes = _interval.asStateFlow()
@@ -138,7 +140,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     }
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
         val key = try { credential() } catch (_: Exception) { return@withContext Result.failure(IllegalStateException("密钥安全读取失败，请重新填写")) }
-        if (key.isBlank()) Result.failure(IllegalStateException("还没填写转写密钥"))
+        if (key.isBlank() && source.value != TranscribeSource.Custom) Result.failure(IllegalStateException("还没填写转写密钥"))
         else try { testKey(key) } catch (e: CancellationException) { throw e }
         catch (_: Exception) { Result.failure(IllegalStateException("转写测试失败，请重试")) }
     }

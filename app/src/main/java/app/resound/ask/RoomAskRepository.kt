@@ -145,7 +145,7 @@ class RoomAskRepository(
         } catch (e: CancellationException) {
             synchronized(lock) { if (current.text.isEmpty()) current = current.copy(text = "已停止") }
         } catch (e: LlmException) {
-            synchronized(lock) { current = current.copy(error = e.type.human) }
+            synchronized(lock) { current = current.copy(error = e.detail) }
         } catch (_: Exception) {
             synchronized(lock) { current = current.copy(error = "查询失败，请重试") }
         } finally {

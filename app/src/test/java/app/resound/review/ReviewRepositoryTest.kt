@@ -73,7 +73,7 @@ class ReviewRepositoryTest {
         val prefs = context.getSharedPreferences("review-test", Context.MODE_PRIVATE)
         prefs.edit().putString("test-key", "").commit()
         repo.run(date, true)
-        assertEquals("还没填写大模型密钥", repo.state.value.lastError); assertTrue(actions.isEmpty())
+        assertEquals("还没填写整理模型的密钥", repo.state.value.lastError); assertTrue(actions.isEmpty())
         prefs.edit().putString("test-key", "test").commit()
         repo.run(date, false); repo.run(date, false)
         assertEquals(listOf("chat", "chat"), actions); assertEquals(1, repo.recent().first().size)

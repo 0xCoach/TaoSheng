@@ -22,20 +22,24 @@ private class PreparationAllowed(val value: Boolean) : AbstractCoroutineContextE
 
 internal suspend fun <T> CoroutineWorker.withReviewForeground(block: suspend () -> T): T {
     val allowed = try {
-        applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel("review-preparation", "回顾与整理", NotificationManager.IMPORTANCE_LOW))
-        setForeground(ForegroundInfo(5300 + (id.hashCode() and 0xffff),
-            NotificationCompat.Builder(applicationContext, "review-preparation")
-                .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("涛声正在整理和生成回顾")
-                .setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+        setForeground(reviewForegroundInfo())
         true
     } catch (e: CancellationException) { throw e }
     catch (_: Exception) { false }
     return withContext(PreparationAllowed(allowed)) { block() }
 }
 
+internal fun CoroutineWorker.reviewForegroundInfo(): ForegroundInfo {
+    applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
+        NotificationChannel("review-preparation", "回顾与整理", NotificationManager.IMPORTANCE_LOW))
+    return ForegroundInfo(5300 + (id.hashCode() and 0xffff),
+        NotificationCompat.Builder(applicationContext, "review-preparation")
+            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("涛声正在生成回顾")
+            .setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+}
+
 internal object ReviewPreparation {
-    suspend fun run(app: ResoundApp) {
+    suspend fun run(app: ResoundApp): Boolean =
         prepare(record = { PipelineTimes.record(app, "${System.currentTimeMillis()} 回顾前整理 $it") }) {
             when {
                 currentCoroutineContext()[PreparationAllowed]?.value == false -> "前台申请失败，使用已有内容"
@@ -47,14 +51,14 @@ internal object ReviewPreparation {
                 }
             }
         }
-    }
 
     /** 只吞本次超时和普通失败，系统取消必须继续抛出；等待流水线锁也包含在额度内。 */
-    internal suspend fun prepare(timeoutMillis: Long = 10 * 60_000L, record: (String) -> Unit, action: suspend () -> String) {
+    internal suspend fun prepare(timeoutMillis: Long = 10 * 60_000L, record: (String) -> Unit, action: suspend () -> String): Boolean {
         val result = try {
             withTimeoutOrNull(timeoutMillis) { action() } ?: "超时，使用已有内容"
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { "失败，使用已有内容" }
         record(result)
+        return result == "完成"
     }
 }

@@ -16,7 +16,7 @@ enum class AsrError(val human: String, val retryable: Boolean = false) {
     Interrupted("任务中断，等待重试", true), Storage("本地存储失败，等待重试", true)
 }
 /** 仅使用固定文案，禁止将 Throwable、服务端消息或请求对象作为 cause/日志保存。 */
-class AsrException(val type: AsrError, val logId: String? = null) : Exception(type.human)
+class AsrException(val type: AsrError, val logId: String? = null, val detail: String = type.human) : Exception(detail)
 data class DoubaoConfig(
     val url: String = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream",
     val resourceId: String = "volc.seedasr.sauc.duration",

@@ -205,6 +205,8 @@ internal fun LazyListScope.dayDiary(
     /** 手动生成 / 重新生成这天的回顾；没有回顾功能时为 null */
     onGenerate: (() -> Unit)? = null,
     generating: Boolean = false,
+    /** 卡 058：生成回顾的状态（进度、这天的原因、窗口里有没有内容）；没有回顾功能为 null */
+    reviewInfo: ReviewInfo? = null,
     /** 时间线倒序（新的在上） */
     newestFirst: Boolean = false,
     onToggleOrder: () -> Unit = {},
@@ -231,8 +233,9 @@ internal fun LazyListScope.dayDiary(
         item(key = "empty") { Box(gap) { EmptyDay(date) } }
         return
     }
-    if (review != null) item(key = "review") { Box(gap) { ReviewLead(review, generating, onOpenReview, onGenerate) } }
-    else if (evs.isNotEmpty() && onGenerate != null) item(key = "reviewMake") { Box(gap) { MakeReview(date, generating, onGenerate) } }
+    if (review != null) item(key = "review") { Box(gap) { ReviewLead(review, generating, reviewInfo, onOpenReview, onGenerate) } }
+    else if (onGenerate != null && (evs.isNotEmpty() || reviewInfo?.hasMaterial == true || reviewInfo?.note != null))
+        item(key = "reviewMake") { Box(gap) { MakeReview(date, generating, reviewInfo, onGenerate) } }
 
     if (cards.isNotEmpty() || (evs.isNotEmpty() && onMakeCard != null)) item(key = "cards") { Box(gap) { DayCards(cards, onOpenCard, onMakeCard) } }
 
@@ -363,7 +366,7 @@ private fun GroupLabel(name: String, n: Int) {
 
 /** 回顾导语：浅橙底，一句话 + 查看完整 */
 @Composable
-private fun ReviewLead(review: DailyReview, generating: Boolean, onOpen: () -> Unit, onGenerate: (() -> Unit)?) {
+private fun ReviewLead(review: DailyReview, generating: Boolean, info: ReviewInfo?, onOpen: () -> Unit, onGenerate: (() -> Unit)?) {
     val c = Rs.colors
     val lead = review.sections.firstOrNull { it.title == "一句话" }?.lines?.firstOrNull() ?: review.brief
     var confirm by remember(review.generatedAt) { mutableStateOf(false) }
@@ -389,25 +392,60 @@ private fun ReviewLead(review: DailyReview, generating: Boolean, onOpen: () -> U
                 )
             }
         }
+        ReviewNote(generating, info)
     }
 }
 
+/** 回顾生成的进度、或这天没生成/不完整的原因；进度和“已用现有内容生成”用灰色，失败用红色 */
+@Composable
+private fun ReviewNote(generating: Boolean, info: ReviewInfo?) {
+    val c = Rs.colors
+    val text = if (generating) info?.stage else info?.note
+    androidx.compose.animation.AnimatedVisibility(text != null) {
+        Text(text ?: "", style = RsType.caption, color = if (generating || info?.soft == true) c.textSecondary else c.critical,
+            modifier = Modifier.padding(top = 10.dp))
+    }
+}
+
+/** 界面要的回顾状态：一天一份 */
+internal data class ReviewInfo(
+    /** 正在生成时当前这一步 */
+    val stage: String?,
+    /** 这天上次生成留下的原因（没生成、失败或不完整） */
+    val note: String?,
+    /** note 只是提醒（已生成，但还有录音没整理完），不是失败 */
+    val soft: Boolean,
+    val hasMaterial: Boolean,
+    /** 如“10月28日 22:00 – 10月29日 22:00” */
+    val window: String,
+)
+
 /** 这天有事件但还没有回顾：给一个生成按钮 */
 @Composable
-private fun MakeReview(date: LocalDate, generating: Boolean, onGenerate: () -> Unit) {
+private fun MakeReview(date: LocalDate, generating: Boolean, info: ReviewInfo?, onGenerate: () -> Unit) {
     val c = Rs.colors
+    // 窗口里没内容（例如这天的事都在截止时刻之后）：不给按钮，直接说明这天的回顾管哪段时间
+    val empty = info != null && !info.hasMaterial
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp), color = c.accentSoft) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("这天还没有回顾", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
                 Text(
-                    if (date == LocalDate.now()) "每晚会自动生成，也可以现在先生成一版" else "可以现在补生成",
+                    when {
+                        empty -> "这天的回顾覆盖 ${info!!.window}，这段时间里没有可写的事"
+                        date == LocalDate.now() -> "每晚会自动生成，也可以现在先生成一版"
+                        else -> "可以现在补生成"
+                    },
                     style = RsType.caption, color = c.textSecondary,
                 )
             }
-            Spacer(Modifier.width(10.dp))
-            Pill(if (generating) "生成中…" else "生成回顾", filled = !generating) { if (!generating) onGenerate() }
+            if (!empty) {
+                Spacer(Modifier.width(10.dp))
+                Pill(if (generating) "生成中…" else "生成回顾", filled = !generating) { if (!generating) onGenerate() }
+            }
         }
+        // 没内容时上面已经说明，不再重复同一句
+        if (!empty || generating) ReviewNote(generating, info)
     }
 }
 

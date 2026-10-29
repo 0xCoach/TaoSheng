@@ -25,7 +25,7 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 }
 
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
-class LlmException(val type: LlmError, val status: Int = 0) : Exception(type.human)
+class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human) : Exception(detail)
 
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long)
 
@@ -46,17 +46,17 @@ class LlmClient(
         if (preset.baseUrl.contains("volces.com")) body.put("thinking", JSONObject().put("type", "disabled"))
         val request = Request.Builder()
             .url(preset.baseUrl.trimEnd('/') + "/chat/completions")
-            .header("Authorization", "Bearer $key")
+            .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
-        val response = try { clientFor(preset).newCall(request).await() } catch (e: IOException) { throw LlmException(LlmError.Network) }
+        val response = try { clientFor(preset).newCall(request).await() } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human)) }
         response.use {
             when (it.code) {
                 in 200..299 -> Unit
-                401, 403 -> throw LlmException(LlmError.Auth, it.code)
+                401, 403 -> throw LlmException(LlmError.Auth, it.code, if(preset.id == "custom") "鉴权失败，请检查密钥" else LlmError.Auth.human)
                 else -> throw LlmException(LlmError.Server, it.code)
             }
-            val json = try { JSONObject(it.body!!.string()) } catch (_: Exception) { throw LlmException(LlmError.Format) }
+            val json = try { JSONObject(it.body!!.string()) } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl,e,LlmError.Network.human)) } catch (_: Exception) { throw LlmException(LlmError.Format) }
             val content = json.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
                 ?: throw LlmException(LlmError.Format)
             val usage = json.optJSONObject("usage")
@@ -77,20 +77,20 @@ class LlmClient(
         else body.put("tool_choice", "none")
         if (preset.baseUrl.contains("volces.com")) body.put("thinking", JSONObject().put("type", "disabled"))
         val request = Request.Builder().url(preset.baseUrl.trimEnd('/') + "/chat/completions")
-            .header("Authorization", "Bearer $key")
+            .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
             .post(body.toString().toRequestBody("application/json".toMediaType())).build()
         val call = clientFor(preset).newCall(request)
         cont.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                if (cont.isActive) cont.resumeWithException(LlmException(LlmError.Network))
+                if (cont.isActive) cont.resumeWithException(LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human)))
             }
             override fun onResponse(call: Call, response: Response) {
                 try {
                     val reply = response.use {
                         when (it.code) {
                             in 200..299 -> Unit
-                            401, 403 -> throw LlmException(LlmError.Auth, it.code)
+                            401, 403 -> throw LlmException(LlmError.Auth, it.code, if(preset.id == "custom") "鉴权失败，请检查密钥" else LlmError.Auth.human)
                             else -> throw LlmException(LlmError.Server, it.code)
                         }
                         val parser = LlmSseParser({ delta -> if (cont.isActive) onText(delta) }, onUsage)
@@ -106,7 +106,7 @@ class LlmClient(
                 } catch (e: Exception) {
                     val safe = when (e) {
                         is LlmException -> e
-                        is IOException -> LlmException(LlmError.Network)
+                        is IOException -> LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human))
                         else -> LlmException(LlmError.Format)
                     }
                     if (cont.isActive) cont.resumeWithException(safe)
@@ -119,7 +119,10 @@ class LlmClient(
         if(preset.id!="custom")return http
         if(preset.baseUrl.isBlank() || preset.model.isBlank())throw LlmException(LlmError.Format)
         val bases=app.resound.transcribe.OpenAiEndpoint.bases(preset.baseUrl)
-        return http.newBuilder().apply { interceptors().add(0, okhttp3.Interceptor { chain ->
+        return http.newBuilder().apply {
+            connectTimeout(10, TimeUnit.SECONDS)
+            if(app.resound.transcribe.OpenAiEndpoint.kind(preset.baseUrl)==app.resound.transcribe.EndpointKind.LocalHttp) readTimeout(maxOf(http.readTimeoutMillis.toLong(),180_000), TimeUnit.MILLISECONDS)
+            interceptors().add(0, okhttp3.Interceptor { chain ->
             var response:Response?=null
             for((index,base) in bases.withIndex()) {
                 response=chain.proceed(chain.request().newBuilder().url("$base/chat/completions").build())

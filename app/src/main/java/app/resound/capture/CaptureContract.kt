@@ -42,6 +42,8 @@ data class CaptureStatus(
     val level: Float = 0f,
     /** 麦克风被占时的说明，例如“通话中”“可能是 小红书 或 讯飞输入法（语音输入）”；其他状态为 null */
     val busyDetail: String? = null,
+    /** 卡 056：因停录时段而暂停时为该时段的名字（如“睡眠”），此时 state = Paused、pausedUntil = 时段结束；其他情况为 null */
+    val quietName: String? = null,
 )
 
 interface CaptureController {

@@ -61,14 +61,15 @@ class AndroidDigestSettings(
     fun saveCustomAll(endpoint:String,model:String,key:String) {
         app.resound.transcribe.OpenAiEndpoint.bases(endpoint)
         require(model.trim().isNotBlank()){"请填写或选择模型"}
-        require(key.isNotBlank() || readKey().isNotBlank()){"请填写 API Key"}
         if(key.isNotBlank())saveKey(key)
         check(prefs.edit().putString("customEndpoint",endpoint.trim()).putString("customModel",model.trim()).commit())
+        _hasKey.value = usable()
     }
 
     private val _presetId = MutableStateFlow(prefs.getString("preset", null)?.takeIf { id -> presets.any { it.id == id } } ?: presets.first().id)
     override val presetId: StateFlow<String> = _presetId.asStateFlow()
-    private val _hasKey = MutableStateFlow(secrets.has(keyName(_presetId.value)))
+    private fun usable() = secrets.has(keyName(_presetId.value)) || (_presetId.value == "custom" && customEndpoint.isNotBlank() && customModel.isNotBlank())
+    private val _hasKey = MutableStateFlow(usable())
     override val hasKey: StateFlow<Boolean> = _hasKey.asStateFlow()
 
     val preset: LlmPreset get() = presets.first { it.id == _presetId.value }
@@ -88,7 +89,7 @@ class AndroidDigestSettings(
         require(presets.any { it.id == id })
         check(prefs.edit().putString("preset", id).commit())
         _presetId.value = id
-        _hasKey.value = secrets.has(keyName(id))
+        _hasKey.value = usable()
     }
 
     override fun saveKey(key: String) {
@@ -101,14 +102,14 @@ class AndroidDigestSettings(
 
     override fun clearKey() {
         secrets.remove(keyName(_presetId.value))
-        _hasKey.value = false
+        _hasKey.value = usable()
     }
 
     override suspend fun test(): Result<String> {
         val selected=preset
         if(selected.id=="custom" && (selected.baseUrl.isBlank() || selected.model.isBlank()))return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         val key = readKey()
-        if (key.isBlank()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (key.isBlank() && selected.id != "custom") return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
@@ -117,7 +118,7 @@ class AndroidDigestSettings(
         } catch (e: CancellationException) {
             throw e
         } catch (e: LlmException) {
-            Result.failure(IllegalStateException(e.type.human))
+            Result.failure(IllegalStateException(e.detail))
         } catch (_: Exception) {
             Result.failure(IllegalStateException("测试失败，请重试"))
         }
@@ -127,7 +128,7 @@ class AndroidDigestSettings(
         val selected=preset
         if(selected.id=="custom" && (selected.baseUrl.isBlank() || selected.model.isBlank()))return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         val key = readKey()
-        if (key.isBlank()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (key.isBlank() && selected.id != "custom") return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return Result.success(ModelCheck(
             json = { system, user ->
                 client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }

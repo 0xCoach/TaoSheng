@@ -94,8 +94,8 @@ class ModelCheck(
 
     /** 这些原因跟具体功能无关，后面不用再测 */
     private fun fatal(e: LlmException): String? = when {
-        e.type == LlmError.Auth -> "密钥无效或没开通"
-        e.type == LlmError.Network -> "网络连不上大模型服务"
+        e.type == LlmError.Auth -> if(e.detail != e.type.human) e.detail else "密钥无效或没开通"
+        e.type == LlmError.Network -> e.detail
         e.status == 404 -> "找不到这个模型或服务地址，请检查"
         e.status == 429 -> "请求太频繁或额度已用完"
         e.status >= 500 -> "大模型服务暂时不可用，请稍后再检测"

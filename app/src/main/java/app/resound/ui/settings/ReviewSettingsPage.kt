@@ -87,7 +87,10 @@ fun ReviewSettingsPage(repo: ReviewRepository, bottomPadding: Dp) {
             Pill(if (s.generating) "生成中…" else "生成${listOf("今天", "昨天", "前天")[day.toInt()]}的回顾", filled = !s.generating) {
                 if (!s.generating) repo.generateNow(LocalDate.now().minusDays(day))
             }
-            s.lastError?.let { Spacer(Modifier.height(8.dp)); Text(it, style = RsType.caption, color = c.critical) }
+            // 生成中显示进行到哪一步；结束后显示没生成或不完整的原因（“已用现有内容生成”只是提醒，用灰色）
+            val note = if (s.generating) s.stage else s.lastError
+            note?.let { Spacer(Modifier.height(8.dp)); Text(it, style = RsType.caption,
+                color = if (s.generating || it.startsWith("已用现有内容生成")) c.textSecondary else c.critical) }
             Spacer(Modifier.height(8.dp))
             Text("更早的日子：在“记忆 → 按天”选中那天，点“生成回顾”。", style = RsType.caption, color = c.textTertiary)
         }

@@ -25,6 +25,11 @@ data class ReviewEventVector(val refId: Long, val startAt: Long, val model: Stri
 
 @Dao
 abstract class ReviewDao {
+    // 只订阅失效通知；内容规则仍由 reviewInput 唯一维护，向量变化也会影响历史重点。
+    @RawQuery(observedEntities = [MemoryEventEntity::class, MemoryItemEntity::class,
+        app.resound.search.EmbeddingEntity::class])
+    abstract fun materialChanges(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<Int>
+
     @Query("SELECT * FROM reviews WHERE type = 'daily' AND startDate = :date AND endDate = :date LIMIT 1")
     abstract fun daily(date: String): Flow<ReviewEntity?>
 

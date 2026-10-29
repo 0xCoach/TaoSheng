@@ -37,6 +37,7 @@ import app.resound.ui.theme.RsType
 import app.resound.ui.verify.ActionButton
 import app.resound.ui.verify.ActionKind
 import app.resound.ui.verify.RsSheet
+import app.resound.ui.verify.resumeAt
 import app.resound.ui.verify.formatClock
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.launch
@@ -59,12 +60,12 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
 
     RsSheet(
         when (status.state) {
-            CaptureState.Paused -> "已暂停"
+            CaptureState.Paused -> status.quietName?.let { "${it}中" } ?: "已暂停"
             CaptureState.Stopped, CaptureState.NoPermission -> "没在聆听"
             else -> "正在聆听"
         },
         when {
-            status.state == CaptureState.Paused -> status.pausedUntil?.let { "到 ${formatClock(it)} 自动恢复" }
+            status.state == CaptureState.Paused -> resumeAt(status.pausedUntil)?.let { "到 ${formatClock(it)} 自动恢复" }
             listening -> "只在有人说话时录音"
             else -> null
         },

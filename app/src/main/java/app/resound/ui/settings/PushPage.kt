@@ -221,6 +221,12 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PushFormat.entries.filter { it in caps.formats }.forEach { f -> Choice(f.title, f == format) { format = f } }
             }
+            // 自定义接口：三种格式发出去的内容不同，说清楚各自适合什么
+            if (kind == PushKind.Webhook) Text(when (format) {
+                PushFormat.Json -> "发 JSON，适合程序对接"
+                PushFormat.Markdown -> "直接发 Markdown 正文，适合存成笔记"
+                PushFormat.Text -> "发纯文字，不带格式符号"
+            }, style = RsType.caption, color = c.textTertiary)
         }
         result?.let { r ->
             Text(r.getOrNull() ?: r.exceptionOrNull()?.message ?: "没成功", style = RsType.subhead, color = if (r.isSuccess) c.good else c.critical)

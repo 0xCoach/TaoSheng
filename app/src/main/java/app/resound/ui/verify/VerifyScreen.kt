@@ -113,6 +113,7 @@ fun VerifyScreen(
     ) {
         item { Header(themeMode, onThemeMode) }
         item { StatusCard(capture) }
+        if (app.resound.AppGraph.isQuietScheduleReady) item { QuietSection(app.resound.AppGraph.quietSchedule) }
         if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
         if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
         item {
@@ -240,7 +241,7 @@ private fun StatusCard(capture: CaptureController) {
             Dot(dotColor, 9.dp)
             Spacer(Modifier.width(8.dp))
             AnimatedContent(
-                targetState = stateTitle(status.state),
+                targetState = status.quietName?.let { "${it}中" } ?: stateTitle(status.state),
                 transitionSpec = {
                     (slideInVertically { it / 2 } + fadeIn()) togetherWith (slideOutVertically { -it / 2 } + fadeOut())
                 },
@@ -292,7 +293,7 @@ private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?, 
     CaptureState.Stopped -> "点“开始聆听”后，有人说话才会录"
     CaptureState.Listening -> "安静中 · 已持续 ${formatDuration(elapsed)}"
     CaptureState.Recording -> "检测到人声 · 本段 ${formatDuration(elapsed, seconds = true)}"
-    CaptureState.Paused -> pausedUntil?.let { "将在 ${formatClock(it)} 自动恢复" } ?: "手动暂停中"
+    CaptureState.Paused -> resumeAt(pausedUntil)?.let { "将在 ${formatClock(it)} 自动恢复" } ?: "手动暂停中"
     CaptureState.MicBusy -> busyDetail?.let { "$it，结束后自动恢复" } ?: "通话或其他 App 在用麦克风，结束后自动恢复"
     CaptureState.NoPermission -> "需要麦克风和通知权限"
 }
@@ -608,6 +609,9 @@ fun formatDuration(ms: Long, seconds: Boolean = false): String {
         else -> if (seconds) "${s}秒" else "0分钟"
     }
 }
+
+/** 暂停的恢复时间；全天停录（没有结束）为 null，界面就不写几点恢复 */
+fun resumeAt(until: Long?): Long? = until?.takeIf { it < Long.MAX_VALUE / 2 }
 
 fun formatClock(epochMs: Long): String =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))

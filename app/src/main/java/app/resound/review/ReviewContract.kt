@@ -32,6 +32,10 @@ data class ReviewState(
     /** 每天几点生成并推送，默认 22:00（分钟数，如 22*60） */
     val dailyAtMinutes: Int,
     val pushEnabled: Boolean,
+    /** 卡 058：正在生成时当前这一步，如“正在整理还没处理的录音…”“正在写回顾…”；不在生成为 null */
+    val stage: String? = null,
+    /** 卡 058：[lastError] 属于哪一天的回顾（界面只在那天显示）；没有错误为 null */
+    val lastErrorDate: LocalDate? = null,
 )
 
 interface ReviewRepository {
@@ -45,6 +49,12 @@ interface ReviewRepository {
 
     /** 立即（重新）生成某天的回顾，不推送 */
     fun generateNow(date: LocalDate)
+
+    /** 卡 058：这天的回顾窗口（上一日截止时刻，当日截止时刻]里有没有能写进回顾的内容；与生成时的判断完全一致。界面据此决定显示“生成回顾” */
+    fun hasMaterial(date: LocalDate): Flow<Boolean>
+
+    /** 卡 058：这天回顾覆盖的时间段，给用户看，如“10月28日 22:00 – 10月29日 22:00” */
+    fun windowText(date: LocalDate): String
 
     fun setDailyAt(minutes: Int)
 

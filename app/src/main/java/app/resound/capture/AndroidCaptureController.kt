@@ -11,10 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 class AndroidCaptureController(private val context: Context, private val store: CaptureStore) : CaptureController {
     private val current = MutableStateFlow(CaptureStatus(CaptureState.Stopped, System.currentTimeMillis()))
     override val status = current.asStateFlow()
-    internal fun update(state: CaptureState, pausedUntil: Long? = null, level: Float = 0f, busyDetail: String? = null) {
+    internal fun update(state: CaptureState, pausedUntil: Long? = null, level: Float = 0f, busyDetail: String? = null, quietName: String? = null) {
         val old = current.value
         current.value = old.copy(state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil, level = level,
-            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy })
+            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy }, quietName = quietName.takeIf { state == CaptureState.Paused })
         if (CaptureTilePolicy.action(old.state) != CaptureTilePolicy.action(state) || old.pausedUntil != pausedUntil) {
             CaptureTileService.refresh(context)
         }
@@ -24,7 +24,7 @@ class AndroidCaptureController(private val context: Context, private val store: 
     override fun resume() = dispatch(CaptureService.RESUME)
     override fun pause(minutes: Int) { require(minutes > 0); dispatch(CaptureService.PAUSE, minutes) }
     override fun stop() {
-        store.prefs.edit().putBoolean("enabled", false).putLong("pausedUntil", 0).commit()
+        store.prefs.edit().putBoolean("enabled", false).putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
         // 服务在运行时由它负责收尾，未运行时绝不为 stop 新建麦克风服务。
         if (CaptureService.alive) context.startService(Intent(context, CaptureService::class.java).setAction(CaptureService.STOP))
         else update(CaptureState.Stopped)

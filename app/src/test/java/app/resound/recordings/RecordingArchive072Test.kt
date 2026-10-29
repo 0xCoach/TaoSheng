@@ -40,7 +40,9 @@ class RecordingArchive072Test {
         RecordingZip.write(file.outputStream(), rows, true) {}
         ZipFile(file).use { zip ->
             assertEquals(7, zip.size())
-            assertEquals("OGG-3", zip.getInputStream(zip.getEntry("2026-10-29/14-05-33 3分12秒（2）.ogg")).reader().readText())
+            // 命名：日期时刻 + 所属事件标题；没整理用原话首句，没转写写“未转写”
+            assertEquals("OGG-3", zip.getInputStream(zip.getEntry("2026-10-29/2026-10-29 14.05 未转写.ogg")).reader().readText())
+            assertEquals("OGG-2", zip.getInputStream(zip.getEntry("2026-10-29/2026-10-29 14.05 你好.ogg")).reader().readText())
             assertTrue(zip.entries().asSequence().all { it.method == 0 })
             val table = zip.getInputStream(zip.getEntry("原话.txt")).reader().readText()
             assertTrue(table.contains("阿涛：你好")); assertTrue(table.contains("（未转写）")); assertEquals(3, table.lines().filter { it.isNotBlank() }.size)

@@ -9,14 +9,19 @@ import java.time.format.DateTimeFormatter
 import java.util.zip.*
 import kotlinx.coroutines.*
 
-internal data class RecordingSource(val row: SegmentWithLines, val excluded: Boolean = false) {
+internal data class RecordingSource(val row: SegmentWithLines, val excluded: Boolean = false, val eventTitle: String? = null) {
     val id get() = row.segment.id
     val file get() = File(row.segment.path)
     val day get() = Instant.ofEpochMilli(row.segment.startAt).atZone(ZoneId.systemDefault()).toLocalDate()
     val duration get() = (row.segment.endAt - row.segment.startAt).coerceAtLeast(0)
     val durationText get() = "${duration / 60000}分${duration / 1000 % 60}秒"
+    /** 文件名主体：“2026-10-29 14.05 第六组技能孵化汇报”——日期时刻 + 所属事件标题（没整理的用原话首句，没转写写“未转写”） */
     val stem get() = Instant.ofEpochMilli(row.segment.startAt).atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("HH-mm-ss")) + " $durationText"
+        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm")) + " " + label
+    private val label get() = (eventTitle?.let { safe(it).take(16) }
+        ?: row.lines.sortedBy { it.startAt }.firstOrNull { it.text.isNotBlank() }?.text?.let { safe(it).take(12) })
+        ?.trim()?.ifBlank { null } ?: "未转写"
+    private fun safe(t: String) = t.filter { it !in "/\\:*?\"<>|" && !it.isISOControl() }.replace(Regex("[\\s，。！？、；：,.!?;]+$"), "").replace(Regex("\\s+"), " ")
     val completed get() = row.segment.status in setOf("Done", "Empty")
     val text get() = row.lines.filter { it.text.isNotBlank() }.sortedWith(compareBy({ it.startAt }, { it.id }))
         .joinToString("\n") { "${it.speakerName ?: it.speakerTag ?: "未知说话人"}：${it.text}" }.ifBlank { "（未转写）" }
@@ -36,9 +41,11 @@ internal class RecordingSources(private val database: CaptureDatabase, private v
         return rows.map { row ->
             val s = row.segment
             val env = if (exclusions) database.envSound().get(s.id) else null
-            val media = exclusions && dao.exportEvents(s.id, s.startAt, s.endAt).any { it.scene == "媒体" }
-            RecordingSource(row, media || s.status == "SkippedEnv" ||
-                (env != null && !env.reportedWrong && (env.verdict == "Media" || (env.skipped && !env.restored))))
+            val events = if (text || exclusions) dao.exportEvents(s.id, s.startAt, s.endAt) else emptyList()
+            RecordingSource(row, (exclusions && events.any { it.scene == "媒体" }) || s.status == "SkippedEnv" ||
+                (env != null && !env.reportedWrong && (env.verdict == "Media" || (env.skipped && !env.restored))),
+                // 一段跨两件事时取开始得早的那件
+                events.minByOrNull { it.startAt }?.title)
         }.sortedWith(compareBy({ it.row.segment.startAt }, { it.id }))
     }
 }
@@ -76,12 +83,13 @@ internal object RecordingZip {
                 }
                 index.bufferedWriter().use { table -> rows.forEachIndexed { i, row ->
                     context.ensureActive()
+                    // 同一件事、同一分钟的几段：加序号“… 2”“… 3”
                     val base = "${row.day}/${row.stem}"; var path = "$base.ogg"; var suffix = 2
-                    while (!used.add(path)) path = "$base（${suffix++}）.ogg"
+                    while (!used.add(path)) path = "$base ${suffix++}.ogg"
                     entry(path, row.file)
                     if (withText) {
                         textEntry(path.removeSuffix(".ogg") + ".txt", row.text)
-                        table.appendLine("${row.day} ${row.stem.substringBefore(' ').replace('-', ':')}\t${row.durationText}\t$path\t${row.text.replace('\n', ' ')}")
+                        table.appendLine("${row.stem.substring(0, 16).replace('.', ':')}\t${row.durationText}\t$path\t${row.text.replace('\n', ' ')}")
                     }
                     progress(i + 1)
                 } }

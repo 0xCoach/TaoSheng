@@ -60,7 +60,7 @@ internal class RecordingUploadState(private val file: File) {
         records.optJSONObject(row.id.toString())?.let { return it }
         val used = records.keys().asSequence().map { records.getJSONObject(it).getString("path") }.toSet()
         val base = "录音/${row.day}/${row.stem}"; var path = "$base.ogg"; var n = 2
-        while (path in used) path = "$base（${n++}）.ogg"
+        while (path in used) path = "$base ${n++}.ogg"
         return JSONObject().put("path", path).also { records.put(row.id.toString(), it); save() }
     }
 }

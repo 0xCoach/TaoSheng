@@ -160,7 +160,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth().padding(end = 6.dp)) {
             // 说话时长和件数在上面的录音卡里，这里只放它没有的，同一屏每个数字只出现一次
-            // 四个都能点，点了筛出对应的事，和下面的筛选胶囊一一对应；为 0 时写“没有”，位置不变
+            // 四个都能点，点了筛出对应的事，和下面的筛选胶囊一一对应；为 0 时显示浅灰的 0，位置不变
             Stat("提到", r.people, "人", compare(r.people, base?.people), Modifier.weight(1f)) { if (r.people > 0) onPeople() }
             Stat("灵感", r.ideas, "条", null, Modifier.weight(1f)) { if (r.ideas > 0) onFilter(TimelineFilter.Ideas) }
             Stat("待办", r.withItems, "个", null, Modifier.weight(1f)) { if (r.withItems > 0) onFilter(TimelineFilter.HasItems) }
@@ -176,7 +176,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
 private fun Stat(label: String, count: Int, unit: String, delta: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     // 不裁圆角：圆角会切掉“提”字左下那一点这类贴边的笔画
-    Column(modifier.padding(end = 6.dp).springClick(onClick)) {
+    // 每格在自己那四分之一里居中，整排和下面铺满的分布图对称
+    Column(modifier.springClick(onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(androidx.compose.ui.text.buildAnnotatedString {
             // 为 0 时格式不变（同样大小的数字 + 单位），只把数字调成浅灰，四格看起来是同一套
             withStyle(androidx.compose.ui.text.SpanStyle(color = if (count == 0) c.textTertiary.copy(alpha = 0.6f) else c.text, fontWeight = FontWeight.SemiBold)) { append("$count") }

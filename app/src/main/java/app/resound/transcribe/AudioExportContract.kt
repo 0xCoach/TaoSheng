@@ -35,6 +35,8 @@ data class ExportEstimate(
     val durationMillis: Long,
     /** 预计音频大小 */
     val bytes: Long,
+    /** 卡 069：按本机最近几次实测速度估的合成耗时；还没有实测时用保守默认值 */
+    val etaMillis: Long = 0,
 )
 
 sealed interface ExportProgress {

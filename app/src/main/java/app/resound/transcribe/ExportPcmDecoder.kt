@@ -46,8 +46,9 @@ internal object ExportPcmDecoder {
                 while (!outputDone) {
                     coroutineContext.ensureActive()
                     check(android.os.SystemClock.elapsedRealtime() - progress < 15_000)
+                    var fed = false
                     if (!inputDone) {
-                        val index = decoder.dequeueInputBuffer(10_000)
+                        val index = decoder.dequeueInputBuffer(0)
                         if (index >= 0) {
                             val buffer = decoder.getInputBuffer(index)!!
                             buffer.clear()
@@ -55,10 +56,16 @@ internal object ExportPcmDecoder {
                             if (size < 0) { decoder.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inputDone = true }
                             else { decoder.queueInputBuffer(index, 0, size, extractor.sampleTime, 0); extractor.advance() }
                             progress = android.os.SystemClock.elapsedRealtime()
+                            fed = true
                         }
                     }
-                    when (val index = decoder.dequeueOutputBuffer(info, 10_000)) {
-                        MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    // 把现成的输出全部取走；这一轮既没喂进去也没取到时才短暂等一下，不再每块都空等
+                    var timeout = if (fed) 0L else 10_000L
+                    while (!outputDone) {
+                        val index = decoder.dequeueOutputBuffer(info, timeout)
+                        timeout = 0
+                        if (index == MediaCodec.INFO_TRY_AGAIN_LATER) break
+                        if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                             val decoded = decoder.outputFormat
                             check(!decoded.containsKey(MediaFormat.KEY_PCM_ENCODING) || decoded.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_16BIT)
                             channels = decoded.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
@@ -66,14 +73,22 @@ internal object ExportPcmDecoder {
                             check(channels > 0 && rate > 0)
                             resampler = PcmResampler(rate)
                             progress = android.os.SystemClock.elapsedRealtime()
-                        }
-                        in 0..Int.MAX_VALUE -> {
+                        } else if (index >= 0) {
                             try {
                                 if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
                                     val data = decoder.getOutputBuffer(index)!!.order(ByteOrder.LITTLE_ENDIAN)
                                     data.position(info.offset); data.limit(info.offset + info.size)
                                     check(info.size % (channels * 2) == 0)
-                                    while (data.remaining() >= channels * 2) {
+                                    if (channels == 1 && rate == 16000) {
+                                        // 录音本来就是 16kHz 单声道：整块照搬，不逐个样本处理
+                                        val raw = ByteArray(info.size).also { data.get(it) }
+                                        var at = 0
+                                        while (at < raw.size) {
+                                            val n = minOf(8192 - bytes.size(), raw.size - at)
+                                            bytes.write(raw, at, n); at += n
+                                            if (bytes.size() >= 8192) flush()
+                                        }
+                                    } else while (data.remaining() >= channels * 2) {
                                         var sum = 0L
                                         repeat(channels) { sum += data.short }
                                         resampler.accept((sum / channels).toInt()) { sample ->

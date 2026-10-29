@@ -45,6 +45,8 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
         var offset = 0
         while (offset < size) {
             alive()
+            // 先把已经编好的全部取走，编码器才有空位收新数据；取不走才短暂等一下
+            drain(0)
             val before = SystemClock.elapsedRealtime()
             val index = codec.dequeueInputBuffer(10_000)
             watchdog.waited(SystemClock.elapsedRealtime() - before)
@@ -55,8 +57,7 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
                 buffer.put(bytes, offset, count)
                 codec.queueInputBuffer(index, 0, count, samples * 1_000_000 / 16000, 0)
                 samples += count / 2; offset += count
-            }
-            drain()
+            } else drain(10_000)
         }
     }
     override suspend fun finish() {
@@ -69,9 +70,9 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
                 codec.queueInputBuffer(index, 0, 0, samples * 1_000_000 / 16000, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                 break
             }
-            drain()
+            drain(10_000)
         }
-        while (!drain()) alive()
+        while (!drain(10_000)) alive()
         check(started) { "音频编码器没有生成音轨" }
         muxer!!.stop(); started = false
     }
@@ -79,30 +80,35 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
         coroutineContext.ensureActive()
         watchdog.checkAlive()
     }
-    private fun drain(): Boolean {
-        val before = SystemClock.elapsedRealtime()
-        val index = codec.dequeueOutputBuffer(info, 10_000)
-        watchdog.waited(SystemClock.elapsedRealtime() - before)
-        when (index) {
-            MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                check(!started)
-                track = muxer!!.addTrack(codec.outputFormat)
-                muxer!!.start(); started = true
-            }
-            in 0..Int.MAX_VALUE -> {
-                watchdog.output()
-                try {
-                    if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
-                        check(started)
-                        val buffer = codec.getOutputBuffer(index)!!
-                        buffer.position(info.offset); buffer.limit(info.offset + info.size)
-                        muxer!!.writeSampleData(track, buffer, info)
-                    }
-                    return info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
-                } finally { codec.releaseOutputBuffer(index, false) }
+    /** 取走编码器里所有现成的输出；只有第一次取允许等 [firstTimeoutUs]。读到结束标记返回 true */
+    private fun drain(firstTimeoutUs: Long): Boolean {
+        var timeout = firstTimeoutUs
+        while (true) {
+            val before = SystemClock.elapsedRealtime()
+            val index = codec.dequeueOutputBuffer(info, timeout)
+            watchdog.waited(SystemClock.elapsedRealtime() - before)
+            timeout = 0
+            when (index) {
+                MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    check(!started)
+                    track = muxer!!.addTrack(codec.outputFormat)
+                    muxer!!.start(); started = true
+                }
+                in 0..Int.MAX_VALUE -> {
+                    watchdog.output()
+                    try {
+                        if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                            check(started)
+                            val buffer = codec.getOutputBuffer(index)!!
+                            buffer.position(info.offset); buffer.limit(info.offset + info.size)
+                            muxer!!.writeSampleData(track, buffer, info)
+                        }
+                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return true
+                    } finally { codec.releaseOutputBuffer(index, false) }
+                }
+                MediaCodec.INFO_TRY_AGAIN_LATER -> return false
             }
         }
-        return false
     }
     override fun close() {
         runCatching { codec.stop() }; runCatching { codec.release() }

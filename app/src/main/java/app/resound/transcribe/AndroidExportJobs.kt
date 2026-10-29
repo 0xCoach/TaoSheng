@@ -107,7 +107,7 @@ internal class AndroidExportJobs(
                 when (value) {
                     is ExportProgress.Working -> {
                         val at = android.os.SystemClock.elapsedRealtime()
-                        if (lastProgress == 0L || at - lastProgress >= 500 || value.fraction == 1f) {
+                        if (lastProgress == 0L || at - lastProgress >= 1000 || value.fraction == 1f) {
                             lastProgress = at
                             update(id, ExportJobState.Running(value.fraction))
                             job(id)?.let { progress(it) }

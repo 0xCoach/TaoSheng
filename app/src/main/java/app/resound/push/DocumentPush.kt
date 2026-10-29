@@ -26,8 +26,9 @@ internal class NotionPush(private val http: PushHttp) {
         }
         val key = database + ":" + java.security.MessageDigest.getInstance("SHA-256").digest(values.getValue("token").toByteArray()).joinToString("") { "%02x".format(it) }
         val property = titles[key] ?: run {
-            val properties = call("databases/$database").getJSONObject("properties")
-            properties.keys().asSequence().firstOrNull { properties.getJSONObject(it).optString("type") == "title" }
+            val response = call("databases/$database")
+            val properties = responseJson { response.getJSONObject("properties") }
+            properties.keys().asSequence().firstOrNull { responseJson { properties.getJSONObject(it).optString("type") } == "title" }
                 ?.also { titles[key] = it } ?: throw PushFailure(PushErrors.INVALID_RESPONSE)
         }
         val daily = message.memory
@@ -39,8 +40,8 @@ internal class NotionPush(private val http: PushHttp) {
                 val query = JSONObject().put("page_size", 10).put("filter", JSONObject().put("property", property).put("title", JSONObject().put("equals", title)))
                 cursor?.let { query.put("start_cursor", it) }
                 val result = call("databases/$database/query", "POST", query)
-                val rows = result.getJSONArray("results")
-                repeat(rows.length()) { oldPages += rows.getJSONObject(it).getString("id") }
+                val rows = responseJson { result.getJSONArray("results") }
+                repeat(rows.length()) { oldPages += responseJson { rows.getJSONObject(it).getString("id") } }
                 val next = if (result.optBoolean("has_more")) result.optString("next_cursor").takeIf { it.isNotBlank() && it != "null" } else null
                 if (result.optBoolean("has_more") && (next == null || next == cursor)) throw PushFailure(PushErrors.INVALID_RESPONSE)
                 cursor = next
@@ -53,7 +54,7 @@ internal class NotionPush(private val http: PushHttp) {
             .put("properties", JSONObject().put(property, JSONObject().put("title", rich(title))))
             .put("children", JSONArray(blocks.take(90))))
         if (blocks.size > 90) {
-            val id = page.getString("id")
+            val id = responseJson { page.getString("id") }
             blocks.drop(90).chunked(90).forEach { call("blocks/$id/children", "PATCH", JSONObject().put("children", JSONArray(it))) }
         }
     }

@@ -84,14 +84,31 @@ abstract class MemoryDao {
         originalPointsJson = CASE WHEN editedAt IS NULL THEN pointsJson ELSE originalPointsJson END,
         title = :title, summary = :summary, pointsJson = :points, editedAt = :at
         WHERE id = :id AND deleted = 0""")
-    abstract suspend fun editEvent(id: Long, title: String, summary: String, points: String, at: Long)
+    protected abstract suspend fun editEventRaw(id: Long, title: String, summary: String, points: String, at: Long)
+
+    @Query("UPDATE memory_events SET pointsJson = :points, originalPointsJson = :original WHERE id = :id")
+    protected abstract suspend fun normalizeEventPoints(id: Long, points: String, original: String?)
+
+    private fun validPoints(text: String): String = try { org.json.JSONArray(text).toString() } catch (_: org.json.JSONException) { "[]" }
+
+    @Transaction open suspend fun editEvent(id: Long, title: String, summary: String, points: String, at: Long) {
+        val row = event(id) ?: return
+        normalizeEventPoints(id, validPoints(row.pointsJson), row.originalPointsJson?.let(::validPoints))
+        editEventRaw(id, title, summary, validPoints(points), at)
+    }
 
     @Query("""UPDATE memory_events SET title = originalTitle, summary = originalSummary,
         pointsJson = originalPointsJson, editedAt = NULL, originalTitle = NULL,
         originalSummary = NULL, originalPointsJson = NULL
         WHERE id = :id AND deleted = 0 AND editedAt IS NOT NULL
         AND originalTitle IS NOT NULL AND originalSummary IS NOT NULL AND originalPointsJson IS NOT NULL""")
-    abstract suspend fun restoreEvent(id: Long)
+    protected abstract suspend fun restoreEventRaw(id: Long)
+
+    @Transaction open suspend fun restoreEvent(id: Long) {
+        val row = event(id) ?: return
+        normalizeEventPoints(id, validPoints(row.pointsJson), row.originalPointsJson?.let(::validPoints))
+        restoreEventRaw(id)
+    }
 
     // ---------- 整理 ----------
     /** 已转写、还没整理过的句子（按时间） */

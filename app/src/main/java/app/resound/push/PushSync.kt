@@ -22,7 +22,20 @@ internal fun canonical(value: Any?): String = when (value) {
 
 /** 保存本通道的指纹与已发布模板；模板用于摘要即时刷新时保留尚未触发更新的记录。绝不存凭据。 */
 internal class PushSyncState(private val file: File) {
-    val json: JSONObject = if (file.exists()) JSONObject(file.readText()) else JSONObject()
+    val json: JSONObject = try {
+        (if (file.exists()) JSONObject(file.readText()) else JSONObject()).also { j ->
+            listOf("files", "records", "templates", "summaryCounts").forEach { if (j.has(it)) j.getJSONObject(it) }
+            if (j.has("since") && !j.isNull("since")) LocalDate.parse(j.getString("since"))
+            j.optJSONObject("records")?.let { records -> records.keys().forEach { key ->
+                require(key.matches(Regex("(event|item|card|review|line):[0-9]+"))); records.getString(key)
+            } }
+            j.optJSONObject("templates")?.let { templates -> templates.keys().forEach { templates.getString(it) } }
+        }
+    } catch (e: Exception) {
+        if (e !is org.json.JSONException && e !is IllegalArgumentException && e !is java.time.DateTimeException) throw e
+        PushTrace.current()?.notices?.add("同步状态损坏，已重置该通道，下次全量重推")
+        JSONObject().also { file.writeText(it.toString()) }
+    }
     val files: JSONObject = json.optJSONObject("files") ?: JSONObject().also { json.put("files", it) }
     val records: JSONObject = json.optJSONObject("records") ?: JSONObject().also { json.put("records", it) }
     val templates: JSONObject = json.optJSONObject("templates") ?: JSONObject().also { json.put("templates", it) }
@@ -98,7 +111,7 @@ internal class FolderSync(private val remote: FolderRemote, private val state: P
         if (category) remote.directories("inbox") // my-notes 永不创建、访问或删除。
         var deleted = 0; var updated = 0
         val rebuilding = state.json.optBoolean("rebuilding")
-        val stale = state.files.keys().asSequence().toList().filter { owned(it) && (rebuilding || it !in files) }
+        val stale = state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && owned(it) && (rebuilding || it !in files) }
         stale.take(20).forEach { path -> remote.delete(path); state.files.remove(path); state.templates.remove(path); state.save(); deleted++ }
         if (stale.size > 20) return SyncBatch(0, deleted, true)
         if (rebuilding) { state.json.remove("rebuilding"); state.save() }
@@ -118,7 +131,8 @@ internal class FolderSync(private val remote: FolderRemote, private val state: P
 }
 
 internal object RecordDelta {
-    fun records(data: PushSnapshot, s: PushSubscription): Map<String, JSONObject> = buildMap {
+    fun records(input: PushSnapshot, s: PushSubscription): Map<String, JSONObject> = buildMap {
+        val data = input.validated()
         data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }.forEach { e ->
             put("event:${e.id}", JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt).put("title", e.title).put("summary", e.summary)
                 .put("points", JSONArray(e.pointsJson)).put("people", JSONArray(e.peopleJson)).put("scene", e.scene).put("important", e.important).put("starred", e.starred).put("starredAt", e.starredAt ?: JSONObject.NULL))
@@ -137,11 +151,11 @@ internal object RecordDelta {
         val changes = JSONArray()
         fun entry(op: String, key: String, data: JSONObject) = JSONObject().put("op", op).put("kind", key.substringBefore(':')).put("id", key.substringAfter(':').toLong()).put("data", data)
         current.toSortedMap().forEach { (key, data) -> if (old.optString(key) != sha256(canonical(data))) changes.put(entry("upsert", key, data)) }
-        old.keys().asSequence().toList().sorted().filter { it !in current }.forEach { changes.put(entry("delete", it, JSONObject())) }
+        old.keys().asSequence().toList().sorted().filter { it !in current && it !in PushTrace.current()?.skipped.orEmpty() }.forEach { changes.put(entry("delete", it, JSONObject())) }
         return JSONObject().put("type", "records_delta").put("version", 1).put("changes", changes)
     }
     fun acknowledge(current: Map<String, JSONObject>, state: PushSyncState) {
-        state.records.keys().asSequence().toList().forEach { state.records.remove(it) }
+        state.records.keys().asSequence().toList().filter { it !in PushTrace.current()?.skipped.orEmpty() }.forEach { state.records.remove(it) }
         current.forEach { (key, data) -> state.records.put(key, sha256(canonical(data))) }; state.save()
     }
 }

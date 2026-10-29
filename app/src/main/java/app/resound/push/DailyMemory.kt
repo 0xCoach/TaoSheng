@@ -20,8 +20,8 @@ internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: Strin
     .put("type", "daily_memory").put("version", 1).put("app", "resound").put("date", date.toString())
     .put("generatedAt", generatedAt).put("markdown", markdown).put("data", JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
-        .put("events", JSONArray(input.events.map { e -> JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
-            .put("title", e.title).put("summary", e.summary).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) }))
+        .put("events", JSONArray(input.events.mapNotNull { e -> localRecord("event", e.id) { JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
+            .put("title", e.title).put("summary", e.summary).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) } }))
         .put("items", JSONArray(input.items.filter { it.status != "Ignored" }.map { i -> JSONObject().put("id", i.id).put("category", i.category)
             .put("kind", i.kind ?: JSONObject.NULL).put("content", i.content).put("due", i.dueAt ?: i.dueText ?: JSONObject.NULL)
             .put("who", i.who ?: JSONObject.NULL).put("status", i.status) }))
@@ -37,8 +37,10 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         val minutes = reviews.state.value.dailyAtMinutes
         return ReviewTime.cutoff(date.minusDays(1), minutes, zone).toInstant().toEpochMilli() to ReviewTime.cutoff(date, minutes, zone).toInstant().toEpochMilli()
     }
-    private suspend fun input(date: LocalDate): ReviewInput = window(date).let { (start, end) -> reviewDao.input(start, end) }
-    private suspend fun cards(date: LocalDate) = skills.cards(date.toEpochDay()).first().map { it.card() }
+    private suspend fun input(date: LocalDate): ReviewInput = window(date).let { (start, end) -> reviewDao.input(start, end) }.let { source ->
+        source.copy(events = source.events.filter { e -> localRecord("event", e.id) { strings(e.pointsJson); strings(e.peopleJson); true } == true })
+    }
+    private suspend fun cards(date: LocalDate) = skills.cards(date.toEpochDay()).first().mapNotNull { row -> localRecord("card", row.id) { row.card() } }
     // 复用 DiaryRepository.markdown，而取数窗口与回顾严格一致：(前一日截止，当日截止]。
     private val windowMemory = object : MemoryRepository by memory {
         override fun events(date: LocalDate) = flow {
@@ -53,16 +55,20 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
                 rows.filter { it.category !in setOf("待办", "约定", "备忘") }))
         }
     }
-    private val diary = LocalDiaryRepository(context, windowMemory, reviews, dao, ::cards) { date ->
+    private val safeReviews = object : ReviewRepository by reviews {
+        override fun daily(date: LocalDate) = flow { emit(localRecord("review", date.toEpochDay()) { reviews.daily(date).first() }) }
+    }
+    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, ::cards) { date ->
         window(date).let { (start, end) -> (start + 1) to (end + 1) }
     }
     suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {
         val target = date ?: latestDate(withLines) ?: return null
         val source = input(target)
-        val review = reviews.daily(target).first()
+        val review = localRecord("review", target.toEpochDay()) { reviews.daily(target).first() }
         val cards = cards(target)
         val (start, end) = window(target)
         val lines = if (withLines) dao.diaryLines(start + 1, end + 1).filter { it.text.isNotBlank() } else null
+        PushTrace.current()?.requireContent(source.events.size + source.items.size + cards.size + (if (review == null) 0 else 1) + lines.orEmpty().size)
         if (source.events.isEmpty() && source.items.isEmpty() && cards.isEmpty() && review == null && lines.isNullOrEmpty()) return null
         val markdown = diary.markdownWithContext(target, target, withLines, lineContext)
         if (markdown.isBlank()) return null
@@ -78,7 +84,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
             val date = time.toLocalDate()
             if (time.isAfter(ReviewTime.cutoff(date, reviews.state.value.dailyAtMinutes, zone))) date.plusDays(1) else date
         }
-        return listOfNotNull(latest, skills.latestCardDate()?.let(LocalDate::ofEpochDay), reviews.recent().first().firstOrNull()?.date).maxOrNull()
+        return listOfNotNull(latest, skills.latestCardDate()?.let(LocalDate::ofEpochDay), reviewDao.recent().first().mapNotNull { row -> localRecord("review", row.id) { LocalDate.parse(row.startDate) } }.maxOrNull()).maxOrNull()
     }
     private fun strings(text: String): List<String> = JSONArray(text).let { a -> List(a.length()) { a.getString(it) } }
 }

@@ -272,20 +272,21 @@ class AndroidPushChannels internal constructor(
         }
 
     private data class Attempt(val result: Result<Unit>, val snapshot: PushMessage)
-    private suspend fun attempt(id: Long, message: PushMessage, testing: Boolean): Attempt? {
-        val (channel, values) = resolve(id) ?: return null
-        if (!testing && (!channel.enabled || message.topic !in channel.topics)) return null
+    private suspend fun attempt(id: Long, message: PushMessage, testing: Boolean): Attempt? = PushTrace.run { trace ->
+        val (channel, values) = resolve(id) ?: return@run null
+        if (!testing && (!channel.enabled || message.topic !in channel.topics)) return@run null
         var snapshot = message
         val result = try {
             if (message.memoryDate != null && message.memory == null) {
                 snapshot = memoryDocument(java.time.LocalDate.parse(message.memoryDate), message.memoryWithLines, channel.subscription.lineContext)
-                    ?: return Attempt(Result.success(Unit), message) // 已无内容，不发送、不记成功日志。
+                    ?: return@run Attempt(Result.success(Unit), message) // 已无内容，不发送、不记成功日志。
             }
             transport.send(channel.kind, channel.format, values, snapshot)
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.failure(PushFailure("记忆文档读取失败，请稍后重试")) }
+        catch (e: Exception) { trace.exception = e.javaClass.simpleName; Result.failure(if (e is PushFailure) e else PushFailure("记忆文档读取失败，请稍后重试")) }
+        PushDiagnostics.record(prefs, channel, message.topic, result, trace)
         record(channel, snapshot, result, sensitiveValues(values))
-        return Attempt(result, snapshot)
+        Attempt(result, snapshot)
     }
 
     private suspend fun deliver(id: Long, message: PushMessage, testing: Boolean = false): Result<Unit> = withContext(Dispatchers.IO) {
@@ -316,8 +317,16 @@ class AndroidPushChannels internal constructor(
         }
         val payload = outbox.getString(job, null) ?: return@withContext false
         try {
-            val row = JSONObject(payload)
-            val attempt = attempt(row.getLong("channelId"), PushMessage.from(row.getJSONObject("message")), row.getBoolean("testing"))
+            val parsed = try {
+                val row = JSONObject(payload)
+                Triple(row, PushMessage.from(row.getJSONObject("message")), row.getBoolean("testing")).also { row.getLong("channelId") }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                outbox.edit().remove(job).commit()
+                return@withContext false
+            }
+            val (row, message, testing) = parsed
+            val attempt = attempt(row.getLong("channelId"), message, testing)
             val again = attempt?.result?.isFailure == true && attemptCount < 2
             if (again) check(outbox.edit().putString(job, row.put("message", attempt!!.snapshot.json()).toString()).commit())
             if (!again) outbox.edit().remove(job).commit()
@@ -340,7 +349,7 @@ class AndroidPushChannels internal constructor(
         repeat(minOf(logs.length(), 99)) { ring.put(logs.getJSONObject(it)) }
         check(prefs.edit().putString("logs", ring.toString()).commit())
         mutableLogs.value = readLogs()
-        if (!message.title.startsWith("同步文件夹 · ") && !message.title.startsWith("推送订阅 · ")) subscriptions.messageResult(channel.id, result.map { message.title })
+        if (!message.title.startsWith("同步文件夹 · ") && !message.title.startsWith("推送订阅 · ")) subscriptions.messageResult(channel.id, result.map { PushTrace.current()?.success(message.title) ?: message.title })
     }
 
     private fun sensitiveValues(values: Map<String, String>): Collection<String> = values.values +

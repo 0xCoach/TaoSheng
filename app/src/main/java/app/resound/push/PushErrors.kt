@@ -1,7 +1,6 @@
 package app.resound.push
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import org.json.JSONException
 import org.json.JSONObject
 import java.io.InterruptedIOException
 import java.net.ConnectException
@@ -68,6 +67,7 @@ internal object PushErrors {
     }
 
     fun failure(error: Throwable, values: Map<String, String>, endpoint: String = ""): PushFailure {
+        PushTrace.current()?.let { if (error !is PushFailure || it.exception.isEmpty()) it.exception = error.javaClass.simpleName }
         val causes = generateSequence(error) { it.cause }.take(8).toList()
         val url = endpoint.toHttpUrlOrNull()
         val host = url?.host ?: values["host"].orEmpty().ifBlank { "目标主机" }
@@ -78,7 +78,6 @@ internal object PushErrors {
             causes.any { it is SSLException || it is CertificateException } -> "安全连接失败：证书无效或过期；内网服务可改用 http://"
             causes.any { it is InterruptedIOException } -> TIMEOUT
             causes.any { it is ConnectException || it is NoRouteToHostException } -> "连不上 $host:$port：确认电脑上的接收服务已启动、端口正确；局域网/Tailscale 地址需手机和电脑在同一网络"
-            causes.any { it is JSONException } -> INVALID_RESPONSE
             else -> "推送失败（${error.javaClass.simpleName}）：检查通道设置"
         }
         return PushFailure(clean(text, values))

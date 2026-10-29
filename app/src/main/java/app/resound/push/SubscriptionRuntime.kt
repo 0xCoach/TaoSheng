@@ -29,7 +29,12 @@ internal class SubscriptionRuntime(
     private val gates = ConcurrentHashMap<Long, Mutex>()
     private val states = ConcurrentHashMap<Long, MutableStateFlow<PushChannelStatus>>()
     private val queued = ConcurrentHashMap<Long, Long>()
-    private fun meta(id: Long) = JSONObject(prefs.getString("subscription-$id", "{}")!!)
+    private fun meta(id: Long): JSONObject = try { JSONObject(prefs.getString("subscription-$id", "{}")!!) }
+    catch (_: org.json.JSONException) {
+        File(directory, "$id.json").delete()
+        check(prefs.edit().putString("subscription-$id", "{}").putBoolean("state-reset-$id", true).commit())
+        JSONObject()
+    }
     @Synchronized private fun change(id: Long, block: (JSONObject) -> Unit) {
         val j = meta(id); block(j)
         check(prefs.edit().putString("subscription-$id", j.toString()).commit())
@@ -118,9 +123,14 @@ internal class SubscriptionRuntime(
     }
     suspend fun run(id: Long, rebuild: Boolean = false, manual: Boolean = true): Result<String> = withContext(Dispatchers.IO) {
         gates.getOrPut(id) { Mutex() }.withLock {
-            val channel = channelById(id) ?: return@withLock Result.failure(PushFailure("通道不存在，请重新打开"))
-            if (!manual && !channel.enabled) return@withLock Result.success("通道已停用")
+          PushTrace.run { trace ->
+            val channel = channelById(id) ?: return@run Result.failure(PushFailure("通道不存在，请重新打开"))
+            if (!manual && !channel.enabled) return@run Result.success("通道已停用")
             update(id, true)
+            if (prefs.getBoolean("state-reset-$id", false)) {
+                trace.notices += "订阅状态损坏，已重置该通道，下次全量重推"
+                prefs.edit().remove("state-reset-$id").commit()
+            }
             val started = now()
             val due = meta(id)
             var more = false
@@ -159,6 +169,7 @@ internal class SubscriptionRuntime(
                 val generator = MemoryFolder(today, zone())
                 val files = if (summaryOnly) summaryFiles(data, s, state, generator) else generator.generate(data, s)
                 val current = RecordDelta.records(data, s)
+                if (!reminderOnly) trace.requireContent(if (summaryOnly) current.keys.count { it.startsWith("card:") || it.startsWith("review:") } else current.size)
                 val full = !s.incremental || rebuild || due.optLong("fullAt").let { it > 0 && it <= started }
                 val description = when {
                     reminderOnly -> "推了 ${reminders.size} 条提醒"
@@ -176,7 +187,7 @@ internal class SubscriptionRuntime(
                             val count = delta.getJSONArray("changes").length()
                             if (count > 0) transport.send(channel.kind, channel.format, values, PushMessage("整理结果变化", "", PushTopic.DailyMemory, null, started, memory = delta)).getOrThrow()
                             if (summaryOnly) {
-                                previous.keys().asSequence().toList().forEach { state.records.remove(it) }
+                                previous.keys().asSequence().toList().filter { it !in trace.skipped }.forEach { state.records.remove(it) }
                                 selected.forEach { (key, value) -> state.records.put(key, sha256(canonical(value))) }; state.save()
                             } else RecordDelta.acknowledge(current, state)
                             "推了 $count 条变化"
@@ -207,15 +218,17 @@ internal class SubscriptionRuntime(
                 }
                 state.json.put("summaryCounts", summaryCounts); state.save()
                 reminderSchedule(channel, raw)
-                Result.success(description + if (more) "，余下文件已排队" else "")
+                Result.success(trace.success(description + if (more) "，余下文件已排队" else ""))
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { Result.failure(PushFailure(if (e is PushFailure) e.message ?: "同步失败" else "同步失败，请检查网络和通道配置")) }
+            catch (e: Exception) { if (trace.exception.isEmpty()) trace.exception = e.javaClass.simpleName; Result.failure(PushFailure(if (e is PushFailure) e.message ?: "同步失败" else "同步失败，请检查网络和通道配置")) }
             finally { update(id, false) }
+            PushDiagnostics.record(prefs, channel, PushTopic.DailyMemory, result, trace)
             update(id, false, result)
             log(channel, (if (channel.kind == PushKind.MarkdownFolder) "同步文件夹 · " else "推送订阅 · ") + (result.getOrNull() ?: "失败"), result.map { Unit })
             if (result.isSuccess) { if (manual) queued.remove(id); plan(id, !manual) }
             else if (manual) { change(id) { it.put("batchAt", now() + 30_000) }; plan(id) }
             result
+          }
         }
     }
     private suspend fun sendReminders(channel: PushChannel, values: Map<String, String>, reminders: List<SubscriptionReminder>, state: PushSyncState, at: Long) {
@@ -272,7 +285,7 @@ internal class SubscriptionRuntime(
             val week = files[MemoryFolder.weekPath(date)] ?: return@forEach
             documents[path] = (documents[path] ?: MemoryFolder.card("每日记录", "$date", "每周回顾", "$date · 每周回顾", 1, "")) + "\n" + week
         }
-        if (channel.kind == PushKind.Webhook) state.files.keys().asSequence().toList().filter { it.startsWith("daily/") && it !in documents }.forEach { path ->
+        if (channel.kind == PushKind.Webhook) state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && it.startsWith("daily/") && it !in documents }.forEach { path ->
             documents[path] = MemoryFolder.card("每日记录", path.substringAfterLast('/').take(10), "已删除或移出范围", "当天已无记录", 0, "")
         }
         var count = 0
@@ -305,7 +318,7 @@ internal class SubscriptionRuntime(
             if (channel.kind == PushKind.Webhook && path !in files) { state.files.remove(path); state.templates.remove(path) }
             state.save(); count++
         }
-        if (channel.kind == PushKind.Notion) state.files.keys().asSequence().toList().filter { it.startsWith("daily/") && it !in documents }.forEach { path ->
+        if (channel.kind == PushKind.Notion) state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && it.startsWith("daily/") && it !in documents }.forEach { path ->
             transport.deleteNotionDay(values, path.substringAfterLast('/').take(10))
             state.files.remove(path); state.templates.remove(path); state.save(); count++
         }

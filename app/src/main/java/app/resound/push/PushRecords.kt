@@ -18,7 +18,9 @@ internal data class PushSnapshot(
         val allowed = events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体")) }
         val origins = if (lineOrigins.isNotEmpty()) lineOrigins else lines.associate { it.id to it.eventId }
         val ids = allowed.map { it.id }.toSet()
-        val visible = allowed.filter { included(it.startAt) }
+        val visible = allowed.filter { included(it.startAt) }.filter { e -> localRecord("event", e.id) {
+            org.json.JSONArray(e.pointsJson).strings(); org.json.JSONArray(e.peopleJson).strings(); true
+        } == true }
         val starredIds = visible.filter { it.starred && RecordKind.Starred in s.records }.map { it.id }.toSet()
         val selectedItems = items.filter { !it.deleted && (it.eventId == null || it.eventId in ids) && it.mergedInto == null && it.status != "Ignored" && included(it.createdAt) }.filter {
             it.eventId in starredIds || when (it.category) {
@@ -30,9 +32,13 @@ internal data class PushSnapshot(
         // 保留可见事件作来源/场景元数据，渲染与 delta 时再按 Timeline/Starred 选择。
         return PushSnapshot(visible, selectedItems,
             if (s.summaries) cards.filter { c ->
-                c.deletedAt == null && included(c.at) && org.json.JSONArray(c.evidenceJson).strings().mapNotNull(String::toLongOrNull).all { id -> origins.containsKey(id) && (origins[id] == null || origins[id] in ids) }
+                c.deletedAt == null && included(c.at) && localRecord("card", c.id) {
+                    org.json.JSONArray(c.evidenceJson).strings().mapNotNull(String::toLongOrNull).all { id -> origins.containsKey(id) && (origins[id] == null || origins[id] in ids) }.also { if (it) c.card() }
+                } == true
             } else emptyList(),
-            if (s.summaries) reviews.filter { lower == null || LocalDate.parse(it.endDate) >= lower } else emptyList(),
+            if (s.summaries) reviews.filter { r -> localRecord("review", r.id) {
+                (lower == null || LocalDate.parse(r.endDate) >= lower).also { if (it) { LocalDate.parse(r.startDate); org.json.JSONArray(r.sectionsJson).objects() } }
+            } == true } else emptyList(),
             if (s.lines == LinesMode.Off) emptyList() else lines.filter {
                 included(it.startAt) && (it.eventId == null || it.eventId in ids) &&
                     (s.lines != LinesMode.MeOnly || it.speakerName == "我") && it.text.isNotBlank()
@@ -57,3 +63,10 @@ internal abstract class PushDao {
         return PushSnapshot(events(), rows, cards(), reviews(), if (withLines) lines(start) else emptyList(), repeats, lineOrigins = lineOrigins().associate { it.id to it.eventId })
     }
 }
+
+/** 非订阅调用也逐条验证；重复生成文档时由 trace 的记录键去重计数。 */
+internal fun PushSnapshot.validated(): PushSnapshot = copy(
+    events = events.filter { e -> localRecord("event", e.id) { org.json.JSONArray(e.pointsJson).strings(); org.json.JSONArray(e.peopleJson).strings(); true } == true },
+    cards = cards.filter { c -> localRecord("card", c.id) { c.card(); true } == true },
+    reviews = reviews.filter { r -> localRecord("review", r.id) { LocalDate.parse(r.startDate); LocalDate.parse(r.endDate); org.json.JSONArray(r.sectionsJson).objects(); true } == true },
+)

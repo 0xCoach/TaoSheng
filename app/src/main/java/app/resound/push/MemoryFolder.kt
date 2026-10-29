@@ -70,7 +70,8 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             }
         }
     }
-    fun generate(data: PushSnapshot, s: PushSubscription): Map<String, String> {
+    fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String> {
+        val data = input.validated()
         val files = sortedMapOf<String, String>()
         val events = data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }
         val days = (events.map { date(it.startAt) } + data.items.flatMap { listOfNotNull(date(it.createdAt), it.doneAt?.let(::date), it.dueAt?.let(::date)) } +

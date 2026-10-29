@@ -40,6 +40,8 @@ internal class LocalProblemReports(
                 appendLine("生成时间=$at")
                 appendLine("\n最近闪退（最多 10 条）"); appendLine(crashes.dump())
                 appendLine("\n运行诊断"); appendLine(diagnostics.readText())
+                appendLine("\n推送诊断")
+                appendLine(app.resound.push.PushDiagnostics.dump(context.getSharedPreferences("push", Context.MODE_PRIVATE)))
                 appendLine("\n更新诊断（最近 50 行）")
                 appendLine(UpdateDiagnostics.dump(context).lines().takeLast(50).joinToString("\n"))
             }

@@ -162,7 +162,7 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
         try {
             PushFields.validate(kind, values)
             when (kind) {
-                PushKind.Email -> smtp.send(values, format, message)
+                PushKind.Email -> { PushTrace.current()?.stage = "发送"; smtp.send(values, format, message) }
                 PushKind.Notion -> notion.send(values, format, message)
                 PushKind.MarkdownFolder -> folder.send(values, format, message)
                 else -> {
@@ -209,7 +209,7 @@ internal fun truncate(text: String, limit: Int): String {
     return text.take(end) + suffix
 }
 internal data class PushResponse(val code: Int, val text: String, val etag: String?) {
-    fun json(): JSONObject = try { JSONObject(text) } catch (_: Exception) { throw PushFailure(PushErrors.INVALID_RESPONSE) }
+    fun json(): JSONObject = responseJson { JSONObject(text) }
 }
 internal class PushHttp(client: OkHttpClient, private val kind: PushKind? = null,
     private val values: Map<String, String> = emptyMap()) {
@@ -217,6 +217,7 @@ internal class PushHttp(client: OkHttpClient, private val kind: PushKind? = null
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .callTimeout(10, TimeUnit.SECONDS).connectTimeout(10, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).writeTimeout(10, TimeUnit.SECONDS).build()
     fun execute(request: Request, allowed: Set<Int> = emptySet(), readBody: Boolean = true): PushResponse = try {
+        PushTrace.current()?.stage = "发送"
         executeRaw(request, allowed, readBody)
     } catch (e: kotlinx.coroutines.CancellationException) { throw e }
     catch (e: Exception) { throw PushErrors.failure(e, values, request.url.toString()) }

@@ -121,8 +121,20 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         .collectAsState(initial = null)
     val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsState().value else emptyList()
     val pending = if (pendingSegments > 0 && date == LocalDate.now()) " · 还有 $pendingSegments 段待转写" else ""
+    // 点标题收起成一行 / 展开；记住上次的选择
+    val prefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
+    var collapsed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("rhythmCollapsed", false)) }
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
+        Row(Modifier.fillMaxWidth().springClick { collapsed = !collapsed; prefs.edit().putBoolean("rhythmCollapsed", collapsed).apply() },
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
+            if (r.speechMinutes >= 5) Text(if (collapsed) "展开 ⌄" else "收起 ⌃", style = RsType.caption, color = c.textTertiary)
+        }
+        if (collapsed && r.speechMinutes >= 5) {
+            Spacer(Modifier.height(6.dp))
+            Text("说话 ${r.speechMinutes} 分 · ${r.events} 件事" + (if (r.meetings > 0) " · 开会 ${r.meetings} 次" else ""), style = RsType.subhead, color = c.textSecondary)
+            return@RsCard
+        }
         if (r.speechMinutes < 5) {
             Spacer(Modifier.height(6.dp))
             Text("今天说话 ${r.speechMinutes} 分钟 · ${r.events} 件事", style = RsType.subhead, color = c.textSecondary)
@@ -190,6 +202,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
         }
         val width = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
         fun hourAt(x: Float) = ((x / width.intValue.coerceAtLeast(1)) * 24).toInt().coerceIn(0, 23)
+        Box(Modifier.fillMaxWidth().height(36.dp)) {
         Row(Modifier.fillMaxWidth().height(36.dp)
             .onSizeChanged { width.intValue = it.width }
             .pointerInput(r) {
@@ -218,6 +231,13 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                     }
                 }
             }
+        }
+        // 看今天时，现在的位置画一条细竖线：右边是还没到的时间，不是漏录
+        if (date == LocalDate.now()) {
+            val now = java.time.LocalTime.now()
+            Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(now.hour + now.minute / 60f), 0f)).size(width = 1.5.dp, height = 36.dp)
+                .background(c.accent.copy(alpha = 0.6f)))
+        }
         }
         // 刻度：3·9·15·21 淡竖线，0·6·12·18·24 写数字
         Box(Modifier.fillMaxWidth().height(4.dp)) {

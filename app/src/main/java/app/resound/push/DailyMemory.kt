@@ -21,7 +21,7 @@ internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: Strin
     .put("generatedAt", generatedAt).put("markdown", markdown).put("data", JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
         .put("events", JSONArray(input.events.mapNotNull { e -> localRecord("event", e.id) { JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
-            .put("title", e.title).put("summary", e.summary).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) } }))
+            .put("title", e.title).put("summary", app.resound.envsound.EnvSoundPresentation.append(e.summary, e.id)).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) } }))
         .put("items", JSONArray(input.items.filter { it.status != "Ignored" }.map { i -> JSONObject().put("id", i.id).put("category", i.category)
             .put("kind", i.kind ?: JSONObject.NULL).put("content", i.content).put("due", i.dueAt ?: i.dueText ?: JSONObject.NULL)
             .put("who", i.who ?: JSONObject.NULL).put("status", i.status) }))

@@ -14,7 +14,7 @@ internal suspend fun cleanupImportedAudio(dao: TranscribeDao, now: Long, waitFor
     dao.refreshFailures(now)
     for (segment in dao.importedAudio()) {
         // 已放弃/忽略的录音交给原声保留策略，从判定时间起算；等待重试的失败继续保护。
-        if (segment.status in setOf("Abandoned", "Quiet") ||
+        if (segment.status in setOf("Abandoned", "Quiet", "SkippedEnv") ||
             (segment.status == "Failed" && segment.nextRetryAt != null && segment.attempts < 5)) continue
         if (segment.id in reading) continue
         val file = File(segment.path)

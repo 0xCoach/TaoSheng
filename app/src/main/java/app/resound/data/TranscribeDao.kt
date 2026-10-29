@@ -127,6 +127,8 @@ abstract class TranscribeDao {
     abstract suspend fun transcribeAnyway(id: Long): Int
     @Query("SELECT COUNT(*) FROM segments WHERE status = 'SkippedPlayback'")
     abstract suspend fun skippedPlaybackCount(): Int
+    @Query("UPDATE segments SET status = 'SkippedEnv', completedAt = :at, nextRetryAt = NULL, error = NULL, voiceprintProcessedAt = :at WHERE id = :id AND status = 'Running' AND NOT EXISTS (SELECT 1 FROM env_sounds WHERE segmentId = :id AND (restored = 1 OR reportedWrong = 1))")
+    abstract suspend fun finishEnvSkip(id: Long, at: Long): Int
     @Update abstract suspend fun update(row: SegmentEntity)
     @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun findSegment(id: Long): SegmentEntity?
     @Query("UPDATE segments SET status = 'Running', attempts = attempts + 1, nextRetryAt = NULL, error = NULL WHERE id = :id AND status IN ('Pending', 'Failed')")
@@ -146,7 +148,7 @@ abstract class TranscribeDao {
         insertLines(lines.filter { line -> voice.none { app.resound.capture.VoiceInputDedup.heardByMic(it.startAt, it.text, line.startAt, line.text, line.speakerName) } })
         update(row)
     }
-    @Query("SELECT * FROM segments WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'Abandoned', 'Quiet') AND completedAt <= :before")
+    @Query("SELECT * FROM segments WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'SkippedEnv', 'Abandoned', 'Quiet') AND completedAt <= :before")
     abstract suspend fun expired(before: Long): List<SegmentEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: AsrUsageEntity)
     @Query("UPDATE asr_usage SET sentMillis = sentMillis + :millis WHERE day = :day")

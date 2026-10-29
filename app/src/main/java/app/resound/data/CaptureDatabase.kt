@@ -54,8 +54,9 @@ interface CaptureDao {
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, app.resound.search.LineFts::class, app.resound.search.EventFts::class,
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
-    app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
+    app.resound.envsound.EnvSoundRow::class, app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
+    abstract fun envSound(): app.resound.envsound.EnvSoundDao
     internal abstract fun push(): app.resound.push.PushDao
     abstract fun privacy(): PrivacyDao
     abstract fun capture(): CaptureDao
@@ -68,7 +69,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 22
+        const val VERSION = 23
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -247,8 +248,14 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE transcript_lines ADD COLUMN originalText TEXT")
             }
         }
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS env_sounds (segmentId INTEGER NOT NULL PRIMARY KEY, startAt INTEGER NOT NULL, endAt INTEGER NOT NULL, path TEXT NOT NULL, verdict TEXT NOT NULL, reason TEXT, tags TEXT NOT NULL, sounds TEXT NOT NULL, scores TEXT NOT NULL, skipped INTEGER NOT NULL, markMedia INTEGER NOT NULL, restored INTEGER NOT NULL, reportedWrong INTEGER NOT NULL, elapsedMs INTEGER NOT NULL, FOREIGN KEY(segmentId) REFERENCES segments(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_env_sounds_startAt ON env_sounds(startAt)")
+            }
+        }
         /** 全部迁移，按版本顺序。新增版本只在这里加一条；App 和迁移测试都用它，不再各写一份清单 */
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).build()

@@ -78,6 +78,19 @@ class LocalVoiceprintRepository(
             revision++
         }
     }
+    /** 转写前只做“我”的保守保护，不写声纹样本，不依赖尚未产生的转写句。 */
+    suspend fun recognizesMeBeforeTranscribe(pcm: ShortArray): Boolean = rounds.withLock {
+        val samples = gate.withLock { dao.allSamples().filter { it.personId == 0L } }
+        if (!ready(samples)) return@withLock false
+        val reference = representative(samples)
+        engine { embedding ->
+            // 遍历短窗，避免整段多人混合把本人稀释掉；不确定时由调用者整段保留。
+            (pcm.indices step (5 * 16000)).any { start ->
+                val chunk = VoiceprintAudio.trimSilence(pcm.copyOfRange(start, minOf(pcm.size, start + 10 * 16000)))
+                chunk.size >= VoiceprintAudio.MIN_SAMPLES && VoiceprintMath.cosine(embedding.compute(chunk), reference) >= VoiceprintThresholds.SURE
+            }
+        }
+    }
     suspend fun isReady(): Boolean = dao.allSamples().groupBy { it.personId }.values.any(::ready)
     private fun ready(samples: List<VoiceprintSampleEntity>): Boolean {
         val trusted = WindowedVoiceprint.trusted(samples)

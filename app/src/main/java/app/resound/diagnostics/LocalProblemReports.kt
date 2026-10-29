@@ -31,6 +31,7 @@ internal class LocalProblemReports(
         @Suppress("DEPRECATION") val installed = context.packageManager.getPackageInfo(context.packageName, 0)
         val at = Instant.now()
         val diagnostics = stats.exportDiagnostics()
+        val envDiagnostics = (app.resound.AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.diagnostics().orEmpty()
         val content = try {
             buildString {
                 appendLine("涛声问题记录")
@@ -40,6 +41,7 @@ internal class LocalProblemReports(
                 appendLine("生成时间=$at")
                 appendLine("\n最近闪退（最多 10 条）"); appendLine(crashes.dump())
                 appendLine("\n运行诊断"); appendLine(diagnostics.readText())
+                appendLine("\n环境音识别"); appendLine(envDiagnostics)
                 appendLine("\n推送诊断")
                 appendLine(app.resound.push.PushDiagnostics.dump(context.getSharedPreferences("push", Context.MODE_PRIVATE)))
                 appendLine("\n更新诊断（最近 50 行）")

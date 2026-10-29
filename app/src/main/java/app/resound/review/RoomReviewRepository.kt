@@ -42,8 +42,8 @@ class RoomReviewRepository(
         prefs.getInt("dailyAtMinutes", 22 * 60).coerceIn(0, 1439), prefs.getBoolean("pushEnabled", true),
         lastErrorDate = prefs.getString("lastErrorDate", null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }))
     override val state = mutable.asStateFlow()
-    override fun daily(date: LocalDate): Flow<DailyReview?> = dao.daily(date.toString()).map { it?.toModel() }.flowOn(Dispatchers.IO)
-    override fun recent(): Flow<List<DailyReview>> = dao.recent().map { rows -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
+    override fun daily(date: LocalDate): Flow<DailyReview?> = combine(dao.daily(date.toString()), app.resound.envsound.EnvSoundPresentation.changes()) { row, _ -> row?.toModel() }.flowOn(Dispatchers.IO)
+    override fun recent(): Flow<List<DailyReview>> = combine(dao.recent(), app.resound.envsound.EnvSoundPresentation.changes()) { rows, _ -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
     @Volatile private var running = false
     private val generation = work?.let { manager ->
         ManualReviewGeneration(manager, scope,
@@ -162,5 +162,5 @@ class RoomReviewRepository(
         prefs.edit().putString("lastError", message).putString("lastErrorDate", errorDate?.toString()).apply()
         mutable.update { it.copy(lastError = message, lastErrorDate = errorDate) }
     }
-    private fun ReviewEntity.toModel() = DailyReview(LocalDate.parse(startDate), brief, ReviewPrompt.decode(sectionsJson), generatedAt)
+    private fun ReviewEntity.toModel() = app.resound.envsound.EnvSoundPresentation.decorate(DailyReview(LocalDate.parse(startDate), brief, ReviewPrompt.decode(sectionsJson), generatedAt))
 }

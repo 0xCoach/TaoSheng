@@ -20,9 +20,9 @@ data class SkillCardRow(
     /** 合并后的旧 entity 也要保留，避免换 entity 后软删除失效。 */
     val aliasesJson: String = "[]",
 ) {
-    fun card() = SkillCard(id, skillId, skillName, icon, LocalDate.ofEpochDay(date), at, endAt, title, summary,
+    fun card() = app.resound.envsound.EnvSoundPresentation.decorate(SkillCard(id, skillId, skillName, icon, LocalDate.ofEpochDay(date), at, endAt, title, summary,
         SkillJson.fields(JSONArray(fieldsJson)), SkillJson.values(JSONObject(valuesJson)),
-        JSONArray(evidenceJson).elements().map { (it as Number).toLong() }, generatedAt, manual)
+        JSONArray(evidenceJson).elements().map { (it as Number).toLong() }, generatedAt, manual))
     fun entities() = JSONArray(aliasesJson).elements().map { it.toString() }.toSet() + entity
 }
 

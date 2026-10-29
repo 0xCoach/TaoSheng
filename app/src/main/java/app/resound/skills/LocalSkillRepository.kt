@@ -56,9 +56,9 @@ class LocalSkillRepository(
         schedule(next, runningWorker)
     }
     private fun changed() { scope.launch { reschedule() } }
-    override fun cards(date: LocalDate) = dao.cards(date.toEpochDay()).map { rows -> rows.map { it.card() } }
-    override fun cardsOf(skillId: String) = dao.cardsOf(skillId).map { rows -> rows.map { it.card() } }
-    override fun card(id: Long) = dao.card(id).map { it?.card() }
+    override fun cards(date: LocalDate) = combine(dao.cards(date.toEpochDay()), app.resound.envsound.EnvSoundPresentation.changes()) { rows, _ -> rows.map { it.card() } }
+    override fun cardsOf(skillId: String) = combine(dao.cardsOf(skillId), app.resound.envsound.EnvSoundPresentation.changes()) { rows, _ -> rows.map { it.card() } }
+    override fun card(id: Long) = combine(dao.card(id), app.resound.envsound.EnvSoundPresentation.changes()) { row, _ -> row?.card() }
     override val skillsWithCards = dao.skillsWithCards()
     override fun setEnabled(skillId: String, enabled: Boolean) { files.change(skillId) { it.put("enabled", enabled) }; changed() }
     override fun setSchedule(skillId: String, minutes: Int, weekdays: Set<Int>) {

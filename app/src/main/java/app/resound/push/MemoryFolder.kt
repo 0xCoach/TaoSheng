@@ -50,6 +50,8 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             section.optJSONArray("lines")?.let { lines -> repeat(lines.length()) { index ->
                 val line = lines.get(index)
                 appendLine("- ${if (line is JSONObject) line.optString("text") else line}")
+                val eventId = if (line is JSONObject) line.optLong("eventId").takeIf { it > 0 } else section.optJSONArray("eventIds")?.optLong(index)?.takeIf { it > 0 }
+                app.resound.envsound.EnvSoundPresentation.line(eventId).takeIf { it.isNotBlank() }?.let { appendLine(it) }
             } }
         }
     }
@@ -91,7 +93,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 es.forEach { e ->
                     appendLine("<a id=\"E${e.id}\"></a>\n### E${e.id} · ${outputTime.event(e.startAt, e.endAt)} ${if (e.starred) "★ 重点 · " else ""}${e.title}${if (e.important) " · 要紧" else ""}")
                     appendLine("场景：${e.scene} · 参与人：${JSONArray(e.peopleJson).strings().joinToString("、")}")
-                    appendLine(e.summary); JSONArray(e.pointsJson).strings().forEach { appendLine("- $it") }
+                    appendLine(e.summary); app.resound.envsound.EnvSoundPresentation.line(e.id).takeIf { it.isNotBlank() }?.let { appendLine(it) }; JSONArray(e.pointsJson).strings().forEach { appendLine("- $it") }
                     data.items.filter { it.eventId == e.id }.forEach { appendLine(item(it, data)) }
                 }
                 val sources = items.map { it.eventId }.distinct().filter { id -> es.none { it.id == id } }

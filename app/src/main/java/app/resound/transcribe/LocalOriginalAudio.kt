@@ -36,7 +36,7 @@ class LocalOriginalAudio(
     private fun pending(s: SegmentEntity) = when (s.status) {
         "Failed" -> s.nextRetryAt != null && s.attempts < 5
         "Done" -> s.completedAt == null || s.voiceprintProcessedAt == null
-        "Empty", "SkippedPlayback", "Abandoned", "Quiet" -> s.completedAt == null
+        "Empty", "SkippedPlayback", "SkippedEnv", "Abandoned", "Quiet" -> s.completedAt == null
         else -> true
     }
     private fun days(rows: List<SegmentEntity>): Int {
@@ -63,7 +63,7 @@ class LocalOriginalAudio(
             val rows = existing(); val stars = dao.starredAudio().toSet()
             val candidates = rows.filter { s ->
                 !pending(s) && s.id !in reading && (includeStarred || s.id !in stars) &&
-                    (retention == null || ((s.sourceId != "import" || s.status in setOf("Abandoned", "Quiet")) && timestamp - (s.completedAt ?: s.firstFailedAt ?: timestamp) >= retention * 86_400_000L))
+                    (retention == null || ((s.sourceId != "import" || s.status in setOf("Abandoned", "Quiet", "SkippedEnv")) && timestamp - (s.completedAt ?: s.firstFailedAt ?: timestamp) >= (if (s.status == "SkippedEnv") maxOf(1, retention) else retention) * 86_400_000L))
             }
             var bytes = 0L
             val removed = candidates.filter { s ->

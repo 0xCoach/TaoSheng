@@ -75,6 +75,9 @@ class ResoundApp : Application() {
         voiceprintRepository = LocalVoiceprintRepository(database, scope, AsrAudioReader(cacheDir)::readPcm,
             { CampPlusEmbedding(this) }, voiceprintRerun::request)
         AppGraph.voiceprint = voiceprintRepository
+        val envSound = app.resound.envsound.LocalEnvSoundRepository.create(this, database, scope,
+            voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow)
+        AppGraph.envSound = envSound
         val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
             guard = { block -> voiceprintRepository.withAudioCleanup(block) },
             playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
@@ -94,6 +97,7 @@ class ResoundApp : Application() {
         val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope)
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
+            beforeTranscribe = envSound::beforeTranscribe,
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
@@ -120,7 +124,7 @@ class ResoundApp : Application() {
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        }, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> skillScheduler.afterDigest(manual) })
+        }, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> skillScheduler.afterDigest(manual) })
         AppGraph.digestProgress = digestRunner.progress
         val appointmentSettings = AndroidAppointmentSettings(this)
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {

@@ -21,6 +21,7 @@ class TranscribeRunner(
     private val updateProgress: (Int, Int) -> Unit = { _, _ -> },
     private val identity: () -> String = key,
     private val ready: () -> Boolean = { true },
+    private val beforeTranscribe: suspend (SegmentEntity) -> Boolean = { false },
     private val afterImport: suspend () -> Unit = {},
 ) {
     suspend fun withIdleAudio(block: suspend () -> Unit) = gate.withLock { block() }
@@ -64,6 +65,10 @@ class TranscribeRunner(
                 var logId: String? = null
                 try {
                     if (!File(candidate.path).isFile) throw AsrException(AsrError.Audio, detail = "录音文件已不存在")
+                    if (beforeTranscribe(candidate) && dao.finishEnvSkip(candidate.id, now()) > 0) {
+                        outcome = "SkippedEnv"
+                        continue
+                    }
                     val result = provider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0)), credential) {
                         check(dao.findSegment(candidate.id) != null)
                         reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)

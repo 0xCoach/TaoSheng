@@ -62,6 +62,7 @@ class LocalDiaryRepository(
                 buildList {
                     add("### ${app.resound.OutputTime(zone).event(event.startAt, event.endAt)} ${if (event.starred) "★ " else ""}${event.title}（${event.scene}）")
                     if (event.summary.isNotBlank()) add(event.summary)
+                    app.resound.envsound.EnvSoundPresentation.line(event.id).takeIf { it.isNotBlank() }?.let { add(it) }
                     addAll(event.points.filter { it.isNotBlank() }.map { "- $it" })
                     val detail = buildList {
                         if (event.people.isNotEmpty()) add("人物：${event.people.joinToString("、")}")

@@ -35,6 +35,7 @@ class DigestRunner(
     private val hotwords: () -> List<String> = { emptyList() },
     /** 参数为 true 表示用户点了“现在整理”。 */
     private val afterDigest: suspend (Boolean) -> Unit = {},
+    private val isMedia: suspend (Long, Long) -> Boolean = { _, _ -> false },
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = client::chatJson,
 ) {
     private val appContext = context.applicationContext
@@ -116,7 +117,7 @@ class DigestRunner(
             dao.saveDigest(
                 events = events.map { e ->
                     MemoryEventEntity(
-                        startAt = e.startAt, endAt = e.endAt, scene = e.scene, title = e.title, summary = e.summary,
+                        startAt = e.startAt, endAt = e.endAt, scene = if (isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
                         pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(),
                         place = e.place, emotion = e.emotion, intensity = e.intensity, important = e.important,
                         createdAt = at, model = preset.model,

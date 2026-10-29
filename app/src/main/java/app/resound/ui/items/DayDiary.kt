@@ -220,6 +220,9 @@ internal fun LazyListScope.dayDiary(
     /** 时间线左滑标重点、右滑删除 */
     onStar: (MemoryEvent) -> Unit = {},
     onDelete: (MemoryEvent) -> Unit = {},
+    /** 时间线筛选（与首页同一套）；不传就不显示筛选 */
+    filter: app.resound.ui.today.TimelineFilter = app.resound.ui.today.TimelineFilter.All,
+    onFilter: ((app.resound.ui.today.TimelineFilter) -> Unit)? = null,
 ) {
     fun item(key: Any, content: @Composable androidx.compose.foundation.lazy.LazyItemScope.() -> Unit) {
         keysOut?.add(key); this@dayDiary.item(key = key, content = content)
@@ -240,15 +243,21 @@ internal fun LazyListScope.dayDiary(
     if (cards.isNotEmpty() || (evs.isNotEmpty() && onMakeCard != null)) item(key = "cards") { Box(gap) { DayCards(cards, onOpenCard, onMakeCard) } }
 
     if (evs.isNotEmpty()) {
+        val shown = if (filter == app.resound.ui.today.TimelineFilter.All) evs else evs.filter(filter::matches)
         item(key = "tlTitle") {
-            Row(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("时间线", style = RsType.headline, color = Rs.colors.text)
-                Text("  ${evs.size} 件事", style = RsType.caption, color = Rs.colors.textTertiary, modifier = Modifier.weight(1f))
-                OrderToggle(newestFirst, onToggleOrder)
+            Column {
+                Row(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("时间线", style = RsType.headline, color = Rs.colors.text)
+                    Text(if (shown.size == evs.size) "  ${evs.size} 件事" else "  ${shown.size}/${evs.size} 件", style = RsType.caption, color = Rs.colors.textTertiary, modifier = Modifier.weight(1f))
+                    OrderToggle(newestFirst, onToggleOrder)
+                }
+                if (onFilter != null) app.resound.ui.today.FilterChips(app.resound.ui.today.timelineFilters(evs), filter, Modifier.padding(bottom = 10.dp), onFilter)
+                if (shown.isEmpty()) Text("这一天没有“${filter.label}”的事", style = RsType.subhead, color = Rs.colors.textTertiary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
             }
         }
         // 一件事一个列表项（拖动条才能精确定位），按位置画成整卡：首行圆上角、末行圆下角
-        val sorted = if (newestFirst) evs.sortedByDescending { it.startAt } else evs.sortedBy { it.startAt }
+        val sorted = if (newestFirst) shown.sortedByDescending { it.startAt } else shown.sortedBy { it.startAt }
         sorted.groupBy { partOfDay(it.startAt) }.forEach { (part, group) ->
             item(key = "tl$part") {
                 Text("$part · ${group.size} 件", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = Rs.colors.textTertiary,

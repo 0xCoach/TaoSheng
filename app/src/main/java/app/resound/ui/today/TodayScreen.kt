@@ -159,20 +159,29 @@ fun TodayScreen(
         app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
 
     val list = events.orEmpty()
+    // 筛选：全部 / 重点 / 有待办 / 会议 / 媒体 / 提到的人；换一天回到全部。筛选时技能卡不显示
+    var filter by remember(date) { mutableStateOf<TimelineFilter>(TimelineFilter.All) }
+    val filterOptions = remember(list) { timelineFilters(list) }
+    LaunchedEffect(filterOptions) { if (filterOptions.none { it.first == filter }) filter = TimelineFilter.All }
+    val shownEvents = if (filter == TimelineFilter.All) list else list.filter(filter::matches)
     // 时间线按时段分组；技能卡（会议、收工打卡等）按时间插进对应时段，只占一行提示
     val newestFirst = list.size > 1 && list.first().startAt > list.last().startAt
-    val entries = (list.map { TimelineEntry.Event(it) } + cards.map { TimelineEntry.Card(it) })
+    val entries = (shownEvents.map { TimelineEntry.Event(it) } + if (filter == TimelineFilter.All) cards.map { TimelineEntry.Card(it) } else emptyList())
         .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
     val groups = entries.groupBy { partOfDay(it.at) }.toList()
 
-    // 多选：换一天就重置；按显示顺序排好的事件 id 用来算“选到这儿”的范围
+    // 多选：换一天就重置；按显示顺序排好的事件 id 用来算“选到这儿”和“全选”的范围（只算筛选出来的）
     val selection = remember(date) { TimelineSelection() }
     val order = remember(entries) { entries.mapNotNull { (it as? TimelineEntry.Event)?.event?.id } }
-    LaunchedEffect(order) { selection.retain(order); if (order.isEmpty() && selection.active) selection.exit() }
+    // 换筛选时已选的保留，只去掉当天已不存在的
+    val allIds = remember(list) { list.map { it.id } }
+    LaunchedEffect(allIds) { selection.retain(allIds); if (allIds.isEmpty() && selection.active) selection.exit() }
+    val transcribeQueue by transcripts.queue.collectAsState()
+    val rhythmScope = rememberCoroutineScope()
     androidx.activity.compose.BackHandler(selection.active) { selection.exit() }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
-    var topEdge by remember { mutableStateOf(0f) }
+    val topEdge = 0f
     var bottomEdge by remember { mutableStateOf(Float.MAX_VALUE) }
     // 勾选有变化后又滑动过、且已停下，才浮出“选到这儿”
     var scrolledAt by remember { mutableIntStateOf(-1) }
@@ -187,12 +196,15 @@ fun TodayScreen(
     var deleteProgress by remember { mutableStateOf<Int?>(null) }
 
     var boxTop by remember { mutableStateOf(0f) }
+    val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
+    // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
+    fun timelineIndex() = 2 + (if (settingsOpen || !hasKey) 1 else 0) + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0) + (if (pending.isNotEmpty()) 1 else 0)
     Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
             .onGloballyPositioned { viewport = it.boundsInRoot() },
         state = listState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp + if (selection.active) 76.dp else 0.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp + if (selection.active) 120.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // 闪退提示、上手清单和标题放在同一格：不显示时不占位，录音卡紧挨着日期
@@ -211,7 +223,18 @@ fun TodayScreen(
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
         if (settingsOpen || !hasKey) item(key = "model") { ModelCard(settings) { settingsOpen = false } }
-        if (dayRhythm(events.orEmpty(), dayLines) != null) item(key = "rhythm") { RhythmCard(events.orEmpty(), dayLines) }
+        if (rhythmShown) item(key = "rhythm") {
+            RhythmCard(list, dayLines, date, transcribeQueue.pending,
+                onFilter = { f -> filter = f; rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) } },
+                onHour = { h ->
+                    // 跳到这个小时所在的时段：先回到全部，再滚到那一组
+                    filter = TimelineFilter.All
+                    val part = partOfDay(date.atTime(h, 30).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+                    val gi = groups.indexOfFirst { it.first == part }
+                    rhythmScope.launch { listState.animateScrollToItem(timelineIndex() + maxOf(gi, 0)) }
+                },
+                onOpen = { opened = it })
+        }
         if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
         if (pending.isNotEmpty()) {
             item {
@@ -232,9 +255,12 @@ fun TodayScreen(
         }
         item {
             // 标题和第一组放在同一行，间距与“待确认”一致
-            Section(if (list.isNotEmpty()) "时间线 · ${list.size} 件事" else "时间线", trailing = {
+            Section(when { list.isEmpty() -> "时间线"; filter == TimelineFilter.All -> "时间线 · ${list.size} 件事"; else -> "时间线 · ${shownEvents.size}/${list.size} 件" }, trailing = {
                 DaySwitcher(dayOffset, compact = true) { dayOffset = it }
             }) {
+                FilterChips(filterOptions, filter, Modifier.padding(bottom = 12.dp)) { filter = it }
+                if (filter != TimelineFilter.All && shownEvents.isEmpty()) Text("这一天没有“${filter.label}”的事", style = RsType.subhead, color = c.textTertiary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
                 groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it },
                     onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it } }
                 if (events != null && list.isEmpty()) EmptyTimeline(memory)
@@ -245,14 +271,12 @@ fun TodayScreen(
                 onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it }
         }
     }
-    val grayIds = remember(list, order) { order.filter { id -> list.firstOrNull { it.id == id }?.scene in QUIET_SCENES } }
-    SelectTopBar(selection, order, grayIds) { topEdge = it }
     val chosen = list.filter { it.id in selection.ids }
     val allStarred = chosen.isNotEmpty() && chosen.all { it.starred }
-    SelectBottomBar(selection, allStarred, bottomPadding, onTop = { bottomEdge = it },
+    SelectBottomBar(selection, order, allStarred, bottomPadding, onTop = { bottomEdge = it },
         onStar = { chosen.forEach { memory.setStarred(it.id, !allStarred) }; selection.exit() },
         onCopy = { batchCopying = list.filter { it.id in selection.ids } },
-        onDelete = { batchDeleting = order.filter { it in selection.ids } })
+        onDelete = { batchDeleting = list.map { it.id }.filter { it in selection.ids } })
     // 复制完的小提示：底部浮一下就消失
     androidx.compose.animation.AnimatedVisibility(copyNote != null, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding + 24.dp),
         enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
@@ -749,7 +773,6 @@ private fun EmptyTimeline(memory: MemoryRepository) {
     }
 }
 
-private val QUIET_SCENES = setOf("媒体", "旁人")
 
 internal fun partOfDay(at: Long): String = when (Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).hour) {
     in 0..5 -> "凌晨"
@@ -820,9 +843,9 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
                           /** 多选模式下为 true/false 表示是否选中；不在多选为 null */
                           selected: Boolean? = null, onOpen: () -> Unit) {
     val c = Rs.colors
-    val quiet = event.scene in QUIET_SCENES
+    val quiet = event.isMedia()
     val selBg by androidx.compose.animation.animateColorAsState(if (selected == true) c.accentSoft.copy(alpha = 0.6f) else Color.Transparent, label = "rowSel")
-    // 媒体/旁人的事一直保持灰色（多选时也是，方便一眼挑出来批量处理）；勾选圈不变灰
+    // 媒体的事一直保持灰色（多选时也是）；勾选圈不变灰
     val dim = if (quiet) 0.55f else 1f
     Row(
         modifier.fillMaxWidth().background(selBg)

@@ -87,8 +87,9 @@ internal class TimelineSelection {
         anchor = id; version++
     }
 
-    /** 只选这些（如当天全部灰色的媒体/旁人），其余取消 */
-    fun selectOnly(only: List<Long>) { ids = only.toSet(); anchor = only.lastOrNull(); version++ }
+    /** 把这些都加进已选（全选当前筛选出来的），已选的其他保留 */
+    fun addAll(more: List<Long>) { ids = ids + more; anchor = more.lastOrNull() ?: anchor; version++ }
+    fun removeAll(less: List<Long>) { ids = ids - less.toSet(); if (anchor in less) anchor = ids.lastOrNull(); version++ }
 
     fun setAll(order: List<Long>, on: Boolean) { ids = if (on) order.toSet() else emptySet(); anchor = if (on) order.lastOrNull() else null; version++ }
 
@@ -138,58 +139,39 @@ internal fun Modifier.trackRow(selection: TimelineSelection, id: Long): Modifier
     return onGloballyPositioned { selection.bounds[id] = it.boundsInRoot() }
 }
 
-/** 顶部浮条：取消 · 已选 N 件 · 全选 */
-@Composable
-internal fun BoxScope.SelectTopBar(selection: TimelineSelection, order: List<Long>, grayIds: List<Long> = emptyList(), onBottom: (Float) -> Unit) {
-    val c = Rs.colors
-    AnimatedVisibility(selection.active, Modifier.align(Alignment.TopCenter),
-        enter = slideInVertically { -it } + fadeIn(), exit = slideOutVertically { -it } + fadeOut()) {
-        val all = order.isNotEmpty() && selection.ids.size == order.size
-        Row(
-            Modifier.windowInsetsTop().padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()
-                .shadow(if (c.isDark) 0.dp else 12.dp, RoundedCornerShape(22.dp), ambientColor = c.shadow, spotColor = c.shadow)
-                .clip(RoundedCornerShape(22.dp)).background(c.card).onGloballyPositioned { onBottom(it.boundsInRoot().bottom) }
-                .padding(horizontal = 6.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BarText("取消", c.textSecondary) { selection.exit() }
-            // 有灰色（媒体/旁人）的事时多一个“只选灰色”，标题收短一点给它让位
-            val gray = grayIds.isNotEmpty()
-            androidx.compose.material3.Text(if (selection.ids.isEmpty()) (if (gray) "选择" else "选择要处理的事") else "已选 ${selection.ids.size} 件",
-                style = if (gray) RsType.body.copy(fontWeight = FontWeight.SemiBold) else RsType.headline, color = c.text, maxLines = 1,
-                modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            if (gray) BarText("只选灰色", c.accent) { selection.selectOnly(grayIds) }
-            BarText(if (all) "全不选" else "全选", c.accent) { selection.setAll(order, !all) }
-        }
-    }
-}
-
-@Composable
-private fun Modifier.windowInsetsTop() = windowInsetsPadding(
-    androidx.compose.foundation.layout.WindowInsets.safeDrawing.only(androidx.compose.foundation.layout.WindowInsetsSides.Top))
-
 @Composable
 private fun BarText(text: String, color: Color, onClick: () -> Unit) =
     androidx.compose.material3.Text(text, style = RsType.body.copy(fontWeight = FontWeight.Medium), color = color,
         modifier = Modifier.clip(RoundedCornerShape(16.dp)).springClick(onClick).padding(horizontal = 14.dp, vertical = 10.dp))
 
-/** 底部浮条：重点 / 复制 / 删除 N */
+/** 底部两行面板：上行 ✕ · 已选 N 件 · 全选；下行 重点 / 复制 / 删除 N。都在拇指够得着的地方 */
 @Composable
-internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, allStarred: Boolean, bottomPadding: Dp,
+internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, order: List<Long>, allStarred: Boolean, bottomPadding: Dp,
                                       onTop: (Float) -> Unit, onStar: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit) {
     val c = Rs.colors
     AnimatedVisibility(selection.active, Modifier.align(Alignment.BottomCenter),
         enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
         val n = selection.ids.size
-        Row(
+        // 全选只针对当前筛选出来的；换筛选时已选的保留
+        val all = order.isNotEmpty() && order.all { it in selection.ids }
+        androidx.compose.foundation.layout.Column(
             Modifier.padding(start = 16.dp, end = 16.dp, bottom = bottomPadding + 12.dp).fillMaxWidth()
                 .shadow(if (c.isDark) 0.dp else 16.dp, RoundedCornerShape(26.dp), ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(RoundedCornerShape(26.dp)).background(c.card).onGloballyPositioned { onTop(it.boundsInRoot().top) }.padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            BarChip(if (allStarred) "取消重点" else "★ 重点", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onStar)
-            BarChip("复制", c.background, c.text, n > 0, Modifier.weight(1f), onCopy)
-            BarChip(if (n > 0) "删除 $n 件" else "删除", c.critical, Color.White, n > 0, Modifier.weight(1.2f), onDelete)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BarText("✕", c.textSecondary) { selection.exit() }
+                androidx.compose.material3.Text(if (n == 0) "选择要处理的事" else "已选 $n 件", style = RsType.body.copy(fontWeight = FontWeight.SemiBold),
+                    color = c.text, maxLines = 1, modifier = Modifier.weight(1f))
+                BarText(if (all) "全不选" else "全选", c.accent) {
+                    if (all) selection.removeAll(order) else selection.addAll(order)
+                }
+            }
+            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                BarChip(if (allStarred) "取消重点" else "★ 重点", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onStar)
+                BarChip("复制", c.background, c.text, n > 0, Modifier.weight(1f), onCopy)
+                BarChip(if (n > 0) "删除 $n 件" else "删除", c.critical, Color.White, n > 0, Modifier.weight(1.2f), onDelete)
+            }
         }
     }
 }

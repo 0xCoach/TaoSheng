@@ -318,6 +318,8 @@ fun MemoryScreen(
     val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
     val reviewList by remember(reviews) { reviews?.recent() ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
     val reviewState = reviews?.state?.collectAsState()?.value
+    // 按天页的时间线筛选，换一天回到全部
+    var dayFilter by remember(date) { mutableStateOf<app.resound.ui.today.TimelineFilter>(app.resound.ui.today.TimelineFilter.All) }
     // 卡 058：这天回顾的进度、原因和窗口；“生成回顾”是否出现与后端判断一致
     val hasMaterial by remember(date, reviews) { reviews?.hasMaterial(date) ?: flowOf(false) }.collectAsState(initial = true)
     val reviewWindow = remember(date, reviews, reviewState?.dailyAtMinutes) { reviews?.windowText(date).orEmpty() }
@@ -375,6 +377,7 @@ fun MemoryScreen(
                 onMakeCard = { makingCard = true },
                 onStar = { memory.setStarred(it.id, !it.starred) },
                 onDelete = { deleteNow(it) },
+                filter = dayFilter, onFilter = { dayFilter = it },
             )
         } else {
             item(key = "caps") { Capsules(tabs.map { it.name }, tabIndex) { tabIndex = it } }

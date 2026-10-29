@@ -484,7 +484,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf<Int?>(7, 30, 90, 365, null).forEach { d -> Choice(d?.let { "$it 天" } ?: "不限", sub.rangeDays == d) { onChange(sub.copy(rangeDays = d)) } }
     }
-    ToggleRow("排除电视、视频和旁人", "外放的剧、视频，和旁边别人的对话不推", sub.excludeMedia) { onChange(sub.copy(excludeMedia = it)) }
+    ToggleRow("排除电视、视频等媒体", "外放的剧、视频不推", sub.excludeMedia) { onChange(sub.copy(excludeMedia = it)) }
     if (isNew) {
         SubLabel("第一次开启时，补推以前的")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -126,7 +126,7 @@ private fun Bar() {
                     Text("正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
                     IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
                 }
-                Column(Modifier.fillMaxWidth().height(78.dp), verticalArrangement = Arrangement.Center) {
+                Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = Arrangement.Center) {
                     listOf(idx - 1, idx, idx + 1).forEach { k ->
                         val main = k == idx
                         Text(lines.getOrNull(k)?.text ?: "", maxLines = if (main) 2 else 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,

@@ -250,7 +250,7 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
         .padding(horizontal = 14.dp, vertical = 10.dp)) {
         if (cues.isNotEmpty()) {
             // 歌词式三行：上一句 / 当前这句（加粗）/ 下一句
-            Column(Modifier.fillMaxWidth().height(78.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+            Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                 listOf(center - 1, center, center + 1).forEach { k ->
                     val cue = cues.getOrNull(k)
                     val main = k == center

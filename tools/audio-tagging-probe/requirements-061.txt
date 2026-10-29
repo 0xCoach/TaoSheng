@@ -1,0 +1,5 @@
+numpy==2.5.4
+soundfile==0.14.0
+scipy==1.18.1
+pyarrow==26.0.0
+sherpa-onnx==2.0.1

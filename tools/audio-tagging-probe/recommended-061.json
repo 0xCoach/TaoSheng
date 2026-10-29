@@ -1,0 +1,172 @@
+{
+  "status": "research_only_defaults_off",
+  "model_strategy": "zipformer/whole",
+  "thresholds": {
+    "skip_speech": 0.2,
+    "skip_content": 0.2,
+    "media_music": 1.1,
+    "media_tv": 0.05,
+    "events": {
+      "baby": 0.05,
+      "smoke": 1.1,
+      "doorbell": 1.1,
+      "knock": 0.3,
+      "siren": 0.3,
+      "glass": 0.1,
+      "dog": 0.1
+    },
+    "tags": {
+      "室内": 1.1,
+      "户外": 1.1,
+      "车上": 1.1,
+      "交通": 0.3,
+      "嘈杂人声": 1.1,
+      "音乐": 0.8,
+      "键盘": 0.02,
+      "厨房": 1.1,
+      "雨": 0.2,
+      "宠物": 0.1,
+      "流水": 0.05,
+      "家电": 0.005,
+      "发动机": 0.2,
+      "脚步": 0.02,
+      "闹钟": 0.01,
+      "人声活动": 0.05
+    }
+  },
+  "tags_mapping": {
+    "室内": [
+      "Inside, small room",
+      "Inside, large room or hall",
+      "Inside, public space"
+    ],
+    "户外": [
+      "Outside, urban or manmade",
+      "Outside, rural or natural"
+    ],
+    "车上": [
+      "Car",
+      "Bus",
+      "Truck"
+    ],
+    "交通": [
+      "Vehicle",
+      "Traffic noise, roadway noise",
+      "Car",
+      "Train",
+      "Aircraft",
+      "Helicopter",
+      "Vehicle horn, car horn, honking",
+      "Siren"
+    ],
+    "嘈杂人声": [
+      "Crowd",
+      "Chatter",
+      "Hubbub, speech noise, speech babble"
+    ],
+    "音乐": [
+      "Music"
+    ],
+    "键盘": [
+      "Computer keyboard",
+      "Typing"
+    ],
+    "厨房": [
+      "Dishes, pots, and pans",
+      "Frying (food)",
+      "Chopping (food)",
+      "Cutlery, silverware"
+    ],
+    "雨": [
+      "Rain",
+      "Rain on surface",
+      "Raindrop"
+    ],
+    "宠物": [
+      "Dog",
+      "Bark",
+      "Cat",
+      "Meow",
+      "Purr"
+    ],
+    "流水": [
+      "Water",
+      "Water tap, faucet",
+      "Pour",
+      "Drip"
+    ],
+    "家电": [
+      "Vacuum cleaner",
+      "Air conditioning",
+      "Mechanical fan"
+    ],
+    "发动机": [
+      "Engine",
+      "Idling",
+      "Engine starting"
+    ],
+    "脚步": [
+      "Walk, footsteps"
+    ],
+    "闹钟": [
+      "Alarm clock"
+    ],
+    "人声活动": [
+      "Speech",
+      "Conversation",
+      "Narration, monologue",
+      "Cough",
+      "Laughter",
+      "Breathing"
+    ]
+  },
+  "events_mapping": {
+    "baby": [
+      "Baby cry, infant cry"
+    ],
+    "smoke": [
+      "Smoke detector, smoke alarm",
+      "Fire alarm"
+    ],
+    "doorbell": [
+      "Doorbell"
+    ],
+    "knock": [
+      "Knock"
+    ],
+    "siren": [
+      "Siren",
+      "Police car (siren)",
+      "Ambulance (siren)",
+      "Fire engine, fire truck (siren)"
+    ],
+    "glass": [
+      "Shatter",
+      "Glass"
+    ],
+    "dog": [
+      "Dog",
+      "Bark"
+    ]
+  },
+  "speech_mapping": [
+    "Speech",
+    "Male speech, man speaking",
+    "Female speech, woman speaking",
+    "Child speech, kid speaking",
+    "Conversation",
+    "Narration, monologue",
+    "Whispering",
+    "Speech synthesizer"
+  ],
+  "human_guard": [
+    "Baby cry, infant cry",
+    "Crying, sobbing",
+    "Laughter",
+    "Cough",
+    "Breathing",
+    "Screaming",
+    "Shout"
+  ],
+  "frozen_config_sha256": "d491b1f185c52278af13a2f6c51f459a15447c81be2e5f5c148cff8e8e09a6eb"
+}

@@ -214,7 +214,7 @@ private fun parseSrt(file: java.io.File?): List<Cue> {
 private val PREVIEW_SPEEDS = listOf(1f, 1.25f, 1.5f, 2f)
 
 /**
- * 合成录音的试听：上方实时字幕（当前一句 + 淡灰的下一句），细进度条可点可拖，
+ * 合成录音的试听：上方歌词式三行字幕，细进度条可点可拖，
  * 下方 后退 15 秒 · 播放/暂停 · 前进 15 秒，右侧倍速（1×/1.25×/1.5×/2×，只改快慢不改音调）。
  * 试听时暂停日常收音，离开面板自动停。
  */
@@ -245,25 +245,12 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
     val shown = dragging?.let { (it * total).toInt() } ?: pos
     // 当前句：开始时间不晚于播放位置的最后一句（停顿时仍停在上一句，像歌词一样）
     val playingIdx = cues.indexOfLast { it.start <= shown }.coerceAtLeast(0)
-    // 上下滑字幕调进度：每滑过一行换一句，松手跳到那句开头
-    var scrollIdx by remember { mutableStateOf<Int?>(null) }
-    val center = scrollIdx ?: playingIdx
-    val rowPx = with(androidx.compose.ui.platform.LocalDensity.current) { 30.dp.toPx() }
-    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(22.dp)).background(c.background)
-        .padding(horizontal = 16.dp, vertical = 14.dp)) {
+    val center = playingIdx
+    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(c.background)
+        .padding(horizontal = 14.dp, vertical = 10.dp)) {
         if (cues.isNotEmpty()) {
-            var acc by remember { mutableStateOf(0f) }
-            Column(Modifier.fillMaxWidth().height(100.dp).pointerInput(cues) {
-                detectVerticalDragGestures(
-                    onDragStart = { acc = 0f; scrollIdx = playingIdx },
-                    onDragEnd = { scrollIdx?.let { seek(cues[it].start) }; scrollIdx = null },
-                    onDragCancel = { scrollIdx = null },
-                ) { change, dy ->
-                    change.consume(); acc += dy
-                    // 往上滑看后面的句子，往下滑回到前面
-                    scrollIdx = (playingIdx - (acc / rowPx).toInt()).coerceIn(0, cues.lastIndex)
-                }
-            }, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+            // 歌词式三行：上一句 / 当前这句（加粗）/ 下一句
+            Column(Modifier.fillMaxWidth().height(78.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                 listOf(center - 1, center, center + 1).forEach { k ->
                     val cue = cues.getOrNull(k)
                     val main = k == center
@@ -272,15 +259,12 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
                     }) { q ->
                         Text(q?.text ?: "", maxLines = if (main) 2 else 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             style = if (main) RsType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) else RsType.caption,
-                            color = when { main && scrollIdx != null -> c.accent; main -> c.text; else -> c.textTertiary },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
+                            color = if (main) c.text else c.textTertiary,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp))
                     }
                 }
             }
-            // 滑动时提示松手会跳到哪
-            Text(scrollIdx?.let { "松手跳到 ${mmss(cues[it].start)}" } ?: "上下滑动字幕可以调进度", style = RsType.caption, color = if (scrollIdx != null) c.accent else c.textTertiary.copy(alpha = 0.7f),
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(8.dp))
         }
         // 细进度条：点哪儿跳哪儿，按住拖动预览
         SeekBar(shown / total.toFloat(), onDrag = { dragging = it }, onDone = { f -> seek((f * total).toInt()); dragging = null })
@@ -288,25 +272,23 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
             Text(mmss(shown), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
             Text(mmss(total), style = RsType.caption, color = c.textTertiary)
         }
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.weight(1f))
-            Text("−15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
-                modifier = Modifier.clip(CircleShape).springClick { seek(pos - 15_000) }.padding(12.dp))
-            Spacer(Modifier.width(14.dp))
-            androidx.compose.foundation.layout.Box(Modifier.size(52.dp).clip(CircleShape).background(c.accent).springClick {
-                if (playing) { player.pause(); playing = false; hold(false) } else { hold(true); player.start(); playing = true; applySpeed() }
-            }, contentAlignment = Alignment.Center) {
-                Text(if (playing) "❚❚" else "▶", style = RsType.headline, color = androidx.compose.ui.graphics.Color.White)
+        // 一行控制：−15 · 播放/暂停 · +15 居中，倍速胶囊靠右
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
+                Text("−15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
+                    modifier = Modifier.clip(CircleShape).springClick { seek(pos - 15_000) }.padding(10.dp))
+                Spacer(Modifier.width(10.dp))
+                androidx.compose.foundation.layout.Box(Modifier.size(46.dp).clip(CircleShape).background(c.accent).springClick {
+                    if (playing) { player.pause(); playing = false; hold(false) } else { hold(true); player.start(); playing = true; applySpeed() }
+                }, contentAlignment = Alignment.Center) {
+                    Text(if (playing) "❚❚" else "▶", style = RsType.headline, color = androidx.compose.ui.graphics.Color.White)
+                }
+                Spacer(Modifier.width(10.dp))
+                Text("+15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
+                    modifier = Modifier.clip(CircleShape).springClick { seek(pos + 15_000) }.padding(10.dp))
             }
-            Spacer(Modifier.width(14.dp))
-            Text("+15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
-                modifier = Modifier.clip(CircleShape).springClick { seek(pos + 15_000) }.padding(12.dp))
-            Spacer(Modifier.weight(1f))
-        }
-        // 倍速放在右下角一颗小胶囊里，点一下换一档
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
             Text(if (speed == 1f) "1×" else "${speed.toString().trimEnd('0').trimEnd('.')}×", style = RsType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-                color = c.accent, modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
+                color = c.accent, modifier = Modifier.align(Alignment.CenterEnd).clip(CircleShape).background(c.accentSoft).springClick {
                     speed = PREVIEW_SPEEDS[(PREVIEW_SPEEDS.indexOf(speed) + 1) % PREVIEW_SPEEDS.size]; applySpeed()
                 }.padding(horizontal = 12.dp, vertical = 5.dp))
         }

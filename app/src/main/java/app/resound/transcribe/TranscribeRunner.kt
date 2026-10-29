@@ -23,6 +23,10 @@ class TranscribeRunner(
     private val ready: () -> Boolean = { true },
     private val beforeTranscribe: suspend (SegmentEntity) -> Boolean = { false },
     private val afterImport: suspend () -> Unit = {},
+    private val sourceReady: (TranscribeSource) -> Boolean = { true },
+    private val sourceKey: (TranscribeSource) -> String = { key() },
+    private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
+    private val recordSpeed: (TranscribeSource?, Long, Long) -> Unit = { _, _, _ -> },
 ) {
     suspend fun withIdleAudio(block: suspend () -> Unit) = gate.withLock { block() }
 
@@ -41,17 +45,19 @@ class TranscribeRunner(
             else cleanupImportedAudio(dao, now(), waitForVoiceprint = true)
             val started = now()
             val configuration = runCatching { identity() }.getOrDefault("")
-            if (!ready()) { updateState(started, "转写未就绪，请配置服务或下载本地模型"); return false }
-            val credential = try { key() } catch (_: Exception) {
-                updateState(started, "密钥安全读取失败，请重新填写"); return false
-            }
+            if (!ready() && dao.candidates(now()).none { it.asrSource != null }) { updateState(started, "转写未就绪，请配置服务或下载本地模型"); return false }
             updateState(started, null)
             val candidates = dao.candidates(now())
             var done = 0
             updateProgress(candidates.size, done)
             for (candidate in candidates) {
                 currentCoroutineContext().ensureActive()
-                if (!networkAllowed()) { updateState(started, "等待不计流量网络"); return true }
+                val selected = candidate.asrSource?.let { TranscribeSource.valueOf(it) }
+                if (selected != null && !sourceReady(selected)) { updateState(started, "指定转写方式未就绪"); continue }
+                if (selected == null && !ready()) continue
+                val credential = try { if (selected != null) sourceKey(selected) else key() }
+                catch (_: Exception) { updateState(started, "密钥安全读取失败，请重新填写"); continue }
+                if (!(selected?.let(sourceNetwork) ?: networkAllowed())) { updateState(started, "等待不计流量网络"); return true }
                 // 清除/更换密钥后不继续使用本轮旧密钥。
                 if (runCatching { identity() }.getOrDefault("") != configuration) return false
                 // 清理任务或本轮前一段的声纹收尾可能已删除过期导入音频，不能上传旧快照。
@@ -65,22 +71,25 @@ class TranscribeRunner(
                 var logId: String? = null
                 try {
                     if (!File(candidate.path).isFile) throw AsrException(AsrError.Audio, detail = "录音文件已不存在")
-                    if (beforeTranscribe(candidate) && dao.finishEnvSkip(candidate.id, now()) > 0) {
+                    if (!candidate.redoPending && beforeTranscribe(candidate) && dao.finishEnvSkip(candidate.id, now()) > 0) {
                         outcome = "SkippedEnv"
                         continue
                     }
-                    val result = provider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0)), credential) {
+                    val selectedProvider = if (selected != null && provider is ConfiguredAsrProvider) object : AsrProvider { override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit) = provider.recognize(selected, audio, key, beforeAudio) } else provider
+                    val result = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0)), credential) {
                         check(dao.findSegment(candidate.id) != null)
                         reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
                         dao.reserveAudio(today(), reserved, candidate.id)
                     }
+                    recordSpeed(selected, (candidate.endAt - candidate.startAt).coerceAtLeast(0), (now() - began).coerceAtLeast(1))
                     logId = TranscribePolicy.safeLogId(result.logId, credential)
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
                     val lines = result.sentences.map { line ->
                         TranscriptLineEntity(segmentId = candidate.id, startAt = candidate.startAt + line.startMillis,
                             endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = line.speakerTag, originalText = line.originalText)
                     }
-                    dao.findSegment(candidate.id)?.let { current -> dao.complete(current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = null, firstFailedAt = null), lines) }
+                    dao.findSegment(candidate.id)?.let { current -> val completed = current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = null, firstFailedAt = null)
+                        if (current.redoPending) dao.completeRedo(completed, lines, now()) else dao.complete(completed, lines) }
                 } catch (e: Exception) {
                     error = when (e) {
                         is CancellationException -> AsrError.Interrupted

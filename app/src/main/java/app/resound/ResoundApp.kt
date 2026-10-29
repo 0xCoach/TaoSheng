@@ -95,8 +95,18 @@ class ResoundApp : Application() {
         AppGraph.audioExporter.cleanup()
         AppGraph.exportJobs = AndroidExportJobs(this, AppGraph.audioExporter, scope)
         val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope)
+        val asrChooser = app.resound.redo.AndroidAsrChooser(this, settings, scope) { AppGraph.usage.price.value.asrPerHour }
+        val sourceNetwork: (TranscribeSource) -> Boolean = { source ->
+            if (source == TranscribeSource.Local) true else {
+                val connectivity = getSystemService(ConnectivityManager::class.java)
+                val network = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+                network?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    (!settings.wifiOnly.value || network.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
+            }
+        }
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
+            sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             beforeTranscribe = envSound::beforeTranscribe,
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
@@ -125,6 +135,11 @@ class ResoundApp : Application() {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         }, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> skillScheduler.afterDigest(manual) })
+        val redoEngine = app.resound.redo.createRedoEngine(this, database, asrChooser, settings, digestSettings, llm,
+            hotwords::merged, { AppGraph.prompts.text("digest") }, { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork)
+        AppGraph.redo = app.resound.redo.AndroidRedoService(this, database, asrChooser, redoEngine, scope,
+            { app.resound.redo.llmOptions(digestSettings) }, { digestSettings.presetId.value },
+            idle = { block -> transcribeRunner.withIdleAudio { digestRunner.withIdle { block() } } })
         AppGraph.digestProgress = digestRunner.progress
         val appointmentSettings = AndroidAppointmentSettings(this)
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {

@@ -51,7 +51,8 @@ class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscri
     private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords)
     private val local=LocalAsrProvider(context,settings,hotwords)
     private val custom=CustomAsrProvider(settings, hotwords)
-    override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = when(settings.source.value){
+    override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = recognize(settings.source.value, audio, key, beforeAudio)
+    internal suspend fun recognize(source: TranscribeSource, audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = when(source){
         TranscribeSource.Doubao->doubao.recognize(audio,key,beforeAudio)
         TranscribeSource.Local->local.recognize(audio,key,beforeAudio)
         TranscribeSource.Custom->custom.recognize(audio,key,beforeAudio)

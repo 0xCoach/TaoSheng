@@ -91,6 +91,7 @@
         <receiver android:name=".update.UpdateReplacedReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
         </receiver>
+        <receiver android:name=".redo.CancelRedoReceiver" android:exported="false" />
         <receiver android:name=".transcribe.CancelExportReceiver" android:exported="false" />
         <receiver android:name=".importer.CancelImportReceiver" android:exported="false" />
         <!-- 强提醒整屏页：锁屏时亮屏盖在锁屏上 -->

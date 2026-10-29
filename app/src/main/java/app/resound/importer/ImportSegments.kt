@@ -36,7 +36,7 @@ internal class ImportSegments(private val folder: File, private val id: String, 
         if (keep) ready.addLast(Piece(file, start, importStartAt(epoch, endSample), index - 1)) else file.delete()
         pcm = null
     }
-    suspend fun save(db: CaptureDatabase, destination: File): Int {
+    suspend fun save(db: CaptureDatabase, destination: File, asr: app.resound.transcribe.TranscribeSource? = null): Int {
         var saved = 0
         destination.mkdirs()
         while (ready.isNotEmpty()) {
@@ -47,7 +47,7 @@ internal class ImportSegments(private val folder: File, private val id: String, 
                 if (!db.transcribe().hasImportPath(base.path + ".ogg", base.path + ".m4a")) {
                     val audio = SegmentEncoder.encode(piece.pcm, base)
                     db.capture().segment(SegmentEntity(startAt = piece.start, endAt = piece.end, sourceId = "import",
-                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0))
+                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name))
                 }
                 saved++
             } catch (e: Exception) {

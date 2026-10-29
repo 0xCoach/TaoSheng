@@ -51,14 +51,14 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
                                 if (pcm.isNotEmpty()) {
                                     vad.accept(pcm) { frame, speech, _ -> segmenter.accept(frame, speech) }
                                     samples += pcm.size
-                                    segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"))
+                                    segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"), entry.asr)
                                     importer.update(id, (samples * 100 / 16 / entry.pending.info.durationMillis).toInt().coerceIn(0, 99), segments)
                                 }
                             }
                             vad.finish { frame, speech, _ -> segmenter.accept(frame, speech) }
                         }
                         segmenter.finish()
-                        segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"))
+                        segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"), entry.asr)
                     }
                     importer.update(id, 100, segments)
                 } catch (e: CancellationException) { throw e }

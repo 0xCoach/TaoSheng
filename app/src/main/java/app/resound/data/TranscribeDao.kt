@@ -136,6 +136,30 @@ abstract class TranscribeDao {
     @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun segment(id: Long): SegmentEntity
     @Query("DELETE FROM transcript_lines WHERE segmentId = :id") abstract suspend fun deleteLines(id: Long)
     @Insert abstract suspend fun insertLines(lines: List<TranscriptLineEntity>)
+    @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
+    abstract suspend fun linesForRedo(id: Long): List<TranscriptLineEntity>
+    @Query("UPDATE memory_items SET lineId = :replacement WHERE lineId = :old")
+    abstract suspend fun remapItemLine(old: Long, replacement: Long?)
+    @Query("UPDATE memory_items SET doneHintLineId = :replacement WHERE doneHintLineId = :old")
+    abstract suspend fun remapHintLine(old: Long, replacement: Long?)
+    /** 保持原话引用有效；只重转写/失败重试均不能偷偷触发事件重整理。 */
+    @Transaction open suspend fun completeRedo(row: SegmentEntity, fresh: List<TranscriptLineEntity>, at: Long) {
+        val old = linesForRedo(row.id)
+        val used = mutableSetOf<Long>()
+        val mapped = fresh.map { line ->
+            val match = old.filter { it.id !in used }.maxByOrNull {
+                (minOf(it.endAt, line.endAt) - maxOf(it.startAt, line.startAt)).coerceAtLeast(0)
+            }
+            match?.let { used += it.id }
+            line.copy(id = match?.id ?: 0, eventId = match?.eventId, digestedAt = match?.digestedAt ?: at)
+        }
+        complete(row.copy(redoPending = false), mapped)
+        val saved = linesForRedo(row.id)
+        for (line in old) if (saved.none { it.id == line.id }) {
+            val replacement = saved.maxByOrNull { (minOf(it.endAt, line.endAt) - maxOf(it.startAt, line.startAt)).coerceAtLeast(0) }?.id
+            remapItemLine(line.id, replacement); remapHintLine(line.id, replacement)
+        }
+    }
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :from AND :to")
     abstract suspend fun voiceInputs(from: Long, to: Long): List<TranscriptLineEntity>
     @Transaction

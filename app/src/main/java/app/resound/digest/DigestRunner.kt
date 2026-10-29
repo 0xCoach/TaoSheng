@@ -98,6 +98,8 @@ class DigestRunner(
         }
     }
 
+    internal suspend fun withIdle(block: suspend () -> Unit) { gate.lock(); try { block() } finally { gate.unlock() } }
+
     private var failureDetail: String? = null
 
     /** 整理一块；成功返回 null，否则返回错误类型 */

@@ -66,6 +66,12 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
         saveCustom(endpoint,model)
     }
     fun identity() = "${source.value}:${backend.value}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}"
+    internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
+    internal fun ready(source: TranscribeSource): Boolean = when (source) {
+        TranscribeSource.Local -> modelReady(if (backend.value == app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) backend.value else app.resound.transcribe.local.LocalBackend.Cpu)
+        TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() }.getOrDefault(false)
+        TranscribeSource.Custom -> OpenAiEndpoint.kind(customEndpoint) != EndpointKind.Invalid && customModel.isNotBlank()
+    }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
     private fun keyField() = if(source.value==TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey"
     fun refreshReady() { _ready.value=if(source.value==TranscribeSource.Local) {
@@ -99,8 +105,9 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
         }.generateKey()
     }
     @Synchronized
-    internal fun readKey(): String {
-        val encoded = prefs.getString(keyField(), null) ?: return ""
+    internal fun readKey(): String = readKey(source.value)
+    @Synchronized internal fun readKey(source: TranscribeSource): String {
+        val encoded = prefs.getString(if (source == TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey", null) ?: return ""
         val bytes = Base64.decode(encoded, Base64.NO_WRAP)
         require(bytes.size > 12)
         return Cipher.getInstance("AES/GCM/NoPadding").run {

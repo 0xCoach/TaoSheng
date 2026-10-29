@@ -289,7 +289,10 @@ class LocalVoiceprintRepository(
         }
     }
 
-    private suspend fun process(selected: List<SegmentEntity>? = null, onProgress: (Int, Int) -> Unit = { _, _ -> }): Boolean {
+    internal suspend fun recognizeRedo(ids: List<Long>): Boolean = withContext(Dispatchers.IO) {
+        rounds.withLock { process(db.transcribe().exportSegments(ids).map { it.segment }, train = false) }
+    }
+    private suspend fun process(selected: List<SegmentEntity>? = null, train: Boolean = true, onProgress: (Int, Int) -> Unit = { _, _ -> }): Boolean {
         val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people(), dao.sampleInputs().associate { it.sampleId to it.sourceId }) }
         val canIdentify = round.samples.groupBy { it.personId }.values.any(::ready)
         // 导入音频转写后就删除；即使还没有注册声纹，也先缓存特征供日后从原话补样本。
@@ -366,7 +369,7 @@ class LocalVoiceprintRepository(
                             db.withTransaction {
                                 // 清理旧自动样本的离群/超长向量；用户手动样本绝不删除。
                                 val me = candidates.find { it.id == 0L }
-                                if (me != null) for (sample in dao.allSamples().filter { it.source == "auto" }) {
+                                if (train && me != null) for (sample in dao.allSamples().filter { it.source == "auto" }) {
                                     val score = runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), me.vector) }.getOrDefault(0f)
                                     if (sample.durationMillis > WindowedVoiceprint.WINDOW_MILLIS || score < WindowedVoiceprint.AUTO_SCORE) {
                                         sample.segmentId?.let { id -> sample.groupKey?.let { key -> dao.removeSample(id, key) } }
@@ -383,13 +386,13 @@ class LocalVoiceprintRepository(
                                     val auto = if (round.people.isEmpty() && segment.playbackMillis == 0L &&
                                         group.lines.none { it.speakerManual || it.speakerTag?.startsWith("uncertain:") == true })
                                         WindowedVoiceprint.autoSample(observations, allowed) else null
-                                    if (auto != null && dao.allSamples().none { it.segmentId == segment.id && it.groupKey == group.key }) {
+                                    if (train && auto != null && dao.allSamples().none { it.segmentId == segment.id && it.groupKey == group.key }) {
                                         dao.saveSample(VoiceprintSampleEntity(source = "auto", sourceLineId = group.lines.first().id,
                                             segmentId = segment.id, groupKey = group.key, vector = VoiceprintMath.encode(requireNotNull(auto.vector)),
                                             durationMillis = auto.durationMillis, createdAt = now()))
                                     }
                                 }
-                                dao.trimAutoSamples()
+                                if (train) dao.trimAutoSamples()
                                 dao.processed(segment.id, now())
                             }
                         }

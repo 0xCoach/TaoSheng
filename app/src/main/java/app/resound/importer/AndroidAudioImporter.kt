@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false)
+internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false, val asr: app.resound.transcribe.TranscribeSource? = null)
 
 /** 文件先落盘，再提交确认信息；队列与确认列表同一次 commit，避免进程死亡丢掉授权内容。 */
 class AndroidAudioImporter internal constructor(
@@ -29,7 +29,7 @@ class AndroidAudioImporter internal constructor(
             val item = json.getJSONObject(i)
             ImportEntry(PendingImport(item.getString("id"), ImportInfo(item.getString("name"), item.getLong("duration"),
                 if (item.isNull("suggested")) null else item.getLong("suggested"))),
-                if (item.isNull("start")) null else item.getLong("start"), item.optBoolean("cancelled"))
+                if (item.isNull("start")) null else item.getLong("start"), item.optBoolean("cancelled"), item.optString("asr").takeIf { it.isNotBlank() }?.let { app.resound.transcribe.TranscribeSource.valueOf(it) })
         }.filter { runCatching { UUID.fromString(it.pending.id) }.isSuccess }.toMutableList()
     }.getOrDefault(mutableListOf())
     private val _pending = MutableStateFlow(entries.filter { it.startAt == null }.map { it.pending })
@@ -53,7 +53,7 @@ class AndroidAudioImporter internal constructor(
         val array = JSONArray(entries.map { row -> JSONObject().apply {
             put("id", row.pending.id); put("name", row.pending.info.displayName); put("duration", row.pending.info.durationMillis)
             put("suggested", row.pending.info.suggestedStartAt ?: JSONObject.NULL)
-            put("start", row.startAt ?: JSONObject.NULL); put("cancelled", row.cancelled)
+            put("start", row.startAt ?: JSONObject.NULL); put("cancelled", row.cancelled); put("asr", row.asr?.name ?: "")
         } })
         check(prefs.edit().putString("entries", array.toString()).commit()) { "无法保存导入队列" }
         _pending.value = entries.filter { it.startAt == null }.map { it.pending }
@@ -93,14 +93,15 @@ class AndroidAudioImporter internal constructor(
             }
         }
     }
-    override fun start(id: String, startAt: Long) {
+    override fun start(id: String, startAt: Long) = start(id, startAt, null)
+    override fun start(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?) {
         commands.trySend command@{
             try {
                 synchronized(this@AndroidAudioImporter) {
                     val index = entries.indexOfFirst { it.pending.id == id && it.startAt == null }
                     if (index < 0) return@command
                     val entry = entries.removeAt(index)
-                    entries.add(entry.copy(startAt = startAt))
+                    entries.add(entry.copy(startAt = startAt, asr = asr))
                     save()
                 }
                 enqueue()

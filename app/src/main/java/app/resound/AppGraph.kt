@@ -18,6 +18,12 @@ object AppGraph {
     lateinit var rhythm: app.resound.digest.RhythmStats
     val isRhythmReady: Boolean get() = ::rhythm.isInitialized
 
+    // 卡 068：录音导出与批量删除
+    lateinit var audioExporter: app.resound.transcribe.AudioExporter
+    val isAudioExporterReady: Boolean get() = ::audioExporter.isInitialized
+    lateinit var segmentDeleter: app.resound.transcribe.SegmentDeleter
+    val isSegmentDeleterReady: Boolean get() = ::segmentDeleter.isInitialized
+
     // 卡 062：原声保留与播放
     lateinit var originalAudio: app.resound.transcribe.OriginalAudio
     val isOriginalAudioReady: Boolean get() = ::originalAudio.isInitialized

@@ -126,13 +126,12 @@ private fun quietHours(rules: List<QuietRule>, date: LocalDate): Map<Int, String
 
 /**
  * 今天页“今日节奏”：说话 · 件事 · 提到几人 · 开会；数字可点（点了筛选时间线）；柱子可点（跳到那个小时）。
- * 说话不到 5 分钟的日子只显示一行。刚过零点、今天还没攒够 5 分钟时，今天页改放昨天的完整卡片（title = “昨天的节奏”）。
+ * 说话不到 5 分钟的日子只显示一行。
  */
 @Composable
 internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, date: LocalDate, pendingSegments: Int,
                         onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit, onPeople: () -> Unit = {},
-                        meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {},
-                        title: String = "今日节奏") {
+                        meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {}) {
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
@@ -147,7 +146,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         padding = PaddingValues(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 6.dp)) {
         val toggle = { collapsed = !collapsed; prefs.edit().putBoolean("rhythmCollapsed", collapsed).apply() }
         Row(Modifier.fillMaxWidth().springClick(toggle), verticalAlignment = Alignment.CenterVertically) {
-            Text(title + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
+            Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
             // 收起时标题这一行直接带上概要和一条迷你分布，一眼看完
             if (collapsed && r.speechMinutes >= 5) {
                 Text("  提到 ${r.people} 人 · 灵感 ${r.ideas} · 待办 ${r.withItems} · 会议 ${meetings.size}", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,

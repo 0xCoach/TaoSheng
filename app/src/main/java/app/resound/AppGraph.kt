@@ -33,8 +33,6 @@ object AppGraph {
     // 卡 072：录音批量导出与推送到坚果云
     lateinit var recordingPacker: app.resound.recordings.RecordingPacker
     val isRecordingPackerReady: Boolean get() = ::recordingPacker.isInitialized
-    lateinit var recordingSync: app.resound.recordings.RecordingSync
-    val isRecordingSyncReady: Boolean get() = ::recordingSync.isInitialized
 
     // 卡 071：重做（重新转写 / 重新整理）
     lateinit var redo: app.resound.redo.RedoService

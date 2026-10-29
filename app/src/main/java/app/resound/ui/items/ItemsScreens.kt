@@ -1,5 +1,7 @@
 package app.resound.ui.items
 
+import app.resound.ui.ScrollTopButton
+import app.resound.ui.swipeTabs
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -153,8 +155,10 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     }
 
     Box(Modifier.fillMaxSize()) {
+        app.resound.ui.ScrollToTopOnReselect(listState)
         LazyColumn(
-            Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
+            Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing)
+                .then(Modifier.swipeTabs(TodoTab.entries.size, tabIndex) { tabIndex = it }),
             state = listState,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 100.dp),
         ) {
@@ -238,8 +242,9 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                 }
             }
         }
-        // 右下角：点按打字、按住说话添加待办
+        // 右下角：点按打字、按住说话添加待办；“↑”在它上方
         AddTodoHost(bottomPadding)
+        ScrollTopButton(listState, bottomPadding, lift = 76.dp)
     }
     opened?.let { item -> ItemSheet(item, memory, onOpenEvent = null) { opened = null } }
     if (reminders) ReminderSheet(memory) { reminders = false }
@@ -335,9 +340,11 @@ fun MemoryScreen(
         if (openReview != null && review?.date == openReview) { openedReview = review; onReviewShown() }
     }
 
+    app.resound.ui.ScrollToTopOnReselect(listState)
     Box(Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
     LazyColumn(
-        Modifier.fillMaxSize(),
+        // 按类时在内容区左右滑切换顶部的分类
+        Modifier.fillMaxSize().then(if (!byDay) Modifier.swipeTabs(tabs.size, tabIndex) { tabIndex = it } else Modifier),
         state = listState,
         // 有小时刻度时右边多留出刻度的宽度
         contentPadding = PaddingValues(start = 16.dp, end = if (showIndex) 40.dp else 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
@@ -449,6 +456,7 @@ fun MemoryScreen(
             }
         }
     }
+    ScrollTopButton(listState, bottomPadding, end = if (showIndex) 52.dp else 20.dp)
     // 右侧时间刻度：点小时跳到那个小时，按住拖在事件之间连续滑并预览
     if (showIndex) {
         val scope = androidx.compose.runtime.rememberCoroutineScope()

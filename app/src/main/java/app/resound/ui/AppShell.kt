@@ -69,6 +69,9 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
     val navRequest by ShellNav.request.collectAsState()
     androidx.compose.runtime.LaunchedEffect(navRequest) { navRequest?.let { tab = it.first } }
     val holder = rememberSaveableStateHolder()
+    // 再点一下当前底栏图标的次数，按页记；页面拿到后回到顶部
+    val reselect = remember(tabs.size) { androidx.compose.runtime.mutableStateListOf(*Array(tabs.size) { 0 }) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val labels = remember(tabs.size) { tabs.map { it.first } }
     val haze = rememberHazeState()
     val keyboard = WindowInsets.isImeVisible
@@ -77,7 +80,9 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
         Crossfade(tab, Modifier.hazeSource(haze), animationSpec = tween(200), label = "tab") { t ->
             // 平板、折叠屏展开、横屏时内容不拉满：限制最大宽度并居中，手机上不受影响
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Box(Modifier.widthIn(max = MaxContentWidth).fillMaxSize()) { holder.SaveableStateProvider(t) { tabs[t].second() } }
+                Box(Modifier.widthIn(max = MaxContentWidth).fillMaxSize()) { holder.SaveableStateProvider(t) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalTabReselect provides reselect.getOrElse(t) { 0 }) { tabs[t].second() }
+                }  }
             }
         }
         if (!keyboard) {
@@ -89,7 +94,10 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
                 Box(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
             // 底栏单独一块：只在选中页变化时重画，切页时页面重建不会牵连它
-            TabBar(labels, tab, { tab = it }, haze, Modifier.align(Alignment.BottomCenter))
+            TabBar(labels, tab, {
+                if (it == tab) { reselect[it] = reselect[it] + 1; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
+                else tab = it
+            }, haze, Modifier.align(Alignment.BottomCenter))
         }
         // 听原声的迷你播放条（浮在底栏上方）；切到后台就停，收音同时恢复
         app.resound.ui.transcript.PlayerBar(ShellBottomPadding + 8.dp)

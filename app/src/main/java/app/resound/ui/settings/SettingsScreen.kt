@@ -140,8 +140,11 @@ private fun SettingsList(
     val voiceprint = LocalVoiceprint.current
     val vp = voiceprint?.state?.collectAsState()?.value
 
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    app.resound.ui.ScrollToTopOnReselect(listState)
     LazyColumn(
         Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {

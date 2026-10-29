@@ -1,5 +1,7 @@
 package app.resound.ui.today
 
+import app.resound.ui.ScrollTopButton
+import app.resound.ui.swipeTabs
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -273,6 +275,8 @@ fun TodayScreen(
     }
     val chosen = list.filter { it.id in selection.ids }
     val allStarred = chosen.isNotEmpty() && chosen.all { it.starred }
+    app.resound.ui.ScrollToTopOnReselect(listState)
+    ScrollTopButton(listState, bottomPadding, lift = if (selection.active) 120.dp else 0.dp)
     SelectBottomBar(selection, order, allStarred, bottomPadding, onTop = { bottomEdge = it },
         onStar = { chosen.forEach { memory.setStarred(it.id, !allStarred) }; selection.exit() },
         onCopy = { batchCopying = list.filter { it.id in selection.ids } },

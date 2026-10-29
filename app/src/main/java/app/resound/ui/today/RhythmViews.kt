@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -124,31 +126,34 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
     // 点标题收起成一行 / 展开；记住上次的选择
     val prefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
     var collapsed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("rhythmCollapsed", false)) }
-    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Row(Modifier.fillMaxWidth().springClick { collapsed = !collapsed; prefs.edit().putBoolean("rhythmCollapsed", collapsed).apply() },
-            verticalAlignment = Alignment.CenterVertically) {
-            Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
-            if (r.speechMinutes >= 5) Text(if (collapsed) "展开 ⌄" else "收起 ⌃", style = RsType.caption, color = c.textTertiary)
+    RsCard(Modifier.animateContentSize(androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)),
+        padding = PaddingValues(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 12.dp)) {
+        val toggle = { collapsed = !collapsed; prefs.edit().putBoolean("rhythmCollapsed", collapsed).apply() }
+        Row(Modifier.fillMaxWidth().springClick(toggle), verticalAlignment = Alignment.CenterVertically) {
+            Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
+            // 收起时标题这一行直接带上概要和一条迷你分布，一眼看完
+            if (collapsed && r.speechMinutes >= 5) {
+                Text("  说话 ${r.speechMinutes} 分 · ${r.events} 件", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
+                    maxLines = 1, modifier = Modifier.weight(1f))
+                MiniBars(r, Modifier.padding(end = 8.dp).size(width = 64.dp, height = 16.dp))
+            } else Spacer(Modifier.weight(1f))
+            if (r.speechMinutes >= 5) FoldButton(collapsed)
         }
-        if (collapsed && r.speechMinutes >= 5) {
-            Spacer(Modifier.height(6.dp))
-            Text("说话 ${r.speechMinutes} 分 · ${r.events} 件事" + (if (r.meetings > 0) " · 开会 ${r.meetings} 次" else ""), style = RsType.subhead, color = c.textSecondary)
-            return@RsCard
-        }
+        if (collapsed && r.speechMinutes >= 5) return@RsCard
         if (r.speechMinutes < 5) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text("今天说话 ${r.speechMinutes} 分钟 · ${r.events} 件事", style = RsType.subhead, color = c.textSecondary)
             return@RsCard
         }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(2.dp))
+        Row(Modifier.fillMaxWidth().padding(end = 6.dp)) {
             Stat("说话", "${r.speechMinutes} 分", compare(r.speechMinutes, base?.speechMinutes), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
             Stat("件事", "${r.events}", compare(r.events, base?.events), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
             Stat("提到", "${r.people} 人", compare(r.people, base?.people), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
             Stat("开会", if (r.meetings == 0) "没有" else "${r.meetings} 次", null, Modifier.weight(1f)) { if (r.meetings > 0) onFilter(TimelineFilter.Meeting) }
         }
-        Spacer(Modifier.height(12.dp))
-        HourBars(r, date, rules, onHour)
+        Spacer(Modifier.height(4.dp))
+        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour) }
     }
 }
 
@@ -252,3 +257,37 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
     }
 }
 
+
+/** 收起/展开：淡色小圆钮，里面一个细箭头，切换时转半圈 */
+@Composable
+private fun FoldButton(collapsed: Boolean) {
+    val c = Rs.colors
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) 0f else 180f,
+        androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "fold")
+    Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.size(12.dp).graphicsLayer { rotationZ = turn }) {
+            val w = size.width; val h = size.height
+            val path = androidx.compose.ui.graphics.Path().apply { moveTo(w * 0.15f, h * 0.35f); lineTo(w * 0.5f, h * 0.7f); lineTo(w * 0.85f, h * 0.35f) }
+            drawPath(path, c.accent, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        }
+    }
+}
+
+/** 收起时标题行里的迷你分布：24 根细柱，最多的那根用主色 */
+@Composable
+private fun MiniBars(r: DayRhythm, modifier: Modifier) {
+    val c = Rs.colors
+    val totals = (0..23).map { r.speechByHour[it] }
+    val max = (totals.maxOrNull() ?: 1).coerceAtLeast(1)
+    val peak = totals.indexOf(totals.max())
+    androidx.compose.foundation.Canvas(modifier) {
+        val gap = 1.dp.toPx(); val w = (size.width - gap * 23) / 24
+        totals.forEachIndexed { h, v ->
+            val bh = if (v == 0) size.height * 0.08f else size.height * (v / max.toFloat()).coerceIn(0.15f, 1f)
+            drawRoundRect(if (h == peak) c.accent else c.accent.copy(alpha = 0.35f),
+                topLeft = androidx.compose.ui.geometry.Offset(h * (w + gap), size.height - bh), size = androidx.compose.ui.geometry.Size(w, bh),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(w / 2))
+        }
+    }
+}

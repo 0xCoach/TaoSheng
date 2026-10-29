@@ -1034,7 +1034,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("▶ 播放这件事", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
                             modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
-                                app.resound.ui.transcript.LinePlayer.play(context, lines, 0)
+                                app.resound.ui.transcript.LinePlayer.play(context, lines, 0, app.resound.ui.transcript.PlaySource.Event(shown))
                             }.padding(horizontal = 12.dp, vertical = 6.dp))
                         // 导出这件事的录音：和原话页多选用同一个导出面板
                         Text("导出", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
@@ -1046,7 +1046,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             Spacer(Modifier.height(10.dp))
             RsCard(padding = PaddingValues(16.dp)) {
                 if (lines.isEmpty()) Text("原话加载中…", style = RsType.subhead, color = c.textTertiary)
-                else SpeakerLines(lines)
+                else androidx.compose.runtime.CompositionLocalProvider(app.resound.ui.transcript.LocalPlaySource provides app.resound.ui.transcript.PlaySource.Event(shown)) { SpeakerLines(lines) }
             }
 
             Spacer(Modifier.height(20.dp))

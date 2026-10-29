@@ -33,19 +33,19 @@ class AudioExport068Test {
     }
     private class Sink(val target: File) : ExportPcmSink {
         var bytes = 0L
-        override suspend fun append(pcm: File) { pcm.inputStream().use { input -> val block = ByteArray(8192); while (true) { currentCoroutineContext().ensureActive(); val n = input.read(block); if (n < 0) break; bytes += n } } }
+        override suspend fun append(pcm: ByteArray) { bytes += pcm.size }
         override suspend fun silence() { bytes += 16000 }
         override suspend fun finish() { target.writeText(bytes.toString()) }
         override fun close() {}
     }
-    private fun exporter(sources: List<ExportSource>, decode: suspend (File, File) -> Unit = { _, to -> to.writeBytes(ByteArray(64000)) }) =
+    private fun exporter(sources: List<ExportSource>, decode: suspend (File, suspend (ByteArray) -> Unit) -> Unit = { _, to -> to(ByteArray(64000)) }) =
         LocalAudioExporter(outputs, { sources }, decode, ::Sink)
     private suspend fun done(exporter: AudioExporter, request: ExportRequest = ExportRequest(listOf(1, 2, 3), "测试")) =
         (exporter.export(request).toList().last() as ExportProgress.Done).files
 
     @Test fun voiceAndExpiredRemainTextOnly() = runBlocking {
         val exporter = exporter(listOf(source(1), source(2, audio = false, voice = true), source(3, audio = false)))
-        assertEquals(ExportEstimate(1, 1, 1, 0, 2000, 16000), exporter.estimate(ExportRequest(listOf(1, 2, 3), "测试")))
+        assertEquals(ExportEstimate(1, 1, 1, 0, 2000, 16000, 66), exporter.estimate(ExportRequest(listOf(1, 2, 3), "测试")))
         val files = done(exporter)
         val txt = files.first { it.extension == "txt" }.readText()
         val srt = files.first { it.extension == "srt" }.readText()
@@ -62,7 +62,7 @@ class AudioExport068Test {
     }
     @Test fun badSegmentSkippedAndActualPcmTimelineMatchesSubtitles() = runBlocking {
         val sources = listOf(source(3, events = listOf(event())), source(2), source(1))
-        val exporter = exporter(sources) { from, to -> if (from.name == "2.ogg") error("bad"); to.writeBytes(ByteArray(64000)) }
+        val exporter = exporter(sources) { from, to -> if (from.name == "2.ogg") error("bad"); to(ByteArray(64000)) }
         val files = done(exporter, ExportRequest(listOf(3, 2, 1), " /\\:*?\"<>|测试 "))
         assertTrue(files.all { it.nameWithoutExtension == "测试" })
         assertEquals("144000", files.first().readText()) // 2 + 0.5 + 2 秒
@@ -76,7 +76,7 @@ class AudioExport068Test {
     }
     @Test fun cancellationRemovesPartialsAndCleanupOnlyRemovesExpiredExports() = runBlocking {
         val entered = CompletableDeferred<Unit>()
-        val exporter = exporter(listOf(source(1))) { _, to -> to.writeText("partial"); entered.complete(Unit); awaitCancellation() }
+        val exporter = exporter(listOf(source(1))) { _, to -> to(ByteArray(2)); entered.complete(Unit); awaitCancellation() }
         val job = launch { exporter.export(ExportRequest(listOf(1), "取消")).collect() }
         entered.await(); job.cancelAndJoin()
         assertTrue(outputs.listFiles().orEmpty().isEmpty())
@@ -118,10 +118,10 @@ class AudioExport068Test {
         var peak = before
         val start = System.nanoTime()
         val exporter = exporter(listOf(source(1), source(2))) { _, to ->
-            to.outputStream().buffered().use { output ->
+            run {
                 val block = ByteArray(32000)
                 repeat(3600) {
-                    output.write(block)
+                    to(block)
                     peak = maxOf(peak, runtime.totalMemory() - runtime.freeMemory())
                 }
             }
@@ -129,6 +129,6 @@ class AudioExport068Test {
         val files = done(exporter)
         assertEquals((7200L * 32000 + 16000).toString(), files.first().readText())
         assertTrue(outputs.walkTopDown().none { it.extension == "pcm" })
-        println("068 synthetic PCM: 7200s, elapsedMs=${(System.nanoTime() - start) / 1_000_000}, heapDeltaBytes=${peak - before}, maxPcmOnDisk=115200000, inputBlock=32000, readBlock=8192; codec excluded")
+        println("068 synthetic PCM: 7200s, elapsedMs=${(System.nanoTime() - start) / 1_000_000}, heapDeltaBytes=${peak - before}, maxPcmOnDisk=0, inputBlock=32000, readBlock=8192; codec excluded")
     }
 }

@@ -141,6 +141,18 @@ fun TranscriptScreen(
     LaunchedEffect(order) { selection.retain(order); if (order.isEmpty() && selection.active) selection.exit() }
     androidx.activity.compose.BackHandler(selection.active) { selection.exit() }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // 播放卡片“回到原话”：切到那天并滚到正在播的那段
+    val focus = PlayerNav.transcriptFocus
+    LaunchedEffect(focus) {
+        val (d, _) = focus ?: return@LaunchedEffect
+        dayOffset = java.time.temporal.ChronoUnit.DAYS.between(d, LocalDate.now()).toInt().coerceAtLeast(0)
+    }
+    LaunchedEffect(focus, segments) {
+        val (d, segId) = focus ?: return@LaunchedEffect
+        if (d != date) return@LaunchedEffect
+        val i = segments?.indexOfFirst { it.segmentId == segId } ?: return@LaunchedEffect
+        if (i >= 0) { listState.animateScrollToItem(i + 2 + (if (settingsOpen || !hasKey) 1 else 0)); PlayerNav.transcriptFocus = null }
+    }
     var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var boxTop by remember { mutableStateOf(0f) }
     var bottomEdge by remember { mutableStateOf(Float.MAX_VALUE) }
@@ -193,6 +205,7 @@ fun TranscriptScreen(
             }
         }
         items(list.orEmpty(), key = { it.segmentId }) { seg ->
+          androidx.compose.runtime.CompositionLocalProvider(LocalPlaySource provides PlaySource.Transcript(date)) {
             val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
             val id = seg.segmentId
             SegmentCard(seg, Modifier.animateItem().then(if (selection.active) Modifier.trackRow(selection, id) else Modifier),
@@ -204,6 +217,7 @@ fun TranscriptScreen(
                     if (selection.active) selection.rangeTo(id, order) else selection.start(id)
                 },
                 onTap = { selection.toggle(id, order) })
+          }
         }
     }
     ReachHereChip(reach, selection, boxTop, reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
@@ -211,7 +225,7 @@ fun TranscriptScreen(
     SegmentSelectBar(selection, order, chosen, bottomPadding, onTop = { bottomEdge = it },
         onPlay = {
             val lines = chosen.flatMap { it.lines }.sortedBy { it.startAt }
-            if (lines.isEmpty()) LinePlayer.notice = "选中的录音没有可播放的原话" else LinePlayer.play(context, lines, 0)
+            if (lines.isEmpty()) LinePlayer.notice = "选中的录音没有可播放的原话" else LinePlayer.play(context, lines, 0, PlaySource.Transcript(date))
         },
         onExport = {
             val ids = chosen.map { it.segmentId }
@@ -753,6 +767,7 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     var menuFor by remember { mutableStateOf<Long?>(null) }
     var assignFor by remember { mutableStateOf<Long?>(null) }
     var hotwordFrom by remember { mutableStateOf<String?>(null) }
+    val playSource = LocalPlaySource.current
     // 哪些录音段还有原声：有的在时间旁显示 ▶，点句子就从这句播起
     val playable by androidx.compose.runtime.produceState(emptySet<Long>(), lines) {
         value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching {
@@ -762,7 +777,7 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     fun tap(line: TranscriptLine) {
         when {
             LinePlayer.currentLineId == line.id -> LinePlayer.toggle()
-            line.segmentId in playable -> LinePlayer.play(context, lines, lines.indexOf(line))
+            line.segmentId in playable -> LinePlayer.play(context, lines, lines.indexOf(line), playSource)
             line.segmentId > 0 -> Toast.makeText(context, "这段录音已过保留期，只剩文字", Toast.LENGTH_SHORT).show()
         }
     }
@@ -832,7 +847,7 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             Toast.makeText(context, "已复制这段原话", Toast.LENGTH_SHORT).show()
                         })
                         if (selected.segmentId in playable) DropdownMenuItem(text = { Text("从这里播放", style = RsType.body, color = c.text) }, onClick = {
-                            LinePlayer.play(context, lines, lines.indexOf(selected)); menuFor = null
+                            LinePlayer.play(context, lines, lines.indexOf(selected), playSource); menuFor = null
                         })
                         // 认错的词加进热词：以后转写认得准，整理时也会按热词纠正同音字
                         if (app.resound.AppGraph.isHotwordsReady) DropdownMenuItem(text = { Text("加入热词", style = RsType.body, color = c.text) }, onClick = {

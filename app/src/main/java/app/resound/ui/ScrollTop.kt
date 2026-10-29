@@ -56,8 +56,8 @@ fun BoxScope.ScrollTopButton(state: LazyListState, bottomPadding: Dp, lift: Dp =
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     val far by remember(state) { derivedStateOf { state.firstVisibleItemIndex >= 3 } }
-    AnimatedVisibility(far, Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.navigationBars)
-        .padding(end = end, bottom = bottomPadding + 20.dp + lift),
+    // 放在屏幕中间偏下的右侧：大拇指自然够得着，不用往下够；也避开底部的操作栏和添加按钮
+    AnimatedVisibility(far, Modifier.align(androidx.compose.ui.BiasAlignment(1f, 0.42f)).padding(end = end),
         enter = scaleIn(initialScale = 0.6f) + fadeIn(), exit = scaleOut(targetScale = 0.6f) + fadeOut()) {
         Box(Modifier.size(42.dp).shadow(if (c.isDark) 0.dp else 10.dp, CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
             .clip(CircleShape).background(c.card).springClick { scope.launch { state.animateScrollToItem(0) } },

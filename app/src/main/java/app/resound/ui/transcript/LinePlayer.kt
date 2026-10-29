@@ -41,6 +41,13 @@ object LinePlayer {
     /** 本次播放涉及的录音段（按顺序）和当前是第几段；多段时播放条显示“第 2/6 段”和“下一段” */
     var segmentOrder by mutableStateOf<List<Long>>(emptyList()); private set
     val segmentIndex get() = segmentOrder.indexOf(segmentId).coerceAtLeast(0)
+    /** 本次播放的全部原话（不随播放缩短），给字幕和总进度用 */
+    var allLines by mutableStateOf<List<TranscriptLine>>(emptyList()); private set
+    internal var timeline by mutableStateOf<PlayTimeline?>(null); private set
+    /** 总进度（毫秒，不含段间空隙） */
+    val elapsed get() = timeline?.elapsed(currentSegment, positionAt) ?: 0L
+    var source by mutableStateOf<PlaySource?>(null); private set
+    private var currentSegment by mutableLongStateOf(0L)
     /** 给界面的一次性提示（如录音已过保留期）；界面显示后清空 */
     var notice by mutableStateOf<String?>(null)
 
@@ -62,11 +69,12 @@ object LinePlayer {
     val active get() = currentLineId != null
 
     /** 从 [lines] 里第 [index] 句开始往下播 */
-    fun play(context: Context, lines: List<TranscriptLine>, index: Int) {
+    fun play(context: Context, lines: List<TranscriptLine>, index: Int, from: PlaySource? = null) {
         if (lines.isEmpty() || index !in lines.indices) return
         this.context = context.applicationContext
         queue = lines.drop(index).filter { it.segmentId > 0 }
         if (queue.isEmpty()) return
+        allLines = queue; timeline = PlayTimeline(queue); source = from
         segmentOrder = queue.map { it.segmentId }.distinct()
         session++
         scope.launch { startAt(queue.first()) }
@@ -93,11 +101,34 @@ object LinePlayer {
         ticker?.cancel(); ticker = null
         player?.runCatching { stop(); release() }; player = null
         playing = false; currentLineId = null; queue = emptyList(); segmentOrder = emptyList()
+        allLines = emptyList(); timeline = null; source = null
         abandonFocus(); releaseCapture()
         if (noisyRegistered) { runCatching { context?.unregisterReceiver(noisy) }; noisyRegistered = false }
     }
 
-    private suspend fun startAt(line: TranscriptLine) {
+    /** 拖进度条：fraction 0..1 → 对应段的对应时刻（可往前也可往后） */
+    fun seekFraction(fraction: Float) {
+        val t = timeline ?: return
+        val (seg, at) = t.locate((fraction.coerceIn(0f, 1f) * t.total).toLong())
+        if (seg == segmentId && player != null) {
+            player?.seekTo((at - segmentStart).coerceAtLeast(0).toLong(), MediaPlayer.SEEK_CLOSEST); positionAt = at
+            allLines.lastOrNull { it.segmentId == seg && it.startAt <= at + 120 }?.let { currentLineId = it.id }
+            return
+        }
+        // 换到别的段：从那一段起重新排队
+        val startIdx = allLines.indexOfFirst { it.segmentId == seg }.coerceAtLeast(0)
+        queue = allLines.drop(startIdx)
+        val line = queue.lastOrNull { it.segmentId == seg && it.startAt <= at } ?: queue.first()
+        scope.launch { startAt(line, at) }
+    }
+
+    /** 往前 / 往后若干毫秒（−15 / +15） */
+    fun skipBy(ms: Long) {
+        val t = timeline ?: return
+        seekFraction(((elapsed + ms).toFloat() / t.total))
+    }
+
+    private suspend fun startAt(line: TranscriptLine, atAbs: Long? = null) {
         val audio = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { app.resound.AppGraph.originalAudio.locate(line.segmentId) }.getOrNull() else null
         if (audio == null || !audio.file.exists()) {
             // 这一段没有原声（过期或语音输入）：跳到下一段；一段能播的都没有才提示
@@ -118,14 +149,14 @@ object LinePlayer {
             p.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             p.setDataSource(audio.file.absolutePath)
             p.prepare()
-            p.seekTo((line.startAt - audio.startAt).coerceAtLeast(0).toLong(), MediaPlayer.SEEK_CLOSEST)
+            p.seekTo(((atAbs ?: line.startAt) - audio.startAt).coerceAtLeast(0).toLong(), MediaPlayer.SEEK_CLOSEST)
             p.setOnCompletionListener { scope.launch { nextSegment() } }
             p.start()
         } catch (_: Exception) {
             p.release(); notice = "这段原声打不开"; stop(); return
         }
-        player = p; segmentStart = audio.startAt; segmentId = line.segmentId
-        currentLineId = line.id; positionAt = line.startAt; playing = true
+        player = p; segmentStart = audio.startAt; segmentId = line.segmentId; currentSegment = line.segmentId
+        currentLineId = line.id; positionAt = atAbs ?: line.startAt; playing = true
         applySpeed(); tick()
     }
 

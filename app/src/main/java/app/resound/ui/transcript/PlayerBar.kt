@@ -21,6 +21,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Column
+import androidx.compose.animation.animateContentSize
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -63,35 +71,109 @@ fun PlayerBar(bottomPadding: Dp) {
 @Composable
 private fun Bar() {
     val c = Rs.colors
-    AnimatedVisibility(true, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
-        Row(
-            Modifier.fillMaxWidth().shadow(if (c.isDark) 0.dp else 16.dp, RoundedCornerShape(26.dp), ambientColor = c.shadow, spotColor = c.shadow)
-                .clip(RoundedCornerShape(26.dp)).background(c.card).padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // 播放/暂停：实心圆键
-            Box(Modifier.size(40.dp).clip(CircleShape).background(c.accent).springClick { LinePlayer.toggle() }, contentAlignment = Alignment.Center) {
-                Text(if (LinePlayer.playing) "❚❚" else "▶", style = RsType.subhead.copy(fontWeight = FontWeight.Bold), color = Color.White)
+    var expanded by remember { mutableStateOf(false) }
+    val lines = LinePlayer.allLines
+    val idx = lines.indexOfFirst { it.id == LinePlayer.currentLineId }.coerceAtLeast(0)
+    val total = LinePlayer.timeline?.total ?: 1L
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val frac = dragging ?: (LinePlayer.elapsed.toFloat() / total).coerceIn(0f, 1f)
+    fun mmss(ms: Long) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
+    val segs = LinePlayer.segmentOrder.size
+    val sourceLabel = when (LinePlayer.source) { is PlaySource.Event -> "回到这件事 ›"; is PlaySource.Transcript -> "回到原话 ›"; null -> null }
+    fun goBack() {
+        when (val s = LinePlayer.source) {
+            is PlaySource.Event -> PlayerNav.openEvent = s.event
+            is PlaySource.Transcript -> { PlayerNav.transcriptFocus = s.date to (lines.getOrNull(idx)?.segmentId ?: 0L); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript) }
+            null -> Unit
+        }
+        expanded = false
+    }
+    Column(
+        Modifier.fillMaxWidth().shadow(if (c.isDark) 0.dp else 16.dp, RoundedCornerShape(24.dp), ambientColor = c.shadow, spotColor = c.shadow)
+            .clip(RoundedCornerShape(24.dp)).background(c.card).animateContentSize(),
+    ) {
+        if (!expanded) {
+            // 收起：顶部细进度线 + 一行字幕；点字幕展开成完整卡片
+            Box(Modifier.fillMaxWidth().height(3.dp).background(c.accentSoft)) {
+                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(c.accent))
             }
-            Spacer(Modifier.width(2.dp))
-            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-                val segs = LinePlayer.segmentOrder.size
-                Text((if (LinePlayer.playing) "正在播放原声" else "已暂停") + if (segs > 1) " · 第 ${LinePlayer.segmentIndex + 1}/$segs 段" else "",
-                    style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1)
-                Text(app.resound.ui.verify.formatStamp(LinePlayer.positionAt) + ":" + "%02d".format(LinePlayer.positionAt / 1000 % 60),
-                    style = RsType.caption, color = c.textTertiary)
+            Row(Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                PlayButton(40.dp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f).springClick { expanded = true }) {
+                    Text(lines.getOrNull(idx)?.text ?: "正在播放原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text((if (segs > 1) "第 ${LinePlayer.segmentIndex + 1}/$segs 段 · " else "") + "${mmss(LinePlayer.elapsed)} / ${mmss(total)}",
+                        style = RsType.caption, color = c.textTertiary, maxLines = 1)
+                }
+                SpeedChip()
+                if (segs > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
+                    Text("⏭", style = RsType.headline, color = c.accent, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipSegment() }.padding(horizontal = 8.dp, vertical = 6.dp))
+                Text("✕", style = RsType.headline, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.stop() }.padding(horizontal = 10.dp, vertical = 6.dp))
             }
-            // 倍速：点一下 1× → 1.5× → 2× 循环
-            val s = LinePlayer.speed
-            Text(if (s == 1f) "1×" else if (s == 1.5f) "1.5×" else "2×", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
-                modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
-                    LinePlayer.changeSpeed(SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.size])
-                }.padding(horizontal = 12.dp, vertical = 7.dp))
-            // 多段时可以跳到下一段
-            if (LinePlayer.segmentOrder.size > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
-                Text("⏭", style = RsType.headline, color = c.accent, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipSegment() }.padding(horizontal = 8.dp, vertical = 6.dp))
-            Text("✕", style = RsType.headline, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.stop() }.padding(horizontal = 12.dp, vertical = 6.dp))
+        } else {
+            // 展开：三行字幕 · 可拖进度条 · −15 播放 +15 · 倍速；底部段数、下一段、回到来源
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
+                    Text("收起 ⌄", style = RsType.caption, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { expanded = false }.padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+                Column(Modifier.fillMaxWidth().height(78.dp), verticalArrangement = Arrangement.Center) {
+                    listOf(idx - 1, idx, idx + 1).forEach { k ->
+                        val main = k == idx
+                        Text(lines.getOrNull(k)?.text ?: "", maxLines = if (main) 2 else 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            style = if (main) RsType.body.copy(fontWeight = FontWeight.SemiBold) else RsType.caption,
+                            color = if (main) c.text else c.textTertiary, modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                SeekBar(frac, onDrag = { dragging = it }, onDone = { f -> LinePlayer.seekFraction(f); dragging = null })
+                Row(Modifier.padding(top = 2.dp)) {
+                    Text(mmss((frac * total).toLong()), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+                    Text(mmss(total), style = RsType.caption, color = c.textTertiary)
+                }
+                Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
+                        Text("−15", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.textSecondary,
+                            modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipBy(-15_000) }.padding(10.dp))
+                        Spacer(Modifier.width(10.dp))
+                        PlayButton(46.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("+15", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.textSecondary,
+                            modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipBy(15_000) }.padding(10.dp))
+                    }
+                    Box(Modifier.align(Alignment.CenterEnd)) { SpeedChip() }
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (segs > 1) {
+                        Text("第 ${LinePlayer.segmentIndex + 1}/$segs 段", style = RsType.caption, color = c.textTertiary)
+                        if (LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
+                            Text("  下一段 ⏭", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                                modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipSegment() }.padding(4.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    sourceLabel?.let { Text(it, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                        modifier = Modifier.clip(CircleShape).springClick { goBack() }.padding(horizontal = 8.dp, vertical = 4.dp)) }
+                    Text("关闭", style = RsType.caption, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.stop() }.padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun PlayButton(size: androidx.compose.ui.unit.Dp) {
+    val c = Rs.colors
+    Box(Modifier.size(size).clip(CircleShape).background(c.accent).springClick { LinePlayer.toggle() }, contentAlignment = Alignment.Center) {
+        Text(if (LinePlayer.playing) "❚❚" else "▶", style = if (size > 42.dp) RsType.headline else RsType.subhead.copy(fontWeight = FontWeight.Bold), color = Color.White)
+    }
+}
+
+@Composable
+private fun SpeedChip() {
+    val c = Rs.colors
+    val s = LinePlayer.speed
+    Text(if (s == 1f) "1×" else if (s == 1.5f) "1.5×" else "2×", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+        modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { LinePlayer.changeSpeed(SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.size]) }
+            .padding(horizontal = 10.dp, vertical = 5.dp))
 }

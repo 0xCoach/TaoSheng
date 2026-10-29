@@ -11,7 +11,7 @@ import kotlin.coroutines.coroutineContext
 
 /** 一次导出一个编码器；输入始终为 PCM16 / 16 kHz / mono，最多持有一个输入块。 */
 internal interface ExportPcmSink : AutoCloseable {
-    suspend fun append(pcm: File)
+    suspend fun append(pcm: ByteArray)
     suspend fun silence()
     suspend fun finish()
 }
@@ -22,7 +22,7 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
     private var started = false
     private var track = -1
     private var samples = 0L
-    private var lastProgress = SystemClock.elapsedRealtime()
+    private val watchdog = ExportCodecWatchdog()
     private val info = MediaCodec.BufferInfo()
     init {
         try {
@@ -36,24 +36,18 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
             codec.start()
         } catch (e: Exception) { close(); throw e }
     }
-    override suspend fun append(pcm: File) {
-        pcm.inputStream().buffered().use { input ->
-            val bytes = ByteArray(8192)
-            while (true) {
-                coroutineContext.ensureActive()
-                val n = input.read(bytes)
-                if (n < 0) break
-                require(n % 2 == 0)
-                feed(bytes, n)
-            }
-        }
+    override suspend fun append(pcm: ByteArray) {
+        require(pcm.size % 2 == 0)
+        feed(pcm, pcm.size)
     }
     override suspend fun silence() = feed(ByteArray(16000), 16000) // 8000 个样本 = 0.5 秒
     private suspend fun feed(bytes: ByteArray, size: Int) {
         var offset = 0
         while (offset < size) {
             alive()
+            val before = SystemClock.elapsedRealtime()
             val index = codec.dequeueInputBuffer(10_000)
+            watchdog.waited(SystemClock.elapsedRealtime() - before)
             if (index >= 0) {
                 val buffer = codec.getInputBuffer(index)!!.apply { clear() }
                 val count = minOf(buffer.remaining(), size - offset) / 2 * 2
@@ -61,7 +55,6 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
                 buffer.put(bytes, offset, count)
                 codec.queueInputBuffer(index, 0, count, samples * 1_000_000 / 16000, 0)
                 samples += count / 2; offset += count
-                lastProgress = SystemClock.elapsedRealtime()
             }
             drain()
         }
@@ -69,7 +62,9 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
     override suspend fun finish() {
         while (true) {
             alive()
+            val before = SystemClock.elapsedRealtime()
             val index = codec.dequeueInputBuffer(10_000)
+            watchdog.waited(SystemClock.elapsedRealtime() - before)
             if (index >= 0) {
                 codec.queueInputBuffer(index, 0, 0, samples * 1_000_000 / 16000, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                 break
@@ -82,17 +77,20 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
     }
     private suspend fun alive() {
         coroutineContext.ensureActive()
-        check(SystemClock.elapsedRealtime() - lastProgress < 15_000) { "音频编码超时" }
+        watchdog.checkAlive()
     }
     private fun drain(): Boolean {
-        when (val index = codec.dequeueOutputBuffer(info, 10_000)) {
+        val before = SystemClock.elapsedRealtime()
+        val index = codec.dequeueOutputBuffer(info, 10_000)
+        watchdog.waited(SystemClock.elapsedRealtime() - before)
+        when (index) {
             MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                 check(!started)
                 track = muxer!!.addTrack(codec.outputFormat)
                 muxer!!.start(); started = true
-                lastProgress = SystemClock.elapsedRealtime()
             }
             in 0..Int.MAX_VALUE -> {
+                watchdog.output()
                 try {
                     if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
                         check(started)
@@ -100,7 +98,6 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
                         buffer.position(info.offset); buffer.limit(info.offset + info.size)
                         muxer!!.writeSampleData(track, buffer, info)
                     }
-                    lastProgress = SystemClock.elapsedRealtime()
                     return info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
                 } finally { codec.releaseOutputBuffer(index, false) }
             }
@@ -112,4 +109,12 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
         if (started) runCatching { muxer?.stop() }
         runCatching { muxer?.release() }
     }
+}
+
+/** 只累计 dequeue 的等待；生产者解码、通道等待、磁盘写入均不计时。输入不重置无输出计时。 */
+internal class ExportCodecWatchdog {
+    private var waitingMillis = 0L
+    fun waited(millis: Long) { waitingMillis += millis.coerceAtLeast(0) }
+    fun output() { waitingMillis = 0 }
+    fun checkAlive() { check(waitingMillis < 30_000) { "音频编码超时（编码器等待 30 秒无输出）" } }
 }

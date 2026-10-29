@@ -105,6 +105,10 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
         Box(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars)) {
             app.resound.ui.transcript.ExportCapsule(ShellBottomPadding + 26.dp + if (app.resound.ui.transcript.LinePlayer.active) 76.dp else 0.dp)
         }
+        // 播放卡片“回到这件事”
+        app.resound.ui.transcript.PlayerNav.openEvent?.let { e ->
+            if (app.resound.AppGraph.isMemoryReady) app.resound.ui.today.EventSheet(e, app.resound.AppGraph.memory) { app.resound.ui.transcript.PlayerNav.openEvent = null }
+        }
         app.resound.ui.transcript.ExportUi.openJob?.let { id -> app.resound.ui.transcript.ExportJobSheet(id) { app.resound.ui.transcript.ExportUi.openJob = null } }
         androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { app.resound.ui.transcript.LinePlayer.stop() }
     }

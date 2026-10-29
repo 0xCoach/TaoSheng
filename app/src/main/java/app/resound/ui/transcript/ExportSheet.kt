@@ -297,7 +297,7 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
 
 /** 4dp 细轨 + 14dp 圆点；点任意位置跳过去，拖动时圆点放大 */
 @Composable
-private fun SeekBar(fraction: Float, onDrag: (Float) -> Unit, onDone: (Float) -> Unit) {
+internal fun SeekBar(fraction: Float, onDrag: (Float) -> Unit, onDone: (Float) -> Unit) {
     val c = Rs.colors
     var width by remember { mutableStateOf(1) }
     var active by remember { mutableStateOf(false) }

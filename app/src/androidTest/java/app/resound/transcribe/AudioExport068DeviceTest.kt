@@ -24,14 +24,14 @@ class AudioExport068DeviceTest {
             context.assets.open("asr-test.ogg").use { input -> ogg.outputStream().use { input.copyTo(it) } }
             val pcm = File(root, "input.pcm").apply { writeBytes(ByteArray(64000)) }
             val m4a = File(root, "input.m4a")
-            ExportAacEncoder(m4a).use { it.append(pcm); it.finish() }
+            ExportAacEncoder(m4a).use { it.append(pcm.readBytes()); it.finish() }
             val reader = AsrAudioReader(root)
             val sources = listOf(ogg, m4a).mapIndexed { index, file ->
                 reader.decodeForExport(file, pcm)
                 val duration = pcm.length() * 1000 / 32000
                 ExportSource(SegmentWithLines(SegmentEntity(index + 1L, index * 10000L, index * 10000L + duration, "mic", file.path, file.length()), emptyList()), emptyList())
             }
-            val exporter = LocalAudioExporter(File(root, "exports"), { sources }, reader::decodeForExport)
+            val exporter = LocalAudioExporter(File(root, "exports"), { sources }, ExportPcmDecoder::decode)
             val result = exporter.export(ExportRequest(listOf(2, 1), "混合音频")).toList().last() as ExportProgress.Done
             val extractor = MediaExtractor()
             try {

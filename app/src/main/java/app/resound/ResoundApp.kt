@@ -87,8 +87,10 @@ class ResoundApp : Application() {
             removeFeatures = voiceprintRepository::removeFeatures)
         AppGraph.privacy = privacyActions
         AppGraph.segmentDeleter = privacyActions
-        AppGraph.audioExporter = LocalAudioExporter(cacheDir, database.transcribe())
+        AppGraph.audioExporter = LocalAudioExporter(cacheDir, database.transcribe(),
+            ExportSpeeds(getSharedPreferences("export-speeds", MODE_PRIVATE))) { PipelineTimes.record(this, it) }
         AppGraph.audioExporter.cleanup()
+        AppGraph.exportJobs = AndroidExportJobs(this, AppGraph.audioExporter, scope)
         val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope)
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,

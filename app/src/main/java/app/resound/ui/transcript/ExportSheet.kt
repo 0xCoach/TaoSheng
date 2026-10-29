@@ -2,6 +2,9 @@ package app.resound.ui.transcript
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import app.resound.ui.verify.springClick
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -76,6 +79,8 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     var skipMedia by remember { mutableStateOf(p.getBoolean("exportSkipMedia", true)) }
     var progress by remember { mutableStateOf<Float?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
+    // 合成好的文件：有音频时先在面板里试听，确认后再分享
+    var done by remember { mutableStateOf<List<java.io.File>?>(null) }
     val exporter = if (app.resound.AppGraph.isAudioExporterReady) app.resound.AppGraph.audioExporter else null
     fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, withText, withSrt, skipMedia)
     val estimate by produceState<ExportEstimate?>(null, skipMedia, segmentIds) {
@@ -90,7 +95,14 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
         OptionRow("字幕文件（.srt）", "和录音放一起，播放时原话跟着滚动", withSrt) { withSrt = it; p.edit().putBoolean("exportSrt", it).apply() }
         OptionRow("跳过媒体片段", "电视、视频的声音不导出", skipMedia) { skipMedia = it; p.edit().putBoolean("exportSkipMedia", it).apply() }
         val running = progress
-        if (running != null) {
+        val ready = done
+        if (ready != null) {
+            // 试听：播放/暂停 + 可拖动的进度条，拖到哪儿就从哪儿播
+            ready.firstOrNull { it.extension.equals("m4a", true) }?.let { PreviewPlayer(it) }
+            Text("已生成：" + ready.joinToString("、") { it.name }, style = RsType.caption, color = c.textTertiary)
+            ActionButton("分享", ActionKind.Primary) { share(context, ready); onDismiss() }
+            ActionButton("完成", ActionKind.Secondary) { onDismiss() }
+        } else if (running != null) {
             LinearProgressIndicator(progress = { running }, color = c.accent, trackColor = c.accentSoft,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(CircleShape))
             Text("正在合成 ${(running * 100).toInt()}%", style = RsType.subhead, color = c.textSecondary)
@@ -107,8 +119,8 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
                             is ExportProgress.Failed -> { progress = null; LinePlayer.notice = step.message }
                             is ExportProgress.Done -> {
                                 progress = null
-                                share(context, step.files)
-                                onDismiss()
+                                if (step.files.any { it.extension.equals("m4a", true) }) done = step.files
+                                else { share(context, step.files); onDismiss() }
                             }
                         }
                     }
@@ -157,5 +169,51 @@ private fun OptionRow(title: String, sub: String, on: Boolean, onChange: (Boolea
         }
         Spacer(Modifier.width(12.dp))
         Toggle(on, onChange)
+    }
+}
+
+/** 合成录音的试听：▶/❚❚、可拖动进度条、当前/总时长；试听时暂停日常收音，离开面板自动停 */
+@Composable
+private fun PreviewPlayer(file: java.io.File) {
+    val c = Rs.colors
+    val player = remember(file) { android.media.MediaPlayer().apply { setDataSource(file.absolutePath); prepare() } }
+    var playing by remember { mutableStateOf(false) }
+    var pos by remember { mutableStateOf(0) }
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val total = remember(player) { player.duration.coerceAtLeast(1) }
+    fun hold(on: Boolean) {
+        if (!app.resound.AppGraph.isOriginalAudioReady) return
+        if (on) app.resound.AppGraph.originalAudio.beginPlayback() else app.resound.AppGraph.originalAudio.endPlayback()
+    }
+    androidx.compose.runtime.DisposableEffect(player) {
+        player.setOnCompletionListener { playing = false; hold(false) }
+        onDispose { if (playing) hold(false); player.release() }
+    }
+    LaunchedEffect(playing) {
+        while (playing) { if (dragging == null) pos = runCatching { player.currentPosition }.getOrDefault(pos); kotlinx.coroutines.delay(200) }
+    }
+    fun mmss(ms: Int) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
+    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+        .background(c.background).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.foundation.layout.Box(Modifier.padding(end = 10.dp).size(40.dp).clip(CircleShape).background(c.accent)
+                .springClick {
+                    if (playing) { player.pause(); playing = false; hold(false) } else { hold(true); player.start(); playing = true }
+                }, contentAlignment = Alignment.Center) {
+                Text(if (playing) "❚❚" else "▶", style = RsType.subhead, color = androidx.compose.ui.graphics.Color.White)
+            }
+            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                androidx.compose.material3.Slider(
+                    value = dragging ?: (pos / total.toFloat()),
+                    onValueChange = { dragging = it },
+                    onValueChangeFinished = { dragging?.let { f -> val to = (f * total).toInt(); player.seekTo(to); pos = to }; dragging = null },
+                    colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = c.accent, activeTrackColor = c.accent, inactiveTrackColor = c.accentSoft),
+                )
+                Row {
+                    Text(mmss(((dragging ?: (pos / total.toFloat())) * total).toInt()), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+                    Text(mmss(total), style = RsType.caption, color = c.textTertiary)
+                }
+            }
+        }
     }
 }

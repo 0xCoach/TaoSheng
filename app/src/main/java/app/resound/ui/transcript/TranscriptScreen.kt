@@ -166,7 +166,8 @@ fun TranscriptScreen(
             }
         }
         items(list.orEmpty(), key = { it.segmentId }) { seg ->
-            SegmentCard(seg, Modifier.animateItem(), realtime) { repo.transcribeAnyway(seg.segmentId) }
+            SegmentCard(seg, Modifier.animateItem(), realtime, onTranscribeAnyway = { repo.transcribeAnyway(seg.segmentId) },
+                onRetry = { repo.retrySegment(seg.segmentId) }, onDelete = { repo.deleteFailed(seg.segmentId) })
         }
     }
 }
@@ -237,7 +238,11 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
                     }
                     Text(if (q.running) runLabel(q.runDone, q.runTotal) else "现在转写", style = RsType.subhead, color = if (q.running) c.accent else Color.White)
                 }
-                if (q.failed > 0 && !q.running) Pill("重试没转成功的", filled = false) { repo.retryFailed() }
+                if (q.failed > 0 && !q.running) {
+                    Pill("重试没转成功的", filled = false) { repo.retryFailed() }
+                    // 暂时不想管：忽略后不再提醒，列表里灰色显示，以后仍可重试
+                    Pill("忽略", filled = false) { repo.ignoreFailed() }
+                }
                 app.resound.ui.importer.ImportButton()
             }
         }
@@ -562,7 +567,8 @@ private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 // ---------- 每段录音 ----------
 
 @Composable
-private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Boolean, onTranscribeAnyway: () -> Unit) {
+private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Boolean, onTranscribeAnyway: () -> Unit,
+                        onRetry: () -> Unit = {}, onDelete: () -> Unit = {}) {
     val c = Rs.colors
     RsCard(modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -588,6 +594,10 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
                     Note("手机外放声音时录的，没有转写", modifier = Modifier.weight(1f))
                     if (seg.audioAvailable) Pill("仍然转写", filled = false, onClick = onTranscribeAnyway)
                 }
+                // 修不好的：灰色说明 + 删除；不再挂红字提醒
+                TranscriptStatus.Abandoned -> FailedActions(seg.error ?: "录音损坏，无法转写", retry = null, onDelete = onDelete)
+                // 忽略的、或失败超过 3 天的：灰色说明 + 重试 / 删除
+                TranscriptStatus.Quiet -> FailedActions(seg.error ?: "多次转写失败", retry = if (seg.audioAvailable) onRetry else null, onDelete = onDelete)
             }
         }
     }
@@ -603,9 +613,27 @@ private fun StatusChip(seg: SegmentTranscript) {
         TranscriptStatus.Empty -> "没有文字" to c.textTertiary
         TranscriptStatus.Done -> if (seg.audioAvailable) return else "录音已删" to c.textTertiary
         TranscriptStatus.SkippedPlayback -> "外放时录的" to c.textTertiary
+        TranscriptStatus.Abandoned -> "无法转写" to c.textTertiary
+        TranscriptStatus.Quiet -> "已忽略" to c.textTertiary
     }
     Box(Modifier.clip(CircleShape).background(color.copy(alpha = 0.12f)).padding(horizontal = 10.dp, vertical = 3.dp)) {
         Text(text, style = RsType.caption, color = color)
+    }
+}
+
+/** 没转成功、不再提醒的段：灰色原因，右边“重试”“删除”；删除点两次才删 */
+@Composable
+private fun FailedActions(reason: String, retry: (() -> Unit)?, onDelete: () -> Unit) {
+    val c = Rs.colors
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(armed) { if (armed) { delay(3000); armed = false } }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Note(reason, modifier = Modifier.weight(1f))
+        if (retry != null) { Pill("重试", filled = false, onClick = retry); Spacer(Modifier.width(8.dp)) }
+        Text(if (armed) "确认删除" else "删除", style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
+            color = if (armed) Color.White else c.critical,
+            modifier = Modifier.clip(CircleShape).background(if (armed) c.critical else c.critical.copy(alpha = 0.08f))
+                .springClick { if (armed) onDelete() else armed = true }.padding(horizontal = 14.dp, vertical = 8.dp))
     }
 }
 

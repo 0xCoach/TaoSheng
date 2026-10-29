@@ -27,6 +27,12 @@ enum class TranscriptStatus {
 
     /** 手机用扬声器外放媒体时录的：不转写（可手动“仍然转写”），录音 1 天后删除 */
     SkippedPlayback,
+
+    /** 卡 065：录音文件丢失、损坏或解码失败，重试也修不好：不再提醒，可删除；原声按保留天数正常清理 */
+    Abandoned,
+
+    /** 卡 065：还能修的失败，但用户点了“忽略”或已失败超过 3 天：不再提醒，列表里灰色显示，可手动重试或删除 */
+    Quiet,
 }
 
 /** 转写出来的一句话 */
@@ -104,6 +110,15 @@ interface TranscriptRepository {
 
     /** 外放时录的片段，用户要求仍然转写：放回队列并立即跑一轮 */
     fun transcribeAnyway(segmentId: Long) {}
+
+    /** 卡 065：忽略现在提醒里的所有失败段（变成 Quiet，不再计入 failed），以后仍可手动重试 */
+    fun ignoreFailed() {}
+
+    /** 卡 065：重试某一段（Quiet / Abandoned 也可试） */
+    fun retrySegment(segmentId: Long) {}
+
+    /** 卡 065：删除一段没转成功的录音（文件和记录），只对 Failed / Quiet / Abandoned 有效 */
+    fun deleteFailed(segmentId: Long) {}
 }
 
 /** 转写服务设置。密钥只进系统安全区，任何地方都不回显。 */

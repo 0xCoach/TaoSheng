@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
@@ -97,7 +98,7 @@ private fun Bar() {
             Box(Modifier.fillMaxWidth().height(3.dp).background(c.accentSoft)) {
                 Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(c.accent))
             }
-            Row(Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 PlayButton(40.dp)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f).springClick { expanded = true }) {
@@ -107,9 +108,13 @@ private fun Bar() {
                         style = RsType.caption, color = c.textTertiary, maxLines = 1)
                 }
                 SpeedChip()
-                if (segs > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
-                    Text("⏭", style = RsType.headline, color = c.accent, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipSegment() }.padding(horizontal = 8.dp, vertical = 6.dp))
-                Text("✕", style = RsType.headline, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.stop() }.padding(horizontal = 10.dp, vertical = 6.dp))
+                Spacer(Modifier.width(6.dp))
+                // 下一段、关闭：同尺寸的浅底圆钮，线条图标
+                if (segs > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex) {
+                    IconCircle(c.accentSoft, onClick = { LinePlayer.skipSegment() }) { NextIcon(c.accent) }
+                    Spacer(Modifier.width(6.dp))
+                }
+                IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
             }
         } else {
             // 展开：三行字幕 · 可拖进度条 · −15 播放 +15 · 倍速；底部段数、下一段、回到来源
@@ -161,12 +166,55 @@ private fun Bar() {
     }
 }
 
+/** 主色实心圆 + 画出来的播放/暂停图标，切换时淡入淡出并轻微缩放 */
 @Composable
 private fun PlayButton(size: androidx.compose.ui.unit.Dp) {
     val c = Rs.colors
-    Box(Modifier.size(size).clip(CircleShape).background(c.accent).springClick { LinePlayer.toggle() }, contentAlignment = Alignment.Center) {
-        Text(if (LinePlayer.playing) "❚❚" else "▶", style = if (size > 42.dp) RsType.headline else RsType.subhead.copy(fontWeight = FontWeight.Bold), color = Color.White)
+    Box(Modifier.size(size).shadow(if (c.isDark) 0.dp else 6.dp, CircleShape, ambientColor = c.accent, spotColor = c.accent)
+        .clip(CircleShape).background(c.accent).springClick { LinePlayer.toggle() }, contentAlignment = Alignment.Center) {
+        androidx.compose.animation.Crossfade(LinePlayer.playing, label = "playIcon") { on ->
+            val icon = size * 0.36f
+            androidx.compose.foundation.Canvas(Modifier.size(icon)) {
+                val w = this.size.width; val h = this.size.height
+                if (on) {
+                    // 暂停：两根圆角竖条
+                    val bar = w * 0.3f; val r = androidx.compose.ui.geometry.CornerRadius(bar / 2.5f)
+                    drawRoundRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.12f, 0f), size = androidx.compose.ui.geometry.Size(bar, h), cornerRadius = r)
+                    drawRoundRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(w * 0.88f - bar, 0f), size = androidx.compose.ui.geometry.Size(bar, h), cornerRadius = r)
+                } else {
+                    // 播放：圆角三角，略向右偏，视觉上居中
+                    val path = androidx.compose.ui.graphics.Path().apply { moveTo(w * 0.2f, 0f); lineTo(w * 1.0f, h / 2); lineTo(w * 0.2f, h); close() }
+                    drawPath(path, Color.White, style = androidx.compose.ui.graphics.drawscope.Fill)
+                    drawPath(path, Color.White, style = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.12f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                }
+            }
+        }
     }
+}
+
+/** 32dp 浅底圆钮，放一个线条图标 */
+@Composable
+private fun IconCircle(bg: Color, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Box(Modifier.size(32.dp).clip(CircleShape).background(bg).springClick(onClick), contentAlignment = Alignment.Center) { icon() }
+}
+
+/** 下一段：三角 + 竖条 */
+@Composable
+private fun NextIcon(color: Color) = androidx.compose.foundation.Canvas(Modifier.size(12.dp)) {
+    val w = size.width; val h = size.height
+    val path = androidx.compose.ui.graphics.Path().apply { moveTo(0f, h * 0.1f); lineTo(w * 0.7f, h / 2); lineTo(0f, h * 0.9f); close() }
+    drawPath(path, color)
+    drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.1f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    drawRoundRect(color, topLeft = androidx.compose.ui.geometry.Offset(w * 0.8f, h * 0.1f), size = androidx.compose.ui.geometry.Size(w * 0.18f, h * 0.8f),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.09f))
+}
+
+/** 关闭：圆头细叉 */
+@Composable
+private fun CloseIcon(color: Color) = androidx.compose.foundation.Canvas(Modifier.size(10.dp)) {
+    val stroke = 1.8.dp.toPx()
+    drawLine(color, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, size.height), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+    drawLine(color, androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(0f, size.height), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
 }
 
 @Composable
@@ -174,6 +222,7 @@ private fun SpeedChip() {
     val c = Rs.colors
     val s = LinePlayer.speed
     Text(if (s == 1f) "1×" else if (s == 1.5f) "1.5×" else "2×", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
-        modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { LinePlayer.changeSpeed(SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.size]) }
-            .padding(horizontal = 10.dp, vertical = 5.dp))
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.height(32.dp).clip(CircleShape).background(c.accentSoft).springClick { LinePlayer.changeSpeed(SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.size]) }
+            .padding(horizontal = 11.dp).wrapContentHeight(Alignment.CenterVertically))
 }

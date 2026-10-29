@@ -83,22 +83,27 @@ object LinePlayer {
     /** 点正在播的那句：暂停 / 继续 */
     fun toggle() { if (playing) pause() else resume() }
 
+    // 暂停后等 3 秒再把麦克风还给日常收音：快速暂停/继续时不反复开关麦克风
+    private var releaseLater: Job? = null
+
     fun pause() {
         player?.takeIf { it.isPlaying }?.pause()
-        playing = false; ticker?.cancel(); releaseCapture()
+        playing = false; ticker?.cancel()
+        releaseLater?.cancel(); releaseLater = scope.launch { delay(3_000); if (!playing) releaseCapture() }
     }
 
     fun resume() {
         val p = player ?: return
         if (!requestFocus()) return
-        holdCapture(); p.start(); applySpeed(); playing = true; tick()
+        releaseLater?.cancel(); releaseLater = null
+        holdCapture(); p.start(); if (speed != 1f) applySpeed(); playing = true; tick()
     }
 
     fun changeSpeed(value: Float) { speed = value; applySpeed() }
 
     /** 关闭播放条、离开页面、切到后台时调用 */
     fun stop() {
-        ticker?.cancel(); ticker = null
+        ticker?.cancel(); ticker = null; releaseLater?.cancel(); releaseLater = null
         player?.runCatching { stop(); release() }; player = null
         playing = false; currentLineId = null; queue = emptyList(); segmentOrder = emptyList()
         allLines = emptyList(); timeline = null; source = null
@@ -157,7 +162,7 @@ object LinePlayer {
         }
         player = p; segmentStart = audio.startAt; segmentId = line.segmentId; currentSegment = line.segmentId
         currentLineId = line.id; positionAt = atAbs ?: line.startAt; playing = true
-        applySpeed(); tick()
+        if (speed != 1f) applySpeed(); tick()
     }
 
     /** 播放条上的“下一段” */

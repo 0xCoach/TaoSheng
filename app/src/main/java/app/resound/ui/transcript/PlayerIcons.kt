@@ -6,6 +6,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.scale
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,9 +29,17 @@ import app.resound.ui.verify.springClick
 @Composable
 internal fun PlayCircle(size: androidx.compose.ui.unit.Dp, playing: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
+    // 按下只缩放里面的图标，外圈和阴影不动，避免阴影重画造成闪动
+    val source = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val press by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.86f else 1f, label = "press")
     Box(Modifier.size(size).shadow(if (c.isDark) 0.dp else 6.dp, CircleShape, ambientColor = c.accent, spotColor = c.accent)
-        .clip(CircleShape).background(c.accent).springClick(onClick), contentAlignment = Alignment.Center) {
-        androidx.compose.animation.Crossfade(playing, label = "playIcon") { on ->
+        .clip(CircleShape).background(c.accent).clickable(interactionSource = source, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        // 图标立刻换：新图标从稍小弹到原大（0.12 秒），两个图标不叠在一起
+        androidx.compose.animation.AnimatedContent(playing, label = "playIcon", modifier = Modifier.scale(press), transitionSpec = {
+            androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(120), initialScale = 0.7f) togetherWith androidx.compose.animation.ExitTransition.None
+        }) { on ->
             val icon = size * 0.36f
             androidx.compose.foundation.Canvas(Modifier.size(icon)) {
                 val w = this.size.width; val h = this.size.height

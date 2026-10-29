@@ -309,7 +309,7 @@ private val TYPES = listOf("我要做" to "待办", "我答应别人" to "待办
 /** 确认待办卡：每张可改、可删，确认后一起加进“进行中” */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Unit, onConfirm: (List<TodoDraft>) -> Unit) {
+internal fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Unit, onConfirm: (List<TodoDraft>) -> Unit) {
     val c = Rs.colors
     val cards = remember(drafts) { mutableStateListOf(*drafts.items.map(::DraftState).toTypedArray()) }
     RsSheet(if (cards.size > 1) "生成了 ${cards.size} 条待办" else "确认待办",
@@ -355,4 +355,19 @@ private fun CardInput(value: String, hint: String, onChange: (String) -> Unit) {
                 inner()
             }
         })
+}
+
+/** 从一件事存成待办：内容默认是事件标题，可改、可选时间和强提醒，确认后进“进行中” */
+@Composable
+internal fun SaveEventAsTodo(event: app.resound.digest.MemoryEvent, onDismiss: () -> Unit) {
+    val todos = app.resound.AppGraph.manualTodos
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val at = java.time.Instant.ofEpochMilli(event.startAt).atZone(ZoneId.systemDefault())
+    val source = "来自 ${at.monthValue}月${at.dayOfMonth}日 %02d:%02d 的事「${event.title}」".format(at.hour, at.minute)
+    val drafts = remember(event.id) { TodoDrafts(listOf(TodoDraft("待办", "我要做", event.title, null, null, null)), parsed = true) }
+    DraftSheet(drafts, source, onDismiss = onDismiss) { confirmed ->
+        todos.add(confirmed, ItemOrigin.Typed, source)
+        android.widget.Toast.makeText(context, "已存为待办", android.widget.Toast.LENGTH_SHORT).show()
+        onDismiss()
+    }
 }

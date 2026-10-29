@@ -256,7 +256,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
 private class RowSwipe(val label: (MemoryItem) -> String, val left: (MemoryItem) -> Unit, val delete: (MemoryItem) -> Unit) {
     @Composable
     fun wrap(item: MemoryItem, content: @Composable () -> Unit) =
-        app.resound.ui.today.SwipeRow(item.id, label(item), { left(item) }, { delete(item) }, content)
+        app.resound.ui.today.SwipeRow(item.id, label(item), { left(item) }, { delete(item) }, content = content)
 }
 
 /** 记忆：按天（日期条 + 当天日记，可导出）· 按类（灵感 · 关键信息 · 决定 · 知识 · 回顾）。openReview 不为空时跳到那天并打开回顾 */

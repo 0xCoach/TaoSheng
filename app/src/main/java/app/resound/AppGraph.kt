@@ -21,6 +21,8 @@ object AppGraph {
     // 卡 068：录音导出与批量删除
     lateinit var audioExporter: app.resound.transcribe.AudioExporter
     val isAudioExporterReady: Boolean get() = ::audioExporter.isInitialized
+    lateinit var exportJobs: app.resound.transcribe.ExportJobs
+    val isExportJobsReady: Boolean get() = ::exportJobs.isInitialized
     lateinit var segmentDeleter: app.resound.transcribe.SegmentDeleter
     val isSegmentDeleterReady: Boolean get() = ::segmentDeleter.isInitialized
 

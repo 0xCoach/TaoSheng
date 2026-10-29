@@ -57,3 +57,29 @@ interface AudioExporter {
 interface SegmentDeleter {
     suspend fun deleteSegments(segmentIds: List<Long>): Int
 }
+
+/*
+ * 卡 069：导出改成后台任务（前台服务通知显示进度、可取消，完成/失败发通知）。界面只用下面这些。
+ */
+
+sealed interface ExportJobState {
+    data class Running(val fraction: Float) : ExportJobState
+    data class Done(val files: List<File>) : ExportJobState
+    data class Failed(val message: String) : ExportJobState
+    data object Cancelled : ExportJobState
+}
+
+data class ExportJob(val id: String, val title: String, val startedAt: Long, val state: ExportJobState)
+
+interface ExportJobs {
+    /** 进行中和最近完成的导出（完成的保留到 [dismiss] 或 1 天后） */
+    val jobs: kotlinx.coroutines.flow.StateFlow<List<ExportJob>>
+    /** 开始后台导出，返回任务 id；App 切走、面板关掉都不影响 */
+    fun start(request: ExportRequest): String
+    fun cancel(id: String)
+    /** 用户看过结果后从列表里去掉（文件仍按 1 天清理） */
+    fun dismiss(id: String)
+}
+
+/** 点“导出完成”通知打开 App 时，Intent 里带这个 extra（任务 id），界面据此打开结果面板 */
+const val EXTRA_EXPORT_JOB = "app.resound.exportJob"

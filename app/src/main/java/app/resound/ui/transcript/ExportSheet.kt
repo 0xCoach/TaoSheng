@@ -350,7 +350,7 @@ private enum class ShareKind(val title: String, val sub: String, val icon: Strin
 }
 
 @Composable
-private fun ShareChooser(files: List<java.io.File>, name: String, onDismiss: () -> Unit) {
+private fun ShareChooser(files: List<java.io.File>, name: String, onShared: () -> Unit = {}, onDismiss: () -> Unit) {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -372,7 +372,7 @@ private fun ShareChooser(files: List<java.io.File>, name: String, onDismiss: () 
                             ShareKind.Text -> file("txt")!!
                             ShareKind.Zip -> zip(files, name)
                         }
-                        share(context, listOf(target)); onDismiss()
+                        share(context, listOf(target)); onShared(); onDismiss()
                     }
                 }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(kind.icon, style = RsType.headline)
@@ -404,7 +404,7 @@ internal fun durationWords(ms: Long): String {
 
 /** 合成好的结果：试听、保存到 下载/Resound/、分享（选一个文件） */
 @Composable
-internal fun ExportResult(files: List<java.io.File>, name: String) {
+internal fun ExportResult(files: List<java.io.File>, name: String, onUsed: () -> Unit = {}) {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -417,13 +417,14 @@ internal fun ExportResult(files: List<java.io.File>, name: String) {
             scope.launch {
                 savedTo = runCatching { saveToDownloads(context, files, name) }.getOrNull()
                 LinePlayer.notice = savedTo?.let { "已保存到 下载 › $EXPORT_DIR › $it" } ?: "保存失败，请稍后再试"
+                if (savedTo != null) onUsed()
             }
         }
         // 微信等一次只收一个文件：只有一个文件时直接分享，否则先选分享什么
-        ActionButton("分享", ActionKind.Secondary, Modifier.weight(1f)) { if (files.size == 1) share(context, files) else picking = true }
+        ActionButton("分享", ActionKind.Secondary, Modifier.weight(1f)) { if (files.size == 1) { share(context, files); onUsed() } else picking = true }
     }
     savedTo?.let { Text("在 文件管理 › 下载 › $EXPORT_DIR › $it 里", style = RsType.caption, color = c.textTertiary) }
-    if (picking) ShareChooser(files, name) { picking = false }
+    if (picking) ShareChooser(files, name, onShared = onUsed) { picking = false }
 }
 
 /** 一个后台导出任务在面板里的样子：进行中 / 完成 / 失败 / 已取消 */
@@ -445,7 +446,7 @@ internal fun JobBody(job: app.resound.transcribe.ExportJob, onClose: () -> Unit)
                 ActionButton("取消导出", ActionKind.Secondary, Modifier.weight(1f)) { jobs.cancel(job.id) }
             }
         }
-        is app.resound.transcribe.ExportJobState.Done -> ExportResult(st.files, safeName(job.title))
+        is app.resound.transcribe.ExportJobState.Done -> ExportResult(st.files, safeName(job.title)) { ExportUi.used += job.id }
         is app.resound.transcribe.ExportJobState.Failed -> {
             Text(st.message, style = RsType.subhead, color = c.critical)
             ActionButton("知道了", ActionKind.Secondary) { jobs.dismiss(job.id); onClose() }
@@ -474,12 +475,17 @@ fun ExportJobSheet(jobId: String, onDismiss: () -> Unit) {
 /** 全局：要打开哪个导出任务的面板（点通知或底部胶囊时设置） */
 object ExportUi {
     var openJob by androidx.compose.runtime.mutableStateOf<String?>(null)
-    /** 关掉结果面板就算看过了：已完成/失败的任务从列表去掉，底部“导出完成”胶囊和通知随之消失；进行中的不动 */
+    /** 本次运行里保存或分享过的导出任务 */
+    val used = mutableSetOf<String>()
+    /**
+     * 关掉结果面板时：保存或分享过的（或失败的）才从列表去掉，底部胶囊和通知随之消失；
+     * 没保存就关掉的留着，误关了还能点胶囊回来；不要了点胶囊上的 ×。进行中的不动。
+     */
     fun seen(id: String?) {
         if (id == null || !app.resound.AppGraph.isExportJobsReady) return
         val jobs = app.resound.AppGraph.exportJobs
         val st = jobs.jobs.value.firstOrNull { it.id == id }?.state
-        if (st is app.resound.transcribe.ExportJobState.Done || st is app.resound.transcribe.ExportJobState.Failed) jobs.dismiss(id)
+        if ((st is app.resound.transcribe.ExportJobState.Done && id in used) || st is app.resound.transcribe.ExportJobState.Failed) jobs.dismiss(id)
     }
 }
 
@@ -499,9 +505,18 @@ fun ExportCapsule(bottomPadding: androidx.compose.ui.unit.Dp) {
         enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
         exit = androidx.compose.animation.fadeOut()) {
         androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(bottom = bottomPadding), contentAlignment = Alignment.BottomCenter) {
-            Text(text ?: "", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier.clip(CircleShape).background(c.accent).springClick { job?.let { ExportUi.openJob = it.id } }
-                    .padding(horizontal = 18.dp, vertical = 10.dp))
+            Row(Modifier.clip(CircleShape).background(c.accent), verticalAlignment = Alignment.CenterVertically) {
+                Text(text ?: "", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.springClick { job?.let { ExportUi.openJob = it.id } }
+                        .padding(start = 18.dp, end = if (job?.state is app.resound.transcribe.ExportJobState.Done) 6.dp else 18.dp, top = 10.dp, bottom = 10.dp))
+                // 完成后右边一个小 ×：这次导出不要了就点掉
+                if (job?.state is app.resound.transcribe.ExportJobState.Done)
+                    androidx.compose.foundation.layout.Box(Modifier.padding(end = 6.dp).size(28.dp).clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f))
+                        .springClick { app.resound.AppGraph.exportJobs.dismiss(job.id) }, contentAlignment = Alignment.Center) {
+                        CloseIcon(androidx.compose.ui.graphics.Color.White)
+                    }
+            }
         }
     }
 }

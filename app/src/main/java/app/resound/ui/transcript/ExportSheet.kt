@@ -106,7 +106,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
         value = exporter?.let { runCatching { it.estimate(request()) }.getOrNull() }
     }
     // 关面板不取消后台任务；只有前台退回的导出才随面板取消
-    fun close() { progressJob?.cancel(); onDismiss() }
+    fun close() { progressJob?.cancel(); ExportUi.seen(jobId); onDismiss() }
     RsSheet("导出 ${segmentIds.size} 段录音", estimateLine(estimate), onDismiss = { close() }) {
         if (exporter == null) { Text("导出功能还没准备好", style = RsType.subhead, color = c.textSecondary); return@RsSheet }
         Label2("文件名")
@@ -120,7 +120,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
         val ready = done
         when {
             // 后台任务：进度、剩余时间、后台继续 / 取消；完成后就地试听、保存、分享
-            job != null -> JobBody(job, onClose = onDismiss)
+            job != null -> JobBody(job, onClose = { close() })
             ready != null -> ExportResult(ready, safeName(title.ifBlank { suggestedTitle }))
             running != null -> {
                 LinearProgressIndicator(progress = { running }, color = c.accent, trackColor = c.accentSoft,
@@ -463,8 +463,9 @@ fun ExportJobSheet(jobId: String, onDismiss: () -> Unit) {
     if (!app.resound.AppGraph.isExportJobsReady) { onDismiss(); return }
     val job = app.resound.AppGraph.exportJobs.jobs.collectAsState().value.firstOrNull { it.id == jobId }
     if (job == null) { LaunchedEffect(Unit) { LinePlayer.notice = "这次导出的文件已清理"; onDismiss() }; return }
-    RsSheet(job.title, null, onDismiss = onDismiss) {
-        JobBody(job, onClose = onDismiss)
+    fun close() { ExportUi.seen(jobId); onDismiss() }
+    RsSheet(job.title, null, onDismiss = { close() }) {
+        JobBody(job, onClose = { close() })
         Text("录音将离开涛声，请注意他人隐私", style = RsType.caption, color = Rs.colors.textTertiary,
             modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
@@ -473,6 +474,13 @@ fun ExportJobSheet(jobId: String, onDismiss: () -> Unit) {
 /** 全局：要打开哪个导出任务的面板（点通知或底部胶囊时设置） */
 object ExportUi {
     var openJob by androidx.compose.runtime.mutableStateOf<String?>(null)
+    /** 关掉结果面板就算看过了：已完成/失败的任务从列表去掉，底部“导出完成”胶囊和通知随之消失；进行中的不动 */
+    fun seen(id: String?) {
+        if (id == null || !app.resound.AppGraph.isExportJobsReady) return
+        val jobs = app.resound.AppGraph.exportJobs
+        val st = jobs.jobs.value.firstOrNull { it.id == id }?.state
+        if (st is app.resound.transcribe.ExportJobState.Done || st is app.resound.transcribe.ExportJobState.Failed) jobs.dismiss(id)
+    }
 }
 
 /** 有导出在进行时，底部浮一个小胶囊“正在导出 35% ›”，点开看进度；完成后变成“导出完成 ›” */

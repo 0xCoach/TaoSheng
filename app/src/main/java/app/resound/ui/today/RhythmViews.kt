@@ -161,15 +161,13 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
 private fun Stat(label: String, value: String, delta: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     Column(modifier.padding(end = 6.dp).clip(RoundedCornerShape(10.dp)).springClick(onClick)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = RsType.headline, color = c.text, maxLines = 1, modifier = Modifier.weight(1f, fill = false),
-                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = RsType.headline.fontSize))
-            delta?.let {
-                Text(" $it", style = RsType.caption.copy(fontSize = 10.sp), color = if (it.startsWith("↑")) c.accent else c.textTertiary, maxLines = 1)
-            }
+        Text(value, style = RsType.headline, color = c.text, maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = RsType.headline.fontSize))
+        // 和平时比的箭头跟在标签后面，不和数字抢宽度
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = RsType.caption, color = c.textTertiary, maxLines = 1)
+            delta?.let { Text(" $it", style = RsType.caption.copy(fontSize = 10.sp), color = if (it.startsWith("↑")) c.accent else c.textTertiary, maxLines = 1) }
         }
-        Text(label, style = RsType.caption, color = c.textTertiary, maxLines = 1, textAlign = TextAlign.Start,
-            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = RsType.caption.fontSize))
     }
 }
 
@@ -189,17 +187,6 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     fun bias(h: Float) = (h / 24f) * 2f - 1f
     Column {
-        // 按住时上方浮出的小提示
-        Box(Modifier.fillMaxWidth().height(20.dp)) {
-            hover?.let { h ->
-                val talk = (r.speechByHour[h] + 59) / 60; val media = (r.mediaByHour[h] + 59) / 60
-                val text = "$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") +
-                    (quiet[h]?.let { " · $it" } ?: "")
-                Text(text, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.text, maxLines = 1,
-                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(h + 0.5f).coerceIn(-0.85f, 0.85f), 0f))
-                        .clip(RoundedCornerShape(8.dp)).background(c.background).padding(horizontal = 8.dp, vertical = 2.dp))
-            }
-        }
         val width = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
         fun hourAt(x: Float) = ((x / width.intValue.coerceAtLeast(1)) * 24).toInt().coerceIn(0, 23)
         Box(Modifier.fillMaxWidth().height(36.dp)) {
@@ -245,10 +232,17 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(h.toFloat()), -1f)).size(width = 1.dp, height = 4.dp).background(c.separator))
             }
         }
-        Box(Modifier.fillMaxWidth().padding(top = 1.dp)) {
-            listOf(0, 6, 12, 18, 24).forEach { h ->
-                Text("$h", style = RsType.caption, color = c.textTertiary, maxLines = 1,
-                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(h.toFloat()), 0f)))
+        // 平时显示 0·6·12·18·24；按住柱子时这一行换成那个小时的详情，不另占地方
+        Box(Modifier.fillMaxWidth().height(20.dp).padding(top = 1.dp)) {
+            val h = hover
+            if (h == null) listOf(0, 6, 12, 18, 24).forEach { t ->
+                Text("$t", style = RsType.caption, color = c.textTertiary, maxLines = 1,
+                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(t.toFloat()), 0f)))
+            } else {
+                val talk = (r.speechByHour[h] + 59) / 60; val media = (r.mediaByHour[h] + 59) / 60
+                Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: ""),
+                    style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent, maxLines = 1,
+                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(h + 0.5f).coerceIn(-0.7f, 0.7f), 0f)))
             }
         }
         quiet.values.firstOrNull()?.let { name ->

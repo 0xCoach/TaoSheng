@@ -2,6 +2,8 @@ package app.resound.ui.verify
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -110,7 +112,7 @@ private fun QuietRuleSheet(rule: QuietRule?, isNew: Boolean, onSave: (QuietRule)
     RsSheet(if (isNew) "添加停录时段" else "编辑停录时段", spanText(start, end), onDismiss = onDismiss) {
         if (isNew) {
             Label("常用")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TEMPLATES.forEach { t ->
                     Choice(t.name, name == t.name && start == t.startMinute && end == t.endMinute && days == t.days) {
                         name = t.name; start = t.startMinute; end = t.endMinute; days = t.days; wheelKey++
@@ -121,23 +123,32 @@ private fun QuietRuleSheet(rule: QuietRule?, isNew: Boolean, onSave: (QuietRule)
         Label("名字")
         SheetInput(name, "如 睡眠、午休、上课") { name = it.take(8) }
         Label("时间")
-        // 开始 / 结束 两个胶囊切换，下面一个滚轮，省纵向空间
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice("开始 %02d:%02d".format(start / 60, start % 60), !pickingEnd) { pickingEnd = false }
-            Choice("结束 ${if (end <= start) "次日 " else ""}%02d:%02d".format(end / 60, end % 60), pickingEnd) { pickingEnd = true }
-        }
-        androidx.compose.runtime.key(wheelKey, pickingEnd) {
-            val v = if (pickingEnd) end else start
-            WheelTimePicker(v / 60, v % 60, { h, m -> if (pickingEnd) end = h * 60 + m else start = h * 60 + m })
+        // 两张等宽时间卡：开始 → 结束，选中的那张亮起；下面一条居中的滚轮调它，中间写总时长
+        RsCard(padding = PaddingValues(12.dp), color = c.background) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TimeCard("开始", start, null, !pickingEnd, Modifier.weight(1f)) { pickingEnd = false }
+                Column(Modifier.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("→", style = RsType.headline, color = c.textTertiary)
+                    Text(durationText(start, end), style = RsType.caption, color = c.textTertiary)
+                }
+                TimeCard("结束", end, if (end <= start) "次日" else null, pickingEnd, Modifier.weight(1f)) { pickingEnd = true }
+            }
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.runtime.key(wheelKey, pickingEnd) {
+                val v = if (pickingEnd) end else start
+                WheelTimePicker(v / 60, v % 60, { h, m -> if (pickingEnd) end = h * 60 + m else start = h * 60 + m })
+            }
         }
         Label("重复")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PRESET_DAYS.forEach { (label, set) -> Choice(label, days == set) { days = set } }
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            DayOfWeek.entries.forEach { d ->
-                Choice(DAY_NAMES[d.value - 1], d in days) { days = if (d in days) days - d else days + d }
+        // 常用组合用分段胶囊，下面七个圆点逐天点选，都撑满整行
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val preset = PRESET_DAYS.indexOfFirst { it.second == days }
+            app.resound.ui.skills.Segments(PRESET_DAYS.map { it.first } + "自选", if (preset >= 0) preset else PRESET_DAYS.size) { i ->
+                if (i < PRESET_DAYS.size) days = PRESET_DAYS[i].second
             }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            DayOfWeek.entries.forEach { d -> DayDot(DAY_NAMES[d.value - 1], d in days) { days = if (d in days) days - d else days + d } }
         }
         if (end <= start && days != DayOfWeek.entries.toSet()) Text("跨到第二天的时段，按开始那天算重复。", style = RsType.caption, color = c.textTertiary)
         Spacer(Modifier.height(4.dp))
@@ -175,4 +186,42 @@ internal fun daysText(days: Set<DayOfWeek>): String = when (days) {
     WORKDAYS -> "工作日"
     WEEKEND -> "周末"
     else -> "周" + days.sortedBy { it.value }.joinToString("、") { DAY_NAMES[it.value - 1] }
+}
+
+/** 一张时间卡：上面小字“开始/结束”，下面大号时刻；选中时浅橙底、细描边 */
+@Composable
+private fun TimeCard(label: String, minutes: Int, tag: String?, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = Rs.colors
+    val bg by androidx.compose.animation.animateColorAsState(if (selected) c.accentSoft else c.card, label = "timeCard")
+    val edge by androidx.compose.animation.animateColorAsState(if (selected) c.accent else c.separator, label = "timeEdge")
+    Column(modifier.clip(RoundedCornerShape(16.dp)).background(bg).border(1.dp, edge, RoundedCornerShape(16.dp))
+        .springClick(onClick).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = RsType.caption, color = if (selected) c.accent else c.textTertiary)
+            tag?.let {
+                Spacer(Modifier.width(4.dp))
+                Text(it, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                    modifier = Modifier.clip(CircleShape).background(c.card).padding(horizontal = 6.dp))
+            }
+        }
+        Text("%02d:%02d".format(minutes / 60, minutes % 60), style = RsType.title.copy(fontWeight = FontWeight.SemiBold),
+            color = if (selected) c.accent else c.text)
+    }
+}
+
+/** 一周里的一天：圆形小钮，选中实心主色 */
+@Composable
+private fun DayDot(label: String, on: Boolean, onClick: () -> Unit) {
+    val c = Rs.colors
+    val bg by androidx.compose.animation.animateColorAsState(if (on) c.accent else c.card, label = "day")
+    Box(Modifier.size(38.dp).clip(CircleShape).background(bg).springClick(onClick), contentAlignment = Alignment.Center) {
+        Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) androidx.compose.ui.graphics.Color.White else c.textSecondary)
+    }
+}
+
+/** “8 小时”“7 小时 30 分”；开始等于结束 = 全天 */
+private fun durationText(start: Int, end: Int): String {
+    val m = ((end - start) % 1440 + 1440) % 1440
+    if (m == 0) return "全天"
+    return if (m % 60 == 0) "${m / 60} 小时" else if (m < 60) "$m 分" else "${m / 60} 小时 ${m % 60} 分"
 }

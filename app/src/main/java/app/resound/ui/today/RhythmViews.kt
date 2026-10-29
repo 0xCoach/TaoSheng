@@ -64,6 +64,7 @@ internal data class DayRhythm(
     val lastAt: Long,
     /** 实际说话最长的一件事：句子时长之和（不含中间的安静） */
     val longest: Pair<MemoryEvent, Int>?,
+    val mediaEvents: Int = 0,
 )
 
 private fun overlaps(l: TranscriptLine, e: MemoryEvent) = l.startAt < e.endAt && l.endAt > e.startAt
@@ -89,6 +90,7 @@ internal fun dayRhythm(events: List<MemoryEvent>, lines: List<TranscriptLine>): 
         speechByHour = byHour(kept), mediaByHour = byHour(mediaLines),
         firstAt = kept.minOf { it.startAt }, lastAt = kept.maxOf { it.endAt },
         longest = longest,
+        mediaEvents = media.size,
     )
 }
 
@@ -133,7 +135,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
             // 收起时标题这一行直接带上概要和一条迷你分布，一眼看完
             if (collapsed && r.speechMinutes >= 5) {
-                Text("  说话 ${r.speechMinutes} 分 · ${r.events} 件", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
+                Text("  提到 ${r.people} 人" + (if (r.meetings > 0) " · 开会 ${r.meetings} 次" else ""), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
                     maxLines = 1, modifier = Modifier.weight(1f))
                 MiniBars(r, Modifier.padding(end = 8.dp).size(width = 64.dp, height = 16.dp))
             } else Spacer(Modifier.weight(1f))
@@ -147,10 +149,10 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         }
         Spacer(Modifier.height(2.dp))
         Row(Modifier.fillMaxWidth().padding(end = 6.dp)) {
-            Stat("说话", "${r.speechMinutes} 分", compare(r.speechMinutes, base?.speechMinutes), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
-            Stat("件事", "${r.events}", compare(r.events, base?.events), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
+            // 说话时长和件数在上面的录音卡里，这里只放它没有的，同一屏每个数字只出现一次
             Stat("提到", "${r.people} 人", compare(r.people, base?.people), Modifier.weight(1f)) { onFilter(TimelineFilter.All) }
-            Stat("开会", if (r.meetings == 0) "没有" else "${r.meetings} 次", null, Modifier.weight(1f)) { if (r.meetings > 0) onFilter(TimelineFilter.Meeting) }
+            Stat("开会", if (r.meetings == 0) "没有" else "${r.meetings} 次", compare(r.meetings, base?.meetings), Modifier.weight(1f)) { if (r.meetings > 0) onFilter(TimelineFilter.Meeting) }
+            Stat("媒体", if (r.mediaEvents == 0) "没有" else "${r.mediaEvents} 件", null, Modifier.weight(1f)) { if (r.mediaEvents > 0) onFilter(TimelineFilter.Media) }
         }
         Spacer(Modifier.height(4.dp))
         Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour) }
@@ -160,7 +162,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
 @Composable
 private fun Stat(label: String, value: String, delta: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
-    Column(modifier.padding(end = 6.dp).clip(RoundedCornerShape(10.dp)).springClick(onClick)) {
+    // 不裁圆角：圆角会切掉“提”字左下那一点这类贴边的笔画
+    Column(modifier.padding(end = 6.dp).springClick(onClick)) {
         Text(value, style = RsType.headline, color = c.text, maxLines = 1,
             autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = RsType.headline.fontSize))
         // 和平时比的箭头跟在标签后面，不和数字抢宽度

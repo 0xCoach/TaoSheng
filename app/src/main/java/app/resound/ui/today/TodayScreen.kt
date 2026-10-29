@@ -415,7 +415,7 @@ private fun OverviewCard(
         }
         Spacer(Modifier.height(10.dp))
         Row {
-            BigStat(speechMillis?.let { formatSpeech(it) } ?: "—", "今天说话", Modifier.weight(1.3f))
+            BigStat(speechMillis?.let { formatSpeech(it) } ?: "—", "录到人声", Modifier.weight(1.3f))
             BigStat(eventCount?.toString() ?: "—", "件事", Modifier.weight(1f))
             BigStat(pendingCount.toString(), "待确认", Modifier.weight(1f))
         }

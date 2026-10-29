@@ -65,6 +65,42 @@ def channel_paths(preview: bool) -> tuple[str, str]:
     return prefix, manifest
 
 
+MS_KEEP_FORMAL = 3   # 魔搭只是国内下载镜像：正式版留最近 3 个，预览版只留最新 1 个；GitHub 全部保留
+MS_KEEP_PREVIEW = 1
+APK_RE = re.compile(r"TaoSheng-v(.+)-arm64\.apk")
+PATCH_RE = re.compile(r"TaoSheng-(.+)-to-(.+)\.patch")
+
+
+def version_key(name: str) -> tuple:
+    """0.2.13-preview.2 排在 0.2.13 之前；正式版的预览序号视为无穷大。"""
+    base, _, preview = name.partition("-preview.")
+    return tuple(int(x) for x in base.split(".")) + (int(preview) if preview else float("inf"),)
+
+
+def prune_plan(paths: list[str], current: str, preview: bool) -> list[str]:
+    """本通道目录里要删的旧文件：超出保留数的整包，以及不指向当前版本的差异包。只动 .apk/.patch。"""
+    prefix = "preview/" if preview else ""
+    own = [p[len(prefix):] for p in paths if p.startswith(prefix) and "/" not in p[len(prefix):]]
+    apks = {m.group(1): f for f in own if (m := APK_RE.fullmatch(f))}
+    keep = set(sorted(apks, key=version_key)[-(MS_KEEP_PREVIEW if preview else MS_KEEP_FORMAL):]) | {current}
+    doomed = [f for v, f in apks.items() if v not in keep]
+    doomed += [f for f in own if (m := PATCH_RE.fullmatch(f)) and m.group(2) != current]
+    assert all(APK_RE.fullmatch(f) or PATCH_RE.fullmatch(f) for f in doomed)
+    return sorted(prefix + f for f in doomed)
+
+
+def prune_modelscope(api, current: str, preview: bool):
+    paths = [f["Path"] for f in api.get_model_files(REPO_MS, recursive=True) if f.get("Type") != "tree"]
+    doomed = prune_plan(paths, current, preview)
+    if not doomed:
+        return print("魔搭：没有要清理的旧文件")
+    try:
+        api.delete_files(REPO_MS, file_paths=doomed, commit_message=f"涛声 {current}：清理旧版本")
+        print(f"魔搭：已清理 {len(doomed)} 个旧文件")
+    except Exception as error:  # 清理失败不影响已完成的发布
+        print(f"魔搭：清理旧文件失败（{type(error).__name__}），下次发布会再试")
+
+
 def ensure_prerelease(tag: str, title: str):
     try:
         gh("release", "view", tag, "--json", "tagName")
@@ -142,6 +178,8 @@ def main():
     api.upload_file(path_or_fileobj=str(update), path_in_repo=prefix + manifest_name, repo_id=REPO_MS, commit_message=f"涛声 {name}：版本说明")
     gh("release", "upload", "preview-channel" if a.preview else f"v{name}", str(update), "--clobber")
     print(f"已发布：魔搭和 GitHub 的 {manifest_name} 都指向", name)
+    # 版本说明已指向新版后再清理，正在更新的人不会下载到被删的文件
+    prune_modelscope(api, name, a.preview)
 
 
 if __name__ == "__main__":

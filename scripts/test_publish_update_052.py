@@ -47,5 +47,22 @@ class PublishPreviewTest(unittest.TestCase):
                     self.assertFalse((output / "update.json").exists())
 
 
+
+class PrunePlanTest(unittest.TestCase):
+    """魔搭清理：正式版留 3 个整包，预览版留 1 个，只删不指向当前版本的差异包，不碰说明文件。"""
+    def test_formal_keeps_three_and_current_patches(self):
+        paths = ["update.json", "README.md", "preview/update-preview.json", "preview/TaoSheng-v0.2.13-preview.1-arm64.apk",
+                 *[f"TaoSheng-v0.2.{v}-arm64.apk" for v in (8, 9, 11, 12, 13)],
+                 "TaoSheng-0.2.12-to-0.2.13.patch", "TaoSheng-0.2.11-to-0.2.12.patch"]
+        doomed = publish.prune_plan(paths, "0.2.13", preview=False)
+        self.assertEqual(doomed, ["TaoSheng-0.2.11-to-0.2.12.patch", "TaoSheng-v0.2.8-arm64.apk", "TaoSheng-v0.2.9-arm64.apk"])
+
+    def test_preview_keeps_only_latest_inside_preview_dir(self):
+        paths = ["TaoSheng-v0.2.12-arm64.apk", "preview/update-preview.json",
+                 "preview/TaoSheng-v0.2.13-preview.1-arm64.apk", "preview/TaoSheng-v0.2.13-preview.2-arm64.apk",
+                 "preview/TaoSheng-0.2.12-to-0.2.13-preview.1.patch", "preview/TaoSheng-0.2.12-to-0.2.13-preview.2.patch"]
+        doomed = publish.prune_plan(paths, "0.2.13-preview.2", preview=True)
+        self.assertEqual(doomed, ["preview/TaoSheng-0.2.12-to-0.2.13-preview.1.patch", "preview/TaoSheng-v0.2.13-preview.1-arm64.apk"])
+
 if __name__ == "__main__":
     unittest.main()

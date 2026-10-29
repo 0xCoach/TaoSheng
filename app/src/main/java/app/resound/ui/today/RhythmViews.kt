@@ -149,11 +149,6 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         }
         Spacer(Modifier.height(12.dp))
         HourBars(r, date, rules, onHour)
-        r.longest?.let { (e, m) ->
-            Text("最长的一段：${formatClock(e.startAt)} ${e.title} · 说了 $m 分钟 ›", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
-                color = c.accent, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp).springClick { onOpen(e) })
-        }
     }
 }
 

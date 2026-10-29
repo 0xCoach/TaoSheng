@@ -27,7 +27,7 @@ internal object Subscriptions {
             is RecordTrigger.Schedule -> require(t.times.isNotEmpty() && t.times.all { it in 0..1439 } && t.weekdays.all { it in 1..7 }) { "请填写有效的时刻和星期" }
             RecordTrigger.Manual -> Unit
         }
-        return s.copy(records = if (c.records) s.records else emptySet(), lines = if (c.records) s.lines else LinesMode.Off,
+        return s.copy(audio = if (c.audio) s.audio else AudioPush.Off, records = if (c.records) s.records else emptySet(), lines = if (c.records) s.lines else LinesMode.Off,
             incremental = c.incremental && s.incremental, fullCheckAt = s.fullCheckAt.takeIf { c.incremental && s.incremental })
     }
     fun json(s: PushSubscription) = JSONObject().put("summaries", s.summaries).put("reminders", s.reminders)
@@ -39,6 +39,7 @@ internal object Subscriptions {
         }).put("incremental", s.incremental).put("fullCheckAt", s.fullCheckAt ?: JSONObject.NULL)
         .put("layout", s.layout.name).put("rangeDays", s.rangeDays ?: JSONObject.NULL).put("excludeMedia", s.excludeMedia)
         .put("backfillDays", s.backfillDays ?: JSONObject.NULL).put("lineContext", s.lineContext)
+        .put("audio", s.audio.name).put("audioWithText", s.audioWithText).put("audioWifiOnly", s.audioWifiOnly)
     fun read(j: JSONObject): PushSubscription {
         val t = j.getJSONObject("trigger")
         fun number(key: String) = if (j.isNull(key)) null else j.getInt(key)
@@ -48,7 +49,9 @@ internal object Subscriptions {
                 "change" -> RecordTrigger.OnChange(t.getInt("gap"))
                 "schedule" -> RecordTrigger.Schedule(t.getJSONArray("times").strings().map(String::toInt), t.getJSONArray("weekdays").strings().map(String::toInt).toSet())
                 else -> RecordTrigger.Manual
-            }, j.getBoolean("incremental"), number("fullCheckAt"), FolderLayout.valueOf(j.getString("layout")), number("rangeDays"), j.getBoolean("excludeMedia"), number("backfillDays"), lineContext = j.optBoolean("lineContext", true))
+            }, j.getBoolean("incremental"), number("fullCheckAt"), FolderLayout.valueOf(j.getString("layout")), number("rangeDays"), j.getBoolean("excludeMedia"), number("backfillDays"), lineContext = j.optBoolean("lineContext", true),
+            audio = AudioPush.entries.find { it.name == j.optString("audio") } ?: AudioPush.Off,
+            audioWithText = j.optBoolean("audioWithText", true), audioWifiOnly = j.optBoolean("audioWifiOnly", true))
     }
     fun nextSchedule(t: RecordTrigger.Schedule, after: ZonedDateTime): Long = (0L..7L).flatMap { offset ->
         val date = after.toLocalDate().plusDays(offset)

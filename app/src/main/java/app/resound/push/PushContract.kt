@@ -93,6 +93,12 @@ data class PushSubscription(
     val backfillDays: Int? = 30,
     /** 卡 048：推原话时带上语音输入的上下文（别人的消息、AI 回复等） */
     val lineContext: Boolean = true,
+    /** 卡 072：推录音（原始 OGG）；只有 capabilities.audio 的通道可用 */
+    val audio: AudioPush = AudioPush.Off,
+    /** 推录音时同名附上原话 .txt */
+    val audioWithText: Boolean = true,
+    /** 只在连 WiFi 时推录音 */
+    val audioWifiOnly: Boolean = true,
 ) {
     companion object {
         /** 一键模板：选了再细调 */
@@ -113,6 +119,28 @@ data class PushCapabilities(
     /** 有文件夹布局可选 */
     val folder: Boolean,
     val formats: Set<PushFormat>,
+    /** 卡 072：能推录音文件（目前只有坚果云同步文件夹） */
+    val audio: Boolean = false,
+)
+
+/** 卡 072：推哪些录音 */
+enum class AudioPush(val title: String) {
+    Off("不推"),
+    /** 有人说话、已转写成功的段（跳过媒体、环境音已跳过、转写为空的） */
+    Speech("只推人声"),
+    All("全部录音"),
+}
+
+/** 卡 072：某通道推录音的情况，通道详情里显示 */
+data class AudioPushStatus(
+    val uploaded: Int,
+    val pending: Int,
+    /** 本月已上传字节（坚果云免费版每月上传 1 GB） */
+    val bytesThisMonth: Long,
+    /** 按最近 7 天估算的每月上传量 */
+    val monthlyEstimateBytes: Long?,
+    val lastAt: Long?,
+    val lastError: String?,
 )
 
 /** 推送状态，通道详情里显示 */
@@ -170,4 +198,7 @@ interface PushChannels {
 
     /** 最近的推送记录（新的在前） */
     fun logs(limit: Int = 50): Flow<List<PushLog>>
+
+    /** 卡 072：这个通道推录音的情况；不推录音时各项为 0 */
+    fun audioStatus(id: Long): Flow<AudioPushStatus> = kotlinx.coroutines.flow.flowOf(AudioPushStatus(0, 0, 0, null, null, null))
 }

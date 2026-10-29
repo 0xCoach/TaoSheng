@@ -30,6 +30,10 @@ object AppGraph {
     lateinit var originalAudio: app.resound.transcribe.OriginalAudio
     val isOriginalAudioReady: Boolean get() = ::originalAudio.isInitialized
 
+    // 卡 072：录音批量导出与推送到坚果云
+    lateinit var recordingPacker: app.resound.recordings.RecordingPacker
+    val isRecordingPackerReady: Boolean get() = ::recordingPacker.isInitialized
+
     // 卡 071：重做（重新转写 / 重新整理）
     lateinit var redo: app.resound.redo.RedoService
     val isRedoReady: Boolean get() = ::redo.isInitialized

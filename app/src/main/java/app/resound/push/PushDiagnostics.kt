@@ -80,6 +80,7 @@ internal object PushDiagnostics {
             val format = PushFormat.entries.find { it.name == row.optString("format") }
             val s = runCatching { Subscriptions.read(row.getJSONObject("subscription")) }.getOrNull()
             val last = (0 until logs.length()).mapNotNull { logs.optJSONObject(it) }.firstOrNull { it.optLong("channelId") == row.optLong("id") }
+            appendLine("录音通道ID=${row.optLong("id")} 开启=${row.optBoolean("enabled") && s?.audio != null && s.audio != AudioPush.Off} 模式=${s?.audio} ${prefs.getString("audio-diagnostic-${row.optLong("id")}", "尚未统计")} ")
             appendLine("类型=${kind.name} 格式=$format 记录=${s?.records} 摘要=${s?.summaries} 提醒=${s?.reminders} 原话=${s?.lines} 上次结果=${last?.optString("result") ?: "暂无诊断"}")
         }
         appendLine("最近 30 次推送日志")

@@ -208,6 +208,8 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
     val max = (totals.maxOrNull() ?: 1).coerceAtLeast(1)
     val peak = (0..23).maxByOrNull { r.speechByHour[it] } ?: 0
     var hover by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    // 环境音识别：每小时的主要环境，按住柱子时一起显示，分布条下面一行汇总
+    val env = app.resound.ui.envsound.rememberHourSounds(date)
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     fun bias(h: Float) = (h / 24f) * 2f - 1f
     Column {
@@ -250,7 +252,8 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .offset(y = (-34).dp).zIndex(2f)
                 .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
-                Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: ""),
+                Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: "") +
+                    (env[h]?.let { e -> listOfNotNull(e.tag?.title) + e.sounds.map { "有${it.title}" } }?.joinToString("") { " · $it" } ?: ""),
                     style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White, maxLines = 1)
             }
         }
@@ -276,6 +279,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
         quiet.values.firstOrNull()?.let { name ->
             Text("浅底为停录时段（$name）", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 2.dp))
         }
+        app.resound.ui.envsound.EnvDayLine(env, Modifier.padding(top = 2.dp))
     }
 }
 

@@ -330,3 +330,26 @@ private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> U
         }
     }
 }
+
+/** 某天每小时的环境（hour → HourSound）；没开环境音识别或不显示时为空 */
+@Composable
+fun rememberHourSounds(date: LocalDate): Map<Int, app.resound.envsound.HourSound> {
+    if (!AppGraph.isEnvSoundReady) return emptyMap()
+    val repo = AppGraph.envSound
+    val s by repo.settings.collectAsState()
+    val list by remember(date) { repo.hourly(date) }.collectAsState(initial = emptyList())
+    if (!s.enabled || !s.showInSummaries) return emptyMap()
+    return remember(list) { list.associateBy { it.hour } }
+}
+
+/** 节奏卡分布条下面一行：“环境：键盘声 5 小时 · 雨 2 小时 · 有敲门” */
+@Composable
+fun EnvDayLine(hours: Map<Int, app.resound.envsound.HourSound>, modifier: Modifier = Modifier) {
+    if (hours.isEmpty()) return
+    val tags = hours.values.mapNotNull { it.tag }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3)
+    val sounds = hours.values.flatMap { it.sounds }.distinct()
+    if (tags.isEmpty() && sounds.isEmpty()) return
+    val text = (tags.map { "${it.key.title} ${it.value} 小时" } + sounds.map { "有${it.title}" }).joinToString(" · ")
+    Text("环境：$text", style = RsType.caption, color = Rs.colors.textTertiary, maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = modifier)
+}

@@ -72,7 +72,8 @@ sealed interface UpdateState {
     /** 下载好、校验通过，等用户点安装 */
     data class Ready(val info: UpdateInfo) : UpdateState
     /** 正在备份或已交给系统安装 */
-    data class Installing(val info: UpdateInfo, val backingUp: Boolean) : UpdateState
+    /** [step]/[progress]：备份时正在做哪一步、整体进度 0..1（只在 backingUp 时有） */
+    data class Installing(val info: UpdateInfo, val backingUp: Boolean, val step: String? = null, val progress: Float? = null) : UpdateState
     /** message 是给用户看的一句话，只说结果（如“网络不通，稍后再试”“手机空间不够，还差 120 MB”） */
     data class Failed(val message: String, val info: UpdateInfo?) : UpdateState
 }

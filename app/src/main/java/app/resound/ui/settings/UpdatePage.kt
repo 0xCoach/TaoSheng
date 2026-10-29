@@ -144,14 +144,24 @@ private fun NewVersionCard(info: UpdateInfo, state: UpdateState, canInstall: Boo
             is UpdateState.Ready -> if (canInstall) {
                 Pill("安装", filled = true) { updater.install() }
                 Spacer(Modifier.height(8.dp))
-                Text("安装时录音会暂停十几秒，装好后自动继续", style = RsType.caption, color = c.textTertiary)
+                Text("先自动备份数据，然后系统会再弹一次确认，请点“更新”或“继续安装”。安装时录音会暂停十几秒，装好后自动继续", style = RsType.caption, color = c.textTertiary)
             } else {
                 Text("需要先允许涛声安装应用", style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))
                 Pill("去允许", filled = true, onClick = allowInstall)
             }
-            is UpdateState.Installing -> Text(if (state.backingUp) "正在备份数据…" else "请在系统弹窗里点“安装”",
-                style = RsType.subhead, color = c.textSecondary)
+            is UpdateState.Installing -> if (state.backingUp) {
+                // 备份分步显示：本机快照很快，本机文件夹 / 坚果云备份最多等 3 分钟
+                Text(state.step ?: "正在备份数据…", style = RsType.subhead, color = c.textSecondary)
+                Spacer(Modifier.height(8.dp))
+                Progress(state.progress ?: 0f)
+                Spacer(Modifier.height(6.dp))
+                Text("备份好后会自动进入安装，不用再点", style = RsType.caption, color = c.textTertiary)
+            } else {
+                Text("请在系统弹窗里点“更新”或“继续安装”", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.accent)
+                Spacer(Modifier.height(6.dp))
+                Text("这一步是系统的安全确认，涛声没法代点。没看到弹窗的话，下拉通知栏点“涛声更新等待确认”", style = RsType.caption, color = c.textTertiary)
+            }
             is UpdateState.Failed -> {
                 Text(state.message, style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))

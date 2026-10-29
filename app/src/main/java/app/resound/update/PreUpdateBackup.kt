@@ -22,16 +22,29 @@ internal class PreUpdateBackup(
     private val backup: BackupRepository,
     private val log: (String) -> Unit,
 ) {
-    suspend fun run() {
+    /** [progress]：给更新页看的步骤和整体进度。本机快照占前 30%，其余按要做的备份平分 */
+    suspend fun run(progress: (String, Float) -> Unit = { _, _ -> }) {
         val start = System.nanoTime()
+        progress("正在保存本机数据", 0.05f)
         try { snapshot(); log("backup_private ms=${elapsed(start)} result=ok") }
         catch (e: Exception) { log("backup_private ms=${elapsed(start)} failure=${reason(e)}"); throw e }
+        val local = backup.local.value.folder != null
+        val cloud = backup.state.value.account != null && backup.state.value.hasPassword
+        val total = listOf(local, cloud).count { it }
+        if (total == 0) { progress("备份完成", 1f); return }
+        val done = java.util.concurrent.atomic.AtomicInteger(0)
+        fun waiting() = listOfNotNull("本机文件夹".takeIf { local }, "坚果云".takeIf { cloud }).joinToString("和")
+        progress("正在备份到${waiting()}（最多 3 分钟）", 0.3f)
         // 两种现有备份均先触发，再一起等；总共最多三分钟，不叠加为六分钟。
         val completed = withTimeoutOrNull(3 * 60 * 1000L) {
             coroutineScope {
                 val jobs = mutableListOf<kotlinx.coroutines.Deferred<Unit>>()
-                if (backup.local.value.folder != null) jobs += async { optional(true) }
-                if (backup.state.value.account != null && backup.state.value.hasPassword) jobs += async { optional(false) }
+                fun finished(name: String) {
+                    val n = done.incrementAndGet()
+                    progress(if (n < total) "${name}已备份，还在备份另一处" else "备份完成", 0.3f + 0.7f * n / total)
+                }
+                if (local) jobs += async { optional(true); finished("本机文件夹") }
+                if (cloud) jobs += async { optional(false); finished("坚果云") }
                 jobs.awaitAll()
             }
             true

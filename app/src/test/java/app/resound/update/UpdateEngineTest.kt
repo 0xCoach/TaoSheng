@@ -161,7 +161,7 @@ internal class FakePlatform : UpdatePlatform {
     var backupFails = false
     val submitted = CompletableDeferred<Unit>()
     override fun verify(apk: File, manifest: UpdateManifest) {}
-    override suspend fun backup() { backups++; if (backupFails) error("snapshot_failed") }
+    override suspend fun backup(progress: (String, Float) -> Unit) { backups++; if (backupFails) error("snapshot_failed") }
     override fun install(apk: File, rememberSession: (Int) -> Unit) { rememberSession(51); installs++; submitted.complete(Unit) }
     override fun canInstall() = true
     override fun sessionExists(id: Int) = false

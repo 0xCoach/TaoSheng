@@ -19,7 +19,8 @@ internal interface UpdateStore {
 
 internal interface UpdatePlatform {
     fun verify(apk: File, manifest: UpdateManifest)
-    suspend fun backup()
+    /** [progress]：当前步骤文字和整体进度 0..1，给更新页显示 */
+    suspend fun backup(progress: (String, Float) -> Unit)
     fun install(apk: File, rememberSession: (Int) -> Unit)
     fun canInstall(): Boolean
     fun sessionExists(id: Int): Boolean
@@ -246,8 +247,8 @@ internal class UpdateEngine(
             try {
                 try { verifyReady(apkFile()) }
                 catch (e: Exception) { apkFile().delete(); store.save("ready" to null); throw e }
-                mutable.value = UpdateState.Installing(info(), true)
-                try { platform.backup() }
+                mutable.value = UpdateState.Installing(info(), true, "正在保存本机数据", 0f)
+                try { platform.backup { step, p -> mutable.value = UpdateState.Installing(info(), true, step, p) } }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { throw UpdateFailure("更新前备份没成功，没有安装", "backup_${reason(e)}") }
                 mutable.value = UpdateState.Installing(info(), false)

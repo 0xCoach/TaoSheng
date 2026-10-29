@@ -24,7 +24,7 @@ internal class AndroidUpdatePlatform(
         validateIdentity(archive.packageName, archive.longVersionCode, current.longVersionCode,
             manifest.versionCode, signers(archive), signers(current))
     }
-    override suspend fun backup() = backup.run()
+    override suspend fun backup(progress: (String, Float) -> Unit) = backup.run(progress)
     override fun canInstall() = manager.canRequestPackageInstalls()
     override fun sessionExists(id: Int): Boolean = manager.packageInstaller.getSessionInfo(id)?.let {
         // sealed 在 API 29 可用；未提交的会话不能让更新页永远停在“安装中”。

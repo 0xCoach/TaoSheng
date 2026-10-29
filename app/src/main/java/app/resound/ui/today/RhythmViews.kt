@@ -133,7 +133,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
         .collectAsState(initial = null)
     val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsState().value else emptyList()
-    val pending = if (pendingSegments > 0 && date == LocalDate.now()) " · 还有 $pendingSegments 段待转写" else ""
+    // 待转写的段数上面录音卡已经写了，这里不再重复
+    val pending = ""
     // 点标题收起成一行 / 展开；记住上次的选择
     val prefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
     var collapsed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("rhythmCollapsed", false)) }

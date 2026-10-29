@@ -69,6 +69,8 @@ class MainActivity : ComponentActivity() {
     fun consumePrivacyRequest() { _privacyRequest.value = null }
 
     private fun handleIntent(intent: Intent?) {
+        // 点“录音已导出”通知：打开那次导出的结果面板（试听、保存、分享）
+        intent?.getStringExtra(app.resound.transcribe.EXTRA_EXPORT_JOB)?.let { app.resound.ui.transcript.ExportUi.openJob = it }
         lifecycleScope.launch { receiveSharedAudio(intent) }
         if (intent?.getStringExtra("open") == "deleteRecent") {
             _privacyRequest.value = "deleteRecent"

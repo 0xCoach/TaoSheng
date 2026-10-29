@@ -101,6 +101,11 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
         }
         // 听原声的迷你播放条（浮在底栏上方）；切到后台就停，收音同时恢复
         app.resound.ui.transcript.PlayerBar(ShellBottomPadding + 8.dp)
+        // 后台导出的进度小胶囊（有播放条时让到它上面）；点开或点通知时打开导出面板
+        Box(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars)) {
+            app.resound.ui.transcript.ExportCapsule(ShellBottomPadding + 26.dp + if (app.resound.ui.transcript.LinePlayer.active) 76.dp else 0.dp)
+        }
+        app.resound.ui.transcript.ExportUi.openJob?.let { id -> app.resound.ui.transcript.ExportJobSheet(id) { app.resound.ui.transcript.ExportUi.openJob = null } }
         androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { app.resound.ui.transcript.LinePlayer.stop() }
     }
 }

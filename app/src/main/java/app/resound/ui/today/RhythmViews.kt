@@ -130,7 +130,8 @@ private fun quietHours(rules: List<QuietRule>, date: LocalDate): Map<Int, String
  */
 @Composable
 internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, date: LocalDate, pendingSegments: Int,
-                        onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit, onPeople: () -> Unit = {}) {
+                        onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit, onPeople: () -> Unit = {},
+                        meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {}) {
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
@@ -148,7 +149,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
             // 收起时标题这一行直接带上概要和一条迷你分布，一眼看完
             if (collapsed && r.speechMinutes >= 5) {
-                Text("  提到 ${r.people} 人 · 灵感 ${r.ideas} · 待办 ${r.withItems} · 重点 ${r.starred}", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
+                Text("  提到 ${r.people} 人 · 灵感 ${r.ideas} · 待办 ${r.withItems} · 会议 ${meetings.size}", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
                     maxLines = 1, modifier = Modifier.weight(1f))
                 MiniBars(r, Modifier.padding(end = 8.dp).size(width = 64.dp, height = 16.dp))
             } else Spacer(Modifier.weight(1f))
@@ -167,7 +168,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Stat("提到", r.people, "人", compare(r.people, base?.people), Modifier.weight(1f)) { if (r.people > 0) onPeople() }
             Stat("灵感", r.ideas, "条", null, Modifier.weight(1f)) { if (r.ideas > 0) onFilter(TimelineFilter.Ideas) }
             Stat("待办", r.withItems, "个", null, Modifier.weight(1f)) { if (r.withItems > 0) onFilter(TimelineFilter.HasItems) }
-            Stat("重点", r.starred, "件", null, Modifier.weight(1f)) { if (r.starred > 0) onFilter(TimelineFilter.Starred) }
+            // 会议按今天生成的会议纪要卡数：一张卡一场会，比按事件数准
+            Stat("会议", meetings.size, "场", null, Modifier.weight(1f)) { if (meetings.isNotEmpty()) onMeetings(meetings) }
         }
         Spacer(Modifier.height(12.dp))
         Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour) }

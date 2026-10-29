@@ -163,13 +163,16 @@ fun TodayScreen(
     val list = events.orEmpty()
     // 筛选：全部 / 重点 / 有待办 / 会议 / 媒体 / 提到的人；换一天回到全部。筛选时技能卡不显示
     var filter by remember(date) { mutableStateOf<TimelineFilter>(TimelineFilter.All) }
-    val filterOptions = remember(list, filter) { timelineFilters(list, filter) }
+    val filterOptions = remember(list, filter, cards) { timelineFilters(list, filter, cards.count { it.skillId == "meeting" }) }
     var peopleOpen by remember { mutableStateOf(false) }
+    var meetingList by remember { mutableStateOf<List<app.resound.skills.SkillCard>?>(null) }
     LaunchedEffect(filterOptions) { if (filterOptions.none { it.first == filter }) filter = TimelineFilter.All }
     val shownEvents = if (filter == TimelineFilter.All) list else list.filter(filter::matches)
     // 时间线按时段分组；技能卡（会议、收工打卡等）按时间插进对应时段，只占一行提示
     val newestFirst = list.size > 1 && list.first().startAt > list.last().startAt
-    val entries = (shownEvents.map { TimelineEntry.Event(it) } + if (filter == TimelineFilter.All) cards.map { TimelineEntry.Card(it) } else emptyList())
+    // 筛选时技能卡不显示；筛“会议”时把会议纪要卡一起显示
+    val shownCards = when (filter) { TimelineFilter.All -> cards; TimelineFilter.Meeting -> cards.filter { it.skillId == "meeting" }; else -> emptyList() }
+    val entries = (shownEvents.map { TimelineEntry.Event(it) } + shownCards.map { TimelineEntry.Card(it) })
         .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
     val groups = entries.groupBy { partOfDay(it.at) }.toList()
 
@@ -236,7 +239,9 @@ fun TodayScreen(
                     val gi = groups.indexOfFirst { it.first == part }
                     rhythmScope.launch { listState.animateScrollToItem(timelineIndex() + maxOf(gi, 0)) }
                 },
-                onOpen = { opened = it }, onPeople = { peopleOpen = true })
+                onOpen = { opened = it }, onPeople = { peopleOpen = true },
+                meetings = cards.filter { it.skillId == "meeting" },
+                onMeetings = { m -> if (m.size == 1) openedCard = m.first() else meetingList = m })
         }
         if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
         if (pending.isNotEmpty()) {
@@ -293,6 +298,7 @@ fun TodayScreen(
         upward = reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
     }
 
+    meetingList?.let { m -> MeetingsSheet(m, onOpen = { openedCard = it }) { meetingList = null } }
     if (peopleOpen) PeopleSheet(list, onPick = { name ->
         filter = TimelineFilter.Person(name); rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
     }) { peopleOpen = false }

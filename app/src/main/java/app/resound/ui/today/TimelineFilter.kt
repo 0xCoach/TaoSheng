@@ -49,9 +49,11 @@ internal sealed interface TimelineFilter {
 }
 
 /** 当天可用的筛选：数量为 0 的不出现（全部除外）；人名按出现次数取前 5 */
-internal fun timelineFilters(events: List<MemoryEvent>, selected: TimelineFilter = TimelineFilter.All): List<Pair<TimelineFilter, Int>> {
+internal fun timelineFilters(events: List<MemoryEvent>, selected: TimelineFilter = TimelineFilter.All, meetingCards: Int = 0): List<Pair<TimelineFilter, Int>> {
+    // “会议”有会议纪要卡时按场数计（和节奏卡一致），没有卡才按会议事件数
     val fixed = listOf(TimelineFilter.All, TimelineFilter.Starred, TimelineFilter.HasItems, TimelineFilter.Ideas, TimelineFilter.Meeting, TimelineFilter.Media)
-        .map { it to events.count(it::matches) }.filter { (f, n) -> f == TimelineFilter.All || n > 0 }
+        .map { f -> f to if (f == TimelineFilter.Meeting && meetingCards > 0) meetingCards else events.count(f::matches) }
+        .filter { (f, n) -> f == TimelineFilter.All || n > 0 }
     val people = events.filter { !it.isMedia() }.flatMap { it.people.distinct() }.filter { it.isNotBlank() && it != "我" }
         .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(5)
         .map { TimelineFilter.Person(it.key) to it.value }
@@ -116,6 +118,18 @@ private fun Chip(f: TimelineFilter, count: Int, on: Boolean, onClick: () -> Unit
         if (f != TimelineFilter.All) {
             Spacer(Modifier.width(4.dp))
             Text("$count", style = RsType.caption, color = if (on) Color.White.copy(alpha = 0.85f) else c.textTertiary)
+        }
+    }
+}
+
+/** 节奏卡“会议 N 场”点开的面板：今天每场会一行（时间、主题、一句话），点开看会议纪要卡 */
+@Composable
+internal fun MeetingsSheet(cards: List<app.resound.skills.SkillCard>, onOpen: (app.resound.skills.SkillCard) -> Unit, onDismiss: () -> Unit) {
+    app.resound.ui.verify.RsSheet("今天的会议", "${cards.size} 场 · 点开看会议纪要", onDismiss = onDismiss) {
+        androidx.compose.foundation.layout.Column {
+            cards.sortedBy { it.at }.forEach { card ->
+                app.resound.ui.skills.SkillCardRow(card, Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).springClick { onOpen(card); onDismiss() })
+            }
         }
     }
 }

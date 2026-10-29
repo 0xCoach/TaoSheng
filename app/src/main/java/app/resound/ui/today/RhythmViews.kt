@@ -171,18 +171,16 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
     }
 }
 
-/** 一格数字：数字大、单位小一号灰色，底部对齐；为 0 写“没有”并整格变灰，四列始终对齐 */
+/** 一格数字：数字大、单位小一号灰色，底部对齐；为 0 时数字变浅灰，格式不变 */
 @Composable
 private fun Stat(label: String, count: Int, unit: String, delta: String?, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     // 不裁圆角：圆角会切掉“提”字左下那一点这类贴边的笔画
     Column(modifier.padding(end = 6.dp).springClick(onClick)) {
         Text(androidx.compose.ui.text.buildAnnotatedString {
-            if (count == 0) withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.subhead.fontSize)) { append("没有") }
-            else {
-                withStyle(androidx.compose.ui.text.SpanStyle(color = c.text, fontWeight = FontWeight.SemiBold)) { append("$count") }
-                withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, fontWeight = FontWeight.Normal)) { append(" $unit") }
-            }
+            // 为 0 时格式不变（同样大小的数字 + 单位），只把数字调成浅灰，四格看起来是同一套
+            withStyle(androidx.compose.ui.text.SpanStyle(color = if (count == 0) c.textTertiary.copy(alpha = 0.6f) else c.text, fontWeight = FontWeight.SemiBold)) { append("$count") }
+            withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, fontWeight = FontWeight.Normal)) { append(" $unit") }
         }, style = RsType.title, maxLines = 1, modifier = Modifier.height(30.dp).wrapContentHeight(Alignment.Bottom))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = RsType.caption, color = c.textTertiary, maxLines = 1)

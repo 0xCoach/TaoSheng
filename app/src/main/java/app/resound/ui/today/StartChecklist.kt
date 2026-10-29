@@ -66,7 +66,8 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
     val speakerWork by remember { work(LocalModels.SPEAKERS_WORK) }.collectAsState(null)
     val asrDownloading = asrWork != null || asrCpuWork != null
     // 后台设置项每次回到页面都重查（用户可能刚从系统设置回来）
-    var setupDone by remember { mutableStateOf(false) }
+    // 一出现就先查一次，不等页面恢复事件：避免打开 App 的第一帧把这一项当成没做完
+    var setupDone by remember { mutableStateOf(AppGraph.isReady && runCatching { AppGraph.setup.items().all { it.done == true } }.getOrDefault(false)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         setupDone = AppGraph.isReady && AppGraph.setup.items().all { it.done == true }
     }
@@ -111,7 +112,11 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
         Step("后台不被关掉", "按清单关掉电池优化等，保证全天收音", setupDone, SettingsPage.Capture),
     )
     val doneCount = steps.count { it.done }
-    if (doneCount == steps.size) return
+    // 全部完成过一次就永久记住：以后打开 App 不再闪出清单（启动瞬间各项状态还没读到会被当成没完成）
+    if (doneCount == steps.size) {
+        LaunchedEffect(Unit) { prefs.edit().putBoolean(DISMISSED, true).apply(); dismissed = true }
+        return
+    }
     // 和上面的标题放在同一格里：清单不显示时不留空，显示时自己留出间距
     Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 8.dp)) {

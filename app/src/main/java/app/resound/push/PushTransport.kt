@@ -50,13 +50,21 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
     private val notion = NotionPush(http)
     private val folder = MarkdownFolderPush(http)
     internal fun syncFolder(values: Map<String, String>, state: PushSyncState, files: Map<String, String>, category: Boolean, now: Long, limit: Int = 20): SyncBatch {
-        PushFields.validate(PushKind.MarkdownFolder, values)
-        return FolderSync(FolderRemote(values, http), state).run(files, category, now, limit)
+        return classified(values) {
+            PushFields.validate(PushKind.MarkdownFolder, values)
+            FolderSync(FolderRemote(values, http), state).run(files, category, now, limit)
+        }
     }
     internal fun deleteNotionDay(values: Map<String, String>, date: String) {
-        notion.send(values, PushFormat.Markdown, PushMessage("", "", PushTopic.DailyMemory, null, now(),
-            memory = JSONObject().put("date", date).put("markdown", "")), archiveOnly = true)
+        classified(values) {
+            notion.send(values, PushFormat.Markdown, PushMessage("", "", PushTopic.DailyMemory, null, now(),
+                memory = JSONObject().put("date", date).put("markdown", "")), archiveOnly = true)
+        }
     }
+    private fun <T> classified(values: Map<String, String>, block: () -> T): T = try { block() }
+    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+    catch (e: Exception) { throw PushErrors.failure(e, values) }
+
     internal fun request(kind: PushKind, format: PushFormat, values: Map<String, String>, message: PushMessage): Request {
         PushFields.validate(kind, values)
         val builder = Request.Builder()
@@ -158,24 +166,22 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
                 PushKind.Notion -> notion.send(values, format, message)
                 PushKind.MarkdownFolder -> folder.send(values, format, message)
                 else -> {
-                    val response = http.execute(request(kind, format, values, message), readBody = kind != PushKind.Webhook)
+                    val response = http.context(kind, values).execute(request(kind, format, values, message), readBody = kind != PushKind.Webhook)
                     if (kind != PushKind.Webhook) {
                         val json = response.json()
                         if (kind == PushKind.Telegram) {
-                            if (json.opt("ok") != true) throw PushFailure("推送服务拒绝消息，请检查密钥、额度和通道配置")
+                            if (json.opt("ok") != true) throw PushFailure(PushErrors.refused(kind, json, values))
                         } else {
                             val field = if (kind in setOf(PushKind.WeCom, PushKind.DingTalk)) "errcode" else "code"
                             val expected = if (kind == PushKind.PushPlus) 200.0 else 0.0
-                            if (json.opt(field) !is Number || json.getDouble(field) != expected) throw PushFailure("推送服务拒绝消息，请检查密钥、额度和通道配置")
+                            if (json.opt(field) !is Number || json.getDouble(field) != expected) throw PushFailure(PushErrors.refused(kind, json, values))
                         }
                     }
                 }
             }
             Result.success(Unit)
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: PushFailure) { Result.failure(e) }
-        catch (_: IOException) { Result.failure(PushFailure("网络连接失败或超时，请稍后再试")) }
-        catch (_: Exception) { Result.failure(PushFailure("推送失败，请检查通道配置")) }
+        catch (e: Exception) { Result.failure(PushErrors.failure(e, values)) }
     }
     companion object {
         internal fun feishuSign(timestamp: Long, secret: String) = Base64.getEncoder().encodeToString(hmac("$timestamp\n$secret", ""))
@@ -203,18 +209,27 @@ internal fun truncate(text: String, limit: Int): String {
     return text.take(end) + suffix
 }
 internal data class PushResponse(val code: Int, val text: String, val etag: String?) {
-    fun json(): JSONObject = try { JSONObject(text) } catch (_: Exception) { throw PushFailure("推送服务返回格式异常") }
+    fun json(): JSONObject = try { JSONObject(text) } catch (_: Exception) { throw PushFailure(PushErrors.INVALID_RESPONSE) }
 }
-internal class PushHttp(client: OkHttpClient) {
+internal class PushHttp(client: OkHttpClient, private val kind: PushKind? = null,
+    private val values: Map<String, String> = emptyMap()) {
+    fun context(kind: PushKind, values: Map<String, String>) = PushHttp(client, kind, values)
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .callTimeout(10, TimeUnit.SECONDS).connectTimeout(10, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).writeTimeout(10, TimeUnit.SECONDS).build()
-    fun execute(request: Request, allowed: Set<Int> = emptySet(), readBody: Boolean = true): PushResponse = client.newCall(request).execute().use { response ->
-        if (!response.isSuccessful && response.code !in allowed) throw PushFailure(when (response.code) {
-            401, 403 -> "认证失败，请检查密钥和权限"
-            429 -> "发送过于频繁，请稍后再试"
-            in 300..399 -> "服务要求跳转，已停止发送，请检查配置"
-            else -> "推送服务暂时不可用，请稍后再试"
-        })
+    fun execute(request: Request, allowed: Set<Int> = emptySet(), readBody: Boolean = true): PushResponse = try {
+        executeRaw(request, allowed, readBody)
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+    catch (e: Exception) { throw PushErrors.failure(e, values, request.url.toString()) }
+
+    private fun executeRaw(request: Request, allowed: Set<Int>, readBody: Boolean): PushResponse = client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful && response.code !in allowed) {
+            val conclusion = PushErrors.status(response.code, kind == PushKind.MarkdownFolder)
+            // 非成功响应也可能包含服务原因；只读有限字节，绝不回显原响应。
+            val json = runCatching { JSONObject(response.peekBody(65536).string()) }.getOrNull()
+            val reason = if (kind != null && kind !in setOf(PushKind.Webhook, PushKind.MarkdownFolder) && json != null)
+                PushErrors.refused(kind, json, values) else null
+            throw PushFailure(conclusion + (reason?.let { "；$it" } ?: ""))
+        }
         val body = if (readBody) response.body else null
         val text = if (body == null) "" else {
             if (body.contentLength() > 65536) throw PushFailure("推送服务响应过大")

@@ -44,19 +44,19 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
                     val line = StringBuilder()
                     while (true) {
                         val c = reader.read()
-                        if (c < 0) throw PushFailure("网络连接失败或超时，请稍后再试")
+                        if (c < 0) throw PushFailure("邮件连接已断开：检查网络和 SMTP 服务后重试")
                         if (++consumed >= 65536) throw PushFailure("推送服务响应过大")
                         if (c == 10) break
                         if (c != 13) line.append(c.toChar())
                     }
                     val text = line.toString()
-                    val code = text.take(3).toIntOrNull() ?: throw PushFailure("推送服务返回格式异常")
+                    val code = text.take(3).toIntOrNull() ?: throw PushFailure(PushErrors.INVALID_RESPONSE)
                     if (first == null) first = text.take(3)
-                    if (text.take(3) != first || text.length < 4 || text[3] !in " -") throw PushFailure("推送服务返回格式异常")
+                    if (text.take(3) != first || text.length < 4 || text[3] !in " -") throw PushFailure(PushErrors.INVALID_RESPONSE)
                     if (code != expected) throw PushFailure(when (code) {
-                        530, 534, 535, 538 -> "认证失败，请检查密钥和权限"
-                        421, 450, 451, 452 -> "发送过于频繁，请稍后再试"
-                        else -> "推送服务拒绝消息，请检查密钥、额度和通道配置"
+                        530, 534, 535, 538 -> "邮件认证失败（$code）：检查账号、授权码或 SMTP 权限"
+                        421, 450, 451, 452 -> "邮件服务暂时无法接收（$code）：稍后再试，或检查当天额度"
+                        else -> PushErrors.refused(PushKind.Email, org.json.JSONObject().put("message", text.drop(4)), values)
                     })
                     if (text[3] == ' ') return
                 }
@@ -82,6 +82,9 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
             writer.write("\r\n.\r\n"); writer.flush(); reply(250)
             // DATA 的 250 即已接收；QUIT 失败不能把已发送邮件变为失败并重复投递。
             runCatching { writer.write("QUIT\r\n"); writer.flush() }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) {
+            throw PushErrors.failure(if (deadline.isDone) java.net.SocketTimeoutException() else e, values)
         } finally { deadline.cancel(false); runCatching { socket.get()?.close() } }
     }
     companion object {

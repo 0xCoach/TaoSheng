@@ -118,7 +118,8 @@ class AndroidPushChannels internal constructor(
         return PushChannel(row.getLong("id"), kind, row.getString("name"), row.getBoolean("enabled"),
             row.getJSONArray("topics").let { a -> List(a.length()) { PushTopic.valueOf(a.getString(it)) }.toSet() },
             PushFormat.valueOf(row.getString("format")), summary, row.optBoolean("memoryWithLines", false),
-            Subscriptions.read(row.getJSONObject("subscription")), row.optBoolean("useLinkedNutstore"))
+            Subscriptions.read(row.getJSONObject("subscription")), row.optBoolean("useLinkedNutstore"),
+            plainValues = fields(kind).filter { !it.secret }.associate { it.key to row.getJSONObject("values").optString(it.key) }.filterValues { it.isNotEmpty() })
     }
     private fun values(row: JSONObject): Map<String, String> {
         val kind = PushKind.valueOf(row.getString("kind"))

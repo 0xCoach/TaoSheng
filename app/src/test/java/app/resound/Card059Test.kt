@@ -39,16 +39,16 @@ class Card059Test {
     }
 
     @Test fun sameDay() {
-        assertEquals("10月29日 周四 14:05–14:32", time.event(at("2026-10-29T14:05"), at("2026-10-29T14:32")))
-        assertEquals("10月29日 14:05", time.moment(at("2026-10-29T14:05")))
+        assertEquals("2026-10-29 周四 14:05–14:32", time.event(at("2026-10-29T14:05"), at("2026-10-29T14:32")))
+        assertEquals("2026-10-29 14:05", time.moment(at("2026-10-29T14:05")))
     }
 
     @Test fun acrossDays() {
-        assertEquals("10月29日 周四 23:50–10月30日 周五 00:20", time.event(at("2026-10-29T23:50"), at("2026-10-30T00:20")))
+        assertEquals("2026-10-29 周四 23:50–2026-10-30 周五 00:20", time.event(at("2026-10-29T23:50"), at("2026-10-30T00:20")))
     }
 
     @Test fun acrossYears() {
-        assertEquals("2025年12月31日 周三 23:50–1月1日 周四 00:20", time.event(at("2025-12-31T23:50"), at("2026-01-01T00:20")))
-        assertEquals("2025年10月29日 14:05", time.moment(at("2025-10-29T14:05")))
+        assertEquals("2025-12-31 周三 23:50–2026-01-01 周四 00:20", time.event(at("2025-12-31T23:50"), at("2026-01-01T00:20")))
+        assertEquals("2025-10-29 14:05", time.moment(at("2025-10-29T14:05")))
     }
 }

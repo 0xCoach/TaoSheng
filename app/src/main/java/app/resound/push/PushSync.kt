@@ -41,7 +41,8 @@ internal class PushSyncState(private val file: File) {
     }
 }
 
-internal class FolderRemote(private val values: Map<String, String>, private val http: PushHttp) {
+internal class FolderRemote(private val values: Map<String, String>, http: PushHttp) {
+    private val http = http.context(PushKind.MarkdownFolder, values)
     private val root = PushFields.default(values, "url", "https://dav.jianguoyun.com/dav/").toHttpUrl()
     private val folder = values.getValue("folder").split('/')
     private val directories = mutableSetOf<String>()

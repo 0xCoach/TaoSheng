@@ -42,6 +42,8 @@ data class PushChannel(
     val subscription: PushSubscription = PushSubscription(),
     /** 坚果云同步文件夹：用数据备份里已连接的坚果云账号（不用另填账号密码） */
     val useLinkedNutstore: Boolean = false,
+    /** 已保存的非密钥配置（地址、Chat ID、文件夹等），编辑时原样填回，改格式不用重填；密钥不在这里 */
+    val plainValues: Map<String, String> = emptyMap(),
 )
 
 // ---------- 推送订阅（卡 042）：每个通道单独设置 推什么 / 什么时候推 / 增量还是全量 / 推成什么样 ----------

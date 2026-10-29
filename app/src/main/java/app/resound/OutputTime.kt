@@ -6,14 +6,13 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** 文件、导出与推送共用；当前年份按展示时区计算。 */
+/** 文件、导出与推送共用；长期保存的时间始终包含年份。 */
 internal class OutputTime(
     private val zone: ZoneId = ZoneId.systemDefault(),
-    private val today: LocalDate = LocalDate.now(zone),
+    @Suppress("UNUSED_PARAMETER") today: LocalDate = LocalDate.now(zone),
 ) {
     private val clock = DateTimeFormatter.ofPattern("HH:mm", Locale.CHINA)
-    private fun date(day: LocalDate) =
-        (if (day.year == today.year) "" else "${day.year}年") + "${day.monthValue}月${day.dayOfMonth}日"
+    private fun date(day: LocalDate) = day.format(DateTimeFormatter.ISO_LOCAL_DATE)
     private fun eventAt(at: Long): String {
         val t = Instant.ofEpochMilli(at).atZone(zone)
         return "${date(t.toLocalDate())} 周${"一二三四五六日"[t.dayOfWeek.value - 1]} ${t.format(clock)}"

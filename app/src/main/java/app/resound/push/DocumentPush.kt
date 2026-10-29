@@ -14,20 +14,21 @@ internal class NotionPush(private val http: PushHttp) {
     // 按数据库和 token 隔离，避免更换账号后用到另一数据库的属性名。
     private val titles = java.util.concurrent.ConcurrentHashMap<String, String>()
     @Synchronized fun send(values: Map<String, String>, format: PushFormat, message: PushMessage, archiveOnly: Boolean = false) {
+        val http = http.context(PushKind.Notion, values)
         val database = PushFields.databaseId(values.getValue("databaseId"))
         fun call(path: String, method: String = "GET", json: JSONObject? = null): JSONObject {
             val request = Request.Builder().url("https://api.notion.com/v1/$path")
                 .header("Authorization", "Bearer ${values.getValue("token")}").header("Notion-Version", "2022-06-28")
                 .method(method, json?.body()).build()
             val response = http.execute(request)
-            if (response.code != 200) throw PushFailure("推送服务返回格式异常")
+            if (response.code != 200) throw PushFailure(PushErrors.INVALID_RESPONSE)
             return response.json()
         }
         val key = database + ":" + java.security.MessageDigest.getInstance("SHA-256").digest(values.getValue("token").toByteArray()).joinToString("") { "%02x".format(it) }
         val property = titles[key] ?: run {
             val properties = call("databases/$database").getJSONObject("properties")
             properties.keys().asSequence().firstOrNull { properties.getJSONObject(it).optString("type") == "title" }
-                ?.also { titles[key] = it } ?: throw PushFailure("推送服务返回格式异常")
+                ?.also { titles[key] = it } ?: throw PushFailure(PushErrors.INVALID_RESPONSE)
         }
         val daily = message.memory
         val title = if (daily == null) truncate(message.title, 2000) else "${daily.getString("date")} 的记忆文档"
@@ -41,7 +42,7 @@ internal class NotionPush(private val http: PushHttp) {
                 val rows = result.getJSONArray("results")
                 repeat(rows.length()) { oldPages += rows.getJSONObject(it).getString("id") }
                 val next = if (result.optBoolean("has_more")) result.optString("next_cursor").takeIf { it.isNotBlank() && it != "null" } else null
-                if (result.optBoolean("has_more") && (next == null || next == cursor)) throw PushFailure("推送服务返回格式异常")
+                if (result.optBoolean("has_more") && (next == null || next == cursor)) throw PushFailure(PushErrors.INVALID_RESPONSE)
                 cursor = next
             } while (cursor != null)
             oldPages.forEach { call("pages/$it", "PATCH", JSONObject().put("archived", true)) }
@@ -84,6 +85,7 @@ internal class NotionPush(private val http: PushHttp) {
 internal class MarkdownFolderPush(private val http: PushHttp) {
     /** 同一进程内串行读改写；外部客户端并发由 ETag/If-Match 防止覆盖。 */
     @Synchronized fun send(values: Map<String, String>, format: PushFormat, message: PushMessage) {
+        val http = http.context(PushKind.MarkdownFolder, values)
         val daily = message.memory
         val time = Instant.ofEpochMilli(message.at).atZone(ZoneId.systemDefault())
         val date = daily?.getString("date") ?: time.toLocalDate().toString()

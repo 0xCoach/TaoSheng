@@ -145,7 +145,7 @@ private fun LogRow(log: PushLog) {
             Text(log.title, style = RsType.subhead, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 listOfNotNull(log.channelName, log.topic?.title, if (log.ok) "已送达" else (log.error ?: "没发出去")).joinToString(" · "),
-                style = RsType.caption, color = if (log.ok) c.textTertiary else c.critical, maxLines = 2,
+                style = RsType.caption, color = if (log.ok) c.textTertiary else c.critical, maxLines = 3,
             )
         }
         Text(app.resound.ui.verify.formatStamp(log.at), style = RsType.caption, color = c.textTertiary)
@@ -159,7 +159,8 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
     val scope = rememberCoroutineScope()
     var kind by remember { mutableStateOf(ch?.kind ?: PushKind.PushPlus) }
     var name by remember { mutableStateOf(ch?.name ?: shortName(PushKind.PushPlus)) }
-    val values = remember { mutableStateMapOf<String, String>() }
+    // 编辑时把已保存的地址等非密钥项填回来；密钥仍显示“已保存，留空表示不改”
+    val values = remember { mutableStateMapOf<String, String>().apply { ch?.plainValues?.let { putAll(it) } } }
     var topics by remember { mutableStateOf(ch?.topics ?: setOf(PushTopic.DailyReview)) }
     var format by remember { mutableStateOf(ch?.format ?: PushFormat.Markdown) }
     var sub by remember { mutableStateOf(ch?.subscription ?: PushSubscription.PhoneNotice) }

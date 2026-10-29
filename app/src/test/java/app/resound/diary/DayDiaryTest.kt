@@ -73,12 +73,11 @@ class DayDiaryTest {
             "和客户聊会议室", "讨论会议室方案", "[]", "[]", null, null, null, false, false, at(), "test")
         val files = app.resound.push.MemoryFolder(date).generate(
             app.resound.push.PushSnapshot(events = listOf(row), lines = listOf(line)), app.resound.push.PushSubscription.FullArchive)
-        assertTrue(files.getValue(app.resound.push.MemoryFolder.dailyPath(date)).contains("### E1 · 10月23日 周五 14:05–14:40"))
-        assertTrue(files.getValue(app.resound.push.MemoryFolder.transcriptPath(date)).contains("### L1 · 10月23日 14:05 · 我"))
-        val year = if (LocalDate.now().year == date.year) "" else "${date.year}年"
+        assertTrue(files.getValue(app.resound.push.MemoryFolder.dailyPath(date)).contains("### E1 · 2026-10-23 周五 14:05–14:40"))
+        assertTrue(files.getValue(app.resound.push.MemoryFolder.transcriptPath(date)).contains("### L1 · 2026-10-23 14:05 · 我"))
         val exported = diary.markdown(date, date, true)
-        assertTrue(exported.contains("**${year}10月23日 14:05 我**：先确认需求"))
-        assertTrue(exported.contains("### ${year}10月23日 周五 14:05–14:40"))
+        assertTrue(exported.contains("**2026-10-23 14:05 我**：先确认需求"))
+        assertTrue(exported.contains("### 2026-10-23 周五 14:05–14:40"))
         File("build/outputs/card059/导出样例.md").apply { parentFile!!.mkdirs(); writeText(exported) }
         File("build/outputs/card059/文件夹时间线样例.md").writeText(files.getValue(app.resound.push.MemoryFolder.dailyPath(date)))
     }
@@ -203,7 +202,6 @@ class DayDiaryTest {
         db.transcribe().insertLines(listOf(TranscriptLineEntity(1, 1, at(hour = 14, minute = 6), at(hour = 14, minute = 7), "周三发报价", null),
             TranscriptLineEntity(2, 1, at(hour = 14, minute = 5), at(hour = 14, minute = 6), "先确认需求", null, "我"),
             TranscriptLineEntity(3, 2, at(hour = 14), at(hour = 14, minute = 1), "不能导出的未完成转写", null)))
-        val year = if (LocalDate.now().year == date.year) "" else "${date.year}年"
         val expected = """
             # 10月23日 星期五
 
@@ -213,7 +211,7 @@ class DayDiaryTest {
             - 报价已发送
 
             ## 时间线
-            ### ${year}10月23日 周五 14:05–14:40 和客户聊会议室（会议）
+            ### 2026-10-23 周五 14:05–14:40 和客户聊会议室（会议）
             讨论会议室方案
             - 确认设备
             - 周三报价
@@ -221,12 +219,12 @@ class DayDiaryTest {
 
             ## 待办
             **当天提到**
-            - [x] 发送报价（截止 ${year}10月23日 16:00 · 对方：张三）
+            - [x] 发送报价（截止 2026-10-23 16:00 · 对方：张三）
             - [ ] 准备演示
             **当天到期**
-            - [x] 发送报价（截止 ${year}10月23日 16:00 · 对方：张三）
+            - [x] 发送报价（截止 2026-10-23 16:00 · 对方：张三）
             **当天完成**
-            - [x] 发送报价（截止 ${year}10月23日 16:00 · 对方：张三）
+            - [x] 发送报价（截止 2026-10-23 16:00 · 对方：张三）
 
             ## 灵感
             - 把报价做成模板
@@ -242,7 +240,7 @@ class DayDiaryTest {
         """.trimIndent()
         val markdown = diary.markdown(date.minusDays(1), date.plusDays(1), false)
         assertEquals(expected, markdown)
-        assertEquals(expected + "\n\n## 原话\n**${year}10月23日 14:05 我**：先确认需求\n**${year}10月23日 14:06 某人**：周三发报价", diary.markdown(date, date, true))
+        assertEquals(expected + "\n\n## 原话\n**2026-10-23 14:05 我**：先确认需求\n**2026-10-23 14:06 某人**：周三发报价", diary.markdown(date, date, true))
         assertEquals("", diary.markdown(date.plusDays(1), date.plusDays(2), true))
         // 保留真实输出，交付说明引用这份测试生成的样例。
         File("build/outputs/diary/回响日记_2026-10-23.md").apply { parentFile!!.mkdirs(); writeText(markdown) }
@@ -263,7 +261,7 @@ class DayDiaryTest {
             "合成聊天", "synthetic.chat", "老王", "合成之前上下文", "合成之后回复")).toString()
         db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET voiceInputJson=? WHERE id=2", arrayOf(meta))
         val full = diary.markdownWithContext(date, date, true, true)
-        assertTrue(full.contains("**${year}10月23日 14:05 我**：先确认需求"))
+        assertTrue(full.contains("**2026-10-23 14:05 我**：先确认需求"))
         assertTrue(full.contains("> 合成之前上下文")); assertTrue(full.contains("> 合成之后回复"))
         val without = diary.markdownWithContext(date, date, true, false)
         assertTrue(without.contains("⌨ 语音输入 · 合成聊天 · 老王"))

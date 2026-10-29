@@ -90,7 +90,11 @@ internal object PushFields {
         if (n.size != 4 || n.any { it !in 0..255 }) return false
         return n[0] == 10 || (n[0] == 192 && n[1] == 168) || (n[0] == 172 && n[1] in 16..31) || (n[0] == 100 && n[1] in 64..127)
     }
-    private fun url(value: String): HttpUrl = value.toHttpUrlOrNull()?.takeIf { it.username.isEmpty() && it.password.isEmpty() && it.fragment == null }
-        ?: throw PushFailure("请填写有效地址，不能含账号、密码或片段")
+    private fun url(value: String): HttpUrl {
+        val parsed = value.toHttpUrlOrNull() ?: throw PushFailure(PushErrors.INVALID_URL)
+        if (parsed.username.isNotEmpty() || parsed.password.isNotEmpty() || parsed.fragment != null)
+            throw PushFailure("请填写有效地址，不能含账号、密码或片段")
+        return parsed
+    }
     private fun https(value: String): HttpUrl = url(value).also { if (!it.isHttps) throw PushFailure("请填写有效的 HTTPS 地址") }
 }

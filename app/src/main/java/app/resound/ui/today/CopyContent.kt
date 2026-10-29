@@ -44,12 +44,15 @@ private fun day(at: Long): LocalDate = Instant.ofEpochMilli(at).atZone(ZoneId.sy
 private val MONTH_DAY = DateTimeFormatter.ofPattern("M月d日", Locale.CHINA)
 private val WEEKDAY = DateTimeFormatter.ofPattern("EEE", Locale.CHINA)
 
-/** “10月29日 周三” */
-internal fun fullDate(d: LocalDate): String = "${d.format(MONTH_DAY)} ${d.format(WEEKDAY)}"
+/** 复制出去的内容要长期可读：“2026-10-29 周四”，与记忆文件一致 */
+internal fun fullDate(d: LocalDate): String = "$d ${d.format(WEEKDAY)}"
 
-/** 详情页顶部：今天/昨天/前天，否则“10月27日 周一” */
+/** 详情页顶部：今天/昨天/前天，否则“10月27日 周一”，不是今年再加年份 */
 internal fun relativeDate(at: Long): String = day(at).let { d ->
-    when (ChronoUnit.DAYS.between(d, LocalDate.now())) { 0L -> "今天"; 1L -> "昨天"; 2L -> "前天"; else -> fullDate(d) }
+    when (ChronoUnit.DAYS.between(d, LocalDate.now())) {
+        0L -> "今天"; 1L -> "昨天"; 2L -> "前天"
+        else -> (if (d.year == LocalDate.now().year) "" else "${d.year}年") + "${d.format(MONTH_DAY)} ${d.format(WEEKDAY)}"
+    }
 }
 
 /** 一件事的复制文本：标题、完整日期时间，再按 [mode] 接要点和/或原话；原话跨过午夜时在换天那句前标出日期 */

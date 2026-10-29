@@ -126,11 +126,11 @@ class LocalEnvSoundRepository(
             val reader = AsrAudioReader(context.cacheDir)
             // 单独的后台低优先级线程；调用者等待结束才启动 ASR，不抢本地转写 CPU。
             val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "env-sound") }.asCoroutineDispatcher()
+            val record: (String) -> Unit = { PipelineTimes.record(context, "${System.currentTimeMillis()} $it") }
+            val analysis = EnvSoundAnalysis(reader::readPcm, { model.infer(it, record) }, me,
+                phase = { app.resound.PipelineProgress.detail(it) }, log = record)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
-                { file ->
-                    val pcm = reader.readPcm(file)
-                    withContext(dispatcher) { val scores = model.infer(pcm); scores to me(pcm) }
-                },schedule,{ PipelineTimes.record(context,"${System.currentTimeMillis()} $it") }).also { repo ->
+                { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record).also { repo ->
                 scope.launch { model.checkReady(); if(repo.settings.value.enabled) repo.downloadModel() }
             }
         }

@@ -108,7 +108,14 @@ data class MemoryEvent(
     val starred: Boolean = false,
     /** 标重点的时间 */
     val starredAt: Long? = null,
+    /** 卡 062：用户手动编辑过（标题/摘要/要点）的时间；没编辑为 null */
+    val editedAt: Long? = null,
+    /** 卡 062：编辑前整理出的原样；没编辑为 null。用于“已编辑”查看和恢复原样 */
+    val original: EventOriginal? = null,
 )
+
+/** 卡 062：事件整理时的原样 */
+data class EventOriginal(val title: String, val summary: String, val points: List<String>)
 
 data class DigestState(
     /** 已转写、还没整理的句子数 */
@@ -168,6 +175,12 @@ interface MemoryRepository {
     fun unmerge(itemId: Long) {}
 
     fun deleteEvent(eventId: Long)
+
+    /** 卡 062：手动编辑事件的标题、摘要、要点。第一次编辑时保存原样；搜索、问问、记忆文件、推送随之更新。整理不会覆盖编辑过的事件 */
+    fun editEvent(eventId: Long, title: String, summary: String, points: List<String>) {}
+
+    /** 卡 062：恢复成整理时的原样，清掉 editedAt */
+    fun restoreEvent(eventId: Long) {}
 
     // ---- 卡 046：待办改造 ----
 

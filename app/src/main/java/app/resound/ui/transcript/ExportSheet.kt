@@ -275,17 +275,13 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
         // 一行控制：−15 · 播放/暂停 · +15 居中，倍速胶囊靠右
         androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
-                Text("−15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
-                    modifier = Modifier.clip(CircleShape).springClick { seek(pos - 15_000) }.padding(10.dp))
-                Spacer(Modifier.width(10.dp))
-                androidx.compose.foundation.layout.Box(Modifier.size(46.dp).clip(CircleShape).background(c.accent).springClick {
+                SkipCircle(back = true) { seek(pos - 15_000) }
+                Spacer(Modifier.width(18.dp))
+                PlayCircle(50.dp, playing) {
                     if (playing) { player.pause(); playing = false; hold(false) } else { hold(true); player.start(); playing = true; applySpeed() }
-                }, contentAlignment = Alignment.Center) {
-                    Text(if (playing) "❚❚" else "▶", style = RsType.headline, color = androidx.compose.ui.graphics.Color.White)
                 }
-                Spacer(Modifier.width(10.dp))
-                Text("+15", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.textSecondary,
-                    modifier = Modifier.clip(CircleShape).springClick { seek(pos + 15_000) }.padding(10.dp))
+                Spacer(Modifier.width(18.dp))
+                SkipCircle(back = false) { seek(pos + 15_000) }
             }
             Text(if (speed == 1f) "1×" else "${speed.toString().trimEnd('0').trimEnd('.')}×", style = RsType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
                 color = c.accent, modifier = Modifier.align(Alignment.CenterEnd).clip(CircleShape).background(c.accentSoft).springClick {

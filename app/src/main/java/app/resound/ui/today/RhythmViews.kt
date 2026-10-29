@@ -14,11 +14,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,18 +90,6 @@ internal fun dayRhythm(events: List<MemoryEvent>, lines: List<TranscriptLine>): 
     )
 }
 
-/** 分布条显示的小时范围：从最早有声音的前一小时到最晚的后一小时（看今天时到现在），最少 8 小时 */
-internal fun hourRange(r: DayRhythm, date: LocalDate): IntRange {
-    val active = (0..23).filter { r.speechByHour[it] > 0 || r.mediaByHour[it] > 0 }
-    if (active.isEmpty()) return 8..19
-    var start = (active.min() - 1).coerceAtLeast(0)
-    var end = (active.max() + 1).coerceAtMost(23)
-    // 看今天时不画到未来：最多到现在这个小时
-    if (date == LocalDate.now()) end = maxOf(active.max(), minOf(end, java.time.LocalTime.now().hour))
-    while (end - start + 1 < 8) { if (end < 23) end++ else if (start > 0) start-- else break }
-    return start..end
-}
-
 /** “比平时多 30%”：至少 3 天记录才有平时；差别不到 15% 不显示 */
 private fun compare(today: Int, usual: Int?): String? {
     if (usual == null || usual <= 0) return null
@@ -128,10 +122,10 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
     val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsState().value else emptyList()
     val pending = if (pendingSegments > 0 && date == LocalDate.now()) " · 还有 $pendingSegments 段待转写" else ""
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Text("今日节奏", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
+        Text("今日节奏" + pending, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
         if (r.speechMinutes < 5) {
             Spacer(Modifier.height(6.dp))
-            Text("今天说话 ${r.speechMinutes} 分钟 · ${r.events} 件事$pending", style = RsType.subhead, color = c.textSecondary)
+            Text("今天说话 ${r.speechMinutes} 分钟 · ${r.events} 件事", style = RsType.subhead, color = c.textSecondary)
             return@RsCard
         }
         Spacer(Modifier.height(8.dp))
@@ -142,42 +136,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Stat("开会", if (r.meetings == 0) "没有" else "${r.meetings} 次", null, Modifier.weight(1f)) { if (r.meetings > 0) onFilter(TimelineFilter.Meeting) }
         }
         Spacer(Modifier.height(12.dp))
-        // 分布条：只画有声音的时段；说话主色、媒体灰色叠在上面；停录时段浅底标名字；点柱子跳到那个小时
-        val range = hourRange(r, date)
-        val quiet = remember(rules, date) { quietHours(rules, date) }
-        val totals = range.map { r.speechByHour[it] + r.mediaByHour[it] }
-        val max = (totals.maxOrNull() ?: 1).coerceAtLeast(1)
-        val peak = range.maxByOrNull { r.speechByHour[it] } ?: range.first
-        Row(Modifier.fillMaxWidth().height(36.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
-            range.forEach { h ->
-                val speech = r.speechByHour[h]; val mediaS = r.mediaByHour[h]; val total = speech + mediaS
-                Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(3.dp))
-                    .background(if (h in quiet) c.separator.copy(alpha = 0.35f) else androidx.compose.ui.graphics.Color.Transparent)
-                    .springClick { if (total > 0) onHour(h) }, contentAlignment = Alignment.BottomCenter) {
-                    if (total == 0) Box(Modifier.fillMaxWidth().fillMaxHeight(0.06f).clip(RoundedCornerShape(2.dp)).background(c.separator))
-                    else Column(Modifier.fillMaxWidth().fillMaxHeight((total / max.toFloat()).coerceIn(0.12f, 1f))) {
-                        if (mediaS > 0) Box(Modifier.fillMaxWidth().weight(mediaS.toFloat()).clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)).background(c.textTertiary.copy(alpha = 0.45f)))
-                        if (speech > 0) Box(Modifier.fillMaxWidth().weight(speech.toFloat()).clip(RoundedCornerShape(2.dp))
-                            .background(if (h == peak) c.accent else c.accent.copy(alpha = 0.35f)))
-                    }
-                }
-            }
-        }
-        // 刻度：按范围挑 3～4 个整点；停录时段在下方写名字
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            val step = when { range.count() > 16 -> 6; range.count() > 10 -> 4; else -> 2 }
-            range.forEach { h ->
-                Box(Modifier.weight(1f)) {
-                    if ((h - range.first) % step == 0) Text("$h", style = RsType.caption, color = c.textTertiary, maxLines = 1, softWrap = false)
-                }
-            }
-        }
-        quiet.entries.firstOrNull { it.key in range }?.let { (_, name) ->
-            Text("浅底为停录时段（$name）", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 2.dp))
-        }
-        Spacer(Modifier.height(4.dp))
-        Text("${formatClock(r.firstAt)} 开始 · ${formatClock(r.lastAt)} 结束 · 说话最多在 $peak–${peak + 1} 点$pending",
-            style = RsType.caption, color = c.textSecondary)
+        HourBars(r, date, rules, onHour)
         r.longest?.let { (e, m) ->
             Text("最长的一段：${formatClock(e.startAt)} ${e.title} · 说了 $m 分钟 ›", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
                 color = c.accent, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -201,3 +160,80 @@ private fun Stat(label: String, value: String, delta: String?, modifier: Modifie
             autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = RsType.caption.fontSize))
     }
 }
+
+/**
+ * 0～24 点的说话分布：每天位置固定，今天和昨天能直接对上。
+ * 说话主色（最多的那个小时更深）、媒体灰色叠在上面、停录时段浅底；数字只标 0·6·12·18·24，3·9·15·21 只画淡刻度。
+ * 点柱子跳到那个时段；按住显示“15 点 · 说话 12 分钟”，按住左右滑跟着手指看。
+ */
+@Composable
+private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHour: (Int) -> Unit) {
+    val c = Rs.colors
+    val quiet = remember(rules, date) { quietHours(rules, date) }
+    val totals = (0..23).map { r.speechByHour[it] + r.mediaByHour[it] }
+    val max = (totals.maxOrNull() ?: 1).coerceAtLeast(1)
+    val peak = (0..23).maxByOrNull { r.speechByHour[it] } ?: 0
+    var hover by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    fun bias(h: Float) = (h / 24f) * 2f - 1f
+    Column {
+        // 按住时上方浮出的小提示
+        Box(Modifier.fillMaxWidth().height(20.dp)) {
+            hover?.let { h ->
+                val talk = (r.speechByHour[h] + 59) / 60; val media = (r.mediaByHour[h] + 59) / 60
+                val text = "$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") +
+                    (quiet[h]?.let { " · $it" } ?: "")
+                Text(text, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.text, maxLines = 1,
+                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(h + 0.5f).coerceIn(-0.85f, 0.85f), 0f))
+                        .clip(RoundedCornerShape(8.dp)).background(c.background).padding(horizontal = 8.dp, vertical = 2.dp))
+            }
+        }
+        val width = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
+        fun hourAt(x: Float) = ((x / width.intValue.coerceAtLeast(1)) * 24).toInt().coerceIn(0, 23)
+        Row(Modifier.fillMaxWidth().height(36.dp)
+            .onSizeChanged { width.intValue = it.width }
+            .pointerInput(r) {
+                detectTapGestures(
+                    onTap = { o -> val h = hourAt(o.x); if (totals[h] > 0) onHour(h) },
+                    onLongPress = { o -> hover = hourAt(o.x); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) },
+                    onPress = { tryAwaitRelease(); hover = null },
+                )
+            }
+            .pointerInput(r) {
+                detectDragGesturesAfterLongPress(onDragEnd = { hover = null }, onDragCancel = { hover = null }) { change, _ ->
+                    val h = hourAt(change.position.x); if (h != hover) hover = h
+                }
+            },
+            horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
+            (0..23).forEach { h ->
+                val speech = r.speechByHour[h]; val mediaS = r.mediaByHour[h]; val total = speech + mediaS
+                Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(3.dp))
+                    .background(if (h in quiet) c.separator.copy(alpha = 0.35f) else androidx.compose.ui.graphics.Color.Transparent),
+                    contentAlignment = Alignment.BottomCenter) {
+                    if (total == 0) Box(Modifier.fillMaxWidth().fillMaxHeight(0.06f).clip(RoundedCornerShape(2.dp)).background(c.separator))
+                    else Column(Modifier.fillMaxWidth().fillMaxHeight((total / max.toFloat()).coerceIn(0.12f, 1f))) {
+                        if (mediaS > 0) Box(Modifier.fillMaxWidth().weight(mediaS.toFloat()).clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)).background(c.textTertiary.copy(alpha = 0.45f)))
+                        if (speech > 0) Box(Modifier.fillMaxWidth().weight(speech.toFloat()).clip(RoundedCornerShape(2.dp))
+                            .background(if (h == peak || h == hover) c.accent else c.accent.copy(alpha = 0.35f)))
+                    }
+                }
+            }
+        }
+        // 刻度：3·9·15·21 淡竖线，0·6·12·18·24 写数字
+        Box(Modifier.fillMaxWidth().height(4.dp)) {
+            listOf(3, 9, 15, 21).forEach { h ->
+                Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias(h.toFloat()), -1f)).size(width = 1.dp, height = 4.dp).background(c.separator))
+            }
+        }
+        Box(Modifier.fillMaxWidth().padding(top = 1.dp)) {
+            listOf(0, 6, 12, 18, 24).forEach { h ->
+                Text("$h", style = RsType.caption, color = c.textTertiary, maxLines = 1,
+                    modifier = Modifier.align(androidx.compose.ui.BiasAlignment(bias(h.toFloat()), 0f)))
+            }
+        }
+        quiet.values.firstOrNull()?.let { name ->
+            Text("浅底为停录时段（$name）", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 2.dp))
+        }
+    }
+}
+

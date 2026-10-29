@@ -3,7 +3,6 @@ package app.resound.ui
 import app.resound.digest.MemoryEvent
 import app.resound.transcribe.TranscriptLine
 import app.resound.ui.today.dayRhythm
-import app.resound.ui.today.hourRange
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -26,12 +25,5 @@ class RhythmTest {
         assertEquals(1, r.people)
         assertEquals(2L, r.longest!!.first.id)
         assertEquals(1800, r.mediaByHour[20])
-    }
-
-    @Test fun hourRangeFollowsActivityWithAtLeastEightHours() {
-        val r = dayRhythm(listOf(ev(1, at(13), at(14))), listOf(line(1, at(13), at(13, 20))))!!
-        val range = hourRange(r, day)
-        assertEquals(8, range.count())
-        assert(13 in range)
     }
 }

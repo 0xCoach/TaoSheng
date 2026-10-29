@@ -75,12 +75,18 @@ private fun Bar() {
     val c = Rs.colors
     var expanded by remember { mutableStateOf(false) }
     val lines = LinePlayer.allLines
-    val idx = lines.indexOfFirst { it.id == LinePlayer.currentLineId }.coerceAtLeast(0)
     val total = LinePlayer.timeline?.total ?: 1L
     var dragging by remember { mutableStateOf<Float?>(null) }
     val frac = dragging ?: (LinePlayer.elapsed.toFloat() / total).coerceIn(0f, 1f)
+    // 拖进度条时，字幕和“第几段”跟着手指走；松手才真正跳过去
+    val dragAt = dragging?.let { f -> LinePlayer.timeline?.locate((f * total).toLong()) }
+    val idx = if (dragAt != null) {
+        val (seg, at) = dragAt
+        lines.indexOfLast { it.segmentId == seg && it.startAt <= at }.takeIf { it >= 0 } ?: lines.indexOfFirst { it.segmentId == seg }.coerceAtLeast(0)
+    } else lines.indexOfFirst { it.id == LinePlayer.currentLineId }.coerceAtLeast(0)
     fun mmss(ms: Long) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
     val segs = LinePlayer.segmentOrder.size
+    val segIdx = dragAt?.let { LinePlayer.segmentOrder.indexOf(it.first).coerceAtLeast(0) } ?: LinePlayer.segmentIndex
     val sourceLabel = when (LinePlayer.source) { is PlaySource.Event -> "回到这件事 ›"; is PlaySource.Transcript -> "回到原话 ›"; null -> null }
     fun goBack() {
         when (val s = LinePlayer.source) {
@@ -107,7 +113,7 @@ private fun Bar() {
                 Column(Modifier.weight(1f).springClick { expanded = true }) {
                     Text(lines.getOrNull(idx)?.text ?: "正在播放原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
                         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    Text((if (segs > 1) "第 ${LinePlayer.segmentIndex + 1}/$segs 段 · " else "") + "${mmss(LinePlayer.elapsed)} / ${mmss(total)}",
+                    Text((if (segs > 1) "第 ${segIdx + 1}/$segs 段 · " else "") + "${mmss((frac * total).toLong())} / ${mmss(total)}",
                         style = RsType.caption, color = c.textTertiary, maxLines = 1)
                 }
                 SpeedChip()
@@ -124,7 +130,7 @@ private fun Bar() {
             Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (segs > 1) "第 ${LinePlayer.segmentIndex + 1}/$segs 段录音" else "正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
+                        Text(if (segs > 1) "第 ${segIdx + 1}/$segs 段录音" else "正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
                             color = c.textTertiary, maxLines = 1)
                         sourceLabel?.let {
                             Text(" · ", style = RsType.caption, color = c.textTertiary)

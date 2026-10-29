@@ -40,7 +40,7 @@ object LinePlayer {
     var session by mutableIntStateOf(0); private set
     /** 本次播放涉及的录音段（按顺序）和当前是第几段；多段时播放条显示“第 2/6 段”和“下一段” */
     var segmentOrder by mutableStateOf<List<Long>>(emptyList()); private set
-    val segmentIndex get() = segmentOrder.indexOf(segmentId).coerceAtLeast(0)
+    val segmentIndex get() = segmentOrder.indexOf(currentSegment).coerceAtLeast(0)
     /** 本次播放的全部原话（不随播放缩短），给字幕和总进度用 */
     var allLines by mutableStateOf<List<TranscriptLine>>(emptyList()); private set
     internal var timeline by mutableStateOf<PlayTimeline?>(null); private set

@@ -19,6 +19,8 @@ interface PrivacyDao {
     suspend fun deleteLineItemsById(id: Long): Int
     @Query("DELETE FROM transcript_lines WHERE id = :id")
     suspend fun deleteLine(id: Long): Int
+    @Query("DELETE FROM embeddings WHERE kind = 'line' AND refId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
+    suspend fun deleteLineVectors(id: Long)
     @Query("DELETE FROM transcript_lines WHERE segmentId = :id")
     suspend fun deleteLines(id: Long): Int
     @Query("DELETE FROM voiceprint_samples WHERE segmentId = :id OR sourceLineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")

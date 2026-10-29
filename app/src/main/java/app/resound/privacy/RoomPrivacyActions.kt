@@ -20,7 +20,7 @@ class RoomPrivacyActions(
     private val removeFeatures: (SegmentEntity, List<TranscriptLineEntity>) -> Unit = { _, _ -> },
     private val diagnostic: (String) -> Unit = { android.util.Log.w("Privacy", it); Unit },
     private val now: () -> Long = System::currentTimeMillis,
-) : PrivacyActions {
+) : PrivacyActions, app.resound.transcribe.SegmentDeleter {
     private val gate = Mutex()
     private val dao = db.privacy()
 
@@ -42,7 +42,13 @@ class RoomPrivacyActions(
         gate.withLock { erase { listOfNotNull(dao.segment(segmentId)) } }
     }
 
-    private suspend fun erase(explicitEvent: Long? = null, select: suspend () -> List<SegmentEntity>): ForgetResult = voiceprintGuard {
+    override suspend fun deleteSegments(segmentIds: List<Long>): Int = withContext(Dispatchers.IO + NonCancellable) {
+        gate.withLock {
+            erase(keepEvents = true) { segmentIds.distinct().mapNotNull { dao.segment(it) } }.segments
+        }
+    }
+
+    private suspend fun erase(explicitEvent: Long? = null, keepEvents: Boolean = false, select: suspend () -> List<SegmentEntity>): ForgetResult = voiceprintGuard {
         val files = mutableListOf<Pair<SegmentEntity, List<TranscriptLineEntity>>>()
         val result = db.withTransaction {
             val segments = select()
@@ -60,7 +66,8 @@ class RoomPrivacyActions(
                 dao.deleteSamples(segment.id)
                 dao.deleteExclusions(segment.id)
                 if (target.size == source.size) {
-                    items += dao.deleteLineItems(segment.id)
+                    if (!keepEvents) items += dao.deleteLineItems(segment.id)
+                    dao.deleteLineVectors(segment.id)
                     lines += dao.deleteLines(segment.id)
                     deletedSegments += dao.deleteSegment(segment.id)
                 } else {
@@ -71,11 +78,11 @@ class RoomPrivacyActions(
                     }
                 }
             }
-            for (id in events) if (dao.eventLineCount(id) == 0) {
+            for (id in events) if (!keepEvents && dao.eventLineCount(id) == 0) {
                 items += dao.deleteEventItems(id)
                 deletedEvents += dao.deleteEvent(id)
             }
-            db.memory().repairMergedItems()
+            if (!keepEvents) db.memory().repairMergedItems()
             ForgetResult(deletedSegments, lines, deletedEvents, items)
         }
         for ((segment, lines) in files) {

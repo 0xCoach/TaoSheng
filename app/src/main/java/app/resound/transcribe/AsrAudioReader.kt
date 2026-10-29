@@ -40,6 +40,10 @@ class AsrAudioReader(private val cacheDir: File) {
             ShortArray(buffer.remaining()).also { buffer.get(it) }
         } finally { target.delete() }
     }
+    /** 导出专用：逐缓冲写磁盘，不把整段 PCM 载入内存，不影响转写入口。 */
+    internal suspend fun decodeForExport(source: File, target: File) = withContext(Dispatchers.IO) {
+        decode(source, target)
+    }
     private suspend fun decode(source: File, target: File) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null

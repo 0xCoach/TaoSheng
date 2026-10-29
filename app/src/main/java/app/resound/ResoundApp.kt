@@ -80,11 +80,15 @@ class ResoundApp : Application() {
             playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
         AppGraph.originalAudio = originalAudio
         voiceprintRepository.cleanupOriginalAudio = originalAudio::cleanup
-        AppGraph.privacy = app.resound.privacy.RoomPrivacyActions(database,
+        val privacyActions = app.resound.privacy.RoomPrivacyActions(database,
             discardRecording = CaptureService::discardCurrent,
             recentFiles = { from, until, block -> segmentFiles.withRecentDeletion(from, until, block) },
             voiceprintGuard = { block -> voiceprintRepository.withPrivacyDeletion(block) },
             removeFeatures = voiceprintRepository::removeFeatures)
+        AppGraph.privacy = privacyActions
+        AppGraph.segmentDeleter = privacyActions
+        AppGraph.audioExporter = LocalAudioExporter(cacheDir, database.transcribe())
+        AppGraph.audioExporter.cleanup()
         val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope)
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,

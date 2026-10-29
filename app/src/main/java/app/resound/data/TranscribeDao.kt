@@ -27,6 +27,14 @@ data class SegmentWithLines(@Embedded val segment: SegmentEntity,
 
 @Dao
 abstract class TranscribeDao {
+    @Transaction
+    @Query("SELECT * FROM segments WHERE id IN (:ids) ORDER BY startAt, id")
+    abstract suspend fun exportSegments(ids: List<Long>): List<SegmentWithLines>
+    @Query("""SELECT * FROM memory_events WHERE deleted = 0 AND
+        ((startAt < :until AND endAt > :from) OR id IN
+        (SELECT eventId FROM transcript_lines WHERE segmentId = :segmentId))""")
+    abstract suspend fun exportEvents(segmentId: Long, from: Long, until: Long): List<MemoryEventEntity>
+
     @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
     @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e
         WHERE e.starred = 1 AND e.deleted = 0 AND s.startAt < e.endAt AND s.endAt > e.startAt)""")

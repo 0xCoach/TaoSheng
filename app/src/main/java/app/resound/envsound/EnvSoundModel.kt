@@ -60,25 +60,36 @@ class EnvSoundModel(private val context: Context) {
         } catch(e: CancellationException) { state.value = EnvModelState.NotDownloaded; throw e }
         catch(_: Exception) { state.value = EnvModelState.Failed("模型下载或校验失败，请重试") }
     }
-    fun infer(pcm: ShortArray): Map<String, Float> {
+    fun infer(pcm: ShortArray, timing: (String) -> Unit = {}): Map<String, Float> {
         check(verified)
+        val started = android.os.SystemClock.elapsedRealtime()
         val tagger = AudioTagging(config = AudioTaggingConfig(model = AudioTaggingModelConfig(
             zipformer = OfflineZipformerAudioTaggingModelConfig(File(dir,"model.int8.onnx").path), numThreads = 2),
             labels = File(dir,"class_labels_indices.csv").path, topK = 527))
+        val loaded = android.os.SystemClock.elapsedRealtime()
+        var prepareMs = 0L
+        var inferenceMs = 0L
         try {
             val scores = mutableMapOf<String,Float>()
             for(window in EnvSoundRules.windows(pcm.size)) {
                 val stream = tagger.createStream()
                 try {
-                    val samples = FloatArray(maxOf(16000, window.count())) { i -> if(i < window.count()) pcm[window.first+i]/32768f else 0f }
+                    val prepareAt = android.os.SystemClock.elapsedRealtime()
+                    val samples = EnvSoundSamples.window(pcm, window)
+                    prepareMs += android.os.SystemClock.elapsedRealtime() - prepareAt
+                    val inferAt = android.os.SystemClock.elapsedRealtime()
                     stream.acceptWaveform(samples, 16000)
                     val events = tagger.compute(stream, 527)
+                    inferenceMs += android.os.SystemClock.elapsedRealtime() - inferAt
                     check(events.size == 527 && events.all { it.prob.isFinite() && it.prob in 0f..1f })
                     events.forEach { scores[it.name] = maxOf(scores[it.name] ?: 0f, it.prob) }
                 } finally { stream.release() }
             }
             return scores
-        } finally { tagger.release() }
+        } finally {
+            tagger.release()
+            timing("加载=${loaded-started}ms 采样准备=${prepareMs}ms 推理=${inferenceMs}ms")
+        }
     }
     companion object {
         const val mirror = "https://modelscope.cn/models/OpenRecode/TaoSheng-models/resolve/master/audio-tagging/zipformer-small-2024-04-15"

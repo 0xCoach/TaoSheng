@@ -206,7 +206,16 @@ fun TodayScreen(
     var deleteProgress by remember { mutableStateOf<Int?>(null) }
 
     var boxTop by remember { mutableStateOf(0f) }
-    val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
+    // 刚过零点、今天说话还不到 5 分钟：节奏卡先放昨天的完整卡片，今天攒够 5 分钟再切回来
+    val todayRhythm = remember(list, dayLines) { dayRhythm(list, dayLines) }
+    val wantYesterday = dayOffset == 0 && (todayRhythm?.speechMinutes ?: 0) < 5
+    val yDate = date.minusDays(1)
+    val yEvents by remember(wantYesterday, yDate) { if (wantYesterday) memory.events(yDate) else kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val ySegments by remember(wantYesterday, yDate) { if (wantYesterday) transcripts.day(yDate) else kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val yCards by remember(wantYesterday, yDate) { if (wantYesterday) skills.cards(yDate) else kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val yLines = remember(ySegments) { ySegments.flatMap { it.lines }.sortedBy { it.startAt } }
+    val showYesterday = wantYesterday && remember(yEvents, yLines) { dayRhythm(yEvents, yLines) }?.let { it.speechMinutes >= 5 } == true
+    val rhythmShown = showYesterday || todayRhythm != null
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
     fun timelineIndex() = 2 + (if (settingsOpen || !hasKey) 1 else 0) + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0) + (if (pending.isNotEmpty()) 1 else 0)
     Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
@@ -233,7 +242,13 @@ fun TodayScreen(
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
         if (settingsOpen || !hasKey) item(key = "model") { ModelCard(settings) { settingsOpen = false } }
-        if (rhythmShown) item(key = "rhythm") {
+        if (showYesterday) item(key = "rhythm") {
+            // 昨天的卡片：点数字、柱子、提到的人都切到“昨天”的时间线去看
+            RhythmCard(yEvents, yLines, yDate, 0, onFilter = { dayOffset = 1 }, onHour = { dayOffset = 1 },
+                onOpen = { opened = it }, onPeople = { dayOffset = 1 },
+                meetings = yCards.filter { it.skillId == "meeting" },
+                onMeetings = { m -> if (m.size == 1) openedCard = m.first() else meetingList = m }, title = "昨天的节奏")
+        } else if (rhythmShown) item(key = "rhythm") {
             RhythmCard(list, dayLines, date, transcribeQueue.pending,
                 onFilter = { f -> filter = f; rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) } },
                 onHour = { h ->

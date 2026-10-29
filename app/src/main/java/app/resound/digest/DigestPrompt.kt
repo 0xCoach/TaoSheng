@@ -107,11 +107,11 @@ object DigestPrompt {
     )
 
     val CATEGORIES = setOf("待办", "约定", "备忘", "灵感", "关键信息", "决定", "知识")
-    private val NO_ITEMS_SCENES = setOf("媒体", "旁人")
+    private val NO_ITEMS_SCENES = setOf("媒体")
 
     /**
      * 解析大模型回复。行号越界的忽略；事件按行号裁剪、去重叠；
-     * 提取项挂到包含它那一行的事件上，找不到就挂最近的事件；媒体/旁人事件下的提取项丢弃。
+     * 提取项挂到包含它那一行的事件上，找不到就挂最近的事件；媒体事件下的提取项丢弃。
      * 格式完全不对时抛 [LlmException]（Format）。
      */
     fun parse(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault()): Pair<List<ParsedEvent>, List<ParsedItem>> {

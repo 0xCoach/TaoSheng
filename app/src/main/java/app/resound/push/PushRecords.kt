@@ -15,7 +15,7 @@ internal data class PushSnapshot(
     fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot {
         val lower = listOfNotNull(since, s.rangeDays?.let { today.minusDays(it.toLong() - 1) }).maxOrNull()
         fun included(at: Long) = lower == null || day(at, zone) >= lower
-        val allowed = events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体", "旁人")) }
+        val allowed = events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体")) }
         val origins = if (lineOrigins.isNotEmpty()) lineOrigins else lines.associate { it.id to it.eventId }
         val ids = allowed.map { it.id }.toSet()
         val visible = allowed.filter { included(it.startAt) }

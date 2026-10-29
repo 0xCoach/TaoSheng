@@ -138,7 +138,7 @@ class DigestPromptTest {
         assertEquals(listOf("有效"), items.map { it.content })
     }
 
-    @Test fun dropsItemsAssignedToMediaOrBystanderScenes() {
+    @Test fun keepsBystanderItemsAndDropsMediaItems() {
         val (_, items) = parse("""{"events":[
             {"from":1,"to":2,"scene":"媒体"},{"from":4,"to":5,"scene":"旁人"},
             {"from":8,"to":8,"scene":"工作"}],"items":[
@@ -146,8 +146,8 @@ class DigestPromptTest {
             {"line":4,"category":"待办","content":"旁人内"},
             {"line":6,"category":"待办","content":"最近是旁人"},
             {"line":8,"category":"待办","content":"自己的事"}]}""")
-        assertEquals(listOf("自己的事"), items.map { it.content })
-        assertEquals(2, items.single().eventIndex)
+        assertEquals(listOf("旁人内", "最近是旁人", "自己的事"), items.map { it.content })
+        assertEquals(listOf(1, 1, 2), items.map { it.eventIndex })
     }
 
     @Test fun acceptsJsonCodeFence() {

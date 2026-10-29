@@ -87,7 +87,7 @@ data class PushSubscription(
     val layout: FolderLayout = FolderLayout.ByCategory,
     /** 只推最近多少天；null 不限 */
     val rangeDays: Int? = null,
-    /** 排除电视、视频等媒体和旁人的内容 */
+    /** 排除电视、视频等媒体的内容 */
     val excludeMedia: Boolean = true,
     /** 第一次开启时补多少天：null 全部，0 从今天开始；默认 30 */
     val backfillDays: Int? = 30,

@@ -11,7 +11,7 @@ internal object SubscriptionReminders {
                    settings: AppointmentReminders = AppointmentReminders(),
                    zone: ZoneId = ZoneId.systemDefault(), now: Long = System.currentTimeMillis()): List<SubscriptionReminder> {
         val outputTime = app.resound.OutputTime(zone)
-        val events = data.events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体", "旁人")) }
+        val events = data.events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体")) }
         val ids = events.map { it.id }.toSet()
         val items = data.items.filter { !it.deleted && (it.eventId == null || it.eventId in ids) && it.mergedInto == null && it.status == "Accepted" }
         val timed = items.filter { it.category in setOf("待办", "约定") && it.dueAt != null }

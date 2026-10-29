@@ -121,6 +121,7 @@ class ResoundApp : Application() {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
         }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) })
+        AppGraph.rhythm = RoomRhythmStats(database.memory())
         AppGraph.digestSettings = digestSettings
         AppGraph.digestTiming = digestSettings.timing
         scheduler.digestTiming = digestSettings.timing

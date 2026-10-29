@@ -91,7 +91,7 @@ data class MemoryEvent(
     val id: Long,
     val startAt: Long,
     val endAt: Long,
-    /** 会议 / 上课 / 闲聊 / 电话 / 独白 / 媒体 / 旁人 / 其他 */
+    /** 会议 / 上课 / 闲聊 / 电话 / 独白 / 媒体 / 其他 */
     val scene: String,
     val title: String,
     val summary: String,

@@ -50,11 +50,17 @@ class ReviewRepositoryTest {
         db.memory().insertEvent(MemoryEventEntity(id, at + 1000, at + 2000, scene, "方案", "讨论方案", "[]", "[]", null, null, null, false, deleted, at, "test"))
     }
 
-    @Test fun emptyAndExcludedDayNeverCallsOrPushes() = runBlocking { fixture { db, repo, actions ->
+    @Test fun bystanderIncludedWhileMediaAndDeletedExcluded() = runBlocking { fixture { db, repo, actions ->
         repo.run(date, true)
-        seed(db, scene = "媒体"); seed(db, scene = "旁人", id = 2); seed(db, deleted = true, id = 3)
+        seed(db, scene = "媒体"); seed(db, deleted = true, id = 3)
         repo.run(date, true)
         assertTrue(actions.isEmpty()); assertNull(repo.daily(date).first())
+        seed(db, scene = "旁人", id = 2)
+        val item = MemoryItemEntity(1, 2, "待办", "行动", "保留", null, null, null, null, "Pending", at)
+        db.memory().insertItems(listOf(item, item.copy(id = 2, eventId = 1)))
+        assertEquals(listOf(2L), db.review().events(at, at + 86400000).map { it.id })
+        assertEquals(listOf(1L), db.review().items(at, at + 86400000).map { it.id })
+        assertEquals(at + 1000, db.memory().latestDiaryAt(false))
     } }
 
     @Test fun disabledPushGeneratesAndScheduledReuseDoesNotSpendAgain() = runBlocking { fixture { db, repo, actions ->

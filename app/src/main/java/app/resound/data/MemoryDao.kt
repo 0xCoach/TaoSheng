@@ -252,6 +252,17 @@ abstract class MemoryDao {
     @Query("SELECT * FROM llm_usage_v2 WHERE day >= :from AND day <= :to ORDER BY day, purpose")
     abstract fun usageByPurpose(from: String, to: String): Flow<List<LlmUsageV2Entity>>
 
+    /** 按句子开始时刻归日；与媒体时间段有重叠的整句排除（同 dayRhythm）。
+     * 查询依赖两张表，原话或事件变化都会使 Flow 更新；跨日媒体也参与排除。
+     */
+    @Query("""SELECT l.* FROM transcript_lines l
+        LEFT JOIN memory_events e ON e.id = l.eventId
+        WHERE l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0)
+        AND NOT EXISTS (SELECT 1 FROM memory_events m WHERE m.deleted = 0 AND m.scene = '媒体'
+            AND l.startAt < m.endAt AND l.endAt > m.startAt)
+        ORDER BY l.startAt, l.id""")
+    abstract fun rhythmLines(start: Long, end: Long): Flow<List<TranscriptLineEntity>>
+
     // ---------- 界面 ----------
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end ORDER BY startAt DESC")
     abstract fun events(start: Long, end: Long): Flow<List<MemoryEventEntity>>
@@ -325,7 +336,7 @@ abstract class MemoryDao {
         AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id""")
     abstract suspend fun diaryLines(start: Long, end: Long): List<TranscriptLineEntity>
     @Query("""SELECT MAX(at) FROM (
-        SELECT startAt AS at FROM memory_events WHERE deleted = 0 AND (scene NOT IN ('媒体', '旁人') OR starred = 1)
+        SELECT startAt AS at FROM memory_events WHERE deleted = 0 AND (scene != '媒体' OR starred = 1)
         UNION ALL SELECT l.startAt AS at FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
         LEFT JOIN memory_events e ON e.id = l.eventId WHERE :includeLines AND s.status = 'Done' AND l.text != '' AND (e.id IS NULL OR e.deleted = 0)
     )""")

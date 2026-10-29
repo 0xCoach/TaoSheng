@@ -87,6 +87,9 @@ internal class TimelineSelection {
         anchor = id; version++
     }
 
+    /** 只选这些（如当天全部灰色的媒体/旁人），其余取消 */
+    fun selectOnly(only: List<Long>) { ids = only.toSet(); anchor = only.lastOrNull(); version++ }
+
     fun setAll(order: List<Long>, on: Boolean) { ids = if (on) order.toSet() else emptySet(); anchor = if (on) order.lastOrNull() else null; version++ }
 
     /** 事件被删掉或换了一天后，去掉已不存在的 id */
@@ -137,7 +140,7 @@ internal fun Modifier.trackRow(selection: TimelineSelection, id: Long): Modifier
 
 /** 顶部浮条：取消 · 已选 N 件 · 全选 */
 @Composable
-internal fun BoxScope.SelectTopBar(selection: TimelineSelection, order: List<Long>, onBottom: (Float) -> Unit) {
+internal fun BoxScope.SelectTopBar(selection: TimelineSelection, order: List<Long>, grayIds: List<Long> = emptyList(), onBottom: (Float) -> Unit) {
     val c = Rs.colors
     AnimatedVisibility(selection.active, Modifier.align(Alignment.TopCenter),
         enter = slideInVertically { -it } + fadeIn(), exit = slideOutVertically { -it } + fadeOut()) {
@@ -150,8 +153,12 @@ internal fun BoxScope.SelectTopBar(selection: TimelineSelection, order: List<Lon
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BarText("取消", c.textSecondary) { selection.exit() }
-            androidx.compose.material3.Text(if (selection.ids.isEmpty()) "选择要处理的事" else "已选 ${selection.ids.size} 件",
-                style = RsType.headline, color = c.text, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            // 有灰色（媒体/旁人）的事时多一个“只选灰色”，标题收短一点给它让位
+            val gray = grayIds.isNotEmpty()
+            androidx.compose.material3.Text(if (selection.ids.isEmpty()) (if (gray) "选择" else "选择要处理的事") else "已选 ${selection.ids.size} 件",
+                style = if (gray) RsType.body.copy(fontWeight = FontWeight.SemiBold) else RsType.headline, color = c.text, maxLines = 1,
+                modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (gray) BarText("只选灰色", c.accent) { selection.selectOnly(grayIds) }
             BarText(if (all) "全不选" else "全选", c.accent) { selection.setAll(order, !all) }
         }
     }

@@ -245,7 +245,8 @@ fun TodayScreen(
                 onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it }
         }
     }
-    SelectTopBar(selection, order) { topEdge = it }
+    val grayIds = remember(list, order) { order.filter { id -> list.firstOrNull { it.id == id }?.scene in QUIET_SCENES } }
+    SelectTopBar(selection, order, grayIds) { topEdge = it }
     val chosen = list.filter { it.id in selection.ids }
     val allStarred = chosen.isNotEmpty() && chosen.all { it.starred }
     SelectBottomBar(selection, allStarred, bottomPadding, onTop = { bottomEdge = it },

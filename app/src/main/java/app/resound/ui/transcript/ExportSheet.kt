@@ -94,6 +94,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     // 合成好的文件：有音频时先在面板里试听，确认后再分享
     var done by remember { mutableStateOf<List<java.io.File>?>(null) }
     var savedTo by remember { mutableStateOf<String?>(null) }
+    var picking by remember { mutableStateOf(false) }
     val exporter = if (app.resound.AppGraph.isAudioExporterReady) app.resound.AppGraph.audioExporter else null
     fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, withText, withSrt, skipMedia)
     val estimate by produceState<ExportEstimate?>(null, skipMedia, segmentIds) {
@@ -120,9 +121,13 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
                         LinePlayer.notice = savedTo?.let { "已保存到 下载 › 涛声 › $it" } ?: "保存失败，请稍后再试"
                     }
                 }
-                ActionButton("分享", ActionKind.Secondary, Modifier.weight(1f)) { share(context, ready) }
+                // 微信等一次只收一个文件：只有文字时直接分享，否则先选分享什么
+                ActionButton("分享", ActionKind.Secondary, Modifier.weight(1f)) {
+                    if (ready.size == 1) share(context, ready) else picking = true
+                }
             }
             savedTo?.let { Text("在 文件管理 › 下载 › 涛声 › $it 里", style = RsType.caption, color = c.textTertiary) }
+            if (picking) ShareChooser(ready, safeName(title.ifBlank { suggestedTitle })) { picking = false }
         } else if (running != null) {
             LinearProgressIndicator(progress = { running }, color = c.accent, trackColor = c.accentSoft,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(CircleShape))
@@ -174,7 +179,7 @@ private fun share(context: android.content.Context, files: List<java.io.File>) {
     context.startActivity(Intent.createChooser(send, "分享录音").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
-private fun mime(f: java.io.File) = when (f.extension.lowercase()) { "m4a" -> "audio/mp4"; "txt" -> "text/plain"; "srt" -> "application/x-subrip"; else -> "*/*" }
+private fun mime(f: java.io.File) = when (f.extension.lowercase()) { "m4a" -> "audio/mp4"; "txt" -> "text/plain"; "zip" -> "application/zip"; "srt" -> "application/x-subrip"; else -> "*/*" }
 
 @Composable
 private fun Label2(text: String) = Text(text, style = RsType.caption, color = Rs.colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
@@ -339,3 +344,57 @@ private suspend fun saveToDownloads(context: android.content.Context, files: Lis
         }
         folder
     }
+
+/** 分享哪一个：录音 / 原话文字 / 全部打包成 zip；记住上次的选择并排在最前 */
+private enum class ShareKind(val title: String, val sub: String, val icon: String) {
+    Audio("录音", ".m4a · 微信里可直接播放", "🎵"),
+    Text("原话文字", ".txt · 对方点开就能看", "📝"),
+    Zip("全部打包", ".zip · 录音 + 原话 + 字幕，适合发到电脑", "📦"),
+}
+
+@Composable
+private fun ShareChooser(files: List<java.io.File>, name: String, onDismiss: () -> Unit) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val p = remember { prefs(context) }
+    val last = remember { runCatching { ShareKind.valueOf(p.getString("shareKind", "Audio")!!) }.getOrDefault(ShareKind.Audio) }
+    fun file(ext: String) = files.firstOrNull { it.extension.equals(ext, true) }
+    val options = (listOf(last) + ShareKind.entries.filter { it != last }).filter {
+        when (it) { ShareKind.Audio -> file("m4a") != null; ShareKind.Text -> file("txt") != null; ShareKind.Zip -> files.size > 1 }
+    }
+    RsSheet("分享什么？", "微信等应用一次只能收一个文件", onDismiss = onDismiss) {
+        options.forEach { kind ->
+            val on = kind == last
+            Row(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                .background(if (on) c.accentSoft else c.background).springClick {
+                    p.edit().putString("shareKind", kind.name).apply()
+                    scope.launch {
+                        val target = when (kind) {
+                            ShareKind.Audio -> file("m4a")!!
+                            ShareKind.Text -> file("txt")!!
+                            ShareKind.Zip -> zip(files, name)
+                        }
+                        share(context, listOf(target)); onDismiss()
+                    }
+                }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(kind.icon, style = RsType.headline)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(kind.title, style = RsType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = if (on) c.accent else c.text)
+                    Text(kind.sub, style = RsType.caption, color = c.textTertiary)
+                }
+                if (on) Text("上次", style = RsType.caption, color = c.accent)
+            }
+        }
+    }
+}
+
+/** 把几个文件打成一个 zip（放在同一缓存目录，随导出文件一起 1 天后清理），zip 里的文件名不变 */
+private suspend fun zip(files: List<java.io.File>, name: String): java.io.File = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    val out = java.io.File(files.first().parentFile, "$name.zip")
+    java.util.zip.ZipOutputStream(out.outputStream().buffered()).use { z ->
+        files.forEach { f -> z.putNextEntry(java.util.zip.ZipEntry(f.name)); f.inputStream().use { it.copyTo(z) }; z.closeEntry() }
+    }
+    out
+}

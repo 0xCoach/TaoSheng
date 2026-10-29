@@ -30,6 +30,10 @@ object AppGraph {
     lateinit var originalAudio: app.resound.transcribe.OriginalAudio
     val isOriginalAudioReady: Boolean get() = ::originalAudio.isInitialized
 
+    // 卡 071：重做（重新转写 / 重新整理）
+    lateinit var redo: app.resound.redo.RedoService
+    val isRedoReady: Boolean get() = ::redo.isInitialized
+
     // 卡 070：环境音识别
     lateinit var envSound: app.resound.envsound.EnvSoundRepository
     val isEnvSoundReady: Boolean get() = ::envSound.isInitialized

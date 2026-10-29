@@ -45,6 +45,9 @@ interface AudioImporter {
     /** 用户确认开始时间后开始；多个文件排队依次导入 */
     fun start(id: String, startAt: Long)
 
+    /** 卡 071：指定这次用哪种方式转写（null = 设置里当前用的）；只对这次导入生效，不改设置 */
+    fun start(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?) = start(id, startAt)
+
     /** 不导入了：删掉缓存副本 */
     fun discard(id: String)
 

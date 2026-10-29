@@ -11,6 +11,8 @@ object SkillCardPush {
         if (card.title.isBlank() || card.title == card.skillName) card.skillName else "${card.skillName} · ${card.title}"
 
     fun body(card: SkillCard): String = buildString {
+        val time = app.resound.OutputTime()
+        appendLine(card.endAt?.let { time.event(card.at, it) } ?: time.moment(card.at))
         if (card.summary.isNotBlank()) appendLine(card.summary.trim())
         for (field in card.fields) {
             val lines = lines(field, card.values[field.key] ?: continue)
@@ -29,7 +31,7 @@ object SkillCardPush {
         FieldType.Checklist -> value.items.mapIndexedNotNull { i, item ->
             item.takeIf { it.isNotBlank() }?.let { (if (value.checked.getOrNull(i) == true) "☑ " else "☐ ") + it.trim() }
         }
-        FieldType.Quotes -> value.quotes.filter { it.text.isNotBlank() }.map { "· ${it.speaker}：“${it.text.trim()}”" }
+        FieldType.Quotes -> value.quotes.filter { it.text.isNotBlank() }.map { "· ${app.resound.OutputTime().moment(it.at)} ${it.speaker}：“${it.text.trim()}”" }
         FieldType.Number -> listOfNotNull(value.number?.let { n ->
             (if (n == n.roundToLong().toDouble()) n.roundToLong().toString() else "%.1f".format(n)) + (value.unit?.let { " $it" } ?: "")
         })

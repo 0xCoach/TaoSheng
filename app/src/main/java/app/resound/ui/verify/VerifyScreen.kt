@@ -293,7 +293,7 @@ private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?, 
     CaptureState.Stopped -> "点“开始聆听”后，有人说话才会录"
     CaptureState.Listening -> "安静中 · 已持续 ${formatDuration(elapsed)}"
     CaptureState.Recording -> "检测到人声 · 本段 ${formatDuration(elapsed, seconds = true)}"
-    CaptureState.Paused -> resumeAt(pausedUntil)?.let { "将在 ${formatClock(it)} 自动恢复" } ?: "手动暂停中"
+    CaptureState.Paused -> resumeAt(pausedUntil)?.let { "将在 ${formatUpcoming(it)} 自动恢复" } ?: "手动暂停中"
     CaptureState.MicBusy -> busyDetail?.let { "$it，结束后自动恢复" } ?: "通话或其他 App 在用麦克风，结束后自动恢复"
     CaptureState.NoPermission -> "需要麦克风和通知权限"
 }
@@ -612,6 +612,29 @@ fun formatDuration(ms: Long, seconds: Boolean = false): String {
 
 /** 暂停的恢复时间；全天停录（没有结束）为 null，界面就不写几点恢复 */
 fun resumeAt(until: Long?): Long? = until?.takeIf { it < Long.MAX_VALUE / 2 }
+
+/**
+ * 带日期的时刻：今天/昨天/前天 + 时刻，更早写“10月27日 14:05”，不是今年再加年份。
+ * 不在按天分组里的时间一律用它，单看一行也知道是哪天。
+ */
+fun formatStamp(epochMs: Long): String {
+    val t = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
+    val d = t.toLocalDate(); val today = LocalDate.now()
+    val day = when (java.time.temporal.ChronoUnit.DAYS.between(d, today)) {
+        0L -> "今天"; 1L -> "昨天"; 2L -> "前天"
+        else -> d.format(DateTimeFormatter.ofPattern(if (d.year == today.year) "M月d日" else "yyyy年M月d日"))
+    }
+    return "$day ${formatClock(epochMs)}"
+}
+
+/** 将来的时刻（如自动恢复）：今天只写时刻，第二天写“明天 07:00”，更远写“10月31日 07:00” */
+fun formatUpcoming(epochMs: Long): String {
+    val d = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).toLocalDate()
+    return when (java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), d)) {
+        0L -> formatClock(epochMs); 1L -> "明天 ${formatClock(epochMs)}"
+        else -> "${d.format(DateTimeFormatter.ofPattern("M月d日"))} ${formatClock(epochMs)}"
+    }
+}
 
 fun formatClock(epochMs: Long): String =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))

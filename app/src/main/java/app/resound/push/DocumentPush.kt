@@ -9,7 +9,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 internal class NotionPush(private val http: PushHttp) {
     // 按数据库和 token 隔离，避免更换账号后用到另一数据库的属性名。
@@ -101,7 +100,7 @@ internal class MarkdownFolderPush(private val http: PushHttp) {
         parts.indices.forEach { i -> http.execute(request(parts.take(i + 1) + "").method("MKCOL", ByteArray(0).toRequestBody()).build(), setOf(405), false) }
         val content = if (daily != null) daily.getString("markdown") else {
             val prefix = old!!.text.takeIf { old.code != 404 }.orEmpty().trimEnd()
-            (if (prefix.isEmpty()) "" else "$prefix\n\n") + "## ${time.format(DateTimeFormatter.ofPattern("HH:mm"))} ${message.title}\n\n${message.rendered(if (format == PushFormat.Text) format else PushFormat.Markdown)}\n"
+            (if (prefix.isEmpty()) "" else "$prefix\n\n") + "## ${app.resound.OutputTime().moment(message.at)} ${message.title}\n\n${message.rendered(if (format == PushFormat.Text) format else PushFormat.Markdown)}\n"
         }
         val put = request(file)
         if (old?.code == 404) put.header("If-None-Match", "*") else old?.etag?.let { put.header("If-Match", it) }

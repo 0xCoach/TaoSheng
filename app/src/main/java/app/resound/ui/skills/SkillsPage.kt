@@ -249,13 +249,7 @@ private fun statusLine(st: SkillStatus?): Pair<String, Boolean>? = when {
 }
 
 private fun shortTime(at: Long): String {
-    val t = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
-    val today = LocalDate.now()
-    return when (t.toLocalDate()) {
-        today -> t.format(DateTimeFormatter.ofPattern("HH:mm"))
-        today.minusDays(1) -> "昨天"
-        else -> t.format(DateTimeFormatter.ofPattern("M月d日"))
-    }
+    return app.resound.ui.verify.formatStamp(at)
 }
 
 @Composable

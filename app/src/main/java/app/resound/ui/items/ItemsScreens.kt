@@ -576,7 +576,7 @@ internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit,
             val meta = buildList {
                 item.dueAt?.let { add(friendlyDue(it, item.dueText)) }
                 item.who?.takeIf { it != "我" }?.let { add(it) }
-                if (item.at > 0) add(formatClock(item.at) + " 提到")
+                if (item.at > 0) add(app.resound.ui.verify.formatStamp(item.at) + " 提到")
                 if (item.repeats > 1) add("说过 ${item.repeats} 次")
             }
             Spacer(Modifier.height(6.dp))

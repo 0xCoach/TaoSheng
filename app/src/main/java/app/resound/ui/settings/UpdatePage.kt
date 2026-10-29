@@ -74,7 +74,7 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
             Text(
                 when (val s = state) {
                     UpdateState.Idle, UpdateState.Checking -> "正在检查…"
-                    is UpdateState.UpToDate -> "已是最新 · ${formatClock(s.checkedAt)} 检查"
+                    is UpdateState.UpToDate -> "已是最新 · ${app.resound.ui.verify.formatStamp(s.checkedAt)} 检查"
                     is UpdateState.Failed -> if (s.info == null) s.message else "有新版本 ${displayVersion(s.info.versionName)}"
                     else -> "有新版本"
                 },

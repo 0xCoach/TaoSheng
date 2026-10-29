@@ -200,7 +200,5 @@ private fun historyGroup(at: Long): String {
 }
 
 private fun historyTime(at: Long): String {
-    val t = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
-    val days = ChronoUnit.DAYS.between(t.toLocalDate(), LocalDate.now())
-    return t.format(DateTimeFormatter.ofPattern(if (days <= 1L) "HH:mm" else "M月d日"))
+    return app.resound.ui.verify.formatStamp(at)
 }

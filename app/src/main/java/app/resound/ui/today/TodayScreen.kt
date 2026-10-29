@@ -347,7 +347,7 @@ private fun OverviewCard(
     val stateText = when (status.state) {
         CaptureState.Recording -> "正在录音"
         CaptureState.Listening -> "正在聆听"
-        CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") + (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${formatClock(it)} 恢复" } ?: "")
+        CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") + (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${app.resound.ui.verify.formatUpcoming(it)} 恢复" } ?: "")
         CaptureState.MicBusy -> if (status.busyDetail == app.resound.audio.MicYield.IN_CALL) "通话中，暂停收音" else "麦克风让给别的应用了"
         CaptureState.Stopped -> "没在聆听"
         CaptureState.NoPermission -> "缺少权限"

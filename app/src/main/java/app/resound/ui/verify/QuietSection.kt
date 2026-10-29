@@ -49,7 +49,7 @@ internal fun QuietSection(schedule: QuietSchedule) {
     var adding by remember { mutableStateOf(false) }
     Section("停录时段", trailing = {
         val on = rules.count { it.enabled }
-        Text(active?.let { a -> "${a.rule.name}中" + (resumeAt(a.endsAt)?.let { " · ${formatClock(it)} 恢复" } ?: "") } ?: if (on > 0) "$on 条已开启" else "未开启",
+        Text(active?.let { a -> "${a.rule.name}中" + (resumeAt(a.endsAt)?.let { " · ${formatUpcoming(it)} 恢复" } ?: "") } ?: if (on > 0) "$on 条已开启" else "未开启",
             style = RsType.caption, color = if (active != null) c.accent else c.textTertiary)
     }) {
         RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {

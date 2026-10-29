@@ -228,7 +228,7 @@ class Todo046Test {
         PhoneReminders(prefs(), { snapshot() }, { AppointmentReminders(false, leadMinutes = null) }, notifier(normal), { _, _ -> }, { clock },
             strongNotifier = notifier(strong)).refresh(true)
         // 手机上看的文字不带 I1 这样的编号
-        assertEquals(listOf("待办到期 · 合成条目1"), strong); assertEquals(listOf("待办到期 · 合成条目2"), normal)
+        assertEquals(listOf("待办到期 · ${app.resound.OutputTime().moment(clock)} 合成条目1"), strong); assertEquals(listOf("待办到期 · ${app.resound.OutputTime().moment(clock)} 合成条目2"), normal)
     }
 
     @Test fun strongReminderPostsWithButtonsAfterEdit() = runBlocking {

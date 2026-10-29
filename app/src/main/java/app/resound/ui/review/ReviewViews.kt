@@ -82,7 +82,7 @@ fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("生成于 ${formatClock(review.generatedAt)}", style = RsType.caption, color = c.textTertiary)
+                Text("生成于 ${app.resound.ui.verify.formatStamp(review.generatedAt)}", style = RsType.caption, color = c.textTertiary)
             }
         }
     }

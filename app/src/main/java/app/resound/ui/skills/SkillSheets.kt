@@ -45,7 +45,7 @@ fun SkillCardSheet(card: SkillCard, repo: SkillRepository, onDismiss: () -> Unit
     var asked by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     val skillExists = repo.skills.collectAsState().value.any { it.id == card.skillId }
-    RsSheet(card.title, "${card.skillName} · ${card.date.format(DateTimeFormatter.ofPattern("M月d日"))} ${cardTime(card)}", onDismiss = onDismiss) {
+    RsSheet(card.title, "${card.skillName} · ${cardTime(card)}", onDismiss = onDismiss) {
         if (card.summary.isNotBlank()) {
             Text(card.summary, style = RsType.body, color = c.text,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(skillInk(card.icon).copy(alpha = 0.08f)).padding(14.dp))

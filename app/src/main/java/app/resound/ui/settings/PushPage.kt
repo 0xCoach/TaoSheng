@@ -148,7 +148,7 @@ private fun LogRow(log: PushLog) {
                 style = RsType.caption, color = if (log.ok) c.textTertiary else c.critical, maxLines = 2,
             )
         }
-        Text(formatClock(log.at), style = RsType.caption, color = c.textTertiary)
+        Text(app.resound.ui.verify.formatStamp(log.at), style = RsType.caption, color = c.textTertiary)
     }
 }
 
@@ -373,7 +373,7 @@ private fun StatusLine(s: PushChannelStatus) {
     val text = when {
         s.running -> "正在推送…"
         s.lastError != null -> "上次没推成功：${s.lastError}"
-        s.lastPushAt != null -> "上次 ${formatClock(s.lastPushAt)}" + (s.lastResult?.let { " · $it" } ?: "")
+        s.lastPushAt != null -> "上次 ${app.resound.ui.verify.formatStamp(s.lastPushAt)}" + (s.lastResult?.let { " · $it" } ?: "")
         else -> "还没推过"
     }
     Text(text, style = RsType.subhead, color = if (s.lastError != null && !s.running) c.critical else c.textSecondary)

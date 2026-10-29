@@ -36,7 +36,12 @@ object CaptureNotifications {
         val prefs = context.getSharedPreferences("capture", Context.MODE_PRIVATE)
         val quietName = prefs.getString("quietName", null).takeIf { paused }
         val until = prefs.getLong("pausedUntil", 0)
-        val clock = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("H:mm"))
+        // 通知是界面：今天只写时刻，第二天写“明天”，更远才写日期（文件、推送正文才一律写全）
+        val at = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault())
+        val hm = at.format(java.time.format.DateTimeFormatter.ofPattern("H:mm"))
+        val clock = when (java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), at.toLocalDate())) {
+            0L -> hm; 1L -> "明天 $hm"; else -> app.resound.OutputTime().moment(until)
+        }
         return NotificationCompat.Builder(context, "listening")
         .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(if (quietName != null) "${context.appName} · ${quietName}中" else if (paused) "${context.appName} · 已暂停" else context.appName)
         .setContentText(if (quietName != null) "$clock 自动恢复，点此立即恢复" else if (paused) "到点自动恢复，也可点此立即恢复" else "后台运行中")

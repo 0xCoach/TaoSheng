@@ -164,7 +164,7 @@ private fun DrawScope.glyph(icon: String, ink: Color) {
 internal fun clock(at: Long): String = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))
 
 /** 卡片时间：会议是“14:00–15:20”，其他是“18:00” */
-internal fun cardTime(card: SkillCard): String = clock(card.at) + (card.endAt?.let { "–" + clock(it) } ?: "")
+internal fun cardTime(card: SkillCard): String = app.resound.ui.verify.formatStamp(card.at) + (card.endAt?.let { "–" + clock(it) } ?: "")
 
 /** 列表里的卡片：图标 + 技能名 + 时间，标题，一句话摘要 */
 @Composable

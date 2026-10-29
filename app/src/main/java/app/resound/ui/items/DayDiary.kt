@@ -373,7 +373,7 @@ private fun ReviewLead(review: DailyReview, generating: Boolean, info: ReviewInf
     RsCard(Modifier.springClick(onOpen), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp), color = c.accentSoft) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("当天回顾", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent)
-            Text(" · ${formatClock(review.generatedAt)} 生成", style = RsType.caption, color = c.textTertiary)
+            Text(" · ${app.resound.ui.verify.formatStamp(review.generatedAt)} 生成", style = RsType.caption, color = c.textTertiary)
         }
         Spacer(Modifier.height(6.dp))
         Text(lead, style = RsType.headline.copy(fontWeight = FontWeight.Medium), color = c.text)

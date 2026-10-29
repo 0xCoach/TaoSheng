@@ -65,7 +65,7 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
             else -> "正在聆听"
         },
         when {
-            status.state == CaptureState.Paused -> resumeAt(status.pausedUntil)?.let { "到 ${formatClock(it)} 自动恢复" }
+            status.state == CaptureState.Paused -> resumeAt(status.pausedUntil)?.let { "到 ${app.resound.ui.verify.formatUpcoming(it)} 自动恢复" }
             listening -> "只在有人说话时录音"
             else -> null
         },

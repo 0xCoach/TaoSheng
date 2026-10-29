@@ -255,7 +255,7 @@ private fun queueDetail(q: TranscribeQueueState, hasKey: Boolean, realtime: Bool
     else -> buildString {
         // 实时转写没有“下一轮”：录完就转
         if (realtime) append("录完就转")
-        q.lastRunAt?.let { if (isNotEmpty()) append(" · "); append("上次 ${formatClock(it)}") }
+        q.lastRunAt?.let { if (isNotEmpty()) append(" · "); append("上次 ${app.resound.ui.verify.formatStamp(it)}") }
         if (!realtime) q.nextRunAt?.let {
             if (isNotEmpty()) append(" · ")
             val mins = ((it - now) / 60_000).coerceAtLeast(0)

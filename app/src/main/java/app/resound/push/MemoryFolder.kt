@@ -34,13 +34,14 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         "Pending" -> "待确认"; "Accepted" -> "进行中"; "Done" -> "已完成"; "Ignored" -> "已忽略"; else -> status.toString()
     }
     private fun date(at: Long) = day(at, zone)
-    private fun time(at: Long) = Instant.ofEpochMilli(at).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm"))
+    private val outputTime = app.resound.OutputTime(zone, today)
+    private fun time(at: Long) = outputTime.moment(at)
     private fun cn(date: LocalDate) = date.format(DateTimeFormatter.ofPattern("yyyy年M月d日 EEEE", Locale.CHINESE))
     private fun item(i: MemoryItemEntity, snapshot: PushSnapshot): String {
         val origin = snapshot.events.find { it.id == i.eventId }?.let { "[[${dailyPath(date(it.startAt))}#E${it.id}]]" } ?: when (i.origin) { "typed" -> "手动添加"; "voice" -> "语音添加"; else -> "" }
         val repeat = snapshot.repeats[i.id] ?: 1
         return "- I${i.id} · ${i.category}${i.kind?.let { " / $it" }.orEmpty()} · ${i.content} · ${statusText(i.status)}" +
-            (if (repeat > 1) " · 说过 $repeat 次" else "") + (i.who?.let { " · $it" } ?: "") + (i.dueAt?.let { " · 到期 ${date(it)}" } ?: i.dueText?.let { " · $it" }.orEmpty()) + " · $origin"
+            (if (repeat > 1) " · 说过 $repeat 次" else "") + (i.who?.let { " · $it" } ?: "") + (i.dueAt?.let { " · 到期 ${time(it)}" } ?: i.dueText?.let { " · $it" }.orEmpty()) + " · $origin"
     }
     private fun review(r: ReviewEntity): String = buildString {
         appendLine(r.brief)
@@ -54,7 +55,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
     }
     private fun skill(row: SkillCardRow): String = buildString {
         val c = row.card()
-        appendLine("### ${c.skillName} · ${c.title}"); appendLine(c.summary)
+        appendLine("### ${c.skillName} · ${c.endAt?.let { outputTime.event(c.at, it) } ?: time(c.at)} · ${c.title}"); appendLine(c.summary)
         c.fields.forEach { field ->
             val v = c.values[field.key] ?: return@forEach
             appendLine("#### ${field.label}")
@@ -62,7 +63,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 FieldType.Text, FieldType.Paragraph -> appendLine(v.text.orEmpty())
                 FieldType.Bullets -> v.items.forEach { appendLine("- $it") }
                 FieldType.Checklist -> v.items.forEachIndexed { i, text -> appendLine("- [${if (v.checked.getOrNull(i) == true) "x" else " "}] $text") }
-                FieldType.Quotes -> v.quotes.forEach { q -> appendLine("> ${q.speaker ?: "某人"}：${q.text.replace("\n", "\n> ")}") }
+                FieldType.Quotes -> v.quotes.forEach { q -> appendLine("> ${time(q.at)} · ${q.speaker ?: "某人"}：${q.text.replace("\n", "\n> ")}") }
                 FieldType.Number -> appendLine("${v.number ?: ""} ${v.unit.orEmpty()}")
                 FieldType.Tags -> appendLine(v.items.joinToString(" · "))
                 FieldType.Rating -> appendLine("${v.rating ?: 0} / 5")
@@ -87,7 +88,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 appendLine("<!-- resound:reviews:end -->")
                 if (es.isNotEmpty()) appendLine("## 时间线")
                 es.forEach { e ->
-                    appendLine("<a id=\"E${e.id}\"></a>\n### E${e.id} · ${time(e.startAt)} ${if (e.starred) "★ 重点 · " else ""}${e.title}${if (e.important) " · 要紧" else ""}")
+                    appendLine("<a id=\"E${e.id}\"></a>\n### E${e.id} · ${outputTime.event(e.startAt, e.endAt)} ${if (e.starred) "★ 重点 · " else ""}${e.title}${if (e.important) " · 要紧" else ""}")
                     appendLine("场景：${e.scene} · 参与人：${JSONArray(e.peopleJson).strings().joinToString("、")}")
                     appendLine(e.summary); JSONArray(e.pointsJson).strings().forEach { appendLine("- $it") }
                     data.items.filter { it.eventId == e.id }.forEach { appendLine(item(it, data)) }
@@ -148,7 +149,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             | daily/ | 每日回顾、时间线、条目、卡片 | 按订阅触发 |
             | weekly/ | 每周回顾 | 回顾生成后 |
             | transcripts/ | 原话（仅开启时） | 按订阅触发 |
-            ${if (s.layout == FolderLayout.ByCategory) "| recent-days-index.md | 最近30天导航 | 同步时 |\n| starred-highlights.md | 重点与进展 | 同步时 |\n| todos-and-appointments.md | 待办与约定 | 同步时 |\n| ideas.md、decisions-and-facts.md | 最近一年提取项 | 同步时 |\n| archive/ | 一年以前的提取项 | 同步时 |\n| inbox/ | 预留；只建空目录，不读取 | 不处理 |\n| my-notes/ | 归用户所有 | 回响永不读写、不删除 |" else ""}
+            ${if (s.layout == FolderLayout.ByCategory) "| recent-days-index.md | 最近30天导航 | 同步时 |\n| starred-highlights.md | 重点与进展 | 同步时 |\n| todos-and-appointments.md | 待办与约定 | 同步时 |\n| ideas.md、decisions-and-facts.md | 最近一年提取项 | 同步时 |\n| archive/ | 一年以前的提取项 | 同步时 |\n| inbox/ | 预留；只建空目录，不读取 | 不处理 |\n| my-notes/ | 归用户所有 | 涛声永不读写、不删除 |" else ""}
 
             ## 给智能体的用法
             ${if (s.layout == FolderLayout.ByCategory) "先读 recent-days-index.md → 某天细节读 daily/ → 核对原话读 transcripts/；重点和待办直接读汇总文件。" else "先按日期读 daily/，其中包含当天汇总；核对原话读 transcripts/；每周总结读 weekly/。"}

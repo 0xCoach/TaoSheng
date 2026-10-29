@@ -21,6 +21,7 @@ class SkillCardPushTest {
             ), emptyList(), 0, false)
         assertEquals("收工打卡 · 周二收工", SkillCardPush.title(card))
         assertEquals("""
+            ${app.resound.OutputTime().moment(card.at)}
             推进了省电改造。
             【今天做了什么】
             · 改收音循环

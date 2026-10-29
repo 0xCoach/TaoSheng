@@ -10,6 +10,7 @@ import androidx.work.*
 import app.resound.PipelineProgress
 import app.resound.PipelineProgress.Stage
 import app.resound.ResoundApp
+import app.resound.AppGraph
 import app.resound.formatElapsed
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -76,15 +77,25 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         }
 
         private suspend fun executePipeline(app: ResoundApp, mode: String, manual: Boolean = false): Boolean {
-            val transcribe = mode != MODE_DIGEST
-            val digest = mode in setOf(MODE_FULL, MODE_DIGEST, MODE_TIMED, MODE_REVIEW)
             var mark = SystemClock.elapsedRealtime()
             fun lap(): Long = SystemClock.elapsedRealtime().let { now -> (now - mark).also { mark = now } }
             val pendingBefore = app.database.transcribe().pendingMillis()
             val parts = mutableListOf<String>()
             var transcribeRetry = false
             var voiceprintRetry = false
-            if (transcribe) {
+            val skip = if (mode == MODE_DIGEST) {
+                val settings = AppGraph.transcribeSettings
+                val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
+                val unmetered = cm.getNetworkCapabilities(cm.activeNetwork)
+                    ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
+                digestTranscribeSkip(
+                    (settings as? AndroidTranscribeSettings)?.source?.value == TranscribeSource.Local,
+                    settings.wifiOnly.value, unmetered,
+                    EarlyTranscribe.deviceAllows(app, realtime = true, pendingMillis = pendingBefore), pendingBefore)
+            } else null
+            if (skip != null) parts += "跳过转写：$skip"
+            var digestRetry = false
+            runPipelineStages(mode, skip, transcribe = {
                 PipelineProgress.stage(Stage.Transcribe)
                 // 到点/回顾前与“现在整理”一样，把此前失败、正在退避的片段也补转一次。
                 if (mode == MODE_TIMED || mode == MODE_REVIEW) app.database.transcribe().retryFailed()
@@ -94,16 +105,14 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
                 voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
                 app.voiceprintRepository.cleanupAudio()
                 parts += "声纹 ${formatElapsed(lap())}"
-            }
-            var digestRetry = false
-            if (digest) {
+            }, organize = {
                 PipelineProgress.stage(Stage.Digest)
                 digestRetry = app.voiceprintRepository.withStableResults {
                     app.digestRunner.run(force = manual || mode == MODE_TIMED || mode == MODE_REVIEW, manual = manual)
                 }
                 app.voiceprintRepository.cleanupAudio()
                 parts += "整理 ${formatElapsed(lap())}"
-            }
+            })
             // 回顾前整理由外层统一记一次诊断（含等锁、超时和失败）。
             if (mode != MODE_REVIEW) PipelineTimes.record(app, "${System.currentTimeMillis()} ${MODE_NAMES[mode] ?: mode} 待转录音 ${formatElapsed(pendingBefore)} · " + parts.joinToString(" · "))
             return transcribeRetry || voiceprintRetry || digestRetry
@@ -221,4 +230,19 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
         const val DIGEST_PERIODIC = "digest-periodic"
         const val REALTIME_FALLBACK_MINUTES = 30L
     }
+}
+
+/** 间隔整理的前置转写遵守自身条件，整理仍可继续。 */
+internal fun digestTranscribeSkip(local: Boolean, wifiOnly: Boolean, unmetered: Boolean,
+                                  deviceAllows: Boolean, pendingMillis: Long): String? = when {
+    !local && wifiOnly && !unmetered -> "只在 WiFi 下转写，当前不是不计流量的网络"
+    pendingMillis <= 0 -> "没有待转写片段"
+    !deviceAllows -> "电量低或手机偏热"
+    else -> null
+}
+
+internal suspend fun runPipelineStages(mode: String, skip: String?,
+                                       transcribe: suspend () -> Unit, organize: suspend () -> Unit) {
+    if (mode != TranscribeWork.MODE_DIGEST || skip == null) transcribe()
+    if (mode in setOf(TranscribeWork.MODE_FULL, TranscribeWork.MODE_DIGEST, TranscribeWork.MODE_TIMED, "review")) organize()
 }

@@ -250,6 +250,16 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
             // 推送状态 + 现在推一次 / 全部重新生成
             val st by remember(ch.id) { repo.status(ch.id) }.collectAsState(initial = null)
             st?.let { s -> StatusLine(s) }
+            if (caps.audio && ch.subscription.audio != app.resound.push.AudioPush.Off) {
+                val a by remember(ch.id) { repo.audioStatus(ch.id) }.collectAsState(initial = null)
+                a?.let { s ->
+                    val month = s.monthlyEstimateBytes?.let { " · 按最近 7 天估一个月约 ${app.resound.ui.verify.formatBytes(it)}" } ?: ""
+                    Text("录音：已传 ${s.uploaded} 段" + (if (s.pending > 0) "，待传 ${s.pending} 段" else "") +
+                        " · 本月 ${app.resound.ui.verify.formatBytes(s.bytesThisMonth)}" + month,
+                        style = RsType.caption, color = if (s.monthlyEstimateBytes?.let { it > 900L * 1024 * 1024 } == true) c.warning else c.textSecondary)
+                    s.lastError?.let { Text(it, style = RsType.caption, color = c.critical) }
+                }
+            }
             if (caps.records && (ch.subscription.records.isNotEmpty() || ch.subscription.lines != LinesMode.Off)) {
                 ActionButton(if (st?.running == true) "正在推…" else "现在推一次", ActionKind.Secondary, enabled = !busy && st?.running != true) {
                     busy = true; result = null
@@ -421,6 +431,17 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
     if (sub.lines != LinesMode.Off) ToggleRow("带上语音输入的上下文", "语音输入时屏幕上的对话（别人的消息、AI 回复等）", sub.lineContext) { onChange(sub.copy(lineContext = it)) }
     if (sub.lines != LinesMode.Off) Text("原话会以明文推出去，注意保管；“只推我说的”只含声纹认出是你的话。", style = RsType.caption, color = c.warning)
     }
+    }
+    // 卡 072：推录音（原始 OGG），只有坚果云同步文件夹能收文件
+    if (caps.audio) Block("推录音", "原始录音放进这个文件夹的“录音/日期/”下；只传不删，手机上的录音过期了云端照样保留") {
+        app.resound.ui.skills.Segments(app.resound.push.AudioPush.entries.map { it.title }, sub.audio.ordinal) { onChange(sub.copy(audio = app.resound.push.AudioPush.entries[it])) }
+        if (sub.audio != app.resound.push.AudioPush.Off) {
+            Text(if (sub.audio == app.resound.push.AudioPush.Speech) "转写好后再传，没人说话的、媒体、转写为空的不传" else "录下就传，包括没人说话的片段",
+                style = RsType.caption, color = c.textTertiary)
+            ToggleRow("附上原话", "每段录音配一个同名文字文件", sub.audioWithText) { onChange(sub.copy(audioWithText = it)) }
+            ToggleRow("只在连 WiFi 时传", "用流量时先攒着，连上 WiFi 再传", sub.audioWifiOnly) { onChange(sub.copy(audioWifiOnly = it)) }
+            Text("坚果云免费版每月只能上传 1 GB；“全部录音”一天几十 MB，一个月可能超，建议选“只推人声”。", style = RsType.caption, color = c.warning)
+        }
     }
     if (!caps.records || (sub.records.isEmpty() && sub.lines == LinesMode.Off)) return
 

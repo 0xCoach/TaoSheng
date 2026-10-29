@@ -198,6 +198,7 @@ fun TodayScreen(
         selection.reachTarget(order, maxOf(viewport.top, topEdge), minOf(viewport.bottom, bottomEdge)) else null
     val batchScope = rememberCoroutineScope()
     var batchDeleting by remember { mutableStateOf<List<Long>?>(null) }
+    var redoing by remember { mutableStateOf<List<Long>?>(null) }
     var batchCopying by remember { mutableStateOf<List<MemoryEvent>?>(null) }
     var homeExport by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var copyNote by remember { mutableStateOf<String?>(null) }
@@ -283,11 +284,10 @@ fun TodayScreen(
         }
     }
     val chosen = list.filter { it.id in selection.ids }
-    val allStarred = chosen.isNotEmpty() && chosen.all { it.starred }
     app.resound.ui.ScrollToTopOnReselect(listState)
     ScrollTopButton(listState, bottomPadding, lift = if (selection.active) 120.dp else 0.dp)
-    SelectBottomBar(selection, order, allStarred, bottomPadding, onTop = { bottomEdge = it },
-        onStar = { chosen.forEach { memory.setStarred(it.id, !allStarred) }; selection.exit() },
+    SelectBottomBar(selection, order, bottomPadding, onTop = { bottomEdge = it },
+        onRedo = { redoing = chosen.map { it.id }; selection.exit() },
         onCopy = { batchCopying = list.filter { it.id in selection.ids } },
         onExport = {
             // 选中几件事的录音合成一个文件：先查出它们的录音段，再打开导出面板
@@ -314,6 +314,7 @@ fun TodayScreen(
         filter = TimelineFilter.Person(name); rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
     }) { peopleOpen = false }
     homeExport?.let { (ids, title) -> app.resound.ui.transcript.ExportSheet(ids, title) { homeExport = null; selection.exit() } }
+    redoing?.let { ids -> app.resound.ui.redo.RedoSheet(eventIds = ids) { redoing = null } }
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
         BatchDeleteSheet(ids.size, deleteProgress, onConfirm = {

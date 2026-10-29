@@ -110,6 +110,7 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
             if (app.resound.AppGraph.isMemoryReady) app.resound.ui.today.EventSheet(e, app.resound.AppGraph.memory) { app.resound.ui.transcript.PlayerNav.openEvent = null }
         }
         app.resound.ui.transcript.ExportUi.openJob?.let { id -> app.resound.ui.transcript.ExportJobSheet(id) { app.resound.ui.transcript.ExportUi.openJob = null } }
+        app.resound.ui.redo.RedoUi.openJob?.let { id -> app.resound.ui.redo.RedoJobSheet(id) { app.resound.ui.redo.RedoUi.openJob = null } }
         androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { app.resound.ui.transcript.LinePlayer.stop() }
     }
 }

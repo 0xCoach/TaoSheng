@@ -165,6 +165,8 @@ fun TranscriptScreen(
     val dayEvents by remember(date, memory) { memory?.events(date) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
     var exporting by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var deleting by remember { mutableStateOf<List<Long>?>(null) }
+    var retranscribing by remember { mutableStateOf<List<Long>?>(null) }
+    retranscribing?.let { ids -> app.resound.ui.redo.RedoSheet(segmentIds = ids) { retranscribing = null } }
     val chosen = segments.orEmpty().filter { it.segmentId in selection.ids }.sortedBy { it.startAt }
     Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
     LazyColumn(
@@ -225,6 +227,7 @@ fun TranscriptScreen(
     ReachHereChip(reach, selection, boxTop, reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
     // 底部两行：✕ · 已选 N 段 · 共几分钟 · 全选 / 播放 · 导出 · 复制原话 · 删除
     SegmentSelectBar(selection, order, chosen, bottomPadding, onTop = { bottomEdge = it },
+        onRetranscribe = { retranscribing = chosen.map { it.segmentId }; selection.exit() },
         onPlay = {
             val lines = chosen.flatMap { it.lines }.sortedBy { it.startAt }
             if (lines.isEmpty()) LinePlayer.notice = "选中的录音没有可播放的原话" else LinePlayer.play(context, lines, 0, PlaySource.Transcript(date))
@@ -953,7 +956,7 @@ private fun Placeholder() {
 /** 原话页多选的底部两行：✕ · 已选 N 段 · 共几分几秒 · 全选；播放 · 导出 · 复制原话 · 删除 */
 @Composable
 private fun BoxScope.SegmentSelectBar(selection: app.resound.ui.today.TimelineSelection, order: List<Long>, chosen: List<SegmentTranscript>, bottomPadding: androidx.compose.ui.unit.Dp,
-                                      onTop: (Float) -> Unit, onPlay: () -> Unit, onExport: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit) {
+                                      onTop: (Float) -> Unit, onPlay: () -> Unit, onExport: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit, onRetranscribe: () -> Unit = {}) {
     val c = Rs.colors
     AnimatedVisibility(selection.active, Modifier.align(Alignment.BottomCenter)) {
         val n = chosen.size
@@ -972,7 +975,8 @@ private fun BoxScope.SegmentSelectBar(selection: app.resound.ui.today.TimelineSe
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BarAction("▶ 播放", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onPlay)
                 BarAction("导出", c.accent, Color.White, n > 0, Modifier.weight(1f), onExport)
-                BarAction("复制原话", c.background, c.text, n > 0, Modifier.weight(1.2f), onCopy)
+                BarAction("复制", c.background, c.text, n > 0, Modifier.weight(1f), onCopy)
+                if (app.resound.AppGraph.isRedoReady) BarAction("重新转写", c.background, c.text, n > 0, Modifier.weight(1.4f), onRetranscribe)
                 BarAction("删除", c.critical.copy(alpha = 0.1f), c.critical, n > 0, Modifier.weight(1f), onDelete)
             }
         }

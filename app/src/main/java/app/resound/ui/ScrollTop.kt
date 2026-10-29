@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -59,10 +60,12 @@ fun BoxScope.ScrollTopButton(state: LazyListState, bottomPadding: Dp, lift: Dp =
     // 放在屏幕中间偏下的右侧：大拇指自然够得着，不用往下够；也避开底部的操作栏和添加按钮
     AnimatedVisibility(far, Modifier.align(androidx.compose.ui.BiasAlignment(1f, 0.42f)).padding(end = end),
         enter = scaleIn(initialScale = 0.6f) + fadeIn(), exit = scaleOut(targetScale = 0.6f) + fadeOut()) {
-        Box(Modifier.size(42.dp).shadow(if (c.isDark) 0.dp else 10.dp, CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
-            .clip(CircleShape).background(c.card).springClick { scope.launch { state.animateScrollToItem(0) } },
+        // 浅橙底 + 细描边 + 阴影：压在白色卡片上也看得清
+        Box(Modifier.size(44.dp).shadow(if (c.isDark) 0.dp else 12.dp, CircleShape, ambientColor = c.accent, spotColor = c.accent)
+            .clip(CircleShape).background(c.accentSoft).border(1.dp, c.accent.copy(alpha = 0.25f), CircleShape)
+            .springClick { scope.launch { state.animateScrollToItem(0) } },
             contentAlignment = Alignment.Center) {
-            Text("↑", style = RsType.headline.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
+            app.resound.ui.transcript.ArrowUpIcon(c.accent)
         }
     }
 }

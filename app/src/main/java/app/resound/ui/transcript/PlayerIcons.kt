@@ -93,3 +93,21 @@ internal fun SkipCircle(back: Boolean, onClick: () -> Unit) {
         Text("15", style = RsType.caption.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold), color = c.accent)
     }
 }
+
+/** 收起：圆头细线的向下箭头 */
+@Composable
+internal fun ChevronDownIcon(color: Color) = androidx.compose.foundation.Canvas(Modifier.size(12.dp)) {
+    val stroke = 1.8.dp.toPx()
+    val path = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.12f, size.height * 0.32f); lineTo(size.width * 0.5f, size.height * 0.7f); lineTo(size.width * 0.88f, size.height * 0.32f) }
+    drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+}
+
+/** 回到顶部：圆头细线的向上箭头（竖线 + 尖头） */
+@Composable
+internal fun ArrowUpIcon(color: Color) = androidx.compose.foundation.Canvas(Modifier.size(16.dp)) {
+    val stroke = 2.dp.toPx()
+    val cx = size.width / 2
+    drawLine(color, androidx.compose.ui.geometry.Offset(cx, size.height * 0.88f), androidx.compose.ui.geometry.Offset(cx, size.height * 0.14f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+    val path = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.18f, size.height * 0.46f); lineTo(cx, size.height * 0.12f); lineTo(size.width * 0.82f, size.height * 0.46f) }
+    drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+}

@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -90,8 +91,10 @@ private fun Bar() {
         expanded = false
     }
     Column(
-        Modifier.fillMaxWidth().shadow(if (c.isDark) 0.dp else 16.dp, RoundedCornerShape(24.dp), ambientColor = c.shadow, spotColor = c.shadow)
-            .clip(RoundedCornerShape(24.dp)).background(c.card).animateContentSize(),
+        // 阴影加深一点 + 一圈细描边：压在白色卡片上也能分出层次
+        Modifier.fillMaxWidth().shadow(if (c.isDark) 0.dp else 22.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.22f))
+            .clip(RoundedCornerShape(24.dp)).background(c.card)
+            .border(1.dp, if (c.isDark) Color.White.copy(alpha = 0.10f) else c.separator, RoundedCornerShape(24.dp)).animateContentSize(),
     ) {
         if (!expanded) {
             // 收起：顶部细进度线 + 一行字幕；点字幕展开成完整卡片
@@ -121,7 +124,7 @@ private fun Bar() {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("正在播放原声", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
-                    Text("收起 ⌄", style = RsType.caption, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { expanded = false }.padding(horizontal = 8.dp, vertical = 4.dp))
+                    IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
                 }
                 Column(Modifier.fillMaxWidth().height(78.dp), verticalArrangement = Arrangement.Center) {
                     listOf(idx - 1, idx, idx + 1).forEach { k ->

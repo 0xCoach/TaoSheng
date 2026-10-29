@@ -76,7 +76,9 @@ private fun Bar() {
             }
             Spacer(Modifier.width(2.dp))
             androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-                Text(if (LinePlayer.playing) "正在播放原声" else "已暂停", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+                val segs = LinePlayer.segmentOrder.size
+                Text((if (LinePlayer.playing) "正在播放原声" else "已暂停") + if (segs > 1) " · 第 ${LinePlayer.segmentIndex + 1}/$segs 段" else "",
+                    style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1)
                 Text(app.resound.ui.verify.formatStamp(LinePlayer.positionAt) + ":" + "%02d".format(LinePlayer.positionAt / 1000 % 60),
                     style = RsType.caption, color = c.textTertiary)
             }
@@ -86,6 +88,9 @@ private fun Bar() {
                 modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
                     LinePlayer.changeSpeed(SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.size])
                 }.padding(horizontal = 12.dp, vertical = 7.dp))
+            // 多段时可以跳到下一段
+            if (LinePlayer.segmentOrder.size > 1 && LinePlayer.segmentIndex < LinePlayer.segmentOrder.lastIndex)
+                Text("⏭", style = RsType.headline, color = c.accent, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.skipSegment() }.padding(horizontal = 8.dp, vertical = 6.dp))
             Text("✕", style = RsType.headline, color = c.textTertiary, modifier = Modifier.clip(CircleShape).springClick { LinePlayer.stop() }.padding(horizontal = 12.dp, vertical = 6.dp))
         }
     }

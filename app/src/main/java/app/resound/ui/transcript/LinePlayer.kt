@@ -38,6 +38,9 @@ object LinePlayer {
     var speed by mutableFloatStateOf(1f); private set
     /** 每次新开始播放 +1，播放条据此重新弹出到最上层 */
     var session by mutableIntStateOf(0); private set
+    /** 本次播放涉及的录音段（按顺序）和当前是第几段；多段时播放条显示“第 2/6 段”和“下一段” */
+    var segmentOrder by mutableStateOf<List<Long>>(emptyList()); private set
+    val segmentIndex get() = segmentOrder.indexOf(segmentId).coerceAtLeast(0)
     /** 给界面的一次性提示（如录音已过保留期）；界面显示后清空 */
     var notice by mutableStateOf<String?>(null)
 
@@ -64,6 +67,7 @@ object LinePlayer {
         this.context = context.applicationContext
         queue = lines.drop(index).filter { it.segmentId > 0 }
         if (queue.isEmpty()) return
+        segmentOrder = queue.map { it.segmentId }.distinct()
         session++
         scope.launch { startAt(queue.first()) }
     }
@@ -88,7 +92,7 @@ object LinePlayer {
     fun stop() {
         ticker?.cancel(); ticker = null
         player?.runCatching { stop(); release() }; player = null
-        playing = false; currentLineId = null; queue = emptyList()
+        playing = false; currentLineId = null; queue = emptyList(); segmentOrder = emptyList()
         abandonFocus(); releaseCapture()
         if (noisyRegistered) { runCatching { context?.unregisterReceiver(noisy) }; noisyRegistered = false }
     }
@@ -96,9 +100,9 @@ object LinePlayer {
     private suspend fun startAt(line: TranscriptLine) {
         val audio = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { app.resound.AppGraph.originalAudio.locate(line.segmentId) }.getOrNull() else null
         if (audio == null || !audio.file.exists()) {
-            // 第一句就没有原声：提示后不开播；中途某段过期了：跳到下一段
+            // 这一段没有原声（过期或语音输入）：跳到下一段；一段能播的都没有才提示
             val next = queue.dropWhile { it.segmentId == line.segmentId }.firstOrNull()
-            if (currentLineId == null || next == null) { notice = "这段录音已过保留期，只剩文字"; if (currentLineId != null) stop(); return }
+            if (next == null) { notice = "这段录音已过保留期，只剩文字"; stop(); return }
             queue = queue.dropWhile { it.segmentId == line.segmentId }; startAt(next); return
         }
         player?.runCatching { release() }
@@ -124,6 +128,9 @@ object LinePlayer {
         currentLineId = line.id; positionAt = line.startAt; playing = true
         applySpeed(); tick()
     }
+
+    /** 播放条上的“下一段” */
+    fun skipSegment() { scope.launch { nextSegment() } }
 
     private suspend fun nextSegment() {
         val next = queue.dropWhile { it.segmentId == segmentId }.firstOrNull()

@@ -147,7 +147,7 @@ private fun BarText(text: String, color: Color, onClick: () -> Unit) =
 /** 底部两行面板：上行 ✕ · 已选 N 件 · 全选；下行 重点 / 复制 / 删除 N。都在拇指够得着的地方 */
 @Composable
 internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, order: List<Long>, allStarred: Boolean, bottomPadding: Dp,
-                                      onTop: (Float) -> Unit, onStar: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit) {
+                                      onTop: (Float) -> Unit, onStar: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit, onExport: () -> Unit = {}) {
     val c = Rs.colors
     AnimatedVisibility(selection.active, Modifier.align(Alignment.BottomCenter),
         enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
@@ -170,6 +170,7 @@ internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, order: List<
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BarChip(if (allStarred) "取消重点" else "★ 重点", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onStar)
                 BarChip("复制", c.background, c.text, n > 0, Modifier.weight(1f), onCopy)
+                BarChip("导出", c.accent, Color.White, n > 0, Modifier.weight(1f), onExport)
                 BarChip(if (n > 0) "删除 $n 件" else "删除", c.critical, Color.White, n > 0, Modifier.weight(1.2f), onDelete)
             }
         }

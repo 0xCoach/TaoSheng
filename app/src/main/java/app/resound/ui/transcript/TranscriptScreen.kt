@@ -70,6 +70,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.BoxScope
+import app.resound.ui.today.trackRow
+import app.resound.ui.today.ReachHereChip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -129,9 +135,30 @@ fun TranscriptScreen(
     val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsState()?.value == true
     val local = (settings as? AndroidTranscribeSettings)?.source?.collectAsState()?.value == TranscribeSource.Local
     var settingsOpen by remember { mutableStateOf(false) }
+    // 多选（和首页同一套：长按进入、点选、选到这儿）；换一天就重置
+    val selection = remember(date) { app.resound.ui.today.TimelineSelection() }
+    val order = remember(segments) { segments.orEmpty().map { it.segmentId } }
+    LaunchedEffect(order) { selection.retain(order); if (order.isEmpty() && selection.active) selection.exit() }
+    androidx.activity.compose.BackHandler(selection.active) { selection.exit() }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var boxTop by remember { mutableStateOf(0f) }
+    var bottomEdge by remember { mutableStateOf(Float.MAX_VALUE) }
+    var scrolledAt by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) scrolledAt = selection.version }
+    val reach = if (selection.active && !listState.isScrollInProgress && scrolledAt == selection.version)
+        selection.reachTarget(order, viewport.top, minOf(viewport.bottom, bottomEdge)) else null
+    val context = LocalContext.current
+    val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
+    val dayEvents by remember(date, memory) { memory?.events(date) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    var exporting by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
+    var deleting by remember { mutableStateOf<List<Long>?>(null) }
+    val chosen = segments.orEmpty().filter { it.segmentId in selection.ids }.sortedBy { it.startAt }
+    Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
     LazyColumn(
-        Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
+        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).onGloballyPositioned { viewport = it.boundsInRoot() },
+        state = listState,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp + if (selection.active) 120.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
@@ -166,10 +193,47 @@ fun TranscriptScreen(
             }
         }
         items(list.orEmpty(), key = { it.segmentId }) { seg ->
-            SegmentCard(seg, Modifier.animateItem(), realtime, onTranscribeAnyway = { repo.transcribeAnyway(seg.segmentId) },
-                onRetry = { repo.retrySegment(seg.segmentId) }, onDelete = { repo.deleteFailed(seg.segmentId) })
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+            val id = seg.segmentId
+            SegmentCard(seg, Modifier.animateItem().then(if (selection.active) Modifier.trackRow(selection, id) else Modifier),
+                realtime, onTranscribeAnyway = { repo.transcribeAnyway(id) },
+                onRetry = { repo.retrySegment(id) }, onDelete = { repo.deleteFailed(id) },
+                selected = if (selection.active) id in selection.ids else null,
+                onLongPress = {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    if (selection.active) selection.rangeTo(id, order) else selection.start(id)
+                },
+                onTap = { selection.toggle(id, order) })
         }
     }
+    ReachHereChip(reach, selection, boxTop, reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
+    // 底部两行：✕ · 已选 N 段 · 共几分钟 · 全选 / 播放 · 导出 · 复制原话 · 删除
+    SegmentSelectBar(selection, order, chosen, bottomPadding, onTop = { bottomEdge = it },
+        onPlay = {
+            val lines = chosen.flatMap { it.lines }.sortedBy { it.startAt }
+            if (lines.isEmpty()) LinePlayer.notice = "选中的录音没有可播放的原话" else LinePlayer.play(context, lines, 0)
+        },
+        onExport = {
+            val ids = chosen.map { it.segmentId }
+            exporting = ids to exportTitle(dayEvents, chosen.minOf { it.startAt }, chosen.maxOf { it.endAt })
+        },
+        onCopy = {
+            val text = chosen.flatMap { it.lines }.sortedBy { it.startAt }.joinToString("\n") { l -> "${lineTime(l.startAt)} ${speakerLabel(l)}：${l.text}" }
+            (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                .setPrimaryClip(android.content.ClipData.newPlainText("原话", text))
+            Toast.makeText(context, "已复制 ${chosen.size} 段原话", Toast.LENGTH_SHORT).show()
+            selection.exit()
+        },
+        onDelete = { deleting = chosen.map { it.segmentId } })
+    }
+    exporting?.let { (ids, title) -> ExportSheet(ids, title) { exporting = null; selection.exit() } }
+    deleting?.let { ids -> DeleteSegmentsSheet(ids.size, onConfirm = {
+        if (app.resound.AppGraph.isSegmentDeleterReady) {
+            val n = runCatching { app.resound.AppGraph.segmentDeleter.deleteSegments(ids) }.getOrDefault(0)
+            Toast.makeText(context, "已删除 $n 段", Toast.LENGTH_SHORT).show()
+        }
+        deleting = null; selection.exit()
+    }) { deleting = null } }
 }
 
 // ---------- 队列状态 ----------
@@ -568,10 +632,21 @@ private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 
 @Composable
 private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Boolean, onTranscribeAnyway: () -> Unit,
-                        onRetry: () -> Unit = {}, onDelete: () -> Unit = {}) {
+                        onRetry: () -> Unit = {}, onDelete: () -> Unit = {},
+                        /** 多选时是否选中；不在多选为 null */
+                        selected: Boolean? = null, onLongPress: () -> Unit = {}, onTap: () -> Unit = {}) {
     val c = Rs.colors
-    RsCard(modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+    val bg by animateColorAsState(if (selected == true) c.accentSoft else c.card, label = "segSel")
+    // 长按整张卡进入多选；多选时点卡片勾选（原话里的点按播放等暂停）
+    Box(modifier) {
+    RsCard(Modifier.animateContentSize().combinedClickable(
+        interactionSource = remember { MutableInteractionSource() }, indication = null,
+        onClick = {}, onLongClick = onLongPress,
+    ), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp), color = bg) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            AnimatedVisibility(selected != null) {
+                Box(Modifier.padding(end = 10.dp)) { app.resound.ui.today.SelectCircle(selected == true) }
+            }
             Text(formatClock(seg.startAt), style = RsType.headline, color = c.text)
             val end = formatClock(seg.endAt)
             Text(
@@ -600,6 +675,10 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
                 TranscriptStatus.Quiet -> FailedActions(seg.error ?: "多次转写失败", retry = if (seg.audioAvailable) onRetry else null, onDelete = onDelete)
             }
         }
+    }
+    // 多选时整张卡盖一层：点 = 勾选，长按 = 选到这段（原话里的点按播放暂停）
+    if (selected != null) Box(Modifier.matchParentSize().combinedClickable(
+        interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap, onLongClick = onLongPress))
     }
 }
 
@@ -851,5 +930,55 @@ private fun Placeholder() {
         listOf(1f, 0.62f).forEach { w ->
             Box(Modifier.fillMaxWidth(w).height(12.dp).clip(CircleShape).background(c.separator.copy(alpha = a)))
         }
+    }
+}
+
+/** 原话页多选的底部两行：✕ · 已选 N 段 · 共几分几秒 · 全选；播放 · 导出 · 复制原话 · 删除 */
+@Composable
+private fun BoxScope.SegmentSelectBar(selection: app.resound.ui.today.TimelineSelection, order: List<Long>, chosen: List<SegmentTranscript>, bottomPadding: androidx.compose.ui.unit.Dp,
+                                      onTop: (Float) -> Unit, onPlay: () -> Unit, onExport: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit) {
+    val c = Rs.colors
+    AnimatedVisibility(selection.active, Modifier.align(Alignment.BottomCenter)) {
+        val n = chosen.size
+        val total = chosen.sumOf { it.endAt - it.startAt }
+        val all = order.isNotEmpty() && order.all { it in selection.ids }
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = bottomPadding + 12.dp).fillMaxWidth()
+            .shadow(if (c.isDark) 0.dp else 16.dp, RoundedCornerShape(26.dp), ambientColor = c.shadow, spotColor = c.shadow)
+            .clip(RoundedCornerShape(26.dp)).background(c.card).onGloballyPositioned { onTop(it.boundsInRoot().top) }.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("✕", style = RsType.headline, color = c.textSecondary, modifier = Modifier.clip(CircleShape).springClick { selection.exit() }.padding(horizontal = 12.dp, vertical = 6.dp))
+                Text(if (n == 0) "选择录音" else "已选 $n 段 · 共 ${formatDuration(total, seconds = true)}", style = RsType.body.copy(fontWeight = FontWeight.SemiBold),
+                    color = c.text, maxLines = 1, modifier = Modifier.weight(1f))
+                Text(if (all) "全不选" else "全选", style = RsType.body.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                    modifier = Modifier.clip(CircleShape).springClick { if (all) selection.removeAll(order) else selection.addAll(order) }.padding(horizontal = 12.dp, vertical = 6.dp))
+            }
+            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BarAction("▶ 播放", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onPlay)
+                BarAction("导出", c.accent, Color.White, n > 0, Modifier.weight(1f), onExport)
+                BarAction("复制原话", c.background, c.text, n > 0, Modifier.weight(1.2f), onCopy)
+                BarAction("删除", c.critical.copy(alpha = 0.1f), c.critical, n > 0, Modifier.weight(1f), onDelete)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BarAction(text: String, bg: Color, fg: Color, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Box(modifier.clip(CircleShape).background(bg.copy(alpha = bg.alpha * if (enabled) 1f else 0.4f)).springClick { if (enabled) onClick() }
+        .padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = fg.copy(alpha = if (enabled) 1f else 0.4f), maxLines = 1)
+    }
+}
+
+/** 批量删除录音确认：写清楚删什么、不删什么 */
+@Composable
+private fun DeleteSegmentsSheet(count: Int, onConfirm: suspend () -> Unit, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    app.resound.ui.verify.RsSheet("删除 $count 段录音？", "录音和原话会一起删除，整理出的事件不受影响；删除后无法恢复", onDismiss = { if (!busy) onDismiss() }) {
+        app.resound.ui.verify.ActionButton(if (busy) "正在删除…" else "删除 $count 段", app.resound.ui.verify.ActionKind.Danger, enabled = !busy) {
+            busy = true; scope.launch { onConfirm() }
+        }
+        app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary, enabled = !busy) { onDismiss() }
     }
 }

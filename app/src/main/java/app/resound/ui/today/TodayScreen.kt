@@ -121,6 +121,7 @@ import app.resound.ui.verify.ThemeModePill
 import app.resound.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -197,6 +198,7 @@ fun TodayScreen(
     val batchScope = rememberCoroutineScope()
     var batchDeleting by remember { mutableStateOf<List<Long>?>(null) }
     var batchCopying by remember { mutableStateOf<List<MemoryEvent>?>(null) }
+    var homeExport by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var copyNote by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(copyNote) { if (copyNote != null) { delay(1800); copyNote = null } }
     var deleteProgress by remember { mutableStateOf<Int?>(null) }
@@ -286,6 +288,14 @@ fun TodayScreen(
     SelectBottomBar(selection, order, allStarred, bottomPadding, onTop = { bottomEdge = it },
         onStar = { chosen.forEach { memory.setStarred(it.id, !allStarred) }; selection.exit() },
         onCopy = { batchCopying = list.filter { it.id in selection.ids } },
+        onExport = {
+            // 选中几件事的录音合成一个文件：先查出它们的录音段，再打开导出面板
+            val evs = list.filter { it.id in selection.ids }
+            batchScope.launch {
+                val ids = evs.flatMap { e -> runCatching { memory.eventLines(e.id).first() }.getOrDefault(emptyList()).map { it.segmentId } }.filter { it > 0 }.distinct()
+                homeExport = ids to app.resound.ui.transcript.exportTitle(evs, evs.minOf { it.startAt }, evs.maxOf { it.endAt })
+            }
+        },
         onDelete = { batchDeleting = list.map { it.id }.filter { it in selection.ids } })
     // 复制完的小提示：底部浮一下就消失
     androidx.compose.animation.AnimatedVisibility(copyNote != null, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding + 24.dp),
@@ -302,6 +312,7 @@ fun TodayScreen(
     if (peopleOpen) PeopleSheet(list, onPick = { name ->
         filter = TimelineFilter.Person(name); rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
     }) { peopleOpen = false }
+    homeExport?.let { (ids, title) -> app.resound.ui.transcript.ExportSheet(ids, title) { homeExport = null; selection.exit() } }
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
         BatchDeleteSheet(ids.size, deleteProgress, onConfirm = {
@@ -926,12 +937,15 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
     var shown by remember(event.id) { mutableStateOf(event) }
     var editing by remember { mutableStateOf(false) }
     var showOriginal by remember { mutableStateOf(false) }
+    var exportingEvent by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     if (editing) EditEventSheet(shown, onSave = { t, s, pts ->
         memory.editEvent(shown.id, t, s, pts)
         shown = shown.copy(title = t, summary = s, points = pts, editedAt = System.currentTimeMillis(),
             original = shown.original ?: app.resound.digest.EventOriginal(shown.title, shown.summary, shown.points))
     }) { editing = false }
+    if (exportingEvent) app.resound.ui.transcript.ExportSheet(lines.map { it.segmentId }.filter { it > 0 }.distinct(),
+        app.resound.ui.transcript.exportTitle(listOf(shown), shown.startAt, shown.endAt)) { exportingEvent = false }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheet, containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
@@ -1017,10 +1031,16 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                 Text("原话", style = RsType.section, color = c.textSecondary, modifier = Modifier.weight(1f))
                 // 从这件事的第一句一直播到最后一句
                 if (lines.isNotEmpty()) androidx.compose.foundation.text.selection.DisableSelection {
-                    Text("▶ 播放这件事", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
-                        modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
-                            app.resound.ui.transcript.LinePlayer.play(context, lines, 0)
-                        }.padding(horizontal = 12.dp, vertical = 6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("▶ 播放这件事", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                            modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
+                                app.resound.ui.transcript.LinePlayer.play(context, lines, 0)
+                            }.padding(horizontal = 12.dp, vertical = 6.dp))
+                        // 导出这件事的录音：和原话页多选用同一个导出面板
+                        Text("导出", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                            modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { exportingEvent = true }
+                                .padding(horizontal = 12.dp, vertical = 6.dp))
+                    }
                 }
             }
             Spacer(Modifier.height(10.dp))

@@ -33,8 +33,12 @@ class LocalOriginalAudio(
         if (!keep) scope.launch { cleanup() }
     }
     private suspend fun existing() = dao.allAudio().filter { File(it.path).isFile }
-    private fun pending(s: SegmentEntity) = s.status !in setOf("Done", "Empty", "SkippedPlayback") ||
-        s.completedAt == null || (s.status == "Done" && s.voiceprintProcessedAt == null)
+    private fun pending(s: SegmentEntity) = when (s.status) {
+        "Failed" -> s.nextRetryAt != null && s.attempts < 5
+        "Done" -> s.completedAt == null || s.voiceprintProcessedAt == null
+        "Empty", "SkippedPlayback", "Abandoned", "Quiet" -> s.completedAt == null
+        else -> true
+    }
     private fun days(rows: List<SegmentEntity>): Int {
         val zone = ZoneId.systemDefault()
         return rows.flatMap { s ->
@@ -55,10 +59,11 @@ class LocalOriginalAudio(
     private suspend fun trim(retention: Int?, includeStarred: Boolean, delete: Boolean): AudioTrim {
         var result = AudioTrim(0, 0, 0, 0)
         val action: suspend (Set<Long>) -> Unit = { reading ->
-            val rows = existing(); val stars = dao.starredAudio().toSet(); val timestamp = now()
+            val timestamp = now(); dao.refreshFailures(timestamp)
+            val rows = existing(); val stars = dao.starredAudio().toSet()
             val candidates = rows.filter { s ->
                 !pending(s) && s.id !in reading && (includeStarred || s.id !in stars) &&
-                    (retention == null || (s.sourceId != "import" && timestamp - s.completedAt!! >= retention * 86_400_000L))
+                    (retention == null || ((s.sourceId != "import" || s.status in setOf("Abandoned", "Quiet")) && timestamp - (s.completedAt ?: s.firstFailedAt ?: timestamp) >= retention * 86_400_000L))
             }
             var bytes = 0L
             val removed = candidates.filter { s ->

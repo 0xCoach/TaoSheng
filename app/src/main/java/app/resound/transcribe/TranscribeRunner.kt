@@ -28,13 +28,14 @@ class TranscribeRunner(
     /** 启动恢复与上传共用 gate；若已有任务运行，由该任务自己的启动恢复负责。 */
     suspend fun recoverOnStartup() {
         if (!gate.tryLock()) return
-        try { dao.recoverInterrupted(now()) } finally { gate.unlock() }
+        try { dao.recoverInterrupted(now()); dao.refreshFailures(now()) } finally { gate.unlock() }
     }
     /** true 表示仍有暂时错误，交 WorkManager 退避重试；鉴权失败立即结束本轮。 */
     suspend fun run(): Boolean {
         if (!gate.tryLock()) return false
         try {
             dao.recoverInterrupted(now())
+            dao.refreshFailures(now())
             if (!deferAudioCleanup) cleanup()
             else cleanupImportedAudio(dao, now(), waitForVoiceprint = true)
             val started = now()
@@ -53,7 +54,7 @@ class TranscribeRunner(
                 // 清除/更换密钥后不继续使用本轮旧密钥。
                 if (runCatching { identity() }.getOrDefault("") != configuration) return false
                 // 清理任务或本轮前一段的声纹收尾可能已删除过期导入音频，不能上传旧快照。
-                if (candidate.sourceId == "import" && !File(candidate.path).isFile) continue
+                // 缺失文件也走统一失败落库，避免永久留在队列。
                 val running = candidate.copy(status = "Running", attempts = candidate.attempts + 1, nextRetryAt = null, error = null)
                 if (dao.claim(candidate.id) == 0) continue
                 val began = now()
@@ -62,6 +63,7 @@ class TranscribeRunner(
                 var error: AsrError? = null
                 var logId: String? = null
                 try {
+                    if (!File(candidate.path).isFile) throw AsrException(AsrError.Audio, detail = "录音文件已不存在")
                     val result = provider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0)), credential) {
                         check(dao.findSegment(candidate.id) != null)
                         reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
@@ -71,9 +73,9 @@ class TranscribeRunner(
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
                     val lines = result.sentences.map { line ->
                         TranscriptLineEntity(segmentId = candidate.id, startAt = candidate.startAt + line.startMillis,
-                            endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = line.speakerTag)
+                            endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = line.speakerTag, originalText = line.originalText)
                     }
-                    dao.findSegment(candidate.id)?.let { current -> dao.complete(current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = null), lines) }
+                    dao.findSegment(candidate.id)?.let { current -> dao.complete(current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = null, firstFailedAt = null), lines) }
                 } catch (e: Exception) {
                     error = when (e) {
                         is CancellationException -> AsrError.Interrupted
@@ -83,9 +85,19 @@ class TranscribeRunner(
                     logId = TranscribePolicy.safeLogId((e as? AsrException)?.logId, credential)
                     // 断网不是这一段的问题，不占它的重试次数。
                     val attempts = if (error == AsrError.Network) candidate.attempts else running.attempts
+                    val failedAt = now()
+                    val abandoned = error == AsrError.Audio || (e as? AsrException)?.detail == "录音文件已不存在"
+                    val quiet = !abandoned && candidate.firstFailedAt?.let { failedAt - it > 259_200_000L } == true
+                    outcome = if (abandoned) "Abandoned" else if (quiet) "Quiet" else "Failed"
+                    val reason = when {
+                        abandoned -> if (!File(candidate.path).isFile) "录音文件已不存在" else "录音损坏，无法转写"
+                        quiet -> "多次转写失败"
+                        else -> (e as? AsrException)?.detail ?: error.human
+                    }
                     withContext(NonCancellable) {
-                        dao.findSegment(candidate.id)?.let { current -> dao.update(current.copy(status = "Failed", completedAt = null, error = (e as? AsrException)?.detail ?: error.human,
-                            attempts = attempts, nextRetryAt = TranscribePolicy.retryAt(error, attempts.coerceAtLeast(1), now()), logId = logId)) }
+                        dao.findSegment(candidate.id)?.let { current -> dao.update(current.copy(status = outcome, completedAt = if (abandoned || quiet) failedAt else null, error = reason,
+                            firstFailedAt = current.firstFailedAt ?: failedAt,
+                            attempts = attempts, nextRetryAt = if (abandoned || quiet) null else TranscribePolicy.retryAt(error, attempts.coerceAtLeast(1), failedAt), logId = logId)) }
                         updateState(started, (e as? AsrException)?.detail ?: error.human)
                     }
                     if (e is CancellationException) throw e
@@ -103,7 +115,7 @@ class TranscribeRunner(
                 }
                 if (error == AsrError.Auth) return false
                 // 网络或服务端出问题时后面的段大概率也失败：结束本轮，交给退避重试，不逐段耗时间和次数。
-                if (error in TranscribePolicy.ROUND_STOPPERS) return dao.candidates(Long.MAX_VALUE).isNotEmpty()
+                if (error in TranscribePolicy.ROUND_STOPPERS) return dao.candidates(now()).isNotEmpty() || dao.earliestRetry() != null
             }
             return dao.earliestRetry() != null
         } finally {

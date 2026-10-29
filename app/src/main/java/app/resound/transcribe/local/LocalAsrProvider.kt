@@ -5,7 +5,9 @@ import android.os.*
 import app.resound.transcribe.*
 import kotlinx.coroutines.*
 
-class LocalAsrProvider(private val context:Context,private val settings:AndroidTranscribeSettings):AsrProvider {
+class LocalAsrProvider(private val context:Context,private val settings:AndroidTranscribeSettings,
+    private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
+    private val correction by lazy { LocalHotwordCorrection(context, hotwords) }
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult {
         val requested=settings.backend.value
         // 检查结果按“App 版本 + 模型文件”记住：通过过就直接用，没通过过就直接走 CPU；重新选 NPU 或升级后才再查
@@ -37,5 +39,5 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
         return call(audio,LocalBackend.Cpu).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "正在使用：CPU 识别")}
     }
     private suspend fun call(audio:AsrAudio,backend:LocalBackend):AsrResult =
-        LocalAsrConnection.get(context).recognize(audio,backend){settings.setLocalStatus(it);app.resound.PipelineProgress.detail(it)}
+        correction.apply(LocalAsrConnection.get(context).recognize(audio,backend){settings.setLocalStatus(it);app.resound.PipelineProgress.detail(it)})
 }

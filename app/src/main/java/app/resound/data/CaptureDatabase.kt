@@ -11,7 +11,7 @@ data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @ColumnInfo(defaultValue = "0") val attempts: Int = 0,
     val nextRetryAt: Long? = null, val error: String? = null, val completedAt: Long? = null,
     val logId: String? = null, @ColumnInfo(defaultValue = "0") val sentMillis: Long = 0, val voiceprintProcessedAt: Long? = null,
-    @ColumnInfo(defaultValue = "0") val playbackMillis: Long = 0)
+    @ColumnInfo(defaultValue = "0") val playbackMillis: Long = 0, val firstFailedAt: Long? = null)
 @Entity(tableName = "watchdog", indices = [Index("at")])
 data class EventEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val at: Long, val type: String,
     val detail: String?, val batteryPercent: Int?, val charging: Boolean?, val gapStart: Long? = null, val gapEnd: Long? = null)
@@ -68,7 +68,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 20
+        const val VERSION = 22
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -235,8 +235,20 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE memory_events ADD COLUMN originalPointsJson TEXT")
             }
         }
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE segments ADD COLUMN firstFailedAt INTEGER")
+                // 老数据优先使用首次失败日志；没有日志的段在启动维护时开始计时。
+                db.execSQL("UPDATE segments SET firstFailedAt = (SELECT MIN(at) FROM asr_attempts WHERE segmentId = segments.id AND result = 'Failed') WHERE status = 'Failed'")
+            }
+        }
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transcript_lines ADD COLUMN originalText TEXT")
+            }
+        }
         /** 全部迁移，按版本顺序。新增版本只在这里加一条；App 和迁移测试都用它，不再各写一份清单 */
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).build()

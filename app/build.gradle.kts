@@ -9,6 +9,7 @@ plugins {
 
 android {
     namespace = "app.resound"
+    sourceSets.getByName("main").java.srcDir("vendor/tinypinyin/java")
     compileSdk = 36
 
     defaultConfig {
@@ -70,6 +71,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("org.ahocorasick:ahocorasick:0.4.0") // 随包 TinyPinyin 的依赖
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     implementation("androidx.documentfile:documentfile:1.0.0")
     androidTestImplementation("androidx.test:runner:1.6.2")

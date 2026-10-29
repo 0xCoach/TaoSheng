@@ -11,7 +11,11 @@ internal const val IMPORT_RETENTION = 3 * 24 * 60 * 60 * 1000L
 
 /** 年代久远的导入录音也从本次生成临时片段的时间算 3 天，不从录制时间算。 */
 internal suspend fun cleanupImportedAudio(dao: TranscribeDao, now: Long, waitForVoiceprint: Boolean = false, reading: Set<Long> = emptySet()) {
+    dao.refreshFailures(now)
     for (segment in dao.importedAudio()) {
+        // 已放弃/忽略的录音交给原声保留策略，从判定时间起算；等待重试的失败继续保护。
+        if (segment.status in setOf("Abandoned", "Quiet") ||
+            (segment.status == "Failed" && segment.nextRetryAt != null && segment.attempts < 5)) continue
         if (segment.id in reading) continue
         val file = File(segment.path)
         if (!file.exists()) continue
@@ -21,8 +25,8 @@ internal suspend fun cleanupImportedAudio(dao: TranscribeDao, now: Long, waitFor
         if (expired || (completed && processed)) {
             if (file.delete() && !completed) {
                 // 不再对已过期音频进行自动重试；保留失败原因供界面展示。
-                dao.update(segment.copy(status = "Failed", attempts = 5, nextRetryAt = null,
-                    error = "导入音频已满 3 天并删除，请重新分享"))
+                dao.update(segment.copy(status = "Abandoned", completedAt = now, attempts = 5, nextRetryAt = null,
+                    error = "录音文件已不存在"))
             }
         }
     }

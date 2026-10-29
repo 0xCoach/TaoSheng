@@ -19,7 +19,7 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
         state.first to if (hasKey) state.second else "转写未就绪，请检查密钥或下载本地模型"
     }
     // 每分钟刷新自然日用量和文件存在状态，避免跨午夜或清理后界面停在旧快照。
-    private val clock = flow { while (true) { emit(System.currentTimeMillis()); delay(60_000) } }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
+    private val clock = flow { while (true) { val at = System.currentTimeMillis(); dao.refreshFailures(at); emit(at); delay(60_000) } }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
     private val initial = TranscribeQueueState(0, 0, false, last.value.first, null, if (settings.ready.value) last.value.second else "转写未就绪，请检查密钥或下载本地模型", 0, 0)
     override val queue: StateFlow<TranscribeQueueState> = combine(dao.observeSegments(), dao.observeUsage(), effectiveLast, scheduler.observe(), clock) { segments, usage, state, work, _ ->
         val next = work.filter { it.state == WorkInfo.State.ENQUEUED }.map { it.nextScheduleTimeMillis }
@@ -52,6 +52,11 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
     } }
     override fun runNow() = scheduler.runNow()
     override fun retryFailed() { scope.launch { dao.retryFailed(); scheduler.runNow() } }
+    override fun ignoreFailed() { scope.launch { dao.ignoreFailed() } }
+    override fun retrySegment(segmentId: Long) { scope.launch {
+        if (dao.retrySegment(segmentId) > 0) scheduler.runNow()
+    } }
+    override fun deleteFailed(segmentId: Long) { scope.launch { dao.deleteFailed(segmentId) } }
     suspend fun diagnostics(): String {
         val state = queue.value
         return buildString {

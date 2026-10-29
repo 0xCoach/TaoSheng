@@ -49,7 +49,7 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
 }
 class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
     private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords)
-    private val local=LocalAsrProvider(context,settings)
+    private val local=LocalAsrProvider(context,settings,hotwords)
     private val custom=CustomAsrProvider(settings, hotwords)
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = when(settings.source.value){
         TranscribeSource.Doubao->doubao.recognize(audio,key,beforeAudio)

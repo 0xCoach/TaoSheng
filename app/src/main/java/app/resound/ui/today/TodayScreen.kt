@@ -156,6 +156,7 @@ fun TodayScreen(
     val skills = remember { app.resound.ui.skills.skillRepo() }
     val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
+    var openedImport by remember { mutableStateOf<Long?>(null) }
     var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
     val deleteNow = rememberDeleteEvent(memory)
     val segments by remember(date) { transcripts.day(date) }.collectAsState(initial = emptyList())
@@ -175,7 +176,13 @@ fun TodayScreen(
     val newestFirst = list.size > 1 && list.first().startAt > list.last().startAt
     // 筛选时技能卡不显示；筛“会议”时把会议纪要卡一起显示
     val shownCards = when (filter) { TimelineFilter.All -> cards; TimelineFilter.Meeting -> cards.filter { it.skillId == "meeting" }; else -> emptyList() }
-    val entries = (shownEvents.map { TimelineEntry.Event(it) } + shownCards.map { TimelineEntry.Card(it) })
+    // 导入的录音在时间线上只占一张卡：这段时间整理出的事和它的纪要收进卡里（只在“全部”时合并）
+    val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date) }.collectAsState(initial = emptyList()).value else emptyList()
+    val folded = if (filter == TimelineFilter.All) records else emptyList()
+    val inImport: (MemoryEvent) -> app.resound.importer.ImportRecord? = { e -> folded.firstOrNull { e.startAt >= it.startAt && e.startAt < it.endAt } }
+    val importEntries = folded.map { rec -> TimelineEntry.Import(rec, shownEvents.filter { inImport(it) == rec }) }
+    val entries = (shownEvents.filter { inImport(it) == null }.map { TimelineEntry.Event(it) } +
+        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries)
         .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
     val groups = entries.groupBy { partOfDay(it.at) }.toList()
 
@@ -277,13 +284,13 @@ fun TodayScreen(
                 FilterChips(filterOptions, filter, Modifier.padding(bottom = 12.dp)) { filter = it }
                 if (filter != TimelineFilter.All && shownEvents.isEmpty()) Text("这一天没有“${filter.label}”的事", style = RsType.subhead, color = c.textTertiary,
                     modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
-                groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it },
+                groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it }, onOpenImport = { openedImport = it.id },
                     onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it } }
                 if (events != null && list.isEmpty()) EmptyTimeline(memory)
             }
         }
         items(groups.drop(1), key = { it.first }) { (part, evs) ->
-            TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it },
+            TimelineGroup(part, evs, Modifier.animateItem(), onOpenCard = { openedCard = it }, onOpenImport = { openedImport = it.id },
                 onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it }
         }
     }
@@ -314,6 +321,8 @@ fun TodayScreen(
     }
 
     meetingList?.let { m -> MeetingsSheet(m, onOpen = { openedCard = it }) { meetingList = null } }
+    openedImport?.let { id -> app.resound.ui.importer.ImportRecordSheet(id, cards, segments, list,
+        onOpenCard = { openedCard = it }, onOpenEvent = { opened = it }) { openedImport = null } }
     if (peopleOpen) PeopleSheet(list, onPick = { name ->
         filter = TimelineFilter.Person(name); rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
     }) { peopleOpen = false }
@@ -825,19 +834,22 @@ internal sealed interface TimelineEntry {
     val at: Long
     data class Event(val event: MemoryEvent) : TimelineEntry { override val at get() = event.startAt }
     data class Card(val card: app.resound.skills.SkillCard) : TimelineEntry { override val at get() = card.at }
+    /** 卡 077：一份导入的录音（一个或几个文件合成一条），整理出的事收在里面 */
+    data class Import(val record: app.resound.importer.ImportRecord, val events: List<MemoryEvent>) : TimelineEntry { override val at get() = record.startAt }
 }
 
 /** 一个时段一张卡，组内每件事一行，细线分隔：比一事一卡更轻、更紧凑 */
 @Composable
 internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier: Modifier = Modifier,
                            onOpenCard: (app.resound.skills.SkillCard) -> Unit = {},
+                           onOpenImport: (app.resound.importer.ImportRecord) -> Unit = {},
                            onStar: (MemoryEvent) -> Unit = {}, onDelete: (MemoryEvent) -> Unit = {},
                            /** 首页传入：长按进入多选；其他页不传 */
                            selection: TimelineSelection? = null, order: List<Long> = emptyList(),
                            onOpen: (MemoryEvent) -> Unit) {
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val count = entries.count { it is TimelineEntry.Event }
+    val count = entries.sumOf { when (it) { is TimelineEntry.Event -> 1; is TimelineEntry.Import -> it.events.size; else -> 0 }.toInt() }
     Column(modifier) {
         Text(if (count > 0) "$part · $count 件" else part, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
@@ -854,6 +866,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                         TimelineLine(e.event, start ?: lp) { onOpen(e.event) }
                     }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
+                    is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events.size) { onOpenImport(e.record) }
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
             }

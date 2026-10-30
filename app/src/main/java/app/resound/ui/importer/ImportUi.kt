@@ -167,12 +167,76 @@ private fun ImportSheet(importer: AudioImporter, pending: List<PendingImport>) {
             Text("用哪个转写", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary)
             app.resound.ui.redo.AsrChoice(chooser, pending.sumOf { it.info.durationMillis }, asr!!) { asr = it }
         }
+        // 卡 077：这段录音是什么——决定怎么区分说话人、生成什么纪要；按线索预选，否则用上次的
+        val kinds = if (app.resound.AppGraph.isImportKindsReady) app.resound.AppGraph.importKinds else null
+        var kind by remember { mutableStateOf<app.resound.importer.ImportKind?>(null) }
+        var reason by remember { mutableStateOf<app.resound.importer.KindReason?>(null) }
+        var merge by remember { mutableStateOf(true) }
+        androidx.compose.runtime.LaunchedEffect(pending.map { it.id }) {
+            if (kinds != null && kind == null && pending.isNotEmpty()) {
+                // 任一文件有通话线索就按通话预选，否则按第一个文件的建议
+                val all = pending.map { runCatching { kinds.suggest(it.id) }.getOrNull() }
+                val pick = all.firstOrNull { it?.reason == app.resound.importer.KindReason.CallFolder || it?.reason == app.resound.importer.KindReason.DualChannel } ?: all.firstOrNull()
+                kind = pick?.kind ?: app.resound.importer.ImportKind.Meeting; reason = pick?.reason
+            }
+        }
+        if (kinds != null) {
+            Spacer(Modifier.height(4.dp))
+            Text("这段录音是", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary)
+            KindChoice(kind) { kind = it; reason = null }
+            Text(kind?.let { k -> k.hint + (reason?.let { r -> " · " + reasonText(r) } ?: "") } ?: "正在判断…", style = RsType.caption, color = c.textTertiary)
+            // 多个文件：前后接得上（相差 5 分钟内）的合成一条
+            if (pending.size > 1) {
+                val groups = mergeGroups(pending.map { (starts[it.id] ?: 0L) to it.info.durationMillis })
+                if (groups < pending.size) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(if (groups == 1) "这 ${pending.size} 个文件将合成一条" else "将合成 $groups 条", style = RsType.body, color = c.text)
+                        Text("前后相差 5 分钟内的接起来，一份纪要；关掉则每个文件各一条", style = RsType.caption, color = c.textTertiary)
+                    }
+                    app.resound.ui.skills.Toggle(merge) { merge = it }
+                }
+            }
+        }
         Spacer(Modifier.height(4.dp))
-        ActionButton(if (pending.size == 1) "开始导入" else "全部开始导入", ActionKind.Primary) {
+        ActionButton(if (pending.size == 1) "开始导入" else "全部开始导入", ActionKind.Primary, enabled = kinds == null || kind != null) {
             asr?.let { chooser?.remember(it) }
-            pending.forEach { p -> importer.start(p.id, starts[p.id] ?: System.currentTimeMillis(), asr) }
+            val k = kind
+            if (kinds != null && k != null) {
+                if (pending.size == 1) kinds.start(pending[0].id, starts[pending[0].id] ?: System.currentTimeMillis(), asr, k)
+                else kinds.startBatch(pending.map { it.id }, pending.map { starts[it.id] ?: System.currentTimeMillis() }, asr, k, merge)
+            } else pending.forEach { p -> importer.start(p.id, starts[p.id] ?: System.currentTimeMillis(), asr) }
         }
     }
+}
+
+/** 四种类型的胶囊：会议 / 培训 / 通话·访谈 / 普通 */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+internal fun KindChoice(selected: app.resound.importer.ImportKind?, onSelect: (app.resound.importer.ImportKind) -> Unit) {
+    val c = Rs.colors
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        app.resound.importer.ImportKind.entries.forEach { k ->
+            val on = k == selected
+            val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "kind")
+            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+                modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
+        }
+    }
+}
+
+private fun reasonText(r: app.resound.importer.KindReason) = when (r) {
+    app.resound.importer.KindReason.CallFolder -> "看起来是通话录音"
+    app.resound.importer.KindReason.DualChannel -> "左右声道分开，按声道分人更快更准"
+    app.resound.importer.KindReason.LastUsed -> "上次选的"
+    app.resound.importer.KindReason.Default -> ""
+}.let { it }
+
+/** 按开始时间排好后，前后相差 5 分钟内的算一组，返回组数（只用于提示，实际合并由底层按录制时间做） */
+private fun mergeGroups(files: List<Pair<Long, Long>>): Int {
+    val sorted = files.sortedBy { it.first }
+    var groups = 0; var end = Long.MIN_VALUE
+    for ((start, dur) in sorted) { if (end == Long.MIN_VALUE || start - end > 5 * 60_000L) groups++; end = maxOf(end, start + dur) }
+    return groups
 }
 
 /** 改开始时间：日期（今天/昨天/前天/大前天）+ 时分滚轮（24 小时制） */

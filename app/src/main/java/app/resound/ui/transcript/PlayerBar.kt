@@ -71,10 +71,20 @@ fun PlayerBar(bottomPadding: Dp) {
     }
 }
 
+/**
+ * 嵌在详情面板里的播放器：始终展开（字幕、进度、段落、倍速），没有“收起”。
+ * 面板盖住了底部播放条，所以在面板里播放时用它；关掉面板后底部播放条照常收起显示。
+ */
 @Composable
-private fun Bar() {
+fun InlinePlayer(modifier: Modifier = Modifier) {
+    if (!LinePlayer.active) return
+    key(LinePlayer.session) { Box(modifier) { Bar(inline = true) } }
+}
+
+@Composable
+private fun Bar(inline: Boolean = false) {
     val c = Rs.colors
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(inline) }
     val lines = LinePlayer.allLines
     val total = LinePlayer.timeline?.total ?: 1L
     var dragging by remember { mutableStateOf<Float?>(null) }
@@ -88,10 +98,11 @@ private fun Bar() {
     fun mmss(ms: Long) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
     val segs = LinePlayer.segmentOrder.size
     val segIdx = dragAt?.let { LinePlayer.segmentOrder.indexOf(it.first).coerceAtLeast(0) } ?: LinePlayer.segmentIndex
-    val sourceLabel = when (LinePlayer.source) { is PlaySource.Event -> "回到这件事 ›"; is PlaySource.Transcript -> "回到原话 ›"; null -> null }
+    val sourceLabel = if (inline) null else when (LinePlayer.source) { is PlaySource.Event -> "回到这件事 ›"; is PlaySource.Transcript -> "回到原话 ›"; is PlaySource.Import -> "回到这次导入 ›"; null -> null }
     fun goBack() {
         when (val s = LinePlayer.source) {
             is PlaySource.Event -> PlayerNav.openEvent = s.event
+            is PlaySource.Import -> PlayerNav.openImport = s.recordId
             is PlaySource.Transcript -> { PlayerNav.transcriptFocus = s.date to (lines.getOrNull(idx)?.segmentId ?: 0L); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript) }
             null -> Unit
         }
@@ -142,8 +153,10 @@ private fun Bar() {
                     }
                     SpeedChip()
                     Spacer(Modifier.width(6.dp))
-                    IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
-                    Spacer(Modifier.width(6.dp))
+                    if (!inline) {
+                        IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
+                        Spacer(Modifier.width(6.dp))
+                    }
                     IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
                 }
                 Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = Arrangement.Center) {

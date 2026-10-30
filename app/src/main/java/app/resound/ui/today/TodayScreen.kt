@@ -321,8 +321,7 @@ fun TodayScreen(
     }
 
     meetingList?.let { m -> MeetingsSheet(m, onOpen = { openedCard = it }) { meetingList = null } }
-    openedImport?.let { id -> app.resound.ui.importer.ImportRecordSheet(id, cards, segments, list,
-        onOpenCard = { openedCard = it }, onOpenEvent = { opened = it }) { openedImport = null } }
+    openedImport?.let { id -> app.resound.ui.importer.ImportRecordSheet(id, onOpenEvent = { opened = it }) { openedImport = null } }
     if (peopleOpen) PeopleSheet(list, onPick = { name ->
         filter = TimelineFilter.Person(name); rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
     }) { peopleOpen = false }
@@ -1077,6 +1076,9 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                     }
                 }
             }
+            // 正在播这件事：就在详情里展开播放器（字幕、进度、倍速）；关掉详情后底部播放条照常收起
+            if ((app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Event)?.event?.id == shown.id)
+                androidx.compose.foundation.text.selection.DisableSelection { app.resound.ui.transcript.InlinePlayer(Modifier.padding(top = 10.dp)) }
             Spacer(Modifier.height(10.dp))
             RsCard(padding = PaddingValues(16.dp)) {
                 if (lines.isEmpty()) Text("原话加载中…", style = RsType.subhead, color = c.textTertiary)
@@ -1233,6 +1235,9 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                     Text("“${source.text}”", style = RsType.body, color = c.text)
                 } else Text(if (lines.isEmpty()) "原话加载中…" else "没有找到对应的原话", style = RsType.subhead, color = c.textTertiary)
             }
+            // 点了“听原声”：就在详情里展开播放器
+            if (item.eventId != null && (app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Event)?.event?.id == item.eventId)
+                androidx.compose.foundation.text.selection.DisableSelection { app.resound.ui.transcript.InlinePlayer(Modifier.padding(top = 10.dp)) }
             }
             // 相似的想法被并进来的那几次：各自的时间和内容，可以拆出来
             val merged by remember(item.id) { memory.mergedItems(item.id) }.collectAsState(initial = emptyList())

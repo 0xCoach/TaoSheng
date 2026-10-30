@@ -114,7 +114,7 @@ class ImportHotwordsTest {
         assertFalse(importer.file(items[1].id).exists())
     }
 
-    @Test fun transcribedImportsDeleteImmediatelyButFailuresWaitAtMostThreeDays() = runBlocking {
+    @Test fun transcribedImportsFollowRetentionButFailuresWaitAtMostThreeDays() = runBlocking {
         val files = (0..3).map { File.createTempFile("import-test", ".ogg", context.cacheDir).apply { writeBytes(byteArrayOf(1)) } }
         try {
             files.forEachIndexed { i, file -> db.capture().segment(SegmentEntity(startAt = i * 3000L, endAt = i * 3000L + 2000,
@@ -134,10 +134,11 @@ class ImportHotwordsTest {
             val done = db.transcribe().observeSegments().first().single { it.path == files[0].path }
             val line = db.voiceprint().lines(done.id).single()
             assertNotNull(done.voiceprintProcessedAt)
-            assertFalse(files[0].exists()); assertFalse(files[1].exists())
+            // 卡 077 起：转写完的导入录音和平时录的一样，按原声保留天数清理，不再立即删
+            assertTrue(files[0].exists()); assertTrue(files[1].exists())
             assertTrue(files[2].exists()); assertTrue(files[3].exists())
             voiceprints.nameAndAssign(line.id, "小李").getOrThrow()
-            assertEquals(1, db.voiceprint().allSamples().size) // 音频删了，仍能用缓存特征补样本。
+            assertEquals(1, db.voiceprint().allSamples().size)
             val now = System.currentTimeMillis()
             files[2].setLastModified(now - IMPORT_RETENTION - 1)
             runner.run() // 上传之前也执行三天清理，不依赖周期任务恰好及时调度。

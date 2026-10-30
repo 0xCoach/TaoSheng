@@ -23,6 +23,8 @@ internal suspend fun cleanupImportedAudio(dao: TranscribeDao, now: Long, waitFor
         // 带类型导入需支持事后改类型重分人，片段暂存最多三天（按文件生成时间）。
         if (!expired && segment.importRecordId != null) continue
         val completed = segment.status in setOf("Done", "Empty", "SkippedPlayback")
+        // 转写完的导入录音和平时录的一样，交给“原声保留天数”清理（重点一直保留也适用），这里不再立即删
+        if (completed) continue
         val processed = segment.status != "Done" || !waitForVoiceprint || segment.voiceprintProcessedAt != null
         if (expired || (completed && processed)) {
             if (file.delete() && !completed) {

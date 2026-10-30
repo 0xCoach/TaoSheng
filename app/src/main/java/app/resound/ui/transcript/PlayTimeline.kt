@@ -43,6 +43,8 @@ internal class PlayTimeline(lines: List<TranscriptLine>) {
 sealed interface PlaySource {
     data class Event(val event: MemoryEvent) : PlaySource
     data class Transcript(val date: LocalDate) : PlaySource
+    /** 卡 077：从导入详情播放；“回到这次导入”重新打开它 */
+    data class Import(val recordId: Long) : PlaySource
 }
 
 /** 页面提供播放来源；原话列表点句子播放时带上 */
@@ -51,6 +53,7 @@ val LocalPlaySource = androidx.compose.runtime.compositionLocalOf<PlaySource?> {
 /** 播放卡片要求“回到来源”时设置，由外壳和原话页处理 */
 object PlayerNav {
     var openEvent by androidx.compose.runtime.mutableStateOf<MemoryEvent?>(null)
+    var openImport by androidx.compose.runtime.mutableStateOf<Long?>(null)
     /** 回到原话页：哪天、滚到哪段录音 */
     var transcriptFocus by androidx.compose.runtime.mutableStateOf<Pair<LocalDate, Long>?>(null)
 }

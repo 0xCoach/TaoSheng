@@ -112,7 +112,7 @@ fun ImportBanner(modifier: Modifier = Modifier) {
                 Box(Modifier.fillMaxWidth().height(5.dp).clip(CircleShape).background(c.background)) {
                     Box(Modifier.fillMaxWidth(p.percent / 100f).height(5.dp).clip(CircleShape).background(c.accent))
                 }
-                Text("导入完会马上转写；录音转写完就删除，${appDisplayName}不保留", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
+                Text("导入完会马上转写；录音和平时录的一样，按原声保留天数保存", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
             }
         }
     }
@@ -129,7 +129,7 @@ private fun ImportSheet(importer: AudioImporter, pending: List<PendingImport>) {
 
     RsSheet(
         if (pending.size == 1) "导入这段录音？" else "导入 ${pending.size} 段录音？",
-        "会转成原话并整理进时间线。录音转写完就删除，${appDisplayName}不保留。",
+        "会转成原话并整理进时间线。录音按设置里的原声保留天数保存，可以回放。",
         onDismiss = { pending.forEach { importer.discard(it.id) } },
     ) {
         pending.forEach { p ->

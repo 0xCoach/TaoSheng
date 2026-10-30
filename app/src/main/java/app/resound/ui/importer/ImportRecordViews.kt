@@ -75,23 +75,32 @@ internal fun ImportLine(r: ImportRecord, events: Int, onOpen: () -> Unit) {
 }
 
 /**
- * 一份导入录音的详情：纪要入口、整理出的事、播放整段、改类型、重新生成。
- * [cards]/[segments]/[events] 是当天已加载的数据，按记录筛出属于它的。
+ * 一份导入录音的详情：纪要入口、整理出的事、播放整段（就在面板里展开播放器）、改类型、重新生成。
+ * 自己按记录那天加载纪要卡、原话、事件，所以从播放条“回到这次导入”也能在任何页面打开。
  */
 @Composable
-internal fun ImportRecordSheet(id: Long, cards: List<SkillCard>, segments: List<SegmentTranscript>, events: List<MemoryEvent>,
-                               onOpenCard: (SkillCard) -> Unit, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: () -> Unit) {
-    if (!AppGraph.isImportKindsReady) return
+fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: () -> Unit) {
+    if (!AppGraph.isImportKindsReady || !AppGraph.isMemoryReady || !AppGraph.isTranscribeReady) return
     val c = Rs.colors
     val context = LocalContext.current
     val kinds = AppGraph.importKinds
     val r = remember(id) { kinds.record(id) }.collectAsState(initial = null).value ?: return
+    val date = remember(r.startAt) { java.time.Instant.ofEpochMilli(r.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+    val skills = remember { app.resound.ui.skills.skillRepo() }
+    val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
+    val segments by remember(date) { AppGraph.transcripts.day(date) }.collectAsState(initial = emptyList())
+    val events = remember(date) { AppGraph.memory.events(date) }.collectAsState(initial = null).value.orEmpty()
+    var openedCard by remember { mutableStateOf<SkillCard?>(null) }
+    val onOpenCard: (SkillCard) -> Unit = { openedCard = it }
+    openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }
     val card = cards.firstOrNull { it.id == r.cardId }
     val mine = events.filter { it.startAt >= r.startAt && it.startAt < r.endAt }.sortedBy { it.startAt }
     val lines = segments.filter { it.segmentId in r.segmentIds }.sortedBy { r.segmentIds.indexOf(it.segmentId) }.flatMap { it.lines }
     var changing by remember { mutableStateOf<ImportKind?>(null) }
     RsSheet(r.fileName.substringBeforeLast('.'), "${r.kind.title} · ${formatClock(r.startAt)} 开始 · ${length(r.endAt - r.startAt)}" +
         (if (r.byChannel) " · 按左右声道分人" else ""), onDismiss = onDismiss) {
+        val playingHere = (app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Import)?.recordId == r.id
+        if (playingHere) app.resound.ui.transcript.InlinePlayer()
         statusText(r)?.let { Text(it + (r.error?.let { e -> "：$e" } ?: ""), style = RsType.subhead, color = if (r.status == ImportRecordStatus.Failed) c.critical else c.textSecondary) }
         // 纪要
         if (r.kind != ImportKind.Normal) RsCard(color = c.background, padding = PaddingValues(16.dp)) {
@@ -107,8 +116,8 @@ internal fun ImportRecordSheet(id: Long, cards: List<SkillCard>, segments: List<
                 style = RsType.subhead, color = c.textTertiary)
         }
         // 播放整段
-        if (lines.isNotEmpty()) ActionButton("▶ 播放整段", ActionKind.Secondary) {
-            app.resound.ui.transcript.LinePlayer.play(context, lines, 0, mine.firstOrNull()?.let { app.resound.ui.transcript.PlaySource.Event(it) })
+        if (lines.isNotEmpty() && !playingHere) ActionButton("▶ 播放整段", ActionKind.Secondary) {
+            app.resound.ui.transcript.LinePlayer.play(context, lines, 0, app.resound.ui.transcript.PlaySource.Import(r.id))
         }
         // 整理出的事
         if (mine.isNotEmpty()) {

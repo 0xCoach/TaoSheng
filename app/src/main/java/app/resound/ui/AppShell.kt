@@ -109,6 +109,10 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
         app.resound.ui.transcript.PlayerNav.openEvent?.let { e ->
             if (app.resound.AppGraph.isMemoryReady) app.resound.ui.today.EventSheet(e, app.resound.AppGraph.memory) { app.resound.ui.transcript.PlayerNav.openEvent = null }
         }
+        // 播放卡片“回到这次导入”
+        app.resound.ui.transcript.PlayerNav.openImport?.let { id ->
+            app.resound.ui.importer.ImportRecordSheet(id, onOpenEvent = { app.resound.ui.transcript.PlayerNav.openEvent = it }) { app.resound.ui.transcript.PlayerNav.openImport = null }
+        }
         app.resound.ui.transcript.ExportUi.openJob?.let { id -> app.resound.ui.transcript.ExportJobSheet(id) { app.resound.ui.transcript.ExportUi.openJob = null } }
         app.resound.ui.today.UndoBar.Host(ShellBottomPadding)
         app.resound.ui.redo.RedoUi.openJob?.let { id -> app.resound.ui.redo.RedoJobSheet(id) { app.resound.ui.redo.RedoUi.openJob = null } }

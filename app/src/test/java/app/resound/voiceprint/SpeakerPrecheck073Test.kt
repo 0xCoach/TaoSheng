@@ -16,7 +16,7 @@ class SpeakerPrecheck073Test {
         val windows = SpeakerPrecheck.windows(pcm.size)
         assertEquals(0, windows.first().first)
         assertEquals(pcm.lastIndex, windows.last().last)
-        assertTrue(windows.zipWithNext().all { (a, b) -> a.last >= b.first })
+        assertTrue(windows.zipWithNext().all { (a, b) -> a.last + 1 == b.first })
     }
 
     @Test fun interveningSecondSpeakerMustUseFullDiarization() {
@@ -33,10 +33,10 @@ class SpeakerPrecheck073Test {
         assertFalse(SpeakerPrecheck.single(pcm, listOf(0 until 3 * 16000), forbidden))
     }
 
-    @Test fun reviewedCandidateKeepsS2M2M3FullAndFindsM1S3() {
+    @Test fun atMostEightSampledWindowsKeepS2M2M3FullAndFindM1() {
         val root = System.getenv("ASR073_PCM_DIR")
         assumeNotNull(root)
-        val rows = JSONObject(File(root, "review-precheck.json").readText()).getJSONArray("rows")
+        val rows = JSONObject(File(root, "sampled-precheck.json").readText()).getJSONArray("rows")
         assertEquals(8, rows.length())
         for (index in 0 until rows.length()) {
             val row = rows.getJSONObject(index)
@@ -51,7 +51,8 @@ class SpeakerPrecheck073Test {
                 val v = vectors.getJSONArray(index++)
                 FloatArray(v.length()) { v.getDouble(it).toFloat() }
             })
-            assertEquals(row.getString("id"), row.getString("id") in setOf("M1", "S3"), skip)
+            assertTrue(index <= 8)
+            assertEquals(row.getString("id"), row.getString("id") == "M1", skip)
         }
     }
 }

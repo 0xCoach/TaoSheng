@@ -29,14 +29,14 @@ class SpeakerPrecheck073Test {
 
     @Test fun longOrNotClearlyVoicedNeverClaimsSingle() {
         val forbidden = SpeakerEmbedding { error("保守门禁必须先于模型计算") }
-        assertFalse(SpeakerPrecheck.single(ShortArray(61 * 16000), emptyList(), forbidden))
-        assertFalse(SpeakerPrecheck.single(pcm, listOf(0 until 6 * 16000), forbidden))
+        assertFalse(SpeakerPrecheck.single(ShortArray(301 * 16000), emptyList(), forbidden))
+        assertFalse(SpeakerPrecheck.single(pcm, listOf(0 until 3 * 16000), forbidden))
     }
 
-    @Test fun realSampleVadEvidenceKeepsEveryUncertainSegmentIncludingS2OnFullPath() {
+    @Test fun reviewedCandidateKeepsS2M2M3FullAndFindsM1S3() {
         val root = System.getenv("ASR073_PCM_DIR")
         assumeNotNull(root)
-        val rows = JSONObject(File(root, "precheck.json").readText()).getJSONArray("rows")
+        val rows = JSONObject(File(root, "review-precheck.json").readText()).getJSONArray("rows")
         assertEquals(8, rows.length())
         for (index in 0 until rows.length()) {
             val row = rows.getJSONObject(index)
@@ -45,8 +45,13 @@ class SpeakerPrecheck073Test {
             val speech = (0 until ranges.length()).map { i ->
                 val span = ranges.getJSONArray(i); span.getInt(0) until span.getInt(1)
             }
-            assertFalse(row.getString("id"), SpeakerPrecheck.single(pcm, speech,
-                SpeakerEmbedding { error("同批均未通过前置门禁，不能假定单人") }))
+            val vectors = row.getJSONArray("vectors")
+            var index = 0
+            val skip = SpeakerPrecheck.single(pcm, speech, SpeakerEmbedding {
+                val v = vectors.getJSONArray(index++)
+                FloatArray(v.length()) { v.getDouble(it).toFloat() }
+            })
+            assertEquals(row.getString("id"), row.getString("id") in setOf("M1", "S3"), skip)
         }
     }
 }

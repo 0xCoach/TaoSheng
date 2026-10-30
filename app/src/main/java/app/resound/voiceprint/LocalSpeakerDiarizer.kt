@@ -22,7 +22,7 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
         }
         val dir=LocalModels.directory(context,spec)
         check(ModelVerification.ensure(dir,spec))
-        if (confidentSingle(pcm)) {
+        if (SpeakerPrecheck.ENABLED && confidentSingle(pcm)) {
             lastDecision = "跳过"
             return listOf(SpeakerTurns.Turn(0, pcm.size, 0))
         }

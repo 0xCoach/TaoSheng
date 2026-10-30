@@ -68,8 +68,8 @@ object LinePlayer {
 
     val active get() = currentLineId != null
 
-    /** 从 [lines] 里第 [index] 句开始往下播 */
-    fun play(context: Context, lines: List<TranscriptLine>, index: Int, from: PlaySource? = null) {
+    /** 从 [lines] 里第 [index] 句开始往下播；[leadMillis] 是提前多少毫秒开始（听前因后果，不早于这段录音开头） */
+    fun play(context: Context, lines: List<TranscriptLine>, index: Int, from: PlaySource? = null, leadMillis: Long = 0) {
         if (lines.isEmpty() || index !in lines.indices) return
         this.context = context.applicationContext
         queue = lines.drop(index).filter { it.segmentId > 0 }
@@ -77,7 +77,7 @@ object LinePlayer {
         allLines = queue; timeline = PlayTimeline(queue); source = from
         segmentOrder = queue.map { it.segmentId }.distinct()
         session++
-        scope.launch { startAt(queue.first()) }
+        scope.launch { startAt(queue.first(), queue.first().startAt - leadMillis.coerceAtLeast(0)) }
     }
 
     /** 点正在播的那句：暂停 / 继续 */
@@ -149,6 +149,7 @@ object LinePlayer {
             noisyRegistered = true
         }
         holdCapture()
+        val at = (atAbs ?: line.startAt).coerceAtLeast(audio.startAt)
         val p = MediaPlayer()
         try {
             p.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
@@ -161,7 +162,7 @@ object LinePlayer {
             p.release(); notice = "这段原声打不开"; stop(); return
         }
         player = p; segmentStart = audio.startAt; segmentId = line.segmentId; currentSegment = line.segmentId
-        currentLineId = line.id; positionAt = atAbs ?: line.startAt; playing = true
+        currentLineId = line.id; positionAt = at; playing = true
         if (speed != 1f) applySpeed(); tick()
     }
 

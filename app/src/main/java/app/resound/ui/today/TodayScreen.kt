@@ -1098,6 +1098,31 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
     }
 }
 
+/**
+ * 待办详情里“依据的原话”的 ▶：从这句之前约 5 秒开始播，播完接着这件事后面的话；底部播放条带“回到这件事”。
+ * 原声已按保留天数清理时变灰并说明，文字照常显示。
+ */
+@Composable
+private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lines: List<app.resound.transcribe.TranscriptLine>, item: MemoryItem, memory: MemoryRepository) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val event by androidx.compose.runtime.produceState<app.resound.digest.MemoryEvent?>(null, item.eventId) { value = item.eventId?.let { runCatching { memory.eventById(it) }.getOrNull() } }
+    val has by androidx.compose.runtime.produceState<Boolean?>(null, source.segmentId) {
+        value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { source.segmentId in app.resound.AppGraph.originalAudio.available(setOf(source.segmentId)) }.getOrDefault(false) else false
+    }
+    when (has) {
+        null -> {}
+        false -> Text("原声已过保留期", style = RsType.caption, color = c.textTertiary)
+        true -> androidx.compose.foundation.text.selection.DisableSelection {
+            Text("▶ 听原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
+                    val from = lines.indexOf(source).coerceAtLeast(0)
+                    app.resound.ui.transcript.LinePlayer.play(context, lines, from, event?.let { app.resound.ui.transcript.PlaySource.Event(it) }, leadMillis = 5_000)
+                }.padding(horizontal = 12.dp, vertical = 6.dp))
+        }
+    }
+}
+
 /** 复制用的纯文本：标题、时间、摘要、要点、提取项、原话 */
 
 /** 一条提取项的详情：完整内容、时间、谁来做、依据的原话；可接受/忽略、编辑、删除、跳到所属那件事 */
@@ -1184,7 +1209,10 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
             SheetSection("依据的原话")
             RsCard(padding = PaddingValues(16.dp)) {
                 if (source != null) {
-                    Text(formatClock(source.startAt), style = RsType.caption, color = c.textTertiary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(formatClock(source.startAt), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+                        SourceAudioButton(source, lines, item, memory)
+                    }
                     Spacer(Modifier.height(4.dp))
                     Text("“${source.text}”", style = RsType.body, color = c.text)
                 } else Text(if (lines.isEmpty()) "原话加载中…" else "没有找到对应的原话", style = RsType.subhead, color = c.textTertiary)

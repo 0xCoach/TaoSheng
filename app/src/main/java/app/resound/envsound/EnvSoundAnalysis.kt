@@ -1,11 +1,13 @@
 package app.resound.envsound
 
 import java.io.File
+import app.resound.transcribe.*
+import kotlinx.coroutines.currentCoroutineContext
 
 /** 先分类；只有本人声纹可能改变判定时才检查。采用最严格设置，避免途中改设置漏掉保护。 */
 internal class EnvSoundAnalysis(
     private val read: suspend (File) -> ShortArray,
-    private val infer: (ShortArray) -> Map<String, Float>,
+    private val infer: suspend (ShortArray) -> Map<String, Float>,
     private val recognizesMe: suspend (ShortArray) -> Boolean,
     private val phase: (String?) -> Unit = {},
     private val log: (String) -> Unit = {},
@@ -20,7 +22,7 @@ internal class EnvSoundAnalysis(
         var succeeded = false
         try {
             phase("环境音判断 · 准备音频")
-            val pcm = read(file)
+            val pcm = measureAsr(AsrPart.EnvDecode) { read(file) }
             decodeMs = now() - start
             phase("环境音判断 · 识别声音")
             val modelAt = now()
@@ -31,7 +33,7 @@ internal class EnvSoundAnalysis(
             val me = if (checked) {
                 phase("环境音判断 · 核对本人声音")
                 val identityAt = now()
-                try { recognizesMe(pcm) } finally { identityMs = now() - identityAt }
+                try { measureAsr(AsrPart.EnvIdentity) { recognizesMe(pcm) } } finally { identityMs = now() - identityAt }
             } else false
             succeeded = true
             return scores to me

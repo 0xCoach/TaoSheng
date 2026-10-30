@@ -26,6 +26,7 @@ class TranscribeRunner(
     private val sourceReady: (TranscribeSource) -> Boolean = { true },
     private val sourceKey: (TranscribeSource) -> String = { key() },
     private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
+    private val recordTiming: (String) -> Unit = {},
     private val separateSpeakers: (Long) -> Boolean = { true },
     private val defaultSource: () -> TranscribeSource? = { null },
     private val beginBatch: () -> Unit = {},
@@ -133,6 +134,7 @@ class TranscribeRunner(
                     finally {
                     sharedPcm?.release(File(candidate.path))
                     withContext(NonCancellable) {
+                        currentCoroutineContext()[SegmentTimings]?.outcome = outcome
                         dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = outcome,
                             errorType = error?.name, elapsedMillis = (now() - began).coerceAtLeast(0), sentMillis = reserved, logId = logId))
                         progress.withLock { updateProgress(candidates.size, ++done) }
@@ -155,7 +157,10 @@ class TranscribeRunner(
                 fun cloud(segment: SegmentEntity) = (segment.asrSource?.let { TranscribeSource.valueOf(it) } ?: defaultSource()) == TranscribeSource.Doubao
                 val count = if (cloud(first) && DoubaoConcurrency.global.limit == 2 && index + 1 < candidates.size && cloud(candidates[index + 1])) 2 else 1
                 val batch = candidates.subList(index, index + count)
-                val decisions = coroutineScope { batch.map { async { process(it) } }.awaitAll() }
+                val decisions = coroutineScope { batch.map { segment -> async {
+                    val timing = SegmentTimings(segment.id, segment.asrSource?.let { TranscribeSource.valueOf(it) } ?: defaultSource(), segment.endAt - segment.startAt)
+                    withContext(timing) { try { process(segment) } finally { recordTiming(timing.line()) } }
+                } }.awaitAll() }
                 if (RoundDecision.Stop in decisions) return false
                 if (RoundDecision.Retry in decisions) return true
                 index += count

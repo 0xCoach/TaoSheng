@@ -67,26 +67,33 @@ class LocalAsrService : Service() {
     }
     private suspend fun process(request:Request) {
         var phase="audio"
+        val times=mutableMapOf<String,Long>()
+        suspend fun <T> timed(name:String, block:suspend () -> T):T {
+            val at=SystemClock.elapsedRealtime()
+            try { return block() } finally { times[name]=(times[name] ?: 0L)+SystemClock.elapsedRealtime()-at }
+        }
+        fun Bundle.timingFields() { times.forEach { (name,value) -> putLong(name,value) } }
         send(request,6)
         try {
             val shared=request.data.getString("pcmPath")
-            val pcm=if(shared != null) readLocalAudio(shared, filesDir, cacheDir) { file ->
+            val pcm=timed("Prepare") { if(shared != null) readLocalAudio(shared, filesDir, cacheDir) { file ->
                 require(file.canonicalPath.startsWith(cacheDir.canonicalPath + "/asr-shared-"))
                 app.resound.transcribe.readPcm16(file)
-            } else readLocalAudio(request.data.getString("path"), filesDir, cacheDir, AsrAudioReader(cacheDir)::readPcm)
+            } else readLocalAudio(request.data.getString("path"), filesDir, cacheDir, AsrAudioReader(cacheDir)::readPcm) }
             phase="speakers"
             val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
-            val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}}
+            val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else timed("Diarize") { diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}} }
             if(request.id in cancelled)return
             phase="asr"
             val backend=LocalBackend.valueOf(request.data.getString("backend")!!)
-            val rec=model(backend)
+            val rec=timed("ModelLoad") { model(backend) }
             val chunks=PauseChunks.split(pcm,turns)
             val sentences=TimedSentences()
             val speakers=separateSpeakers && LocalModels.speakersEnabled(this)
+            timed("Recognize") {
             for((index,chunk) in chunks.withIndex()){
                 currentCoroutineContext().ensureActive()
-                if(request.id in cancelled)return
+                if(request.id in cancelled)return@timed
                 val stream=rec.createStream()
                 try {
                     stream.acceptWaveform(FloatArray(chunk.end-chunk.start){pcm[chunk.start+it]/32768f},16000)
@@ -95,8 +102,11 @@ class LocalAsrService : Service() {
                 } finally{stream.release()}
                 send(request,2){putInt("done",index+1);putInt("total",chunks.size)}
             }
+            }
+            if(request.id in cancelled)return
             val result=sentences.result()
             send(request,3){
+                timingFields()
                 putStringArrayList("texts",ArrayList(result.map{it.text}));putStringArrayList("tags",ArrayList(result.map{it.speakerTag ?: ""}))
                 putLongArray("starts",result.map{it.startMillis}.toLongArray());putLongArray("ends",result.map{it.endMillis}.toLongArray());putLong("duration",pcm.size/16L)
                 putInt("pid",Process.myPid());putInt("loads",loads);putInt("timedChunks",sentences.timedChunks);putInt("chunks",chunks.size)
@@ -104,8 +114,8 @@ class LocalAsrService : Service() {
         } catch(e:CancellationException){throw e}
         catch(e:Exception){
             if(phase=="asr"){runCatching{recognizer?.release()};recognizer=null;recognizerKey=""}
-            send(request,4){LocalAsrFailure.write(this,phase,e)}
-        } catch(e:LinkageError){send(request,4){LocalAsrFailure.write(this,phase,e)}}
+            send(request,4){LocalAsrFailure.write(this,phase,e);timingFields()}
+        } catch(e:LinkageError){send(request,4){LocalAsrFailure.write(this,phase,e);timingFields()}}
     }
     override fun onBind(intent:Intent):IBinder=incoming.binder
     override fun onDestroy(){

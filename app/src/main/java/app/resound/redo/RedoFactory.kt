@@ -20,6 +20,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
     val provider = ConfiguredAsrProvider(context, settings, hotwords)
     val files = SkillFiles(context)
     return RedoEngine(db, chooser, recognize = { segment, source ->
+        val timing = SegmentTimings(segment.id, source, segment.endAt - segment.startAt)
+        withContext(timing) {
         if (!network(source)) throw AsrException(AsrError.Network)
         val began = System.currentTimeMillis()
         val key = settings.credential(source)
@@ -38,7 +40,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         } catch (e: CancellationException) { error = AsrError.Interrupted; throw e }
         catch (e: AsrException) { error = e.type; throw e }
         finally { withContext(NonCancellable) { db.transcribe().attempt(AsrAttemptEntity(segmentId = segment.id, at = began,
-            result = outcome, errorType = error?.name, elapsedMillis = System.currentTimeMillis() - began, sentMillis = sent, logId = log)) } }
+            result = outcome, errorType = error?.name, elapsedMillis = System.currentTimeMillis() - began, sentMillis = sent, logId = log))
+            timing.outcome = outcome; PipelineTimes.recordSegment(context, timing.line()) } }
+        }
     }, digest = { lines, presetId ->
         val (preset, key) = digestSettings.skillCredentials(presetId)
         val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())

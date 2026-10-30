@@ -26,7 +26,7 @@ class DoubaoAsrProvider(
         var logId: String? = null
         try {
             withTimeout(config.timeoutFor(audio.durationMillis)) {
-                reader.prepare(audio).use { prepared ->
+                measureAsr(AsrPart.Prepare) { reader.prepare(audio) }.use { prepared ->
                     val opened = CompletableDeferred<Unit>()
                     val final = CompletableDeferred<AsrResult>()
                     val request = Request.Builder().url(config.url).header("X-Api-Key", key)
@@ -68,9 +68,10 @@ class DoubaoAsrProvider(
                     }
                     val ws = client.newWebSocket(request, listener)
                     socket = ws
-                    opened.await()
+                    measureAsr(AsrPart.Connect) { opened.await() }
                     checkSend(ws.send(DoubaoProtocol.frame(1, 0, DoubaoProtocol.config(prepared.format, hotwords(), audio.separateSpeakers), true).toByteString()))
                     var accounted = false
+                    measureAsr(AsrPart.Upload) {
                     AsrAudioReader.chunks(prepared) { bytes, last ->
                         coroutineContext.ensureActive()
                         if (final.isCompleted) { final.await(); throw AsrException(AsrError.Protocol, logId) }
@@ -84,7 +85,10 @@ class DoubaoAsrProvider(
                         checkSend(ws.send(DoubaoProtocol.frame(2, if (last) 2 else 0, bytes).toByteString()))
                         if (config.paceMillis > 0 && !last) delay(config.paceMillis)
                     }
-                    final.await()
+                    // 等待本地发送队列排空；该值仍不是服务端确认收到的时刻。
+                    while (ws.queueSize() > 0 && !final.isCompleted) delay(10)
+                    }
+                    measureAsr(AsrPart.Wait) { final.await() }
                 }
             }
         } catch (e: TimeoutCancellationException) {

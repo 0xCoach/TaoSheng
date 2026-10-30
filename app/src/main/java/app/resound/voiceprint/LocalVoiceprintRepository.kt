@@ -266,7 +266,7 @@ class LocalVoiceprintRepository(
     suspend fun hasPending(): Boolean = dao.pending().any { it.separateSpeakers != false }
 
     suspend fun runSegment(segmentId: Long): Boolean = withContext(Dispatchers.IO) {
-        rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) }
+        app.resound.transcribe.measureAsr(app.resound.transcribe.AsrPart.Voiceprint) { rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) } }
     }
     data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
 

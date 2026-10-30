@@ -129,7 +129,12 @@ class LocalEnvSoundRepository(
             // 单独的后台低优先级线程；调用者等待结束才启动 ASR，不抢本地转写 CPU。
             val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "env-sound") }.asCoroutineDispatcher()
             val record: (String) -> Unit = { PipelineTimes.record(context, "${System.currentTimeMillis()} $it") }
-            val analysis = EnvSoundAnalysis({ file -> sharedPcm?.prepare(file) ?: reader.readPcm(file) }, { model.infer(it, record) }, me,
+            val analysis = EnvSoundAnalysis({ file -> sharedPcm?.prepare(file) ?: reader.readPcm(file) }, { pcm ->
+                val timing = currentCoroutineContext()[SegmentTimings]
+                model.infer(pcm, record) { load, prepare, infer ->
+                    timing?.add(AsrPart.EnvLoad, load); timing?.add(AsrPart.EnvPrepare, prepare); timing?.add(AsrPart.EnvInfer, infer)
+                }
+            }, me,
                 phase = { app.resound.PipelineProgress.detail(it) }, log = record)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
                 { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record).also { repo ->

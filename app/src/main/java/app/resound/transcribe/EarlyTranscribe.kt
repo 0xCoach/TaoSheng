@@ -29,12 +29,18 @@ object EarlyTranscribe {
 /** 每轮流水线各步用时，最近 30 轮，写进诊断记录，看慢在哪一步 */
 object PipelineTimes {
     private const val KEY = "runs"
-    fun record(context: Context, line: String) {
+    @Synchronized fun record(context: Context, line: String) {
         val prefs = context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE)
         val runs = (prefs.getString(KEY, "")!!.lines().filter { it.isNotBlank() } + line).takeLast(30)
         prefs.edit().putString(KEY, runs.joinToString("\n")).apply()
     }
+    @Synchronized fun recordSegment(context: Context, line: String) {
+        val prefs = context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE)
+        val rows = (prefs.getString("segments073", "").orEmpty().lines().filter { it.isNotBlank() } + line).takeLast(300)
+        prefs.edit().putString("segments073", rows.joinToString("\n")).apply()
+    }
     fun dump(context: Context): String =
         context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString(KEY, "")!!
-            .lines().filter { it.isNotBlank() }.joinToString("\n") { "流水线 $it" }
+            .lines().filter { it.isNotBlank() }.joinToString("\n") { "流水线 $it" } + "\n" +
+            context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString("segments073", "").orEmpty()
 }

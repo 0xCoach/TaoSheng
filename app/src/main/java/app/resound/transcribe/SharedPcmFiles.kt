@@ -27,11 +27,15 @@ class SharedPcmFiles(private val cacheDir: File, private val decode: suspend (Fi
 internal fun readPcm16(file: File): ShortArray {
     require(file.length() > 0 && file.length() % 2 == 0L && file.length() / 2 <= Int.MAX_VALUE)
     val result = ShortArray((file.length() / 2).toInt())
-    file.inputStream().buffered().use { input ->
-        for (i in result.indices) {
-            val lo = input.read(); val hi = input.read()
-            check(lo >= 0 && hi >= 0)
-            result[i] = (lo or (hi shl 8)).toShort()
+    java.io.DataInputStream(file.inputStream().buffered()).use { input ->
+        val bytes = ByteArray(8192)
+        var offset = 0
+        while (offset < result.size) {
+            val count = minOf(bytes.size / 2, result.size - offset)
+            input.readFully(bytes, 0, count * 2)
+            java.nio.ByteBuffer.wrap(bytes, 0, count * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .asShortBuffer().get(result, offset, count)
+            offset += count
         }
     }
     return result

@@ -90,6 +90,30 @@ class AsrSpeed073Test {
         } finally { db.close(); files.forEach { it.delete() } }
     }
 
+    @Test fun cancelBothCloudRequestsRecordsEachAttemptAndKeepsAudio() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val files = (1..2).map { File.createTempFile("cancel", ".ogg", context.cacheDir).apply { writeBytes(byteArrayOf(1)) } }
+        try {
+            files.forEachIndexed { i, file -> db.capture().segment(SegmentEntity(startAt = i * 1000L,
+                endAt = i * 1000L + 500, sourceId = "mic", path = file.path, sizeBytes = 1)) }
+            val both = CompletableDeferred<Unit>(); var entered = 0
+            val provider = object : AsrProvider {
+                override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult {
+                    beforeAudio(); if (++entered == 2) both.complete(Unit)
+                    awaitCancellation()
+                }
+            }
+            val runner = TranscribeRunner(db.transcribe(), provider, { "key" }, { _, _ -> }, defaultSource = { TranscribeSource.Doubao })
+            val job = launch { runner.run() }
+            try { withTimeout(3000) { both.await() } } finally { job.cancelAndJoin() }
+            val rows = db.transcribe().observeSegments().first()
+            assertTrue(rows.all { it.status == "Failed" && it.attempts == 1 && File(it.path).exists() })
+            val attempts = db.transcribe().recentAttempts()
+            assertEquals(rows.map { it.id }.toSet(), attempts.map { it.segmentId }.toSet())
+            assertTrue(attempts.all { it.errorType == "Interrupted" && it.sentMillis == 500L })
+        } finally { db.close(); files.forEach { it.delete() } }
+    }
+
     @Test fun migration24KeepsDataAndHistoricalSpeakerState() = runBlocking {
         val name = "migration073.db"; context.deleteDatabase(name)
         val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/24.json").readText()).getJSONObject("database")
@@ -99,7 +123,7 @@ class AsrSpeed073Test {
                 val entity = entities.getJSONObject(i)
                 fun sql(text: String) = text.replace("\u0024{TABLE_NAME}", entity.getString("tableName"))
                 old.execSQL(sql(entity.getString("createSql")))
-                val indices = entity.getJSONArray("indices")
+                val indices = entity.optJSONArray("indices") ?: org.json.JSONArray()
                 for (j in 0 until indices.length()) old.execSQL(sql(indices.getJSONObject(j).getString("createSql")))
             }
             val queries = schema.getJSONArray("setupQueries")

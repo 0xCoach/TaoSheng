@@ -197,7 +197,7 @@ class TranscribePersistenceTest {
         }
         assertFalse(runner.run()); assertEquals(5, calls)
         assertEquals(15000, dao.observeUsage().first().single().sentMillis)
-        dao.retryFailed()
+        dao.retryFailed(clock)
         assertEquals("Pending", dao.segment(segment.id).status)
         assertEquals(0, dao.segment(segment.id).attempts)
     }
@@ -227,13 +227,13 @@ class TranscribePersistenceTest {
         val failed = insert(5, "Failed", complete = 1)
         val running = insert(6, "Running", attempts = 1)
         var error: String? = null
-        val runner = TranscribeRunner(dao, provider { _, _ -> error("不应联网") }, { "" }, { _, message -> error = message }, now = { day + 100 })
+        val runner = TranscribeRunner(dao, provider { _, _ -> error("不应联网") }, { "" }, { _, message -> error = message }, now = { day + 100 }, ready = { false })
         runner.run()
         assertFalse(File(done.path).exists()); assertFalse(File(empty.path).exists())
         for (row in listOf(recent, pending, failed, running)) assertTrue(File(row.path).exists())
         assertEquals("Done", dao.segment(done.id).status)
         assertEquals("Failed", dao.segment(running.id).status)
-        assertEquals("还没填写转写密钥", error)
+        assertEquals("转写未就绪，请配置服务或下载本地模型", error)
     }
     @Test fun concurrentTriggersAreSkippedAndSegmentsUploadInTimeOrder() = runBlocking {
         insert(5000); insert(1000)

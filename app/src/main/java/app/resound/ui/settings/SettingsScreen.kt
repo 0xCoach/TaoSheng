@@ -233,14 +233,20 @@ private fun SettingsList(
                     val lb = if (app.resound.AppGraph.isBackupReady) app.resound.AppGraph.backup.local.collectAsState().value else null
                     val failed = b?.lastError != null || lb?.lastError != null
                     val last = listOfNotNull(b?.lastBackupAt, lb?.lastAt).maxOrNull()
-                    Row1("数据备份", when {
+                    // 坚果云、本机各自一个状态：绿点 + 最近成功时刻，失败的红点写“失败”，没开的不显示
+                    val parts = buildList {
+                        if (b != null && b.account != null) add(Triple("坚果云", b.lastError == null && b.lastBackupAt != null, b.lastBackupAt))
+                        if (lb?.folder != null) add(Triple("本机", lb.lastError == null && lb.lastAt != null, lb.lastAt))
+                    }
+                    if (b == null || parts.isEmpty()) Row1("数据备份", when {
                         b == null -> "开发中"
-                        failed && last != null -> "备份失败 · 上次成功 ${backupClock(last)}"
-                        last != null -> "${backupClock(last)} · " + listOfNotNull(b.lastBackupAt?.let { "坚果云" }, lb?.lastAt?.let { "本机" }).joinToString("、")
+                        last != null -> "${backupClock(last)} 已备份"
                         failed -> "尚无成功备份"
-                        b.account == null && lb?.folder == null -> "未开启"
-                        else -> "还没备份"
-                    }, dot = when { b == null -> null; failed -> c.critical; last != null -> c.good; b.account == null && lb?.folder == null -> null; else -> c.warning }) { onOpen(SettingsPage.Backup) }
+                        else -> "未开启"
+                    }, dot = when { b == null -> null; failed -> c.critical; last != null -> c.good; else -> null }) { onOpen(SettingsPage.Backup) }
+                    else RowStatus("数据备份", parts.map { (name, ok, at) ->
+                        Triple(if (ok) c.good else c.critical, name + " " + if (ok) backupClock(at!!, short = true) else "失败", !ok)
+                    }) { onOpen(SettingsPage.Backup) }
                 }
             }
         }
@@ -276,11 +282,11 @@ private fun SettingsList(
 }
 
 /** 备份时刻：今天只写几点，昨天写“昨天 22:00”，更早写日期 */
-private fun backupClock(at: Long): String {
+private fun backupClock(at: Long, short: Boolean = false): String {
     val t = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault())
     val days = java.time.temporal.ChronoUnit.DAYS.between(t.toLocalDate(), java.time.LocalDate.now())
     val hm = "%d:%02d".format(t.hour, t.minute)
-    return when (days) { 0L -> "今天 $hm"; 1L -> "昨天 $hm"; else -> "${t.monthValue}月${t.dayOfMonth}日 $hm" }
+    return when (days) { 0L -> if (short) hm else "今天 $hm"; 1L -> "昨天 $hm"; else -> if (short) "${t.monthValue}/${t.dayOfMonth}" else "${t.monthValue}月${t.dayOfMonth}日 $hm" }
 }
 
 @Composable
@@ -291,6 +297,25 @@ private fun Group(content: @Composable () -> Unit) {
 @Composable
 private fun Divider() {
     Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(0.5.dp).background(Rs.colors.separator))
+}
+
+/** 右侧多段状态：每段一个小圆点 + 文字，出问题的那段文字也用圆点的颜色 */
+@Composable
+private fun RowStatus(title: String, parts: List<Triple<Color, String, Boolean>>, onClick: () -> Unit) {
+    val c = Rs.colors
+    Row(Modifier.fillMaxWidth().springClick(onClick).padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = RsType.body, color = c.text, maxLines = 1, softWrap = false)
+        Row(Modifier.weight(1f).padding(start = 12.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            parts.forEachIndexed { i, (dot, text, alert) ->
+                if (i > 0) Spacer(Modifier.width(10.dp))
+                Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(dot))
+                Spacer(Modifier.width(5.dp))
+                Text(text, style = RsType.subhead, color = if (alert) dot else c.textTertiary, maxLines = 1, softWrap = false)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
+    }
 }
 
 @Composable

@@ -158,7 +158,8 @@ private fun SettingsList(
                         app.resound.AppGraph.inputs.status.collectAsState().value.using.let { if (it.kind == app.resound.audio.InputKind.Phone) null else it.name } else null
                     Row1("录音与后台", when (status.state) {
                         CaptureState.Listening, CaptureState.Recording -> "正在聆听" + (inputLabel?.let { " · $it" } ?: "")
-                        CaptureState.Paused -> status.quietName?.let { "${it}中" } ?: "已暂停"
+                        CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") +
+                            (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${app.resound.ui.verify.formatUpcoming(it)} 恢复" } ?: "")
                         CaptureState.MicBusy -> "麦克风被占用"
                         CaptureState.Stopped -> "未开启"
                         CaptureState.NoPermission -> "缺少权限"
@@ -169,7 +170,15 @@ private fun SettingsList(
                     val asrSource = asr?.source?.collectAsState()?.value?.title ?: "豆包"
                     val asrRealtime = asr?.realtime?.collectAsState()?.value == true
                     val asrInterval = transcribeSettings.intervalMinutes.collectAsState().value
-                    Row1("原话与转写", if (asrKey) "$asrSource · ${if (asrRealtime) "实时" else "每 $asrInterval 分钟"}" else "转写未就绪", dot = if (asrKey) c.good else c.warning) { onOpen(SettingsPage.Transcript) }
+                    val queue = if (app.resound.AppGraph.isReady) app.resound.AppGraph.transcripts.queue.collectAsState().value else null
+                    val asrLine = when {
+                        !asrKey -> "转写未就绪"
+                        (queue?.failed ?: 0) > 0 -> "${queue!!.failed} 段没转成"
+                        queue?.running == true -> "正在转写"
+                        (queue?.pending ?: 0) > 0 -> "$asrSource · ${queue!!.pending} 段待转"
+                        else -> "$asrSource · ${if (asrRealtime) "实时" else "每 $asrInterval 分钟"}"
+                    }
+                    Row1("原话与转写", asrLine, dot = when { !asrKey || (queue?.failed ?: 0) > 0 -> c.warning; else -> c.good }) { onOpen(SettingsPage.Transcript) }
                     app.resound.ui.envsound.envSoundSummary()?.let { v ->
                         Divider()
                         Row1("环境音识别", v, dot = null) { onOpen(SettingsPage.EnvSound) }
@@ -187,7 +196,16 @@ private fun SettingsList(
                     val timed = timing?.mode?.collectAsState()?.value == app.resound.digest.DigestMode.TimePoints
                     val points = timing?.timePoints?.collectAsState()?.value.orEmpty()
                     val when_ = if (timed) " · 每天 ${points.size} 个时间点" else digestInterval?.let { " · 每 $it 分钟" } ?: ""
-                    Row1("整理模型", if (llmKey) model + when_ else "未填密钥", dot = if (llmKey) c.good else c.warning) { onOpen(SettingsPage.Model) }
+                    val bal = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance.state.collectAsState().value.balance else null
+                    val line = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance.threshold.collectAsState().value else 0.0
+                    val low = bal != null && line > 0 && (bal.total < line || !bal.available)
+                    val modelLine = when {
+                        !llmKey -> "未填密钥"
+                        bal != null && !bal.available -> "$model · 余额已用完"
+                        bal != null -> "$model · ¥%.2f".format(bal.total) + if (low) " 余额不多" else ""
+                        else -> model + when_
+                    }
+                    Row1("整理模型", modelLine, dot = when { !llmKey || low -> c.warning; else -> c.good }) { onOpen(SettingsPage.Model) }
                     Divider()
                     val skillList = app.resound.ui.skills.skillRepo().skills.collectAsState().value
                     Row1("整理技能", "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个", dot = null) { onOpen(SettingsPage.Skills) }
@@ -217,11 +235,12 @@ private fun SettingsList(
                     val last = listOfNotNull(b?.lastBackupAt, lb?.lastAt).maxOrNull()
                     Row1("数据备份", when {
                         b == null -> "开发中"
-                        last != null -> listOfNotNull(lb?.lastAt?.let { "本机" }, b.lastBackupAt?.let { "坚果云" }).joinToString("、") + "已备份"
+                        failed && last != null -> "备份失败 · 上次成功 ${backupClock(last)}"
+                        last != null -> "${backupClock(last)} · " + listOfNotNull(b.lastBackupAt?.let { "坚果云" }, lb?.lastAt?.let { "本机" }).joinToString("、")
                         failed -> "尚无成功备份"
                         b.account == null && lb?.folder == null -> "未开启"
                         else -> "还没备份"
-                    }, dot = when { b == null -> null; last != null -> c.good; failed -> c.critical; b.account == null && lb?.folder == null -> null; else -> c.warning }) { onOpen(SettingsPage.Backup) }
+                    }, dot = when { b == null -> null; failed -> c.critical; last != null -> c.good; b.account == null && lb?.folder == null -> null; else -> c.warning }) { onOpen(SettingsPage.Backup) }
                 }
             }
         }
@@ -254,6 +273,14 @@ private fun SettingsList(
             }
         }
     }
+}
+
+/** 备份时刻：今天只写几点，昨天写“昨天 22:00”，更早写日期 */
+private fun backupClock(at: Long): String {
+    val t = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault())
+    val days = java.time.temporal.ChronoUnit.DAYS.between(t.toLocalDate(), java.time.LocalDate.now())
+    val hm = "%d:%02d".format(t.hour, t.minute)
+    return when (days) { 0L -> "今天 $hm"; 1L -> "昨天 $hm"; else -> "${t.monthValue}月${t.dayOfMonth}日 $hm" }
 }
 
 @Composable

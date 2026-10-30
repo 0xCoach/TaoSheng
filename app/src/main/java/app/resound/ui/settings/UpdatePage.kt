@@ -200,6 +200,6 @@ fun updateSummary(current: String, state: UpdateState): Pair<String, Boolean> = 
         state.info()?.let { "有新版本 ${displayVersion(it.versionName)}" to true } ?: (displayVersion(current) to false)
     is UpdateState.Downloading -> "正在下载 ${if (state.totalBytes > 0) state.doneBytes * 100 / state.totalBytes else 0}%" to true
     is UpdateState.Assembling, is UpdateState.Installing -> "正在更新" to true
-    is UpdateState.UpToDate -> "$current · 已是最新" to false
-    else -> current to false
+    is UpdateState.UpToDate -> "${displayVersion(current)} · 已是最新" to false
+    else -> displayVersion(current) to false
 }

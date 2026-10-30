@@ -39,7 +39,7 @@ class EnvSound070Test {
         scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
         dir=File(context.cacheDir,"env070").apply { mkdirs() }
         val prefs=context.getSharedPreferences("env070",0);prefs.edit().clear().commit()
-        repo=LocalEnvSoundRepository(db,prefs,scope,state,{}, { calls++;scores to false }, { queued++ },now={clock})
+        repo=LocalEnvSoundRepository(db,prefs,scope,state,{}, { calls++;EnvSoundEvidence(scores, scores, 32000, 32000) to false }, { queued++ },now={clock})
     }
     @After fun close() { scope.cancel();db.close();dir.deleteRecursively() }
     private suspend fun segment(id: Long, start: Long=clock, duration: Long=60000): SegmentEntity {

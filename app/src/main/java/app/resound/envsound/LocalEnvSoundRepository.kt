@@ -7,7 +7,6 @@ import app.resound.data.*
 import app.resound.transcribe.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import org.json.JSONObject
 import java.io.File
 import java.time.*
 
@@ -17,7 +16,7 @@ class LocalEnvSoundRepository(
     private val scope: CoroutineScope,
     private val modelState: StateFlow<EnvModelState>,
     private val download: suspend () -> Unit,
-    private val analyze: suspend (File) -> Pair<Map<String, Float>, Boolean>,
+    private val analyze: suspend (File) -> Pair<EnvSoundEvidence, Boolean>,
     private val schedule: () -> Unit,
     private val log: (String) -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
@@ -61,7 +60,7 @@ class LocalEnvSoundRepository(
             val decision = EnvSoundRules.decide(scores, latest, me)
             val elapsed = (now()-start).coerceAtLeast(0)
             val row = EnvSoundRow(segment.id,segment.startAt,segment.endAt,segment.path,decision.verdict.name,decision.reason,
-                decision.tags.encoded(),decision.sounds.encoded(),JSONObject(scores.filterKeys { it in (EnvSoundRules.speech + EnvSoundRules.human + EnvSoundRules.tags.values.flatMap { v -> v.second } + EnvSoundRules.sounds.values.flatMap { v -> v.second }) }).toString(),decision.skip,decision.markMedia,elapsedMs=elapsed)
+                decision.tags.encoded(),decision.sounds.encoded(),scores.json(),decision.skip,decision.markMedia,elapsedMs=elapsed)
             db.withTransaction { if(db.transcribe().findSegment(segment.id) != null) dao.insert(row) }
             log("环境音 ${elapsed}ms ${decision.verdict.name}")
             return decision.skip
@@ -125,6 +124,7 @@ class LocalEnvSoundRepository(
         private inline fun <reified T: Enum<T>> enumValue(value: String?, fallback: T) = enumValues<T>().firstOrNull { it.name == value } ?: fallback
         fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null): LocalEnvSoundRepository {
             val model = EnvSoundModel(context)
+            val gaps = EnvSoundGapExtractor(context)
             val reader = AsrAudioReader(context.cacheDir)
             // 单独的后台低优先级线程；调用者等待结束才启动 ASR，不抢本地转写 CPU。
             val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "env-sound") }.asCoroutineDispatcher()
@@ -135,10 +135,11 @@ class LocalEnvSoundRepository(
                     timing?.add(AsrPart.EnvLoad, load); timing?.add(AsrPart.EnvPrepare, prepare); timing?.add(AsrPart.EnvInfer, infer)
                 }
             }, me,
-                phase = { app.resound.PipelineProgress.detail(it) }, log = record)
+                phase = { app.resound.PipelineProgress.detail(it) }, log = record, extractGaps = gaps::extract)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
                 { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record).also { repo ->
-                repo.beginBatch = model::beginBatch; repo.endBatch = model::endBatch
+                repo.beginBatch = { model.beginBatch(); gaps.beginBatch() }
+                repo.endBatch = { try { gaps.endBatch() } finally { model.endBatch() } }
                 scope.launch { model.checkReady(); if(repo.settings.value.enabled) repo.downloadModel() }
             }
         }

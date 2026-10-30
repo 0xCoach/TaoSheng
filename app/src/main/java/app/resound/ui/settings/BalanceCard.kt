@@ -47,7 +47,9 @@ fun BalanceCard(checker: LlmBalanceChecker, settings: AndroidDigestSettings) {
     val presetId by settings.presetId.collectAsState()
     val hasKey by settings.hasKey.collectAsState()
     val custom by checker.custom.collectAsState()
-    val isCustom = presetId == "custom"
+    // 完全自填的服务商可以自己填余额查询；从模板建的，模板没有余额接口就不显示这张卡
+    val activeProvider = if (app.resound.AppGraph.isLlmProvidersReady) app.resound.AppGraph.llmProviders.saved.collectAsState().value.firstOrNull { it.id == presetId } else null
+    val isCustom = activeProvider?.templateId == null
     var editingLine by remember { mutableStateOf(false) }
     var editingSource by remember { mutableStateOf(false) }
     LaunchedEffect(presetId, hasKey, custom) { checker.refresh() }
@@ -67,8 +69,8 @@ fun BalanceCard(checker: LlmBalanceChecker, settings: AndroidDigestSettings) {
                 style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(top = 8.dp))
             b != null -> {
                 val low = threshold > 0 && (b.total < threshold || !b.available)
-                Text(if (b.available) "¥%.2f".format(b.total) else "已用完", style = RsType.number, color = if (low) c.warning else c.text, modifier = Modifier.padding(top = 8.dp))
-                val parts = listOfNotNull(b.granted?.let { "赠送 ¥%.2f".format(it) }, b.toppedUp?.let { "充值 ¥%.2f".format(it) }, "更新于 " + ago(b.updatedAt))
+                Text(if (b.available) money(b.total, b.currency) else "已用完", style = RsType.number, color = if (low) c.warning else c.text, modifier = Modifier.padding(top = 8.dp))
+                val parts = listOfNotNull(b.granted?.let { "赠送 " + money(it, b.currency) }, b.toppedUp?.let { "充值 " + money(it, b.currency) }, "更新于 " + ago(b.updatedAt))
                 Text(parts.joinToString(" · "), style = RsType.caption, color = c.textTertiary)
                 if (low) Text("余额不多了，用完后整理会失败，请及时充值", style = RsType.caption, color = c.warning, modifier = Modifier.padding(top = 2.dp))
             }
@@ -78,7 +80,7 @@ fun BalanceCard(checker: LlmBalanceChecker, settings: AndroidDigestSettings) {
         state.error?.let { Text(it, style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 4.dp)) }
         Column(Modifier.padding(top = 10.dp)) {
             if (state.supported) Line("提醒", if (threshold > 0) "低于 ¥%.0f 时提醒".format(threshold) else "不提醒") { editingLine = true }
-            if (isCustom) Line("查询地址", if (custom.first.isBlank()) "未填写" else custom.first) { editingSource = true }
+            if (isCustom || custom.first.isNotBlank()) Line("查询地址", if (custom.first.isBlank()) "未填写" else custom.first) { editingSource = true }
         }
     }
     if (editingLine) ThresholdSheet(threshold, { checker.setThreshold(it); editingLine = false }) { editingLine = false }
@@ -140,6 +142,8 @@ private fun SourceSheet(checker: LlmBalanceChecker, base: String, current: Pair<
             style = RsType.caption, color = c.textTertiary)
     }
 }
+
+private fun money(v: Double, currency: String) = (when (currency) { "CNY" -> "¥"; "USD" -> "$"; else -> "$currency " }) + "%.2f".format(v)
 
 private fun ago(at: Long): String {
     val m = (System.currentTimeMillis() - at) / 60_000

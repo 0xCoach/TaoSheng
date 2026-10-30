@@ -161,7 +161,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Transcript -> TranscriptScreen(transcripts, transcribeSettings, bottom)
                                     SettingsPage.Model -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = bottom + 24.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        ModelCard(digestSettings) {}
+                                        if (AppGraph.isLlmProvidersReady) app.resound.ui.settings.ProvidersCard(AppGraph.llmProviders) else ModelCard(digestSettings) {}
                                         (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.DigestTimingCard(it) }
                                         if (AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)

@@ -170,7 +170,7 @@ private fun SettingsList(
                     val asrSource = asr?.source?.collectAsState()?.value?.title ?: "豆包"
                     val asrRealtime = asr?.realtime?.collectAsState()?.value == true
                     val asrInterval = transcribeSettings.intervalMinutes.collectAsState().value
-                    val queue = if (app.resound.AppGraph.isReady) app.resound.AppGraph.transcripts.queue.collectAsState().value else null
+                    val queue = if (app.resound.AppGraph.isTranscribeReady) app.resound.AppGraph.transcripts.queue.collectAsState().value else null
                     val asrLine = when {
                         !asrKey -> "转写未就绪"
                         (queue?.failed ?: 0) > 0 -> "${queue!!.failed} 段没转成"

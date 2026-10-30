@@ -63,6 +63,14 @@ fun ProvidersCard(providers: LlmProviders) {
     val active by providers.activeId.collectAsState()
     var editing by remember { mutableStateOf<SavedProvider?>(null) }
     var adding by remember { mutableStateOf(false) }
+    val checker = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance else null
+    val balance = checker?.state?.collectAsState()?.value
+    val threshold = checker?.threshold?.collectAsState()?.value ?: 0.0
+    var editingLine by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var checkResult by remember(active) { mutableStateOf<Result<List<app.resound.digest.ModelCheckItem>>?>(null) }
+    androidx.compose.runtime.LaunchedEffect(active, saved) { checker?.refresh() }
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Text("整理用的大模型", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
         Text("点一下切换；整理、问问、回顾都用当前这个，技能可以另选。", style = RsType.caption, color = c.textTertiary)
@@ -80,9 +88,41 @@ fun ProvidersCard(providers: LlmProviders) {
                     Text(p.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(p.model + if (!p.hasKey) " · 未填密钥" else "", style = RsType.caption,
                         color = if (!p.hasKey) c.warning else c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // 当前服务商：余额（能查的才显示）
+                    val b = balance?.balance
+                    if (on && balance?.supported == true) {
+                        val low = b != null && threshold > 0 && (b.total < threshold || !b.available)
+                        Text(when {
+                            b != null && !b.available -> "余额已用完"
+                            b != null -> "余额 " + money(b.total, b.currency) + (b.granted?.let { " · 含赠送 " + money(it, b.currency) } ?: "")
+                            balance.loading -> "余额查询中…"
+                            else -> balance.error ?: "余额查询中…"
+                        }, style = RsType.caption.copy(fontWeight = FontWeight.Medium, fontFeatureSettings = "tnum"),
+                            color = when { low -> c.warning; b == null && balance.error != null -> c.critical; else -> c.textSecondary }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 Text("编辑", style = RsType.subhead, color = c.accent,
                     modifier = Modifier.clip(CircleShape).springClick { editing = p }.padding(horizontal = 10.dp, vertical = 6.dp))
+            }
+        }
+        if (saved.any { it.id == active && it.hasKey }) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 32.dp, bottom = 8.dp)) {
+                SmallChip(if (checking) "检测中…" else "检测") {
+                    if (checking || !app.resound.AppGraph.isMemoryReady) return@SmallChip
+                    checking = true; checkResult = null
+                    scope.launch { checkResult = app.resound.AppGraph.digestSettings.check(); checking = false }
+                }
+                if (balance?.supported == true) SmallChip(if (balance.loading) "查询中…" else "刷新余额") {
+                    if (!balance.loading) scope.launch { checker?.refresh(force = true) }
+                }
+            }
+            if (checking) Text("正在逐项检测各功能，约需半分钟…", style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(start = 32.dp, bottom = 6.dp))
+            checkResult?.let { r ->
+                Column(Modifier.padding(start = 32.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val items = r.getOrNull()
+                    if (items == null) Text(r.exceptionOrNull()?.message ?: "检测没通过", style = RsType.caption, color = c.critical)
+                    else items.forEach { app.resound.ui.today.ModelCheckRow(it) }
+                }
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -90,8 +130,13 @@ fun ProvidersCard(providers: LlmProviders) {
             contentAlignment = Alignment.Center) {
             Text("＋ 添加服务商", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent)
         }
+        if (checker != null && balance?.supported == true) Row(Modifier.fillMaxWidth().springClick { editingLine = true }.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("余额提醒", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
+            Text(if (threshold > 0) "低于 ¥%.0f 时提醒 ›".format(threshold) else "不提醒 ›", style = RsType.subhead, color = c.text)
+        }
         Text("密钥分开保存在手机安全区里，不会显示。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
     }
+    if (editingLine && checker != null) ThresholdSheet(threshold, { checker.setThreshold(it); editingLine = false }) { editingLine = false }
     if (adding) AddProviderSheet(providers, onPicked = { t -> adding = false; editing = draft(t) }) { adding = false }
     editing?.let { p -> ProviderSheet(providers, p, isNew = saved.none { it.id == p.id }, isActive = p.id == active) { editing = null } }
 }
@@ -136,6 +181,10 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
     var result by remember { mutableStateOf<Result<String>?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var fetching by remember { mutableStateOf(false) }
+    var balanceUrl by remember { mutableStateOf(p.balanceUrl) }
+    var balancePath by remember { mutableStateOf(p.balancePath) }
+    var balanceOpen by remember { mutableStateOf(false) }
+    var balanceTest by remember { mutableStateOf<Result<app.resound.usage.LlmBalance>?>(null) }
     var fetched by remember { mutableStateOf<List<String>?>(null) }
     val needsWorkspace = baseUrl.contains(WORKSPACE)
     val url = if (needsWorkspace) baseUrl.replace(WORKSPACE, workspace.trim()) else baseUrl.trim()
@@ -191,6 +240,22 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
                 runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))) }
             })
         }
+        // 余额查询（可选）：内置几家已填好；其他服务商可以自己填接口地址和字段
+        Text(if (balanceUrl.isBlank()) "余额查询（可选）›" else if (balanceOpen) "余额查询 ⌄" else "余额查询：已配置 ›", style = RsType.subhead, color = c.accent,
+            modifier = Modifier.springClick { balanceOpen = !balanceOpen })
+        if (balanceOpen) {
+            SheetInput(balanceUrl, "余额接口地址，如 https://…/user/balance") { balanceUrl = it.trim(); balanceTest = null }
+            SheetInput(balancePath, "余额字段，如 data.totalBalance") { balancePath = it.trim(); balanceTest = null }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("用同一把密钥查；位置用点隔开，数组写序号。清空两项就不查。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+                val checker = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance else null
+                if (checker != null && balanceUrl.isNotBlank() && balancePath.isNotBlank()) SmallChip("测试") {
+                    scope.launch { balanceTest = checker.test(balanceUrl, balancePath) }
+                }
+            }
+            balanceTest?.let { r -> Text(r.fold({ "查到了：" + money(it.total, it.currency) }, { it.message ?: "没查到" }), style = RsType.caption,
+                color = if (r.isSuccess) c.good else c.critical) }
+        }
         result?.let { r -> Text(r.fold({ "可以用：$it" }, { it.message ?: "没连上" }), style = RsType.subhead, color = if (r.isSuccess) c.good else c.critical) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ActionButton(if (busy && result == null) "测试中…" else "测试", ActionKind.Secondary, Modifier.weight(1f), enabled = !busy && ready) {
@@ -200,7 +265,7 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             ActionButton(if (isNew) "保存" else "保存修改", ActionKind.Primary, Modifier.weight(1f), enabled = !busy && ready) {
                 busy = true
                 scope.launch {
-                    runCatching { providers.save(p.id.ifBlank { null }, p.templateId, name.trim().ifBlank { p.name }, url, model, keyArg, p.balanceUrl, p.balancePath) }
+                    runCatching { providers.save(p.id.ifBlank { null }, p.templateId, name.trim().ifBlank { p.name }, url, model, keyArg, balanceUrl, balancePath) }
                         .onSuccess { onDismiss() }.onFailure { result = Result.failure(it) }
                     busy = false
                 }
@@ -214,4 +279,11 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             }
         }
     }
+}
+
+@Composable
+private fun SmallChip(text: String, onClick: () -> Unit) {
+    val c = Rs.colors
+    Text(text, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+        modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick(onClick).padding(horizontal = 10.dp, vertical = 5.dp))
 }

@@ -699,7 +699,7 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
 
 /** 检测结果的一行：圆点（绿=正常，红=有问题，灰=没测）+ 功能名 + 结果 */
 @Composable
-private fun ModelCheckRow(item: app.resound.digest.ModelCheckItem) {
+internal fun ModelCheckRow(item: app.resound.digest.ModelCheckItem) {
     val c = Rs.colors
     val color = when (item.ok) { true -> c.good; false -> c.critical; null -> c.textTertiary }
     Row(verticalAlignment = Alignment.Top) {

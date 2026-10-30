@@ -163,7 +163,8 @@ class MainActivity : ComponentActivity() {
                                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                         if (AppGraph.isLlmProvidersReady) app.resound.ui.settings.ProvidersCard(AppGraph.llmProviders) else ModelCard(digestSettings) {}
                                         (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.DigestTimingCard(it) }
-                                        if (AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
+                                        // 余额已并入服务商卡片；没有服务商列表时仍用单独的余额卡
+                                        if (!AppGraph.isLlmProvidersReady && AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)
                                     }
                                     SettingsPage.Voiceprint -> LocalVoiceprint.current?.let { Box(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) { VoiceprintCard(it) } }

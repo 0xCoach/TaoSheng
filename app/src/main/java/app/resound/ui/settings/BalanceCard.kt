@@ -98,7 +98,7 @@ private fun Line(label: String, value: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ThresholdSheet(current: Double, onSave: (Double) -> Unit, onDismiss: () -> Unit) {
+internal fun ThresholdSheet(current: Double, onSave: (Double) -> Unit, onDismiss: () -> Unit) {
     val c = Rs.colors
     var input by remember { mutableStateOf(if (current > 0) "%.0f".format(current) else "") }
     val v = input.toDoubleOrNull()
@@ -143,9 +143,9 @@ private fun SourceSheet(checker: LlmBalanceChecker, base: String, current: Pair<
     }
 }
 
-private fun money(v: Double, currency: String) = (when (currency) { "CNY" -> "¥"; "USD" -> "$"; else -> "$currency " }) + "%.2f".format(v)
+internal fun money(v: Double, currency: String) = (when (currency) { "CNY" -> "¥"; "USD" -> "$"; else -> "$currency " }) + "%.2f".format(v)
 
-private fun ago(at: Long): String {
+internal fun ago(at: Long): String {
     val m = (System.currentTimeMillis() - at) / 60_000
     return when { m < 1 -> "刚刚"; m < 60 -> "$m 分钟前"; m < 24 * 60 -> "${m / 60} 小时前"; else -> "${m / 1440} 天前" }
 }

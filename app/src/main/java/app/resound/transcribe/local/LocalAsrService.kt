@@ -67,12 +67,13 @@ class LocalAsrService : Service() {
     }
     private suspend fun process(request:Request) {
         var phase="audio"
+        var speakerDecision="未提供"
         val times=mutableMapOf<String,Long>()
         suspend fun <T> timed(name:String, block:suspend () -> T):T {
             val at=SystemClock.elapsedRealtime()
             try { return block() } finally { times[name]=(times[name] ?: 0L)+SystemClock.elapsedRealtime()-at }
         }
-        fun Bundle.timingFields() { times.forEach { (name,value) -> putLong(name,value) } }
+        fun Bundle.timingFields() { times.forEach { (name,value) -> putLong(name,value) }; putString("speakerDecision",speakerDecision) }
         send(request,6)
         try {
             val shared=request.data.getString("pcmPath")
@@ -83,6 +84,7 @@ class LocalAsrService : Service() {
             phase="speakers"
             val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
             val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else timed("Diarize") { diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}} }
+            speakerDecision=if(separateSpeakers)diarizer.lastDecision else "关闭"
             if(request.id in cancelled)return
             phase="asr"
             val backend=LocalBackend.valueOf(request.data.getString("backend")!!)

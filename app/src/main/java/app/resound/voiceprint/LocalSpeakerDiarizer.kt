@@ -3,6 +3,7 @@ package app.resound.voiceprint
 import android.content.Context
 import app.resound.transcribe.local.LocalModels
 import app.resound.transcribe.local.ModelVerification
+import app.resound.audio.SileroVad
 import com.k2fsa.sherpa.onnx.*
 import java.io.File
 
@@ -10,14 +11,24 @@ import java.io.File
 class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
     private var model: OfflineSpeakerDiarization? = null
     private var stamp: Long = -1
+    private var precheckEmbedding: CampPlusEmbedding? = null
+    var lastDecision: String = "完整"; private set
     fun turns(pcm: ShortArray, progress: (Int,Int) -> Unit): List<SpeakerTurns.Turn> {
+        lastDecision = "完整"
         val spec=LocalModels.speakers
-        if(!LocalModels.speakersEnabled(context))return SpeakerTurns.partition(emptyList(),pcm.size,Int.MAX_VALUE)
+        if(!LocalModels.speakersEnabled(context)) {
+            lastDecision = "关闭"
+            return SpeakerTurns.partition(emptyList(),pcm.size,Int.MAX_VALUE)
+        }
         val dir=LocalModels.directory(context,spec)
         check(ModelVerification.ensure(dir,spec))
+        if (confidentSingle(pcm)) {
+            lastDecision = "跳过"
+            return listOf(SpeakerTurns.Turn(0, pcm.size, 0))
+        }
         val segmentation=File(dir,spec.modelName)
         if(model==null || stamp!=segmentation.lastModified()) {
-            close()
+            model?.release(); model = null
             val embedding=File(context.cacheDir,"speaker-campplus.onnx")
             context.assets.open("voiceprint/campplus.onnx").use { input -> embedding.outputStream().use { input.copyTo(it) } }
             try {
@@ -38,7 +49,30 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
             SpeakerTurns.Turn((it.start*16000).toInt(),(it.end*16000).toInt(),ordered.indexOf(it.speaker))
         },pcm.size,Int.MAX_VALUE)
     }
-    override fun close() {model?.release();model=null;stamp=-1}
+    private fun confidentSingle(pcm: ShortArray): Boolean {
+        if (SpeakerPrecheck.windows(pcm.size).isEmpty()) return false
+        return try {
+            var offset = 0
+            val speech = mutableListOf<IntRange>()
+            SileroVad(context).use { vad ->
+                val consume: (ShortArray, Boolean, Float) -> Unit = { frame, voiced, _ ->
+                    if (voiced) speech += offset until offset + frame.size
+                    offset += frame.size
+                }
+                vad.accept(pcm, consume); vad.finish(consume)
+            }
+            SpeakerPrecheck.single(pcm, speech, SpeakerEmbedding { window ->
+                val engine = precheckEmbedding ?: CampPlusEmbedding(context).also { precheckEmbedding = it }
+                engine.compute(window)
+            })
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // 预判不可用不阻断完整分人，也不能以“预判失败”作为单人的证据。
+            runCatching { precheckEmbedding?.close() }; precheckEmbedding = null
+            false
+        }
+    }
+    override fun close() {model?.release();model=null;stamp=-1;precheckEmbedding?.close();precheckEmbedding=null}
     companion object {
         fun turns(context:Context,pcm:ShortArray,progress:(Int,Int)->Unit)=LocalSpeakerDiarizer(context).use{it.turns(pcm,progress)}
     }

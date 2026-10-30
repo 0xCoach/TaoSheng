@@ -22,6 +22,7 @@ internal class LocalAsrConnection(private val context:Context) {
     private val receiver=Messenger(Handler(Looper.getMainLooper()){message->
         val data=message.data
         val request=pending[data.getString("id")] ?: return@Handler true
+        if(message.what in setOf(3,4)) request.timings?.speakerDecision = data.getString("speakerDecision") ?: "未提供"
         if(message.what in setOf(3,4)) for(part in listOf(AsrPart.Prepare,AsrPart.Diarize,AsrPart.ModelLoad,AsrPart.Recognize)) {
             if(data.containsKey(part.name)) request.timings?.add(part,data.getLong(part.name))
         }

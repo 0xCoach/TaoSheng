@@ -21,6 +21,7 @@ internal class SegmentTimings(
     private val began = clock()
     private val values = mutableMapOf<AsrPart, Long>()
     var outcome: String = "未执行"
+    var speakerDecision: String = "未提供"
     @Synchronized fun add(part: AsrPart, millis: Long) { values[part] = (values[part] ?: 0) + millis.coerceAtLeast(0) }
     @Synchronized fun line(): String = buildString {
         append("073段耗时 id=$segmentId 方式=${source?.name ?: "Unknown"} 录音=${audioMillis.coerceAtLeast(0)}ms")
@@ -29,6 +30,7 @@ internal class SegmentTimings(
             val value = values[part] ?: if (part in setOf(AsrPart.Diarize, AsrPart.Recognize) && source != TranscribeSource.Local) null else 0L
             append(" ${part.title}=${value?.let { "${it}ms" } ?: "未提供"}")
         }
+        append(" 分人预判=${speakerDecision.takeIf { it in setOf("跳过", "完整", "关闭") } ?: "未提供"}")
         append(" 总计=${(clock()-began).coerceAtLeast(0)}ms 状态=${outcome.takeIf { it in setOf("Done", "Empty", "Failed", "SkippedEnv", "Abandoned", "Quiet", "未执行") } ?: "Failed"}")
     }
 }

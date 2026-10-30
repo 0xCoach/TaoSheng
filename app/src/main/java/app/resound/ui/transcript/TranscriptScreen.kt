@@ -661,23 +661,7 @@ private fun SpeakerOptions() {
         Text("课堂模式", style = RsType.body, color = c.text)
         Text(classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption,
             color = if (classMode.enabled) c.accent else c.textSecondary)
-        ClassModeChoice(classMode, speed)
-    }
-}
-
-/** 课堂模式时长胶囊：1 / 2 / 3 小时 / 手动关；开着时多一个“结束”。首页录音卡和设置页共用 */
-@Composable
-internal fun ClassModeChoice(state: app.resound.transcribe.ClassModeState, speed: app.resound.transcribe.AsrSpeedSettings) {
-    val c = Rs.colors
-    if (state.enabled) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.accent.copy(alpha = 0.12f))
-            .springClick { speed.stopClassMode() }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-            Text("结束课堂模式", style = RsType.caption, color = c.accent)
-        }
-        return
-    }
-    Choice(listOf(60, 120, 180, 0), -1, { if (it == 0) "手动关" else "${it / 60} 小时" }, fill = true) {
-        speed.startClassMode(it.takeIf { m -> m > 0 })
+        ClassModePicker(classMode, speed)
     }
 }
 

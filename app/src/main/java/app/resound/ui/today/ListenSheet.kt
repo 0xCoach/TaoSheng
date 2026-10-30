@@ -56,7 +56,6 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
     var forgetFor by remember { mutableIntStateOf(10) }
     var confirm by remember { mutableStateOf(startOnForget) }
     var busy by remember { mutableStateOf(false) }
-    var classFor by remember { mutableIntStateOf(120) }
     val today = java.time.LocalDate.now()
     var rangeOn by remember { mutableStateOf(false) }
     var range by remember { mutableStateOf(app.resound.recordings.RecordingRange(today, today, java.time.LocalTime.of(0, 0), java.time.LocalTime.now().withSecond(0).withNano(0))) }
@@ -102,13 +101,7 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
                 Label("课堂模式")
                 Text(app.resound.ui.transcript.classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption,
                     color = if (classMode.enabled) c.accent else c.textTertiary)
-                if (classMode.enabled) ActionButton("结束课堂模式", ActionKind.Secondary) { speed.stopClassMode(); onDismiss() }
-                else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CLASS_MINUTES.forEach { m -> Choice(if (m == 0) "手动关" else "${m / 60} 小时", m == classFor, Modifier.weight(1f)) { classFor = m } }
-                    }
-                    ActionButton("开始课堂模式", ActionKind.Secondary) { speed.startClassMode(classFor.takeIf { it > 0 }); onDismiss() }
-                }
+                app.resound.ui.transcript.ClassModePicker(classMode, speed, onStarted = onDismiss)
             }
         }
 
@@ -149,9 +142,6 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
         }
     }
 }
-
-/** 课堂模式时长；0 = 直到手动关 */
-private val CLASS_MINUTES = listOf(60, 120, 180, 0)
 
 @Composable
 private fun Label(text: String) {

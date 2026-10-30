@@ -1,6 +1,8 @@
 package app.resound.ui.items
 
 import app.resound.ui.ScrollTopButton
+import app.resound.ui.things.AddThingHost
+import app.resound.ui.things.thingsTab
 import app.resound.ui.swipeTabs
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -98,7 +100,7 @@ private enum class Grouping {
 /** 一个分段：名字 + 取数 + 分组方式 */
 private class Tab(val name: String, val grouping: Grouping, val source: (MemoryRepository) -> Flow<List<MemoryItem>>)
 
-private val MEMORY_TABS = listOf(Tab("重点", Grouping.Mentioned) { flowOf(emptyList()) }) + listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
+private val MEMORY_TABS = listOf(Tab("重点", Grouping.Mentioned) { flowOf(emptyList()) }, Tab("寻物", Grouping.Mentioned) { flowOf(emptyList()) }) + listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
     Tab("卡片", Grouping.Mentioned) { flowOf(emptyList()) }
 
 private enum class TodoTab(val title: String) { Pending("待确认"), Ongoing("进行中"), Done("已完成") }
@@ -259,7 +261,7 @@ private class RowSwipe(val label: (MemoryItem) -> String, val left: (MemoryItem)
         app.resound.ui.today.SwipeRow(item.id, label(item), { left(item) }, { delete(item) }, content)
 }
 
-/** 记忆：按天（日期条 + 当天日记，可导出）· 按类（灵感 · 关键信息 · 决定 · 知识 · 回顾）。openReview 不为空时跳到那天并打开回顾 */
+/** 记忆：按天（日期条 + 当天日记，可导出）· 按类（重点 · 寻物 · 灵感 · 关键信息 · 决定 · 知识 · 卡片）。openReview 不为空时跳到那天并打开回顾 */
 @Composable
 fun MemoryScreen(
     memory: MemoryRepository,
@@ -324,6 +326,16 @@ fun MemoryScreen(
     val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
     val reviewList by remember(reviews) { reviews?.recent() ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
     val reviewState = reviews?.state?.collectAsState()?.value
+    // 寻物（卡 072）
+    val things = remember { app.resound.ui.things.thingRepo() }
+    val onThings = !byDay && tab.name == "寻物"
+    var thingQuery by rememberSaveable { mutableStateOf("") }
+    var thingFilter by rememberSaveable { mutableStateOf(app.resound.ui.things.ThingFilter.All) }
+    val thingList by app.resound.ui.things.rememberThingList(things, thingQuery)
+    val thingPending by remember { things.pending() }.collectAsState(initial = emptyList())
+    var openedThing by remember { mutableStateOf<Long?>(null) }
+    var thingPendingOpen by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
     // 按天页的时间线筛选，换一天回到全部
     var dayFilter by remember(date) { mutableStateOf<app.resound.ui.today.TimelineFilter>(app.resound.ui.today.TimelineFilter.All) }
     // 卡 058：这天回顾的进度、原因和窗口；“生成回顾”是否出现与后端判断一致
@@ -348,7 +360,7 @@ fun MemoryScreen(
         Modifier.fillMaxSize().then(if (!byDay) Modifier.swipeTabs(tabs.size, tabIndex) { tabIndex = it } else Modifier),
         state = listState,
         // 有小时刻度时右边多留出刻度的宽度
-        contentPadding = PaddingValues(start = 16.dp, end = if (showIndex) 40.dp else 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = if (showIndex) 40.dp else 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp + if (onThings) 80.dp else 0.dp),
         // 按天时各块自己留间距（时间线一件事一行要拼成整卡）
         verticalArrangement = Arrangement.spacedBy(if (byDay) 0.dp else 16.dp),
     ) {
@@ -409,6 +421,13 @@ fun MemoryScreen(
                         }
                     }
                 }
+            } else if (tab.name == "寻物") {
+                thingsTab(thingList, thingQuery, { thingQuery = it }, thingFilter, { thingFilter = it }, thingPending.size,
+                        onOpenPending = { thingPendingOpen = true }, onOpen = { openedThing = it.id },
+                        onReturned = { t ->
+                            things.markReturned(t.id)
+                            android.widget.Toast.makeText(context, "已记为还回来了", android.widget.Toast.LENGTH_SHORT).show()
+                        })
             } else if (tab.name == "卡片") {
                 if (chips.size > 1) item(key = "chips") {
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -457,7 +476,9 @@ fun MemoryScreen(
             }
         }
     }
-    ScrollTopButton(listState, bottomPadding, end = if (showIndex) 52.dp else 20.dp)
+    // 寻物页右下角是添加按钮，回到顶部按钮让开
+    if (onThings) AddThingHost(things, bottomPadding)
+    else ScrollTopButton(listState, bottomPadding, end = if (showIndex) 52.dp else 20.dp)
     // 右侧时间刻度：点小时跳到那个小时，按住拖在事件之间连续滑并预览
     if (showIndex) {
         val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -476,6 +497,8 @@ fun MemoryScreen(
         ItemSheet(item, memory, onOpenEvent = events.orEmpty().firstOrNull { it.id == item.eventId }?.let { e -> { opened = null; openedEvent = e } }) { opened = null }
     }
     openedEvent?.let { e -> EventSheet(e, memory) { openedEvent = null } }
+    openedThing?.let { id -> app.resound.ui.things.ThingSheet(id, things) { openedThing = null } }
+    if (thingPendingOpen) app.resound.ui.things.ThingPendingSheet(things) { thingPendingOpen = false }
     openedReview?.let { r -> ReviewSheet(r) { openedReview = null } }
     openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }
     if (makingCard) app.resound.ui.skills.MakeCardSheet(date, skills) { makingCard = false }
@@ -528,7 +551,7 @@ private fun Hint(text: String) {
 }
 
 @Composable
-private fun Empty(text: String) {
+internal fun Empty(text: String) {
     Text(text, style = RsType.subhead, color = Rs.colors.textTertiary, textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(top = 60.dp))
 }

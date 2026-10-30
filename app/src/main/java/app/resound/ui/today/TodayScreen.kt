@@ -437,6 +437,14 @@ private fun OverviewCard(
         if (status.state == CaptureState.MicBusy) status.busyDetail?.let {
             Text(it, style = RsType.caption, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 2.dp))
         }
+        // 课堂模式开着时提醒一句，点开聆听面板可结束
+        if (app.resound.AppGraph.isAsrSpeedReady) {
+            val classMode by app.resound.AppGraph.asrSpeed.classMode.collectAsState()
+            if (classMode.enabled) Row(Modifier.padding(top = 6.dp).clip(CircleShape).background(white.copy(alpha = 0.2f))
+                .springClick { listenOpen = true }.padding(horizontal = 10.dp, vertical = 3.dp)) {
+                Text(app.resound.ui.transcript.classModeLine(classMode, now) + " ›", style = RsType.caption, color = white, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Row {
             BigStat(speechMillis?.let { formatSpeech(it) } ?: "—", "录到人声", Modifier.weight(1.3f))

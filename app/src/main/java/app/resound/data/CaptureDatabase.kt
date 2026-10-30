@@ -48,7 +48,7 @@ interface CaptureDao {
     fun batteries(start: Long, end: Long): Flow<List<BatteryEntity>>
 }
 
-@Database(entities = [app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
+@Database(entities = [app.resound.things.ThingRow::class, app.resound.things.ThingRecordRow::class, app.resound.things.ThingWatchState::class, app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,
     MemoryEventEntity::class, MemoryItemEntity::class, LlmUsageV2Entity::class, AppPowerEntity::class,
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
@@ -56,6 +56,7 @@ interface CaptureDao {
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
     app.resound.envsound.EnvSoundRow::class, app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
+    internal abstract fun things(): app.resound.things.ThingDao
     internal abstract fun redoData(): app.resound.redo.RedoDao
     abstract fun envSound(): app.resound.envsound.EnvSoundDao
     internal abstract fun push(): app.resound.push.PushDao
@@ -70,7 +71,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 24
+        const val VERSION = 25
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -263,9 +264,13 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS redo_snapshot (slot INTEGER NOT NULL PRIMARY KEY, jobId TEXT NOT NULL, at INTEGER NOT NULL, payload TEXT NOT NULL, applied INTEGER NOT NULL)")
             }
         }
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) = app.resound.things.ThingSchema.create(db)
+        }
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
-            .addCallback(app.resound.search.SearchIndex.callback).build()
+            .addCallback(app.resound.search.SearchIndex.callback)
+            .addCallback(app.resound.things.ThingSchema.callback).build()
     }
 }

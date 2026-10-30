@@ -36,6 +36,7 @@ class ResoundApp : Application() {
         private set
     lateinit var transcribeRunner: TranscribeRunner
         private set
+    private var thingWatcher: app.resound.things.ThingWatcher? = null
     lateinit var digestRunner: DigestRunner
         private set
     lateinit var voiceprintRepository: LocalVoiceprintRepository
@@ -109,6 +110,7 @@ class ResoundApp : Application() {
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             beforeTranscribe = envSound::beforeTranscribe,
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
+            afterRound = { thingWatcher?.request() },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
@@ -130,6 +132,10 @@ class ResoundApp : Application() {
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
         }
+        val (things, watcher) = app.resound.things.createThings(this, database, scope, digestSettings, llm) { AppGraph.prompts.text("things") }
+        AppGraph.things = things
+        thingWatcher = watcher
+        watcher.start(scope)
         val skillScheduler = app.resound.skills.SkillScheduler(this)
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)

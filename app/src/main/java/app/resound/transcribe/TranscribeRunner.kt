@@ -23,6 +23,7 @@ class TranscribeRunner(
     private val ready: () -> Boolean = { true },
     private val beforeTranscribe: suspend (SegmentEntity) -> Boolean = { false },
     private val afterImport: suspend () -> Unit = {},
+    private val afterRound: () -> Unit = {},
     private val sourceReady: (TranscribeSource) -> Boolean = { true },
     private val sourceKey: (TranscribeSource) -> String = { key() },
     private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
@@ -38,6 +39,7 @@ class TranscribeRunner(
     /** true 表示仍有暂时错误，交 WorkManager 退避重试；鉴权失败立即结束本轮。 */
     suspend fun run(): Boolean {
         if (!gate.tryLock()) return false
+        var producedLines = false
         try {
             dao.recoverInterrupted(now())
             dao.refreshFailures(now())
@@ -89,7 +91,8 @@ class TranscribeRunner(
                             endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = line.speakerTag, originalText = line.originalText)
                     }
                     dao.findSegment(candidate.id)?.let { current -> val completed = current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = null, firstFailedAt = null)
-                        if (current.redoPending) dao.completeRedo(completed, lines, now()) else dao.complete(completed, lines) }
+                        if (current.redoPending) dao.completeRedo(completed, lines, now()) else dao.complete(completed, lines)
+                        if (lines.isNotEmpty()) producedLines = true }
                 } catch (e: Exception) {
                     error = when (e) {
                         is CancellationException -> AsrError.Interrupted
@@ -133,7 +136,7 @@ class TranscribeRunner(
             }
             return dao.earliestRetry() != null
         } finally {
-            try { updateProgress(0, 0) } finally { gate.unlock() }
+            try { updateProgress(0, 0) } finally { gate.unlock(); if (producedLines) afterRound() }
         }
     }
     private suspend fun cleanup() {

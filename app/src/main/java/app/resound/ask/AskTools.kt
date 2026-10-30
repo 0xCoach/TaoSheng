@@ -126,6 +126,7 @@ class AskTools(
     }
 
     fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject {
+        if (name == "find_things") return app.resound.things.FindThingsTool(db, zone).execute(args, sources)
         val rows: List<JSONObject>
         var truncated = false
         if (name == "semantic_search") {

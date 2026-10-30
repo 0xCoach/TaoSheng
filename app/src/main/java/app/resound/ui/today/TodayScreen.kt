@@ -1121,7 +1121,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
  * 原声已按保留天数清理时变灰并说明，文字照常显示。
  */
 @Composable
-private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lines: List<app.resound.transcribe.TranscriptLine>, item: MemoryItem, memory: MemoryRepository) {
+private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lines: List<app.resound.transcribe.TranscriptLine>, item: MemoryItem, memory: MemoryRepository, lead: Long = 5_000L) {
     val c = Rs.colors
     val context = LocalContext.current
     val event by androidx.compose.runtime.produceState<app.resound.digest.MemoryEvent?>(null, item.eventId) { value = item.eventId?.let { runCatching { memory.eventById(it) }.getOrNull() } }
@@ -1136,7 +1136,7 @@ private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lin
             Text("▶ 听原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
                 modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
                     val from = lines.indexOf(source).coerceAtLeast(0)
-                    app.resound.ui.transcript.LinePlayer.play(context, lines, from, event?.let { app.resound.ui.transcript.PlaySource.Event(it) }, leadMillis = 5_000)
+                    app.resound.ui.transcript.LinePlayer.play(context, lines, from, event?.let { app.resound.ui.transcript.PlaySource.Event(it) }, leadMillis = lead)
                 }.padding(horizontal = 12.dp, vertical = 6.dp))
         }
     }
@@ -1148,6 +1148,11 @@ private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lin
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent: (() -> Unit)?, onClose: () -> Unit) {
+    // 调用方没给“查看来源”（如待办页）时，自己按 eventId 取那件事并打开详情
+    var ownEvent by remember { mutableStateOf<MemoryEvent?>(null) }
+    val sourceEvent by androidx.compose.runtime.produceState<MemoryEvent?>(null, opened.eventId) { value = opened.eventId?.let { runCatching { memory.eventById(it) }.getOrNull() } }
+    val openEvent: (() -> Unit)? = onOpenEvent ?: sourceEvent?.let { e -> { ownEvent = e } }
+    ownEvent?.let { e -> EventSheet(e, memory) { ownEvent = null } }
     val c = Rs.colors
     // 跟着数据库走：编辑保存、改状态后，详情里马上是新的时间和内容
     val latest by remember(opened.id) { memory.item(opened.id) }.collectAsState(initial = opened)
@@ -1241,10 +1246,20 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("“${source.text}”", style = RsType.body, color = c.text)
+                } else if (!linesLoading && eventLines.orEmpty().isNotEmpty()) {
+                    // 找不到具体是哪一句（整理时没标出来，或重新转写后原话换了一批）：给出这件事的原话，可以从头听
+                    val all = eventLines.orEmpty()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${formatClock(all.first().startAt)} · 这件事的原话", style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+                        SourceAudioButton(all.first(), all, item, memory, lead = 0L)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    all.take(3).forEach { Text("“${it.text}”", style = RsType.body, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    if (all.size > 3) Text("还有 ${all.size - 3} 句，点“查看来源”看全部", style = RsType.caption, color = c.textTertiary)
                 } else Text(if (linesLoading) "原话加载中…" else "没有找到对应的原话（可能已删除）", style = RsType.subhead, color = c.textTertiary)
             }
             // 点了“听原声”：就在详情里展开播放器
-            if (app.resound.ui.transcript.LinePlayer.active && app.resound.ui.transcript.LinePlayer.allLines.any { it.id == item.sourceLineId })
+            if (app.resound.ui.transcript.LinePlayer.active && app.resound.ui.transcript.LinePlayer.allLines.any { l -> l.id == item.sourceLineId || eventLines.orEmpty().any { it.id == l.id } })
                 androidx.compose.foundation.text.selection.DisableSelection { app.resound.ui.transcript.InlinePlayer(Modifier.padding(top = 10.dp)) }
             }
             // 相似的想法被并进来的那几次：各自的时间和内容，可以拆出来
@@ -1277,7 +1292,7 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (task) ActionChip("编辑", ChipTone.Plain, Modifier.weight(1f)) { editing = true }
-                onOpenEvent?.let { ActionChip("查看来源", ChipTone.Plain, Modifier.weight(1f), onClick = it) }
+                openEvent?.let { ActionChip("查看来源", ChipTone.Plain, Modifier.weight(1f), onClick = it) }
                 // 删除：点一下原地变红“确认删除”，3 秒内再点才删
                 if (task) ActionChip(if (deleteArmed) "确认删除" else "删除", if (deleteArmed) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
                     if (deleteArmed) { memory.deleteItem(item.id); onClose() } else deleteArmed = true

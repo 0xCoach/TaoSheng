@@ -48,6 +48,13 @@ class ResoundApp : Application() {
         if (getProcessName().endsWith(":local_asr")) return
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope)
         AppGraph.asrSpeed = asrSpeed
+        // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴
+        scope.launch {
+            kotlinx.coroutines.flow.combine(asrSpeed.classMode, asrSpeed.separateSpeakers) { a, b -> a to b }.collect {
+                app.resound.capture.CaptureService.refreshOngoing()
+                app.resound.capture.ClassModeTileService.refresh(this@ResoundApp)
+            }
+        }
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(context: android.content.Context, intent: android.content.Intent) { asrSpeed.refresh() }
         }, android.content.IntentFilter(android.content.Intent.ACTION_TIME_CHANGED))

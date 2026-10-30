@@ -439,7 +439,7 @@ class LocalVoiceprintRepository(
 
     suspend fun cleanupAudio() {
         gate.withLock {
-            app.resound.transcribe.cleanupImportedAudio(db.transcribe(), now(), waitForVoiceprint = true, reading = reading.keys)
+            app.resound.transcribe.cleanupImportedAudio(db.transcribe(), now(), reading = reading.keys)
         }
         cleanupOriginalAudio?.invoke()
     }

@@ -164,9 +164,9 @@ class SkillGeneration047Test {
         val cardId = success.outputData.getLongArray("cards")!!.single()
         val single = notifications().single().notification
         assertEquals(LocalNotifier.SKILL_GENERATION_CHANNEL, single.channelId)
-        // 单张卡：标题带卡片标题，正文先摘要再列字段
+        // 卡 047：本机完成通知只显示简洁摘要，不复用自动推送的完整正文。
         single.extras.getCharSequence(Notification.EXTRA_TITLE).toString().let { assertTrue(it, it.startsWith("收工打卡") && it.endsWith("已生成")) }
-        single.extras.getCharSequence(Notification.EXTRA_TEXT).toString().let { assertTrue(it, it.startsWith("完成项目推进")) }
+        assertEquals("完成项目推进", single.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         val intent = shadowOf(single.contentIntent).savedIntent
         assertEquals("card", intent.getStringExtra("open")); assertEquals(cardId.toString(), intent.data!!.getQueryParameter("id"))
         assertEquals("技能生成", context.getSystemService(NotificationManager::class.java).getNotificationChannel(single.channelId).name)
@@ -182,7 +182,7 @@ class SkillGeneration047Test {
         assertEquals(day.toString(), shadowOf(failure.contentIntent).savedIntent.getStringExtra("date"))
         val card = db.skills().dayRows(key.first, day.toEpochDay()).single().card()
         val multi = SkillGenerationNotice.from("收工打卡", day, SkillRunResult.Cards(listOf(card, card.copy(id = 99))))
-        assertTrue(multi.body.startsWith("出了 2 张")); assertEquals("resound://day?open=day&date=$day", multi.link)
+        assertEquals("出了 2 张", multi.body); assertEquals("resound://day?open=day&date=$day", multi.link)
         assertEquals(0, pushes.get())
     }
 

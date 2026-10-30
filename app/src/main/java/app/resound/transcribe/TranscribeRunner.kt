@@ -40,7 +40,11 @@ class TranscribeRunner(
     /** 启动恢复与上传共用 gate；若已有任务运行，由该任务自己的启动恢复负责。 */
     suspend fun recoverOnStartup() {
         if (!gate.tryLock()) return
-        try { dao.recoverInterrupted(now()); dao.refreshFailures(now()) } finally { gate.unlock() }
+        try {
+            val timestamp = now()
+            dao.recoverInterrupted(timestamp)
+            cleanupImportedAudio(dao, timestamp)
+        } finally { gate.unlock() }
     }
     /** true 表示仍有暂时错误，交 WorkManager 退避重试；鉴权失败立即结束本轮。 */
     suspend fun run(): Boolean {
@@ -48,9 +52,8 @@ class TranscribeRunner(
         try {
             beginBatch()
             dao.recoverInterrupted(now())
-            dao.refreshFailures(now())
             if (!deferAudioCleanup) cleanup()
-            else cleanupImportedAudio(dao, now(), waitForVoiceprint = true)
+            else cleanupImportedAudio(dao, now())
             val started = now()
             val configuration = runCatching { identity() }.getOrDefault("")
             if (!ready() && dao.candidates(now()).none { it.asrSource != null }) { updateState(started, "转写未就绪，请配置服务或下载本地模型"); return false }

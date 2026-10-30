@@ -94,28 +94,31 @@ class Failure065Test {
         assertEquals(0, failedCount()); assertNull(dao.earliestRetry())
         dao.retryFailed(clock); assertEquals("Quiet", dao.segment(1).status)
     }
-    @Test fun retentionStartsAtJudgmentAndProtectsWaitingRetry() = runBlocking {
+    @Test fun retentionStartsAtJudgmentButExpiredImportsStopWaiting() = runBlocking {
         val abandoned = row(1, "Abandoned", completed = clock - 3 * day)
         val quiet = row(2, "Quiet", completed = clock - 3 * day)
         val recent = row(3, "Abandoned", completed = clock - 3 * day + 1)
         val waiting = row(4, "Failed", first = clock - day, retry = clock + 1000)
         val imported = row(5, "Quiet", completed = clock - 3 * day)
         val importedRecent = row(6, "Abandoned", completed = clock - day)
+        val micWaiting = row(7, "Failed", first = clock - day, retry = clock + 1000)
         for (s in listOf(imported, importedRecent, waiting)) {
             dao.update(s.copy(sourceId = "import"))
             File(s.path).setLastModified(clock - 5 * day)
         }
         cleanupImportedAudio(dao, clock)
-        listOf(imported, importedRecent, waiting).forEach { assertTrue(File(it.path).exists()) }
+        // 卡 078：失败导入按文件生成时间硬限三天；麦克风录音仍按判定时间保留。
+        listOf(imported, importedRecent, waiting).forEach {
+            assertFalse(File(it.path).exists()); assertEquals("Abandoned", dao.segment(it.id).status)
+        }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         try {
             val prefs = context.getSharedPreferences("failure065", 0)
             prefs.edit().clear().commit()
             val repo = LocalOriginalAudio(dao, prefs, scope, playback = PlaybackCaptureHold(scope, {}), now = { clock })
-            assertEquals(3, repo.cleanup().segments)
+            assertEquals(2, repo.cleanup().segments)
             assertFalse(File(abandoned.path).exists()); assertFalse(File(quiet.path).exists())
-            assertFalse(File(imported.path).exists()); assertTrue(File(importedRecent.path).exists())
-            assertTrue(File(recent.path).exists()); assertTrue(File(waiting.path).exists())
+            assertTrue(File(recent.path).exists()); assertTrue(File(micWaiting.path).exists())
         } finally { scope.cancel() }
     }
     @Test fun deletionRestrictsStatesAndRemovesDerivedRowsWithoutRefundingUsage() = runBlocking {

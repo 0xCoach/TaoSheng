@@ -117,18 +117,21 @@ class ImportHotwordsTest {
     @Test fun transcribedImportsFollowRetentionButFailuresWaitAtMostThreeDays() = runBlocking {
         val files = (0..3).map { File.createTempFile("import-test", ".ogg", context.cacheDir).apply { writeBytes(byteArrayOf(1)) } }
         try {
+            var clock = System.currentTimeMillis()
+            var failures = 0
             files.forEachIndexed { i, file -> db.capture().segment(SegmentEntity(startAt = i * 3000L, endAt = i * 3000L + 2000,
                 sourceId = if (i == 3) "mic" else "import", path = file.path, sizeBytes = 1)) }
             val provider = object : AsrProvider {
                 override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult {
-                    if (audio.file == files[2]) throw AsrException(AsrError.Audio)
+                    // 卡 065 起 Audio 直接放弃，用暂时超时覆盖真正的“等待重试”。
+                    if (audio.file == files[2]) { failures++; throw AsrException(AsrError.Timeout) }
                     return AsrResult(if (audio.file == files[1]) emptyList() else listOf(AsrSentence(0, 2000, "开会", null)), 2000, null)
                 }
             }
             val voiceprints = app.resound.voiceprint.LocalVoiceprintRepository(db, scope,
                 readPcm = { file -> assertTrue(file.exists()); ShortArray(32_000) { 2000 } },
                 createEngine = { app.resound.voiceprint.SpeakerEmbedding { FloatArray(192).apply { this[0] = 1f } } }, schedule = {})
-            val runner = TranscribeRunner(db.transcribe(), provider, { "test" }, { _, _ -> }, deferAudioCleanup = true,
+            val runner = TranscribeRunner(db.transcribe(), provider, { "test" }, { _, _ -> }, now = { clock }, deferAudioCleanup = true,
                 afterImport = { voiceprints.run(); voiceprints.cleanupAudio() })
             runner.run()
             val done = db.transcribe().observeSegments().first().single { it.path == files[0].path }
@@ -139,12 +142,22 @@ class ImportHotwordsTest {
             assertTrue(files[2].exists()); assertTrue(files[3].exists())
             voiceprints.nameAndAssign(line.id, "小李").getOrThrow()
             assertEquals(1, db.voiceprint().allSamples().size)
-            val now = System.currentTimeMillis()
-            files[2].setLastModified(now - IMPORT_RETENTION - 1)
+            val waiting = db.transcribe().observeSegments().first().single { it.path == files[2].path }
+            assertEquals("Failed", waiting.status); assertNotNull(waiting.nextRetryAt)
+            clock = waiting.nextRetryAt!!
+            runner.run()
+            assertEquals(2, failures); assertTrue(files[2].exists()) // 三天内仍按计划重试。
+            val reason = db.transcribe().segment(waiting.id).error
+            assertTrue(files[2].setLastModified(clock - IMPORT_RETENTION - 1))
+            // 已成功的旧导入仍跟随原声保留策略，不能被三天上限误删。
+            assertTrue(files[0].setLastModified(clock - IMPORT_RETENTION - 1))
+            assertTrue(files[1].setLastModified(clock - IMPORT_RETENTION - 1))
             runner.run() // 上传之前也执行三天清理，不依赖周期任务恰好及时调度。
             assertFalse(files[2].exists())
             val failed = db.transcribe().observeSegments().first().single { it.path == files[2].path }
+            assertEquals("Abandoned", failed.status); assertEquals(reason, failed.error)
             assertEquals(5, failed.attempts); assertNull(failed.nextRetryAt)
+            assertEquals(2, failures); assertTrue(files[0].exists()); assertTrue(files[1].exists())
         } finally { files.forEach { it.delete() } }
     }
 
@@ -173,8 +186,8 @@ class ImportHotwordsTest {
         app.resound.backup.BackupRestore.applyPending(context)
         assertEquals(200, org.json.JSONArray(prefs.getString("hotwords", "[]")).length())
         assertEquals("kept-model", prefs.getString("model", null))
-        // 029 规则：恢复后所有密钥清空、需重填
-        assertEquals(null, prefs.getString("encryptedKey", null))
+        // 卡 037 已替代 029：旧包没有密钥时保留本机密钥，不能清空。
+        assertEquals("fake-device-bound", prefs.getString("encryptedKey", null))
     }
 
     @Test fun cloudRequestsIncludePrioritizedHotwordsAndBoundCustomPrompt() {

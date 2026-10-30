@@ -9,11 +9,14 @@ import java.io.File
 /** 密钥容器必须解密后导出，绝不能复制绑定旧手机 Keystore 的密文 XML。 */
 internal object BackupSettings {
     val prefs = setOf("transcribe", "local-asr", "capture", "ui", "review", "push", "diary", "digest", "setup",
-        "backup", "ask-selection", "usage", "inputs", "voice-input", "llm-providers", "llm-balance")
+        "backup", "ask-selection", "usage", "inputs", "voice-input", "llm-providers", "llm-balance",
+        "asr-speed", "env-sound", "redo-choices", "import-kinds", "app-update")
     val stores = mapOf("digest-secrets" to "resound-llm-aes-v1", "push-secrets" to "resound-push-aes-v1",
         "backup-secrets" to "resound-backup-aes-v1", "transcribe" to "resound-asr-aes-v1")
     private val asrKeys = setOf("encryptedKey", "customEncryptedKey")
     private fun setting(store: String, key: String): Boolean = !(store == "transcribe" && key in asrKeys) &&
+        !(store == "redo-choices" && key !in setOf("asr", "llm")) &&
+        !(store == "app-update" && key !in setOf("autoOff", "previewChannel", "skipVersion", "laterVersion", "laterUntil")) &&
         !(store == "backup" && (key.startsWith("base-") || key in setOf("lastAt", "lastBytes", "count", "error", "localLastAt", "localLastBytes", "localCount", "localError"))) &&
         !(store == "local-asr" && (key == "actual" || key.startsWith("download-"))) &&
         !(store == "llm-balance" && (key.startsWith("cached") || key.startsWith("alerted")))

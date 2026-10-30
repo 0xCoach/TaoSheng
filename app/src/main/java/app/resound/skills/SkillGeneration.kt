@@ -120,7 +120,8 @@ internal data class SkillGenerationNotice(val title: String, val body: String, v
             return when (result) {
                 is SkillRunResult.Cards -> SkillGenerationNotice(
                     if (result.cards.size == 1) SkillCardPush.title(result.cards.single()) + " 已生成" else "${name}已生成",
-                    if (result.cards.size == 1) SkillCardPush.body(result.cards.single()) else "出了 ${result.cards.size} 张：" + result.cards.joinToString("、") { it.title },
+                    // 手动生成完成通知只给摘要；完整字段和日期由卡片及自动推送展示。
+                    if (result.cards.size == 1) result.cards.single().let { it.summary.trim().ifBlank { it.title } } else "出了 ${result.cards.size} 张",
                     if (result.cards.size == 1) "resound://card?open=card&id=${result.cards.single().id}" else dayLink)
                 is SkillRunResult.Nothing -> SkillGenerationNotice("${name}没有出卡", result.reason, dayLink)
                 is SkillRunResult.Failed -> SkillGenerationNotice("${name}生成失败", result.reason, dayLink)

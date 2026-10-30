@@ -47,6 +47,9 @@ interface OriginalAudio {
     /** 清除原声：includeStarred=false 时重点的保留；还在等转写/声纹的一律不删。原话文字不动 */
     suspend fun previewClear(includeStarred: Boolean): AudioTrim
     suspend fun clear(includeStarred: Boolean): AudioTrim
+    /** 只清除录音开始时刻在 [fromMillis, untilMillis] 内的原声，其余规则同 [clear] */
+    suspend fun previewClearRange(fromMillis: Long, untilMillis: Long, includeStarred: Boolean): AudioTrim
+    suspend fun clearRange(fromMillis: Long, untilMillis: Long, includeStarred: Boolean): AudioTrim
 
     /** 找到一段录音的原声；文件已删返回 null */
     suspend fun locate(segmentId: Long): SegmentAudio?

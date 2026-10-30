@@ -137,10 +137,26 @@ private fun ClearSheet(audio: OriginalAudio, onDismiss: () -> Unit) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     var includeStarred by remember { mutableStateOf(false) }
-    val preview by androidx.compose.runtime.produceState<AudioTrim?>(null, includeStarred) { value = audio.previewClear(includeStarred) }
+    val today = java.time.LocalDate.now()
+    var rangeOn by remember { mutableStateOf(false) }
+    var range by remember { mutableStateOf(app.resound.recordings.RecordingRange(today, today, java.time.LocalTime.of(0, 0), java.time.LocalTime.now().withSecond(0).withNano(0))) }
+    val rangeValid = range.startMillis() <= range.endMillis()
+    val preview by androidx.compose.runtime.produceState<AudioTrim?>(null, includeStarred, rangeOn, range) {
+        value = null
+        value = if (!rangeOn) audio.previewClear(includeStarred) else if (rangeValid) audio.previewClearRange(range.startMillis(), range.endMillis(), includeStarred) else null
+    }
     var busy by remember { mutableStateOf(false) }
     val p = preview
-    RsSheet("清除原声？", p?.let { if (it.bytes > 0) "将删除 ${it.days} 天的原声，约 ${formatBytes(it.bytes)}；原话文字都会保留" else "没有可清除的原声" } ?: "正在计算…", onDismiss = { if (!busy) onDismiss() }) {
+    RsSheet("清除原声？", p?.let { if (it.bytes > 0) "将删除${if (rangeOn) "这段时间里 ${it.segments} 段" else " ${it.days} 天"}的原声，约 ${formatBytes(it.bytes)}；原话文字都会保留" else "没有可清除的原声" } ?: if (rangeOn && !rangeValid) "请调整时间范围" else "正在计算…", onDismiss = { if (!busy) onDismiss() }) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Choice("全部", !rangeOn) { rangeOn = false }
+            Choice("选时间范围", rangeOn) { rangeOn = true }
+        }
+        if (rangeOn) {
+            RangeEnd("从", range.from, range.fromTime, today.minusYears(1), today) { d, t -> range = range.copy(from = d, fromTime = t) }
+            RangeEnd("到", range.to, range.toTime, today.minusYears(1), today) { d, t -> range = range.copy(to = d, toTime = t) }
+            if (!rangeValid) Text("开始时间不能晚于结束时间", style = RsType.caption, color = c.warning)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("连重点的也删", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
             Toggle(includeStarred) { includeStarred = it }
@@ -150,7 +166,7 @@ private fun ClearSheet(audio: OriginalAudio, onDismiss: () -> Unit) {
             busy = true
             scope.launch {
                 LinePlayer.stop()
-                val done = runCatching { audio.clear(includeStarred) }.getOrNull()
+                val done = runCatching { if (rangeOn) audio.clearRange(range.startMillis(), range.endMillis(), includeStarred) else audio.clear(includeStarred) }.getOrNull()
                 busy = false
                 LinePlayer.notice = done?.let { "已清除 ${formatBytes(it.bytes)}" } ?: "清除失败，请稍后再试"
                 onDismiss()

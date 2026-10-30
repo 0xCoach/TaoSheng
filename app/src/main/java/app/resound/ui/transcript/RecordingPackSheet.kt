@@ -169,7 +169,7 @@ private fun DayChip(label: String, on: Boolean, onClick: () -> Unit) {
 
 /** 自定义范围的一端：“从  10月30日  09:00”，日期、时刻分别点开系统选择器；日期限在手机还保留录音的这几天 */
 @Composable
-private fun RangeEnd(label: String, day: LocalDate, time: java.time.LocalTime, min: LocalDate, max: LocalDate,
+internal fun RangeEnd(label: String, day: LocalDate, time: java.time.LocalTime, min: LocalDate, max: LocalDate,
                      onChange: (LocalDate, java.time.LocalTime) -> Unit) {
     val c = Rs.colors
     val context = LocalContext.current

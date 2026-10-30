@@ -3,7 +3,9 @@
 
 正式发布延续已有 v<版本> 发布；预览发布用 --preview，自动建立预发布。
 --dry-run 完全离线、不读取凭证；可重复传 --base-apk 旧包路径验证差异包。
-真实发布从 GitHub 选最近 5 个正式/预览版本（排除 preview-channel）。
+真实发布从 GitHub 选最近 5 个正式/预览版本（排除 preview-channel）作差异包基线。
+预览版只传魔搭（快）；正式版魔搭 + GitHub 双平台。App 两边都查、取版本号大的，所以 GitHub 上旧的预览通道不影响更新。
+差异包基线整包缓存在 ~/.cache/taosheng-release-bases，下过一次就不再重复下载。
 """
 import argparse, hashlib, json, os, re, subprocess, sys, tempfile
 from pathlib import Path
@@ -12,6 +14,8 @@ REPO_GH = "0xCoach/TaoSheng"
 REPO_MS = "OpenRecode/TaoSheng-releases"
 TOKEN_FILE = Path.home() / "Downloads/UU/ModelScope.txt"
 KEEP = 5
+CACHE = Path.home() / ".cache/taosheng-release-bases"
+MS_BASE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/"
 
 
 def sha256(path: Path) -> str:
@@ -42,12 +46,37 @@ def older_releases(new_name: str, work: Path) -> list[tuple[str, Path]]:
     for tag in tags:
         if tag in (f"v{new_name}", "preview-channel") or not re.fullmatch(r"v[0-9]+(?:\.[0-9]+)+(?:-preview\.[0-9]+)?", tag) or len(out) >= KEEP:
             continue
-        d = work / tag
-        d.mkdir()
-        gh("release", "download", tag, "-p", "*.apk", "-D", str(d))
+        d = CACHE / tag
+        if not list(d.glob("*.apk")):
+            d.mkdir(parents=True, exist_ok=True)
+            gh("release", "download", tag, "-p", "*.apk", "-D", str(d))
         apks = list(d.glob("*.apk"))
         if apks:
             out.append((tag.removeprefix("v"), apks[0]))
+    return out
+
+
+def modelscope_previews(known: set[str]) -> list[tuple[str, Path]]:
+    """只传了魔搭的预览版：本地缓存里有的直接用；当前魔搭预览通道指向的那个，缓存没有就下载"""
+    out = []
+    for d in sorted(CACHE.glob("v*-preview.*")):
+        name = d.name.removeprefix("v")
+        apks = list(d.glob("*.apk"))
+        if apks and name not in known:
+            out.append((name, apks[0]))
+    try:
+        import urllib.request
+        m = json.loads(urllib.request.urlopen(MS_BASE + "preview/update-preview.json", timeout=20).read())
+        name = m["versionName"]
+        d = CACHE / f"v{name}"
+        if name not in known and not list(d.glob("*.apk")):
+            d.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(MS_BASE + "preview/" + m["apk"]["file"], d / m["apk"]["file"])
+            if sha256(d / m["apk"]["file"]) != m["apk"]["sha256"]:
+                (d / m["apk"]["file"]).unlink(); raise ValueError("魔搭预览包校验不符")
+            out.append((name, d / m["apk"]["file"]))
+    except Exception as error:
+        print(f"（跳过魔搭预览基线：{error}）")
     return out
 
 
@@ -135,6 +164,10 @@ def main():
     files = {apk_name: staged_apk}
     patches = []
     bases = [(badging(path)[1], path) for path in a.base_apk] if a.dry_run else older_releases(name, work)
+    if a.preview and not a.dry_run:
+        bases += modelscope_previews({n for n, _ in bases} | {name})
+        # 只取版本号最近的 KEEP 个
+        bases = sorted(bases, key=lambda b: version_key(b[0]), reverse=True)[:KEEP]
     seen = set()
     for old_name, old in bases:
         old_code, _ = badging(old)
@@ -167,17 +200,19 @@ def main():
     api.login(TOKEN_FILE.read_text().strip())
     if not api.repo_exists(REPO_MS):
         api.create_repo(REPO_MS, visibility="public", license="mit")
-    if a.preview:
-        ensure_prerelease(f"v{name}", f"涛声 {name}")
-        ensure_prerelease("preview-channel", "涛声预览版通道")
     # 预览发布的所有魔搭写入都限定在 preview/；通道文件必须最后上传。
     assert not a.preview or (prefix == "preview/" and update.name == "update-preview.json")
     for file_name, path in files.items():
         api.upload_file(path_or_fileobj=str(path), path_in_repo=prefix + file_name, repo_id=REPO_MS, commit_message=f"涛声 {name}：{file_name}")
-    gh("release", "upload", f"v{name}", *[str(p) for p in files.values()], "--clobber")
+    if not a.preview:
+        gh("release", "upload", f"v{name}", *[str(p) for p in files.values()], "--clobber")
     api.upload_file(path_or_fileobj=str(update), path_in_repo=prefix + manifest_name, repo_id=REPO_MS, commit_message=f"涛声 {name}：版本说明")
-    gh("release", "upload", "preview-channel" if a.preview else f"v{name}", str(update), "--clobber")
-    print(f"已发布：魔搭和 GitHub 的 {manifest_name} 都指向", name)
+    if not a.preview:
+        gh("release", "upload", f"v{name}", str(update), "--clobber")
+    # 这次的整包留作下次的差异包基线
+    (CACHE / f"v{name}").mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(staged_apk, CACHE / f"v{name}" / apk_name)
+    print(f"已发布：{'魔搭' if a.preview else '魔搭和 GitHub'} 的 {manifest_name} 指向", name)
     # 版本说明已指向新版后再清理，正在更新的人不会下载到被删的文件
     prune_modelscope(api, name, a.preview)
 

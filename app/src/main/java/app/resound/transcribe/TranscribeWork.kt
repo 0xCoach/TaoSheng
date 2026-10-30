@@ -101,8 +101,10 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
                 if (mode == MODE_TIMED || mode == MODE_REVIEW) app.database.transcribe().retryFailed()
                 transcribeRetry = app.transcribeRunner.run()
                 parts += "转写 ${formatElapsed(lap())}"
-                PipelineProgress.stage(Stage.Voiceprint)
-                voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
+                if (app.voiceprintRepository.hasPending()) {
+                    PipelineProgress.stage(Stage.Voiceprint)
+                    voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
+                }
                 app.voiceprintRepository.cleanupAudio()
                 parts += "声纹 ${formatElapsed(lap())}"
             }, organize = {

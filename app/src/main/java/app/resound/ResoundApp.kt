@@ -46,6 +46,11 @@ class ResoundApp : Application() {
         crashes.installHandler()
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
+        val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope)
+        AppGraph.asrSpeed = asrSpeed
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context, intent: android.content.Intent) { asrSpeed.refresh() }
+        }, android.content.IntentFilter(android.content.Intent.ACTION_TIME_CHANGED))
         app.resound.audio.OggGuard.init(this)
         app.resound.backup.BackupRestore.applyPending(this)
         // 仅回收上个进程遗留的转码/密钥测试临时文件；原录音在 files/segments。
@@ -109,10 +114,16 @@ class ResoundApp : Application() {
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
-            defaultSource = { settings.source.value },
+            defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers,
             beforeTranscribe = envSound::beforeTranscribe,
             beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
-            afterSegment = { segment -> voiceprintRepository.runSegment(segment.id) },
+            afterSegment = { segment ->
+                if (database.transcribe().segment(segment.id).separateSpeakers != false) {
+                    PipelineProgress.stage(PipelineProgress.Stage.Voiceprint)
+                    try { voiceprintRepository.runSegment(segment.id) }
+                    finally { PipelineProgress.stage(PipelineProgress.Stage.Transcribe) }
+                }
+            },
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
@@ -139,7 +150,7 @@ class ResoundApp : Application() {
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        }, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> skillScheduler.afterDigest(manual) })
+        }, unseparated = database.transcribe()::unseparated, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> skillScheduler.afterDigest(manual) })
         val redoEngine = app.resound.redo.createRedoEngine(this, database, asrChooser, settings, digestSettings, llm,
             hotwords::merged, { AppGraph.prompts.text("digest") }, { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork)
         AppGraph.redo = app.resound.redo.AndroidRedoService(this, database, asrChooser, redoEngine, scope,

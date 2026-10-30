@@ -57,7 +57,7 @@ object DoubaoProtocol {
         Packet(kind, flags, sequence, code, body)
     } catch (_: Exception) { throw AsrException(AsrError.Protocol) }
 
-    fun result(body: JSONObject, fallbackDuration: Long, logId: String?): AsrResult {
+    fun result(body: JSONObject, fallbackDuration: Long, logId: String?, separateSpeakers: Boolean = true): AsrResult {
         val result = body.optJSONObject("result")
         val utterances = result?.optJSONArray("utterances")
         var previousEnd = 0L
@@ -70,7 +70,7 @@ object DoubaoProtocol {
                 val end = u.optLong("end_time", start).coerceIn(start, fallbackDuration)
                 val additions = u.optJSONObject("additions")
                 val speaker = if (additions?.isNull("speaker_id") == false) additions.optString("speaker_id").takeIf { it.isNotBlank() } else null
-                add(AsrSentence(start, end, text, speaker))
+                add(AsrSentence(start, end, text, speaker.takeIf { separateSpeakers }))
                 previousEnd = end
             }
             if (isEmpty()) result?.optString("text", "")?.trim()?.takeIf { it.isNotEmpty() }?.let {

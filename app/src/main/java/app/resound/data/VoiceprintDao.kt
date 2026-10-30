@@ -53,7 +53,7 @@ abstract class VoiceprintDao {
     @Query("SELECT * FROM transcript_lines WHERE id = :id") abstract suspend fun line(id: Long): TranscriptLineEntity?
     @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
     abstract suspend fun lines(id: Long): List<TranscriptLineEntity>
-    @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done' AND voiceprintProcessedAt IS NULL ORDER BY startAt, id")
+    @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done' AND (separateSpeakers IS NULL OR separateSpeakers = 1) AND voiceprintProcessedAt IS NULL ORDER BY startAt, id")
     abstract suspend fun pending(): List<SegmentEntity>
     @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName IS NULL OR speakerName = '我' THEN :name ELSE speakerName END, speakerScore = :score WHERE voiceInputJson IS NULL AND id IN (:ids)")
     abstract suspend fun result(ids: List<Long>, name: String?, score: Float?)

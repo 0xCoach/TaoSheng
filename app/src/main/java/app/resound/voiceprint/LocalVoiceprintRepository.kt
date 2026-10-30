@@ -263,6 +263,8 @@ class LocalVoiceprintRepository(
     /** 返回 true 表示仍需重试。并发 worker 串行；每轮自动补样本只在下一轮参与平均。 */
     suspend fun run(onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): Boolean =
         withContext(Dispatchers.IO) { rounds.withLock { process(onProgress = onProgress) } }
+    suspend fun hasPending(): Boolean = dao.pending().any { it.separateSpeakers != false }
+
     suspend fun runSegment(segmentId: Long): Boolean = withContext(Dispatchers.IO) {
         rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) }
     }
@@ -299,7 +301,7 @@ class LocalVoiceprintRepository(
         val round = gate.withLock { Round(dao.allSamples(), revision, resetGeneration, dao.people(), dao.sampleInputs().associate { it.sampleId to it.sourceId }) }
         val canIdentify = round.samples.groupBy { it.personId }.values.any(::ready)
         // 导入音频转写后就删除；即使还没有注册声纹，也先缓存特征供日后从原话补样本。
-        val pending = (selected ?: dao.pending()).filter { canIdentify || it.sourceId == "import" }
+        val pending = (selected ?: dao.pending()).filter { it.separateSpeakers != false && (canIdentify || it.sourceId == "import") }
         if (pending.isEmpty()) return false
         var retry = false
         var lastError: String? = null

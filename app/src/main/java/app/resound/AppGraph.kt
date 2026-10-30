@@ -13,6 +13,9 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
+    val isAsrSpeedReady: Boolean get() = ::asrSpeed.isInitialized
+
     // 卡 052–054：界面先按约定接好，底层合并后由 ResoundApp 装配
     // 卡 064：今日节奏的“平时”
     lateinit var rhythm: app.resound.digest.RhythmStats

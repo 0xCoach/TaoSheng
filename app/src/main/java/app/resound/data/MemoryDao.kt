@@ -118,7 +118,7 @@ abstract class MemoryDao {
     )
     abstract suspend fun undigestedLines(): List<TranscriptLineEntity>
 
-    @Query("SELECT COUNT(*) FROM segments WHERE id IN (:ids) AND voiceprintProcessedAt IS NULL")
+    @Query("SELECT COUNT(*) FROM segments WHERE id IN (:ids) AND (separateSpeakers IS NULL OR separateSpeakers = 1) AND voiceprintProcessedAt IS NULL")
     abstract suspend fun voiceprintPending(ids: List<Long>): Int
 
     @Query("SELECT * FROM transcript_lines WHERE id IN (:ids) ORDER BY startAt, id")

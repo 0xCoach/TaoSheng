@@ -25,7 +25,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         val key = settings.credential(source)
         var sent = 0L; var error: AsrError? = null; var outcome = "Failed"; var log: String? = null
         try {
-            val result = provider.recognize(source, AsrAudio(File(segment.path), File(segment.path).extension, segment.endAt - segment.startAt), key) {
+            val result = provider.recognize(source, AsrAudio(File(segment.path), File(segment.path).extension, segment.endAt - segment.startAt, separateSpeakers = segment.separateSpeakers ?: true), key) {
                 if (source != TranscribeSource.Local) {
                     sent = segment.endAt - segment.startAt
                     db.transcribe().reserveAudio(LocalDate.now().toString(), sent, segment.id)
@@ -41,7 +41,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             result = outcome, errorType = error?.name, elapsedMillis = System.currentTimeMillis() - began, sentMillis = sent, logId = log)) } }
     }, digest = { lines, presetId ->
         val (preset, key) = digestSettings.skillCredentials(presetId)
-        val (text, indexed) = DigestPrompt.transcript(lines)
+        val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
         val reply = llm.chatJson(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }

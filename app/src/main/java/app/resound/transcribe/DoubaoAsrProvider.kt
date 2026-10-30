@@ -46,7 +46,7 @@ class DoubaoAsrProvider(
                                     val limited = doubaoLimited(code, message = packet.payload.optString("message"))
                                     final.completeExceptionally(AsrException(if (limited) AsrError.Server else DoubaoProtocol.error(code), logId, concurrencyLimited = limited))
                                 } else if (packet.final) {
-                                    final.complete(DoubaoProtocol.result(packet.payload, audio.durationMillis, logId))
+                                    final.complete(DoubaoProtocol.result(packet.payload, audio.durationMillis, logId, audio.separateSpeakers))
                                 }
                             } catch (_: Exception) { final.completeExceptionally(AsrException(AsrError.Protocol, logId)) }
                         }

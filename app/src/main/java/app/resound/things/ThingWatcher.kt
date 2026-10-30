@@ -16,15 +16,20 @@ internal class ThingWatcher(private val db: CaptureDatabase, private val reposit
     private val gate = Mutex()
     private val requests = Channel<Unit>(Channel.CONFLATED)
     fun request() { requests.trySend(Unit) }
+    /** 请求失败后隔多久再试：断网一阵不至于连败 3 次就跳过（本机转写断网也照常出新句，所以不提前唤醒） */
+    private val retryMillis = 10 * 60_000L
+    private suspend fun retryPause() {
+        if ((db.things().state()?.failures ?: 0) > 0) delay(retryMillis)
+    }
     fun start(scope: CoroutineScope, debounceMillis: Long = 30_000) {
         scope.launch {
             request() // 启动补跑；只有这个消费循环执行，触发不会取消进行中的模型请求。
             for (ignored in requests) {
                 // 真正的尾沿防抖：最后一次触发后安静 30 秒再跑；不取消正在进行的请求。
                 while (withTimeoutOrNull(debounceMillis) { requests.receive(); true } == true) { }
-                try { if (runOnce()) request() }
+                try { if (runOnce()) { retryPause(); request() } }
                 catch (e: CancellationException) { throw e }
-                catch (_: Exception) { request() } // 存储临时失败下次重试，不推进水位。
+                catch (_: Exception) { delay(retryMillis); request() } // 存储临时失败下次重试，不推进水位。
             }
         }
     }

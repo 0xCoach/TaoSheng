@@ -26,7 +26,7 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
             return ThingPrompt.parse(reply.content, lines, known.map { it.id }.toSet(), System.currentTimeMillis())
         } finally {
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply?.promptTokens ?: 0,
-                reply?.completionTokens ?: 0, UsagePurpose.Other) }
+                reply?.completionTokens ?: 0, UsagePurpose.Things) }
         }
     }
     val repository = RoomThingRepository(db, scope, parseDraft = { text ->

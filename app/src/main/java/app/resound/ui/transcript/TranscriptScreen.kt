@@ -651,7 +651,7 @@ private fun SpeakerOptions() {
         Column(Modifier.weight(1f)) {
             Text("区分说话人与认人", style = RsType.body, color = c.text)
             Text(if (separate) "原话标出谁在说，认出“我”和已命名的人"
-                else "原话不标是谁说的，转写更快、更省电", style = RsType.caption, color = c.textSecondary)
+                else "原话不标是谁说的，转写更快、更省电；多人同时在场时，其他人的话可能漏转", style = RsType.caption, color = c.textSecondary)
         }
         Toggle(separate) { speed.setSeparateSpeakers(it) }
     }
@@ -682,7 +682,7 @@ internal fun ClassModeChoice(state: app.resound.transcribe.ClassModeState, speed
 }
 
 internal fun classModeLine(state: app.resound.transcribe.ClassModeState, now: Long): String = when {
-    !state.enabled -> "上课、听讲座时打开：这段时间录的不区分说话人，转写更快；到点自动恢复"
+    !state.enabled -> "适合只有一个人主讲的上课、讲座：这段时间不区分说话人，转写更快，到点自动恢复。其他人插话可能漏转，多人讨论请别开"
     state.endsAtMillis == null -> "课堂模式中 · 手动结束前不区分说话人"
     else -> "课堂模式中 · " + java.time.Instant.ofEpochMilli(state.endsAtMillis).atZone(java.time.ZoneId.systemDefault())
         .toLocalTime().let { "%d:%02d".format(it.hour, it.minute) } + " 自动结束"

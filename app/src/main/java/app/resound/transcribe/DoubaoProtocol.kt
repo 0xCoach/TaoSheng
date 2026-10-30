@@ -15,12 +15,12 @@ object DoubaoProtocol {
         ByteBuffer.allocate(8 + payload.size).order(ByteOrder.BIG_ENDIAN)
             .put(0x11).put(((kind shl 4) or flags).toByte()).put(if (json) 0x10 else 0).put(0)
             .putInt(payload.size).put(payload).array()
-    fun config(format: String, hotwords: List<String> = emptyList(), separateSpeakers: Boolean = true): ByteArray = JSONObject().apply {
+    fun config(format: String, hotwords: List<String> = emptyList(), separateSpeakers: Boolean = true, incrementalResults: Boolean = true): ByteArray = JSONObject().apply {
         put("user", JSONObject().put("uid", "resound"))
         put("audio", JSONObject().put("format", format).put("codec", if (format == "ogg") "opus" else "raw")
             .put("rate", 16000).put("bits", 16).put("channel", 1))
         put("request", JSONObject().put("model_name", "bigmodel").put("enable_itn", true).put("enable_punc", true)
-            .put("enable_speaker_info", separateSpeakers).put("show_utterances", true).put("ssd_version", "200").put("result_type", "full").apply {
+            .put("enable_speaker_info", separateSpeakers).put("show_utterances", true).put("ssd_version", "200").put("result_type", if (incrementalResults) "single" else "full").apply {
                 if (hotwords.isNotEmpty()) put("corpus", JSONObject().put("context", JSONObject().put("hotwords",
                     org.json.JSONArray(Hotwords.doubao(hotwords).map { JSONObject().put("word", it) })).toString()))
             })
@@ -57,7 +57,7 @@ object DoubaoProtocol {
         Packet(kind, flags, sequence, code, body)
     } catch (_: Exception) { throw AsrException(AsrError.Protocol) }
 
-    fun result(body: JSONObject, fallbackDuration: Long, logId: String?): AsrResult {
+    fun result(body: JSONObject, fallbackDuration: Long, logId: String?, separateSpeakers: Boolean = true): AsrResult {
         val result = body.optJSONObject("result")
         val utterances = result?.optJSONArray("utterances")
         var previousEnd = 0L
@@ -70,7 +70,7 @@ object DoubaoProtocol {
                 val end = u.optLong("end_time", start).coerceIn(start, fallbackDuration)
                 val additions = u.optJSONObject("additions")
                 val speaker = if (additions?.isNull("speaker_id") == false) additions.optString("speaker_id").takeIf { it.isNotBlank() } else null
-                add(AsrSentence(start, end, text, speaker))
+                add(AsrSentence(start, end, text, speaker.takeIf { separateSpeakers }))
                 previousEnd = end
             }
             if (isEmpty()) result?.optString("text", "")?.trim()?.takeIf { it.isNotEmpty() }?.let {

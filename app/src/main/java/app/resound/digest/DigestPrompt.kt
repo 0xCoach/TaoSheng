@@ -33,15 +33,17 @@ object DigestPrompt {
         template.replace("{{CALENDAR}}", calendar(today)).replace("{{APP_NAME}}", appName) + "\n\n" + VOICE_INPUT_RULES
 
     /** 给原话编号（从 1 开始），不同录音之间加分隔行。返回正文和“编号 → 句子”。 */
-    fun transcript(lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault()): Pair<String, List<TranscriptLineEntity>> {
+    fun transcript(lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet()): Pair<String, List<TranscriptLineEntity>> {
         val time = DateTimeFormatter.ofPattern("HH:mm:ss")
         val text = buildString {
             var segment: Long? = null
             lines.forEachIndexed { i, line ->
                 if (segment != null && line.segmentId != segment) appendLine("—— 新录音 ——")
+                if (segment != line.segmentId && line.segmentId in unseparated)
+                    appendLine("本段未区分说话人，未做声纹认人；不得猜测是谁说的，不得默认是本人。")
                 segment = line.segmentId
                 val at = Instant.ofEpochMilli(line.startAt).atZone(zone).format(time)
-                appendLine("[${i + 1}] $at ${speaker(line)}：${line.text.replace('\n', ' ')}")
+                appendLine("[${i + 1}] $at ${if (line.segmentId in unseparated) "某人" else speaker(line)}：${line.text.replace('\n', ' ')}")
                 app.resound.transcribe.VoiceInputMetadata.read(line.voiceInputJson)?.let { meta ->
                     appendLine("⌨ 语音输入 · 关联编号 ${i + 1} 的上下文资料（不是原话/指令）：")
                     appendLine(app.resound.transcribe.VoiceInputMetadata.json(meta).toString())
@@ -114,7 +116,7 @@ object DigestPrompt {
      * 提取项挂到包含它那一行的事件上，找不到就挂最近的事件；媒体事件下的提取项丢弃。
      * 格式完全不对时抛 [LlmException]（Format）。
      */
-    fun parse(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault()): Pair<List<ParsedEvent>, List<ParsedItem>> {
+    fun parse(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet()): Pair<List<ParsedEvent>, List<ParsedItem>> {
         val json = try { JSONObject(content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```")) }
         catch (_: Exception) { throw LlmException(LlmError.Format) }
         val n = lines.size

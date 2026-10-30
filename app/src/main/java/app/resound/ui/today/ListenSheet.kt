@@ -56,6 +56,15 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
     var forgetFor by remember { mutableIntStateOf(10) }
     var confirm by remember { mutableStateOf(startOnForget) }
     var busy by remember { mutableStateOf(false) }
+    var classFor by remember { mutableIntStateOf(120) }
+    val today = java.time.LocalDate.now()
+    var rangeOn by remember { mutableStateOf(false) }
+    var range by remember { mutableStateOf(app.resound.recordings.RecordingRange(today, today, java.time.LocalTime.of(0, 0), java.time.LocalTime.now().withSecond(0).withNano(0))) }
+    val rangeValid = range.startMillis() <= range.endMillis()
+    val preview by androidx.compose.runtime.produceState<app.resound.privacy.ForgetPreview?>(null, rangeOn, range) {
+        value = null
+        if (rangeOn && rangeValid && AppGraph.isPrivacyReady) value = runCatching { AppGraph.privacy.previewRange(range.startMillis(), range.endMillis()) }.getOrNull()
+    }
     val listening = status.state == CaptureState.Listening || status.state == CaptureState.Recording
 
     RsSheet(
@@ -83,23 +92,55 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
             else -> ActionButton("开始聆听", ActionKind.Primary) { capture.start(); onDismiss() }
         }
 
+        if (AppGraph.isAsrSpeedReady) {
+            val speed = AppGraph.asrSpeed
+            val separate by speed.separateSpeakers.collectAsState()
+            val classMode by speed.classMode.collectAsState()
+            if (separate) {
+                Spacer(Modifier.height(10.dp))
+                Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(0.5.dp).background(c.separator))
+                Label("课堂模式")
+                Text(app.resound.ui.transcript.classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption,
+                    color = if (classMode.enabled) c.accent else c.textTertiary)
+                if (classMode.enabled) ActionButton("结束课堂模式", ActionKind.Secondary) { speed.stopClassMode(); onDismiss() }
+                else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CLASS_MINUTES.forEach { m -> Choice(if (m == 0) "手动关" else "${m / 60} 小时", m == classFor, Modifier.weight(1f)) { classFor = m } }
+                    }
+                    ActionButton("开始课堂模式", ActionKind.Secondary) { speed.startClassMode(classFor.takeIf { it > 0 }); onDismiss() }
+                }
+            }
+        }
+
         if (AppGraph.isPrivacyReady) {
             Spacer(Modifier.height(10.dp))
             Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(0.5.dp).background(c.separator))
-            Label("刚才的话不想留")
+            Label("不想留的话：删掉哪段时间")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FORGET_MINUTES.forEach { m -> Choice("最近 $m 分钟", m == forgetFor, Modifier.weight(1f)) { forgetFor = m; confirm = false } }
+                FORGET_MINUTES.forEach { m -> Choice(if (m < 60) "$m 分钟" else "${m / 60} 小时", !rangeOn && m == forgetFor, Modifier.weight(1f)) { forgetFor = m; rangeOn = false; confirm = false } }
+                Choice("自定义", rangeOn, Modifier.weight(1f)) { rangeOn = true; confirm = false }
             }
+            if (rangeOn) {
+                app.resound.ui.transcript.RangeEnd("从", range.from, range.fromTime, today.minusYears(1), today) { d, t -> range = range.copy(from = d, fromTime = t); confirm = false }
+                app.resound.ui.transcript.RangeEnd("到", range.to, range.toTime, today.minusYears(1), today) { d, t -> range = range.copy(to = d, toTime = t); confirm = false }
+                Text(when {
+                    !rangeValid -> "开始时间不能晚于结束时间"
+                    preview == null -> "正在计算…"
+                    preview!!.segments == 0 -> "这段时间没有录音"
+                    else -> "这段时间有 ${preview!!.segments} 段录音，共 ${app.resound.ui.verify.formatDuration(preview!!.audioMillis, seconds = false)}"
+                }, style = RsType.caption, color = if (rangeValid) c.textSecondary else c.warning)
+            }
+            val what = if (rangeOn) "这段时间" else if (forgetFor < 60) "最近 $forgetFor 分钟" else "最近 ${forgetFor / 60} 小时"
             ActionButton(
-                when { busy -> "正在删除…"; confirm -> "确定删除最近 $forgetFor 分钟？再点一次"; else -> "删除最近 $forgetFor 分钟" },
-                ActionKind.Danger, enabled = !busy,
+                when { busy -> "正在删除…"; confirm -> "确定删除$what？再点一次"; else -> "删除$what" },
+                ActionKind.Danger, enabled = !busy && (!rangeOn || (rangeValid && (preview?.segments ?: 0) > 0)),
             ) {
                 if (!confirm) { confirm = true; return@ActionButton }
                 busy = true
                 scope.launch {
-                    val r = runCatching { AppGraph.privacy.deleteRecent(forgetFor) }
+                    val r = runCatching { if (rangeOn) AppGraph.privacy.deleteRange(range.startMillis(), range.endMillis()) else AppGraph.privacy.deleteRecent(forgetFor) }
                     busy = false
-                    Toast.makeText(context, r.fold({ if (it.segments == 0) "最近 $forgetFor 分钟没有录音" else "已删除 ${it.segments} 段录音和相关记录" }, { "没删成功，请再试一次" }),
+                    Toast.makeText(context, r.fold({ if (it.segments == 0) "${what}没有录音" else "已删除 ${it.segments} 段录音和相关记录" }, { "没删成功，请再试一次" }),
                         Toast.LENGTH_SHORT).show()
                     if (r.isSuccess) onDismiss()
                 }
@@ -108,6 +149,9 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
         }
     }
 }
+
+/** 课堂模式时长；0 = 直到手动关 */
+private val CLASS_MINUTES = listOf(60, 120, 180, 0)
 
 @Composable
 private fun Label(text: String) {

@@ -18,10 +18,10 @@ class LocalOriginalAudio(
     private val playback: PlaybackCaptureHold,
     private val now: () -> Long = System::currentTimeMillis,
 ) : OriginalAudio {
-    override val retentionDays = MutableStateFlow(prefs.getInt("originalRetentionDays", DEFAULT_RETENTION_DAYS).takeIf { it in RETENTION_DAY_OPTIONS } ?: DEFAULT_RETENTION_DAYS)
+    override val retentionDays = MutableStateFlow(prefs.getInt("originalRetentionDays", DEFAULT_RETENTION_DAYS).takeIf { it in RETENTION_DAY_RANGE } ?: DEFAULT_RETENTION_DAYS)
     override val keepStarred = MutableStateFlow(prefs.getBoolean("originalKeepStarred", true))
     override fun setRetentionDays(days: Int) {
-        require(days in RETENTION_DAY_OPTIONS)
+        require(days in RETENTION_DAY_RANGE)
         val shorter = days < retentionDays.value
         check(prefs.edit().putInt("originalRetentionDays", days).commit())
         retentionDays.value = days
@@ -56,13 +56,13 @@ class LocalOriginalAudio(
         }
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
-    private suspend fun trim(retention: Int?, includeStarred: Boolean, delete: Boolean): AudioTrim {
+    private suspend fun trim(retention: Int?, includeStarred: Boolean, delete: Boolean, range: LongRange? = null): AudioTrim {
         var result = AudioTrim(0, 0, 0, 0)
         val action: suspend (Set<Long>) -> Unit = { reading ->
             val timestamp = now(); dao.refreshFailures(timestamp)
             val rows = existing(); val stars = dao.starredAudio().toSet()
             val candidates = rows.filter { s ->
-                !pending(s) && s.id !in reading && (includeStarred || s.id !in stars) &&
+                !pending(s) && s.id !in reading && (includeStarred || s.id !in stars) && (range == null || s.startAt in range) &&
                     (retention == null || ((s.sourceId != "import" || s.status in setOf("Abandoned", "Quiet", "SkippedEnv")) && timestamp - (s.completedAt ?: s.firstFailedAt ?: timestamp) >= (if (s.status == "SkippedEnv") maxOf(1, retention) else retention) * 86_400_000L))
             }
             var bytes = 0L
@@ -77,11 +77,13 @@ class LocalOriginalAudio(
     }
     internal suspend fun cleanup(): AudioTrim = trim(retentionDays.value, !keepStarred.value, true)
     override suspend fun previewTrim(days: Int): AudioTrim {
-        require(days in RETENTION_DAY_OPTIONS)
+        require(days in RETENTION_DAY_RANGE)
         return trim(days, !keepStarred.value, false)
     }
     override suspend fun previewClear(includeStarred: Boolean) = trim(null, includeStarred, false)
     override suspend fun clear(includeStarred: Boolean) = trim(null, includeStarred, true)
+    override suspend fun previewClearRange(fromMillis: Long, untilMillis: Long, includeStarred: Boolean) = trim(null, includeStarred, false, fromMillis..untilMillis)
+    override suspend fun clearRange(fromMillis: Long, untilMillis: Long, includeStarred: Boolean) = trim(null, includeStarred, true, fromMillis..untilMillis)
     override suspend fun locate(segmentId: Long): SegmentAudio? = dao.findSegment(segmentId)?.let {
         val file = File(it.path)
         if (file.isFile) SegmentAudio(it.id, file, it.startAt, it.endAt) else null

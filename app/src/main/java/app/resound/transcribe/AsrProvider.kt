@@ -6,7 +6,7 @@ import java.io.File
 interface AsrProvider {
     suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult
 }
-data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true)
+data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true, val pcmFile: File? = null)
 data class AsrSentence(val startMillis: Long, val endMillis: Long, val text: String, val speakerTag: String?, val originalText: String? = null)
 data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?)
 enum class AsrError(val human: String, val retryable: Boolean = false) {
@@ -16,13 +16,15 @@ enum class AsrError(val human: String, val retryable: Boolean = false) {
     Interrupted("任务中断，等待重试", true), Storage("本地存储失败，等待重试", true)
 }
 /** 仅使用固定文案，禁止将 Throwable、服务端消息或请求对象作为 cause/日志保存。 */
-class AsrException(val type: AsrError, val logId: String? = null, val detail: String = type.human) : Exception(detail)
+class AsrException(val type: AsrError, val logId: String? = null, val detail: String = type.human, val concurrencyLimited: Boolean = false) : Exception(detail)
 data class DoubaoConfig(
     val url: String = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream",
     val resourceId: String = "volc.seedasr.sauc.duration",
     /** 仅测试/特殊接入显式覆盖；默认随时长增长。 */
     val timeoutMillis: Long? = null,
     val paceMillis: Long = 0,
+    /** 073 负责人定案默认增量；内部诊断/回退可显式传 false，界面不另加开关。 */
+    val incrementalResults: Boolean = true,
 ) {
     // 短段保留原有 90 秒余量；5 分钟段为 480 秒，单请求不超过 Worker 的 10 分钟窗口。
     fun timeoutFor(durationMillis: Long): Long = timeoutMillis

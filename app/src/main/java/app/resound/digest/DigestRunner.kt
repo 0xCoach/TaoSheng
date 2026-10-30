@@ -36,6 +36,7 @@ class DigestRunner(
     /** 参数为 true 表示用户点了“现在整理”。 */
     private val afterDigest: suspend (Boolean) -> Unit = {},
     private val isMedia: suspend (Long, Long) -> Boolean = { _, _ -> false },
+    private val unseparated: suspend (List<Long>) -> List<Long> = { emptyList() },
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = client::chatJson,
 ) {
     private val appContext = context.applicationContext
@@ -106,7 +107,7 @@ class DigestRunner(
     private suspend fun digest(lines: List<TranscriptLineEntity>, key: String, onEvents: () -> Unit): LlmError? {
         failureDetail = null
         val preset = settings.preset
-        val (text, indexed) = DigestPrompt.transcript(lines)
+        val (text, indexed) = DigestPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
         return try {
             val unfinished = dao.unfinishedForDigest()
             val candidates = unfinished.map { it.id }.toSet()

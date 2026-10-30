@@ -363,6 +363,8 @@ class CaptureService : Service() {
         }
         const val RECHECK = "app.resound.capture.RECHECK"
         /** 规则改动、心跳和系统广播只通知已有服务，绝不在后台新建麦克风前台服务。 */
+        /** 课堂模式开关或到点后刷新常驻通知的文字与按钮 */
+        internal fun refreshOngoing() { instance?.let { it.refreshNotification(it.store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()) } }
         internal fun recheck() { instance?.commands?.trySend(Command(Intent().setAction(RECHECK))) }
         const val START = "app.resound.capture.START"
         const val STOP = "app.resound.capture.STOP"

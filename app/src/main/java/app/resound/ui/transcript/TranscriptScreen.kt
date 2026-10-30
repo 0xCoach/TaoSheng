@@ -481,6 +481,8 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
             }
         }
 
+        if (app.resound.AppGraph.isAsrSpeedReady) SpeakerOptions()
+
         if (ready) {
             Divider()
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -636,6 +638,55 @@ internal fun IntervalChoice(interval: Int, realtime: Boolean? = null, onRealtime
 
 private const val CUSTOM = -1
 private const val REALTIME = -2
+
+/** 区分说话人总开关 + 课堂模式（临时不分人，到点自动恢复） */
+@Composable
+private fun SpeakerOptions() {
+    val c = Rs.colors
+    val speed = app.resound.AppGraph.asrSpeed
+    val separate by speed.separateSpeakers.collectAsState()
+    val classMode by speed.classMode.collectAsState()
+    Divider()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("区分说话人与认人", style = RsType.body, color = c.text)
+            Text(if (separate) "原话标出谁在说，认出“我”和已命名的人"
+                else "原话不标是谁说的，转写更快、更省电；多人同时在场时，其他人的话可能漏转", style = RsType.caption, color = c.textSecondary)
+        }
+        Toggle(separate) { speed.setSeparateSpeakers(it) }
+    }
+    if (!separate) return
+    Divider()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("课堂模式", style = RsType.body, color = c.text)
+        Text(classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption,
+            color = if (classMode.enabled) c.accent else c.textSecondary)
+        ClassModeChoice(classMode, speed)
+    }
+}
+
+/** 课堂模式时长胶囊：1 / 2 / 3 小时 / 手动关；开着时多一个“结束”。首页录音卡和设置页共用 */
+@Composable
+internal fun ClassModeChoice(state: app.resound.transcribe.ClassModeState, speed: app.resound.transcribe.AsrSpeedSettings) {
+    val c = Rs.colors
+    if (state.enabled) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.accent.copy(alpha = 0.12f))
+            .springClick { speed.stopClassMode() }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+            Text("结束课堂模式", style = RsType.caption, color = c.accent)
+        }
+        return
+    }
+    Choice(listOf(60, 120, 180, 0), -1, { if (it == 0) "手动关" else "${it / 60} 小时" }, fill = true) {
+        speed.startClassMode(it.takeIf { m -> m > 0 })
+    }
+}
+
+internal fun classModeLine(state: app.resound.transcribe.ClassModeState, now: Long): String = when {
+    !state.enabled -> "适合只有一个人主讲的上课、讲座：这段时间不区分说话人，转写更快，到点自动恢复。其他人插话可能漏转，多人讨论请别开"
+    state.endsAtMillis == null -> "课堂模式中 · 手动结束前不区分说话人"
+    else -> "课堂模式中 · " + java.time.Instant.ofEpochMilli(state.endsAtMillis).atZone(java.time.ZoneId.systemDefault())
+        .toLocalTime().let { "%d:%02d".format(it.hour, it.minute) } + " 自动结束"
+}
 
 /** 苹果风格开关，暖橙底。 */
 @Composable

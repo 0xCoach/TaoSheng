@@ -74,6 +74,12 @@ class OriginalAudio062Test {
         assertNotNull(db.memory().event(1)); assertNull(repo.locate(1))
         assertEquals(1, repo.clear(true).segments)
     }
+    @Test fun clearRangeOnlyRemovesAudioInsideRange() = runBlocking {
+        val old = segment(1, 6); val mid = segment(2, 4); val fresh = segment(3, 2)
+        val from = now - 5 * day; val until = now - 3 * day
+        assertEquals(repo.previewClearRange(from, until, false), repo.clearRange(from, until, false))
+        assertTrue(old.exists()); assertFalse(mid.exists()); assertTrue(fresh.exists())
+    }
     @Test fun usageLocateAndTrimSupportImportedAudioWithoutChangingItsRetention() = runBlocking {
         val imported = segment(1, 8, source = "import"); event(age = 8, starred = true)
         segment(2, 4)

@@ -54,6 +54,13 @@ class RoomPrivacyActionsTest {
         assertTrue(File(directory, "1.ogg").exists()); assertFalse(File(directory, "2.ogg").exists())
         assertFalse(File(directory, "3.ogg").exists()); assertTrue(db.transcribe().candidates(now).isEmpty())
     }
+    @Test fun rangeDeletesOnlyInsideAndKeepsRecordingWhenRangeIsPast() = runBlocking {
+        segment(1, 100_000); segment(2, 200_000); segment(3, 300_000)
+        assertEquals(ForgetPreview(1, 0), privacy.previewRange(150_000, 250_000).copy(audioMillis = 0))
+        assertEquals(1, privacy.deleteRange(150_000, 250_000).segments)
+        assertEquals(0, discarded)
+        assertEquals(listOf(1L, 3L), db.transcribe().observeSegments().first().map { it.id }.sorted())
+    }
     @Test fun recentDeletesWholeEventAndItsUnlinkedItems() = runBlocking {
         event(1); segment(1, now - 1); line(1, 1, 1)
         db.memory().insertItems(listOf(item(1, 1, 1), item(2, 1, null)))

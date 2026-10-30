@@ -60,12 +60,16 @@ class EnvSoundModel(private val context: Context) {
         } catch(e: CancellationException) { state.value = EnvModelState.NotDownloaded; throw e }
         catch(_: Exception) { state.value = EnvModelState.Failed("模型下载或校验失败，请重试") }
     }
-    fun infer(pcm: ShortArray, timing: (String) -> Unit = {}): Map<String, Float> {
+    private var batch = false
+    private var retained: AudioTagging? = null
+    @Synchronized fun beginBatch() { batch = true }
+    @Synchronized fun endBatch() { batch = false; retained?.release(); retained = null }
+    @Synchronized fun infer(pcm: ShortArray, timing: (String) -> Unit = {}, metrics: (Long, Long, Long) -> Unit = { _, _, _ -> }): Map<String, Float> {
         check(verified)
         val started = android.os.SystemClock.elapsedRealtime()
-        val tagger = AudioTagging(config = AudioTaggingConfig(model = AudioTaggingModelConfig(
+        val tagger = retained ?: AudioTagging(config = AudioTaggingConfig(model = AudioTaggingModelConfig(
             zipformer = OfflineZipformerAudioTaggingModelConfig(File(dir,"model.int8.onnx").path), numThreads = 2),
-            labels = File(dir,"class_labels_indices.csv").path, topK = 527))
+            labels = File(dir,"class_labels_indices.csv").path, topK = 527)).also { if (batch) retained = it }
         val loaded = android.os.SystemClock.elapsedRealtime()
         var prepareMs = 0L
         var inferenceMs = 0L
@@ -87,7 +91,8 @@ class EnvSoundModel(private val context: Context) {
             }
             return scores
         } finally {
-            tagger.release()
+            if (!batch) tagger.release()
+            metrics(loaded-started, prepareMs, inferenceMs)
             timing("加载=${loaded-started}ms 采样准备=${prepareMs}ms 推理=${inferenceMs}ms")
         }
     }

@@ -34,6 +34,18 @@ class RoomPrivacyActions(
         } }
     }
 
+    override suspend fun deleteRange(fromMillis: Long, untilMillis: Long): ForgetResult {
+        require(fromMillis <= untilMillis)
+        return withContext(Dispatchers.IO + NonCancellable) { gate.withLock {
+            if (untilMillis >= now()) discardRecording()
+            recentFiles(fromMillis, untilMillis) { erase { dao.recent(fromMillis, untilMillis) } }
+        } }
+    }
+
+    override suspend fun previewRange(fromMillis: Long, untilMillis: Long): ForgetPreview = withContext(Dispatchers.IO) {
+        dao.recent(fromMillis, untilMillis).let { rows -> ForgetPreview(rows.size, rows.sumOf { (it.endAt - it.startAt).coerceAtLeast(0) }) }
+    }
+
     override suspend fun forgetEvent(eventId: Long): ForgetResult = withContext(Dispatchers.IO + NonCancellable) {
         gate.withLock { erase(eventId) { dao.eventSegments(eventId) } }
     }

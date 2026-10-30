@@ -47,7 +47,7 @@ internal class ImportSegments(private val folder: File, private val id: String, 
                 if (!db.transcribe().hasImportPath(base.path + ".ogg", base.path + ".m4a")) {
                     val audio = SegmentEncoder.encode(piece.pcm, base)
                     db.capture().segment(SegmentEntity(startAt = piece.start, endAt = piece.end, sourceId = "import",
-                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name))
+                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name, separateSpeakers = if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.effectiveSeparateSpeakers(piece.start) else null))
                 }
                 saved++
             } catch (e: Exception) {

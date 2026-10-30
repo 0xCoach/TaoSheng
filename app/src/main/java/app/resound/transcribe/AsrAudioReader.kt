@@ -9,10 +9,11 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
+import java.io.ByteArrayOutputStream
 import java.nio.ByteOrder
 import kotlin.coroutines.coroutineContext
 
-/** OGG 保持原始页；AAC 回退在本地解码、混单声道并重采样至 PCM16/16k。 */
+/** OGG 原始页按约 200ms 合并；AAC 本地解码、混单声道并重采样至 PCM16/16k。 */
 class AsrAudioReader(private val cacheDir: File) {
     data class Prepared(val file: File, val format: String, val temporary: Boolean) : AutoCloseable {
         override fun close() { if (temporary) file.delete() }
@@ -35,9 +36,7 @@ class AsrAudioReader(private val cacheDir: File) {
         val target = File.createTempFile("asr-voiceprint-", ".pcm", cacheDir)
         try {
             decode(source, target)
-            val bytes = target.readBytes()
-            val buffer = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-            ShortArray(buffer.remaining()).also { buffer.get(it) }
+            readPcm16(target)
         } finally { target.delete() }
     }
     /** 导出专用：逐缓冲写磁盘，不把整段 PCM 载入内存，不影响转写入口。 */
@@ -120,13 +119,35 @@ class AsrAudioReader(private val cacheDir: File) {
     companion object {
         suspend fun chunks(prepared: Prepared, send: suspend (ByteArray, Boolean) -> Unit) {
             prepared.file.inputStream().buffered().use { input ->
-                var current = chunk(input, prepared.format) ?: throw AsrException(AsrError.Audio)
+                val ogg = if (prepared.format == "ogg") OggFrames(input) else null
+                fun nextChunk() = ogg?.next() ?: if (ogg == null) chunk(input, prepared.format) else null
+                var current = nextChunk() ?: throw AsrException(AsrError.Audio)
                 while (true) {
-                    val next = chunk(input, prepared.format)
+                    coroutineContext.ensureActive()
+                    val next = nextChunk()
                     send(current, next == null)
                     if (next == null) break
                     current = next
                 }
+            }
+        }
+        /** Opus granule 固定为 48k 时钟；不拆页、不改头/校验和、不转码。 */
+        private class OggFrames(private val input: InputStream) {
+            private var granule = 0L
+            fun next(): ByteArray? {
+                val bytes = ByteArrayOutputStream()
+                var samples = 0L
+                do {
+                    val page = chunk(input, "ogg") ?: break
+                    bytes.write(page)
+                    val end = java.nio.ByteBuffer.wrap(page, 6, 8).order(ByteOrder.LITTLE_ENDIAN).long
+                    if (end >= 0) {
+                        samples += (end - granule).coerceAtLeast(0)
+                        granule = end
+                    }
+                    // 缺少有效 granule 的异常输入也有内存上限；完整单页最多约 65KB。
+                } while (samples < 9_600 && bytes.size() < 64 * 1024)
+                return bytes.takeIf { it.size() > 0 }?.toByteArray()
             }
         }
         private fun read(input: InputStream, count: Int): ByteArray {

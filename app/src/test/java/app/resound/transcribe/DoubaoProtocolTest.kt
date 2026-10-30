@@ -19,7 +19,7 @@ class DoubaoProtocolTest {
         assertEquals("200", request.getString("ssd_version"))
         assertTrue(request.getBoolean("enable_speaker_info"))
         assertTrue(request.getBoolean("show_utterances"))
-        assertEquals("full", request.getString("result_type"))
+        assertEquals("single", request.getString("result_type"))
         assertEquals(0x22.toByte(), DoubaoProtocol.frame(2, 2, byteArrayOf(1))[1])
     }
     @Test fun decompressSequenceAndFinalAndError() {

@@ -105,7 +105,7 @@ internal class RedoEngine(
                                 digestedAt = old?.digestedAt ?: now())
                         }
                         db.transcribe().completeRedo(db.transcribe().segment(segment.id).copy(status = if (lines.isEmpty()) "Empty" else "Done", completedAt = now(),
-                            error = null, nextRetryAt = null, firstFailedAt = null, voiceprintProcessedAt = null), lines, now())
+                            error = null, nextRetryAt = null, firstFailedAt = null, voiceprintProcessedAt = if (segment.separateSpeakers == false) now() else null), lines, now())
                         saveAfter()
                     }
                 } catch (e: CancellationException) { throw e }

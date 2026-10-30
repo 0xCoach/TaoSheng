@@ -22,6 +22,8 @@ class LocalEnvSoundRepository(
     private val log: (String) -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
 ) : EnvSoundRepository {
+    var beginBatch: () -> Unit = {}
+    var endBatch: () -> Unit = {}
     private val dao = db.envSound()
     override val settings = MutableStateFlow(EnvSoundSettings(prefs.getBoolean("enabled", false),
         enumValue(prefs.getString("skip", null), SkipMode.MarkOnly), enumValue(prefs.getString("media", null), MediaMode.Keep),
@@ -121,16 +123,22 @@ class LocalEnvSoundRepository(
     private fun tick() = flow { while(currentCoroutineContext().isActive) { emit(Unit); delay(5000) } }
     companion object {
         private inline fun <reified T: Enum<T>> enumValue(value: String?, fallback: T) = enumValues<T>().firstOrNull { it.name == value } ?: fallback
-        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit): LocalEnvSoundRepository {
+        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null): LocalEnvSoundRepository {
             val model = EnvSoundModel(context)
             val reader = AsrAudioReader(context.cacheDir)
             // 单独的后台低优先级线程；调用者等待结束才启动 ASR，不抢本地转写 CPU。
             val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "env-sound") }.asCoroutineDispatcher()
             val record: (String) -> Unit = { PipelineTimes.record(context, "${System.currentTimeMillis()} $it") }
-            val analysis = EnvSoundAnalysis(reader::readPcm, { model.infer(it, record) }, me,
+            val analysis = EnvSoundAnalysis({ file -> sharedPcm?.prepare(file) ?: reader.readPcm(file) }, { pcm ->
+                val timing = currentCoroutineContext()[SegmentTimings]
+                model.infer(pcm, record) { load, prepare, infer ->
+                    timing?.add(AsrPart.EnvLoad, load); timing?.add(AsrPart.EnvPrepare, prepare); timing?.add(AsrPart.EnvInfer, infer)
+                }
+            }, me,
                 phase = { app.resound.PipelineProgress.detail(it) }, log = record)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
                 { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record).also { repo ->
+                repo.beginBatch = model::beginBatch; repo.endBatch = model::endBatch
                 scope.launch { model.checkReady(); if(repo.settings.value.enabled) repo.downloadModel() }
             }
         }

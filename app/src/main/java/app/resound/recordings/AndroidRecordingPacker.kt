@@ -38,10 +38,11 @@ internal class AndroidRecordingPacker(
         RecordingZip.estimate(RecordingZip.select(metadata(options.skipMedia), range, options))
     }
     @Synchronized override fun start(range: RecordingRange, options: RecordingPackOptions): String {
-        require(range.from <= range.to) { "开始日期不能晚于结束日期" }
+        require(range.startMillis() <= range.endMillis()) { "开始时间不能晚于结束时间" }
         entry?.takeIf { it.optString("state") == "running" }?.let { return it.getString("id") }
         val id = UUID.randomUUID().toString()
-        entry = JSONObject().put("id", id).put("from", range.from).put("to", range.to).put("text", options.withText)
+        entry = JSONObject().put("id", id).put("from", range.from).put("to", range.to)
+            .put("fromTime", range.fromTime.toString()).put("toTime", range.toTime.toString()).put("text", options.withText)
             .put("skip", options.skipMedia).put("state", "running")
         publish()
         try { enqueue(id) } catch (_: Exception) { fail(id, "无法安排后台打包，请重试") }
@@ -81,10 +82,12 @@ internal class AndroidRecordingPacker(
             ?: return@withLock false
         var uri: Uri? = null; var done = false
         try {
-            val range = RecordingRange(LocalDate.parse(request.getString("from")), LocalDate.parse(request.getString("to")))
+            val range = RecordingRange(LocalDate.parse(request.getString("from")), LocalDate.parse(request.getString("to")),
+                request.optString("fromTime").ifBlank { null }?.let(java.time.LocalTime::parse) ?: java.time.LocalTime.MIN,
+                request.optString("toTime").ifBlank { null }?.let(java.time.LocalTime::parse) ?: java.time.LocalTime.MAX)
             val options = RecordingPackOptions(request.getBoolean("text"), request.getBoolean("skip"))
             val rows = RecordingZip.select(load(), range, options)
-            check(rows.isNotEmpty()) { "所选日期没有可导出的原声" }
+            check(rows.isNotEmpty()) { "所选时间没有可导出的原声" }
             val resolver = context.contentResolver
             val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
             val relative = "Download/Resound/录音包/"

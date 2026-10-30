@@ -11,8 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 
 // ---------- 批量导出（打包成 zip） ----------
 
-/** 导出哪几天：闭区间；只含原声还在的段 */
-data class RecordingRange(val from: LocalDate, val to: LocalDate)
+/** 导出哪段时间：从 [from] 当天 [fromTime] 到 [to] 当天 [toTime]（按录音开始时刻，闭区间）；时刻默认整天。只含原声还在的段 */
+data class RecordingRange(val from: LocalDate, val to: LocalDate,
+    val fromTime: java.time.LocalTime = java.time.LocalTime.MIN, val toTime: java.time.LocalTime = java.time.LocalTime.MAX) {
+    val wholeDays get() = fromTime == java.time.LocalTime.MIN && toTime == java.time.LocalTime.MAX
+    internal fun startMillis() = from.atTime(fromTime).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+    internal fun endMillis() = to.atTime(toTime).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+}
 
 data class RecordingPackOptions(
     /** 附上原话：每段一个同名 .txt，外加一份总表 原话.txt（时间、时长、文件名、原话） */

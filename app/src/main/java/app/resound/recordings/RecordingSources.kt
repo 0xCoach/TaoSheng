@@ -15,7 +15,7 @@ internal data class RecordingSource(val row: SegmentWithLines, val excluded: Boo
     val day get() = Instant.ofEpochMilli(row.segment.startAt).atZone(ZoneId.systemDefault()).toLocalDate()
     val duration get() = (row.segment.endAt - row.segment.startAt).coerceAtLeast(0)
     val durationText get() = "${duration / 60000}分${duration / 1000 % 60}秒"
-    /** 文件名主体：“2026-10-29 14.05 第六组技能孵化汇报”——日期时刻 + 所属事件标题（没整理的用原话首句，没转写写“未转写”） */
+    /** 文件名主体：“2026-10-30 09.15 项目周会”——日期时刻 + 所属事件标题（没整理的用原话首句，没转写写“未转写”） */
     val stem get() = Instant.ofEpochMilli(row.segment.startAt).atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm")) + " " + label
     private val label get() = (eventTitle?.let { safe(it).take(16) }
@@ -52,13 +52,16 @@ internal class RecordingSources(private val database: CaptureDatabase, private v
 
 internal object RecordingZip {
     fun select(all: List<RecordingSource>, range: RecordingRange, options: RecordingPackOptions): List<RecordingSource> {
-        require(range.from <= range.to) { "开始日期不能晚于结束日期" }
-        return all.filter { it.day >= range.from && it.day <= range.to && it.file.isFile && !(options.skipMedia && it.excluded) }
+        require(range.startMillis() <= range.endMillis()) { "开始时间不能晚于结束时间" }
+        val start = range.startMillis(); val end = range.endMillis()
+        return all.filter { it.row.segment.startAt in start..end && it.file.isFile && !(options.skipMedia && it.excluded) }
             .sortedWith(compareBy({ it.row.segment.startAt }, { it.id }))
     }
     fun estimate(rows: List<RecordingSource>) = RecordingPackEstimate(rows.map { it.day }.distinct().size,
         rows.size, rows.sumOf { it.file.length() }, rows.sumOf { it.duration })
-    fun name(range: RecordingRange) = "涛声录音 ${range.from}" + (if (range.from == range.to) "" else " 至 ${range.to}") + ".zip"
+    fun name(range: RecordingRange) = if (range.wholeDays) "涛声录音 ${range.from}" + (if (range.from == range.to) "" else " 至 ${range.to}") + ".zip"
+        else "涛声录音 ${range.from} ${clock(range.fromTime)} 至 " + (if (range.from == range.to) "" else "${range.to} ") + clock(range.toTime) + ".zip"
+    private fun clock(t: LocalTime) = "%02d.%02d".format(t.hour, t.minute)
     suspend fun write(output: OutputStream, rows: List<RecordingSource>, withText: Boolean, progress: suspend (Int) -> Unit) {
         val context = currentCoroutineContext()
         val used = mutableSetOf<String>()

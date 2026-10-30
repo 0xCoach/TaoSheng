@@ -53,6 +53,7 @@ class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscri
     private val custom=CustomAsrProvider(settings, hotwords)
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = recognize(settings.source.value, audio, key, beforeAudio)
     internal suspend fun recognize(source: TranscribeSource, audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = when(source){
+        // 073 审核：同批没有节省时长，默认不剪音，也不为剪音额外解码。
         TranscribeSource.Doubao->doubao.recognize(audio,key,beforeAudio)
         TranscribeSource.Local->local.recognize(audio,key,beforeAudio)
         TranscribeSource.Custom->custom.recognize(audio,key,beforeAudio)

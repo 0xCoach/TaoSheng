@@ -78,7 +78,11 @@ private fun RecordingPackSheet(packer: RecordingPacker, onDismiss: () -> Unit) {
         ("最近 3 天" to RecordingRange(today.minusDays(2), today)).takeIf { days.size > 1 },
         ("全部 ${days.size} 天" to RecordingRange(oldest, today)).takeIf { days.size > 3 },
     )
-    var pick by remember(presets.size) { mutableStateOf(presets.lastOrNull()?.second) }
+    var customOn by remember { mutableStateOf(false) }
+    var custom by remember { mutableStateOf(RecordingRange(today, today, java.time.LocalTime.of(0, 0), java.time.LocalTime.now().withSecond(0).withNano(0))) }
+    var presetPick by remember(presets.size) { mutableStateOf(presets.lastOrNull()?.second) }
+    val customValid = custom.startMillis() <= custom.endMillis()
+    val pick = if (customOn) custom.takeIf { customValid } else presetPick
     var withText by remember { mutableStateOf(true) }
     var skipMedia by remember { mutableStateOf(false) }
     val estimate by produceState<RecordingPackEstimate?>(null, pick, skipMedia) {
@@ -129,12 +133,13 @@ private fun RecordingPackSheet(packer: RecordingPacker, onDismiss: () -> Unit) {
                 }
                 Text("导出哪几天", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    presets.forEach { (label, r) ->
-                        val on = r == pick
-                        val bg by animateColorAsState(if (on) c.accent else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "packDay")
-                        Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
-                            modifier = Modifier.clip(CircleShape).background(bg).springClick { pick = r }.padding(horizontal = 14.dp, vertical = 8.dp))
-                    }
+                    presets.forEach { (label, r) -> DayChip(label, !customOn && r == presetPick) { presetPick = r; customOn = false } }
+                    DayChip("自定义", customOn) { customOn = true }
+                }
+                if (customOn) {
+                    RangeEnd("从", custom.from, custom.fromTime, oldest, today) { d, t -> custom = custom.copy(from = d, fromTime = t) }
+                    RangeEnd("到", custom.to, custom.toTime, oldest, today) { d, t -> custom = custom.copy(to = d, toTime = t) }
+                    if (!customValid) Text("开始时间不能晚于结束时间", style = RsType.caption, color = c.warning)
                 }
                 Text("手机里保留着 ${days.size} 天的录音（${oldest.monthValue}月${oldest.dayOfMonth}日起）；更早的已按原声保留天数清理",
                     style = RsType.caption, color = c.textTertiary)
@@ -145,11 +150,48 @@ private fun RecordingPackSheet(packer: RecordingPacker, onDismiss: () -> Unit) {
                         style = RsType.subhead, color = c.textSecondary,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.background).padding(14.dp))
                 }
-                Text("文件名例：2026-10-29 14.05 第六组技能孵化汇报.ogg", style = RsType.caption, color = c.textTertiary)
+                Text("每段按“日期 时刻 事件标题”命名，如 2026-10-30 09.15 项目周会.ogg", style = RsType.caption, color = c.textTertiary)
                 ActionButton("开始打包", ActionKind.Primary, enabled = pick != null && (estimate?.segments ?: 0) > 0) {
                     pick?.let { started = packer.start(it, RecordingPackOptions(withText, skipMedia)) }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DayChip(label: String, on: Boolean, onClick: () -> Unit) {
+    val c = Rs.colors
+    val bg by animateColorAsState(if (on) c.accent else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "packDay")
+    Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+        modifier = Modifier.clip(CircleShape).background(bg).springClick(onClick).padding(horizontal = 14.dp, vertical = 8.dp))
+}
+
+/** 自定义范围的一端：“从  10月30日  09:00”，日期、时刻分别点开系统选择器；日期限在手机还保留录音的这几天 */
+@Composable
+internal fun RangeEnd(label: String, day: LocalDate, time: java.time.LocalTime, min: LocalDate, max: LocalDate,
+                     onChange: (LocalDate, java.time.LocalTime) -> Unit) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val zone = java.time.ZoneId.systemDefault()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(end = 4.dp))
+        PickBox("${day.monthValue}月${day.dayOfMonth}日", Modifier.weight(1.3f)) {
+            android.app.DatePickerDialog(context, { _, y, m, d -> onChange(LocalDate.of(y, m + 1, d), time) }, day.year, day.monthValue - 1, day.dayOfMonth).apply {
+                datePicker.minDate = min.atStartOfDay(zone).toInstant().toEpochMilli()
+                datePicker.maxDate = max.atStartOfDay(zone).toInstant().toEpochMilli()
+            }.show()
+        }
+        PickBox("%02d:%02d".format(time.hour, time.minute), Modifier.weight(1f)) {
+            android.app.TimePickerDialog(context, { _, h, m -> onChange(day, java.time.LocalTime.of(h, m)) }, time.hour, time.minute, true).show()
+        }
+    }
+}
+
+@Composable
+private fun PickBox(text: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = Rs.colors
+    Box(modifier.clip(RoundedCornerShape(12.dp)).background(c.background).springClick(onClick).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium, fontFeatureSettings = "tnum"), color = c.text)
     }
 }

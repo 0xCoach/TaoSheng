@@ -55,6 +55,14 @@ class RecordingArchive072Test {
         val selected = RecordingZip.select(rows, RecordingRange(today, today), RecordingPackOptions(skipMedia = true))
         assertEquals(RecordingPackEstimate(1, 1, 5, 192000), RecordingZip.estimate(selected))
     }
+    @Test fun customTimeRangeFiltersBySegmentStart() {
+        // 录音都在 14:05:33 开始：14:00～14:10 选中，14:10～23:59 不选；名字带时刻
+        val rows = listOf(source(1), source(2, today.minusDays(1)))
+        val hit = RecordingRange(today, today, LocalTime.of(14, 0), LocalTime.of(14, 10))
+        assertEquals(listOf(1L), RecordingZip.select(rows, hit, RecordingPackOptions()).map { it.id })
+        assertTrue(RecordingZip.select(rows, hit.copy(fromTime = LocalTime.of(14, 10), toTime = LocalTime.of(23, 59)), RecordingPackOptions()).isEmpty())
+        assertEquals("涛声录音 2026-10-29 14.00 至 14.10.zip", RecordingZip.name(hit))
+    }
     @Test fun speechFilteringAndFirstEnableRange() = runBlocking {
         val rows = listOf(source(1), source(2, status = "Pending"), source(3, excluded = true), source(4, text = ""), source(5, day = today.minusDays(31)))
         val state = RecordingUploadState(File(root, "state.json"))

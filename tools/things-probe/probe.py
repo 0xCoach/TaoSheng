@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """卡072只读离线验证。手机只执行 exec-out run-as cat；原话/响应仅保存 private。"""
-import argparse, datetime as dt, hashlib, importlib.util, json, pathlib, re, shutil, sqlite3, time, urllib.request
+import argparse, datetime as dt, hashlib, importlib.util, json, pathlib, re, shutil, sqlite3, subprocess, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from zoneinfo import ZoneInfo
 HERE = pathlib.Path(__file__).resolve().parent
@@ -8,13 +8,51 @@ ROOT = HERE.parents[1]
 PRIVATE = HERE / 'private'
 ASSET = ROOT / 'app/src/main/assets/prompts/things.md'
 ZONE = ZoneInfo('Asia/Shanghai')
-# 复用已审阅的稳定双读拉库与 DigestPrompt.calendar 等价实现。
+# 复用与 DigestPrompt.calendar 等价的日历实现；拉库在本文件明确限制命令范围。
 spec = importlib.util.spec_from_file_location('ask_probe', ROOT / 'tools/ask-probe/probe.py')
 shared = importlib.util.module_from_spec(spec); spec.loader.exec_module(shared)
 shared.PRIVATE = PRIVATE
 
 def dump(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2)+'\n')
+
+def pull():
+    """手机仅执行 run-as cat；先校验读取结果，避免把run-as错误当成数据库。"""
+    PRIVATE.mkdir(exist_ok=True, mode=0o700)
+    for attempt in range(4):
+        reads=[]
+        for _ in range(2):
+            files={}
+            for name in ('capture.db','capture.db-wal','capture.db-shm'):
+                result=subprocess.run(['adb','exec-out','run-as','app.resound','cat','databases/'+name],capture_output=True,timeout=30)
+                error=result.stdout + result.stderr
+                if b'package not debuggable' in error:
+                    raise RuntimeError('run-as: package not debuggable: app.resound；未改手机，也未覆盖现有快照')
+                if name=='capture.db':
+                    if result.returncode or not result.stdout.startswith(b'SQLite format 3\x00'):
+                        raise RuntimeError('未读到SQLite主库；未改手机，也未覆盖现有快照')
+                elif result.returncode or b'No such file' in error:
+                    if b'No such file' in error: continue
+                    raise RuntimeError('只读拉取数据库附属文件失败')
+                files[name]=result.stdout
+            reads.append(files)
+        if any(reads[0].get(name)!=reads[1].get(name) for name in ('capture.db','capture.db-wal')):
+            continue
+        stage=PRIVATE/'pull-stage'; stage.mkdir(exist_ok=True)
+        for suffix in ('','-wal','-shm','-journal'):
+            (stage/('capture.db'+suffix)).unlink(missing_ok=True)
+        for name,data in reads[1].items():
+            if not name.endswith('-shm'): (stage/name).write_bytes(data)
+        with sqlite3.connect(stage/'capture.db') as source:
+            if source.execute('PRAGMA integrity_check').fetchone()[0]!='ok': continue
+            pending=stage/'snapshot.db'; pending.unlink(missing_ok=True)
+            with sqlite3.connect(pending) as destination: source.backup(destination)
+        pending.replace(PRIVATE/'snapshot.db')
+        dump(PRIVATE/'provenance.json',{'kind':'adb-read-only','at':dt.datetime.now(ZONE).isoformat(),
+            'sha256':hashlib.sha256((PRIVATE/'snapshot.db').read_bytes()).hexdigest()})
+        print('只读快照完成，完整性检查通过',flush=True)
+        return
+    raise RuntimeError('手机数据库持续变化，未取得稳定快照；未改手机')
 
 def inputs(lines, context=(), known=()):
     return {'mode':'live','contextNote':'已处理过，只作参考，不得输出旧事实','context':list(context),'lines':list(lines),'known':list(known)}
@@ -51,7 +89,11 @@ def real_batches():
         history.extend(fresh); valid.extend(fresh)
     dump(PRIVATE/'lines.json',valid); dump(PRIVATE/'batches.json',batches)
     dump(PRIVATE/'audit-candidates.json',[r for r in valid if re.search('放|搁|塞|借|拿走|在哪|收|带走|还回|抽屉|柜|钥匙|伞',r['text'])])
-    summary={'from':start.isoformat(),'to':end.isoformat(),'raw_lines':len(all_rows),'eligible_lines':len(valid),'excluded':len(all_rows)-len(valid),'batches':len(batches),'known':len(known),'schema':db.execute('PRAGMA user_version').fetchone()[0],'media_available':'env_sounds' in tables}
+    data_range=db.execute('SELECT MIN(startAt),MAX(startAt) FROM transcript_lines').fetchone()
+    summary={'from':start.isoformat(),'to':end.isoformat(),'raw_lines':len(all_rows),'eligible_lines':len(valid),'excluded':len(all_rows)-len(valid),'batches':len(batches),'known':len(known),'schema':db.execute('PRAGMA user_version').fetchone()[0],'media_available':'env_sounds' in tables,
+        'data_from':dt.datetime.fromtimestamp(data_range[0]/1000,ZONE).isoformat() if data_range[0] else None,
+        'data_to':dt.datetime.fromtimestamp(data_range[1]/1000,ZONE).isoformat() if data_range[1] else None,
+        'snapshot_sha256':hashlib.sha256((PRIVATE/'snapshot.db').read_bytes()).hexdigest()}
     dump(PRIVATE/'summary.json',summary); print(json.dumps(summary,ensure_ascii=False),flush=True)
     return batches
 
@@ -87,16 +129,21 @@ def case_batches():
         batches.append(inputs([line],context))
     return batches
 
-def run(mode, jobs):
+def run(mode, jobs, selected=None, reuse=False, force=False):
     PRIVATE.mkdir(exist_ok=True,mode=0o700)
-    batches=real_batches() if mode=='real' else case_batches()
+    if mode=='real' and reuse:
+        batches=json.loads((PRIVATE/'batches.json').read_text())
+        summary=json.loads((PRIVATE/'summary.json').read_text())
+        if 'snapshot_sha256' in summary:
+            assert summary['snapshot_sha256']==hashlib.sha256((PRIVATE/'snapshot.db').read_bytes()).hexdigest(), '快照已变化，请重新准备批次'
+    else: batches=real_batches() if mode=='real' else case_batches()
     template=ASSET.read_text(); fingerprint=hashlib.sha256(template.encode()).hexdigest()
     today=dt.datetime.now(ZONE).date(); system=template.replace('{{CALENDAR}}',shared.calendar(today))
     key=(pathlib.Path.home()/'.config/resound/deepseek.key').read_text().strip()
     out=PRIVATE/mode; out.mkdir(exist_ok=True)
     def one(i,payload):
         path=out/f'{i+1:04}.json'
-        if path.exists():
+        if path.exists() and not force:
             cached=json.loads(path.read_text())
             if cached.get('prompt_sha256')==fingerprint and cached.get('input')==payload: return i,len(cached['output']['items']),'cached'
         body={'model':'deepseek-chat','temperature':0.2,'response_format':{'type':'json_object'},'messages':[{'role':'system','content':system},{'role':'user','content':json.dumps(payload,ensure_ascii=False)}]}
@@ -112,13 +159,21 @@ def run(mode, jobs):
                     assert item['action'] in ['Placed','Lent','Returned','TakenAway']
                     assert item['action']!='Placed' or item.get('place')
                     assert item['action']!='Lent' or item.get('who')
-                dump(path,{'prompt_sha256':fingerprint,'input':payload,'output':parsed,'usage':reply.get('usage'), 'model':reply.get('model')})
+                    assert item['owner'] in ['Mine','Family','Others']
+                    assert isinstance(item['explicit'],bool) and isinstance(item['confident'],bool)
+                    assert item['knownId'] is None or item['knownId'] in {v['id'] for v in payload['known']}
+                if path.exists():
+                    prior=json.loads(path.read_text()); archive=PRIVATE/'history'/mode/prior['prompt_sha256']; archive.mkdir(parents=True,exist_ok=True)
+                    shutil.copyfile(path,archive/path.name)
+                dump(path,{'prompt_sha256':fingerprint,'input':payload,'output':parsed,'usage':reply.get('usage'), 'model':reply.get('model'),
+                    'evaluated_at':dt.datetime.now(ZONE).isoformat()})
                 return i,len(parsed['items']),'ok'
             except Exception as e:
                 if attempt==2: raise RuntimeError(f'batch {i+1} failed ({type(e).__name__})') from None
                 time.sleep(2)
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        futures=[pool.submit(one,i,p) for i,p in enumerate(batches)]
+        if selected is not None: assert all(1<=n<=len(batches) for n in selected), '批次越界'
+        futures=[pool.submit(one,i,p) for i,p in enumerate(batches) if selected is None or i+1 in selected]
         for f in as_completed(futures):
             i,count,status=f.result(); print(f'{mode} {i+1}/{len(batches)}: {count} {status}',flush=True)
     if mode=='real':
@@ -152,14 +207,20 @@ def local_snapshot(source):
 def real_report(batches,out,fingerprint):
     summary=json.loads((PRIVATE/'summary.json').read_text())
     def escape(v): return str(v).replace('|','\\|').replace('\n',' ')
+    revisions={}
+    for i,batch in enumerate(batches,1):
+        result=json.loads((out/f'{i:04}.json').read_text())
+        assert result['input']==batch, '结果与当前快照批次不符'
+        revisions.setdefault(result['prompt_sha256'],[]).append(i)
     rows=['# 寻物真实原话离线验证','',f'提示词 SHA-256 `{fingerprint}`。',
           f"窗口 {summary['from']} 至 {summary['to']}；原始 {summary['raw_lines']} 句，合格 {summary['eligible_lines']} 句，排除 {summary['excluded']} 句，共 {summary['batches']} 批。",
           '每批至多80句新原话，前20句为上文。真实数据完整性及来源见本机 private/provenance.json；该原始文件不提交。',
+          '下表合并首轮与按根因复验的受影响批次，不代表所有批次都用最终提示词重复跑过。各批次实际提示词版本：'+ '; '.join(f"{sha}: {','.join(map(str,ids))}" for sha,ids in revisions.items()),
           '', '|批次|原话id|原话|名字|动作|位置/借用人|把握|判定及理由|','|---|---|---|---|---|---|---|---|']
     count=0
     for i,batch in enumerate(batches,1):
         result=json.loads((out/f'{i:04}.json').read_text())
-        assert result['prompt_sha256']==fingerprint
+        assert result['input']==batch, '结果与当前快照批次不符'
         byid={r['id']:r for r in batch['lines']}
         for item in result['output']['items']:
             count+=1; line=byid[item['lineId']]
@@ -171,10 +232,12 @@ def real_report(batches,out,fingerprint):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--pull',action='store_true');p.add_argument('--stats',action='store_true');p.add_argument('--local-snapshot',type=pathlib.Path);p.add_argument('--run',choices=['real','cases']);p.add_argument('--jobs',type=int,default=3)
+    p.add_argument('--batches',help='只请求指定批次，如 3,8,12；其余使用原结果')
+    p.add_argument('--reuse-batches',action='store_true',help='复用本轮固定窗口/批次，不随时间重新分批')
+    p.add_argument('--force',action='store_true',help='即使有同提示词缓存也实际复验')
     a=p.parse_args()
     if a.local_snapshot: local_snapshot(a.local_snapshot)
     if a.pull:
-        shared.pull()
-        dump(PRIVATE/'provenance.json',{'kind':'adb-read-only','at':dt.datetime.now(ZONE).isoformat(),'sha256':hashlib.sha256((PRIVATE/'snapshot.db').read_bytes()).hexdigest()})
+        pull()
     if a.stats: real_batches()
-    if a.run: run(a.run,min(max(a.jobs,1),4))
+    if a.run: run(a.run,min(max(a.jobs,1),4),set(map(int,a.batches.split(','))) if a.batches else None,a.reuse_batches,a.force)

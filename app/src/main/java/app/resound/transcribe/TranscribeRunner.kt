@@ -89,7 +89,7 @@ class TranscribeRunner(
                     val distinguish = candidate.separateSpeakers ?: separateSpeakers(candidate.startAt)
                     dao.rememberSpeakers(candidate.id, distinguish)
                     val selectedProvider = if (selected != null && provider is ConfiguredAsrProvider) object : AsrProvider { override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit) = provider.recognize(selected, audio, key, beforeAudio) } else provider
-                    suspend fun recognize() = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), separateSpeakers = distinguish, pcmFile = sharedPcm?.find(File(candidate.path))), credential) {
+                    suspend fun recognize() = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), separateSpeakers = distinguish, pcmFile = sharedPcm?.find(File(candidate.path)), speakerCount = candidate.speakerCount), credential) {
                         check(dao.findSegment(candidate.id) != null)
                         reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
                         dao.reserveAudio(today(), reserved, candidate.id)
@@ -100,9 +100,9 @@ class TranscribeRunner(
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
                     val lines = result.sentences.map { line ->
                         TranscriptLineEntity(segmentId = candidate.id, startAt = candidate.startAt + line.startMillis,
-                            endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = line.speakerTag.takeIf { distinguish }, originalText = line.originalText)
+                            endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = candidate.importChannel?.takeIf { !distinguish && candidate.speakerCount != 0 }?.let { "channel:$it" } ?: line.speakerTag.takeIf { distinguish }, originalText = line.originalText)
                     }
-                    dao.findSegment(candidate.id)?.let { current -> val completed = current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = if (distinguish) null else now(), firstFailedAt = null)
+                    dao.findSegment(candidate.id)?.let { current -> val completed = current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = if (distinguish || (candidate.importChannel != null && candidate.speakerCount != 0)) null else now(), firstFailedAt = null)
                         if (current.redoPending) dao.completeRedo(completed, lines, now()) else dao.complete(completed, lines) }
                 } catch (e: Exception) {
                     error = when (e) {

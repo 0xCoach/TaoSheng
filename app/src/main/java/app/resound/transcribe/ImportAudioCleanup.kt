@@ -20,6 +20,8 @@ internal suspend fun cleanupImportedAudio(dao: TranscribeDao, now: Long, waitFor
         val file = File(segment.path)
         if (!file.exists()) continue
         val expired = now - file.lastModified() >= IMPORT_RETENTION
+        // 带类型导入需支持事后改类型重分人，片段暂存最多三天（按文件生成时间）。
+        if (!expired && segment.importRecordId != null) continue
         val completed = segment.status in setOf("Done", "Empty", "SkippedPlayback")
         val processed = segment.status != "Done" || !waitForVoiceprint || segment.voiceprintProcessedAt != null
         if (expired || (completed && processed)) {

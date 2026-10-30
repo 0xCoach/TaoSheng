@@ -90,6 +90,7 @@ class RoomPrivacyActions(
                     }
                 }
             }
+            segments.mapNotNull { it.importRecordId }.distinct().forEach { db.imports().invalidate(it) }
             for (id in events) if (!keepEvents && dao.eventLineCount(id) == 0) {
                 items += dao.deleteEventItems(id)
                 deletedEvents += dao.deleteEvent(id)

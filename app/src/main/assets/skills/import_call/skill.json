@@ -1,0 +1,57 @@
+{
+  "formatVersion": 1,
+  "id": "import_call",
+  "name": "通话记录",
+  "summary": "导入文件专用通话记录",
+  "icon": "meeting",
+  "version": 1,
+  "trigger": {
+    "type": "Manual"
+  },
+  "scope": {
+    "range": "SinceLastRun",
+    "speakers": "All",
+    "includeLines": true
+  },
+  "fields": [
+    {
+      "key": "topic",
+      "label": "谈了什么",
+      "type": "Text",
+      "hint": "谈了什么，只写原话支持的事实",
+      "required": true
+    },
+    {
+      "key": "points",
+      "label": "对方说的要点",
+      "type": "Bullets",
+      "hint": "对方说的要点，只写原话支持的事实",
+      "required": false
+    },
+    {
+      "key": "agreements",
+      "label": "约定的事",
+      "type": "Bullets",
+      "hint": "约定的事，只写原话支持的事实",
+      "required": false
+    },
+    {
+      "key": "mine",
+      "label": "我要做的",
+      "type": "Checklist",
+      "hint": "我要做的，只写原话支持的事实",
+      "required": false
+    },
+    {
+      "key": "theirs",
+      "label": "对方要做的",
+      "type": "Checklist",
+      "hint": "对方要做的，只写原话支持的事实",
+      "required": false
+    }
+  ],
+  "maxCardsPerDay": 20,
+  "push": false,
+  "order": 0,
+  "enabled": false
+}

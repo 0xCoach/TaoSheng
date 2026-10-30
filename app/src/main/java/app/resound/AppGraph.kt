@@ -96,6 +96,8 @@ object AppGraph {
     lateinit var push: app.resound.push.PushChannels
     val isPushReady: Boolean get() = ::push.isInitialized
 
+    lateinit var importKinds: app.resound.importer.ImportKinds
+    val isImportKindsReady: Boolean get() = ::importKinds.isInitialized
     lateinit var importer: app.resound.importer.AudioImporter
     val isImporterReady: Boolean get() = ::importer.isInitialized
 

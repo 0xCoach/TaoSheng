@@ -10,7 +10,7 @@ import java.io.File
 /** 所有写入和备份共用锁；先落盘，再发布 StateFlow。 */
 class SkillFiles(private val root: File, private val official: () -> List<Pair<SkillDefinition, String>>) {
     constructor(context: Context) : this(File(context.filesDir, "skills"), {
-        context.assets.list("skills").orEmpty().map { id ->
+        context.assets.list("skills").orEmpty().filterNot { it in setOf("import_meeting", "import_training", "import_call") }.map { id ->
             SkillJson.parse(context.assets.open("skills/$id/skill.json").bufferedReader().use { it.readText() }, SkillOrigin.Builtin) to
                 context.assets.open("skills/$id/prompt.md").bufferedReader().use { it.readText() }
         }
@@ -34,7 +34,7 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
     private fun overrides() = read(File(root, "overrides.json"))?.let(::JSONObject) ?: JSONObject()
     fun reload() = synchronized(fileLock) {
         definitions.clear(); mineDefaults.clear()
-        official().sortedBy { it.first.order }.forEach { definitions[it.first.skill.id] = it }
+        official().filterNot { it.first.skill.id in setOf("import_meeting", "import_training", "import_call") }.sortedBy { it.first.order }.forEach { definitions[it.first.skill.id] = it }
         File(root, "mine").listFiles()?.filter { it.isDirectory && SkillJson.validKey(it.name) }?.sortedBy { it.name }?.forEach { dir ->
             // 单个损坏的自建技能不能阻止 App 启动；不覆盖损坏文件。
             runCatching {

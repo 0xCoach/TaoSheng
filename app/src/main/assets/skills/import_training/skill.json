@@ -1,0 +1,57 @@
+{
+  "formatVersion": 1,
+  "id": "import_training",
+  "name": "培训笔记",
+  "summary": "导入文件专用培训笔记",
+  "icon": "meeting",
+  "version": 1,
+  "trigger": {
+    "type": "Manual"
+  },
+  "scope": {
+    "range": "SinceLastRun",
+    "speakers": "All",
+    "includeLines": true
+  },
+  "fields": [
+    {
+      "key": "topic",
+      "label": "主题",
+      "type": "Text",
+      "hint": "主题，只写原话支持的事实",
+      "required": true
+    },
+    {
+      "key": "points",
+      "label": "要点",
+      "type": "Bullets",
+      "hint": "要点，只写原话支持的事实",
+      "required": false
+    },
+    {
+      "key": "knowledge",
+      "label": "知识点",
+      "type": "Bullets",
+      "hint": "知识点，只写原话支持的事实",
+      "required": false
+    },
+    {
+      "key": "practice",
+      "label": "练习/作业",
+      "type": "Checklist",
+      "hint": "练习/作业，只写原话支持的事实",
+      "required": false
+    },
+    {
+      "key": "quotes",
+      "label": "讲师强调的话",
+      "type": "Quotes",
+      "hint": "讲师强调的话，只写原话支持的事实",
+      "required": false
+    }
+  ],
+  "maxCardsPerDay": 20,
+  "push": false,
+  "order": 0,
+  "enabled": false
+}

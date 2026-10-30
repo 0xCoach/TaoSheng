@@ -13,7 +13,7 @@ import java.time.ZoneId
 /** 分卷只保存数据，不执行备份中的 SQL；列名、表名始终由当前 App 决定。 */
 internal object DayVolumeRows {
     val dated = linkedMapOf(
-        "segments" to "startAt", "transcript_lines" to "startAt", "memory_events" to "startAt",
+        "import_records" to "startAt", "segments" to "startAt", "transcript_lines" to "startAt", "memory_events" to "startAt",
         "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
         "ask_conversations" to "createdAt", "ask_messages" to "at",
         "asr_attempts" to "at", "asr_usage" to "day", "llm_usage_v2" to "day", "skill_runs" to "at",

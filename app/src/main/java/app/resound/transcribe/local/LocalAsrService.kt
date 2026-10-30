@@ -83,7 +83,7 @@ class LocalAsrService : Service() {
             } else readLocalAudio(request.data.getString("path"), filesDir, cacheDir, AsrAudioReader(cacheDir)::readPcm) }
             phase="speakers"
             val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
-            val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else timed("Diarize") { diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}} }
+            val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else timed("Diarize") { diarizer.turns(pcm, request.data.getInt("speakerCount", -1)){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}} }
             speakerDecision=if(separateSpeakers)diarizer.lastDecision else "关闭"
             if(request.id in cancelled)return
             phase="asr"
@@ -91,7 +91,7 @@ class LocalAsrService : Service() {
             val rec=timed("ModelLoad") { model(backend) }
             val chunks=PauseChunks.split(pcm,turns)
             val sentences=TimedSentences()
-            val speakers=separateSpeakers && LocalModels.speakersEnabled(this)
+            val speakers=separateSpeakers && (request.data.getInt("speakerCount", -1) == 2 || LocalModels.speakersEnabled(this))
             timed("Recognize") {
             for((index,chunk) in chunks.withIndex()){
                 currentCoroutineContext().ensureActive()

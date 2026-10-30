@@ -131,7 +131,7 @@ abstract class TranscribeDao {
     abstract suspend fun finishEnvSkip(id: Long, at: Long): Int
     @Query("UPDATE segments SET separateSpeakers = :on WHERE id = :id AND separateSpeakers IS NULL")
     abstract suspend fun rememberSpeakers(id: Long, on: Boolean)
-    @Query("SELECT id FROM segments WHERE id IN (:ids) AND separateSpeakers = 0")
+    @Query("SELECT id FROM segments WHERE id IN (:ids) AND separateSpeakers = 0 AND (importChannel IS NULL OR speakerCount = 0)")
     abstract suspend fun unseparated(ids: List<Long>): List<Long>
     @Update abstract suspend fun update(row: SegmentEntity)
     @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun findSegment(id: Long): SegmentEntity?

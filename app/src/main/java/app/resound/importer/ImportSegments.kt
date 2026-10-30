@@ -13,7 +13,7 @@ import java.nio.ByteOrder
 internal fun importStartAt(epoch: Long, sample: Long) = epoch + sample * 1000 / CaptureTuning.SAMPLE_RATE
 
 /** VAD/切段只持有前滚；完整片段写 PCM 暂存，再复用录音编码器。 */
-internal class ImportSegments(private val folder: File, private val id: String, private val epoch: Long) : SpeechSegmenter.Sink, AutoCloseable {
+internal class ImportSegments(private val folder: File, private val id: String, private val epoch: Long, private val record: ImportRecordRow? = null, private val channel: Int? = null) : SpeechSegmenter.Sink, AutoCloseable {
     internal data class Piece(val pcm: File, val start: Long, val end: Long, val index: Int)
     val ready = ArrayDeque<Piece>()
     private var output: OutputStream? = null
@@ -46,8 +46,9 @@ internal class ImportSegments(private val folder: File, private val id: String, 
                 // 重启重放时按导入 ID + 段号幂等，已转写且删除的音频也不会重新生成。
                 if (!db.transcribe().hasImportPath(base.path + ".ogg", base.path + ".m4a")) {
                     val audio = SegmentEncoder.encode(piece.pcm, base)
-                    db.capture().segment(SegmentEntity(startAt = piece.start, endAt = piece.end, sourceId = "import",
-                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name, separateSpeakers = if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.effectiveSeparateSpeakers(piece.start) else null))
+                    db.capture().segment(SegmentEntity(startAt = piece.start, endAt = piece.end, sourceId = "import", importRecordId = record?.id, importChannel = channel,
+                        speakerCount = record?.let { ImportKindPolicy.speakers(ImportKind.valueOf(it.kind), it.byChannel) },
+                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name, separateSpeakers = if (record != null) ImportKindPolicy.separate(ImportKind.valueOf(record.kind), record.byChannel) else if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.effectiveSeparateSpeakers(piece.start) else null))
                 }
                 saved++
             } catch (e: Exception) {

@@ -13,8 +13,8 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 
 internal class ImportFailure(message: String) : Exception(message)
-internal data class SharedAudio(val name: String, val modified: Long?)
-internal data class AudioMetadata(val duration: Long, val date: String?)
+internal data class SharedAudio(val name: String, val modified: Long?, val source: String = "")
+internal data class AudioMetadata(val duration: Long, val date: String?, val channels: Int = 1)
 
 internal fun suggestedStart(date: String?, modified: Long?, duration: Long): Long? {
     val recorded = date?.let { value ->
@@ -48,7 +48,7 @@ internal class ImportMedia(private val context: Context) {
                 }
             }
         } }
-        return SharedAudio(name, modified)
+        return SharedAudio(name, modified, Uri.decode(uri.toString()))
     }
     fun inspect(file: File): AudioMetadata {
         val extractor = MediaExtractor()
@@ -68,7 +68,7 @@ internal class ImportMedia(private val context: Context) {
                 }
             } finally { retriever.release() }
             if (duration <= 0) throw ImportFailure("暂不支持这种格式")
-            return AudioMetadata(duration, date)
+            return AudioMetadata(duration, date, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
         } catch (e: ImportFailure) { throw e }
         catch (_: Exception) { throw ImportFailure("暂不支持这种格式") }
         finally { extractor.release() }
@@ -76,7 +76,7 @@ internal class ImportMedia(private val context: Context) {
 }
 
 /** 跨 buffer 保持相位和最后一个样本；按声道平均，线性插值到 16 kHz。 */
-internal class StreamingResampler(private val rate: Int, private val channels: Int) {
+internal class StreamingResampler(private val rate: Int, private val channels: Int, private val selectedChannel: Int? = null) {
     init { require(rate > 0 && channels > 0) }
     private var inputIndex = -1L
     private var outputIndex = 0L
@@ -86,9 +86,9 @@ internal class StreamingResampler(private val rate: Int, private val channels: I
     fun accept(samples: ShortArray): ShortArray {
         val output = ArrayList<Short>()
         samples.forEach { sample ->
-            sum += sample
+            if (selectedChannel == null || channel == selectedChannel) sum += sample
             if (++channel == channels) {
-                val mono = sum / channels
+                val mono = if (selectedChannel == null) sum / channels else sum
                 inputIndex++
                 while (outputIndex * rate.toLong() <= inputIndex * 16000L) {
                     val position = outputIndex * rate.toDouble() / 16000
@@ -112,7 +112,7 @@ internal class StreamingResampler(private val rate: Int, private val channels: I
 }
 
 internal class ImportDecoder {
-    suspend fun decode(file: File, consume: suspend (ShortArray) -> Unit) {
+    suspend fun decode(file: File, channel: Int? = null, maxMillis: Long? = null, observe: (ShortArray, Int) -> Unit = { _, _ -> }, consume: suspend (ShortArray) -> Unit) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
@@ -127,8 +127,9 @@ internal class ImportDecoder {
             decoder.configure(format, null, null, 0); decoder.start()
             var rate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-            var resampler = StreamingResampler(rate, channels)
+            var resampler = StreamingResampler(rate, channels, channel)
             var encoding = AudioFormat.ENCODING_PCM_16BIT
+            var decodedFrames = 0L
             var inputDone = false
             var outputDone = false
             val info = MediaCodec.BufferInfo()
@@ -155,7 +156,7 @@ internal class ImportDecoder {
                     val nextChannels = out.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                     if (nextRate != rate || nextChannels != channels) {
                         consume(resampler.finish()); rate = nextRate; channels = nextChannels
-                        resampler = StreamingResampler(rate, channels)
+                        resampler = StreamingResampler(rate, channels, channel)
                     }
                     encoding = if (out.containsKey(MediaFormat.KEY_PCM_ENCODING)) out.getInteger(MediaFormat.KEY_PCM_ENCODING) else AudioFormat.ENCODING_PCM_16BIT
                     if (encoding !in setOf(AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_FLOAT)) throw ImportFailure("暂不支持这种格式")
@@ -168,9 +169,12 @@ internal class ImportDecoder {
                             val samples = if (encoding == AudioFormat.ENCODING_PCM_FLOAT) ShortArray(info.size / 4) {
                                 (out.float.coerceIn(-1f, 1f) * 32767).toInt().toShort()
                             } else ShortArray(info.size / 2) { out.short }
+                            require(channel == null || channel in 0 until channels) { "声道不存在" }
+                            observe(samples, channels)
+                            decodedFrames += samples.size / channels
                             consume(resampler.accept(samples))
                         }
-                        outputDone = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                        outputDone = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0 || (maxMillis != null && decodedFrames * 1000 / rate >= maxMillis)
                     } finally { decoder.releaseOutputBuffer(index, false); lastOutput = android.os.SystemClock.elapsedRealtime() }
                 }
             }

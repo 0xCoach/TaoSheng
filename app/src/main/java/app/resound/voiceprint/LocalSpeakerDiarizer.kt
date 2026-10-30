@@ -11,23 +11,24 @@ import java.io.File
 class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
     private var model: OfflineSpeakerDiarization? = null
     private var stamp: Long = -1
+    private var clusters = -1
     private var precheckEmbedding: CampPlusEmbedding? = null
     var lastDecision: String = "完整"; private set
-    fun turns(pcm: ShortArray, progress: (Int,Int) -> Unit): List<SpeakerTurns.Turn> {
+    fun turns(pcm: ShortArray, speakerCount: Int = -1, progress: (Int,Int) -> Unit): List<SpeakerTurns.Turn> {
         lastDecision = "完整"
         val spec=LocalModels.speakers
-        if(!LocalModels.speakersEnabled(context)) {
+        if(speakerCount != 2 && !LocalModels.speakersEnabled(context)) {
             lastDecision = "关闭"
             return SpeakerTurns.partition(emptyList(),pcm.size,Int.MAX_VALUE)
         }
         val dir=LocalModels.directory(context,spec)
         check(ModelVerification.ensure(dir,spec))
-        if (SpeakerPrecheck.ENABLED && confidentSingle(pcm)) {
+        if (speakerCount < 1 && SpeakerPrecheck.ENABLED && confidentSingle(pcm)) {
             lastDecision = "跳过"
             return listOf(SpeakerTurns.Turn(0, pcm.size, 0))
         }
         val segmentation=File(dir,spec.modelName)
-        if(model==null || stamp!=segmentation.lastModified()) {
+        if(model==null || stamp!=segmentation.lastModified() || clusters != speakerCount) {
             model?.release(); model = null
             val embedding=File(context.cacheDir,"speaker-campplus.onnx")
             context.assets.open("voiceprint/campplus.onnx").use { input -> embedding.outputStream().use { input.copyTo(it) } }
@@ -36,8 +37,8 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
                     // 分人只能跑在 CPU 上；按核数用一半（1～4 个），给录音和界面留余量
                     segmentation=OfflineSpeakerSegmentationModelConfig(pyannote=OfflineSpeakerSegmentationPyannoteModelConfig(model=segmentation.path),numThreads=VoiceprintThreads.count),
                     embedding=SpeakerEmbeddingExtractorConfig(model=embedding.path,numThreads=VoiceprintThreads.count),
-                    clustering=FastClusteringConfig(numClusters=-1,threshold=0.7f),minDurationOn=0.3f,minDurationOff=0.3f))
-                stamp=segmentation.lastModified()
+                    clustering=FastClusteringConfig(numClusters=speakerCount,threshold=0.7f),minDurationOn=0.3f,minDurationOff=0.3f))
+                stamp=segmentation.lastModified(); clusters=speakerCount
             } finally { embedding.delete() }
         }
         val result=model!!.processWithCallback(FloatArray(pcm.size){pcm[it]/32768f},object:(Int,Int,Long)->Int {
@@ -74,6 +75,6 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
     }
     override fun close() {model?.release();model=null;stamp=-1;precheckEmbedding?.close();precheckEmbedding=null}
     companion object {
-        fun turns(context:Context,pcm:ShortArray,progress:(Int,Int)->Unit)=LocalSpeakerDiarizer(context).use{it.turns(pcm,progress)}
+        fun turns(context:Context,pcm:ShortArray,progress:(Int,Int)->Unit)=LocalSpeakerDiarizer(context).use{it.turns(pcm, progress = progress)}
     }
 }

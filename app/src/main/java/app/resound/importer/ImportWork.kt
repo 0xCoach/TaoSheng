@@ -31,39 +31,63 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
             while (true) {
                 val entry = importer.next() ?: break
                 val id = entry.pending.id
+                val recordKey = entry.recordKey ?: id
                 val temporary = File(applicationContext.cacheDir, "import-pcm/$id")
+                var record: ImportRecordRow? = app.database.imports().byPending(recordKey)
                 var segments = 0
                 var error: String? = null
                 try {
+                    if (record == null) {
+                        val row = ImportRecordRow(pendingId = recordKey, fileName = entry.recordName ?: entry.pending.info.displayName,
+                            kind = (entry.kind ?: ImportKind.Normal).name, startAt = entry.recordStart ?: requireNotNull(entry.startAt),
+                            endAt = entry.recordEnd ?: (requireNotNull(entry.startAt) + entry.pending.info.durationMillis), byChannel = false)
+                        app.database.imports().insert(row)
+                        record = requireNotNull(app.database.imports().byPending(recordKey))
+                    }
                     if (importer.isCancelled(id)) throw ImportFailure("已取消导入")
                     setForeground(foreground(entry))
                     importer.update(id, 0, 0)
                     if (!importer.file(id).isFile) throw ImportFailure("临时录音已被系统清理，请重新分享")
                     // 进程中断可能留下半段，重放原缓存时从头生成。
                     temporary.deleteRecursively()
-                    ImportSegments(temporary, id, requireNotNull(entry.startAt)).use { sink ->
-                        val segmenter = SpeechSegmenter(sink)
-                        var samples = 0L
-                        SileroVad(applicationContext).use { vad ->
-                            ImportDecoder().decode(importer.file(id)) { pcm ->
-                                currentCoroutineContext().ensureActive()
-                                if (importer.isCancelled(id)) throw ImportFailure("已取消导入")
-                                if (pcm.isNotEmpty()) {
-                                    vad.accept(pcm) { frame, speech, _ -> segmenter.accept(frame, speech) }
-                                    samples += pcm.size
-                                    segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"), entry.asr)
-                                    importer.update(id, (samples * 100 / 16 / entry.pending.info.durationMillis).toInt().coerceIn(0, 99), segments)
+                    if (app.database.imports().segments(record!!.id).isEmpty()) {
+                        val byChannel = record!!.kind == ImportKind.Call.name && importer.groupEntries(recordKey).all { it.channels == 2 && importer.dual(it.pending.id) }
+                        record = record!!.copy(byChannel = byChannel)
+                        app.database.imports().update(record!!)
+                    }
+                    val channels = if (record!!.byChannel) listOf(0, 1) else listOf(null)
+                    for ((channelIndex, channel) in channels.withIndex()) {
+                        val pieceId = if (channel == null) id else "$id-ch$channel"
+                        ImportSegments(temporary, pieceId, requireNotNull(entry.startAt), record, channel).use { sink ->
+                            val segmenter = SpeechSegmenter(sink)
+                            var samples = 0L
+                            SileroVad(applicationContext).use { vad ->
+                                ImportDecoder().decode(importer.file(id), channel = channel) { pcm ->
+                                    currentCoroutineContext().ensureActive()
+                                    if (importer.isCancelled(id)) throw ImportFailure("已取消导入")
+                                    if (pcm.isNotEmpty()) {
+                                        vad.accept(pcm) { frame, speech, _ -> segmenter.accept(frame, speech) }
+                                        samples += pcm.size
+                                        segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"), entry.asr)
+                                        importer.update(id, ((channelIndex * 100 + samples * 100 / 16 / entry.pending.info.durationMillis) / channels.size).toInt().coerceIn(0, 99), segments)
+                                    }
                                 }
+                                vad.finish { frame, speech, _ -> segmenter.accept(frame, speech) }
                             }
-                            vad.finish { frame, speech, _ -> segmenter.accept(frame, speech) }
+                            segmenter.finish()
+                            segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"), entry.asr)
                         }
-                        segmenter.finish()
-                        segments += sink.save(app.database, File(applicationContext.filesDir, "import-segments"), entry.asr)
                     }
                     importer.update(id, 100, segments)
                 } catch (e: CancellationException) { throw e }
                 catch (e: Exception) { error = (e as? ImportFailure)?.message ?: "导入失败，请检查空间或换个音频格式重试" }
                 finally { temporary.deleteRecursively() }
+                record?.let { old -> app.database.imports().get(old.id)?.let { current ->
+                    val failure = error ?: current.error
+                    app.database.imports().update(current.copy(ingestComplete = !importer.groupRemaining(recordKey, id),
+                        status = if (failure == null) "Transcribing" else "Failed", error = failure,
+                        summaryRequested = failure == null))
+                } }
                 importer.finish(id, error)
                 app.runTranscriptionNow() // 部分成功后失败或取消的片段也进入正常队列。
             }

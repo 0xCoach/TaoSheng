@@ -5,7 +5,7 @@ import androidx.room.*
 import androidx.room.migration.Migration
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "segments", indices = [Index("startAt"), Index(value = ["path"], unique = true)])
+@Entity(tableName = "segments", indices = [Index("startAt"), Index(value = ["path"], unique = true), Index("importRecordId")], foreignKeys = [ForeignKey(entity = app.resound.importer.ImportRecordRow::class, parentColumns = ["id"], childColumns = ["importRecordId"], onDelete = ForeignKey.SET_NULL)])
 data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val startAt: Long, val endAt: Long,
     val sourceId: String, val path: String, val sizeBytes: Long, val status: String = "Pending",
     @ColumnInfo(defaultValue = "0") val attempts: Int = 0,
@@ -13,7 +13,7 @@ data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     val logId: String? = null, @ColumnInfo(defaultValue = "0") val sentMillis: Long = 0, val voiceprintProcessedAt: Long? = null,
     @ColumnInfo(defaultValue = "0") val playbackMillis: Long = 0, val firstFailedAt: Long? = null, val asrSource: String? = null, @ColumnInfo(defaultValue = "0") val redoPending: Boolean = false,
     /** null 为升级前尚未确定；首次转写按录音开始时刻固化。 */
-    val separateSpeakers: Boolean? = null)
+    val separateSpeakers: Boolean? = null, val importRecordId: Long? = null, val importChannel: Int? = null, val speakerCount: Int? = null)
 @Entity(tableName = "watchdog", indices = [Index("at")])
 data class EventEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val at: Long, val type: String,
     val detail: String?, val batteryPercent: Int?, val charging: Boolean?, val gapStart: Long? = null, val gapEnd: Long? = null)
@@ -50,7 +50,7 @@ interface CaptureDao {
     fun batteries(start: Long, end: Long): Flow<List<BatteryEntity>>
 }
 
-@Database(entities = [app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
+@Database(entities = [app.resound.importer.ImportRecordRow::class, app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,
     MemoryEventEntity::class, MemoryItemEntity::class, LlmUsageV2Entity::class, AppPowerEntity::class,
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
@@ -58,6 +58,7 @@ interface CaptureDao {
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
     app.resound.envsound.EnvSoundRow::class, app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
+    abstract fun imports(): app.resound.importer.ImportRecordDao
     internal abstract fun redoData(): app.resound.redo.RedoDao
     abstract fun envSound(): app.resound.envsound.EnvSoundDao
     internal abstract fun push(): app.resound.push.PushDao
@@ -72,7 +73,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 25
+        const val VERSION = 26
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -271,9 +272,21 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("UPDATE segments SET separateSpeakers = 1 WHERE status IN ('Done', 'Empty')")
             }
         }
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25)
+        val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS import_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, pendingId TEXT NOT NULL, fileName TEXT NOT NULL, kind TEXT NOT NULL, startAt INTEGER NOT NULL, endAt INTEGER NOT NULL, byChannel INTEGER NOT NULL, status TEXT NOT NULL, error TEXT, cardId INTEGER, ingestComplete INTEGER NOT NULL, revision INTEGER NOT NULL, summaryRequested INTEGER NOT NULL, speakersReady INTEGER NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX index_import_records_pendingId ON import_records(pendingId)")
+                db.execSQL("CREATE INDEX index_import_records_startAt ON import_records(startAt)")
+                db.execSQL("ALTER TABLE segments ADD COLUMN importRecordId INTEGER REFERENCES import_records(id) ON DELETE SET NULL")
+                db.execSQL("ALTER TABLE segments ADD COLUMN importChannel INTEGER")
+                db.execSQL("ALTER TABLE segments ADD COLUMN speakerCount INTEGER")
+                db.execSQL("CREATE INDEX index_segments_importRecordId ON segments(importRecordId)")
+                app.resound.importer.ImportRecordSchema.install(db)
+            }
+        }
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
-            .addCallback(app.resound.search.SearchIndex.callback).build()
+            .addCallback(app.resound.search.SearchIndex.callback).addCallback(app.resound.importer.ImportRecordSchema.callback).build()
     }
 }

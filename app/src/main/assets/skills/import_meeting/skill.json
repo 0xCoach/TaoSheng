@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "import_meeting",
+  "name": "会议纪要",
+  "summary": "导入文件专用会议纪要",
+  "icon": "meeting",
+  "version": 1,
+  "trigger": {
+    "type": "Manual"
+  },
+  "scope": {
+    "range": "SinceLastRun",
+    "speakers": "All",
+    "includeLines": true
+  },
+  "fields": [
+    {
+      "key": "topic",
+      "label": "议题",
+      "type": "Text",
+      "hint": "具体在讨论什么",
+      "required": true
+    },
+    {
+      "key": "conclusion",
+      "label": "结论先行",
+      "type": "Paragraph",
+      "hint": "先写有依据的结论，未定则说明未定",
+      "required": true
+    },
+    {
+      "key": "points",
+      "label": "分点要点",
+      "type": "Bullets",
+      "hint": "按议题归纳，不逐句复述",
+      "required": false
+    },
+    {
+      "key": "decisions",
+      "label": "决定",
+      "type": "Bullets",
+      "hint": "只写明确达成的决定",
+      "required": false
+    },
+    {
+      "key": "actions",
+      "label": "行动项",
+      "type": "Checklist",
+      "hint": "写清谁做什么，别人的行动不是我的待办",
+      "required": false
+    },
+    {
+      "key": "people",
+      "label": "参与的人",
+      "type": "Tags",
+      "hint": "只列有依据的参与者，不猜人名",
+      "required": false
+    },
+    {
+      "key": "quotes",
+      "label": "关键原话",
+      "type": "Quotes",
+      "hint": "最多三条，仅提供对应行号",
+      "required": false
+    }
+  ],
+  "maxCardsPerDay": 20,
+  "push": false,
+  "order": 0,
+  "enabled": false
+}

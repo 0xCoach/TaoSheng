@@ -14,12 +14,12 @@ import java.time.ZoneId
 internal object DayVolumeRows {
     val dated = linkedMapOf(
         "import_records" to "startAt", "segments" to "startAt", "transcript_lines" to "startAt", "memory_events" to "startAt",
-        "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
+        "thing_records" to "at", "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
         "ask_conversations" to "createdAt", "ask_messages" to "at",
         "asr_attempts" to "at", "asr_usage" to "day", "llm_usage_v2" to "day", "skill_runs" to "at",
         "app_power" to "at", "battery" to "at", "heartbeats" to "at", "watchdog" to "at",
     )
-    val global = setOf("voiceprint_people", "voiceprint_samples", "voiceprint_exclusions")
+    val global = setOf("things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()
     fun canonical(value: Any?): String = when (value) {

@@ -23,6 +23,7 @@ class TranscribeRunner(
     private val ready: () -> Boolean = { true },
     private val beforeTranscribe: suspend (SegmentEntity) -> Boolean = { false },
     private val afterImport: suspend () -> Unit = {},
+    private val afterRound: () -> Unit = {},
     private val sourceReady: (TranscribeSource) -> Boolean = { true },
     private val sourceKey: (TranscribeSource) -> String = { key() },
     private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
@@ -49,6 +50,7 @@ class TranscribeRunner(
     /** true 表示仍有暂时错误，交 WorkManager 退避重试；鉴权失败立即结束本轮。 */
     suspend fun run(): Boolean {
         if (!gate.tryLock()) return false
+        var producedLines = false
         try {
             beginBatch()
             dao.recoverInterrupted(now())
@@ -106,7 +108,8 @@ class TranscribeRunner(
                             endAt = candidate.startAt + line.endMillis, text = line.text, speakerTag = candidate.importChannel?.takeIf { !distinguish && candidate.speakerCount != 0 }?.let { "channel:$it" } ?: line.speakerTag.takeIf { distinguish }, originalText = line.originalText)
                     }
                     dao.findSegment(candidate.id)?.let { current -> val completed = current.copy(status = outcome, completedAt = now(), error = null, nextRetryAt = null, logId = logId, voiceprintProcessedAt = if (distinguish || (candidate.importChannel != null && candidate.speakerCount != 0)) null else now(), firstFailedAt = null)
-                        if (current.redoPending) dao.completeRedo(completed, lines, now()) else dao.complete(completed, lines) }
+                        if (current.redoPending) dao.completeRedo(completed, lines, now()) else dao.complete(completed, lines)
+                        if (lines.isNotEmpty()) producedLines = true }
                 } catch (e: Exception) {
                     error = when (e) {
                         is CancellationException -> AsrError.Interrupted
@@ -170,7 +173,7 @@ class TranscribeRunner(
             }
             return dao.earliestRetry() != null
         } finally {
-            try { sharedPcm?.clear(); endBatch(); updateProgress(0, 0) } finally { gate.unlock() }
+            try { sharedPcm?.clear(); endBatch(); updateProgress(0, 0) } finally { gate.unlock(); if (producedLines) afterRound() }
         }
     }
     private enum class RoundDecision { Continue, Stop, Retry }

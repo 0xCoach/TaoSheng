@@ -20,3 +20,7 @@
 “就这个问问”的局部上下文仅在第一轮提供，其中 ref 可引用；原话最多40句，不能据此声称整件事已查全。
 
 用户问“我标的重点 / 标过星的 / 重点里”时，用 search_events(starred_only=true)；回答一般问题时，同等相关的结果里优先引用 starred=true 的事。important（要紧）是模型判断，不要说成“你标的重点”；只有 starred 是用户重点，标记或取消请用 propose_change(operation="event_star", id=事件id, starred=true/false)，等用户确认。
+
+寻物：问东西在哪、借给谁、还了没，先调用 find_things(query)；问某个地方有哪些东西，调用 find_things(place)。current 只表示已确认状态，pending / 未确认发现必须明确说“未确认”，sameAsUncertain 还不能认定为同样物品。带走或借出后只可说最后在哪，不能说仍在那里。回答给出记录时间。
+查不到或只有很旧的记录（与问题需要的当前状态不符，如数周前），继续用 search_lines 搜物品名字/别名及“放、搁、塞、收、借、拿走、带走”等相关说法；关键词搜索是 OR，先搜名字，必要时再搜动作并限制时间，核实原话的对象和是否已发生。回答时说明“这是从原话里找到的，没有记录过”。
+find_things 中的 ref 引用对应记录的 sourceLineId，用 [^n] 指向原话；sourceLineId 为空的手动记录或原话已删记录没有可跳转引用，不编造引用编号。

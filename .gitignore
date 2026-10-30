@@ -22,3 +22,7 @@ tools/skills-probe/__pycache__/
 *.jks
 *.keystore
 signing.properties
+
+# 寻物离线实测的只读快照、原话及模型原始响应
+tools/things-probe/private/
+tools/things-probe/__pycache__/

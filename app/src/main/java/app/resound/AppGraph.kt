@@ -37,7 +37,7 @@ object AppGraph {
     lateinit var originalAudio: app.resound.transcribe.OriginalAudio
     val isOriginalAudioReady: Boolean get() = ::originalAudio.isInitialized
 
-    // 卡 072：录音批量导出与推送到坚果云
+    // 卡 079：录音批量导出与推送到坚果云
     lateinit var recordingPacker: app.resound.recordings.RecordingPacker
     val isRecordingPackerReady: Boolean get() = ::recordingPacker.isInitialized
 
@@ -48,6 +48,10 @@ object AppGraph {
     // 卡 070：环境音识别
     lateinit var envSound: app.resound.envsound.EnvSoundRepository
     val isEnvSoundReady: Boolean get() = ::envSound.isInitialized
+
+    // 卡 079：寻物
+    lateinit var things: app.resound.things.ThingRepository
+    val isThingsReady: Boolean get() = ::things.isInitialized
 
     // 卡 056：停录时段
     lateinit var quietSchedule: app.resound.capture.QuietSchedule

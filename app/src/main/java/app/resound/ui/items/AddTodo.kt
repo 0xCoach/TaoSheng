@@ -94,6 +94,30 @@ private enum class Phase { Idle, Listening, Recognizing, Drafting }
 fun BoxScope.AddTodoHost(bottomPadding: Dp) {
     if (!AppGraph.isManualTodosReady || !AppGraph.isTodoVoiceReady) return
     val todos = AppGraph.manualTodos
+    val context = LocalContext.current
+    var result by remember { mutableStateOf<Triple<TodoDrafts, ItemOrigin, String>?>(null) }
+    AddHost(bottomPadding, AddWords("待办", HINT_SHOWN, "添加待办", "像平时说话一样写，几件事写在一起也行。",
+        "例如：明天下午三点给张总回电话，周五前把报销单交了", "生成待办卡")) { text, voice ->
+        val drafts = runCatching { todos.draft(text) }.getOrNull()
+        if (drafts == null || drafts.items.isEmpty()) Toast.makeText(context, "没能生成待办，请再试一次", Toast.LENGTH_SHORT).show()
+        else result = Triple(drafts, if (voice) ItemOrigin.Voice else ItemOrigin.Typed, text)
+    }
+    result?.let { (drafts, origin, source) ->
+        DraftSheet(drafts, source, onDismiss = { result = null }) { confirmed ->
+            todos.add(confirmed, origin, source)
+            result = null
+            Toast.makeText(context, "已添加 ${confirmed.size} 条到进行中", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+/** 添加按钮上的字：生成的是什么、提示记在哪、打字面板的标题/说明/示例/按钮 */
+internal class AddWords(val noun: String, val hintKey: String, val typeTitle: String, val typeSubtitle: String, val typeExample: String, val typeButton: String)
+
+/** 点按打字、按住说话的添加按钮；拿到文字后交给 [process]（挂起期间显示“正在生成…”），voice=true 表示是说的 */
+@Composable
+internal fun BoxScope.AddHost(bottomPadding: Dp, words: AddWords, process: suspend (text: String, voice: Boolean) -> Unit) {
+    if (!AppGraph.isTodoVoiceReady) return
     val voice = AppGraph.todoVoice
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -101,20 +125,16 @@ fun BoxScope.AddTodoHost(bottomPadding: Dp) {
     var phase by remember { mutableStateOf(Phase.Idle) }
     var cancelArmed by remember { mutableStateOf(false) }
     var typing by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<Triple<TodoDrafts, ItemOrigin, String>?>(null) }
     var startJob by remember { mutableStateOf<Job?>(null) }
     val prefs = remember { context.getSharedPreferences("ui", Context.MODE_PRIVATE) }
-    // 前几次打开待办页时在按钮旁提示用法，之后不再打扰
-    val showHint = remember { prefs.getInt(HINT_SHOWN, 0).let { prefs.edit().putInt(HINT_SHOWN, it + 1).apply(); it < 5 } }
+    // 前几次打开时在按钮旁提示用法，之后不再打扰
+    val showHint = remember { prefs.getInt(words.hintKey, 0).let { prefs.edit().putInt(words.hintKey, it + 1).apply(); it < 5 } }
 
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
-    fun draft(text: String, origin: ItemOrigin) {
+    fun draft(text: String, spoken: Boolean) {
         phase = Phase.Drafting
         scope.launch {
-            val drafts = runCatching { todos.draft(text) }.getOrNull()
-            phase = Phase.Idle
-            if (drafts == null || drafts.items.isEmpty()) toast("没能生成待办，请再试一次")
-            else result = Triple(drafts, origin, text)
+            try { process(text, spoken) } finally { phase = Phase.Idle }
         }
     }
 
@@ -122,7 +142,7 @@ fun BoxScope.AddTodoHost(bottomPadding: Dp) {
     Column(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = bottomPadding + 20.dp),
         horizontalAlignment = Alignment.End) {
         AnimatedVisibility(phase != Phase.Idle, enter = fadeIn() + scaleIn(initialScale = 0.9f), exit = fadeOut() + scaleOut(targetScale = 0.9f)) {
-            StatusCard(phase, cancelArmed, voice)
+            StatusCard(phase, cancelArmed, voice, words.noun)
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -132,7 +152,7 @@ fun BoxScope.AddTodoHost(bottomPadding: Dp) {
                 Spacer(Modifier.width(10.dp))
             }
             AddButton(listening = phase == Phase.Listening, busy = busy,
-                onTap = { if (busy) toast("正在生成待办，请稍等") else typing = true },
+                onTap = { if (busy) toast("正在生成${words.noun}，请稍等") else typing = true },
                 onHoldStart = {
                     if (busy) return@AddButton false
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -150,7 +170,7 @@ fun BoxScope.AddTodoHost(bottomPadding: Dp) {
                         if (cancel) { voice.cancel(); phase = Phase.Idle; return@launch }
                         phase = Phase.Recognizing
                         when (val r = voice.finish()) {
-                            is VoiceNoteResult.Text -> draft(r.text, ItemOrigin.Voice)
+                            is VoiceNoteResult.Text -> draft(r.text, true)
                             VoiceNoteResult.Empty -> { phase = Phase.Idle; toast("没听清，再说一次") }
                             is VoiceNoteResult.Failed -> { phase = Phase.Idle; toast(r.message) }
                         }
@@ -159,14 +179,7 @@ fun BoxScope.AddTodoHost(bottomPadding: Dp) {
         }
     }
 
-    if (typing) TypeTodoSheet(onDismiss = { typing = false }) { text -> typing = false; draft(text, ItemOrigin.Typed) }
-    result?.let { (drafts, origin, source) ->
-        DraftSheet(drafts, source, onDismiss = { result = null }) { confirmed ->
-            todos.add(confirmed, origin, source)
-            result = null
-            toast("已添加 ${confirmed.size} 条到进行中")
-        }
-    }
+    if (typing) TypeSheet(words, onDismiss = { typing = false }) { text -> typing = false; draft(text, false) }
 }
 
 private const val HINT_SHOWN = "addTodoHintShown"
@@ -226,7 +239,7 @@ private val CANCELLED = Any()
 
 /** 按钮上方的小卡：听的时候显示波形，识别和生成时显示进度 */
 @Composable
-private fun StatusCard(phase: Phase, cancelArmed: Boolean, voice: TodoVoiceInput) {
+private fun StatusCard(phase: Phase, cancelArmed: Boolean, voice: TodoVoiceInput, noun: String) {
     val c = Rs.colors
     val level by voice.level.collectAsState()
     var seconds by remember(phase) { mutableIntStateOf(0) }
@@ -242,7 +255,7 @@ private fun StatusCard(phase: Phase, cancelArmed: Boolean, voice: TodoVoiceInput
                 BreathingWave(level, active = true, recording = true, modifier = Modifier.fillMaxWidth().height(36.dp),
                     tint = if (cancelArmed) Color.White else null)
                 Spacer(Modifier.height(8.dp))
-                Text(if (cancelArmed) "松开取消" else "正在听，松开生成待办", style = RsType.subhead, color = fg)
+                Text(if (cancelArmed) "松开取消" else "正在听，松开生成$noun", style = RsType.subhead, color = fg)
                 Text(when {
                     cancelArmed -> "滑回去可继续说"
                     seconds >= 50 -> "还能说 ${(60 - seconds).coerceAtLeast(0)} 秒"
@@ -250,28 +263,28 @@ private fun StatusCard(phase: Phase, cancelArmed: Boolean, voice: TodoVoiceInput
                 }, style = RsType.caption, color = if (cancelArmed) Color.White.copy(alpha = 0.8f) else c.textTertiary)
             }
             Phase.Recognizing -> Text("正在识别…", style = RsType.subhead, color = fg)
-            Phase.Drafting -> Text("正在生成待办…", style = RsType.subhead, color = fg)
+            Phase.Drafting -> Text("正在生成$noun…", style = RsType.subhead, color = fg)
             Phase.Idle -> {}
         }
     }
 }
 
-/** 打字添加：写一句话，交给模型拆成待办卡 */
+/** 打字添加：写一句话，交给模型拆成卡 */
 @Composable
-private fun TypeTodoSheet(onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
+private fun TypeSheet(words: AddWords, onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
     val c = Rs.colors
     var text by remember { mutableStateOf("") }
-    RsSheet("添加待办", "像平时说话一样写，几件事写在一起也行。", onDismiss = onDismiss) {
+    RsSheet(words.typeTitle, words.typeSubtitle, onDismiss = onDismiss) {
         BasicTextField(text, { text = it.take(500) }, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
             minLines = 3,
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 16.dp, vertical = 14.dp),
             decorationBox = { inner ->
                 Box {
-                    if (text.isEmpty()) Text("例如：明天下午三点给张总回电话，周五前把报销单交了", style = RsType.body, color = c.textTertiary)
+                    if (text.isEmpty()) Text(words.typeExample, style = RsType.body, color = c.textTertiary)
                     inner()
                 }
             })
-        ActionButton("生成待办卡", ActionKind.Primary, enabled = text.isNotBlank()) { onSubmit(text.trim()) }
+        ActionButton(words.typeButton, ActionKind.Primary, enabled = text.isNotBlank()) { onSubmit(text.trim()) }
     }
 }
 

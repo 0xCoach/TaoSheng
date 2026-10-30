@@ -64,6 +64,7 @@ private fun purposeColor(p: UsagePurpose): Color = when (p) {
     UsagePurpose.Review -> Color(0xFFC8624A)
     UsagePurpose.Skill -> Color(0xFF6E5FA6)
     UsagePurpose.Draft -> Color(0xFF3F8F6F)
+    UsagePurpose.Things -> Color(0xFF3A8FB7)
     UsagePurpose.Other -> Color(0xFFB0A89E)
 }
 

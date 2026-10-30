@@ -222,5 +222,26 @@
         "additionalProperties": false
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "find_things",
+      "description": "查物品当前状态、最后位置和最近5条已确认记录，同时返回未确认发现。query按物品名字、别名、位置、借给谁查；place按位置反向查。没有结果或只有很旧记录时继续search_lines查原话。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "物品名称或别名，可不填"
+          },
+          "place": {
+            "type": "string",
+            "description": "位置，例如书柜，可不填"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
   }
 ]

@@ -87,6 +87,8 @@ class MainActivity : ComponentActivity() {
             return
         }
         val open = intent?.getStringExtra("open")
+        // 寻物“已记”通知：回到今天，确认卡就在待确认里
+        if (open == "things_pending") { tabRequest = 0 to System.nanoTime(); return }
         if (open != "review" && open != "day") return
         dayOnly = open == "day"
         openReview = intent.getStringExtra("date")?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()

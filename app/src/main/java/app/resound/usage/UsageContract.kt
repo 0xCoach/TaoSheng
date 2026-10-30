@@ -10,7 +10,7 @@ import java.time.LocalDate
 
 /** 大模型用在哪 */
 enum class UsagePurpose(val title: String) {
-    Digest("整理"), Ask("问问"), Review("回顾"), Skill("技能"), Draft("智能生成"),
+    Digest("整理"), Ask("问问"), Review("回顾"), Skill("技能"), Draft("智能生成"), Things("寻物"),
 
     /** 分用途记录之前的老数据，以及其他零散调用 */
     Other("其他"),

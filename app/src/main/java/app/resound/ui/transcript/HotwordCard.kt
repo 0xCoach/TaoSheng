@@ -94,6 +94,6 @@ fun HotwordCard(settings: HotwordSettings) {
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text("手机本地转写暂不支持热词，只对云端转写和整理生效。", style = RsType.caption, color = c.textTertiary)
+        Text("豆包云端转写、手机本地转写和整理都会用到热词。", style = RsType.caption, color = c.textTertiary)
     }
 }

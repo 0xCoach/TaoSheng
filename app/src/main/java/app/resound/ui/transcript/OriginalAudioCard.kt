@@ -19,6 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -76,13 +80,35 @@ private fun OriginalAudioSettings(audio: OriginalAudio) {
     var clearing by remember { mutableStateOf(false) }
     Text("保留几天", style = RsType.body, color = c.text)
     Text("点原话可以听原声；超过这些天的原声会删掉，原话文字一直保留", style = RsType.caption, color = c.textSecondary)
+    // 改短先算一下会删多少，确认后再改；改长直接生效
+    fun choose(d: Int) { if (d == days) return; if (d < days) scope.launch { shorten = d to audio.previewTrim(d) } else audio.setRetentionDays(d) }
+    val custom = days !in RETENTION_DAY_OPTIONS
+    var editing by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        app.resound.ui.skills.Segments(RETENTION_DAY_OPTIONS.map { "$it 天" }, RETENTION_DAY_OPTIONS.indexOf(days).coerceAtLeast(0)) { i ->
-            val d = RETENTION_DAY_OPTIONS[i]
-            if (d == days) return@Segments
-            // 改短先算一下会删多少，确认后再改；改长直接生效
-            if (d < days) scope.launch { shorten = d to audio.previewTrim(d) } else audio.setRetentionDays(d)
+        app.resound.ui.skills.Segments(RETENTION_DAY_OPTIONS.map { "$it 天" } + (if (custom) "$days 天" else "自定义"),
+            if (editing || custom) RETENTION_DAY_OPTIONS.size else RETENTION_DAY_OPTIONS.indexOf(days)) { i ->
+            if (i == RETENTION_DAY_OPTIONS.size) editing = true else { editing = false; choose(RETENTION_DAY_OPTIONS[i]) }
         }
+    }
+    if (editing) {
+        var input by remember { mutableStateOf(if (custom) days.toString() else "") }
+        val n = input.toIntOrNull()
+        val valid = n != null && n in app.resound.transcribe.RETENTION_DAY_RANGE
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.foundation.text.BasicTextField(input, { v -> input = v.filter(Char::isDigit).take(3) }, singleLine = true,
+                textStyle = RsType.body.copy(color = c.text),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 11.dp),
+                decorationBox = { inner -> Box { if (input.isEmpty()) Text("填天数", style = RsType.body, color = c.textTertiary); inner() } })
+            Text(" 天", style = RsType.body, color = c.textSecondary)
+            Spacer(Modifier.width(10.dp))
+            Text("确定", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (valid) Color.White else c.textTertiary,
+                modifier = Modifier.clip(CircleShape).background(if (valid) c.accent else c.background)
+                    .springClick { if (valid) { editing = false; choose(n!!) } }.padding(horizontal = 16.dp, vertical = 9.dp))
+        }
+        Text(if (input.isEmpty() || valid) "可填 1～365 天；天数越多，占用的手机空间越大" else "请填 1～365 之间的数",
+            style = RsType.caption, color = if (input.isEmpty() || valid) c.textTertiary else c.warning)
     }
     Text("已删除的原声无法恢复，改长只对以后的录音有效", style = RsType.caption, color = c.textTertiary)
     Row(verticalAlignment = Alignment.CenterVertically) {

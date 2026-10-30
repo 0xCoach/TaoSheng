@@ -9,8 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
  * 改签名需双方确认。
  */
 
-/** 原声保留时长可选值（天），默认 [DEFAULT_RETENTION_DAYS] */
+/** 原声保留时长常用值（天），默认 [DEFAULT_RETENTION_DAYS]；也可自定义 [RETENTION_DAY_RANGE] 内任意天数 */
 val RETENTION_DAY_OPTIONS = listOf(1, 3, 7, 30)
+val RETENTION_DAY_RANGE = 1..365
 const val DEFAULT_RETENTION_DAYS = 3
 
 /** 一段录音的原声位置；[startAt] 是录音开头的绝对时间，句子偏移 = line.startAt - startAt */

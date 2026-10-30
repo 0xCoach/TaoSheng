@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.13-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/TaoSheng-v0.2.13-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.14-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -129,11 +129,13 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.2.13** (2026-10-29, latest): [TaoSheng-v0.2.13-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/TaoSheng-v0.2.13-arm64.apk) (~97 MB) — export recordings (merge segments into one M4A with transcript and subtitles, preview before saving, runs in the background); new player (lyric-style subtitles, previous/next segment, speed); redesigned daily rhythm; timeline filters and batch actions; hotword correction for on-device transcription; recording quiet hours; LAN self-hosted models; fixes for false push errors and more.
+**v0.2.14** (2026-10-30, latest): [TaoSheng-v0.2.14-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk) (~98 MB) — faster transcription (quicker Doubao, far less traffic); class mode and a speaker-separation switch; imported recordings typed as meeting / training / call·interview / normal with automatic notes; multiple model providers with one-tap switching and balance alerts; to-dos show the original words and play the audio; easier ambient-sound tags; proper formatting in Ask, and more.
+
+**v0.2.13** (2026-10-29): [TaoSheng-v0.2.13-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/TaoSheng-v0.2.13-arm64.apk) (~97 MB) — export recordings (merge segments into one M4A with transcript and subtitles, preview before saving, runs in the background); new player (lyric-style subtitles, previous/next segment, speed); redesigned daily rhythm; timeline filters and batch actions; hotword correction for on-device transcription; recording quiet hours; LAN self-hosted models; fixes for false push errors and more.
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/SHA256SUMS).
 
 ### Build from source
 

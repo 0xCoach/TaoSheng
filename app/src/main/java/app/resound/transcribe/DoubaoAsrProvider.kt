@@ -29,6 +29,7 @@ class DoubaoAsrProvider(
                 measureAsr(AsrPart.Prepare) { reader.prepare(audio) }.use { prepared ->
                     val opened = CompletableDeferred<Unit>()
                     val final = CompletableDeferred<AsrResult>()
+                    val incremental = DoubaoIncremental()
                     val request = Request.Builder().url(config.url).header("X-Api-Key", key)
                         .header("X-Api-Resource-Id", config.resourceId).header("X-Api-Connect-Id", UUID.randomUUID().toString()).build()
                     val listener = object : WebSocketListener() {
@@ -45,8 +46,9 @@ class DoubaoAsrProvider(
                                 if (packet.kind == 15 || code !in setOf(0L, 20000000L)) {
                                     val limited = doubaoLimited(code, message = packet.payload.optString("message"))
                                     final.completeExceptionally(AsrException(if (limited) AsrError.Server else DoubaoProtocol.error(code), logId, concurrencyLimited = limited))
-                                } else if (packet.final) {
-                                    final.complete(DoubaoProtocol.result(packet.payload, audio.durationMillis, logId, audio.separateSpeakers))
+                                } else {
+                                    val body = if (config.incrementalResults) incremental.accept(packet.payload, packet.final) else packet.payload
+                                    if (packet.final) final.complete(DoubaoProtocol.result(body, audio.durationMillis, logId, audio.separateSpeakers))
                                 }
                             } catch (_: Exception) { final.completeExceptionally(AsrException(AsrError.Protocol, logId)) }
                         }
@@ -69,7 +71,7 @@ class DoubaoAsrProvider(
                     val ws = client.newWebSocket(request, listener)
                     socket = ws
                     measureAsr(AsrPart.Connect) { opened.await() }
-                    checkSend(ws.send(DoubaoProtocol.frame(1, 0, DoubaoProtocol.config(prepared.format, hotwords(), audio.separateSpeakers), true).toByteString()))
+                    checkSend(ws.send(DoubaoProtocol.frame(1, 0, DoubaoProtocol.config(prepared.format, hotwords(), audio.separateSpeakers, config.incrementalResults), true).toByteString()))
                     var accounted = false
                     measureAsr(AsrPart.Upload) {
                     AsrAudioReader.chunks(prepared) { bytes, last ->

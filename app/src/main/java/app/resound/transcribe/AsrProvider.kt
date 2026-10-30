@@ -23,6 +23,8 @@ data class DoubaoConfig(
     /** 仅测试/特殊接入显式覆盖；默认随时长增长。 */
     val timeoutMillis: Long? = null,
     val paceMillis: Long = 0,
+    /** 073 负责人定案默认增量；内部诊断/回退可显式传 false，界面不另加开关。 */
+    val incrementalResults: Boolean = true,
 ) {
     // 短段保留原有 90 秒余量；5 分钟段为 480 秒，单请求不超过 Worker 的 10 分钟窗口。
     fun timeoutFor(durationMillis: Long): Long = timeoutMillis

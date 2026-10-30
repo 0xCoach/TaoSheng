@@ -44,7 +44,10 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             timing.outcome = outcome; PipelineTimes.recordSegment(context, timing.line()) } }
         }
     }, digest = { lines, presetId ->
-        val (preset, key) = digestSettings.skillCredentials(presetId)
+        val (preset, key) = synchronized(digestSettings.providers.guard) {
+            require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
+            digestSettings.skillCredentials(presetId)
+        }
         val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
         val reply = llm.chatJson(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
@@ -58,6 +61,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
                 dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
     }, identify = identify, regenerate = { oldCards, events, lines ->
+        files.reload()
         // 以候选新事件构造输入，技能结果也先暂存；失败时整个事件替换不落库。
         oldCards.groupBy { it.skillId to it.date }.flatMap { (group, _) ->
             val skill = files.skills.value.find { it.id == group.first } ?: error("相关技能已删除，无法重新生成")

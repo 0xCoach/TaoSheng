@@ -172,11 +172,8 @@ class ResoundApp : Application() {
         }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) })
         AppGraph.rhythm = RoomRhythmStats(database.memory())
         AppGraph.digestSettings = digestSettings
-        // 整理模型余额：DeepSeek 自动查，自定义模型填了查询地址才查；低于提醒线时提醒一次
-        AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), {
-            val p = digestSettings.preset; val key = digestSettings.readKey()
-            if (key.isBlank()) null else Triple(p.baseUrl, key, p.id == "custom")
-        }, { b, line ->
+        AppGraph.llmProviders = digestSettings.providers
+        AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), digestSettings.providers, { b, line ->
             app.resound.push.LocalNotifier(this, app.resound.push.LocalNotifier.BALANCE_CHANNEL).send(
                 if (b.available) "整理模型余额不足 ¥%.2f".format(b.total) else "整理模型余额已用完",
                 "低于提醒线 ¥%.0f，余额用完后整理会失败，请及时充值。".format(line), null)
@@ -188,7 +185,7 @@ class ResoundApp : Application() {
         val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
             .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
         AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
-            { digestSettings.preset to digestSettings.readKey() }, todoLlm::chatJson, { reply ->
+            { digestSettings.skillCredentials(null) }, todoLlm::chatJson, { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                     reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
             })
@@ -202,13 +199,16 @@ class ResoundApp : Application() {
         AppGraph.push = pushChannels
         reviews = app.resound.review.RoomReviewRepository(database.review(), database.memory(),
             getSharedPreferences("review", MODE_PRIVATE), scope,
-            { digestSettings.preset to digestSettings.readKey() }, llm::chatJson, { AppGraph.prompts.text("review") }, appName,
+            { digestSettings.skillCredentials(null) }, llm::chatJson, { AppGraph.prompts.text("review") }, appName,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), { reviewScheduler.schedule(it, changed = true) },
             dailyMemory = pushChannels::dispatchDailyMemory,
             beforeReview = { app.resound.review.ReviewPreparation.run(this) },
             work = androidx.work.WorkManager.getInstance(this))
+        val skillFiles = app.resound.skills.SkillFiles(this)
+        digestSettings.providers.beforeDelete = { id -> skillFiles.resetProviders(setOf(id)) }
+        skillFiles.resetProviders(skillFiles.skills.value.mapNotNull { it.presetId }.toSet() - digestSettings.presets.map { it.id }.toSet())
         val skillRepository = app.resound.skills.LocalSkillRepository(
-            app.resound.skills.SkillFiles(this), database.skills(), database.memory(), scope,
+            skillFiles, database.skills(), database.memory(), scope,
             digestSettings::skillCredentials, llm::chatJson, hotwords::merged,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), skillScheduler::schedule,
             generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope),

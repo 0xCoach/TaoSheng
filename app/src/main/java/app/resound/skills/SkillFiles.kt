@@ -64,6 +64,18 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         val all = overrides(); val o = all.optJSONObject(id) ?: JSONObject()
         edit(o); all.put(id, o); write(File(root, "overrides.json"), all.toString(2)); reload()
     }
+    /** 删除服务商后持久回到“跟随整理模型”，也覆盖我的版本定义里的默认引用。 */
+    fun resetProviders(ids: Set<String>) = synchronized(fileLock) {
+        reload()
+        val affected = skills.value.filter { it.presetId in ids }
+        if (affected.isEmpty()) return@synchronized
+        val all = overrides()
+        affected.forEach { s ->
+            val o = all.optJSONObject(s.id) ?: JSONObject()
+            all.put(s.id, o.put("presetId", JSONObject.NULL))
+        }
+        write(File(root, "overrides.json"), all.toString(2)); reload()
+    }
     fun prompt(id: String): String = synchronized(fileLock) {
         if (id !in definitions) "" else read(File(root, "prompts/$id.md")) ?: definitions[id]?.second.orEmpty()
     }

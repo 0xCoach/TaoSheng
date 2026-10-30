@@ -1,5 +1,6 @@
 package app.resound.review
 
+import app.resound.digest.allowsEmptyKey
 import app.resound.usage.UsagePurpose
 
 import android.content.SharedPreferences
@@ -116,7 +117,7 @@ class RoomReviewRepository(
                     ReviewPrompt.staleOnly(source, timezone)
                 } else {
                     val (preset, key) = credentials()
-                    if (key.isBlank() && preset.id != "custom") { error("还没填写整理模型的密钥", date); return@withLock false }
+                    if (key.isBlank() && !preset.allowsEmptyKey()) { error("还没填写整理模型的密钥", date); return@withLock false }
                     val reply = chat(preset, key, ReviewPrompt.system(template(), appName), ReviewPrompt.input(date, source, timezone, minutes))
                     // 格式错误的成功调用也实际消耗了 token。
                     memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)

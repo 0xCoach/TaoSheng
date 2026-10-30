@@ -8,9 +8,10 @@ data class LlmToolCall(val id: String, val name: String, val arguments: String) 
     fun json(): JSONObject = JSONObject().put("id", id).put("type", "function")
         .put("function", JSONObject().put("name", name).put("arguments", arguments))
 }
-data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>) {
+data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val reasoningContent: String? = null) {
     fun message(): JSONObject = JSONObject().put("role", "assistant").put("content", content.ifEmpty { null } ?: JSONObject.NULL)
         .also { if (calls.isNotEmpty()) it.put("tool_calls", JSONArray(calls.map { c -> c.json() })) }
+        .also { if (reasoningContent != null) it.put("reasoning_content", reasoningContent) }
 }
 
 /** readLine 由 Okio 提供，UTF-8 / 网络分片不影响行边界；也支持 SSE 多行 data、注释和 CRLF。 */
@@ -20,6 +21,8 @@ internal class LlmSseParser(
 ) {
     private val data = StringBuilder()
     private val text = StringBuilder()
+    private val reasoning = StringBuilder()
+    private var hasReasoning = false
     private data class CallParts(val id: StringBuilder = StringBuilder(), val name: StringBuilder = StringBuilder(), val arguments: StringBuilder = StringBuilder())
     private val calls = sortedMapOf<Int, CallParts>()
     var done = false; private set
@@ -52,6 +55,10 @@ internal class LlmSseParser(
                     finished = true
                 }
                 val delta = choice.optJSONObject("delta") ?: continue
+                if (!delta.isNull("reasoning_content")) {
+                    val part = delta.getString("reasoning_content")
+                    hasReasoning = true; reasoning.append(part); chars += part.length
+                }
                 if (!delta.isNull("content")) {
                     val part = delta.getString("content"); text.append(part); chars += part.length
                     onText(part)
@@ -83,6 +90,6 @@ internal class LlmSseParser(
             LlmToolCall(it.id.toString(), it.name.toString(), it.arguments.toString())
         }
         if (result.map { it.id }.distinct().size != result.size) throw LlmException(LlmError.Format)
-        return LlmStreamReply(text.toString(), result)
+        return LlmStreamReply(text.toString(), result, reasoning.toString().takeIf { hasReasoning })
     }
 }

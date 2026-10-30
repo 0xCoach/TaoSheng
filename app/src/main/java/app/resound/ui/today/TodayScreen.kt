@@ -233,7 +233,10 @@ fun TodayScreen(
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pending.size,
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
-        if (settingsOpen || !hasKey) item(key = "model") { ModelCard(settings) { settingsOpen = false } }
+        if (settingsOpen || !hasKey) item(key = "model") {
+            if (app.resound.AppGraph.isLlmProvidersReady) app.resound.ui.settings.ProvidersCard(app.resound.AppGraph.llmProviders)
+            else ModelCard(settings) { settingsOpen = false }
+        }
         if (rhythmShown) item(key = "rhythm") {
             RhythmCard(list, dayLines, date, transcribeQueue.pending,
                 onFilter = { f -> filter = f; rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) } },

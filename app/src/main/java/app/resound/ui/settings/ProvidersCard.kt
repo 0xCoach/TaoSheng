@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -132,6 +135,8 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Result<String>?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var fetching by remember { mutableStateOf(false) }
+    var fetched by remember { mutableStateOf<List<String>?>(null) }
     val needsWorkspace = baseUrl.contains(WORKSPACE)
     val url = if (needsWorkspace) baseUrl.replace(WORKSPACE, workspace.trim()) else baseUrl.trim()
     val ready = url.isNotBlank() && model.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom)
@@ -142,7 +147,18 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             SheetInput(baseUrl, "接口地址，如 https://…/v1") { baseUrl = it.trim(); result = null }
         }
         if (needsWorkspace) SheetInput(workspace, "工作空间 ID（在控制台的工作空间页面）") { workspace = it.trim(); result = null }
-        Text("模型", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("模型", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
+            // 拉取这家服务商的全部模型（要地址和密钥），从列表里点选
+            val canFetch = url.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom) && !fetching
+            Text(if (fetching) "拉取中…" else "拉取模型", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
+                color = if (canFetch) c.accent else c.textTertiary,
+                modifier = Modifier.clip(CircleShape).background(if (canFetch) c.accentSoft else c.background).springClick {
+                    if (!canFetch) return@springClick
+                    fetching = true
+                    scope.launch { fetched = providers.models(p.id.ifBlank { null }, url, keyArg); fetching = false }
+                }.padding(horizontal = 10.dp, vertical = 4.dp))
+        }
         if (template != null) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             template.models.forEachIndexed { i, m ->
                 val on = !otherModel && m == model
@@ -155,6 +171,20 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
                     .padding(horizontal = 12.dp, vertical = 8.dp))
         }
         if (custom || otherModel) SheetInput(model, "模型名，如 deepseek-flash") { model = it.trim(); result = null }
+        fetched?.let { list ->
+            if (list.isEmpty()) Text("没拉到模型列表，可以手动填写", style = RsType.caption, color = c.textTertiary)
+            else Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).clip(RoundedCornerShape(14.dp)).background(c.background)
+                .verticalScroll(rememberScrollState())) {
+                list.forEach { m ->
+                    val on = m == model
+                    Text(m, style = RsType.subhead, color = if (on) c.accent else c.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().springClick {
+                            model = m; result = null
+                            otherModel = template != null && m !in template.models
+                        }.padding(horizontal = 14.dp, vertical = 10.dp))
+                }
+            }
+        }
         SheetInput(key, if (p.hasKey) "已填写密钥（不改就留空）" else "粘贴 API Key") { key = it.trim(); result = null }
         template?.keyUrl?.let { link ->
             Text("去申请密钥 ›", style = RsType.subhead, color = c.accent, modifier = Modifier.springClick {

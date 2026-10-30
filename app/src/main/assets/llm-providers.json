@@ -1,0 +1,64 @@
+[
+  {
+    "id": "deepseek", "name": "DeepSeek", "baseUrl": "https://api.deepseek.com",
+    "models": ["deepseek-flash", "deepseek-v4-pro"],
+    "balance": {"url": "https://api.deepseek.com/user/balance", "path": "balance_infos.0.total_balance"},
+    "keyUrl": "https://platform.deepseek.com/api_keys", "note": "按量计费，支持同一密钥查询余额。"
+  },
+  {
+    "id": "siliconflow", "name": "硅基流动 SiliconFlow", "baseUrl": "https://api.siliconflow.cn/v1",
+    "models": ["Qwen/Qwen3.5-35B-A3B", "deepseek-ai/DeepSeek-V4.1-Flash"],
+    "balance": null, "keyUrl": "https://cloud.siliconflow.cn/account/ak", "note": "旧余额接口已于 2026-08-14 停服，余额请在控制台查看。"
+  },
+  {
+    "id": "kimi", "name": "月之暗面 Kimi", "baseUrl": "https://api.moonshot.cn/v1",
+    "models": ["kimi-k3.1-pro", "kimi-k3.1-pro-highspeed"],
+    "balance": {"url": "https://api.moonshot.cn/v1/users/me/balance", "path": "data.available_balance"},
+    "keyUrl": "https://platform.kimi.com/console/api-keys", "note": "国内站密钥；K3.1 Pro 需充值解锁，旗舰模型成本较高。"
+  },
+  {
+    "id": "bigmodel", "name": "智谱 GLM", "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+    "models": ["glm-5.3-flash", "glm-5.3-flashx"],
+    "balance": null, "keyUrl": "https://bigmodel.cn/usercenter/proj-mgmt/apikeys", "note": "使用模型标准 API 密钥，不能混用 Coding Plan 密钥。"
+  },
+  {
+    "id": "dashscope", "name": "阿里云百炼（通义千问）", "baseUrl": "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    "models": ["qwen-flash", "qwen-plus"],
+    "balance": null, "keyUrl": "https://bailian.console.aliyun.com/model/settings/api-key", "note": "需实名认证；先将地址中的 {WorkspaceId} 换成自己的北京业务空间 ID，再填密钥。"
+  },
+  {
+    "id": "ark", "name": "火山方舟（豆包）", "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+    "models": ["doubao-seed-2-1-lite-260915", "doubao-seed-2-0-mini-260428"],
+    "balance": null, "keyUrl": "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey", "note": "需开通所选模型；使用方舟按量 API 密钥，部分账号需改填 ep- 接入点 ID。"
+  },
+  {
+    "id": "minimax", "name": "MiniMax", "baseUrl": "https://api.minimax.cn/v1",
+    "models": ["MiniMax-M3.1-Flash", "MiniMax-M3"],
+    "balance": null, "keyUrl": "https://platform.minimax.cn/user-center/basic-information/interface-key", "note": "国内按量 API 密钥；订阅套餐额度不等于现金余额。"
+  },
+  {
+    "id": "qianfan", "name": "百度千帆", "baseUrl": "https://qianfan.baidubce.com/v2",
+    "models": ["deepseek-v4.1-flash-1017", "ernie-5.1"],
+    "balance": null, "keyUrl": "https://console.bce.baidu.com/iam/#/iam/apikey/list", "note": "需实名认证并开通模型服务；使用推理 V2 API Key。"
+  },
+  {
+    "id": "hunyuan", "name": "腾讯混元（TokenHub）", "baseUrl": "https://tokenhub.tencentmaas.com/v1",
+    "models": ["hy3", "hy4-preview"],
+    "balance": null, "keyUrl": "https://console.cloud.tencent.com/tokenhub", "note": "使用广州地域 TokenHub 密钥；旧混元平台停止新购。"
+  },
+  {
+    "id": "stepfun", "name": "阶跃星辰", "baseUrl": "https://api.stepfun.com/v1",
+    "models": ["step-3.5-flash-2603", "step-3.7-flash"],
+    "balance": null, "keyUrl": "https://platform.stepfun.com/interface-key", "note": "按量 API 密钥；余额在账户控制台查看。"
+  },
+  {
+    "id": "openrouter", "name": "OpenRouter", "baseUrl": "https://openrouter.ai/api/v1",
+    "models": ["deepseek/deepseek-v4.1-flash", "qwen/qwen3.5-35b-a3b"],
+    "balance": null, "keyUrl": "https://openrouter.ai/settings/keys", "note": "美元计价；账户余额接口需管理密钥，不自动查询。"
+  },
+  {
+    "id": "openai", "name": "OpenAI", "baseUrl": "https://api.openai.com/v1",
+    "models": ["gpt-5.4-mini", "gpt-5.6-terra"],
+    "balance": null, "keyUrl": "https://platform.openai.com/api-keys", "note": "美元计价，需受支持地区与网络；API 计费独立于 ChatGPT 订阅。"
+  }
+]

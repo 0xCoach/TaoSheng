@@ -42,8 +42,7 @@ class LlmClient(
                 .put(JSONObject().put("role", "user").put("content", user)))
             .put("response_format", JSONObject().put("type", "json_object"))
             .put("temperature", 0.2)
-        // 方舟的豆包默认会“深度思考”，整理不需要，关掉省时省钱
-        if (preset.baseUrl.contains("volces.com")) body.put("thinking", JSONObject().put("type", "disabled"))
+        applyLlmOptions(preset, body)
         val request = Request.Builder()
             .url(preset.baseUrl.trimEnd('/') + "/chat/completions")
             .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
@@ -74,8 +73,7 @@ class LlmClient(
             .put("stream", true).put("stream_options", JSONObject().put("include_usage", true))
             .put("temperature", 0.2).put("max_tokens", 1800)
         if (tools.length() > 0) body.put("tools", tools).put("tool_choice", if (allowTools) "auto" else "none")
-        else body.put("tool_choice", "none")
-        if (preset.baseUrl.contains("volces.com")) body.put("thinking", JSONObject().put("type", "disabled"))
+        applyLlmOptions(preset, body)
         val request = Request.Builder().url(preset.baseUrl.trimEnd('/') + "/chat/completions")
             .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
             .post(body.toString().toRequestBody("application/json".toMediaType())).build()
@@ -116,10 +114,10 @@ class LlmClient(
     }
 
     private fun clientFor(preset:LlmPreset):OkHttpClient {
-        if(preset.id!="custom")return http
         if(preset.baseUrl.isBlank() || preset.model.isBlank())throw LlmException(LlmError.Format)
         val bases=app.resound.transcribe.OpenAiEndpoint.bases(preset.baseUrl)
         return http.newBuilder().apply {
+            followRedirects(false); followSslRedirects(false)
             connectTimeout(10, TimeUnit.SECONDS)
             if(app.resound.transcribe.OpenAiEndpoint.kind(preset.baseUrl)==app.resound.transcribe.EndpointKind.LocalHttp) readTimeout(maxOf(http.readTimeoutMillis.toLong(),180_000), TimeUnit.MILLISECONDS)
             interceptors().add(0, okhttp3.Interceptor { chain ->

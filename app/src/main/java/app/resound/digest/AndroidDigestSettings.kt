@@ -6,26 +6,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class AndroidDigestSettings(
-    context: Context, private val client: LlmClient,
+class AndroidDigestSettings internal constructor(
+    context: Context, private val client: LlmClient, val providers: AndroidLlmProviders,
     private val recordUsage: suspend (LlmReply) -> Unit = {},
 ) : DigestSettings {
+    constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
+        this(context, client, AndroidLlmProviders(context, client, recordUsage), recordUsage)
     val timing = AndroidDigestTiming(context)
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
-    private val secrets = SecretStore(context, "digest-secrets", "resound-llm-aes-v1")
-
-    init {
-        // 旧豆包选择迁移为自定义，沿用端点、模型和密钥，避免升级后换服务。
-        if(prefs.getString("preset",null)=="doubao") {
-            if(!secrets.has("key-custom")) {
-                val old=runCatching{secrets.read("key-doubao")}.getOrDefault("")
-                if(old.isNotBlank())secrets.write("key-custom",old)
-            }
-            check(prefs.edit().putString("preset","custom")
-                .putString("customEndpoint","https://ark.cn-beijing.volces.com/api/v3")
-                .putString("customModel","doubao-seed-2-1-lite-260915").commit())
-        }
-    }
     /** 两句话之间停多久算这段对话结束（分钟）；结束后才整理，避免一件事被切成两半 */
     private val _pauseMinutes = MutableStateFlow(prefs.getInt("pauseMinutes", DEFAULT_PAUSE).coerceIn(PAUSE_RANGE))
     val pauseMinutes = _pauseMinutes.asStateFlow()
@@ -51,70 +39,47 @@ class AndroidDigestSettings(
         val v = value.coerceIn(MAX_WAIT_RANGE)
         check(prefs.edit().putInt("maxWaitMinutes", v).commit()); _maxWaitMinutes.value = v
     }
-    val customEndpoint get() = prefs.getString("customEndpoint","")!!
-    val customModel get() = prefs.getString("customModel","")!!
-    override val presets get() = listOf(
-        LlmPreset("deepseek", "DeepSeek", "https://api.deepseek.com", "deepseek-flash"),
-        LlmPreset("custom", "自定义", customEndpoint, customModel),
-    )
+    val customEndpoint get() = providers.saved.value.firstOrNull { it.id == "custom" }?.baseUrl.orEmpty()
+    val customModel get() = providers.saved.value.firstOrNull { it.id == "custom" }?.model.orEmpty()
+    override val presets get() = providers.saved.value.map { it.preset() }
     suspend fun fetchModels(endpoint:String,key:String)=app.resound.transcribe.fetchRemoteModels(endpoint,key.trim().ifBlank{readKey()})
     fun saveCustomAll(endpoint:String,model:String,key:String) {
-        app.resound.transcribe.OpenAiEndpoint.bases(endpoint)
-        require(model.trim().isNotBlank()){"请填写或选择模型"}
-        if(key.isNotBlank())saveKey(key)
-        check(prefs.edit().putString("customEndpoint",endpoint.trim()).putString("customModel",model.trim()).commit())
-        _hasKey.value = usable()
+        providers.ensureLegacy("custom")
+        val p = providers.saved.value.first { it.id == "custom" }
+        providers.saveNow(p.id, p.templateId, p.name, endpoint, model, key.takeIf { it.isNotBlank() }, p.balanceUrl, p.balancePath)
     }
 
-    private val _presetId = MutableStateFlow(prefs.getString("preset", null)?.takeIf { id -> presets.any { it.id == id } } ?: presets.first().id)
-    override val presetId: StateFlow<String> = _presetId.asStateFlow()
-    private fun usable() = secrets.has(keyName(_presetId.value)) || (_presetId.value == "custom" && customEndpoint.isNotBlank() && customModel.isNotBlank())
+    override val presetId: StateFlow<String> = providers.activeId
+    private fun usable() = providers.selected().let { it.hasKey || (it.preset().allowsEmptyKey() && it.baseUrl.isNotBlank() && it.model.isNotBlank()) }
     private val _hasKey = MutableStateFlow(usable())
     override val hasKey: StateFlow<Boolean> = _hasKey.asStateFlow()
 
-    val preset: LlmPreset get() = presets.first { it.id == _presetId.value }
-
-    private fun keyName(id: String) = "key-$id"
+    init { providers.listen { _hasKey.value = usable() } }
+    val preset: LlmPreset get() = providers.selected().preset()
 
     /** 读当前服务的密钥；没填返回空串 */
-    fun readKey(): String = runCatching { secrets.read(keyName(_presetId.value)) }.getOrDefault("")
+    fun readKey(): String = providers.credentials().second
 
     /** 技能可指定服务，读取时不切换全局整理预设。 */
-    fun skillCredentials(id: String?): Pair<LlmPreset, String> {
-        val selected = if (id == null) preset else presets.first { it.id == id }
-        return selected to runCatching { secrets.read(keyName(selected.id)) }.getOrDefault("")
-    }
+    fun skillCredentials(id: String?): Pair<LlmPreset, String> = providers.credentials(id)
 
     override fun setPreset(id: String) {
-        require(presets.any { it.id == id })
-        check(prefs.edit().putString("preset", id).commit())
-        _presetId.value = id
-        _hasKey.value = usable()
+        providers.ensureLegacy(id)
+        providers.activate(id)
     }
 
-    override fun saveKey(key: String) {
-        val value = key.trim()
-        if (value.isEmpty()) { clearKey(); return }
-        require(value.all { it.code in 33..126 }) { "密钥格式不正确" }
-        secrets.write(keyName(_presetId.value), value)
-        _hasKey.value = true
-    }
-
-    override fun clearKey() {
-        secrets.remove(keyName(_presetId.value))
-        _hasKey.value = usable()
-    }
+    override fun saveKey(key: String) = providers.setKey(key)
+    override fun clearKey() = providers.setKey("")
 
     override suspend fun test(): Result<String> {
-        val selected=preset
-        if(selected.id=="custom" && (selected.baseUrl.isBlank() || selected.model.isBlank()))return Result.failure(IllegalStateException("请先保存服务地址和模型"))
-        val key = readKey()
-        if (key.isBlank() && selected.id != "custom") return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        val (selected, key) = skillCredentials(null)
+        if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
+        if (key.isBlank() && !selected.allowsEmptyKey()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
             val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.getOrNull().orEmpty()
-            Result.success("可用（${preset.name}）${if (text.isNotBlank()) "：$text" else ""}")
+            Result.success("可用（${selected.name}）${if (text.isNotBlank()) "：$text" else ""}")
         } catch (e: CancellationException) {
             throw e
         } catch (e: LlmException) {
@@ -125,10 +90,9 @@ class AndroidDigestSettings(
     }
 
     override suspend fun check(): Result<List<ModelCheckItem>> {
-        val selected=preset
-        if(selected.id=="custom" && (selected.baseUrl.isBlank() || selected.model.isBlank()))return Result.failure(IllegalStateException("请先保存服务地址和模型"))
-        val key = readKey()
-        if (key.isBlank() && selected.id != "custom") return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        val (selected, key) = skillCredentials(null)
+        if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
+        if (key.isBlank() && !selected.allowsEmptyKey()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return Result.success(ModelCheck(
             json = { system, user ->
                 client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }

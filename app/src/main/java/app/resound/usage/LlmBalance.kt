@@ -1,6 +1,8 @@
 package app.resound.usage
 
 import android.content.SharedPreferences
+import app.resound.digest.AndroidLlmProviders
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,103 +15,128 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/** 账户余额（元）；[granted]/[toppedUp] 只有 DeepSeek 有，自定义接口为 null；[updatedAt] 为查询成功的时刻 */
+/** [currency] 为实际币种；自填字段默认人民币，DeepSeek 按返回币种。 */
 data class LlmBalance(val total: Double, val granted: Double?, val toppedUp: Double?, val currency: String, val available: Boolean, val updatedAt: Long)
-
-/**
- * 去哪查余额：[path] 为 null 时按 DeepSeek 官方格式解析；否则取返回 JSON 里该路径的数（如 data.totalBalance，数组用 data.list.0.balance）。
- * 都用整理模型的同一把密钥（Authorization: Bearer）。
- */
-data class BalanceSource(val url: String, val key: String, val path: String?)
-
+class BalanceSource(val url: String, val key: String, val path: String?)
 data class LlmBalanceState(val balance: LlmBalance? = null, val error: String? = null, val loading: Boolean = false, val supported: Boolean = false)
 
-/**
- * 查 DeepSeek 余额（官方 GET /user/balance，用整理模型的同一把密钥，不扣费）。
- * 只在打开用量页和每轮整理后查，最多每小时一次；余额低于提醒线时提醒一次，回到线上后才会再提醒。
- */
+/** 缓存、提醒按保存项 id 隔离；服务商切换或修改后，旧请求不能覆盖新选择。 */
 class LlmBalanceChecker(
     private val prefs: SharedPreferences,
-    /** 当前整理模型的 (接口地址, 密钥, 是否自定义)；没填密钥返回 null */
-    private val current: () -> Triple<String, String, Boolean>?,
+    private val providers: AndroidLlmProviders,
     private val alert: suspend (LlmBalance, Double) -> Unit,
-    private val http: OkHttpClient = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS).build(),
+    http: OkHttpClient = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS).build(),
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    private val http = http.newBuilder().followRedirects(false).followSslRedirects(false).build()
     private val lock = Mutex()
-    private val _custom = MutableStateFlow(prefs.getString("customUrl", "").orEmpty() to prefs.getString("customPath", "").orEmpty())
-    /** 自定义模型的余额查询地址和字段路径（空表示不查） */
+    private var generation = 0L
+    private val _custom = MutableStateFlow(providers.selected().let { it.balanceUrl to it.balancePath })
     val custom = _custom.asStateFlow()
-    private val _state = MutableStateFlow(LlmBalanceState(cached(), supported = source() != null))
-
-    /** 当前能查余额的来源：DeepSeek 自动；自定义模型要填了查询地址和字段 */
-    fun source(): BalanceSource? {
-        val (base, key, isCustom) = current() ?: return null
-        if (isDeepSeek(base) && !isCustom) return BalanceSource(base.trimEnd('/').removeSuffix("/v1") + "/user/balance", key, null)
-        val (url, path) = _custom.value
-        if (isCustom && url.isNotBlank() && path.isNotBlank()) return BalanceSource(url.trim(), key, path.trim())
-        if (isCustom && isDeepSeek(base) && url.isBlank()) return BalanceSource(base.trimEnd('/').removeSuffix("/v1") + "/user/balance", key, null)
-        return null
-    }
-
-    fun setCustom(url: String, path: String) {
-        check(prefs.edit().putString("customUrl", url.trim()).putString("customPath", path.trim()).remove("cached").putBoolean("alerted", false).commit())
-        _custom.value = url.trim() to path.trim()
-        _state.value = LlmBalanceState(supported = source() != null)
-    }
-
-    /** 不保存，只试一下能不能取到余额 */
-    suspend fun test(url: String, path: String): Result<LlmBalance> {
-        val key = current()?.second ?: return Result.failure(IllegalStateException("请先填写整理模型的密钥"))
-        return runCatching { fetch(BalanceSource(url.trim(), key, path.trim().ifBlank { null })) }
-    }
+    private val _state = MutableStateFlow(LlmBalanceState(cached(providers.activeId.value), supported = source() != null))
     val state = _state.asStateFlow()
     private val _threshold = MutableStateFlow(prefs.getFloat("threshold", DEFAULT_THRESHOLD.toFloat()).toDouble())
-    /** 低于多少元提醒；0 表示不提醒 */
+    /** 人民币提醒线；0 表示不提醒，非 CNY 账户不按人民币阈值报警。 */
     val threshold = _threshold.asStateFlow()
 
-    fun setThreshold(yuan: Double) {
+    init {
+        providers.listen { changed ->
+            generation++
+            if (changed != null) check(prefs.edit().remove("cached-$changed").remove("alerted-$changed").commit())
+            val p = providers.selected()
+            _custom.value = p.balanceUrl to p.balancePath
+            _state.value = LlmBalanceState(cached(p.id), supported = source() != null)
+        }
+    }
+
+    fun source(): BalanceSource? = synchronized(providers.guard) {
+        val p = providers.selected()
+        if (!p.hasKey || p.balanceUrl.isBlank() || p.balancePath.isBlank()) return@synchronized null
+        val key = providers.readKey(p.id)
+        if (key.isBlank()) return@synchronized null
+        val dedicated = isDeepSeek(p.balanceUrl) && p.balanceUrl.trimEnd('/').endsWith("/user/balance") &&
+            p.balancePath == "balance_infos.0.total_balance"
+        BalanceSource(p.balanceUrl, key, if (dedicated) null else p.balancePath)
+    }
+    /** 保留旧界面入口，保存到当前服务商。 */
+    fun setCustom(url: String, path: String) = providers.setBalance(url, path)
+
+    suspend fun test(url: String, path: String): Result<LlmBalance> = try {
+        val key = providers.credentials().second
+        require(key.isNotBlank())
+        Result.success(fetch(BalanceSource(url.trim(), key, path.trim().ifBlank { null })))
+    } catch (e: CancellationException) { throw e }
+    catch (_: Exception) { Result.failure(IllegalStateException("余额测试失败，请检查地址、字段和密钥")) }
+
+    fun setThreshold(yuan: Double) = synchronized(providers.guard) {
+        require(yuan.isFinite())
         val v = yuan.coerceIn(0.0, 10_000.0)
-        check(prefs.edit().putFloat("threshold", v.toFloat()).putBoolean("alerted", false).commit())
-        _threshold.value = v
+        val editor = prefs.edit().putFloat("threshold", v.toFloat())
+        prefs.all.keys.filter { it.startsWith("alerted-") }.forEach { editor.remove(it) }
+        check(editor.commit()); _threshold.value = v
     }
 
     suspend fun refresh(force: Boolean = false) = lock.withLock {
-        val cred = source()
-        if (cred == null) { _state.value = LlmBalanceState(supported = false); return@withLock }
-        val last = _state.value.balance?.updatedAt ?: 0
-        if (!force && now() - last < MIN_INTERVAL) { _state.value = _state.value.copy(supported = true); return@withLock }
-        _state.value = _state.value.copy(loading = true, supported = true, error = null)
-        val result = runCatching { fetch(cred) }
-        result.onSuccess { b ->
-            check(prefs.edit().putString("cached", JSONObject().put("total", b.total).put("granted", b.granted ?: JSONObject.NULL).put("toppedUp", b.toppedUp ?: JSONObject.NULL)
-                .put("currency", b.currency).put("available", b.available).put("at", b.updatedAt).toString()).commit())
-            _state.value = LlmBalanceState(b, supported = true)
-            checkAlert(b)
-        }.onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "余额查询失败") }
-    }
-
-    private suspend fun checkAlert(b: LlmBalance) {
-        val line = _threshold.value
-        val low = line > 0 && (b.total < line || !b.available)
-        val alerted = prefs.getBoolean("alerted", false)
-        if (low && !alerted) { runCatching { alert(b, line) }; prefs.edit().putBoolean("alerted", true).apply() }
-        if (!low && alerted) prefs.edit().putBoolean("alerted", false).apply()
+        var id = ""; var token = 0L
+        val cred = synchronized(providers.guard) {
+            id = providers.activeId.value; token = generation
+            val src = source()
+            if (src == null) _state.value = LlmBalanceState(supported = false)
+            else {
+                val last = _state.value.balance?.updatedAt
+                if (!force && last != null && now() - last in 0 until MIN_INTERVAL) return@withLock
+                _state.value = _state.value.copy(loading = true, supported = true, error = null)
+            }
+            src
+        } ?: return@withLock
+        var notify: Pair<LlmBalance, Double>? = null
+        try {
+            val b = fetch(cred)
+            synchronized(providers.guard) {
+                if (token != generation || id != providers.activeId.value) return@withLock
+                val json = JSONObject().put("total", b.total).put("granted", b.granted ?: JSONObject.NULL).put("toppedUp", b.toppedUp ?: JSONObject.NULL)
+                    .put("currency", b.currency).put("available", b.available).put("at", b.updatedAt)
+                val line = _threshold.value
+                val low = b.currency == "CNY" && line > 0 && (b.total < line || !b.available)
+                val alerted = prefs.getBoolean("alerted-$id", false)
+                check(prefs.edit().putString("cached-$id", json.toString()).putBoolean("alerted-$id", low).commit())
+                _state.value = LlmBalanceState(b, supported = true)
+                if (low && !alerted) notify = b to line
+            }
+            notify?.let { (b, line) ->
+                if (synchronized(providers.guard) { token == generation && id == providers.activeId.value }) {
+                    try { alert(b, line) }
+                    catch (e: CancellationException) { throw e }
+                    catch (_: Exception) { prefs.edit().putBoolean("alerted-$id", false).apply() }
+                }
+            }
+        } catch (e: CancellationException) {
+            synchronized(providers.guard) { if (token == generation) _state.value = _state.value.copy(loading = false) }
+            throw e
+        } catch (_: Exception) {
+            synchronized(providers.guard) { if (token == generation) _state.value = _state.value.copy(loading = false, error = "余额查询失败，请检查配置和网络") }
+        }
     }
 
     internal suspend fun fetch(src: BalanceSource): LlmBalance = withContext(Dispatchers.IO) {
         val url = src.url.toHttpUrlOrNull() ?: error("查询地址格式不对")
+        require(url.username.isEmpty() && url.password.isEmpty() && url.query == null && url.fragment == null)
         http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${src.key}").header("Accept", "application/json").get().build()).execute().use { r ->
-            if (r.code == 401) error("密钥无效，请检查整理模型的密钥")
-            if (!r.isSuccessful) error("余额查询失败（${r.code}）")
-            val body = r.body?.string().orEmpty()
-            if (src.path == null) parse(body, now()) else LlmBalance(pick(body, src.path), null, null, "CNY", true, now())
+            check(r.isSuccessful) { "余额查询失败" }
+            val body = r.body?.source() ?: error("余额响应为空")
+            body.request(65_537)
+            check(body.buffer.size <= 65_536) { "余额响应过大" }
+            val content = body.readUtf8()
+            if (src.path == null) parse(content, now()) else LlmBalance(pick(content, src.path), null, null, "CNY", true, now())
         }
     }
-
-    private fun cached(): LlmBalance? = prefs.getString("cached", null)?.let { runCatching { JSONObject(it) }.getOrNull() }?.let {
-        LlmBalance(it.getDouble("total"), it.optDouble("granted").takeIf { v -> !v.isNaN() }, it.optDouble("toppedUp").takeIf { v -> !v.isNaN() }, it.getString("currency"), it.getBoolean("available"), it.getLong("at"))
-    }
+    private fun cached(id: String): LlmBalance? = runCatching {
+        prefs.getString("cached-$id", null)?.let { text ->
+            val o = JSONObject(text)
+            LlmBalance(o.getDouble("total"), o.optDouble("granted").takeIf { it.isFinite() }, o.optDouble("toppedUp").takeIf { it.isFinite() },
+                o.getString("currency"), o.getBoolean("available"), o.getLong("at"))
+        }
+    }.getOrNull()
 
     companion object {
         const val DEFAULT_THRESHOLD = 10.0
@@ -121,7 +148,7 @@ class LlmBalanceChecker(
             val infos = json.getJSONArray("balance_infos")
             val all = (0 until infos.length()).map { infos.getJSONObject(it) }
             val pick = all.firstOrNull { it.optString("currency") == "CNY" } ?: all.firstOrNull() ?: error("没有余额信息")
-            fun num(k: String) = pick.optString(k, "0").toDoubleOrNull() ?: 0.0
+            fun num(k: String) = pick.getString(k).toDoubleOrNull()?.takeIf { it.isFinite() } ?: error("余额不是有效数字")
             return LlmBalance(num("total_balance"), num("granted_balance"), num("topped_up_balance"), pick.optString("currency", "CNY"),
                 json.optBoolean("is_available", true), at)
         }
@@ -136,21 +163,20 @@ class LlmBalanceChecker(
                     else -> error("“$part”之前已经不是对象了")
                 }
             }
-            return when (val v = node) { is Number -> v.toDouble(); is String -> v.trim().toDoubleOrNull(); else -> null } ?: error("“$path”不是数字")
+            return when (val v = node) { is Number -> v.toDouble(); is String -> v.trim().toDoubleOrNull(); else -> null }?.takeIf { it.isFinite() } ?: error("“$path”不是数字")
         }
 
         /** 常见服务的余额接口，按模型地址自动填；拿不准的让用户自己填 */
         fun suggest(base: String): Pair<String, String>? {
             val host = runCatching { java.net.URI(base.trim()).host }.getOrNull() ?: return null
             return when {
-                host.endsWith("siliconflow.cn") -> "https://api.siliconflow.cn/v1/user/info" to "data.totalBalance"
-                host.endsWith("moonshot.cn") -> "https://api.moonshot.cn/v1/users/me/balance" to "data.available_balance"
-                host.endsWith("deepseek.com") -> "https://api.deepseek.com/user/balance" to "balance_infos.0.total_balance"
+                host == "api.moonshot.cn" -> "https://api.moonshot.cn/v1/users/me/balance" to "data.available_balance"
+                host == "api.deepseek.com" -> "https://api.deepseek.com/user/balance" to "balance_infos.0.total_balance"
                 else -> null
             }
         }
 
         /** 只认 DeepSeek 官方地址 */
-        fun isDeepSeek(base: String) = runCatching { java.net.URI(base.trim()).host?.endsWith("deepseek.com") == true }.getOrDefault(false)
+        fun isDeepSeek(base: String) = runCatching { java.net.URI(base.trim()).host == "api.deepseek.com" }.getOrDefault(false)
     }
 }

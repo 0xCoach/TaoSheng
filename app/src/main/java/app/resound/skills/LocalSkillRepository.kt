@@ -81,7 +81,7 @@ class LocalSkillRepository(
         if (conversation.firstOrNull { it.fromUser }?.text.isNullOrBlank()) return Result.failure(IllegalArgumentException("先描述一下想要什么"))
         val mustFinish = conversation.count { it.fromUser } > SkillDrafter.MAX_ASKS
         val (preset, key) = credentials(null)
-        if (key.isBlank() && preset.id != "custom") return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (key.isBlank() && !preset.allowsEmptyKey()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         val id = "my_" + java.lang.Long.toString(now() / 1000, 36)
         // 格式不对重试一次；网络、密钥类错误直接告诉用户
         for (attempt in 0..1) {
@@ -143,7 +143,7 @@ class LocalSkillRepository(
             if (id == "weekly") { beforeWeeklyReview(); started = now() }
             val result = try {
                 val (preset, key) = credentials(skill.presetId)
-                if (key.isBlank() && preset.id != "custom") SkillRunResult.Failed("还没填写大模型密钥") else {
+                if (key.isBlank() && !preset.allowsEmptyKey()) SkillRunResult.Failed("还没填写大模型密钥") else {
                     // 每个归属日各记各的进度，别的日子的运行不算。
                     val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }?.at
                     val input = SkillInputs.load(dao, skill, date, since, started)

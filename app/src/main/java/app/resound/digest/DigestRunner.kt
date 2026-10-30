@@ -65,8 +65,8 @@ class DigestRunner(
         _progress.value = DigestProgress(startedAt = elapsed())
         _running.value = true
         try {
-            val key = readKey()
-            if (key.isBlank() && settings.preset.id != "custom") { record(null, "还没填写大模型密钥"); return false }
+            val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
+            if (key.isBlank() && !preset.allowsEmptyKey()) { record(null, "还没填写大模型密钥"); return false }
             val sessions = sessions(dao.undigestedLines(), gapMillis())
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             for (session in sessions) {
@@ -78,7 +78,7 @@ class DigestRunner(
                 if (!networkAllowed()) { record(now(), "等待网络"); return true }
                 _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed())
                 val refreshed = dao.refreshLines(chunk.map { it.id })
-                when (val outcome = if (refreshed.isEmpty()) null else digest(refreshed, key) { madeEvents = true }) {
+                when (val outcome = if (refreshed.isEmpty()) null else digest(refreshed, preset, key) { madeEvents = true }) {
                     null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
                     LlmError.Auth -> { record(now(), failureDetail ?: outcome.human); return false }
                     LlmError.Network, LlmError.Server, LlmError.Format -> { record(now(), failureDetail ?: outcome.human); return true }
@@ -104,9 +104,8 @@ class DigestRunner(
     private var failureDetail: String? = null
 
     /** 整理一块；成功返回 null，否则返回错误类型 */
-    private suspend fun digest(lines: List<TranscriptLineEntity>, key: String, onEvents: () -> Unit): LlmError? {
+    private suspend fun digest(lines: List<TranscriptLineEntity>, preset: LlmPreset, key: String, onEvents: () -> Unit): LlmError? {
         failureDetail = null
-        val preset = settings.preset
         val (text, indexed) = DigestPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
         return try {
             val unfinished = dao.unfinishedForDigest()

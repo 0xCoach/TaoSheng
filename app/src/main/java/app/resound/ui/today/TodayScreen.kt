@@ -1128,10 +1128,11 @@ private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lin
     val has by androidx.compose.runtime.produceState<Boolean?>(null, source.segmentId) {
         value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { source.segmentId in app.resound.AppGraph.originalAudio.available(setOf(source.segmentId)) }.getOrDefault(false) else false
     }
-    when (has) {
-        null -> {}
-        false -> Text("原声已过保留期", style = RsType.caption, color = c.textTertiary)
-        true -> androidx.compose.foundation.text.selection.DisableSelection {
+    when {
+        source.voiceInput != null -> Text("语音输入，没有录音", style = RsType.caption, color = c.textTertiary)
+        has == null -> {}
+        has == false -> Text("原声已过保留期", style = RsType.caption, color = c.textTertiary)
+        else -> androidx.compose.foundation.text.selection.DisableSelection {
             Text("▶ 听原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
                 modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
                     val from = lines.indexOf(source).coerceAtLeast(0)
@@ -1151,7 +1152,14 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
     // 跟着数据库走：编辑保存、改状态后，详情里马上是新的时间和内容
     val latest by remember(opened.id) { memory.item(opened.id) }.collectAsState(initial = opened)
     val item = latest ?: opened
-    val lines by remember(item.eventId) { item.eventId?.let(memory::eventLines) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val eventLines by remember(item.eventId) { item.eventId?.let(memory::eventLines) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = null)
+    // 没挂事件、或那句还没整理进事件（如导入纪要里提出的待办）：按原话 id 直接取那句和它所在录音段
+    val fallback by androidx.compose.runtime.produceState<List<app.resound.transcribe.TranscriptLine>?>(null, item.sourceLineId, eventLines) {
+        val id = item.sourceLineId
+        value = if (eventLines?.any { it.id == id } == true || id == null) emptyList() else runCatching { memory.sourceLines(id) }.getOrDefault(emptyList())
+    }
+    val lines = eventLines.orEmpty().takeIf { l -> l.any { it.id == item.sourceLineId } } ?: fallback.orEmpty()
+    val linesLoading = eventLines == null || fallback == null
     val source = lines.firstOrNull { it.id == item.sourceLineId }
     val task = item.category in setOf("待办", "约定", "备忘")
     var editing by remember { mutableStateOf(false) }
@@ -1233,10 +1241,10 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("“${source.text}”", style = RsType.body, color = c.text)
-                } else Text(if (lines.isEmpty()) "原话加载中…" else "没有找到对应的原话", style = RsType.subhead, color = c.textTertiary)
+                } else Text(if (linesLoading) "原话加载中…" else "没有找到对应的原话（可能已删除）", style = RsType.subhead, color = c.textTertiary)
             }
             // 点了“听原声”：就在详情里展开播放器
-            if (item.eventId != null && (app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Event)?.event?.id == item.eventId)
+            if (app.resound.ui.transcript.LinePlayer.active && app.resound.ui.transcript.LinePlayer.allLines.any { it.id == item.sourceLineId })
                 androidx.compose.foundation.text.selection.DisableSelection { app.resound.ui.transcript.InlinePlayer(Modifier.padding(top = 10.dp)) }
             }
             // 相似的想法被并进来的那几次：各自的时间和内容，可以拆出来

@@ -4,7 +4,7 @@
   "name": "会议速记",
   "summary": "把有明确议题的多人讨论整理成会议卡",
   "icon": "meeting",
-  "version": 1,
+  "version": 2,
   "trigger": {
     "type": "AfterDigest",
     "minGapMinutes": 60

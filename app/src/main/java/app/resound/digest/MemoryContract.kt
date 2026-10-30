@@ -132,6 +132,8 @@ interface MemoryRepository {
 
     /** 一件事的原话 */
     fun eventLines(eventId: Long): Flow<List<TranscriptLine>>
+    /** 按原话 id 取那句和它所在录音段的全部原话（待办的原话所在事件还没整理出来、或待办没挂事件时用） */
+    suspend fun sourceLines(lineId: Long): List<TranscriptLine> = emptyList()
 
     /** 等确认的待办、约定、备忘（新的在前） */
     fun pendingItems(): Flow<List<MemoryItem>>

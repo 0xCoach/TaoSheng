@@ -161,7 +161,7 @@ private fun AnswerCard(m: AskMessage, onConfirm: () -> Unit, onCancel: () -> Uni
             m.error != null -> Text(m.error, style = RsType.body, color = c.critical)
             m.text.isEmpty() && m.progress != null -> Progress(m.progress)
             else -> {
-                Text(withMarks(m.text, c.accent), style = RsType.body.copy(lineHeight = 24.sp), color = c.text)
+                AnswerText(m.text)
                 if (m.streaming && m.progress != null) { Spacer(Modifier.height(8.dp)); Progress(m.progress) }
             }
         }
@@ -268,22 +268,6 @@ private fun lineSpeaker(title: String): String = when {
 
 private fun sourceTime(at: Long): String =
     Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日")) + " " + formatClock(at)
-
-/** 把正文里的 [^n] 渲染成橙色上标小数字 */
-private fun withMarks(text: String, color: Color): AnnotatedString = buildAnnotatedString {
-    var i = 0
-    val re = Regex("""\[\^(\d+)]""")
-    re.findAll(text).forEach { m ->
-        append(text.substring(i, m.range.first))
-        withStyle(SpanStyle(color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, baselineShift = BaselineShift.Superscript)) {
-            append(m.groupValues[1])
-        }
-        i = m.range.last + 1
-    }
-    // 流式输出时末尾可能是半截标记，先不显示
-    val tail = text.substring(i)
-    append(tail.substringBefore("[^"))
-}
 
 @Composable
 private fun InputBar(streaming: Boolean, onSend: (String) -> Unit, onStop: () -> Unit, bottomPadding: Dp) {

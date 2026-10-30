@@ -159,7 +159,10 @@ class ResoundApp : Application() {
         val (things, watcher) = app.resound.things.createThings(this, database, scope, digestSettings, llm) { AppGraph.prompts.text("things") }
         AppGraph.things = things
         thingWatcher = watcher
-        watcher.start(scope)
+        // 寻物第一次启动只看最近 30 分钟以后的原话，不补以前的
+        val thingPrefs = getSharedPreferences("things", MODE_PRIVATE)
+        watcher.start(scope, skipBefore = if (thingPrefs.getBoolean("historySkipped", false)) null else System.currentTimeMillis() - 30 * 60_000L,
+            onSkipped = { thingPrefs.edit().putBoolean("historySkipped", true).apply() })
         val skillScheduler = app.resound.skills.SkillScheduler(this)
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)

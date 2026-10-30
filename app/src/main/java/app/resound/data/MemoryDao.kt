@@ -287,6 +287,9 @@ abstract class MemoryDao {
     @Query("SELECT * FROM memory_items WHERE deleted = 0 AND mergedInto IS NULL AND eventId IN (SELECT id FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end)")
     abstract fun itemsBetween(start: Long, end: Long): Flow<List<MemoryItemEntity>>
 
+    @Query("SELECT id FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id LIMIT 1")
+    abstract suspend fun firstEventLineId(eventId: Long): Long?
+
     @Query("SELECT * FROM transcript_lines WHERE segmentId = (SELECT segmentId FROM transcript_lines WHERE id = :lineId) ORDER BY startAt, id")
     abstract suspend fun segmentLinesOf(lineId: Long): List<TranscriptLineEntity>
 

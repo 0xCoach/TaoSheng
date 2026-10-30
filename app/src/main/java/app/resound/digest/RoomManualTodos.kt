@@ -33,21 +33,23 @@ class RoomManualTodos(
         catch (_: Exception) { fallback }
     }
 
-    override fun add(drafts: List<TodoDraft>, origin: ItemOrigin, sourceText: String) {
+    override fun add(drafts: List<TodoDraft>, origin: ItemOrigin, sourceText: String, fromEventId: Long?) {
         require(origin == ItemOrigin.Typed || origin == ItemOrigin.Voice)
         require(drafts.size in 1..5)
         val at = now()
-        val rows = drafts.map { draft ->
+        fun rows(lineId: Long?) = drafts.map { draft ->
             require(draft.category in setOf("待办", "约定", "备忘") && draft.content.isNotBlank())
             require(draft.kind == null || draft.kind in setOf("我要做", "我答应别人", "别人答应我"))
             MemoryItemEntity(eventId = null, category = draft.category,
                 kind = if (draft.category == "待办") draft.kind ?: "我要做" else null,
                 content = draft.content.trim(), dueText = draft.dueText, dueAt = draft.dueAt,
-                who = draft.who?.trim()?.takeIf { it.isNotEmpty() }, lineId = null,
+                who = draft.who?.trim()?.takeIf { it.isNotEmpty() }, lineId = lineId,
                 status = "Accepted", createdAt = at, statusChangedAt = at, noMerge = true,
                 origin = if (origin == ItemOrigin.Typed) "typed" else "voice", sourceText = sourceText,
                 strongReminder = draft.strongReminder && draft.dueAt != null)
         }
-        scope.launch(Dispatchers.IO) { dao.addManualItems(rows) }
+        // 先校验（在调用线程上抛错），再到后台取这件事的第一句原话
+        rows(null)
+        scope.launch(Dispatchers.IO) { dao.addManualItems(rows(fromEventId?.let { dao.firstEventLineId(it) })) }
     }
 }

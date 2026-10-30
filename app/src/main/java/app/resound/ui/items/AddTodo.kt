@@ -366,7 +366,7 @@ internal fun SaveEventAsTodo(event: app.resound.digest.MemoryEvent, onDismiss: (
     val source = "来自 ${at.monthValue}月${at.dayOfMonth}日 %02d:%02d 的事「${event.title}」".format(at.hour, at.minute)
     val drafts = remember(event.id) { TodoDrafts(listOf(TodoDraft("待办", "我要做", event.title, null, null, null)), parsed = true) }
     DraftSheet(drafts, source, onDismiss = onDismiss) { confirmed ->
-        todos.add(confirmed, ItemOrigin.Typed, source)
+        todos.add(confirmed, ItemOrigin.Typed, source, event.id)
         android.widget.Toast.makeText(context, "已存为待办", android.widget.Toast.LENGTH_SHORT).show()
         onDismiss()
     }

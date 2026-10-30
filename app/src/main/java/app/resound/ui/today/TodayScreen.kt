@@ -1125,20 +1125,32 @@ private fun SourceAudioButton(source: app.resound.transcribe.TranscriptLine, lin
     val c = Rs.colors
     val context = LocalContext.current
     val event by androidx.compose.runtime.produceState<app.resound.digest.MemoryEvent?>(null, item.eventId) { value = item.eventId?.let { runCatching { memory.eventById(it) }.getOrNull() } }
-    val has by androidx.compose.runtime.produceState<Boolean?>(null, source.segmentId) {
-        value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { source.segmentId in app.resound.AppGraph.originalAudio.available(setOf(source.segmentId)) }.getOrDefault(false) else false
+    // 一件事常跨几段录音，各段按转写完成时间分别到期：这句那段清掉了，同一件事后面的段可能还在
+    val avail by androidx.compose.runtime.produceState<Set<Long>?>(null, source.segmentId, lines) {
+        val ids = (lines.map { it.segmentId } + source.segmentId).filter { it > 0 }.toSet()
+        value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { app.resound.AppGraph.originalAudio.available(ids) }.getOrDefault(emptySet()) else emptySet()
     }
+    val play: (Int, Long) -> Unit = { from, lead0 -> app.resound.ui.transcript.LinePlayer.play(context, lines, from, event?.let { app.resound.ui.transcript.PlaySource.Event(it) }, leadMillis = lead0) }
+    val a = avail
+    val firstAvailable = a?.let { set -> lines.indexOfFirst { it.segmentId in set } } ?: -1
     when {
         source.voiceInput != null -> Text("语音输入，没有录音", style = RsType.caption, color = c.textTertiary)
-        has == null -> {}
-        has == false -> Text("原声已过保留期", style = RsType.caption, color = c.textTertiary)
-        else -> androidx.compose.foundation.text.selection.DisableSelection {
-            Text("▶ 听原声", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
-                modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick {
-                    val from = lines.indexOf(source).coerceAtLeast(0)
-                    app.resound.ui.transcript.LinePlayer.play(context, lines, from, event?.let { app.resound.ui.transcript.PlaySource.Event(it) }, leadMillis = lead)
-                }.padding(horizontal = 12.dp, vertical = 6.dp))
+        a == null -> {}
+        source.segmentId in a -> PlayChip("▶ 听原声") { play(lines.indexOf(source).coerceAtLeast(0), lead) }
+        firstAvailable >= 0 -> Column(horizontalAlignment = Alignment.End) {
+            PlayChip("▶ 听这件事") { play(firstAvailable, 0L) }
+            Text("这句的录音已清理", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 2.dp))
         }
+        else -> Text("原声已过保留期", style = RsType.caption, color = c.textTertiary)
+    }
+}
+
+@Composable
+private fun PlayChip(text: String, onClick: () -> Unit) {
+    val c = Rs.colors
+    androidx.compose.foundation.text.selection.DisableSelection {
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+            modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick(onClick).padding(horizontal = 12.dp, vertical = 6.dp))
     }
 }
 
@@ -1226,7 +1238,7 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                     }
                 }
             }
-            if (item.origin != app.resound.digest.ItemOrigin.Digest) {
+            if (item.origin != app.resound.digest.ItemOrigin.Digest && item.sourceLineId == null) {
                 // 手动或语音添加的没有对应的事和原话，显示当时写的、说的那句
                 SheetSection(if (item.origin == app.resound.digest.ItemOrigin.Voice) "语音添加" else "手动添加")
                 RsCard(padding = PaddingValues(16.dp)) {
@@ -1237,7 +1249,7 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                     }
                 }
             } else {
-            SheetSection("依据的原话")
+            SheetSection(if (item.origin != app.resound.digest.ItemOrigin.Digest) (item.sourceText ?: "从时间线存的") else "依据的原话")
             RsCard(padding = PaddingValues(16.dp)) {
                 if (source != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

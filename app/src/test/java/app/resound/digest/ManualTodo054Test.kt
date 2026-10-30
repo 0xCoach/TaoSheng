@@ -144,6 +144,19 @@ class ManualTodo054Test {
         finally { restored.close() }
     }
 
+    @Test fun savedFromEventKeepsFirstLineAndSurvivesEventDelete() = runBlocking {
+        // 时间线左滑“存待办”：记下那件事第一句原话，详情能看原话、听录音；删掉那件事待办仍在
+        dao.insertEvent(event())
+        db.capture().segment(SegmentEntity(1, at, at + 3000, "mic", "synthetic.ogg", 100, "Done"))
+        db.transcribe().insertLines(listOf(TranscriptLineEntity(5, 1, at + 500, at + 900, "后半句", null, "我", eventId = 1),
+            TranscriptLineEntity(4, 1, at, at + 400, "先说的", null, "我", eventId = 1)))
+        coroutineScope { service(this).add(listOf(TodoDraft("待办", "我要做", "工作讨论", null, null, null)), ItemOrigin.Typed, "来自某事", 1L) }
+        val row = dao.ongoing().first().single()
+        assertEquals(4L, row.lineId); assertEquals(null, row.eventId); assertEquals("typed", row.origin)
+        dao.deleteEvent(1)
+        assertEquals(row.id, dao.ongoing().first().single().id)
+    }
+
     @Test fun deletingEventKeepsStandaloneAndDoneHintCanBeWritten() = runBlocking {
         dao.insertEvent(event()); dao.insertItems(listOf(item(), item(2, 1).copy(noMerge = false)))
         dao.deleteEvent(1)

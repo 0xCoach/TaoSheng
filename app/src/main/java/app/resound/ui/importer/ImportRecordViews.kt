@@ -41,6 +41,7 @@ import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.RsSheet
 import app.resound.ui.verify.formatClock
 import app.resound.ui.verify.springClick
+import kotlinx.coroutines.launch
 
 private fun kindIcon(k: ImportKind) = when (k) { ImportKind.Meeting -> "meeting"; ImportKind.Training -> "bulb"; ImportKind.Call -> "chat"; ImportKind.Normal -> "mic" }
 
@@ -140,5 +141,24 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
         changing?.let { k ->
             ActionButton("改成“${k.title}”并重新整理", ActionKind.Primary, enabled = !busy) { kinds.changeKind(r.id, k); changing = null }
         } ?: if (r.kind != ImportKind.Normal) ActionButton("重新生成纪要", ActionKind.Secondary, enabled = !busy) { kinds.regenerate(r.id) } else Unit
+        // 删除整次导入：录音、原话、整理出的事和待办、纪要一起删；点两次确认
+        if (AppGraph.isPrivacyReady) {
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            var armed by remember(r.id) { mutableStateOf(false) }
+            var deleting by remember { mutableStateOf(false) }
+            androidx.compose.runtime.LaunchedEffect(armed) { if (armed) { kotlinx.coroutines.delay(4000); armed = false } }
+            ActionButton(when { deleting -> "正在删除…"; armed -> "确定删除？再点一次"; else -> "删除这次导入" }, ActionKind.Danger, enabled = !deleting) {
+                if (!armed) { armed = true; return@ActionButton }
+                deleting = true
+                scope.launch {
+                    app.resound.ui.transcript.LinePlayer.stop()
+                    val ok = runCatching { r.segmentIds.forEach { AppGraph.privacy.forgetSegment(it) } }.isSuccess
+                    deleting = false
+                    android.widget.Toast.makeText(context, if (ok) "已删除这次导入" else "没删完，请再试一次", android.widget.Toast.LENGTH_SHORT).show()
+                    if (ok) onDismiss()
+                }
+            }
+            Text("录音、原话、整理出的事和待办、纪要会一起删除，无法恢复。", style = RsType.caption, color = c.textTertiary)
+        }
     }
 }

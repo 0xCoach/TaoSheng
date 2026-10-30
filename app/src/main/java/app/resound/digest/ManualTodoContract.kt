@@ -34,7 +34,10 @@ interface ManualTodos {
     suspend fun draft(text: String): TodoDrafts
 
     /** 用户确认后入库：状态 Accepted、放“进行中”最前面；记下来源和原话，有时间的照常参与提醒 */
-    fun add(drafts: List<TodoDraft>, origin: ItemOrigin, sourceText: String)
+    fun add(drafts: List<TodoDraft>, origin: ItemOrigin, sourceText: String) = add(drafts, origin, sourceText, null)
+
+    /** 从时间线上的一件事存的待办：记下这件事的第一句原话，详情里能看原话、听录音（重新转写时随原话一起迁移） */
+    fun add(drafts: List<TodoDraft>, origin: ItemOrigin, sourceText: String, fromEventId: Long?)
 }
 
 /** 按住说话：只在用户按着时录，录音不保存，只留识别出的文字 */

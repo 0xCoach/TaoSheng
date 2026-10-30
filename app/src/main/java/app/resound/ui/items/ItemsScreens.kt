@@ -645,8 +645,8 @@ internal fun ItemRow(item: MemoryItem, checkable: Boolean, onToggle: () -> Unit,
                 }
                 if (meta.isNotEmpty()) {
                     Spacer(Modifier.width(8.dp))
-                    // 过了时间标红，24 小时内标橙，再远用主色
-                    val left = item.dueAt?.let { it - System.currentTimeMillis() }
+                    // 过了时间标红，24 小时内标橙，再远用主色；只定了哪天的，过了那一天才算过期（当天标橙）
+                    val left = item.dueAt?.let { if (item.hasTime) it - System.currentTimeMillis() else it + 86_400_000L - System.currentTimeMillis() }
                     val tint = when {
                         done || left == null -> c.textTertiary
                         left < 0 -> c.critical

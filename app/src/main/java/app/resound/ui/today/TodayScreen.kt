@@ -2,6 +2,7 @@ package app.resound.ui.today
 
 import app.resound.ui.ScrollTopButton
 import app.resound.ui.swipeTabs
+import app.resound.ui.things.recent
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -147,6 +148,12 @@ fun TodayScreen(
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
     val events by remember(date) { memory.events(date) }.collectAsState(initial = null)
     val pending by remember { memory.pendingItems() }.collectAsState(initial = emptyList())
+    // 卡 072：寻物的待确认和待办的放在一起；3 天前的只在寻物页
+    val things = remember { app.resound.ui.things.thingRepo() }
+    val thingPendingAll by remember { things.pending() }.collectAsState(initial = emptyList())
+    val thingPending = thingPendingAll.filter { it.recent() }
+    var openedThingRecord by remember { mutableStateOf<app.resound.things.ThingRecord?>(null) }
+    val pendingCount = pending.size + thingPending.size
     val hasKey by settings.hasKey.collectAsState()
     val day by remember(date) { stats.dayStats(date) }.collectAsState(initial = null)
     var settingsOpen by remember { mutableStateOf(false) }
@@ -207,7 +214,7 @@ fun TodayScreen(
     var boxTop by remember { mutableStateOf(0f) }
     val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
-    fun timelineIndex() = 2 + (if (settingsOpen || !hasKey) 1 else 0) + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0) + (if (pending.isNotEmpty()) 1 else 0)
+    fun timelineIndex() = 2 + (if (settingsOpen || !hasKey) 1 else 0) + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0) + (if (pendingCount > 0) 1 else 0)
     Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
@@ -228,7 +235,7 @@ fun TodayScreen(
             }
         }
         item {
-            OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pending.size,
+            OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pendingCount,
                 settingsShown = settingsOpen || !hasKey) { settingsOpen = !settingsOpen }
         }
         if (settingsOpen || !hasKey) item(key = "model") { ModelCard(settings) { settingsOpen = false } }
@@ -247,17 +254,21 @@ fun TodayScreen(
                 onMeetings = { m -> if (m.size == 1) openedCard = m.first() else meetingList = m })
         }
         if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
-        if (pending.isNotEmpty()) {
+        if (pendingCount > 0) {
             item {
-                Section("待确认", trailing = { Text("${pending.size} 条", style = RsType.caption, color = c.textTertiary) }) {
+                Section("待确认", trailing = { Text("$pendingCount 条", style = RsType.caption, color = c.textTertiary) }) {
+                    // 待办和寻物按时间混排，新的在前
+                    val cardsInRow: List<Any> = (pending.map { it.at to it } + thingPending.map { it.at to it }).sortedByDescending { it.first }.map { it.second }
                     // 小卡片：一屏并排两张（只有 1 张时占半宽），超过两张左右滑
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val cardWidth = (maxWidth - 12.dp) / 2
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(pending, key = { it.id }) { item ->
-                            PendingCard(item, Modifier.width(cardWidth).animateItem(), onOpen = { openedItem = item },
-                                onAccept = { memory.setItemStatus(item.id, ItemStatus.Accepted) },
-                                onIgnore = { memory.setItemStatus(item.id, ItemStatus.Ignored) })
+                        items(cardsInRow, key = { if (it is MemoryItem) "i${it.id}" else "t${(it as app.resound.things.ThingRecord).id}" }) { card ->
+                            if (card is MemoryItem) PendingCard(card, Modifier.width(cardWidth).animateItem(), onOpen = { openedItem = card },
+                                onAccept = { memory.setItemStatus(card.id, ItemStatus.Accepted) },
+                                onIgnore = { memory.setItemStatus(card.id, ItemStatus.Ignored) })
+                            else if (card is app.resound.things.ThingRecord) app.resound.ui.things.ThingPendingCard(card, things,
+                                Modifier.width(cardWidth).animateItem()) { openedThingRecord = card }
                         }
                     }
                     }
@@ -332,6 +343,7 @@ fun TodayScreen(
     opened?.let { event -> EventSheet(event, memory) { opened = null } }
     openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }
     deleting?.let { e -> DeleteEventSheet(e, { memory.deleteEvent(e.id) }) { deleting = null } }
+    openedThingRecord?.let { r -> app.resound.ui.things.ThingConfirmSheet(r, things) { openedThingRecord = null } }
     openedItem?.let { item ->
         ItemSheet(
             item, memory,
@@ -723,7 +735,7 @@ private fun PendingCard(item: MemoryItem, modifier: Modifier, onOpen: () -> Unit
 }
 
 @Composable
-private fun SmallPill(text: String, filled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun SmallPill(text: String, filled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     Box(
         modifier.springClick(onClick).clip(CircleShape).background(if (filled) c.accent else c.card)

@@ -16,7 +16,12 @@ class DoubaoAsrProvider(
         .readTimeout(0, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
     private val hotwords: () -> List<String> = { emptyList() },
 ) : AsrProvider {
-    override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = withContext(Dispatchers.IO) {
+    override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult =
+        DoubaoConcurrency.global.withPermit {
+            try { recognizeRequest(audio, key, beforeAudio) }
+            catch (e: AsrException) { if (e.concurrencyLimited) DoubaoConcurrency.global.reduce(); throw e }
+        }
+    private suspend fun recognizeRequest(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = withContext(Dispatchers.IO) {
         var socket: WebSocket? = null
         var logId: String? = null
         try {
@@ -38,7 +43,8 @@ class DoubaoAsrProvider(
                                     ?.optJSONObject("additions")?.optString("log_id"), key)
                                 val code = packet.code ?: packet.payload.optLong("code", 20000000)
                                 if (packet.kind == 15 || code !in setOf(0L, 20000000L)) {
-                                    final.completeExceptionally(AsrException(DoubaoProtocol.error(code), logId))
+                                    val limited = doubaoLimited(code, message = packet.payload.optString("message"))
+                                    final.completeExceptionally(AsrException(if (limited) AsrError.Server else DoubaoProtocol.error(code), logId, concurrencyLimited = limited))
                                 } else if (packet.final) {
                                     final.complete(DoubaoProtocol.result(packet.payload, audio.durationMillis, logId))
                                 }
@@ -54,7 +60,8 @@ class DoubaoAsrProvider(
                         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                             val type = if (response != null) DoubaoProtocol.error(response.header("X-Api-Status-Code")?.toLongOrNull(), response.code)
                                 else if (t is SocketTimeoutException) AsrError.Timeout else AsrError.Network
-                            val error = AsrException(type, TranscribePolicy.safeLogId(response?.header("X-Tt-Logid"), key) ?: logId)
+                            val limited = doubaoLimited(response?.header("X-Api-Status-Code")?.toLongOrNull(), response?.code, response?.header("X-Api-Message"))
+                            val error = AsrException(if (limited) AsrError.Server else type, TranscribePolicy.safeLogId(response?.header("X-Tt-Logid"), key) ?: logId, concurrencyLimited = limited)
                             opened.completeExceptionally(error); final.completeExceptionally(error)
                             response?.close()
                         }

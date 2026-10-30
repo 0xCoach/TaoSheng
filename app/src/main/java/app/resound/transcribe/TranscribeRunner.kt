@@ -26,6 +26,7 @@ class TranscribeRunner(
     private val sourceReady: (TranscribeSource) -> Boolean = { true },
     private val sourceKey: (TranscribeSource) -> String = { key() },
     private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
+    private val defaultSource: () -> TranscribeSource? = { null },
     private val beginBatch: () -> Unit = {},
     private val endBatch: () -> Unit = {},
     private val sharedPcm: SharedPcmFiles? = null,
@@ -54,21 +55,24 @@ class TranscribeRunner(
             updateState(started, null)
             val candidates = dao.candidates(now())
             var done = 0
+            val progress = Mutex()
+            // 环境音、本地转写和声纹互斥；两路豆包仅重叠网络等待。
+            val heavy = Mutex()
             updateProgress(candidates.size, done)
-            for (candidate in candidates) {
+            suspend fun process(candidate: SegmentEntity): RoundDecision {
                 currentCoroutineContext().ensureActive()
-                val selected = candidate.asrSource?.let { TranscribeSource.valueOf(it) }
-                if (selected != null && !sourceReady(selected)) { updateState(started, "指定转写方式未就绪"); continue }
-                if (selected == null && !ready()) continue
+                val selected = candidate.asrSource?.let { TranscribeSource.valueOf(it) } ?: defaultSource()
+                if (selected != null && !sourceReady(selected)) { updateState(started, "指定转写方式未就绪"); return RoundDecision.Continue }
+                if (selected == null && !ready()) return RoundDecision.Continue
                 val credential = try { if (selected != null) sourceKey(selected) else key() }
-                catch (_: Exception) { updateState(started, "密钥安全读取失败，请重新填写"); continue }
-                if (!(selected?.let(sourceNetwork) ?: networkAllowed())) { updateState(started, "等待不计流量网络"); return true }
+                catch (_: Exception) { updateState(started, "密钥安全读取失败，请重新填写"); return RoundDecision.Continue }
+                if (!(selected?.let(sourceNetwork) ?: networkAllowed())) { updateState(started, "等待不计流量网络"); return RoundDecision.Retry }
                 // 清除/更换密钥后不继续使用本轮旧密钥。
-                if (runCatching { identity() }.getOrDefault("") != configuration) return false
+                if (runCatching { identity() }.getOrDefault("") != configuration) return RoundDecision.Stop
                 // 清理任务或本轮前一段的声纹收尾可能已删除过期导入音频，不能上传旧快照。
                 // 缺失文件也走统一失败落库，避免永久留在队列。
                 val running = candidate.copy(status = "Running", attempts = candidate.attempts + 1, nextRetryAt = null, error = null)
-                if (dao.claim(candidate.id) == 0) continue
+                if (dao.claim(candidate.id) == 0) return RoundDecision.Continue
                 val began = now()
                 var reserved = 0L
                 var outcome = "Failed"
@@ -76,16 +80,17 @@ class TranscribeRunner(
                 var logId: String? = null
                 try {
                     if (!File(candidate.path).isFile) throw AsrException(AsrError.Audio, detail = "录音文件已不存在")
-                    if (!candidate.redoPending && beforeTranscribe(candidate) && dao.finishEnvSkip(candidate.id, now()) > 0) {
+                    if (!candidate.redoPending && heavy.withLock { beforeTranscribe(candidate) } && dao.finishEnvSkip(candidate.id, now()) > 0) {
                         outcome = "SkippedEnv"
-                        continue
+                        return RoundDecision.Continue
                     }
                     val selectedProvider = if (selected != null && provider is ConfiguredAsrProvider) object : AsrProvider { override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit) = provider.recognize(selected, audio, key, beforeAudio) } else provider
-                    val result = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), pcmFile = sharedPcm?.find(File(candidate.path))), credential) {
+                    suspend fun recognize() = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), pcmFile = sharedPcm?.find(File(candidate.path))), credential) {
                         check(dao.findSegment(candidate.id) != null)
                         reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
                         dao.reserveAudio(today(), reserved, candidate.id)
                     }
+                    val result = if (selected == TranscribeSource.Local) heavy.withLock { recognize() } else recognize()
                     recordSpeed(selected, (candidate.endAt - candidate.startAt).coerceAtLeast(0), (now() - began).coerceAtLeast(1))
                     logId = TranscribePolicy.safeLogId(result.logId, credential)
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
@@ -121,30 +126,43 @@ class TranscribeRunner(
                     }
                     if (e is CancellationException) throw e
                 } finally {
-                    try { if (outcome in setOf("Done", "Empty")) afterSegment(candidate) }
+                    try { if (outcome in setOf("Done", "Empty")) heavy.withLock { afterSegment(candidate) } }
                     finally {
                     sharedPcm?.release(File(candidate.path))
                     withContext(NonCancellable) {
                         dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = outcome,
                             errorType = error?.name, elapsedMillis = (now() - began).coerceAtLeast(0), sentMillis = reserved, logId = logId))
-                        updateProgress(candidates.size, ++done)
+                        progress.withLock { updateProgress(candidates.size, ++done) }
                     }
                     }
                 }
                 if (candidate.sourceId == "import" && outcome in setOf("Done", "Empty")) {
                     // 声纹失败不应把成功的转写改回失败；音频留待重试或三天上限清理。
-                    try { afterImport() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+                    try { heavy.withLock { afterImport() } } catch (e: CancellationException) { throw e } catch (_: Exception) { }
                     if (!deferAudioCleanup) cleanupImportedAudio(dao, now())
                 }
-                if (error == AsrError.Auth) return false
-                // 网络或服务端出问题时后面的段大概率也失败：结束本轮，交给退避重试，不逐段耗时间和次数。
-                if (error in TranscribePolicy.ROUND_STOPPERS) return dao.candidates(now()).isNotEmpty() || dao.earliestRetry() != null
+                if (error == AsrError.Auth) return RoundDecision.Stop
+                if (error in TranscribePolicy.ROUND_STOPPERS) return RoundDecision.Retry
+                return RoundDecision.Continue
+            }
+            var index = 0
+            while (index < candidates.size) {
+                currentCoroutineContext().ensureActive()
+                val first = candidates[index]
+                fun cloud(segment: SegmentEntity) = (segment.asrSource?.let { TranscribeSource.valueOf(it) } ?: defaultSource()) == TranscribeSource.Doubao
+                val count = if (cloud(first) && DoubaoConcurrency.global.limit == 2 && index + 1 < candidates.size && cloud(candidates[index + 1])) 2 else 1
+                val batch = candidates.subList(index, index + count)
+                val decisions = coroutineScope { batch.map { async { process(it) } }.awaitAll() }
+                if (RoundDecision.Stop in decisions) return false
+                if (RoundDecision.Retry in decisions) return true
+                index += count
             }
             return dao.earliestRetry() != null
         } finally {
             try { sharedPcm?.clear(); endBatch(); updateProgress(0, 0) } finally { gate.unlock() }
         }
     }
+    private enum class RoundDecision { Continue, Stop, Retry }
     private suspend fun cleanup() {
         val timestamp = now()
         cleanupImportedAudio(dao, timestamp)

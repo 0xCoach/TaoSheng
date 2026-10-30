@@ -14,6 +14,8 @@ import app.resound.transcribe.TranscriptRepository
  */
 object AppGraph {
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
+    lateinit var llmBalance: app.resound.usage.LlmBalanceChecker
+    val isLlmBalanceReady: Boolean get() = ::llmBalance.isInitialized
     val isAsrSpeedReady: Boolean get() = ::asrSpeed.isInitialized
 
     // 卡 052–054：界面先按约定接好，底层合并后由 ResoundApp 装配

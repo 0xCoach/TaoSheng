@@ -114,6 +114,8 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
                 }
                 app.voiceprintRepository.cleanupAudio()
                 parts += "整理 ${formatElapsed(lap())}"
+                // 顺便查一下整理模型余额（最多每小时一次）
+                if (AppGraph.isLlmBalanceReady) runCatching { AppGraph.llmBalance.refresh() }
             })
             // 回顾前整理由外层统一记一次诊断（含等锁、超时和失败）。
             if (mode != MODE_REVIEW) PipelineTimes.record(app, "${System.currentTimeMillis()} ${MODE_NAMES[mode] ?: mode} 待转录音 ${formatElapsed(pendingBefore)} · " + parts.joinToString(" · "))

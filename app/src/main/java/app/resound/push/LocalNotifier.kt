@@ -13,7 +13,7 @@ import app.resound.R
 import app.resound.capture.CaptureNotifications
 
 class LocalNotifier(private val context: Context, private val channel: String = CHANNEL) : Notifier {
-    private val channelName = when (channel) { SKILL_GENERATION_CHANNEL -> "技能生成"; TODO_CHANNEL -> "待办提醒"; else -> "每日回顾" }
+    private val channelName = when (channel) { SKILL_GENERATION_CHANNEL -> "技能生成"; TODO_CHANNEL -> "待办提醒"; BALANCE_CHANNEL -> "余额提醒"; else -> "每日回顾" }
     // 待办到点要像闹钟一样弹出来，用高重要级；其余照旧
     private val urgent = channel == TODO_CHANNEL
     init {
@@ -55,6 +55,7 @@ class LocalNotifier(private val context: Context, private val channel: String = 
         const val CHANNEL = "daily-review"
         const val SKILL_GENERATION_CHANNEL = "skill-generation"
         const val TODO_CHANNEL = "todo-reminder-2"
+        const val BALANCE_CHANNEL = "llm-balance"
         const val NOTIFICATION_ID = 100
     }
 }

@@ -172,6 +172,15 @@ class ResoundApp : Application() {
         }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) })
         AppGraph.rhythm = RoomRhythmStats(database.memory())
         AppGraph.digestSettings = digestSettings
+        // 整理模型余额：DeepSeek 自动查，自定义模型填了查询地址才查；低于提醒线时提醒一次
+        AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), {
+            val p = digestSettings.preset; val key = digestSettings.readKey()
+            if (key.isBlank()) null else Triple(p.baseUrl, key, p.id == "custom")
+        }, { b, line ->
+            app.resound.push.LocalNotifier(this, app.resound.push.LocalNotifier.BALANCE_CHANNEL).send(
+                if (b.available) "整理模型余额不足 ¥%.2f".format(b.total) else "整理模型余额已用完",
+                "低于提醒线 ¥%.0f，余额用完后整理会失败，请及时充值。".format(line), null)
+        })
         AppGraph.digestTiming = digestSettings.timing
         scheduler.digestTiming = digestSettings.timing
         digestSettings.timing.onChanged = scheduler::timingChanged

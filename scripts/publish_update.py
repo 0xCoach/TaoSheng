@@ -164,10 +164,13 @@ def main():
     files = {apk_name: staged_apk}
     patches = []
     bases = [(badging(path)[1], path) for path in a.base_apk] if a.dry_run else older_releases(name, work)
-    if a.preview and not a.dry_run:
+    if not a.dry_run:
+        # 只传了魔搭的预览版也要作基线：装着最新预览版的人更新正式版时也只下差异包
         bases += modelscope_previews({n for n, _ in bases} | {name})
-        # 只取版本号最近的 KEEP 个
-        bases = sorted(bases, key=lambda b: version_key(b[0]), reverse=True)[:KEEP]
+        # 只取版本号最近的 KEEP 个；上一个正式版无论多旧都保留（正式通道的人从它升级）
+        ranked = sorted(bases, key=lambda b: version_key(b[0]), reverse=True)
+        formal = next((b for b in ranked if "-preview." not in b[0]), None)
+        bases = ranked[:KEEP] + ([formal] if formal and formal not in ranked[:KEEP] else [])
     seen = set()
     for old_name, old in bases:
         old_code, _ = badging(old)

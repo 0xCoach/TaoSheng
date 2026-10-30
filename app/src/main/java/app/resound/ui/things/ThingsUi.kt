@@ -156,8 +156,10 @@ private fun rememberArmed(): androidx.compose.runtime.MutableState<Boolean> {
 
 // ---------- 寻物选项卡 ----------
 
-/** 寻物页的看法：一样东西一张卡 / 同一个地方的归在一起 / 只看借出去的 */
-enum class ThingFilter(val title: String) { ByThing("按东西"), ByPlace("按地方"), Lent("借出去") }
+/** 寻物页的看法：全部（一样东西一张卡）/ 按地方（同一个地方的归在一起）/ 只看带走了的 / 只看借出去的 */
+enum class ThingFilter(val title: String, val empty: String) {
+    All("全部", ""), ByPlace("按地方", ""), Taken("带走了", "没有带走的东西"), Lent("借出去的", "没有借出去的东西"),
+}
 
 /** 按地方看时的分组：当前放着的按位置；带走了、没记地方的各成一组放最后；借出去的不在这里 */
 private fun placeGroups(list: List<Thing>): List<Pair<String, List<Thing>>> {
@@ -207,17 +209,23 @@ fun LazyListScope.thingsTab(
             Text("›", style = RsType.headline, color = c.accent)
         }
     }
-    val shown = if (filter == ThingFilter.Lent) list.orEmpty().filter { it.latest.action == ThingAction.Lent } else list.orEmpty()
+    val shown = list.orEmpty().filter {
+        when (filter) {
+            ThingFilter.Taken -> it.latest.action == ThingAction.TakenAway
+            ThingFilter.Lent -> it.latest.action == ThingAction.Lent
+            else -> true
+        }
+    }
     if (list != null && shown.isEmpty()) item(key = "thingEmpty") {
         Empty(when {
             query.isNotBlank() -> "没找到“${query.trim()}”。去问问里问一句，会从原话里帮你找。"
-            filter == ThingFilter.Lent -> "没有借出去的东西"
+            filter.empty.isNotEmpty() -> filter.empty
             else -> "说过“钥匙放抽屉了”这类话，就会记在这里。也可以点右下角，自己记一下。"
         })
     }
     if (filter == ThingFilter.ByPlace) {
         val groups = placeGroups(shown)
-        if (list != null && shown.isNotEmpty() && groups.isEmpty()) item(key = "thingPlaceEmpty") { Empty("现在没有放着的东西，借出去的在“借出去”里") }
+        if (list != null && shown.isNotEmpty() && groups.isEmpty()) item(key = "thingPlaceEmpty") { Empty("现在没有放着的东西，借出去的在“借出去的”里") }
         items(groups, key = { "place${it.first}" }) { (place, group) ->
             PlaceGroup(place, group, Modifier.animateItem(), onOpen)
         }

@@ -21,6 +21,14 @@ class SileroVad(context: Context) : AutoCloseable {
     private val pending = ShortArray(512)
     private var size = 0
 
+    /** 离线批处理复用模型，但不同录音不能共享循环状态、上下文或待处理尾帧。 */
+    fun reset() {
+        state.fill(0f)
+        history.fill(0f)
+        pending.fill(0)
+        size = 0
+    }
+
     fun accept(frame: ShortArray, consume: (ShortArray, Boolean, Float) -> Unit) {
         var offset = 0
         while (offset < frame.size) {

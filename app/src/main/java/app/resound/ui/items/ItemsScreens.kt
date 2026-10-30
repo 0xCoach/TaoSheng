@@ -330,7 +330,7 @@ fun MemoryScreen(
     val things = remember { app.resound.ui.things.thingRepo() }
     val onThings = !byDay && tab.name == "寻物"
     var thingQuery by rememberSaveable { mutableStateOf("") }
-    var thingFilter by rememberSaveable { mutableStateOf(app.resound.ui.things.ThingFilter.All) }
+    var thingFilter by rememberSaveable { mutableStateOf(app.resound.ui.things.ThingFilter.ByThing) }
     val thingList by app.resound.ui.things.rememberThingList(things, thingQuery)
     val thingPending by remember { things.pending() }.collectAsState(initial = emptyList())
     var openedThing by remember { mutableStateOf<Long?>(null) }

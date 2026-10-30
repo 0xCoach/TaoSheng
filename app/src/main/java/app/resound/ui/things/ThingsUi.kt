@@ -156,8 +156,16 @@ private fun rememberArmed(): androidx.compose.runtime.MutableState<Boolean> {
 
 // ---------- 寻物选项卡 ----------
 
-enum class ThingFilter(val title: String, val empty: String) {
-    All("全部", ""), Lent("借出去的", "没有借出去的东西"), Taken("带走了", "没有带走的东西"),
+/** 寻物页的看法：一样东西一张卡 / 同一个地方的归在一起 / 只看借出去的 */
+enum class ThingFilter(val title: String) { ByThing("按东西"), ByPlace("按地方"), Lent("借出去") }
+
+/** 按地方看时的分组：当前放着的按位置；带走了、没记地方的各成一组放最后；借出去的不在这里 */
+private fun placeGroups(list: List<Thing>): List<Pair<String, List<Thing>>> {
+    val placed = list.filter { it.latest.action != ThingAction.Lent && it.latest.action != ThingAction.TakenAway && !it.latest.place.isNullOrBlank() }
+    val byPlace = placed.groupBy { it.latest.place!!.trim() }.toList().sortedByDescending { (_, l) -> l.maxOf { it.latest.at } }
+    val taken = list.filter { it.latest.action == ThingAction.TakenAway }
+    val unknown = list.filter { it.latest.action == ThingAction.Returned && it.latest.place.isNullOrBlank() }
+    return byPlace + listOfNotNull(taken.takeIf { it.isNotEmpty() }?.let { "带走了" to it }, unknown.takeIf { it.isNotEmpty() }?.let { "没记地方" to it })
 }
 
 /** 搜索词防抖 300 毫秒后查；空串查全部 */
@@ -199,22 +207,51 @@ fun LazyListScope.thingsTab(
             Text("›", style = RsType.headline, color = c.accent)
         }
     }
-    val shown = list.orEmpty().filter {
-        when (filter) {
-            ThingFilter.All -> true
-            ThingFilter.Lent -> it.latest.action == ThingAction.Lent
-            ThingFilter.Taken -> it.latest.action == ThingAction.TakenAway
-        }
-    }
+    val shown = if (filter == ThingFilter.Lent) list.orEmpty().filter { it.latest.action == ThingAction.Lent } else list.orEmpty()
     if (list != null && shown.isEmpty()) item(key = "thingEmpty") {
         Empty(when {
             query.isNotBlank() -> "没找到“${query.trim()}”。去问问里问一句，会从原话里帮你找。"
-            filter != ThingFilter.All -> filter.empty
+            filter == ThingFilter.Lent -> "没有借出去的东西"
             else -> "说过“钥匙放抽屉了”这类话，就会记在这里。也可以点右下角，自己记一下。"
         })
     }
-    items(shown, key = { "thing${it.id}" }) { t ->
+    if (filter == ThingFilter.ByPlace) {
+        val groups = placeGroups(shown)
+        if (list != null && shown.isNotEmpty() && groups.isEmpty()) item(key = "thingPlaceEmpty") { Empty("现在没有放着的东西，借出去的在“借出去”里") }
+        items(groups, key = { "place${it.first}" }) { (place, group) ->
+            PlaceGroup(place, group, Modifier.animateItem(), onOpen)
+        }
+    } else items(shown, key = { "thing${it.id}" }) { t ->
         ThingCard(t, Modifier.animateItem(), onOpen = { onOpen(t) }, onReturned = { onReturned(t) })
+    }
+}
+
+/** 一个地方一张卡：标题是地方，下面列放在这里的东西 */
+@Composable
+private fun PlaceGroup(place: String, group: List<Thing>, modifier: Modifier, onOpen: (Thing) -> Unit) {
+    val c = Rs.colors
+    RsCard(modifier, padding = PaddingValues(vertical = 6.dp)) {
+        Row(Modifier.padding(start = 18.dp, end = 16.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(place, style = RsType.headline, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
+            Text("${group.size} 样", style = RsType.caption, color = c.textTertiary)
+        }
+        group.sortedByDescending { it.latest.at }.forEachIndexed { i, t ->
+            Row(Modifier.fillMaxWidth().springClick { onOpen(t) }.padding(start = 18.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(6.dp).height(6.dp).clip(CircleShape).background(thingColor()))
+                Spacer(Modifier.width(10.dp))
+                Text(t.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (t.owner != ThingOwner.Mine) { Spacer(Modifier.width(6.dp)); ThingTag(t.owner.title, c.textSecondary) }
+                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
+                // 带走了的那组：写最后在哪，比时间更有用
+                val meta = if (t.latest.action == ThingAction.TakenAway) t.lastPlace?.let { "最后在 $it" } ?: formatStamp(t.latest.at) else formatStamp(t.latest.at)
+                Text(meta, style = RsType.caption, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+            }
+            if (i != group.lastIndex) Box(Modifier.padding(start = 34.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+        }
     }
 }
 

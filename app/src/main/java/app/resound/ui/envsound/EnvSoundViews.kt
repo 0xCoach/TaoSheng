@@ -44,6 +44,7 @@ import app.resound.digest.MemoryEvent
 import app.resound.envsound.EnvModelState
 import app.resound.envsound.EnvSoundRepository
 import app.resound.envsound.EnvSoundSettings
+import app.resound.envsound.EnvTag
 import app.resound.envsound.EventSounds
 import app.resound.envsound.MediaMode
 import app.resound.envsound.SegmentSound
@@ -342,14 +343,69 @@ fun rememberHourSounds(date: LocalDate): Map<Int, app.resound.envsound.HourSound
     return remember(list) { list.associateBy { it.hour } }
 }
 
-/** 节奏卡分布条下面一行：“环境：键盘声 5 小时 · 雨 2 小时 · 有敲门” */
-@Composable
-fun EnvDayLine(hours: Map<Int, app.resound.envsound.HourSound>, modifier: Modifier = Modifier) {
-    if (hours.isEmpty()) return
-    val tags = hours.values.mapNotNull { it.tag }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3)
-    val sounds = hours.values.flatMap { it.sounds }.distinct()
-    if (tags.isEmpty() && sounds.isEmpty()) return
-    val text = (tags.map { "${it.key.title} ${it.value} 小时" } + sounds.map { "有${it.title}" }).joinToString(" · ")
-    Text("环境：$text", style = RsType.caption, color = Rs.colors.textTertiary, maxLines = 1,
-        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = modifier)
+/**
+ * 节奏卡柱子下面的环境小图标：9 种环境各一个细线条图，画在以 center 为中心、边长 side 的方格里。
+ * 这么小的尺寸只靠形状认，所以都是最简单的几笔；认不出时按住会弹出文字。
+ */
+fun androidx.compose.ui.graphics.drawscope.DrawScope.drawEnvIcon(tag: EnvTag, color: Color, center: androidx.compose.ui.geometry.Offset, side: Float) {
+    val left = center.x - side / 2; val top = center.y - side / 2
+    fun p(x: Float, y: Float) = androidx.compose.ui.geometry.Offset(left + x * side, top + y * side)
+    fun sz(w: Float, h: Float) = androidx.compose.ui.geometry.Size(w * side, h * side)
+    val line = androidx.compose.ui.graphics.drawscope.Stroke(width = side * 0.11f, cap = androidx.compose.ui.graphics.StrokeCap.Round,
+        join = androidx.compose.ui.graphics.StrokeJoin.Round)
+    fun path(vararg pts: Pair<Float, Float>) = androidx.compose.ui.graphics.Path().apply {
+        pts.forEachIndexed { i, (x, y) -> val o = p(x, y); if (i == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }
+    }
+    fun dot(x: Float, y: Float, r: Float) = drawCircle(color, r * side, p(x, y))
+    when (tag) {
+        EnvTag.Music -> {
+            drawOval(color, p(0.14f, 0.62f), sz(0.36f, 0.28f))
+            drawPath(path(0.47f to 0.74f, 0.47f to 0.1f, 0.8f to 0.3f), color, style = line)
+        }
+        EnvTag.Keyboard -> {
+            drawRoundRect(color, p(0.04f, 0.22f), sz(0.92f, 0.56f), androidx.compose.ui.geometry.CornerRadius(0.12f * side), style = line)
+            listOf(0.26f, 0.42f, 0.58f, 0.74f).forEach { dot(it, 0.41f, 0.05f) }
+            drawLine(color, p(0.3f, 0.6f), p(0.7f, 0.6f), side * 0.11f, androidx.compose.ui.graphics.StrokeCap.Round)
+        }
+        EnvTag.Rain -> {
+            drawArc(color, 180f, 180f, false, p(0.06f, 0.12f), sz(0.88f, 0.76f), style = line)
+            drawLine(color, p(0.06f, 0.5f), p(0.94f, 0.5f), side * 0.11f, androidx.compose.ui.graphics.StrokeCap.Round)
+            drawLine(color, p(0.5f, 0.5f), p(0.5f, 0.82f), side * 0.11f, androidx.compose.ui.graphics.StrokeCap.Round)
+            drawArc(color, 0f, 180f, false, p(0.32f, 0.72f), sz(0.18f, 0.2f), style = line)
+        }
+        EnvTag.Pet -> {
+            drawOval(color, p(0.27f, 0.5f), sz(0.46f, 0.38f))
+            dot(0.2f, 0.4f, 0.1f); dot(0.4f, 0.22f, 0.1f); dot(0.6f, 0.22f, 0.1f); dot(0.8f, 0.4f, 0.1f)
+        }
+        EnvTag.Water -> drawPath(androidx.compose.ui.graphics.Path().apply {
+            val a = p(0.5f, 0.08f); moveTo(a.x, a.y)
+            p(0.62f, 0.26f).let { c1 -> p(0.8f, 0.44f).let { c2 -> p(0.8f, 0.62f).let { e -> cubicTo(c1.x, c1.y, c2.x, c2.y, e.x, e.y) } } }
+            p(0.8f, 0.8f).let { c1 -> p(0.66f, 0.92f).let { c2 -> p(0.5f, 0.92f).let { e -> cubicTo(c1.x, c1.y, c2.x, c2.y, e.x, e.y) } } }
+            p(0.34f, 0.92f).let { c1 -> p(0.2f, 0.8f).let { c2 -> p(0.2f, 0.62f).let { e -> cubicTo(c1.x, c1.y, c2.x, c2.y, e.x, e.y) } } }
+            p(0.2f, 0.44f).let { c1 -> p(0.38f, 0.26f).let { c2 -> cubicTo(c1.x, c1.y, c2.x, c2.y, a.x, a.y) } }
+            close()
+        }, color, style = line)
+        EnvTag.Appliance -> {
+            // 电扇：圆罩 + 中心 + 底座
+            drawCircle(color, 0.3f * side, p(0.5f, 0.42f), style = line)
+            dot(0.5f, 0.42f, 0.07f)
+            drawPath(path(0.5f to 0.72f, 0.5f to 0.9f), color, style = line)
+            drawPath(path(0.28f to 0.9f, 0.72f to 0.9f), color, style = line)
+        }
+        EnvTag.Footsteps -> {
+            drawOval(color, p(0.12f, 0.36f), sz(0.28f, 0.5f))
+            drawOval(color, p(0.6f, 0.1f), sz(0.28f, 0.5f))
+        }
+        EnvTag.AlarmClock -> {
+            drawCircle(color, 0.32f * side, p(0.5f, 0.56f), style = line)
+            drawPath(path(0.5f to 0.38f, 0.5f to 0.56f, 0.64f to 0.64f), color, style = line)
+            drawPath(path(0.12f to 0.26f, 0.28f to 0.12f), color, style = line)
+            drawPath(path(0.72f to 0.12f, 0.88f to 0.26f), color, style = line)
+        }
+        EnvTag.Traffic -> {
+            drawRoundRect(color, p(0.04f, 0.46f), sz(0.92f, 0.28f), androidx.compose.ui.geometry.CornerRadius(0.08f * side), style = line)
+            drawPath(path(0.22f to 0.46f, 0.34f to 0.24f, 0.66f to 0.24f, 0.78f to 0.46f), color, style = line)
+            dot(0.28f, 0.78f, 0.1f); dot(0.72f, 0.78f, 0.1f)
+        }
+    }
 }

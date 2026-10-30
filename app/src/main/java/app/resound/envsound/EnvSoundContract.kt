@@ -70,8 +70,11 @@ data class SegmentSound(
 /** 一件事期间（按时间范围合并其录音段）出现的环境 */
 data class EventSounds(val eventId: Long, val tags: Set<EnvTag>, val sounds: Set<SpecialSound>, val media: Boolean)
 
-/** 某小时说话时的主要环境，给节奏色带用；没有录音的小时不出现 */
-data class HourSound(val hour: Int, val tag: EnvTag?, val sounds: Set<SpecialSound>, val speechMinutes: Int)
+/** 某小时说话时的主要环境（时长最长的那种），给节奏卡用；没有录音的小时不出现；tagMs 是每种环境在这小时里的毫秒数 */
+data class HourSound(val hour: Int, val tag: EnvTag?, val sounds: Set<SpecialSound>, val speechMinutes: Int, val tagMs: Map<EnvTag, Long> = emptyMap())
+
+/** 节奏卡上的一段环境：from～to 点（含 to）都是这种环境，ms 是这几小时里的合计时长 */
+data class EnvSpan(val tag: EnvTag, val from: Int, val to: Int, val ms: Long)
 
 /** 只标记/开 模式的统计，如“过去 7 天标记 86 段，你找回 0 段，约省 42 分钟转写” */
 data class EnvStats(val days: Int, val marked: Int, val restored: Int, val reportedWrong: Int, val savedMinutes: Int)

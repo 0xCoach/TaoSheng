@@ -263,7 +263,13 @@ fun TodayScreen(
                 },
                 onOpen = { opened = it }, onPeople = { peopleOpen = true },
                 meetings = cards.filter { it.skillId == "meeting" },
-                onMeetings = { m -> if (m.size == 1) openedCard = m.first() else meetingList = m })
+                onMeetings = { m -> if (m.size == 1) openedCard = m.first() else meetingList = m },
+                onEnv = { sp ->
+                    val zone = ZoneId.systemDefault()
+                    filter = TimelineFilter.Env("${sp.tag.title} ${sp.from}–${sp.to + 1} 点",
+                        date.atTime(sp.from, 0).atZone(zone).toInstant().toEpochMilli(), date.atTime(sp.to, 0).plusHours(1).atZone(zone).toInstant().toEpochMilli())
+                    rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
+                })
         }
         if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
         if (pendingCount > 0) {

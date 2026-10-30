@@ -46,6 +46,10 @@ internal sealed interface TimelineFilter {
     data object Media : TimelineFilter { override val label = "媒体"; override fun matches(e: MemoryEvent) = e.isMedia() }
     /** 整理时提到的人（不是声纹认出的人），所以叫“提到” */
     data class Person(val name: String) : TimelineFilter { override val label = name; override fun matches(e: MemoryEvent) = !e.isMedia() && name in e.people }
+    /** 节奏卡上点了某段环境图标：只看这段时间里的事，标签写“雨 14–16 点” */
+    data class Env(override val label: String, val start: Long, val end: Long) : TimelineFilter {
+        override fun matches(e: MemoryEvent) = !e.isMedia() && e.startAt < end && e.endAt > start
+    }
 }
 
 /** 当天可用的筛选：数量为 0 的不出现（全部除外）；人名按出现次数取前 5 */
@@ -58,7 +62,12 @@ internal fun timelineFilters(events: List<MemoryEvent>, selected: TimelineFilter
         .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(5)
         .map { TimelineFilter.Person(it.key) to it.value }
     // 从“提到”面板选了排在前 5 之外的人，也把他放进这一排，选中状态看得见
-    val extra = (selected as? TimelineFilter.Person)?.takeIf { p -> people.none { it.first == p } }?.let { listOf(it to events.count(it::matches)) }.orEmpty()
+    // 环境段同理：从节奏卡点进来的，放在最后
+    val extra = when (selected) {
+        is TimelineFilter.Person -> selected.takeIf { p -> people.none { it.first == p } }?.let { listOf(it to events.count(it::matches)) }.orEmpty()
+        is TimelineFilter.Env -> listOf(selected to events.count(selected::matches))
+        else -> emptyList()
+    }
     return fixed + people + extra
 }
 

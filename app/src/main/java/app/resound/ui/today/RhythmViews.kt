@@ -43,6 +43,7 @@ import app.resound.capture.QuietRule
 import app.resound.digest.MemoryEvent
 import app.resound.digest.RhythmBaseline
 import app.resound.transcribe.TranscriptLine
+import app.resound.ui.envsound.drawEnvIcon
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsCard
@@ -131,7 +132,8 @@ private fun quietHours(rules: List<QuietRule>, date: LocalDate): Map<Int, String
 @Composable
 internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, date: LocalDate, pendingSegments: Int,
                         onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit, onPeople: () -> Unit = {},
-                        meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {}) {
+                        meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {},
+                        onEnv: (app.resound.envsound.EnvSpan) -> Unit = {}) {
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
@@ -172,7 +174,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Stat("会议", meetings.size, "场", null, Modifier.weight(1f)) { if (meetings.isNotEmpty()) onMeetings(meetings) }
         }
         Spacer(Modifier.height(12.dp))
-        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour) }
+        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour, onEnv) }
     }
 }
 
@@ -199,17 +201,24 @@ private fun Stat(label: String, count: Int, unit: String, delta: String?, modifi
  * 0～24 点的说话分布：每天位置固定，今天和昨天能直接对上。
  * 说话主色（最多的那个小时更深）、媒体灰色叠在上面、停录时段浅底；数字只标 0·6·12·18·24，3·9·15·21 只画淡刻度。
  * 点柱子跳到那个时段；按住显示“15 点 · 说话 12 分钟”，按住左右滑跟着手指看。
+ * 开了环境音识别时，柱子下面一排小图标标出当时的环境（连着几小时相同只画一个），柱顶小圆点是敲门、狗叫这类特别声音。
  */
 @Composable
-private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHour: (Int) -> Unit) {
+private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHour: (Int) -> Unit, onEnv: (app.resound.envsound.EnvSpan) -> Unit) {
     val c = Rs.colors
     val quiet = remember(rules, date) { quietHours(rules, date) }
     val totals = (0..23).map { r.speechByHour[it] + r.mediaByHour[it] }
     val max = (totals.maxOrNull() ?: 1).coerceAtLeast(1)
     val peak = (0..23).maxByOrNull { r.speechByHour[it] } ?: 0
     var hover by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
-    // 环境音识别：每小时的主要环境，按住柱子时一起显示，分布条下面一行汇总
+    // 环境音识别：说话够多、环境也够多的小时才画图标，按住柱子时一起显示时长
     val env = app.resound.ui.envsound.rememberHourSounds(date)
+    val spans = remember(env, r) { app.resound.envsound.envSpans(r.speechByHour, env) }
+    // 按住某个环境图标：那段的柱子保持原样，其余变淡
+    var lit by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<app.resound.envsound.EnvSpan?>(null) }
+    // 有特别声音时柱子整体让出顶上一点，放小圆点
+    val head = if (env.values.any { it.sounds.isNotEmpty() }) 6.dp else 0.dp
+    val barArea = 44.dp - head
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     fun bias(h: Float) = (h / 24f) * 2f - 1f
     Column {
@@ -233,15 +242,19 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
             horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
             (0..23).forEach { h ->
                 val speech = r.speechByHour[h]; val mediaS = r.mediaByHour[h]; val total = speech + mediaS
-                Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(3.dp))
+                val fade by androidx.compose.animation.core.animateFloatAsState(if (lit?.let { h !in it.from..it.to } == true) 0.3f else 1f, label = "lit")
+                Box(Modifier.weight(1f).fillMaxHeight().graphicsLayer { alpha = fade }.clip(RoundedCornerShape(3.dp))
                     .background(if (h in quiet) c.separator.copy(alpha = 0.35f) else androidx.compose.ui.graphics.Color.Transparent),
                     contentAlignment = Alignment.BottomCenter) {
-                    if (total == 0) Box(Modifier.fillMaxWidth().fillMaxHeight(0.06f).clip(RoundedCornerShape(2.dp)).background(c.separator))
-                    else Column(Modifier.fillMaxWidth().fillMaxHeight((total / max.toFloat()).coerceIn(0.12f, 1f))) {
+                    val barH = if (total == 0) barArea * 0.06f else barArea * (total / max.toFloat()).coerceIn(0.12f, 1f)
+                    if (total == 0) Box(Modifier.fillMaxWidth().height(barH).clip(RoundedCornerShape(2.dp)).background(c.separator))
+                    else Column(Modifier.fillMaxWidth().height(barH)) {
                         if (mediaS > 0) Box(Modifier.fillMaxWidth().weight(mediaS.toFloat()).clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)).background(c.textTertiary.copy(alpha = 0.45f)))
                         if (speech > 0) Box(Modifier.fillMaxWidth().weight(speech.toFloat()).clip(RoundedCornerShape(2.dp))
-                            .background(if (h == peak || h == hover) c.accent else c.accent.copy(alpha = 0.35f)))
+                            .background(if (h == peak || h == hover || lit != null) c.accent else c.accent.copy(alpha = 0.35f)))
                     }
+                    if (env[h]?.sounds?.isNotEmpty() == true)
+                        Box(Modifier.padding(bottom = barH + 2.dp).size(4.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.accent))
                 }
             }
         }
@@ -253,7 +266,17 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
                 Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: "") +
-                    (env[h]?.let { e -> listOfNotNull(e.tag?.title) + e.sounds.map { "有${it.title}" } }?.joinToString("") { " · $it" } ?: ""),
+                    envHint(h, spans, env).joinToString("") { " · $it" },
+                    style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White, maxLines = 1)
+            }
+        }
+        // 按住环境图标：说这一段是什么、几点到几点、合计多久
+        lit?.let { s ->
+            Box(Modifier.align(androidx.compose.ui.BiasAlignment(bias((s.from + s.to + 1) / 2f).coerceIn(-0.72f, 0.72f), -1f))
+                .offset(y = (-34).dp).zIndex(2f)
+                .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
+                .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
+                Text("${s.tag.title} · ${s.from}–${s.to + 1} 点 · 约 ${(s.ms + 59_999) / 60_000} 分钟",
                     style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White, maxLines = 1)
             }
         }
@@ -264,6 +287,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .background(c.accent.copy(alpha = 0.6f)))
         }
         }
+        if (spans.isNotEmpty()) EnvIcons(spans, lit, { lit = it }, onEnv)
         // 刻度：3·9·15·21 淡竖线，0·6·12·18·24 写数字
         Box(Modifier.fillMaxWidth().height(4.dp)) {
             listOf(3, 9, 15, 21).forEach { h ->
@@ -279,7 +303,49 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
         quiet.values.firstOrNull()?.let { name ->
             Text("浅底为停录时段（$name）", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 2.dp))
         }
-        app.resound.ui.envsound.EnvDayLine(env, Modifier.padding(top = 2.dp))
+    }
+}
+
+/** 按住柱子时的环境说明：够画图标的才说时长，特别声音照说 */
+private fun envHint(h: Int, spans: List<app.resound.envsound.EnvSpan>, env: Map<Int, app.resound.envsound.HourSound>): List<String> =
+    listOfNotNull(spans.firstOrNull { h in it.from..it.to }?.let { s -> "${s.tag.title}约 ${((env[h]?.tagMs?.get(s.tag) ?: 0L) + 59_999) / 60_000} 分钟" }) +
+        env[h]?.sounds.orEmpty().map { "有${it.title}" }
+
+/**
+ * 柱子下面一排环境图标：每段在起始那根柱子下面画一个，跨几小时就往右拖一道淡线到最后一根。
+ * 点图标筛出这段时间的事；按住让这段的柱子亮、其余变淡，并弹出说明。
+ */
+@Composable
+private fun EnvIcons(spans: List<app.resound.envsound.EnvSpan>, lit: app.resound.envsound.EnvSpan?,
+                     onLit: (app.resound.envsound.EnvSpan?) -> Unit, onPick: (app.resound.envsound.EnvSpan) -> Unit) {
+    val c = Rs.colors
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var width by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
+    // 图标比一根柱子宽，点到旁边一格也算
+    fun spanAt(x: Float): app.resound.envsound.EnvSpan? {
+        val h = ((x / width.coerceAtLeast(1)) * 24).toInt().coerceIn(0, 23)
+        return spans.filter { h in it.from - 1..it.to + 1 }.minByOrNull { if (h in it.from..it.to) 0 else 1 }
+    }
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().padding(top = 3.dp).height(13.dp)
+        .onSizeChanged { width = it.width }
+        .pointerInput(spans) {
+            detectTapGestures(
+                onTap = { o -> spanAt(o.x)?.let(onPick) },
+                onLongPress = { o -> spanAt(o.x)?.let { onLit(it); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } },
+                onPress = { tryAwaitRelease(); onLit(null) },
+            )
+        }) {
+        // 和上面柱子同样的排法：24 格，格间 2dp
+        val gap = 2.dp.toPx(); val w = (size.width - gap * 23) / 24
+        fun cx(h: Int) = h * (w + gap) + w / 2
+        val side = 11.dp.toPx(); val y = size.height / 2
+        spans.forEach { s ->
+            val color = if (s == lit) c.accent else c.textTertiary
+            val x = cx(s.from).coerceIn(side / 2, size.width - side / 2)
+            if (s.to > s.from) drawLine(color.copy(alpha = if (s == lit) 0.8f else 0.35f), androidx.compose.ui.geometry.Offset(x + side / 2 + 2.dp.toPx(), y),
+                androidx.compose.ui.geometry.Offset(cx(s.to) + w / 2, y), 1.5.dp.toPx(), androidx.compose.ui.graphics.StrokeCap.Round)
+            drawEnvIcon(s.tag, color, androidx.compose.ui.geometry.Offset(x, y), side)
+        }
     }
 }
 

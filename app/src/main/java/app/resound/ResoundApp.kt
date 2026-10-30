@@ -72,11 +72,13 @@ class ResoundApp : Application() {
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope)
         // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
         val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
-        voiceprintRepository = LocalVoiceprintRepository(database, scope, AsrAudioReader(cacheDir)::readPcm,
+        val pcmReader = AsrAudioReader(cacheDir)
+        val sharedPcm = SharedPcmFiles(cacheDir, pcmReader::decodeForExport)
+        voiceprintRepository = LocalVoiceprintRepository(database, scope, { file -> sharedPcm.read(file, pcmReader::readPcm) },
             { CampPlusEmbedding(this) }, voiceprintRerun::request)
         AppGraph.voiceprint = voiceprintRepository
         val envSound = app.resound.envsound.LocalEnvSoundRepository.create(this, database, scope,
-            voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow)
+            voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow, sharedPcm)
         AppGraph.envSound = envSound
         val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
             guard = { block -> voiceprintRepository.withAudioCleanup(block) },
@@ -108,6 +110,8 @@ class ResoundApp : Application() {
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             beforeTranscribe = envSound::beforeTranscribe,
+            beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
+            afterSegment = { segment -> voiceprintRepository.runSegment(segment.id) },
             afterImport = { voiceprintRepository.run(); voiceprintRepository.cleanupAudio() },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {

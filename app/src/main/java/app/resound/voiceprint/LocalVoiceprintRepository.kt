@@ -263,6 +263,9 @@ class LocalVoiceprintRepository(
     /** 返回 true 表示仍需重试。并发 worker 串行；每轮自动补样本只在下一轮参与平均。 */
     suspend fun run(onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): Boolean =
         withContext(Dispatchers.IO) { rounds.withLock { process(onProgress = onProgress) } }
+    suspend fun runSegment(segmentId: Long): Boolean = withContext(Dispatchers.IO) {
+        rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) }
+    }
     data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
 
     /** 只返回样本状态，不返回声音/向量；供后续界面展示人工样本离群提示。 */

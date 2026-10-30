@@ -36,9 +36,7 @@ class AsrAudioReader(private val cacheDir: File) {
         val target = File.createTempFile("asr-voiceprint-", ".pcm", cacheDir)
         try {
             decode(source, target)
-            val bytes = target.readBytes()
-            val buffer = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-            ShortArray(buffer.remaining()).also { buffer.get(it) }
+            readPcm16(target)
         } finally { target.delete() }
     }
     /** 导出专用：逐缓冲写磁盘，不把整段 PCM 载入内存，不影响转写入口。 */

@@ -6,7 +6,7 @@ import java.io.File
 interface AsrProvider {
     suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult
 }
-data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true)
+data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true, val pcmFile: File? = null)
 data class AsrSentence(val startMillis: Long, val endMillis: Long, val text: String, val speakerTag: String?, val originalText: String? = null)
 data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?)
 enum class AsrError(val human: String, val retryable: Boolean = false) {

@@ -69,7 +69,11 @@ class LocalAsrService : Service() {
         var phase="audio"
         send(request,6)
         try {
-            val pcm=readLocalAudio(request.data.getString("path"), filesDir, cacheDir, AsrAudioReader(cacheDir)::readPcm)
+            val shared=request.data.getString("pcmPath")
+            val pcm=if(shared != null) readLocalAudio(shared, filesDir, cacheDir) { file ->
+                require(file.canonicalPath.startsWith(cacheDir.canonicalPath + "/asr-shared-"))
+                app.resound.transcribe.readPcm16(file)
+            } else readLocalAudio(request.data.getString("path"), filesDir, cacheDir, AsrAudioReader(cacheDir)::readPcm)
             phase="speakers"
             val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
             val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else diarizer.turns(pcm){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}}

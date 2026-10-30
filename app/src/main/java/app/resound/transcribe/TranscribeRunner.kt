@@ -26,6 +26,10 @@ class TranscribeRunner(
     private val sourceReady: (TranscribeSource) -> Boolean = { true },
     private val sourceKey: (TranscribeSource) -> String = { key() },
     private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
+    private val beginBatch: () -> Unit = {},
+    private val endBatch: () -> Unit = {},
+    private val sharedPcm: SharedPcmFiles? = null,
+    private val afterSegment: suspend (SegmentEntity) -> Unit = {},
     private val recordSpeed: (TranscribeSource?, Long, Long) -> Unit = { _, _, _ -> },
 ) {
     suspend fun withIdleAudio(block: suspend () -> Unit) = gate.withLock { block() }
@@ -39,6 +43,7 @@ class TranscribeRunner(
     suspend fun run(): Boolean {
         if (!gate.tryLock()) return false
         try {
+            beginBatch()
             dao.recoverInterrupted(now())
             dao.refreshFailures(now())
             if (!deferAudioCleanup) cleanup()
@@ -76,7 +81,7 @@ class TranscribeRunner(
                         continue
                     }
                     val selectedProvider = if (selected != null && provider is ConfiguredAsrProvider) object : AsrProvider { override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit) = provider.recognize(selected, audio, key, beforeAudio) } else provider
-                    val result = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0)), credential) {
+                    val result = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), pcmFile = sharedPcm?.find(File(candidate.path))), credential) {
                         check(dao.findSegment(candidate.id) != null)
                         reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
                         dao.reserveAudio(today(), reserved, candidate.id)
@@ -116,10 +121,14 @@ class TranscribeRunner(
                     }
                     if (e is CancellationException) throw e
                 } finally {
+                    try { if (outcome in setOf("Done", "Empty")) afterSegment(candidate) }
+                    finally {
+                    sharedPcm?.release(File(candidate.path))
                     withContext(NonCancellable) {
                         dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = outcome,
                             errorType = error?.name, elapsedMillis = (now() - began).coerceAtLeast(0), sentMillis = reserved, logId = logId))
                         updateProgress(candidates.size, ++done)
+                    }
                     }
                 }
                 if (candidate.sourceId == "import" && outcome in setOf("Done", "Empty")) {
@@ -133,7 +142,7 @@ class TranscribeRunner(
             }
             return dao.earliestRetry() != null
         } finally {
-            try { updateProgress(0, 0) } finally { gate.unlock() }
+            try { sharedPcm?.clear(); endBatch(); updateProgress(0, 0) } finally { gate.unlock() }
         }
     }
     private suspend fun cleanup() {

@@ -57,7 +57,6 @@ import app.resound.things.ThingDraft
 import app.resound.things.ThingDrafts
 import app.resound.things.ThingEdit
 import app.resound.things.ThingOrigin
-import app.resound.things.ThingOwner
 import app.resound.things.ThingRecord
 import app.resound.things.ThingRepository
 import app.resound.ui.items.AddHost
@@ -250,8 +249,7 @@ private fun PlaceGroup(place: String, group: List<Thing>, modifier: Modifier, on
                 Box(Modifier.width(6.dp).height(6.dp).clip(CircleShape).background(thingColor()))
                 Spacer(Modifier.width(10.dp))
                 Text(t.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                if (t.owner != ThingOwner.Mine) { Spacer(Modifier.width(6.dp)); ThingTag(t.owner.title, c.textSecondary) }
-                Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
                 // 带走了的那组：写最后在哪，比时间更有用
                 val meta = if (t.latest.action == ThingAction.TakenAway) t.lastPlace?.let { "最后在 $it" } ?: formatStamp(t.latest.at) else formatStamp(t.latest.at)
@@ -285,7 +283,6 @@ private fun ThingCard(t: Thing, modifier: Modifier, onOpen: () -> Unit, onReturn
     RsCard(modifier.springClick(onOpen), padding = PaddingValues(start = 18.dp, end = 16.dp, top = 14.dp, bottom = 14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(t.name, style = RsType.headline, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-            if (t.owner != ThingOwner.Mine) { Spacer(Modifier.width(6.dp)); ThingTag(t.owner.title, c.textSecondary) }
             Spacer(Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             val (label, color) = statusTag(t.latest.action)
@@ -327,11 +324,7 @@ fun ThingSheet(thingId: Long, things: ThingRepository, onDismiss: () -> Unit) {
     var adding by remember { mutableStateOf(false) }
     val deleteArmed = rememberArmed()
 
-    RsSheet(t.name, t.statusLine(), onDismiss = onDismiss, fixedHeight = true) {
-        Label("归属")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ThingOwner.entries.forEach { o -> Choice(o.title, o == t.owner) { things.setOwner(t.id, o) } }
-        }
+    RsSheet(t.name, t.statusLine(), onDismiss = onDismiss) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Label("名字")
             Spacer(Modifier.weight(1f))
@@ -427,45 +420,95 @@ internal class ThingEditState(e: ThingEdit) {
     )
 }
 
+/** 常用的排前面：放在、带走了，借和还少 */
+private val ACTIONS = listOf(ThingAction.Placed, ThingAction.TakenAway, ThingAction.Lent, ThingAction.Returned)
+
+/** 填的时候上面实时显示“身份证 → 包里”，一眼看出会记成什么 */
+@Composable
+private fun ThingPreview(s: ThingEditState) {
+    val c = Rs.colors
+    val color = thingColor()
+    val name = s.name.trim().ifEmpty { "东西" }
+    val text = androidx.compose.ui.text.buildAnnotatedString {
+        append(name)
+        val tail = when (s.action) {
+            ThingAction.Placed -> s.place.trim().ifEmpty { "放在哪" }.let { " → $it" }
+            ThingAction.TakenAway -> " · 带走了"
+            ThingAction.Lent -> " · 借给 " + s.who.trim().ifEmpty { "谁" }
+            ThingAction.Returned -> " · 还回来了" + (s.place.trim().takeIf { it.isNotEmpty() }?.let { "，放在 $it" } ?: "")
+        }
+        pushStyle(androidx.compose.ui.text.SpanStyle(color = color, fontWeight = FontWeight.SemiBold)); append(tail); pop()
+    }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(color.copy(alpha = 0.10f)).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(8.dp).height(8.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = RsType.headline, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** 输入框：外面是卡片色就用页面底色，外面是页面底色就用卡片色，始终分得开 */
+@Composable
+private fun ThingInput(value: String, hint: String, onCard: Boolean, onChange: (String) -> Unit) {
+    val c = Rs.colors
+    BasicTextField(value, { onChange(it.replace("\n", "")) }, singleLine = true, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (onCard) c.background else c.card)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary); inner() } })
+}
+
+@Composable
+private fun FieldLabel(text: String) = Text(text, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = Rs.colors.textSecondary,
+    modifier = Modifier.padding(start = 2.dp, top = 6.dp))
+
+/** onCard=true：放在面板（卡片色底）里；false：放在页面底色的小卡里 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ThingEditFields(s: ThingEditState) {
-    Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Label("东西")
-        SheetInput(s.name, "如：车钥匙") { s.name = it.take(20) }
-        Label("怎么了")
+internal fun ThingEditFields(s: ThingEditState, onCard: Boolean = true) {
+    Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ThingPreview(s)
+        FieldLabel("东西")
+        ThingInput(s.name, "如：车钥匙", onCard) { s.name = it.take(20) }
+        FieldLabel("现在")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ThingAction.entries.forEach { a -> Choice(a.title, a == s.action) { s.action = a } }
+            ACTIONS.forEach { a -> Choice(a.title, a == s.action) { s.action = a } }
         }
         AnimatedVisibility(s.action == ThingAction.Lent, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Label("借给谁")
-                SheetInput(s.who, "如：老王") { s.who = it.take(20) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FieldLabel("借给谁")
+                ThingInput(s.who, "如：老王", onCard) { s.who = it.take(20) }
             }
         }
         AnimatedVisibility(s.action != ThingAction.TakenAway, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Label(when (s.action) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FieldLabel(when (s.action) {
                     ThingAction.Lent -> "放在哪（可不填）"
                     ThingAction.Returned -> "还回来放哪了（可不填）"
                     else -> "放在哪"
                 })
-                SheetInput(s.place, "如：鞋柜第二个抽屉") { s.place = it.take(40) }
+                ThingInput(s.place, "如：鞋柜第二个抽屉", onCard) { s.place = it.take(40) }
             }
         }
-        Label("归属")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ThingOwner.entries.forEach { o -> Choice(o.title, o == s.owner) { s.owner = o } }
-        }
+    }
+}
+
+/** 依据的那句话：浅底小卡，写明什么时候说的 */
+@Composable
+private fun SaidQuote(text: String, caption: String) {
+    val c = Rs.colors
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(caption, style = RsType.caption, color = c.textTertiary)
+        Spacer(Modifier.height(3.dp))
+        Text("“$text”", style = RsType.body, color = c.textSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 internal fun ThingEditSheet(title: String, initial: ThingEdit, onDismiss: () -> Unit, onSave: (ThingEdit) -> Unit) {
     val state = remember { ThingEditState(initial) }
-    RsSheet(title, onDismiss = onDismiss, fixedHeight = true) {
+    RsSheet(title, onDismiss = onDismiss) {
         ThingEditFields(state)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
         ActionButton("保存", ActionKind.Primary, enabled = state.valid) { onSave(state.toEdit()) }
     }
 }
@@ -501,27 +544,20 @@ fun ThingPendingCard(r: ThingRecord, things: ThingRepository, modifier: Modifier
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ThingConfirmSheet(r: ThingRecord, things: ThingRepository, onDismiss: () -> Unit) {
-    val c = Rs.colors
     val initial = remember(r.id) { ThingEdit(r.name, r.action, r.place, r.who, r.owner) }
     val state = remember(r.id) { ThingEditState(initial) }
     var asNew by remember(r.id) { mutableStateOf(false) }
-    RsSheet("确认位置", onDismiss = onDismiss, fixedHeight = true) {
-        r.sourceText?.takeIf { it.isNotBlank() }?.let { text ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.background).padding(16.dp)) {
-                Text(formatStamp(r.at) + " 说的", style = RsType.caption, color = c.textTertiary)
-                Spacer(Modifier.height(4.dp))
-                Text("“$text”", style = RsType.body, color = c.text)
-            }
-        }
+    RsSheet("确认一下", onDismiss = onDismiss) {
+        r.sourceText?.takeIf { it.isNotBlank() }?.let { SaidQuote(it, formatStamp(r.at) + " 说的") }
         r.sameAs?.let { q ->
-            Label("是之前的「${q.thingName}」吗？")
+            FieldLabel("是之前的「${q.thingName}」吗？")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Choice("是，更新位置", !asNew) { asNew = false }
                 Choice("不是，新的一样", asNew) { asNew = true }
             }
         }
         ThingEditFields(state)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
         ActionButton("记下", ActionKind.Primary, enabled = state.valid) {
             val edit = state.toEdit()
             if (edit == initial) things.accept(r.id, asNew = asNew) else things.accept(r.id, edit, asNew)
@@ -603,41 +639,57 @@ fun BoxScope.AddThingHost(things: ThingRepository, bottomPadding: Dp) {
         else result = Triple(drafts, if (voice) ThingOrigin.Voice else ThingOrigin.Typed, text)
     }
     result?.let { (drafts, origin, source) ->
-        ThingDraftSheet(drafts, source, onDismiss = { result = null }) { confirmed ->
+        ThingDraftSheet(drafts, source, things, onDismiss = { result = null }) { confirmed ->
             things.add(confirmed, origin, source)
             result = null
-            Toast.makeText(context, "已记下 ${confirmed.size} 条", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, if (confirmed.size > 1) "已记下 ${confirmed.size} 样" else "已记下", Toast.LENGTH_SHORT).show()
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ThingDraftSheet(drafts: ThingDrafts, source: String, onDismiss: () -> Unit, onConfirm: (List<ThingDraft>) -> Unit) {
+private fun ThingDraftSheet(drafts: ThingDrafts, source: String, things: ThingRepository, onDismiss: () -> Unit, onConfirm: (List<ThingDraft>) -> Unit) {
     val c = Rs.colors
-    // 每条记着模型认出的是哪样东西；名字改了就不再算那样，交给入库时按名字归并
-    val cards = remember(drafts) {
-        mutableStateListOf(*drafts.items.map { d -> d to ThingEditState(ThingEdit(d.name, d.action, d.place, d.who, d.owner)) }.toTypedArray())
+    // 每条记着模型认出的是哪样已有的东西；用户选“新的一样”或改了名字就不再归过去
+    class Card(val draft: ThingDraft) {
+        val state = ThingEditState(ThingEdit(draft.name, draft.action, draft.place, draft.who, draft.owner))
+        var asNew by mutableStateOf(false)
     }
-    RsSheet(if (cards.size > 1) "生成了 ${cards.size} 条" else "确认一下",
-        if (drafts.parsed) "改好后点记下。" else "没能自动拆开，已按原话生成，改好后点记下。",
-        onDismiss = onDismiss, fixedHeight = true) {
-        Text("“$source”", style = RsType.caption, color = c.textTertiary, maxLines = 3)
-        cards.forEachIndexed { i, (_, state) ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.background).padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (cards.size > 1) Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("第 ${i + 1} 条", style = RsType.caption, color = c.textSecondary, modifier = Modifier.weight(1f))
-                    Text("删掉", style = RsType.caption, color = c.critical,
-                        modifier = Modifier.clip(CircleShape).springClick { cards.removeAt(i) }.padding(horizontal = 8.dp, vertical = 4.dp))
+    val cards = remember(drafts) { mutableStateListOf(*drafts.items.map(::Card).toTypedArray()) }
+    val many = cards.size > 1
+    RsSheet(if (many) "记下 ${cards.size} 样" else "确认一下",
+        if (drafts.parsed) null else "没能自动拆开，已按原话填好，改一下再记下。",
+        onDismiss = onDismiss) {
+        SaidQuote(source, "你说的")
+        cards.forEachIndexed { i, card ->
+            val known = card.draft.thingId?.let { id -> remember(id) { things.thing(id) }.collectAsState(initial = null).value }
+            val body: @Composable () -> Unit = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (many) Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("第 ${i + 1} 样", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary, modifier = Modifier.weight(1f))
+                        Text("删掉", style = RsType.caption, color = c.critical,
+                            modifier = Modifier.clip(CircleShape).springClick { cards.removeAt(i) }.padding(horizontal = 8.dp, vertical = 4.dp))
+                    }
+                    ThingEditFields(card.state, onCard = !many)
+                    if (known != null && card.state.name.trim() == card.draft.name) {
+                        FieldLabel("记到已有的「${known.name}」？")
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Choice("是同一样", !card.asNew) { card.asNew = false }
+                            Choice("新的一样", card.asNew) { card.asNew = true }
+                        }
+                    }
                 }
-                ThingEditFields(state)
             }
+            if (many) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.background).padding(14.dp)) { body() } else body()
         }
-        val valid = cards.isNotEmpty() && cards.all { it.second.valid }
-        ActionButton(if (cards.size > 1) "记下 ${cards.size} 条" else "记下", ActionKind.Primary, enabled = valid) {
-            onConfirm(cards.map { (d, s) ->
-                val e = s.toEdit()
-                ThingDraft(e.name, e.action, e.place, e.who, e.owner, thingId = d.thingId.takeIf { e.name == d.name })
+        Spacer(Modifier.height(6.dp))
+        val valid = cards.isNotEmpty() && cards.all { it.state.valid }
+        ActionButton(if (many) "记下 ${cards.size} 样" else "记下", ActionKind.Primary, enabled = valid) {
+            onConfirm(cards.map { card ->
+                val e = card.state.toEdit()
+                ThingDraft(e.name, e.action, e.place, e.who, e.owner,
+                    thingId = card.draft.thingId.takeIf { !card.asNew && e.name == card.draft.name })
             })
         }
     }

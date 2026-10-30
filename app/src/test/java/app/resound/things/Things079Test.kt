@@ -128,6 +128,14 @@ class Things079Test {
         watcher().runOnce(); assertEquals(1L,dao.state()!!.watermark)
         assertEquals("ThingsSkipped",db.capture().events(0,Long.MAX_VALUE).first().single().type)
     }
+    @Test fun firstStartSkipsOldHistoryButKeepsRecentLines() = runBlocking {
+        line(1); line(2); line(3) // 开始时间是 clock+id
+        val seen = mutableListOf<Long>()
+        val watcher = ThingWatcher(db,repo,{ lines,_,_ -> seen += lines.map { it.id }; emptyList() },now = { clock })
+        watcher.skipHistory(clock + 3); assertEquals(2L,dao.state()!!.watermark)
+        watcher.skipHistory(clock + 1); assertEquals(2L,dao.state()!!.watermark) // 只进不退
+        watcher.runOnce(); assertEquals(listOf(3L),seen)
+    }
     @Test fun autoOffAdvancesAndToggleDuringRequestCannotInsertOldResults() = runBlocking {
         line(1); repo.setAutoDetect(false); repo.flush()
         line(2)

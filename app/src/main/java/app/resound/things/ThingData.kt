@@ -44,6 +44,7 @@ internal interface ThingDao {
     @Query("SELECT * FROM thing_watch_state WHERE slot = 1") suspend fun state(): ThingWatchState?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun state(row: ThingWatchState)
     @Query("SELECT COALESCE(MAX(id), 0) FROM transcript_lines") suspend fun maxLineId(): Long
+    @Query("SELECT COALESCE(MAX(id), 0) FROM transcript_lines WHERE startAt < :before") suspend fun maxLineIdBefore(before: Long): Long
     @Query("SELECT * FROM transcript_lines WHERE id > :after AND id <= :until ORDER BY id LIMIT 80")
     suspend fun batch(after: Long, until: Long = Long.MAX_VALUE): List<TranscriptLineEntity>
     @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.id IN (:ids) AND " + THING_ELIGIBLE + " ORDER BY l.id")

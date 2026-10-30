@@ -24,18 +24,23 @@ object PipelineProgress {
         val total: Int = 0,
         /** 步骤内的细节，如本地转写的“区分说话人（CPU）· 45%”，或排队的原因 */
         val detail: String? = null,
-        /** 进入这一步的时刻（elapsedRealtime），界面显示“本步已用多久” */
+        /** 进入这一步的时刻（elapsedRealtime） */
         val since: Long = 0,
+        /** 当前这一小步（换段、或细节从“准备音频”换到“区分说话人”）开始的时刻；界面显示“这一步已用多久”，各小步独立计时不累计 */
+        val stepSince: Long = 0,
     )
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
     /** 已点了“现在整理”但还没开始跑（等网络、等上一轮结束）。正在跑时不覆盖。 */
-    fun queued(reason: String) = _state.update { if (it.stage == null || it.stage == Stage.Queued) State(Stage.Queued, detail = reason, since = now()) else it }
-    fun stage(stage: Stage) { _state.value = State(stage, since = now()) }
-    fun progress(done: Int, total: Int) = _state.update { it.copy(done = done, total = total) }
-    fun detail(text: String?) = _state.update { it.copy(detail = text) }
+    fun queued(reason: String) = _state.update { if (it.stage == null || it.stage == Stage.Queued) now().let { t -> State(Stage.Queued, detail = reason, since = t, stepSince = t) } else it }
+    fun stage(stage: Stage) { now().let { _state.value = State(stage, since = it, stepSince = it) } }
+    fun progress(done: Int, total: Int) = _state.update { if (it.done == done && it.total == total) it else it.copy(done = done, total = total, stepSince = now()) }
+    fun detail(text: String?) = _state.update { if (phaseKey(it.detail) == phaseKey(text)) it.copy(detail = text) else it.copy(detail = text, stepSince = now()) }
+
+    /** 同一小步只是百分比在涨（“区分说话人 · 45%”→“46%”）不重新计时；去掉数字和百分号后不同才算换了一步 */
+    private fun phaseKey(text: String?) = text?.replace(Regex("[0-9.%／/]+"), "")?.trim()
     fun finish() { _state.value = State() }
 
     private fun now() = SystemClock.elapsedRealtime()

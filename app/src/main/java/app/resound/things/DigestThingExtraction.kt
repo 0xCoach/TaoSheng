@@ -40,8 +40,9 @@ class DigestThingExtraction internal constructor(
         val rules = """
             附加任务：在同一次整理中顺便提取寻物事实。以下寻物规则只约束顶层新增的 things 数组，不改变 events/items/done_hints 的格式。
             ${ThingPrompt.system(template())}
-            输出整合规则（优先于上文的独立输出格式）：最终仍输出整理 JSON，额外增加顶层 "things":[]；将寻物示例中 items 的元素放进 things，绝不能放入整理的 items。
-            寻物 lineId 使用正文 [1]、[2] 的编号，不是数据库 ID，且必须属于附录 eligibleLines。新原话就是整理正文，不重复提供 lines。context 只供理解，不能引用。没有寻物事实返回 things:[]。媒体/导入内容不得提取。必须保留正常的时间线整理结果。
+            寻物事实与事件概括分别判断：先逐句核对新原话与 context 的衔接，再归纳事件。旧上下文提出对象和目标位置、新句确认收好或做完时，要补全并记录这条新完成事实。后面的设计讨论、示例或影视引用仅约束对应局部，不能反向把前面的现实问答或完成确认也判为演示；不能以事件标题、摘要或整段印象替代逐句检查。
+            输出整合规则（优先于上文的独立输出格式）：最终仍输出一个整理 JSON，先输出顶层 "things":[]，再输出 events、items、done_hints；将寻物示例中 items 的元素放进 things，绝不能放入整理的 items。
+            寻物 lineId 使用正文 [1]、[2] 的编号，不是数据库 ID，且必须属于附录 eligibleLines。新原话就是整理正文，不重复提供 lines。context 可补全新句的对象和位置，但不能作为 lineId 的来源。没有寻物事实返回 things:[]。媒体/导入内容不得提取。必须保留正常的时间线整理结果。
         """.trimIndent()
         return Batch(lines, eligible, selected.map { it.id }.toSet(), state.revision, rules, "\n\n寻物参考资料：$data")
     }

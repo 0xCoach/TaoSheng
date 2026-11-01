@@ -38,7 +38,7 @@ internal object ThingPrompt {
             fun field(key: String) = if (v.isNull(key)) null else v.optString(key).trim().takeIf { it.isNotEmpty() && it != "null" }
             val name = v.getString("name").trim(); require(name.isNotBlank())
             val action = ThingAction.valueOf(v.getString("action")); val owner = ThingOwner.valueOf(v.getString("owner"))
-            val place = field("place"); val who = field("who")
+            val place = field("place"); val who = field("who").takeIf { action == ThingAction.Lent || action == ThingAction.Returned }
             require(action != ThingAction.Placed || place != null)
             require(action != ThingAction.Lent || who != null)
             val line = lines.firstOrNull { it.id == v.getLong("lineId") } ?: error("不是新原话")

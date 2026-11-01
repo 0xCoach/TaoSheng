@@ -115,7 +115,7 @@ class DigestRunner(
             val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), unfinished, ignored)
             val thingBatch = thingExtraction?.prepare(indexed)
             val reply = request(preset, key, DigestPrompt.system(template(), LocalDate.now(), appName) +
-                (thingBatch?.system?.let { "\n\n$it" } ?: ""), input + (thingBatch?.input ?: ""))
+                (thingBatch?.system?.let { "\n\n$it" } ?: ""), (thingBatch?.input?.let { "$it\n\n以下为本次新原话与整理参考：\n" } ?: "") + input)
             dao.addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest)
             val (events, items) = DigestPrompt.parse(reply.content, indexed)
             val at = now()

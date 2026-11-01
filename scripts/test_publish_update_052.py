@@ -10,6 +10,20 @@ import publish_update as publish
 
 
 class PublishPreviewTest(unittest.TestCase):
+    def test_manifest_limit_and_duplicate_hash(self):
+        with self.assertRaises(ValueError):
+            publish.validate_manifest_compatibility({"patches": [{"fromSha256":str(i)} for i in range(6)]})
+        publish.validate_manifest_compatibility({"patches": [{"fromSha256":str(i)} for i in range(5)]})
+        with self.assertRaises(ValueError):
+            publish.validate_manifest_compatibility({"patches": [{"fromSha256":"same"}] * 2})
+
+    def test_formal_baseline_replaces_fifth_preview_instead_of_adding_sixth(self):
+        bases = [(f"0.2.15-preview.{i}",Path(str(i))) for i in range(1,7)] + [("0.2.14",Path("formal"))]
+        chosen = publish.select_bases(bases)
+        self.assertEqual(len(chosen),5)
+        self.assertIn(("0.2.14",Path("formal")),chosen)
+        self.assertEqual(chosen[0][0],"0.2.15-preview.6")
+
     def test_channel_mismatch_exits_before_any_external_access(self):
         for name, flags in [("0.2.12", ["--preview"]), ("0.2.12-preview.1", [])]:
             with self.subTest(name=name), patch.object(publish, "badging", return_value=(28, name)), \

@@ -18,6 +18,24 @@ CACHE = Path.home() / ".cache/taosheng-release-bases"
 MS_BASE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/"
 
 
+def validate_manifest_compatibility(manifest):
+    """0.2.13 客户端最多接受五个补丁；不能因保留正式基线追加第六个。"""
+    if len(manifest["patches"]) > KEEP:
+        raise ValueError("更新清单最多允许 5 个差异包，否则旧客户端会误报网络错误")
+    hashes = [p["fromSha256"] for p in manifest["patches"]]
+    if len(set(hashes)) != len(hashes):
+        raise ValueError("更新清单包含重复的基础包摘要")
+
+
+def select_bases(bases):
+    ranked = sorted(bases, key=lambda b: version_key(b[0]), reverse=True)
+    selected = ranked[:KEEP]
+    formal = next((b for b in ranked if "-preview." not in b[0]), None)
+    if formal and formal not in selected:
+        selected = selected[:KEEP - 1] + [formal]
+    return selected
+
+
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -168,9 +186,7 @@ def main():
         # 只传了魔搭的预览版也要作基线：装着最新预览版的人更新正式版时也只下差异包
         bases += modelscope_previews({n for n, _ in bases} | {name})
         # 只取版本号最近的 KEEP 个；上一个正式版无论多旧都保留（正式通道的人从它升级）
-        ranked = sorted(bases, key=lambda b: version_key(b[0]), reverse=True)
-        formal = next((b for b in ranked if "-preview." not in b[0]), None)
-        bases = ranked[:KEEP] + ([formal] if formal and formal not in ranked[:KEEP] else [])
+        bases = select_bases(bases)
     seen = set()
     for old_name, old in bases:
         old_code, _ = badging(old)
@@ -192,6 +208,7 @@ def main():
         print(f"差异包 {old_name} → {name}：{patch.stat().st_size / 1e6:.1f} MB")
     manifest = {"versionCode": code, "versionName": name, "notes": a.notes.read_text().strip(),
                 "apk": {"file": apk_name, "sha256": sha256(a.apk), "size": a.apk.stat().st_size}, "patches": patches}
+    validate_manifest_compatibility(manifest)
     update = work / manifest_name
     update.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
     print(f"{manifest_name}：{name}（{code}），差异包 {len(patches)} 个，目录 {work}")

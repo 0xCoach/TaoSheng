@@ -1,7 +1,6 @@
 package app.resound.things
 
 import app.resound.data.TranscriptLineEntity
-import app.resound.digest.DigestPrompt
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.*
@@ -9,7 +8,18 @@ import java.time.*
 internal data class ThingProposal(val row: ThingRecordRow, val confident: Boolean)
 
 internal object ThingPrompt {
-    fun system(template: String, today: LocalDate = LocalDate.now()) = template.replace("{{CALENDAR}}", DigestPrompt.calendar(today))
+    fun system(template: String, today: LocalDate = LocalDate.now()) = template.replace("{{CALENDAR}}", "今天：$today。事实时间以原话时间为准。")
+    /** 不丢弃新原话；只裁剪参考资料。跨批问答保留最近十分钟的上下文。 */
+    fun context(lines: List<TranscriptLineEntity>, previous: List<TranscriptLineEntity>): List<TranscriptLineEntity> {
+        val first = lines.minOfOrNull { it.startAt } ?: return emptyList()
+        return previous.filter { it.startAt <= first && it.endAt >= first - 10 * 60_000L }.takeLast(20)
+    }
+    fun known(lines: List<TranscriptLineEntity>, context: List<TranscriptLineEntity>, known: List<Thing>): List<Thing> {
+        val text = (context + lines).joinToString("\n") { it.text }
+        val relevant = known.filter { t -> (listOf(t.name, t.latest.place, t.lastPlace, t.latest.who) + t.aliases)
+            .filterNotNull().any { it.length >= 2 && text.contains(it, ignoreCase = true) } }
+        return (relevant + known.take(8)).distinctBy { it.id }.take(40)
+    }
     fun input(lines: List<TranscriptLineEntity>, context: List<TranscriptLineEntity>, known: List<Thing>, manual: Boolean = false): String {
         fun rows(values: List<TranscriptLineEntity>) = JSONArray(values.map { l ->
             JSONObject().put("id", l.id).put("at", Instant.ofEpochMilli(l.startAt).atZone(ZoneId.systemDefault()).toString())

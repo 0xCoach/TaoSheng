@@ -63,7 +63,7 @@ private val TINTS = mapOf(
 )
 
 @Composable
-fun skillInk(icon: String): Color = (TINTS[icon] ?: TINTS.getValue("star")).ink
+fun skillInk(icon: String): Color = if (icon == "calendar_week" && Rs.colors.isDark) Color(0xFFC2B5F5) else (TINTS[icon] ?: TINTS.getValue("star")).ink
 
 /** 技能图标：圆角方块底 + 自绘线条 */
 @Composable
@@ -166,18 +166,22 @@ internal fun clock(at: Long): String = Instant.ofEpochMilli(at).atZone(ZoneId.sy
 /** 卡片时间：会议是“14:00–15:20”，其他是“18:00” */
 internal fun cardTime(card: SkillCard): String = app.resound.ui.verify.formatStamp(card.at) + (card.endAt?.let { "–" + clock(it) } ?: "")
 
+@Composable
+internal fun weeklyBackground(): Color = if (Rs.colors.isDark) Color(0xFF34304F) else Color(0xFFE7E4F8)
+
 /** 列表里的卡片：图标 + 技能名 + 时间，标题，一句话摘要 */
 @Composable
 fun SkillCardRow(card: SkillCard, modifier: Modifier = Modifier) {
     val c = Rs.colors
-    Row(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+    Row(modifier.fillMaxWidth().then(if (card.skillId == "weekly") Modifier.background(weeklyBackground()) else Modifier)
+        .padding(horizontal = 16.dp, vertical = 14.dp)) {
         SkillIcon(card.icon, 36.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             // 合成一段文字：放不下时自然换行，不会把时间挤成竖排
             Text(androidx.compose.ui.text.buildAnnotatedString {
                 withStyle(androidx.compose.ui.text.SpanStyle(color = skillInk(card.icon), fontWeight = FontWeight.Medium)) { append(card.skillName) }
-                withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary)) { append(" · " + cardTime(card)) }
+                withStyle(androidx.compose.ui.text.SpanStyle(color = if (card.skillId == "weekly") c.textSecondary else c.textTertiary)) { append(" · " + cardTime(card)) }
             }, style = RsType.caption)
             Text(card.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 2)
             if (card.summary.isNotBlank()) Text(card.summary, style = RsType.subhead, color = c.textSecondary, maxLines = 2)
@@ -189,8 +193,25 @@ fun SkillCardRow(card: SkillCard, modifier: Modifier = Modifier) {
 @Composable
 fun SkillCardBody(card: SkillCard, onQuote: ((CardQuote) -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        card.fields.forEach { f -> card.values[f.key]?.takeIf { !it.isEmpty(f.type) }?.let { FieldBlock(f, it, card.icon, onQuote) } }
+        card.fields.forEach { f -> card.values[f.key]?.takeIf { !it.isEmpty(f.type) }?.let {
+            if (card.skillId == "weekly" && f.key == "env_sound_observations") {
+                WeeklyEnvironmentDetails(card, f, it, onQuote)
+            } else if (card.skillId == "weekly" && f.key == "one_line") {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(weeklyBackground()).padding(14.dp)) {
+                    FieldBlock(f, it, card.icon, onQuote)
+                }
+            } else FieldBlock(f, it, card.icon, onQuote)
+        } }
     }
+}
+
+@Composable
+private fun WeeklyEnvironmentDetails(card: SkillCard, field: SkillField, value: FieldValue, onQuote: ((CardQuote) -> Unit)?) {
+    val expanded = androidx.compose.runtime.remember(card.id, card.generatedAt) { androidx.compose.runtime.mutableStateOf(false) }
+    Text("${if (expanded.value) "收起" else "展开"}逐事件环境明细 · ${value.items.size} 条",
+        style = RsType.subhead, color = skillInk(card.icon),
+        modifier = Modifier.fillMaxWidth().springClick { expanded.value = !expanded.value }.padding(vertical = 12.dp))
+    if (expanded.value) FieldBlock(field, value, card.icon, onQuote)
 }
 
 private fun FieldValue.isEmpty(type: FieldType) = when (type) {
@@ -207,7 +228,7 @@ private fun FieldBlock(field: SkillField, v: FieldValue, icon: String, onQuote: 
     val c = Rs.colors
     val ink = skillInk(icon)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(field.label, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.textTertiary)
+        Text(field.label, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = if (icon == "calendar_week") c.textSecondary else c.textTertiary)
         when (field.type) {
             FieldType.Text -> Text(v.text.orEmpty(), style = RsType.headline, color = c.text)
             FieldType.Paragraph -> Text(v.text.orEmpty(), style = RsType.body, color = c.text)

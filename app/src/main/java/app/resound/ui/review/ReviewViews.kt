@@ -40,7 +40,7 @@ import java.util.Locale
 @Composable
 fun ReviewRow(review: DailyReview, onOpen: () -> Unit) {
     val c = Rs.colors
-    Column(Modifier.fillMaxWidth().springClick(onOpen).padding(horizontal = 18.dp, vertical = 14.dp)) {
+    Column(Modifier.fillMaxWidth().background(c.accentSoft).springClick(onOpen).padding(horizontal = 18.dp, vertical = 14.dp)) {
         Text(dayTitle(review.date), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
         Spacer(Modifier.height(4.dp))
         Text(review.brief, style = RsType.body, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -60,10 +60,12 @@ fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
     ) {
         SelectionContainer {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
-                Text("${dayTitle(review.date)} · 回顾", style = RsType.caption, color = c.textSecondary)
+                Text("${dayTitle(review.date)} · 日报", style = RsType.caption, color = c.accent)
                 Spacer(Modifier.height(6.dp))
                 val lead = review.sections.firstOrNull { it.title == "一句话" }?.lines?.firstOrNull() ?: review.brief
-                Text(lead, style = RsType.title, color = c.text)
+                RsCard(color = c.accentSoft, padding = PaddingValues(14.dp)) {
+                    Text(lead, style = RsType.title, color = c.text)
+                }
                 review.sections.filter { it.title != "一句话" && it.lines.isNotEmpty() }.forEach { section ->
                     Spacer(Modifier.height(22.dp))
                     Text(section.title, style = RsType.section, color = c.textSecondary)

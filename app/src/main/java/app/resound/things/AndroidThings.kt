@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.room.withTransaction
 import app.resound.MainActivity
 import app.resound.data.CaptureDatabase
 import app.resound.data.TranscriptLineEntity
@@ -15,32 +16,56 @@ import kotlinx.coroutines.*
 import java.time.LocalDate
 
 internal fun createThings(context: Context, db: CaptureDatabase, scope: CoroutineScope, settings: AndroidDigestSettings,
-    client: LlmClient, template: () -> String): Pair<RoomThingRepository, ThingWatcher> {
+    template: () -> String): Pair<RoomThingRepository, DigestThingExtraction> {
     val manualClient = LlmClient(okhttp3.OkHttpClient.Builder().callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
-    suspend fun detect(lines: List<TranscriptLineEntity>, previous: List<TranscriptLineEntity>, known: List<Thing>, manual: Boolean): List<ThingProposal> {
+    suspend fun detect(lines: List<TranscriptLineEntity>, known: List<Thing>): List<ThingProposal> {
         val preset = settings.preset; val key = settings.readKey()
         if (key.isBlank() && preset.id != "custom") throw LlmException(LlmError.Auth)
+        val nearby = emptyList<TranscriptLineEntity>()
+        val selected = ThingPrompt.known(lines, nearby, known)
+        val system = ThingPrompt.system(template())
+        val input = ThingPrompt.input(lines, nearby, selected, manual = true)
         var reply: LlmReply? = null
+        var resultCount = 0
+        var outcome = "failed"
         try {
-            reply = (if (manual) manualClient else client).chatJson(preset, key, ThingPrompt.system(template()), ThingPrompt.input(lines, previous, known, manual))
-            return ThingPrompt.parse(reply.content, lines, known.map { it.id }.toSet(), System.currentTimeMillis())
+            reply = manualClient.chatJson(preset, key, system, input)
+            return ThingPrompt.parse(reply.content, lines, selected.map { it.id }.toSet(), System.currentTimeMillis()).also {
+                resultCount = it.size; outcome = "ok"
+            }
         } finally {
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply?.promptTokens ?: 0,
-                reply?.completionTokens ?: 0, UsagePurpose.Things) }
+                reply?.completionTokens ?: 0, UsagePurpose.Things)
+                // 仅记录计数，不写原话、物品名、密钥或模型回复。
+                runCatching { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
+                    type = "ThingsUsage", detail = "mode=manual outcome=$outcome lines=${lines.size} context=${nearby.size} known=${selected.size} inputChars=${system.length + input.length} promptTokens=${reply?.promptTokens ?: 0} completionTokens=${reply?.completionTokens ?: 0} results=$resultCount",
+                    batteryPercent = null, charging = null)) }
+            }
         }
     }
     val repository = RoomThingRepository(db, scope, parseDraft = { text ->
         val rows = db.things().allThings(); val known = things(rows, db.things().allRecords())
             .sortedByDescending { t -> rows.first { it.id == t.id }.updatedAt }.take(200)
         val line = TranscriptLineEntity(id = 1, segmentId = 0, startAt = System.currentTimeMillis(), endAt = System.currentTimeMillis(), text = text, speakerTag = null, speakerName = "我")
-        ThingDrafts(detect(listOf(line), emptyList(), known, true).map { p -> p.row.let {
+        ThingDrafts(detect(listOf(line), known).map { p -> p.row.let {
             ThingDraft(it.name, ThingAction.valueOf(it.action), it.place, it.who, ThingOwner.valueOf(it.owner), it.thingId)
         } }, true)
     }, problem = { message -> scope.launch { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
         type = "ThingsStorage", detail = message, batteryPercent = null, charging = null)) } })
     val notifications = ThingNotifications(context)
-    val watcher = ThingWatcher(db, repository, detect = { lines, previous, known -> detect(lines, previous, known, false) }, notify = notifications::show)
-    return repository to watcher
+    val prefs = context.getSharedPreferences("things", Context.MODE_PRIVATE)
+    val firstStartCutoff = System.currentTimeMillis() - 30 * 60_000L
+    val extraction = DigestThingExtraction(db, repository, template, initialize = {
+        if (!prefs.getBoolean("historySkipped", false)) {
+            db.withTransaction {
+                val state = db.things().state() ?: ThingWatchState()
+                val cut = db.things().maxLineIdBefore(firstStartCutoff)
+                db.things().state(state.copy(watermark = maxOf(state.watermark, cut), failures = 0, failedEnd = null))
+            }
+            prefs.edit().putBoolean("historySkipped", true).apply()
+        }
+    }, notify = notifications::show)
+    return repository to extraction
 }
 
 internal class ThingNotifications(private val context: Context) {

@@ -37,6 +37,7 @@ class DigestRunner(
     private val afterDigest: suspend (Boolean) -> Unit = {},
     private val isMedia: suspend (Long, Long) -> Boolean = { _, _ -> false },
     private val unseparated: suspend (List<Long>) -> List<Long> = { emptyList() },
+    private val thingExtraction: app.resound.things.DigestThingExtraction? = null,
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = client::chatJson,
 ) {
     private val appContext = context.applicationContext
@@ -112,11 +113,13 @@ class DigestRunner(
             val candidates = unfinished.map { it.id }.toSet()
             val ignored = dao.ignoredForDigest(now() - 60L * 86_400_000)
             val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), unfinished, ignored)
-            val reply = request(preset, key, DigestPrompt.system(template(), LocalDate.now(), appName), input)
+            val thingBatch = thingExtraction?.prepare(indexed)
+            val reply = request(preset, key, DigestPrompt.system(template(), LocalDate.now(), appName) +
+                (thingBatch?.system?.let { "\n\n$it" } ?: ""), input + (thingBatch?.input ?: ""))
             dao.addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest)
             val (events, items) = DigestPrompt.parse(reply.content, indexed)
             val at = now()
-            dao.saveDigest(
+            val save: suspend () -> Unit = { dao.saveDigest(
                 events = events.map { e ->
                     MemoryEventEntity(
                         startAt = e.startAt, endAt = e.endAt, scene = if (isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
@@ -138,7 +141,8 @@ class DigestRunner(
                 at = at,
                 doneHints = DigestPrompt.doneHints(reply.content, indexed, candidates),
                 hintCandidates = candidates,
-            )
+            ) }
+            if (thingExtraction != null) thingExtraction.commit(thingBatch, reply.content, events, save) else save()
             if (events.isNotEmpty()) onEvents()
             runCatching { app.resound.search.EmbeddingScheduler.enqueue(appContext) }
             clearFailures(lines.first().id)

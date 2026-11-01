@@ -141,6 +141,11 @@ class EnvSound070Test {
         assertTrue(EnvSoundPresentation.decorate(review).sections[0].lines[0].contains("期间有敲门声"))
         val card=app.resound.skills.SkillCard(1,"weekly","周回顾","",date,clock,null,"标题","摘要",emptyList(),emptyMap(),emptyList(),clock,false)
         assertTrue(EnvSoundPresentation.decorate(card).values.getValue("env_sound_observations").items.single().contains("环境：雨"))
+        val overview = EnvSoundPresentation.weekly(card, listOf(
+            EventSounds(id,setOf(EnvTag.Rain),setOf(SpecialSound.Knock),false),
+            EventSounds(id+1,setOf(EnvTag.Rain),setOf(SpecialSound.Knock),false)), listOf("事情1", "事情2"))
+        assertEquals(listOf("记录到的环境：雨", "特别声音：敲门声"),overview.values.getValue("env_sound_overview").items)
+        assertEquals(2,overview.values.getValue("env_sound_observations").items.size)
         assertEquals("原摘要",db.memory().event(id)!!.summary)
         repo.update(enabled.copy(showInSummaries=false))
         assertEquals(review,EnvSoundPresentation.decorate(review));assertEquals(card,EnvSoundPresentation.decorate(card))

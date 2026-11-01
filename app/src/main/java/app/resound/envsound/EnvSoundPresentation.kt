@@ -19,12 +19,28 @@ object EnvSoundPresentation {
         if(!repo.settings.value.showInSummaries) return card
         val start = if(card.skillId == "weekly") card.date.with(DayOfWeek.MONDAY).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.at
         val end = if(card.skillId == "weekly") card.date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.endAt ?: return card
-        val notes = repo.eventMetadata.value.filter { it.startAt < end && it.endAt > start && it.createdAt <= card.generatedAt }
-            .sortedBy { it.startAt }.mapNotNull { e -> line(e.id).takeIf { it.isNotBlank() }?.let { "${e.title}：$it" } }
+        val events = repo.eventMetadata.value.filter { it.startAt < end && it.endAt > start && it.createdAt <= card.generatedAt }
+            .sortedBy { it.startAt }
+        val notes = events.mapNotNull { e -> line(e.id).takeIf { it.isNotBlank() }?.let { "${e.title}：$it" } }
         if(notes.isEmpty()) return card
         val key = "env_sound_observations"
-        return card.copy(fields = card.fields.filter { it.key != key } + SkillField(key,"各件事的环境",FieldType.Bullets,""),
+        val detail = SkillField(key,"各件事的环境",FieldType.Bullets,"")
+        if (card.skillId != "weekly") return card.copy(fields = card.fields.filter { it.key != key } + detail,
             values = card.values + (key to FieldValue(items=notes)))
+        return weekly(card, events.mapNotNull { repo.presentation.value[it.id] }, notes)
+    }
+    /** 概览仅列出现过的类别，不从事件跨度推断环境时长。 */
+    internal fun weekly(card: SkillCard, sounds: List<EventSounds>, notes: List<String>): SkillCard {
+        val tags = sounds.flatMap { it.tags }.distinct().sortedBy { it.ordinal }.map { it.title }
+        val special = sounds.flatMap { it.sounds }.distinct().sortedBy { it.ordinal }.map { if(it == SpecialSound.Knock) "敲门声" else it.title }
+        val overview = listOfNotNull(tags.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="记录到的环境："),
+            special.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="特别声音："))
+        val keys = setOf("env_sound_overview", "env_sound_observations")
+        return card.copy(fields = card.fields.filter { it.key !in keys } + listOf(
+            SkillField("env_sound_overview", "本周环境", FieldType.Bullets, ""),
+            SkillField("env_sound_observations", "各件事的环境", FieldType.Bullets, "")),
+            values = card.values + mapOf("env_sound_overview" to FieldValue(items=overview),
+                "env_sound_observations" to FieldValue(items=notes)))
     }
     fun line(eventId: Long?): String {
         if(eventId == null || !AppGraph.isEnvSoundReady) return ""

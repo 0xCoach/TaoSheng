@@ -189,6 +189,10 @@ fun LazyListScope.thingsTab(
     onReturned: (Thing) -> Unit,
 ) {
     item(key = "thingSearch") { SearchBox(query, onQuery) }
+    item(key = "thingTiming") {
+        Text("物品记录随时间线整理更新；急用时可点“现在整理”，也可以手动记下。",
+            style = RsType.caption, color = Rs.colors.textTertiary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
+    }
     item(key = "thingFilter") {
         val c = Rs.colors
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

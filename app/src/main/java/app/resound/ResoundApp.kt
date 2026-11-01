@@ -36,7 +36,6 @@ class ResoundApp : Application() {
         private set
     lateinit var transcribeRunner: TranscribeRunner
         private set
-    private var thingWatcher: app.resound.things.ThingWatcher? = null
     lateinit var digestRunner: DigestRunner
         private set
     lateinit var voiceprintRepository: LocalVoiceprintRepository
@@ -134,7 +133,6 @@ class ResoundApp : Application() {
                 }
             },
             afterImport = { voiceprintRepository.cleanupAudio() },
-            afterRound = { thingWatcher?.request() },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
@@ -156,15 +154,10 @@ class ResoundApp : Application() {
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
         }
-        val (things, watcher) = app.resound.things.createThings(this, database, scope, digestSettings, llm) { AppGraph.prompts.text("things") }
+        val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things
-        thingWatcher = watcher
-        // 寻物第一次启动只看最近 30 分钟以后的原话，不补以前的
-        val thingPrefs = getSharedPreferences("things", MODE_PRIVATE)
-        watcher.start(scope, skipBefore = if (thingPrefs.getBoolean("historySkipped", false)) null else System.currentTimeMillis() - 30 * 60_000L,
-            onSkipped = { thingPrefs.edit().putBoolean("historySkipped", true).apply() })
         val skillScheduler = app.resound.skills.SkillScheduler(this)
-        digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, networkAllowed = {
+        digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, thingExtraction = thingExtraction, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         }, unseparated = database.transcribe()::unseparated, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual) })

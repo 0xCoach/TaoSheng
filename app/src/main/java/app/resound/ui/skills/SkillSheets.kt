@@ -46,9 +46,10 @@ fun SkillCardSheet(card: SkillCard, repo: SkillRepository, onDismiss: () -> Unit
     var note by remember { mutableStateOf<String?>(null) }
     val skillExists = repo.skills.collectAsState().value.any { it.id == card.skillId }
     RsSheet(card.title, "${card.skillName} · ${cardTime(card)}", onDismiss = onDismiss) {
-        if (card.summary.isNotBlank()) {
+        if (card.summary.isNotBlank() && !(card.skillId == "weekly" && !card.values["one_line"]?.text.isNullOrBlank()
+                && card.fields.any { it.key == "one_line" })) {
             Text(card.summary, style = RsType.body, color = c.text,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(skillInk(card.icon).copy(alpha = 0.08f)).padding(14.dp))
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (card.skillId == "weekly") weeklyBackground() else skillInk(card.icon).copy(alpha = 0.08f)).padding(14.dp))
         }
         SkillCardBody(card)
         Spacer(Modifier.height(4.dp))

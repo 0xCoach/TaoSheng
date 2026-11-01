@@ -132,7 +132,7 @@ fun LlmUsageCard(repo: UsageRepository) {
                     .clip(RoundedCornerShape(2.dp)).background(if (v == 0L) c.separator else if (i == 29) c.accent else c.accent.copy(alpha = 0.35f)))
             }
         }
-        Text("用途从这一版开始分开记，以前的用量都算在“其他”里。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
+        Text("自动寻物与时间线共用一次整理，用量计入“整理”；“寻物”包含手动添加和旧版自动识别的用量。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
     }
     if (editing) PriceSheet(repo, price) { editing = false }
 }

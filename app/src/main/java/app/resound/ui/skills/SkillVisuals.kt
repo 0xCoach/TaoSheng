@@ -193,25 +193,14 @@ fun SkillCardRow(card: SkillCard, modifier: Modifier = Modifier) {
 @Composable
 fun SkillCardBody(card: SkillCard, onQuote: ((CardQuote) -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        card.fields.forEach { f -> card.values[f.key]?.takeIf { !it.isEmpty(f.type) }?.let {
-            if (card.skillId == "weekly" && f.key == "env_sound_observations") {
-                WeeklyEnvironmentDetails(card, f, it, onQuote)
-            } else if (card.skillId == "weekly" && f.key == "one_line") {
+        card.fields.filterNot { card.skillId == "weekly" && it.key in setOf("env_sound_observations", "env_sound_overview") }.forEach { f -> card.values[f.key]?.takeIf { !it.isEmpty(f.type) }?.let {
+            if (card.skillId == "weekly" && f.key == "one_line") {
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(weeklyBackground()).padding(14.dp)) {
                     FieldBlock(f, it, card.icon, onQuote)
                 }
             } else FieldBlock(f, it, card.icon, onQuote)
         } }
     }
-}
-
-@Composable
-private fun WeeklyEnvironmentDetails(card: SkillCard, field: SkillField, value: FieldValue, onQuote: ((CardQuote) -> Unit)?) {
-    val expanded = androidx.compose.runtime.remember(card.id, card.generatedAt) { androidx.compose.runtime.mutableStateOf(false) }
-    Text("${if (expanded.value) "收起" else "展开"}逐事件环境明细 · ${value.items.size} 条",
-        style = RsType.subhead, color = skillInk(card.icon),
-        modifier = Modifier.fillMaxWidth().springClick { expanded.value = !expanded.value }.padding(vertical = 12.dp))
-    if (expanded.value) FieldBlock(field, value, card.icon, onQuote)
 }
 
 private fun FieldValue.isEmpty(type: FieldType) = when (type) {

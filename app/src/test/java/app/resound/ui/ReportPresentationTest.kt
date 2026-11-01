@@ -26,12 +26,17 @@ import java.time.LocalDate
 @Config(application=android.app.Application::class,sdk=[35],qualifiers="w393dp-h852dp-xhdpi")
 class ReportPresentationTest {
     @get:Rule val compose=createAndroidComposeRule<androidx.activity.ComponentActivity>()
-    @Test fun weeklyDetailsStartCollapsedAndExpandInBothThemes() {
+    @Test fun weeklyHasSoundTagsAndNoEventDetailsInBothThemes() {
         val date=LocalDate.of(2026,11,1)
         val at=date.atTime(21,0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val weekly=SkillJson.parse(File("src/main/assets/skills/weekly/skill.json").readText(),SkillOrigin.Builtin).skill
+        org.junit.Assert.assertEquals(listOf("one_line","highlights","todo_review","next_week"),weekly.fields.map { it.key })
         val card=SkillCard(1,"weekly","每周回顾","calendar_week",date,at,null,"本周回顾","完成项目讨论",
-            listOf(SkillField("one_line","这周一句话",FieldType.Text,""),SkillField("env_sound_overview","本周环境",FieldType.Bullets,""),SkillField("env_sound_observations","各件事的环境",FieldType.Bullets,"")),
-            mapOf("one_line" to FieldValue(text="这一周，逐步完成项目整理。"),"env_sound_overview" to FieldValue(items=listOf("记录到的环境：雨、键盘声")),"env_sound_observations" to FieldValue(items=listOf("讨论方案：环境：雨"))),emptyList(),0,false)
+            weekly.fields + listOf(SkillField("env_sound_impression","本周声音印象",FieldType.Tags,""),SkillField("env_sound_observations","各件事的环境",FieldType.Bullets,"")),
+            mapOf("one_line" to FieldValue(text="这一周，逐步完成项目整理。"),
+                "highlights" to FieldValue(items=listOf("项目推进：方案完成修订，进入验证阶段。")),
+                "todo_review" to FieldValue(items=listOf("设备测试仍有一项结果待确认。")),
+                "next_week" to FieldValue(items=listOf("周二与同事核对测试结果。")),"env_sound_impression" to FieldValue(items=listOf("雨", "键盘声")),"env_sound_observations" to FieldValue(items=listOf("讨论方案：环境：雨"))),emptyList(),0,false)
         var mode by mutableStateOf(ThemeMode.Light)
         compose.setContent { ResoundTheme(mode) {
             Column(Modifier.fillMaxSize().background(Rs.colors.background).padding(16.dp)) {
@@ -48,7 +53,9 @@ class ReportPresentationTest {
             val dir=File("build/report-previews").apply { mkdirs() }
             File(dir,"${theme.name}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
         }
-        compose.onNodeWithText("展开逐事件环境明细 · 1 条").performClick()
-        compose.onNodeWithText("讨论方案：环境：雨").assertExists()
+        compose.onNodeWithText("展开逐事件环境明细 · 1 条").assertDoesNotExist()
+        compose.onNodeWithText("各件事的环境").assertDoesNotExist()
+        compose.onNodeWithText("本周声音印象").assertExists()
+        compose.onNodeWithText("雨").assertExists()
     }
 }

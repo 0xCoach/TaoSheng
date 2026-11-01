@@ -2,9 +2,9 @@
   "formatVersion": 1,
   "id": "weekly",
   "name": "每周回顾",
-  "summary": "从本周事件和每日回顾中找出要紧的事",
+  "summary": "按主题回看本周进展、未完事项与下周安排",
   "icon": "calendar_week",
-  "version": 2,
+  "version": 3,
   "trigger": {
     "type": "Daily",
     "minutes": 1260,
@@ -27,30 +27,16 @@
     },
     {
       "key": "highlights",
-      "label": "本周要紧的",
+      "label": "本周进展",
       "type": "Bullets",
-      "hint": "有记录支撑的重要进展",
-      "required": false
-    },
-    {
-      "key": "starred",
-      "label": "本周你标的重点",
-      "type": "Bullets",
-      "hint": "每条写这件事及标重点之后的进展；没有依据则写还没进展",
-      "required": false
-    },
-    {
-      "key": "trends",
-      "label": "本周趋势",
-      "type": "Bullets",
-      "hint": "对比各天说话时长、话题变化和心力，没有数据就不判断",
+      "hint": "按主题合并同一事项的多次记录，最多3个重点，写清本周变化与结果；用户标星的事项优先纳入，不逐事件罗列",
       "required": false
     },
     {
       "key": "todo_review",
-      "label": "待办回看",
+      "label": "还挂着的事",
       "type": "Bullets",
-      "hint": "按条目状态说明完成了什么、还挂着什么",
+      "hint": "只列未完成且需继续跟进的事项，合并重复记录；已完成的放入本周进展",
       "required": false
     },
     {

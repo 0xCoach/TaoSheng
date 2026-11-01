@@ -12,8 +12,13 @@ object EnvSoundPresentation {
         val repo = if(AppGraph.isEnvSoundReady) AppGraph.envSound as? LocalEnvSoundRepository else null
         return if(repo == null) flowOf(Unit) else combine(repo.settings, repo.presentation, repo.eventMetadata) { _, _, _ -> Unit }
     }
-    /** 周回顾没有逐句事件出处；在输出卡末尾按真实事件单列环境，不让模型猜配对。 */
-    fun decorate(card: SkillCard): SkillCard {
+    private val weeklyEnvironmentKeys = setOf("env_sound_overview", "env_sound_observations", "env_sound_impression")
+    private fun withoutWeeklyEnvironment(card: SkillCard) = card.copy(
+        fields = card.fields.filter { it.key !in weeklyEnvironmentKeys }, values = card.values - weeklyEnvironmentKeys)
+
+    /** 周报仅在页尾显示声音标签；旧逐事件环境字段也在读取时移除，不改存档。 */
+    fun decorate(card: SkillCard): SkillCard = decorateCurrent(if (card.skillId == "weekly") withoutWeeklyEnvironment(card) else card)
+    private fun decorateCurrent(card: SkillCard): SkillCard {
         if(!AppGraph.isEnvSoundReady) return card
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return card
         if(!repo.settings.value.showInSummaries) return card
@@ -21,26 +26,24 @@ object EnvSoundPresentation {
         val end = if(card.skillId == "weekly") card.date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.endAt ?: return card
         val events = repo.eventMetadata.value.filter { it.startAt < end && it.endAt > start && it.createdAt <= card.generatedAt }
             .sortedBy { it.startAt }
+        if (card.skillId == "weekly") return weekly(card, events.mapNotNull { repo.presentation.value[it.id] })
         val notes = events.mapNotNull { e -> line(e.id).takeIf { it.isNotBlank() }?.let { "${e.title}：$it" } }
         if(notes.isEmpty()) return card
         val key = "env_sound_observations"
         val detail = SkillField(key,"各件事的环境",FieldType.Bullets,"")
-        if (card.skillId != "weekly") return card.copy(fields = card.fields.filter { it.key != key } + detail,
+        return card.copy(fields = card.fields.filter { it.key != key } + detail,
             values = card.values + (key to FieldValue(items=notes)))
-        return weekly(card, events.mapNotNull { repo.presentation.value[it.id] }, notes)
     }
-    /** 概览仅列出现过的类别，不从事件跨度推断环境时长。 */
-    internal fun weekly(card: SkillCard, sounds: List<EventSounds>, notes: List<String>): SkillCard {
-        val tags = sounds.flatMap { it.tags }.distinct().sortedBy { it.ordinal }.map { it.title }
+    /** 标签只陈述出现过的声音，最多三个，不推断环境时长、生活地点或情绪。 */
+    internal fun weekly(card: SkillCard, sounds: List<EventSounds>): SkillCard {
+        val clean = withoutWeeklyEnvironment(card)
         val special = sounds.flatMap { it.sounds }.distinct().sortedBy { it.ordinal }.map { if(it == SpecialSound.Knock) "敲门声" else it.title }
-        val overview = listOfNotNull(tags.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="记录到的环境："),
-            special.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="特别声音："))
-        val keys = setOf("env_sound_overview", "env_sound_observations")
-        return card.copy(fields = card.fields.filter { it.key !in keys } + listOf(
-            SkillField("env_sound_overview", "本周环境", FieldType.Bullets, ""),
-            SkillField("env_sound_observations", "各件事的环境", FieldType.Bullets, "")),
-            values = card.values + mapOf("env_sound_overview" to FieldValue(items=overview),
-                "env_sound_observations" to FieldValue(items=notes)))
+        val tags = sounds.flatMap { it.tags }.distinct().sortedBy { it.ordinal }.map { it.title }
+        val impression = (special + tags).distinct().take(3)
+        if (impression.isEmpty()) return clean
+        val key = "env_sound_impression"
+        return clean.copy(fields = clean.fields + SkillField(key, "本周声音印象", FieldType.Tags, ""),
+            values = clean.values + (key to FieldValue(items=impression)))
     }
     fun line(eventId: Long?): String {
         if(eventId == null || !AppGraph.isEnvSoundReady) return ""

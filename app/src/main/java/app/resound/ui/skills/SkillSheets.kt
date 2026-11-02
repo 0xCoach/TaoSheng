@@ -26,6 +26,9 @@ import app.resound.skills.SkillCard
 import app.resound.skills.SkillOrigin
 import app.resound.skills.SkillRepository
 import app.resound.skills.SkillRunResult
+import app.resound.ui.CopyAllReportButton
+import app.resound.ui.showReportSummary
+import app.resound.ui.skillCardCopyText
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.ActionButton
@@ -46,8 +49,8 @@ fun SkillCardSheet(card: SkillCard, repo: SkillRepository, onDismiss: () -> Unit
     var note by remember { mutableStateOf<String?>(null) }
     val skillExists = repo.skills.collectAsState().value.any { it.id == card.skillId }
     RsSheet(card.title, "${card.skillName} · ${cardTime(card)}", onDismiss = onDismiss) {
-        if (card.summary.isNotBlank() && !(card.skillId == "weekly" && !card.values["one_line"]?.text.isNullOrBlank()
-                && card.fields.any { it.key == "one_line" })) {
+        CopyAllReportButton { skillCardCopyText(card) }
+        if (showReportSummary(card)) {
             Text(card.summary, style = RsType.body, color = c.text,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (card.skillId == "weekly") weeklyBackground() else skillInk(card.icon).copy(alpha = 0.08f)).padding(14.dp))
         }

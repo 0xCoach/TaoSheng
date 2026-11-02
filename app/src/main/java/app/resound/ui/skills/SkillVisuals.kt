@@ -193,7 +193,7 @@ fun SkillCardRow(card: SkillCard, modifier: Modifier = Modifier) {
 @Composable
 fun SkillCardBody(card: SkillCard, onQuote: ((CardQuote) -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        card.fields.filterNot { card.skillId == "weekly" && it.key in setOf("env_sound_observations", "env_sound_overview") }.forEach { f -> card.values[f.key]?.takeIf { !it.isEmpty(f.type) }?.let {
+        app.resound.ui.reportFields(card).forEach { f -> card.values[f.key]?.takeIf { !it.isEmpty(f.type) }?.let {
             if (card.skillId == "weekly" && f.key == "one_line") {
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(weeklyBackground()).padding(14.dp)) {
                     FieldBlock(f, it, card.icon, onQuote)

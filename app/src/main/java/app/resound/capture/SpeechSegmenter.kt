@@ -1,7 +1,8 @@
 package app.resound.capture
 
 /** 纯 Kotlin，保留精确的 1 秒前滚；五分钟硬切保留一秒重叠，不丢样本。 */
-class SpeechSegmenter(private val sink: Sink) {
+class SpeechSegmenter(private val sink: Sink, private val minSpeechSamples: Int = CaptureTuning.MIN_SPEECH_SAMPLES) {
+    init { require(minSpeechSamples > 0) }
     interface Sink {
         fun begin(startSample: Long)
         fun write(samples: ShortArray)
@@ -57,7 +58,7 @@ class SpeechSegmenter(private val sink: Sink) {
             offset += count
             if (speech) {
                 voiced += count
-                if (!confirmed && voiced >= CaptureTuning.MIN_SPEECH_SAMPLES) { sink.confirmed(); confirmed = true }
+                if (!confirmed && voiced >= minSpeechSamples) { sink.confirmed(); confirmed = true }
                 silence = 0
             } else silence += count
             if (cursor - start == CaptureTuning.MAX_SEGMENT_SAMPLES.toLong() || silence == CaptureTuning.END_SILENCE_SAMPLES) {
@@ -93,7 +94,7 @@ class SpeechSegmenter(private val sink: Sink) {
     }
 
     private fun closeSegment(clearHistory: Boolean) {
-        if (active) sink.end(cursor, voiced >= CaptureTuning.MIN_SPEECH_SAMPLES && (!continuationSegment || newSamples > 0))
+        if (active) sink.end(cursor, voiced >= minSpeechSamples && (!continuationSegment || newSamples > 0))
         active = false
         voiced = 0
         silence = 0

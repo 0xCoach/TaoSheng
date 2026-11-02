@@ -57,14 +57,16 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
     init {
         scope.launch(Dispatchers.IO) {
             try {
-                // confirmed 表示已经累积至少一秒人声；进程死亡后可回收其已写入部分。
+                // confirmed 保存本段已达到的人声样本门槛，兼容旧版固定一秒的标记。
                 spool.listFiles()?.filter { it.extension == "recording" }?.forEach { partial ->
                     if (isDiscarded(partial.nameWithoutExtension)) {
                         removeDiscarded(partial.nameWithoutExtension)
                         return@forEach
                     }
                     val confirmed = File(partial.path + ".confirmed")
-                    if (confirmed.exists() && partial.length() >= CaptureTuning.MIN_SPEECH_SAMPLES * 2) {
+                    val minimum = confirmed.takeIf { it.isFile }?.readText()?.toIntOrNull()
+                        ?.takeIf { it > 0 } ?: CaptureTuning.MIN_SPEECH_SAMPLES
+                    if (confirmed.exists() && partial.length() >= minimum.toLong() * 2) {
                         if (partial.renameTo(File(spool, partial.nameWithoutExtension + ".pcm"))) confirmed.delete()
                     } else { partial.delete(); confirmed.delete(); File(spool, partial.nameWithoutExtension + ".source").delete() }
                 }
@@ -128,7 +130,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         }
     }
 
-    fun sink(epoch: Long, sourceId: String = "mic"): SpeechSegmenter.Sink = object : SpeechSegmenter.Sink {
+    fun sink(epoch: Long, sourceId: String = "mic", minSpeechSamples: Int = CaptureTuning.MIN_SPEECH_SAMPLES): SpeechSegmenter.Sink = object : SpeechSegmenter.Sink {
         private var file: File? = null
         private var output: OutputStream? = null
         private var playbackSamples = 0L
@@ -162,7 +164,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         }
         override fun confirmed() {
             output!!.flush()
-            File(file!!.path + ".confirmed").writeText("speech>=1s")
+            File(file!!.path + ".confirmed").writeText(minSpeechSamples.toString())
         }
         override fun end(endSample: Long, keep: Boolean) {
             output?.close(); output = null

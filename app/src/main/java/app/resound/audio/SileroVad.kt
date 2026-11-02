@@ -4,13 +4,12 @@ import android.content.Context
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
-import app.resound.capture.CaptureTuning
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
 import kotlin.math.sqrt
 
 /** 官方 v6.2 流式协议：512 新样本 + 64 上下文，state=[2,1,128]。 */
-class SileroVad(context: Context) : AutoCloseable {
+class SileroVad(context: Context, private val sensitivity: VadSensitivity = VadSensitivity.DEFAULT) : AutoCloseable {
     private val env = OrtEnvironment.getEnvironment()
     private val session = OrtSession.SessionOptions().use { options ->
         options.setIntraOpNumThreads(1); options.setInterOpNumThreads(1)
@@ -40,14 +39,15 @@ class SileroVad(context: Context) : AutoCloseable {
                 val rms = sqrt(pcm.sumOf { val n = it / 32768.0; n * n } / pcm.size).toFloat()
                 val input = FloatArray(576)
                 history.copyInto(input)
-                pcm.forEachIndexed { i, value -> input[64 + i] = value / 32768f }
-                val probability = if (rms < CaptureTuning.RMS_GATE) {
+                val gain = sensitivity.detectionGain(rms)
+                pcm.forEachIndexed { i, value -> input[64 + i] = (value / 32768f * gain).coerceIn(-1f, 1f) }
+                val probability = if (rms < sensitivity.rmsGate) {
                     // 被门限跳过的时间不能留下陈旧的循环网络状态。
                     state.fill(0f)
                     0f
                 } else infer(input)
                 history = input.copyOfRange(512, 576)
-                consume(pcm, probability >= CaptureTuning.SPEECH_THRESHOLD, rms.coerceIn(0f, 1f))
+                consume(pcm, probability >= sensitivity.speechThreshold, rms.coerceIn(0f, 1f))
                 size = 0
             }
         }

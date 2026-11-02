@@ -236,9 +236,13 @@ class CaptureService : Service() {
                 else ExternalAudioSource(this, route.device,
                     app.inputs.port(requireNotNull(route.portId))
                         ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)
-                SileroVad(this).use { vad ->
+                val sensitivity = VadSensitivity.forInput(route.device.kind)
+                SileroVad(this, sensitivity).use { vad ->
                     var levelAt = 0L
                     var levelPeak = 0f
+                    var diagnosticAt = SystemClock.elapsedRealtime()
+                    var diagnosticPeak = 0f
+                    var speechSamples = 0L
                     source.events().collect { event ->
                         when (event) {
                             is AudioEvent.Busy -> {
@@ -271,13 +275,22 @@ class CaptureService : Service() {
                         val frame = (event as AudioEvent.Frame).samples
                         if (busy) { store.event(WatchdogEventType.MicReleased); busy = false }
                         val cutter = segmenter ?: SpeechSegmenter(app.segmentFiles.sink(
-                            System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE, source.id)).also { segmenter = it }
+                            System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE, source.id, sensitivity.minSpeechSamples),
+                            sensitivity.minSpeechSamples).also { segmenter = it }
                         vad.accept(frame) { pcm, speech, level ->
                             cutter.accept(pcm, speech, playback.speakerPlaying)
                             val next = if (cutter.active) CaptureState.Recording else CaptureState.Listening
                             // 状态和采样在此线程串行；人声状态切换不改变 running 区间。
                             if (state != next) { state = next; controller.update(next) }
                             val elapsed = SystemClock.elapsedRealtime()
+                            if (sensitivity.boostDetection) {
+                                diagnosticPeak = maxOf(diagnosticPeak, level)
+                                if (speech) speechSamples += pcm.size
+                                if (elapsed - diagnosticAt >= 10_000) {
+                                    android.util.Log.i("MicSensitivity", "kind=${route.device.kind} peakRms=${String.format(java.util.Locale.US, "%.6f", diagnosticPeak)} speechMs=${speechSamples * 1000 / AudioSource.SAMPLE_RATE}")
+                                    diagnosticAt = elapsed; diagnosticPeak = 0f; speechSamples = 0
+                                }
+                            }
                             levelPeak = maxOf(levelPeak, level)
                             // 每 50 毫秒报一次这段时间里的最大音量，界面据此画真实波形
                             if (elapsed - levelAt >= 50) { controller.level(levelPeak); levelPeak = 0f; levelAt = elapsed }

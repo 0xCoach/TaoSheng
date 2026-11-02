@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.15-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.16-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -129,7 +129,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.2.15** (2026-11-02, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.15-arm64.apk) — item tracking shares timeline extraction; redesigned reports with full, module and free-text copying; verified sources for follow-up questions; quieter external-mic detection and playback routing fixes; on-device language selection; deletion and backup reliability improvements. [Detailed changelog (Chinese)](CHANGELOG.md#0215--2026-11-02). Back up before upgrading from 0.2.14 or earlier: the database format changes and direct downgrade is unsupported.
+**v0.2.16** (2026-11-03, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.16-arm64.apk) — fixes deletion delays caused by long-running seven-day statistics transactions; reads compact snapshots, optimizes media interval matching, and adds deletion progress and duplicate-operation protection. Validated on a phone with synthetic workloads and actual history reads; user deletion retest passed. [Detailed changelog (Chinese)](CHANGELOG.md#0216--2026-11-03). No new database migration from 0.2.15.
+
+**v0.2.15** (2026-11-02): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.15-arm64.apk) — item tracking shares timeline extraction; redesigned reports with full, module and free-text copying; verified sources for follow-up questions; quieter external-mic detection and playback routing fixes; on-device language selection; deletion and backup reliability improvements. [Detailed changelog (Chinese)](CHANGELOG.md#0215--2026-11-02). Back up before upgrading from 0.2.14 or earlier: the database format changes and direct downgrade is unsupported.
 
 **v0.2.14** (2026-10-30): [TaoSheng-v0.2.14-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk) (~98 MB) — faster transcription (quicker Doubao, far less traffic); class mode and a speaker-separation switch; imported recordings typed as meeting / training / call·interview / normal with automatic notes; multiple model providers with one-tap switching and balance alerts; to-dos show the original words and play the audio; easier ambient-sound tags; proper formatting in Ask, and more.
 
@@ -137,7 +139,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/SHA256SUMS).
 
 ### Build from source
 

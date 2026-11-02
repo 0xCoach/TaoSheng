@@ -98,7 +98,8 @@ class RoomAskRepository(
                         dao.nameConversation(row.id, question.take(40))
                         val history = state.value
                         // 负 id 只存在流式内存，保存最终结果后替换为 Room 分配的真实 id。
-                        val user = AskMessage(-1, AskRole.User, question, emptyList(), now(), false)
+                        // 保存事件入口的定位信息，重开会话后仍能按 ID 重新核验；不保存整份上下文。
+                        val user = AskMessage(-1, AskRole.User, question, listOfNotNull(command.source?.copy(quote = "")), now(), false)
                         val assistant = AskMessage(-2, AskRole.Assistant, "", emptyList(), now(), true, "正在查找相关记录…")
                         state.value = history + user + assistant
                         active = scope.launch(start = CoroutineStart.UNDISPATCHED) { answer(row.id, history, user, assistant, command.source) }
@@ -130,7 +131,8 @@ class RoomAskRepository(
         try {
             if (!hasKey()) current = current.copy(error = "还没填写大模型密钥")
             else withTimeout(timeoutMs) {
-                engine().answer(system(), history, user.text, source?.let { contextReader?.read(it) }) { update ->
+                val context = if (source != null) contextReader?.read(source) else contextReader?.followUp(history)
+                engine().answer(system(), history, user.text, context) { update ->
                     synchronized(lock) {
                         if (accepting) {
                             proposal = update.proposal ?: proposal

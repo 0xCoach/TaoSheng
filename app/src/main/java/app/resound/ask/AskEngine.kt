@@ -26,21 +26,28 @@ class AskEngine(
     suspend fun answer(system: String, history: List<AskMessage>, question: String, context: AskContext?, update: (Update) -> Unit) {
         var proposal: ProposedChange? = null
         fun emit(value: Update) = update(value.copy(proposal = proposal))
-        val messages = JSONArray().put(JSONObject().put("role", "system").put("content", system))
+        val messages = JSONArray().put(JSONObject().put("role", "system").put("content", system +
+            "\n本轮提供的局部上下文和重新核验出处也可作为证据，编号仅使用本轮 ref；已有充分原话可直接回答，无需重复检索。历史回答本身不是证据。"))
+        val refreshed = context?.sources.orEmpty().associateBy { it.kind to it.id }
         history.takeLast(12).forEach {
+            // 上轮错误答案、以及未重新核验的旧回答不进入证据上下文，防止已删记录从聊天摘要复活。
+            if (it.role == AskRole.Assistant && (it.error != null || it.sources.any { source ->
+                refreshed[source.kind to source.id]?.quote != source.quote
+            })) return@forEach
             messages.put(JSONObject().put("role", if (it.role == AskRole.User) "user" else "assistant")
                 .put("content", AskCitations.withoutMarkers(it.text).take(4000)))
         }
         messages.put(JSONObject().put("role", "user").put("content", listOfNotNull(context?.text, question).joinToString("\n\n")))
         val sources = context?.sources?.toMutableList() ?: mutableListOf()
         var count = 0
-        repeat(7) {
+        var repairing = false
+        repeat(8) {
             if (count >= 6) messages.put(JSONObject().put("role", "system").put("content",
                 "本轮工具额度已用完。现在只根据已有原话出处给最终回答；没查到就说没找到。不再调用工具，不输出工具标记。"))
             var text = ""
             var prompt = 0L; var completion = 0L
             val reply = try {
-                stream.call(messages, if (count < 6) definitions else JSONArray(), { delta ->
+                stream.call(messages, if (count < 6 && !repairing) definitions else JSONArray(), { delta ->
                     text += delta
                     val parsed = AskCitations.parse(text, sources)
                     if (!text.contains("DSML")) emit(Update(parsed.text, parsed.sources, null))
@@ -54,8 +61,21 @@ class AskEngine(
                 if (reply.content.contains("DSML")) {
                     emit(Update("", emptyList(), null, "大模型返回的格式不对")); return
                 }
+                val missing = proposal == null && sources.isNotEmpty() && parsed.sources.isEmpty() &&
+                    parsed.text.isNotBlank() && !parsed.text.contains("没找到")
+                if (!repairing && (parsed.invalid || missing)) {
+                    repairing = true
+                    emit(Update("", emptyList(), "正在核对回答出处…"))
+                    messages.put(JSONObject().put("role", "assistant").put("content", reply.content.take(4000)))
+                    messages.put(JSONObject().put("role", "system").put("content",
+                        "刚才的回答有无效或缺失出处。请只根据本轮已提供的资料重新作答，核对每条原话和 ref。" +
+                        "当前有效 ref 为 ${if (sources.isEmpty()) "空（没有可引用记录）" else "1 至 ${sources.size}"}；数据库 id 不是 ref。" +
+                        "不得猜测编号或仅为通过校验添加引用，不能证实的结论请删去；没有依据就明确说没找到。" +
+                        "这是最后一次出处修复，不再调用工具，不发起或重复数据修改。"))
+                    return@repeat
+                }
                 val error = when {
-                    parsed.invalid -> "回答出处不完整，请重新提问"
+                    parsed.invalid -> "回答出处仍无法核实，已停止自动重试。请指定事件或补充关键词。"
                     parsed.text.isBlank() -> "没有收到回答，请重试"
                     // 一次都没查记录：多半是模型不支持工具调用，指给用户去检测，而不是只让重问
                     proposal == null && parsed.sources.isEmpty() && !parsed.text.contains("没找到") ->
@@ -64,6 +84,9 @@ class AskEngine(
                     else -> null
                 }
                 emit(Update(parsed.text, parsed.sources, null, error)); return
+            }
+            if (repairing) {
+                emit(Update("", emptyList(), null, "模型未完成出处核对，已停止自动重试")); return
             }
             messages.put(reply.message())
             for (call in reply.calls) {

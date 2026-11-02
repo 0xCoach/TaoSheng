@@ -49,19 +49,16 @@ class LocalAsrService : Service() {
     private fun send(request:Request,type:Int,fields:Bundle.()->Unit={}) {
         runCatching {request.reply.send(Message.obtain(null,type).apply{data=Bundle().apply{putString("id",request.id);fields()}})}
     }
-    private fun model(backend:LocalBackend):OfflineRecognizer {
+    private fun model(backend:LocalBackend,language:LocalAsrLanguage):OfflineRecognizer {
         require(backend!=LocalBackend.Npu || LocalModels.npuSupported())
         val spec=LocalModels.spec(backend);val dir=LocalModels.directory(this,spec)
         check(ModelVerification.ensure(dir,spec))
-        val key="${spec.id}:${File(dir,spec.modelName).lastModified()}"
+        val key=localRecognizerKey(spec,dir,language)
         if(recognizer!=null && key==recognizerKey)return recognizer!!
         recognizer?.release();recognizer=null;recognizerKey=""
         val libs=applicationInfo.nativeLibraryDir
         OfflineRecognizer.prependAdspLibraryPath(libs)
-        recognizer=OfflineRecognizer(config=OfflineRecognizerConfig(modelConfig=OfflineModelConfig(
-            provider=if(backend==LocalBackend.Npu)"qnn" else "cpu",numThreads=2,debug=false,tokens=File(dir,"tokens.txt").path,
-            senseVoice=OfflineSenseVoiceModelConfig(model=File(dir,spec.modelName).path,language="auto",useInverseTextNormalization=true,
-                qnnConfig=if(backend==LocalBackend.Npu)QnnConfig(backendLib="$libs/libQnnHtp.so",systemLib="$libs/libQnnSystem.so",contextBinary=File(dir,"model.bin").path) else QnnConfig()))))
+        recognizer=OfflineRecognizer(config=localRecognizerConfig(backend,language,spec,dir,libs))
         recognizerKey=key;loads++
         return recognizer!!
     }
@@ -88,9 +85,11 @@ class LocalAsrService : Service() {
             if(request.id in cancelled)return
             phase="asr"
             val backend=LocalBackend.valueOf(request.data.getString("backend")!!)
-            val rec=timed("ModelLoad") { model(backend) }
+            val language=LocalAsrLanguage.fromCode(request.data.getString("language"))
+            val rec=timed("ModelLoad") { model(backend,language) }
             val chunks=PauseChunks.split(pcm,turns)
             val sentences=TimedSentences()
+            val detectedLanguages=linkedSetOf<String>()
             val speakers=separateSpeakers && (request.data.getInt("speakerCount", -1) == 2 || LocalModels.speakersEnabled(this))
             timed("Recognize") {
             for((index,chunk) in chunks.withIndex()){
@@ -100,7 +99,9 @@ class LocalAsrService : Service() {
                 try {
                     stream.acceptWaveform(FloatArray(chunk.end-chunk.start){pcm[chunk.start+it]/32768f},16000)
                     rec.decode(stream)
-                    sentences.append(rec.getResult(stream),chunk,chunk.speaker?.toString() ?: if(speakers)"uncertain:${chunk.groupStart}" else null)
+                    val decoded=rec.getResult(stream)
+                    detectedLanguages.add(decoded.lang)
+                    sentences.append(decoded,chunk,chunk.speaker?.toString() ?: if(speakers)"uncertain:${chunk.groupStart}" else null)
                 } finally{stream.release()}
                 send(request,2){putInt("done",index+1);putInt("total",chunks.size)}
             }
@@ -112,6 +113,7 @@ class LocalAsrService : Service() {
                 putStringArrayList("texts",ArrayList(result.map{it.text}));putStringArrayList("tags",ArrayList(result.map{it.speakerTag ?: ""}))
                 putLongArray("starts",result.map{it.startMillis}.toLongArray());putLongArray("ends",result.map{it.endMillis}.toLongArray());putLong("duration",pcm.size/16L)
                 putInt("pid",Process.myPid());putInt("loads",loads);putInt("timedChunks",sentences.timedChunks);putInt("chunks",chunks.size)
+                putString("language",language.code);putStringArrayList("detectedLanguages",ArrayList(detectedLanguages))
             }
         } catch(e:CancellationException){throw e}
         catch(e:Exception){

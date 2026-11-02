@@ -8,7 +8,7 @@ import java.util.UUID
 
 /** 应用进程持有一个共享连接，最后一个请求结束后空闲 [IDLE_MILLIS] 释放绑定（转写进程随之退出）。 */
 internal class LocalAsrConnection(private val context:Context) {
-    data class Metrics(val pid:Int,val modelLoads:Int,val timedChunks:Int,val chunks:Int)
+    data class Metrics(val pid:Int,val modelLoads:Int,val timedChunks:Int,val chunks:Int,val language:String="auto",val detectedLanguages:List<String> = emptyList())
     private data class Pending(val started:CompletableDeferred<Unit>,val result:CompletableDeferred<AsrResult>,val progress:(String)->Unit,val backend:LocalBackend,val timings:SegmentTimings?)
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
     private val pending=linkedMapOf<String,Pending>()
@@ -40,7 +40,7 @@ internal class LocalAsrConnection(private val context:Context) {
                     val texts=data.getStringArrayList("texts").orEmpty();val starts=requireNotNull(data.getLongArray("starts"));val ends=requireNotNull(data.getLongArray("ends"));val tags=data.getStringArrayList("tags")
                     check(texts.size==starts.size && starts.size==ends.size)
                     val result=AsrResult(texts.mapIndexed{i,text->AsrSentence(starts[i],ends[i],text,tags?.getOrNull(i)?.takeIf{it.isNotBlank()})},data.getLong("duration"),null)
-                    lastMetrics=Metrics(data.getInt("pid"),data.getInt("loads"),data.getInt("timedChunks"),data.getInt("chunks"))
+                    lastMetrics=Metrics(data.getInt("pid"),data.getInt("loads"),data.getInt("timedChunks"),data.getInt("chunks"),data.getString("language") ?: "auto",data.getStringArrayList("detectedLanguages").orEmpty())
                     request.result.complete(result)
                 }.onFailure{request.result.completeExceptionally(AsrException(AsrError.Protocol))}
                 request.started.complete(Unit)
@@ -92,7 +92,7 @@ internal class LocalAsrConnection(private val context:Context) {
         if(binding===ready)broken()
         throw AsrException(AsrError.LocalEngine)
     }
-    suspend fun recognize(audio:AsrAudio,backend:LocalBackend,progress:(String)->Unit):AsrResult=withContext(Dispatchers.Main.immediate){
+    suspend fun recognize(audio:AsrAudio,backend:LocalBackend,language:LocalAsrLanguage=LocalAsrLanguage.Auto,progress:(String)->Unit):AsrResult=withContext(Dispatchers.Main.immediate){
         idle?.cancel();idle=null
         val id=UUID.randomUUID().toString()
         val request=Pending(CompletableDeferred(),CompletableDeferred(),progress,backend,currentCoroutineContext()[SegmentTimings])
@@ -100,7 +100,7 @@ internal class LocalAsrConnection(private val context:Context) {
         var messenger:Messenger?=null
         try {
             messenger=connect()
-            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("pcmPath",audio.pcmFile?.path);putString("backend",backend.name);putBoolean("separateSpeakers",audio.separateSpeakers);putInt("speakerCount", audio.speakerCount ?: -1)}})
+            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("pcmPath",audio.pcmFile?.path);putString("backend",backend.name);putString("language",language.code);putBoolean("separateSpeakers",audio.separateSpeakers);putInt("speakerCount", audio.speakerCount ?: -1)}})
             // 排队期间不消耗模型执行超时，调用方取消仍会立即生效。
             request.started.await()
             withTimeout(maxOf(300_000L,60_000L+audio.durationMillis*2)){request.result.await()}

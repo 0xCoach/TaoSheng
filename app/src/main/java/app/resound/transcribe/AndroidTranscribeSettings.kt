@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import app.resound.transcribe.local.LocalAsrLanguage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,14 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     val source = _source.asStateFlow()
     private val _backend = MutableStateFlow(runCatching { app.resound.transcribe.local.LocalBackend.valueOf(prefs.getString("backend", "Npu")!!) }.getOrDefault(app.resound.transcribe.local.LocalBackend.Npu))
     val backend = _backend.asStateFlow()
+    private val _language = MutableStateFlow(LocalAsrLanguage.fromCode(prefs.getString("localLanguage", null)))
+    val language = _language.asStateFlow()
+    fun setLanguage(value: LocalAsrLanguage) {
+        if (value == _language.value) return
+        check(prefs.edit().putString("localLanguage", value.code).commit()) { "识别语言保存失败" }
+        _language.value = value
+        onChanged()
+    }
     private val _localStatus = MutableStateFlow(localPrefs.getString("actual", "尚未运行；首次转写会检查加速能力")!!)
     val localStatus = _localStatus.asStateFlow()
     private val _modelRevision = MutableStateFlow(0)
@@ -65,7 +74,8 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
         if(key.isNotBlank()) saveKey(key)
         saveCustom(endpoint,model)
     }
-    fun identity() = "${source.value}:${backend.value}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}"
+    fun identity() = "${source.value}:${backend.value}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}" +
+        if (source.value == TranscribeSource.Local) ":${language.value.code}" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
         TranscribeSource.Local -> modelReady(if (backend.value == app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) backend.value else app.resound.transcribe.local.LocalBackend.Cpu)

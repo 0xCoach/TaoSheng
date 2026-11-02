@@ -10,6 +10,7 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
     private val correction by lazy { LocalHotwordCorrection(context, hotwords) }
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult {
         val requested=settings.backend.value
+        val language=settings.language.value
         // 检查结果按“App 版本 + 模型文件”记住：通过过就直接用，没通过过就直接走 CPU；重新选 NPU 或升级后才再查
         val key=LocalModels.npuCheckKey(context)
         val checked=settings.npuCheck(key)
@@ -22,7 +23,7 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
         if(useNpu){
             if(!LocalModels.ready(context,LocalModels.npu))throw AsrException(AsrError.ModelMissing)
             settings.setLocalStatus(if(checked==true) "正在使用：NPU 识别" else "正在试用 NPU 识别…")
-            try {return call(audio,LocalBackend.Npu).also{if(checked!=true)settings.recordNpuCheck(key,true);settings.setLocalStatus("正在使用：NPU 识别")}}
+            try {return call(audio,LocalBackend.Npu,language).also{if(checked!=true)settings.recordNpuCheck(key,true);settings.setLocalStatus("正在使用：NPU 识别")}}
             catch(e:CancellationException){throw e}
             catch(e:Exception){
                 if(e is AsrException && e.type in setOf(AsrError.Speakers, AsrError.Audio))throw e
@@ -36,8 +37,8 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
             throw AsrException(AsrError.ModelMissing)
         }
         settings.setLocalStatus(if(fallback.isNotBlank()) fallback else "正在使用：CPU 识别")
-        return call(audio,LocalBackend.Cpu).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "正在使用：CPU 识别")}
+        return call(audio,LocalBackend.Cpu,language).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "正在使用：CPU 识别")}
     }
-    private suspend fun call(audio:AsrAudio,backend:LocalBackend):AsrResult =
-        correction.apply(LocalAsrConnection.get(context).recognize(audio,backend){settings.setLocalStatus(it);app.resound.PipelineProgress.detail(it)})
+    private suspend fun call(audio:AsrAudio,backend:LocalBackend,language:LocalAsrLanguage):AsrResult =
+        correction.apply(LocalAsrConnection.get(context).recognize(audio,backend,language){settings.setLocalStatus(it);app.resound.PipelineProgress.detail(it)})
 }

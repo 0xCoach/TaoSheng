@@ -522,11 +522,13 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
 private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     val c=Rs.colors
     val backend by settings.backend.collectAsState()
+    val language by settings.language.collectAsState()
     val actual by settings.localStatus.collectAsState()
     val revision by settings.modelRevision.collectAsState()
     val supported=LocalModels.npuSupported()
     Text("SenseVoice · 离线识别", style=RsType.body,color=c.text)
     Text("录音不出手机。按下面“多久转写一次”识别；说话期间模型常驻，安静 6 分钟后释放内存。", style=RsType.caption,color=c.textSecondary)
+    LocalLanguageChoice(language, settings::setLanguage)
     Spacer(Modifier.height(10.dp))
     // 不支持 NPU 的手机不给选项，免得看到了却用不了
     if(supported) Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}

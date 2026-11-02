@@ -30,8 +30,9 @@ class BatchDeleteInvestigationTest {
 
     @Test fun deletingTwentyEventsThroughHomeSheetDoesNotCrash() = deleteFromHome(20, false)
     @Test fun deletingSixEventsAcrossTimeGroupsDoesNotCrash() = deleteFromHome(6, true)
+    @Test fun auditFailedDeletionStillClosesSheetAndLeavesRecord() = deleteFromHome(6, false, 3L)
 
-    private fun deleteFromHome(count: Int, acrossGroups: Boolean) {
+    private fun deleteFromHome(count: Int, acrossGroups: Boolean, failedId: Long? = null) {
         val base = kotlinx.coroutines.runBlocking { FakeMemoryRepository().events(LocalDate.now()).first().first() }
         val beginning = if (acrossGroups) LocalDate.now().atTime(2, 0)
             .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() else base.startAt
@@ -45,9 +46,12 @@ class BatchDeleteInvestigationTest {
             override fun pendingItems(): Flow<List<MemoryItem>> = flowOf(emptyList())
         }
         val deleted = mutableListOf<Long>()
+        val attempted = mutableListOf<Long>()
         AppGraph.privacy = object : PrivacyActions {
             override suspend fun forgetEvent(eventId: Long): ForgetResult {
                 delay(40)
+                attempted += eventId
+                if (eventId == failedId) throw IllegalStateException("synthetic delete failure")
                 rows.value = rows.value.filterNot { it.id == eventId }
                 deleted += eventId
                 return ForgetResult(1, 1, 1, 0)
@@ -69,10 +73,10 @@ class BatchDeleteInvestigationTest {
         compose.onNodeWithText("全选").performClick()
         compose.onNodeWithText("删除 $count 件").performClick()
         compose.onAllNodesWithText("删除 $count 件").onLast().performClick()
-        compose.waitUntil(15_000) { deleted.size == count }
+        compose.waitUntil(15_000) { attempted.size == count }
         compose.waitForIdle()
-        assertEquals(count, deleted.distinct().size)
-        assertTrue(rows.value.isEmpty())
+        assertEquals(count - if (failedId == null) 0 else 1, deleted.distinct().size)
+        assertEquals(listOfNotNull(failedId), rows.value.map { it.id })
         compose.onNodeWithText("删除 $count 件事？").assertDoesNotExist()
     }
 }

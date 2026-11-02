@@ -42,6 +42,21 @@ class RoomPrivacyActionsTest {
     private fun item(id: Long, event: Long, line: Long?) = MemoryItemEntity(id, event, "Memo", null, "条目", null, null, null, line, "Pending", now)
     private fun count(table: String): Int = db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); it.getInt(0) }
 
+    @Test fun auditFileRemovalFailureStillReturnsSuccessAndCannotRetryByEvent() = runBlocking {
+        val path = File(directory, "blocked.ogg").apply { mkdirs() }
+        File(path, "payload").writeText("synthetic audio") // 非空目录确定性模拟无法删除的路径。
+        event(1)
+        db.capture().segment(SegmentEntity(1, 1, 2, "mic", path.path, 15, "Done"))
+        line(1, 1, 1)
+        val warnings = mutableListOf<String>()
+        val actions = RoomPrivacyActions(db, diagnostic = { warnings += it })
+        assertEquals(ForgetResult(1, 1, 1, 0), actions.forgetEvent(1))
+        assertEquals(listOf("录音文件删除失败"), warnings)
+        assertTrue(path.exists()); assertEquals(0, count("segments"))
+        assertEquals(ForgetResult(0, 0, 0, 0), actions.forgetEvent(1))
+        assertTrue(path.exists())
+    }
+
     @Test fun recentKeepsCrossingEventAndDeletesSourceItemsAndPendingAudio() = runBlocking {
         event(1); segment(1, now - 600_001); segment(2, now - 600_000); segment(3, now - 1, "Pending")
         line(1, 1, 1); line(2, 2, 1)

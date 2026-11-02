@@ -5,41 +5,21 @@ import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.DisableSelection
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import app.resound.review.DailyReview
 import app.resound.skills.FieldType
 import app.resound.skills.SkillCard
 import app.resound.ui.verify.ActionButton
 import app.resound.ui.verify.ActionKind
-import app.resound.ui.verify.RsSheet
-import app.resound.ui.theme.Rs
-import app.resound.ui.theme.RsType
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -120,50 +100,10 @@ internal fun ReportCopyActions(blocks: () -> List<ReportCopyBlock> = { emptyList
         }
     }
     selecting?.let { document ->
-        val fullText = document.text
-        var value by remember(document) { mutableStateOf(TextFieldValue(fullText)) }
-        var freeSelection by remember(document) { mutableStateOf(document.blocks.isEmpty()) }
-        var selected by remember(document) { mutableStateOf(emptySet<String>()) }
         DisableSelection {
-            RsSheet("选择部分内容", "按模块：点击多选，按原文顺序复制。自由选择：长按文字，拖动选择任意片段。",
-                onDismiss = { selecting = null }, fixedHeight = true) {
-                if (document.blocks.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton("按模块选择", if (!freeSelection) ActionKind.Primary else ActionKind.Secondary, Modifier.weight(1f)) { freeSelection = false }
-                    ActionButton("自由选择文字", if (freeSelection) ActionKind.Primary else ActionKind.Secondary, Modifier.weight(1f)) { freeSelection = true }
-                }
-                if (freeSelection) {
-                    ActionButton("复制选中内容", ActionKind.Primary, enabled = !value.selection.collapsed) {
-                        val selection = value.selection
-                        if (!selection.collapsed) copyReportText(context, fullText.substring(selection.min, selection.max), "已复制选中内容")
-                    }
-                    BasicTextField(value = value, onValueChange = { value = it.copy(text = fullText) }, readOnly = true,
-                        textStyle = RsType.body.copy(color = Rs.colors.text),
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState())
-                            .padding(vertical = 12.dp).testTag("report-copy-selection"))
-                } else {
-                    ActionButton("复制已选模块（${selected.size}）", ActionKind.Primary, enabled = selected.isNotEmpty()) {
-                        copyReportText(context, document.blocks.filter { it.id in selected }.joinToString("\n\n") { it.text }, "已复制所选模块")
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActionButton("全选模块", ActionKind.Secondary, Modifier.weight(1f)) { selected = document.blocks.map { it.id }.toSet() }
-                        ActionButton("清空选择", ActionKind.Secondary, Modifier.weight(1f), enabled = selected.isNotEmpty()) { selected = emptySet() }
-                    }
-                    document.blocks.forEach { block ->
-                        val checked = block.id in selected
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                            .background(if (checked) Rs.colors.accentSoft else Rs.colors.background)
-                            .toggleable(checked, role = Role.Checkbox) { selected = if (it) selected + block.id else selected - block.id }
-                            .padding(12.dp).testTag("report-block:${block.id}"), verticalAlignment = Alignment.Top) {
-                            Checkbox(checked, onCheckedChange = null)
-                            Column(Modifier.weight(1f).padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(block.title, style = RsType.section, color = Rs.colors.text)
-                                Text(block.text.removePrefix(block.title + "\n"), style = RsType.subhead, color = Rs.colors.textSecondary,
-                                    maxLines = 4, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
-            }
+            ReportCopySheet(document.text, document.blocks,
+                onCopy = { copyReportText(context, it, "已复制所选内容") },
+                onDismiss = { selecting = null })
         }
     }
 }

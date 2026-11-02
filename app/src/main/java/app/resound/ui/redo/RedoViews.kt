@@ -119,6 +119,7 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
     val segmentsOnly = eventIds.isEmpty()
     var scope by remember { mutableStateOf(if (segmentsOnly) RedoScope.TranscribeOnly else RedoScope.DigestOnly) }
     val last by repo.asr.lastChoice.collectAsState()
+    val asrOptions by repo.asr.options.collectAsState()
     var asr by remember { mutableStateOf(last) }
     val llms by repo.llmOptions.collectAsState()
     var llm by remember { mutableStateOf<String?>(null) }
@@ -184,7 +185,7 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
             }
         }
         val allExpired = needsAsr && estimate?.let { it.audioMs == 0L && (it.expiredSegments > 0) } == true
-        val canStart = estimate != null && (!needsAsr || asr in repo.asr.options.value.filter { it.ready }.map { it.source }) &&
+        val canStart = estimate != null && (!needsAsr || asr in asrOptions.filter { it.ready }.map { it.source }) &&
             (scope == RedoScope.TranscribeOnly || llm != null) && !allExpired
         ActionButton(if (allExpired) "原声都已过期，无法重新转写" else "开始", ActionKind.Primary, enabled = canStart) {
             if (needsAsr) repo.asr.remember(asr)

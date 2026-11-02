@@ -20,7 +20,7 @@ internal fun applyLlmOptions(preset: LlmPreset, body: JSONObject) {
         }
         host == "api.openai.com" && (model.startsWith("gpt-5.4") || model.startsWith("gpt-5.6")) -> {
             body.remove("temperature"); body.put("reasoning_effort", "none")
-            if (stream) completionLimit(1800)
+            completionLimit(if (stream) 1800 else LlmClient.MAX_JSON_OUTPUT_TOKENS)
         }
         host == "open.bigmodel.cn" && model.startsWith("glm-5.3") -> {
             body.put("temperature", 1.0).put("top_p", 0.95)

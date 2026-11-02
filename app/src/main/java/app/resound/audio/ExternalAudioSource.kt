@@ -152,6 +152,7 @@ internal class RoutedRecording(
         }
     }.flowOn(Dispatchers.IO)
 
+    @androidx.annotation.RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private fun open(port: AudioDeviceInfo, bluetooth: Boolean): AudioRecord {
         val rates = (listOf(AudioSource.SAMPLE_RATE) + port.sampleRates.toList() + listOf(48_000, 44_100, 32_000, 8_000)).distinct().filter { it > 0 }
         val channels = (listOf(1) + port.channelCounts.toList() + listOf(2)).distinct().filter { it in 1..2 }

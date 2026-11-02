@@ -17,7 +17,7 @@ internal object DayVolumeRows {
         "thing_records" to "at", "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
         "ask_conversations" to "createdAt", "ask_messages" to "at",
         "asr_attempts" to "at", "asr_usage" to "day", "llm_usage_v2" to "day", "skill_runs" to "at",
-        "app_power" to "at", "battery" to "at", "heartbeats" to "at", "watchdog" to "at",
+        "app_power" to "at", "battery" to "at", "heartbeats" to "at", "watchdog" to "at", "env_sounds" to "startAt",
     )
     val global = setOf("things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")

@@ -9,7 +9,7 @@ import android.util.AtomicFile
 import java.io.File
 
 /** 恢复在下次进程启动、任何 Room/设置仓库初始化之前提交。
- * pending 保留到全部替换完成，崩溃后重放；失败则阻止打开混合版本数据。
+ * 修改前保存本机回滚副本；失败或中断时还原，不能打开混合版本数据。
  */
 internal object BackupRestore {
     private fun pending(context: Context) = File(context.noBackupFilesDir, "backup-restore")
@@ -97,9 +97,41 @@ internal object BackupRestore {
         check(!target.exists()) { "已有待恢复数据" }
         check(verified.renameTo(target))
     }
-    fun applyPending(context: Context) {
+    fun applyPending(context: Context, beforeWrite: (String) -> Unit = {}) {
         val pending = pending(context)
-        if (!pending.exists()) return
+        val done = File(context.noBackupFilesDir, "backup-restore-done")
+        val journal = RestoreJournal(context)
+        if (!pending.exists()) {
+            // pending -> done 是提交点；此后启动不能再回滚覆盖新记录。
+            if (done.exists()) { journal.clear(); done.deleteRecursively() }
+            else if (journal.ready) { journal.rollback(); journal.clear() }
+            return
+        }
+        fun failed() {
+            val rejected = File(context.noBackupFilesDir, "backup-restore-failed")
+            if (rejected.deleteRecursively()) pending.renameTo(rejected)
+            context.getSharedPreferences("backup", 0).edit()
+                .putString("error", "恢复未完成，已保留原来的数据；请检查存储空间后重新恢复").commit()
+        }
+        if (journal.ready) {
+            journal.rollback(); failed(); journal.clear()
+            return
+        }
+        try {
+            journal.prepare()
+            applyContents(context, pending, beforeWrite)
+            check(done.deleteRecursively())
+            check(pending.renameTo(done))
+        } catch (_: Exception) {
+            // 回滚失败仍须阻止初始化；不能把半恢复数据当正常数据继续运行。
+            journal.rollback(); failed(); journal.clear()
+            return
+        }
+        journal.clear()
+        done.deleteRecursively()
+    }
+
+    private fun applyContents(context: Context, pending: File, beforeWrite: (String) -> Unit) {
         val data = File(context.applicationInfo.dataDir)
         val db = File(data, BackupArchive.DATABASE)
         listOf("-wal", "-shm", "-journal").forEach { suffix ->
@@ -116,6 +148,7 @@ internal object BackupRestore {
             val path = source.relativeTo(pending).invariantSeparatorsPath
             if (path == "manifest.json" || volumes && path in setOf("day-volumes", "settings.json", "secrets.json")) return@forEach
             require(BackupArchive.allowed(path))
+            beforeWrite(path)
             if (path.startsWith("shared_prefs/")) {
                 restorePreferences(context, source)
                 return@forEach
@@ -128,21 +161,18 @@ internal object BackupRestore {
         }
         // 队列是运行时数据，不能继续发送恢复前的消息；密钥与未出现的设置项全部保留。
         check(context.getSharedPreferences("push-retries", Context.MODE_PRIVATE).edit().clear().commit())
-        // 原子移走提交标记；清理中断不会再覆盖此后新增的数据。
-        val done = File(context.noBackupFilesDir, "backup-restore-done")
-        check(done.deleteRecursively())
-        check(pending.renameTo(done))
-        done.deleteRecursively()
+        check(context.getSharedPreferences("digest-state", Context.MODE_PRIVATE).edit().clear().commit())
     }
-    private fun restorePreferences(context: Context, source: File) {
+    internal fun restorePreferences(context: Context, source: File, replace: Boolean = false) {
         val parser = android.util.Xml.newPullParser()
         val edit = context.getSharedPreferences(source.nameWithoutExtension, Context.MODE_PRIVATE).edit()
+        if (replace) edit.clear()
         source.inputStream().use { input ->
             parser.setInput(input, "UTF-8")
             while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
                 if (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) continue
                 val name = parser.getAttributeValue(null, "name") ?: continue
-                if (name in setOf("encryptedKey", "customEncryptedKey")) continue
+                if (!replace && name in setOf("encryptedKey", "customEncryptedKey")) continue
                 val value = parser.getAttributeValue(null, "value")
                 when (parser.name) {
                     "string" -> edit.putString(name, parser.nextText())

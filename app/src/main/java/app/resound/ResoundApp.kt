@@ -46,6 +46,7 @@ class ResoundApp : Application() {
         crashes.installHandler()
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
+        app.resound.backup.BackupRestore.applyPending(this)
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope)
         AppGraph.asrSpeed = asrSpeed
         // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴
@@ -59,7 +60,6 @@ class ResoundApp : Application() {
             override fun onReceive(context: android.content.Context, intent: android.content.Intent) { asrSpeed.refresh() }
         }, android.content.IntentFilter(android.content.Intent.ACTION_TIME_CHANGED))
         app.resound.audio.OggGuard.init(this)
-        app.resound.backup.BackupRestore.applyPending(this)
         // 仅回收上个进程遗留的转码/密钥测试临时文件；原录音在 files/segments。
         cacheDir.listFiles()?.filter { it.name.startsWith("asr-") && it.extension in setOf("pcm", "ogg") }
             ?.forEach { it.delete() }

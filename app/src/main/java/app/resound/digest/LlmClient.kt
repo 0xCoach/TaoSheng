@@ -28,6 +28,7 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human) : Exception(detail)
 
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long)
+class LlmInputLimitException : IllegalArgumentException("本次内容过长，请缩小整理范围后重试")
 
 /** 兼容 OpenAI chat/completions 的服务（DeepSeek、方舟、自建）。 */
 class LlmClient(
@@ -35,21 +36,21 @@ class LlmClient(
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
 ) {
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String): LlmReply = withContext(Dispatchers.IO) {
+        if (system.length.toLong() + user.length > MAX_JSON_INPUT_CHARS) throw LlmInputLimitException()
         val body = JSONObject()
             .put("model", preset.model)
             .put("messages", JSONArray()
                 .put(JSONObject().put("role", "system").put("content", system))
                 .put(JSONObject().put("role", "user").put("content", user)))
             .put("response_format", JSONObject().put("type", "json_object"))
-            .put("temperature", 0.2)
+            .put("temperature", 0.2).put("max_tokens", MAX_JSON_OUTPUT_TOKENS)
         applyLlmOptions(preset, body)
         val request = Request.Builder()
             .url(preset.baseUrl.trimEnd('/') + "/chat/completions")
             .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
-        val response = try { clientFor(preset).newCall(request).await() } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human)) }
-        response.use {
+        try { clientFor(preset).newCall(request).consumeResponse {
             when (it.code) {
                 in 200..299 -> Unit
                 401, 403 -> throw LlmException(LlmError.Auth, it.code, if(preset.id == "custom") "鉴权失败，请检查密钥" else LlmError.Auth.human)
@@ -60,7 +61,7 @@ class LlmClient(
                 ?: throw LlmException(LlmError.Format)
             val usage = json.optJSONObject("usage")
             LlmReply(content, usage?.optLong("prompt_tokens") ?: 0, usage?.optLong("completion_tokens") ?: 0)
-        }
+        } } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human)) }
     }
 
     /** 读取响应体期间取消协程会立即 cancel HTTP call，而不只是取消等待响应头。 */
@@ -131,11 +132,21 @@ class LlmClient(
         }) }.build()
     }
 
-    private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
+    private suspend fun Call.consumeResponse(read: (Response) -> LlmReply): LlmReply = suspendCancellableCoroutine { cont ->
         cont.invokeOnCancellation { cancel() }
         enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) = cont.resumeWithException(e)
-            override fun onResponse(call: Call, response: Response) = cont.resume(response)
+            override fun onFailure(call: Call, e: IOException) { if (cont.isActive) cont.resumeWithException(e) }
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val reply = response.use { if (!cont.isActive) return; read(it) }
+                    if (cont.isActive) cont.resume(reply)
+                } catch (e: Exception) { if (cont.isActive) cont.resumeWithException(e) }
+            }
         })
+    }
+
+    companion object {
+        const val MAX_JSON_INPUT_CHARS = 64_000
+        const val MAX_JSON_OUTPUT_TOKENS = 8192
     }
 }

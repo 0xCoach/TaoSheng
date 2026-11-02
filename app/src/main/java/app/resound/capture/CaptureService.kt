@@ -327,7 +327,9 @@ class CaptureService : Service() {
     private fun alarmIntent() = PendingIntent.getBroadcast(this, 10, Intent(this, CaptureResumeReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun cancelAlarm() { getSystemService(AlarmManager::class.java).cancel(alarmIntent()) }
     private fun refreshNotification(paused: Boolean) {
-        if (CaptureNotifications.permitted(this)) NotificationManagerCompat.from(this).notify(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, paused))
+        if (!CaptureNotifications.permitted(this)) return
+        try { NotificationManagerCompat.from(this).notify(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, paused)) }
+        catch (_: SecurityException) { /* 检查后权限被撤回；不能让通知刷新中断录音收尾。 */ }
     }
     private fun releaseWakeLock() { wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null }
     override fun onDestroy() {

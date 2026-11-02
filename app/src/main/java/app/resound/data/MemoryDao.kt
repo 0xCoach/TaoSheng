@@ -259,6 +259,21 @@ abstract class MemoryDao {
     abstract fun doneItems(from: Long): Flow<List<MemoryItemEntity>>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: LlmUsageV2Entity)
+    @Query("SELECT * FROM digest_pending") abstract suspend fun pendingDigests(): List<PendingDigest>
+    @Query("SELECT * FROM digest_pending WHERE id = :id") abstract suspend fun pendingDigest(id: String): PendingDigest?
+    @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertPendingDigest(row: PendingDigest): Long
+    @Query("DELETE FROM digest_pending WHERE id = :id") abstract suspend fun removePendingDigest(id: String)
+    /** 响应和用量同事务；重放本地提交不会再次累计付费用量。 */
+    @Transaction open suspend fun rememberDigest(row: PendingDigest): Boolean {
+        // 请求进行中来源可能已被删除；记实际用量，但不能重新保存已删除内容的响应。
+        if (refreshLines(row.ids()).size != row.ids().size) {
+            addUsage(row.day, row.promptTokens, row.completionTokens, UsagePurpose.Digest)
+            return false
+        }
+        if (insertPendingDigest(row) != -1L)
+            addUsage(row.day, row.promptTokens, row.completionTokens, UsagePurpose.Digest)
+        return true
+    }
     @Query("UPDATE llm_usage_v2 SET promptTokens = promptTokens + :p, completionTokens = completionTokens + :c, calls = calls + 1 WHERE day = :day AND purpose = :purpose")
     abstract suspend fun addUsageRow(day: String, purpose: String, p: Long, c: Long)
     @Transaction

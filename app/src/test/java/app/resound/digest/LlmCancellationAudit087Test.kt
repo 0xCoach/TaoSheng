@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 class LlmCancellationAudit087Test {
     /** 模拟响应头已到、正文仍在生成时用户取消；全程只访问本地假服务。 */
-    @Test fun chatJsonCancellationCurrentlyLeavesBodyReadRunning() = runBlocking {
+    @Test fun chatJsonCancellationStopsBodyRead() = runBlocking {
         val server = MockWebServer()
         val reading = CountDownLatch(1)
         val activeCall = AtomicReference<Call>()
@@ -46,9 +46,9 @@ class LlmCancellationAudit087Test {
             job = launch(Dispatchers.IO) { LlmClient(http).chatJson(preset, "", "synthetic", "synthetic") }
             assertTrue("必须先进入正文读取阶段", reading.await(5, TimeUnit.SECONDS))
             job.cancel()
-            val stopped = withTimeoutOrNull(250) { job.join(); true } ?: false
-            assertFalse("已确认缺陷：取消后仍阻塞读取正文", stopped)
-            assertFalse("HTTP call 未被取消", activeCall.get().isCanceled())
+            val stopped = withTimeoutOrNull(500) { job.join(); true } ?: false
+            assertTrue("取消应及时完成", stopped)
+            assertTrue("应同时取消 HTTP call", activeCall.get().isCanceled())
         } finally {
             job?.cancelAndJoin()
             server.shutdown()

@@ -28,21 +28,21 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
         val body = customAsrBody(audio, model, hotwords())
         var call: Call? = null
         try {
-        for(url in OpenAiEndpoint.transcriptions(endpoint)) {
-        call=client.newCall(Request.Builder().url(url).apply { if(key.isNotBlank()) header("Authorization","Bearer $key") }.post(body).build())
-            beforeAudio()
-            call.awaitResponse().use { response->
-                if(response.code in setOf(404,405))return@use
-                if(response.code in setOf(401,403))throw AsrException(AsrError.Auth, detail = "鉴权失败，请检查密钥")
-                if(!response.isSuccessful)throw AsrException(if(response.code>=500 || response.code==429)AsrError.Server else AsrError.Protocol)
-                val bytes=response.body!!.byteStream().use{ input -> val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192);while(out.size()<=1_000_000){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n)};out.toByteArray() }
-                if(bytes.size>1_000_000)throw AsrException(AsrError.Protocol)
-                val json=JSONObject(bytes.toString(Charsets.UTF_8));if(!json.has("text"))throw AsrException(AsrError.Protocol)
-                val text=json.getString("text").trim()
-                return@withContext AsrResult(if(text.isBlank())emptyList() else listOf(AsrSentence(0,audio.durationMillis,text,null)),audio.durationMillis,null)
+            for(url in OpenAiEndpoint.transcriptions(endpoint)) {
+                call=client.newCall(Request.Builder().url(url).apply { if(key.isNotBlank()) header("Authorization","Bearer $key") }.post(body).build())
+                beforeAudio()
+                call.awaitResponse().use { response->
+                    if(response.code in setOf(404,405))return@use
+                    if(response.code in setOf(401,403))throw AsrException(AsrError.Auth, detail = "鉴权失败，请检查密钥")
+                    if(!response.isSuccessful)throw AsrException(if(response.code>=500 || response.code==429)AsrError.Server else AsrError.Protocol)
+                    val bytes=response.body!!.byteStream().use{ input -> val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192);while(out.size()<=1_000_000){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n)};out.toByteArray() }
+                    if(bytes.size>1_000_000)throw AsrException(AsrError.Protocol)
+                    val json=JSONObject(bytes.toString(Charsets.UTF_8));if(!json.has("text"))throw AsrException(AsrError.Protocol)
+                    val text=json.getString("text").trim()
+                    return@withContext AsrResult(if(text.isBlank())emptyList() else listOf(AsrSentence(0,audio.durationMillis,text,null)),audio.durationMillis,null)
+                }
             }
-        }
-        throw AsrException(AsrError.Protocol)
+            throw AsrException(AsrError.Protocol)
         }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:AsrException){throw e}catch(e:java.io.IOException){throw AsrException(AsrError.Network, detail = modelServiceError(endpoint,e,AsrError.Network.human))}
         finally{call?.cancel();client.dispatcher.executorService.shutdown();client.connectionPool.evictAll()}
     }

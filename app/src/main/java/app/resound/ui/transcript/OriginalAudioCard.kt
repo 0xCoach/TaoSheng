@@ -182,11 +182,12 @@ internal fun AddHotwordSheet(text: String, onDismiss: () -> Unit) {
     val c = Rs.colors
     var word by remember { mutableStateOf(text.take(30)) }
     val hotwords = app.resound.AppGraph.hotwords
+    val words by hotwords.words.collectAsState()
     RsSheet("加入热词", "删到只剩想加的词，如人名、地名、专有名词", onDismiss = onDismiss) {
         SheetInput(word, "要加的词") { word = it.take(30) }
         Text("以后转写会优先认这个词，整理时也会按它纠正同音字", style = RsType.caption, color = c.textTertiary)
         val w = word.trim()
-        val exists = w in hotwords.words.value
+        val exists = w in words
         ActionButton(if (exists) "已经在热词里" else "加入", ActionKind.Primary, enabled = w.length in 2..20 && !exists) {
             hotwords.setWords(hotwords.words.value + w)
             LinePlayer.notice = "已加入热词：$w"

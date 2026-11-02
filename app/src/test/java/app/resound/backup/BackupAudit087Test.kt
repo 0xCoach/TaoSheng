@@ -16,12 +16,20 @@ import org.robolectric.annotation.SQLiteMode
 import java.io.File
 import java.util.UUID
 
-/** 审计复现：断言当前缺陷的观察结果；修复时应改为数据保留/设置及时生效的回归断言。 */
+/** 087 审计问题的修复回归。 */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class BackupAudit087Test {
-    @Test fun dayVolumeRoundTripCurrentlyDropsEnvironmentCorrections() = runBlocking {
+    @Test fun everySchemaTableHasAnExplicitBackupPolicy() {
+        val entities = org.json.JSONObject(File("schemas/app.resound.data.CaptureDatabase/${CaptureDatabase.VERSION}.json").readText())
+            .getJSONObject("database").getJSONArray("entities")
+        val actual = (0 until entities.length()).map { entities.getJSONObject(it).getString("tableName") }.toSet()
+        val rebuildableOrLocalOnly = setOf("lines_fts", "events_fts", "items_fts", "embeddings",
+            "redo_snapshot", "privacy_file_cleanup", "digest_pending")
+        assertEquals(actual, DayVolumeRows.dated.keys + DayVolumeRows.global + rebuildableOrLocalOnly)
+    }
+    @Test fun dayVolumeRoundTripPreservesEnvironmentCorrections() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val root = File(context.cacheDir, "audit087-${UUID.randomUUID()}").apply { mkdirs() }
         val original = CaptureDatabase.open(context, File(root, "original.db").path)
@@ -39,12 +47,12 @@ class BackupAudit087Test {
             val restored = CaptureDatabase.open(context, target.path)
             try {
                 assertNotNull(restored.transcribe().findSegment(1))
-                assertNull("已确认缺陷：环境音及纠错状态未被导出", restored.envSound().get(1))
+                assertEquals(original.envSound().get(1), restored.envSound().get(1))
             } finally { restored.close() }
         } finally { original.close(); root.deleteRecursively() }
     }
 
-    @Test fun restoringSettingsAfterConstructionLeavesOldHistoryInMemory() {
+    @Test fun restoredSettingsAreReadBeforeConstructingRuntimeState() {
         val context = RuntimeEnvironment.getApplication()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val root = File(context.cacheDir, "audit087-settings-${UUID.randomUUID()}").apply { mkdirs() }
@@ -55,12 +63,13 @@ class BackupAudit087Test {
             source.setSeparateSpeakers(false)
             BackupSettings.capture(context, root) { _, _ -> "synthetic" }
             prefs.edit().clear().commit()
-            // 与 ResoundApp 相同：先构造设置对象，再恢复偏好文件。
-            val running = AndroidAsrSpeedSettings(prefs, scope, now = { 100 })
+            // 与修复后的 ResoundApp 相同：先恢复，再构造依赖设置的对象。
             BackupSettings.apply(context, root) { _, _, _ -> }
+            val running = AndroidAsrSpeedSettings(prefs, scope, now = { 100 })
             running.refresh()
-            assertTrue("已确认缺陷：当前进程仍使用恢复前的设置", running.effectiveSeparateSpeakers(101))
-            assertFalse("下一次构造才读到恢复值", AndroidAsrSpeedSettings(prefs, scope, now = { 100 }).effectiveSeparateSpeakers(101))
+            assertFalse(running.effectiveSeparateSpeakers(101))
+            running.startClassMode(30)
+            assertFalse("后续修改不能覆盖恢复的历史", running.effectiveSeparateSpeakers(99 + 2))
         } finally { scope.cancel(); prefs.edit().clear().commit(); root.deleteRecursively() }
     }
 }

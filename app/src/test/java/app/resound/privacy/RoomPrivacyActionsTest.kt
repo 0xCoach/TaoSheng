@@ -67,6 +67,18 @@ class RoomPrivacyActionsTest {
         assertEquals(ForgetResult(1, 1, 1, 2), privacy.deleteRecent(10))
         assertEquals(0, count("memory_events")); assertEquals(0, count("memory_items"))
     }
+    @Test fun sequentialBatchDeletionWorksBeyondFiveEvents() = runBlocking {
+        for (id in 1L..20L) {
+            event(id); segment(id, now - id); line(id, id, id)
+            db.memory().insertItems(listOf(item(id, id, id)))
+        }
+        for (id in 1L..20L) {
+            assertEquals(ForgetResult(1, 1, 1, 1), privacy.forgetEvent(id))
+            if (id == 6L) assertEquals(14, count("memory_events"))
+        }
+        assertEquals(0, count("memory_events")); assertEquals(0, count("memory_items"))
+        assertEquals(0, count("transcript_lines")); assertEquals(0, count("segments"))
+    }
     @Test fun forgetEventRemovesAudioSamplesExclusionsAndFeaturesButKeepsEnrollment() = runBlocking {
         event(1); segment(1, 1); line(1, 1, 1)
         db.memory().insertItems(listOf(item(1, 1, 1)))

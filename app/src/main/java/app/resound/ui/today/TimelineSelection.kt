@@ -215,7 +215,7 @@ internal fun BoxScope.ReachHereChip(target: Long?, selection: TimelineSelection,
 
 /** 批量删除确认：删除过程中显示进度，删完自动关闭 */
 @Composable
-internal fun BatchDeleteSheet(count: Int, progress: Int?, error: String? = null, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+internal fun BatchDeleteSheet(count: Int, progress: Int?, error: String? = null, detail: String? = null, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val forget = app.resound.AppGraph.isPrivacyReady
     app.resound.ui.verify.RsSheet("删除 $count 件事？",
         if (forget) "删除这些事件、关联原话和录音。已确认寻物记录、回顾和问问历史保留；删除后无法恢复。" else "会从时间线里删掉这些事，原话还在原话页里。",
@@ -226,6 +226,7 @@ internal fun BatchDeleteSheet(count: Int, progress: Int?, error: String? = null,
                 progress = { progress / count.coerceAtLeast(1).toFloat() }, color = Rs.colors.critical, trackColor = Rs.colors.critical.copy(alpha = 0.12f),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(CircleShape))
             androidx.compose.material3.Text("正在处理 $progress / $count", style = RsType.subhead, color = Rs.colors.textSecondary)
+            detail?.let { androidx.compose.material3.Text(it, style = RsType.caption, color = Rs.colors.textSecondary) }
         } else {
             app.resound.ui.verify.ActionButton("删除 $count 件", app.resound.ui.verify.ActionKind.Danger) { onConfirm() }
             app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary) { onDismiss() }

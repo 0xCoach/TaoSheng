@@ -29,7 +29,7 @@ class Rhythm064Test {
         val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).build()
         try {
             db.capture().segment(SegmentEntity(1, at(8), at(0), "mic", "/unused", 0, "Done"))
-            block(db, RoomRhythmStats(db.memory(), zone))
+            block(db, RoomRhythmStats(db, zone))
         } finally { db.close() }
     }
     private suspend fun line(db: CaptureDatabase, daysAgo: Long, millis: Long = 60000) {

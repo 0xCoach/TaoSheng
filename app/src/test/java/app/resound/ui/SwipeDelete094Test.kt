@@ -104,4 +104,20 @@ class SwipeDelete094Test {
         }
         compose.runOnIdle { assertEquals(1, deleted) }
     }
+
+    @Test fun deletingRowShowsStageAndIgnoresFurtherSwipes() {
+        var deleted = 0
+        var busy by mutableStateOf<String?>(null)
+        compose.setContent { ResoundTheme(ThemeMode.Light) {
+            SwipeRow(1, "重点", {}, { deleted++; busy = "等待数据处理…" }, busyLabel = busy) {
+                Text("事件1", Modifier.fillMaxWidth().height(80.dp))
+            }
+        } }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        repeat(4) { swipe(1) }
+        compose.onNodeWithText("等待数据处理…").assertExists()
+        compose.onNodeWithText("再右滑一次删除").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, deleted) }
+    }
 }

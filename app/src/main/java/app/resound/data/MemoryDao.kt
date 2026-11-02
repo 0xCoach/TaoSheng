@@ -67,6 +67,11 @@ data class MemoryItemEntity(
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)
 
+/** 节奏基准只用时间和事件统计字段，不能读取七天原话正文。 */
+data class RhythmSpan(val startAt: Long, val endAt: Long)
+data class RhythmEvent(val startAt: Long, val scene: String, val peopleJson: String)
+data class RhythmSnapshot(val lines: List<RhythmSpan>, val media: List<RhythmSpan>, val events: List<RhythmEvent>)
+
 /** 兼容现有每日总量消费者，查询时跨用途求和。 */
 data class LlmUsageEntity(val day: String, val promptTokens: Long, val completionTokens: Long, val calls: Int)
 
@@ -287,17 +292,26 @@ abstract class MemoryDao {
     @Query("SELECT * FROM llm_usage_v2 WHERE day >= :from AND day <= :to ORDER BY day, purpose")
     abstract fun usageByPurpose(from: String, to: String): Flow<List<LlmUsageV2Entity>>
 
-    /** 按句子开始时刻归日；与媒体时间段有重叠的整句排除（同 dayRhythm）。
-     * 查询依赖两张表，原话或事件变化都会使 Flow 更新；跨日媒体也参与排除。
-     */
-    @Transaction
-    @Query("""SELECT l.* FROM transcript_lines l
+    @Query("""SELECT l.startAt, l.endAt FROM transcript_lines l
         LEFT JOIN memory_events e ON e.id = l.eventId
         WHERE l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0)
-        AND NOT EXISTS (SELECT 1 FROM memory_events m WHERE m.deleted = 0 AND m.scene = '媒体'
-            AND l.startAt < m.endAt AND l.endAt > m.startAt)
         ORDER BY l.startAt, l.id""")
-    abstract fun rhythmLines(start: Long, end: Long): Flow<List<TranscriptLineEntity>>
+    protected abstract suspend fun rhythmSpans(start: Long, end: Long): List<RhythmSpan>
+
+    @Query("SELECT startAt, endAt FROM memory_events WHERE deleted = 0 AND scene = '媒体' AND endAt > :start AND startAt < :end ORDER BY startAt")
+    protected abstract suspend fun rhythmMedia(start: Long, end: Long): List<RhythmSpan>
+
+    @Query("SELECT startAt, scene, peopleJson FROM memory_events WHERE deleted = 0 AND scene != '媒体' AND startAt >= :start AND startAt < :end ORDER BY startAt, id")
+    protected abstract suspend fun rhythmEvents(start: Long, end: Long): List<RhythmEvent>
+
+    /** 同一短事务取得一致快照，媒体匹配和汇总在事务外完成。 */
+    @Transaction
+    open suspend fun rhythmSnapshot(start: Long, end: Long): RhythmSnapshot {
+        val lines = rhythmSpans(start, end)
+        // 按开始时间归日的长句可能越过窗口末尾，媒体查询必须覆盖整句。
+        val media = lines.maxOfOrNull { it.endAt }?.let { rhythmMedia(start, it) }.orEmpty()
+        return RhythmSnapshot(lines, media, rhythmEvents(start, end))
+    }
 
     // ---------- 界面 ----------
     @Transaction

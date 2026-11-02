@@ -347,7 +347,11 @@ fun TodayScreen(
     redoing?.let { ids -> app.resound.ui.redo.RedoSheet(eventIds = ids) { redoing = null } }
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
-        BatchDeleteSheet(ids.size, deleteProgress, error = deleteError, onConfirm = {
+        val phases = if (app.resound.AppGraph.isPrivacyReady)
+            (app.resound.AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.eventProgress?.collectAsState()?.value else null
+        val detail = ids.getOrNull(deleteProgress ?: -1)?.let { phases?.get(it)?.label }
+        BatchDeleteSheet(ids.size, deleteProgress, error = deleteError, detail = detail, onConfirm = {
+            if (deleteProgress != null) return@BatchDeleteSheet
             deleteError = null
             deleteProgress = 0
             batchScope.launch {
@@ -1365,6 +1369,8 @@ private fun SheetSection(title: String) {
 /** 时间线上的一件事：左滑一段标重点、再滑一段存待办；右滑两次删除（见 [SwipeRow]） */
 @Composable
 internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
+    val phases = if (app.resound.AppGraph.isPrivacyReady)
+        (app.resound.AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.eventProgress?.collectAsState()?.value else null
     var saving by remember { mutableStateOf(false) }
     val star by androidx.compose.runtime.rememberUpdatedState(onStar)
     SwipeRow(event.id, if (event.starred) "取消重点" else "★ 标重点", {
@@ -1372,7 +1378,8 @@ internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> 
         star()
         // 标重点没有确认步骤，给 3 秒撤销
         UndoBar.show(if (wasStarred) "已取消重点" else "已标重点") { star() }
-    }, onDelete, second = if (app.resound.AppGraph.isManualTodosReady) "存待办" to { saving = true } else null) { content(null) }
+    }, onDelete, second = if (app.resound.AppGraph.isManualTodosReady) "存待办" to { saving = true } else null,
+        busyLabel = phases?.get(event.id)?.label) { content(null) }
     if (saving) app.resound.ui.items.SaveEventAsTodo(event) { saving = false }
 }
 
@@ -1411,7 +1418,7 @@ object UndoBar {
  */
 @Composable
 internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete: () -> Unit,
-                      second: Pair<String, () -> Unit>? = null, content: @Composable () -> Unit) {
+                      second: Pair<String, () -> Unit>? = null, busyLabel: String? = null, content: @Composable () -> Unit) {
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val view = androidx.compose.ui.platform.LocalView.current
@@ -1419,6 +1426,7 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
     val left by androidx.compose.runtime.rememberUpdatedState(onLeft)
     val delete by androidx.compose.runtime.rememberUpdatedState(onDelete)
     val secondNow by androidx.compose.runtime.rememberUpdatedState(second)
+    val busyNow by androidx.compose.runtime.rememberUpdatedState(busyLabel)
     val threshold = with(density) { 72.dp.toPx() }
     // 左滑两段都只要一半距离：36dp 标重点、四分之一行存待办（右滑删除仍是 72dp）
     val leftThreshold = with(density) { 36.dp.toPx() }
@@ -1431,6 +1439,7 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
     var stage by remember(key) { mutableIntStateOf(0) }
     // 第一次右滑过线后进入“待删除”，3 秒内再右滑一次才删
     var deleteArmed by remember(key) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(key, busyLabel) { if (busyLabel != null) deleteArmed = false }
     androidx.compose.runtime.LaunchedEffect(key, deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
     Box(Modifier.fillMaxWidth()) {
         val dx = offset
@@ -1462,6 +1471,7 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
                             val dir = dragOffset
                             stage = 0
                             dragging = false; dragOffset = 0f
+                            if (busyNow != null) return@detectHorizontalDragGestures
                             if (dir < 0f && fired == 2) secondNow?.second?.invoke()
                             else if (dir < 0f && fired >= 1) left()
                             if (fired > 0 && dir > 0f) { if (deleteArmed) { deleteArmed = false; delete() } else deleteArmed = true }
@@ -1469,6 +1479,7 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
                         onDragCancel = { stage = 0; dragging = false; dragOffset = 0f },
                     ) { change, drag ->
                         change.consume()
+                        if (busyNow != null) return@detectHorizontalDragGestures
                         val next = (dragOffset + drag).coerceIn(-size.width * 0.75f, size.width * 0.6f)
                         dragOffset = next
                         val now = when {
@@ -1487,7 +1498,7 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
                 },
         ) {
             content()
-            if (deleteArmed) Text("再右滑一次删除", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.critical,
+            if (busyLabel != null || deleteArmed) Text(busyLabel ?: "再右滑一次删除", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.critical,
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 16.dp))
         }
     }

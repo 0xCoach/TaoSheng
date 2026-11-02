@@ -15,7 +15,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.14-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.15-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -136,7 +136,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.2.14**（最新） | 2026-10-30 | [TaoSheng-v0.2.14-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk)（约 98 MB） | 转写提速（豆包更快、流量大降）；课堂模式与区分说话人开关；导入录音分会议/培训/通话·访谈/普通并自动出纪要；多服务商一键切换与余额提醒；待办能看原话、听原声；环境音更易识别；问问正确显示格式等 |
+| **v0.2.15**（最新） | 2026-11-02 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.15-arm64.apk) | 寻物与整理共用请求；日报周报改版；全文/模块/自由选字复制；问问追问出处修复；轻声收音与播放修复；本地识别语言选择；删除、备份稳定性改进。[详细更新日志](CHANGELOG.md#0215--2026-11-02) |
+| **v0.2.14** | 2026-10-30 | [TaoSheng-v0.2.14-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk)（约 98 MB） | 转写提速（豆包更快、流量大降）；课堂模式与区分说话人开关；导入录音分会议/培训/通话·访谈/普通并自动出纪要；多服务商一键切换与余额提醒；待办能看原话、听原声；环境音更易识别；问问正确显示格式等 |
 | **v0.2.13** | 2026-10-29 | [TaoSheng-v0.2.13-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/TaoSheng-v0.2.13-arm64.apk)（约 97 MB） | 录音导出（多段合成 M4A + 原话 + 字幕，先试听再保存，后台合成）；全新播放器（歌词式字幕、上一段/下一段、倍速）；今日节奏重做；时间线筛选与多选批量操作；本机转写认热词；停录时段；局域网自建模型；修复推送误报等 |
 | **v0.2.12** | 2026-10-28 | [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk)（约 96 MB） | 手动/语音添加待办；像闹钟一样的强提醒（持续响铃、锁屏整屏提醒、音量键稍后/电源键停止，附设置检查清单）；整理可按时间点；模型检测逐项显示原因（如“模型不支持工具调用”） |
 | **v0.2.11** | 2026-10-28 | [TaoSheng-v0.2.11-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.11/TaoSheng-v0.2.11-arm64.apk)（约 91 MB） | App 内检查更新，优先下载几 MB 的差异包，装前自动备份；语音输入每段都带上下文（快速连发、小红书等），与录音不再重复；设置新增“关于涛声” |
@@ -150,7 +151,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 - 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
 - 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
 - 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
-- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/SHA256SUMS)。
+- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/SHA256SUMS)。
 - 正式签名证书指纹（SHA-256）：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`。只认这个签名的安装包，别处下载的改装版可能被动过手脚。
 
 ### 从源码编译

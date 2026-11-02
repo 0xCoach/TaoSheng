@@ -23,6 +23,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * 点原话听原声：从点的那句开始，接着往下播（跨录音段自动接上）；正在播的那句给界面高亮。
@@ -61,6 +63,7 @@ object LinePlayer {
     private var focus: AudioFocusRequest? = null
     private var captureHeld = false
     private var noisyRegistered = false
+    private var playRequest = 0L
 
     private val noisy = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) { if (i.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) pause() }
@@ -77,7 +80,9 @@ object LinePlayer {
         allLines = queue; timeline = PlayTimeline(queue); source = from
         segmentOrder = queue.map { it.segmentId }.distinct()
         session++
-        scope.launch { startAt(queue.first(), queue.first().startAt - leadMillis.coerceAtLeast(0)) }
+        val request = ++playRequest
+        val first = queue.first()
+        scope.launch { startAt(first, first.startAt - leadMillis.coerceAtLeast(0), request) }
     }
 
     /** 点正在播的那句：暂停 / 继续 */
@@ -87,6 +92,7 @@ object LinePlayer {
     private var releaseLater: Job? = null
 
     fun pause() {
+        playRequest++
         player?.takeIf { it.isPlaying }?.pause()
         playing = false; ticker?.cancel()
         releaseLater?.cancel(); releaseLater = scope.launch { delay(3_000); if (!playing) releaseCapture() }
@@ -94,15 +100,20 @@ object LinePlayer {
 
     fun resume() {
         val p = player ?: return
-        if (!requestFocus()) return
+        val request = ++playRequest
         releaseLater?.cancel(); releaseLater = null
-        holdCapture(); p.start(); if (speed != 1f) applySpeed(); playing = true; tick()
+        scope.launch {
+            if (!preparePlayback(request) || player !== p) return@launch
+            if (!requestFocus()) { releaseCapture(); return@launch }
+            p.start(); if (speed != 1f) applySpeed(); playing = true; tick()
+        }
     }
 
     fun changeSpeed(value: Float) { speed = value; applySpeed() }
 
     /** 关闭播放条、离开页面、切到后台时调用 */
     fun stop() {
+        playRequest++
         ticker?.cancel(); ticker = null; releaseLater?.cancel(); releaseLater = null
         player?.runCatching { stop(); release() }; player = null
         playing = false; currentLineId = null; queue = emptyList(); segmentOrder = emptyList()
@@ -124,7 +135,8 @@ object LinePlayer {
         val startIdx = allLines.indexOfFirst { it.segmentId == seg }.coerceAtLeast(0)
         queue = allLines.drop(startIdx)
         val line = queue.lastOrNull { it.segmentId == seg && it.startAt <= at } ?: queue.first()
-        scope.launch { startAt(line, at) }
+        val request = ++playRequest
+        scope.launch { startAt(line, at, request) }
     }
 
     /** 往前 / 往后若干毫秒（−15 / +15） */
@@ -133,22 +145,25 @@ object LinePlayer {
         seekFraction(((elapsed + ms).toFloat() / t.total))
     }
 
-    private suspend fun startAt(line: TranscriptLine, atAbs: Long? = null) {
+    private suspend fun startAt(line: TranscriptLine, atAbs: Long? = null, request: Long = playRequest) {
         val audio = if (app.resound.AppGraph.isOriginalAudioReady) runCatching { app.resound.AppGraph.originalAudio.locate(line.segmentId) }.getOrNull() else null
+        if (request != playRequest) return
         if (audio == null || !audio.file.exists()) {
             // 这一段没有原声（过期或语音输入）：跳到下一段；一段能播的都没有才提示
             val next = queue.dropWhile { it.segmentId == line.segmentId }.firstOrNull()
             if (next == null) { notice = "这段录音已过保留期，只剩文字"; stop(); return }
-            queue = queue.dropWhile { it.segmentId == line.segmentId }; startAt(next); return
+            queue = queue.dropWhile { it.segmentId == line.segmentId }; startAt(next, request = request); return
         }
+        ticker?.cancel(); playing = false
         player?.runCatching { release() }
+        player = null
         val ctx = context ?: return
-        if (!requestFocus()) { notice = "现在无法播放声音"; return }
+        if (!preparePlayback(request)) return
+        if (!requestFocus()) { notice = "现在无法播放声音"; releaseCapture(); return }
         if (!noisyRegistered) runCatching {
             androidx.core.content.ContextCompat.registerReceiver(ctx, noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
             noisyRegistered = true
         }
-        holdCapture()
         val at = (atAbs ?: line.startAt).coerceAtLeast(audio.startAt)
         val p = MediaPlayer()
         try {
@@ -220,6 +235,27 @@ object LinePlayer {
     private fun holdCapture() {
         if (captureHeld || !app.resound.AppGraph.isOriginalAudioReady) return
         app.resound.AppGraph.originalAudio.beginPlayback(); captureHeld = true
+    }
+
+    private suspend fun preparePlayback(request: Long): Boolean {
+        if (request != playRequest) return false
+        releaseLater?.cancel(); releaseLater = null
+        holdCapture()
+        val ready = try {
+            withTimeoutOrNull(4_000) {
+                app.resound.capture.CaptureService.awaitPlaybackRelease()
+                // 系统音频服务异步应用模式；短暂等候，避免起句仍落到 SCO/听筒。
+                val manager = context?.getSystemService(AudioManager::class.java)
+                withTimeoutOrNull(1_000) {
+                    while (manager?.mode == AudioManager.MODE_IN_COMMUNICATION) delay(25)
+                }
+                true
+            } == true
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) { false }
+        if (request != playRequest) return false
+        if (!ready) { notice = "录音设备尚未释放，请稍后重试"; releaseCapture() }
+        return ready
     }
 
     private fun releaseCapture() {

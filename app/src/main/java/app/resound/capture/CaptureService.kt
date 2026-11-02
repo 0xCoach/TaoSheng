@@ -367,6 +367,14 @@ class CaptureService : Service() {
             playbackHeld = held
             recheck()
         }
+        /** 播放器等待录音协程的 finally 完成，包含 SCO 路由和通信模式释放。 */
+        internal suspend fun awaitPlaybackRelease() {
+            val service = instance ?: return
+            if (!playbackHeld) return
+            val done = CompletableDeferred<Unit>()
+            service.commands.send(Command(Intent().setAction(RECHECK), done))
+            done.await()
+        }
         private const val DISCARD_CURRENT = "app.resound.capture.DISCARD_CURRENT"
         @Volatile private var instance: CaptureService? = null
         /** 进程内动作，未运行时直接返回，不启动服务。 */

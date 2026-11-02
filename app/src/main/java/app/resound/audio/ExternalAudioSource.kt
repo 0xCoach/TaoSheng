@@ -40,7 +40,6 @@ internal class RoutedRecording(
         var record: AudioRecord? = null
         var ownsCommunication = false
         var requestedCommunication = false
-        var previousMode = AudioManager.MODE_NORMAL
         var reason: String? = null
         suspend fun report(next: String?) {
             if (next != reason) { reason = next; emit(if (next == null) AudioEvent.Available else AudioEvent.Busy(next)) }
@@ -50,7 +49,6 @@ internal class RoutedRecording(
         try {
             val port = target() ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入已断开")
             if (bluetooth) {
-                previousMode = manager.mode
                 manager.mode = AudioManager.MODE_IN_COMMUNICATION
                 ownsCommunication = true
                 requestedCommunication = true
@@ -146,7 +144,9 @@ internal class RoutedRecording(
                     if (Build.VERSION.SDK_INT >= 31) runCatching { manager.clearCommunicationDevice() }
                     else { @Suppress("DEPRECATION") runCatching { manager.stopBluetoothSco() } }
                 }
-                if (ownsCommunication && manager.mode == AudioManager.MODE_IN_COMMUNICATION) runCatching { manager.mode = previousMode }
+                // MODE_NORMAL 释放本进程的模式请求；不能恢复读到的全局模式，
+                // 否则前一轮残留的通信模式会被重新申请，回放持续走听筒。
+                if (ownsCommunication) runCatching { manager.mode = AudioManager.MODE_NORMAL }
                 signals.close()
             }
         }

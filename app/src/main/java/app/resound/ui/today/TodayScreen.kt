@@ -1422,15 +1422,18 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
     val threshold = with(density) { 72.dp.toPx() }
     // 左滑两段都只要一半距离：36dp 标重点、四分之一行存待办（右滑删除仍是 72dp）
     val leftThreshold = with(density) { 36.dp.toPx() }
-    val offset = remember { androidx.compose.animation.core.Animatable(0f) }
-    val scope = rememberCoroutineScope()
+    // 手势距离同步累计，回弹动画只负责显示，不能作为下一次拖动的输入。
+    var dragOffset by remember(key) { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    var dragging by remember(key) { mutableStateOf(false) }
+    val offset by androidx.compose.animation.core.animateFloatAsState(dragOffset,
+        animationSpec = if (dragging) androidx.compose.animation.core.snap() else spring(dampingRatio = 0.7f), label = "swipeOffset")
     /** 0 = 没过线；1 = 第一段；2 = 第二段（只有左滑有） */
-    var stage by remember { mutableIntStateOf(0) }
+    var stage by remember(key) { mutableIntStateOf(0) }
     // 第一次右滑过线后进入“待删除”，3 秒内再右滑一次才删
     var deleteArmed by remember(key) { mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
+    androidx.compose.runtime.LaunchedEffect(key, deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
     Box(Modifier.fillMaxWidth()) {
-        val dx = offset.value
+        val dx = offset
         val bg by androidx.compose.animation.animateColorAsState(when {
             dx > 0f -> if (stage > 0) c.critical else c.critical.copy(alpha = 0.55f)
             stage == 2 -> c.good
@@ -1449,24 +1452,25 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
             Text(if (stage > 0) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
         }
         Box(
-            Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.roundToInt(), 0) }
+            Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.roundToInt(), 0) }
                 .background(if (deleteArmed) androidx.compose.ui.graphics.lerp(c.card, c.critical, 0.12f) else c.card)
-                .pointerInput(Unit) {
+                .pointerInput(key, threshold, leftThreshold) {
                     detectHorizontalDragGestures(
+                        onDragStart = { dragging = true; dragOffset = 0f; stage = 0 },
                         onDragEnd = {
                             val fired = stage
-                            val dir = offset.value
+                            val dir = dragOffset
                             stage = 0
-                            scope.launch { offset.animateTo(0f, spring(dampingRatio = 0.7f)) }
+                            dragging = false; dragOffset = 0f
                             if (dir < 0f && fired == 2) secondNow?.second?.invoke()
                             else if (dir < 0f && fired >= 1) left()
                             if (fired > 0 && dir > 0f) { if (deleteArmed) { deleteArmed = false; delete() } else deleteArmed = true }
                         },
-                        onDragCancel = { stage = 0; scope.launch { offset.animateTo(0f) } },
+                        onDragCancel = { stage = 0; dragging = false; dragOffset = 0f },
                     ) { change, drag ->
                         change.consume()
-                        val next = (offset.value + drag).coerceIn(-size.width * 0.75f, size.width * 0.6f)
-                        scope.launch { offset.snapTo(next) }
+                        val next = (dragOffset + drag).coerceIn(-size.width * 0.75f, size.width * 0.6f)
+                        dragOffset = next
                         val now = when {
                             next < 0f && secondNow != null && -next >= size.width * 0.25f -> 2
                             next < 0f && -next >= leftThreshold -> 1

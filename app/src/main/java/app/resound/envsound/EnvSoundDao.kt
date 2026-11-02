@@ -15,7 +15,9 @@ data class EnvSoundRow(@PrimaryKey val segmentId: Long, val startAt: Long, val e
 interface EnvSoundDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(row: EnvSoundRow)
     @Query("SELECT * FROM env_sounds WHERE segmentId = :id") suspend fun get(id: Long): EnvSoundRow?
+    @Transaction
     @Query("SELECT * FROM env_sounds ORDER BY startAt") fun observe(): Flow<List<EnvSoundRow>>
+    @Transaction
     @Query("SELECT * FROM memory_events WHERE deleted = 0 ORDER BY startAt DESC") fun events(): Flow<List<MemoryEventEntity>>
     @Query("UPDATE env_sounds SET restored = 1 WHERE segmentId = :id") suspend fun restored(id: Long)
     @Query("UPDATE env_sounds SET reportedWrong = 1, reason = CASE WHEN verdict IN ('Skipped','Skippable') THEN NULL ELSE reason END, verdict = CASE WHEN verdict IN ('Skipped','Skippable') THEN 'Keep' ELSE verdict END WHERE segmentId = :id") suspend fun wrong(id: Long)

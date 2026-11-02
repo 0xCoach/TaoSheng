@@ -35,6 +35,7 @@ abstract class TranscribeDao {
         (SELECT eventId FROM transcript_lines WHERE segmentId = :segmentId))""")
     abstract suspend fun exportEvents(segmentId: Long, from: Long, until: Long): List<MemoryEventEntity>
 
+    @Transaction
     @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
     @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e
         WHERE e.starred = 1 AND e.deleted = 0 AND s.startAt < e.endAt AND s.endAt > e.startAt)""")
@@ -48,6 +49,7 @@ abstract class TranscribeDao {
     @Transaction
     @Query("SELECT * FROM segments WHERE startAt >= :start AND startAt < :end ORDER BY startAt DESC, id DESC")
     abstract fun day(start: Long, end: Long): Flow<List<SegmentWithLines>>
+    @Transaction
     @Query("SELECT * FROM segments") abstract fun observeSegments(): Flow<List<SegmentEntity>>
     @Query("SELECT * FROM asr_usage WHERE day >= :from AND day <= :to ORDER BY day")
     abstract fun usageBetween(from: String, to: String): Flow<List<AsrUsageEntity>>

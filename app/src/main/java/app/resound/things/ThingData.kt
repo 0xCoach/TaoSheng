@@ -27,7 +27,9 @@ internal const val THING_ELIGIBLE = """s.sourceId != 'import' AND NOT EXISTS
 
 @Dao
 internal interface ThingDao {
+    @Transaction
     @Query("SELECT * FROM things WHERE deleted = 0 ORDER BY updatedAt DESC, id DESC") fun observeThings(): Flow<List<ThingRow>>
+    @Transaction
     @Query("SELECT * FROM thing_records ORDER BY at DESC, id DESC") fun observeRecords(): Flow<List<ThingRecordRow>>
     @Query("SELECT * FROM things WHERE deleted = 0 ORDER BY updatedAt DESC, id DESC") suspend fun allThings(): List<ThingRow>
     @Query("SELECT * FROM thing_records ORDER BY at DESC, id DESC") suspend fun allRecords(): List<ThingRecordRow>

@@ -101,7 +101,9 @@ class ResoundApp : Application() {
             discardRecording = CaptureService::discardCurrent,
             recentFiles = { from, until, block -> segmentFiles.withRecentDeletion(from, until, block) },
             voiceprintGuard = { block -> voiceprintRepository.withPrivacyDeletion(block) },
-            removeFeatures = voiceprintRepository::removeFeatures)
+            removeFeatures = voiceprintRepository::removeFeatures,
+            scheduleCleanup = { app.resound.privacy.PrivacyCleanupWorker.enqueue(this) })
+        app.resound.privacy.PrivacyCleanupWorker.start(this)
         AppGraph.privacy = privacyActions
         AppGraph.segmentDeleter = privacyActions
         AppGraph.audioExporter = LocalAudioExporter(cacheDir, database.transcribe(),

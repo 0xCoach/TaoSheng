@@ -1,10 +1,16 @@
 package app.resound.data
 
-import androidx.room.Dao
-import androidx.room.Query
+import androidx.room.*
+
+@Entity(tableName = "privacy_file_cleanup")
+data class PrivacyFileCleanup(@PrimaryKey val path: String)
 
 @Dao
 interface PrivacyDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun queueCleanup(row: PrivacyFileCleanup)
+    @Transaction
+    @Query("SELECT * FROM privacy_file_cleanup") suspend fun pendingCleanup(): List<PrivacyFileCleanup>
+    @Query("DELETE FROM privacy_file_cleanup WHERE path = :path") suspend fun cleaned(path: String)
     @Query("SELECT * FROM segments WHERE startAt >= :from AND startAt <= :until")
     suspend fun recent(from: Long, until: Long): List<SegmentEntity>
     @Query("SELECT * FROM segments WHERE id = :id")

@@ -218,6 +218,7 @@ fun TodayScreen(
     var homeExport by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var copyNote by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(copyNote) { if (copyNote != null) { delay(1800); copyNote = null } }
+    var deleteError by remember { mutableStateOf<String?>(null) }
     var deleteProgress by remember { mutableStateOf<Int?>(null) }
 
     var boxTop by remember { mutableStateOf(0f) }
@@ -346,17 +347,33 @@ fun TodayScreen(
     redoing?.let { ids -> app.resound.ui.redo.RedoSheet(eventIds = ids) { redoing = null } }
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
-        BatchDeleteSheet(ids.size, deleteProgress, onConfirm = {
+        BatchDeleteSheet(ids.size, deleteProgress, error = deleteError, onConfirm = {
+            deleteError = null
             deleteProgress = 0
             batchScope.launch {
                 // 逐件删除，与单条删除走同一条路径（有隐私接口时连录音和原话一起删）
+                val failed = mutableListOf<Long>()
+                var cleanupPending = false
                 ids.forEachIndexed { i, id ->
-                    if (app.resound.AppGraph.isPrivacyReady) runCatching { app.resound.AppGraph.privacy.forgetEvent(id) } else memory.deleteEvent(id)
+                    try {
+                        check(app.resound.AppGraph.isPrivacyReady)
+                        app.resound.AppGraph.privacy.forgetEvent(id)
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                      catch (e: Exception) {
+                        failed += id
+                        if (e is app.resound.privacy.FileCleanupPending) cleanupPending = true
+                    }
                     deleteProgress = i + 1
                 }
-                batchDeleting = null; deleteProgress = null; selection.exit()
+                deleteProgress = null
+                if (failed.isEmpty()) { batchDeleting = null; selection.exit() }
+                else {
+                    batchDeleting = failed
+                    deleteError = if (cleanupPending) "部分记录已删除，但录音文件尚未清理，将自动重试。也可点下方按钮重试。"
+                        else "${ids.size - failed.size} 件已删除，${failed.size} 件失败，请重试。"
+                }
             }
-        }) { batchDeleting = null }
+        }) { batchDeleting = null; deleteError = null }
     }
 
     opened?.let { event -> EventSheet(event, memory) { opened = null } }
@@ -1123,11 +1140,10 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                 }
                 ActionChip(if (confirmDelete) "确认删除" else "删除", if (confirmDelete) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
                     if (!confirmDelete) { confirmDelete = true; return@ActionChip }
-                    if (forget) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(event.id) } } else memory.deleteEvent(event.id)
-                    onClose()
+                    scope.launch { if (deleteEventWithFeedback(memory, event.id, context)) onClose() }
                 }
             }
-            if (confirmDelete) Text(if (forget) "会把这件事的录音、原话和提取出的内容一起删掉，无法恢复。" else "会从时间线里删掉这件事。",
+            if (confirmDelete) Text(if (forget) "删除事件、原话和录音；已确认寻物记录、回顾和问问历史保留。无法恢复。" else "会从时间线里删掉这件事。",
                 style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 6.dp))
         }
         }
@@ -1477,11 +1493,22 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
 @Composable
 internal fun rememberDeleteEvent(memory: MemoryRepository): (MemoryEvent) -> Unit {
     val scope = rememberCoroutineScope()
-    return remember(memory) {
-        { e: MemoryEvent ->
-            if (app.resound.AppGraph.isPrivacyReady) scope.launch { runCatching { app.resound.AppGraph.privacy.forgetEvent(e.id) } }
-            else memory.deleteEvent(e.id)
-        }
+    val context = LocalContext.current
+    return remember(memory, context) {
+        { e: MemoryEvent -> scope.launch { deleteEventWithFeedback(memory, e.id, context) }; Unit }
+    }
+}
+
+private suspend fun deleteEventWithFeedback(memory: MemoryRepository, id: Long, context: android.content.Context): Boolean {
+    return try {
+        if (app.resound.AppGraph.isPrivacyReady) app.resound.AppGraph.privacy.forgetEvent(id) else memory.deleteEvent(id)
+        true
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+      catch (e: Exception) {
+        android.widget.Toast.makeText(context,
+            if (e is app.resound.privacy.FileCleanupPending) e.message else "删除失败，请重试。",
+            android.widget.Toast.LENGTH_LONG).show()
+        false
     }
 }
 

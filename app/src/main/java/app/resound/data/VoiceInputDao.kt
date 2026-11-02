@@ -12,6 +12,7 @@ abstract class VoiceInputDao {
     @Query("DELETE FROM transcript_lines WHERE id IN (:ids) AND voiceInputJson IS NULL") abstract suspend fun deleteLines(ids: List<Long>)
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :at - 1800000 AND :at ORDER BY startAt DESC, id DESC")
     abstract suspend fun recent(at: Long): List<TranscriptLineEntity>
+    @Transaction
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC")
     abstract fun observed(): Flow<List<TranscriptLineEntity>>
     @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id=l.segmentId WHERE s.path=:token")

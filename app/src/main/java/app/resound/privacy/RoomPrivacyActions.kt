@@ -19,6 +19,7 @@ class RoomPrivacyActions(
     private val voiceprintGuard: suspend (suspend () -> ForgetResult) -> ForgetResult = { block -> block() },
     private val removeFeatures: (SegmentEntity, List<TranscriptLineEntity>) -> Unit = { _, _ -> },
     private val diagnostic: (String) -> Unit = { android.util.Log.w("Privacy", it); Unit },
+    private val scheduleCleanup: () -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
 ) : PrivacyActions, app.resound.transcribe.SegmentDeleter {
     private val gate = Mutex()
@@ -73,6 +74,8 @@ class RoomPrivacyActions(
             for (segment in segments) {
                 val source = db.voiceprint().lines(segment.id)
                 files += segment to source
+                if (segment.path.isNotBlank() && segment.sourceId != "voice-input")
+                    dao.queueCleanup(app.resound.data.PrivacyFileCleanup(segment.path))
                 val target = if (explicitEvent == null) source else source.filter { it.eventId == explicitEvent }
                 events += target.mapNotNull { it.eventId }
                 dao.deleteSamples(segment.id)
@@ -98,14 +101,31 @@ class RoomPrivacyActions(
             if (!keepEvents) db.memory().repairMergedItems()
             ForgetResult(deletedSegments, lines, deletedEvents, items)
         }
+        if (files.isNotEmpty()) runCatching { scheduleCleanup() }
         for ((segment, lines) in files) {
-            cleanup("录音文件删除失败") { val file = File(segment.path); check(file.delete() || !file.exists()) }
             cleanup("声纹缓存删除失败") { removeFeatures(segment, lines) }
         }
+        if (!retryFileCleanup()) throw FileCleanupPending()
         result
+    }
+
+    /** 队列与数据库删除同事务落盘；重复执行、进程重启后执行均安全。 */
+    suspend fun retryFileCleanup(): Boolean = withContext(Dispatchers.IO) {
+        var complete = true
+        for (row in dao.pendingCleanup()) {
+            try {
+                val file = File(row.path)
+                check(file.delete() || !file.exists())
+                dao.cleaned(row.path)
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+              catch (_: Exception) { complete = false; diagnostic("录音文件删除失败") }
+        }
+        complete
     }
 
     private fun cleanup(message: String, block: () -> Unit) {
         try { block() } catch (_: Exception) { diagnostic(message) } // 不记录路径、原话或异常原文。
     }
 }
+
+class FileCleanupPending : IllegalStateException("记录已删除，但部分录音文件尚未清理，将自动重试。")

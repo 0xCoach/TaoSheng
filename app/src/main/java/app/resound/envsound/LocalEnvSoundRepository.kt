@@ -28,9 +28,11 @@ class LocalEnvSoundRepository(
         enumValue(prefs.getString("skip", null), SkipMode.MarkOnly), enumValue(prefs.getString("media", null), MediaMode.Keep),
         prefs.getBoolean("tags",true), prefs.getBoolean("specialSounds",true), prefs.getBoolean("showInSummaries",true)))
     override val model = modelState
-    private val rows = dao.observe().stateIn(scope, SharingStarted.Eagerly, emptyList())
-    internal val eventMetadata = dao.events().stateIn(scope, SharingStarted.Eagerly, emptyList())
-    internal val presentation = combine(dao.events(), dao.observe()) { events, rows -> mergeSounds(events, rows) }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+    private val rowUpdates = dao.observe().shareIn(scope, SharingStarted.Eagerly, replay = 1)
+    private val rows = rowUpdates.stateIn(scope, SharingStarted.Eagerly, emptyList())
+    private val eventUpdates = dao.events().shareIn(scope, SharingStarted.Eagerly, replay = 1)
+    internal val eventMetadata = eventUpdates.stateIn(scope, SharingStarted.Eagerly, emptyList())
+    internal val presentation = combine(eventUpdates, rowUpdates) { events, rows -> mergeSounds(events, rows) }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
     @Synchronized override fun update(settings: EnvSoundSettings) {
         val edit = prefs.edit()
         if(settings.enabled && !this.settings.value.enabled) edit.putLong("enabledAt", now())
@@ -71,18 +73,18 @@ class LocalEnvSoundRepository(
     private fun bounds(date: LocalDate): Pair<Long,Long> = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() to date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     override fun flagged(date: LocalDate): Flow<List<SegmentSound>> {
         val (from,to) = bounds(date)
-        return combine(dao.observe(), tick()) { rows, _ -> rows.filter { it.startAt < to && it.endAt > from && it.verdict != "Keep" }.map { it.view() } }.flowOn(Dispatchers.IO)
+        return combine(rowUpdates, tick()) { rows, _ -> rows.filter { it.startAt < to && it.endAt > from && it.verdict != "Keep" }.map { it.view() } }.flowOn(Dispatchers.IO)
     }
     override fun eventSounds(date: LocalDate): Flow<Map<Long, EventSounds>> {
         val (from,to) = bounds(date)
-        return combine(dao.events(), dao.observe()) { events, rows -> mergeSounds(events.filter { it.startAt < to && it.endAt > from }, rows) }
+        return combine(eventUpdates, rowUpdates) { events, rows -> mergeSounds(events.filter { it.startAt < to && it.endAt > from }, rows) }
     }
-    override fun eventsWith(tag: EnvTag?, sound: SpecialSound?): Flow<List<Long>> = combine(dao.events(),dao.observe()) { events, rows ->
+    override fun eventsWith(tag: EnvTag?, sound: SpecialSound?): Flow<List<Long>> = combine(eventUpdates, rowUpdates) { events, rows ->
         val merged = mergeSounds(events,rows)
         events.filter { e -> merged[e.id]?.let { (tag == null || tag in it.tags) && (sound == null || sound in it.sounds) } == true }.map { it.id }
     }
-    override fun hourly(date: LocalDate): Flow<List<HourSound>> = combine(db.transcribe().observeSegments(),dao.observe()) { segments, rows -> hourlySounds(date,segments,rows,ZoneId.systemDefault()) }
-    override fun stats(days: Int): Flow<EnvStats> = combine(dao.observe(),tick()) { rows, _ ->
+    override fun hourly(date: LocalDate): Flow<List<HourSound>> = combine(db.transcribe().observeSegments(), rowUpdates) { segments, rows -> hourlySounds(date,segments,rows,ZoneId.systemDefault()) }
+    override fun stats(days: Int): Flow<EnvStats> = combine(rowUpdates, tick()) { rows, _ ->
         val n = days.coerceAtLeast(1); val from = bounds(LocalDate.now().minusDays(n-1L)).first
         val selected = rows.filter { it.startAt >= from && it.startAt <= now() }
         EnvStats(n, selected.count { it.verdict != "Keep" || it.reportedWrong }, selected.count { it.restored }, selected.count { it.reportedWrong },

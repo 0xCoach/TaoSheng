@@ -249,7 +249,7 @@ fun TranscriptScreen(
     exporting?.let { (ids, title) -> ExportSheet(ids, title) { exporting = null; selection.exit() } }
     deleting?.let { ids -> DeleteSegmentsSheet(ids.size, onConfirm = {
         if (app.resound.AppGraph.isSegmentDeleterReady) {
-            val n = runCatching { app.resound.AppGraph.segmentDeleter.deleteSegments(ids) }.getOrDefault(0)
+            val n = app.resound.AppGraph.segmentDeleter.deleteSegments(ids)
             Toast.makeText(context, "已删除 $n 段", Toast.LENGTH_SHORT).show()
         }
         deleting = null; selection.exit()
@@ -1032,10 +1032,18 @@ private fun BarAction(text: String, bg: Color, fg: Color, enabled: Boolean, modi
 private fun DeleteSegmentsSheet(count: Int, onConfirm: suspend () -> Unit, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
+    var failure by remember { mutableStateOf<String?>(null) }
     app.resound.ui.verify.RsSheet("删除 $count 段录音？", "录音和原话会一起删除，整理出的事件不受影响；删除后无法恢复", onDismiss = { if (!busy) onDismiss() }) {
         app.resound.ui.verify.ActionButton(if (busy) "正在删除…" else "删除 $count 段", app.resound.ui.verify.ActionKind.Danger, enabled = !busy) {
-            busy = true; scope.launch { onConfirm() }
+            busy = true; failure = null
+            scope.launch {
+                try { onConfirm() }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { failure = if (e is app.resound.privacy.FileCleanupPending) e.message else "删除失败，请重试。" }
+                finally { busy = false }
+            }
         }
+        failure?.let { Text(it, color = Rs.colors.critical, style = RsType.subhead) }
         app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary, enabled = !busy) { onDismiss() }
     }
 }

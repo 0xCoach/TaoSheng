@@ -117,10 +117,13 @@ class EnvSound070Test {
         clock=start;repo.update(enabled);scores=score("Speech" to .9f,"Rain" to .4f,"Knock" to .4f)
         segment(1,start,120000);runner().run()
         val id=db.memory().insertEvent(MemoryEventEntity(startAt=start,endAt=start+120000,scene="其他",title="事",summary="",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=start,model="test"))
-        val merged=repo.eventSounds(date).first().getValue(id)
+        val merged=withTimeout(5000) { repo.eventSounds(date).first { id in it } }.getValue(id)
         assertEquals(setOf(EnvTag.Rain),merged.tags);assertEquals(setOf(SpecialSound.Knock),merged.sounds)
         assertEquals(listOf(id),repo.eventsWith(EnvTag.Rain,SpecialSound.Knock).first())
         val hours=repo.hourly(date).first();assertEquals(listOf(10,11),hours.map { it.hour });assertEquals(listOf(1,1),hours.map { it.speechMinutes })
+        db.privacy().deleteSegment(1)
+        withTimeout(5000) { repo.eventSounds(date).first { it.isEmpty() } }
+        withTimeout(5000) { repo.hourly(date).first { it.isEmpty() } }
     }
     @Test fun skippedAudioHasOneDayFloorAndClearKeepsDecision() = runBlocking {
         repo.update(enabled.copy(skip=SkipMode.On));segment(1);runner().run()

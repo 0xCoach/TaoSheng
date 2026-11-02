@@ -509,10 +509,15 @@ private fun TryCard(s: Skill, repo: SkillRepository, prompt: String?) {
                 r.cards.forEach { card ->
                     Spacer(Modifier.height(10.dp))
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(14.dp)) {
-                        Text(card.title, style = RsType.headline, color = c.text)
-                        if (card.summary.isNotBlank()) Text(card.summary, style = RsType.subhead, color = c.textSecondary)
-                        Spacer(Modifier.height(12.dp))
-                        SkillCardBody(card)
+                        app.resound.ui.ReportCopyActions { app.resound.ui.skillCardCopyText(card) }
+                        androidx.compose.foundation.text.selection.SelectionContainer {
+                            Column {
+                                Text(card.title, style = RsType.headline, color = c.text)
+                                if (app.resound.ui.showReportSummary(card)) Text(card.summary, style = RsType.subhead, color = c.textSecondary)
+                                Spacer(Modifier.height(12.dp))
+                                SkillCardBody(card)
+                            }
+                        }
                     }
                 }
             }

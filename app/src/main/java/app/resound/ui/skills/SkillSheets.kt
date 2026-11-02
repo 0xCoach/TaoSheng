@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,7 +27,7 @@ import app.resound.skills.SkillCard
 import app.resound.skills.SkillOrigin
 import app.resound.skills.SkillRepository
 import app.resound.skills.SkillRunResult
-import app.resound.ui.CopyAllReportButton
+import app.resound.ui.ReportCopyActions
 import app.resound.ui.showReportSummary
 import app.resound.ui.skillCardCopyText
 import app.resound.ui.theme.Rs
@@ -49,12 +50,16 @@ fun SkillCardSheet(card: SkillCard, repo: SkillRepository, onDismiss: () -> Unit
     var note by remember { mutableStateOf<String?>(null) }
     val skillExists = repo.skills.collectAsState().value.any { it.id == card.skillId }
     RsSheet(card.title, "${card.skillName} · ${cardTime(card)}", onDismiss = onDismiss) {
-        CopyAllReportButton { skillCardCopyText(card) }
-        if (showReportSummary(card)) {
-            Text(card.summary, style = RsType.body, color = c.text,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (card.skillId == "weekly") weeklyBackground() else skillInk(card.icon).copy(alpha = 0.08f)).padding(14.dp))
+        ReportCopyActions { skillCardCopyText(card) }
+        SelectionContainer {
+            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                if (showReportSummary(card)) {
+                    Text(card.summary, style = RsType.body, color = c.text,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (card.skillId == "weekly") weeklyBackground() else skillInk(card.icon).copy(alpha = 0.08f)).padding(14.dp))
+                }
+                SkillCardBody(card)
+            }
         }
-        SkillCardBody(card)
         Spacer(Modifier.height(4.dp))
         // 后台生成：离开这里也不会中断，好了会发通知
         val key = card.skillId to card.date

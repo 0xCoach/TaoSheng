@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.resound.review.DailyReview
-import app.resound.ui.CopyAllReportButton
+import app.resound.ui.ReportCopyActions
 import app.resound.ui.dailyReviewCopyText
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
@@ -63,7 +63,7 @@ fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
         SelectionContainer {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
                 Text("${dayTitle(review.date)} · 日报", style = RsType.caption, color = c.accent)
-                CopyAllReportButton { dailyReviewCopyText(review) }
+                ReportCopyActions { dailyReviewCopyText(review) }
                 Spacer(Modifier.height(6.dp))
                 val lead = review.sections.firstOrNull { it.title == "一句话" }?.lines?.firstOrNull() ?: review.brief
                 RsCard(color = c.accentSoft, padding = PaddingValues(14.dp)) {

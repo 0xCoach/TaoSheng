@@ -63,7 +63,7 @@ fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
         SelectionContainer {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
                 Text("${dayTitle(review.date)} · 日报", style = RsType.caption, color = c.accent)
-                ReportCopyActions { dailyReviewCopyText(review) }
+                ReportCopyActions(blocks = { app.resound.ui.dailyReviewCopyBlocks(review) }) { dailyReviewCopyText(review) }
                 Spacer(Modifier.height(6.dp))
                 val lead = review.sections.firstOrNull { it.title == "一句话" }?.lines?.firstOrNull() ?: review.brief
                 RsCard(color = c.accentSoft, padding = PaddingValues(14.dp)) {

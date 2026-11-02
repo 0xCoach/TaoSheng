@@ -50,7 +50,7 @@ fun SkillCardSheet(card: SkillCard, repo: SkillRepository, onDismiss: () -> Unit
     var note by remember { mutableStateOf<String?>(null) }
     val skillExists = repo.skills.collectAsState().value.any { it.id == card.skillId }
     RsSheet(card.title, "${card.skillName} · ${cardTime(card)}", onDismiss = onDismiss) {
-        ReportCopyActions { skillCardCopyText(card) }
+        ReportCopyActions(blocks = { app.resound.ui.skillCardCopyBlocks(card) }) { skillCardCopyText(card) }
         SelectionContainer {
             Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
                 if (showReportSummary(card)) {

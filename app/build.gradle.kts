@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = if (project.hasProperty("localAsrValidation")) "app.resound.validation" else "app.resound"
-        minSdk = 29
+        minSdk = 28
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 54

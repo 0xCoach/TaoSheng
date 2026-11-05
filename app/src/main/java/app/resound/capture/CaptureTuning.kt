@@ -19,4 +19,7 @@ object CaptureTuning {
     const val HEARTBEAT_MS = 60_000L
     const val BATTERY_MS = 600_000L
     const val MIC_RETRY_MS = 3_000L
+    // Android 9 同一时间只能一个应用录音，被占用时每次申请失败系统会弹“XX 正在录音”，间隔太短会刷屏，用 10 秒。
+    // Android 10+ 支持并发录音、极少进被占用态，仍用上面的 3 秒，尽快接回。
+    const val LEGACY_MIC_RETRY_MS = 10_000L
 }

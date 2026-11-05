@@ -133,8 +133,8 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
     }
     override suspend fun getForegroundInfo(): ForegroundInfo {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("local-model","本地模型下载",NotificationManager.IMPORTANCE_LOW))
-        return ForegroundInfo(3010+if(speakers)2 else if(::backend.isInitialized && backend==LocalBackend.Npu)1 else 0,
-            NotificationCompat.Builder(applicationContext,"local-model").setSmallIcon(R.drawable.ic_notify).setContentTitle(if(speakers) "正在下载说话人分段模型" else "正在下载 SenseVoice 本地模型").setOngoing(true).build(),ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        return app.resound.dataSyncForegroundInfo(3010+if(speakers)2 else if(::backend.isInitialized && backend==LocalBackend.Npu)1 else 0,
+            NotificationCompat.Builder(applicationContext,"local-model").setSmallIcon(R.drawable.ic_notify).setContentTitle(if(speakers) "正在下载说话人分段模型" else "正在下载 SenseVoice 本地模型").setOngoing(true).build())
     }
 }
 

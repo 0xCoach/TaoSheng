@@ -2,7 +2,6 @@ package app.resound.review
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -32,10 +31,10 @@ internal suspend fun <T> CoroutineWorker.withReviewForeground(block: suspend () 
 internal fun CoroutineWorker.reviewForegroundInfo(): ForegroundInfo {
     applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
         NotificationChannel("review-preparation", "回顾与整理", NotificationManager.IMPORTANCE_LOW))
-    return ForegroundInfo(5300 + (id.hashCode() and 0xffff),
+    return app.resound.dataSyncForegroundInfo(5300 + (id.hashCode() and 0xffff),
         NotificationCompat.Builder(applicationContext, "review-preparation")
             .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("涛声正在生成回顾")
-            .setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            .setOngoing(true).build())
 }
 
 internal object ReviewPreparation {

@@ -54,8 +54,9 @@ class CaptureTileService : TileService() {
             label = appName
             icon = Icon.createWithResource(this@CaptureTileService, R.drawable.ic_notify)
             state = if (CaptureTilePolicy.action(status.state) == CaptureTilePolicy.Action.Pause) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-            subtitle = CaptureTilePolicy.subtitle(status)
-            contentDescription = "$label，$subtitle"
+            val sub = CaptureTilePolicy.subtitle(status)
+            if (android.os.Build.VERSION.SDK_INT >= 29) subtitle = sub
+            contentDescription = "$label，$sub"
             updateTile()
         }
     }

@@ -22,8 +22,23 @@ object CaptureNotifications {
     }
     fun permitted(context: Context) = NotificationManagerCompat.from(context).areNotificationsEnabled() &&
         (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
-    private fun action(context: Context, action: String): PendingIntent = PendingIntent.getForegroundService(context, action.hashCode(),
-        Intent(context, CaptureService::class.java).setAction(action).putExtra("route", "notification").putExtra("minutes", 30), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    /** capture 偏好里的“让出麦克风”时长（分钟），界面侧可写入；未设置时 30 分钟。 */
+    const val YIELD_MINUTES = "yieldMinutes"
+    fun yieldMinutes(context: Context): Int =
+        context.getSharedPreferences("capture", Context.MODE_PRIVATE).getInt(YIELD_MINUTES, 30).coerceIn(1, 10080)
+
+    /** 通知上的文案。Android 9 同一时间只能一个应用录音，别的应用要用只能我们先松手，所以把“暂停”说成“让出麦克风”。 */
+    internal data class Texts(val title: String, val text: String, val button: String)
+    internal fun texts(appName: String, paused: Boolean, legacyMic: Boolean): Texts = when {
+        legacyMic && paused -> Texts("$appName · 已让出麦克风", "别的应用可以录音了；到点自动继续，也可点此继续", "继续")
+        legacyMic -> Texts(appName, "后台运行中；别的应用要录音时点“让出麦克风”", "让出麦克风")
+        paused -> Texts("$appName · 已暂停", "到点自动恢复，也可点此立即恢复", "恢复")
+        else -> Texts(appName, "后台运行中", "暂停 30 分钟")
+    }
+    private fun legacyMic() = Build.VERSION.SDK_INT < 29
+
+    private fun action(context: Context, action: String, minutes: Int = 30): PendingIntent = PendingIntent.getForegroundService(context, action.hashCode(),
+        Intent(context, CaptureService::class.java).setAction(action).putExtra("route", "notification").putExtra("minutes", minutes), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun deleteRequest(context: Context): PendingIntent = PendingIntent.getActivity(context, 24,
         Intent(context, app.resound.MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -45,13 +60,18 @@ object CaptureNotifications {
         val classMode = if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.classMode.value else null
         val classLine = classMode?.takeIf { it.enabled }?.let { m -> m.endsAtMillis?.let { "课堂模式中 · " + java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("H:mm")) + " 结束" } ?: "课堂模式中" }
         val classAllowed = app.resound.AppGraph.isAsrSpeedReady && app.resound.AppGraph.asrSpeed.separateSpeakers.value
+        // Android 9 同一时间只能一个应用录音，别的应用要用只能我们先松手：把“暂停”说成“让出麦克风”，
+        // 让出时长读 yieldMinutes；仅普通暂停（非静音名场景）套用。SDK>=29 文案与时长不变。
+        val legacy = legacyMic()
+        val yieldText = if (legacy && quietName == null) texts(context.appName, paused, true) else null
+        val pauseMinutes = if (legacy) yieldMinutes(context) else 30
         return NotificationCompat.Builder(context, "listening")
-        .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(if (quietName != null) "${context.appName} · ${quietName}中" else if (paused) "${context.appName} · 已暂停" else context.appName)
-        .setContentText(if (quietName != null) "$clock 自动恢复，点此立即恢复" else if (paused) "到点自动恢复，也可点此立即恢复" else classLine ?: "后台运行中")
+        .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(yieldText?.title ?: if (quietName != null) "${context.appName} · ${quietName}中" else if (paused) "${context.appName} · 已暂停" else context.appName)
+        .setContentText(yieldText?.text ?: if (quietName != null) "$clock 自动恢复，点此立即恢复" else if (paused) "到点自动恢复，也可点此立即恢复" else classLine ?: "后台运行中")
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
         // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
         .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(if (paused) action(context, CaptureService.RESUME) else openApp(context))
-        .addAction(0, if (quietName != null) "现在恢复" else if (paused) "恢复" else "暂停 30 分钟", action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE))
+        .addAction(0, yieldText?.button ?: if (quietName != null) "现在恢复" else if (paused) "恢复" else "暂停 30 分钟", action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE, pauseMinutes))
         .addAction(0, "删最近 10 分钟", deleteRequest(context))
         .apply { if (classAllowed) addAction(0, if (classMode?.enabled == true) "结束课堂" else "课堂 2 小时", ClassModeReceiver.intent(context)) }
         .build()

@@ -22,7 +22,7 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val notification = NotificationCompat.Builder(applicationContext, "import")
             .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("正在导入 ${entry.pending.info.displayName}")
             .setOngoing(true).addAction(0, "取消", cancel).build()
-        return ForegroundInfo(3028, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        return app.resound.dataSyncForegroundInfo(3028, notification)
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val importer = AppGraph.importer as AndroidAudioImporter

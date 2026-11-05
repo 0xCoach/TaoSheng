@@ -70,7 +70,7 @@ class VoiceInputService : AccessibilityService() {
     }
     private fun sample(configs: List<AudioRecordingConfiguration>) {
         if (!allowed()) { engine?.reset(); return }
-        val other = configs.any { !it.isClientSilenced && !OwnRecordingSessions.contains(it.clientAudioSessionId) }
+        val other = configs.any { !(android.os.Build.VERSION.SDK_INT >= 29 && it.isClientSilenced) && !OwnRecordingSessions.contains(it.clientAudioSessionId) }
         val e = engine ?: return
         val screen = if (other || e.needsScreen) safeSnapshot(null) else null
         e.recording(other, System.currentTimeMillis(), screen, capture!!.settings.value)
@@ -80,7 +80,7 @@ class VoiceInputService : AccessibilityService() {
         val e = engine ?: return
         // 先查录音状态，防止文字事件早于系统录音回调；不从 event.text 读取密码或被排除应用。
         val configs = runCatching { manager?.activeRecordingConfigurations.orEmpty() }.getOrDefault(emptyList())
-        val other = configs.any { !it.isClientSilenced && !OwnRecordingSessions.contains(it.clientAudioSessionId) }
+        val other = configs.any { !(android.os.Build.VERSION.SDK_INT >= 29 && it.isClientSilenced) && !OwnRecordingSessions.contains(it.clientAudioSessionId) }
         if (!other && !e.needsScreen) return
         val screen = safeSnapshot(event)
         e.recording(other, System.currentTimeMillis(), screen, capture!!.settings.value)

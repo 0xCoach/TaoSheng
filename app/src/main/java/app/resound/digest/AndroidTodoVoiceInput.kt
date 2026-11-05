@@ -162,7 +162,7 @@ private class AndroidTodoMicrophone : TodoMicrophone {
         app.resound.audio.OwnRecordingSessions.add(active.audioSessionId)
         active.startRecording()
         check(active.recordingState == AudioRecord.RECORDSTATE_RECORDING)
-        check(active.activeRecordingConfiguration?.isClientSilenced != true)
+        if (android.os.Build.VERSION.SDK_INT >= 29) check(active.activeRecordingConfiguration?.isClientSilenced != true)
     }
     override fun read(target: ShortArray, offset: Int, count: Int) =
         recorder!!.read(target, offset, count, AudioRecord.READ_NON_BLOCKING)

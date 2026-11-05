@@ -22,7 +22,7 @@ object EarlyTranscribe {
         val battery = context.getSystemService(BatteryManager::class.java)
         val power = context.getSystemService(PowerManager::class.java)
         return shouldRun(realtime, pendingMillis, battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY), battery.isCharging,
-            power.currentThermalStatus >= PowerManager.THERMAL_STATUS_MODERATE)
+            android.os.Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_MODERATE)
     }
 }
 

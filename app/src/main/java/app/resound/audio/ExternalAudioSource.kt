@@ -153,9 +153,16 @@ internal class RoutedRecording(
     }.flowOn(Dispatchers.IO)
 
     private fun open(port: AudioDeviceInfo, bluetooth: Boolean): AudioRecord {
-        val rates = (listOf(AudioSource.SAMPLE_RATE) + port.sampleRates.toList() + listOf(48_000, 44_100, 32_000, 8_000)).distinct().filter { it > 0 }
-        val channels = (listOf(1) + port.channelCounts.toList() + listOf(2)).distinct().filter { it in 1..2 }
+        // Android 9 同一时间只能一个应用录音：别人占着麦时，每一次 startRecording 失败系统都会弹
+        // “XX 正在录音”。平时就只用标准格式（16kHz 单声道），所有设备都支持，不存在格式不兼容，
+        // 所以这里只试这一种；失败即判被占，整轮退出等外层间隔后再试，不再遍历几十种组合把弹框刷满。
+        val legacyOnce = Build.VERSION.SDK_INT < 29 && !bluetooth
+        val rates = if (legacyOnce) listOf(AudioSource.SAMPLE_RATE)
+            else (listOf(AudioSource.SAMPLE_RATE) + port.sampleRates.toList() + listOf(48_000, 44_100, 32_000, 8_000)).distinct().filter { it > 0 }
+        val channels = if (legacyOnce) listOf(1)
+            else (listOf(1) + port.channelCounts.toList() + listOf(2)).distinct().filter { it in 1..2 }
         val sources = if (bluetooth) listOf(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+            else if (legacyOnce) listOf(MediaRecorder.AudioSource.MIC)
             else listOf(MediaRecorder.AudioSource.MIC, MediaRecorder.AudioSource.VOICE_RECOGNITION)
         for (source in sources) for (rate in rates) for (count in channels) {
             var record: AudioRecord? = null
@@ -194,7 +201,7 @@ private class MicSignals(private val manager: AudioManager) : AutoCloseable {
     private val recordings = object : AudioManager.AudioRecordingCallback() {
         override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>) {
             val id = record?.audioSessionId ?: return
-            configs.firstOrNull { it.clientAudioSessionId == id }?.let { silenced = it.isClientSilenced }
+            configs.firstOrNull { it.clientAudioSessionId == id }?.let { silenced = android.os.Build.VERSION.SDK_INT >= 29 && it.isClientSilenced }
         }
     }
     private val routing = AudioRouting.OnRoutingChangedListener { routed = it.routedDevice }
@@ -209,7 +216,7 @@ private class MicSignals(private val manager: AudioManager) : AutoCloseable {
         val now = SystemClock.elapsedRealtime()
         if (now - checkedAt < 2_000) return
         checkedAt = now
-        silenced = opened.activeRecordingConfiguration?.isClientSilenced == true
+        silenced = android.os.Build.VERSION.SDK_INT >= 29 && opened.activeRecordingConfiguration?.isClientSilenced == true
         routed = opened.routedDevice
     }
     override fun close() {

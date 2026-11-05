@@ -28,7 +28,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         val notification = NotificationCompat.Builder(applicationContext, "transcribe")
             .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("正在转写录音")
             .setOngoing(true).build()
-        return ForegroundInfo(3003, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        return app.resound.dataSyncForegroundInfo(3003, notification)
     }
     override suspend fun doWork(): Result {
         val app = applicationContext as ResoundApp

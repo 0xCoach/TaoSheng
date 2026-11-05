@@ -1,5 +1,6 @@
 package app.resound.capture
 
+import android.os.Build
 import android.app.*
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -91,7 +92,9 @@ class CaptureService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         try {
-            startForeground(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            val ongoing = CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis())
+            if (Build.VERSION.SDK_INT >= 29) startForeground(CaptureNotifications.ONGOING, ongoing, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            else startForeground(CaptureNotifications.ONGOING, ongoing)
         } catch (_: RuntimeException) {
             controller.update(CaptureState.NoPermission)
             CaptureNotifications.interrupted(this)
@@ -277,7 +280,8 @@ class CaptureService : Service() {
                 if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
                 controller.level(0f)
             }
-            delay(CaptureTuning.MIC_RETRY_MS)
+            // Android 9 被占用时每轮都会触发系统“XX 正在录音”弹框，间隔拉长到 10 秒防刷屏；10+ 仍用 3 秒尽快接回。
+            delay(if (Build.VERSION.SDK_INT < 29) CaptureTuning.LEGACY_MIC_RETRY_MS else CaptureTuning.MIC_RETRY_MS)
         }
     }
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy

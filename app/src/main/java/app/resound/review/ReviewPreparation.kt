@@ -24,10 +24,10 @@ internal suspend fun <T> CoroutineWorker.withReviewForeground(block: suspend () 
     val allowed = try {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel("review-preparation", "回顾与整理", NotificationManager.IMPORTANCE_LOW))
-        setForeground(ForegroundInfo(5300 + (id.hashCode() and 0xffff),
+        setForeground(app.resound.dataSyncForegroundInfo(5300 + (id.hashCode() and 0xffff),
             NotificationCompat.Builder(applicationContext, "review-preparation")
                 .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("涛声正在整理和生成回顾")
-                .setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+                .setOngoing(true).build()))
         true
     } catch (e: CancellationException) { throw e }
     catch (_: Exception) { false }

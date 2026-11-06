@@ -140,7 +140,7 @@ class ManualReview058Test {
         assertEnded(r, LlmError.Network.human + "，稍后再试")
         reply = { throw IllegalArgumentException("原文") }
         r.run(date, false)
-        assertEnded(r, "生成失败：IllegalArgumentException")
+        assertEnded(r, "生成失败，请稍后重试")
     }
 
     @Test fun expeditedWorkDeduplicatesAndCompletesThroughWorker() = runBlocking {

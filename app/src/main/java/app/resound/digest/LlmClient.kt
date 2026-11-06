@@ -28,7 +28,7 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human) : Exception(detail)
 
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long)
-class LlmInputLimitException : IllegalArgumentException("本次内容过长，请缩小整理范围后重试")
+class LlmInputLimitException : IllegalArgumentException("内容超出所选模型的容量，请换用容量更大的模型")
 
 /** 兼容 OpenAI chat/completions 的服务（DeepSeek、方舟、自建）。 */
 class LlmClient(
@@ -36,7 +36,7 @@ class LlmClient(
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
 ) {
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String): LlmReply = withContext(Dispatchers.IO) {
-        if (system.length.toLong() + user.length > MAX_JSON_INPUT_CHARS) throw LlmInputLimitException()
+        if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
         val body = JSONObject()
             .put("model", preset.model)
             .put("messages", JSONArray()
@@ -146,7 +146,6 @@ class LlmClient(
     }
 
     companion object {
-        const val MAX_JSON_INPUT_CHARS = 64_000
         const val MAX_JSON_OUTPUT_TOKENS = 8192
     }
 }

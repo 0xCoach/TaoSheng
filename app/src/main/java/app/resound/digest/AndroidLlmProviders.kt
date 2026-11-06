@@ -39,7 +39,7 @@ class AndroidLlmProviders internal constructor(
 
     internal val guard = Any()
     private val prefs = context.getSharedPreferences("llm-providers", Context.MODE_PRIVATE)
-    override val templates = parseTemplates(context.assets.open("llm-providers.json").bufferedReader().use { it.readText() })
+    override val templates = parseTemplates(context.assets.open("llm-providers.json").bufferedReader().use { it.readText() }.also(LlmInputBudget::configure))
     private val listeners = mutableListOf<(String?) -> Unit>()
     /** 必须先将技能引用落盘，删除失败时不移除服务商/密钥。 */
     var beforeDelete: (String) -> Unit = { id -> app.resound.skills.SkillFiles(context).resetProviders(setOf(id)) }
@@ -215,6 +215,6 @@ class AndroidLlmProviders internal constructor(
 }
 
 private fun JSONObject.nullString(key: String) = if (isNull(key)) null else getString(key)
-internal fun SavedProvider.preset() = LlmPreset(id, name, baseUrl, model)
+internal fun SavedProvider.preset() = LlmInputBudget.bind(LlmPreset(id, name, baseUrl, model), templateId)
 /** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权。 */
 fun LlmPreset.allowsEmptyKey() = id == "custom" || app.resound.transcribe.OpenAiEndpoint.kind(baseUrl) == app.resound.transcribe.EndpointKind.LocalHttp

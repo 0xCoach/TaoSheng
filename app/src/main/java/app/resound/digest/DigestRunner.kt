@@ -14,6 +14,8 @@ import kotlinx.coroutines.sync.Mutex
 import org.json.JSONArray
 import java.time.LocalDate
 
+internal class DigestBatchLimitException : IllegalArgumentException("单段转写内容过长，请拆分后再整理")
+
 /**
  * 把已转写的句子整理成事件。按“段落”处理：相邻两句间隔超过停顿时长（默认 [GAP_MS]，可在设置里调）就算另一段；
  * 一段要等最后一句过去停顿时长、且这段时间附近没有还没转写完的录音，才算说完了，才整理，避免一件事被切成两半。
@@ -108,6 +110,7 @@ class DigestRunner(
             return false
         } catch (e: CancellationException) { throw e }
         catch (e: LlmInputLimitException) { record(now(), e.message); return false }
+        catch (e: DigestBatchLimitException) { record(now(), e.message); return false }
         catch (_: Exception) {
             record(now(), "整理的本地数据暂时无法读取或保存，请检查存储后重试")
             return false
@@ -154,7 +157,7 @@ class DigestRunner(
             val stored = cached ?: run {
                 val system = DigestPrompt.system(template(), LocalDate.now(), appName) + (thingBatch?.system?.let { "\n\n$it" } ?: "")
                 val user = (thingBatch?.input?.let { "$it\n\n以下为本次新原话与整理参考：\n" } ?: "") + input
-                if (system.length.toLong() + user.length > LlmClient.MAX_JSON_INPUT_CHARS) throw LlmInputLimitException()
+                if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
                 check(prefs.edit().putString("inflight", batchId).putString("inflight-lines", lines.joinToString(",") { it.id.toString() }).commit())
                 val received = try {
                     request(preset, key, system, user)
@@ -289,7 +292,7 @@ class DigestRunner(
             var chars = 0
             for (line in lines) {
                 val size = line.text.length + 100
-                if (size > MAX_BATCH_CHARS) throw LlmInputLimitException()
+                if (size > MAX_BATCH_CHARS) throw DigestBatchLimitException()
                 if (chunks.isEmpty() || chunks.last().size >= MAX_LINES || chars + size > MAX_BATCH_CHARS) {
                     chunks += mutableListOf<TranscriptLineEntity>(); chars = 0
                 }

@@ -50,7 +50,7 @@ internal class ManualReviewGeneration(
                     ?: infos.firstOrNull { !it.state.isFinished } ?: infos.first()
                 observe(date, info.id)
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { finish(date, "生成失败：${e.javaClass.simpleName}") }
+            catch (e: Exception) { finish(date, REVIEW_FAILURE) }
         }
         Unit
     }
@@ -59,12 +59,12 @@ internal class ManualReviewGeneration(
         try {
             val info = work.getWorkInfoByIdFlow(id).filterNotNull().first { it.state.isFinished }
             finish(date, when (info.state) {
-                WorkInfo.State.CANCELLED -> "生成失败：CancellationException"
-                WorkInfo.State.FAILED -> "生成失败：IllegalStateException"
+                WorkInfo.State.CANCELLED -> "生成已取消，请重试"
+                WorkInfo.State.FAILED -> REVIEW_FAILURE
                 else -> null // 正常结束的原因已经由 repository.run 保存。
             })
         } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { finish(date, "生成失败：${e.javaClass.simpleName}") }
+        catch (e: Exception) { finish(date, REVIEW_FAILURE) }
     }
 
     private fun finish(date: LocalDate, message: String?) = synchronized(lock) {

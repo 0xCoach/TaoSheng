@@ -39,7 +39,7 @@ class RoomReviewRepository(
     private val work: androidx.work.WorkManager? = null,
 ) : ReviewRepository {
     private val gate = Mutex()
-    private val mutable = MutableStateFlow(ReviewState(false, prefs.getString("lastError", null),
+    private val mutable = MutableStateFlow(ReviewState(false, prefs.getString("lastError", null)?.let { if (it.startsWith("生成失败：")) REVIEW_FAILURE else it },
         prefs.getInt("dailyAtMinutes", 22 * 60).coerceIn(0, 1439), prefs.getBoolean("pushEnabled", true),
         lastErrorDate = prefs.getString("lastErrorDate", null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }))
     override val state = mutable.asStateFlow()
@@ -56,7 +56,7 @@ class RoomReviewRepository(
     }
     override fun generateNow(date: LocalDate) {
         if (generation == null) {
-            error("生成失败：IllegalStateException", date)
+            error(REVIEW_FAILURE, date)
             return
         }
         generation.generate(date)
@@ -118,7 +118,9 @@ class RoomReviewRepository(
                 } else {
                     val (preset, key) = credentials()
                     if (key.isBlank() && !preset.allowsEmptyKey()) { error("还没填写整理模型的密钥", date); return@withLock false }
-                    val reply = chat(preset, key, ReviewPrompt.system(template(), appName), ReviewPrompt.input(date, source, timezone, minutes))
+                    val system = ReviewPrompt.system(template(), appName)
+                    val input = ReviewInputBudget.fit(ReviewPrompt.input(date, source, timezone, minutes), system, preset)
+                    val reply = chat(preset, key, system, input)
                     // 格式错误的成功调用也实际消耗了 token。
                     memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)
                     model = preset.model
@@ -149,8 +151,9 @@ class RoomReviewRepository(
             error(if (prepared) null else "已用现有内容生成；还有录音没整理完", date)
             false
         } catch (e: CancellationException) { throw e }
+        catch (e: app.resound.digest.LlmInputLimitException) { error(e.message, date); false }
         catch (e: LlmException) { error(e.type.human + if (e.type.retryable) "，稍后再试" else "", date); e.type.retryable }
-        catch (e: Exception) { error("生成失败：${e.javaClass.simpleName}", date); false }
+        catch (e: Exception) { error(REVIEW_FAILURE, date); false }
         finally {
             running = false
             val active = generation?.isActive() == true

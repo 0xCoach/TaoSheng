@@ -16,7 +16,7 @@ class DigestBudget088Test {
         assertTrue(batches.size > 1)
         assertTrue(batches.all { batch -> batch.sumOf { it.text.length + 100 } <= DigestRunner.MAX_BATCH_CHARS })
         assertTrue(runCatching { DigestRunner.batches(listOf(lines.first().copy(text = "测".repeat(12_001)))) }
-            .exceptionOrNull() is LlmInputLimitException)
+            .exceptionOrNull() is DigestBatchLimitException)
     }
     @Test fun jsonRequestsHaveOutputLimitAndOversizedInputNeverReachesServer() = runBlocking {
         val server = MockWebServer()
@@ -29,7 +29,7 @@ class DigestBudget088Test {
             assertEquals(2L, reply.completionTokens)
             val request = JSONObject(server.takeRequest().body.readUtf8())
             assertEquals(LlmClient.MAX_JSON_OUTPUT_TOKENS, request.getInt("max_tokens"))
-            assertTrue(runCatching { client.chatJson(preset, "", "x", "x".repeat(LlmClient.MAX_JSON_INPUT_CHARS)) }
+            assertTrue(runCatching { client.chatJson(preset, "", "x", "x".repeat(LlmInputBudget.inputChars(preset))) }
                 .exceptionOrNull() is LlmInputLimitException)
             assertEquals(1, server.requestCount)
             val openai = JSONObject().put("max_tokens", LlmClient.MAX_JSON_OUTPUT_TOKENS)

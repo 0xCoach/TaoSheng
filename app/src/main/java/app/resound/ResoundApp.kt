@@ -156,6 +156,7 @@ class ResoundApp : Application() {
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
         }
+        AppGraph.llmFailover = digestSettings.failover
         val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things
         val skillScheduler = app.resound.skills.SkillScheduler(this)
@@ -194,10 +195,10 @@ class ResoundApp : Application() {
         val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
             .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
         AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
-            { digestSettings.skillCredentials(null) }, todoLlm::chatJson, { reply ->
+            { digestSettings.skillCredentials(null) }, digestSettings.failover.request("手动待办", database.memory(), app.resound.usage.UsagePurpose.Digest, todoLlm::chatJson), { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                     reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
-            })
+            }, hasBackup = digestSettings.failover::hasBackup)
         AppGraph.todoVoice = AndroidTodoVoiceInput(controller, scope, cacheDir,
             ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential)
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }
@@ -208,20 +209,22 @@ class ResoundApp : Application() {
         AppGraph.push = pushChannels
         reviews = app.resound.review.RoomReviewRepository(database.review(), database.memory(),
             getSharedPreferences("review", MODE_PRIVATE), scope,
-            { digestSettings.skillCredentials(null) }, llm::chatJson, { AppGraph.prompts.text("review") }, appName,
+            { digestSettings.skillCredentials(null) }, digestSettings.failover.request("回顾", database.memory(), app.resound.usage.UsagePurpose.Review, llm::chatJson), { AppGraph.prompts.text("review") }, appName,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), { reviewScheduler.schedule(it, changed = true) },
             dailyMemory = pushChannels::dispatchDailyMemory,
             beforeReview = { app.resound.review.ReviewPreparation.run(this) },
-            work = androidx.work.WorkManager.getInstance(this))
+            work = androidx.work.WorkManager.getInstance(this), hasBackup = digestSettings.failover::hasBackup)
         val skillFiles = app.resound.skills.SkillFiles(this)
         digestSettings.providers.beforeDelete = { id -> skillFiles.resetProviders(setOf(id)) }
         skillFiles.resetProviders(skillFiles.skills.value.mapNotNull { it.presetId }.toSet() - digestSettings.presets.map { it.id }.toSet())
         val skillRepository = app.resound.skills.LocalSkillRepository(
             skillFiles, database.skills(), database.memory(), scope,
-            digestSettings::skillCredentials, llm::chatJson, hotwords::merged,
+            digestSettings::skillCredentials, digestSettings.failover.request("技能", database.memory(), app.resound.usage.UsagePurpose.Skill, llm::chatJson), hotwords::merged,
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), skillScheduler::schedule,
             generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope),
-            beforeWeeklyReview = { app.resound.review.ReviewPreparation.run(this) })
+            beforeWeeklyReview = { app.resound.review.ReviewPreparation.run(this) },
+            hasBackup = digestSettings.failover::hasBackup,
+            draftRequest = digestSettings.failover.request("技能生成", database.memory(), app.resound.usage.UsagePurpose.Draft, llm::chatJson))
         AppGraph.skills = skillRepository
         scope.launch { skillRepository.reschedule() }
         AppGraph.review = reviews

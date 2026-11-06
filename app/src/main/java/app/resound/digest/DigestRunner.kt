@@ -48,6 +48,7 @@ class DigestRunner(
     private val gate = Mutex()
     // 数据库暂时不能写时保留本进程已收到的响应；进程死亡则由请求标记阻止自动重发。
     private var unsavedReply: PendingDigest? = null
+    private val actualModels = mutableMapOf<String, String>()
     private val _running = MutableStateFlow(false)
     val running = _running.asStateFlow()
     private val _progress = MutableStateFlow(DigestProgress())
@@ -70,14 +71,17 @@ class DigestRunner(
         _running.value = true
         try {
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !preset.allowsEmptyKey()) { record(null, "还没填写大模型密钥"); return false }
+            if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) { record(null, "还没填写大模型密钥"); return false }
             unsavedReply?.let { dao.rememberDigest(it); unsavedReply = null; clearInFlight() }
             val undigested = dao.undigestedLines()
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             for (pending in dao.pendingDigests()) {
                 val source = dao.refreshLines(pending.ids())
-                if (source.size == pending.ids().size && identity(source, preset) == pending.id) chunks += source
-                else dao.removePendingDigest(pending.id)
+                if (source.size == pending.ids().size && matches(pending, source, preset)) chunks += source
+                else if (source.size == pending.ids().size && !pending.id.startsWith("batch-v2:")) {
+                    record(now(), "旧整理缓存的模型配置已变化，暂不能核验；请恢复原模型配置后再试")
+                    return false
+                } else dao.removePendingDigest(pending.id)
             }
             val inFlight = prefs.getString("inflight", null)
             if (inFlight != null) {
@@ -97,13 +101,13 @@ class DigestRunner(
             }
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
             for ((index, chunk) in chunks.withIndex()) {
-                if (!networkAllowed() && dao.pendingDigest(identity(chunk, preset)) == null) { record(now(), "等待网络"); return true }
+                if (!networkAllowed() && cached(chunk, preset) == null) { record(now(), "等待网络"); return true }
                 _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed())
                 val refreshed = dao.refreshLines(chunk.map { it.id })
                 when (val outcome = if (refreshed.isEmpty()) null else digest(refreshed, preset, key) { madeEvents = true }) {
                     null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
-                    LlmError.Auth -> { record(now(), failureDetail ?: outcome.human); return false }
-                    LlmError.Network, LlmError.Server, LlmError.Format -> { record(now(), failureDetail ?: outcome.human); return retryFailure }
+                    LlmError.Auth, LlmError.Quota -> { record(now(), failureDetail ?: outcome.human); return false }
+                    LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format -> { record(now(), failureDetail ?: outcome.human); return retryFailure }
                 }
             }
             record(now(), null)
@@ -132,10 +136,18 @@ class DigestRunner(
     private var failureDetail: String? = null
     private var retryFailure = true
 
-    private fun identity(lines: List<TranscriptLineEntity>, preset: LlmPreset): String =
-        java.security.MessageDigest.getInstance("SHA-256")
-            .digest((preset.toString() + JSONArray(lines.map { it.toString() })).toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+    private fun hash(value: String): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
+    private fun identity(lines: List<TranscriptLineEntity>) = "batch-v2:" + hash(JSONArray(lines.map { it.toString() }).toString())
+
+    private fun matches(row: PendingDigest, lines: List<TranscriptLineEntity>, primary: LlmPreset): Boolean {
+        if (row.id.startsWith("batch-v2:")) return row.id == identity(lines)
+        val presets = (settings.presets + primary).distinct()
+        return presets.any { row.id == hash(it.toString() + JSONArray(lines.map { line -> line.toString() })) }
+    }
+    private suspend fun cached(lines: List<TranscriptLineEntity>, primary: LlmPreset): PendingDigest? =
+        dao.pendingDigest(identity(lines)) ?: dao.pendingDigests().firstOrNull { it.ids() == lines.map { l -> l.id } && matches(it, lines, primary) }
 
     private fun clearInFlight() {
         check(prefs.edit().remove("inflight").remove("inflight-lines").commit())
@@ -145,7 +157,8 @@ class DigestRunner(
     private suspend fun digest(lines: List<TranscriptLineEntity>, preset: LlmPreset, key: String, onEvents: () -> Unit): LlmError? {
         failureDetail = null
         retryFailure = true
-        val batchId = identity(lines, preset)
+        val batchId = identity(lines)
+        var storedId = batchId
         val (text, indexed) = DigestPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
         return try {
             val unfinished = dao.unfinishedForDigest()
@@ -153,22 +166,25 @@ class DigestRunner(
             val ignored = dao.ignoredForDigest(now() - 60L * 86_400_000)
             val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), unfinished, ignored)
             var thingBatch = thingExtraction?.prepare(indexed)
-            val cached = dao.pendingDigest(batchId)
+            val cached = cached(lines, preset)
+            storedId = cached?.id ?: batchId
             val stored = cached ?: run {
                 val system = DigestPrompt.system(template(), LocalDate.now(), appName) + (thingBatch?.system?.let { "\n\n$it" } ?: "")
                 val user = (thingBatch?.input?.let { "$it\n\n以下为本次新原话与整理参考：\n" } ?: "") + input
-                if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
                 check(prefs.edit().putString("inflight", batchId).putString("inflight-lines", lines.joinToString(",") { it.id.toString() }).commit())
                 val received = try {
-                    request(preset, key, system, user)
+                    settings.failover.chat("整理", preset, key, system, user, request) { usage ->
+                        dao.addUsage(LocalDate.now().toString(), usage.promptTokens, usage.completionTokens, app.resound.usage.UsagePurpose.Digest)
+                    }.also { actualModels[batchId] = it.actualModel ?: preset.model }
                 } catch (e: LlmException) { clearInFlight(); throw e }
+                catch (e: LlmInputLimitException) { clearInFlight(); throw e }
                 PendingDigest(batchId, lines.joinToString(",") { it.id.toString() }, received.content,
                     LocalDate.now().toString(), received.promptTokens, received.completionTokens, thingBatch?.revision)
                     .also {
                         unsavedReply = it
                         val saved = dao.rememberDigest(it)
                         unsavedReply = null
-                        if (!saved) { clearInFlight(); return null }
+                        if (!saved) { actualModels.remove(batchId); clearInFlight(); return null }
                     }
             }
             clearInFlight()
@@ -183,7 +199,7 @@ class DigestRunner(
                         startAt = e.startAt, endAt = e.endAt, scene = if (isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
                         pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(),
                         place = e.place, emotion = e.emotion, intensity = e.intensity, important = e.important,
-                        createdAt = at, model = preset.model,
+                        createdAt = at, model = actualModels[stored.id] ?: preset.model,
                     ) to e.lineIds
                 },
                 items = { ids ->
@@ -201,7 +217,8 @@ class DigestRunner(
                 hintCandidates = candidates,
             ) }
             if (thingExtraction != null) thingExtraction.commit(thingBatch, reply.content, events, save) else save()
-            dao.removePendingDigest(batchId)
+            dao.removePendingDigest(storedId)
+            actualModels.remove(storedId)
             prefs.edit().remove("local-$batchId").apply()
             if (events.isNotEmpty()) onEvents()
             runCatching { app.resound.search.EmbeddingScheduler.enqueue(appContext) }
@@ -213,7 +230,7 @@ class DigestRunner(
             throw e
         } catch (e: LlmException) {
             failureDetail = e.detail
-            if (e.type == LlmError.Format) dao.removePendingDigest(batchId)
+            if (e.type == LlmError.Format) { dao.removePendingDigest(storedId); actualModels.remove(storedId) }
             if (e.type == LlmError.Format && failed(lines.first().id) >= MAX_FORMAT_FAILURES) {
                 // 这段连续几次都整理不出来：放弃，原话仍在“原话”页
                 dao.markDigested(lines.map { it.id }, now())

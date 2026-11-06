@@ -43,8 +43,8 @@ internal class LlmSseParser(
         if (payload == "[DONE]") { done = true; return }
         try {
             val json = JSONObject(payload)
-            if (json.has("error")) throw LlmException(LlmError.Server)
             json.optJSONObject("usage")?.let { onUsage(it.optLong("prompt_tokens").coerceAtLeast(0), it.optLong("completion_tokens").coerceAtLeast(0)) }
+            if (json.has("error")) throw LlmException(LlmError.Server)
             val choices = json.optJSONArray("choices") ?: return
             for (i in 0 until choices.length()) {
                 val choice = choices.getJSONObject(i)

@@ -20,7 +20,7 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
     val manualClient = LlmClient(okhttp3.OkHttpClient.Builder().callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
     suspend fun detect(lines: List<TranscriptLineEntity>, known: List<Thing>): List<ThingProposal> {
         val preset = settings.preset; val key = settings.readKey()
-        if (key.isBlank() && preset.id != "custom") throw LlmException(LlmError.Auth)
+        if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
         val nearby = emptyList<TranscriptLineEntity>()
         val selected = ThingPrompt.known(lines, nearby, known)
         val system = ThingPrompt.system(template())
@@ -29,13 +29,13 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
         var resultCount = 0
         var outcome = "failed"
         try {
-            reply = manualClient.chatJson(preset, key, system, input)
+            reply = settings.failover.request("寻物", db.memory(), app.resound.usage.UsagePurpose.Things, manualClient::chatJson)(preset, key, system, input)
             return ThingPrompt.parse(reply.content, lines, selected.map { it.id }.toSet(), System.currentTimeMillis()).also {
                 resultCount = it.size; outcome = "ok"
             }
         } finally {
-            withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply?.promptTokens ?: 0,
-                reply?.completionTokens ?: 0, UsagePurpose.Things)
+            withContext(NonCancellable) {
+                reply?.let { db.memory().addUsage(LocalDate.now().toString(), it.promptTokens, it.completionTokens, UsagePurpose.Things) }
                 // 仅记录计数，不写原话、物品名、密钥或模型回复。
                 runCatching { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
                     type = "ThingsUsage", detail = "mode=manual outcome=$outcome lines=${lines.size} context=${nearby.size} known=${selected.size} inputChars=${system.length + input.length} promptTokens=${reply?.promptTokens ?: 0} completionTokens=${reply?.completionTokens ?: 0} results=$resultCount",

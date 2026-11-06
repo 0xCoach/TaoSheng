@@ -13,6 +13,7 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var llmFailover: app.resound.digest.LlmFailover
     lateinit var llmProviders: app.resound.digest.LlmProviders
     val isLlmProvidersReady: Boolean get() = ::llmProviders.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings

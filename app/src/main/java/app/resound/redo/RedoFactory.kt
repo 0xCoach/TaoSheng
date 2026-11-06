@@ -50,14 +50,14 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         }
         val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
-        val reply = llm.chatJson(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
+        val reply = digestSettings.failover.request("重新整理", db.memory(), app.resound.usage.UsagePurpose.Digest, llm::chatJson)(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (events, items) = DigestPrompt.parse(reply.content, indexed)
         val at = System.currentTimeMillis()
         RedoDigest(events.map { e -> MemoryEventEntity(startAt = e.startAt, endAt = e.endAt,
             scene = if (db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
             pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(), place = e.place,
-            emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = preset.model) to e.lineIds },
+            emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = reply.actualModel ?: preset.model) to e.lineIds },
             { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
                 dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
     }, identify = identify, regenerate = { oldCards, events, lines ->
@@ -77,7 +77,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
                 indexed.forEach { (id, l) -> appendLine("[$id] ${SkillInputs.time(l.startAt)} ${SkillInputs.speaker(l)}：${l.text}") }
             }, indexed)
             val (preset, key) = digestSettings.skillCredentials(skill.presetId)
-            val reply = llm.chatJson(preset, key, SkillPrompt.system(skill, files.prompt(skill.id), date), SkillInputs.user(input, hotwords()))
+            val reply = digestSettings.failover.request("重做技能", db.memory(), app.resound.usage.UsagePurpose.Skill, llm::chatJson)(preset, key, SkillPrompt.system(skill, files.prompt(skill.id), date), SkillInputs.user(input, hotwords()))
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
             SkillOutput.parse(reply.content, skill, date, input, System.currentTimeMillis(), false).rows.take(skill.maxCardsPerDay)
         }

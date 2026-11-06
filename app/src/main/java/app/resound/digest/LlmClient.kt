@@ -19,16 +19,18 @@ import kotlin.coroutines.resumeWithException
 
 enum class LlmError(val human: String, val retryable: Boolean) {
     Auth("大模型密钥无效或没开通", false),
+    Quota("大模型余额不足或额度已用完", false),
+    RateLimit("请求太频繁，请稍后再试", true),
     Network("网络连接失败，等待重试", true),
     Server("大模型服务暂时不可用，等待重试", true),
     Format("大模型返回的格式不对", true),
 }
 
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
-class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human) : Exception(detail)
+class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null) : Exception(detail)
 
-data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long)
-class LlmInputLimitException : IllegalArgumentException("内容超出所选模型的容量，请换用容量更大的模型")
+data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null)
+class LlmInputLimitException(message: String = "内容超出所选模型的容量，请换用容量更大的模型") : IllegalArgumentException(message)
 
 /** 兼容 OpenAI chat/completions 的服务（DeepSeek、方舟、自建）。 */
 class LlmClient(
@@ -51,16 +53,14 @@ class LlmClient(
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         try { clientFor(preset).newCall(request).consumeResponse {
-            when (it.code) {
-                in 200..299 -> Unit
-                401, 403 -> throw LlmException(LlmError.Auth, it.code, if(preset.id == "custom") "鉴权失败，请检查密钥" else LlmError.Auth.human)
-                else -> throw LlmException(LlmError.Server, it.code)
-            }
-            val json = try { JSONObject(it.body!!.string()) } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl,e,LlmError.Network.human)) } catch (_: Exception) { throw LlmException(LlmError.Format) }
-            val content = json.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
-                ?: throw LlmException(LlmError.Format)
-            val usage = json.optJSONObject("usage")
-            LlmReply(content, usage?.optLong("prompt_tokens") ?: 0, usage?.optLong("completion_tokens") ?: 0)
+            val raw = it.body?.string().orEmpty()
+            val json = runCatching { JSONObject(raw) }.getOrNull()
+            val usage = json?.optJSONObject("usage")?.let { u -> LlmReply("", u.optLong("prompt_tokens"), u.optLong("completion_tokens")) }
+            if (it.code !in 200..299) throw httpError(it.code, usage)
+            val content = json?.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
+                ?: throw LlmException(LlmError.Format, usage = usage)
+            LlmReply(content, usage?.promptTokens ?: 0, usage?.completionTokens ?: 0)
+
         } } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human)) }
     }
 
@@ -87,10 +87,10 @@ class LlmClient(
             override fun onResponse(call: Call, response: Response) {
                 try {
                     val reply = response.use {
-                        when (it.code) {
-                            in 200..299 -> Unit
-                            401, 403 -> throw LlmException(LlmError.Auth, it.code, if(preset.id == "custom") "鉴权失败，请检查密钥" else LlmError.Auth.human)
-                            else -> throw LlmException(LlmError.Server, it.code)
+                        if (it.code !in 200..299) {
+                            val usage = runCatching { JSONObject(it.body?.string().orEmpty()).optJSONObject("usage") }.getOrNull()
+                            usage?.let { u -> onUsage(u.optLong("prompt_tokens"), u.optLong("completion_tokens")) }
+                            throw httpError(it.code)
                         }
                         val parser = LlmSseParser({ delta -> if (cont.isActive) onText(delta) }, onUsage)
                         val source = it.body?.source() ?: throw LlmException(LlmError.Format)
@@ -144,6 +144,13 @@ class LlmClient(
             }
         })
     }
+
+    private fun httpError(status: Int, usage: LlmReply? = null): LlmException = LlmException(when (status) {
+        401, 403 -> LlmError.Auth
+        402 -> LlmError.Quota
+        429 -> LlmError.RateLimit
+        else -> LlmError.Server
+    }, status, usage = usage)
 
     companion object {
         const val MAX_JSON_OUTPUT_TOKENS = 8192

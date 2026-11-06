@@ -137,6 +137,17 @@ class AndroidLlmProviders internal constructor(
         target
     }
 
+    override fun move(id: String, toIndex: Int) = synchronized(guard) {
+        val list = saved.value.toMutableList()
+        val index = list.indexOfFirst { it.id == id }
+        require(index >= 0) { "服务商不存在" }
+        val item = list.removeAt(index)
+        list.add(toIndex.coerceIn(0, list.size), item)
+        persist(list, activeId.value)
+        publish(list, activeId.value, null)
+    }
+    internal var onTestSuccess: (String) -> Unit = {}
+
     override fun activate(id: String) = synchronized(guard) {
         require(saved.value.any { it.id == id }) { "服务商不存在" }
         if (id != activeId.value) { persist(saved.value, id); publish(saved.value, id, null) }
@@ -185,6 +196,7 @@ class AndroidLlmProviders internal constructor(
         require(secret.isNotBlank() || p.allowsEmptyKey()) { "还没填写大模型密钥" }
         val reply = client.chatJson(p, secret, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"你好\"}")
         withContext(NonCancellable) { recordUsage(reply) }
+        id?.let(onTestSuccess)
         Result.success("连接成功")
     } catch (e: CancellationException) { throw e }
     catch (e: LlmException) { Result.failure(IllegalStateException(e.detail)) }

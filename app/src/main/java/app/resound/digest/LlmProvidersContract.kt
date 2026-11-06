@@ -48,6 +48,7 @@ interface LlmProviders {
     /** 新建（[id] 为 null）或修改。[key] 为 null 表示不改密钥。返回保存后的 id。首次保存的自动成为当前服务商 */
     suspend fun save(id: String?, templateId: String?, name: String, baseUrl: String, model: String, key: String?,
                      balanceUrl: String, balancePath: String): String
+    fun move(id: String, toIndex: Int)
     fun activate(id: String)
     /** 删除；不能删当前正在用的（界面先切换再删）。引用它的技能回到“跟随整理模型” */
     fun delete(id: String)

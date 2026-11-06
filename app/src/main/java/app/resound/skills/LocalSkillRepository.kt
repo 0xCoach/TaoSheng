@@ -26,6 +26,8 @@ class LocalSkillRepository(
     private val now: () -> Long = System::currentTimeMillis,
     private val generation: SkillGeneration? = null,
     private val beforeWeeklyReview: suspend () -> Unit = {},
+    private val hasBackup: (LlmPreset) -> Boolean = { false },
+    private val draftRequest: suspend (LlmPreset, String, String, String) -> LlmReply = request,
 ) : SkillRepository {
     override val skills = files.skills
     override val generating = generation?.generating ?: MutableStateFlow(emptySet<Pair<String, LocalDate>>()).asStateFlow()
@@ -81,18 +83,18 @@ class LocalSkillRepository(
         if (conversation.firstOrNull { it.fromUser }?.text.isNullOrBlank()) return Result.failure(IllegalArgumentException("先描述一下想要什么"))
         val mustFinish = conversation.count { it.fromUser } > SkillDrafter.MAX_ASKS
         val (preset, key) = credentials(null)
-        if (key.isBlank() && !preset.allowsEmptyKey()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         val id = "my_" + java.lang.Long.toString(now() / 1000, 36)
         // 格式不对重试一次；网络、密钥类错误直接告诉用户
         for (attempt in 0..1) {
             try {
-                val reply = request(preset, key, SkillDrafter.SYSTEM, SkillDrafter.user(conversation))
+                val reply = draftRequest(preset, key, SkillDrafter.SYSTEM, SkillDrafter.user(conversation))
                 withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(now()).toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Draft) }
                 return Result.success(SkillDrafter.step(reply.content, id, mustFinish))
             } catch (e: CancellationException) { throw e }
             catch (e: LlmException) {
                 if (e.type != LlmError.Format) return Result.failure(IllegalStateException(
-                    if (e.type == LlmError.Auth) e.type.human else "网络不通，稍后再试"))
+                    e.detail))
             } catch (_: Exception) { /* 模型输出不合格式，重试 */ }
         }
         return Result.failure(IllegalStateException("没生成成功，换个说法再试一次"))
@@ -143,7 +145,7 @@ class LocalSkillRepository(
             if (id == "weekly") { beforeWeeklyReview(); started = now() }
             val result = try {
                 val (preset, key) = credentials(skill.presetId)
-                if (key.isBlank() && !preset.allowsEmptyKey()) SkillRunResult.Failed("还没填写大模型密钥") else {
+                if (key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset)) SkillRunResult.Failed("还没填写大模型密钥") else {
                     // 每个归属日各记各的进度，别的日子的运行不算。
                     val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }?.at
                     val input = SkillInputs.load(dao, skill, date, since, started)
@@ -186,11 +188,11 @@ class LocalSkillRepository(
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: LlmException) {
-                retryable = canRetry && e.type in setOf(LlmError.Network, LlmError.Server)
-                SkillRunResult.Failed(when (e.type) {
+                retryable = canRetry && e.type in setOf(LlmError.Network, LlmError.Server, LlmError.RateLimit)
+                SkillRunResult.Failed(if (e.detail != e.type.human) e.detail else when (e.type) {
                     LlmError.Network, LlmError.Server -> if (canRetry) "网络不通，稍后会再试" else "网络或服务器异常，已重试 2 次，请稍后再试"
                     LlmError.Format -> "模型回复格式不对"
-                    LlmError.Auth -> e.type.human
+                    else -> e.type.human
                 })
             } catch (_: Exception) { SkillRunResult.Failed("技能运行失败，请重试") }
             record(id, date, started, kind, result, tokens, retryable)

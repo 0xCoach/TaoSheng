@@ -37,6 +37,7 @@ class RoomReviewRepository(
     private val dailyMemory: suspend (LocalDate) -> Unit = {},
     private val beforeReview: suspend () -> Boolean = { true },
     private val work: androidx.work.WorkManager? = null,
+    private val hasBackup: (LlmPreset) -> Boolean = { false },
 ) : ReviewRepository {
     private val gate = Mutex()
     private val mutable = MutableStateFlow(ReviewState(false, prefs.getString("lastError", null)?.let { if (it.startsWith("生成失败：")) REVIEW_FAILURE else it },
@@ -117,13 +118,15 @@ class RoomReviewRepository(
                     ReviewPrompt.staleOnly(source, timezone)
                 } else {
                     val (preset, key) = credentials()
-                    if (key.isBlank() && !preset.allowsEmptyKey()) { error("还没填写整理模型的密钥", date); return@withLock false }
+                    if (key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset)) { error("还没填写整理模型的密钥", date); return@withLock false }
                     val system = ReviewPrompt.system(template(), appName)
-                    val input = ReviewInputBudget.fit(ReviewPrompt.input(date, source, timezone, minutes), system, preset)
+                    val rawInput = ReviewPrompt.input(date, source, timezone, minutes)
+                    val input = try { ReviewInputBudget.fit(rawInput, system, preset) }
+                    catch (e: app.resound.digest.LlmInputLimitException) { if (hasBackup(preset)) rawInput else throw e }
                     val reply = chat(preset, key, system, input)
                     // 格式错误的成功调用也实际消耗了 token。
                     memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)
-                    model = preset.model
+                    model = reply.actualModel ?: preset.model
                     try { ReviewPrompt.parse(reply.content, source, timezone) }
                     catch (e: CancellationException) { throw e }
                     catch (_: Exception) {
@@ -152,7 +155,7 @@ class RoomReviewRepository(
             false
         } catch (e: CancellationException) { throw e }
         catch (e: app.resound.digest.LlmInputLimitException) { error(e.message, date); false }
-        catch (e: LlmException) { error(e.type.human + if (e.type.retryable) "，稍后再试" else "", date); e.type.retryable }
+        catch (e: LlmException) { error(e.detail, date); e.type.retryable }
         catch (e: Exception) { error(REVIEW_FAILURE, date); false }
         finally {
             running = false

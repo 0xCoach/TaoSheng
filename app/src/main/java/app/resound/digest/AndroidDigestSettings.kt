@@ -12,6 +12,9 @@ class AndroidDigestSettings internal constructor(
 ) : DigestSettings {
     constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
         this(context, client, AndroidLlmProviders(context, client, recordUsage), recordUsage)
+    val failover = LlmFailover(context, providers)
+    val failoverEnabled get() = failover.enabled
+    fun setFailoverEnabled(enabled: Boolean) = failover.setEnabled(enabled)
     val timing = AndroidDigestTiming(context)
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
     /** 两句话之间停多久算这段对话结束（分钟）；结束后才整理，避免一件事被切成两半 */
@@ -78,6 +81,7 @@ class AndroidDigestSettings internal constructor(
         return try {
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
+            failover.clear(selected.id)
             val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.getOrNull().orEmpty()
             Result.success("可用（${selected.name}）${if (text.isNotBlank()) "：$text" else ""}")
         } catch (e: CancellationException) {

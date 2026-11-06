@@ -17,13 +17,14 @@ class RoomManualTodos(
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val timeoutMillis: Long = 20_000,
+    private val hasBackup: (LlmPreset) -> Boolean = { false },
 ) : ManualTodos {
     override suspend fun draft(text: String): TodoDrafts {
         val fallback = TodoDrafts(listOf(TodoDraft("待办", "我要做", text, null, null, null)), false)
         return try {
             withTimeoutOrNull(timeoutMillis) {
                 val (preset, key) = credentials()
-                if (key.isBlank() && !preset.allowsEmptyKey()) return@withTimeoutOrNull fallback
+                if (key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset)) return@withTimeoutOrNull fallback
                 val reply = chatJson(preset, key, ManualTodoPrompt.system(today(), java.time.Instant.ofEpochMilli(now()).atZone(zone).toLocalTime()),
                     JSONObject().put("sourceText", text).toString())
                 withContext(NonCancellable) { recordUsage(reply) }

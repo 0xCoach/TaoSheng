@@ -84,8 +84,8 @@ class AndroidImportKinds internal constructor(
                     context.assets.open("skills/$id/prompt.md").bufferedReader().use { it.readText() }
             }, request = { system, user ->
                 val (preset, key) = settings.skillCredentials(null)
-                if (key.isBlank() && !preset.allowsEmptyKey()) throw LlmException(LlmError.Auth)
-                val reply = llm.chatJson(preset, key, system, user)
+                if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+                val reply = settings.failover.request("导入纪要", db.memory(), app.resound.usage.UsagePurpose.Skill, llm::chatJson)(preset, key, system, user)
                 withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, app.resound.usage.UsagePurpose.Skill) }
                 reply
             })

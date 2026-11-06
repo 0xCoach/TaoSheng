@@ -201,7 +201,7 @@ class DayVolumesTest {
     @Test fun newPhoneCanSelectEncryptedFolderBeforeSupplyingPassphrase() = runBlocking {
         add(1, "2026-10-24"); sync(pass = "test-only")
         androidx.work.testing.WorkManagerTestInitHelper.initializeTestWorkManager(context, androidx.work.Configuration.Builder().build())
-        val files = LocalBackupFiles(context, { androidx.documentfile.provider.DocumentFile.fromFile(remote) }, {})
+        val files = LocalBackupFiles(context, { androidx.documentfile.provider.DocumentFile.fromFile(remote) }, {}, persisted = { true })
         val passphrases = object : BackupPassphrases {
             override fun has() = false
             override fun read() = ""

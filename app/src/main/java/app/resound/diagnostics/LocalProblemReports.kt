@@ -46,6 +46,7 @@ internal class LocalProblemReports(
                 appendLine(app.resound.push.PushDiagnostics.dump(context.getSharedPreferences("push", Context.MODE_PRIVATE)))
                 appendLine("\n更新诊断（最近 50 行）")
                 appendLine(UpdateDiagnostics.dump(context).lines().takeLast(50).joinToString("\n"))
+                appendLine("\n本机备份诊断（最近 50 行）"); appendLine(app.resound.backup.BackupDiagnostics.dump(context))
             }
         } finally { diagnostics.delete() }
         val directory = File(context.cacheDir, "problem-reports").apply { check(isDirectory || mkdirs()) }

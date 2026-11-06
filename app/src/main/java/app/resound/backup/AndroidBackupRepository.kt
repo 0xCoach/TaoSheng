@@ -39,7 +39,21 @@ class AndroidBackupRepository internal constructor(
     private fun readLocal() = LocalBackupState(prefs.getString("localFolderName", null),
         prefs.getBoolean("localAuto", false), prefs.getInt("localKeep", 7), false,
         prefs.getLong("localLastAt", 0).takeIf { it > 0 }, prefs.getLong("localLastBytes", -1).takeIf { it >= 0 },
-        prefs.getInt("localCount", -1).takeIf { it >= 0 }, prefs.getString("localError", null))
+        prefs.getInt("localCount", -1).takeIf { it >= 0 },
+        if (folderAccess() == LocalFolderAccess.NeedsReauthorize) LocalBackupFiles.REAUTHORIZE else prefs.getString("localError", null),
+        folderAccess = folderAccess(), sessionOnly = prefs.getString("localTree", null)?.let { localFiles.sessionOnly(Uri.parse(it)) } == true)
+    private fun folderAccess(): LocalFolderAccess? {
+        val tree = prefs.getString("localTree", null)?.let(Uri::parse)
+        if (tree != null && localFiles.status(tree) == LocalFolderAccess.NeedsReauthorize) return LocalFolderAccess.NeedsReauthorize
+        return when (prefs.getString("localFolderError", null)) {
+            LocalBackupFiles.REAUTHORIZE -> LocalFolderAccess.NeedsReauthorize
+            LocalBackupFiles.UNSUPPORTED -> LocalFolderAccess.Unsupported
+            else -> tree?.let { LocalFolderAccess.Ok }
+        }
+    }
+    private fun folderError(message: String?) {
+        check(prefs.edit().putString("localFolderError", message).commit())
+    }
     @Synchronized private fun refreshLocal(running: Boolean = mutableLocal.value.running) {
         mutableLocal.value = readLocal().copy(running = running)
     }
@@ -187,9 +201,13 @@ class AndroidBackupRepository internal constructor(
             check(prefs.edit().apply {
                 if (prefs.getString("localTree", null) != tree.toString()) remove("localLastAt").remove("localLastBytes")
             }.putString("localTree", tree.toString()).putString("localFolderName", name)
-                .putInt("localCount", count).remove("localError").commit())
+                .putInt("localCount", count).remove("localError").remove("localFolderError").commit())
             refreshLocal(); schedule()
-        } catch (_: Exception) { localError(LocalBackupFiles.INACCESSIBLE) }
+        } catch (e: Exception) {
+            BackupDiagnostics.record(context, "setLocalFolder", e)
+            val message = (e as? BackupFailure)?.human ?: if (e is SecurityException) LocalBackupFiles.REAUTHORIZE else LocalBackupFiles.INACCESSIBLE
+            folderError(message); localError(message)
+        }
     }
     @Synchronized override fun setLocalAuto(enabled: Boolean) {
         check(prefs.edit().putBoolean("localAuto", enabled).commit()); refreshLocal(); schedule()
@@ -221,7 +239,7 @@ class AndroidBackupRepository internal constructor(
         }
         return (result.exceptionOrNull() as? BackupFailure)?.retryable == true
     }
-    override suspend fun exportTo(target: Uri): Result<Unit> = localOperation {
+    override suspend fun exportTo(target: Uri): Result<Unit> = localOperation(folderOperation = false) {
         withWorkspace { work ->
             val file = File(work, "export.zip")
             DayVolumes.export(context, database, work, file, backupPassphrase())
@@ -263,7 +281,7 @@ class AndroidBackupRepository internal constructor(
         if (historyPath(name)) restoreVolumes(localFiles.volumes(localTree()), passphrase, name)
         else restoreSource(localFiles.source(localTree(), name), passphrase, name)
     }
-    override suspend fun restoreFrom(source: Uri, passphrase: String?): Result<Unit> = localOperation {
+    override suspend fun restoreFrom(source: Uri, passphrase: String?): Result<Unit> = localOperation(folderOperation = false) {
         restoreSource(source, passphrase)
     }
     private fun restoreSource(source: Uri, passphrase: String?, name: String? = null) {
@@ -276,15 +294,17 @@ class AndroidBackupRepository internal constructor(
                 fetchBase = { base, target -> localFiles.read(localFiles.source(localTree(), base), target) }, expectedName = name)
         } finally { download.delete() }
     }
-    private suspend fun <T> localOperation(readOnly: Boolean = false, block: () -> T): Result<T> = withContext(Dispatchers.IO) {
+    private suspend fun <T> localOperation(readOnly: Boolean = false, folderOperation: Boolean = true, block: () -> T): Result<T> = withContext(Dispatchers.IO) {
         gate.withLock {
             if (!readOnly) refreshLocal(true)
-            try { ensureActive(); val result = block(); if (!readOnly) localError(null); Result.success(result) }
+            try { ensureActive(); val result = block(); if (folderOperation && !readOnly) folderError(null); if (!readOnly) localError(null); Result.success(result) }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 val failure = e as? BackupFailure ?: BackupFailure(
-                    if (e is SecurityException || e is java.io.FileNotFoundException) LocalBackupFiles.INACCESSIBLE
+                    if (e is SecurityException) LocalBackupFiles.REAUTHORIZE
+                    else if (e is java.io.FileNotFoundException) LocalBackupFiles.INACCESSIBLE
                     else "本机备份处理失败，请重试")
+                if (folderOperation) { folderError(failure.human); refreshLocal() }
                 if (!readOnly) localError(failure.human); Result.failure(failure)
             } finally { if (!readOnly) refreshLocal(false) }
         }

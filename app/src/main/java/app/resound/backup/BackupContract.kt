@@ -139,4 +139,11 @@ data class LocalBackupState(
     /** 文件夹里现有的备份份数 */
     val count: Int?,
     val lastError: String?,
+    /** 已保存授权丢失/探测被拒绝为 NeedsReauthorize；位置不支持写入为 Unsupported。 */
+    val folderAccess: LocalFolderAccess? = null,
+    /** 仅本次进程可用；重启后必须重新选择文件夹。 */
+    val sessionOnly: Boolean = false,
 )
+
+/** null 状态表示尚未选文件夹；Ok 也可能仅为当前进程授权，见 sessionOnly。 */
+enum class LocalFolderAccess { Ok, NeedsReauthorize, Unsupported }

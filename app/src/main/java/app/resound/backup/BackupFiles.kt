@@ -77,14 +77,40 @@ internal class LocalBackupFiles(
         context.contentResolver.takePersistableUriPermission(it,
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
     },
+    private val persisted: (Uri) -> Boolean = { uri -> context.contentResolver.persistedUriPermissions.any {
+        it.uri == uri && it.isReadPermission && it.isWritePermission
+    } },
+    private val openOutput: (Uri, String) -> java.io.OutputStream? = { uri, mode -> context.contentResolver.openOutputStream(uri, mode) },
+    private val openInput: (Uri) -> java.io.InputStream? = { context.contentResolver.openInputStream(it) },
 ) {
+    private val selected = mutableMapOf<Uri, Boolean>()
+    fun sessionOnly(uri: Uri) = selected[uri] == false
+    fun status(uri: Uri): LocalFolderAccess = if (selected[uri] == false || persisted(uri))
+        LocalFolderAccess.Ok else LocalFolderAccess.NeedsReauthorize
     fun select(uri: Uri): String = access {
-        persist(uri)
-        folder(uri).name ?: "Resound"
+        val durable = try { persist(uri); true } catch (e: SecurityException) {
+            BackupDiagnostics.record(context, "persist", e); false
+        }
+        val directory = resolveTree(uri)?.takeIf { it.isDirectory } ?: throw BackupFailure(UNSUPPORTED)
+        val probe = directory.createFile("application/octet-stream", "resound-probe-${UUID.randomUUID()}.tmp")
+            ?: throw BackupFailure(UNSUPPORTED)
+        try {
+            output(probe.uri).use { it.write(byteArrayOf(82, 83)) }
+            check(openInput(probe.uri)?.use { it.readBytes().contentEquals(byteArrayOf(82, 83)) } == true)
+        } catch (e: Exception) {
+            runCatching { probe.delete() }
+            throw if (e is SecurityException || e is BackupFailure) e else BackupFailure(UNSUPPORTED).also {
+                BackupDiagnostics.record(context, "probe", e)
+            }
+        }
+        if (!probe.delete()) throw BackupFailure(UNSUPPORTED)
+        selected[uri] = durable
+        directory.name ?: "Resound"
     }
     private fun folder(uri: Uri): DocumentFile = access {
+        if (status(uri) == LocalFolderAccess.NeedsReauthorize) throw BackupFailure(REAUTHORIZE)
         val file = resolveTree(uri)
-        if (file == null || !file.isDirectory || !file.canRead() || !file.canWrite()) throw BackupFailure(INACCESSIBLE)
+        if (file == null || !file.isDirectory) throw BackupFailure(UNSUPPORTED)
         file
     }
     fun list(uri: Uri): List<RemoteBackup> = access {
@@ -113,18 +139,38 @@ internal class LocalBackupFiles(
         }
         list(tree).size
     }
+    private fun output(target: Uri): java.io.OutputStream {
+        for (mode in listOf("wt", "w", "rwt")) {
+            try { openOutput(target, mode)?.let { return it } }
+            catch (e: Exception) {
+                BackupDiagnostics.record(context, "open-$mode", e)
+                val reason = e.message.orEmpty().lowercase(Locale.ROOT)
+                val unsupported = (e is java.io.FileNotFoundException || e is IllegalArgumentException || e is UnsupportedOperationException) &&
+                    (reason.contains("mode") && listOf("unsupported", "not support", "invalid", "不支持").any { reason.contains(it) })
+                if (!unsupported) throw e
+            }
+        }
+        throw BackupFailure(UNSUPPORTED)
+    }
     fun export(file: File, target: Uri) {
-        context.contentResolver.openOutputStream(target, "wt")?.use { output ->
-            file.inputStream().use { it.copyTo(output) }
-        } ?: throw BackupFailure(INACCESSIBLE)
-        // 关闭流后回读核对，失败时不执行保留清理或清除恢复快照。
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
-        context.contentResolver.openInputStream(target)?.use { input ->
-            val buffer = ByteArray(65536)
-            while (true) { val size = input.read(buffer); if (size < 0) break; digest.update(buffer, 0, size) }
-        } ?: throw BackupFailure(INACCESSIBLE)
-        val actual = digest.digest().joinToString("") { "%02x".format(it) }
-        if (actual != BackupArchive.sha(file)) throw BackupFailure("本机备份写入校验失败，请重试")
+        try {
+            output(target).use { output -> file.inputStream().use { it.copyTo(output) } }
+        } catch (e: Exception) {
+            BackupDiagnostics.record(context, "export-write", e)
+            throw BackupFailure(if (e is BackupFailure) e.human else "本机备份写入失败，请检查目标位置和授权").also { it.initCause(e) }
+        }
+        try {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            openInput(target)?.use { input ->
+                val buffer = ByteArray(65536)
+                while (true) { val size = input.read(buffer); if (size < 0) break; digest.update(buffer, 0, size) }
+            } ?: throw java.io.IOException("read stream unavailable")
+            val actual = digest.digest().joinToString("") { "%02x".format(it) }
+            check(actual == BackupArchive.sha(file)) { "checksum mismatch" }
+        } catch (e: Exception) {
+            BackupDiagnostics.record(context, "export-readback", e)
+            throw BackupFailure("备份已写入，但无法读回校验，请换一个位置重试")
+        }
     }
     fun read(source: Uri, target: File) {
         context.contentResolver.openInputStream(source)?.use { input ->
@@ -196,7 +242,14 @@ internal class LocalBackupFiles(
         }
     }
     private inline fun <T> access(block: () -> T): T = try { block() }
-        catch (e: BackupFailure) { throw e }
-        catch (_: Exception) { throw BackupFailure(INACCESSIBLE) }
-    companion object { const val INACCESSIBLE = "本机文件夹无法访问，请重新选择" }
+        catch (e: Exception) {
+            BackupDiagnostics.record(context, "access", e)
+            throw if (e is SecurityException || e.cause is SecurityException) BackupFailure(REAUTHORIZE)
+                else if (e is BackupFailure) e else BackupFailure(INACCESSIBLE)
+        }
+    companion object {
+        const val INACCESSIBLE = "本机文件夹无法访问，请重新选择"
+        const val REAUTHORIZE = "备份文件夹的授权已失效，请重新授权"
+        const val UNSUPPORTED = "这个位置不能写入，请在 Download 里新建一个文件夹再选"
+    }
 }

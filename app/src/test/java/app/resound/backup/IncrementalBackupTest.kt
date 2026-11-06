@@ -197,14 +197,16 @@ class IncrementalBackupTest {
 
     @Test fun localRepositoryWritesRetainsAndAutomaticallyRestoresIncrementalPair() = runBlocking {
         val folder = next("folder").apply { mkdirs() }
-        val local = LocalBackupFiles(context, { DocumentFile.fromFile(folder) }, {})
+        val local = LocalBackupFiles(context, { DocumentFile.fromFile(folder) }, {}, persisted = { true })
         var restarted = false
         val repository = AndroidBackupRepository(context, db, localFiles = local, restartProcess = { restarted = true })
         repository.setLocalFolder(Uri.parse("content://test/tree")); repository.setLocalKeep(1)
         // 新写入入口已经改用日分卷；这里显式放入旧 full/inc，验证旧恢复入口。
         val full = generated().also { it.committed() }; change(); val delta = generated(listOf(full))
         local.write(Uri.parse("content://test/tree"), full); local.write(Uri.parse("content://test/tree"), delta)
-        val backups = repository.localBackups().getOrThrow()
+        // 历史列表自卡 039 起只枚举 history 恢复点；旧 full/inc 通过 SAF 层枚举后交给旧恢复入口。
+        assertTrue(repository.localBackups().getOrThrow().isEmpty())
+        val backups = local.list(Uri.parse("content://test/tree"))
         assertEquals(2, backups.size); assertFalse(backups.first().full)
         assertTrue(repository.restoreLocal(backups.first().name).isSuccess); assertTrue(restarted)
         BackupRestore.applyPending(context)

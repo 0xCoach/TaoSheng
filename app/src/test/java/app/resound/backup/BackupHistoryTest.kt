@@ -153,7 +153,7 @@ class BackupHistoryTest {
 
     @Test fun safRepositoryListsAndRestoresSelectedVersionWithDefaultSeven() = runBlocking {
         WorkManagerTestInitHelper.initializeTestWorkManager(context,Configuration.Builder().build())
-        val files=LocalBackupFiles(context,{DocumentFile.fromFile(remote)},{})
+        val files=LocalBackupFiles(context,{DocumentFile.fromFile(remote)},{}, persisted = { true })
         val passphrases=object:BackupPassphrases { override fun has()=false;override fun read()="";override fun write(value:String?)=Unit }
         var restarted=false
         val repo=AndroidBackupRepository(context,db,passphrases=passphrases,localFiles=files,restartProcess={restarted=true})

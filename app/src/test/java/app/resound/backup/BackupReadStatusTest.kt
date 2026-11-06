@@ -50,7 +50,7 @@ class BackupReadStatusTest {
             seen += repo.local.value.running
             if (revoked) throw SecurityException("synthetic revoked permission")
             DocumentFile.fromFile(folder)
-        }, persist = {})
+        }, persisted = { true }, persist = {})
         repo = AndroidBackupRepository(context,db,passphrases=passphrases,localFiles=files)
         repo.setLocalFolder(Uri.parse("content://test/tree/one"))
         repo.runLocalBackup(false)
@@ -112,7 +112,7 @@ class BackupReadStatusTest {
     @Test fun changingFolderDoesNotClaimOldFoldersBackupAsNewFoldersSuccess() {
         context.getSharedPreferences("backup",0).edit().putString("localTree","content://test/tree/old")
             .putString("localFolderName","same-name").putLong("localLastAt",123456L).putLong("localLastBytes",900L).commit()
-        val files = LocalBackupFiles(context,resolveTree={DocumentFile.fromFile(folder)},persist={})
+        val files = LocalBackupFiles(context,resolveTree={DocumentFile.fromFile(folder)},persist={}, persisted={true})
         val repo = AndroidBackupRepository(context,db,passphrases=passphrases,localFiles=files)
         assertNotNull(repo.local.value.lastAt)
         repo.setLocalFolder(Uri.parse("content://test/tree/new"))

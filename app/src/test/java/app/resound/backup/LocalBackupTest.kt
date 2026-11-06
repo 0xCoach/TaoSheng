@@ -50,7 +50,7 @@ class LocalBackupTest {
         listOf("backup-restore", "before-restore").forEach { File(context.noBackupFilesDir, it).deleteRecursively() }
         files = LocalBackupFiles(context, resolveTree = {
             if (revoked) throw SecurityException("revoked") else DocumentFile.fromFile(folder)
-        }, persist = { granted = it })
+        }, persisted = { true }, persist = { granted = it })
         repository = newRepository()
     }
     private fun newRepository(client: (() -> WebDavClient)? = null) = AndroidBackupRepository(context, db,
@@ -90,12 +90,12 @@ class LocalBackupTest {
         val existing = hashes()
         revoked = true
         assertFalse(repository.runLocalBackup(false))
-        assertEquals(LocalBackupFiles.INACCESSIBLE, repository.local.value.lastError)
+        assertEquals(LocalBackupFiles.REAUTHORIZE, repository.local.value.lastError)
         assertTrue(repository.localBackups().isFailure)
         assertEquals(existing, hashes())
         assertFalse(repository.local.value.running)
         repository.setLocalFolder(tree)
-        assertEquals(LocalBackupFiles.INACCESSIBLE, repository.local.value.lastError)
+        assertEquals(LocalBackupFiles.REAUTHORIZE, repository.local.value.lastError)
     }
 
     @Test fun exportEncryptedFileDetectsContentWithoutSuffixAndRequestsPassphrase() = runBlocking {
@@ -160,7 +160,7 @@ class LocalBackupTest {
             fail = false; revoked = true
             cloud.runLocalBackup(true)
             assertFalse(cloud.runBackup(true)); assertNotNull(cloud.state.value.lastBackupAt)
-            assertEquals(LocalBackupFiles.INACCESSIBLE, cloud.local.value.lastError)
+            assertEquals(LocalBackupFiles.REAUTHORIZE, cloud.local.value.lastError)
             assertNotNull(uploaded)
             val imported = File(root, "from-cloud.zip")
             assertTrue(cloud.exportTo(Uri.fromFile(imported)).isSuccess)

@@ -63,15 +63,22 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 7. **💬 Ask anything, with citations** — what you said or promised on any day, linked to the original lines.
 8. **🤖 Feed your agent** — daily transcripts + digests (Markdown + JSON) pushed as diffs to 10 channels.
 9. **☁️ Daily backup to WebDAV (Nutstore) and local** — incremental, 3 / 7 / 30-day versions, one-tap restore.
-10. **🧠 Bring your own LLM** — any OpenAI-compatible endpoint, including fully self-hosted.
-11. **🔒 Always on, even when locked** — foreground service + watchdog.
-12. **🔋 Records only speech** — on-device VAD; ~0.5% battery per hour in testing.
-13. **📺 Ignores media playback** and yields the mic to calls.
-14. **⌨️ Remembers keyboard dictation** (optional) with chat context.
-15. **🌙 Daily & weekly reviews**, pushed to you.
-16. **🔁 Repeated ideas merged** ("mentioned N times").
-17. **🔤 Hotwords**, **📂 audio import**, **🗂 timeline scrubbing & stars**.
-18. **🔐 Privacy first** — no account, keys in Keystore, audio deleted 24h after transcription, never hidden from people around you.
+10. **🧠 Bring your own LLM** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with one-tap switching and balance alerts, or any OpenAI-compatible endpoint, including LAN self-hosted.
+11. **🛟 Automatic fallback** — if the main model is down, rate-limited, out of credit or its key fails, the next configured model takes over (on by default).
+12. **🔒 Always on, even when locked** — foreground service + watchdog.
+13. **🔋 Records only speech** — on-device VAD; ~0.5% battery per hour in testing.
+14. **📺 Ignores media playback** and yields the mic to calls.
+15. **⌨️ Remembers keyboard dictation** (optional) with chat context.
+16. **🌙 Daily & weekly reviews**, pushed to you.
+17. **🔁 Repeated ideas merged** ("mentioned N times").
+18. **🔤 Hotwords**, **📂 audio import**, **🗂 timeline scrubbing & stars**.
+19. **🔐 Privacy first** — no account, keys in Keystore, audio deleted 24h after transcription, never hidden from people around you.
+20. **🔍 Find things** — where you put the keys, who borrowed the power bank: placements, loans and returns are tracked and searchable.
+21. **⏰ Alarm-style to-do reminders** — add by typing or voice; keeps ringing, full-screen on the lock screen.
+22. **🎧 Playback & export** — lyric-style subtitle player; merge segments into one M4A with transcript and subtitles.
+23. **📝 Imported recordings get notes** — meeting / training / call·interview / normal, each with its own summary.
+24. **🔊 Ambient sound tags** (9 kinds: music, keyboard, rain, pets…), **📋 one-tap report copying** (full, by module, or free selection), **🏫 class mode & quiet hours**.
+25. **⬆️ In-app updates** — small delta patches first, ModelScope mirror in China, automatic backup before installing.
 
 <table>
 <tr>
@@ -129,7 +136,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.2.16** (2026-11-03, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.16-arm64.apk) — fixes deletion delays caused by long-running seven-day statistics transactions; reads compact snapshots, optimizes media interval matching, and adds deletion progress and duplicate-operation protection. Validated on a phone with synthetic workloads and actual history reads; user deletion retest passed. [Detailed changelog (Chinese)](CHANGELOG.md#0216--2026-11-03). No new database migration from 0.2.15.
+**v0.2.17** (2026-11-07, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) — automatic fallback to backup models; reviews no longer fail on busy days (input limit now follows each model's context window); passphrase field shown whenever an encrypted backup needs it; local backup folder permissions work with more file pickers (e.g. HarmonyOS). [Detailed changelog (Chinese)](CHANGELOG.md#0217--2026-11-07). No new database migration.
+
+**v0.2.16** (2026-11-03): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.16-arm64.apk) — fixes deletion delays caused by long-running seven-day statistics transactions; reads compact snapshots, optimizes media interval matching, and adds deletion progress and duplicate-operation protection. Validated on a phone with synthetic workloads and actual history reads; user deletion retest passed. [Detailed changelog (Chinese)](CHANGELOG.md#0216--2026-11-03). No new database migration from 0.2.15.
 
 **v0.2.15** (2026-11-02): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.15-arm64.apk) — item tracking shares timeline extraction; redesigned reports with full, module and free-text copying; verified sources for follow-up questions; quieter external-mic detection and playback routing fixes; on-device language selection; deletion and backup reliability improvements. [Detailed changelog (Chinese)](CHANGELOG.md#0215--2026-11-02). Back up before upgrading from 0.2.14 or earlier: the database format changes and direct downgrade is unsupported.
 
@@ -139,7 +148,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/SHA256SUMS).
 
 ### Build from source
 

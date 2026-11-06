@@ -260,6 +260,9 @@ private fun PassphraseSheet(onDone: (String?) -> Unit) {
     }
 }
 
+/** 与 BackupEncryption 抛出的文案一致：第一条是缺口令，第二条是口令错。 */
+private val PASSPHRASE_ERRORS = listOf("这份备份加了密，请输入口令", "口令不对")
+
 /** 用某一份云端备份恢复：危险操作，点两次；加密的且本机解不开时要输口令 */
 @Composable
 private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (String?) -> Result<Unit>, title: String? = null, onDismiss: () -> Unit) {
@@ -269,9 +272,11 @@ private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (S
     var busy by remember { mutableStateOf(false) }
     var pass by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    // 文件名、本机开关都猜不准是否加密（换新手机、文件被改名）；只要恢复时发现要口令，就把口令框补出来。
+    var needPass by remember { mutableStateOf(b.encrypted) }
     app.resound.ui.verify.RsSheet(title ?: "恢复到 ${dateTime(b.at)}", "用备份替换手机上的全部记录，设置、密钥和账号也一起还原（备份里没有的保留手机上现在的）。替换前会先在本机留一份快照，恢复后 App 会自动重启。",
         onDismiss = { if (!busy) onDismiss() }) {
-        if (b.encrypted) Field(pass, "备份口令（本机记得的话可以不填）", KeyboardType.Password, secret = true) { pass = it }
+        if (needPass) Field(pass, "备份口令（本机记得的话可以不填）", KeyboardType.Password, secret = true) { pass = it }
         error?.let { Text(it, style = RsType.subhead, color = c.critical) }
         app.resound.ui.verify.ActionButton(
             when { busy -> "正在恢复…"; confirm -> "确定恢复？再点一次"; else -> "用这份恢复" },
@@ -280,7 +285,12 @@ private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (S
             if (!confirm) { confirm = true; return@ActionButton }
             busy = true; error = null
             scope.launch {
-                restore(pass.ifBlank { null }).onFailure { error = it.message ?: "没恢复成功"; busy = false; confirm = false }
+                restore(pass.ifBlank { null }).onFailure {
+                    val message = it.message ?: "没恢复成功"
+                    if (message in PASSPHRASE_ERRORS) needPass = true
+                    error = if (message == PASSPHRASE_ERRORS.first()) "这份备份加了密，请在上面输入口令后再恢复" else message
+                    busy = false; confirm = false
+                }
             }
         }
         app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary, enabled = !busy) { onDismiss() }

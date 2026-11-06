@@ -77,11 +77,9 @@ class DigestRunner(
             val chunks = mutableListOf<List<TranscriptLineEntity>>()
             for (pending in dao.pendingDigests()) {
                 val source = dao.refreshLines(pending.ids())
+                // 核验不了的旧缓存与原逻辑一样丢弃、重新整理：多花一次请求，好过整理永久停住。
                 if (source.size == pending.ids().size && matches(pending, source, preset)) chunks += source
-                else if (source.size == pending.ids().size && !pending.id.startsWith("batch-v2:")) {
-                    record(now(), "旧整理缓存的模型配置已变化，暂不能核验；请恢复原模型配置后再试")
-                    return false
-                } else dao.removePendingDigest(pending.id)
+                else dao.removePendingDigest(pending.id)
             }
             val inFlight = prefs.getString("inflight", null)
             if (inFlight != null) {

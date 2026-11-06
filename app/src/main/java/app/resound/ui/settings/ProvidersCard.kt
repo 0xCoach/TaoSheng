@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -71,6 +72,11 @@ fun ProvidersCard(providers: LlmProviders) {
     var checking by remember { mutableStateOf(false) }
     var checkResult by remember(active) { mutableStateOf<Result<List<app.resound.digest.ModelCheckItem>>?>(null) }
     androidx.compose.runtime.LaunchedEffect(active, saved) { checker?.refresh() }
+    val failover = if (app.resound.AppGraph.isLlmFailoverReady) app.resound.AppGraph.llmFailover else null
+    val failoverOn = failover?.enabled?.collectAsState()?.value == true
+    val lastSwitch = failover?.latestSwitch?.collectAsState()?.value
+    // 与切换层一致：当前之外、可用的服务商按列表顺序当备用，每次最多再试两个。
+    val backups = saved.filter { it.id != active && it.hasKey }.map { it.id }
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Text("整理用的大模型", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
         Text("点一下切换；整理、问问、回顾都用当前这个，技能可以另选。", style = RsType.caption, color = c.textTertiary)
@@ -86,7 +92,12 @@ fun ProvidersCard(providers: LlmProviders) {
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(p.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(p.model + if (!p.hasKey) " · 未填密钥" else "", style = RsType.caption,
+                    val rank = backups.indexOf(p.id)
+                    Text(p.model + when {
+                        !p.hasKey -> " · 未填密钥"
+                        failoverOn && rank in 0..1 -> " · 备用 ${rank + 1}"
+                        else -> ""
+                    }, style = RsType.caption,
                         color = if (!p.hasKey) c.warning else c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     // 当前服务商：余额（能查的才显示）
                     val b = balance?.balance
@@ -101,6 +112,12 @@ fun ProvidersCard(providers: LlmProviders) {
                             color = when { low -> c.warning; b == null && balance.error != null -> c.critical; else -> c.textSecondary }, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
+                val rank = backups.indexOf(p.id)
+                if (failoverOn && rank > 0) Text("上移", style = RsType.subhead, color = c.textSecondary,
+                    modifier = Modifier.clip(CircleShape).springClick {
+                        // 移到前一个备用之前；列表里夹着的当前模型不影响备用次序。
+                        providers.move(p.id, saved.indexOfFirst { it.id == backups[rank - 1] })
+                    }.padding(horizontal = 8.dp, vertical = 6.dp))
                 Text("编辑", style = RsType.subhead, color = c.accent,
                     modifier = Modifier.clip(CircleShape).springClick { editing = p }.padding(horizontal = 10.dp, vertical = 6.dp))
             }
@@ -123,6 +140,27 @@ fun ProvidersCard(providers: LlmProviders) {
                     if (items == null) Text(r.exceptionOrNull()?.message ?: "检测没通过", style = RsType.caption, color = c.critical)
                     else items.forEach { app.resound.ui.today.ModelCheckRow(it) }
                 }
+            }
+        }
+        if (failover != null) {
+            Box(Modifier.fillMaxWidth().padding(vertical = 6.dp).height(0.5.dp).background(c.separator))
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("出问题时自动换备用", style = RsType.body, color = c.text)
+                    Text(when {
+                        !failoverOn -> "已关闭：只用当前模型"
+                        backups.isEmpty() -> "再添加一个服务商并填好密钥，就能当备用"
+                        else -> "当前模型断网、出错、余额不足或密钥失效时，按顺序换用备用模型。这时内容会发给备用服务商。"
+                    }, style = RsType.caption, color = c.textSecondary)
+                }
+                Spacer(Modifier.width(12.dp))
+                FailoverToggle(failoverOn) { failover.setEnabled(it) }
+            }
+            if (failoverOn) lastSwitch?.let { s ->
+                val time = java.time.Instant.ofEpochMilli(s.at).atZone(java.time.ZoneId.systemDefault())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                Text("$time ${s.feature}由 ${s.actualModel} 生成（${s.reason}）", style = RsType.caption,
+                    color = c.warning, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 4.dp))
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -286,4 +324,15 @@ private fun SmallChip(text: String, onClick: () -> Unit) {
     val c = Rs.colors
     Text(text, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
         modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick(onClick).padding(horizontal = 10.dp, vertical = 5.dp))
+}
+
+@Composable
+private fun FailoverToggle(on: Boolean, onChange: (Boolean) -> Unit) {
+    val c = Rs.colors
+    val track by androidx.compose.animation.animateColorAsState(if (on) c.accent else c.separator, label = "track")
+    val x by androidx.compose.animation.core.animateDpAsState(if (on) 20.dp else 0.dp,
+        androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium), label = "knob")
+    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
+        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
+    }
 }

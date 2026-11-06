@@ -14,6 +14,7 @@ import app.resound.transcribe.TranscriptRepository
  */
 object AppGraph {
     lateinit var llmFailover: app.resound.digest.LlmFailover
+    val isLlmFailoverReady: Boolean get() = ::llmFailover.isInitialized
     lateinit var llmProviders: app.resound.digest.LlmProviders
     val isLlmProvidersReady: Boolean get() = ::llmProviders.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings

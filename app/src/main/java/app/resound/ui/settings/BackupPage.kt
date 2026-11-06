@@ -386,7 +386,7 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
         }
     }
     val success = latestBackupSuccess(summary, l.lastAt, l.lastBytes)
-    val pickFolder = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
+    val pickFolder = androidx.activity.compose.rememberLauncherForActivityResult(app.resound.backup.LocalBackupFolderContract()) { uri ->
         uri?.let { cache.invalidateLocal(); repo.setLocalFolder(it); folderEpoch++ }
     }
     val export = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -420,7 +420,15 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
     }
 
     // 文件夹
-    ActionRow("备份文件夹", l.folder ?: "建议在 Download 里新建 Resound", if (l.folder == null) "选择" else "更换") { pickFolder.launch(null) }
+    when {
+        l.folder != null && l.folderAccess == app.resound.backup.LocalFolderAccess.NeedsReauthorize ->
+            ActionRow("备份文件夹需要重新授权", "系统收回了「${l.folder}」的访问权限，在弹出的页面里再选一次这个文件夹即可", "授权") { pickFolder.launch(null) }
+        l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported ->
+            ActionRow("换一个备份文件夹", "这个位置不能写入，请在 Download 里新建一个文件夹再选", "选择") { pickFolder.launch(null) }
+        else -> ActionRow("备份文件夹", l.folder ?: "建议在 Download 里新建 Resound", if (l.folder == null) "选择" else "更换") { pickFolder.launch(null) }
+    }
+    if (l.folder != null && l.sessionOnly) Text("这台手机只给了临时授权：App 重启后需要再授权一次",
+        style = RsType.caption, color = c.warning, modifier = Modifier.padding(horizontal = 4.dp))
 
     if (l.folder != null) {
         // 自动与保留份数

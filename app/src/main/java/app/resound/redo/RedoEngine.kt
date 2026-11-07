@@ -100,19 +100,20 @@ internal class RedoEngine(
                             val start = segment.startAt + line.startMillis; val end = segment.startAt + line.endMillis
                             val old = row.lines.maxByOrNull { overlap(start, end, it.startAt, it.endAt) }
                             TranscriptLineEntity(segmentId = segment.id, startAt = start, endAt = end, text = line.text,
-                                speakerTag = line.speakerTag, originalText = line.originalText, eventId = old?.eventId,
+                                speakerTag = line.speakerTag, originalText = line.originalText, eventId = old?.eventId, speakerPersonId = line.personId, speakerName = line.personName, speakerScore = line.similarity,
                                 // 重转写不自动让常规整理再次产出事件；明确重新整理时才替换。
                                 digestedAt = old?.digestedAt ?: now())
                         }
                         db.transcribe().completeRedo(db.transcribe().segment(segment.id).copy(status = if (lines.isEmpty()) "Empty" else "Done", completedAt = now(),
-                            error = null, nextRetryAt = null, firstFailedAt = null, voiceprintProcessedAt = if (segment.separateSpeakers == false) now() else null), lines, now())
+                            error = null, nextRetryAt = null, firstFailedAt = null, remoteSpeakerScope = result.remoteSpeakerScope, voiceprintProcessedAt = if (result.remoteSpeakerScope != null || segment.separateSpeakers == false) now() else null), lines, now())
+                        db.remoteSpeech().consumeSegment(segment.id)
                         saveAfter()
                     }
                 } catch (e: CancellationException) { throw e }
                 catch (e: AsrException) {
                     db.withTransaction {
                         check(snapshots.unchanged(payload.getJSONObject("after"))) { "记录已被修改，请重新重做" }
-                        val attempts = segment.attempts + 1
+                        val attempts = segment.attempts + if (e.type in setOf(AsrError.Network, AsrError.RemotePending)) 0 else 1
                         db.transcribe().findSegment(segment.id)?.let { db.transcribe().update(it.copy(status = if (e.type == AsrError.Audio) "Abandoned" else "Failed",
                             attempts = attempts, error = e.type.human, firstFailedAt = it.firstFailedAt ?: now(),
                             redoPending = true, asrSource = (request.asr ?: chooser.lastChoice.value).name, nextRetryAt = TranscribePolicy.retryAt(e.type, attempts, now()))) }

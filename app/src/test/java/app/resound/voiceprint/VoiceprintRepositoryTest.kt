@@ -86,6 +86,39 @@ class VoiceprintRepositoryTest {
         assertEquals(2, db.voiceprint().lines(other.id).size)
     }
 
+    @Test fun labeledLineIsListedAsSampleAndCanBeDeletedKeepingLabel() = runBlocking {
+        val person = repository.addPerson("同事").getOrThrow()
+        val (_, lines) = segment()
+        action { repository.assignPerson(lines.first().id, person) }
+        val sample = repository.samples(person).first().single()
+        assertEquals(SampleOrigin.Line, sample.origin); assertEquals("第一句", sample.text)
+        assertTrue(repository.lines(person).first().all { it.inVoiceprint && it.manual })
+        action { repository.deleteSample(sample.key) }
+        assertTrue(repository.samples(person).first().isEmpty())
+        assertEquals("同事", db.voiceprint().line(lines.first().id)!!.speakerName)
+        assertTrue(repository.lines(person).first().none { it.inVoiceprint })
+        // 从列表里再加回来
+        action { repository.assignPerson(lines.last().id, person) }
+        assertEquals(1, repository.samples(person).first().size)
+    }
+
+    @Test fun newSamplesKeepPlayableAudioAndDeletingRemovesIt() = runBlocking {
+        val dir = File(context.cacheDir, "sample-audio-test").also { it.deleteRecursively(); files += it }
+        repository = LocalVoiceprintRepository(db, scope, { audio.getValue(it.path) },
+            { SpeakerEmbedding { vector(0) } }, { scheduled.trySend(Unit); Unit }, { clock }, SampleAudioStore(dir))
+        val person = repository.addPerson("同事").getOrThrow()
+        repository.enrollPerson(person, ShortArray(160_000) { 1000 }).getOrThrow(); scheduled.receive()
+        val (segment, lines) = segment()
+        action { repository.assignPerson(lines.first().id, person) }
+        File(segment.path).delete() // 原录音清理后，标注样本仍能靠副本回放
+        val samples = repository.samples(person).first()
+        assertEquals(2, samples.size); assertTrue(samples.all { it.playable })
+        samples.forEach { assertTrue(repository.sampleAudio(it.key)!!.length() > 44) }
+        action { repository.deleteSample(samples.first().key) }
+        assertNull(repository.sampleAudio(samples.first().key))
+        assertEquals(1, dir.listFiles { f -> f.name.startsWith("local-") }!!.size)
+    }
+
     @Test fun expiredAudioStillAllowsManualIdentityWithoutInventingSample() = runBlocking {
         val person = repository.addPerson("家人").getOrThrow()
         val (segment, lines) = segment()

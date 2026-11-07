@@ -13,7 +13,7 @@ data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     val logId: String? = null, @ColumnInfo(defaultValue = "0") val sentMillis: Long = 0, val voiceprintProcessedAt: Long? = null,
     @ColumnInfo(defaultValue = "0") val playbackMillis: Long = 0, val firstFailedAt: Long? = null, val asrSource: String? = null, @ColumnInfo(defaultValue = "0") val redoPending: Boolean = false,
     /** null 为升级前尚未确定；首次转写按录音开始时刻固化。 */
-    val separateSpeakers: Boolean? = null, val importRecordId: Long? = null, val importChannel: Int? = null, val speakerCount: Int? = null)
+    val separateSpeakers: Boolean? = null, val importRecordId: Long? = null, val importChannel: Int? = null, val speakerCount: Int? = null, val remoteSpeakerScope: String? = null)
 @Entity(tableName = "watchdog", indices = [Index("at")])
 data class EventEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val at: Long, val type: String,
     val detail: String?, val batteryPercent: Int?, val charging: Boolean?, val gapStart: Long? = null, val gapEnd: Long? = null)
@@ -52,7 +52,7 @@ interface CaptureDao {
     fun batteries(start: Long, end: Long): Flow<List<BatteryEntity>>
 }
 
-@Database(entities = [PrivacyFileCleanup::class, app.resound.things.ThingRow::class, app.resound.things.ThingRecordRow::class, app.resound.things.ThingWatchState::class, app.resound.importer.ImportRecordRow::class, app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
+@Database(entities = [app.resound.remote.RemoteSpeechTask::class, app.resound.remote.RemoteSpeechPerson::class, app.resound.remote.RemoteSpeechAction::class, app.resound.remote.RemoteSpeechSample::class, PrivacyFileCleanup::class, app.resound.things.ThingRow::class, app.resound.things.ThingRecordRow::class, app.resound.things.ThingWatchState::class, app.resound.importer.ImportRecordRow::class, app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,
     MemoryEventEntity::class, MemoryItemEntity::class, LlmUsageV2Entity::class, AppPowerEntity::class,
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
@@ -71,12 +71,13 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun transcribe(): TranscribeDao
     abstract fun memory(): MemoryDao
     abstract fun voiceprint(): VoiceprintDao
+    abstract fun remoteSpeech(): app.resound.remote.RemoteSpeechDao
     abstract fun ask(): AskDao
     abstract fun review(): ReviewDao
     abstract fun skills(): app.resound.skills.SkillDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 29
+        const val VERSION = 31
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -299,7 +300,16 @@ abstract class CaptureDatabase : RoomDatabase() {
         val MIGRATION_28_29 = object : Migration(28, 29) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) = PendingDigestSchema.create(db)
         }
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29)
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE segments ADD COLUMN remoteSpeakerScope TEXT")
+                app.resound.remote.RemoteSpeechSchema.create(db)
+            }
+        }
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) = app.resound.remote.RemoteSpeechSchema.addSamples(db)
+        }
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).addCallback(app.resound.importer.ImportRecordSchema.callback)

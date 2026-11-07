@@ -20,8 +20,9 @@ internal fun customAsrBody(audio: AsrAudio, model: String, words: List<String>):
 }
 
 /** 自定义服务使用 OpenAI 兼容的 audio/transcriptions multipart 协议，端点由用户完整指定。 */
-class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
+class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }, private val remote: app.resound.remote.RemoteSpeechService? = null):AsrProvider {
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult=withContext(Dispatchers.IO){
+        remote?.resolve(key)?.let { return@withContext remote.recognize(it, audio, beforeAudio) }
         val endpoint=settings.customEndpoint;val model=settings.customModel
         if(OpenAiEndpoint.kind(endpoint)==EndpointKind.Invalid || model.isBlank())throw AsrException(AsrError.Protocol)
         val client=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).build()
@@ -50,7 +51,7 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
 class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
     private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords)
     private val local=LocalAsrProvider(context,settings,hotwords)
-    private val custom=CustomAsrProvider(settings, hotwords)
+    private val custom=CustomAsrProvider(settings, hotwords, (context.applicationContext as? app.resound.ResoundApp)?.remoteSpeechOrNull)
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = recognize(settings.source.value, audio, key, beforeAudio)
     internal suspend fun recognize(source: TranscribeSource, audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = when(source){
         // 073 审核：同批没有节省时长，默认不剪音，也不为剪音额外解码。

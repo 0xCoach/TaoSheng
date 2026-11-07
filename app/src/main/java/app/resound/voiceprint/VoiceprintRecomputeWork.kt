@@ -12,7 +12,12 @@ class VoiceprintRecomputeWork(context: Context, params: WorkerParameters) : Coro
         val days = inputData.getInt(DAYS, 7)
         if (days !in 1..30) return Result.failure()
         return try {
-            val repository = (applicationContext as ResoundApp).voiceprintRepository
+            val app = applicationContext as ResoundApp
+            if (app.remoteSpeech.connection.value != null) {
+                app.remoteSpeech.report("远端历史身份请通过原话的重做转写更新；此按钮仅重算本地声纹")
+                return Result.failure(workDataOf("error" to "remote_requires_retranscription"))
+            }
+            val repository = app.voiceprintRepository
             if (repository.recomputeRecent(days)) {
                 if (runAttemptCount < 3) Result.retry() else Result.failure()
             } else Result.success()

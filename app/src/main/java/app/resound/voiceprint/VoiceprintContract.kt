@@ -24,6 +24,27 @@ data class VoiceprintState(
 
 data class VoiceprintPerson(val id: Long, val name: String, val samples: Int, val seconds: Int, val ready: Boolean)
 
+/** 一条声纹样本：来自原话标注、录入或自动学习；key 供删除使用。 */
+data class VoiceprintSample(
+    val key: String,
+    val origin: SampleOrigin,
+    /** 来自原话时的句子 id 与文字；原话已删时 text 为 null */
+    val lineId: Long?,
+    val text: String?,
+    /** 原话开始时间，或录入时间 */
+    val at: Long,
+    val millis: Long,
+    val state: SampleState,
+    val note: String? = null,
+    /** 能否回放：有保存的声音副本，或原录音还在 */
+    val playable: Boolean = false,
+)
+enum class SampleOrigin { Line, Recorded, Auto }
+enum class SampleState { Active, Pending, Failed }
+
+/** 被标成（或认成）此人的原话；inVoiceprint 表示已作为声纹样本 */
+data class PersonLine(val lineId: Long, val text: String, val startAt: Long, val endAt: Long, val manual: Boolean, val inVoiceprint: Boolean)
+
 interface VoiceprintRepository {
     val people: StateFlow<List<VoiceprintPerson>>
     suspend fun addPerson(name: String): Result<Long>
@@ -33,6 +54,15 @@ interface VoiceprintRepository {
     fun assignPerson(lineId: Long, personId: Long)
     fun clearIdentity(lineId: Long)
     suspend fun enrollPerson(personId: Long, pcm: ShortArray): Result<Unit>
+
+    /** 此人的全部声纹样本（含等待上传/失败的） */
+    fun samples(personId: Long): kotlinx.coroutines.flow.Flow<List<VoiceprintSample>>
+    /** 最近被标成/认成此人的原话（最多 100 条） */
+    fun lines(personId: Long): kotlinx.coroutines.flow.Flow<List<PersonLine>>
+    /** 删除一条样本；原话上的人物标注保留 */
+    fun deleteSample(key: String)
+    /** 取样本的可播放 wav；没有声音（旧样本未保存且原录音已清理）返回 null */
+    suspend fun sampleAudio(key: String): java.io.File?
 
     val state: StateFlow<VoiceprintState>
 

@@ -126,6 +126,13 @@ abstract class MemoryDao {
     @Query("SELECT COUNT(*) FROM segments WHERE id IN (:ids) AND (separateSpeakers IS NULL OR separateSpeakers = 1 OR (importChannel IS NOT NULL AND (speakerCount IS NULL OR speakerCount != 0))) AND voiceprintProcessedAt IS NULL")
     abstract suspend fun voiceprintPending(ids: List<Long>): Int
 
+    /** 远端等远端完成；旧本地录音只等实际可执行的本地认人，导入仍须完成特征缓存。 */
+    @Query("""SELECT COUNT(*) FROM segments WHERE id IN (:ids) AND voiceprintProcessedAt IS NULL
+        AND (remoteSpeakerScope IS NOT NULL OR (
+            (separateSpeakers IS NULL OR separateSpeakers = 1 OR (importChannel IS NOT NULL AND (speakerCount IS NULL OR speakerCount != 0)))
+            AND (:localReady OR sourceId = 'import')))""")
+    abstract suspend fun voiceprintPendingForDigest(ids: List<Long>, localReady: Boolean): Int
+
     @Query("SELECT * FROM transcript_lines WHERE id IN (:ids) ORDER BY startAt, id")
     abstract suspend fun refreshLines(ids: List<Long>): List<TranscriptLineEntity>
 

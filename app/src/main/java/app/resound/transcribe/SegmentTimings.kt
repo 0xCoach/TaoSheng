@@ -7,6 +7,7 @@ import kotlinx.coroutines.currentCoroutineContext
 /** 只允许固定字段与数字；不接收路径、文字、凭据或服务端消息。 */
 internal enum class AsrPart(val title: String) {
     EnvDecode("环境解码"), EnvLoad("环境加载"), EnvInfer("环境推理"), EnvPrepare("环境采样"), EnvIdentity("环境本人保护"),
+    RemoteQueue("远端锁等待"), RemoteSubmit("远端提交"), RemotePoll("远端查询"), RemoteDelay("远端查询间隔"),
     Prepare("音频准备"), Connect("建连"), Upload("上传"), Wait("等结果"),
     Diarize("分人"), ModelLoad("识别加载"), Recognize("识别"), Voiceprint("声纹")
 }

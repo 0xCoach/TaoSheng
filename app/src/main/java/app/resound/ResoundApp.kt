@@ -40,6 +40,9 @@ class ResoundApp : Application() {
         private set
     lateinit var voiceprintRepository: LocalVoiceprintRepository
         private set
+    lateinit var remoteSpeech: app.resound.remote.RemoteSpeechService
+        private set
+    val remoteSpeechOrNull get() = if (::remoteSpeech.isInitialized) remoteSpeech else null
     override fun onCreate() {
         super.onCreate()
         val crashes = app.resound.diagnostics.CrashRecords(this)
@@ -83,11 +86,12 @@ class ResoundApp : Application() {
         AppGraph.hotwords = hotwords
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope)
         // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
-        val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
+        val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { val remoteRetry = remoteSpeechOrNull?.syncPending() ?: false; voiceprintRepository.run() || remoteRetry }, scheduler::runNow)
         val pcmReader = AsrAudioReader(cacheDir)
         val sharedPcm = SharedPcmFiles(cacheDir, pcmReader::decodeForExport)
         voiceprintRepository = LocalVoiceprintRepository(database, scope, { file -> sharedPcm.read(file, pcmReader::readPcm) },
-            { CampPlusEmbedding(this) }, voiceprintRerun::request)
+            { CampPlusEmbedding(this) }, voiceprintRerun::request,
+            sampleAudioStore = SampleAudioStore(java.io.File(filesDir, "voiceprint-samples")))
         AppGraph.voiceprint = voiceprintRepository
         val envSound = app.resound.envsound.LocalEnvSoundRepository.create(this, database, scope,
             voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow, sharedPcm)
@@ -120,6 +124,8 @@ class ResoundApp : Application() {
                     (!settings.wifiOnly.value || network.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
             }
         }
+        remoteSpeech = app.resound.remote.RemoteSpeechService(this, database, settings, scope, scheduler::runNow) { sourceNetwork(TranscribeSource.Custom) }
+        AppGraph.voiceprint = app.resound.remote.RemoteVoiceprintRepository(database, voiceprintRepository, remoteSpeech, scope, pcmReader::readPcm)
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
@@ -128,6 +134,7 @@ class ResoundApp : Application() {
             beforeTranscribe = envSound::beforeTranscribe,
             beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
             afterSegment = { segment ->
+                remoteSpeech.consumed(segment.id)
                 if (database.transcribe().segment(segment.id).let { it.separateSpeakers != false || (it.importChannel != null && it.speakerCount != 0) }) {
                     PipelineProgress.stage(PipelineProgress.Stage.Voiceprint)
                     try { voiceprintRepository.runSegment(segment.id) }
@@ -150,7 +157,7 @@ class ResoundApp : Application() {
                 transcribeRunner.test(AsrAudio(file, "ogg", 3007), key)
             } finally { file.delete() }
         }
-        settings.onChanged = { scheduler.settingsChanged(scope) }
+        settings.onChanged = { remoteSpeech.configurationChanged(); scheduler.settingsChanged(scope) }
         val llm = LlmClient()
         val digestSettings = AndroidDigestSettings(this, llm) { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,

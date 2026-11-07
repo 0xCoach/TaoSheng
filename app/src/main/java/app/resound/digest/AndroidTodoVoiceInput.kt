@@ -186,6 +186,7 @@ internal fun writeTodoWav(file: File, samples: ShortArray) {
 }
 
 private fun voiceFailure(error: AsrError): String = when (error) {
+    AsrError.RemotePending -> "远端仍在处理，请稍后重试"
     AsrError.Network -> "网络不通，没能识别"
     AsrError.ModelMissing -> "还没下载本机转写模型"
     AsrError.Auth -> "密钥无效或未开通，没能识别"

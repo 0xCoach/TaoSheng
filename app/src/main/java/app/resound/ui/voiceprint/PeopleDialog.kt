@@ -80,7 +80,7 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
         LearnBar(person)
         Text(
             if (person.ready) "拿不准时会显示“可能是${person.name}？”，等你确认。"
-            else "至少需要 3 段、累计 30 秒说话。在原话里长按指定为${person.name}，就会自动补上。",
+            else "至少需要 3 段、累计 30 秒说话。在原话里长按指定为${person.name}，就会自动加入下面的样本。",
             style = RsType.caption, color = c.textTertiary,
         )
 
@@ -124,6 +124,8 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
         }
         note?.let { Text(it, style = RsType.subhead, color = c.accent) }
 
+        if (job == null && !editing) PersonSamples(repo, person)
+
         // 改名
         if (!me) {
             if (editing) {
@@ -160,6 +162,102 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
             )
         }
         voiceState.lastError?.let { Text(it, style = RsType.caption, color = c.critical) }
+    }
+}
+
+private val sampleTime = java.text.SimpleDateFormat("M月d日 HH:mm", java.util.Locale.CHINA)
+private fun sampleWhen(at: Long) = if (at <= 0L) null else sampleTime.format(java.util.Date(at))
+private fun sampleSeconds(ms: Long) = if (ms <= 0L) null else "%.1f 秒".format(ms / 1000f)
+
+/** 此人的全部声纹样本（可删）和被标成此人的原话（可加入声纹或移除） */
+@Composable
+private fun PersonSamples(repo: VoiceprintRepository, person: VoiceprintPerson) {
+    val c = Rs.colors
+    val samples by remember(person.id) { repo.samples(person.id) }.collectAsState(emptyList())
+    val lines by remember(person.id) { repo.lines(person.id) }.collectAsState(emptyList())
+    var confirm by remember { mutableStateOf<String?>(null) }
+    var showAllSamples by remember { mutableStateOf(false) }
+    var showAllLines by remember { mutableStateOf(false) }
+    var playNote by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    DisposableEffect(Unit) { onDispose { SamplePlayer.stop() } }
+
+    SectionTitle("声纹样本 · ${samples.size}")
+    if (samples.isEmpty()) Text("还没有样本。录入声音，或在下面的原话里点“加入声纹”。", style = RsType.caption, color = c.textTertiary)
+    (if (showAllSamples) samples else samples.take(10)).forEach { sample ->
+        val title = when (sample.origin) {
+            SampleOrigin.Line -> sample.text?.let { "“$it”" } ?: "原话（已删除）"
+            SampleOrigin.Recorded -> "录入的声音"
+            SampleOrigin.Auto -> "自动学习" + (sample.text?.let { "：“$it”" } ?: "")
+        }
+        val meta = listOfNotNull(sampleWhen(sample.at), sampleSeconds(sample.millis), when (sample.state) {
+            SampleState.Active -> null; SampleState.Pending -> "处理中"; SampleState.Failed -> "未生效"
+        }).joinToString(" · ")
+        val note = sample.note ?: when {
+            sample.playable -> null
+            sample.origin == SampleOrigin.Recorded -> "以前录入的声音没有保存，无法回放"
+            sample.text != null -> "原录音已清理，只能看文字"
+            else -> null
+        }
+        SampleRow(title, meta, note) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (sample.playable) {
+                    val playing = SamplePlayer.playingKey == sample.key
+                    Pill(if (playing) "停止" else "播放", filled = playing) {
+                        if (playing) SamplePlayer.stop() else scope.launch {
+                            playNote = null
+                            try {
+                                val file = repo.sampleAudio(sample.key)
+                                if (file == null) playNote = "这段声音已经不在了" else SamplePlayer.play(sample.key, file)
+                            } catch (e: CancellationException) { throw e }
+                            catch (_: Exception) { playNote = "播放失败，请稍后再试" }
+                        }
+                    }
+                }
+                Pill(if (confirm == sample.key) "确定删除" else "删除", filled = confirm == sample.key) {
+                    if (confirm == sample.key) { if (SamplePlayer.playingKey == sample.key) SamplePlayer.stop(); repo.deleteSample(sample.key); confirm = null } else confirm = sample.key
+                }
+            }
+        }
+    }
+    playNote?.let { Text(it, style = RsType.caption, color = c.critical) }
+    if (samples.size > 10) Pill(if (showAllSamples) "收起" else "显示全部 ${samples.size} 条", filled = false) { showAllSamples = !showAllSamples }
+
+    SectionTitle("${person.name}说的原话 · ${lines.size}${if (lines.size >= 100) "+" else ""}")
+    if (lines.isEmpty()) Text("还没有。在“原话与转写”里长按句子选“这是谁”即可标注。", style = RsType.caption, color = c.textTertiary)
+    (if (showAllLines) lines else lines.take(10)).forEach { line ->
+        val meta = listOfNotNull(sampleWhen(line.startAt), sampleSeconds(line.endAt - line.startAt),
+            if (line.manual) "手动标注" else "自动认出", if (line.inVoiceprint) "已在声纹" else null).joinToString(" · ")
+        SampleRow("“${line.text}”", meta, null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (!line.inVoiceprint) Pill("加入声纹", filled = false) { repo.assignPerson(line.lineId, person.id) }
+                Pill(if (confirm == "line:${line.lineId}") "确定移除" else "移除", filled = confirm == "line:${line.lineId}") {
+                    if (confirm == "line:${line.lineId}") { repo.clearIdentity(line.lineId); confirm = null } else confirm = "line:${line.lineId}"
+                }
+            }
+        }
+    }
+    if (lines.size > 10) Pill(if (showAllLines) "收起" else "显示全部 ${lines.size} 条", filled = false) { showAllLines = !showAllLines }
+    if (lines.isNotEmpty()) Text("“移除”只把这句改回未知，并撤掉它带来的声纹样本；录音和文字都保留。", style = RsType.caption, color = c.textTertiary)
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Spacer(Modifier.height(4.dp))
+    Text(text, style = RsType.headline, color = Rs.colors.text)
+}
+
+@Composable
+private fun SampleRow(title: String, meta: String, note: String?, actions: @Composable () -> Unit) {
+    val c = Rs.colors
+    RsCard(color = c.background, padding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(title, style = RsType.body, color = c.text, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(meta, style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+            actions()
+        }
+        note?.let { Text(it, style = RsType.caption, color = c.textSecondary) }
     }
 }
 
@@ -263,7 +361,7 @@ fun AssignPersonDialog(repo: VoiceprintRepository, lineId: Long, onDismiss: () -
     var name by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    RsSheet("这是谁说的？", "选一个人，或输入新名字。会从还在的录音里学习这个人的声音。", onDismiss = { if (!saving) onDismiss() }) {
+    RsSheet("这是谁说的？", "选一个人，或输入新名字。这段声音会直接加入此人的声纹样本，可在“声纹与人物”里查看和删除。", onDismiss = { if (!saving) onDismiss() }) {
         if (people.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 people.forEach { person ->

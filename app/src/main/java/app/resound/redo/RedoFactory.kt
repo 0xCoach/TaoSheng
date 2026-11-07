@@ -27,7 +27,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         val key = settings.credential(source)
         var sent = 0L; var error: AsrError? = null; var outcome = "Failed"; var log: String? = null
         try {
-            val result = provider.recognize(source, AsrAudio(File(segment.path), File(segment.path).extension, segment.endAt - segment.startAt, separateSpeakers = segment.separateSpeakers ?: true), key) {
+            val result = provider.recognize(source, AsrAudio(File(segment.path), File(segment.path).extension, segment.endAt - segment.startAt, separateSpeakers = segment.separateSpeakers ?: true, segmentId = segment.id), key) {
                 if (source != TranscribeSource.Local) {
                     sent = segment.endAt - segment.startAt
                     db.transcribe().reserveAudio(LocalDate.now().toString(), sent, segment.id)

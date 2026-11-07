@@ -31,6 +31,7 @@ class DigestRunner(
     private val networkAllowed: () -> Boolean,
     private val now: () -> Long = System::currentTimeMillis,
     private val elapsed: () -> Long = android.os.SystemClock::elapsedRealtime,
+    /** 仅本地样本是否足够；远端就绪不能让旧本地录音进入无法完成的等待。 */
     private val voiceprintReady: suspend () -> Boolean = { false },
     private val readKey: () -> String = settings::readKey,
     private val hotwords: () -> List<String> = { emptyList() },
@@ -248,7 +249,7 @@ class DigestRunner(
 
     internal suspend fun closed(session: List<TranscriptLineEntity>, force: Boolean): Boolean {
         val gap = gapMillis()
-        if (voiceprintReady() && dao.voiceprintPending(session.map { it.segmentId }.distinct()) > 0) return false
+        if (dao.voiceprintPendingForDigest(session.map { it.segmentId }.distinct(), voiceprintReady()) > 0) return false
         val start = session.first().startAt
         val end = session.maxOf { it.endAt }
         val quietLongEnough = force || now() - end >= gap
@@ -277,7 +278,7 @@ class DigestRunner(
         }
         if (cut < 0) return emptyList()
         val prefix = session.subList(0, cut + 1)
-        if (voiceprintReady() && dao.voiceprintPending(prefix.map { it.segmentId }.distinct()) > 0) return emptyList()
+        if (dao.voiceprintPendingForDigest(prefix.map { it.segmentId }.distinct(), voiceprintReady()) > 0) return emptyList()
         val end = prefix.maxOf { it.endAt }
         return if (dao.unfinishedSegments(start - gap, end) == 0) prefix else emptyList()
     }

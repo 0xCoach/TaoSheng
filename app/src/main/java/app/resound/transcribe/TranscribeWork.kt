@@ -82,7 +82,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             val pendingBefore = app.database.transcribe().pendingMillis()
             val parts = mutableListOf<String>()
             var transcribeRetry = false
-            var voiceprintRetry = false
+            var voiceprintRetry = app.remoteSpeech.syncPending()
             val skip = if (mode == MODE_DIGEST) {
                 val settings = AppGraph.transcribeSettings
                 val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
@@ -103,7 +103,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
                 parts += "转写 ${formatElapsed(lap())}"
                 if (app.voiceprintRepository.hasPending()) {
                     PipelineProgress.stage(Stage.Voiceprint)
-                    voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress)
+                    voiceprintRetry = app.voiceprintRepository.run(PipelineProgress::progress) || voiceprintRetry
                 }
                 app.voiceprintRepository.cleanupAudio()
                 parts += "声纹 ${formatElapsed(lap())}"

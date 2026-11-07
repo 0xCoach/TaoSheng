@@ -6,10 +6,11 @@ import java.io.File
 interface AsrProvider {
     suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult
 }
-data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true, val pcmFile: File? = null, val speakerCount: Int? = null)
-data class AsrSentence(val startMillis: Long, val endMillis: Long, val text: String, val speakerTag: String?, val originalText: String? = null)
-data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?)
+data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true, val pcmFile: File? = null, val speakerCount: Int? = null, val segmentId: Long? = null)
+data class AsrSentence(val startMillis: Long, val endMillis: Long, val text: String, val speakerTag: String?, val originalText: String? = null, val personId: Long? = null, val personName: String? = null, val similarity: Float? = null)
+data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?, val remoteSpeakerScope: String? = null)
 enum class AsrError(val human: String, val retryable: Boolean = false) {
+    RemotePending("远端任务正在排队或处理，稍后继续查询", true),
     Speakers("说话人分段失败，请重新下载分段模型或在人物与声纹中关闭多人分段"),
     ModelMissing("请在转写设置中下载所需的本地模型"), LocalEngine("本机识别失败，可改用 CPU 识别或重新下载模型"), Auth("密钥无效或未开通"), Network("网络连接失败，等待重试", true), Timeout("转写超时，等待重试", true),
     Server("服务暂时不可用，等待重试", true), Protocol("识别响应不完整或格式异常"), Audio("录音文件不可读取或解码失败"),

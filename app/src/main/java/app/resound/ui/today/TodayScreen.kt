@@ -182,7 +182,9 @@ fun TodayScreen(
     // 时间线按时段分组；技能卡（会议、收工打卡等）按时间插进对应时段，只占一行提示
     val newestFirst = list.size > 1 && list.first().startAt > list.last().startAt
     // 筛选时技能卡不显示；筛“会议”时把会议纪要卡一起显示
-    val shownCards = when (filter) { TimelineFilter.All -> cards; TimelineFilter.Meeting -> cards.filter { it.skillId == "meeting" }; else -> emptyList() }
+    // 当天的事还没读出来时，卡片也先不显示：卡片读得快，否则一打开时间线上会只闪一下会议纪要
+    val shownCards = if (events == null) emptyList() else
+        when (filter) { TimelineFilter.All -> cards; TimelineFilter.Meeting -> cards.filter { it.skillId == "meeting" }; else -> emptyList() }
     // 导入的录音在时间线上只占一张卡：这段时间整理出的事和它的纪要收进卡里（只在“全部”时合并）
     val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date) }.collectAsState(initial = emptyList()).value else emptyList()
     val folded = if (filter == TimelineFilter.All) records else emptyList()

@@ -48,6 +48,14 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun recordNpuCheck(key: String, ok: Boolean) { localPrefs.edit().putString("npuCheck", "${if (ok) "pass" else "fail"}:$key").apply() }
     val customEndpoint get() = prefs.getString("endpoint", "")!!
     val customModel get() = prefs.getString("model", "")!!
+    /** 自定义地址的写法：自动补路径（OpenAI 兼容）或按填写的原样请求（MiniMax 等）。 */
+    private val _endpointMode = MutableStateFlow(runCatching { CustomEndpointMode.valueOf(prefs.getString("endpointMode", CustomEndpointMode.Auto.name)!!) }.getOrDefault(CustomEndpointMode.Auto))
+    val endpointMode = _endpointMode.asStateFlow()
+    val customEndpointMode get() = _endpointMode.value
+    /** 完整地址模式下要不要同时发热词（prompt）：MiniMax 等不认这个参数，默认不发。 */
+    private val _customPrompt = MutableStateFlow(prefs.getBoolean("customPrompt", false))
+    val customPrompt = _customPrompt.asStateFlow()
+    fun setCustomPrompt(on: Boolean) { check(prefs.edit().putBoolean("customPrompt", on).commit()); _customPrompt.value = on; onChanged() }
     private val _ready = MutableStateFlow(false)
     override val ready = _ready.asStateFlow()
     private val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -62,25 +70,31 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
         if(!prefs.contains("realtime"))_realtime.value=value==TranscribeSource.Local
         _hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
     fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
-    fun saveCustom(endpoint: String, model: String) {
-        OpenAiEndpoint.bases(endpoint)
+    fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = _endpointMode.value) {
+        validateEndpoint(endpoint, mode)
         require(model.trim().isNotEmpty()) { "请填写模型名" }
-        prefs.edit().putString("endpoint",endpoint.trim()).putString("model",model.trim()).commit();refreshReady(); onChanged()
+        prefs.edit().putString("endpoint",endpoint.trim()).putString("model",model.trim()).putString("endpointMode",mode.name).commit()
+        _endpointMode.value=mode
+        refreshReady(); onChanged()
     }
     suspend fun fetchModels(endpoint: String, key: String) = fetchRemoteModels(endpoint, key.trim().ifBlank { readKey() })
-    fun saveCustomAll(endpoint: String, model: String, key: String) {
-        OpenAiEndpoint.bases(endpoint)
+    fun saveCustomAll(endpoint: String, model: String, key: String, mode: CustomEndpointMode = _endpointMode.value) {
+        validateEndpoint(endpoint, mode)
         require(model.trim().isNotEmpty()) { "请填写或选择模型" }
         if(key.isNotBlank()) saveKey(key)
-        saveCustom(endpoint,model)
+        saveCustom(endpoint,model,mode)
     }
-    fun identity() = "${source.value}:${backend.value}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}" +
+    /** 完整地址按填写的原样校验；自动模式沿用 OpenAI 兼容的路径规则。 */
+    private fun validateEndpoint(endpoint: String, mode: CustomEndpointMode) {
+        if (mode == CustomEndpointMode.Full) fullEndpoint(endpoint) else OpenAiEndpoint.bases(endpoint)
+    }
+    fun identity() = "${source.value}:${backend.value}:${_endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}" +
         if (source.value == TranscribeSource.Local) ":${language.value.code}" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
         TranscribeSource.Local -> modelReady(if (backend.value == app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) backend.value else app.resound.transcribe.local.LocalBackend.Cpu)
         TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() }.getOrDefault(false)
-        TranscribeSource.Custom -> OpenAiEndpoint.kind(customEndpoint) != EndpointKind.Invalid && customModel.isNotBlank()
+        TranscribeSource.Custom -> customModel.isNotBlank() && runCatching { validateEndpoint(customEndpoint, _endpointMode.value); true }.getOrDefault(false)
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
     private fun keyField() = if(source.value==TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey"

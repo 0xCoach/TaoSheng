@@ -155,7 +155,12 @@ internal class RedoEngine(
         require(lines.isNotEmpty()) { "这些时间段没有可整理的原话" }
         val seenLines = mutableSetOf<Long>()
         val batches = s.ranges.flatMap { range -> lines.filter { range.overlaps(it.startAt, it.endAt) && seenLines.add(it.id) }.chunked(DigestRunner.MAX_LINES) }
-        val parts = batches.map { batch -> checkpoint(); digest(batch, request.llmPresetId) }
+        // 一天的内容会分成很多批，每批更新一次进度，免得停在 70% 像卡住
+        val parts = batches.mapIndexed { index, batch ->
+            checkpoint()
+            if (batches.size > 1) progress("重新整理 ${index + 1}/${batches.size}", .7f + .25f * index / batches.size)
+            digest(batch, request.llmPresetId)
+        }
         var events = parts.flatMap { it.events }
         val starred = s.events.filter { it.starred }.mapNotNull { old -> events.indices.maxByOrNull { i -> overlap(old.startAt, old.endAt, events[i].first.startAt, events[i].first.endAt) }
             ?.takeIf { i -> overlap(old.startAt, old.endAt, events[i].first.startAt, events[i].first.endAt) > 0 } }.toSet()

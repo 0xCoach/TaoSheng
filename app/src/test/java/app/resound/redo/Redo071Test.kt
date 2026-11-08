@@ -173,6 +173,22 @@ class Redo071Test {
         assertFalse((restored.job(a)!!.state as RedoJobState.Done).undoable)
         assertTrue(restored.undo(b).isSuccess)
     }
+    @Test fun nearbySelectedEventsAreDigestedTogetherButNotAcrossUnselected() = runBlocking {
+        suspend fun at(id: Long, start: Long) {
+            db.memory().insertEvent(event(id, start, start + 1000))
+            db.capture().segment(SegmentEntity(id, start, start + 1000, "mic", File(root, "$id.wav").path, 5, "Done", completedAt = 1))
+            db.transcribe().insertLines(listOf(TranscriptLineEntity(id, id, start, start + 1000, "原话$id", null, eventId = id, digestedAt = 1)))
+        }
+        at(1, 0); at(2, 5_000); at(3, 9_000); at(4, 13_000)
+        val batches = mutableListOf<List<Long>>()
+        val e = RedoEngine(db, chooser, recognize = { _, _ -> error("unexpected") }, digest = { lines, _ ->
+            batches += lines.map { it.id }
+            RedoDigest(listOf(event(0, lines.minOf { it.startAt }, lines.maxOf { it.endAt }, false) to lines.map { it.id })) { emptyList() }
+        }, now = { 100 }, pauseMillis = { 10_000 })
+        // 1、2 挨着（隔 4 秒）一起整理；4 和 2 之间夹着没选的 3，单独整理
+        e.run("near", RedoRequest(listOf(1, 2, 4), scope = RedoScope.DigestOnly), {}, { _, _ -> })
+        assertEquals(listOf(listOf(1L, 2L), listOf(4L)), batches)
+    }
     @Test fun adjacentRangesMergeButGapsRemainAndExpiredEditedCountsAreHonest() = runBlocking {
         assertEquals(listOf(RedoRange(1, 6), RedoRange(8, 9)), mergedRanges(listOf(RedoRange(4, 6), RedoRange(1, 4), RedoRange(8, 9))))
         seed(expired = true); db.memory().editEvent(1, "改过", "", "[]", 5)

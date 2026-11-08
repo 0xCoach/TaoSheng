@@ -23,17 +23,35 @@ internal class RedoEngine(
     private val identify: suspend (List<Long>) -> Unit = {},
     private val regenerate: suspend (List<SkillCardRow>, List<Pair<MemoryEventEntity, List<Long>>>, List<TranscriptLineEntity>) -> List<SkillCardRow> = { _, _, _ -> emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
+    /** 停多久算说完（与自动整理同一设置）；选中的相邻事件间隔不超过它就并成一段一起重新整理 */
+    private val pauseMillis: () -> Long = { DigestRunner.GAP_MS },
 ) {
     private val dao = db.redoData()
     private val snapshots = RedoSnapshot(db)
     suspend fun select(request: RedoRequest): RedoSelection {
         val chosen = request.eventIds.distinct().mapNotNull { db.memory().event(it) }
         val explicit = db.transcribe().exportSegments(request.segmentIds.distinct())
-        val ranges = mergedRanges(if (request.scope == RedoScope.TranscribeOnly) explicit.map { RedoRange(it.segment.startAt, it.segment.endAt) }
+        val picked = mergedRanges(if (request.scope == RedoScope.TranscribeOnly) explicit.map { RedoRange(it.segment.startAt, it.segment.endAt) }
             else chosen.map { RedoRange(it.startAt, it.endAt) })
+        val ranges = if (request.scope == RedoScope.TranscribeOnly) picked else joinNearby(picked, chosen.map { it.id }.toSet())
         val events = if (request.scope == RedoScope.TranscribeOnly) emptyList() else ranges.flatMap { dao.events(it.start, it.end) }.distinctBy { it.id }
         val segments = if (request.scope == RedoScope.TranscribeOnly) explicit else db.transcribe().exportSegments(ranges.flatMap { dao.segments(it.start, it.end) }.map { it.id }.distinct())
         return RedoSelection(ranges, events, segments)
+    }
+    /**
+     * 选中的相邻事件挨得近（间隔不超过停顿时长）、中间也没有没选的事件，就连成一段，
+     * 这样一起重新整理，碎事件才能合并；否则每个事件各整理各的，碎的还是碎的。
+     */
+    private suspend fun joinNearby(ranges: List<RedoRange>, selected: Set<Long>): List<RedoRange> {
+        val gap = pauseMillis()
+        val out = mutableListOf<RedoRange>()
+        for (r in ranges) {
+            val last = out.lastOrNull()
+            if (last != null && r.start - last.end <= gap && dao.events(last.end, r.start).all { it.id in selected })
+                out[out.lastIndex] = last.copy(end = maxOf(last.end, r.end))
+            else out += r
+        }
+        return out
     }
     suspend fun estimate(request: RedoRequest): RedoEstimate {
         val s = select(request)

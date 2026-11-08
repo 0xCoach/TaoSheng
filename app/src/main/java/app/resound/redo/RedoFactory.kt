@@ -81,5 +81,5 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
             SkillOutput.parse(reply.content, skill, date, input, System.currentTimeMillis(), false).rows.take(skill.maxCardsPerDay)
         }
-    })
+    }, pauseMillis = { digestSettings.pauseMinutes.value * 60_000L })
 }

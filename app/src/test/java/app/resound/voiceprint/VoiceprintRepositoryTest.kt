@@ -29,18 +29,20 @@ class VoiceprintRepositoryTest {
     private val files = mutableListOf<File>()
     private var computations = 0
     private var failDecode = false
+    private lateinit var sampleStore: SampleAudioStore
     private var clock = 100_000_000L
     private fun vector(index: Int) = FloatArray(192).apply { this[index] = 1f }
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        sampleStore = SampleAudioStore(java.nio.file.Files.createTempDirectory("sample-audio").toFile().also { files += it })
         repository = createRepository()
     }
     private fun createRepository() = LocalVoiceprintRepository(db, scope, { file ->
         if (failDecode) error("解码失败")
         audio.getValue(file.path)
-    }, { SpeakerEmbedding { pcm -> computations++; vector(if (pcm.first() > 0) 0 else 1) } }, { scheduled.trySend(Unit); Unit }, { clock })
+    }, { SpeakerEmbedding { pcm -> computations++; vector(if (pcm.first() > 0) 0 else 1) } }, { scheduled.trySend(Unit); Unit }, { clock }, sampleAudioStore = sampleStore)
     @After fun close() = runBlocking {
         scope.coroutineContext[Job]!!.cancelAndJoin(); db.close(); files.forEach { it.deleteRecursively() }
     }
@@ -168,6 +170,7 @@ class VoiceprintRepositoryTest {
         assertNull(db.transcribe().segment(segment.id).voiceprintProcessedAt)
     }
     @Test fun failedProcessingRetainsAudioThenRetriesBeforeCleanupAndMissingFilesDoNotBlockForever() = runBlocking {
+        installCleanup()
         enroll(); val (segment, _) = segment()
         val transcribe = TranscribeRunner(db.transcribe(), object : AsrProvider {
             override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = error("不应上传")
@@ -441,6 +444,7 @@ class VoiceprintRepositoryTest {
         repository = LocalVoiceprintRepository(db, scope, { file ->
             entered.complete(Unit); release.await(); audio.getValue(file.path)
         }, { SpeakerEmbedding { vector(0) } }, { scheduled.trySend(Unit); Unit }, { clock })
+        installCleanup()
         repository.markMe(lines.first().id)
         try {
             withTimeout(3000) { entered.await() }
@@ -449,6 +453,82 @@ class VoiceprintRepositoryTest {
         } finally { release.complete(Unit) }
         withTimeout(3000) { scheduled.receive() }
         repository.cleanupAudio()
+        assertTrue(File(segment.path).exists()) // 未处理完的原音频仍应保留。
+        db.voiceprint().processed(segment.id, clock)
+        repository.cleanupAudio()
         assertFalse(File(segment.path).exists())
     }
+    private fun installCleanup() {
+        val prefs = context.getSharedPreferences("sample-cleanup-test", Context.MODE_PRIVATE)
+        prefs.edit().putInt("originalRetentionDays", 1).commit()
+        val cleaner = app.resound.transcribe.LocalOriginalAudio(db.transcribe(), prefs, scope,
+            guard = { block -> repository.withAudioCleanup(block) },
+            playback = app.resound.transcribe.PlaybackCaptureHold(scope, {}), now = { clock })
+        repository.cleanupOriginalAudio = { cleaner.cleanup(); Unit }
+    }
+
+    @Test fun deletingSampleRemovesAudioAndPreventsAutomaticRelearning() = runBlocking {
+        enroll(); val (_, lines) = segment()
+        action { repository.markMe(lines.first().id) }
+        val sample = db.voiceprint().samples().single { it.source == "line" }
+        assertNotNull(repository.sampleAudio("local:${sample.id}"))
+        action { repository.deleteSample("local:${sample.id}") }
+        assertNull(repository.sampleAudio("local:${sample.id}"))
+        assertFalse(sampleStore.exists("local-${sample.id}"))
+        repository.run()
+        assertTrue(db.voiceprint().samples().none { it.segmentId == sample.segmentId })
+    }
+
+    @Test fun deletingPersonAndResetRemoveOnlyTheirAudio() = runBlocking {
+        enroll()
+        val person = repository.addPerson("测试人物").getOrThrow()
+        repository.enrollPerson(person, ShortArray(160000) { -1000 }).getOrThrow(); scheduled.receive()
+        val own = db.voiceprint().samples().map { it.id }
+        val other = db.voiceprint().allSamples().single { it.personId == person }.id
+        action { repository.deletePerson(person) }
+        assertFalse(sampleStore.exists("local-$other"))
+        assertTrue(own.all { sampleStore.exists("local-$it") })
+        action { repository.reset() }
+        assertEquals(0L, repository.sampleAudioBytes.value)
+        assertTrue(db.voiceprint().samples().isEmpty())
+    }
+
+    @Test fun clearAudioKeepsVectorsAndRecognitionAndDisablesFallbackAcrossRestart() = runBlocking {
+        enroll(); val (_, lines) = segment()
+        action { repository.markMe(lines.first().id) }
+        val before = db.voiceprint().samples()
+        assertTrue(repository.sampleAudioBytes.value > 0)
+        repository.clearSampleAudio().getOrThrow()
+        val after = db.voiceprint().samples()
+        assertEquals(before.size, after.size)
+        before.zip(after).forEach { (old, current) ->
+            assertArrayEquals(old.vector, current.vector)
+            assertEquals(old, current.copy(vector = old.vector))
+        }
+        assertEquals(0L, repository.sampleAudioBytes.value)
+        repository = createRepository()
+        assertTrue(repository.samples(0).first().all { !it.playable })
+        assertNull(repository.sampleAudio("local:${before.last().id}"))
+        val (fresh, _) = segment(start = 20000)
+        repository.run()
+        assertTrue(db.voiceprint().lines(fresh.id).all { it.speakerName == "我" })
+        repository.enrollPcm(ShortArray(160000) { 1000 }).getOrThrow(); scheduled.receive()
+        assertTrue(repository.sampleAudioBytes.value > 0)
+    }
+
+    @Test fun legacySampleCanPlayFromOriginalWithoutChangingDatabase() = runBlocking {
+        val (_, lines) = segment()
+        action { repository.markMe(lines.first().id) }
+        val sample = db.voiceprint().samples().single()
+        sampleStore.delete("local-${sample.id}")
+        val before = db.voiceprint().samples()
+        assertNotNull(repository.sampleAudio("local:${sample.id}"))
+        val after = db.voiceprint().samples()
+        assertEquals(before.size, after.size)
+        before.zip(after).forEach { (old, current) ->
+            assertArrayEquals(old.vector, current.vector)
+            assertEquals(old, current.copy(vector = old.vector))
+        }
+    }
+
 }

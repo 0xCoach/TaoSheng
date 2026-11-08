@@ -16,6 +16,9 @@ data class VoiceprintExclusionEntity(val segmentId: Long, val groupKey: String, 
 @Entity(tableName = "voiceprint_people", indices = [Index(value = ["name"], unique = true)])
 data class VoiceprintPersonEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val createdAt: Long)
 
+/** 样本列表用：附带来源原话的文字和时间（原话已删则为 null） */
+data class VoiceprintSampleRow(@Embedded val sample: VoiceprintSampleEntity, val text: String?, val lineStart: Long?, val segmentPath: String?)
+
 data class VoiceprintSampleInput(val sampleId: Long, val sourceId: String?)
 
 @Dao
@@ -37,7 +40,7 @@ abstract class VoiceprintDao {
 
     @Query("SELECT * FROM voiceprint_samples WHERE personId = 0 ORDER BY id") abstract suspend fun samples(): List<VoiceprintSampleEntity>
     @Query("SELECT * FROM voiceprint_samples WHERE personId = 0 ORDER BY id") abstract fun observeSamples(): Flow<List<VoiceprintSampleEntity>>
-    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun saveSample(sample: VoiceprintSampleEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun saveSample(sample: VoiceprintSampleEntity): Long
     @Query("DELETE FROM voiceprint_samples WHERE segmentId = :segmentId AND groupKey = :key")
     abstract suspend fun removeSample(segmentId: Long, key: String)
     /** 同时间按 id 保留较新的自动样本，永不触及 line/enroll。必须与插入同事务。 */
@@ -51,6 +54,12 @@ abstract class VoiceprintDao {
     abstract suspend fun exclusions(segmentId: Long): List<String>
     @Query("DELETE FROM voiceprint_exclusions") abstract suspend fun clearExclusions()
     @Query("SELECT * FROM transcript_lines WHERE id = :id") abstract suspend fun line(id: Long): TranscriptLineEntity?
+    @Query("SELECT v.*, l.text AS text, l.startAt AS lineStart, s.path AS segmentPath FROM voiceprint_samples v LEFT JOIN transcript_lines l ON l.id = v.sourceLineId LEFT JOIN segments s ON s.id = l.segmentId WHERE v.personId = :id ORDER BY v.createdAt DESC, v.id DESC")
+    abstract fun observePersonSamples(id: Long): Flow<List<VoiceprintSampleRow>>
+    @Query("SELECT * FROM voiceprint_samples WHERE id = :id") abstract suspend fun sample(id: Long): VoiceprintSampleEntity?
+    @Query("DELETE FROM voiceprint_samples WHERE id = :id") abstract suspend fun deleteSample(id: Long)
+    @Query("SELECT * FROM transcript_lines WHERE speakerPersonId = :id AND voiceInputJson IS NULL ORDER BY startAt DESC, id DESC LIMIT 100")
+    abstract fun observePersonLines(id: Long): Flow<List<TranscriptLineEntity>>
     @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
     abstract suspend fun lines(id: Long): List<TranscriptLineEntity>
     @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done' AND (separateSpeakers IS NULL OR separateSpeakers = 1) AND voiceprintProcessedAt IS NULL ORDER BY startAt, id")

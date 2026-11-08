@@ -17,10 +17,18 @@ class LocalVoiceprintRepository(
     private val createEngine: () -> SpeakerEmbedding,
     private val schedule: () -> Unit,
     private val now: () -> Long = System::currentTimeMillis,
+    internal val sampleAudioStore: SampleAudioStore = SampleAudioStore(null),
 ) : VoiceprintRepository {
     private val dao = db.voiceprint()
     private val gate = Mutex()
     private val actions = Mutex()
+    private val playback = Mutex()
+    override val sampleAudioBytes = sampleAudioStore.bytes
+    override suspend fun clearSampleAudio(): Result<Unit> = withContext(Dispatchers.IO) {
+        try { playback.withLock { gate.withLock { sampleAudioStore.clear() } }; Result.success(Unit) }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) { Result.failure(e) }
+    }
     private val rounds = Mutex()
     private var revision = 0L
     private var resetGeneration = 0L
@@ -61,20 +69,63 @@ class LocalVoiceprintRepository(
             revision++
         }
     }
-    override fun deletePerson(id: Long) = launchAction {
+    override fun deletePerson(id: Long) = launchAudioAction {
         require(id != 0L)
         gate.withLock {
-            db.withTransaction { dao.clearPersonResults(id); dao.clearPersonSamples(id); dao.deletePerson(id); invalidateRetained() }
+            db.withTransaction {
+                dao.allSamples().filter { it.personId == id }.forEach { sampleAudioStore.delete("local-${it.id}") }
+                dao.clearPersonResults(id); dao.clearPersonSamples(id); dao.deletePerson(id); invalidateRetained()
+            }
             revision++
         }
     }
-    override fun clearIdentity(lineId: Long) = launchAction {
+    override fun samples(personId: Long): Flow<List<VoiceprintSample>> = combine(dao.observePersonSamples(personId), sampleAudioStore.changes) { rows, _ ->
+        rows.map { row -> sampleView(row, sampleAudioStore.exists("local-${row.sample.id}") ||
+            (sampleAudioStore.fallbackAllowed() && row.sample.sourceLineId != null && row.segmentPath?.let { File(it).isFile } == true)) }
+    }.flowOn(Dispatchers.IO)
+    override suspend fun sampleAudio(key: String): File? = withContext(Dispatchers.IO) {
+        playback.withLock {
+            val id = key.takeIf { it.startsWith("local:") }?.removePrefix("local:")?.toLongOrNull() ?: return@withLock null
+            val sample = dao.sample(id) ?: return@withLock null
+            sampleAudioStore.file("local-$id")?.let { return@withLock it }
+            if (!sampleAudioStore.fallbackAllowed()) return@withLock null
+            val line = sample.sourceLineId?.let { dao.line(it) } ?: return@withLock null
+            clipLine(line)
+        }
+    }
+    /** 从还在的原录音里截出这一句；录音已清理返回 null。读取期间钉住录音，避免被清理。 */
+    internal suspend fun clipLine(line: TranscriptLineEntity): File? {
+        val segment = db.transcribe().findSegment(line.segmentId) ?: return null
+        gate.withLock { if (!File(segment.path).isFile) return null; pin(segment.id) }
+        return try {
+            sampleAudioStore.temp(VoiceprintAudio.group(readPcm(File(segment.path)), segment.startAt, listOf(line)))
+        } finally { unpin(segment.id) }
+    }
+    override fun lines(personId: Long): Flow<List<PersonLine>> = combine(dao.observePersonLines(personId), dao.observePersonSamples(personId)) { lines, rows ->
+        val used = rows.filter { it.sample.source != "line-review" }.mapNotNull { r -> r.sample.segmentId?.let { it to r.sample.groupKey } }.toSet()
+        lines.map { PersonLine(it.id, it.text, it.startAt, it.endAt, it.speakerManual, (it.segmentId to VoiceprintAudio.groupKey(it)) in used) }
+    }
+    override fun deleteSample(key: String) = launchAudioAction {
+        val id = requireNotNull(key.removePrefix("local:").toLongOrNull())
+        gate.withLock {
+            db.withTransaction {
+                val sample = dao.sample(id) ?: return@withTransaction
+                dao.deleteSample(id); sampleAudioStore.delete("local-$id")
+                // 删掉原话来源的样本后，不让自动学习立刻把同一段声音补回来。
+                if (sample.segmentId != null && sample.groupKey != null && sample.personId == 0L)
+                    dao.exclude(VoiceprintExclusionEntity(sample.segmentId, sample.groupKey, now()))
+                invalidateRetained()
+            }
+            revision++
+        }
+    }
+    override fun clearIdentity(lineId: Long) = launchAudioAction {
         gate.withLock {
             val line = requireNotNull(dao.line(lineId))
             require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
             val ids = dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }
-            db.withTransaction { dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); invalidateRetained() }
+            db.withTransaction { dropFile(line.segmentId, key); dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); invalidateRetained() }
             revision++
         }
     }
@@ -114,6 +165,7 @@ class LocalVoiceprintRepository(
         dao.doneSegments().filter { File(it.path).isFile }
             .map { it.id }.chunked(500).forEach { dao.invalidateSegments(it) }
     }
+    private fun launchAudioAction(block: suspend () -> Unit) = launchAction { playback.withLock { block() } }
     private fun launchAction(block: suspend () -> Unit) {
         scope.launch(Dispatchers.IO) {
             try { actions.withLock { error.value = null; block() }; schedule() }
@@ -141,6 +193,8 @@ class LocalVoiceprintRepository(
             }.firstOrNull()
         return Group(segment, key, lines, cacheKey, feature)
     }
+    private suspend fun dropFile(segmentId: Long, key: String) =
+        dao.allSamples().filter { it.segmentId == segmentId && it.groupKey == key }.forEach { sampleAudioStore.delete("local-${it.id}") }
     override fun markMe(lineId: Long) = assignPerson(lineId, 0)
     override fun assignPerson(lineId: Long, personId: Long) = launchAction { assign(lineId, personId) }
     override suspend fun nameAndAssign(lineId: Long, name: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -165,6 +219,7 @@ class LocalVoiceprintRepository(
     private suspend fun assign(lineId: Long, personId: Long) {
         val personName = if (personId == 0L) "我" else requireNotNull(dao.people().find { it.id == personId }).name
         val group = gate.withLock { group(lineId).also { pin(it.segment.id) } }
+        var clip: ShortArray? = null
         try {
             val feature = if (!File(group.segment.path).isFile) group.feature else {
                 // 用户确认仍按约定锁定整组；补样本只使用所点句子的连续窗口。
@@ -176,6 +231,7 @@ class LocalVoiceprintRepository(
                         val to = ((window.end - group.segment.startAt) * 16).coerceIn(from.toLong(), pcm.size.toLong()).toInt()
                         VoiceprintAudio.trimSilence(pcm.copyOfRange(from, to)).takeIf { it.size >= VoiceprintAudio.MIN_SAMPLES }
                     }
+                clip = slices.firstOrNull()
                 if (slices.isEmpty()) null else engine { model ->
                     val vectors = slices.map { VoiceprintMath.unit(model.compute(it)) }
                     val coherent = vectors.indices.all { i -> (0 until i).all { j ->
@@ -198,6 +254,7 @@ class LocalVoiceprintRepository(
                         ?: VoiceprintSampleEntity(source = "line", sourceLineId = lineId, segmentId = group.segment.id,
                             groupKey = group.key, vector = VoiceprintMath.encode(vector),
                             durationMillis = feature.durationMillis, createdAt = now(), personId = personId))
+                        .also { id -> clip?.let { sampleAudioStore.save("local-$id", it) } }
                     // 明确重标但无法提取一致声音时，保留人工记录并隔离旧向量。
                     if (vector == null && existing != null && existing.source != "auto")
                         dao.saveSample(existing.copy(source = "line-review", sourceLineId = lineId, personId = personId))
@@ -209,12 +266,13 @@ class LocalVoiceprintRepository(
             }
         } finally { unpin(group.segment.id) }
     }
-    override fun markNotMe(lineId: Long) = launchAction {
+    override fun markNotMe(lineId: Long) = launchAudioAction {
         gate.withLock {
             val line = requireNotNull(dao.line(lineId))
             require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
             db.withTransaction {
+                dropFile(line.segmentId, key)
                 dao.removeSample(line.segmentId, key)
                 dao.exclude(VoiceprintExclusionEntity(line.segmentId, key, now()))
                 dao.identity(dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }, null, null, null, true)
@@ -223,10 +281,13 @@ class LocalVoiceprintRepository(
             revision++
         }
     }
-    override fun reset() = launchAction {
+    override fun reset() = launchAudioAction {
         gate.withLock {
             cache.clear()
-            db.withTransaction { dao.clearSamples(); dao.clearExclusions(); dao.clearResults(); invalidateRetained() }
+            db.withTransaction {
+                dao.allSamples().filter { it.personId == 0L }.forEach { sampleAudioStore.delete("local-${it.id}") }
+                dao.clearSamples(); dao.clearExclusions(); dao.clearResults(); invalidateRetained()
+            }
             revision++; resetGeneration++
         }
     }
@@ -242,6 +303,7 @@ class LocalVoiceprintRepository(
                         require(personId == 0L || dao.people().any { it.id == personId })
                         dao.saveSample(VoiceprintSampleEntity(source = "enroll", sourceLineId = null, segmentId = null, groupKey = null,
                             vector = VoiceprintMath.encode(vector), durationMillis = speech.size / 16L, createdAt = now(), personId = personId))
+                            .also { id -> sampleAudioStore.save("local-$id", speech) }
                         invalidateRetained()
                     }
                     revision++
@@ -444,4 +506,12 @@ class LocalVoiceprintRepository(
         cleanupOriginalAudio?.invoke()
     }
 
+}
+
+internal fun sampleView(row: VoiceprintSampleRow, playable: Boolean = false): VoiceprintSample {
+    val s = row.sample
+    val origin = when (s.source) { "auto" -> SampleOrigin.Auto; "enroll" -> SampleOrigin.Recorded; else -> SampleOrigin.Line }
+    return VoiceprintSample("local:${s.id}", origin, s.sourceLineId, row.text, row.lineStart ?: s.createdAt, s.durationMillis,
+        if (s.source == "line-review") SampleState.Failed else SampleState.Active,
+        if (s.source == "line-review") "这段声音不够清晰一致，暂不参与认人" else null, playable)
 }

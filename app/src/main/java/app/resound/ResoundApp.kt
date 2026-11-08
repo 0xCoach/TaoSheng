@@ -87,7 +87,8 @@ class ResoundApp : Application() {
         val pcmReader = AsrAudioReader(cacheDir)
         val sharedPcm = SharedPcmFiles(cacheDir, pcmReader::decodeForExport)
         voiceprintRepository = LocalVoiceprintRepository(database, scope, { file -> sharedPcm.read(file, pcmReader::readPcm) },
-            { CampPlusEmbedding(this) }, voiceprintRerun::request)
+            { CampPlusEmbedding(this) }, voiceprintRerun::request,
+            sampleAudioStore = SampleAudioStore(SampleAudioStore.directory(this)))
         AppGraph.voiceprint = voiceprintRepository
         val envSound = app.resound.envsound.LocalEnvSoundRepository.create(this, database, scope,
             voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow, sharedPcm)

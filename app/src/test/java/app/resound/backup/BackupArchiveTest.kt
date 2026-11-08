@@ -165,4 +165,30 @@ class BackupArchiveTest {
             }
         } finally { running.set(false); writer.join(5000); assertFalse(writer.isAlive) }
     }
+    @Test fun sampleAudioIsExcludedAndRestoreRetainsVectorsWithoutStalePlayback() = kotlinx.coroutines.runBlocking {
+        val dir = app.resound.voiceprint.SampleAudioStore.directory(context)
+        dir.deleteRecursively()
+        val store = app.resound.voiceprint.SampleAudioStore(dir)
+        val vector = app.resound.voiceprint.VoiceprintMath.encode(FloatArray(192) { if (it == 0) 1f else 0f })
+        val id = db.voiceprint().saveSample(app.resound.data.VoiceprintSampleEntity(
+            source = "enroll", sourceLineId = null, segmentId = null, groupKey = null,
+            vector = vector, durationMillis = 10000, createdAt = 1))
+        store.save("local-$id", ShortArray(160000) { 1000 })
+        val zip = archive()
+        ZipFile(zip).use { z -> assertFalse(z.entries().asSequence().any { it.name.contains("voiceprint-samples") || it.name.endsWith(".wav") }) }
+        val verified = File(root, "samples-verified")
+        BackupArchive.verify(zip, verified, CaptureDatabase.VERSION)
+        db.close()
+        BackupRestore.stage(context, verified)
+        BackupRestore.applyPending(context)
+        val restored = CaptureDatabase.open(context)
+        try {
+            assertArrayEquals(vector, restored.voiceprint().samples().single().vector)
+            val freshStore = app.resound.voiceprint.SampleAudioStore(dir)
+            assertEquals(0L, freshStore.bytes.value)
+            assertNull(freshStore.file("local-$id"))
+            assertFalse(freshStore.fallbackAllowed())
+        } finally { restored.close(); dir.deleteRecursively() }
+    }
+
 }

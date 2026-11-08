@@ -10,25 +10,41 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-internal fun customAsrBody(audio: AsrAudio, model: String, words: List<String>): MultipartBody {
+internal fun customAsrBody(audio: AsrAudio, model: String, words: List<String>, withPrompt: Boolean = true): MultipartBody {
     val mime = when (audio.format) { "ogg" -> "audio/ogg"; "wav" -> "audio/wav"; else -> "audio/mp4" }
     return MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("model", model)
         .addFormDataPart("file", audio.file.name, audio.file.asRequestBody(mime.toMediaType()))
         .addFormDataPart("response_format", "json").apply {
-            Hotwords.customPrompt(words).takeIf { it.isNotEmpty() }?.let { addFormDataPart("prompt", it) }
+            // 热词靠 prompt 字段；MiniMax 等服务不认它，完整地址模式下默认不发。
+            if (withPrompt) Hotwords.customPrompt(words).takeIf { it.isNotEmpty() }?.let { addFormDataPart("prompt", it) }
         }.build()
 }
 
-/** 自定义服务使用 OpenAI 兼容的 audio/transcriptions multipart 协议，端点由用户完整指定。 */
+/**
+ * 服务返回体里的正文。OpenAI 兼容服务返回 {"text":"…"}；
+ * MiniMax 等服务出错时返回 {"base_resp":{"status_code":…}}，这里只按固定文案提示，不回显服务端原文。
+ */
+internal fun transcriptionText(json: JSONObject): String {
+    if (json.has("text")) return json.optString("text").trim()
+    val code = json.optJSONObject("base_resp")?.optInt("status_code", 0) ?: 0
+    if (code == 1004) throw AsrException(AsrError.Auth, detail = "鉴权失败，请检查密钥")
+    if (code != 0) throw AsrException(AsrError.Protocol, detail = "服务返回错误，请检查地址、密钥和参数")
+    throw AsrException(AsrError.Protocol)
+}
+
+/** 自定义服务用 OpenAI 兼容的 audio/transcriptions multipart 协议；完整地址模式按填写的地址原样请求。 */
 class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult=withContext(Dispatchers.IO){
         val endpoint=settings.customEndpoint;val model=settings.customModel
-        if(OpenAiEndpoint.kind(endpoint)==EndpointKind.Invalid || model.isBlank())throw AsrException(AsrError.Protocol)
+        val mode=settings.customEndpointMode
+        val urls=runCatching{ transcriptionEndpoints(endpoint,mode) }.getOrElse{ throw AsrException(AsrError.Protocol) }
+        if(urls.isEmpty() || model.isBlank())throw AsrException(AsrError.Protocol)
         val client=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).build()
-        val body = customAsrBody(audio, model, hotwords())
+        // 自动模式照旧发热词；完整模式由设置决定，默认不发。
+        val body = customAsrBody(audio, model, hotwords(), withPrompt = mode == CustomEndpointMode.Auto || settings.customPrompt.value)
         var call: Call? = null
         try {
-            for(url in OpenAiEndpoint.transcriptions(endpoint)) {
+            for(url in urls) {
                 call=client.newCall(Request.Builder().url(url).apply { if(key.isNotBlank()) header("Authorization","Bearer $key") }.post(body).build())
                 beforeAudio()
                 call.awaitResponse().use { response->
@@ -37,8 +53,7 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
                     if(!response.isSuccessful)throw AsrException(if(response.code>=500 || response.code==429)AsrError.Server else AsrError.Protocol)
                     val bytes=response.body!!.byteStream().use{ input -> val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192);while(out.size()<=1_000_000){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n)};out.toByteArray() }
                     if(bytes.size>1_000_000)throw AsrException(AsrError.Protocol)
-                    val json=JSONObject(bytes.toString(Charsets.UTF_8));if(!json.has("text"))throw AsrException(AsrError.Protocol)
-                    val text=json.getString("text").trim()
+                    val text=transcriptionText(JSONObject(bytes.toString(Charsets.UTF_8)))
                     return@withContext AsrResult(if(text.isBlank())emptyList() else listOf(AsrSentence(0,audio.durationMillis,text,null)),audio.durationMillis,null)
                 }
             }

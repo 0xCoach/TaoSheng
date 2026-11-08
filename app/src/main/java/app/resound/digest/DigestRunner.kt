@@ -20,7 +20,7 @@ internal class DigestBatchLimitException : IllegalArgumentException("单段转�
  * 把已转写的句子整理成事件。按“段落”处理：相邻两句间隔超过停顿时长（默认 [GAP_MS]，可在设置里调）就算另一段；
  * 一段要等最后一句过去停顿时长、且这段时间附近没有还没转写完的录音，才算说完了，才整理，避免一件事被切成两半。
  * 一直在说、段落迟迟不结束时，超过最长等待（默认 [LONG_MS]）就先在已过去停顿时长的部分里挑最长的停顿切开，整理前半截。
- * 每段只整理一次；格式错误连续 [MAX_FORMAT_FAILURES] 次就放弃这段（标为已整理、不出事件），避免反复花钱。
+ * 格式错误先拆小重试；不能再拆的小批连续 [MAX_FORMAT_FAILURES] 次失败才放弃（标为已整理、不出事件），避免反复花钱。
  */
 class DigestRunner(
     context: Context,
@@ -228,7 +228,14 @@ class DigestRunner(
             throw e
         } catch (e: LlmException) {
             failureDetail = e.detail
-            if (e.type == LlmError.Format) { dao.removePendingDigest(storedId); actualModels.remove(storedId) }
+            if (e.type == LlmError.Format) {
+                dao.removePendingDigest(storedId)
+                actualModels.remove(storedId)
+                splitForRetry(lines)?.let { (first, second) ->
+                    // 同一轮按时间处理两半，各自沿用原来的 identity、缓存及在途标记；大批不累计失败。
+                    return digest(first, preset, key, onEvents) ?: digest(second, preset, key, onEvents)
+                }
+            }
             if (e.type == LlmError.Format && failed(lines.first().id) >= MAX_FORMAT_FAILURES) {
                 // 这段连续几次都整理不出来：放弃，原话仍在“原话”页
                 dao.markDigested(lines.map { it.id }, now())

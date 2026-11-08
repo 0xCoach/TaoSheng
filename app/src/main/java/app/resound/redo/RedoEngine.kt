@@ -155,11 +155,22 @@ internal class RedoEngine(
         require(lines.isNotEmpty()) { "这些时间段没有可整理的原话" }
         val seenLines = mutableSetOf<Long>()
         val batches = s.ranges.flatMap { range -> lines.filter { range.overlaps(it.startAt, it.endAt) && seenLines.add(it.id) }.chunked(DigestRunner.MAX_LINES) }
+        suspend fun digestWithRetry(batch: List<TranscriptLineEntity>): List<RedoDigest> {
+            checkpoint(); currentCoroutineContext().ensureActive()
+            return try {
+                listOf(digest(batch, request.llmPresetId))
+            } catch (e: LlmException) {
+                if (e.type != LlmError.Format) throw e
+                val (first, second) = splitForRetry(batch) ?: throw e
+                // 保持两半的时间顺序，供后面的事件与条目 ID 按原偏移量拼接。
+                digestWithRetry(first) + digestWithRetry(second)
+            }
+        }
         // 一天的内容会分成很多批，每批更新一次进度，免得停在 70% 像卡住
-        val parts = batches.mapIndexed { index, batch ->
+        val parts = batches.flatMapIndexed { index, batch ->
             checkpoint()
             if (batches.size > 1) progress("重新整理 ${index + 1}/${batches.size}", .7f + .25f * index / batches.size)
-            digest(batch, request.llmPresetId)
+            digestWithRetry(batch)
         }
         var events = parts.flatMap { it.events }
         val starred = s.events.filter { it.starred }.mapNotNull { old -> events.indices.maxByOrNull { i -> overlap(old.startAt, old.endAt, events[i].first.startAt, events[i].first.endAt) }

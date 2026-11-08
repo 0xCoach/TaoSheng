@@ -124,6 +124,34 @@ class Redo071Test {
         db.memory().editEvent(id, "人工修改", "", "[]", 200)
         assertTrue(e.undo("two").isFailure); assertEquals("人工修改", db.memory().event(id)!!.title)
     }
+    @Test fun formatFailureSplitsBatchAndCombinesEventsAndItemsInOrder() = runBlocking {
+        db.memory().insertEvent(event(end = 41_000))
+        db.capture().segment(SegmentEntity(1, 1000, 41_000, "mic", File(root, "split.wav").path, 0, "Done"))
+        val lines = (1L..40L).map { i -> TranscriptLineEntity(i, 1, i * 1000, i * 1000 + 500,
+            "合成原话$i", null, eventId = 1, digestedAt = 1) }
+        db.transcribe().insertLines(lines)
+        val calls = mutableListOf<List<Long>>()
+        val progress = mutableListOf<String>()
+        val e = RedoEngine(db, chooser, recognize = { _, _ -> error("unexpected") }, digest = { batch, preset ->
+            assertEquals("split-preset", preset)
+            calls += batch.map { it.id }
+            if (batch.size == 40) throw LlmException(LlmError.Format)
+            val firstId = batch.first().id
+            RedoDigest(listOf(event(0, batch.first().startAt, batch.last().endAt, false).copy(title = "新事件$firstId") to batch.map { it.id })) { ids ->
+                listOf(MemoryItemEntity(eventId = ids.single(), category = "待办", kind = null, content = "事项$firstId",
+                    dueText = null, dueAt = null, who = null, lineId = firstId, status = "Pending", createdAt = 100))
+            }
+        }, now = { 100 })
+        e.run("split", RedoRequest(listOf(1), scope = RedoScope.DigestOnly, llmPresetId = "split-preset"), {}, { text, _ -> progress += text })
+        assertEquals(listOf(lines, lines.take(20), lines.drop(20)).map { batch -> batch.map { it.id } }, calls)
+        assertEquals(listOf("重新整理"), progress)
+        val events = db.redoData().events(0, 50_000).sortedBy { it.startAt }
+        assertEquals(listOf("新事件1", "新事件21"), events.map { it.title })
+        assertEquals(listOf(1L, 21L), events.map { db.redoData().items(listOf(it.id)).single().lineId })
+        val saved = db.memory().refreshLines(lines.map { it.id })
+        assertEquals(List(20) { events[0].id } + List(20) { events[1].id }, saved.map { it.eventId })
+        assertTrue(db.redoData().fullSnapshot()!!.applied)
+    }
     @Test fun explicitChoicesDoNotChangeSettingsAndReadyRejectsMissingConfiguration() = runBlocking {
         seed(); val settings = AndroidTranscribeSettings(context)
         val llm = AndroidDigestSettings(context, LlmClient())

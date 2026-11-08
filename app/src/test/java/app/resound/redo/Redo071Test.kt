@@ -173,6 +173,12 @@ class Redo071Test {
         assertFalse((restored.job(a)!!.state as RedoJobState.Done).undoable)
         assertTrue(restored.undo(b).isSuccess)
     }
+    @Test fun largeSnapshotIsReadBackInPartsUnchanged() = runBlocking {
+        val big = "整天的快照" .repeat(90_000) + "尾"
+        db.redoData().snapshot(RedoSnapshotRow(jobId = "big", at = 5, payload = big))
+        assertEquals("", db.redoData().snapshotMeta()!!.payload)
+        assertEquals(big, db.redoData().fullSnapshot()!!.payload)
+    }
     @Test fun nearbySelectedEventsAreDigestedTogetherButNotAcrossUnselected() = runBlocking {
         suspend fun at(id: Long, start: Long) {
             db.memory().insertEvent(event(id, start, start + 1000))
@@ -218,7 +224,7 @@ class Redo071Test {
             assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
             assertEquals("old", migrated.transcribe().segment(1).path)
             assertNull(migrated.transcribe().segment(1).asrSource); assertFalse(migrated.transcribe().segment(1).redoPending)
-            assertNull(migrated.redoData().snapshot())
+            assertNull(migrated.redoData().snapshotMeta())
         } finally { migrated.close(); context.deleteDatabase(name) }
     }
     @Test fun skillReplacementProtectsManualAndUndoRestoresCards() = runBlocking {

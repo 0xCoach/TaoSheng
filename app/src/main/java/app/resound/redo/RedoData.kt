@@ -10,7 +10,10 @@ internal data class RedoSnapshotRow(@PrimaryKey val slot: Int = 1, val jobId: St
 
 @Dao
 internal interface RedoDao {
-    @Query("SELECT * FROM redo_snapshot WHERE slot = 1") suspend fun snapshot(): RedoSnapshotRow?
+    /** 不读快照正文：整天重做的快照可能超过 2MB，一次读出会让数据库游标装不下而闪退 */
+    @Query("SELECT slot, jobId, at, '' AS payload, applied FROM redo_snapshot WHERE slot = 1") suspend fun snapshotMeta(): RedoSnapshotRow?
+    @Query("SELECT length(payload) FROM redo_snapshot WHERE slot = 1") suspend fun payloadLength(): Int?
+    @Query("SELECT substr(payload, :from, :count) FROM redo_snapshot WHERE slot = 1") suspend fun payloadPart(from: Int, count: Int): String?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun snapshot(row: RedoSnapshotRow)
     @Query("DELETE FROM redo_snapshot") suspend fun clear()
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND startAt < :end AND endAt > :start ORDER BY startAt, id")
@@ -26,6 +29,16 @@ internal interface RedoDao {
 internal data class RedoRange(val start: Long, val end: Long) {
     fun overlaps(start: Long, end: Long) = this.start < end && this.end > start
 }
+/** 分段读出快照正文，每段 20 万字（中文按 UTF-8 约 600KB），不受游标 2MB 上限影响 */
+internal suspend fun RedoDao.fullSnapshot(): RedoSnapshotRow? {
+    val meta = snapshotMeta() ?: return null
+    val length = payloadLength() ?: 0
+    val text = StringBuilder(length)
+    var from = 1
+    while (from <= length) { text.append(payloadPart(from, SNAPSHOT_PART) ?: ""); from += SNAPSHOT_PART }
+    return meta.copy(payload = text.toString())
+}
+private const val SNAPSHOT_PART = 200_000
 internal fun mergedRanges(ranges: List<RedoRange>): List<RedoRange> {
     val out = mutableListOf<RedoRange>()
     for (r in ranges.sortedBy { it.start }) {

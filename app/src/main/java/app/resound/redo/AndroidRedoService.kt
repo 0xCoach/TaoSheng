@@ -38,7 +38,7 @@ internal class AndroidRedoService(
             while (isActive) {
                 delay(1000); mutableOptions.value = options()
                 gate.withLock {
-                    val snapshot = db.redoData().snapshot()
+                    val snapshot = db.redoData().snapshotMeta()
                     if (snapshot != null && snapshot.at < now() - 86_400_000) db.redoData().clear()
                     synchronized(this@AndroidRedoService) {
                         val undoId = snapshot?.takeIf { it.at >= now() - 86_400_000 }?.jobId
@@ -121,7 +121,7 @@ internal class AndroidRedoService(
                 synchronized(this@AndroidRedoService) { active.remove(next.id) }
             }
             currentCoroutineContext().ensureActive()
-            if (db.redoData().snapshot()?.let { it.jobId == next.id && it.applied } == true && job(next.id)?.state !is RedoJobState.Done) {
+            if (db.redoData().snapshotMeta()?.let { it.jobId == next.id && it.applied } == true && job(next.id)?.state !is RedoJobState.Done) {
                 synchronized(this) { publish(jobs.value.map { if (it.id == next.id) it.copy(state = RedoJobState.Done("重做完成", true)) else it }) }
             }
             job(next.id)?.let { RedoNotifications.finished(context, it) }

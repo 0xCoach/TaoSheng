@@ -78,7 +78,7 @@ internal class RedoEngine(
         "deletedAt IS NULL AND (" + ranges.joinToString(" OR ") { "(at < ${it.end} AND COALESCE(endAt, at + 1) > ${it.start})" } + ")"
 
     suspend fun run(id: String, request: RedoRequest, checkpoint: () -> Unit, progress: suspend (String, Float) -> Unit) {
-        var snapshot = dao.snapshot()?.takeIf { it.jobId == id }
+        var snapshot = dao.fullSnapshot()?.takeIf { it.jobId == id }
         if (snapshot?.applied == true) return // 已提交但未发布终态时被杀，不重复收费/替换。
         val s = select(request)
         require(s.ranges.isNotEmpty()) { "所选记录已不存在" }
@@ -203,7 +203,7 @@ internal class RedoEngine(
     }
     suspend fun undo(id: String): Result<Unit> = try {
         db.withTransaction {
-            val row = dao.snapshot() ?: error("撤销快照已失效")
+            val row = dao.fullSnapshot() ?: error("撤销快照已失效")
             check(row.jobId == id && now() - row.at < 86_400_000) { "只能撤销一天内最近一次重做" }
             val payload = JSONObject(row.payload); val after = payload.getJSONObject("after"); val before = payload.getJSONObject("before")
             check(snapshots.unchanged(after)) { "记录在重做后又有变化，无法安全撤销" }

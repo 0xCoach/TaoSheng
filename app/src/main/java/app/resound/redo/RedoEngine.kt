@@ -23,7 +23,8 @@ internal class RedoEngine(
     private val chooser: AsrChooser,
     private val recognize: suspend (SegmentEntity, TranscribeSource) -> AsrResult,
     private val digest: suspend (List<TranscriptLineEntity>, String?) -> RedoDigest,
-    private val merge: suspend (List<TranscriptLineEntity>, String?) -> RedoDigest = { _, _ -> RedoDigest(emptyList()) { emptyList() } },
+    /** 合并：按这几件事已整理好的结果写成一件（参数：旧事件、它们的原话、模型） */
+    private val merge: suspend (List<MemoryEventEntity>, List<TranscriptLineEntity>, String?) -> RedoDigest = { _, _, _ -> RedoDigest(emptyList()) { emptyList() } },
     private val identify: suspend (List<Long>) -> Unit = {},
     private val regenerate: suspend (List<SkillCardRow>, List<Pair<MemoryEventEntity, List<Long>>>, List<TranscriptLineEntity>) -> List<SkillCardRow> = { _, _, _ -> emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
@@ -73,9 +74,6 @@ internal class RedoEngine(
     private fun maxGap(events: List<MemoryEventEntity>): Long =
         events.sortedBy { it.startAt }.zipWithNext().maxOfOrNull { (a, b) -> b.startAt - a.endAt } ?: 0L
 
-    /** 合并的原话太多时一次读不完：行数与字数两个上限。 */
-    private fun tooLong(lines: List<TranscriptLineEntity>): Boolean =
-        lines.size > DigestRunner.MAX_LINES || lines.sumOf { it.text.length + 100 } > DigestRunner.MAX_BATCH_CHARS
 
     suspend fun estimate(request: RedoRequest): RedoEstimate {
         if (request.scope == RedoScope.Merge) {
@@ -84,7 +82,7 @@ internal class RedoEngine(
                 events = s.events.size, segments = 0, audioMs = 0, expiredEvents = 0, expiredSegments = 0,
                 editedEvents = s.events.count { it.editedAt != null },
                 etaMillis = 15_000L, costYuan = null,
-                mergeLines = s.lines.size, mergeGapMillis = maxGap(s.events), mergeTooLong = tooLong(s.lines),
+                mergeLines = s.lines.size, mergeGapMillis = maxGap(s.events), mergeTooLong = false,
             )
         }
         val s = select(request)
@@ -198,7 +196,7 @@ internal class RedoEngine(
             .distinctBy { it.id }.filter { l -> s.ranges.any { it.overlaps(l.startAt, l.endAt) } }.sortedBy { it.startAt }
         require(lines.isNotEmpty()) { "这些时间段没有可整理的原话" }
         val seenLines = mutableSetOf<Long>()
-        val batches = s.ranges.flatMap { range -> lines.filter { range.overlaps(it.startAt, it.endAt) && seenLines.add(it.id) }.chunked(DigestRunner.MAX_LINES) }
+        val batches = s.ranges.flatMap { range -> DigestRunner.batches(lines.filter { range.overlaps(it.startAt, it.endAt) && seenLines.add(it.id) }) }
         suspend fun digestWithRetry(batch: List<TranscriptLineEntity>): List<RedoDigest> {
             checkpoint(); currentCoroutineContext().ensureActive()
             return try {
@@ -244,7 +242,6 @@ internal class RedoEngine(
         require(s.events.size >= 2) { "至少选两件事才能合并" }
         require(maxGap(s.events) < MERGE_MAX_GAP_MS) { "选中的事相隔太久，只能合并前后挨着的事" }
         require(s.lines.isNotEmpty()) { "这些事没有可合并的原话" }
-        require(!tooLong(s.lines)) { "这几件事的原话太多，一次合并不完" }
         val span = RedoRange(
             minOf(s.events.minOf { it.startAt }, s.lines.first().startAt),
             maxOf(s.events.maxOf { it.endAt }, s.lines.maxOf { it.endAt }),
@@ -263,7 +260,7 @@ internal class RedoEngine(
         val originalItems = before.getJSONArray("memory_items").let { a -> (0 until a.length()).map { a.getJSONObject(it).getLong("id") } }
         val trackedSelectors = selectors.toMutableMap().apply { put("memory_items", "${selectors.getValue("memory_items")} OR id IN (${originalItems.sqlIds()})") }
         progress("合并中", .3f)
-        val result = merge(s.lines, request.llmPresetId)
+        val result = merge(s.events, s.lines, request.llmPresetId)
         require(result.events.size == 1) { "模型没能合成一条，请再试一次" }
         val (event, refs) = result.events.single()
         checkpoint(); currentCoroutineContext().ensureActive()
@@ -278,7 +275,7 @@ internal class RedoEngine(
         checkpoint(); currentCoroutineContext().ensureActive()
         commitReplace(
             payload = payload, snapshotRow = snapshot!!, trackedSelectors = trackedSelectors, originalItems = originalItems,
-            oldEvents = s.events, newEvents = listOf(newEvent to refs), itemsFor = { ids -> result.items(ids) },
+            oldEvents = s.events, newEvents = listOf(newEvent to refs), itemsFor = { emptyList() }, keepAllItems = true,
             participatingLines = s.lines, cards = cards, newCards = newCards, checkpoint = checkpoint,
         )
     }
@@ -299,13 +296,16 @@ internal class RedoEngine(
         cards: List<SkillCardRow>,
         newCards: List<SkillCardRow>,
         checkpoint: () -> Unit,
+        /** 合并：旧事件的提取项全部原样保留、改挂到新事件，不重新生成 */
+        keepAllItems: Boolean = false,
     ) {
         val oldIds = oldEvents.map { it.id }
         db.withTransaction {
             checkpoint()
             check(snapshots.unchanged(payload.getJSONObject("after"))) { "记录已被修改，请重新选择后重做" }
             val oldItems = dao.items(oldIds)
-            val preserved = oldItems.filter { (it.category in setOf("待办", "约定") && it.status in setOf("Accepted", "Done", "Ignored")) || it.deleted || it.editedAt != null }
+            val preserved = if (keepAllItems) oldItems else
+                oldItems.filter { (it.category in setOf("待办", "约定") && it.status in setOf("Accepted", "Done", "Ignored")) || it.deleted || it.editedAt != null }
             // 保留条目先解除旧事件外键；避免删除事件时级联删除用户状态。
             preserved.forEach { dao.item(it.copy(eventId = null)) }
             val sql = db.openHelper.writableDatabase

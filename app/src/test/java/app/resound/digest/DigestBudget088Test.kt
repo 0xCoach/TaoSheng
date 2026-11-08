@@ -10,12 +10,12 @@ import org.junit.Test
 
 class DigestBudget088Test {
     @Test fun characterBatchesKeepEveryLineAndRejectOversizedSingleLine() {
-        val lines = (1L..6).map { TranscriptLineEntity(it, 1, it, it + 1, "测".repeat(4000), null) }
+        val lines = (1L..6).map { TranscriptLineEntity(it, 1, it, it + 1, "测".repeat(DigestRunner.MAX_BATCH_CHARS / 3), null) }
         val batches = DigestRunner.batches(lines)
         assertEquals(lines, batches.flatten())
         assertTrue(batches.size > 1)
-        assertTrue(batches.all { batch -> batch.sumOf { it.text.length + 100 } <= DigestRunner.MAX_BATCH_CHARS })
-        assertTrue(runCatching { DigestRunner.batches(listOf(lines.first().copy(text = "测".repeat(12_001)))) }
+        assertTrue(batches.all { batch -> batch.sumOf { it.text.length + DigestRunner.LINE_OVERHEAD_CHARS } <= DigestRunner.MAX_BATCH_CHARS })
+        assertTrue(runCatching { DigestRunner.batches(listOf(lines.first().copy(text = "测".repeat(DigestRunner.MAX_BATCH_CHARS + 1)))) }
             .exceptionOrNull() is DigestBatchLimitException)
     }
     @Test fun jsonRequestsHaveOutputLimitAndOversizedInputNeverReachesServer() = runBlocking {

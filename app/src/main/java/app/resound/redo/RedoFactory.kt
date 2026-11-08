@@ -61,14 +61,13 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = reply.actualModel ?: preset.model) to e.lineIds },
             { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
                 dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
-    }, merge = { lines, presetId ->
+    }, merge = { events, lines, presetId ->
         val (preset, key) = synchronized(digestSettings.providers.guard) {
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
             digestSettings.skillCredentials(presetId)
         }
-        val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
-        val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
-        val reply = digestSettings.failover.request("合并事件", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, MergePrompt.system(mergeTemplate(), LocalDate.now(), context.appName), input)
+        val indexed = lines.sortedBy { it.startAt }
+        val reply = digestSettings.failover.request("合并事件", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, MergePrompt.system(mergeTemplate(), LocalDate.now(), context.appName), MergePrompt.input(events))
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (event, items) = MergePrompt.parse(reply.content, indexed)
         val at = System.currentTimeMillis()

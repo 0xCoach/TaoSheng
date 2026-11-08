@@ -18,6 +18,25 @@ object MergePrompt {
             "\n\n" + DigestPrompt.VOICE_INPUT_RULES
 
     /**
+     * 合并的输入：几件事已经整理好的标题、摘要、要点（不重读原话，多长的事都能合，提取项原样保留）。
+     */
+    fun input(events: List<app.resound.data.MemoryEventEntity>, zone: ZoneId = ZoneId.systemDefault()): String {
+        val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+        fun at(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(zone).format(time)
+        return buildString {
+            events.sortedBy { it.startAt }.forEachIndexed { i, e ->
+                appendLine("【记录 ${i + 1}】${at(e.startAt)}–${at(e.endAt)} · ${e.scene}")
+                appendLine("标题：${e.title}")
+                if (e.summary.isNotBlank()) appendLine("摘要：${e.summary}")
+                JSONArray(e.pointsJson.ifBlank { "[]" }).strings().takeIf { it.isNotEmpty() }?.let { appendLine("要点：" + it.joinToString("；")) }
+                JSONArray(e.peopleJson.ifBlank { "[]" }).strings().takeIf { it.isNotEmpty() }?.let { appendLine("提到的人：" + it.joinToString("、")) }
+                e.place?.let { appendLine("地点：$it") }
+                appendLine()
+            }
+        }.trim()
+    }
+
+    /**
      * 解析大模型回复。
      * `merged` 缺失或格式完全不对时抛 [LlmException]（Format）。
      * 合并后的事件覆盖全部原话行；提取项的行号越界就不带出处，但仍然算这一件事的。

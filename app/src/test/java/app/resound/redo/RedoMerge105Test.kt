@@ -49,7 +49,7 @@ class RedoMerge105Test {
     private fun engine(mergedEvents: Int = 1) = RedoEngine(db, chooser,
         recognize = { _, _ -> error("合并不该重新转写") },
         digest = { _, _ -> error("合并不该走普通整理") },
-        merge = { lines, _ ->
+        merge = { _, lines, _ ->
             val e = event(0, lines.minOf { it.startAt }, lines.maxOf { it.endAt }).copy(title = "合并事件", model = "m")
             RedoDigest(List(mergedEvents) { e to lines.map { it.id } }) { ids -> listOf(MemoryItemEntity(eventId = ids[0], category = "待办", kind = null,
                 content = "交报告", dueText = null, dueAt = null, who = null, lineId = lines.first().id, status = "Pending", createdAt = 10)) }
@@ -126,11 +126,24 @@ class RedoMerge105Test {
         assertEquals(1, items.size); assertEquals(7, items.single().id); assertEquals(2L, items.single().eventId)
     }
 
-    @Test fun mergeRefusesTooManyLines() = runBlocking {
+    /** 合并按已整理好的结果写，不重读原话：原话再多也能合，旧事件的提取项（含未确认的）全部原样改挂过去 */
+    @Test fun mergeHandlesManyLinesAndKeepsAllOldItems() = runBlocking {
         seed(1, 1000, 3000); seed(2, 4000, 6000)
-        db.transcribe().insertLines((10..400).map { TranscriptLineEntity(it.toLong(), 1L, 3000L + it, 3001L + it, "话$it", null, eventId = 1, digestedAt = 1) })
-        try { run(engine()); fail() } catch (e: IllegalArgumentException) { assertTrue(e.message!!.contains("原话太多")) }
-        assertEquals(2, db.redoData().events(0, 10_000_000).size)
+        db.transcribe().insertLines((10..2000).map { TranscriptLineEntity(it.toLong(), 1L, 3000L + it, 3001L + it, "话$it", null, eventId = 1, digestedAt = 1) })
+        db.memory().insertItems(listOf(
+            MemoryItemEntity(id = 7, eventId = 1, category = "待办", kind = null, content = "交报告", dueText = null, dueAt = null, who = null, lineId = 1, status = "Pending", createdAt = 1),
+            MemoryItemEntity(id = 8, eventId = 2, category = "关键信息", kind = null, content = "电话 123", dueText = null, dueAt = null, who = null, lineId = 2, status = "Pending", createdAt = 1)))
+        var seenEvents = 0
+        val e = RedoEngine(db, chooser, recognize = { _, _ -> error("不该转写") }, digest = { _, _ -> error("不该普通整理") },
+            merge = { events, lines, _ ->
+                seenEvents = events.size
+                RedoDigest(listOf(event(0, lines.minOf { it.startAt }, lines.maxOf { it.endAt }).copy(title = "合并事件") to lines.map { it.id })) { emptyList() }
+            }, now = { 100 })
+        run(e)
+        assertEquals(2, seenEvents)
+        val events = db.redoData().events(0, 10_000_000)
+        assertEquals(listOf("合并事件"), events.map { it.title })
+        assertEquals(setOf(7L, 8L), db.redoData().items(events.map { it.id }).map { it.id }.toSet())
     }
 
     @Test fun mergeEstimateReportsLinesGapAndNoAudioCost() = runBlocking {
@@ -150,7 +163,7 @@ class RedoMerge105Test {
         db.transcribe().insertLines(listOf(TranscriptLineEntity(90, 30, 7000, 8000, "别人的原话", null, eventId = 30, digestedAt = 1)))
         var seen = 0
         val e = RedoEngine(db, chooser, recognize = { _, _ -> error("不该转写") }, digest = { _, _ -> error("不该普通整理") },
-            merge = { lines, _ ->
+            merge = { _, lines, _ ->
                 seen = lines.size
                 val e2 = event(0, lines.minOf { it.startAt }, lines.maxOf { it.endAt }).copy(title = "合并事件")
                 RedoDigest(listOf(e2 to lines.map { it.id })) { emptyList() }

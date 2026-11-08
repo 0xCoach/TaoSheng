@@ -18,8 +18,8 @@ class DigestProgressTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private fun db() = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
     private suspend fun seed(db: CaptureDatabase) {
-        db.capture().segment(SegmentEntity(id = 1, startAt = 0, endAt = 301000, sourceId = "test", path = "/synthetic", sizeBytes = 0, status = "Done"))
-        db.transcribe().insertLines((1L..301).map { TranscriptLineEntity(id = it, segmentId = 1, startAt = it * 1000, endAt = it * 1000 + 900, text = "合成测试", speakerTag = null) })
+        db.capture().segment(SegmentEntity(id = 1, startAt = 0, endAt = (DigestRunner.MAX_LINES + 1) * 1000L, sourceId = "test", path = "/synthetic", sizeBytes = 0, status = "Done"))
+        db.transcribe().insertLines((1L..DigestRunner.MAX_LINES + 1).map { TranscriptLineEntity(id = it, segmentId = 1, startAt = it * 1000, endAt = it * 1000 + 900, text = "合成测试", speakerTag = null) })
     }
     private fun runner(db: CaptureDatabase, action: suspend () -> LlmReply): DigestRunner {
         val client = LlmClient()
@@ -43,14 +43,14 @@ class DigestProgressTest {
             runner = runner(db) {
                 calls++
                 assertTrue(runner.running.value)
-                assertEquals(301, runner.progress.value.total)
+                assertEquals(DigestRunner.MAX_LINES + 1, runner.progress.value.total)
                 assertEquals(calls, runner.progress.value.batch)
-                assertEquals(if (calls == 1) 0 else 300, runner.progress.value.done)
+                assertEquals(if (calls == 1) 0 else DigestRunner.MAX_LINES, runner.progress.value.done)
                 success()
             }
             assertFalse(runner.run()); assertEquals(2, calls)
-            assertEquals(301, runner.progress.value.done)
-            assertEquals("整理 301/301 句", runner.progress.value.label)
+            assertEquals(DigestRunner.MAX_LINES + 1, runner.progress.value.done)
+            assertEquals("整理 ${DigestRunner.MAX_LINES + 1}/${DigestRunner.MAX_LINES + 1} 句", runner.progress.value.label)
             assertFalse(runner.running.value); assertTrue(db.memory().undigestedLines().isEmpty())
         } finally { db.close() }
     }
@@ -60,7 +60,7 @@ class DigestProgressTest {
             seed(db); var calls = 0
             val runner = runner(db) { if (++calls == 2) throw LlmException(LlmError.Network); success() }
             assertTrue(runner.run())
-            assertEquals(300, runner.progress.value.done); assertEquals(301, runner.progress.value.total)
+            assertEquals(DigestRunner.MAX_LINES, runner.progress.value.done); assertEquals(DigestRunner.MAX_LINES + 1, runner.progress.value.total)
             assertEquals(1, db.memory().undigestedLines().size)
             assertFalse(runner.running.value); assertEquals(LlmError.Network.human, runner.last.value.second)
         } finally { db.close() }
@@ -73,7 +73,7 @@ class DigestProgressTest {
             val job = launch { runner.run() }
             entered.await(); job.cancelAndJoin()
             assertFalse(runner.running.value); assertEquals(0, runner.progress.value.done)
-            assertEquals(301, db.memory().undigestedLines().size)
+            assertEquals(DigestRunner.MAX_LINES + 1, db.memory().undigestedLines().size)
         } finally { db.close() }
     }
 }

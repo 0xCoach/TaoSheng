@@ -305,15 +305,21 @@ class DigestRunner(
     companion object {
         const val GAP_MS = AndroidDigestSettings.DEFAULT_PAUSE * 60_000L
         const val LONG_MS = AndroidDigestSettings.DEFAULT_MAX_WAIT * 60_000L
-        const val MAX_LINES = 300
+        /**
+         * 一批最多交给大模型多少句、多少字。模型能读 12.8 万 token，限制主要防回答太长被截断：
+         * 实测 600 句（约 2.1 万字）不思考回答约 4600 token、思考约 1.8 万，都在上限内；再超出还有拆小重试兜底。
+         */
+        const val MAX_LINES = 600
         const val MAX_FORMAT_FAILURES = 3
-        const val MAX_BATCH_CHARS = 12_000
+        const val MAX_BATCH_CHARS = 40_000
+        /** 每句除正文外的编号、时间、说话人（如“[123] 12:34:56 说话人1：”）约 20 字，留点余量 */
+        const val LINE_OVERHEAD_CHARS = 30
 
         internal fun batches(lines: List<TranscriptLineEntity>): List<List<TranscriptLineEntity>> {
             val chunks = mutableListOf<MutableList<TranscriptLineEntity>>()
             var chars = 0
             for (line in lines) {
-                val size = line.text.length + 100
+                val size = line.text.length + LINE_OVERHEAD_CHARS
                 if (size > MAX_BATCH_CHARS) throw DigestBatchLimitException()
                 if (chunks.isEmpty() || chunks.last().size >= MAX_LINES || chars + size > MAX_BATCH_CHARS) {
                     chunks += mutableListOf<TranscriptLineEntity>(); chars = 0

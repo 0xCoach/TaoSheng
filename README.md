@@ -173,13 +173,21 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 git clone https://github.com/0xCoach/TaoSheng.git
 cd TaoSheng
 
-# 需要 JDK 21 和 Android SDK（compileSdk 36）
-# gradle.properties 里的 org.gradle.java.home 改成你本机 JDK 21 的路径
+# 需要 JDK 21 和 Android SDK Platform 36；JAVA_HOME 指向本机 JDK 21
 echo "sdk.dir=/path/to/android-sdk" > local.properties
 
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Windows PowerShell：
+
+```powershell
+$env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
+.\gradlew.bat assembleDebug
+```
+
+用 Android Studio 打开项目时，将 Gradle JDK 设为 **JDK 21**，并安装 Android SDK Platform 36。SDK 路径保存在被 Git 忽略的 `local.properties`；不要把本机 JDK 路径写进共享的 `gradle.properties`。
 
 > 也可以直接用 Android Studio 打开项目，点运行。
 >

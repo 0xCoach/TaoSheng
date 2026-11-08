@@ -163,7 +163,7 @@ arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https:/
 git clone https://github.com/0xCoach/TaoSheng.git
 cd TaoSheng
 # Requires JDK 21 + Android SDK (compileSdk 36)
-# Point org.gradle.java.home in gradle.properties to your JDK 21
+# Set JAVA_HOME to your local JDK 21; keep machine paths out of gradle.properties
 echo "sdk.dir=/path/to/android-sdk" > local.properties
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk

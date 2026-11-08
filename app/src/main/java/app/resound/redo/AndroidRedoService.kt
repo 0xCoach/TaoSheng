@@ -58,8 +58,12 @@ internal class AndroidRedoService(
             asr = request.asr ?: asr.lastChoice.value,
             llmPresetId = request.llmPresetId ?: choices.getString("llm", null)?.takeIf { id -> options().any { it.presetId == id && it.ready } } ?: currentLlm())
         val id = UUID.randomUUID().toString()
-        if (request.scope != RedoScope.TranscribeOnly) check(choices.edit().putString("llm", normalized.llmPresetId).commit())
-        publish(jobs.value + RedoJob(id, if (request.scope == RedoScope.TranscribeOnly) "重新转写" else "重做事件", normalized,
+        if (request.scope.digests) check(choices.edit().putString("llm", normalized.llmPresetId).commit())
+        publish(jobs.value + RedoJob(id, when (request.scope) {
+            RedoScope.TranscribeOnly -> "重新转写"
+            RedoScope.Merge -> "合并事件"
+            else -> "重做事件"
+        }, normalized,
             RedoJobState.Running("排队中", 0f), now()))
         try { enqueue() } catch (_: Exception) { update(id, RedoJobState.Failed("无法安排后台重做，请重试")) }
         return id
@@ -96,15 +100,19 @@ internal class AndroidRedoService(
                         idle {
                             fun checkpoint() { if (job(next.id)?.state !is RedoJobState.Running) throw CancellationException("已取消") }
                             checkpoint()
-                            if (next.request.scope != RedoScope.DigestOnly) require(asr.options.value.any { it.source == next.request.asr && it.ready }) { "指定转写方式未就绪" }
-                            if (next.request.scope != RedoScope.TranscribeOnly) require(options().any { it.presetId == next.request.llmPresetId && it.ready }) { "指定整理模型未就绪" }
+                            if (next.request.scope.transcribes) require(asr.options.value.any { it.source == next.request.asr && it.ready }) { "指定转写方式未就绪" }
+                            if (next.request.scope.digests) require(options().any { it.presetId == next.request.llmPresetId && it.ready }) { "指定整理模型未就绪" }
                             engine.run(next.id, next.request, ::checkpoint) { stage, fraction ->
                                 update(next.id, RedoJobState.Running(stage, fraction)); job(next.id)?.let { progress(it) }
                             }
                             // applied 与取消竞争时，以已经原子提交的数据库事实为准。
                             synchronized(this@AndroidRedoService) {
                                 publish(jobs.value.map { if (it.id == next.id) it.copy(state = RedoJobState.Done(
-                                    if (next.request.scope == RedoScope.TranscribeOnly) "原话已更新，可以再去重新整理" else "重做完成", true))
+                                    when (next.request.scope) {
+                                        RedoScope.TranscribeOnly -> "原话已更新，可以再去重新整理"
+                                        RedoScope.Merge -> "合并完成"
+                                        else -> "重做完成"
+                                    }, true))
                                     else if (it.state is RedoJobState.Done) it.copy(state = it.state.copy(undoable = false)) else it })
                             }
                         }

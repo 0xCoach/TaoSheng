@@ -50,8 +50,12 @@ internal object RedoNotifications {
             .setAction("app.resound.redoResult.${job.id}").putExtra(EXTRA_REDO_JOB, job.id)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val title = when (job.request.scope) {
+            RedoScope.Merge -> "合并"
+            else -> "重做"
+        }
         runCatching { manager(context).notify(resultId(job.id), NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_notify).setContentTitle(if (job.state is RedoJobState.Done) "重做完成" else "重做失败")
+            .setSmallIcon(R.drawable.ic_notify).setContentTitle(if (job.state is RedoJobState.Done) "${title}完成" else "${title}失败")
             .setContentText(text).setContentIntent(open).setAutoCancel(true).build()) }
     }
     fun clear(context: Context, id: String) { runCatching { manager(context).cancel(resultId(id)) } }

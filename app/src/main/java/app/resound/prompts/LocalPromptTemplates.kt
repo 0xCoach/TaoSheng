@@ -16,6 +16,7 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
         Triple("review", "每日回顾", "根据已整理的事件生成每日回顾"),
         Triple("ask", "问问", "检索记忆并回答问题"),
         Triple("things", "找东西放哪了", "从新原话中找物品位置与借还记录"),
+        Triple("merge", "合并成一条", "把分开记的几件事合成一件"),
     )
     private val mutable = MutableStateFlow(infos())
     override val list = mutable.asStateFlow()
@@ -38,7 +39,7 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
         runCatching {
             val target = file(id)
             require(text.isNotBlank()) { "指令模板不能为空" }
-            val purpose = when (id) { "digest" -> "整理"; "review" -> "回顾"; "things" -> "寻物"; else -> "问答" }
+            val purpose = when (id) { "digest" -> "整理"; "review" -> "回顾"; "things" -> "寻物"; "merge" -> "合并"; else -> "问答" }
             required(id).firstOrNull { it !in text }?.let { error("缺少 $it，${purpose}时会用到") }
             check(directory.isDirectory || directory.mkdirs()) { "模板保存失败，请重试" }
             val atomic = AtomicFile(target)
@@ -55,7 +56,7 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
         mutable.value = infos()
     }
     companion object {
-        internal val ids = listOf("digest", "review", "ask", "things")
+        internal val ids = listOf("digest", "review", "ask", "things", "merge")
         // AtomicFile 本身不串行化读写；备份与编辑共享此锁。
         internal val fileLock = Any()
     }

@@ -32,7 +32,18 @@ enum class RedoScope {
     TranscribeAndDigest,
     /** 只重新转写（原话页选录音段时） */
     TranscribeOnly,
+    /** 把选中的几条记录合并成一条：原话不重转写，只把它们的原话合起来重新分析 */
+    Merge,
 }
+
+/** 要不要重新转写原话 */
+val RedoScope.transcribes: Boolean get() = this == RedoScope.TranscribeAndDigest || this == RedoScope.TranscribeOnly
+
+/** 要不要让大模型重新分析原话 */
+val RedoScope.digests: Boolean get() = this == RedoScope.DigestOnly || this == RedoScope.TranscribeAndDigest || this == RedoScope.Merge
+
+/** 合并时相邻两条记录的最大允许间隔：超过就不让合（避免合出一条横跨很久的事） */
+const val MERGE_MAX_GAP_MS = 30 * 60_000L
 
 /** 首页选事件时给 eventIds；原话页选录音段时给 segmentIds。asr 只在需要转写时用 */
 data class RedoRequest(
@@ -54,6 +65,12 @@ data class RedoEstimate(
     val editedEvents: Int,
     val etaMillis: Long?,
     val costYuan: Double?,
+    /** 合并时：参与合并的原话行数 */
+    val mergeLines: Int = 0,
+    /** 合并时：相邻两条记录之间的最大间隔（毫秒）；不足两条为 null */
+    val mergeGapMillis: Long? = null,
+    /** 合并时：原话太长，一次读不完 */
+    val mergeTooLong: Boolean = false,
 )
 
 sealed interface RedoJobState {

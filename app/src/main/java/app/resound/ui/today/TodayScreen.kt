@@ -214,6 +214,7 @@ fun TodayScreen(
     val batchScope = rememberCoroutineScope()
     var batchDeleting by remember { mutableStateOf<List<Long>?>(null) }
     var redoing by remember { mutableStateOf<List<Long>?>(null) }
+    var merging by remember { mutableStateOf<List<Long>?>(null) }
     var batchCopying by remember { mutableStateOf<List<MemoryEvent>?>(null) }
     var homeExport by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var copyNote by remember { mutableStateOf<String?>(null) }
@@ -317,6 +318,7 @@ fun TodayScreen(
     ScrollTopButton(listState, bottomPadding, lift = if (selection.active) 120.dp else 0.dp)
     SelectBottomBar(selection, order, bottomPadding, onTop = { bottomEdge = it },
         onRedo = { redoing = chosen.map { it.id }; selection.exit() },
+        onMerge = { merging = chosen.map { it.id }; selection.exit() },
         onCopy = { batchCopying = list.filter { it.id in selection.ids } },
         onExport = {
             // 选中几件事的录音合成一个文件：先查出它们的录音段，再打开导出面板
@@ -345,6 +347,7 @@ fun TodayScreen(
     }) { peopleOpen = false }
     homeExport?.let { (ids, title) -> app.resound.ui.transcript.ExportSheet(ids, title) { homeExport = null; selection.exit() } }
     redoing?.let { ids -> app.resound.ui.redo.RedoSheet(eventIds = ids) { redoing = null } }
+    merging?.let { ids -> app.resound.ui.redo.RedoSheet(eventIds = ids, merge = true) { merging = null } }
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
         val phases = if (app.resound.AppGraph.isPrivacyReady)
@@ -888,6 +891,9 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
     val c = Rs.colors
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val count = entries.sumOf { when (it) { is TimelineEntry.Event -> 1; is TimelineEntry.Import -> it.events.size; else -> 0 }.toInt() }
+    // 合并过的事可能跨过中间别的事（和 A 聊着、B 插了几句、又接着聊）：这种标一下“中间有插话”
+    val events = entries.mapNotNull { (it as? TimelineEntry.Event)?.event }
+    val interrupted = events.filter { e -> events.any { o -> o.id != e.id && o.startAt > e.startAt && o.startAt < e.endAt && o.endAt <= e.endAt } }.map { it.id }.toSet()
     Column(modifier) {
         Text(if (count > 0) "$part · $count 件" else part, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
@@ -898,10 +904,10 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                     is TimelineEntry.Event -> if (selection?.active == true) {
                         val id = e.event.id
                         TimelineLine(e.event, onLongPress = { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); selection.rangeTo(id, order) },
-                            modifier = Modifier.trackRow(selection, id), selected = id in selection.ids) { selection.toggle(id, order) }
+                            modifier = Modifier.trackRow(selection, id), selected = id in selection.ids, interrupted = id in interrupted) { selection.toggle(id, order) }
                     } else SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { lp ->
                         val start = selection?.let { s -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); s.start(e.event.id) } }
-                        TimelineLine(e.event, start ?: lp) { onOpen(e.event) }
+                        TimelineLine(e.event, start ?: lp, interrupted = e.event.id in interrupted) { onOpen(e.event) }
                     }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                     is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events.size) { onOpenImport(e.record) }
@@ -931,7 +937,9 @@ private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit)
 @Composable
 internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null, modifier: Modifier = Modifier,
                           /** 多选模式下为 true/false 表示是否选中；不在多选为 null */
-                          selected: Boolean? = null, onOpen: () -> Unit) {
+                          selected: Boolean? = null,
+                          /** 这件事的时间里夹着别的事（合并时跨过了插话） */
+                          interrupted: Boolean = false, onOpen: () -> Unit) {
     val c = Rs.colors
     val quiet = event.isMedia()
     val selBg by androidx.compose.animation.animateColorAsState(if (selected == true) c.accentSoft.copy(alpha = 0.6f) else Color.Transparent, label = "rowSel")
@@ -964,6 +972,10 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
                 } else if (event.important) {
                     Spacer(Modifier.width(6.dp))
                     Text("要紧", style = RsType.caption, color = c.textTertiary)
+                }
+                if (interrupted) {
+                    Spacer(Modifier.width(6.dp))
+                    Text("中间有插话", style = RsType.caption, color = c.textTertiary, maxLines = 1)
                 }
             }
             Spacer(Modifier.height(2.dp))

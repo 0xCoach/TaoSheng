@@ -41,6 +41,8 @@ import app.resound.redo.RedoJobState
 import app.resound.redo.RedoRequest
 import app.resound.redo.RedoScope
 import app.resound.redo.RedoService
+import app.resound.redo.MERGE_MAX_GAP_MS
+import app.resound.redo.transcribes
 import app.resound.transcribe.TranscribeSource
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
@@ -112,28 +114,30 @@ private fun Label(text: String) =
  * 开始后面板变成进度，关掉不影响，做完有通知。
  */
 @Composable
-fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = emptyList(), onDismiss: () -> Unit) {
+fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = emptyList(), merge: Boolean = false, onDismiss: () -> Unit) {
     if (!AppGraph.isRedoReady) { onDismiss(); return }
     val repo = AppGraph.redo
     val c = Rs.colors
     val segmentsOnly = eventIds.isEmpty()
-    var scope by remember { mutableStateOf(if (segmentsOnly) RedoScope.TranscribeOnly else RedoScope.DigestOnly) }
+    var scope by remember { mutableStateOf(if (merge) RedoScope.Merge else if (segmentsOnly) RedoScope.TranscribeOnly else RedoScope.DigestOnly) }
     val last by repo.asr.lastChoice.collectAsState()
     val asrOptions by repo.asr.options.collectAsState()
     var asr by remember { mutableStateOf(last) }
     val llms by repo.llmOptions.collectAsState()
     var llm by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(llms) { if (llm == null || llms.none { it.presetId == llm && it.ready }) llm = llms.firstOrNull { it.ready }?.presetId }
-    val needsAsr = scope != RedoScope.DigestOnly
+    val needsAsr = scope.transcribes
     fun request() = RedoRequest(eventIds, segmentIds, scope, if (needsAsr) asr else null, if (scope != RedoScope.TranscribeOnly) llm else null)
     val estimate by produceState<RedoEstimate?>(null, scope, asr, llm) { value = runCatching { repo.estimate(request()) }.getOrNull() }
     var jobId by remember { mutableStateOf<String?>(null) }
     val jobs by repo.jobs.collectAsState()
     val job = jobId?.let { id -> jobs.firstOrNull { it.id == id } }
-    val title = if (segmentsOnly) "重新转写 ${segmentIds.size} 段录音" else "重做 ${eventIds.size} 件事"
+    val title = if (merge) "合并 ${eventIds.size} 件事" else if (segmentsOnly) "重新转写 ${segmentIds.size} 段录音" else "重做 ${eventIds.size} 件事"
     RsSheet(title, null, onDismiss = onDismiss, fixedHeight = job == null) {
         if (job != null) { JobBody(repo, job, onDismiss); return@RsSheet }
-        if (!segmentsOnly) {
+        if (merge) Text("原话不动，把这几件事合起来重新整理成一件；中间隔着的其他事不受影响",
+            style = RsType.caption, color = c.textSecondary)
+        else if (!segmentsOnly) {
             Segmented(listOf("只重新整理", "重新转写并整理"), if (scope == RedoScope.DigestOnly) 0 else 1) {
                 scope = if (it == 0) RedoScope.DigestOnly else RedoScope.TranscribeAndDigest
             }
@@ -145,7 +149,7 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
             AsrChoice(repo.asr, estimate?.audioMs ?: 0L, asr) { asr = it }
         }
         if (scope != RedoScope.TranscribeOnly) {
-            Label("用哪个模型整理")
+            Label(if (merge) "用哪个模型合并" else "用哪个模型整理")
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 llms.forEach { o ->
                     val on = o.presetId == llm
@@ -170,9 +174,11 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
             val warn = buildList {
                 if (needsAsr && e.expiredSegments > 0) add(if (segmentsOnly) "其中 ${e.expiredSegments} 段原声已过期，只能保留原来的文字"
                     else "其中 ${e.expiredEvents} 件事的原声已过期，只能重新整理")
-                if (scope != RedoScope.TranscribeOnly && e.editedEvents > 0) add("${e.editedEvents} 件事你手动改过，重做会覆盖你的修改")
+                if (scope != RedoScope.TranscribeOnly && e.editedEvents > 0) add("${e.editedEvents} 件事你手动改过，${if (merge) "合并" else "重做"}会覆盖你的修改")
+                if (merge && (e.mergeGapMillis ?: 0) >= MERGE_MAX_GAP_MS) add("有两件事相隔 ${(e.mergeGapMillis ?: 0) / 60_000} 分钟，超过 ${MERGE_MAX_GAP_MS / 60_000} 分钟的不能合并")
+                if (merge && e.mergeTooLong) add("这几件事的原话太多，一次合并不完，少选几件再试")
             }
-            val line = listOfNotNull(
+            val line = if (merge) "共 ${e.mergeLines} 句原话" else listOfNotNull(
                 if (needsAsr && e.audioMs > 0) "录音 ${etaText(e.audioMs)?.removePrefix("约 ")}" else null,
                 etaText(e.etaMillis)?.let { "预计 ${it.removePrefix("约 ")}" },
                 costText(e.costYuan)?.let { "转写 $it" },
@@ -181,13 +187,14 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (line.isNotBlank()) Text(line, style = RsType.subhead, color = c.textSecondary)
                 warn.forEach { Text("· $it", style = RsType.caption, color = c.warning) }
-                if (scope != RedoScope.TranscribeOnly) Text("重点和已确认、已完成的待办会保留；做完可以撤销", style = RsType.caption, color = c.textTertiary)
+                if (scope != RedoScope.TranscribeOnly) Text("重点和已确认、已完成的待办会保留；${if (merge) "合并" else "做"}完可以撤销", style = RsType.caption, color = c.textTertiary)
             }
         }
         val allExpired = needsAsr && estimate?.let { it.audioMs == 0L && (it.expiredSegments > 0) } == true
         val canStart = estimate != null && (!needsAsr || asr in asrOptions.filter { it.ready }.map { it.source }) &&
-            (scope == RedoScope.TranscribeOnly || llm != null) && !allExpired
-        ActionButton(if (allExpired) "原声都已过期，无法重新转写" else "开始", ActionKind.Primary, enabled = canStart) {
+            (scope == RedoScope.TranscribeOnly || llm != null) && !allExpired &&
+            (!merge || (eventIds.size >= 2 && estimate?.let { (it.mergeGapMillis ?: 0) < MERGE_MAX_GAP_MS && !it.mergeTooLong && it.mergeLines > 0 } == true))
+        ActionButton(if (allExpired) "原声都已过期，无法重新转写" else if (merge) "合并成一件" else "开始", ActionKind.Primary, enabled = canStart) {
             if (needsAsr) repo.asr.remember(asr)
             jobId = repo.start(request())
         }
@@ -226,7 +233,7 @@ private fun JobBody(repo: RedoService, job: RedoJob, onClose: () -> Unit) {
             Text(st.summary, style = RsType.body, color = c.textSecondary)
             undoMsg?.let { Text(it, style = RsType.caption, color = c.warning) }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (st.undoable) ActionButton("撤销重做", ActionKind.Secondary, Modifier.weight(1f)) {
+                if (st.undoable) ActionButton(if (job.request.scope == RedoScope.Merge) "撤销合并" else "撤销重做", ActionKind.Secondary, Modifier.weight(1f)) {
                     scope.launch { repo.undo(job.id).onFailure { undoMsg = it.message ?: "撤销失败" } }
                 }
                 ActionButton("好", ActionKind.Primary, Modifier.weight(1f)) { repo.dismiss(job.id); onClose() }

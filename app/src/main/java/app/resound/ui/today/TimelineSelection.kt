@@ -144,10 +144,10 @@ private fun BarText(text: String, color: Color, onClick: () -> Unit) =
     androidx.compose.material3.Text(text, style = RsType.body.copy(fontWeight = FontWeight.Medium), color = color,
         modifier = Modifier.clip(RoundedCornerShape(16.dp)).springClick(onClick).padding(horizontal = 14.dp, vertical = 10.dp))
 
-/** 底部两行面板：上行 ✕ · 已选 N 件 · 全选；下行 重做 / 复制 / 导出 / 删除 N。都在拇指够得着的地方（批量加重点很少用，换成了重做） */
+/** 底部两行面板：上行 ✕ · 已选 N 件 ·（选两件以上时）合并 · 全选；下行 重做 / 复制 / 导出 / 删除 N。都在拇指够得着的地方（批量加重点很少用，换成了重做） */
 @Composable
 internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, order: List<Long>, bottomPadding: Dp,
-                                      onTop: (Float) -> Unit, onRedo: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit, onExport: () -> Unit = {}) {
+                                      onTop: (Float) -> Unit, onRedo: () -> Unit, onCopy: () -> Unit, onDelete: () -> Unit, onExport: () -> Unit = {}, onMerge: () -> Unit = {}) {
     val c = Rs.colors
     AnimatedVisibility(selection.active, Modifier.align(Alignment.BottomCenter),
         enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
@@ -163,6 +163,10 @@ internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, order: List<
                 BarText("✕", c.textSecondary) { selection.exit() }
                 androidx.compose.material3.Text(if (n == 0) "选择要处理的事" else "已选 $n 件", style = RsType.body.copy(fontWeight = FontWeight.SemiBold),
                     color = c.text, maxLines = 1, modifier = Modifier.weight(1f))
+                // 选了两件以上才能合并：把分开记的几件事合成一件
+                AnimatedVisibility(n >= 2, enter = fadeIn() + scaleIn(initialScale = 0.8f), exit = fadeOut() + scaleOut(targetScale = 0.8f)) {
+                    BarText("合并", c.accent, onMerge)
+                }
                 BarText(if (all) "全不选" else "全选", c.accent) {
                     if (all) selection.removeAll(order) else selection.addAll(order)
                 }

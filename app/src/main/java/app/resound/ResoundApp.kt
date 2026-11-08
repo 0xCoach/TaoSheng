@@ -171,7 +171,8 @@ class ResoundApp : Application() {
             idle = { block -> transcribeRunner.withIdleAudio { voiceprintRepository.withStableResults { block() } } },
             transcribe = scheduler::runNow, ready = { scheduler.runDigestNow(); voiceprintRepository.cleanupAudio() })
         val redoEngine = app.resound.redo.createRedoEngine(this, database, asrChooser, settings, digestSettings, llm,
-            hotwords::merged, { AppGraph.prompts.text("digest") }, { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork)
+            hotwords::merged, { AppGraph.prompts.text("digest") }, { AppGraph.prompts.text("merge") },
+            { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork)
         AppGraph.redo = app.resound.redo.AndroidRedoService(this, database, asrChooser, redoEngine, scope,
             { app.resound.redo.llmOptions(digestSettings) }, { digestSettings.presetId.value },
             idle = { block -> transcribeRunner.withIdleAudio { digestRunner.withIdle { block() } } })

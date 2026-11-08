@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.18-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.19-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -136,7 +136,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.2.18** (2026-11-08, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.18-arm64.apk) — voiceprint sample management: play back or delete each person's samples, clear stored sample audio in one tap; custom ASR accepts a full request URL. [Detailed changelog (Chinese)](CHANGELOG.md#0218--2026-11-08). No new database migration.
+**v0.2.19** (2026-11-08, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.19-arm64.apk) — digests no longer chop one conversation into many fragments; new optional "think before digesting" switch; merge several selected events into one; re-digest shows per-batch progress and no longer crashes on a full day. [Detailed changelog (Chinese)](CHANGELOG.md#0219--2026-11-08). No new database migration.
+
+**v0.2.18** (2026-11-08): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.18-arm64.apk) — voiceprint sample management: play back or delete each person's samples, clear stored sample audio in one tap; custom ASR accepts a full request URL. [Detailed changelog (Chinese)](CHANGELOG.md#0218--2026-11-08). No new database migration.
 
 **v0.2.17** (2026-11-07): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) — automatic fallback to backup models; reviews no longer fail on busy days (input limit now follows each model's context window); passphrase field shown whenever an encrypted backup needs it; local backup folder permissions work with more file pickers (e.g. HarmonyOS). [Detailed changelog (Chinese)](CHANGELOG.md#0217--2026-11-07). No new database migration.
 
@@ -150,7 +152,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/SHA256SUMS).
 
 ### Build from source
 

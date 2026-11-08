@@ -137,6 +137,8 @@ internal object BackupRestore {
         listOf("-wal", "-shm", "-journal").forEach { suffix ->
             val file = File(db.path + suffix); check(!file.exists() || file.delete())
         }
+        // 回放副本不属于备份；恢复后旧样本不得借用本机残留文件或原录音。
+        app.resound.voiceprint.SampleAudioStore.afterRestore(context)
         // 缓存可重建；旧缓存不能混入恢复后的数据。
         check(File(data, BackupArchive.FEATURES).deleteRecursively())
         // 旧备份没有自定义模板时，也必须清掉本机的覆盖文本。

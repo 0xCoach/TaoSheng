@@ -87,4 +87,32 @@ class VoiceprintMigrationTest {
             assertEquals(9000L, db.transcribe().segment(1).voiceprintProcessedAt)
         } finally { db.close(); context.deleteDatabase(name) }
     }
+    @Test fun version29OpensWithoutSchemaChangeAndKeepsSamples() = runBlocking {
+        val context:Context=RuntimeEnvironment.getApplication();val name="samples-upgrade.db";context.deleteDatabase(name)
+        val schema=JSONObject(File("schemas/app.resound.data.CaptureDatabase/29.json").readText()).getJSONObject("database")
+        context.openOrCreateDatabase(name,Context.MODE_PRIVATE,null).use { old ->
+            val entities=schema.getJSONArray("entities")
+            for(i in 0 until entities.length()) {
+                val e=entities.getJSONObject(i);fun sql(v:String)=v.replace("\u0024{TABLE_NAME}",e.getString("tableName"))
+                old.execSQL(sql(e.getString("createSql")))
+                val indices=e.optJSONArray("indices")?:org.json.JSONArray()
+                for(j in 0 until indices.length())old.execSQL(sql(indices.getJSONObject(j).getString("createSql")))
+            }
+            val setup=schema.getJSONArray("setupQueries");for(i in 0 until setup.length())old.execSQL(setup.getString(i))
+            old.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,4000,'mic','/saved.ogg',100,'Done')")
+            old.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,speakerTag,speakerName) VALUES(1,1,1000,3000,'保留原话','S1','我')")
+            old.execSQL("INSERT INTO voiceprint_people(id,name,createdAt) VALUES(5,'朋友',1000)")
+            old.execSQL("INSERT INTO voiceprint_samples(source,vector,durationMillis,createdAt,personId) VALUES('enroll',?,10000,1,5)", arrayOf(VoiceprintMath.encode(FloatArray(192) { if (it == 0) 1f else 0f })))
+            old.version=29
+        }
+        val db=Room.databaseBuilder(context,CaptureDatabase::class.java,name).addMigrations(*CaptureDatabase.MIGRATIONS).build()
+        try {
+            assertEquals(CaptureDatabase.VERSION,db.openHelper.writableDatabase.version)
+            assertEquals("保留原话",db.voiceprint().line(1)!!.text);assertEquals("朋友",db.voiceprint().people().single().name)
+            val sample = db.voiceprint().allSamples().single()
+            assertEquals(5L, sample.personId)
+            assertEquals(10000L, sample.durationMillis)
+            assertArrayEquals(VoiceprintMath.encode(FloatArray(192) { if (it == 0) 1f else 0f }), sample.vector)
+        } finally { db.close();context.deleteDatabase(name) }
+    }
 }

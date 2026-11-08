@@ -37,7 +37,7 @@ class LlmClient(
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
 ) {
-    suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String): LlmReply = withContext(Dispatchers.IO) {
+    suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
         if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
         val body = JSONObject()
             .put("model", preset.model)
@@ -46,7 +46,7 @@ class LlmClient(
                 .put(JSONObject().put("role", "user").put("content", user)))
             .put("response_format", JSONObject().put("type", "json_object"))
             .put("temperature", 0.2).put("max_tokens", MAX_JSON_OUTPUT_TOKENS)
-        applyLlmOptions(preset, body)
+        applyLlmOptions(preset, body, thinking)
         val request = Request.Builder()
             .url(preset.baseUrl.trimEnd('/') + "/chat/completions")
             .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
@@ -154,5 +154,7 @@ class LlmClient(
 
     companion object {
         const val MAX_JSON_OUTPUT_TOKENS = 8192
+        /** 先思考时，思考过程也算在输出里；一批 300 句实测要 8000～12000，留足余量免得答一半被截断 */
+        const val THINKING_JSON_OUTPUT_TOKENS = 32_768
     }
 }

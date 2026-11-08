@@ -192,6 +192,17 @@ class LlmProviders076Test {
         assertTrue(AndroidDigestSettings(context, LlmClient(), providers()).hasKey.value)
     }
 
+    @Test fun deepThinkingSwitchControlsDeepseekIncludingRelays() {
+        fun body(url: String, model: String, thinking: Boolean) = JSONObject().put("max_tokens", LlmClient.MAX_JSON_OUTPUT_TOKENS)
+            .also { applyLlmOptions(LlmPreset("x", "x", url, model), it, thinking) }
+        // 中转地址上的 DeepSeek V4 Flash 以前没关思考，长批次会被截断
+        assertEquals("disabled", body("https://api.vipdlab.com/v1", "DeepSeek-V4-Flash", false).getJSONObject("thinking").getString("type"))
+        val on = body("https://api.vipdlab.com/v1", "DeepSeek-V4-Flash", true)
+        assertEquals("enabled", on.getJSONObject("thinking").getString("type")); assertEquals(LlmClient.THINKING_JSON_OUTPUT_TOKENS, on.getInt("max_tokens"))
+        assertEquals("enabled", body("https://api.deepseek.com", "deepseek-flash", true).getJSONObject("thinking").getString("type"))
+        assertEquals(LlmClient.MAX_JSON_OUTPUT_TOKENS, body("https://api.deepseek.com", "deepseek-flash", false).getInt("max_tokens"))
+        assertFalse(body("https://api.example.com/v1", "qwen-plus", true).has("thinking"))
+    }
     @Test fun realClientUsesDocumentedParametersForTemplateModels() = runBlocking {
         val seen = mutableListOf<JSONObject>()
         val http = OkHttpClient.Builder().addInterceptor { chain ->

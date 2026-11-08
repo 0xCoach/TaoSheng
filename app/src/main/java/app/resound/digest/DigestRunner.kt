@@ -39,7 +39,7 @@ class DigestRunner(
     private val isMedia: suspend (Long, Long) -> Boolean = { _, _ -> false },
     private val unseparated: suspend (List<Long>) -> List<Long> = { emptyList() },
     private val thingExtraction: app.resound.things.DigestThingExtraction? = null,
-    private val request: suspend (LlmPreset, String, String, String) -> LlmReply = client::chatJson,
+    private val request: suspend (LlmPreset, String, String, String) -> LlmReply = settings.digestRequest(client),
 ) {
     private val appContext = context.applicationContext
     private val appName = context.appName

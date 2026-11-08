@@ -50,7 +50,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         }
         val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
-        val reply = digestSettings.failover.request("重新整理", db.memory(), app.resound.usage.UsagePurpose.Digest, llm::chatJson)(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
+        val reply = digestSettings.failover.request("重新整理", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (events, items) = DigestPrompt.parse(reply.content, indexed)
         val at = System.currentTimeMillis()

@@ -110,6 +110,22 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
         Spacer(Modifier.height(10.dp))
         Text("想马上看结果，在“今天”页点“现在整理”。每日回顾、每周回顾生成前会先整理一次。",
             style = RsType.caption, color = c.textTertiary)
+
+        Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+        val thinking by settings.deepThinking.collectAsState()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("整理前先思考", style = RsType.subhead, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("分条更准，一件事一条，不容易切碎；费用约为原来的 3～5 倍，整理也慢一些。",
+                    style = RsType.caption, color = c.textTertiary)
+            }
+            Spacer(Modifier.width(12.dp))
+            app.resound.ui.skills.Toggle(thinking, settings::setDeepThinking)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("支持 DeepSeek、火山方舟、硅基流动；其他服务按它自己的默认。",
+            style = RsType.caption, color = c.textTertiary)
     }
 }
 

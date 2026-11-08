@@ -34,6 +34,13 @@ class AndroidDigestSettings internal constructor(
         val v = value.coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL)
         check(prefs.edit().putInt("interval", v).commit()); _intervalMinutes.value = v; onIntervalChanged()
     }
+    /** 整理前先让模型思考：分条更准，但费用约为原来的 3～5 倍；默认关 */
+    private val _deepThinking = MutableStateFlow(prefs.getBoolean("deepThinking", false))
+    val deepThinking = _deepThinking.asStateFlow()
+    fun setDeepThinking(on: Boolean) { check(prefs.edit().putBoolean("deepThinking", on).commit()); _deepThinking.value = on }
+    /** 整理和重新整理用的请求：按开关决定模型要不要先思考 */
+    fun digestRequest(client: LlmClient): suspend (LlmPreset, String, String, String) -> LlmReply =
+        { p, key, system, user -> client.chatJson(p, key, system, user, thinking = _deepThinking.value) }
     fun setPauseMinutes(value: Int) {
         val v = value.coerceIn(PAUSE_RANGE)
         check(prefs.edit().putInt("pauseMinutes", v).commit()); _pauseMinutes.value = v

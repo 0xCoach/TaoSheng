@@ -401,7 +401,8 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
             if (local) LocalModelOptions(advanced)
             if (source == TranscribeSource.Custom) {
                 CustomModelForm(advanced.customEndpoint,advanced.customModel,hasKey,
-                    "自定义（OpenAI 兼容音频转写）",advanced::fetchModels,advanced::saveCustomAll)
+                    "自定义音频转写服务",advanced::fetchModels,advanced::saveCustomAll,
+                    app.resound.ui.settings.EndpointModeUi(advanced.customEndpointMode,advanced.customPrompt,advanced::setCustomPrompt,advanced::saveCustomAll))
 
             }
         }

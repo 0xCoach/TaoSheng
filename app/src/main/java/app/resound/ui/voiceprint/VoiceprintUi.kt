@@ -35,6 +35,7 @@ import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.springClick
 import app.resound.voiceprint.VoiceprintPerson
 import app.resound.voiceprint.VoiceprintRepository
+import kotlinx.coroutines.launch
 
 /** 声纹服务；底层没装配（界面预览）时为 null，长按纠正等功能自动隐藏 */
 val LocalVoiceprint = staticCompositionLocalOf<VoiceprintRepository?> { null }
@@ -66,6 +67,7 @@ fun VoiceprintCard(repo: VoiceprintRepository) {
             modifier = Modifier.padding(horizontal = 4.dp))
         Spacer(Modifier.height(10.dp))
         SpeakerSegmentationSettings()
+        SampleAudioCard(repo)
         if (state.ready) RecomputeCard()
         state.lastError?.let { Text(it, style = RsType.caption, color = c.critical, modifier = Modifier.padding(horizontal = 4.dp)) }
         if (state.pendingSegments > 0) Text("还有 ${state.pendingSegments} 段等着匹配声音", style = RsType.caption, color = c.textTertiary,
@@ -100,6 +102,45 @@ private fun RecomputeCard() {
             else -> null
         }?.let { Text(it, style = RsType.caption, color = if (latest == androidx.work.WorkInfo.State.FAILED) c.critical else c.textTertiary, modifier = Modifier.padding(top = 8.dp)) }
     }
+}
+
+/** 样本声音：占用空间 + 清除（清除后仍能认人，只是样本不能再回放） */
+@Composable
+private fun SampleAudioCard(repo: VoiceprintRepository) {
+    val c = Rs.colors
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val bytes by repo.sampleAudioBytes.collectAsState()
+    var confirm by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
+    androidx.compose.runtime.LaunchedEffect(confirm) { if (confirm) { kotlinx.coroutines.delay(3_000); confirm = false } }
+    val shown by androidx.compose.animation.core.animateFloatAsState(bytes.toFloat(), androidx.compose.animation.core.tween(600), label = "bytes")
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("样本声音", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(2.dp))
+                Text(if (bytes > 0) "已占用 ${sizeText(shown.toLong())}" else "暂无", style = RsType.caption, color = c.textSecondary)
+            }
+            if (bytes > 0) Pill(when { clearing -> "清除中…"; confirm -> "确定清除"; else -> "清除" }, filled = confirm) {
+                if (clearing) return@Pill
+                if (!confirm) { confirm = true; note = null; return@Pill }
+                confirm = false; clearing = true
+                scope.launch {
+                    note = repo.clearSampleAudio().fold({ "已清除，仍能照常认人" to false }, { "没清除成功，请稍后再试" to true })
+                    clearing = false
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("用来在人物详情里回放样本。清除后仍能照常认人，已有样本不能再回放。", style = RsType.caption, color = c.textTertiary)
+        note?.let { (text, bad) -> Text(text, style = RsType.caption, color = if (bad) c.critical else c.good, modifier = Modifier.padding(top = 6.dp)) }
+    }
+}
+
+internal fun sizeText(bytes: Long): String = when {
+    bytes < 1024 * 1024 -> "${(bytes / 1024).coerceAtLeast(1)} KB"
+    else -> "%.1f MB".format(bytes / 1024f / 1024f)
 }
 
 @Composable

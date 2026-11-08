@@ -68,7 +68,8 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
     val me = person.id == 0L
     var passageIndex by remember { mutableStateOf(0) }
 
-    RsSheet(person.name, onDismiss = { dismiss() }) {
+    // 样本列表可展开收起，高度会变：固定面板高度，免得被误判成下滑关闭
+    RsSheet(person.name, onDismiss = { dismiss() }, fixedHeight = true) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(person, 56.dp)
             Spacer(Modifier.width(14.dp))
@@ -123,6 +124,8 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
             }
         }
         note?.let { Text(it, style = RsType.subhead, color = c.accent) }
+
+        if (job == null && !editing) PersonSamples(repo, person)
 
         // 改名
         if (!me) {

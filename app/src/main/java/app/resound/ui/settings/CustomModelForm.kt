@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
+import app.resound.transcribe.CustomEndpointMode
 import app.resound.transcribe.EndpointKind
 import app.resound.transcribe.OpenAiEndpoint
 import app.resound.transcribe.RemoteModels
@@ -20,6 +22,10 @@ import app.resound.ui.verify.Pill
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+
+/** 自定义转写才有：地址写法（自动匹配 / 完整地址）与完整地址下是否附带热词 */
+internal class EndpointModeUi(val initial: CustomEndpointMode, val prompt: kotlinx.coroutines.flow.StateFlow<Boolean>,
+    val setPrompt: (Boolean) -> Unit, val save: (String, String, String, CustomEndpointMode) -> Unit)
 
 /** 沿用原密钥输入框，不引入另一套 Material 文本框外观。 */
 @Composable
@@ -37,7 +43,7 @@ internal fun SettingsInput(value:String,onChange:(String)->Unit,hint:String,modi
 
 @Composable
 internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:Boolean,description:String,
-    fetch:suspend(String,String)->RemoteModels,save:(String,String,String)->Unit) {
+    fetch:suspend(String,String)->RemoteModels,save:(String,String,String)->Unit,modes:EndpointModeUi?=null) {
     val c=Rs.colors;val scope=rememberCoroutineScope()
     var endpoint by remember {mutableStateOf(initialEndpoint)}
     var key by remember {mutableStateOf("")}
@@ -47,20 +53,32 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
     var fetching by remember {mutableStateOf(false)}
     var message by remember {mutableStateOf("")}
     var error by remember {mutableStateOf(false)}
-    Column {
+    var mode by remember {mutableStateOf(modes?.initial ?: CustomEndpointMode.Auto)}
+    val full=mode==CustomEndpointMode.Full
+    Column(Modifier.animateContentSize()) {
         Text(description,style=RsType.caption,color=c.textSecondary)
         Spacer(Modifier.height(14.dp))
-        Text("服务地址",style=RsType.body,color=c.text)
+        Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+            Text("服务地址",style=RsType.body,color=c.text,modifier=Modifier.weight(1f))
+            if(modes!=null) app.resound.ui.skills.Segments(listOf("自动匹配","完整地址"),if(full)1 else 0) {
+                mode=if(it==1)CustomEndpointMode.Full else CustomEndpointMode.Auto;message="";models=emptyList()
+            }
+        }
         Spacer(Modifier.height(8.dp))
-        SettingsInput(endpoint,{endpoint=it.trim();models=emptyList()},"https://… 或 http://192.168.…",Modifier.fillMaxWidth())
+        SettingsInput(endpoint,{endpoint=it.trim();models=emptyList()},if(full)"服务文档里的完整请求地址" else "https://… 或 http://192.168.…",Modifier.fillMaxWidth())
         Spacer(Modifier.height(6.dp))
         // 按地址类型给一行提示：局域网 http 放心用；公网 http 提醒未加密，但不拦
-        val kind=remember(endpoint){if(endpoint.isBlank())null else OpenAiEndpoint.kind(endpoint)}
+        val kind=remember(endpoint,mode){when{
+            endpoint.isBlank()->null
+            full && runCatching{app.resound.transcribe.fullEndpoint(endpoint)}.isFailure->EndpointKind.Invalid
+            else->OpenAiEndpoint.kind(endpoint)
+        }}
+        val tip=if(full)"按填写的地址请求，可带参数。" else "可填根地址或带 /v1 的地址。"
         when(kind) {
-            EndpointKind.LocalHttp->Text("局域网连接 · 可填根地址或带 /v1 的地址，自动匹配路径。",style=RsType.caption,color=c.textSecondary)
+            EndpointKind.LocalHttp->Text("局域网连接 · $tip",style=RsType.caption,color=c.textSecondary)
             EndpointKind.PublicHttp->Text("未加密的公网连接，密钥和内容可能被截获，建议只在内网使用。",style=RsType.caption,color=c.warning)
-            EndpointKind.Invalid->Text("请填写 http:// 或 https:// 开头的地址。",style=RsType.caption,color=c.critical)
-            else->Text("可填根地址或带 /v1 的地址，自动匹配路径。",style=RsType.caption,color=c.textTertiary)
+            EndpointKind.Invalid->Text(if(full)"请填写 http:// 或 https:// 开头的完整地址，不含账号信息和 #。" else "请填写 http:// 或 https:// 开头的地址。",style=RsType.caption,color=c.critical)
+            else->Text(tip,style=RsType.caption,color=c.textTertiary)
         }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment=androidx.compose.ui.Alignment.Bottom) {
@@ -74,7 +92,7 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
         Text("模型",style=RsType.body,color=c.text)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-            SettingsInput(model,{model=it.trim()},"拉取后选择，或手动填写",Modifier.weight(1f))
+            SettingsInput(model,{model=it.trim()},if(full)"填写模型名" else "拉取后选择，或手动填写",Modifier.weight(1f))
             if(models.isNotEmpty()) Box {
                 Text("⌄",style=RsType.headline,color=c.accent,modifier=Modifier.springClick{menu=true}.padding(12.dp))
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false},containerColor=c.card,modifier=Modifier.heightIn(max=300.dp)) {
@@ -82,9 +100,21 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
                 }
             }
         }
+        if(modes!=null && full) {
+            val prompt by modes.prompt.collectAsState()
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("附带热词",style=RsType.body,color=c.text)
+                    Text("服务支持时打开，人名和专有名词更准。",style=RsType.caption,color=c.textTertiary)
+                }
+                Spacer(Modifier.width(12.dp))
+                app.resound.ui.skills.Toggle(prompt){modes.setPrompt(it)}
+            }
+        }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            Pill(if(fetching)"拉取中…" else "拉取模型",filled=false) {
+            if(!full) Pill(if(fetching)"拉取中…" else "拉取模型",filled=false) {
                 if(!fetching){fetching=true;error=false;scope.launch {
                     try{val result=fetch(endpoint,key);endpoint=result.base;models=result.ids;menu=true;message="找到 ${models.size} 个模型，请选择后保存"}
                     catch(e:CancellationException){throw e}
@@ -94,7 +124,7 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
             }
             Pill("保存",filled=kind!=null && kind!=EndpointKind.Invalid && model.isNotBlank()) {
                 if(!fetching){error=false
-                    try{val withKey=key.isNotBlank() || hasKey;save(endpoint,model,key);key="";message=if(withKey)"地址、密钥和模型已保存" else "地址和模型已保存"}
+                    try{val withKey=key.isNotBlank() || hasKey;if(modes!=null)modes.save(endpoint,model,key,mode) else save(endpoint,model,key);key="";message=if(withKey)"地址、密钥和模型已保存" else "地址和模型已保存"}
                     catch(e:Exception){error=true;message=e.message ?: "保存失败"}
                 }
             }

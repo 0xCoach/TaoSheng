@@ -172,7 +172,7 @@ private fun LineSection(repo: VoiceprintRepository, person: VoiceprintPerson, li
                     }
                 }
             }
-            if (lines.size > FOLDED) MoreToggle(expanded, lines.size) { expanded = !expanded }
+            if (lines.size > FOLDED) MoreToggle(expanded, lines.size, recent = lines.size >= 100) { expanded = !expanded }
         }
     }
     if (!lines.isNullOrEmpty()) Hint("移除后这句改回未知，录音和文字都保留。")
@@ -209,9 +209,9 @@ private fun ConfirmPill(text: String, danger: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MoreToggle(expanded: Boolean, total: Int, onClick: () -> Unit) {
+private fun MoreToggle(expanded: Boolean, total: Int, recent: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
-    Text(if (expanded) "收起" else "显示全部 $total 条", style = RsType.subhead, color = c.accent,
+    Text(if (expanded) "收起" else if (recent) "显示最近 $total 条" else "显示全部 $total 条", style = RsType.subhead, color = c.accent,
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).springClick(onClick).padding(vertical = 8.dp),
         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 }

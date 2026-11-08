@@ -109,7 +109,7 @@ object DigestPrompt {
     )
 
     val CATEGORIES = setOf("待办", "约定", "备忘", "灵感", "关键信息", "决定", "知识")
-    private val NO_ITEMS_SCENES = setOf("媒体")
+    internal val NO_ITEMS_SCENES = setOf("媒体")
 
     /**
      * 解析大模型回复。行号越界的忽略；事件按行号裁剪、去重叠；
@@ -190,9 +190,12 @@ object DigestPrompt {
         else LocalDate.parse(t).atStartOfDay(zone).toInstant().toEpochMilli()
     }.getOrNull()
 
-    private fun JSONArray?.strings(): List<String> =
-        if (this == null) emptyList() else (0 until length()).mapNotNull { optString(it).trim().takeIf { s -> s.isNotEmpty() && s != "null" } }
-
-    private fun JSONObject.optStringOrNull(name: String): String? =
-        if (isNull(name)) null else optString(name).trim().takeIf { it.isNotEmpty() && it != "null" }
 }
+
+/** 取字符串数组里的非空项。放在文件顶层，方便 [MergePrompt] 等同包代码复用。 */
+internal fun JSONArray?.strings(): List<String> =
+    if (this == null) emptyList() else (0 until length()).mapNotNull { optString(it).trim().takeIf { s -> s.isNotEmpty() && s != "null" } }
+
+/** 取可选字符串，缺失、空串或 "null" 返回 null。放在文件顶层，方便 [MergePrompt] 等同包代码复用。 */
+internal fun JSONObject.optStringOrNull(name: String): String? =
+    if (isNull(name)) null else optString(name).trim().takeIf { it.isNotEmpty() && it != "null" }

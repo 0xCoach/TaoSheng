@@ -15,7 +15,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.16-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.18-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -60,9 +60,9 @@
 ## ✨ 亮点
 
 1. **🎙 不用买任何硬件**：手机麦克风就够；也支持领夹麦、蓝牙耳机等外接设备，插上自动切换，拔掉自动切回。
-2. **📴 本地模型完全离线转写**：可选 SenseVoice 本地识别（骁龙 NPU 加速），声音不出手机、不花一分钱；也可用豆包云端或自定义转写服务。
+2. **📴 本地模型完全离线转写**：可选 SenseVoice 本地识别（骁龙 NPU 加速），声音不出手机、不花一分钱；也可用豆包云端或自定义转写服务（OpenAI 兼容接口，或填写完整请求地址）。
 3. **⏱ 自动转写 + 自动整理，时间自己定**：转写间隔可设 15～720 分钟，转完自动整理成事件；每日回顾时间、技能运行时间都可调。
-4. **🧑‍🤝‍🧑 声纹认人，分得清多个说话人**：本机声纹认出“我”和熟人，多人会议自动分段；在原话上长按选“这是谁”，指定一次就能学会这个人的声音。
+4. **🧑‍🤝‍🧑 声纹认人，分得清多个说话人**：本机声纹认出“我”和熟人，多人会议自动分段；在原话上长按选“这是谁”，指定一次就能学会这个人的声音；每个人的声纹样本都能回放、删除。
 5. **✅ 自动摘出待办**：原话里答应的事、约好的时间自动变成待办；你说一句“发了”，它就知道这件事做完了。
 6. **🃏 每天自动生成任务卡，技能随你定义**：会议速记、收工打卡、每周回顾、情绪日记开箱即用；写一份 JSON + 提示词就能加自己的技能。
 7. **💬 AI 问问，附原话出处**：哪天说过什么、答应过谁什么，直接打字问；每个答案都能点回当时的原话。
@@ -79,7 +79,7 @@
 18. **🔤 热词纠错**：人名、公司名、行业词设一次，转写更准。
 19. **📂 导入录音文件**：会议录音、语音备忘从别的应用“分享到涛声”，一样转写、认人、整理。
 20. **🗂 时间轴回看 + 重点标记**：拖一下回到当天任何时刻；左滑标 ★ 重点、右滑删除，可批量编辑。
-21. **🔐 隐私优先**：不用注册账号、没有我们的服务器；密钥存系统安全区；录音转写后 24 小时自动删；“删除最近 N 分钟”“这段别记”一键彻底删除。
+21. **🔐 隐私优先**：不用注册账号、没有我们的服务器；密钥存系统安全区；原录音默认保留 3 天后自动删（可设 1～365 天，标星的可保留）；“删除最近 N 分钟”“这段别记”一键彻底删除。
 22. **🔍 寻物**：“钥匙放哪了”“充电宝借给谁了”——说过的放置、带走、借出、归还自动记下，在“记忆 → 寻物”查看，也能直接问。
 23. **⏰ 像闹钟一样的待办强提醒**：打字或语音添加待办；到点持续响铃、锁屏整屏提醒，音量键稍后、电源键停止。
 24. **🎧 录音回放与导出**：歌词式字幕播放器（上一段 / 下一段、倍速）；多段录音合成一个 M4A，连同原话和字幕导出，先试听再保存。
@@ -137,7 +137,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 | 需要 | 说明 |
 | --- | --- |
 | 安卓手机 | Android 10 及以上，arm64 架构。开发和实测机型：小米 14 Pro（澎湃 OS 3） |
-| 转写服务 | 二选一：[豆包语音](https://www.volcengine.com/product/voice-tech) API Key；或直接用**本地转写**（首次使用时在手机上下载模型） |
+| 转写服务 | 三选一：[豆包语音](https://www.volcengine.com/product/voice-tech) API Key；直接用**本地转写**（首次使用时在手机上下载模型）；或自定义转写服务 |
 | 大模型 | 任意 OpenAI 兼容接口的 API Key，默认 [DeepSeek](https://platform.deepseek.com/) |
 | 可选 | 坚果云账号（备份）、任一推送通道 |
 
@@ -145,7 +145,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.2.17**（最新） | 2026-11-07 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) | 主模型出问题自动换备用模型；修复内容多的日子生成回顾失败（按模型容量完整发送）；修复加密备份恢复没有口令框；兼容鸿蒙等系统的本机备份文件夹授权。[详细更新日志](CHANGELOG.md#0217--2026-11-07) |
+| **v0.2.18**（最新） | 2026-11-08 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.18-arm64.apk) | 声纹样本管理：每个人的样本能回放、删除，样本声音可一键清除；自定义转写可填写完整请求地址。[详细更新日志](CHANGELOG.md#0218--2026-11-08) |
+| **v0.2.17** | 2026-11-07 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) | 主模型出问题自动换备用模型；修复内容多的日子生成回顾失败（按模型容量完整发送）；修复加密备份恢复没有口令框；兼容鸿蒙等系统的本机备份文件夹授权。[详细更新日志](CHANGELOG.md#0217--2026-11-07) |
 | **v0.2.16** | 2026-11-03 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.16-arm64.apk) | 修复七天统计长事务导致的删除延迟；轻量快照与媒体匹配优化；删除阶段提示及防重复操作。手机性能测试与实际删除复测通过。[详细更新日志](CHANGELOG.md#0216--2026-11-03) |
 | **v0.2.15** | 2026-11-02 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.15-arm64.apk) | 寻物与整理共用请求；日报周报改版；全文/模块/自由选字复制；问问追问出处修复；轻声收音与播放修复；本地识别语言选择；删除、备份稳定性改进。[详细更新日志](CHANGELOG.md#0215--2026-11-02) |
 | **v0.2.14** | 2026-10-30 | [TaoSheng-v0.2.14-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk)（约 98 MB） | 转写提速（豆包更快、流量大降）；课堂模式与区分说话人开关；导入录音分会议/培训/通话·访谈/普通并自动出纪要；多服务商一键切换与余额提醒；待办能看原话、听原声；环境音更易识别；问问正确显示格式等 |
@@ -162,7 +163,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 - 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
 - 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
 - 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
-- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/SHA256SUMS)。
+- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/SHA256SUMS)。
 - 正式签名证书指纹（SHA-256）：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`。只认这个签名的安装包，别处下载的改装版可能被动过手脚。
 
 ### 从源码编译
@@ -187,7 +188,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 1. **授权**：按引导打开麦克风、通知权限，把涛声加入电池白名单。小米 / 澎湃 OS 还要打开“自启动”并在多任务里锁定涛声——App 里有一步步的引导页。
 2. **填密钥**：设置 →「原话与转写」：选豆包并粘贴 API Key，或选“本地”下载模型；设置 →「整理模型」：选 DeepSeek 或自定义接口，填 API Key，点“拉取模型”。
-3. **录入声纹**：设置 →「声纹与人物」→ 我，朗读三段文字，再自由说 20 秒。
+3. **录入声纹**：设置 →「声纹与人物」→ 我，照着屏幕朗读三段短文（每段 15 秒）。
 4. **开始聆听**：回到“今天”页打开收音，正常过你的一天。
 5. （可选）**备份**：设置 →「数据备份」，填坚果云 WebDAV 地址和应用密码，每天凌晨自动增量备份。
 6. （可选）**推送**：设置 →「推送通道」，添加一个通道，保存后会自动发一条测试消息。
@@ -200,7 +201,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | **问问** | 打字提问，“这周我答应了哪些事？”“老王的电话是多少？”，答案附原话 |
 | **记忆** | 按天的日记、关键信息、重点 ★、灵感，以及技能卡片 |
 | **待办** | 待确认 / 进行中 / 已完成；左滑标重点，右滑删除 |
-| **设置** | 录音与后台、原话与转写、整理模型、声纹与人物、整理技能、每日回顾、推送通道、热词识别、数据备份 |
+| **设置** | 录音与后台、原话与转写、整理模型、声纹与人物、整理技能、整理指令、每日回顾、推送通道、热词识别、环境音识别、数据备份、版本更新 |
 
 ### 自己写一个技能
 
@@ -232,14 +233,14 @@ flowchart LR
 | 存储 | Room（SQLite + FTS4 全文检索）· 本机向量检索 |
 | 后台 | 前台服务 + WorkManager + 守护 · 无障碍服务（语音输入，可选） |
 | 本机模型 | Silero VAD · CAM++ 声纹 · SenseVoice（sherpa-onnx + 高通 QNN NPU）· pyannote 分段 |
-| 云端 | 豆包语音流式识别 2.0 · DeepSeek / 任意 OpenAI 兼容接口 |
+| 云端 | 豆包语音流式识别 2.0 · 自定义转写服务 · DeepSeek 等十多家服务商 / 任意 OpenAI 兼容接口 |
 
 ```
 app/src/main/java/app/resound/
 ├── capture/     收音服务、人声切段、守护、语音输入
 ├── audio/       音频来源（手机麦 / 外接麦）、编码
 ├── transcribe/  云端 / 本地 / 自定义转写、热词
-├── voiceprint/  声纹提取与认人
+├── voiceprint/  声纹提取、认人与样本管理
 ├── digest/      大模型整理成事件和记忆
 ├── ask/         “问问”：大模型 + 查询工具 + 原话出处
 ├── review/      每日 / 每周回顾
@@ -254,7 +255,7 @@ app/src/main/java/app/resound/
 
 涛声的代码几乎全部由 AI 完成：**Claude** 负责架构、接口约定和全部界面，**Codex** 负责录音、转写、数据库、推送、备份等底层。人只做一件事——提需求、在手机上实测、说哪里不对。
 
-48 张任务卡和每一张的交付说明都公开在 [`docs/任务卡/`](docs/任务卡)，包括踩过的坑（比如安卓正则比电脑严格导致的启动崩溃、坚果云请求太多会 503）。想看 AI 协作开发是怎么一步步推进的，可以从那里读起。
+近百张任务卡和每一张的交付说明都公开在 [`docs/任务卡/`](docs/任务卡)，包括踩过的坑（比如安卓正则比电脑严格导致的启动崩溃、坚果云请求太多会 503）。想看 AI 协作开发是怎么一步步推进的，可以从那里读起。
 
 ## 🗺 路线图
 
@@ -282,6 +283,8 @@ app/src/main/java/app/resound/
 - [@ethansunqing](https://github.com/ethansunqing)：在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中报告并定位 OPPO Find N6 的 SIGILL 闪退，提供初始二进制补丁方案，并完成 ONNX Runtime 1.25.1 升级后的真机复测。
 - [@brookDeng](https://github.com/brookDeng)：补充小米 pandora（25098PN5AC）的独立故障分析，以及升级测试版后的覆盖安装、数据保留和前后台聆听复测。
 - [@aadnapp](https://github.com/aadnapp)：在 [PR #7](https://github.com/0xCoach/TaoSheng/pull/7) 中提供 Android 9 兼容适配方案、手动让出麦克风的实现及真机测试反馈，为项目评估旧系统支持提供了参考。
+- [@JunWeiUp](https://github.com/JunWeiUp)：在 [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) 中贡献本机声纹样本管理（样本回放、删除、样本声音清理与占用统计、备份排除），此前在 [PR #8](https://github.com/0xCoach/TaoSheng/pull/8) 提出了自建异步语音服务的对接方案。
+- [@SoukNow](https://github.com/SoukNow)：在 [PR #10](https://github.com/0xCoach/TaoSheng/pull/10) 中贡献自定义转写的完整请求地址写法。
 
 - [Omi](https://github.com/BasedHardware/omi)——开源 AI 可穿戴设备，给了涛声最初的灵感
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0）——本地转写、分段与声纹的运行框架

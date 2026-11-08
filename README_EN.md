@@ -14,7 +14,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.16-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.18-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -55,9 +55,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 ## ✨ Highlights
 
 1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected.
-2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud, or any custom ASR.
+2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud, or any custom ASR (OpenAI-compatible, or a full request URL).
 3. **⏱ Automatic transcribe + digest on your schedule** — every 15–720 minutes; review and skill times are configurable.
-4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker.
+4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker; every voiceprint sample can be played back or deleted.
 5. **✅ Todos extracted automatically** — and marked done when you later say "sent it".
 6. **🃏 Daily cards & custom skills** — meeting notes, check-in, weekly review, mood diary; add your own with JSON + a prompt.
 7. **💬 Ask anything, with citations** — what you said or promised on any day, linked to the original lines.
@@ -72,7 +72,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 16. **🌙 Daily & weekly reviews**, pushed to you.
 17. **🔁 Repeated ideas merged** ("mentioned N times").
 18. **🔤 Hotwords**, **📂 audio import**, **🗂 timeline scrubbing & stars**.
-19. **🔐 Privacy first** — no account, keys in Keystore, audio deleted 24h after transcription, never hidden from people around you.
+19. **🔐 Privacy first** — no account, keys in Keystore, original audio auto-deleted after 3 days by default (1–365 days, starred kept), never hidden from people around you.
 20. **🔍 Find things** — where you put the keys, who borrowed the power bank: placements, loans and returns are tracked and searchable.
 21. **⏰ Alarm-style to-do reminders** — add by typing or voice; keeps ringing, full-screen on the lock screen.
 22. **🎧 Playback & export** — lyric-style subtitle player; merge segments into one M4A with transcript and subtitles.
@@ -128,7 +128,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 - ✅ Todos: pending / in progress / done — say "sent it" and it knows the task is done
 - 🔁 Repeated ideas merged into one ("mentioned N times")
 - 📣 10 push channels: PushPlus, WeCom, ServerChan, Feishu, DingTalk, Telegram, Email, Notion, WebDAV/Obsidian folder, custom webhook
-- 🔐 No account, no server of ours; API keys in Android Keystore; audio auto-deleted 24h after transcription; "forget the last N minutes"
+- 🔐 No account, no server of ours; API keys in Android Keystore; original audio auto-deleted after 3 days by default (adjustable); "forget the last N minutes"
 - 👀 Never hidden: persistent notification and the system mic indicator stay visible
 - 🔧 Every model is swappable — any OpenAI-compatible LLM, including self-hosted
 
@@ -136,7 +136,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.2.17** (2026-11-07, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) — automatic fallback to backup models; reviews no longer fail on busy days (input limit now follows each model's context window); passphrase field shown whenever an encrypted backup needs it; local backup folder permissions work with more file pickers (e.g. HarmonyOS). [Detailed changelog (Chinese)](CHANGELOG.md#0217--2026-11-07). No new database migration.
+**v0.2.18** (2026-11-08, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.18-arm64.apk) — voiceprint sample management: play back or delete each person's samples, clear stored sample audio in one tap; custom ASR accepts a full request URL. [Detailed changelog (Chinese)](CHANGELOG.md#0218--2026-11-08). No new database migration.
+
+**v0.2.17** (2026-11-07): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) — automatic fallback to backup models; reviews no longer fail on busy days (input limit now follows each model's context window); passphrase field shown whenever an encrypted backup needs it; local backup folder permissions work with more file pickers (e.g. HarmonyOS). [Detailed changelog (Chinese)](CHANGELOG.md#0217--2026-11-07). No new database migration.
 
 **v0.2.16** (2026-11-03): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.16-arm64.apk) — fixes deletion delays caused by long-running seven-day statistics transactions; reads compact snapshots, optimizes media interval matching, and adds deletion progress and duplicate-operation protection. Validated on a phone with synthetic workloads and actual history reads; user deletion retest passed. [Detailed changelog (Chinese)](CHANGELOG.md#0216--2026-11-03). No new database migration from 0.2.15.
 
@@ -148,7 +150,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/SHA256SUMS).
 
 ### Build from source
 
@@ -191,7 +193,7 @@ Kotlin · Jetpack Compose · Room (SQLite + FTS4) · WorkManager · sherpa-onnx 
 
 ## 🤖 Built by AI
 
-Almost all code was written by AI: **Claude** did architecture, contracts and every screen; **Codex** did capture, ASR, database, push and backup. The human wrote requirements and tested on a real phone. All 48 task cards and delivery notes are public in [`docs/任务卡/`](docs/任务卡).
+Almost all code was written by AI: **Claude** did architecture, contracts and every screen; **Codex** did capture, ASR, database, push and backup. The human wrote requirements and tested on a real phone. Nearly a hundred task cards and delivery notes are public in [`docs/任务卡/`](docs/任务卡).
 
 ## ⚠️ Please note
 
@@ -202,6 +204,8 @@ TaoSheng is a personal memory tool. Recording conversations is regulated in many
 - [@ethansunqing](https://github.com/ethansunqing) — reported and diagnosed the OPPO Find N6 SIGILL crash, contributed the initial binary patch in [PR #1](https://github.com/0xCoach/TaoSheng/pull/1), and verified the official ONNX Runtime 1.25.1 upgrade on the device.
 - [@brookDeng](https://github.com/brookDeng) — independently diagnosed the crash on Xiaomi pandora (25098PN5AC) and verified the test APK upgrade, data preservation, and foreground/background listening.
 - [@aadnapp](https://github.com/aadnapp) — contributed an Android 9 compatibility proposal, a manual microphone-release implementation, and on-device test feedback in [PR #7](https://github.com/0xCoach/TaoSheng/pull/7), helping evaluate support for older Android versions.
+- [@JunWeiUp](https://github.com/JunWeiUp) — contributed on-device voiceprint sample management in [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) (sample playback and deletion, sample-audio cleanup and storage stats, backup exclusion), after proposing a self-hosted async speech service integration in [PR #8](https://github.com/0xCoach/TaoSheng/pull/8).
+- [@SoukNow](https://github.com/SoukNow) — contributed full request URL support for custom transcription in [PR #10](https://github.com/0xCoach/TaoSheng/pull/10).
 
 [Omi](https://github.com/BasedHardware/omi) · [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) · [Silero VAD](https://github.com/snakers4/silero-vad) · [3D-Speaker / CAM++](https://github.com/modelscope/3D-Speaker) · [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) · [pyannote](https://github.com/pyannote/pyannote-audio). Third-party sources and licenses: [`docs/third-party/`](docs/third-party).
 

@@ -1,0 +1,9 @@
+{
+  "id": "folotoy-ble",
+  "name": "FoloToy 开发卡（协议待确认）",
+  "version": 1,
+  "minApp": "0.2.21",
+  "status": "trial",
+  "transport": "ble",
+  "match": {}
+}

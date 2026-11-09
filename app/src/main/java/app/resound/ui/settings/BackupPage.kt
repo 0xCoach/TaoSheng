@@ -384,6 +384,14 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
             ActionRow("换一个备份文件夹", "这个位置不能写入，请在 Download 里新建一个文件夹再选", "选择") { pickFolder.launch(null) }
         else -> ActionRow("备份文件夹", l.folder ?: "建议在 Download 里新建 Resound", if (l.folder == null) "选择" else "更换") { pickFolder.launch(null) }
     }
+    // 卡 123：选文件夹那一套在有些手机上用不了（如鸿蒙的安卓兼容层），提供不用选文件夹的位置
+    val downloads = l.folder == app.resound.backup.DownloadsBackupFiles.LABEL
+    if (!downloads) {
+        val stuck = l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported || l.lastError?.contains("下载/涛声备份") == true
+        if (stuck || l.folder == null) ActionRow("不用选文件夹", "直接存到 下载/涛声备份，${if (stuck) "选文件夹用不了时用这个" else "有的手机选不了文件夹时用这个"}", "改用") {
+            cache.invalidateLocal(); repo.useDownloadsFolder(); folderEpoch++
+        }
+    }
     if (l.folder != null && l.sessionOnly) Text("这台手机只给了临时授权：App 重启后需要再授权一次",
         style = RsType.caption, color = c.warning, modifier = Modifier.padding(horizontal = 4.dp))
 

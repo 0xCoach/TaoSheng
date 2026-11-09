@@ -50,6 +50,9 @@ object AppGraph {
     // 卡 070：环境音识别
     lateinit var envSound: app.resound.envsound.EnvSoundRepository
     val isEnvSoundReady: Boolean get() = ::envSound.isInitialized
+    /** 足迹（全天定位） */
+    lateinit var location: app.resound.location.LocationRepository
+    val isLocationReady: Boolean get() = ::location.isInitialized
 
     // 卡 079：寻物
     lateinit var things: app.resound.things.ThingRepository

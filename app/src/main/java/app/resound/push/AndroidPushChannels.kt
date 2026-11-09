@@ -79,7 +79,15 @@ class AndroidPushChannels internal constructor(
         catch (e: IllegalArgumentException) { return@withContext Result.failure(PushFailure(e.message ?: "订阅配置不正确")) }
         saveLocked(id, kind, name, values, Subscriptions.topics(tightened), format, tightened.lines != LinesMode.Off, tightened, useLinkedNutstore)
     }
-    override suspend fun pushNow(id: Long) = subscriptions.run(id)
+    override suspend fun pushNow(id: Long): Result<String> {
+        val s = channels.value.find { it.id == id }?.subscription ?: return subscriptions.run(id)
+        if (!s.footprint) return subscriptions.run(id)
+        // 订阅了足迹：先推今天的足迹，再按原订阅推其他内容
+        val footprint = pushFootprintNow(id)
+        val other = s.summaries || s.reminders || s.records.isNotEmpty() || s.lines != LinesMode.Off
+        if (!other) return footprint
+        return subscriptions.run(id).map { it + "；" + (footprint.getOrNull() ?: "足迹：" + (footprint.exceptionOrNull()?.message ?: "推送失败")) }
+    }
     override suspend fun rebuild(id: Long) = subscriptions.run(id, rebuild = true)
     override fun status(id: Long): Flow<PushChannelStatus> = subscriptions.status(id)
     internal suspend fun recordsChanged() {
@@ -260,6 +268,45 @@ class AndroidPushChannels internal constructor(
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { /* 单通道失败不阻断其他通道。 */ }
         } }.joinAll()
+    }
+
+    // ---------- 每日足迹 ----------
+
+    /** 生成某天的足迹推送；当天没有定位点返回 null。由应用装配时接上足迹数据。 */
+    internal var footprintMessage: suspend (java.time.LocalDate) -> PushMessage? = { null }
+
+    /** 现在给这个通道推一次今天的足迹（不记“今天已推”，到点还会照常推）。 */
+    internal suspend fun pushFootprintNow(id: Long): Result<String> {
+        val today = java.time.LocalDate.now()
+        val message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (_: Exception) { return Result.failure(PushFailure("足迹读取失败，请稍后重试")) }
+            ?: return Result.success("今天还没有足迹")
+        return deliver(id, message).map { "已推今日足迹" }
+    }
+
+    /**
+     * 到点的通道推当天足迹，每个通道每天一次；返回下一次该检查的时刻（没有通道订阅足迹时为 null）。
+     * 推送失败交给原有重试队列，这里照样记“已推”，避免重复刷屏。
+     */
+    internal suspend fun dispatchFootprint(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long? {
+        val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        var message: PushMessage? = null; var built = false
+        for (channel in channels.value.filter { it.enabled && it.subscription.footprint }) {
+            val due = today.atStartOfDay(zone).plusMinutes(channel.subscription.footprintAt.toLong()).toInstant().toEpochMilli()
+            if (now < due || prefs.getString("footprint-sent-${channel.id}", null) == today.toString()) continue
+            if (!built) { message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }; built = true }
+            message?.let { try { deliver(channel.id, it) } catch (e: CancellationException) { throw e } catch (_: Exception) { } }
+            prefs.edit().putString("footprint-sent-${channel.id}", today.toString()).apply()
+        }
+        return nextFootprintAt(now, zone)
+    }
+
+    internal fun nextFootprintAt(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long? {
+        val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        return channels.value.filter { it.enabled && it.subscription.footprint }.map { ch ->
+            val sent = prefs.getString("footprint-sent-${ch.id}", null) == today.toString()
+            val day = if (sent) today.plusDays(1) else today
+            maxOf(now, day.atStartOfDay(zone).plusMinutes(ch.subscription.footprintAt.toLong()).toInstant().toEpochMilli())
+        }.minOrNull()
     }
 
     @Synchronized private fun resolve(id: Long): Pair<PushChannel, Map<String, String>>? =

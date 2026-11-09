@@ -20,26 +20,30 @@ import javax.crypto.spec.SecretKeySpec
 internal class PushFailure(message: String) : IOException(message)
 internal data class PushMessage(val title: String, val body: String, val topic: PushTopic?, val deepLink: String?, val at: Long,
     val review: app.resound.review.DailyReview? = null, val memory: JSONObject? = null,
-    val memoryDate: String? = null, val memoryWithLines: Boolean = false) {
+    val memoryDate: String? = null, val memoryWithLines: Boolean = false,
+    /** 每日足迹的结构化数据（Webhook / JSON 才会带出去） */
+    val footprint: JSONObject? = null) {
     fun rendered(format: PushFormat): String = review?.pushBody(format) ?: PushTransport.renderedBody(body, format)
     // 内部重试快照与对外协议分开；快照保留完整文档，不在重试时改变日期或带原话选项。
     fun json() = JSONObject().put("title", title).put("body", body).put("topic", topic?.name ?: JSONObject.NULL)
         .put("deepLink", deepLink ?: JSONObject.NULL).put("at", at).apply {
             review?.let { put("review", it.pushJson()) }; memory?.let { put("memory", it) }
             memoryDate?.let { put("memoryDate", it).put("memoryWithLines", memoryWithLines) }
+            footprint?.let { put("footprint", it) }
         }
     fun envelope(format: PushFormat): JSONObject = memory?.let { JSONObject(it.toString()) } ?: json().put("body", rendered(format))
         .put("type", when (topic) {
             PushTopic.DailyReview -> "daily_review"; PushTopic.TodoReminder -> "todo_reminder"
             PushTopic.NewEvent -> "new_event"; PushTopic.SkillCard -> "skill_card"
-            PushTopic.DailyMemory -> "daily_memory"; null -> "test"
+            PushTopic.DailyMemory -> "daily_memory"; PushTopic.Footprint -> "footprint"; null -> "test"
         }).put("version", 1).put("app", "resound")
     companion object {
         fun from(json: JSONObject) = PushMessage(json.getString("title"), json.getString("body"),
             PushTopic.entries.find { it.name == json.optString("topic") },
             if (json.isNull("deepLink")) null else json.getString("deepLink"), json.getLong("at"),
             json.optJSONObject("review")?.let(::reviewFromPushJson), json.optJSONObject("memory"),
-            if (json.isNull("memoryDate")) null else json.getString("memoryDate"), json.optBoolean("memoryWithLines", false))
+            if (json.isNull("memoryDate")) null else json.getString("memoryDate"), json.optBoolean("memoryWithLines", false),
+            json.optJSONObject("footprint"))
     }
 }
 

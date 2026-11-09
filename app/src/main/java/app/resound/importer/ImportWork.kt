@@ -28,8 +28,10 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val importer = AppGraph.importer as AndroidAudioImporter
         val app = applicationContext as ResoundApp
         try {
+            importer.rememberQueued()
             while (true) {
                 val entry = importer.next() ?: break
+                importer.remember(entry)
                 val id = entry.pending.id
                 val recordKey = entry.recordKey ?: id
                 val temporary = File(applicationContext.cacheDir, "import-pcm/$id")

@@ -34,6 +34,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         val app = applicationContext as ResoundApp
         val mode = inputData.getString(MODE) ?: MODE_FULL
+        if (mode == MODE_REALTIME) BackgroundTranscribeDiagnostics.delayed(applicationContext, inputData)
         fun expired(): Boolean {
             if (mode != MODE_TIMED) return false
             val target = inputData.getLong(DigestAlarm.TARGET, 0)
@@ -42,9 +43,14 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         }
         if (expired()) { missed(); return Result.success() }
         // 周期、手动、到点与回顾前整理共用同一把锁。
-        if (!pipeline.tryLock()) return Result.retry()
+        if (!pipeline.tryLock()) {
+            if (mode == MODE_REALTIME && !BackgroundTranscribeDiagnostics.foreground)
+                BackgroundTranscribeDiagnostics.record(applicationContext, "realtime-pipeline-busy", "false")
+            return Result.retry()
+        }
         try {
             if (expired()) { missed(); return Result.success() }
+            // 已有麦克风 FGS 不是文档保证的后台启动豁免；实时任务依靠 expedited，不主动再起 FGS。
             if (mode != MODE_REALTIME) {
                 try { setForeground(getForegroundInfo()) }
                 catch (e: CancellationException) { throw e }
@@ -53,6 +59,10 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             val retry = executePipeline(app, mode, manual = mode == MODE_FULL && MANUAL_DIGEST in tags)
             // 到点任务本轮失败不补跑；普通转写/间隔整理保持原来的重试行为。
             return if (retry && mode != MODE_TIMED) Result.retry() else Result.success()
+        } catch (e: CancellationException) {
+            if (mode == MODE_REALTIME && !BackgroundTranscribeDiagnostics.foreground)
+                BackgroundTranscribeDiagnostics.record(applicationContext, "realtime-stopped", "false")
+            throw e
         } finally { PipelineProgress.finish(); pipeline.unlock() }
     }
     private fun missed() = PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} 到点整理 已错过，跳过")
@@ -220,12 +230,15 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
         // 正在跑时追加一轮，接上这段；还在排队时不重复排
         val running = manager.getWorkInfosForUniqueWork(EARLY_WORK).get().any { it.state == WorkInfo.State.RUNNING }
         manager.enqueueUniqueWork(EARLY_WORK, if (running) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<TranscribeWork>().setConstraints(constraints()).addTag(TAG)
-                .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_REALTIME))
-                .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build())
+            earlyRequest(constraints()))
     }
     fun observe() = manager.getWorkInfosByTagFlow(TAG)
     companion object {
+        internal fun earlyRequest(constraints: Constraints): OneTimeWorkRequest =
+            OneTimeWorkRequestBuilder<TranscribeWork>().setConstraints(constraints).addTag(TAG)
+                .setInputData(BackgroundTranscribeDiagnostics.input())
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build()
         const val TAG = "transcribe"
         const val TIMED_TAG = "digest-timed"
         const val PERIODIC = "transcribe-periodic"

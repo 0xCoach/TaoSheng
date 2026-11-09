@@ -18,9 +18,13 @@ internal class LocalAsrConnection(private val context:Context) {
     private var binding:CompletableDeferred<Messenger>?=null
     private var death=CompletableDeferred<Unit>()
     private var closing:CompletableDeferred<Unit>?=null
+    private var processInstance:String?=null
+    private var processRecreated="unknown"
+    private var processPid:Int?=null
     var lastMetrics:Metrics?=null;private set
     private val receiver=Messenger(Handler(Looper.getMainLooper()){message->
         val data=message.data
+        observeProcess(data)
         val request=pending[data.getString("id")] ?: return@Handler true
         if(message.what in setOf(3,4)) request.timings?.speakerDecision = data.getString("speakerDecision") ?: "未提供"
         if(message.what in setOf(3,4)) for(part in listOf(AsrPart.Prepare,AsrPart.Diarize,AsrPart.ModelLoad,AsrPart.Recognize)) {
@@ -53,7 +57,19 @@ internal class LocalAsrConnection(private val context:Context) {
         }
         true
     })
+    private fun diagnostic(stage:String) = BackgroundTranscribeDiagnostics.record(context,stage,processRecreated,processPid)
+    private fun observeProcess(data:Bundle) {
+        val instance=data.getString("processInstance") ?: return
+        if(instance==processInstance)return
+        val prefs=context.getSharedPreferences("local-asr-process",Context.MODE_PRIVATE)
+        val previous=prefs.getString("instance",null)
+        processRecreated=previous?.let{(it!=instance).toString()} ?: "unknown"
+        processInstance=instance;processPid=data.getInt("pid")
+        prefs.edit().putString("instance",instance).apply()
+        diagnostic("local-process-connected")
+    }
     private fun broken() {
+        diagnostic("local-binding-lost")
         death.complete(Unit)
         binding?.completeExceptionally(AsrException(AsrError.LocalEngine))
         for(request in pending.values){request.started.complete(Unit);request.result.completeExceptionally(AsrException(AsrError.LocalEngine))}
@@ -61,7 +77,7 @@ internal class LocalAsrConnection(private val context:Context) {
     }
     private fun disconnect() {
         idle?.cancel();idle=null
-        if(bound){closing=death;runCatching{context.unbindService(connection!!)}}
+        if(bound){closing=death;runCatching{context.unbindService(connection!!)};diagnostic("local-unbound")}
         bound=false;connection=null;binding=null
     }
     private suspend fun connect():Messenger {
@@ -81,13 +97,14 @@ internal class LocalAsrConnection(private val context:Context) {
             override fun onNullBinding(name:ComponentName){if(binding===ready)broken()}
         }
         connection=conn
-        bound=context.bindService(Intent(context,LocalAsrService::class.java),conn,Context.BIND_AUTO_CREATE)
+        bound=context.bindService(Intent(context,LocalAsrService::class.java),conn,BIND_FLAGS)
         if(!bound)broken()
         return awaitBinding(ready)
     }
     private suspend fun awaitBinding(ready:CompletableDeferred<Messenger>):Messenger = try {
         withTimeout(15_000){ready.await()}
     } catch(e:TimeoutCancellationException) {
+        diagnostic("local-bind-timeout")
         // 绑定超时也属于引擎失败，清掉旧连接后 CPU 才能重新绑定。
         if(binding===ready)broken()
         throw AsrException(AsrError.LocalEngine)
@@ -100,10 +117,11 @@ internal class LocalAsrConnection(private val context:Context) {
         var messenger:Messenger?=null
         try {
             messenger=connect()
-            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("pcmPath",audio.pcmFile?.path);putString("backend",backend.name);putString("language",language.code);putBoolean("separateSpeakers",audio.separateSpeakers);putInt("speakerCount", audio.speakerCount ?: -1)}})
+            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("pcmPath",audio.pcmFile?.path);putString("backend",backend.name);putString("language",language.code);putBoolean("separateSpeakers",audio.separateSpeakers);putInt("speakerCount", audio.speakerCount ?: -1);putLong("timeoutMillis",InferenceWakeLock.timeoutMillis(audio.durationMillis))}})
             // 排队期间不消耗模型执行超时，调用方取消仍会立即生效。
             request.started.await()
-            withTimeout(maxOf(300_000L,60_000L+audio.durationMillis*2)){request.result.await()}
+            try { withTimeout(InferenceWakeLock.timeoutMillis(audio.durationMillis)){request.result.await()} }
+            catch(e:TimeoutCancellationException){diagnostic("local-inference-timeout");throw e}
         } finally {
             if(!request.result.isCompleted)runCatching{messenger?.send(Message.obtain(null,7).apply{data=Bundle().apply{putString("id",id)}})}
             pending.remove(id)
@@ -111,6 +129,8 @@ internal class LocalAsrConnection(private val context:Context) {
         }
     }
     companion object {
+        // API 14 起支持；继承主进程（包括录音前台服务）的优先级，不额外申请传感器能力。
+        internal const val BIND_FLAGS = Context.BIND_AUTO_CREATE or Context.BIND_IMPORTANT
         /** 比一段录音最长 5 分钟多 1 分钟：一直有人说话时模型常驻、录完就转不用反复加载；安静下来才退出省内存 */
         val IDLE_MILLIS = app.resound.capture.CaptureTuning.MAX_SEGMENT_SAMPLES * 1000L / app.resound.capture.CaptureTuning.SAMPLE_RATE + 60_000L
         private val instances=mutableMapOf<String,LocalAsrConnection>()

@@ -46,6 +46,7 @@ class ResoundApp : Application() {
         crashes.installHandler()
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
+        registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope)
         AppGraph.asrSpeed = asrSpeed

@@ -20,6 +20,9 @@ enum class PushTopic(val title: String) {
 
     /** 每晚生成回顾后，推当天完整的记忆文档（Markdown + 结构化数据），给用户自己的 Agent 再加工 */
     DailyMemory("每日记忆文档"),
+
+    /** 每天定时推当天足迹：在家/外出时长、停留地点；Webhook 另附结构化数据和定位点 */
+    Footprint("每日足迹"),
 }
 
 enum class PushFormat(val title: String) { Text("纯文本"), Markdown("Markdown"), Json("JSON") }
@@ -99,6 +102,10 @@ data class PushSubscription(
     val audioWithText: Boolean = true,
     /** 只在连 WiFi 时推录音 */
     val audioWifiOnly: Boolean = true,
+    /** 每日足迹：默认不推（位置敏感） */
+    val footprint: Boolean = false,
+    /** 每天几点推足迹（一天里的分钟数） */
+    val footprintAt: Int = 22 * 60,
 ) {
     companion object {
         /** 一键模板：选了再细调 */

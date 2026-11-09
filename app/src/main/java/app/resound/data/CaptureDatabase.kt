@@ -58,7 +58,7 @@ interface CaptureDao {
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, app.resound.search.LineFts::class, app.resound.search.EventFts::class,
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
-    PendingDigest::class, app.resound.envsound.EnvSoundRow::class, app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
+    PendingDigest::class, app.resound.envsound.EnvSoundRow::class, app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class, app.resound.location.LocationPoint::class, app.resound.location.PlaceRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
     internal abstract fun deviceSync(): app.resound.devices.DeviceSyncStore
     internal abstract fun folderImports(): app.resound.importer.FolderImportDao
@@ -76,9 +76,11 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun ask(): AskDao
     abstract fun review(): ReviewDao
     abstract fun skills(): app.resound.skills.SkillDao
+    abstract fun location(): app.resound.location.LocationDao
+    abstract fun places(): app.resound.location.PlaceDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 31
+        const val VERSION = 32
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -312,7 +314,15 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS device_transfers (`key` TEXT NOT NULL PRIMARY KEY, device TEXT NOT NULL, fileId TEXT NOT NULL, name TEXT NOT NULL, size INTEGER, startedAt INTEGER, duration INTEGER, format TEXT NOT NULL, fromMillis INTEGER NOT NULL, toMillis INTEGER NOT NULL, phoneStart INTEGER NOT NULL, received INTEGER NOT NULL, imported INTEGER NOT NULL, deleted INTEGER NOT NULL)")
             }
         }
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
+        /** 足迹（PR #19）：全天定位点、地名缓存（含手动改名与“家”）；原为 29→30，与 0.2.20/0.2.21 的版本顺延为 31→32 */
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                app.resound.location.LocationSchema.create(db)
+                app.resound.location.PlaceSchema.create(db)
+                app.resound.location.PlaceSchema.addManual(db)
+            }
+        }
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).addCallback(app.resound.importer.ImportRecordSchema.callback)

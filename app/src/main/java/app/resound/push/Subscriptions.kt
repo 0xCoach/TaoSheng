@@ -17,11 +17,13 @@ internal object Subscriptions {
         if (s.summaries) { add(PushTopic.DailyReview); add(PushTopic.SkillCard) }
         if (s.reminders) add(PushTopic.TodoReminder)
         if (s.records.isNotEmpty() || s.lines != LinesMode.Off) add(PushTopic.DailyMemory)
+        if (s.footprint) add(PushTopic.Footprint)
     }
     fun tighten(s: PushSubscription, c: PushCapabilities): PushSubscription {
         require(s.rangeDays == null || s.rangeDays > 0) { "范围天数须大于 0" }
         require(s.backfillDays == null || s.backfillDays >= 0) { "补齐天数不能为负数" }
         require(s.fullCheckAt == null || s.fullCheckAt in 0..1439) { "时刻须为 0～1439 分钟" }
+        require(s.footprintAt in 0..1439) { "足迹推送时刻须为 0～1439 分钟" }
         when (val t = s.trigger) {
             is RecordTrigger.OnChange -> require(t.minGapMinutes >= 5) { "最短间隔至少 5 分钟" }
             is RecordTrigger.Schedule -> require(t.times.isNotEmpty() && t.times.all { it in 0..1439 } && t.weekdays.all { it in 1..7 }) { "请填写有效的时刻和星期" }
@@ -40,6 +42,7 @@ internal object Subscriptions {
         .put("layout", s.layout.name).put("rangeDays", s.rangeDays ?: JSONObject.NULL).put("excludeMedia", s.excludeMedia)
         .put("backfillDays", s.backfillDays ?: JSONObject.NULL).put("lineContext", s.lineContext)
         .put("audio", s.audio.name).put("audioWithText", s.audioWithText).put("audioWifiOnly", s.audioWifiOnly)
+        .put("footprint", s.footprint).put("footprintAt", s.footprintAt)
     fun read(j: JSONObject): PushSubscription {
         val t = j.getJSONObject("trigger")
         fun number(key: String) = if (j.isNull(key)) null else j.getInt(key)
@@ -51,7 +54,8 @@ internal object Subscriptions {
                 else -> RecordTrigger.Manual
             }, j.getBoolean("incremental"), number("fullCheckAt"), FolderLayout.valueOf(j.getString("layout")), number("rangeDays"), j.getBoolean("excludeMedia"), number("backfillDays"), lineContext = j.optBoolean("lineContext", true),
             audio = AudioPush.entries.find { it.name == j.optString("audio") } ?: AudioPush.Off,
-            audioWithText = j.optBoolean("audioWithText", true), audioWifiOnly = j.optBoolean("audioWifiOnly", true))
+            audioWithText = j.optBoolean("audioWithText", true), audioWifiOnly = j.optBoolean("audioWifiOnly", true),
+            footprint = j.optBoolean("footprint", false), footprintAt = j.optInt("footprintAt", 22 * 60).coerceIn(0, 1439))
     }
     fun nextSchedule(t: RecordTrigger.Schedule, after: ZonedDateTime): Long = (0L..7L).flatMap { offset ->
         val date = after.toLocalDate().plusDays(offset)

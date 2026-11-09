@@ -36,6 +36,7 @@ class LlmInputLimitException(message: String = "内容超出所选模型的容�
 class LlmClient(
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
+    private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
 ) {
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
         if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
@@ -49,7 +50,7 @@ class LlmClient(
         applyLlmOptions(preset, body, thinking)
         val request = Request.Builder()
             .url(preset.baseUrl.trimEnd('/') + "/chat/completions")
-            .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
+            .serviceHeaders(key, requestHeaders(preset))
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
         try { clientFor(preset).newCall(request).consumeResponse {
@@ -76,7 +77,7 @@ class LlmClient(
         if (tools.length() > 0) body.put("tools", tools).put("tool_choice", if (allowTools) "auto" else "none")
         applyLlmOptions(preset, body)
         val request = Request.Builder().url(preset.baseUrl.trimEnd('/') + "/chat/completions")
-            .apply { if (key.isNotBlank()) header("Authorization", "Bearer $key") }
+            .serviceHeaders(key, requestHeaders(preset))
             .post(body.toString().toRequestBody("application/json".toMediaType())).build()
         val call = clientFor(preset).newCall(request)
         cont.invokeOnCancellation { call.cancel() }

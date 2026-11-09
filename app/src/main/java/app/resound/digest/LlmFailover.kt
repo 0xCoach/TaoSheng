@@ -37,13 +37,13 @@ class LlmFailover(
     }
     @Synchronized fun clear(id: String) { cooling.remove(id); generations[id] = (generations[id] ?: 0) + 1 }
     fun hasBackup(primary: LlmPreset): Boolean = enabled.value && synchronized(providers.guard) {
-        providers.saved.value.any { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey()) }
+        providers.saved.value.any { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
     }
     private data class Candidate(val preset: LlmPreset, val key: String, val generation: Long)
     private fun candidates(primary: LlmPreset, key: String, enabled: Boolean): List<Candidate> {
         val credentials = synchronized(providers.guard) {
             listOf(primary to key) + if (!enabled) emptyList() else providers.saved.value
-                .filter { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey()) }
+                .filter { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
                 .map { it.preset() to providers.readKey(it.id) }
         }
         return synchronized(this) {
@@ -117,7 +117,7 @@ class LlmFailover(
     ): LlmReply {
         val (reply, actual) = execute(feature, primary, key) { p, secret ->
             try {
-                if (secret.isBlank() && !p.allowsEmptyKey()) throw LlmException(LlmError.Auth)
+                if (secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
                 if (system.length.toLong() + user.length > LlmInputBudget.inputChars(p)) throw LlmInputLimitException()
                 request(p, secret, system, user)
             } catch (e: LlmException) {
@@ -142,7 +142,7 @@ class LlmFailover(
         val (reply, actual) = execute(feature, session.primary, session.key, { !session.emitted }) { p, secret ->
             var prompt = 0L; var completion = 0L
             try {
-                if (secret.isBlank() && !p.allowsEmptyKey()) throw LlmException(LlmError.Auth)
+                if (secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
                 val result = client.streamChat(p, secret, messages, tools, { delta ->
                     if (delta.isNotEmpty()) session.emitted = true
                     onText(delta)

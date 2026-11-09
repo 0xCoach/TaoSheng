@@ -71,7 +71,7 @@ class DigestRunner(
         _running.value = true
         try {
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) { record(null, "还没填写大模型密钥"); return false }
+            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) { record(null, "还没填写大模型密钥"); return false }
             unsavedReply?.let { dao.rememberDigest(it); unsavedReply = null; clearInFlight() }
             val undigested = dao.undigestedLines()
             val chunks = mutableListOf<List<TranscriptLineEntity>>()

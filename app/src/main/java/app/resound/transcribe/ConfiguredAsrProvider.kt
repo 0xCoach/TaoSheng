@@ -1,6 +1,7 @@
 package app.resound.transcribe
 
 import android.content.Context
+import app.resound.digest.serviceHeaders
 import app.resound.transcribe.local.LocalAsrProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,13 +40,13 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
         val mode=settings.customEndpointMode
         val urls=runCatching{ transcriptionEndpoints(endpoint,mode) }.getOrElse{ throw AsrException(AsrError.Protocol) }
         if(urls.isEmpty() || model.isBlank())throw AsrException(AsrError.Protocol)
-        val client=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).build()
+        val client=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
         // 自动模式照旧发热词；完整模式由设置决定，默认不发。
         val body = customAsrBody(audio, model, hotwords(), withPrompt = mode == CustomEndpointMode.Auto || settings.customPrompt.value)
         var call: Call? = null
         try {
             for(url in urls) {
-                call=client.newCall(Request.Builder().url(url).apply { if(key.isNotBlank()) header("Authorization","Bearer $key") }.post(body).build())
+                call=client.newCall(Request.Builder().url(url).serviceHeaders(key, settings.headers(TranscribeSource.Custom.name)).post(body).build())
                 beforeAudio()
                 call.awaitResponse().use { response->
                     if(response.code in setOf(404,405))return@use
@@ -63,7 +64,7 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
     }
 }
 class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
-    private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords)
+    private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords, headers = { settings.headers(TranscribeSource.Doubao.name) })
     private val local=LocalAsrProvider(context,settings,hotwords)
     private val custom=CustomAsrProvider(settings, hotwords)
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = recognize(settings.source.value, audio, key, beforeAudio)

@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.digest.HeaderEntry
+import app.resound.digest.serviceHeaders
 import kotlinx.coroutines.*
 import okhttp3.*
 import okio.ByteString
@@ -14,6 +16,7 @@ class DoubaoAsrProvider(
     private val config: DoubaoConfig = DoubaoConfig(),
     private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
+    private val headers: () -> List<HeaderEntry> = { emptyList() },
     private val hotwords: () -> List<String> = { emptyList() },
 ) : AsrProvider {
     override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult =
@@ -22,6 +25,10 @@ class DoubaoAsrProvider(
             catch (e: AsrException) { if (e.concurrencyLimited) DoubaoConcurrency.global.reduce(); throw e }
         }
     private suspend fun recognizeRequest(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = withContext(Dispatchers.IO) {
+        val customHeaders = headers()
+        fun safeLogId(value: String?) = TranscribePolicy.safeLogId(value, key)?.takeIf { id ->
+            customHeaders.none { it.value.isNotEmpty() && id.contains(it.value, true) }
+        }
         var socket: WebSocket? = null
         var logId: String? = null
         try {
@@ -31,17 +38,17 @@ class DoubaoAsrProvider(
                     val final = CompletableDeferred<AsrResult>()
                     val incremental = DoubaoIncremental()
                     val request = Request.Builder().url(config.url).header("X-Api-Key", key)
-                        .header("X-Api-Resource-Id", config.resourceId).header("X-Api-Connect-Id", UUID.randomUUID().toString()).build()
+                        .header("X-Api-Resource-Id", config.resourceId).header("X-Api-Connect-Id", UUID.randomUUID().toString()).serviceHeaders("", customHeaders).build()
                     val listener = object : WebSocketListener() {
                         override fun onOpen(webSocket: WebSocket, response: Response) {
-                            logId = TranscribePolicy.safeLogId(response.header("X-Tt-Logid"), key)
+                            logId = safeLogId(response.header("X-Tt-Logid"))
                             opened.complete(Unit)
                         }
                         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                             try {
                                 val packet = DoubaoProtocol.parse(bytes.toByteArray())
-                                if (logId == null) logId = TranscribePolicy.safeLogId(packet.payload.optJSONObject("result")
-                                    ?.optJSONObject("additions")?.optString("log_id"), key)
+                                if (logId == null) logId = safeLogId(packet.payload.optJSONObject("result")
+                                    ?.optJSONObject("additions")?.optString("log_id"))
                                 val code = packet.code ?: packet.payload.optLong("code", 20000000)
                                 if (packet.kind == 15 || code !in setOf(0L, 20000000L)) {
                                     val limited = doubaoLimited(code, message = packet.payload.optString("message"))
@@ -63,7 +70,7 @@ class DoubaoAsrProvider(
                             val type = if (response != null) DoubaoProtocol.error(response.header("X-Api-Status-Code")?.toLongOrNull(), response.code)
                                 else if (t is SocketTimeoutException) AsrError.Timeout else AsrError.Network
                             val limited = doubaoLimited(response?.header("X-Api-Status-Code")?.toLongOrNull(), response?.code, response?.header("X-Api-Message"))
-                            val error = AsrException(if (limited) AsrError.Server else type, TranscribePolicy.safeLogId(response?.header("X-Tt-Logid"), key) ?: logId, concurrencyLimited = limited)
+                            val error = AsrException(if (limited) AsrError.Server else type, safeLogId(response?.header("X-Tt-Logid")) ?: logId, concurrencyLimited = limited)
                             opened.completeExceptionally(error); final.completeExceptionally(error)
                             response?.close()
                         }

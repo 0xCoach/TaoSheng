@@ -231,6 +231,8 @@ interface MemoryRepository {
 data class LlmPreset(val id: String, val name: String, val baseUrl: String, val model: String)
 
 interface DigestSettings {
+    fun headers(presetId: String): List<HeaderEntry> = emptyList()
+    fun saveHeaders(presetId: String, headers: List<HeaderEntry>) {}
     val presets: List<LlmPreset>
 
     /** 当前选中的服务 id */
@@ -254,3 +256,7 @@ interface DigestSettings {
 
 /** 定到了具体几点（dueText 为 "YYYY-MM-DD HH:mm"）；只有日期或没时间为 false。强提醒只对这种开放 */
 val MemoryItem.hasTime: Boolean get() = dueAt != null && (dueText?.length ?: 0) > 10
+
+data class HeaderEntry(val name: String, val value: String) {
+    override fun toString(): String = "HeaderEntry(name=$name)"
+}

@@ -152,7 +152,8 @@ class ResoundApp : Application() {
             } finally { file.delete() }
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
-        val llm = LlmClient()
+        val serviceHeaders = app.resound.digest.ServiceHeaders(this)
+        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset)
         val digestSettings = AndroidDigestSettings(this, llm) { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
@@ -195,12 +196,12 @@ class ResoundApp : Application() {
         digestSettings.timing.onChanged = scheduler::timingChanged
         // 独立 20 秒 HTTP 上限也覆盖响应体读取；不改变日常整理的长请求上限。
         val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
-            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
+            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = serviceHeaders::forPreset)
         AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
             { digestSettings.skillCredentials(null) }, digestSettings.failover.request("手动待办", database.memory(), app.resound.usage.UsagePurpose.Digest, todoLlm::chatJson), { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                     reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
-            }, hasBackup = digestSettings.failover::hasBackup)
+            }, hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) })
         AppGraph.todoVoice = AndroidTodoVoiceInput(controller, scope, cacheDir,
             ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential)
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }
@@ -215,7 +216,7 @@ class ResoundApp : Application() {
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), { reviewScheduler.schedule(it, changed = true) },
             dailyMemory = pushChannels::dispatchDailyMemory,
             beforeReview = { app.resound.review.ReviewPreparation.run(this) },
-            work = androidx.work.WorkManager.getInstance(this), hasBackup = digestSettings.failover::hasBackup)
+            work = androidx.work.WorkManager.getInstance(this), hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) })
         val skillFiles = app.resound.skills.SkillFiles(this)
         digestSettings.providers.beforeDelete = { id -> skillFiles.resetProviders(setOf(id)) }
         skillFiles.resetProviders(skillFiles.skills.value.mapNotNull { it.presetId }.toSet() - digestSettings.presets.map { it.id }.toSet())
@@ -225,7 +226,7 @@ class ResoundApp : Application() {
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), skillScheduler::schedule,
             generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope),
             beforeWeeklyReview = { app.resound.review.ReviewPreparation.run(this) },
-            hasBackup = digestSettings.failover::hasBackup,
+            hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) },
             draftRequest = digestSettings.failover.request("技能生成", database.memory(), app.resound.usage.UsagePurpose.Draft, llm::chatJson))
         AppGraph.skills = skillRepository
         scope.launch { skillRepository.reschedule() }

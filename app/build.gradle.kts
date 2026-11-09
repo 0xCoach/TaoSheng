@@ -1,4 +1,12 @@
+/*
+ * [INPUT]: 固定工具链与固定提交与 SHA-256 校验的 Sonicloud AAR、厂商声明依赖。
+ * [OUTPUT]: arm64 Android 应用与定向测试构建。
+ * [POS]: 模块构建边界；保留现有 SDK 级别与 OkHttp 版本。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import java.util.Properties
+import java.security.MessageDigest
+import java.net.URI
 
 plugins {
     id("com.android.application")
@@ -70,7 +78,43 @@ kotlin {
     }
 }
 
+
+val sonicloudAar = layout.buildDirectory.file("sonicloud/pnote_20260827161403.aar")
+val prepareSonicloudSdk = tasks.register("prepareSonicloudSdk") {
+    val sha256 = "1fb794ac2631aa2278eca54ea5c6c3afec8efd7818a679398c4bbc4501f8f49e"
+    outputs.file(sonicloudAar)
+    fun valid(bytes: ByteArray) = bytes.size == 193310 &&
+        MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it) } == sha256
+    outputs.upToDateWhen {
+        val file = sonicloudAar.get().asFile
+        file.isFile && valid(file.readBytes())
+    }
+    doLast {
+        val connection = URI("https://raw.githubusercontent.com/SonicloudTech/sonicloud_opensdk/fa63976f3fe37c889fd084acc75bd66b87e2c83a/pnote-android-sdk/pnote_20260827161403.aar").toURL().openConnection()
+        connection.connectTimeout = 30_000
+        connection.readTimeout = 30_000
+        val bytes = connection.getInputStream().use { it.readNBytes(193311) }
+        check(valid(bytes)) { "Sonicloud SDK 大小或 SHA-256 不匹配，请检查厂商固定版本" }
+        sonicloudAar.get().asFile.apply { parentFile.mkdirs(); writeBytes(bytes) }
+    }
+}
+
 dependencies {
+    implementation(files(sonicloudAar).builtBy(prepareSonicloudSdk))
+    implementation("com.polidea.rxandroidble2:rxandroidble:1.17.2")
+    implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
+    implementation("io.reactivex.rxjava3:rxjava:3.1.8")
+    implementation("org.greenrobot:eventbus:3.3.1")
+    implementation("org.greenrobot:greendao:3.2.2")
+    implementation("com.koushikdutta.async:androidasync:3.1.0")
+    implementation("com.squareup.retrofit2:retrofit:2.5.0")
+    implementation("com.squareup.retrofit2:adapter-rxjava2:2.5.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.5.0")
+    implementation("com.squareup.retrofit2:converter-scalars:2.5.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("org.xutils:xutils:3.3.40")
+    implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("org.ahocorasick:ahocorasick:0.4.0") // 随包 TinyPinyin 的依赖
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     implementation("androidx.documentfile:documentfile:1.0.0")

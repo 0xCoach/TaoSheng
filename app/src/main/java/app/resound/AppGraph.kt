@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 现有采集装配与录音输入选择。
+ * [OUTPUT]: 保持系统输入行为，并接入显式选择的 Sonicloud 录音卡。
+ * [POS]: 应用输入链路；录音卡失联不得触发手机麦克风回退。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound
 
 import app.resound.capture.CaptureController
@@ -13,6 +19,8 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var recorder: app.resound.sonicloud.SonicloudRecorder
+    val isRecorderReady: Boolean get() = ::recorder.isInitialized
     lateinit var llmFailover: app.resound.digest.LlmFailover
     val isLlmFailoverReady: Boolean get() = ::llmFailover.isInitialized
     lateinit var llmProviders: app.resound.digest.LlmProviders

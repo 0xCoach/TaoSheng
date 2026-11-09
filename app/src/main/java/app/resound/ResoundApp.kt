@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 现有采集装配与录音输入选择。
+ * [OUTPUT]: 保持系统输入行为，并接入显式选择的 Sonicloud 录音卡。
+ * [POS]: 应用输入链路；录音卡失联不得触发手机麦克风回退。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound
 
 import app.resound.push.attachSubscriptions
@@ -82,6 +88,7 @@ class ResoundApp : Application() {
         val hotwords = AndroidHotwordSettings(this, database.voiceprint(), scope)
         AppGraph.hotwords = hotwords
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope)
+        AppGraph.recorder = app.resound.sonicloud.SonicloudRecorder(this, AppGraph.importer as app.resound.importer.AndroidAudioImporter)
         // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
         val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
         val pcmReader = AsrAudioReader(cacheDir)

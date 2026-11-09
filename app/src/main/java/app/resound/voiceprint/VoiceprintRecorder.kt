@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.voiceprint
 
 import android.media.AudioFormat
@@ -12,7 +18,7 @@ object VoiceprintRecorder {
     @android.annotation.SuppressLint("MissingPermission")
     suspend fun record(controller: CaptureController, progress: (Int) -> Unit): ShortArray = withContext(Dispatchers.IO) {
         val original = controller.status.value.state
-        val resume = original in setOf(CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy)
+        val resume = original in setOf(CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy, CaptureState.SourceUnavailable)
         var recorder: AudioRecord? = null
         try {
             if (resume) { controller.pause(2); delay(500) }

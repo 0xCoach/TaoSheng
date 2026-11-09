@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.capture
 
 import android.content.ComponentName
@@ -18,7 +24,7 @@ import java.time.format.DateTimeFormatter
 internal object CaptureTilePolicy {
     enum class Action { Pause, Resume, Start }
     fun action(state: CaptureState): Action = when (state) {
-        CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy -> Action.Pause
+        CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy, CaptureState.SourceUnavailable -> Action.Pause
         CaptureState.Paused -> Action.Resume
         CaptureState.Stopped, CaptureState.NoPermission -> Action.Start
     }
@@ -28,7 +34,7 @@ internal object CaptureTilePolicy {
         Action.Start -> controller.start()
     }
     fun subtitle(status: CaptureStatus): String = when (action(status.state)) {
-        Action.Pause -> "聆听中"
+        Action.Pause -> if (status.state == CaptureState.SourceUnavailable) "等待录音卡" else "聆听中"
         Action.Resume -> status.pausedUntil?.let {
             "已暂停到 ${Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))}"
         } ?: "已暂停"

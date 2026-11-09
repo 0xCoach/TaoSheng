@@ -1,19 +1,13 @@
 package app.resound.transcribe
 
 import app.resound.data.*
-import app.resound.voiceprint.VoiceprintThresholds
 import java.io.File
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.channels.Channel
-import org.json.JSONArray
 
-internal data class ExportSource(val row: SegmentWithLines, val events: List<MemoryEventEntity>) {
+internal data class ExportSource(val row: SegmentWithLines, val events: List<MemoryEventEntity>, val items: List<MemoryItemEntity> = emptyList()) {
     val audio get() = File(row.segment.path).isFile
     val voice get() = row.lines.any { !it.voiceInputJson.isNullOrBlank() } && !audio
     val media get() = events.any { it.scene == "媒体" && it.startAt < row.segment.endAt && it.endAt > row.segment.startAt }
@@ -32,7 +26,7 @@ internal class LocalAudioExporter(
     constructor(cacheDir: File, dao: TranscribeDao, speeds: ExportSpeeds = ExportSpeeds(), record: (String) -> Unit = {}) : this(File(cacheDir, "exports"), { ids ->
         ids.distinct().chunked(500).flatMap { dao.exportSegments(it) }.map { row ->
             val events = dao.exportEvents(row.segment.id, row.segment.startAt, row.segment.endAt)
-            ExportSource(row, events)
+            ExportSource(row, events, events.map { it.id }.chunked(500).flatMap { dao.exportItems(it) })
         }
     }, ExportPcmDecoder::decode, speeds = speeds, record = record)
 
@@ -43,9 +37,9 @@ internal class LocalAudioExporter(
         val all = sources(request)
         val selected = all.filterNot { request.skipMedia && it.media }
         val audio = selected.filter { it.audio }
-        val duration = audio.sumOf { (it.row.segment.endAt - it.row.segment.startAt).coerceAtLeast(0) } + (audio.size - 1).coerceAtLeast(0) * 500L
+        val duration = if (!request.includeAudio) 0L else audio.sumOf { (it.row.segment.endAt - it.row.segment.startAt).coerceAtLeast(0) } + (audio.size - 1).coerceAtLeast(0) * 500L
         ExportEstimate(audio.size, selected.count { it.voice }, selected.count { !it.audio && !it.voice },
-            all.size - selected.size, duration, duration * 8, speeds.estimate(duration)) // 64 kbps
+            all.size - selected.size, duration, duration * 8, if (request.includeAudio) speeds.estimate(duration) else 0L) // 64 kbps
     }
 
     override fun export(request: ExportRequest): Flow<ExportProgress> = exportIn(request, UUID.randomUUID().toString())
@@ -70,18 +64,19 @@ internal class LocalAudioExporter(
         var attempted = 0
         val excluded = mutableSetOf<Long>()
         try {
+            check(request.includeAudio || request.textParts.isNotEmpty()) { "没有选要导出的内容" }
             emit(ExportProgress.Working(0f))
             val selected = sources(request).filterNot { request.skipMedia && it.media }
             check(selected.isNotEmpty()) { "没有可导出的录音段或文字" }
             val base = safeTitle(request.title)
             val audio = File(folder, "$base.m4a")
             val positions = mutableMapOf<Long, Pair<Long, Long>>()
-            attempted = selected.count { it.audio }
+            attempted = if (request.includeAudio) selected.count { it.audio } else 0
             val estimatedDuration = selected.filter { it.audio }.sumOf {
                 (it.row.segment.endAt - it.row.segment.startAt).coerceAtLeast(0)
             } + (attempted - 1).coerceAtLeast(0) * 500L
             var lastUpdate = 0L
-            while (true) {
+            while (request.includeAudio) {
                 positions.clear()
                 var samples = 0L
                 try {
@@ -164,9 +159,14 @@ internal class LocalAudioExporter(
             encodeNanos += System.nanoTime() - finishing
             val files = mutableListOf<File>()
             if (positions.isNotEmpty()) files += audio
-            val rendered = ExportText.render(base, selected, positions, duration, failed)
-            if (request.includeText) files += File(folder, "$base.txt").apply { writeText(rendered.first) }
-            if (request.includeSrt) files += File(folder, "$base.srt").apply { writeText(rendered.second) }
+            val rendered = ExportText.render(base, selected, positions, duration, failed, request)
+            if (request.textParts.isNotEmpty()) {
+                val markdown = request.textFormat == ExportTextFormat.Markdown
+                files += File(folder, "$base.${if (markdown) "md" else "txt"}").apply {
+                    writeText((if (markdown) "" else "\uFEFF") + rendered.first, Charsets.UTF_8)
+                }
+            }
+            if (request.includeAudio && request.includeSrt) files += File(folder, "$base.srt").apply { writeText(rendered.second) }
             check(files.isNotEmpty()) { "没有可合成的录音，请勾选原话文字" }
             currentCoroutineContext().ensureActive()
             // Contract 的 Working 无消息字段；跳过数量写入 txt，不伪造 Failed 终态。
@@ -208,33 +208,3 @@ private sealed interface ExportChunk {
     data class Progress(val fraction: Float) : ExportChunk
 }
 private class UnreadableExportSegment(val segmentId: Long) : Exception()
-
-internal object ExportText {
-    private fun clock(at: Long, pattern: String) = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern(pattern))
-    private fun position(ms: Long) = String.format(Locale.ROOT, "%02d:%02d", ms / 60000, ms / 1000 % 60)
-    private fun subtitle(ms: Long) = String.format(Locale.ROOT, "%02d:%02d:%02d,%03d", ms / 3600000, ms / 60000 % 60, ms / 1000 % 60, ms % 1000)
-    private fun speaker(line: TranscriptLineEntity) = line.speakerName
-        ?: if ((line.speakerScore ?: 0f) >= VoiceprintThresholds.MAYBE) "可能是我？"
-        else line.speakerTag?.let { if (it.startsWith("uncertain:")) "待确认" else "说话人 ${it.toIntOrNull()?.plus(1) ?: it}" } ?: "未知"
-    fun render(title: String, sources: List<ExportSource>, positions: Map<Long, Pair<Long, Long>>, duration: Long, failed: Int): Pair<String, String> {
-        val events = sources.flatMap { it.events }.distinctBy { it.id }
-        val people = events.flatMap { event -> runCatching {
-            val array = JSONArray(event.peopleJson)
-            (0 until array.length()).map { array.getString(it) }
-        }.getOrDefault(emptyList()) }.distinct()
-        val txt = StringBuilder("$title\n日期：${sources.joinToString("、") { clock(it.row.segment.startAt, "yyyy-MM-dd") }.split("、").distinct().joinToString("、")}\n总时长：${position(duration)}\n事件：${events.joinToString("、") { it.title }}\n人名：${people.joinToString("、")}\n")
-        if (failed > 0) txt.append("有 $failed 段录音读不出来，已跳过音频，原话保留\n")
-        val srt = StringBuilder()
-        var number = 0
-        for (source in sources) for (line in source.row.lines.sortedWith(compareBy({ it.startAt }, { it.id }))) {
-            val pos = positions[source.row.segment.id]?.takeIf { line.voiceInputJson.isNullOrBlank() }
-            val start = pos?.let { it.first + (line.startAt - source.row.segment.startAt).coerceIn(0, it.second) }
-            val end = pos?.let { it.first + (line.endAt - source.row.segment.startAt).coerceIn(0, it.second) }
-            val voice = if (!line.voiceInputJson.isNullOrBlank()) "⌨ 语音输入 · ${VoiceInputMetadata.read(line.voiceInputJson)?.app ?: "未知应用"}（无录音） " else ""
-            val text = line.text.replace(Regex("[\\r\\n]+"), " ")
-            txt.append("[${start?.let(::position) ?: "—"}] ${clock(line.startAt, "HH:mm:ss")} $voice${speaker(line)}：$text\n")
-            if (start != null && end != null && end > start) srt.append("${++number}\n${subtitle(start)} --> ${subtitle(end)}\n${speaker(line)}：$text\n\n")
-        }
-        return txt.toString() to srt.toString()
-    }
-}

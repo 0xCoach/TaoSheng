@@ -1,6 +1,6 @@
 /*
  * [INPUT]: PNote 回调、用户控制意图、AppGraph 的采集与导入能力。
- * [OUTPUT]: 设备状态、实时码流、串行下载及经目录复核的卡内文件清理。
+ * [OUTPUT]: 设备与 Wi-Fi 状态、实时码流、串行下载及经目录复核的卡内文件清理。
  * [POS]: 厂商 SDK 控制入口；命令先等待服务绑定，所有业务状态由串行队列处理。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,6 +16,7 @@ import app.resound.audio.InputChoice
 import app.resound.importer.AndroidAudioImporter
 import com.wind.pnote.ui.DeviceDataListener
 import com.wind.pnote.ui.PNote
+import com.wind.pnote.service.LongSocketClient
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -77,6 +78,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         check(filesVerified && !mutable.value.listing) { "请先刷新完整目录再清理" }
         check(!wanted && stream == null && mutable.value.recording == RecorderRecording.Stopped) { "请先停止聆听和卡内录音" }
         check(mutable.value.downloading == null && stoppingTransfer == null) { "请先结束文件传输" }
+        check(!wifi.active) { "请先关闭 Wi-Fi 快传，再清理卡内文件" }
         val available = mutable.value.files.associateBy { it.name }
         check(files.isNotEmpty() && files.all { available[it.name]?.let { f -> f.size == it.size && f.seconds == it.seconds } == true }) {
             "文件目录已改变，请刷新后重新选择"
@@ -86,6 +88,41 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         deletion.start(files)
     }
     fun stopDeleting() = submit { deletion.stopRemaining() }
+    private val wifi: RecorderWifi = RecorderWifi(scope, ::submit, AndroidRecorderWifiNetwork(context),
+        command = { command ->
+            when (command) {
+                RecorderWifiCommand.Open -> sdk { PNote.openWiFi() }
+                RecorderWifiCommand.Connect -> sdk { PNote.connectDeviceWiFi() }
+                RecorderWifiCommand.Connected -> {
+                    // shortcut: 固定版 SDK 无 SocketFactory 注入；升级 SDK 时复核此内部类。
+                    LongSocketClient.getInstance().setMaxReconnectCount(0)
+                }
+                RecorderWifiCommand.Close -> {
+                    // SDK 的 disconnect 会等待 connectLock，必须留在 IO 队列。
+                    LongSocketClient.getInstance().setMaxReconnectCount(0).disconnect()
+                    withContext(Dispatchers.Main.immediate) { PNote.disconnectDeviceWiFi() }
+                    if (mutable.value.connected && RecorderPermissions.connected(context)) sdk { PNote.closeWiFi() }
+                }
+            }
+        },
+        failed = { message -> cancelTransfer(); fail(message) },
+    )
+    val wifiStatus = wifi.status
+
+    fun connectWifi() = submit {
+        check(!deletion.active) { "请先结束卡内清理" }
+        check(mutable.value.connected && ready) { "请先连接录音卡并等待初始化完成" }
+        check(!wanted && stream == null && mutable.value.recording == RecorderRecording.Stopped) { "请先停止聆听和卡内录音" }
+        check(mutable.value.downloading == null && stoppingTransfer == null) { "请先结束文件传输" }
+        check(RecorderPermissions.canWifi(context)) { "请允许 Wi-Fi 附近设备权限；Android 12 及以下需要精确位置权限" }
+        check(context.getSystemService(android.net.wifi.WifiManager::class.java)?.isWifiEnabled == true) { "请开启手机 Wi-Fi" }
+        check(android.os.Build.VERSION.SDK_INT >= 33 ||
+            context.getSystemService(android.location.LocationManager::class.java)?.isLocationEnabled == true) { "请开启系统位置开关后重试快传" }
+        mutable.update { it.copy(error = null) }
+        wifi.open()
+    }
+    fun disconnectWifi() = submit { cancelTransfer(); wifi.stop() }
+
     init {
         scope.launch {
             for (command in commands) try { command() }
@@ -167,6 +204,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         check(recorderMayConnect(old?.key, device.key, stream != null)) { "请先停止聆听再更换录音卡" }
         if (mutable.value.connected && old == device || pendingConnect?.key == device.key) return
         deletion.reset(); filesVerified = false
+        wifi.stop()
         ready = false
         if (mutable.value.connected) {
             check(!wanted) { "请先停止聆听再更换录音卡" }
@@ -216,6 +254,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         pendingConnect = null; scanTimer?.cancel()
         deletion.abort(reason); filesVerified = false; listTimer?.cancel()
         ready = false; setupConnection?.cancel()
+        wifi.stop()
         transferGeneration++
         conversion?.cancelAndJoin(); conversion = null
         commandTimer?.cancel()
@@ -237,6 +276,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
             try {
                 check(!deletion.active) { "请先结束卡内清理" }
                 check(stream == null) { "录音卡已有音频订阅" }
+                check(!wifi.active) { "请先关闭 Wi-Fi 快传再开始聆听" }
                 check(mutable.value.device?.key == key) { "请先连接所选录音卡" }
                 check(mutable.value.downloading == null) { "请先结束文件下载" }
                 stream = channel; wanted = true; ownsRecording = true; pauseOnDetach = false
@@ -307,6 +347,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         check(mutable.value.connected && ready) { "请先连接录音卡并等待初始化完成" }
         check(!mutable.value.listing) { "正在读取目录，请稍候" }
         check(mutable.value.downloading == null) { "正在下载，请稍后刷新" }
+        check(!wifi.active || wifi.ready) { "请等待 Wi-Fi 连接完成" }
         requestFiles()
     }
     private suspend fun requestFiles() {
@@ -335,6 +376,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         check(!wanted && mutable.value.recording == RecorderRecording.Stopped) { "请先停止录音并保存卡内文件" }
         check(mutable.value.downloading == null) { "已有下载任务" }
         check(stoppingTransfer == null) { "正在确认停止传输，请稍候或断开重连" }
+        check(!wifi.active || wifi.ready) { "请等待 Wi-Fi 连接完成后下载" }
         overloaded.set(false)
         val available = mutable.value.files.associateBy { it.name }
         val device = checkNotNull(mutable.value.device)
@@ -343,7 +385,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         nextFile()
     }
     private suspend fun nextFile() {
-        if (queue.isEmpty()) { mutable.update { it.copy(downloading = null, queued = 0) }; return }
+        if (queue.isEmpty()) { mutable.update { it.copy(downloading = null, queued = 0) }; wifi.stop(); return }
         val file = queue.removeFirst()
         val offset = transfer.begin(checkNotNull(mutable.value.device).key, file)
         mutable.update { it.copy(downloading = file.name, percent = (offset * 100L / file.size).toInt(), queued = queue.size, error = null) }
@@ -370,7 +412,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                submit { if (generation != transferGeneration) return@submit; conversion = null; transfer.close(); queue.clear(); mutable.update { it.copy(downloading = null, queued = 0) }; fail(e.message ?: "文件转换失败") }
+                submit { if (generation != transferGeneration) return@submit; conversion = null; transfer.close(); queue.clear(); mutable.update { it.copy(downloading = null, queued = 0) }; wifi.stop(); fail(e.message ?: "文件转换失败") }
             }
         }
     }
@@ -385,6 +427,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         } }
         transfer.close(); queue.clear()
         mutable.update { it.copy(downloading = null, queued = 0) }
+        wifi.stop()
     }
 
     override fun onDeviceDataEvent(data: String?) { if (data != null) submit {
@@ -428,6 +471,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
     private suspend fun event(json: JSONObject) {
         if (json.optInt("state", 0) != 0) {
             if (json.optInt("cmd") in listOf(4, 14)) deletion.abort("录音卡删除或目录命令失败")
+            if (json.optInt("cmd") == 12) wifi.stop("录音卡 Wi-Fi 命令失败")
             fail("录音卡命令失败：${json.optString("cmd")}")
             return
         }
@@ -439,6 +483,10 @@ class SonicloudRecorder(private val context: Application, private val importer: 
             else -> false
         }
         if (recordingStarted) deletion.abort("录音卡开始录音")
+        if (recordingStarted && wifi.active) {
+            cancelTransfer()
+            fail("录音卡开始录音，已关闭 Wi-Fi 快传")
+        }
         when (json.optInt("cmd")) {
             1 -> {
                 val address = data.optString("address").uppercase()
@@ -532,6 +580,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
                 reconcileRecording()
             }
             11 -> data.optString("recordName").takeIf { it.isNotBlank() }?.let { rememberLive(it) }
+            12 -> wifi.event(data.optInt("wifi_state", -1), data.optString("wifiName"))
             14 -> deletion.acknowledged(data.optInt("delete_state", -1) == 0)
         }
     }

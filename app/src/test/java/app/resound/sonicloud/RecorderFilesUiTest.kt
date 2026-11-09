@@ -42,7 +42,7 @@ class RecorderFilesUiTest {
         val deleted = mutableListOf<List<RecorderFile>>()
         compose.setContent { ResoundTheme(ThemeMode.Light) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                RecorderFilesSection(state, RecorderDeleteStatus(), {},
+                RecorderFilesSection(state, RecorderWifiStatus(), RecorderDeleteStatus(), {},
                     { key, files -> assertEquals(device.key, key); deleted += files }, {})
             }
         } }
@@ -63,7 +63,7 @@ class RecorderFilesUiTest {
         var deletes = 0
         compose.setContent { ResoundTheme(ThemeMode.Light) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                RecorderFilesSection(state, RecorderDeleteStatus(), {}, { _, _ -> deletes++ }, {})
+                RecorderFilesSection(state, RecorderWifiStatus(), RecorderDeleteStatus(), {}, { _, _ -> deletes++ }, {})
             }
         } }
         click(files.first().name)

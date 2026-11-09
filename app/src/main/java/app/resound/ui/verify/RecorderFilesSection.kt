@@ -22,6 +22,7 @@ import app.resound.ui.theme.RsType
 @Composable
 internal fun RecorderFilesSection(
     state: RecorderStatus,
+    wifi: RecorderWifiStatus,
     deletion: RecorderDeleteStatus,
     download: (List<RecorderFile>) -> Unit,
     delete: (String, List<RecorderFile>) -> Unit,
@@ -40,6 +41,7 @@ internal fun RecorderFilesSection(
     val importable = selected.filterNot { it.imported }
     val idle = state.connected && !state.listing && state.downloading == null && !deletion.busy
     val stopped = idle && state.recording == RecorderRecording.Stopped
+    val wifiConnecting = wifi.phase != RecorderWifiPhase.Off && wifi.phase != RecorderWifiPhase.Ready
     LaunchedEffect(state.files) {
         selection = selection.intersect(state.files.map { it.name }.toSet())
     }
@@ -92,15 +94,15 @@ internal fun RecorderFilesSection(
                 }
             }
         }
-        ActionButton("蓝牙下载并导入所选 ${importable.size} 个文件",
-            ActionKind.Primary, enabled = stopped && importable.isNotEmpty()) {
+        ActionButton("${if (wifi.phase == RecorderWifiPhase.Ready) "Wi-Fi 快传" else "蓝牙下载"}并导入所选 ${importable.size} 个文件",
+            ActionKind.Primary, enabled = stopped && !wifiConnecting && importable.isNotEmpty()) {
             if (importable.any { it.capturedLive }) confirmDownload = importable.toList()
             else { download(importable); selection = emptySet() }
         }
-        Text("清理会永久删除卡内原件；已交给导入队列不代表已备份。请先确认手机中已保存完整音频。",
+        Text("清理会永久删除卡内原件；已交给导入队列不代表已备份。请先确认手机中已保存完整音频。清理前需关闭 Wi-Fi 快传。",
             style = RsType.caption, color = Rs.colors.textSecondary)
         ActionButton("删除卡内所选 ${selected.size} 个文件", ActionKind.Danger,
-            enabled = stopped && !deletion.needsReconnect && selected.isNotEmpty()) {
+            enabled = stopped && wifi.phase == RecorderWifiPhase.Off && !deletion.needsReconnect && selected.isNotEmpty()) {
             confirmDelete = selected.toList()
         }
     }
@@ -116,7 +118,7 @@ internal fun RecorderFilesSection(
     confirmDownload?.let { files ->
         AlertDialog(onDismissRequest = { confirmDownload = null }, title = { Text("可能有重复内容") },
             text = { Text("所选文件有部分内容曾实时采集。完整导入可能再次转写这些内容。") },
-            confirmButton = { TextButton(enabled = stopped, onClick = {
+            confirmButton = { TextButton(enabled = stopped && !wifiConnecting, onClick = {
                 confirmDownload = null; download(files); selection = emptySet()
             }) { Text("仍然导入") } },
             dismissButton = { TextButton(onClick = { confirmDownload = null }) { Text("取消") } })
@@ -130,7 +132,7 @@ internal fun RecorderFilesSection(
                     items(files, key = { it.name }) { Text(it.name, style = RsType.caption) }
                 }
             } },
-            confirmButton = { TextButton(enabled = stopped && deviceKey != null && !deletion.needsReconnect,
+            confirmButton = { TextButton(enabled = stopped && deviceKey != null && wifi.phase == RecorderWifiPhase.Off && !deletion.needsReconnect,
                 onClick = { confirmDelete = null; delete(checkNotNull(deviceKey), files); selection = emptySet() }) { Text("永久删除") } },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("取消") } })
     }

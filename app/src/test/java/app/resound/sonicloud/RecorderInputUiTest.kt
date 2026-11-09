@@ -46,7 +46,7 @@ class RecorderInputUiTest {
         var state by mutableStateOf(RecorderStatus(device = device))
         var choice by mutableStateOf<InputChoice>(InputChoice.Phone)
         compose.setContent { ResoundTheme(ThemeMode.Light) {
-            Column { RecorderInputRow(state, RecorderDeleteStatus(), choice) { choice = it } }
+            Column { RecorderInputRow(state, RecorderWifiStatus(), RecorderDeleteStatus(), choice) { choice = it } }
         } }
         compose.onNodeWithText(device.name).assertDoesNotExist()
         compose.runOnIdle { state = state.copy(connected = true) }
@@ -58,15 +58,18 @@ class RecorderInputUiTest {
 
     @Test fun transferAndCleanupKeepInputSelectionBlockedUntilIdle() {
         var state by mutableStateOf(RecorderStatus(device = device, connected = true, downloading = "test.opus"))
+        var wifi by mutableStateOf(RecorderWifiStatus())
         var deletion by mutableStateOf(RecorderDeleteStatus())
         var selections = 0
         compose.setContent { ResoundTheme(ThemeMode.Light) {
-            Column { RecorderInputRow(state, deletion, InputChoice.Phone) { selections++ } }
+            Column { RecorderInputRow(state, wifi, deletion, InputChoice.Phone) { selections++ } }
         } }
         compose.onNodeWithText(device.name).assertIsNotEnabled().performTouchInput { click() }
         compose.runOnIdle { assertEquals(0, selections); state = state.copy(downloading = null); deletion = RecorderDeleteStatus(current = "test.opus") }
         compose.onNodeWithText(device.name).assertIsNotEnabled().performTouchInput { click() }
-        compose.runOnIdle { assertEquals(0, selections); deletion = RecorderDeleteStatus() }
+        compose.runOnIdle { assertEquals(0, selections); deletion = RecorderDeleteStatus(); wifi = RecorderWifiStatus(RecorderWifiPhase.Ready) }
+        compose.onNodeWithText(device.name).assertIsNotEnabled().performTouchInput { click() }
+        compose.runOnIdle { assertEquals(0, selections); wifi = RecorderWifiStatus() }
         compose.onNodeWithText(device.name).assertIsEnabled().performTouchInput { click() }
         compose.runOnIdle { assertEquals(1, selections) }
     }

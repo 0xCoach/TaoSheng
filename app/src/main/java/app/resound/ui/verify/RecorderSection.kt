@@ -1,5 +1,5 @@
 /*
- * [INPUT]: 录音卡控制、连接电量及文件状态。
+ * [INPUT]: 录音卡控制、连接电量及 Wi-Fi 状态。
  * [OUTPUT]: 紧凑设备卡片、连接与文件管理入口；输入源选择统一由 InputSection 提供。
  * [POS]: 录音输入页的设备入口；复用既有卡片、按钮和导入确认流程。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -47,7 +47,9 @@ internal fun RecorderSection() {
     if (!AppGraph.isRecorderReady) return
     val recorder = AppGraph.recorder
     val state by recorder.status.collectAsState()
+    val wifi by recorder.wifiStatus.collectAsState()
     val deletion by recorder.deleteStatus.collectAsState()
+    val wifiConnecting = wifi.phase != RecorderWifiPhase.Off && wifi.phase != RecorderWifiPhase.Ready
     val context = LocalContext.current
     var open by rememberSaveable { mutableStateOf(false) }
     var explanation by remember { mutableStateOf(false) }
@@ -75,8 +77,9 @@ internal fun RecorderSection() {
         text = { Text("可以稍后重试；若已禁止再次询问，请在系统设置中允许附近设备权限。") },
         confirmButton = { TextButton(onClick = { denied = false; context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }) { Text("系统设置") } },
         dismissButton = { TextButton(onClick = { denied = false }) { Text("关闭") } })
-    if (open) RsSheet("录音卡", "普通款 A · 蓝牙控制与文件导入", onDismiss = {
+    if (open) RsSheet("录音卡", "普通款 A · 蓝牙控制 / Wi-Fi 快传", onDismiss = {
         open = false; recorder.stopScan()
+        if (state.downloading == null) recorder.disconnectWifi()
     }) {
         ActionButton(if (state.scanning) "停止搜索" else "搜索附近录音卡", ActionKind.Secondary) {
             if (state.scanning) recorder.stopScan() else request { recorder.scan() }
@@ -98,17 +101,18 @@ internal fun RecorderSection() {
             if (state.connected) {
                 if (state.recording == RecorderRecording.Recording || state.recording == RecorderRecording.Paused)
                     ActionButton("停止并保存卡录音", ActionKind.Secondary) { recorder.stopRecording() }
+                if (!deletion.busy) RecorderWifiSection(recorder, state)
                 ActionButton("断开连接", ActionKind.Secondary) { recorder.disconnect() }
                 ActionButton(if (state.listing) "正在读取文件…" else "刷新卡内录音", ActionKind.Secondary,
-                    enabled = !deletion.busy && !state.listing && state.downloading == null) { recorder.refreshFiles() }
+                    enabled = !deletion.busy && !state.listing && state.downloading == null && !wifiConnecting) { recorder.refreshFiles() }
             }
         }
         state.error?.let { Text(it, style = RsType.caption, color = Rs.colors.warning) }
         state.downloading?.let {
-            Text("蓝牙下载：$it · ${state.percent}% · 剩余 ${state.queued} 个", style = RsType.subhead, color = Rs.colors.text)
+            Text("${if (wifi.phase == RecorderWifiPhase.Ready) "Wi-Fi 快传" else "蓝牙下载"}：$it · ${state.percent}% · 剩余 ${state.queued} 个", style = RsType.subhead, color = Rs.colors.text)
             LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
             ActionButton("取消下载（保留断点）", ActionKind.Secondary) { recorder.cancelDownload() }
         }
-        RecorderFilesSection(state, deletion, recorder::download, recorder::deleteFiles, recorder::stopDeleting)
+        RecorderFilesSection(state, wifi, deletion, recorder::download, recorder::deleteFiles, recorder::stopDeleting)
     }
 }

@@ -58,17 +58,12 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** 数据备份：本机（存到手机文件夹、导出、从文件恢复）和坚果云两种，加密口令共用 */
+/** 数据备份：本机（存到手机文件夹、导出、从文件恢复）和云端（坚果云 / WebDAV / S3 三选一），加密口令共用 */
 @Composable
 fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
     val c = Rs.colors
     val s by repo.state.collectAsState()
     val scope = rememberCoroutineScope()
-    var editing by remember { mutableStateOf(false) }
-    var account by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var testing by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<Result<String>?>(null) }
     val configured = s.account != null && s.hasPassword
     var settingPass by remember { mutableStateOf(false) }
     var restoring by remember { mutableStateOf<app.resound.backup.RemoteBackup?>(null) }
@@ -100,7 +95,7 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
         Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        app.resound.ui.skills.Segments(listOf("本机", "坚果云"), tab) { tab = it }
+        app.resound.ui.skills.Segments(listOf("本机", "云端"), tab) { tab = it }
         if (tab == 0) LocalBackupSection(repo, cache, local, { restoringAll = "local" }) { restoring = it }
         else {
         // 状态
@@ -127,46 +122,8 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
             }
         }
 
-        // 账号
-        RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
-            Text("坚果云账号", style = RsType.body, color = c.text)
-            Spacer(Modifier.height(10.dp))
-            if (configured && !editing) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.account.orEmpty(), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
-                    Pill(if (testing) "测试中" else "测试", filled = false) {
-                        if (testing) return@Pill
-                        testing = true
-                        scope.launch { result = repo.test(); testing = false }
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Pill("更换", filled = false) { editing = true; account = s.account.orEmpty() }
-                }
-                result?.let { r ->
-                    Spacer(Modifier.height(8.dp))
-                    Text(r.getOrNull() ?: r.exceptionOrNull()?.message ?: "测试没通过", style = RsType.caption, color = if (r.isSuccess) c.good else c.critical)
-                }
-            } else {
-                Field(account, "邮箱", KeyboardType.Email, secret = false) { account = it.trim() }
-                Spacer(Modifier.height(10.dp))
-                Field(password, "第三方应用密码（不是登录密码）", KeyboardType.Password, secret = true) { password = it.trim() }
-                Spacer(Modifier.height(12.dp))
-                Row {
-                    Pill("保存", filled = account.isNotEmpty() && password.isNotEmpty()) {
-                        if (account.isEmpty() || password.isEmpty()) return@Pill
-                        repo.saveCredentials(account, password)
-                        password = ""; editing = false; result = null
-                    }
-                    if (editing) {
-                        Spacer(Modifier.width(8.dp))
-                        Pill("取消", filled = false) { editing = false; password = "" }
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                Text("应用密码在坚果云网页版“账户信息 → 安全选项 → 第三方应用管理”里生成。密码只存在手机安全区，不会显示。",
-                    style = RsType.caption, color = c.textTertiary)
-            }
-        }
+        // 云端存储：坚果云 / WebDAV / S3 三选一（卡 114）
+        CloudStorageCard(repo, s)
 
         // 自动备份开关
         RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
@@ -190,12 +147,12 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
         }
         }
 
-        // 备份加密：本机和坚果云共用一个口令
+        // 备份加密：本机和云端共用一个口令
         RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("备份加密", style = RsType.body, color = c.text)
-                    Text(if (s.encrypted) "已开启：之后的备份（本机和坚果云）都用你的口令加密" else "备份里有你的密钥和账号，建议开启。口令只存在手机里，忘了就无法恢复",
+                    Text(if (s.encrypted) "已开启：之后的备份（本机和云端）都用你的口令加密" else "备份里有你的密钥和账号，建议开启。口令只存在手机里，忘了就无法恢复",
                         style = RsType.caption, color = if (s.encrypted) c.textSecondary else c.warning)
                 }
                 Toggle(s.encrypted) { on -> if (on) settingPass = true else repo.setEncryption(null) }
@@ -436,7 +393,7 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("每晚自动备份", style = RsType.body, color = c.text)
-                    Text("和坚果云同一时间；不需要联网", style = RsType.caption, color = c.textSecondary)
+                    Text("和云端备份同一时间；不需要联网", style = RsType.caption, color = c.textSecondary)
                 }
                 Toggle(l.auto) { repo.setLocalAuto(it) }
             }
@@ -449,7 +406,7 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
         HistoryList(list?.map { all -> all.map { it.copy(name = LOCAL_TAG + it.name) } }, onRestore)
     }
 
-    // 从任意文件恢复（比如从旧手机拷来的、从坚果云网页下载的）
+    // 从任意文件恢复（比如从旧手机拷来的、从云端网页下载的）
     ActionRow("从文件恢复", "选一个 resound-….zip 备份文件", "选择") { pickFile.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
     fileRestore?.let { uri ->
         val name = uri.lastPathSegment?.substringAfterLast('/') ?: "所选文件"

@@ -233,9 +233,9 @@ private fun SettingsList(
                     val lb = if (app.resound.AppGraph.isBackupReady) app.resound.AppGraph.backup.local.collectAsState().value else null
                     val failed = b?.lastError != null || lb?.lastError != null
                     val last = listOfNotNull(b?.lastBackupAt, lb?.lastAt).maxOrNull()
-                    // 坚果云、本机各自一个状态：绿点 + 最近成功时刻，失败的红点写“失败”，没开的不显示
+                    // 云端、本机各自一个状态：绿点 + 最近成功时刻，失败的红点写“失败”，没开的不显示
                     val parts = buildList {
-                        if (b != null && b.account != null) add(Triple("坚果云", b.lastError == null && b.lastBackupAt != null, b.lastBackupAt))
+                        if (b != null && b.account != null) add(Triple(b.cloud.title(), b.lastError == null && b.lastBackupAt != null, b.lastBackupAt))
                         if (lb?.folder != null) add(Triple("本机", lb.lastError == null && lb.lastAt != null, lb.lastAt))
                     }
                     if (b == null || parts.isEmpty()) Row1("数据备份", when {

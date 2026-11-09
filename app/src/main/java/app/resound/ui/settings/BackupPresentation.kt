@@ -19,7 +19,7 @@ internal fun backupHeadline(local: Boolean, configured: Boolean, running: Boolea
     error != null -> "尚无成功备份"
     configured -> "还没备份过"
     local -> "还没选备份文件夹"
-    else -> "还没连接坚果云"
+    else -> "还没连接云端存储"
 }
 
 /** 只保留读成功的结果；暂时断网不能把已有概况清成空白。成功读到空内容则正常清空。 */

@@ -158,7 +158,7 @@ class ReviewPushTest {
             assertEquals(review.brief, local.single().body)
             assertEquals("今日回顾", local.single().title)
             assertEquals("resound://review?open=review&date=$date", local.single().deepLink)
-            assertEquals(setOf("# ${review.pushTitle()}\n\n$markdown",
+            assertEquals(setOf("# ${review.pushTitle()}\n\n${markdown.replace("- 讨论了细节\n", "- 讨论了细节  \n")}",
                 "${review.pushTitle()}\n${plain.replace("- ", "")}"), fake.rawBodies.toSet())
             assertEquals(2, fake.rawBodies.size)
         }

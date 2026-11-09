@@ -70,35 +70,36 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
         val builder = Request.Builder()
         val markdown = format != PushFormat.Text
         val textFormat = if (markdown) PushFormat.Markdown else PushFormat.Text
+        fun layout(content: String, actualFormat: PushFormat = textFormat) = PushBodyLayout.convert(kind, actualFormat, content)
         val body: RequestBody = when (kind) {
             PushKind.PushPlus -> {
                 builder.url("https://www.pushplus.plus/send")
                 JSONObject().put("token", values.getValue("token")).put("title", message.title)
-                    .put("content", if (format == PushFormat.Json) message.envelope(format).toString() else message.rendered(format))
+                    .put("content", layout(if (format == PushFormat.Json) message.envelope(format).toString() else message.rendered(format), format))
                     .put("template", when (format) { PushFormat.Text -> "txt"; PushFormat.Markdown -> "markdown"; PushFormat.Json -> "json" })
                     .apply { values["topic"]?.takeIf(String::isNotBlank)?.let { put("topic", it) } }.body()
             }
             PushKind.WeCom -> {
                 builder.url(values.getValue("webhook"))
                 val type = if (markdown) "markdown" else "text"
-                JSONObject().put("msgtype", type).put(type, JSONObject().put("content", "${message.title}\n${message.rendered(textFormat)}")).body()
+                JSONObject().put("msgtype", type).put(type, JSONObject().put("content", layout("${message.title}\n${message.rendered(textFormat)}"))).body()
             }
             PushKind.ServerChan -> {
                 builder.url("https://sctapi.ftqq.com/${values.getValue("sendKey")}.send")
-                FormBody.Builder().add("title", message.title).add("desp", message.rendered(textFormat)).build()
+                FormBody.Builder().add("title", message.title).add("desp", layout(message.rendered(textFormat))).build()
             }
             PushKind.Webhook -> {
                 builder.url(values.getValue("url"))
                 values["authorization"]?.takeIf(String::isNotBlank)?.let { builder.header("Authorization", it) }
                 PushFields.headers(values["headers"].orEmpty()).forEach { (key, value) -> builder.header(key, value) }
                 val envelope = message.envelope(PushFormat.Json)
-                val content = when (format) {
+                val content = layout(when (format) {
                     PushFormat.Json -> envelope.toString()
                     PushFormat.Markdown -> message.memory?.getString("markdown")
                         ?: "# ${message.title}\n\n${message.rendered(PushFormat.Markdown)}"
                     PushFormat.Text -> renderedBody(message.memory?.getString("markdown")
                         ?: "${message.title}\n${message.rendered(PushFormat.Text)}", PushFormat.Text)
-                }
+                }, format)
                 val date = message.review?.date?.toString() ?: message.memoryDate
                     ?: message.memory?.optString("date")?.takeIf(String::isNotBlank)
                     ?: Instant.ofEpochMilli(now()).atZone(ZoneId.systemDefault()).toLocalDate().toString()
@@ -117,10 +118,10 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
             }
             PushKind.Feishu -> {
                 builder.url(values.getValue("webhook"))
-                val json = if (!markdown) JSONObject().put("msg_type", "text").put("content", JSONObject().put("text", "${message.title}\n${message.rendered(format)}"))
+                val json = if (!markdown) JSONObject().put("msg_type", "text").put("content", JSONObject().put("text", layout("${message.title}\n${message.rendered(format)}")))
                 else JSONObject().put("msg_type", "interactive").put("card", JSONObject()
                     .put("header", JSONObject().put("title", JSONObject().put("tag", "plain_text").put("content", message.title)))
-                    .put("elements", JSONArray().put(JSONObject().put("tag", "markdown").put("content", message.rendered(PushFormat.Markdown)))))
+                    .put("elements", JSONArray().put(JSONObject().put("tag", "markdown").put("content", layout(message.rendered(PushFormat.Markdown))))))
                 values["signSecret"]?.takeIf(String::isNotBlank)?.let { secret ->
                     val timestamp = now() / 1000
                     json.put("timestamp", timestamp.toString()).put("sign", feishuSign(timestamp, secret))
@@ -134,8 +135,8 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
                     url.setQueryParameter("timestamp", timestamp.toString()).setQueryParameter("sign", dingTalkSign(timestamp, secret))
                 }
                 builder.url(url.build())
-                if (markdown) JSONObject().put("msgtype", "markdown").put("markdown", JSONObject().put("title", message.title).put("text", "## ${message.title}\n\n${message.rendered(PushFormat.Markdown)}")).body()
-                else JSONObject().put("msgtype", "text").put("text", JSONObject().put("content", "${message.title}\n${message.rendered(format)}")).body()
+                if (markdown) JSONObject().put("msgtype", "markdown").put("markdown", JSONObject().put("title", message.title).put("text", layout("## ${message.title}\n\n${message.rendered(PushFormat.Markdown)}"))).body()
+                else JSONObject().put("msgtype", "text").put("text", JSONObject().put("content", layout("${message.title}\n${message.rendered(format)}"))).body()
             }
             PushKind.Telegram -> {
                 val base = PushFields.default(values, "baseUrl", "https://api.telegram.org").trimEnd('/')
@@ -148,7 +149,7 @@ internal class PushTransport(client: OkHttpClient = OkHttpClient(), private val 
                     builder.url("$base/bot${values.getValue("token")}/sendMessage")
                     // 先限制可见字符，再转义，保证不会截断 HTML 实体或标签。
                     val title = truncate(message.title, 1000)
-                    val text = truncate(message.rendered(if (markdown) PushFormat.Markdown else PushFormat.Text), 4000 - title.length - 1)
+                    val text = truncate(layout(message.rendered(textFormat)), 4000 - title.length - 1)
                     JSONObject().put("chat_id", values.getValue("chatId"))
                         .put("text", if (markdown) "<b>${html(title)}</b>\n${html(text)}" else "$title\n$text")
                         .apply { if (markdown) put("parse_mode", "HTML") }.body()

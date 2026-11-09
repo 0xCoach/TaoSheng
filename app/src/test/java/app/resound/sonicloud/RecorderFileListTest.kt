@@ -33,4 +33,29 @@ class RecorderFileListTest {
         assertNull(recorderStart("unknown.opus"))
     }
 
+    @Test fun smallDirectoryShowsAllNewestFirstWithWeekdayAndUnknownLast() {
+        val rows = recorderDatedFiles(listOf(file("unknown.opus"), file("call 2026-11-07_18-53-37.opus"),
+            file("note 2026-11-08_22-18-12.opus")))
+        val page = recorderFilePage(rows, null, 0)
+        assertEquals(1, page.pages)
+        assertEquals(3, page.rows.size)
+        assertEquals("2026-11-08 星期日", page.rows.first().day)
+        assertEquals("日期未知", page.rows.last().day)
+    }
+
+    @Test fun manyFilesPaginateFilterAndClampAfterDeletion() {
+        val rows = recorderDatedFiles((0..40).map { file("note 2026-11-08_22-18-${it.toString().padStart(2, '0')}.opus") } +
+            file("call 2026-11-07_18-53-37.opus"))
+        assertEquals(40, recorderFilePage(rows, null, 0).rows.size)
+        val last = recorderFilePage(rows, null, 1)
+        assertEquals(2, last.rows.size)
+        assertEquals(2, last.pages)
+        val filtered = recorderFilePage(rows, "2026-11-07 星期六", 100)
+        assertEquals(0, filtered.index)
+        assertEquals(1, filtered.total)
+        val reduced = recorderFilePage(rows.take(40), null, 1)
+        assertEquals(0, reduced.index)
+        assertEquals(40, reduced.rows.size)
+        assertEquals(0, recorderFilePage(emptyList(), null, 2).total)
+    }
 }

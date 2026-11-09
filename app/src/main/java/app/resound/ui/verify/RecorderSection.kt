@@ -47,6 +47,7 @@ internal fun RecorderSection() {
     if (!AppGraph.isRecorderReady) return
     val recorder = AppGraph.recorder
     val state by recorder.status.collectAsState()
+    val deletion by recorder.deleteStatus.collectAsState()
     val context = LocalContext.current
     var open by rememberSaveable { mutableStateOf(false) }
     var explanation by remember { mutableStateOf(false) }
@@ -99,7 +100,7 @@ internal fun RecorderSection() {
                     ActionButton("停止并保存卡录音", ActionKind.Secondary) { recorder.stopRecording() }
                 ActionButton("断开连接", ActionKind.Secondary) { recorder.disconnect() }
                 ActionButton(if (state.listing) "正在读取文件…" else "刷新卡内录音", ActionKind.Secondary,
-                    enabled = !state.listing && state.downloading == null) { recorder.refreshFiles() }
+                    enabled = !deletion.busy && !state.listing && state.downloading == null) { recorder.refreshFiles() }
             }
         }
         state.error?.let { Text(it, style = RsType.caption, color = Rs.colors.warning) }
@@ -108,6 +109,6 @@ internal fun RecorderSection() {
             LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
             ActionButton("取消下载（保留断点）", ActionKind.Secondary) { recorder.cancelDownload() }
         }
-        RecorderFilesSection(state, recorder::download)
+        RecorderFilesSection(state, deletion, recorder::download, recorder::deleteFiles, recorder::stopDeleting)
     }
 }

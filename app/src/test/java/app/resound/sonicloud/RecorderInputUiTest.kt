@@ -46,7 +46,7 @@ class RecorderInputUiTest {
         var state by mutableStateOf(RecorderStatus(device = device))
         var choice by mutableStateOf<InputChoice>(InputChoice.Phone)
         compose.setContent { ResoundTheme(ThemeMode.Light) {
-            Column { RecorderInputRow(state, choice) { choice = it } }
+            Column { RecorderInputRow(state, RecorderDeleteStatus(), choice) { choice = it } }
         } }
         compose.onNodeWithText(device.name).assertDoesNotExist()
         compose.runOnIdle { state = state.copy(connected = true) }
@@ -56,14 +56,17 @@ class RecorderInputUiTest {
         compose.runOnIdle { assertEquals(InputChoice.Recorder(device.key, device.name), choice) }
     }
 
-    @Test fun transferKeepsInputSelectionBlockedUntilIdle() {
+    @Test fun transferAndCleanupKeepInputSelectionBlockedUntilIdle() {
         var state by mutableStateOf(RecorderStatus(device = device, connected = true, downloading = "test.opus"))
+        var deletion by mutableStateOf(RecorderDeleteStatus())
         var selections = 0
         compose.setContent { ResoundTheme(ThemeMode.Light) {
-            Column { RecorderInputRow(state, InputChoice.Phone) { selections++ } }
+            Column { RecorderInputRow(state, deletion, InputChoice.Phone) { selections++ } }
         } }
         compose.onNodeWithText(device.name).assertIsNotEnabled().performTouchInput { click() }
-        compose.runOnIdle { assertEquals(0, selections); state = state.copy(downloading = null) }
+        compose.runOnIdle { assertEquals(0, selections); state = state.copy(downloading = null); deletion = RecorderDeleteStatus(current = "test.opus") }
+        compose.onNodeWithText(device.name).assertIsNotEnabled().performTouchInput { click() }
+        compose.runOnIdle { assertEquals(0, selections); deletion = RecorderDeleteStatus() }
         compose.onNodeWithText(device.name).assertIsEnabled().performTouchInput { click() }
         compose.runOnIdle { assertEquals(1, selections) }
     }

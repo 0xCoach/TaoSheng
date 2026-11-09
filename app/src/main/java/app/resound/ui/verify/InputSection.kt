@@ -52,6 +52,7 @@ fun InputSection(inputs: InputDevices) {
     val status by inputs.status.collectAsState()
     val recorder = if (AppGraph.isRecorderReady) AppGraph.recorder else null
     val recorderState = recorder?.status?.collectAsState()?.value
+    val recorderDeletion = recorder?.deleteStatus?.collectAsState()?.value
     val external = devices.filter { it.kind != InputKind.Phone && it.kind != InputKind.Recorder }
     // 安卓 12 起用蓝牙耳机录音要“附近设备”权限；选的时候再要，拒绝了后台会退回手机麦克风
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -74,7 +75,7 @@ fun InputSection(inputs: InputDevices) {
             ChoiceRow("手机麦克风", "默认", "手", c.textSecondary, choice == InputChoice.Phone) { pick(InputChoice.Phone) }
             Divider()
             ChoiceRow("自动", "接上外接麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { pick(InputChoice.AutoExternal) }
-            if (recorderState != null) RecorderInputRow(recorderState, choice, ::pick)
+            if (recorderState != null) RecorderInputRow(recorderState, recorderDeletion ?: RecorderDeleteStatus(), choice, ::pick)
             external.forEach { d ->
                 Divider()
                 ChoiceRow(d.name, if (d.connected) d.kind.title else "${d.kind.title} · 没接着",
@@ -104,11 +105,13 @@ fun InputSection(inputs: InputDevices) {
 @Composable
 internal fun RecorderInputRow(
     state: RecorderStatus,
+    deletion: RecorderDeleteStatus,
     choice: InputChoice,
     onChoose: (InputChoice) -> Unit,
 ) {
     val device = state.device?.takeIf { state.connected } ?: return
     val busy = when {
+        deletion.busy -> "正在清理，完成后可切换"
         state.downloading != null -> "正在下载，完成后可切换"
         else -> null
     }

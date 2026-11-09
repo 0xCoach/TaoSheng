@@ -10,8 +10,9 @@ RecorderPermissions.kt：界面与服务共用按需 BLE 权限。
 RecorderAudioSource.kt：码流订阅与 PCM 输出，取消释放解码器。
 RecorderOpus.kt：实时和离线共用的普通款 Opus 分帧与解码。
 RecorderTransfer.kt：私有目录续传、完整性检查与幂等导入。
-RecorderFileList.kt：目录分片校验，拒绝不完整或无效目录。
+RecorderFileList.kt：目录分片校验、日期/星期分组和每页 40 条的展示切片。
+RecorderDeletion.kt：逐文件删除回执后重读目录复核，失败停止并要求重连。
 
-调用方与契约改动见 docs/任务卡/sonicloud-ble-交付说明.md；父项目架构见根 README.md。
+调用方与契约改动见 docs/任务卡/sonicloud-ble-交付说明.md；文件管理见 docs/任务卡/sonicloud-file-management-交付说明.md；父项目架构见根 README.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

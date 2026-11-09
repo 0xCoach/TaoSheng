@@ -1,6 +1,6 @@
 /*
  * [INPUT]: PNote 回调、用户控制意图、AppGraph 的采集与导入能力。
- * [OUTPUT]: 设备状态、实时码流、串行下载及完整目录发布。
+ * [OUTPUT]: 设备状态、实时码流、串行下载及经目录复核的卡内文件清理。
  * [POS]: 厂商 SDK 控制入口；命令先等待服务绑定，所有业务状态由串行队列处理。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -65,6 +65,27 @@ class SonicloudRecorder(private val context: Application, private val importer: 
     private val queue = ArrayDeque<RecorderFile>()
     private var listBuffer = linkedMapOf<String, RecorderFile>()
     private var filesVerified = false
+    private val deletion: RecorderDeletion = RecorderDeletion(scope, ::submit,
+        send = { name -> sdk { PNote.deleteReordFile(name) } },
+        refresh = { requestFiles() },
+        failed = { message -> filesVerified = false; fail(message) })
+    val deleteStatus = deletion.status
+
+    fun deleteFiles(deviceKey: String, files: List<RecorderFile>) = submit {
+        check(mutable.value.connected && ready && mutable.value.device?.key == deviceKey) { "录音卡已改变，请重新选择文件" }
+        check(!deletion.active && !deletion.status.value.needsReconnect) { "请等待清理完成，异常时断开重连后重试" }
+        check(filesVerified && !mutable.value.listing) { "请先刷新完整目录再清理" }
+        check(!wanted && stream == null && mutable.value.recording == RecorderRecording.Stopped) { "请先停止聆听和卡内录音" }
+        check(mutable.value.downloading == null && stoppingTransfer == null) { "请先结束文件传输" }
+        val available = mutable.value.files.associateBy { it.name }
+        check(files.isNotEmpty() && files.all { available[it.name]?.let { f -> f.size == it.size && f.seconds == it.seconds } == true }) {
+            "文件目录已改变，请刷新后重新选择"
+        }
+        filesVerified = false
+        mutable.update { it.copy(error = null) }
+        deletion.start(files)
+    }
+    fun stopDeleting() = submit { deletion.stopRemaining() }
     init {
         scope.launch {
             for (command in commands) try { command() }
@@ -117,7 +138,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         block()
     }
     private fun fail(message: String) {
-        mutable.update { it.copy(error = message, scanning = false, listing = false) }
+        mutable.update { it.copy(error = message, scanning = false, listing = if (deletion.active) it.listing else false) }
         stream?.trySend(RecorderPacket.Gap(message))
     }
     override fun scan() = submit {
@@ -139,12 +160,13 @@ class SonicloudRecorder(private val context: Application, private val importer: 
     }
     override fun connect(device: RecorderDevice) = submit { connectNow(device) }
     private suspend fun connectNow(device: RecorderDevice) {
+        check(!deletion.active) { "请先结束卡内清理" }
         require(BluetoothAdapter.checkBluetoothAddress(device.address)) { "录音卡蓝牙地址无效" }
         check(mutable.value.downloading == null) { "请先结束文件传输" }
         val old = mutable.value.device
         check(recorderMayConnect(old?.key, device.key, stream != null)) { "请先停止聆听再更换录音卡" }
         if (mutable.value.connected && old == device || pendingConnect?.key == device.key) return
-        filesVerified = false
+        deletion.reset(); filesVerified = false
         ready = false
         if (mutable.value.connected) {
             check(!wanted) { "请先停止聆听再更换录音卡" }
@@ -192,7 +214,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
     private suspend fun lost(reason: String) {
         if (pendingConnect != null && sdkBinding.isReady) runCatching { sdk { PNote.stopSearch() } }
         pendingConnect = null; scanTimer?.cancel()
-        filesVerified = false; listTimer?.cancel()
+        deletion.abort(reason); filesVerified = false; listTimer?.cancel()
         ready = false; setupConnection?.cancel()
         transferGeneration++
         conversion?.cancelAndJoin(); conversion = null
@@ -213,6 +235,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         val done = CompletableDeferred<Unit>()
         submit {
             try {
+                check(!deletion.active) { "请先结束卡内清理" }
                 check(stream == null) { "录音卡已有音频订阅" }
                 check(mutable.value.device?.key == key) { "请先连接所选录音卡" }
                 check(mutable.value.downloading == null) { "请先结束文件下载" }
@@ -280,6 +303,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         }
     }
     override fun refreshFiles() = submit {
+        check(!deletion.active) { "正在清理并复核目录，请稍候" }
         check(mutable.value.connected && ready) { "请先连接录音卡并等待初始化完成" }
         check(!mutable.value.listing) { "正在读取目录，请稍候" }
         check(mutable.value.downloading == null) { "正在下载，请稍后刷新" }
@@ -300,12 +324,13 @@ class SonicloudRecorder(private val context: Application, private val importer: 
             delay(30_000)
             submit { if (generation == listGeneration && mutable.value.listing) {
                 filesVerified = false
+                deletion.timeout()
                 fail("读取卡内目录超时，请重新连接后刷新")
             } }
         }
     }
     override fun download(files: List<RecorderFile>) = submit {
-        check(filesVerified && !mutable.value.listing) { "请先读取完整目录" }
+        check(!deletion.active && filesVerified && !mutable.value.listing) { "请先读取完整目录并结束卡内清理" }
         check(mutable.value.connected && ready) { "请先连接录音卡并等待初始化完成" }
         check(!wanted && mutable.value.recording == RecorderRecording.Stopped) { "请先停止录音并保存卡内文件" }
         check(mutable.value.downloading == null) { "已有下载任务" }
@@ -366,6 +391,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
         try { event(JSONObject(data)) }
         catch (e: Exception) {
             if (e is CancellationException) throw e
+            deletion.abort("录音卡响应无法解析")
             throw e
         }
     } }
@@ -401,10 +427,18 @@ class SonicloudRecorder(private val context: Application, private val importer: 
     }
     private suspend fun event(json: JSONObject) {
         if (json.optInt("state", 0) != 0) {
+            if (json.optInt("cmd") in listOf(4, 14)) deletion.abort("录音卡删除或目录命令失败")
             fail("录音卡命令失败：${json.optString("cmd")}")
             return
         }
         val data = json.optJSONObject("data") ?: JSONObject()
+        val recordingStarted = when (json.optInt("cmd")) {
+            3 -> data.optInt("record_state", -1) == 1
+            8 -> data.optInt("event", -1).let { it == 1 || it == 7 }
+            9 -> data.optInt("recordState", -1) == 1
+            else -> false
+        }
+        if (recordingStarted) deletion.abort("录音卡开始录音")
         when (json.optInt("cmd")) {
             1 -> {
                 val address = data.optString("address").uppercase()
@@ -453,6 +487,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
             4 -> {
                 if (!mutable.value.connected || !mutable.value.listing) return
                 armListTimeout()
+                deletion.directoryProgress()
                 for (file in recorderDirectoryChunk(json)) {
                     val device = mutable.value.device
                     listBuffer[file.name] = file.copy(imported = device != null && transfer.received(device.key, file),
@@ -463,6 +498,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
                     val files = listBuffer.values.toList()
                     filesVerified = true
                     mutable.update { it.copy(files = files, listing = false) }
+                    deletion.listed(files)
                 }
             }
             5 -> {
@@ -496,6 +532,7 @@ class SonicloudRecorder(private val context: Application, private val importer: 
                 reconcileRecording()
             }
             11 -> data.optString("recordName").takeIf { it.isNotBlank() }?.let { rememberLive(it) }
+            14 -> deletion.acknowledged(data.optInt("delete_state", -1) == 0)
         }
     }
     private fun rememberLive(name: String) {

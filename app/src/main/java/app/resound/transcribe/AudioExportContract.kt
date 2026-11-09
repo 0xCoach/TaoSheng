@@ -13,13 +13,30 @@ data class ExportRequest(
     val segmentIds: List<Long>,
     /** 文件名主体（界面已去掉非法字符；底层再兜底一次），音频与文字同名 */
     val title: String,
-    /** 附原话文字 .txt：每句带“在合成录音里的位置 + 当时时刻 + 说话人”，开头写标题、日期、总时长、涉及的事件和人名 */
-    val includeText: Boolean = true,
+    /** 卡 115：要不要合成音频 .m4a；false 时只出文字（srt 也不出） */
+    val includeAudio: Boolean = true,
+    /**
+     * 卡 115：文字里放哪些内容（空集合 = 不出文字）。多段合成一个文件，按时间排。
+     * Lines：原话，每句带“在合成录音里的位置（有音频时）+ 当时时刻 + 说话人”
+     * Summary：涉及事件的标题和摘要
+     * Todos：涉及事件里的待办与约定（含状态、到期时间）
+     */
+    val textParts: Set<ExportTextPart> = setOf(ExportTextPart.Lines),
+    /** 卡 115：文字格式 */
+    val textFormat: ExportTextFormat = ExportTextFormat.Txt,
     /** 附字幕 .srt（时间轴对齐合成录音） */
     val includeSrt: Boolean = true,
     /** 跳过落在“媒体”事件里的录音段（音频和文字都跳过） */
     val skipMedia: Boolean = true,
-)
+) {
+    /** 过渡：卡 115 之前的底层只认“附不附原话文字” */
+    val includeText: Boolean get() = textParts.isNotEmpty()
+}
+
+enum class ExportTextPart { Summary, Todos, Lines }
+
+/** Txt：纯文字（UTF-8 带 BOM，电脑上直接打开不乱码）；Markdown：.md，标题分级、待办用列表 */
+enum class ExportTextFormat { Txt, Markdown }
 
 /** 导出前的预估，给面板显示 */
 data class ExportEstimate(

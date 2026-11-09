@@ -30,7 +30,7 @@ internal class AndroidExportJobs(
             val json = array.getJSONObject(i)
             val ids = json.getJSONArray("segments")
             val request = ExportRequest((0 until ids.length()).map { ids.getLong(it) }, json.getString("title"),
-                json.getBoolean("text"), json.getBoolean("srt"), json.getBoolean("media"))
+                textParts = if (json.getBoolean("text")) setOf(ExportTextPart.Lines) else emptySet(), includeSrt = json.getBoolean("srt"), skipMedia = json.getBoolean("media"))
             val state = when (json.getString("state")) {
                 "done" -> ExportJobState.Done(json.getJSONArray("files").let { files ->
                     (0 until files.length()).map { File(files.getString(it)) }

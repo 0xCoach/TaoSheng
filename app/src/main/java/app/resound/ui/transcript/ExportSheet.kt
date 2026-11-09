@@ -101,7 +101,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     // 合成好的文件：有音频时先在面板里试听，确认后再分享
     var done by remember { mutableStateOf<List<java.io.File>?>(null) }
     val exporter = if (app.resound.AppGraph.isAudioExporterReady) app.resound.AppGraph.audioExporter else null
-    fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, withText, withSrt, skipMedia)
+    fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, textParts = if (withText) setOf(app.resound.transcribe.ExportTextPart.Lines) else emptySet(), includeSrt = withSrt, skipMedia = skipMedia) // 卡 115 界面改造前的过渡写法
     val estimate by produceState<ExportEstimate?>(null, skipMedia, segmentIds) {
         value = exporter?.let { runCatching { it.estimate(request()) }.getOrNull() }
     }

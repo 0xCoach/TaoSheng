@@ -81,7 +81,7 @@ class ResoundApp : Application() {
         segmentFiles.onSaved = { scheduler.segmentSaved(database.transcribe().pendingMillis()) }
         val hotwords = AndroidHotwordSettings(this, database.voiceprint(), scope)
         AppGraph.hotwords = hotwords
-        AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope)
+        AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope, fingerprints = database.folderImports())
         // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
         val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
         val pcmReader = AsrAudioReader(cacheDir)
@@ -253,6 +253,10 @@ class ResoundApp : Application() {
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         app.resound.recordings.attachRecordingArchive(this, database, pushChannels, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
+        val folderImports = app.resound.importer.AndroidFolderImports(this, database, scope,
+            AppGraph.importer as app.resound.importer.AndroidAudioImporter)
+        AppGraph.folderImports = folderImports
+        registerActivityLifecycleCallbacks(app.resound.importer.FolderImportForeground(folderImports))
         ImportAudioCleanupWork.schedule(this)
         if (store.prefs.getBoolean("enabled", false)) CaptureWatchdog.schedule(this)
     }

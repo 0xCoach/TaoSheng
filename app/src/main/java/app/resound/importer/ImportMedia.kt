@@ -31,6 +31,13 @@ internal fun suggestedStart(date: String?, modified: Long?, duration: Long): Lon
 }
 
 internal class ImportMedia(private val context: Context) {
+    companion object {
+        // 最终仍用 MediaExtractor/MediaCodec 验证；扩展名兼容只返回 application/octet-stream 的文件应用。
+        internal fun accepts(name: String, mime: String) = mime.startsWith("audio/") || mime.startsWith("video/") ||
+            name.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT) in
+                setOf("mp3", "m4a", "mp4", "aac", "wav", "ogg", "opus", "flac", "amr", "3gp", "3gpp", "mkv", "mka", "webm")
+    }
+
     fun shared(uri: Uri): SharedAudio {
         var name = "导入录音"
         var modified: Long? = null

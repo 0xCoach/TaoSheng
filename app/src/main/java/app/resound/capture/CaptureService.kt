@@ -8,6 +8,8 @@ import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.NotificationManagerCompat
 import app.resound.ResoundApp
+import app.resound.AppGraph
+import app.resound.importer.AndroidFolderImports
 import app.resound.audio.*
 import app.resound.data.HeartbeatEntity
 import app.resound.data.AppPowerEntity
@@ -63,6 +65,7 @@ class CaptureService : Service() {
         super.onCreate()
         alive = true
         instance = this
+        folderImports()?.recordingChanged()
         playback = PlaybackMonitor(this)
         registerReceiver(powerReceiver, android.content.IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED)
@@ -323,11 +326,14 @@ class CaptureService : Service() {
         if (initialized && running(state) != running(next)) beat()
         state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
     }
+    private fun folderImports() = if (AppGraph.isFolderImportReady)
+        AppGraph.folderImports as? AndroidFolderImports else null
     private suspend fun beat() = beatMutex.withLock {
         val now = System.currentTimeMillis()
         store.dao.heartbeat(HeartbeatEntity(at = now, intervalStart = minOf(intervalStart, now), running = running(state), session = session))
         intervalStart = now
         store.prefs.edit().putLong("heartbeat", now).commit()
+        folderImports()?.heartbeat(now)
     }
     private suspend fun fail(detail: String) {
         if (initialized) { beat(); store.event(WatchdogEventType.ServiceStopped, "$detail；等待手动恢复，保留未正常停止标记") }
@@ -348,6 +354,7 @@ class CaptureService : Service() {
     override fun onDestroy() {
         alive = false
         instance = null
+        folderImports()?.recordingChanged()
         commands.close()
         while (true) {
             val pending = commands.tryReceive().getOrNull() ?: break

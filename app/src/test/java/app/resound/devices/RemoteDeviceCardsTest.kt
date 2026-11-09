@@ -3,14 +3,17 @@ package app.resound.devices
 import app.resound.update.UpdateRemote
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
-import org.bouncycastle.crypto.signers.Ed25519Signer
+import java.security.KeyPairGenerator
+import java.security.Signature
+import java.security.spec.ECGenParameterSpec
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
-import java.security.SecureRandom
 
 class RemoteDeviceCardsTest {
-    private val key = Ed25519PrivateKeyParameters(SecureRandom())
+    private val key = KeyPairGenerator.getInstance("EC").apply {
+        initialize(ECGenParameterSpec("secp256r1"))
+    }.generateKeyPair()
     private class Store : CardsStore {
         var data = emptyList<SignedCards>(); val choices = mutableMapOf<String, Boolean>()
         override fun cached() = data
@@ -19,15 +22,17 @@ class RemoteDeviceCardsTest {
         override fun enable(id: String, enabled: Boolean) { choices[id] = enabled }
         override var lastAttempt = 0L
     }
-    private fun card(v: Int = 1, status: String = "trial", id: String = "test-card") = """{"id":"$id","name":"设备","version":$v,"minApp":"0.2.21","status":"$status","transport":"ble","match":{}}"""
+    private fun card(v: Int = 1, status: String = "trial", id: String = "test-card") = """{"id":"$id","name":"设备","version":$v,"minApp":"0.2.21","status":"$status","transport":"ble","match":{"namePrefix":["Test"]}}"""
     private fun signed(text: String): SignedCards {
-        val bytes = text.toByteArray(); val signer = Ed25519Signer()
-        signer.init(true, key); signer.update(bytes, 0, bytes.size)
-        return SignedCards(bytes, signer.generateSignature())
+        val bytes = text.toByteArray()
+        val signature = Signature.getInstance("SHA256withECDSA").run {
+            initSign(key.private); update(bytes); sign()
+        }
+        return SignedCards(bytes, signature)
     }
     private fun table(v: Int = 1, c: String = card()) = signed("""{"version":$v,"issuedAt":"2026-11-09T00:00:00Z","cards":[$c]}""")
     private fun engine(store: Store = Store(), bundled: List<String> = emptyList(), logs: MutableList<String> = mutableListOf()) =
-        RemoteDeviceCards(bundled, store, key.generatePublicKey().encoded, "0.2.21", { logs.add(it) })
+        RemoteDeviceCards(bundled, store, key.public.encoded, "0.2.21", { logs.add(it) })
 
     @Test fun signatureTamperAndMalformedKeepPrevious() {
         val store = Store(); val logs = mutableListOf<String>(); val e = engine(store, logs = logs)
@@ -69,7 +74,7 @@ class RemoteDeviceCardsTest {
     }
     @Test fun unknownFieldsAndMinAppAreHandled() {
         val e = engine()
-        assertTrue(e.parse(card().replace("\"match\":{}", "\"match\":{\"execute\":\"x\"}")).isFailure)
+        assertTrue(e.parse(card().replace("\"match\":{", "\"match\":{\"execute\":\"x\",")).isFailure)
         assertTrue(e.accept(table(1, card().replace("0.2.21", "0.2.22"))))
         assertTrue(e.cards.value.isEmpty())
         assertFalse(e.accept(table(2, card() + "," + card())))
@@ -79,7 +84,7 @@ class RemoteDeviceCardsTest {
         s.data = listOf(signed)
         assertEquals(CardSource.Bundled, engine(s, listOf(card())).cards.value.single().source)
         val failedStore = object : CardsStore by s { override fun save(tables: List<SignedCards>) { error("disk") } }
-        val e = RemoteDeviceCards(listOf(card()), failedStore, key.generatePublicKey().encoded, "0.2.21")
+        val e = RemoteDeviceCards(listOf(card()), failedStore, key.public.encoded, "0.2.21")
         assertFalse(e.accept(table(2, card(2))))
         assertEquals(1, e.cards.value.single().card.version)
     }
@@ -96,9 +101,38 @@ class RemoteDeviceCardsTest {
             assertEquals("/device-cards.json.sig", mirror.takeRequest().path)
         } }
     }
-    @Test fun folotoyPlaceholderHasNoInventedProtocol() {
-        val result = BootstrapCardParser.parse(java.io.File("src/main/assets/devices/folotoy.json").readText()).getOrThrow()
-        assertEquals(CardStatus.Trial, result.status); assertNull(result.audio)
-        assertTrue(result.match.namePrefix.isEmpty()); assertTrue(result.match.serviceUuid.isEmpty())
+    @Test fun bundledRealCardsLoadAndFolotoyPlaceholderStaysIsolated() {
+        val texts = listOf("omi", "sonicloud", "folotoy").map {
+            java.io.File("src/main/assets/devices/$it.json").readText()
+        }
+        val e = engine(bundled = texts)
+        assertEquals(listOf("omi", "sonicloud"), e.cards.value.map { it.card.id })
+        assertTrue(e.cards.value.all { it.card.status == CardStatus.Trial && !it.enabled })
+        assertTrue(e.parse(texts.last()).exceptionOrNull()!!.message!!.contains("识别规则"))
+    }
+
+    @Test fun pythonDerSignatureWorksAndInvalidKeysAndSignaturesKeepBundle() {
+        val fixture = JSONObject(java.io.File("src/test/resources/devices/p256-python-vector.json").readText())
+        fun hex(value: String) = value.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        val table = SignedCards(fixture.getString("table").toByteArray(), hex(fixture.getString("signature")))
+        val public = hex(fixture.getString("publicKey"))
+        val logs = mutableListOf<String>()
+        fun loader(keyBytes: ByteArray) = RemoteDeviceCards(listOf(card()), Store(), keyBytes, "0.2.21", { logs.add(it) })
+        val good = loader(public)
+        assertTrue(good.accept(table))
+        assertEquals(2, good.cards.value.single().card.version)
+        assertFalse(good.accept(table.copy(signature = byteArrayOf(0x30, 0))))
+        assertEquals(2, good.cards.value.single().card.version)
+        val wrongCurve = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp384r1")) }.generateKeyPair()
+        val signature = Signature.getInstance("SHA256withECDSA").run {
+            initSign(wrongCurve.private); update(table.json); sign()
+        }
+        assertFalse(loader(wrongCurve.public.encoded).accept(table.copy(signature = signature)))
+        for (badKey in listOf(byteArrayOf(), ByteArray(32), key.public.encoded)) {
+            val bad = loader(badKey)
+            assertFalse(bad.accept(table))
+            assertEquals(CardSource.Bundled, bad.cards.value.single().source)
+        }
+        assertTrue(logs.contains("signature_invalid"))
     }
 }

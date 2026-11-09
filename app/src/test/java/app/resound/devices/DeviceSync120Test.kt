@@ -138,15 +138,31 @@ class DeviceSync120Test {
     @Test fun protocolMatchesRealDownloadFrameAndReassembles() {
         val expected = "5a 03 9e 20 1e 00 02 02 00 00 00 00 6e 6f 74 65 32 30 32 36 30 37 31 30 2d 31 36 32 39 33 38 2e 77 61 76 00"
             .split(" ").map { it.toInt(16).toByte() }.toByteArray()
-        assertArrayEquals(expected, FileFrames.download(3, "note20260710-162938.wav"))
-        assertEquals(0x31c3, FileFrames.crc("123456789".toByteArray()))
+        val frames = FileFrames()
+        repeat(3) { frames.command(0) }
+        assertArrayEquals(expected, frames.download("note20260710-162938.wav"))
         val parser = FileFrames.Parser()
         assertTrue(parser.feed(expected.copyOfRange(0, 10)).isEmpty())
         assertArrayEquals(expected.copyOfRange(6, 36), parser.feed(expected.copyOfRange(10, 36)).single())
     }
+    @Test fun streamAcceptsCoalescedAndRepeatedFramesButRejectsCorruption() {
+        // 官方真实抓包，用于独立核对 CRC，而非用待测编码器自证。
+        val packet = "5a 03 9e 20 1e 00 02 02 00 00 00 00 6e 6f 74 65 32 30 32 36 30 37 31 30 2d 31 36 32 39 33 38 2e 77 61 76 00"
+            .split(" ").map { it.toInt(16).toByte() }.toByteArray()
+        val parser = FileFrames.Parser()
+        val result = parser.feed(byteArrayOf(0, 1) + packet + packet + packet.copyOfRange(0, 5))
+        assertEquals(2, result.size)
+        result.forEach { assertArrayEquals(packet.copyOfRange(6, packet.size), it) }
+        assertEquals(1, parser.feed(packet.copyOfRange(5, packet.size)).size)
+        val corrupt = packet.copyOf().also { it[it.lastIndex] = 1 }
+        assertThrows(IllegalStateException::class.java) { FileFrames.Parser().feed(corrupt) }
+        assertThrows(IllegalArgumentException::class.java) { FileFrames.Parser().feed(byteArrayOf(0x5a, 0, 0, 0, 1, 0x20)) }
+    }
+
     @Test fun pluginListsTruncatedNamesAndWritesDownloadOnce() = runBlocking {
         val notifications = MutableSharedFlow<ByteArray>()
         val writes = mutableListOf<ByteArray>()
+        val responses = FileFrames()
         val fake = object : DeviceLink {
             override val mtu = 23
             override suspend fun read(service: String, characteristic: String) = byteArrayOf()
@@ -156,12 +172,12 @@ class DeviceSync120Test {
                 if (bytes[7] == 0.toByte()) {
                     val body = ByteBuffer.allocate(32).order(ByteOrder.BIG_ENDIAN).putInt(1).putInt(2).putInt(123)
                         .put("note20260710-162938.".toByteArray().copyOf(20)).array()
-                    notifications.emit(FileFrames.command(1, 1, body))
-                    notifications.emit(FileFrames.command(2, 18, byteArrayOf(0)))
+                    notifications.emit(responses.command(1, body))
+                    notifications.emit(responses.command(18, byteArrayOf(0)))
                 } else {
-                    notifications.emit(FileFrames.command(3, 3))
-                    notifications.emit(FileFrames.command(4, 4, byteArrayOf(1, 2)))
-                    notifications.emit(FileFrames.command(5, 5, byteArrayOf(0)))
+                    notifications.emit(responses.command(3))
+                    notifications.emit(responses.command(4, byteArrayOf(1, 2)))
+                    notifications.emit(responses.command(5, byteArrayOf(0)))
                 }
             }
         }

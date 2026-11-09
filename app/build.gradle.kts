@@ -28,7 +28,6 @@ android {
 
     packaging {
         jniLibs { useLegacyPackaging = true }
-        resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
     }
 
     // 正式签名只放在负责人电脑上（~/.config/taosheng/signing.properties），不进仓库；
@@ -74,7 +73,6 @@ kotlin {
 }
 
 dependencies {
-    implementation("org.bouncycastle:bcprov-jdk18on:1.81") // Ed25519，兼容 Android 10，不依赖系统 Provider
     implementation("org.ahocorasick:ahocorasick:0.4.0") // 随包 TinyPinyin 的依赖
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     implementation("androidx.documentfile:documentfile:1.0.0")

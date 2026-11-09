@@ -48,7 +48,7 @@ internal fun createDeviceCards(context: Context): RemoteDeviceCards {
         runCatching { context.assets.open("devices/$name").bufferedReader().use { it.readText() } }.getOrElse { report("asset_failed"); null }
     }
     val key = runCatching { context.assets.open("device-cards-public-key.hex").bufferedReader().use { it.readText().trim() }
-        .also { require(it.matches(Regex("[0-9a-f]{64}"))) }.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        .also { require(it.matches(Regex("(?:[0-9a-f]{2}){1,256}"))) }.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }.getOrElse { report("official_key_missing"); byteArrayOf() }
     val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0.0.0"
     return RemoteDeviceCards(bundled, AndroidCardsStore(context), key, version, report)

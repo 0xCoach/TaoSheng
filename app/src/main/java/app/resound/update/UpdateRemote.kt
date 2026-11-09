@@ -60,7 +60,7 @@ internal class UpdateRemote(
         )) {
         for (url in urls) {
             try {
-                val table = app.resound.devices.SignedCards(readLimited(url, 256 * 1024), readLimited("$url.sig", 64))
+                val table = app.resound.devices.SignedCards(readLimited(url, 256 * 1024), readLimited("$url.sig", app.resound.devices.RemoteDeviceCards.MAX_SIGNATURE))
                 if (accept(table)) return
             } catch (_: Exception) { log("cards source_failed") }
         }

@@ -14,7 +14,7 @@ import java.io.File
 internal object BackupRestore {
     private fun pending(context: Context) = File(context.noBackupFilesDir, "backup-restore")
     fun restore(
-        context: Context, client: WebDavClient, name: String, database: app.resound.data.CaptureDatabase,
+        context: Context, client: RemoteStore, name: String, database: app.resound.data.CaptureDatabase,
         storedPassphrase: String? = null, suppliedPassphrase: String? = null,
         closeDatabase: () -> Unit, restartProcess: () -> Unit,
     ) {
@@ -169,6 +169,8 @@ internal object BackupRestore {
         val parser = android.util.Xml.newPullParser()
         val edit = context.getSharedPreferences(source.nameWithoutExtension, Context.MODE_PRIVATE).edit()
         if (replace) edit.clear()
+        // 旧完整 ZIP 没有 cloud 字段；后续读到新字段会覆盖此默认值。
+        if (!replace && source.nameWithoutExtension == "backup") edit.putString("cloud", CloudKind.Nutstore.name)
         source.inputStream().use { input ->
             parser.setInput(input, "UTF-8")
             while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {

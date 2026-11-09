@@ -54,7 +54,7 @@ internal class PushSyncState(private val file: File) {
     }
 }
 
-internal class FolderRemote(private val values: Map<String, String>, http: PushHttp) {
+internal class FolderRemote(private val values: Map<String, String>, http: PushHttp) : FolderStorage {
     private val http = http.context(PushKind.MarkdownFolder, values)
     private val root = PushFields.default(values, "url", "https://dav.jianguoyun.com/dav/").toHttpUrl()
     private val folder = values.getValue("folder").split('/')
@@ -65,7 +65,7 @@ internal class FolderRemote(private val values: Map<String, String>, http: PushH
         if (path.endsWith('/')) addPathSegment("")
     }.build()
     private fun request(path: String) = Request.Builder().url(url(path)).header("Authorization", Credentials.basic(values.getValue("account"), values.getValue("password"), Charsets.UTF_8))
-    fun directories(path: String = "") {
+    override fun directories(path: String) {
         val parents = folder + path.split('/').filter { it.isNotEmpty() }
         parents.indices.forEach { i ->
             val key = parents.take(i + 1).joinToString("/")
@@ -77,6 +77,12 @@ internal class FolderRemote(private val values: Map<String, String>, http: PushH
             }
         }
     }
+    override fun put(path: String, content: String, state: PushSyncState) {
+        val part = "$path.part-${UUID.randomUUID()}"
+        state.json.put("temporary", part); state.save()
+        putTemporary(part, content)
+        finish(part, path)
+    }
     fun putTemporary(path: String, content: String) {
         directories(path.substringBeforeLast('/', ""))
         http.execute(request(path).put(content.toRequestBody()).build(), readBody = false)
@@ -86,13 +92,13 @@ internal class FolderRemote(private val values: Map<String, String>, http: PushH
         if (exists) delete(target)
         http.execute(request(part).header("Destination", url(target).toString()).header("Overwrite", "F").method("MOVE", null).build(), readBody = false)
     }
-    fun delete(path: String) { http.execute(request(path).delete().build(), setOf(404), false) }
+    override fun delete(path: String) { http.execute(request(path).delete().build(), setOf(404), false) }
 }
 
 internal data class SyncBatch(val updated: Int, val deleted: Int, val more: Boolean) {
     val description get() = "更新 $updated 个文件" + if (deleted > 0) "，删除 $deleted 个文件" else ""
 }
-internal class FolderSync(private val remote: FolderRemote, private val state: PushSyncState) {
+internal class FolderSync(private val remote: FolderStorage, private val state: PushSyncState) {
     companion object {
         // 本地指纹表也按白名单校验，避免恢复/损坏状态把删除扩大到用户目录。
         fun owned(path: String): Boolean = path in setOf("README.md", "recent-days-index.md", "starred-highlights.md", "todos-and-appointments.md", "ideas.md", "decisions-and-facts.md") ||
@@ -118,10 +124,7 @@ internal class FolderSync(private val remote: FolderRemote, private val state: P
         val changed = files.filter { (path, content) -> state.files.optJSONObject(path)?.optString("sourceHash") != sha256(content) }
         changed.entries.take(limit).forEach { (path, template) ->
             val content = template.replace(MemoryFolder.UPDATED, MemoryFolder.updatedText(now))
-            val part = "$path.part-${UUID.randomUUID()}"
-            state.json.put("temporary", part); state.save()
-            remote.putTemporary(part, content)
-            remote.finish(part, path)
+            remote.put(path, content, state)
             state.files.put(path, JSONObject().put("sourceHash", sha256(template)).put("sha256", sha256(content)))
             state.templates.put(path, template)
             state.json.remove("temporary"); state.save(); updated++

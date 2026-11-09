@@ -1,6 +1,7 @@
 package app.resound.devices.plugins.sonicloud
 
 import app.resound.devices.*
+import app.resound.devices.core.FrameCodec
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -12,51 +13,57 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** 独立协议实现；合并卡 118 时可收拢至 FrameCodec。依据官方协议 3、6、7 节。 */
-internal object FileFrames {
-    fun crc(bytes: ByteArray): Int {
-        var crc = 0
-        for (b in bytes) {
-            crc = crc xor ((b.toInt() and 255) shl 8)
-            repeat(8) { crc = ((crc shl 1) xor if (crc and 0x8000 != 0) 0x1021 else 0) and 65535 }
-        }
-        return crc
-    }
-    fun command(seq: Int, cmd: Int, params: ByteArray = byteArrayOf(), type: Int = 2): ByteArray {
-        val data = byteArrayOf(type.toByte(), cmd.toByte()) + params
-        val len = byteArrayOf(data.size.toByte(), (data.size shr 8).toByte())
-        val crc = crc(len + data)
-        return byteArrayOf(0x5a, seq.toByte(), crc.toByte(), (crc shr 8).toByte()) + len + data
-    }
-    fun download(seq: Int, name: String): ByteArray {
+/** 文件通道按官方协议使用小端；仅保留 BLE 字节块到完整包的缓存和文件命令参数。 */
+internal class FileFrames {
+    private val encoder = FrameCodec(spec)
+    fun command(cmd: Int, params: ByteArray = byteArrayOf(), type: Int = 2): ByteArray =
+        encoder.encode(CardCommand.Framed(type, cmd, params))
+
+    fun download(name: String): ByteArray {
         val bytes = name.toByteArray(Charsets.UTF_8)
         require(bytes.size <= 24)
-        return command(seq, 2, ByteArray(4) + bytes.copyOf(24))
+        return command(2, ByteArray(4) + bytes.copyOf(24))
     }
+
     class Parser {
         private var buffer = byteArrayOf()
+        // 文件应答沿用旧行为：不按音频序号去重/丢迟到包，交给文件命令状态机处理。
+        private val decoder = FrameCodec(spec.copy(fields = spec.fields.map {
+            if (it.role == FieldRole.Seq) it.copy(role = FieldRole.Other) else it
+        }), maxPayloadBytes = 8192)
         fun feed(bytes: ByteArray): List<ByteArray> {
             buffer += bytes
             val result = mutableListOf<ByteArray>()
             while (buffer.isNotEmpty()) {
                 if (buffer[0] != 0x5a.toByte()) { buffer = buffer.drop(1).toByteArray(); continue }
                 if (buffer.size < 6) break
-                val len = (buffer[4].toInt() and 255) or ((buffer[5].toInt() and 255) shl 8)
+                // FrameCodec 接收完整协议包；这里只按 LEN 确定缓存边界，不重复实现校验/拆包。
+                val len = ByteBuffer.wrap(buffer, 4, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt() and 65535
                 require(len in 1..8192) { "协议长度异常" }
                 if (buffer.size < len + 6) break
-                val expected = (buffer[2].toInt() and 255) or ((buffer[3].toInt() and 255) shl 8)
-                check(crc(buffer.copyOfRange(4, len + 6)) == expected) { "协议 CRC 错误" }
-                result += buffer.copyOfRange(6, len + 6); buffer = buffer.copyOfRange(len + 6, buffer.size)
+                val packet = buffer.copyOfRange(0, len + 6)
+                result += checkNotNull(decoder.accept(packet)) { "协议 CRC 错误" }.payload
+                buffer = buffer.copyOfRange(len + 6, buffer.size)
             }
             return result
         }
+    }
+
+    companion object {
+        private val spec = FrameSpec(listOf(
+            FrameField("magic", 1, const = byteArrayOf(0x5a), role = FieldRole.Magic),
+            FrameField("seq", 1, role = FieldRole.Seq),
+            FrameField("crc", 2, role = FieldRole.Crc,
+                crc = CrcSpec(CrcAlgo.Crc16Xmodem, listOf("len", "payload"))),
+            FrameField("len", 2, role = FieldRole.Len),
+        ), PayloadSpec.LengthFrom("len"))
     }
 }
 
 internal class SonicloudFiles : FileSourcePlugin, DeviceFileDetails {
     override val id = "sonicloud"
     override val caps = FileCaps(resume = false, delete = true, checksum = false)
-    private var seq = 0
+    private val frames = FileFrames()
     private val rawEntries = mutableMapOf<String, ByteArray>()
     companion object {
         const val SERVICE = "0000ae20-0000-1000-8000-00805f9b34fb"
@@ -76,14 +83,14 @@ internal class SonicloudFiles : FileSourcePlugin, DeviceFileDetails {
         } finally { receiver.cancelAndJoin(); channel.cancel() }
     }
     override suspend fun open(link: DeviceLink) {
-        session(link, FileFrames.command(seq++, 3, type = 0)) { channel ->
+        session(link, frames.command(3, type = 0)) { channel ->
             withTimeout(12000) { while (true) {
                 val frame = channel.receive()
                 if (frame.size >= 3 && frame[0] == 0.toByte() && frame[1] == 4.toByte()) break
             } }
         }
     }
-    override suspend fun list(link: DeviceLink): List<DeviceFile> = session(link, FileFrames.command(seq++, 0)) { channel ->
+    override suspend fun list(link: DeviceLink): List<DeviceFile> = session(link, frames.command(0)) { channel ->
         rawEntries.clear()
         val result = mutableListOf<DeviceFile>()
         withTimeout(60000) {
@@ -115,7 +122,7 @@ internal class SonicloudFiles : FileSourcePlugin, DeviceFileDetails {
     }
     override fun download(link: DeviceLink, file: DeviceFile, fromOffset: Long): Flow<ByteArray> = flow {
         require(fromOffset == 0L)
-        session(link, FileFrames.download(seq++, file.name)) { channel ->
+        session(link, frames.download(file.name)) { channel ->
             var started = false
             while (true) {
                 val frame = withTimeout(12000) { channel.receive() }
@@ -130,7 +137,7 @@ internal class SonicloudFiles : FileSourcePlugin, DeviceFileDetails {
     }
     override suspend fun delete(link: DeviceLink, file: DeviceFile) {
         val raw = requireNotNull(rawEntries[file.id])
-        session(link, FileFrames.command(seq++, 8, raw)) { channel ->
+        session(link, frames.command(8, raw)) { channel ->
             withTimeout(12000) { while (true) {
                 val frame = channel.receive()
                 if (frame.size >= 3 && frame[0] == 2.toByte() && frame[1] == 13.toByte()) {

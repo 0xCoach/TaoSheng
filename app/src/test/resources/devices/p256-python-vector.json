@@ -1,0 +1,6 @@
+{
+  "note": "Python cryptography P-256/SHA-256 DER signature; temporary private key destroyed; never an official trust root.",
+  "table": "{\"version\":1,\"issuedAt\":\"2026-11-09T00:00:00Z\",\"cards\":[{\"id\":\"test-card\",\"name\":\"设备\",\"version\":2,\"minApp\":\"0.2.21\",\"status\":\"trial\",\"transport\":\"ble\",\"match\":{\"namePrefix\":[\"Test\"]}}]}",
+  "publicKey": "3059301306072a8648ce3d020106082a8648ce3d0301070342000495d7a00e20a1c62e70e368c5e78ab28852219215bd932dc0da16d6b76590add11a00d52c9ba6446fdcbc7babb30a8f84b535f668d85730b72332d453adedcac5",
+  "signature": "3045022100c22206f1996acd6ed77d6b141de68282d60945aff5f777d714a7759ad668ead6022017d015d62d823d48b9c27f0ccec0974ba351a95a96f10a0bb56331568da92b42"
+}

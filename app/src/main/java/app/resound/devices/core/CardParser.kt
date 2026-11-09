@@ -9,7 +9,13 @@ import org.json.JSONTokener
 class CardParser(currentAppVersion: String) {
     private val current = version(currentAppVersion.substringBefore('-'), "当前 App 版本")
 
-    fun parse(json: String): Result<DeviceCard> = runCatching {
+    fun parse(json: String): Result<DeviceCard> = parse(json, checkAppVersion = true)
+
+    // 参数表先完整校验，再由加载器按宿主版本筛选；不因一张未来版本卡丢弃整表。
+    internal fun parseForCatalog(json: String): Result<DeviceCard> = parse(json, checkAppVersion = false)
+    internal fun supports(minApp: String): Boolean = compareVersions(version(minApp, "minApp"), current) <= 0
+
+    private fun parse(json: String, checkAppVersion: Boolean): Result<DeviceCard> = runCatching {
         require(json.length <= 256 * 1024) { "说明卡：超过 256 KiB" }
         validateCardJson(json)
         val tokener = JSONTokener(json)
@@ -22,7 +28,7 @@ class CardParser(currentAppVersion: String) {
         check(id.matches(Regex("[a-z0-9]+(?:-[a-z0-9]+)*")), "id", "只允许小写字母、数字和横线")
         val minApp = r.str("minApp")
         val minimum = version(minApp, "minApp")
-        check(compareVersions(minimum, current) <= 0, "minApp", "需要涛声 $minApp 以上")
+        check(!checkAppVersion || compareVersions(minimum, current) <= 0, "minApp", "需要涛声 $minApp 以上")
         val match = r.obj("match").let { m ->
             m.only("namePrefix", "serviceUuid", "manufacturerId")
             val names = m.strings("namePrefix")

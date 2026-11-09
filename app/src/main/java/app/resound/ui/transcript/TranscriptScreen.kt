@@ -405,6 +405,8 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
                     app.resound.ui.settings.EndpointModeUi(advanced.customEndpointMode,advanced.customPrompt,advanced::setCustomPrompt,advanced::saveCustomAll))
 
             }
+            // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
+            if (!local) app.resound.ui.settings.TranscribeHeaders(source)
         }
         if (!local && source != TranscribeSource.Custom) {
         Text(if(source == TranscribeSource.Custom) "自定义服务密钥" else "豆包语音密钥", style = RsType.body, color = c.text)

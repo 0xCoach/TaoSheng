@@ -224,9 +224,13 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
     var balanceOpen by remember { mutableStateOf(false) }
     var balanceTest by remember { mutableStateOf<Result<app.resound.usage.LlmBalance>?>(null) }
     var fetched by remember { mutableStateOf<List<String>?>(null) }
+    // 卡 116：自定义请求头按已保存服务的 id 存；新加的服务保存后才有 id
+    val settings = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.digestSettings else null
+    val headers = rememberHeaderRows { if (p.id.isNotBlank() && settings != null) settings.headers(p.id) else emptyList() }
+    val headerAuth = headers.any { it.name.equals("authorization", true) && it.value.isNotBlank() }
     val needsWorkspace = baseUrl.contains(WORKSPACE)
     val url = if (needsWorkspace) baseUrl.replace(WORKSPACE, workspace.trim()) else baseUrl.trim()
-    val ready = url.isNotBlank() && model.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom)
+    val ready = url.isNotBlank() && model.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom || headerAuth)
     val keyArg = key.trim().ifBlank { null }
     RsSheet(if (isNew) "添加 ${p.name}" else p.name, template?.note, onDismiss = { if (!busy) onDismiss() }) {
         if (custom) {
@@ -237,7 +241,7 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("模型", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.weight(1f))
             // 拉取这家服务商的全部模型（要地址和密钥），从列表里点选
-            val canFetch = url.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom) && !fetching
+            val canFetch = url.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom || headerAuth) && !fetching
             Text(if (fetching) "拉取中…" else "拉取模型", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
                 color = if (canFetch) c.accent else c.textTertiary,
                 modifier = Modifier.clip(CircleShape).background(if (canFetch) c.accentSoft else c.background).springClick {
@@ -294,6 +298,7 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             balanceTest?.let { r -> Text(r.fold({ "查到了：" + money(it.total, it.currency) }, { it.message ?: "没查到" }), style = RsType.caption,
                 color = if (r.isSuccess) c.good else c.critical) }
         }
+        HeadersEditor(headers) { result = null }
         result?.let { r -> Text(r.fold({ "可以用：$it" }, { it.message ?: "没连上" }), style = RsType.subhead, color = if (r.isSuccess) c.good else c.critical) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ActionButton(if (busy && result == null) "测试中…" else "测试", ActionKind.Secondary, Modifier.weight(1f), enabled = !busy && ready) {
@@ -303,8 +308,13 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             ActionButton(if (isNew) "保存" else "保存修改", ActionKind.Primary, Modifier.weight(1f), enabled = !busy && ready) {
                 busy = true
                 scope.launch {
-                    runCatching { providers.save(p.id.ifBlank { null }, p.templateId, name.trim().ifBlank { p.name }, url, model, keyArg, balanceUrl, balancePath) }
-                        .onSuccess { onDismiss() }.onFailure { result = Result.failure(it) }
+                    runCatching {
+                        // 先校验请求头再存服务，免得服务存了、头没存，改完再点保存又多出一个
+                        app.resound.digest.validateHeaders(headers.entries())
+                        val id = providers.save(p.id.ifBlank { null }, p.templateId, name.trim().ifBlank { p.name }, url, model, keyArg, balanceUrl, balancePath)
+                        // 请求头不合法时底层抛出带原因的异常，留在面板里显示
+                        settings?.saveHeaders(id, headers.entries())
+                    }.onSuccess { onDismiss() }.onFailure { result = Result.failure(it) }
                     busy = false
                 }
             }

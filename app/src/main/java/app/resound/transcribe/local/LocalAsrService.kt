@@ -12,8 +12,10 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-/** 单消费者队列 + 会话模型；忙时排队。客户端最后一个请求结束后保留绑定 60 秒。 */
+/** 单消费者队列 + 会话模型；忙时排队，空闲解绑由客户端控制。 */
 class LocalAsrService : Service() {
+    private val processInstance = java.util.UUID.randomUUID().toString()
+    @Volatile private var activeWake: Pair<String, InferenceWakeLock>? = null
     private data class Request(val id:String,val data:Bundle,val reply:Messenger)
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default.limitedParallelism(1))
     private val queue=Channel<Request>(Channel.UNLIMITED)
@@ -35,19 +37,32 @@ class LocalAsrService : Service() {
                 if(queue.trySend(request).isFailure) {queued.decrementAndGet();accepted.remove(id);send(request,4){putString("phase","asr")}}
                 else send(request,5){putInt("position",position)}
             }
-            7->if(id in accepted)cancelled.add(id)
+            7->if(id in accepted){
+                cancelled.add(id)
+                // 客户端超时/取消后即释放；不等待可能阻塞的 JNI 返回。
+                activeWake?.takeIf { it.first == id }?.second?.release()
+            }
         }
         true
     })
     override fun onCreate(){
         super.onCreate()
         scope.launch {for(request in queue){
-            try {if(request.id !in cancelled)process(request)}
+            try {if(request.id !in cancelled){
+                val wake = InferenceWakeLock(getSystemService(PowerManager::class.java)
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "resound:local-asr"))
+                activeWake = request.id to wake
+                try {
+                    if(request.id !in cancelled) wake.run(request.data.getLong("timeoutMillis", InferenceWakeLock.MAX_MILLIS)) { process(request) }
+                } finally { wake.release(); activeWake = null }
+            }}
             finally{cancelled.remove(request.id);accepted.remove(request.id);queued.decrementAndGet()}
         }}
     }
     private fun send(request:Request,type:Int,fields:Bundle.()->Unit={}) {
-        runCatching {request.reply.send(Message.obtain(null,type).apply{data=Bundle().apply{putString("id",request.id);fields()}})}
+        runCatching {request.reply.send(Message.obtain(null,type).apply{data=Bundle().apply{
+            putString("id",request.id);putString("processInstance",processInstance);putInt("pid",Process.myPid());fields()
+        }})}
     }
     private fun model(backend:LocalBackend,language:LocalAsrLanguage):OfflineRecognizer {
         require(backend!=LocalBackend.Npu || LocalModels.npuSupported())
@@ -123,6 +138,7 @@ class LocalAsrService : Service() {
     }
     override fun onBind(intent:Intent):IBinder=incoming.binder
     override fun onDestroy(){
+        activeWake?.second?.release()
         queue.close();scope.cancel()
         // 进程退出统一回收原生资源，避免取消时与尚在执行的 JNI 并发释放。
         super.onDestroy();Process.killProcess(Process.myPid())

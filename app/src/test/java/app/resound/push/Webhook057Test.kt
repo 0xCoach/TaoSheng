@@ -22,7 +22,7 @@ class Webhook057Test {
     @Test fun markdownSignsActualBodyAndEncodesChineseTitle() {
         val r = request(PushFormat.Markdown)
         assertEquals("text/markdown; charset=utf-8", r.body!!.contentType().toString())
-        assertEquals("# 中文标题\n\n${message.body}", r.text())
+        assertEquals("# 中文标题\n\n## 内容\n**重点**  \n- [ ] [查看](https://example.com)", r.text())
         assertEquals(message.title, URLDecoder.decode(r.header("X-Resound-Title"), "UTF-8"))
         assertEquals("test", r.header("X-Resound-Type"))
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec("secret".toByteArray(), "HmacSHA256")) }

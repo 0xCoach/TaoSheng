@@ -19,7 +19,7 @@ internal object DayVolumeRows {
         "asr_attempts" to "at", "asr_usage" to "day", "llm_usage_v2" to "day", "skill_runs" to "at",
         "app_power" to "at", "battery" to "at", "heartbeats" to "at", "watchdog" to "at", "env_sounds" to "startAt",
     )
-    val global = setOf("things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions")
+    val global = setOf("import_fingerprints", "folder_observations", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()
     fun canonical(value: Any?): String = when (value) {

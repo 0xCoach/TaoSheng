@@ -53,8 +53,10 @@ internal object PushFields {
             }
             PushKind.Notion -> { ascii(required("token")); databaseId(required("databaseId")) }
             PushKind.MarkdownFolder -> {
-                val url = https(default(values, "url", "https://dav.jianguoyun.com/dav/"))
-                if (url.query != null) throw PushFailure("WebDAV 地址不能含查询参数")
+                try {
+                    if (values["cloudKind"] == "S3") app.resound.backup.CloudAddress.s3(app.resound.backup.s3FromJson(required("s3")))
+                    else app.resound.backup.CloudAddress.parse(default(values, "url", "https://dav.jianguoyun.com/dav/"))
+                } catch (e: IllegalArgumentException) { throw PushFailure(e.message ?: "云端地址格式不正确") }
                 required("account"); required("password")
                 val folder = required("folder")
                 if (folder.startsWith('/') || folder.contains("..") || folder.contains('\\') || folder.split('/').any { it.isBlank() } || folder.any { it.code < 32 }) throw PushFailure("文件夹须为相对路径，不能含 .. 或空目录")

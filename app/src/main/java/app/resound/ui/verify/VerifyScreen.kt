@@ -116,6 +116,7 @@ fun VerifyScreen(
         if (app.resound.AppGraph.isQuietScheduleReady) item { QuietSection(app.resound.AppGraph.quietSchedule) }
         if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
         if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
+        if (app.resound.AppGraph.isFolderImportReady) item { FolderImportSection(app.resound.AppGraph.folderImports) }
         item {
             Section("每日统计") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

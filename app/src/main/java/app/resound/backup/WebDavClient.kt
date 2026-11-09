@@ -12,7 +12,7 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-internal data class BackupConfig(val endpoint: String = "https://dav.jianguoyun.com/dav/")
+internal data class BackupConfig(val endpoint: String = "https://dav.jianguoyun.com/dav/", val label: String = "坚果云")
 internal class BackupFailure(val human: String, val retryable: Boolean = false) : IOException(human)
 internal fun backupError(e: Exception): BackupFailure = when (e) {
     is BackupFailure -> e
@@ -25,7 +25,8 @@ internal class WebDavClient(
     config: BackupConfig, @Suppress("UNUSED_PARAMETER") appName: String, account: String, password: String,
     private val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false)
         .followSslRedirects(false).callTimeout(10, TimeUnit.MINUTES).build(),
-) {
+) : RemoteStore {
+    private val label = config.label
     private val root = config.endpoint.toHttpUrl()
     // 云端目录和文件名用英文，避免中文在各家 WebDAV 里编码不一致；旧的中文目录只读，用于恢复以前的备份
     private val directory = folder(FOLDER)
@@ -34,7 +35,7 @@ internal class WebDavClient(
     private val auth = Credentials.basic(account, password, Charsets.UTF_8)
     private fun folder(name: String) = root.newBuilder().addPathSegment(name).addPathSegment("").build()
     private fun folderOf(name: String) = if (name.startsWith(legacyPrefix)) legacyDirectory else directory
-    internal fun metadata(name: String, bytes: Long = 0): RemoteBackup? = BackupNames.metadata(name, bytes)
+    override fun metadata(name: String, bytes: Long): RemoteBackup? = BackupNames.metadata(name, bytes)
     private fun url(name: String) = folderOf(name).newBuilder().addPathSegment(name).build()
     private fun request(method: String, target: HttpUrl, body: RequestBody? = null, headers: Map<String, String> = emptyMap()): Response {
         val request = Request.Builder().url(target).header("Authorization", auth).method(method, body)
@@ -43,22 +44,22 @@ internal class WebDavClient(
         if (response.isSuccessful) return response
         val code = response.code
         response.close()
-        android.util.Log.w("ResoundBackup", "坚果云拒绝: $method ${target.pathSegments.takeLast(2).joinToString("/")} → HTTP $code")
+        android.util.Log.w("ResoundBackup", "$label 拒绝: $method ${target.pathSegments.takeLast(2).joinToString("/")} → HTTP $code")
         throw when (code) {
             401, 403 -> BackupFailure("账号或应用密码不对")
-            507 -> BackupFailure("坚果云空间不足")
+            507 -> BackupFailure("${label}空间不足")
             404 -> BackupFailure("备份目录不存在")
-            408, 429, in 500..599 -> BackupFailure("坚果云暂时不可用", true)
-            else -> BackupFailure("坚果云操作失败")
+            408, 429, in 500..599 -> BackupFailure("${label}暂时不可用", true)
+            else -> BackupFailure("${label}操作失败")
         }
     }
-    fun ensureDirectory() {
+    override fun ensureDirectory() {
         try { listIn(directory); return } catch (e: BackupFailure) { if (e.human != "备份目录不存在") throw e }
         request("MKCOL", directory).close()
     }
-    fun list(): List<String> = backups().asReversed().map { it.name }
+    override fun list(): List<String> = backups().asReversed().map { it.name }
     /** 新目录 + 旧中文目录里的全部备份（恢复列表用），新的在前；新目录还没建时视为空 */
-    fun backups(): List<RemoteBackup> {
+    override fun backups(): List<RemoteBackup> {
         fun quiet(dir: HttpUrl) = try { listIn(dir) } catch (e: BackupFailure) { if (e.human == "备份目录不存在") emptyList() else throw e }
         return (quiet(directory) + runCatching { quiet(legacyDirectory) }.getOrDefault(emptyList()))
             .sortedWith(compareByDescending<RemoteBackup> { it.at }.thenByDescending { it.name })
@@ -123,7 +124,7 @@ internal class WebDavClient(
         names.values.toList()
     }
 
-    fun upload(file: File, name: String) {
+    override fun upload(file: File, name: String) {
         require(BackupNames.metadata(name) != null && name.startsWith("$PREFIX-"))
         val part = "$name.${UUID.randomUUID()}.part"
         try {
@@ -135,7 +136,7 @@ internal class WebDavClient(
         }
     }
     /** 日记是固定路径的覆盖上传；与 ZIP 目录、保留策略分离。 */
-    fun uploadDiary(date: java.time.LocalDate, markdown: String) {
+    override fun uploadDiary(date: java.time.LocalDate, markdown: String) {
         val diaryDirectory = folder(DIARY_FOLDER)
         try {
             request("PROPFIND", diaryDirectory, "".toRequestBody(), mapOf("Depth" to "0")).close()
@@ -147,25 +148,25 @@ internal class WebDavClient(
         request("PUT", target, markdown.toRequestBody("text/markdown; charset=utf-8".toMediaType())).close()
     }
 
-    fun retain(count: Int): Int {
+    override fun retain(count: Int): Int {
         require(count > 0)
         val files = listIn(directory) // 只清理新目录，旧中文目录里的不动
         val retained = BackupRetention.names(files, count)
         files.filter { it.name !in retained }.forEach { delete(it.name) }
         return files.count { it.name in retained }
     }
-    fun delete(name: String) {
+    override fun delete(name: String) {
         require(!name.startsWith(legacyPrefix)) { "旧备份目录只读" }
         request("DELETE", url(name)).close()
     }
-    fun download(name: String, destination: File) {
+    override fun download(name: String, destination: File) {
         require(metadata(name) != null) { "备份文件名无效" }
         request("GET", url(name)).use { response ->
             response.body!!.byteStream().use { input -> destination.outputStream().use { input.copyTo(it) } }
         }
     }
     /** 固定英文分卷路径；404 才表示缺失，鉴权/网络错误不能当作空清单。 */
-    fun volumes(): VolumeStore = object : VolumeStore {
+    override fun volumes(): VolumeStore = object : VolumeStore {
         private fun target(path: String): HttpUrl {
             require(volumePath(path) || ('/' !in path && metadata(path) != null))
             if ('/' !in path && metadata(path) != null) return url(path)
@@ -226,7 +227,7 @@ internal class WebDavClient(
         }
     }
 
-    fun testWrite() {
+    override fun testWrite() {
         ensureDirectory()
         val name = ".probe-${UUID.randomUUID()}.part"
         try { request("PUT", url(name), ByteArray(0).toRequestBody()).close() }

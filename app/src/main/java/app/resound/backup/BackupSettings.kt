@@ -10,9 +10,10 @@ import java.io.File
 internal object BackupSettings {
     val prefs = setOf("transcribe", "local-asr", "capture", "ui", "review", "push", "diary", "digest", "setup",
         "backup", "ask-selection", "usage", "inputs", "voice-input", "llm-providers", "llm-balance",
-        "asr-speed", "env-sound", "redo-choices", "import-kinds", "app-update")
+        "asr-speed", "env-sound", "redo-choices", "import-kinds", "app-update", "folder-imports")
     val stores = mapOf("digest-secrets" to "resound-llm-aes-v1", "push-secrets" to "resound-push-aes-v1",
-        "backup-secrets" to "resound-backup-aes-v1", "transcribe" to "resound-asr-aes-v1")
+        "backup-secrets" to "resound-backup-aes-v1", "transcribe" to "resound-asr-aes-v1",
+        "transcribe-header-secrets" to "resound-asr-headers-aes-v1")
     private val asrKeys = setOf("encryptedKey", "customEncryptedKey")
     private fun setting(store: String, key: String): Boolean = !(store == "transcribe" && key in asrKeys) &&
         !(store == "redo-choices" && key !in setOf("asr", "llm")) &&
@@ -71,6 +72,7 @@ internal object BackupSettings {
         settings.keys().forEach { name ->
             val edit = context.getSharedPreferences(name, 0).edit()
             val entries = settings.getJSONObject(name)
+            if (name == "backup" && !entries.has("cloud")) edit.putString("cloud", CloudKind.Nutstore.name)
             entries.keys().forEach { key ->
                 val item = entries.getJSONObject(key)
                 when (item.getString("type")) {

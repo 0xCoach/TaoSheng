@@ -6,12 +6,14 @@ import android.net.Uri
 import androidx.work.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false, val asr: app.resound.transcribe.TranscribeSource? = null, val kind: ImportKind? = null, val source: String = "", val dual: Boolean? = null, val channels: Int = 1, val recordKey: String? = null, val recordName: String? = null, val recordStart: Long? = null, val recordEnd: Long? = null)
+internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false, val asr: app.resound.transcribe.TranscribeSource? = null, val kind: ImportKind? = null, val source: String = "", val dual: Boolean? = null, val channels: Int = 1, val recordKey: String? = null, val recordName: String? = null, val recordStart: Long? = null, val recordEnd: Long? = null, val fingerprint: String? = null)
 
 /** 文件先落盘，再提交确认信息；队列与确认列表同一次 commit，避免进程死亡丢掉授权内容。 */
 class AndroidAudioImporter internal constructor(
@@ -20,6 +22,7 @@ class AndroidAudioImporter internal constructor(
     private val inspect: (File) -> AudioMetadata = ImportMedia(context)::inspect,
     private val describe: (Uri) -> SharedAudio = ImportMedia(context)::shared,
     private val enqueue: () -> Unit = { enqueue(context) },
+    private val fingerprints: FolderImportDao? = null,
 ) : AudioImporter {
     private val root = File(context.cacheDir, "import").apply { mkdirs() }
     private val prefs = context.getSharedPreferences("imports", Context.MODE_PRIVATE)
@@ -33,7 +36,7 @@ class AndroidAudioImporter internal constructor(
                 item.optString("kind").takeIf { it.isNotBlank() }?.let(ImportKind::valueOf), item.optString("source"),
                 if (item.isNull("dual")) null else item.getBoolean("dual"), item.optInt("channels", 1), item.optString("recordKey").takeIf { it.isNotBlank() },
                 item.optString("recordName").takeIf { it.isNotBlank() }, if (item.isNull("recordStart")) null else item.getLong("recordStart"),
-                if (item.isNull("recordEnd")) null else item.getLong("recordEnd"))
+                if (item.isNull("recordEnd")) null else item.getLong("recordEnd"), item.optString("fingerprint").takeIf { it.isNotBlank() })
         }.filter { runCatching { UUID.fromString(it.pending.id) }.isSuccess }.toMutableList()
     }.getOrDefault(mutableListOf())
     private val _pending = MutableStateFlow(entries.filter { it.startAt == null }.map { it.pending })
@@ -41,7 +44,8 @@ class AndroidAudioImporter internal constructor(
     private val _progress = MutableStateFlow(ImportProgress(false, null, 0, entries.count { it.startAt != null }, 0, null))
     override val progress = _progress.asStateFlow()
     private var active: String? = null
-    private val commands = kotlinx.coroutines.channels.Channel<() -> Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+    private val admission = Mutex()
+    private val commands = kotlinx.coroutines.channels.Channel<suspend () -> Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
     init {
         scope.launch(Dispatchers.IO) {
             for (command in commands) try { command() }
@@ -57,6 +61,7 @@ class AndroidAudioImporter internal constructor(
         val array = JSONArray(entries.map { row -> JSONObject().apply {
             put("id", row.pending.id); put("name", row.pending.info.displayName); put("duration", row.pending.info.durationMillis)
             put("suggested", row.pending.info.suggestedStartAt ?: JSONObject.NULL)
+            put("fingerprint", row.fingerprint ?: "")
             put("recordKey", row.recordKey ?: ""); put("recordName", row.recordName ?: ""); put("recordStart", row.recordStart ?: JSONObject.NULL); put("recordEnd", row.recordEnd ?: JSONObject.NULL)
             put("kind", row.kind?.name ?: ""); put("source", row.source); put("dual", row.dual ?: JSONObject.NULL); put("channels", row.channels)
             put("start", row.startAt ?: JSONObject.NULL); put("cancelled", row.cancelled); put("asr", row.asr?.name ?: "")
@@ -83,8 +88,9 @@ class AndroidAudioImporter internal constructor(
                 val source = describe(uri)
                 val audio = inspect(target)
                 val item = PendingImport(id, ImportInfo(source.name, audio.duration, suggestedStart(audio.date, source.modified, audio.duration)))
+                val fingerprint = audioFingerprint(target)
                 synchronized(this@AndroidAudioImporter) {
-                    entries += ImportEntry(item, source = source.source, channels = audio.channels)
+                    entries += ImportEntry(item, source = source.source, channels = audio.channels, fingerprint = fingerprint)
                     try { save() } catch (e: Exception) { entries.removeAll { it.pending.id == id }; throw e }
                 }
                 Result.success(item)
@@ -99,6 +105,53 @@ class AndroidAudioImporter internal constructor(
             }
         }
     }
+    /** 自动导入只提交已确认条目，不经过 pending，和分享共用一个持久队列。 */
+    internal suspend fun receiveFolder(document: FolderDocument, kind: ImportKind, expected: String, unchanged: () -> Boolean = { true }): Boolean =
+        withContext(Dispatchers.IO) { admission.withLock {
+            if (fingerprints?.contains(expected) == true || queuedFingerprint(expected)) return@withLock false
+            val id = UUID.randomUUID().toString()
+            val target = file(id)
+            var saved = false
+            try {
+                context.contentResolver.openInputStream(document.uri)?.use { input ->
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val n = input.read(buffer)
+                            if (n < 0) break
+                            output.write(buffer, 0, n)
+                        }
+                    }
+                } ?: throw ImportFailure("无法读取录音")
+                if (target.length() != document.size || audioFingerprint(target) != expected || !unchanged())
+                    throw ImportFailure("文件仍在写入，稍后重试")
+                val metadata = inspect(target)
+                val start = suggestedStart(metadata.date, null, metadata.duration) ?: document.modified
+                val item = PendingImport(id, ImportInfo(document.name, metadata.duration, start))
+                synchronized(this@AndroidAudioImporter) {
+                    if (queuedFingerprint(expected)) return@withLock false
+                    entries += ImportEntry(item, startAt = start, kind = kind, source = document.uri.toString(),
+                        channels = metadata.channels, fingerprint = expected)
+                    try { save(); saved = true } catch (e: Exception) { entries.removeAll { it.pending.id == id }; throw e }
+                }
+                rememberQueued()
+                enqueue()
+                true
+            } finally { if (!saved) target.delete() }
+        } }
+
+    @Synchronized private fun queuedFingerprint(key: String) = entries.any { it.startAt != null && it.fingerprint == key }
+    /** 启动时/解码前补记，覆盖队列 commit 与数据库写入之间的进程中断。 */
+    internal suspend fun rememberQueued() {
+        val queued = synchronized(this) { entries.filter { it.startAt != null }.toList() }
+        for (entry in queued) remember(entry)
+    }
+    internal suspend fun remember(entry: ImportEntry) {
+        val key = entry.fingerprint ?: file(entry.pending.id).takeIf { it.isFile }?.let(::audioFingerprint) ?: return
+        fingerprints?.remember(ImportFingerprint(key, System.currentTimeMillis()))
+    }
+
     override fun start(id: String, startAt: Long) = start(id, startAt, null)
     override fun start(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?) = startKind(id, startAt, asr, ImportKind.Normal)
     internal fun startKind(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?, kind: ImportKind) {
@@ -111,6 +164,7 @@ class AndroidAudioImporter internal constructor(
                     entries.add(entry.copy(startAt = startAt, asr = asr, kind = kind))
                     save()
                 }
+                rememberQueued()
                 enqueue()
             } catch (_: Exception) { reportError("导入排队失败，请重新打开${appDisplayName}重试") }
         }
@@ -130,6 +184,7 @@ class AndroidAudioImporter internal constructor(
                 }
                 save()
             }
+            rememberQueued()
             enqueue()
         }
     }

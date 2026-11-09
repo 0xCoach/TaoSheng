@@ -82,7 +82,7 @@ fun PushPage(repo: PushChannels, bottomPadding: Dp) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("手机通知照常发。加一个通道，还能把每日回顾、每天的记忆文档推到微信、飞书、钉钉、邮件；想交给你自己的智能体读，用“坚果云同步文件夹”或自定义接口。",
+            Text("手机通知照常发。加一个通道，还能把每日回顾、每天的记忆文档推到微信、飞书、钉钉、邮件；想交给你自己的智能体读，用“同步文件夹”或自定义接口。",
                 style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(horizontal = 4.dp))
         }
         item {
@@ -166,6 +166,8 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
     var sub by remember { mutableStateOf(ch?.subscription ?: PushSubscription.PhoneNotice) }
     var linked by remember { mutableStateOf(ch?.useLinkedNutstore ?: true) }
     val linkedAccount by repo.linkedNutstoreAccount.collectAsState(initial = null)
+    // 卡 114：借用的是数据备份里选的那种云端存储（坚果云 / WebDAV / S3），显示它的名字和地址，不显示密钥 ID
+    val backupState = if (app.resound.AppGraph.isBackupReady) app.resound.AppGraph.backup.state.collectAsState().value else null
     val caps = remember(kind) { repo.capabilities(kind) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Result<String>?>(null) }
@@ -202,13 +204,14 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         Field(name, "例如：我的微信", secret = false) { name = it.take(20) }
         val folderKind = kind == PushKind.MarkdownFolder
         if (folderKind) {
-            Label("坚果云账号")
-            app.resound.ui.skills.Segments(listOf("用已连接的坚果云", "单独配置"), if (linked) 0 else 1) {
+            Label("存到哪里")
+            app.resound.ui.skills.Segments(listOf("用数据备份的云端", "单独配置"), if (linked) 0 else 1) {
                 linked = it == 0
                 // 单独配置时服务器地址直接填好坚果云的，只需填账号和应用密码
                 if (!linked && values["url"].isNullOrBlank()) values["url"] = NUTSTORE_DAV
             }
-            if (linked) Text(linkedAccount?.let { "用数据备份里已连接的 $it，不用再填账号密码" } ?: "数据备份里还没连接坚果云，先去连接，或改为单独配置",
+            if (linked) Text(linkedAccount?.let { _ -> backupState?.let { "用数据备份里的 ${it.cloud.title()}（${it.cloudLine()}），不用再填账号密码" } ?: "用数据备份里已连接的云端存储" }
+                ?: "数据备份里还没连接云端存储，先去连接，或改为单独配置（单独配置只支持 WebDAV）",
                 style = RsType.caption, color = if (linkedAccount == null) c.critical else c.textSecondary)
         }
         fields.filter { !(folderKind && linked && it.key != "folder") }.forEach { f ->
@@ -326,7 +329,7 @@ private val KIND_GROUPS = listOf(
 
 private fun shortName(k: PushKind) = when (k) {
     PushKind.WeCom -> "企业微信"; PushKind.Feishu -> "飞书"; PushKind.DingTalk -> "钉钉"
-    PushKind.MarkdownFolder -> "坚果云同步"; PushKind.Webhook -> "自定义接口"; else -> k.title
+    PushKind.MarkdownFolder -> "同步文件夹"; PushKind.Webhook -> "自定义接口"; else -> k.title
 }
 
 /** 类型小方块：选中时底色换成该通道的颜色 */
@@ -418,7 +421,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
     ToggleRow("摘要", "每日回顾、每周回顾、技能卡片，生成后自动推", sub.summaries) { onChange(sub.copy(summaries = it)) }
     ToggleRow("提醒", "待办到期、标了重点 3 天没进展，到点推", sub.reminders) { onChange(sub.copy(reminders = it)) }
     if (!caps.records) {
-        Text("这种通道只能发短消息，推不了整理结果和原话；想给智能体读，用坚果云同步文件夹或自定义接口。", style = RsType.caption, color = c.textTertiary)
+        Text("这种通道只能发短消息，推不了整理结果和原话；想给智能体读，用同步文件夹或自定义接口。", style = RsType.caption, color = c.textTertiary)
     } else {
     SubLabel("整理结果（可多选）")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -440,7 +443,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
                 style = RsType.caption, color = c.textTertiary)
             ToggleRow("附上原话", "每段录音配一个同名文字文件", sub.audioWithText) { onChange(sub.copy(audioWithText = it)) }
             ToggleRow("只在连 WiFi 时传", "用流量时先攒着，连上 WiFi 再传", sub.audioWifiOnly) { onChange(sub.copy(audioWifiOnly = it)) }
-            Text("坚果云免费版每月只能上传 1 GB；“全部录音”一天几十 MB，一个月可能超，建议选“只推人声”。", style = RsType.caption, color = c.warning)
+            Text("“全部录音”一天几十 MB，坚果云免费版每月只能上传 1 GB，可能超；建议选“只推人声”。", style = RsType.caption, color = c.warning)
         }
     }
     if (!caps.records || (sub.records.isEmpty() && sub.lines == LinesMode.Off)) return

@@ -35,6 +35,12 @@ abstract class TranscribeDao {
         (SELECT eventId FROM transcript_lines WHERE segmentId = :segmentId))""")
     abstract suspend fun exportEvents(segmentId: Long, from: Long, until: Long): List<MemoryEventEntity>
 
+    /** 只导出仍有效的待办与约定，已合并或忽略的旧项不再展示。 */
+    @Query("""SELECT * FROM memory_items WHERE eventId IN (:eventIds)
+        AND deleted = 0 AND mergedInto IS NULL AND status != 'Ignored'
+        AND category IN ('待办', '约定') ORDER BY createdAt, id""")
+    abstract suspend fun exportItems(eventIds: List<Long>): List<MemoryItemEntity>
+
     @Transaction
     @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
     @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e

@@ -1,0 +1,72 @@
+{
+  "id": "sonicloud",
+  "name": "声云实时收音",
+  "version": 1,
+  "minApp": "0.2.21",
+  "status": "trial",
+  "transport": "ble",
+  "match": {
+    "serviceUuid": "0000ae20-0000-1000-8000-00805f9b34fb"
+  },
+  "mtu": 247,
+  "audio": {
+    "service": "0000ae20-0000-1000-8000-00805f9b34fb",
+    "notify": "0000ae22-0000-1000-8000-00805f9b34fb",
+    "write": "0000ae21-0000-1000-8000-00805f9b34fb",
+    "start": {
+      "type": 1,
+      "cmd": 0
+    },
+    "stop": {
+      "type": 1,
+      "cmd": 2
+    },
+    "codec": "opus20",
+    "sampleRate": 16000,
+    "channels": 1
+  },
+  "frame": {
+    "fields": [
+      {
+        "name": "magic",
+        "bytes": 1,
+        "role": "magic",
+        "const": "hex:5A"
+      },
+      {
+        "name": "seq",
+        "bytes": 1,
+        "role": "seq"
+      },
+      {
+        "name": "crc",
+        "bytes": 2,
+        "endian": "probe",
+        "role": "crc",
+        "crc": {
+          "algo": "crc16-xmodem",
+          "over": [
+            "len",
+            "payload"
+          ]
+        }
+      },
+      {
+        "name": "len",
+        "bytes": 2,
+        "endian": "probe",
+        "role": "len"
+      }
+    ],
+    "payload": {
+      "lengthFrom": "len"
+    },
+    "opusPerPacket": "one",
+    "probe": {
+      "type": 0,
+      "cmd": 3
+    }
+  },
+  "offline": "files",
+  "filePlugin": "sonicloud"
+}

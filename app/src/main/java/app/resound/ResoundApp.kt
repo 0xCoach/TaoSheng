@@ -249,6 +249,8 @@ class ResoundApp : Application() {
         val updater = app.resound.update.createUpdater(this, backupRepository)
         AppGraph.updater = updater
         AppGraph.problemReports = app.resound.diagnostics.LocalProblemReports(this, crashes, AppGraph.stats, updater)
+        AppGraph.deviceCards = app.resound.devices.createDeviceCards(this)
+        app.resound.devices.DeviceCardsWork.schedule(this)
         app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)

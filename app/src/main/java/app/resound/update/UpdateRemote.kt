@@ -52,6 +52,37 @@ internal class UpdateRemote(
         throw UpdateFailure(UPDATE_NETWORK_ERROR, "sources_exhausted")
     }
 
+    /** 参数表复用更新检查的客户端、超时、限长及镜像回退；表和签名必须来自同一源。 */
+    fun deviceCards(accept: (app.resound.devices.SignedCards) -> Boolean,
+        urls: List<String> = listOf(
+            "https://raw.githubusercontent.com/0xCoach/TaoSheng/main/device-cards.json",
+            UpdateSources.MODELSCOPE + "device-cards.json",
+        )) {
+        for (url in urls) {
+            try {
+                val table = app.resound.devices.SignedCards(readLimited(url, 256 * 1024), readLimited("$url.sig", 64))
+                if (accept(table)) return
+            } catch (_: Exception) { log("cards source_failed") }
+        }
+        throw java.io.IOException("cards_sources_exhausted")
+    }
+
+    private fun readLimited(url: String, limit: Int): ByteArray =
+        checks.newCall(Request.Builder().url(url).build()).execute().use { response ->
+            check(response.isSuccessful)
+            val body = requireNotNull(response.body)
+            body.byteStream().use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                while (output.size() <= limit) {
+                    val n = input.read(buffer, 0, minOf(buffer.size, limit + 1 - output.size()))
+                    if (n < 0) break
+                    output.write(buffer, 0, n)
+                }
+                output.toByteArray().also { require(it.size <= limit) }
+            }
+        }
+
     fun download(asset: UpdateAsset, version: String, target: File, incremental: Boolean, previewSource: Boolean = "-preview." in version, progress: (Long) -> Unit) {
         val downloadSources = if (previewSource) previewSources else sources
         if (target.length() > asset.size) check(target.delete())

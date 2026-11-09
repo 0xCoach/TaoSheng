@@ -223,11 +223,14 @@ class CaptureService : Service() {
     }
     private suspend fun listen() {
         app.segmentFiles.awaitReady()
-        InputSwitchLoop(app.inputs.snapshots, SystemClock::elapsedRealtime).run(onUnchanged = { route, note ->
-            if (app.inputs.status.value.using.key == route.device.key) app.inputs.report(route.device, note)
-        }) { route, note ->
-            listenTo(route, note)
-        }
+        app.cardDevices.recording(true)
+        try {
+            InputSwitchLoop(app.inputs.snapshots, SystemClock::elapsedRealtime).run(onUnchanged = { route, note ->
+                if (app.inputs.status.value.using.key == route.device.key) app.inputs.report(route.device, note)
+            }) { route, note ->
+                listenTo(route, note)
+            }
+        } finally { app.cardDevices.recording(false) }
     }
     private suspend fun listenTo(route: InputRoute, note: String?) {
         var busy = false
@@ -242,6 +245,7 @@ class CaptureService : Service() {
             var retryMs = CaptureTuning.MIC_RETRY_MS
             try {
                 val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
+                else if (route.device.kind == InputKind.CardDevice) app.cardDevices.audioSource(route.device.key)
                 else ExternalAudioSource(this, route.device,
                     app.inputs.port(requireNotNull(route.portId))
                         ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)

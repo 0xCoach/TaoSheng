@@ -13,6 +13,7 @@ enum class InputKind(val title: String) {
     BluetoothLe("蓝牙耳机（LE Audio）"),
     BluetoothCall("蓝牙耳机（通话音质）"),
     Other("其他输入"),
+    CardDevice("专用录音设备"),
 }
 
 data class InputDevice(

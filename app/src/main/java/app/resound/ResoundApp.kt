@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 class ResoundApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
+    internal lateinit var cardDevices: app.resound.devices.ManagedDevices
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
@@ -250,6 +251,10 @@ class ResoundApp : Application() {
         AppGraph.updater = updater
         AppGraph.problemReports = app.resound.diagnostics.LocalProblemReports(this, crashes, AppGraph.stats, updater)
         AppGraph.deviceCards = app.resound.devices.createDeviceCards(this)
+        cardDevices = app.resound.devices.createDevices(this, AppGraph.deviceCards)
+        AppGraph.devices = cardDevices
+        AppGraph.deviceScanError = cardDevices.lastError
+        inputs.attachCards(cardDevices, AppGraph.deviceCards, scope)
         app.resound.devices.DeviceCardsWork.schedule(this)
         app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))

@@ -108,7 +108,7 @@ private fun ChoiceRow(title: String, sub: String, glyph: String, tint: Color, se
 
 private fun kindGlyph(k: InputKind) = when (k) {
     InputKind.Phone -> "手"; InputKind.Usb -> "麦"; InputKind.Wired -> "线"
-    InputKind.BluetoothLe, InputKind.BluetoothCall -> "耳"; InputKind.Other -> "其"
+    InputKind.BluetoothLe, InputKind.BluetoothCall -> "耳"; InputKind.CardDevice -> "设"; InputKind.Other -> "其"
 }
 
 private fun kindColor(k: InputKind): Color = when (k) {

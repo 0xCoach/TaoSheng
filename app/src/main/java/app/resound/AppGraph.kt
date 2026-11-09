@@ -13,6 +13,8 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var devices: app.resound.devices.Devices
+    lateinit var deviceScanError: kotlinx.coroutines.flow.StateFlow<String?>
     lateinit var deviceCards: app.resound.devices.DeviceCards
         internal set
     lateinit var llmFailover: app.resound.digest.LlmFailover

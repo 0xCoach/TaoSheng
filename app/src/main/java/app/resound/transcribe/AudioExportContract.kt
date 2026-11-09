@@ -28,10 +28,7 @@ data class ExportRequest(
     val includeSrt: Boolean = true,
     /** 跳过落在“媒体”事件里的录音段（音频和文字都跳过） */
     val skipMedia: Boolean = true,
-) {
-    /** 过渡：卡 115 之前的底层只认“附不附原话文字” */
-    val includeText: Boolean get() = textParts.isNotEmpty()
-}
+)
 
 enum class ExportTextPart { Summary, Todos, Lines }
 

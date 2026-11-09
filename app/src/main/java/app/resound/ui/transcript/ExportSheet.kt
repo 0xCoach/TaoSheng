@@ -40,6 +40,9 @@ import app.resound.digest.MemoryEvent
 import app.resound.transcribe.ExportEstimate
 import app.resound.transcribe.ExportProgress
 import app.resound.transcribe.ExportRequest
+import app.resound.transcribe.ExportTextFormat
+import app.resound.transcribe.ExportTextPart
+import app.resound.ui.items.Choice
 import app.resound.ui.skills.Toggle
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
@@ -81,7 +84,7 @@ private const val EXPORT_DIR = "Resound"
 private fun prefs(context: android.content.Context) = context.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
 
 /**
- * 导出面板：合成 1 个音频 · 时长 · 大小；附原话文字 / 字幕 / 跳过媒体（记住上次的选择）；标题可改；
+ * 导出面板：选导出什么（音频 / 摘要 / 待办 / 原话，可多选）、文字格式（TXT / Markdown）、字幕、跳过媒体（记住上次的选择）；标题可改；
  * 导出时显示进度、可取消，完成后用系统分享发出去。
  */
 @Composable
@@ -91,7 +94,12 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     val scope = rememberCoroutineScope()
     val p = remember { prefs(context) }
     var title by remember { mutableStateOf(suggestedTitle) }
-    var withText by remember { mutableStateOf(p.getBoolean("exportText", true)) }
+    // 卡 115：导出内容四选多；旧版只有“附原话文字”开关，老用户沿用它
+    var withAudio by remember { mutableStateOf(p.getBoolean("exportAudio", true)) }
+    var parts by remember { mutableStateOf(p.getStringSet("exportParts", null)
+        ?.mapNotNull { runCatching { ExportTextPart.valueOf(it) }.getOrNull() }?.toSet()
+        ?: if (p.getBoolean("exportText", true)) setOf(ExportTextPart.Lines) else emptySet()) }
+    var format by remember { mutableStateOf(runCatching { ExportTextFormat.valueOf(p.getString("exportFormat", null)!!) }.getOrDefault(ExportTextFormat.Txt)) }
     var withSrt by remember { mutableStateOf(p.getBoolean("exportSrt", true)) }
     var skipMedia by remember { mutableStateOf(p.getBoolean("exportSkipMedia", true)) }
     var progress by remember { mutableStateOf<Float?>(null) }
@@ -101,18 +109,42 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     // 合成好的文件：有音频时先在面板里试听，确认后再分享
     var done by remember { mutableStateOf<List<java.io.File>?>(null) }
     val exporter = if (app.resound.AppGraph.isAudioExporterReady) app.resound.AppGraph.audioExporter else null
-    fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, textParts = if (withText) setOf(app.resound.transcribe.ExportTextPart.Lines) else emptySet(), includeSrt = withSrt, skipMedia = skipMedia) // 卡 115 界面改造前的过渡写法
-    val estimate by produceState<ExportEstimate?>(null, skipMedia, segmentIds) {
+    fun request() = ExportRequest(segmentIds, title.trim().ifBlank { suggestedTitle }, includeAudio = withAudio, textParts = parts,
+        textFormat = format, includeSrt = withAudio && withSrt, skipMedia = skipMedia)
+    val estimate by produceState<ExportEstimate?>(null, skipMedia, segmentIds, withAudio) {
         value = exporter?.let { runCatching { it.estimate(request()) }.getOrNull() }
     }
     // 关面板不取消后台任务；只有前台退回的导出才随面板取消
     fun close() { progressJob?.cancel(); ExportUi.seen(jobId); onDismiss() }
-    RsSheet("导出 ${segmentIds.size} 段录音", estimateLine(estimate), onDismiss = { close() }) {
+    RsSheet("导出 ${segmentIds.size} 段录音", estimateLine(estimate, withAudio), onDismiss = { close() }) {
         if (exporter == null) { Text("导出功能还没准备好", style = RsType.subhead, color = c.textSecondary); return@RsSheet }
         Label2("文件名")
         SheetInput(title, "录音标题") { title = it.take(60) }
-        OptionRow("同时附上原话文字", "每句带在录音里的位置和当时时刻", withText) { withText = it; p.edit().putBoolean("exportText", it).apply() }
-        OptionRow("字幕文件（.srt）", "和录音放一起，播放时原话跟着滚动", withSrt) { withSrt = it; p.edit().putBoolean("exportSrt", it).apply() }
+        Label2("导出什么")
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            Choice("音频", withAudio) { withAudio = !withAudio; p.edit().putBoolean("exportAudio", withAudio).apply() }
+            // 顺序与文件里一致：摘要 → 待办 → 原话
+            listOf(ExportTextPart.Summary to "摘要", ExportTextPart.Todos to "待办", ExportTextPart.Lines to "原话").forEach { (part, name) ->
+                Choice(name, part in parts) {
+                    parts = if (part in parts) parts - part else parts + part
+                    p.edit().putStringSet("exportParts", parts.map { it.name }.toSet()).apply()
+                }
+            }
+        }
+        androidx.compose.animation.AnimatedVisibility(parts.isNotEmpty()) {
+            Column {
+                Label2("文字格式")
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                    Choice("TXT", format == ExportTextFormat.Txt) { format = ExportTextFormat.Txt; p.edit().putString("exportFormat", format.name).apply() }
+                    Choice("Markdown", format == ExportTextFormat.Markdown) { format = ExportTextFormat.Markdown; p.edit().putString("exportFormat", format.name).apply() }
+                }
+            }
+        }
+        androidx.compose.animation.AnimatedVisibility(withAudio) {
+            OptionRow("字幕文件（.srt）", "和录音放一起，播放时原话跟着滚动", withSrt) { withSrt = it; p.edit().putBoolean("exportSrt", it).apply() }
+        }
         OptionRow("跳过媒体片段", "电视、视频的声音不导出", skipMedia) { skipMedia = it; p.edit().putBoolean("exportSkipMedia", it).apply() }
         val jobs = if (app.resound.AppGraph.isExportJobsReady) app.resound.AppGraph.exportJobs else null
         val job = jobId?.let { id -> jobs?.jobs?.collectAsState()?.value?.firstOrNull { it.id == id } }
@@ -129,8 +161,11 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
                 ActionButton("取消", ActionKind.Secondary) { progressJob?.cancel(); progressJob = null; progress = null }
             }
             else -> {
-                val nothing = estimate?.let { it.audioSegments == 0 && !withText && !withSrt } == true
-                ActionButton(if (estimate?.audioSegments == 0) "只导出文字" else "生成录音", ActionKind.Primary, enabled = !nothing) {
+                val audio = withAudio && (estimate?.audioSegments ?: 1) > 0
+                val nothing = !audio && parts.isEmpty()
+                if (nothing) Text(if (withAudio) "选中的内容没有录音，请至少选一项文字" else "请至少选一项要导出的内容",
+                    style = RsType.caption, color = c.warning)
+                ActionButton(if (audio) "生成录音" else "导出文字", ActionKind.Primary, enabled = !nothing) {
                     exporter.cleanup()
                     if (jobs != null) jobId = jobs.start(request())
                     else {
@@ -154,16 +189,17 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
     }
 }
 
-private fun estimateLine(e: ExportEstimate?): String? = e?.let {
+private fun estimateLine(e: ExportEstimate?, withAudio: Boolean): String? = e?.let {
     buildList {
-        if (it.audioSegments > 0) {
+        if (!withAudio) add("只导出文字，不含音频")
+        else if (it.audioSegments > 0) {
             val min = it.durationMillis / 60_000; val sec = it.durationMillis / 1000 % 60
             add("合成 1 个音频 · 约 ${if (min > 0) "$min 分 " else ""}$sec 秒 · 约 ${formatBytes(it.bytes)}")
             // 按本机最近几次实测速度估的合成耗时（没实测时底层给保守值）
             if (it.etaMillis >= 3_000) add("合成大约需要 ${durationWords(it.etaMillis)}")
         } else add("选中的内容没有录音，只导出文字")
-        if (it.textOnly > 0) add("${it.textOnly} 段语音输入只有文字")
-        if (it.expired > 0) add("${it.expired} 段录音已过保留期，只导出文字")
+        if (withAudio && it.textOnly > 0) add("${it.textOnly} 段语音输入只有文字")
+        if (withAudio && it.expired > 0) add("${it.expired} 段录音已过保留期，只导出文字")
         if (it.mediaSkipped > 0) add("跳过 ${it.mediaSkipped} 段媒体")
     }.joinToString("\n")
 }
@@ -176,7 +212,7 @@ private fun share(context: android.content.Context, files: List<java.io.File>) {
     context.startActivity(Intent.createChooser(send, "分享录音").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
-private fun mime(f: java.io.File) = when (f.extension.lowercase()) { "m4a" -> "audio/mp4"; "txt" -> "text/plain"; "zip" -> "application/zip"; "srt" -> "application/x-subrip"; else -> "*/*" }
+private fun mime(f: java.io.File) = when (f.extension.lowercase()) { "m4a" -> "audio/mp4"; "txt" -> "text/plain"; "md" -> "text/markdown"; "zip" -> "application/zip"; "srt" -> "application/x-subrip"; else -> "*/*" }
 
 @Composable
 private fun Label2(text: String) = Text(text, style = RsType.caption, color = Rs.colors.textSecondary, modifier = Modifier.padding(top = 4.dp))
@@ -345,8 +381,8 @@ private suspend fun saveToDownloads(context: android.content.Context, files: Lis
 /** 分享哪一个：录音 / 原话文字 / 全部打包成 zip；记住上次的选择并排在最前 */
 private enum class ShareKind(val title: String, val sub: String, val icon: String) {
     Audio("录音", ".m4a · 微信里可直接播放", "🎵"),
-    Text("原话文字", ".txt · 对方点开就能看", "📝"),
-    Zip("全部打包", ".zip · 录音 + 原话 + 字幕，适合发到电脑", "📦"),
+    Text("文字", ".txt / .md · 对方点开就能看", "📝"),
+    Zip("全部打包", ".zip · 录音 + 文字 + 字幕，适合发到电脑", "📦"),
 }
 
 @Composable
@@ -357,8 +393,9 @@ private fun ShareChooser(files: List<java.io.File>, name: String, onShared: () -
     val p = remember { prefs(context) }
     val last = remember { runCatching { ShareKind.valueOf(p.getString("shareKind", "Audio")!!) }.getOrDefault(ShareKind.Audio) }
     fun file(ext: String) = files.firstOrNull { it.extension.equals(ext, true) }
+    fun text() = file("txt") ?: file("md")
     val options = (listOf(last) + ShareKind.entries.filter { it != last }).filter {
-        when (it) { ShareKind.Audio -> file("m4a") != null; ShareKind.Text -> file("txt") != null; ShareKind.Zip -> files.size > 1 }
+        when (it) { ShareKind.Audio -> file("m4a") != null; ShareKind.Text -> text() != null; ShareKind.Zip -> files.size > 1 }
     }
     RsSheet("分享什么？", "微信等应用一次只能收一个文件", onDismiss = onDismiss) {
         options.forEach { kind ->
@@ -369,7 +406,7 @@ private fun ShareChooser(files: List<java.io.File>, name: String, onShared: () -
                     scope.launch {
                         val target = when (kind) {
                             ShareKind.Audio -> file("m4a")!!
-                            ShareKind.Text -> file("txt")!!
+                            ShareKind.Text -> text()!!
                             ShareKind.Zip -> zip(files, name)
                         }
                         share(context, listOf(target)); onShared(); onDismiss()

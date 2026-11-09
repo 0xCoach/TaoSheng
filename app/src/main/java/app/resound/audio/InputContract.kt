@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 现有采集装配与录音输入选择。
+ * [OUTPUT]: 保持系统输入行为，并接入显式选择的 Sonicloud 录音卡。
+ * [POS]: 应用输入链路；录音卡失联不得触发手机麦克风回退。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.audio
 
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +18,7 @@ enum class InputKind(val title: String) {
     Wired("有线耳机"),
     BluetoothLe("蓝牙耳机（LE Audio）"),
     BluetoothCall("蓝牙耳机（通话音质）"),
+    Recorder("录音卡"),
     Other("其他输入"),
 }
 
@@ -35,6 +42,9 @@ sealed interface InputChoice {
 
     /** 指定某个设备；没接着时先用手机麦克风，接上自动切过去 */
     data class Device(val key: String, val name: String) : InputChoice
+
+    /** SDK 录音卡失联时等待，绝不回退到手机。 */
+    data class Recorder(val key: String, val name: String) : InputChoice
 }
 
 data class InputStatus(

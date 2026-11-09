@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.capture
 
 import app.resound.appName
@@ -42,12 +48,13 @@ object CaptureNotifications {
         val clock = when (java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), at.toLocalDate())) {
             0L -> hm; 1L -> "明天 $hm"; else -> app.resound.OutputTime().moment(until)
         }
+        val waiting = app.resound.AppGraph.isReady && app.resound.AppGraph.capture.status.value.state == CaptureState.SourceUnavailable
         val classMode = if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.classMode.value else null
         val classLine = classMode?.takeIf { it.enabled }?.let { m -> m.endsAtMillis?.let { "课堂模式中 · " + java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("H:mm")) + " 结束" } ?: "课堂模式中" }
         val classAllowed = app.resound.AppGraph.isAsrSpeedReady && app.resound.AppGraph.asrSpeed.separateSpeakers.value
         return NotificationCompat.Builder(context, "listening")
         .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(if (quietName != null) "${context.appName} · ${quietName}中" else if (paused) "${context.appName} · 已暂停" else context.appName)
-        .setContentText(if (quietName != null) "$clock 自动恢复，点此立即恢复" else if (paused) "到点自动恢复，也可点此立即恢复" else classLine ?: "后台运行中")
+        .setContentText(if (waiting) "等待录音卡，不会切回手机麦克风" else if (quietName != null) "$clock 自动恢复，点此立即恢复" else if (paused) "到点自动恢复，也可点此立即恢复" else classLine ?: "后台运行中")
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
         // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
         .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(if (paused) action(context, CaptureService.RESUME) else openApp(context))

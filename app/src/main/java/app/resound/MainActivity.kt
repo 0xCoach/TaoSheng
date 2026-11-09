@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: AppGraph、导航意图与应用前台生命周期。
+ * [OUTPUT]: 应用主界面及用户返回前台后的采集恢复。
+ * [POS]: 应用入口；录音卡恢复按蓝牙权限判断，手机按麦克风权限判断。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound
 
 import android.Manifest
@@ -207,7 +213,9 @@ class MainActivity : ComponentActivity() {
         if (!hasFocus || !AppGraph.isReady) return
         val prefs = getSharedPreferences("capture", MODE_PRIVATE)
         val wasOn = prefs.getBoolean("enabled", false) && prefs.getLong("pausedUntil", 0) <= System.currentTimeMillis()
-        val micGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val micGranted = if (AppGraph.isInputsReady && AppGraph.inputs.choice.value is app.resound.audio.InputChoice.Recorder)
+            app.resound.sonicloud.RecorderPermissions.connected(this)
+        else checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (wasOn && micGranted && AppGraph.capture.status.value.state == CaptureState.Stopped) AppGraph.capture.start()
     }
 }

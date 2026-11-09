@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 object CaptureNotifications {
     const val ONGOING = 1
     const val INTERRUPTED = 2
+    const val SILENT_MIC = 3
     fun channels(context: Context) {
         context.getSystemService(NotificationManager::class.java).createNotificationChannels(listOf(
             // 低调但不隐瞒：常驻通知用最低优先级，不占状态栏图标、排在通知栏末尾；系统麦克风绿点仍在
@@ -64,4 +65,14 @@ object CaptureNotifications {
             .setContentText("后台被系统关闭，点击重新开始").setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(action(context, CaptureService.RESUME)).setAutoCancel(true).build()) } catch (_: SecurityException) { }
     }
+    /** 卡 112：麦克风一直收不到声音，重开也没用 */
+    fun silentMic(context: Context) {
+        channels(context)
+        if (!permitted(context)) return
+        try { NotificationManagerCompat.from(context).notify(SILENT_MIC, NotificationCompat.Builder(context, "interrupted")
+            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("麦克风收不到声音")
+            .setContentText("请检查系统的麦克风开关，或在涛声里暂停后再恢复").setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openApp(context)).setAutoCancel(true).build()) } catch (_: SecurityException) { }
+    }
+    fun cancelSilentMic(context: Context) = NotificationManagerCompat.from(context).cancel(SILENT_MIC)
 }

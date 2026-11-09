@@ -37,13 +37,20 @@ internal class RoutedRecording(
             bluetooth && Build.VERSION.SDK_INT >= 31 && !permitted(Manifest.permission.BLUETOOTH_CONNECT))
             throw AudioSourceException(AudioSourceException.Reason.NoPermission)
         val manager = context.getSystemService(AudioManager::class.java)
+        // 卡 112：蓝牙要占通话模式，占着时别的应用（如语音输入法）拿不到话筒。
+        // 发现别人要录音就整轮让出（释放录音和通话路由），等别人用完再接回来；手机麦克风由系统自动礼让，不需要这样做。
+        while (true) {
+            if (bluetooth) while (CaptureHealth.othersRecording(manager)) { report(MicYield.OTHER_APP); delay(1_000) }
+            val yielded = recordOnce(manager)
+            if (!yielded) return@flow
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /** 录一轮；蓝牙为别的应用让出话筒时返回 true（外层等别人用完再来），其余结束方式照旧抛异常或返回 false。 */
+    private suspend fun FlowCollector<AudioEvent>.recordOnce(manager: AudioManager): Boolean {
         var record: AudioRecord? = null
         var ownsCommunication = false
         var requestedCommunication = false
-        var reason: String? = null
-        suspend fun report(next: String?) {
-            if (next != reason) { reason = next; emit(if (next == null) AudioEvent.Available else AudioEvent.Busy(next)) }
-        }
         val signals = MicSignals(manager)
         fun yieldReason(): String? = MicYield.whileOpen(signals.silenced) { MicYield.inCall(manager.mode, ownsCommunication) }
         try {
@@ -75,28 +82,31 @@ internal class RoutedRecording(
             var verified = false
             var routeDeadline = SystemClock.elapsedRealtime() + 2_000
             var lastDataAt = SystemClock.elapsedRealtime()
+            val zeros = CaptureHealth.ZeroWatch()
             val lastReturnAt = java.util.concurrent.atomic.AtomicLong(SystemClock.elapsedRealtime())
             val stalled = java.util.concurrent.atomic.AtomicBoolean(false)
+            var yielded = false
             coroutineScope {
-                // 阻塞读在设备不出声时会一直等；看门狗 2 秒没返回就停掉录音让它返回。取消时同样靠它解开阻塞。
+                // 阻塞读在设备不出声时会一直等；看门狗超时没返回就停掉录音让它返回。取消时同样靠它解开阻塞。
+                // 卡 112：让麦期间也要有上限，否则读卡死时永远出不来（原来让麦期间不计时）。
                 val watchdog = launch {
                     try {
                         while (true) {
                             delay(500)
-                            val now = SystemClock.elapsedRealtime()
-                            if (yieldReason() != null) lastReturnAt.set(now)
-                            else if (now - lastReturnAt.get() > 2_000) { stalled.set(true); runCatching { opened.stop() }; break }
+                            val limit = if (yieldReason() != null) CaptureHealth.STALL_YIELDING_MS else CaptureHealth.STALL_MS
+                            if (SystemClock.elapsedRealtime() - lastReturnAt.get() > limit) { stalled.set(true); runCatching { opened.stop() }; break }
                         }
                     } finally { if (!stalled.get()) runCatching { opened.stop() } }
                 }
                 try {
                     while (currentCoroutineContext().isActive) {
                         signals.refresh()
+                        if (bluetooth && signals.othersRecording) { yielded = true; break }
                         val wait = yieldReason()
-                        val wasBusy = reason != null
+                        val wasBusy = reported != null
                         report(wait)
                         if (wait != null) {
-                            converter.reset(); verified = false
+                            converter.reset(); verified = false; zeros.reset()
                             routeDeadline = SystemClock.elapsedRealtime() + 2_000
                             lastDataAt = SystemClock.elapsedRealtime()
                         } else if (wasBusy) routeDeadline = SystemClock.elapsedRealtime() + 2_000
@@ -109,13 +119,17 @@ internal class RoutedRecording(
                         val matches = if (kind == InputKind.Phone) routed?.type == AudioDeviceInfo.TYPE_BUILTIN_MIC else routed?.id == port.id
                         if (wait == null) {
                             if (!matches) {
-                                converter.reset()
+                                converter.reset(); zeros.reset()
                                 if (verified || SystemClock.elapsedRealtime() >= routeDeadline)
                                     throw AudioSourceException(AudioSourceException.Reason.Disconnected, "实际输入不是指定麦克风")
                             } else {
                                 verified = true
                                 if (n > 0) {
-                                    lastDataAt = SystemClock.elapsedRealtime()
+                                    val now = SystemClock.elapsedRealtime()
+                                    lastDataAt = now
+                                    // 卡 112：读到数据不等于有声音。连续全零超过上限按故障处理，交给采集服务重开。
+                                    if (zeros.accept(buffer, n, now))
+                                        throw AudioSourceException(AudioSourceException.Reason.Disconnected, CaptureHealth.ZERO_PCM)
                                     for (frame in converter.accept(buffer, n)) emit(AudioEvent.Frame(frame))
                                 }
                                 if (SystemClock.elapsedRealtime() - lastDataAt > 2_000)
@@ -127,6 +141,7 @@ internal class RoutedRecording(
                     }
                 } finally { watchdog.cancel() }
             }
+            return yielded
         } catch (e: SecurityException) {
             throw AudioSourceException(AudioSourceException.Reason.NoPermission, e.message)
         } catch (e: IllegalArgumentException) {
@@ -150,7 +165,13 @@ internal class RoutedRecording(
                 signals.close()
             }
         }
-    }.flowOn(Dispatchers.IO)
+    }
+
+    /** 最近一次报给采集服务的让麦原因；每次 events() 都新建 RoutedRecording，所以按实例记即可 */
+    private var reported: String? = null
+    private suspend fun FlowCollector<AudioEvent>.report(next: String?) {
+        if (next != reported) { reported = next; emit(if (next == null) AudioEvent.Available else AudioEvent.Busy(next)) }
+    }
 
     @androidx.annotation.RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private fun open(port: AudioDeviceInfo, bluetooth: Boolean): AudioRecord {
@@ -189,6 +210,9 @@ private class MicSignals(private val manager: AudioManager) : AutoCloseable {
         private set
     @Volatile var routed: AudioDeviceInfo? = null
         private set
+    /** 卡 112：有别的应用在录音（不含本应用自己的录音和系统唤醒词） */
+    @Volatile var othersRecording = false
+        private set
     private var record: AudioRecord? = null
     private var checkedAt = 0L
     private val handler = Handler(Looper.getMainLooper())
@@ -196,6 +220,7 @@ private class MicSignals(private val manager: AudioManager) : AutoCloseable {
         override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>) {
             val id = record?.audioSessionId ?: return
             configs.firstOrNull { it.clientAudioSessionId == id }?.let { silenced = it.isClientSilenced }
+            othersRecording = CaptureHealth.others(configs)
         }
     }
     private val routing = AudioRouting.OnRoutingChangedListener { routed = it.routedDevice }
@@ -210,8 +235,10 @@ private class MicSignals(private val manager: AudioManager) : AutoCloseable {
         val now = SystemClock.elapsedRealtime()
         if (now - checkedAt < 2_000) return
         checkedAt = now
-        silenced = opened.activeRecordingConfiguration?.isClientSilenced == true
+        // 卡 112：查不到配置（null）不等于没被静音，保留回调给的值，免得刚被占就误报“已恢复”
+        opened.activeRecordingConfiguration?.let { silenced = it.isClientSilenced }
         routed = opened.routedDevice
+        othersRecording = CaptureHealth.othersRecording(manager)
     }
     override fun close() {
         manager.unregisterAudioRecordingCallback(recordings)

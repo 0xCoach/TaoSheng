@@ -50,7 +50,7 @@ fun InputSection(inputs: InputDevices) {
     fun pick(next: InputChoice) {
         val needs = android.os.Build.VERSION.SDK_INT >= 31 && when (next) {
             is InputChoice.Device -> devices.firstOrNull { it.key == next.key }?.let { isBluetooth(it.kind) } == true
-            InputChoice.AutoExternal -> external.any { isBluetooth(it.kind) }
+            InputChoice.AutoExternal -> false
             InputChoice.Phone -> false
         } && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -60,7 +60,7 @@ fun InputSection(inputs: InputDevices) {
         RsCard(padding = PaddingValues(vertical = 4.dp)) {
             ChoiceRow("手机麦克风", "默认", "手", c.textSecondary, choice == InputChoice.Phone) { pick(InputChoice.Phone) }
             Divider()
-            ChoiceRow("自动", "接上外接麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { pick(InputChoice.AutoExternal) }
+            ChoiceRow("自动", "接上 USB 或有线麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { pick(InputChoice.AutoExternal) }
             external.forEach { d ->
                 Divider()
                 ChoiceRow(d.name, if (d.connected) d.kind.title else "${d.kind.title} · 没接着",

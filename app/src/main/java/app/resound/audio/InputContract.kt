@@ -30,7 +30,7 @@ sealed interface InputChoice {
     /** 手机麦克风（默认） */
     data object Phone : InputChoice
 
-    /** 有外接麦克风就用外接（多个时用最近接上的），都没有用手机麦克风 */
+    /** 有 USB / 有线麦克风就用（多个时用最近接上的），都没有用手机麦克风；不自动选蓝牙（卡 112） */
     data object AutoExternal : InputChoice
 
     /** 指定某个设备；没接着时先用手机麦克风，接上自动切过去 */

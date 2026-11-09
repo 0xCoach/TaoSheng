@@ -2,24 +2,21 @@ package app.resound.backup
 
 import android.content.Context
 
-/** 沿用现有诊断的 SharedPreferences 环形记录；不写原始异常、堆栈或任意提供方文本。 */
+/** 沿用环形记录；保留脱敏后的提供方说明，不写堆栈。 */
 object BackupDiagnostics {
     internal fun safeReason(error: Exception): String {
-        val text = error.message.orEmpty().lowercase()
-        // 只提取系统原因词，避免 URI、路径、文件内容或账号混入日志。
-        return when {
-            "permission denied" in text -> "permission denied"
-            "persistable" in text -> "persistable permission unavailable"
-            "revoked" in text -> "permission revoked"
-            "mode" in text && ("unsupported" in text || "not support" in text || "不支持" in text) -> "unsupported mode"
-            "mode" in text && "invalid" in text -> "invalid mode"
-            "no space" in text -> "no space left"
-            "read-only" in text -> "read-only filesystem"
-            "not found" in text || "no such file" in text -> "file not found"
-            "checksum mismatch" in text -> "checksum mismatch"
-            else -> "reason omitted"
-        }
+        return error.message.orEmpty()
+            .replace(Regex("(?i)\\b(?:bearer|basic)\\s+[^\\s,;]+"), "[credential]")
+            .replace(Regex("(?i)(?:api[-_]?key|access[-_]?key|secret|token|password|authorization|key|credential|密码|密钥)[\"']?\\s*[=:]\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s,;]+)"), "[credential]")
+            .replace(Regex("[a-zA-Z][a-zA-Z0-9+.-]*://[^\\s<>\"']+"), "[uri]")
+            .replace(Regex("(?<![\\w])/(?:[^\\s<>\"']+)"), "[path]")
+            .replace(Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"), "[account]")
+            .replace(Regex("[A-Za-z0-9_+%=-]{24,}"), "[redacted]")
+            .replace(Regex("[\\p{Cntrl}\\s]+"), " ")
+            .trim().ifEmpty { "no message" }.take(200)
     }
+    internal inline fun <T> step(context: Context, name: String, block: () -> T): T = try { block() }
+        catch (e: Exception) { record(context, name, e); throw e }
     internal fun record(context: Context, step: String, error: Exception) {
         runCatching {
             val prefs = context.getSharedPreferences("backup-diagnostics", Context.MODE_PRIVATE)

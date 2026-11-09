@@ -73,6 +73,8 @@ internal object BackupSettings {
             val edit = context.getSharedPreferences(name, 0).edit()
             val entries = settings.getJSONObject(name)
             if (name == "backup" && !entries.has("cloud")) edit.putString("cloud", CloudKind.Nutstore.name)
+            // 老备份只记录树 URI，不能误沿用当前手机的下载目录选择。
+            if (name == "backup" && entries.has("localTree") && !entries.has("localDownloads")) edit.putBoolean("localDownloads", false)
             entries.keys().forEach { key ->
                 val item = entries.getJSONObject(key)
                 when (item.getString("type")) {

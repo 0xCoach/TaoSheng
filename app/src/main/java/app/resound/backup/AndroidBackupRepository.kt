@@ -43,13 +43,16 @@ class AndroidBackupRepository internal constructor(
     @Synchronized private fun error(message: String?) { check(prefs.edit().putString("error", message).commit()); refresh() }
     private val mutableLocal = MutableStateFlow(readLocal())
     override val local = mutableLocal.asStateFlow()
-    private fun readLocal() = LocalBackupState(prefs.getString("localFolderName", null),
+    private fun downloadsSelected() = prefs.getBoolean("localDownloads", false)
+    private fun readLocal() = LocalBackupState(if (downloadsSelected()) DownloadsBackupFiles.LABEL else prefs.getString("localFolderName", null),
         prefs.getBoolean("localAuto", false), prefs.getInt("localKeep", 7), false,
         prefs.getLong("localLastAt", 0).takeIf { it > 0 }, prefs.getLong("localLastBytes", -1).takeIf { it >= 0 },
         prefs.getInt("localCount", -1).takeIf { it >= 0 },
-        if (folderAccess() == LocalFolderAccess.NeedsReauthorize) LocalBackupFiles.REAUTHORIZE else prefs.getString("localError", null),
-        folderAccess = folderAccess(), sessionOnly = prefs.getString("localTree", null)?.let { localFiles.sessionOnly(Uri.parse(it)) } == true)
+        if (!downloadsSelected() && (folderAccess() in setOf(LocalFolderAccess.NeedsReauthorize, LocalFolderAccess.Unsupported) ||
+            prefs.getString("localFolderError", null) == LocalBackupFiles.INACCESSIBLE)) LocalBackupFiles.INACCESSIBLE else prefs.getString("localError", null),
+        folderAccess = folderAccess(), sessionOnly = !downloadsSelected() && prefs.getString("localTree", null)?.let { localFiles.sessionOnly(Uri.parse(it)) } == true)
     private fun folderAccess(): LocalFolderAccess? {
+        if (downloadsSelected()) return LocalFolderAccess.Ok
         val tree = prefs.getString("localTree", null)?.let(Uri::parse)
         if (tree != null && localFiles.status(tree) == LocalFolderAccess.NeedsReauthorize) return LocalFolderAccess.NeedsReauthorize
         return when (prefs.getString("localFolderError", null)) {
@@ -68,7 +71,7 @@ class AndroidBackupRepository internal constructor(
         check(prefs.edit().putString("localError", message).commit()); refreshLocal()
     }
     private fun schedule() = scheduler.schedule(state.value.enabled && state.value.hasPassword && state.value.account != null,
-        local.value.auto && prefs.contains("localTree"))
+        local.value.auto && (downloadsSelected() || prefs.contains("localTree")))
     init { schedule() }
     @Synchronized override fun saveCredentials(account: String, appPassword: String) =
         saveCloud(CloudKind.Nutstore, account, appPassword)
@@ -191,15 +194,25 @@ class AndroidBackupRepository internal constructor(
             }.getOrDefault(-1)
             check(prefs.edit().apply {
                 if (prefs.getString("localTree", null) != tree.toString()) remove("localLastAt").remove("localLastBytes")
-            }.putString("localTree", tree.toString()).putString("localFolderName", name)
+            }.putBoolean("localDownloads", false).putString("localTree", tree.toString()).putString("localFolderName", name)
                 .putInt("localCount", count).remove("localError").remove("localFolderError").commit())
             refreshLocal(); schedule()
         } catch (e: Exception) {
             BackupDiagnostics.record(context, "setLocalFolder", e)
             val message = (e as? BackupFailure)?.human ?: if (e is SecurityException) LocalBackupFiles.REAUTHORIZE else LocalBackupFiles.INACCESSIBLE
-            folderError(message); localError(message)
+            folderError(message); localError(LocalBackupFiles.INACCESSIBLE)
         }
     }
+    @Synchronized override fun useDownloadsFolder() {
+        check(prefs.edit().apply {
+            if (!downloadsSelected()) remove("localLastAt").remove("localLastBytes").remove("localCount")
+        }.putBoolean("localDownloads", true).remove("localTree")
+            .putString("localFolderName", DownloadsBackupFiles.LABEL)
+            .remove("localError").remove("localFolderError").commit())
+        refreshLocal(); schedule()
+    }
+    private fun localVolumes(): VolumeStore = if (downloadsSelected()) DownloadsBackupFiles(context) else localFiles.volumes(localTree())
+    private fun localSource(name: String): Uri = if (downloadsSelected()) DownloadsBackupFiles(context).source(name) else localFiles.source(localTree(), name)
     @Synchronized override fun setLocalAuto(enabled: Boolean) {
         check(prefs.edit().putBoolean("localAuto", enabled).commit()); refreshLocal(); schedule()
     }
@@ -215,14 +228,14 @@ class AndroidBackupRepository internal constructor(
         ?: throw BackupFailure(LocalBackupFiles.INACCESSIBLE)
     override fun backupLocalNow() { scheduler.runLocalNow() }
     override suspend fun localBackups(): Result<List<RemoteBackup>> = localOperation(readOnly = true) {
-        HistoryVolumes.list(localFiles.volumes(localTree()))
+        HistoryVolumes.list(localVolumes())
     }
     internal suspend fun runLocalBackup(periodic: Boolean): Boolean {
         if (periodic && !local.value.auto) return false
         val result = localOperation {
-            val tree = localTree()
+            val store = localVolumes()
             withWorkspace { work ->
-                val summary = HistoryVolumes.sync(context, database, localFiles.volumes(tree), work, backupPassphrase(), local.value.keep)
+                val summary = HistoryVolumes.sync(context, database, store, work, backupPassphrase(), local.value.keep)
                 check(prefs.edit().putLong("localLastAt", summary.lastAt!!).putLong("localLastBytes", summary.lastUploadBytes!!)
                     .putInt("localCount", summary.days).commit())
                 BackupRestore.clearSnapshots(context)
@@ -247,13 +260,13 @@ class AndroidBackupRepository internal constructor(
         withWorkspace { HistoryVolumes.summary(client().volumes(), it, runCatching { passphrases.read() }.getOrNull()) }
     }
     override suspend fun localSummary(): Result<BackupSummary?> = localOperation(readOnly = true) {
-        withWorkspace { HistoryVolumes.summary(localFiles.volumes(localTree()), it, runCatching { passphrases.read() }.getOrNull()) }
+        withWorkspace { HistoryVolumes.summary(localVolumes(), it, runCatching { passphrases.read() }.getOrNull()) }
     }
     override suspend fun restoreAllFromCloud(passphrase: String?): Result<Unit> = cloudOperation {
         restoreVolumes(client().volumes(), passphrase)
     }
     override suspend fun restoreAllFromLocal(passphrase: String?): Result<Unit> = localOperation {
-        restoreVolumes(localFiles.volumes(localTree()), passphrase)
+        restoreVolumes(localVolumes(), passphrase)
     }
     private fun restoreVolumes(store: VolumeStore, passphrase: String?, checkpoint: String? = null) {
         BackupRestore.restoreVolumes(context, store, database, runCatching { passphrases.read() }.getOrNull(),
@@ -269,8 +282,8 @@ class AndroidBackupRepository internal constructor(
         }
     }
     override suspend fun restoreLocal(name: String, passphrase: String?): Result<Unit> = localOperation {
-        if (historyPath(name)) restoreVolumes(localFiles.volumes(localTree()), passphrase, name)
-        else restoreSource(localFiles.source(localTree(), name), passphrase, name)
+        if (historyPath(name)) restoreVolumes(localVolumes(), passphrase, name)
+        else restoreSource(localSource(name), passphrase, name)
     }
     override suspend fun restoreFrom(source: Uri, passphrase: String?): Result<Unit> = localOperation(folderOperation = false) {
         restoreSource(source, passphrase)
@@ -282,7 +295,7 @@ class AndroidBackupRepository internal constructor(
             BackupRestore.restoreFile(context, download, database,
                 storedPassphrase = runCatching { passphrases.read() }.getOrNull(), suppliedPassphrase = passphrase,
                 closeDatabase = database::close, restartProcess = restartProcess,
-                fetchBase = { base, target -> localFiles.read(localFiles.source(localTree(), base), target) }, expectedName = name)
+                fetchBase = { base, target -> localFiles.read(localSource(base), target) }, expectedName = name)
         } finally { download.delete() }
     }
     private suspend fun <T> localOperation(readOnly: Boolean = false, folderOperation: Boolean = true, block: () -> T): Result<T> = withContext(Dispatchers.IO) {

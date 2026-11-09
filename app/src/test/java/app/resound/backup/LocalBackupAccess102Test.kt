@@ -77,7 +77,7 @@ class LocalBackupAccess102Test {
         assertTrue(repo.local.value.sessionOnly)
         val restarted = repository(files())
         assertEquals(LocalFolderAccess.NeedsReauthorize, restarted.local.value.folderAccess)
-        assertEquals(LocalBackupFiles.REAUTHORIZE, restarted.local.value.lastError)
+        assertEquals(LocalBackupFiles.INACCESSIBLE, restarted.local.value.lastError)
     }
     @Test fun lostPersistedGrantAndSecurityExceptionRequireAuthorization() {
         var granted = true
@@ -87,7 +87,7 @@ class LocalBackupAccess102Test {
         granted = false
         repo.setLocalKeep(3)
         assertEquals(LocalFolderAccess.NeedsReauthorize, repo.local.value.folderAccess)
-        assertEquals(LocalBackupFiles.REAUTHORIZE, repo.local.value.lastError)
+        assertEquals(LocalBackupFiles.INACCESSIBLE, repo.local.value.lastError)
         val denied = repository(LocalBackupFiles(context, { throw SecurityException("permission denied") }, {}, { true }))
         denied.setLocalFolder(tree)
         assertEquals(LocalFolderAccess.NeedsReauthorize, denied.local.value.folderAccess)
@@ -96,7 +96,7 @@ class LocalBackupAccess102Test {
         val repo = repository(LocalBackupFiles(context, { TestFolder102(DocumentFile.fromFile(root), true) }, {}, { true }))
         repo.setLocalFolder(tree)
         assertEquals(LocalFolderAccess.Unsupported, repo.local.value.folderAccess)
-        assertEquals(LocalBackupFiles.UNSUPPORTED, repo.local.value.lastError)
+        assertEquals(LocalBackupFiles.INACCESSIBLE, repo.local.value.lastError)
         val modes = mutableListOf<String>()
         val files = LocalBackupFiles(context, { DocumentFile.fromFile(root) }, {}, { true }, openOutput = { _, mode -> modes += mode; null })
         val exhausted = repository(files)
@@ -105,8 +105,8 @@ class LocalBackupAccess102Test {
         assertEquals(LocalFolderAccess.Unsupported, exhausted.local.value.folderAccess)
         assertTrue(root.listFiles()!!.isEmpty())
     }
-    @Test fun diagnosticsContainOnlyClassAndRecognizedReason() {
-        val repo = repository(LocalBackupFiles(context, { throw SecurityException("permission denied content://secret/tree/name /storage/private/customer.txt customer content") }, {}, { true }))
+    @Test fun diagnosticsPreserveReasonButHideUrisAndPaths() {
+        val repo = repository(LocalBackupFiles(context, { throw SecurityException("permission denied content://secret/tree/name /storage/private/customer.txt") }, {}, { true }))
         repo.setLocalFolder(tree)
         val log = BackupDiagnostics.dump(context)
         assertTrue(log.contains("SecurityException permission denied"))

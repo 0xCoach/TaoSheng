@@ -1,0 +1,53 @@
+{
+  "id": "omi",
+  "name": "Omi",
+  "version": 1,
+  "minApp": "0.2.21",
+  "status": "trial",
+  "transport": "ble",
+  "match": {
+    "namePrefix": [
+      "Omi",
+      "omi",
+      "Friend"
+    ],
+    "serviceUuid": "19b10000-e8f2-537e-4f6c-d104768a1214"
+  },
+  "mtu": 247,
+  "audio": {
+    "service": "19b10000-e8f2-537e-4f6c-d104768a1214",
+    "notify": "19b10001-e8f2-537e-4f6c-d104768a1214",
+    "codecRead": "19b10002-e8f2-537e-4f6c-d104768a1214",
+    "codecMap": {
+      "0": "pcm16",
+      "1": "pcm8",
+      "20": "opus10",
+      "21": "opus20"
+    },
+    "sampleRate": 16000,
+    "channels": 1
+  },
+  "frame": {
+    "fields": [
+      {
+        "name": "seq",
+        "bytes": 2,
+        "endian": "le",
+        "role": "seq"
+      },
+      {
+        "name": "frag",
+        "bytes": 1,
+        "role": "frag"
+      }
+    ],
+    "payload": "rest",
+    "fragment": {
+      "indexField": "frag",
+      "restartAt": 0
+    },
+    "opusPerPacket": "one"
+  },
+  "battery": "standard",
+  "offline": "none"
+}

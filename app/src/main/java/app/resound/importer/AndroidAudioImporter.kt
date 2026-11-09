@@ -141,6 +141,17 @@ class AndroidAudioImporter internal constructor(
             } finally { if (!saved) target.delete() }
         } }
 
+    internal suspend fun receiveDevice(source: File, id: String, name: String, start: Long, duration: Long, key: String) = admission.withLock {
+        if (entry(id) != null) return@withLock
+        source.copyTo(file(id), overwrite = true)
+        synchronized(this) {
+            entries += ImportEntry(PendingImport(id, ImportInfo(name, duration, start)), startAt = start,
+                kind = ImportKind.Normal, fingerprint = key)
+            try { save() } catch (e: Exception) { entries.removeAll { it.pending.id == id }; throw e }
+        }
+        enqueue()
+    }
+
     @Synchronized private fun queuedFingerprint(key: String) = entries.any { it.startAt != null && it.fingerprint == key }
     /** 启动时/解码前补记，覆盖队列 commit 与数据库写入之间的进程中断。 */
     internal suspend fun rememberQueued() {

@@ -51,7 +51,7 @@ class LlmProviders076Test {
 
     @Test fun assetsContainDocumentedTemplatesAndBalanceContracts() {
         val list = providers().templates
-        assertEquals(12, list.size); assertEquals(12, list.map { it.id }.toSet().size)
+        assertEquals(13, list.size); assertEquals(13, list.map { it.id }.toSet().size)
         assertTrue(list.all { it.models.size in 2..4 && it.name.isNotBlank() && it.keyUrl?.startsWith("https://") == true })
         assertEquals(setOf("deepseek", "kimi"), list.filter { it.balance != null }.map { it.id }.toSet())
         assertNull(LlmBalanceChecker.suggest("https://api.siliconflow.cn/v1"))

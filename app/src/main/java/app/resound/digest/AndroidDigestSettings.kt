@@ -52,7 +52,7 @@ class AndroidDigestSettings internal constructor(
     val customEndpoint get() = providers.saved.value.firstOrNull { it.id == "custom" }?.baseUrl.orEmpty()
     val customModel get() = providers.saved.value.firstOrNull { it.id == "custom" }?.model.orEmpty()
     override val presets get() = providers.saved.value.map { it.preset() }
-    suspend fun fetchModels(endpoint:String,key:String)=app.resound.transcribe.fetchRemoteModels(endpoint,key.trim().ifBlank{readKey()})
+    suspend fun fetchModels(endpoint:String,key:String)=app.resound.transcribe.fetchRemoteModels(ServiceHeaders.modelsEndpoint(endpoint),key.trim().ifBlank{readKey()}, headers = providers.headerStore.forService(presetId.value, endpoint))
     fun saveCustomAll(endpoint:String,model:String,key:String) {
         providers.ensureLegacy("custom")
         val p = providers.saved.value.first { it.id == "custom" }
@@ -60,7 +60,7 @@ class AndroidDigestSettings internal constructor(
     }
 
     override val presetId: StateFlow<String> = providers.activeId
-    private fun usable() = providers.selected().let { it.hasKey || (it.preset().allowsEmptyKey() && it.baseUrl.isNotBlank() && it.model.isNotBlank()) }
+    private fun usable() = providers.selected().let { it.hasKey || (canUseWithoutKey(it.preset()) && it.baseUrl.isNotBlank() && it.model.isNotBlank()) }
     private val _hasKey = MutableStateFlow(usable())
     override val hasKey: StateFlow<Boolean> = _hasKey.asStateFlow()
 
@@ -73,6 +73,10 @@ class AndroidDigestSettings internal constructor(
     /** 技能可指定服务，读取时不切换全局整理预设。 */
     fun skillCredentials(id: String?): Pair<LlmPreset, String> = providers.credentials(id)
 
+    override fun headers(presetId: String) = providers.headers(presetId)
+    override fun saveHeaders(presetId: String, headers: List<HeaderEntry>) = providers.saveHeaders(presetId, headers)
+    fun canUseWithoutKey(preset: LlmPreset) = preset.allowsEmptyKey() || providers.hasHeaderAuth(preset.id)
+
     override fun setPreset(id: String) {
         providers.ensureLegacy(id)
         providers.activate(id)
@@ -84,7 +88,7 @@ class AndroidDigestSettings internal constructor(
     override suspend fun test(): Result<String> {
         val (selected, key) = skillCredentials(null)
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
-        if (key.isBlank() && !selected.allowsEmptyKey()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
@@ -103,7 +107,7 @@ class AndroidDigestSettings internal constructor(
     override suspend fun check(): Result<List<ModelCheckItem>> {
         val (selected, key) = skillCredentials(null)
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
-        if (key.isBlank() && !selected.allowsEmptyKey()) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return Result.success(ModelCheck(
             json = { system, user ->
                 client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }

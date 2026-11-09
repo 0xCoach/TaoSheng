@@ -1,5 +1,7 @@
 package app.resound.usage
 
+import app.resound.digest.HeaderEntry
+import app.resound.digest.serviceHeaders
 import android.content.SharedPreferences
 import app.resound.digest.AndroidLlmProviders
 import kotlinx.coroutines.CancellationException
@@ -17,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 /** [currency] 为实际币种；自填字段默认人民币，DeepSeek 按返回币种。 */
 data class LlmBalance(val total: Double, val granted: Double?, val toppedUp: Double?, val currency: String, val available: Boolean, val updatedAt: Long)
-class BalanceSource(val url: String, val key: String, val path: String?)
+class BalanceSource(val url: String, val key: String, val path: String?, val headers: List<HeaderEntry> = emptyList())
 data class LlmBalanceState(val balance: LlmBalance? = null, val error: String? = null, val loading: Boolean = false, val supported: Boolean = false)
 
 /** 缓存、提醒按保存项 id 隔离；服务商切换或修改后，旧请求不能覆盖新选择。 */
@@ -51,20 +53,20 @@ class LlmBalanceChecker(
 
     fun source(): BalanceSource? = synchronized(providers.guard) {
         val p = providers.selected()
-        if (!p.hasKey || p.balanceUrl.isBlank() || p.balancePath.isBlank()) return@synchronized null
+        if ((!p.hasKey && !providers.hasHeaderAuth(p.id)) || p.balanceUrl.isBlank() || p.balancePath.isBlank()) return@synchronized null
         val key = providers.readKey(p.id)
-        if (key.isBlank()) return@synchronized null
+        if (key.isBlank() && !providers.hasHeaderAuth(p.id)) return@synchronized null
         val dedicated = isDeepSeek(p.balanceUrl) && p.balanceUrl.trimEnd('/').endsWith("/user/balance") &&
             p.balancePath == "balance_infos.0.total_balance"
-        BalanceSource(p.balanceUrl, key, if (dedicated) null else p.balancePath)
+        BalanceSource(p.balanceUrl, key, if (dedicated) null else p.balancePath, providers.requestHeaders(providers.credentials(p.id).first))
     }
     /** 保留旧界面入口，保存到当前服务商。 */
     fun setCustom(url: String, path: String) = providers.setBalance(url, path)
 
     suspend fun test(url: String, path: String): Result<LlmBalance> = try {
         val key = providers.credentials().second
-        require(key.isNotBlank())
-        Result.success(fetch(BalanceSource(url.trim(), key, path.trim().ifBlank { null })))
+        require(key.isNotBlank() || providers.hasHeaderAuth(providers.activeId.value))
+        Result.success(fetch(BalanceSource(url.trim(), key, path.trim().ifBlank { null }, providers.requestHeaders(providers.credentials().first))))
     } catch (e: CancellationException) { throw e }
     catch (_: Exception) { Result.failure(IllegalStateException("余额测试失败，请检查地址、字段和密钥")) }
 
@@ -121,7 +123,7 @@ class LlmBalanceChecker(
     internal suspend fun fetch(src: BalanceSource): LlmBalance = withContext(Dispatchers.IO) {
         val url = src.url.toHttpUrlOrNull() ?: error("查询地址格式不对")
         require(url.username.isEmpty() && url.password.isEmpty() && url.query == null && url.fragment == null)
-        http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${src.key}").header("Accept", "application/json").get().build()).execute().use { r ->
+        http.newCall(Request.Builder().url(url).header("Accept", "application/json").serviceHeaders(src.key, src.headers).get().build()).execute().use { r ->
             check(r.isSuccessful) { "余额查询失败" }
             val body = r.body?.source() ?: error("余额响应为空")
             body.request(65_537)

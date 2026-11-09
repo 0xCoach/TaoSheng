@@ -127,6 +127,8 @@ const val MIN_INTERVAL = 15
 const val MAX_INTERVAL = 720
 
 interface TranscribeSettings {
+    fun headers(presetId: String): List<app.resound.digest.HeaderEntry> = emptyList()
+    fun saveHeaders(presetId: String, headers: List<app.resound.digest.HeaderEntry>) {}
     /** 是否已填密钥 */
     val hasKey: StateFlow<Boolean>
 

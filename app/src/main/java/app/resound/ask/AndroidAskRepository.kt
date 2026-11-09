@@ -45,7 +45,7 @@ fun createAskRepository(
         },
         generate = { recent ->
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
             var prompt = 0L; var completion = 0L; var received = false
             try {
                 val reply = withTimeout(90_000) {
@@ -65,7 +65,7 @@ fun createAskRepository(
     val repository = RoomAskRepository(database.ask(), scope, { settings.hasKey.value || settings.failover.hasBackup(settings.preset) }, engine = {
         // 一轮问答固定服务和密钥，避免用户切换设置后同一轮混用模型。
         val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-        if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+        if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
         val session = app.resound.digest.LlmFailover.StreamSession(preset, key)
         AskEngine(AskStream { messages, requested, delta, _ ->
             // 即使额度耗尽也保留 tools 定义，同时 tool_choice=none，避免服务把工具语法泄漏进正文。

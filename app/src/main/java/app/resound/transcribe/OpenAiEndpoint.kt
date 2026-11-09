@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.digest.HeaderEntry
+import app.resound.digest.serviceHeaders
 import java.net.URI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,10 +45,10 @@ object OpenAiEndpoint {
     fun transcriptions(input:String)=bases(input).map{"$it/audio/transcriptions"}
 }
 data class RemoteModels(val base:String,val ids:List<String>)
-suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).build()):RemoteModels=withContext(Dispatchers.IO){
+suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){
     try {
         for(base in OpenAiEndpoint.bases(endpoint)) {
-            client.newCall(Request.Builder().url("$base/models").apply { if(key.isNotBlank()) header("Authorization","Bearer $key") }.build()).awaitResponse().use{response->
+            client.newCall(Request.Builder().url("$base/models").serviceHeaders(key, headers).build()).awaitResponse().use{response->
                 if(response.code in setOf(404,405))return@use
                 if(response.code in setOf(401,403))throw IllegalStateException("鉴权失败，请检查密钥")
                 check(response.isSuccessful){"拉取失败；可手动填写模型名称"}

@@ -20,7 +20,14 @@ import javax.crypto.spec.GCMParameterSpec
 
 enum class TranscribeSource(val title: String) { Doubao("豆包"), Local("本地"), Custom("自定义") }
 
-class AndroidTranscribeSettings(private val context: Context) : TranscribeSettings {
+class AndroidTranscribeSettings internal constructor(private val context: Context, private val headerStore: app.resound.digest.ServiceHeaders) : TranscribeSettings {
+    constructor(context: Context) : this(context, app.resound.digest.ServiceHeaders(context, transcription = true))
+    override fun headers(presetId: String) = headerStore.headers(presetId)
+    override fun saveHeaders(presetId: String, headers: List<app.resound.digest.HeaderEntry>) {
+        require(TranscribeSource.entries.any { it.name == presetId }) { "转写服务不存在" }
+        headerStore.save(presetId, headers)
+        refreshReady(); onChanged()
+    }
     private val localPrefs = context.getSharedPreferences("local-asr", Context.MODE_PRIVATE)
     private val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
     private val _source = MutableStateFlow(runCatching { TranscribeSource.valueOf(prefs.getString("source", "Doubao")!!) }.getOrDefault(TranscribeSource.Doubao))
@@ -68,7 +75,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     fun setLocalStatus(value: String) { _localStatus.value=value;localPrefs.edit().putString("actual",value).apply() }
     fun setSource(value: TranscribeSource) { prefs.edit().putString("source",value.name).commit();_source.value=value
         if(!prefs.contains("realtime"))_realtime.value=value==TranscribeSource.Local
-        _hasKey.value=runCatching{readKey().isNotBlank()}.getOrDefault(false);refreshReady();onChanged() }
+        _hasKey.value=runCatching{readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() }}.getOrDefault(false);refreshReady();onChanged() }
     fun setBackend(value: app.resound.transcribe.local.LocalBackend) { prefs.edit().putString("backend",value.name).commit();_backend.value=value;localPrefs.edit().remove("npuCheck").apply();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
     fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = _endpointMode.value) {
         validateEndpoint(endpoint, mode)
@@ -77,7 +84,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
         _endpointMode.value=mode
         refreshReady(); onChanged()
     }
-    suspend fun fetchModels(endpoint: String, key: String) = fetchRemoteModels(endpoint, key.trim().ifBlank { readKey() })
+    suspend fun fetchModels(endpoint: String, key: String) = fetchRemoteModels(endpoint, key.trim().ifBlank { readKey() }, headers = headers(TranscribeSource.Custom.name))
     fun saveCustomAll(endpoint: String, model: String, key: String, mode: CustomEndpointMode = _endpointMode.value) {
         validateEndpoint(endpoint, mode)
         require(model.trim().isNotEmpty()) { "请填写或选择模型" }
@@ -88,12 +95,12 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     private fun validateEndpoint(endpoint: String, mode: CustomEndpointMode) {
         if (mode == CustomEndpointMode.Full) fullEndpoint(endpoint) else OpenAiEndpoint.bases(endpoint)
     }
-    fun identity() = "${source.value}:${backend.value}:${_endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}" +
+    fun identity() = "${source.value}:${backend.value}:${_endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}:${keyFingerprint(org.json.JSONArray(headers(source.value.name).map { listOf(it.name, it.value) }).toString())}" +
         if (source.value == TranscribeSource.Local) ":${language.value.code}" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
         TranscribeSource.Local -> modelReady(if (backend.value == app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) backend.value else app.resound.transcribe.local.LocalBackend.Cpu)
-        TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() }.getOrDefault(false)
+        TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() || headers(source.name).any { it.value.isNotBlank() } }.getOrDefault(false)
         TranscribeSource.Custom -> customModel.isNotBlank() && runCatching { validateEndpoint(customEndpoint, _endpointMode.value); true }.getOrDefault(false)
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
@@ -104,7 +111,9 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     } else usable()
         _hasKey.value = usable()
     }
-    private fun usable() = (source.value == TranscribeSource.Custom && customEndpoint.isNotBlank() && customModel.isNotBlank()) || runCatching { readKey().isNotBlank() }.getOrDefault(false)
+    private fun usable() = (source.value == TranscribeSource.Custom && customEndpoint.isNotBlank() && customModel.isNotBlank()) || runCatching {
+        readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() }
+    }.getOrDefault(false)
     private val _hasKey = MutableStateFlow(usable())
     override val hasKey = _hasKey.asStateFlow()
     private val _interval = MutableStateFlow(prefs.getInt("interval", 30).takeIf { it in MIN_INTERVAL..MAX_INTERVAL } ?: 30)
@@ -171,7 +180,7 @@ class AndroidTranscribeSettings(private val context: Context) : TranscribeSettin
     }
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
         val key = try { credential() } catch (_: Exception) { return@withContext Result.failure(IllegalStateException("密钥安全读取失败，请重新填写")) }
-        if (key.isBlank() && source.value != TranscribeSource.Custom) Result.failure(IllegalStateException("还没填写转写密钥"))
+        if (key.isBlank() && headers(source.value.name).isEmpty() && source.value != TranscribeSource.Custom) Result.failure(IllegalStateException("还没填写转写密钥"))
         else try { testKey(key) } catch (e: CancellationException) { throw e }
         catch (_: Exception) { Result.failure(IllegalStateException("转写测试失败，请重试")) }
     }

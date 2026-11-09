@@ -17,10 +17,10 @@ import java.time.LocalDate
 
 internal fun createThings(context: Context, db: CaptureDatabase, scope: CoroutineScope, settings: AndroidDigestSettings,
     template: () -> String): Pair<RoomThingRepository, DigestThingExtraction> {
-    val manualClient = LlmClient(okhttp3.OkHttpClient.Builder().callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build())
+    val manualClient = LlmClient(okhttp3.OkHttpClient.Builder().callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = settings.providers::requestHeaders)
     suspend fun detect(lines: List<TranscriptLineEntity>, known: List<Thing>): List<ThingProposal> {
         val preset = settings.preset; val key = settings.readKey()
-        if (key.isBlank() && !preset.allowsEmptyKey() && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+        if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
         val nearby = emptyList<TranscriptLineEntity>()
         val selected = ThingPrompt.known(lines, nearby, known)
         val system = ThingPrompt.system(template())

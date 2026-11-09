@@ -32,11 +32,20 @@ class AndroidLlmProviders internal constructor(
     context: Context,
     private val client: LlmClient,
     private val keys: ProviderKeys,
+    internal val headerStore: ServiceHeaders = ServiceHeaders(context),
     private val recordUsage: suspend (LlmReply) -> Unit = {},
 ) : LlmProviders {
     constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
-        this(context, client, EncryptedProviderKeys(context), recordUsage)
+        this(context, client, EncryptedProviderKeys(context), recordUsage = recordUsage)
 
+    fun headers(id: String) = headerStore.headers(id)
+    fun requestHeaders(preset: LlmPreset) = headerStore.forPreset(preset)
+    fun hasHeaderAuth(id: String) = runCatching { headers(id).any { it.value.isNotBlank() } }.getOrDefault(false)
+    fun saveHeaders(id: String, headers: List<HeaderEntry>) = synchronized(guard) {
+        require(saved.value.any { it.id == id }) { "服务商不存在，请先保存服务商" }
+        headerStore.save(id, headers)
+        publish(saved.value, activeId.value, id)
+    }
     internal val guard = Any()
     private val prefs = context.getSharedPreferences("llm-providers", Context.MODE_PRIVATE)
     override val templates = parseTemplates(context.assets.open("llm-providers.json").bufferedReader().use { it.readText() }.also(LlmInputBudget::configure))
@@ -158,7 +167,7 @@ class AndroidLlmProviders internal constructor(
         beforeDelete(id)
         val list = saved.value.filterNot { it.id == id }
         persist(list, activeId.value)
-        try { keys.remove(id) } finally { publish(list, activeId.value, id) }
+        try { keys.remove(id); headerStore.save(id, emptyList()) } finally { publish(list, activeId.value, id) }
     }
     internal fun setKey(key: String) = synchronized(guard) {
         val value = key.trim(); validateKey(value)
@@ -193,7 +202,7 @@ class AndroidLlmProviders internal constructor(
         validateBase(baseUrl); require(model.isNotBlank()) { "请填写模型" }
         val p = LlmPreset(id ?: "draft", "测试服务", baseUrl.trim(), model.trim())
         val secret = draftKey(id, key)
-        require(secret.isNotBlank() || p.allowsEmptyKey()) { "还没填写大模型密钥" }
+        require(secret.isNotBlank() || p.allowsEmptyKey() || hasHeaderAuth(p.id)) { "还没填写大模型密钥" }
         val reply = client.chatJson(p, secret, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"你好\"}")
         withContext(NonCancellable) { recordUsage(reply) }
         id?.let(onTestSuccess)
@@ -203,7 +212,7 @@ class AndroidLlmProviders internal constructor(
     catch (_: Exception) { Result.failure(IllegalStateException("测试失败，请检查地址、模型和密钥")) }
 
     override suspend fun models(id: String?, baseUrl: String, key: String?): List<String> = try {
-        validateBase(baseUrl); fetchRemoteModels(baseUrl, draftKey(id, key)).ids
+        validateBase(baseUrl); fetchRemoteModels(ServiceHeaders.modelsEndpoint(baseUrl), draftKey(id, key), headers = headerStore.forService(id ?: "draft", baseUrl)).ids
     } catch (e: CancellationException) { throw e }
     catch (_: Exception) { emptyList() }
 

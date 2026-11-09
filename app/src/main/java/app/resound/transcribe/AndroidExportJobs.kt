@@ -30,7 +30,12 @@ internal class AndroidExportJobs(
             val json = array.getJSONObject(i)
             val ids = json.getJSONArray("segments")
             val request = ExportRequest((0 until ids.length()).map { ids.getLong(it) }, json.getString("title"),
-                textParts = if (json.getBoolean("text")) setOf(ExportTextPart.Lines) else emptySet(), includeSrt = json.getBoolean("srt"), skipMedia = json.getBoolean("media"))
+                includeAudio = json.optBoolean("includeAudio", true),
+                textParts = if (json.has("textParts")) json.getJSONArray("textParts").let { parts ->
+                    (0 until parts.length()).map { ExportTextPart.valueOf(parts.getString(it)) }.toSet()
+                } else if (json.getBoolean("text")) setOf(ExportTextPart.Lines) else emptySet(),
+                textFormat = ExportTextFormat.valueOf(json.optString("textFormat", ExportTextFormat.Txt.name)),
+                includeSrt = json.getBoolean("srt"), skipMedia = json.getBoolean("media"))
             val state = when (json.getString("state")) {
                 "done" -> ExportJobState.Done(json.getJSONArray("files").let { files ->
                     (0 until files.length()).map { File(files.getString(it)) }
@@ -146,7 +151,9 @@ internal class AndroidExportJobs(
             val r = entry.request; val j = entry.job
             val json = JSONObject().put("id", j.id).put("title", j.title).put("started", j.startedAt)
                 .put("updated", entry.updated).put("segments", JSONArray(r.segmentIds))
-                .put("text", r.includeText).put("srt", r.includeSrt).put("media", r.skipMedia)
+                .put("includeAudio", r.includeAudio)
+                .put("textParts", JSONArray(ExportTextPart.entries.filter { it in r.textParts }.map { it.name }))
+                .put("textFormat", r.textFormat.name).put("srt", r.includeSrt).put("media", r.skipMedia)
             when (val state = j.state) {
                 is ExportJobState.Running -> json.put("state", "running")
                 is ExportJobState.Done -> json.put("state", "done").put("files", JSONArray(state.files.map { it.path }))

@@ -49,17 +49,31 @@ internal class RecordingAudioPush(
     }
     suspend fun run(id: Long): Boolean = withContext(Dispatchers.IO) { locks.getOrPut(id) { Mutex() }.withLock {
         val pair = try { channels.resolveAudio(id) } catch (_: Exception) {
-            val state = state(id); state.json.put("error", "坚果云账号未连接或通道配置冲突，请检查推送设置"); state.save()
+            val state = state(id); state.json.put("error", "云端存储未连接或通道配置冲突，请检查推送设置"); state.save()
             diagnostic(id, state, load()); revision.value++; return@withLock true
         }
         val (channel, values) = pair ?: return@withLock false
         if (!active(channel)) return@withLock false
         val state = state(id)
         try {
+            val identity = folderIdentity(values)
+            // 老版录音状态没有目的地；首次借用 S3 时不能沿用坚果云的成功标记。
+            if (state.json.has("destination") && state.json.optString("destination") != identity ||
+                !state.json.has("destination") && values["cloudKind"] == "S3") {
+                state.records.keys().asSequence().toList().forEach { state.records.remove(it) }
+                state.json.remove("since")
+            }
+            state.json.put("destination", identity); state.save()
             val rows = load()
             val before = state.status(rows, channel.subscription, System.currentTimeMillis()).uploaded
             try {
-                RecordingUploader(state, RecordingDav(values)).run(rows, channel.subscription, System.currentTimeMillis()) {
+                RecordingUploader(state, linkedS3(values)?.let { s3 ->
+                    val remote = S3FolderRemote(s3, values.getValue("folder"))
+                    object : RecordingRemote {
+                        override suspend fun audio(path: String, file: File) = remote.audio(path, file)
+                        override suspend fun text(path: String, content: String) = remote.text(path, content)
+                    }
+                } ?: RecordingDav(values)).run(rows, channel.subscription, System.currentTimeMillis()) {
                     channels.channels.value.find { it.id == id } == channel
                 }
             } finally {

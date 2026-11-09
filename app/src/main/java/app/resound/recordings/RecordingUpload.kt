@@ -139,7 +139,7 @@ internal class RecordingUploader(private val state: RecordingUploadState, privat
             return uploaded
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            state.json.put("error", if (e is PushFailure) e.message else "录音上传失败，请检查网络后重试"); state.save(); throw e
+            state.json.put("error", when (e) { is PushFailure -> e.message; is app.resound.backup.BackupFailure -> e.human; else -> "录音上传失败，请检查网络后重试" }); state.save(); throw e
         }
     }
 }

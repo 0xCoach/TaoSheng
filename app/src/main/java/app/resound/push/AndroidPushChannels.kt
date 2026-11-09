@@ -102,7 +102,7 @@ class AndroidPushChannels internal constructor(
                 val oldTopics = row.getJSONArray("topics").strings().map { PushTopic.valueOf(it) }.toSet()
                 val subscription = Subscriptions.tighten(Subscriptions.migrate(oldTopics, row.optBoolean("memoryWithLines")), capabilities(PushKind.valueOf(row.getString("kind"))))
                 row.put("subscription", Subscriptions.json(subscription)).put("topics", JSONArray(Subscriptions.topics(subscription).map { it.name }))
-                    .put("memoryWithLines", subscription.lines != LinesMode.Off).put("useLinkedNutstore", false)
+                    .put("memoryWithLines", subscription.lines != LinesMode.Off).put("useLinkedNutstore", row.optBoolean("useLinkedNutstore"))
                 changed = true
             }
         }
@@ -118,7 +118,7 @@ class AndroidPushChannels internal constructor(
     private fun publicChannel(row: JSONObject): PushChannel {
         val kind = PushKind.valueOf(row.getString("kind"))
         val refs = row.getJSONObject("secrets")
-        val summary = if (row.optBoolean("useLinkedNutstore")) "使用数据备份中的坚果云" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
+        val summary = if (row.optBoolean("useLinkedNutstore")) "使用数据备份中所选的云端存储" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
             val present = runCatching { secrets.read(refs.optString(field.key)).isNotBlank() }.getOrDefault(false)
             "${field.label} ${if (present) "已设置" else "未填写"}"
         }
@@ -135,7 +135,7 @@ class AndroidPushChannels internal constructor(
             if (ref.isEmpty()) "" else runCatching { secrets.read(ref) }.getOrDefault("")
         } else row.getJSONObject("values").optString(field.key) }
         return if (kind == PushKind.MarkdownFolder && row.optBoolean("useLinkedNutstore")) own +
-            (linkedCredentials() ?: throw PushFailure("先在数据备份里连接坚果云，或改为单独配置")) else own
+            (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else own
     }
     private fun persist(rows: List<JSONObject>) {
         check(prefs.edit().putString("channels", JSONArray(rows).toString()).commit())
@@ -159,7 +159,7 @@ class AndroidPushChannels internal constructor(
             val merged = fields(kind).associate { field -> field.key to
                 (input[field.key]?.trim().orEmpty().let { if (field.secret && it.isEmpty()) previous[field.key].orEmpty() else it }) }
             val actualLinked = linked && kind == PushKind.MarkdownFolder
-            val effective = if (actualLinked) merged + (linkedCredentials() ?: throw PushFailure("先在数据备份里连接坚果云，或改为单独配置")) else merged
+            val effective = if (actualLinked) merged + (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else merged
             val configured = effective.toMutableMap()
             if (kind == PushKind.MarkdownFolder) {
                 if (configured["folder"].isNullOrBlank()) configured["folder"] = "Resound-Memory"
@@ -167,8 +167,7 @@ class AndroidPushChannels internal constructor(
                 val conflict = rows.firstOrNull { other ->
                     other.getLong("id") != id && other.getString("kind") == kind.name && runCatching {
                         val v = values(other)
-                        v["account"].orEmpty().trim().lowercase() == configured["account"].orEmpty().trim().lowercase() &&
-                            v["folder"].orEmpty().trim('/') == configured["folder"].orEmpty().trim('/')
+                        folderIdentity(v) == folderIdentity(configured)
                     }.getOrDefault(false)
                 }
                 if (conflict != null) throw PushFailure("这个文件夹已经给“${conflict.getString("name")}”通道用了，换个名字")
@@ -270,7 +269,7 @@ class AndroidPushChannels internal constructor(
                 val conflict = readChannels().firstOrNull { other ->
                     other.getLong("id") != id && other.getString("kind") == PushKind.MarkdownFolder.name && runCatching {
                         val v = values(other)
-                        v["account"].orEmpty().trim().lowercase() == resolved["account"].orEmpty().trim().lowercase() && v["folder"] == resolved["folder"]
+                        folderIdentity(v) == folderIdentity(resolved)
                     }.getOrDefault(false)
                 }
                 if (conflict != null) throw PushFailure("这个文件夹已经给“${conflict.getString("name")}”通道用了，换个名字")

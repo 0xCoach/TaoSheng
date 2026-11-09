@@ -139,7 +139,7 @@ internal class SubscriptionRuntime(
                 val s = channel.subscription
                 if (!hasRecords(s) && !s.summaries && !s.reminders) throw PushFailure("请先选择要推送的内容")
                 val state = PushSyncState(File(directory, "$id.json"))
-                val identity = sha256(channel.kind.name + canonical(JSONObject(values.filterKeys { it in setOf("account", "url", "folder", "databaseId", "chatId", "to") })))
+                val identity = sha256(channel.kind.name + canonical(JSONObject(values.filterKeys { it in setOf("account", "url", "folder", "databaseId", "chatId", "to", "cloudKind", "s3") })))
                 if (state.json.has("destination") && state.json.getString("destination") != identity) {
                     state.files.keys().asSequence().toList().forEach { state.files.remove(it) }
                     state.records.keys().asSequence().toList().forEach { state.records.remove(it) }

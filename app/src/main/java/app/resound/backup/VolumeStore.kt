@@ -2,7 +2,7 @@ package app.resound.backup
 
 import java.io.File
 
-/** 所有实现只允许访问备份根目录；put 必须先完整写入临时文件，再发布。 */
+/** 所有实现只允许访问备份根目录；put 必须原子发布（WebDAV 临时文件再 MOVE，S3 单次 PUT）。 */
 internal interface VolumeStore {
     fun read(path: String, target: File): Boolean
     fun exists(path: String): Boolean

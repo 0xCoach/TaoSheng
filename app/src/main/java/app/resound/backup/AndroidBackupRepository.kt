@@ -2,7 +2,6 @@ package app.resound.backup
 
 import android.content.Context
 import android.net.Uri
-import app.resound.appName
 import app.resound.data.CaptureDatabase
 import app.resound.digest.SecretStore
 import kotlinx.coroutines.*
@@ -21,17 +20,25 @@ class AndroidBackupRepository internal constructor(
     private val passphrases: BackupPassphrases = SecureBackupPassphrases(context),
     private val localFiles: LocalBackupFiles = LocalBackupFiles(context),
     private val restartProcess: () -> Unit = { BackupRestore.restart(context) },
-    private val clientFactory: (() -> WebDavClient)? = null,
+    private val clientFactory: (() -> RemoteStore)? = null,
 ) : BackupRepository {
     private val prefs = context.getSharedPreferences("backup", Context.MODE_PRIVATE)
     private val secrets = SecretStore(context, "backup-secrets", "resound-backup-aes-v1")
+    private val cloud = CloudSettings(prefs, object : CloudSecrets {
+        override fun has(key: String) = secrets.has(key)
+        override fun read(key: String) = secrets.read(key)
+        override fun write(key: String, value: String) = secrets.write(key, value)
+        override fun remove(key: String) = secrets.remove(key)
+    })
+    override val s3Presets: List<S3Preset> get() = CloudPresets.all
     private val scheduler = BackupScheduler(context)
     private val mutable = MutableStateFlow(readState())
     override val state = mutable.asStateFlow()
-    private fun readState() = BackupState(prefs.getBoolean("enabled", false), prefs.getString("account", null),
-        secrets.has("password"), false, prefs.getLong("lastAt", 0).takeIf { it > 0 },
+    private fun readState() = BackupState(prefs.getBoolean("enabled", false), cloud.account,
+        cloud.hasSecret, false, prefs.getLong("lastAt", 0).takeIf { it > 0 },
         prefs.getLong("lastBytes", -1).takeIf { it >= 0 }, prefs.getInt("count", -1).takeIf { it >= 0 },
-        prefs.getString("error", null), encrypted = passphrases.has(), keep = prefs.getInt("keep", 7))
+        prefs.getString("error", null), encrypted = passphrases.has(), keep = prefs.getInt("keep", 7),
+        cloud = cloud.kind, webDavUrl = cloud.webDavUrl, s3 = cloud.s3)
     @Synchronized private fun refresh(running: Boolean = mutable.value.running) { mutable.value = readState().copy(running = running) }
     @Synchronized private fun error(message: String?) { check(prefs.edit().putString("error", message).commit()); refresh() }
     private val mutableLocal = MutableStateFlow(readLocal())
@@ -63,24 +70,18 @@ class AndroidBackupRepository internal constructor(
     private fun schedule() = scheduler.schedule(state.value.enabled && state.value.hasPassword && state.value.account != null,
         local.value.auto && prefs.contains("localTree"))
     init { schedule() }
-    @Synchronized override fun saveCredentials(account: String, appPassword: String) {
-        val email = account.trim()
-        require(email.contains('@') && ':' !in email && email.none { it.isISOControl() } && appPassword.isNotBlank()) { "请填写邮箱和应用密码" }
-        try {
-            secrets.write("password", appPassword)
-            check(prefs.edit().apply {
-                if (prefs.getString("account", null) != email) remove("lastAt").remove("lastBytes").remove("count")
-            }.putString("account", email).remove("error").commit())
-            refresh(); schedule()
-        } catch (_: Exception) { error("账号保存失败，请重试") }
+    @Synchronized override fun saveCredentials(account: String, appPassword: String) =
+        saveCloud(CloudKind.Nutstore, account, appPassword)
+    @Synchronized override fun saveCloud(kind: CloudKind, account: String, secret: String?, webDavUrl: String?, s3: S3Settings?) {
+        if (state.value.running) { error("云端备份正在运行，请完成后再修改存储设置"); return }
+        try { cloud.save(kind, account, secret, webDavUrl, s3); refresh(); schedule() }
+        catch (e: IllegalArgumentException) { error(e.message ?: "云端设置不正确") }
+        catch (_: Exception) { error("云端设置保存失败，请重试") }
     }
     @Synchronized override fun clearCredentials() {
-        try {
-            secrets.remove("password")
-            check(prefs.edit().remove("account").putBoolean("enabled", false).remove("error")
-                .remove("lastAt").remove("lastBytes").remove("count").commit())
-            scheduler.cancelCloud(); refresh(); schedule()
-        } catch (_: Exception) { error("账号清除失败，请重试") }
+        if (state.value.running) { error("云端备份正在运行，请完成后再清除账号"); return }
+        try { cloud.clear(); scheduler.cancelCloud(); refresh(); schedule() }
+        catch (_: Exception) { error("账号清除失败，请重试") }
     }
     @Synchronized override fun setEnabled(enabled: Boolean) {
         check(prefs.edit().putBoolean("enabled", enabled).commit())
@@ -103,25 +104,15 @@ class AndroidBackupRepository internal constructor(
     }
     override suspend fun remoteBackups(): Result<List<RemoteBackup>> = withContext(Dispatchers.IO) {
         gate.withLock {
-            try { Result.success(HistoryVolumes.list(client().volumes())) }
+            try { val remote = client(); Result.success((HistoryVolumes.list(remote.volumes()) + remote.backups()).sortedByDescending { it.at }) }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { Result.failure(backupError(e)) }
         }
     }
     override fun backupNow() { scheduler.runNow() }
-    @Synchronized private fun client(): WebDavClient {
-        clientFactory?.let { return it() }
-        val account = prefs.getString("account", null) ?: throw BackupFailure("请先填写坚果云账号和应用密码")
-        val password = runCatching { secrets.read("password") }.getOrDefault("")
-        if (password.isBlank()) throw BackupFailure("请先填写坚果云账号和应用密码")
-        return WebDavClient(config, context.appName, account, password)
-    }
-    /** 同步文件夹现取安全区凭据，不复制到推送配置。 */
-    @Synchronized internal fun pushCredentials(): Map<String, String>? {
-        val account = prefs.getString("account", null)?.takeIf { it.isNotBlank() } ?: return null
-        val password = runCatching { secrets.read("password") }.getOrDefault("").takeIf { it.isNotBlank() } ?: return null
-        return mapOf("account" to account, "password" to password, "url" to config.endpoint)
-    }
+    @Synchronized private fun client(): RemoteStore = clientFactory?.invoke() ?: cloud.remote(config)
+    /** 发送时现取所选存储和安全区凭据，不复制到推送配置。 */
+    @Synchronized internal fun pushCredentials(): Map<String, String>? = cloud.credentials(config)
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
         gate.withLock {
             refresh(true)
@@ -154,7 +145,7 @@ class AndroidBackupRepository internal constructor(
         }
     }
     /** 日记错误单独记一次诊断，绝不改已成功的备份状态。取消仍正常向上传递。 */
-    private suspend fun syncDiary(client: WebDavClient) {
+    private suspend fun syncDiary(client: RemoteStore) {
         val repository = diary ?: return
         if (!repository.cloudSync.value) return
         var failed = false

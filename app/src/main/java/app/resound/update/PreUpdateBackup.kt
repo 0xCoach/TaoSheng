@@ -33,7 +33,7 @@ internal class PreUpdateBackup(
         val total = listOf(local, cloud).count { it }
         if (total == 0) { progress("备份完成", 1f); return }
         val done = java.util.concurrent.atomic.AtomicInteger(0)
-        fun waiting() = listOfNotNull("本机文件夹".takeIf { local }, "坚果云".takeIf { cloud }).joinToString("和")
+        fun waiting() = listOfNotNull("本机文件夹".takeIf { local }, "云端存储".takeIf { cloud }).joinToString("和")
         progress("正在备份到${waiting()}（最多 3 分钟）", 0.3f)
         // 两种现有备份均先触发，再一起等；总共最多三分钟，不叠加为六分钟。
         val completed = withTimeoutOrNull(3 * 60 * 1000L) {
@@ -44,7 +44,7 @@ internal class PreUpdateBackup(
                     progress(if (n < total) "${name}已备份，还在备份另一处" else "备份完成", 0.3f + 0.7f * n / total)
                 }
                 if (local) jobs += async { optional(true); finished("本机文件夹") }
-                if (cloud) jobs += async { optional(false); finished("坚果云") }
+                if (cloud) jobs += async { optional(false); finished("云端存储") }
                 jobs.awaitAll()
             }
             true

@@ -71,6 +71,7 @@ internal object BackupSettings {
         settings.keys().forEach { name ->
             val edit = context.getSharedPreferences(name, 0).edit()
             val entries = settings.getJSONObject(name)
+            if (name == "backup" && !entries.has("cloud")) edit.putString("cloud", CloudKind.Nutstore.name)
             entries.keys().forEach { key ->
                 val item = entries.getJSONObject(key)
                 when (item.getString("type")) {

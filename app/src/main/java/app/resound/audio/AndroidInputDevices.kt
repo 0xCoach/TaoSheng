@@ -7,6 +7,10 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import app.resound.devices.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -34,6 +38,20 @@ class AndroidInputDevices(context: Context) : InputDevices {
     private val manager = context.getSystemService(AudioManager::class.java)
     private val prefs = InputPreferences(context.getSharedPreferences("inputs", Context.MODE_PRIVATE))
     private val catalog = InputCatalog()
+    private var cardRoutes = emptyList<InputRoute>()
+    private var onChoice: (InputChoice) -> Unit = {}
+    internal fun attachCards(devices: ManagedDevices, cards: DeviceCards, scope: CoroutineScope) {
+        onChoice = devices::select
+        devices.select(choice.value)
+        scope.launch {
+            combine(devices.devices, cards.cards) { states, installed ->
+                states.filter { state -> installed.any { it.enabled && it.card.id == state.cardId && it.card.audio != null } }.map {
+                    InputRoute(InputDevice(ManagedDevices.deviceKey(it.address), it.name, InputKind.CardDevice,
+                        it.status == DeviceStatus.Live || it.status == DeviceStatus.Backfilling))
+                }
+            }.collect { routes -> synchronized(this@AndroidInputDevices) { cardRoutes = routes; refresh() } }
+        }
+    }
     private val mutableChoice = MutableStateFlow(prefs.read())
     override val choice = mutableChoice.asStateFlow()
     private val mutableDevices = MutableStateFlow(InputCatalog.visible(emptyList(), choice.value))
@@ -53,7 +71,7 @@ class AndroidInputDevices(context: Context) : InputDevices {
         val ports = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).map {
             InputPort(it.id, it.type, it.productName.toString(), runCatching { it.address }.getOrDefault(""))
         }
-        publish(catalog.update(ports))
+        publish(catalog.update(ports) + cardRoutes)
     }
     private fun publish(routes: List<InputRoute>) {
         mutableDevices.value = InputCatalog.visible(routes, choice.value)
@@ -62,6 +80,7 @@ class AndroidInputDevices(context: Context) : InputDevices {
     @Synchronized override fun choose(choice: InputChoice) {
         prefs.write(choice)
         mutableChoice.value = choice
+        onChoice(choice)
         // 权限刚授权时重新枚举，让地址与能力信息及时生效。
         refresh()
     }

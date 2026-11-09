@@ -9,9 +9,9 @@ internal data class InputSnapshot(val choice: InputChoice, val routes: List<Inpu
     fun selected(): InputRoute = when (val value = choice) {
         InputChoice.Phone -> InputRoute(InputDevices.PHONE)
         // 卡 112：自动不选蓝牙。蓝牙录音要占通话模式，会让语音输入法等拿不到话筒；要用蓝牙请在列表里指定
-        InputChoice.AutoExternal -> routes.firstOrNull { it.device.kind != InputKind.BluetoothLe && it.device.kind != InputKind.BluetoothCall }
+        InputChoice.AutoExternal -> routes.firstOrNull { it.device.kind != InputKind.BluetoothLe && it.device.kind != InputKind.BluetoothCall && it.device.kind != InputKind.CardDevice && it.device.connected }
             ?: InputRoute(InputDevices.PHONE)
-        is InputChoice.Device -> routes.find { it.device.key == value.key } ?: InputRoute(InputDevices.PHONE)
+        is InputChoice.Device -> routes.find { it.device.key == value.key && it.device.connected } ?: InputRoute(InputDevices.PHONE)
     }
 }
 

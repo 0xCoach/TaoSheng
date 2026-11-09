@@ -13,7 +13,7 @@
 ## 技术
 
 - Kotlin + Jetpack Compose，minSdk 29，targetSdk 35，compileSdk 36，包名 `app.resound`。
-- 编译：`./gradlew assembleDebug`（gradle.properties 已指定 JDK 21 路径）。
+- 编译：macOS/Linux 用 `./gradlew assembleDebug`，Windows 用 `.\gradlew.bat assembleDebug`；Android Studio 的 Gradle JDK 或终端 `JAVA_HOME` 设为 JDK 21，机器路径不提交。
 - 依赖版本要与 AGP 8.11.1 / compileSdk 36 兼容；Compose 用 BOM 2026.06.01，不要升级到要求 compileSdk 37 的版本。
 - 依赖注入用 `AppGraph` 手工装配，不引入 Hilt。
 - 目标手机：小米 14 Pro（澎湃 OS）。

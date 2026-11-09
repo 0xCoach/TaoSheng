@@ -130,9 +130,9 @@ interface BackupRepository {
     fun setLocalFolder(tree: android.net.Uri) {}
 
     /**
-     * 卡 123：不用系统文件夹选择器，直接存到“下载/涛声备份/”（MediaStore，不需要存储权限）。
+     * 卡 123：不用系统文件夹选择器，直接存到“下载/备份/”（MediaStore，不需要存储权限）。
      * 给选文件夹那一套用不了的手机（如鸿蒙的安卓兼容层）；之后的自动备份、保留份数、恢复照常。
-     * 选了它就替换掉之前选的文件夹；[LocalBackupState.folder] 显示“下载/涛声备份”。
+     * 选了它就替换掉之前选的文件夹；[LocalBackupState.folder] 显示“下载/备份”。
      */
     fun useDownloadsFolder() {}
 

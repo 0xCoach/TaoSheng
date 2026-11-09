@@ -387,8 +387,8 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
     // 卡 123：选文件夹那一套在有些手机上用不了（如鸿蒙的安卓兼容层），提供不用选文件夹的位置
     val downloads = l.folder == app.resound.backup.DownloadsBackupFiles.LABEL
     if (!downloads) {
-        val stuck = l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported || l.lastError?.contains("下载/涛声备份") == true
-        if (stuck || l.folder == null) ActionRow("不用选文件夹", "直接存到 下载/涛声备份，${if (stuck) "选文件夹用不了时用这个" else "有的手机选不了文件夹时用这个"}", "改用") {
+        val stuck = l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported || l.lastError?.contains("下载/备份") == true
+        if (stuck || l.folder == null) ActionRow("不用选文件夹", "直接存到 下载/备份，${if (stuck) "选文件夹用不了时用这个" else "有的手机选不了文件夹时用这个"}", "改用") {
             cache.invalidateLocal(); repo.useDownloadsFolder(); folderEpoch++
         }
     }

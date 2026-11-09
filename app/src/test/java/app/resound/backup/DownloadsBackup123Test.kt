@@ -73,7 +73,7 @@ class DownloadsBackup123Test {
     @Test fun downloadsBackupListsAndRestoresSelectedPointWithSettings() = runBlocking {
         val repo = repository()
         repo.useDownloadsFolder()
-        assertEquals("下载/涛声备份", repo.local.value.folder)
+        assertEquals("下载/备份", repo.local.value.folder)
         assertEquals(LocalFolderAccess.Ok, repo.local.value.folderAccess)
         assertFalse(repo.local.value.sessionOnly)
         repo.setLocalAuto(true)
@@ -90,7 +90,7 @@ class DownloadsBackup123Test {
         db.openHelper.writableDatabase.query("SELECT title FROM ask_conversations WHERE id=1").use {
             assertTrue(it.moveToFirst()); assertEquals("before", it.getString(0))
         }
-        assertEquals("下载/涛声备份", repository().local.value.folder)
+        assertEquals("下载/备份", repository().local.value.folder)
         assertTrue(repository().local.value.auto)
     }
     @Test fun retentionDeletesOnlyOwnedRecognizedFiles() = runBlocking {
@@ -199,7 +199,7 @@ class DownloadsBackup123Test {
         assertTrue(log.contains("resolve-directory IllegalStateException provider bridge rejected"))
         assertFalse(log.contains(address)); assertFalse(log.contains("short-key")); assertFalse(log.contains("abc123456"))
         assertFalse(log.contains("/storage")); assertTrue(BackupDiagnostics.safeReason(IllegalStateException(message)).length <= 200)
-        assertEquals("这个文件夹在本机用不了，可以改存到“下载/涛声备份”", repo.local.value.lastError)
+        assertEquals("这个文件夹在本机用不了，可以改存到“下载/备份”", repo.local.value.lastError)
     }
 }
 

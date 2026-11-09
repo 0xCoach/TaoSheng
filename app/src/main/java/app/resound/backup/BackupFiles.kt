@@ -246,7 +246,7 @@ internal class LocalBackupFiles(
                 else if (e is BackupFailure && e.human == UNSUPPORTED) e else BackupFailure(INACCESSIBLE)
         }
     companion object {
-        const val INACCESSIBLE = "这个文件夹在本机用不了，可以改存到“下载/涛声备份”"
+        const val INACCESSIBLE = "这个文件夹在本机用不了，可以改存到“下载/备份”"
         const val REAUTHORIZE = "备份文件夹的授权已失效，请重新授权"
         const val UNSUPPORTED = "这个位置不能写入，请在 Download 里新建一个文件夹再选"
     }

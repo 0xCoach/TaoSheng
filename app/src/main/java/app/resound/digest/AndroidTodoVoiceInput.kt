@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.digest
 
 import android.media.AudioFormat
@@ -56,7 +62,7 @@ class AndroidTodoVoiceInput internal constructor(
     }
 
     private suspend fun record(active: Session): ShortArray {
-        val resume = controller.status.value.state in setOf(CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy)
+        val resume = controller.status.value.state in setOf(CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy, CaptureState.SourceUnavailable)
         var mic: TodoMicrophone? = null
         try {
             if (resume) { controller.pause(2); delay(pauseDelayMillis) }

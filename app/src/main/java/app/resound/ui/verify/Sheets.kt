@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: Compose 布局与项目主题、点击反馈。
+ * [OUTPUT]: 共用底部面板、操作按钮和输入框。
+ * [POS]: verify 页面交互容器，统一滚动边界与操作样式。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.ui.verify
 
 import androidx.compose.foundation.background

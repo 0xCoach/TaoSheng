@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.ui.settings
 
 import androidx.activity.compose.BackHandler
@@ -161,6 +167,7 @@ private fun SettingsList(
                         CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") +
                             (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${app.resound.ui.verify.formatUpcoming(it)} 恢复" } ?: "")
                         CaptureState.MicBusy -> "麦克风被占用"
+                    CaptureState.SourceUnavailable -> "等待录音卡"
                         CaptureState.Stopped -> "未开启"
                         CaptureState.NoPermission -> "缺少权限"
                     }, dot = if (status.state == CaptureState.Listening || status.state == CaptureState.Recording) c.good else c.warning) { onOpen(SettingsPage.Capture) }

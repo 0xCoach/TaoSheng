@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 输入路由、AudioSource、VAD 与片段存储。
+ * [OUTPUT]: 前台采集、来源状态和持久化片段。
+ * [POS]: 音频来源的统一消费者；录音卡等待保持用户选择。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.capture
 
 import android.app.*
@@ -8,6 +14,8 @@ import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.NotificationManagerCompat
 import app.resound.ResoundApp
+import app.resound.AppGraph
+import app.resound.sonicloud.RecorderAudioSource
 import app.resound.audio.*
 import app.resound.data.HeartbeatEntity
 import app.resound.data.AppPowerEntity
@@ -91,7 +99,7 @@ class CaptureService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         try {
-            startForeground(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            startForeground(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()), if (app.inputs.choice.value is InputChoice.Recorder) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (_: RuntimeException) {
             controller.update(CaptureState.NoPermission)
             CaptureNotifications.interrupted(this)
@@ -112,6 +120,7 @@ class CaptureService : Service() {
             return
         }
         if (intent.action == STOP) {
+            if (AppGraph.isRecorderReady) AppGraph.recorder.stopIntent()
             capture?.cancelAndJoin(); capture = null
             resumeTimer?.cancel(); cancelAlarm()
             if (initialized) {
@@ -154,6 +163,9 @@ class CaptureService : Service() {
             }
         }
         NotificationManagerCompat.from(this).cancel(CaptureNotifications.INTERRUPTED)
+        if (intent.action in setOf(START, RESUME) && state == CaptureState.NoPermission) {
+            capture?.cancelAndJoin(); capture = null
+        }
         when (intent.action) {
             PAUSE -> {
                 val until = System.currentTimeMillis() + intent.getIntExtra("minutes", 60).coerceIn(1, 10080).toLong() * 60_000
@@ -182,6 +194,7 @@ class CaptureService : Service() {
     private suspend fun pauseUntil(until: Long, quietName: String? = null) {
         val old = controller.status.value
         if (state == CaptureState.Paused && old.pausedUntil == until && old.quietName == quietName) { refreshNotification(true); return }
+        if (AppGraph.isRecorderReady && app.inputs.choice.value is InputChoice.Recorder) AppGraph.recorder.pauseIntent()
         capture?.cancelAndJoin(); capture = null
         resumeTimer?.cancel()
         transition(CaptureState.Paused, until, quietName = quietName)
@@ -220,19 +233,25 @@ class CaptureService : Service() {
     private suspend fun listen() {
         app.segmentFiles.awaitReady()
         InputSwitchLoop(app.inputs.snapshots, SystemClock::elapsedRealtime).run(onUnchanged = { route, note ->
-            if (app.inputs.status.value.using.key == route.device.key) app.inputs.report(route.device, note)
+            if (route.device.kind != InputKind.Recorder && app.inputs.status.value.using.key == route.device.key) app.inputs.report(route.device, note)
         }) { route, note ->
             listenTo(route, note)
         }
     }
     private suspend fun listenTo(route: InputRoute, note: String?) {
+        val recorder = route.device.kind == InputKind.Recorder
+        try {
+            startForeground(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, false),
+                if (recorder) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        } catch (_: RuntimeException) { transition(CaptureState.NoPermission); awaitCancellation() }
         var busy = false
         var busyDetail: String? = null
         var reported = false
         while (currentCoroutineContext().isActive) {
             var segmenter: SpeechSegmenter? = null
             try {
-                val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
+                val source: AudioSource = if (recorder) RecorderAudioSource(AppGraph.recorder, route.device.key, route.device.name)
+                else if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
                 else ExternalAudioSource(this, route.device,
                     app.inputs.port(requireNotNull(route.portId))
                         ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)
@@ -248,6 +267,13 @@ class CaptureService : Service() {
                             is AudioEvent.Busy -> {
                                 // 让出麦克风期间：正在录的片段按正常结束收尾，恢复后从新片段开始计时
                                 segmenter?.finish(); segmenter = null
+                                if (recorder) {
+                                    busy = true; reported = false
+                                    app.inputs.report(route.device.copy(connected = false), event.reason)
+                                    controller.level(0f)
+                                    transition(CaptureState.SourceUnavailable, detail = event.reason)
+                                    return@collect
+                                }
                                 if (!busy) {
                                     // 被占的那一刻猜一次；之后前台换了也不重猜，免得猜成后来打开的应用
                                     busyDetail = if (event.reason == MicYield.OTHER_APP) holders.describe() ?: event.reason else event.reason
@@ -259,7 +285,7 @@ class CaptureService : Service() {
                                 return@collect
                             }
                             AudioEvent.Available -> {
-                                if (busy) { store.event(WatchdogEventType.MicReleased); busy = false }
+                                if (busy) { if (!recorder) store.event(WatchdogEventType.MicReleased); busy = false }
                                 transition(CaptureState.Listening)
                                 return@collect
                             }
@@ -267,7 +293,7 @@ class CaptureService : Service() {
                         }
                         if (!reported) {
                             val previous = app.inputs.status.value.using
-                            app.inputs.report(route.device, note)
+                            app.inputs.report(route.device.copy(connected = true), note)
                             if (previous.key != route.device.key || note != null)
                                 store.inputSwitched("${previous.name} → ${route.device.name}；${note ?: "录音输入切换"}")
                             reported = true
@@ -298,6 +324,7 @@ class CaptureService : Service() {
                     }
                 }
             } catch (e: AudioSourceException) {
+                if (recorder) { transition(CaptureState.SourceUnavailable, detail = e.message); awaitCancellation() }
                 // 外接失败立即交调度器切手机；蓝牙缺权限也不应停止手机录音。
                 if (route.device.kind != InputKind.Phone) throw e
                 if (e.reason == AudioSourceException.Reason.NoPermission) {
@@ -310,6 +337,7 @@ class CaptureService : Service() {
             } catch (e: Exception) {
                 // 外接设备的意外错误也只换回手机，不停整个录音
                 if (e is CancellationException || route.device.kind == InputKind.Phone) throw e
+                if (recorder) { transition(CaptureState.SourceUnavailable, detail = e.message); awaitCancellation() }
                 throw AudioSourceException(AudioSourceException.Reason.Unknown, "${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
@@ -321,7 +349,9 @@ class CaptureService : Service() {
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy
     private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null, quietName: String? = null) {
         if (initialized && running(state) != running(next)) beat()
+        val waitingChanged = (state == CaptureState.SourceUnavailable) != (next == CaptureState.SourceUnavailable)
         state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
+        if (waitingChanged) refreshNotification(next == CaptureState.Paused)
     }
     private suspend fun beat() = beatMutex.withLock {
         val now = System.currentTimeMillis()

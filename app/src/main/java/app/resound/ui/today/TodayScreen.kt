@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.ui.today
 
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -457,6 +463,7 @@ private fun OverviewCard(
         CaptureState.Listening -> "正在聆听"
         CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") + (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${app.resound.ui.verify.formatUpcoming(it)} 恢复" } ?: "")
         CaptureState.MicBusy -> if (status.busyDetail == app.resound.audio.MicYield.IN_CALL) "通话中，暂停收音" else "麦克风让给别的应用了"
+        CaptureState.SourceUnavailable -> "等待录音卡"
         CaptureState.Stopped -> "没在聆听"
         CaptureState.NoPermission -> "缺少权限"
     }
@@ -489,7 +496,7 @@ private fun OverviewCard(
             BreathingWave(status.level, active, recording, Modifier.weight(1f).height(22.dp), tint = white)
         }
         // 麦克风被占时补一句是谁（通话中 / 可能是哪个应用）
-        if (status.state == CaptureState.MicBusy) status.busyDetail?.let {
+        if (status.state == CaptureState.MicBusy || status.state == CaptureState.SourceUnavailable) status.busyDetail?.let {
             Text(it, style = RsType.caption, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 2.dp))
         }
         // 课堂模式开着时提醒一句，点开聆听面板可结束

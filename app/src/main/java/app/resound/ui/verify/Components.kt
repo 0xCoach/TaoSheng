@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: Compose 交互与项目主题。
+ * [OUTPUT]: 录音设置共用卡片、胶囊按钮、点击反馈与音量显示。
+ * [POS]: verify 的基础组件，统一布局容器和触控反馈。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.ui.verify
 
 import androidx.compose.animation.animateColorAsState

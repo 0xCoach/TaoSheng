@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 现有采集装配与录音输入选择。
+ * [OUTPUT]: 保持系统输入行为，并接入显式选择的 Sonicloud 录音卡。
+ * [POS]: 应用输入链路；录音卡失联不得触发手机麦克风回退。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.audio
 
 import android.content.Context
@@ -13,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class InputPreferences(private val prefs: SharedPreferences) {
     fun read(): InputChoice = when (prefs.getString("choice", null)) {
         "auto" -> InputChoice.AutoExternal
+        "recorder" -> InputChoice.Recorder(prefs.getString("key", "")!!, prefs.getString("name", "录音卡")!!)
         "device" -> prefs.getString("key", null)?.takeIf { it.isNotBlank() }?.let {
             InputChoice.Device(it, prefs.getString("name", it) ?: it)
         } ?: InputChoice.Phone
@@ -21,6 +28,7 @@ internal class InputPreferences(private val prefs: SharedPreferences) {
     fun write(choice: InputChoice) {
         val edit = prefs.edit().clear()
         when (choice) {
+            is InputChoice.Recorder -> edit.putString("choice", "recorder").putString("key", choice.key).putString("name", choice.name)
             InputChoice.Phone -> edit.putString("choice", "phone")
             InputChoice.AutoExternal -> edit.putString("choice", "auto")
             is InputChoice.Device -> edit.putString("choice", "device").putString("key", choice.key).putString("name", choice.name)

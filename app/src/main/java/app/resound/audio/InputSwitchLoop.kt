@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 现有采集装配与录音输入选择。
+ * [OUTPUT]: 保持系统输入行为，并接入显式选择的 Sonicloud 录音卡。
+ * [POS]: 应用输入链路；录音卡失联不得触发手机麦克风回退。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.audio
 
 import kotlinx.coroutines.*
@@ -46,6 +52,10 @@ internal class InputSwitchLoop(
                         if (change.generation != generation) continue
                         val lost = active ?: continue
                         if (lost.device.kind == InputKind.Phone) throw change.error
+                        if (lost.device.kind == InputKind.Recorder) {
+                            onUnchanged(lost, "录音卡不可用，请停止后重试")
+                            continue
+                        }
                         failed = lost
                         note = if (change.error.reason == AudioSourceException.Reason.Disconnected)
                             "${lost.device.name} 断开或路由失效，已换回手机麦克风"
@@ -55,7 +65,8 @@ internal class InputSwitchLoop(
                 }
                 val delayMs = ((until[selected.device.key] ?: 0) - now()).coerceAtLeast(0)
                 val replacedPort = active?.let { it.device.key == selected.device.key && it.portId != selected.portId } == true
-                val next = if (selected == failed || delayMs > 0 || replacedPort) InputRoute(InputDevices.PHONE) else selected
+                val next = if (selected.device.kind == InputKind.Recorder) selected
+                else if (selected == failed || delayMs > 0 || replacedPort) InputRoute(InputDevices.PHONE) else selected
                 timer?.cancel(); timer = null
                 if (delayMs > 0 && selected != failed) timer = launch { delay(delayMs); changes.send(Change.Retry) }
                 if (next.device.kind != InputKind.Phone) note = null

@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.ui.verify
 
 import androidx.compose.foundation.text.TextAutoSize
@@ -215,14 +221,17 @@ private fun StatusCard(capture: CaptureController) {
         }
     }
 
-    val permissions = remember {
+    val inputChoice = if (app.resound.AppGraph.isInputsReady) app.resound.AppGraph.inputs.choice.collectAsState().value else app.resound.audio.InputChoice.Phone
+    val permissions = remember(inputChoice) {
         buildList {
-            add(Manifest.permission.RECORD_AUDIO)
+            if (inputChoice is app.resound.audio.InputChoice.Recorder) {
+                if (Build.VERSION.SDK_INT >= 31) add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else add(Manifest.permission.RECORD_AUDIO)
             if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
         }.toTypedArray()
     }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        if (result[Manifest.permission.RECORD_AUDIO] == true) capture.start()
+        if (result.values.all { it }) capture.start()
     }
     val startWithPermission = { launcher.launch(permissions) }
 
@@ -232,7 +241,7 @@ private fun StatusCard(capture: CaptureController) {
                 when (status.state) {
                     CaptureState.Recording -> c.accent
                     CaptureState.Listening -> c.good
-                    CaptureState.Paused, CaptureState.MicBusy -> c.warning
+                    CaptureState.Paused, CaptureState.MicBusy, CaptureState.SourceUnavailable -> c.warning
                     CaptureState.Stopped -> c.textTertiary
                     CaptureState.NoPermission -> c.critical
                 },
@@ -286,6 +295,7 @@ private fun stateTitle(state: CaptureState) = when (state) {
     CaptureState.Recording -> "正在录音"
     CaptureState.Paused -> "已暂停"
     CaptureState.MicBusy -> "麦克风被占用"
+    CaptureState.SourceUnavailable -> "等待录音卡"
     CaptureState.NoPermission -> "缺少权限"
 }
 
@@ -295,7 +305,8 @@ private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?, 
     CaptureState.Recording -> "检测到人声 · 本段 ${formatDuration(elapsed, seconds = true)}"
     CaptureState.Paused -> resumeAt(pausedUntil)?.let { "将在 ${formatUpcoming(it)} 自动恢复" } ?: "手动暂停中"
     CaptureState.MicBusy -> busyDetail?.let { "$it，结束后自动恢复" } ?: "通话或其他 App 在用麦克风，结束后自动恢复"
-    CaptureState.NoPermission -> "需要麦克风和通知权限"
+    CaptureState.SourceUnavailable -> busyDetail ?: "录音卡暂不可用，不会切回手机麦克风"
+    CaptureState.NoPermission -> "需要所选音频来源和通知权限"
 }
 
 @Composable

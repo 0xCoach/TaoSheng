@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 外部 URI 或已校验的录音卡文件，SharedPreferences 与 WorkManager。
+ * [OUTPUT]: 持久化待确认列表和转写任务；录音卡交接按来源键去重。
+ * [POS]: importer 的唯一入队边界，复用原有类型确认和转写流程。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.importer
 
 import app.resound.appDisplayName
@@ -23,6 +29,7 @@ class AndroidAudioImporter internal constructor(
 ) : AudioImporter {
     private val root = File(context.cacheDir, "import").apply { mkdirs() }
     private val prefs = context.getSharedPreferences("imports", Context.MODE_PRIVATE)
+    private val recorderReceipts = JSONObject(prefs.getString("recorderReceipts", "{}") ?: "{}")
     private val entries = runCatching {
         val json = JSONArray(prefs.getString("entries", "[]"))
         (0 until json.length()).map { i ->
@@ -61,7 +68,7 @@ class AndroidAudioImporter internal constructor(
             put("kind", row.kind?.name ?: ""); put("source", row.source); put("dual", row.dual ?: JSONObject.NULL); put("channels", row.channels)
             put("start", row.startAt ?: JSONObject.NULL); put("cancelled", row.cancelled); put("asr", row.asr?.name ?: "")
         } })
-        check(prefs.edit().putString("entries", array.toString()).commit()) { "无法保存导入队列" }
+        check(prefs.edit().putString("entries", array.toString()).putString("recorderReceipts", recorderReceipts.toString()).commit()) { "无法保存导入队列" }
         _pending.value = entries.filter { it.startAt == null }.map { it.pending }
         _progress.value = _progress.value.copy(queued = entries.count { it.startAt != null && it.pending.id != active })
     }
@@ -98,6 +105,30 @@ class AndroidAudioImporter internal constructor(
                 }))
             }
         }
+    }
+    @Synchronized internal fun receivedRecorder(key: String): Boolean = recorderReceipts.has(key)
+
+    internal suspend fun receiveRecorder(sourceFile: File, key: String, name: String, startAt: Long?): String = withContext(Dispatchers.IO) {
+        synchronized(this@AndroidAudioImporter) {
+            if (recorderReceipts.has(key)) return@synchronized recorderReceipts.getString(key)
+            val id = UUID.randomUUID().toString() // 收据负责幂等；失败重试必须建立新一次导入记录。
+            val target = file(id)
+            try {
+                sourceFile.copyTo(target, overwrite = true)
+                val audio = inspect(target)
+                val item = PendingImport(id, ImportInfo(name, audio.duration, startAt))
+                entries += ImportEntry(item, source = "sonicloud:${key}", channels = audio.channels)
+                recorderReceipts.put(key, id)
+                try { save() } catch (e: Exception) {
+                    entries.removeAll { it.pending.id == id }; recorderReceipts.remove(key); throw e
+                }
+                id
+            } catch (e: Exception) { target.delete(); throw e }
+        }
+    }
+    private fun forgetRecorder(id: String) {
+        recorderReceipts.keys().asSequence().toList().filter { recorderReceipts.optString(it) == id }
+            .forEach(recorderReceipts::remove)
     }
     override fun start(id: String, startAt: Long) = start(id, startAt, null)
     override fun start(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?) = startKind(id, startAt, asr, ImportKind.Normal)
@@ -141,7 +172,7 @@ class AndroidAudioImporter internal constructor(
         commands.trySend command@{
             synchronized(this@AndroidAudioImporter) {
                 if (entries.none { it.pending.id == id && it.startAt == null }) return@command
-                check(file(id).delete() || !file(id).exists()) { "临时录音删除失败" }; entries.removeAll { it.pending.id == id }; save()
+                check(file(id).delete() || !file(id).exists()) { "临时录音删除失败" }; entries.removeAll { it.pending.id == id }; forgetRecorder(id); save()
             }
         }
     }
@@ -172,6 +203,7 @@ class AndroidAudioImporter internal constructor(
     }
     @Synchronized internal fun finish(id: String, error: String?) {
         check(file(id).delete() || !file(id).exists()) { "临时录音删除失败" }
+        if (error != null) forgetRecorder(id)
         entries.removeAll { it.pending.id == id }; active = null
         _progress.value = _progress.value.copy(running = false, percent = if (error == null) 100 else _progress.value.percent, error = error)
         save()

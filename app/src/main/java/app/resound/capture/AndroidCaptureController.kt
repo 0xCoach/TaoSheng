@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 用户控制与当前输入源权限。
+ * [OUTPUT]: 采集服务命令和 UI 状态。
+ * [POS]: 所有开始入口共用的权限边界，录音卡不要求麦克风权限。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.capture
 
 import android.Manifest
@@ -13,8 +19,8 @@ class AndroidCaptureController(private val context: Context, private val store: 
     override val status = current.asStateFlow()
     internal fun update(state: CaptureState, pausedUntil: Long? = null, level: Float = 0f, busyDetail: String? = null, quietName: String? = null) {
         val old = current.value
-        current.value = old.copy(state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil, level = level,
-            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy }, quietName = quietName.takeIf { state == CaptureState.Paused })
+        current.value = old.copy(sourceName = if (app.resound.AppGraph.isInputsReady) app.resound.AppGraph.inputs.status.value.using.name else old.sourceName, state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil, level = level,
+            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy || state == CaptureState.SourceUnavailable }, quietName = quietName.takeIf { state == CaptureState.Paused })
         if (CaptureTilePolicy.action(old.state) != CaptureTilePolicy.action(state) || old.pausedUntil != pausedUntil) {
             CaptureTileService.refresh(context)
         }
@@ -30,7 +36,10 @@ class AndroidCaptureController(private val context: Context, private val store: 
         else update(CaptureState.Stopped)
     }
     private fun dispatch(action: String, minutes: Int = 60) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED || !CaptureNotifications.permitted(context)) {
+        val recorder = app.resound.AppGraph.isInputsReady && app.resound.AppGraph.inputs.choice.value is app.resound.audio.InputChoice.Recorder
+        val sourceAllowed = if (recorder) app.resound.sonicloud.RecorderPermissions.connected(context)
+            else ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!sourceAllowed || !CaptureNotifications.permitted(context)) {
             update(CaptureState.NoPermission); return
         }
         try {

@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 现有采集装配与录音输入选择。
+ * [OUTPUT]: 保持系统输入行为，并接入显式选择的 Sonicloud 录音卡。
+ * [POS]: 应用输入链路；录音卡失联不得触发手机麦克风回退。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.audio
 
 import android.media.AudioDeviceInfo as D
@@ -10,6 +16,7 @@ internal data class InputSnapshot(val choice: InputChoice, val routes: List<Inpu
         InputChoice.Phone -> InputRoute(InputDevices.PHONE)
         InputChoice.AutoExternal -> routes.firstOrNull() ?: InputRoute(InputDevices.PHONE)
         is InputChoice.Device -> routes.find { it.device.key == value.key } ?: InputRoute(InputDevices.PHONE)
+        is InputChoice.Recorder -> InputRoute(InputDevice(value.key, value.name, InputKind.Recorder, false))
     }
 }
 
@@ -52,6 +59,7 @@ internal class InputCatalog {
         }
         fun visible(routes: List<InputRoute>, choice: InputChoice): List<InputDevice> {
             val devices = listOf(InputDevices.PHONE) + routes.map { it.device }
+            if (choice is InputChoice.Recorder) return devices + InputDevice(choice.key, choice.name, InputKind.Recorder, false)
             return if (choice is InputChoice.Device && devices.none { it.key == choice.key }) {
                 val kind = when (choice.key.substringBefore(':')) {
                     "Bluetooth" -> InputKind.BluetoothCall

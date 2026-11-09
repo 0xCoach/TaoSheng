@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 采集来源和服务状态。
+ * [OUTPUT]: 现有入口与录音卡等待状态联动。
+ * [POS]: 采集状态的调用方，区分等待录音卡与正在收音。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.ui.today
 
 import android.widget.Toast
@@ -70,16 +76,19 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
         when (status.state) {
             CaptureState.Paused -> status.quietName?.let { "${it}中" } ?: "已暂停"
             CaptureState.Stopped, CaptureState.NoPermission -> "没在聆听"
+            CaptureState.SourceUnavailable -> "等待录音卡"
             else -> "正在聆听"
         },
         when {
             status.state == CaptureState.Paused -> resumeAt(status.pausedUntil)?.let { "到 ${app.resound.ui.verify.formatUpcoming(it)} 自动恢复" }
+            status.state == CaptureState.SourceUnavailable -> status.busyDetail
             listening -> "只在有人说话时录音"
             else -> null
         },
         onDismiss = onDismiss,
     ) {
         when {
+            status.state == CaptureState.SourceUnavailable -> ActionButton("停止等待", ActionKind.Secondary) { capture.stop(); onDismiss() }
             listening -> {
                 Label("暂停多久")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -1,3 +1,9 @@
+/*
+ * [INPUT]: 手机与录音卡采集生命周期。
+ * [OUTPUT]: 采集控制、状态和统计契约；来源等待区别于麦克风占用。
+ * [POS]: 采集服务与全部界面入口共用的状态模型。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package app.resound.capture
 
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +32,10 @@ enum class CaptureState {
     /** 麦克风被电话或其他 App 占用，等待释放后自动恢复 */
     MicBusy,
 
-    /** 缺少麦克风或通知权限 */
+    /** 选中的录音卡暂未供音；保留选择且不切回手机。 */
+    SourceUnavailable,
+
+    /** 缺少所选来源或通知权限 */
     NoPermission,
 }
 
@@ -40,7 +49,7 @@ data class CaptureStatus(
     val sourceName: String = "手机麦克风",
     /** 实时音量 0..1，给界面画声波，约每 100 毫秒更新 */
     val level: Float = 0f,
-    /** 麦克风被占时的说明，例如“通话中”“可能是 小红书 或 讯飞输入法（语音输入）”；其他状态为 null */
+    /** 麦克风被占时的说明，例如“通话中”“可能是 小红书 或 讯飞输入法（语音输入）”；SourceUnavailable 时为录音卡等待原因 */
     val busyDetail: String? = null,
     /** 卡 056：因停录时段而暂停时为该时段的名字（如“睡眠”），此时 state = Paused、pausedUntil = 时段结束；其他情况为 null */
     val quietName: String? = null,

@@ -129,6 +129,7 @@ class CaptureService : Service() {
             releaseWakeLock()
             stopForeground(STOP_FOREGROUND_REMOVE)
             NotificationManagerCompat.from(this).cancel(CaptureNotifications.INTERRUPTED)
+            NotificationManagerCompat.from(this).cancel(CaptureNotifications.SILENT_MIC)
             stopSelf(); return
         }
         if (!initialized) {
@@ -232,8 +233,13 @@ class CaptureService : Service() {
         var busy = false
         var busyDetail: String? = null
         var reported = false
+        // 卡 112：因“全是静音”重开的次数；中间收到过真声音就清零
+        var zeroFails = 0
+        var zeroFailAt = 0L
+        var zeroAlerted = false
         while (currentCoroutineContext().isActive) {
             var segmenter: SpeechSegmenter? = null
+            var retryMs = CaptureTuning.MIC_RETRY_MS
             try {
                 val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
                 else ExternalAudioSource(this, route.device,
@@ -277,6 +283,10 @@ class CaptureService : Service() {
                         }
                         val frame = (event as AudioEvent.Frame).samples
                         if (busy) { store.event(WatchdogEventType.MicReleased); busy = false }
+                        if (zeroAlerted && CaptureHealth.lastSoundAt > zeroFailAt) {
+                            zeroAlerted = false; zeroFails = 0
+                            CaptureNotifications.cancelSilentMic(this@CaptureService)
+                        }
                         val cutter = segmenter ?: SpeechSegmenter(app.segmentFiles.sink(
                             System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE, source.id, sensitivity.minSpeechSamples),
                             sensitivity.minSpeechSamples).also { segmenter = it }
@@ -308,7 +318,16 @@ class CaptureService : Service() {
                     fail("麦克风权限被撤销")
                     awaitCancellation()
                 }
-                if (!busy) { store.event(WatchdogEventType.MicBusy, "${e.reason}: ${e.message}"); busy = true }
+                if (e.message == CaptureHealth.ZERO_PCM) {
+                    if (CaptureHealth.lastSoundAt > zeroFailAt) zeroFails = 0
+                    zeroFails++; zeroFailAt = SystemClock.elapsedRealtime()
+                    store.event(WatchdogEventType.MicBusy, "${CaptureHealth.ZERO_PCM}，第 $zeroFails 次重开")
+                    if (zeroFails >= CaptureHealth.ZERO_ALERT_AFTER) {
+                        // 重开几次都没用（比如系统麦克风开关关着）：提醒一次，之后放慢重试，不反复折腾
+                        if (!zeroAlerted) { CaptureNotifications.silentMic(this@CaptureService); zeroAlerted = true }
+                        retryMs = CaptureHealth.ZERO_BACKOFF_MS
+                    }
+                } else if (!busy) { store.event(WatchdogEventType.MicBusy, "${e.reason}: ${e.message}"); busy = true }
                 transition(CaptureState.MicBusy)
             } catch (e: Exception) {
                 // 外接设备的意外错误也只换回手机，不停整个录音
@@ -318,7 +337,7 @@ class CaptureService : Service() {
                 if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
                 controller.level(0f)
             }
-            delay(CaptureTuning.MIC_RETRY_MS)
+            delay(retryMs)
         }
     }
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy

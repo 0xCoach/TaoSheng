@@ -101,10 +101,10 @@ class RemoteDeviceCardsTest {
             assertEquals("/device-cards.json.sig", mirror.takeRequest().path)
         } }
     }
-    @Test fun bundledRealCardsLoadAndFolotoyPlaceholderStaysIsolated() {
-        val texts = listOf("omi", "sonicloud", "folotoy").map {
-            java.io.File("src/main/assets/devices/$it.json").readText()
-        }
+    @Test fun bundledRealCardsLoadAndPlaceholderWithoutMatchStaysIsolated() {
+        // FoloToy 占位卡已从包里移除（实时声音走 Wi-Fi，见卡 129 调研）；没有识别规则的卡仍应被隔离
+        val texts = listOf("omi", "sonicloud").map { java.io.File("src/main/assets/devices/$it.json").readText() } +
+            """{"id":"placeholder","name":"占位","version":1,"minApp":"0.2.21","status":"trial","transport":"ble","match":{}}"""
         val e = engine(bundled = texts)
         assertEquals(listOf("omi", "sonicloud"), e.cards.value.map { it.card.id })
         assertTrue(e.cards.value.all { it.card.status == CardStatus.Trial && !it.enabled })

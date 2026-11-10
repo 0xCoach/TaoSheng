@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import app.resound.ui.ScrollTopButton
 import app.resound.ui.swipeTabs
@@ -1077,7 +1078,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
         if (choosingCopy) CopySheet(listOf(shown), memory, onDone = { copied = true }) { choosingCopy = false }
         // 文字可长按选中复制
         SelectionContainer {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
+        Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${relativeDate(event.startAt)} ${formatClock(event.startAt)} – ${formatClock(event.endAt)} · ${sceneLine(event)}", style = RsType.caption,
                     color = c.textSecondary, modifier = Modifier.weight(1f))
@@ -1296,7 +1297,7 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
         SelectionContainer {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
+        Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
             CategoryChip(item.category, item.kind)
             Spacer(Modifier.height(12.dp))
             Text(item.content, style = RsType.title, color = c.text)

@@ -1,5 +1,6 @@
 package app.resound.ui.review
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,7 +62,7 @@ fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
         dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator)) },
     ) {
         SelectionContainer {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
+            Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
                 Text("${dayTitle(review.date)} · 日报", style = RsType.caption, color = c.accent)
                 ReportCopyActions(blocks = { app.resound.ui.dailyReviewCopyBlocks(review) }) { dailyReviewCopyText(review) }
                 Spacer(Modifier.height(6.dp))

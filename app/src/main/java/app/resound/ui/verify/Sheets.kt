@@ -55,15 +55,22 @@ fun ActionButton(text: String, kind: ActionKind, modifier: Modifier = Modifier, 
 }
 
 /**
- * 面板内容滚到底后还在往上甩的余量，不交给外面的面板：面板已经全展开，余量交出去它会被往上顶一下再弹回来，
- * 快速上滑时就会上下弹好几次。往下的余量照常交出去，保留“下拉关闭”。
+ * 面板内容滚动的余量不交给外面的面板，否则全展开的面板会被顶一下再弹回来，看起来整块上下乱跳：
+ * - 往上（滚到底后还在甩）：一律不交出去；
+ * - 往下（滚到顶后还在甩/拉）：这一下内容自己滚过（consumed≠0）就吃掉余量；内容本来就在顶部再往下拉，才交给面板，保留“下拉关闭”。
  */
-private val KeepUpwardScroll = object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+val SheetScrollGuard = object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
     override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset,
-                              source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) =
-        if (available.y < 0f) available.copy(x = 0f) else androidx.compose.ui.geometry.Offset.Zero
-    override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) =
-        if (available.y < 0f) available.copy(x = 0f) else androidx.compose.ui.unit.Velocity.Zero
+                              source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) = when {
+        available.y < 0f -> available.copy(x = 0f)
+        available.y > 0f && (consumed.y != 0f || source != androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) -> available.copy(x = 0f)
+        else -> androidx.compose.ui.geometry.Offset.Zero
+    }
+    override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) = when {
+        available.y < 0f -> available.copy(x = 0f)
+        available.y > 0f && consumed.y != 0f -> available.copy(x = 0f)
+        else -> androidx.compose.ui.unit.Velocity.Zero
+    }
 }
 
 /** 从底部弹出的面板：标题 + 说明 + 内容；所有确认、编辑类弹窗统一用它 */
@@ -82,7 +89,7 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
     ) {
         Column(
             Modifier.then(if (fixedHeight) Modifier.fillMaxHeight(0.92f) else Modifier)
-                .nestedScroll(KeepUpwardScroll)
+                .nestedScroll(SheetScrollGuard)
                 .verticalScroll(rememberScrollState()).imePadding().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

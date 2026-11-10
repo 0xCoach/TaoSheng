@@ -1,6 +1,7 @@
 package app.resound
 
 import app.resound.push.attachSubscriptions
+import app.resound.push.attachFootprint
 
 import android.app.Application
 import app.resound.capture.*
@@ -95,6 +96,7 @@ class ResoundApp : Application() {
         val envSound = app.resound.envsound.LocalEnvSoundRepository.create(this, database, scope,
             voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow, sharedPcm)
         AppGraph.envSound = envSound
+        AppGraph.location = app.resound.location.LocationRepository.create(this, database, scope)
         val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
             guard = { block -> voiceprintRepository.withAudioCleanup(block) },
             playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
@@ -260,6 +262,7 @@ class ResoundApp : Application() {
         app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
+        pushChannels.attachFootprint(this, scope)
         app.resound.recordings.attachRecordingArchive(this, database, pushChannels, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         val folderImports = app.resound.importer.AndroidFolderImports(this, database, scope,

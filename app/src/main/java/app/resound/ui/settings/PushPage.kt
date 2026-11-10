@@ -435,6 +435,18 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
     if (sub.lines != LinesMode.Off) Text("原话会以明文推出去，注意保管；“只推我说的”只含声纹认出是你的话。", style = RsType.caption, color = c.warning)
     }
     }
+    // 每日足迹：所有通道都能收；聊天类收文字摘要，自定义接口另附结构化数据和定位点
+    Block("每日足迹", "每天定时推当天去过哪、各待多久；要先在“设置 → 足迹”里开始记录") {
+        ToggleRow("推每日足迹", if (caps.records) "在家/外出时长、停留地点和地址；自定义接口另附全部定位点" else "在家/外出时长、停留地点和地址",
+            sub.footprint) { onChange(sub.copy(footprint = it)) }
+        if (sub.footprint) {
+            SubLabel("每天几点推")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(12, 18, 20, 21, 22, 23).map { it * 60 }.forEach { m -> Choice(hm(m), sub.footprintAt == m) { onChange(sub.copy(footprintAt = m)) } }
+            }
+            Text("位置会推到这个通道，注意保管；点“现在推一次”可以马上推今天的足迹。", style = RsType.caption, color = c.warning)
+        }
+    }
     // 卡 072：推录音（原始 OGG），只有坚果云同步文件夹能收文件
     if (caps.audio) Block("推录音", "原始录音放进这个文件夹的“录音/日期/”下；只传不删，手机上的录音过期了云端照样保留") {
         app.resound.ui.skills.Segments(app.resound.push.AudioPush.entries.map { it.title }, sub.audio.ordinal) { onChange(sub.copy(audio = app.resound.push.AudioPush.entries[it])) }

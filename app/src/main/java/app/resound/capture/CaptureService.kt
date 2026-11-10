@@ -2,13 +2,13 @@ package app.resound.capture
 
 import android.app.*
 import android.content.Intent
+import app.resound.AppGraph
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.NotificationManagerCompat
 import app.resound.ResoundApp
-import app.resound.AppGraph
 import app.resound.importer.AndroidFolderImports
 import app.resound.audio.*
 import app.resound.data.HeartbeatEntity
@@ -94,7 +94,7 @@ class CaptureService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         try {
-            startForeground(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            startForegroundWithLocation()
         } catch (_: RuntimeException) {
             controller.update(CaptureState.NoPermission)
             CaptureNotifications.interrupted(this)
@@ -127,6 +127,7 @@ class CaptureService : Service() {
             transition(CaptureState.Stopped)
             heartbeat?.cancel()
             releaseWakeLock()
+            stopLocation()
             stopForeground(STOP_FOREGROUND_REMOVE)
             NotificationManagerCompat.from(this).cancel(CaptureNotifications.INTERRUPTED)
             NotificationManagerCompat.from(this).cancel(CaptureNotifications.SILENT_MIC)
@@ -373,6 +374,24 @@ class CaptureService : Service() {
         try { NotificationManagerCompat.from(this).notify(CaptureNotifications.ONGOING, CaptureNotifications.ongoing(this, paused)) }
         catch (_: SecurityException) { /* 检查后权限被撤回；不能让通知刷新中断录音收尾。 */ }
     }
+    /**
+     * 足迹开着且有定位权限时带上定位类型；后台被系统拉起又没有“始终允许”时，
+     * 带定位会被拒，这时退回只录音，不影响收音。
+     */
+    private fun startForegroundWithLocation() {
+        val notification = CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis())
+        val location = if (AppGraph.isLocationReady) AppGraph.location else null
+        var tracking = false
+        if (location?.settings?.wanted() == true) {
+            try {
+                startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                tracking = true
+            } catch (_: RuntimeException) { }
+        }
+        if (!tracking) startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        if (tracking) location?.tracker?.start() else location?.tracker?.stop()
+    }
+    private fun stopLocation() { if (AppGraph.isLocationReady) AppGraph.location.tracker.stop() }
     private fun releaseWakeLock() { wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null }
     override fun onDestroy() {
         alive = false
@@ -384,6 +403,7 @@ class CaptureService : Service() {
             pending.completion?.completeExceptionally(CancellationException("录音服务已停止"))
         }
         playback.close()
+        stopLocation()
         unregisterReceiver(powerReceiver)
         if (!normalStop && controller.status.value.state != CaptureState.NoPermission) controller.update(CaptureState.Stopped)
         scope.cancel(); dispatcher.close(); releaseWakeLock()
@@ -418,6 +438,11 @@ class CaptureService : Service() {
         /** 规则改动、心跳和系统广播只通知已有服务，绝不在后台新建麦克风前台服务。 */
         /** 课堂模式开关或到点后刷新常驻通知的文字与按钮 */
         internal fun refreshOngoing() { instance?.let { it.refreshNotification(it.store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()) } }
+        /** 足迹开关或定位权限变化后调用（主线程）：重设前台类型并开关定位。服务没在跑就什么也不做。 */
+        fun refreshLocation() {
+            val service = instance ?: return
+            try { service.startForegroundWithLocation() } catch (_: RuntimeException) { service.stopLocation() }
+        }
         internal fun recheck() { instance?.commands?.trySend(Command(Intent().setAction(RECHECK))) }
         const val START = "app.resound.capture.START"
         const val STOP = "app.resound.capture.STOP"

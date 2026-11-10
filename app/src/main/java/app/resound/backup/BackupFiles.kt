@@ -85,33 +85,31 @@ internal class LocalBackupFiles(
 ) {
     private val selected = mutableMapOf<Uri, Boolean>()
     fun sessionOnly(uri: Uri) = selected[uri] == false
-    fun status(uri: Uri): LocalFolderAccess = if (selected[uri] == false || persisted(uri))
+    fun status(uri: Uri): LocalFolderAccess = if (selected[uri] == false || step("persisted-grant") { persisted(uri) })
         LocalFolderAccess.Ok else LocalFolderAccess.NeedsReauthorize
     fun select(uri: Uri): String = access {
-        val durable = try { persist(uri); true } catch (e: SecurityException) {
-            BackupDiagnostics.record(context, "persist", e); false
-        }
-        val directory = resolveTree(uri)?.takeIf { it.isDirectory } ?: throw BackupFailure(UNSUPPORTED)
+        val durable = try { step("persist") { persist(uri) }; true } catch (_: SecurityException) { false }
+        val directory = resolve(uri)
         val probe = directory.createFile("application/octet-stream", "resound-probe-${UUID.randomUUID()}.tmp")
-            ?: throw BackupFailure(UNSUPPORTED)
         try {
-            output(probe.uri).use { it.write(byteArrayOf(82, 83)) }
-            check(openInput(probe.uri)?.use { it.readBytes().contentEquals(byteArrayOf(82, 83)) } == true)
-        } catch (e: Exception) {
-            runCatching { probe.delete() }
-            throw if (e is SecurityException || e is BackupFailure) e else BackupFailure(UNSUPPORTED).also {
-                BackupDiagnostics.record(context, "probe", e)
+            step("probe-write") { output(probe.uri).use { it.write(byteArrayOf(82, 83)) } }
+            step("probe-readback") {
+                check(openInput(probe.uri)?.use { it.readBytes().contentEquals(byteArrayOf(82, 83)) } == true) { "Probe readback mismatch" }
             }
-        }
-        if (!probe.delete()) throw BackupFailure(UNSUPPORTED)
+            probe.renameTo("resound-probe-${UUID.randomUUID()}.renamed")
+            step("list-directory") { check(directory.listFiles().any { it.uri == probe.uri }) { "Probe missing from directory listing" } }
+        } finally { probe.delete() }
         selected[uri] = durable
         directory.name ?: "Resound"
     }
-    private fun folder(uri: Uri): DocumentFile = access {
-        if (status(uri) == LocalFolderAccess.NeedsReauthorize) throw BackupFailure(REAUTHORIZE)
-        val file = resolveTree(uri)
+    private fun resolve(uri: Uri): BackupTreeDocument = step("resolve-directory") {
+        val file = resolveTree(uri)?.let { BackupTreeDocument(context, it) }
         if (file == null || !file.isDirectory) throw BackupFailure(UNSUPPORTED)
         file
+    }
+    private fun folder(uri: Uri): BackupTreeDocument = access {
+        if (status(uri) == LocalFolderAccess.NeedsReauthorize) throw BackupFailure(REAUTHORIZE)
+        resolve(uri)
     }
     fun list(uri: Uri): List<RemoteBackup> = access {
         folder(uri).listFiles().filter { it.isFile }.mapNotNull { BackupNames.metadata(it.name.orEmpty(), it.length()) }
@@ -124,7 +122,7 @@ internal class LocalBackupFiles(
     fun write(tree: Uri, backup: GeneratedBackup) = access {
         val folder = folder(tree)
         // 先完整写入并核对，再发布正式名称；失败绝不清理已有备份。
-        val part = folder.createFile("application/octet-stream", "${backup.name}.part") ?: throw BackupFailure(INACCESSIBLE)
+        val part = folder.createFile("application/octet-stream", "${backup.name}.part")
         try {
             export(backup.file, part.uri)
             if (!part.renameTo(backup.name) || part.name != backup.name) throw BackupFailure("本机备份文件命名失败，请重新选择文件夹")
@@ -172,8 +170,8 @@ internal class LocalBackupFiles(
             throw BackupFailure("备份已写入，但无法读回校验，请换一个位置重试")
         }
     }
-    fun read(source: Uri, target: File) {
-        context.contentResolver.openInputStream(source)?.use { input ->
+    fun read(source: Uri, target: File): Unit = step("read") {
+        openInput(source)?.use { input ->
             target.outputStream().use { output ->
                 val buffer = ByteArray(65536)
                 var total = 0L
@@ -187,14 +185,13 @@ internal class LocalBackupFiles(
         } ?: throw BackupFailure(INACCESSIBLE)
     }
     fun volumes(tree: Uri): VolumeStore = object : VolumeStore {
-        private fun locate(path: String, create: Boolean = false): DocumentFile? = access {
+        private fun locate(path: String, create: Boolean = false): BackupTreeDocument? = access {
             val base = path.removeSuffix(".part").removeSuffix(".previous")
             require(volumePath(base) || ('/' !in base && BackupNames.metadata(base) != null))
             var parent = folder(tree)
             val pieces = path.split('/')
             for (piece in pieces.dropLast(1)) {
-                parent = parent.findFile(piece) ?: if (create) parent.createDirectory(piece)
-                    ?: throw BackupFailure(INACCESSIBLE) else return@access null
+                parent = parent.findFile(piece) ?: if (create) parent.createDirectory(piece) else return@access null
                 require(parent.isDirectory)
             }
             parent.findFile(pieces.last()) ?: if (create) parent.createFile("application/octet-stream", pieces.last()) else null
@@ -241,14 +238,15 @@ internal class LocalBackupFiles(
                 .map { VolumeFile("$directory/${it.name}",it.length(),it.lastModified()) }
         }
     }
+    private inline fun <T> step(name: String, block: () -> T): T = BackupDiagnostics.step(context, name, block)
     private inline fun <T> access(block: () -> T): T = try { block() }
         catch (e: Exception) {
             BackupDiagnostics.record(context, "access", e)
             throw if (e is SecurityException || e.cause is SecurityException) BackupFailure(REAUTHORIZE)
-                else if (e is BackupFailure) e else BackupFailure(INACCESSIBLE)
+                else if (e is BackupFailure && e.human == UNSUPPORTED) e else BackupFailure(INACCESSIBLE)
         }
     companion object {
-        const val INACCESSIBLE = "本机文件夹无法访问，请重新选择"
+        const val INACCESSIBLE = "这个文件夹在本机用不了，可以改存到“下载/备份”"
         const val REAUTHORIZE = "备份文件夹的授权已失效，请重新授权"
         const val UNSUPPORTED = "这个位置不能写入，请在 Download 里新建一个文件夹再选"
     }

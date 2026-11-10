@@ -61,9 +61,20 @@ internal fun CloudStorageCard(repo: BackupRepository, s: BackupState) {
     var editing by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Result<String>?>(null) }
+    // 正在编辑的类型；null 表示跟着已保存的走
+    var picked by remember { mutableStateOf<CloudKind?>(null) }
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Text("云端存储", style = RsType.body, color = c.text)
         Spacer(Modifier.height(10.dp))
+        // 三选一一直摆在最上面：已经连着坚果云的人也能一眼看到 WebDAV、S3
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CloudKind.entries.forEach { k ->
+                Choice(k.title(), k == (picked ?: s.cloud)) {
+                    picked = k; editing = !(configured && k == s.cloud); result = null
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
         AnimatedContent(configured && !editing, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "cloud") { showing ->
             if (showing) Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -83,17 +94,16 @@ internal fun CloudStorageCard(repo: BackupRepository, s: BackupState) {
                     Spacer(Modifier.height(8.dp))
                     Text(r.getOrNull() ?: r.exceptionOrNull()?.message ?: "测试没通过", style = RsType.caption, color = if (r.isSuccess) c.good else c.critical)
                 }
-            } else CloudEditor(repo, s, cancellable = configured) { editing = false }
+            } else CloudEditor(repo, s, picked ?: s.cloud, cancellable = configured) { editing = false; picked = null }
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CloudEditor(repo: BackupRepository, s: BackupState, cancellable: Boolean, onDone: () -> Unit) {
+private fun CloudEditor(repo: BackupRepository, s: BackupState, kind: CloudKind, cancellable: Boolean, onDone: () -> Unit) {
     val c = Rs.colors
     val presets = remember(repo) { repo.s3Presets }
-    var kind by remember { mutableStateOf(s.cloud) }
     // 换类型时账号不沿用另一种的（坚果云邮箱不能当 S3 密钥 ID）
     var account by remember(kind) { mutableStateOf(if (kind == s.cloud) s.account.orEmpty() else "") }
     var secret by remember(kind) { mutableStateOf("") }
@@ -117,9 +127,6 @@ private fun CloudEditor(repo: BackupRepository, s: BackupState, cancellable: Boo
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CloudKind.entries.forEach { k -> Choice(k.title(), kind == k) { kind = k; error = null } }
-        }
         when (kind) {
             CloudKind.Nutstore -> {
                 CloudField(account, "邮箱", KeyboardType.Email) { account = it.trim() }

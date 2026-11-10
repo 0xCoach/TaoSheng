@@ -15,7 +15,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.19-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.20-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -67,7 +67,7 @@
 6. **🃏 每天自动生成任务卡，技能随你定义**：会议速记、收工打卡、每周回顾、情绪日记开箱即用；写一份 JSON + 提示词就能加自己的技能。
 7. **💬 AI 问问，附原话出处**：哪天说过什么、答应过谁什么，直接打字问；每个答案都能点回当时的原话。
 8. **🤖 原话和整理结果自动推给你的 Agent**：每天的原话 + 整理后的文本（Markdown + JSON）自动推到 10 种通道，只推新增 / 修改 / 删除，随时给你的 Agent 调用。
-9. **☁️ 每天自动备份到坚果云和本机**：增量备份，只传变化；保留 3 / 7 / 30 天版本；可设口令加密；换手机一键恢复，设置和密钥一起回来。
+9. **☁️ 每天自动备份到云端和本机**：云端可选坚果云、WebDAV（Nextcloud、群晖等）或 S3 兼容存储（阿里云、腾讯云、R2 等）；增量备份，只传变化；保留 3 / 7 / 30 天版本；可设口令加密；换手机一键恢复，设置和密钥一起回来。
 10. **🧠 整理模型随便换，可完全本地运行**：内置 DeepSeek、豆包、通义、Kimi、智谱等十多家服务商，点一下切换，能查余额的显示余额并低额提醒；也支持任何 OpenAI 兼容接口和局域网自建模型，转写 + 整理全程不出你自己的设备。
 11. **🛟 主模型出问题自动换备用**：配了多个模型时，主模型断网、宕机、余额不足或密钥失效，自动按顺序换用备用模型，整理、回顾、问问都不中断（默认开启，可关）。
 12. **🔒 锁屏、后台一直在听**：前台服务 + 守护，被系统杀掉自动拉起；通知栏快捷开关一键暂停。
@@ -82,7 +82,7 @@
 21. **🔐 隐私优先**：不用注册账号、没有我们的服务器；密钥存系统安全区；原录音默认保留 3 天后自动删（可设 1～365 天，标星的可保留）；“删除最近 N 分钟”“这段别记”一键彻底删除。
 22. **🔍 寻物**：“钥匙放哪了”“充电宝借给谁了”——说过的放置、带走、借出、归还自动记下，在“记忆 → 寻物”查看，也能直接问。
 23. **⏰ 像闹钟一样的待办强提醒**：打字或语音添加待办；到点持续响铃、锁屏整屏提醒，音量键稍后、电源键停止。
-24. **🎧 录音回放与导出**：歌词式字幕播放器（上一段 / 下一段、倍速）；多段录音合成一个 M4A，连同原话和字幕导出，先试听再保存。
+24. **🎧 录音回放与导出**：歌词式字幕播放器（上一段 / 下一段、倍速）；多段录音合成一个 M4A，连同原话和字幕导出，先试听再保存；也可只导出摘要、待办、原话，选 TXT 或 Markdown。
 25. **📝 导入录音自动出纪要**：分会议、培训、通话·访谈、普通四类，导入后自动转写、认人，按类型生成纪要。
 26. **🔊 环境音识别**：听出说话之外的声音（音乐、键盘声、雨、宠物、流水、家电、脚步、闹钟、车流 9 类），写进事件和周报的“声音印象”。
 27. **📋 日报周报一键复制**：全文复制、按模块多选复制或自由选字，格式和勾选状态都保留。
@@ -120,13 +120,13 @@
 </tr>
 <tr>
 <td><b>🌙 每天自动回顾</b><br>晚上 22:00 生成当天回顾：一句话总结、要紧的事、待办、值得留意、灵感和心力；周日再出一份周回顾。</td>
-<td><b>☁️ 每天自动备份</b><br>增量备份到本机 + 坚果云，保留 3 / 7 / 30 天版本；换手机一键全部恢复，连设置和密钥都在。</td>
+<td><b>☁️ 每天自动备份</b><br>增量备份到本机 + 坚果云 / WebDAV / S3，保留 3 / 7 / 30 天版本；换手机一键全部恢复，连设置和密钥都在。</td>
 </tr>
 </table>
 
 ### 支持的推送通道
 
-PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram · 邮件 · Notion · 坚果云同步文件夹（可接 Obsidian） · 自定义 Webhook
+PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram · 邮件 · Notion · 同步文件夹（坚果云 / WebDAV / S3，可接 Obsidian） · 自定义 Webhook
 
 可推：每日回顾、待办提醒、新整理的事、技能卡片、每日记忆文档（含原话）；格式可选纯文本 / Markdown / JSON。
 
@@ -139,13 +139,14 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 | 安卓手机 | Android 10 及以上，arm64 架构。开发和实测机型：小米 14 Pro（澎湃 OS 3） |
 | 转写服务 | 三选一：[豆包语音](https://www.volcengine.com/product/voice-tech) API Key；直接用**本地转写**（首次使用时在手机上下载模型）；或自定义转写服务 |
 | 大模型 | 任意 OpenAI 兼容接口的 API Key，默认 [DeepSeek](https://platform.deepseek.com/) |
-| 可选 | 坚果云账号（备份）、任一推送通道 |
+| 可选 | 坚果云、WebDAV 或 S3 存储（备份）、任一推送通道 |
 
 ### 下载安装（推荐）
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.2.19**（最新） | 2026-11-08 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.19-arm64.apk) | 整理不再切碎；新增“整理前先思考”开关；多选合并几件事；重新整理显示分批进度，修复整天重新整理闪退。[详细更新日志](CHANGELOG.md#0219--2026-11-08) |
+| **v0.2.20**（最新） | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/TaoSheng-v0.2.20-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.20-arm64.apk) | 修复麦克风“假运行”丢录音；蓝牙录音让出话筒给输入法；备份可选 WebDAV、S3；导出可只要文字、可选 Markdown；文件夹自动导入；推送换行；自定义请求头与 OpenCode Go。[详细更新日志](CHANGELOG.md#0220--2026-11-10) |
+| **v0.2.19** | 2026-11-08 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.19-arm64.apk) | 整理不再切碎；新增“整理前先思考”开关；多选合并几件事；重新整理显示分批进度，修复整天重新整理闪退。[详细更新日志](CHANGELOG.md#0219--2026-11-08) |
 | **v0.2.18** | 2026-11-08 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.18-arm64.apk) | 声纹样本管理：每个人的样本能回放、删除，样本声音可一键清除；自定义转写可填写完整请求地址。[详细更新日志](CHANGELOG.md#0218--2026-11-08) |
 | **v0.2.17** | 2026-11-07 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.17-arm64.apk) | 主模型出问题自动换备用模型；修复内容多的日子生成回顾失败（按模型容量完整发送）；修复加密备份恢复没有口令框；兼容鸿蒙等系统的本机备份文件夹授权。[详细更新日志](CHANGELOG.md#0217--2026-11-07) |
 | **v0.2.16** | 2026-11-03 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.16-arm64.apk) | 修复七天统计长事务导致的删除延迟；轻量快照与媒体匹配优化；删除阶段提示及防重复操作。手机性能测试与实际删除复测通过。[详细更新日志](CHANGELOG.md#0216--2026-11-03) |
@@ -164,7 +165,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 - 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
 - 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
 - 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
-- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/SHA256SUMS)。
+- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/SHA256SUMS)。
 - 正式签名证书指纹（SHA-256）：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`。只认这个签名的安装包，别处下载的改装版可能被动过手脚。
 
 ### 从源码编译
@@ -199,7 +200,7 @@ $env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
 2. **填密钥**：设置 →「原话与转写」：选豆包并粘贴 API Key，或选“本地”下载模型；设置 →「整理模型」：选 DeepSeek 或自定义接口，填 API Key，点“拉取模型”。
 3. **录入声纹**：设置 →「声纹与人物」→ 我，照着屏幕朗读三段短文（每段 15 秒）。
 4. **开始聆听**：回到“今天”页打开收音，正常过你的一天。
-5. （可选）**备份**：设置 →「数据备份」，填坚果云 WebDAV 地址和应用密码，每天凌晨自动增量备份。
+5. （可选）**备份**：设置 →「数据备份」，选坚果云、WebDAV 或 S3 并填账号，每天凌晨自动增量备份。
 6. （可选）**推送**：设置 →「推送通道」，添加一个通道，保存后会自动发一条测试消息。
 
 ### 日常怎么用
@@ -233,7 +234,7 @@ flowchart LR
     F --> G[今天 / 问问 / 记忆 / 待办]
     F --> H[每日回顾 · 技能卡片]
     H --> I[推送 10 种通道<br>给你的 Agent]
-    F --> J[增量备份<br>本机 + 坚果云]
+    F --> J[增量备份<br>本机 + 云端]
 ```
 
 | 部分 | 技术 |
@@ -255,7 +256,7 @@ app/src/main/java/app/resound/
 ├── review/      每日 / 每周回顾
 ├── skills/      技能卡片框架
 ├── push/        十种推送通道
-├── backup/      增量备份与恢复（本机 + WebDAV）
+├── backup/      增量备份与恢复（本机 + WebDAV / S3）
 ├── privacy/     删除与隐私开关
 └── ui/          全部界面
 ```

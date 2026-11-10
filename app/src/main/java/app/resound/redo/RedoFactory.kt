@@ -55,7 +55,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
         val reply = digestSettings.failover.request("重新整理", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, contextPrompt.system(DigestPrompt.system(template(), LocalDate.now(), context.appName)), input)
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
-        val (events, items) = DigestPrompt.parse(reply.content, indexed)
+        val (events, items) = DigestPrompt.parse(reply.content, indexed, diagnostics = reply.diagnostics)
         val at = System.currentTimeMillis()
         RedoDigest(events.map { e -> MemoryEventEntity(startAt = e.startAt, endAt = e.endAt,
             scene = if (db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,

@@ -159,7 +159,7 @@ class ResoundApp : Application() {
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
         val serviceHeaders = app.resound.digest.ServiceHeaders(this)
-        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset)
+        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this))
         val digestSettings = AndroidDigestSettings(this, llm) { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
@@ -261,7 +261,7 @@ class ResoundApp : Application() {
             }, transcripts.clock, scope)
         val updater = app.resound.update.createUpdater(this, backupRepository)
         AppGraph.updater = updater
-        AppGraph.problemReports = app.resound.diagnostics.LocalProblemReports(this, crashes, AppGraph.stats, updater)
+        AppGraph.problemReports = app.resound.diagnostics.LocalProblemReports(this, crashes, AppGraph.stats, updater, database.memory(), digestSettings.failover)
         AppGraph.deviceCards = app.resound.devices.createDeviceCards(this)
         cardDevices = app.resound.devices.createDevices(this, AppGraph.deviceCards)
         AppGraph.devices = cardDevices

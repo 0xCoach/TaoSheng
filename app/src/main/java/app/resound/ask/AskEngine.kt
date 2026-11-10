@@ -58,6 +58,9 @@ class AskEngine(
             }
             if (reply.calls.isEmpty()) {
                 val parsed = AskCitations.parse(reply.content, sources)
+                reply.diagnostics?.parsed(items = parsed.sources.size, empty = parsed.text.isBlank(),
+                    filtered = sources.isNotEmpty() && parsed.sources.isEmpty(),
+                    error = if (parsed.invalid || reply.content.contains("DSML") || parsed.text.isBlank()) app.resound.digest.LlmError.Format else null)
                 if (reply.content.contains("DSML")) {
                     emit(Update("", emptyList(), null, "大模型返回的格式不对")); return
                 }
@@ -83,8 +86,12 @@ class AskEngine(
                         else "回答缺少出处，请重新提问；常出现可在设置里检测模型"
                     else -> null
                 }
+                reply.diagnostics?.parsed(items = parsed.sources.size, empty = parsed.text.isBlank(),
+                    filtered = sources.isNotEmpty() && parsed.sources.isEmpty(), error = error?.let { app.resound.digest.LlmError.Format })
                 emit(Update(parsed.text, parsed.sources, null, error)); return
             }
+            reply.diagnostics?.parsed(items = reply.calls.size, empty = false,
+                error = if (repairing) app.resound.digest.LlmError.Format else null)
             if (repairing) {
                 emit(Update("", emptyList(), null, "模型未完成出处核对，已停止自动重试")); return
             }
@@ -108,6 +115,7 @@ class AskEngine(
                     } catch (_: IllegalArgumentException) {
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")
                     } catch (_: org.json.JSONException) {
+                        reply.diagnostics?.parsed(items = reply.calls.size, empty = false, error = app.resound.digest.LlmError.Format)
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")
                     } catch (_: java.time.DateTimeException) {
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")

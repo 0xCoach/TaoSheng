@@ -117,7 +117,25 @@ object DigestPrompt {
      * 提取项挂到包含它那一行的事件上，找不到就挂最近的事件；媒体事件下的提取项丢弃。
      * 格式完全不对时抛 [LlmException]（Format）。
      */
-    fun parse(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet()): Pair<List<ParsedEvent>, List<ParsedItem>> {
+    fun parse(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet(),
+        diagnostics: app.resound.diagnostics.LlmResponseTrace? = null): Pair<List<ParsedEvent>, List<ParsedItem>> {
+        return try {
+            val result = parseResult(content, lines, zone, unseparated)
+            runCatching {
+                val raw = app.resound.diagnostics.responseObject(content)
+                val rawEvents = raw?.optJSONArray("events")?.length() ?: 0
+                val rawItems = raw?.optJSONArray("items")?.length() ?: 0
+                diagnostics?.parsed(result.first.size, result.second.size, empty = rawEvents == 0 && rawItems == 0,
+                    filtered = (rawEvents > 0 && result.first.isEmpty()) || (rawItems > 0 && result.second.isEmpty()))
+            }
+            result
+        } catch (e: LlmException) {
+            diagnostics?.parsed(empty = content.isBlank(), error = e.type)
+            throw e
+        }
+    }
+
+    private fun parseResult(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId, unseparated: Set<Long>): Pair<List<ParsedEvent>, List<ParsedItem>> {
         val json = try { JSONObject(content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```")) }
         catch (_: Exception) { throw LlmException(LlmError.Format) }
         val n = lines.size

@@ -18,6 +18,7 @@ class LlmFailover(
     context: Context, private val providers: AndroidLlmProviders,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    private val diagnostics = app.resound.diagnostics.LlmDiagnostics(context)
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
     private val mutableEnabled = MutableStateFlow(prefs.getBoolean("failoverEnabled", true))
     val enabled = mutableEnabled.asStateFlow()
@@ -31,6 +32,16 @@ class LlmFailover(
         providers.listen { id -> if (id != null) clear(id) }
         providers.onTestSuccess = ::clear
     }
+    /** 只投影模型名及固定原因，不导出配置 id、异常 detail 或凭证。 */
+    internal fun coolingDiagnostics(): String {
+        val names = providers.saved.value.associate { it.id to "${it.name} / ${it.model}" }
+        return synchronized(this) {
+            cooling.entries.joinToString("\n") { (id, state) ->
+                "${names[id] ?: "已删除模型"} 冷却=${state.until > now()} 截止=${app.resound.diagnostics.LlmDiagnostics.stamp(state.until)} 原因=${state.reason}"
+            }.ifBlank { "暂无" }
+        }
+    }
+
     fun setEnabled(value: Boolean) {
         check(prefs.edit().putBoolean("failoverEnabled", value).commit())
         mutableEnabled.value = value
@@ -79,9 +90,15 @@ class LlmFailover(
             if (LlmInputBudget.inputChars(p) <= minimumCapacity) continue
             attempts++
             try {
-                val result = call(p, candidate.key)
+                val trace = runCatching { diagnostics.start(feature, p) }.getOrNull()
+                val result = try {
+                    if (trace == null) call(p, candidate.key) else withContext(trace) { call(p, candidate.key) }
+                } catch (e: Throwable) { trace?.complete(e); throw e }
                 if (p.id != primary.id) recent.value = LlmSwitch(now(), feature, primary.name + " / " + primary.model,
                     p.name + " / " + p.model, errors.values.firstOrNull()?.let(::reason) ?: initialReason ?: "主模型暂不可用")
+                if (p.id != primary.id) recent.value?.let {
+                    diagnostics.switched(it.at, it.originalModel, it.actualModel, it.reason)
+                }
                 return result to p
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {

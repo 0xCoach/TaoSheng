@@ -46,7 +46,8 @@ class CaptureService : Service() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
             if (intent?.action != Intent.ACTION_SCREEN_ON) chargeEpoch.incrementAndGet()
             if (intent?.action == Intent.ACTION_SCREEN_ON || intent?.action == Intent.ACTION_POWER_CONNECTED) {
-                scope.launch(Dispatchers.IO) { app.resumeWaitingTranscriptionBatch(intent.action) }
+                // 补跑失败不能影响录音服务；下一段录音或周期转写会兜底
+                scope.launch(Dispatchers.IO) { runCatching { app.resumeWaitingTranscriptionBatch(intent.action) } }
             }
         }
     }

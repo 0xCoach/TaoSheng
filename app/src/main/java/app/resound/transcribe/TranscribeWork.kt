@@ -262,7 +262,12 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
         if (waiting.isEmpty()) return@withLock
         // 原位替换等待任务的请求参数，去掉延迟并加急。即使查询后它刚开始运行，
         // updateWork 也不会取消该轮推理；BLOCKED 任务保留父依赖，父轮结束即可接上。
-        waiting.forEach { manager.updateWork(earlyRequest(constraints(), id = it.id)).get() }
+        waiting.forEach { info ->
+            val updated = runCatching { manager.updateWork(earlyRequest(constraints(), id = info.id)).get() }
+            // 个别系统不允许原位改成加急：还在排队的就替换成立即执行（正在跑的不动，避免取消推理）
+            if (updated.isFailure && info.state == WorkInfo.State.ENQUEUED)
+                manager.enqueueUniqueWork(EARLY_WORK, ExistingWorkPolicy.REPLACE, earlyRequest(constraints()))
+        }
     }
     fun observe() = manager.getWorkInfosByTagFlow(TAG)
     companion object {

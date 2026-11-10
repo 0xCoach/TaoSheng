@@ -1,8 +1,10 @@
 package app.resound.capture
 
+import app.resound.AppGraph
+import app.resound.topic.TopicPolicy
+
 import android.app.*
 import android.content.Intent
-import app.resound.AppGraph
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.os.PowerManager
@@ -181,7 +183,7 @@ class CaptureService : Service() {
         }
     }
     private suspend fun reconcilePause() {
-        val plan = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh())
+        val plan = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh().takeUnless { AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, System.currentTimeMillis()) })
         if (plan != null) pauseUntil(plan.until, plan.quietName)
         else if (playbackHeld) {
             capture?.cancelAndJoin(); capture = null
@@ -373,7 +375,7 @@ class CaptureService : Service() {
         CaptureNotifications.interrupted(this)
         stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
     }
-    private fun plannedPause() = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh()) != null
+    private fun plannedPause() = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh().takeUnless { AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, System.currentTimeMillis()) }) != null
     private fun alarmIntent() = PendingIntent.getBroadcast(this, 10, Intent(this, CaptureResumeReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun cancelAlarm() { getSystemService(AlarmManager::class.java).cancel(alarmIntent()) }
     private fun refreshNotification(paused: Boolean) {

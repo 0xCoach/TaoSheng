@@ -34,5 +34,6 @@ class AndroidHotwordSettings(context: Context, dao: VoiceprintDao, scope: Corout
         check(prefs.edit().putString("hotwords", JSONArray(normalized).toString()).commit()) { "热词保存失败" }
         current.value = normalized
     }
-    fun merged() = Hotwords.merge(words.value, automatic.value)
+    var topicWords: () -> List<String> = { emptyList() }
+    fun merged() = Hotwords.merge(words.value, automatic.value + topicWords())
 }

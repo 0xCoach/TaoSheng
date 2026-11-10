@@ -35,6 +35,7 @@ class TranscribeRunner(
     private val sharedPcm: SharedPcmFiles? = null,
     private val afterSegment: suspend (SegmentEntity) -> Unit = {},
     private val recordSpeed: (TranscribeSource?, Long, Long) -> Unit = { _, _, _ -> },
+    private val topicTraining: (Long) -> Boolean = { false },
 ) {
     suspend fun withIdleAudio(block: suspend () -> Unit) = gate.withLock { block() }
 
@@ -91,7 +92,9 @@ class TranscribeRunner(
                         outcome = "SkippedEnv"
                         return RoundDecision.Continue
                     }
-                    val distinguish = candidate.separateSpeakers ?: separateSpeakers(candidate.startAt)
+                    val training = topicTraining(candidate.startAt)
+                    val distinguish = if (training) false else candidate.separateSpeakers ?: separateSpeakers(candidate.startAt)
+                    if (training) dao.topicTraining(candidate.id)
                     dao.rememberSpeakers(candidate.id, distinguish)
                     val selectedProvider = if (selected != null && provider is ConfiguredAsrProvider) object : AsrProvider { override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit) = provider.recognize(selected, audio, key, beforeAudio) } else provider
                     suspend fun recognize() = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), separateSpeakers = distinguish, pcmFile = sharedPcm?.find(File(candidate.path)), speakerCount = candidate.speakerCount), credential) {

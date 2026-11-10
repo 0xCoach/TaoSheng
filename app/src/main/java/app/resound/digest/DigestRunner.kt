@@ -82,7 +82,7 @@ class DigestRunner(
             for (pending in dao.pendingDigests()) {
                 val source = dao.refreshLines(pending.ids())
                 // 核验不了的旧缓存与原逻辑一样丢弃、重新整理：多花一次请求，好过整理永久停住。
-                if (source.size == pending.ids().size && matches(pending, source, preset)) chunks += source
+                if (source.size == pending.ids().size && dao.topicLineCount(pending.ids()) == 0 && matches(pending, source, preset)) chunks += source
                 else dao.removePendingDigest(pending.id)
             }
             val inFlight = prefs.getString("inflight", null)

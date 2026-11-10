@@ -1,6 +1,7 @@
 package app.resound.data
 
 import androidx.room.*
+import app.resound.topic.OUTSIDE_TOPICS
 import app.resound.usage.UsagePurpose
 import kotlinx.coroutines.flow.Flow
 
@@ -119,13 +120,13 @@ abstract class MemoryDao {
     /** 已转写、还没整理过的句子（按时间） */
     @Query(
         """SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
-           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
+           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedLines(): List<TranscriptLineEntity>
 
     @Query(
         """SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
-           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
+           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedCount(): Int
 
@@ -142,7 +143,7 @@ abstract class MemoryDao {
     )
     abstract suspend fun unfinishedSegments(start: Long, end: Long): Int
 
-    @Query("SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done'")
+    @Query("SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS")
     abstract fun observeUndigestedCount(): Flow<Int>
 
     @Insert abstract suspend fun insertEvent(row: MemoryEventEntity): Long
@@ -163,6 +164,9 @@ abstract class MemoryDao {
     @Query("UPDATE transcript_lines SET digestedAt = :at WHERE id IN (:ids)")
     abstract suspend fun markDigested(ids: List<Long>, at: Long)
 
+    @Query("SELECT COUNT(*) FROM transcript_lines l WHERE l.id IN (:ids) AND NOT ($OUTSIDE_TOPICS)")
+    abstract suspend fun topicLineCount(ids: List<Long>): Int
+
     /** 一次整理的结果原子写入：事件、提取项、句子归属、整理标记 */
     @Transaction
     open suspend fun saveDigest(
@@ -174,7 +178,7 @@ abstract class MemoryDao {
         hintCandidates: Set<Long> = emptySet(),
     ) {
         // 云端请求期间原话可能被隐私操作删除；整批旧结果作废，不复活事件和条目。
-        if (refreshLines(allLineIds).size != allLineIds.distinct().size) return
+        if (refreshLines(allLineIds).size != allLineIds.distinct().size || topicLineCount(allLineIds) > 0) return
         // 必须在事务内重读：云端请求期间用户可能删除或编辑。
         val protected = protectedItems()
         val sourceEvents = refreshLines(allLineIds).associate { it.id to it.eventId }

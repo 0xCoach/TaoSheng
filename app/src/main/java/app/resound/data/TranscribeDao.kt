@@ -75,7 +75,7 @@ abstract class TranscribeDao {
     abstract fun usageBetween(from: String, to: String): Flow<List<AsrUsageEntity>>
     @Query("SELECT * FROM asr_usage") abstract fun observeUsage(): Flow<List<AsrUsageEntity>>
     // 超时只影响本段：到期后排在其他候选后面，避免长段反复占住队首。
-    @Query("SELECT * FROM segments WHERE status = 'Pending' OR (status = 'Failed' AND attempts < 5 AND nextRetryAt <= :now) ORDER BY CASE WHEN error = '转写超时，等待重试' THEN 1 ELSE 0 END, startAt, id")
+    @Query("SELECT * FROM segments WHERE status = 'Pending' OR (status = 'Failed' AND attempts < 5 AND nextRetryAt <= :now) ORDER BY CASE WHEN EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId WHERE t.status IN ('Ended', 'Summarizing', 'Failed') AND segments.startAt < ts.endAt AND segments.endAt > ts.startAt) THEN 0 ELSE 1 END, CASE WHEN error = '转写超时，等待重试' THEN 1 ELSE 0 END, startAt, id")
     protected abstract suspend fun candidateRows(now: Long): List<SegmentEntity>
     @Transaction
     open suspend fun candidates(now: Long): List<SegmentEntity> {
@@ -153,6 +153,8 @@ abstract class TranscribeDao {
     abstract suspend fun finishEnvSkip(id: Long, at: Long): Int
     @Query("UPDATE segments SET separateSpeakers = :on WHERE id = :id AND separateSpeakers IS NULL")
     abstract suspend fun rememberSpeakers(id: Long, on: Boolean)
+    @Query("UPDATE segments SET separateSpeakers = 0 WHERE id = :id")
+    abstract suspend fun topicTraining(id: Long)
     @Query("SELECT id FROM segments WHERE id IN (:ids) AND separateSpeakers = 0 AND (importChannel IS NULL OR speakerCount = 0)")
     abstract suspend fun unseparated(ids: List<Long>): List<Long>
     @Update abstract suspend fun update(row: SegmentEntity)

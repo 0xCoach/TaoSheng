@@ -23,6 +23,8 @@ object AppGraph {
     val isLlmFailoverReady: Boolean get() = ::llmFailover.isInitialized
     lateinit var llmProviders: app.resound.digest.LlmProviders
     val isLlmProvidersReady: Boolean get() = ::llmProviders.isInitialized
+    lateinit var topics: app.resound.topic.TopicRepository
+    val isTopicsReady: Boolean get() = ::topics.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
     lateinit var llmBalance: app.resound.usage.LlmBalanceChecker
     val isLlmBalanceReady: Boolean get() = ::llmBalance.isInitialized

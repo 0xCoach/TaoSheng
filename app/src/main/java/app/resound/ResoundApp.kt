@@ -23,6 +23,7 @@ class ResoundApp : Application() {
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
     val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
+    internal lateinit var topics: app.resound.topic.TopicFeature
     private lateinit var transcribeScheduler: TranscribeScheduler
     fun rescheduleDigest(changed: Boolean = false) {
         if (changed) transcribeScheduler.timingChanged() else transcribeScheduler.scheduleDigest()
@@ -51,7 +52,7 @@ class ResoundApp : Application() {
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
-        val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope)
+        val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }
         AppGraph.asrSpeed = asrSpeed
         // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴
         scope.launch {
@@ -82,9 +83,14 @@ class ResoundApp : Application() {
         val settings = AndroidTranscribeSettings(this)
         val scheduler = TranscribeScheduler(this, settings)
         transcribeScheduler = scheduler
-        segmentFiles.onSaved = { scheduler.segmentSaved(database.transcribe().pendingMillis()) }
+        segmentFiles.onSaved = {
+            // 专题结束时可能还没自然分片/编码完；最后一段落盘后也立即转写，不等定时批次。
+            if (database.topics().pendingAudio() > 0) scheduler.runNow()
+            else scheduler.segmentSaved(database.transcribe().pendingMillis())
+        }
         val hotwords = AndroidHotwordSettings(this, database.voiceprint(), scope)
         AppGraph.hotwords = hotwords
+        hotwords.topicWords = { if (AppGraph.isTopicsReady) app.resound.topic.TopicPolicy.words(AppGraph.topics.current.value?.takeIf { app.resound.topic.TopicPolicy.activeAt(it, System.currentTimeMillis()) }?.name) else emptyList() }
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope, fingerprints = database.folderImports())
         // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
         val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
@@ -131,7 +137,7 @@ class ResoundApp : Application() {
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             recordTiming = { PipelineTimes.recordSegment(this, it) },
-            defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers,
+            defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers, topicTraining = database.topics()::trainingAt,
             beforeTranscribe = envSound::beforeTranscribe,
             beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
             afterSegment = { segment ->
@@ -177,6 +183,8 @@ class ResoundApp : Application() {
             app.resound.importer.ImportSpeakers(database, pcmReader::readPcm, { CampPlusEmbedding(this) }),
             idle = { block -> transcribeRunner.withIdleAudio { voiceprintRepository.withStableResults { block() } } },
             transcribe = scheduler::runNow, ready = { scheduler.runDigestNow(); voiceprintRepository.cleanupAudio() })
+        topics = app.resound.topic.TopicFeature.create(this, database, digestSettings, llm, hotwords::merged)
+        AppGraph.topics = topics.repository
         val redoEngine = app.resound.redo.createRedoEngine(this, database, asrChooser, settings, digestSettings, llm,
             hotwords::merged, { AppGraph.prompts.text("digest") }, { AppGraph.prompts.text("merge") },
             { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork, situation = AppGraph.situation)

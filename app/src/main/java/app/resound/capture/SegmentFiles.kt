@@ -110,6 +110,12 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         File(spool, pcm.nameWithoutExtension + ".source").delete()
         if (!skip) runCatching { onSaved?.invoke() }
     }
+    internal fun pendingInRange(from: Long, until: Long): Boolean = spool.listFiles().orEmpty().any { file ->
+        if (file.extension !in setOf("recording", "pcm")) false else {
+            val start = file.name.substringBefore('_').toLongOrNull()
+            start != null && start < until && start + file.length() / 2 * 1000 / CaptureTuning.SAMPLE_RATE > from
+        }
+    }
     internal fun readSourceId(pcm: File): String = File(spool, pcm.nameWithoutExtension + ".source")
         .takeIf { it.isFile }?.readText()?.takeIf { it.isNotBlank() } ?: "mic"
 

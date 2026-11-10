@@ -115,9 +115,10 @@ class LlmFailover(
                     // 不够大的候选不消耗一次请求名额；在完整 saved 顺序中找更大容量。
                     remaining = ordered(candidates.filter { it.preset.id !in errors &&
                         LlmInputBudget.inputChars(it.preset) > minimumCapacity }).toMutableList()
-                } else synchronized(this) {
+                } else if (!(e as LlmException).rejected) synchronized(this) {
+                    // 拒收是这次内容的问题，不让主模型进冷却、连累问问等其他功能。
                     if ((generations[p.id] ?: 0) == candidate.generation) {
-                        val long = (e as LlmException).type in setOf(LlmError.Auth, LlmError.Quota)
+                        val long = e.type in setOf(LlmError.Auth, LlmError.Quota)
                         cooling[p.id] = Cooling(now() + (if (long) 30 else 5) * 60_000L, reason(e), LlmException(e.type, e.status, e.detail))
                     }
                 }

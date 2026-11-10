@@ -30,6 +30,8 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null) : Exception(detail)
 
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null)
+/** 400 类拒收：换个时间重发同样内容也不会成功。 */
+val LlmException.rejected: Boolean get() = type == LlmError.Server && status in LlmClient.REJECTED_STATUS
 class LlmInputLimitException(message: String = "内容超出所选模型的容量，请换用容量更大的模型") : IllegalArgumentException(message)
 
 /** 兼容 OpenAI chat/completions 的服务（DeepSeek、方舟、自建）。 */
@@ -71,7 +73,7 @@ class LlmClient(
             trace?.content(raw)
             val json = runCatching { JSONObject(raw) }.getOrNull()
             val usage = json?.optJSONObject("usage")?.let { u -> LlmReply("", u.optLong("prompt_tokens"), u.optLong("completion_tokens")) }
-            if (it.code !in 200..299) throw httpError(it.code, usage)
+            if (it.code !in 200..299) throw httpError(it.code, usage, raw)
             trace?.finishReason(json?.optJSONArray("choices")?.optJSONObject(0)?.optString("finish_reason")?.takeUnless { reason -> reason == "null" })
             val content = json?.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
                 ?: throw LlmException(LlmError.Format, usage = usage)
@@ -180,16 +182,28 @@ class LlmClient(
         })
     }
 
-    private fun httpError(status: Int, usage: LlmReply? = null): LlmException = LlmException(when (status) {
-        401, 403 -> LlmError.Auth
-        402 -> LlmError.Quota
-        429 -> LlmError.RateLimit
-        else -> LlmError.Server
-    }, status, usage = usage)
+    /** 服务端原文只用来挑固定文案，不写进异常或日志。 */
+    private fun httpError(status: Int, usage: LlmReply? = null, raw: String = ""): LlmException =
+        if (status in REJECTED_STATUS) LlmException(LlmError.Server, status, rejectionDetail(raw), usage)
+        else LlmException(when (status) {
+            401, 403 -> LlmError.Auth
+            402 -> LlmError.Quota
+            429 -> LlmError.RateLimit
+            else -> LlmError.Server
+        }, status, usage = usage)
 
     companion object {
         const val MAX_JSON_OUTPUT_TOKENS = 8192
         /** 先思考时，思考过程也算在输出里；一批 300 句实测要 8000～12000，留足余量免得答一半被截断 */
         const val THINKING_JSON_OUTPUT_TOKENS = 32_768
+        /** 服务方明确不接这次请求（内容审核、太长、参数不对）；原样重发不会好。 */
+        val REJECTED_STATUS = setOf(400, 413, 422)
+        private val MODERATION = listOf("risk", "sensitive", "moderation", "content_filter", "inappropriate", "审核", "敏感", "违规", "不安全")
+        private val TOO_LONG = listOf("context", "too long", "too large", "maximum", "length", "过长", "超出", "超过")
+        internal fun rejectionDetail(raw: String): String = raw.lowercase().let { text -> when {
+            MODERATION.any { it in text } -> "大模型服务认为内容不合规，拒收了这批原话"
+            TOO_LONG.any { it in text } -> "这批原话太长，大模型服务拒收"
+            else -> "大模型服务拒收了这次请求"
+        } }
     }
 }

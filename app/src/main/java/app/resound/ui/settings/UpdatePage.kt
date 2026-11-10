@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -122,7 +123,13 @@ private fun NewVersionCard(info: UpdateInfo, state: UpdateState, canInstall: Boo
         }
         if (info.notes.isNotBlank()) {
             Spacer(Modifier.height(10.dp))
-            Text(info.notes.trim(), style = RsType.body, color = c.textSecondary)
+            // 更新说明是 Markdown（标题、列表、粗体）；长的先显示开头，点一下展开全部
+            var open by remember(info.versionName) { mutableStateOf(false) }
+            val notes = info.notes.trim()
+            val long = notes.lines().size > 12
+            app.resound.ui.ask.AnswerText(if (open || !long) notes else notes.lines().take(10).joinToString("\n"))
+            if (long) Text(if (open) "收起" else "展开全部更新内容", style = RsType.subhead, color = c.accent,
+                modifier = Modifier.padding(top = 6.dp).springClick { open = !open })
         }
         Spacer(Modifier.height(16.dp))
         when (state) {

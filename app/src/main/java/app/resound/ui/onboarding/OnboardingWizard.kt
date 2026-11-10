@@ -93,7 +93,7 @@ fun OnboardingWizard(capture: CaptureController, transcripts: TranscriptReposito
     BackHandler(page > 0) { page-- }
     val c = Rs.colors
     Column(Modifier.fillMaxSize().background(c.background).systemBarsPadding()) {
-        if (page > 0) Dots(page - 1, 3, Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp))
+        if (page > 0) Dots(minOf(page, 4) - 1, 4, Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp))
         AnimatedContent(page, transitionSpec = {
             (slideInHorizontally { if (targetState > initialState) it / 3 else -it / 3 } + fadeIn()) togetherWith fadeOut(tween(150))
         }, label = "wizard", modifier = Modifier.weight(1f)) { p ->
@@ -105,7 +105,13 @@ fun OnboardingWizard(capture: CaptureController, transcripts: TranscriptReposito
                     })
                     1 -> Permissions(capture) { page = 2 }
                     2 -> DeepSeek(onNext = { page = 3 }, onLater = { record("key_skipped"); page = 3 })
-                    else -> TryIt(capture, transcripts, memory, startedAt) { finish("wizard_done") }
+                    3 -> TryIt(capture, transcripts, memory, startedAt) { page = 4 }
+                    4 -> Extras(onNow = { record("extras_now"); page = 5 }, onSkip = {
+                        // 直接开始：今天页不再显示“继续完善”清单
+                        context.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("startChecklistDismissed", true).apply()
+                        finish("wizard_done_skip_extras")
+                    })
+                    else -> KeepAlive { finish("wizard_done") }
                 }
             }
         }
@@ -231,9 +237,21 @@ private fun Reason(icon: String, title: String, why: String) {
     }
 }
 
-/** 本机转写模型的准备进度，向导第 3、4 页顶部显示 */
+/** 本机转写模型是否已装好（向导各页共用） */
 @Composable
-private fun ModelProgress() {
+private fun modelReady(): Boolean {
+    val settings = (if (AppGraph.isTranscribeReady) AppGraph.transcribeSettings as? AndroidTranscribeSettings else null) ?: return true
+    return settings.ready.collectAsState().value
+}
+
+private val percent = Regex("""下载 (\d+)%""")
+
+/**
+ * 本机转写模型的下载与安装进度条：下载阶段按百分比走，解压校验（安装）阶段滚动；装好后变绿勾。
+ * [big] 为 true 时用在“说句话试试”页，字号和留白大一些。
+ */
+@Composable
+private fun ModelProgress(big: Boolean = false) {
     val c = Rs.colors
     val context = LocalContext.current
     val settings = (if (AppGraph.isTranscribeReady) AppGraph.transcribeSettings as? AndroidTranscribeSettings else null) ?: return
@@ -241,12 +259,28 @@ private fun ModelProgress() {
     val revision by settings.modelRevision.collectAsState()
     val backend by settings.backend.collectAsState()
     val prefs = remember { context.getSharedPreferences("local-asr", Context.MODE_PRIVATE) }
-    val line = remember(revision, ready) { if (ready) null else app.resound.ui.today.downloadLine(settings, backend, prefs) }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (ready) c.good.copy(alpha = 0.1f) else c.accentSoft)
-        .padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(if (ready) "✓" else "⏳", style = RsType.subhead, color = if (ready) c.good else c.accent)
-        Spacer(Modifier.width(10.dp))
-        Text(if (ready) "本机转写已准备好" else "本机转写准备中" + (line?.let { "：$it" } ?: "…"), style = RsType.caption, color = c.textSecondary)
+    val status = remember(revision, ready) { if (ready) null else prefs.getString("download-${backend.name}", null) }
+    val pct = status?.let { percent.find(it)?.groupValues?.get(1)?.toIntOrNull() }
+    val installing = status?.contains("解压") == true || status?.contains("校验下载") == true
+    val shown by animateFloatAsState((pct ?: 0) / 100f, tween(400), label = "model")
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (ready) c.good.copy(alpha = 0.1f) else c.accentSoft)
+        .padding(horizontal = 16.dp, vertical = if (big) 16.dp else 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(when { ready -> "✓ 本机转写已装好"; installing -> "正在安装转写模型"; pct != null -> "正在下载转写模型"; else -> "正在准备转写模型" },
+                style = (if (big) RsType.body else RsType.subhead).copy(fontWeight = FontWeight.SemiBold), color = if (ready) c.good else c.text,
+                modifier = Modifier.weight(1f))
+            if (!ready && pct != null && !installing) Text("$pct%", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
+        }
+        if (!ready) {
+            Spacer(Modifier.height(10.dp))
+            if (pct != null && !installing) androidx.compose.material3.LinearProgressIndicator(progress = { shown }, color = c.accent, trackColor = c.background,
+                modifier = Modifier.fillMaxWidth().height(if (big) 8.dp else 6.dp).clip(CircleShape))
+            else androidx.compose.material3.LinearProgressIndicator(color = c.accent, trackColor = c.background,
+                modifier = Modifier.fillMaxWidth().height(if (big) 8.dp else 6.dp).clip(CircleShape))
+            Spacer(Modifier.height(8.dp))
+            Text(status?.substringAfter(" · ", "")?.takeIf { pct != null && !installing && it.isNotBlank() }
+                ?: if (installing) "解压与校验，马上就好" else (status ?: "排队中…"), style = RsType.caption, color = c.textSecondary)
+        }
     }
 }
 
@@ -339,10 +373,21 @@ private fun ColumnScope.TryIt(capture: CaptureController, transcripts: Transcrip
     val event = events.filter { it.startAt >= since - 60_000 }.maxByOrNull { it.startAt }
     val hasKey = if (AppGraph.isMemoryReady) AppGraph.digestSettings.hasKey.collectAsState().value else false
     var organizing by remember { mutableStateOf(false) }
-    Spacer(Modifier.height(20.dp))
-    ModelProgress()
+    val ready = modelReady()
     Spacer(Modifier.height(20.dp))
     Text("说句话试试", style = RsType.title, color = c.text)
+    if (!ready) {
+        // 模型装好之前转写不了：先显示进度，装好后自动进入试一试
+        Spacer(Modifier.height(8.dp))
+        Text("本机转写模型装好后就能开始。下载期间可以停在这一页，建议连着 WiFi。", style = RsType.body, color = c.textSecondary)
+        Spacer(Modifier.height(24.dp))
+        ModelProgress(big = true)
+        Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
+        ActionButton("模型准备中…", ActionKind.Primary, Modifier.fillMaxWidth(), enabled = false) {}
+        Text("不等了，先往下走（装好后自动转写）", style = RsType.caption, color = c.textTertiary, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp).springClick(onDone))
+        return
+    }
     Spacer(Modifier.height(8.dp))
     Text("比如：“明天下午三点和老王开会。”说完停一两秒。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(28.dp))
@@ -380,5 +425,60 @@ private fun ColumnScope.TryIt(capture: CaptureController, transcripts: Transcrip
     if (line != null && !hasKey) Text("配好整理模型后，原话会自动整理成事和待办（设置 → 整理模型）。", style = RsType.caption,
         color = c.textTertiary, modifier = Modifier.padding(top = 10.dp))
     Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
-    ActionButton(if (line != null) "完成，开始使用" else "先进入涛声", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
+    ActionButton(if (line != null) "下一步" else "跳过，下一步", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
+}
+
+@Composable
+private fun ColumnScope.Extras(onNow: () -> Unit, onSkip: () -> Unit) {
+    val c = Rs.colors
+    Spacer(Modifier.height(32.dp))
+    Text("基本设置好了 🎉", style = RsType.title, color = c.text)
+    Spacer(Modifier.height(8.dp))
+    Text("还有几项可以让涛声更好用，要现在设置吗？以后也能在设置里找到。", style = RsType.body, color = c.textSecondary)
+    Spacer(Modifier.height(24.dp))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
+        Reason("🔋", "后台保活", "小米等手机还要打开自启动，全天收音才不会断。")
+        Reason("☁️", "备份", "换手机、误删都能找回来。")
+        Reason("📮", "推送", "每日回顾、待办提醒推到微信等常用的地方。")
+        Reason("📍", "足迹", "记下每天去过哪，事件上显示当时在哪。")
+    }
+    Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
+    ActionButton("现在设置", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onNow)
+    Spacer(Modifier.height(10.dp))
+    ActionButton("直接开始", ActionKind.Secondary, Modifier.fillMaxWidth(), onClick = onSkip)
+}
+
+/** 现在设置的第一步：后台保活（最影响全天收音）；其余几项进 App 后在今天页“继续完善”里接着引导 */
+@Composable
+private fun ColumnScope.KeepAlive(onDone: () -> Unit) {
+    val c = Rs.colors
+    val setup = if (AppGraph.isReady) AppGraph.setup else null
+    var items by remember { mutableStateOf(setup?.items().orEmpty()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { items = setup?.items().orEmpty() }
+    Spacer(Modifier.height(24.dp))
+    Text("让涛声在后台不被关掉", style = RsType.title, color = c.text)
+    Spacer(Modifier.height(8.dp))
+    Text("逐项点“去设置”，按系统页面打开后返回这里。手机型号不同，项目会略有不同。", style = RsType.body, color = c.textSecondary)
+    Spacer(Modifier.height(20.dp))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
+        items.forEach { item ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(item.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = if (item.done == true) c.textTertiary else c.text)
+                    Text(item.description, style = RsType.caption, color = c.textSecondary)
+                }
+                Spacer(Modifier.width(10.dp))
+                when (item.done) {
+                    true -> Text("✓", style = RsType.headline, color = c.good)
+                    false -> app.resound.ui.verify.Pill("去设置", filled = true) { setup?.open(item.key) }
+                    null -> app.resound.ui.verify.Pill("已设置", filled = false) { setup?.markDone(item.key); items = setup?.items().orEmpty() }
+                }
+            }
+        }
+        if (items.isEmpty()) Text("这台手机不需要额外设置。", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(vertical = 14.dp))
+    }
+    Spacer(Modifier.height(12.dp))
+    Text("备份、推送、足迹在今天页顶部的“继续完善”里，接着点就能设置。", style = RsType.caption, color = c.textTertiary)
+    Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
+    ActionButton("进入涛声", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
 }

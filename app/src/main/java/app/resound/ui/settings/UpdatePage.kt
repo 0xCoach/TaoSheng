@@ -144,7 +144,7 @@ private fun NewVersionCard(info: UpdateInfo, state: UpdateState, canInstall: Boo
             is UpdateState.Ready -> if (canInstall) {
                 Pill("安装", filled = true) { updater.install() }
                 Spacer(Modifier.height(8.dp))
-                Text("先自动备份数据，然后系统会再弹一次确认，请点“更新”或“继续安装”。安装时录音会暂停十几秒，装好后自动继续", style = RsType.caption, color = c.textTertiary)
+                Text("数据在下载完后已自动备份。点安装后系统会弹一次确认，请点“更新”或“继续安装”。安装时录音会暂停十几秒，装好后自动继续", style = RsType.caption, color = c.textTertiary)
             } else {
                 Text("需要先允许涛声安装应用", style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))

@@ -76,7 +76,10 @@ class UpdateEngineTest {
                     val next = kinds.indices.firstOrNull { it > at && kinds[it] == kind }
                     assertNotNull("$kind missing from $kinds", next); at = next!!
                 }
-                assertTrue(states.any { it is UpdateState.Installing && it.backingUp })
+                assertFalse(states.any { it is UpdateState.Installing && it.backingUp })
+                assertEquals(1, platform.backups)
+                assertEquals(fixtureManifest().apk.sha256, store.string("preBackupFor"))
+                assertTrue(store.long("preBackupAt") > 0)
                 assertTrue(states.any { it is UpdateState.Installing && !it.backingUp })
                 engine.installResult(51, cancelled = true)
                 assertTrue(engine.state.value is UpdateState.Ready)
@@ -136,7 +139,7 @@ class UpdateEngineTest {
                 engine.install()
                 withTimeout(5000) { platform.submitted.await() }
                 assertEquals(1, platform.installs)
-                assertEquals(2, platform.backups)
+                assertEquals(3, platform.backups)
             } finally { scope.cancel() }
         }
     }
@@ -159,9 +162,14 @@ internal class FakePlatform : UpdatePlatform {
     var installs = 0
     var backups = 0
     var backupFails = false
+    var duringBackup: suspend () -> Unit = {}
     val submitted = CompletableDeferred<Unit>()
     override fun verify(apk: File, manifest: UpdateManifest) {}
-    override suspend fun backup(progress: (String, Float) -> Unit) { backups++; if (backupFails) error("snapshot_failed") }
+    override suspend fun backup(progress: (String, Float) -> Unit) {
+        backups++
+        duringBackup()
+        if (backupFails) error("snapshot_failed")
+    }
     override fun install(apk: File, rememberSession: (Int) -> Unit) { rememberSession(51); installs++; submitted.complete(Unit) }
     override fun canInstall() = true
     override fun sessionExists(id: Int) = false

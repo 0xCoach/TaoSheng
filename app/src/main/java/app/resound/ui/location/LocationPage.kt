@@ -110,6 +110,10 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
     val lookup by repo.settings.lookup.collectAsState()
     val hasKey by repo.settings.hasAmapKey.collectAsState()
     val latest by remember { repo.latest() }.collectAsState(null)
+    // 0.2.21：停留点下挂这段时间里的事；当天事件取一次
+    val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
+    val dayEvents by remember(date, memory) { memory?.events(day) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(emptyList())
+    var openEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
     // 地名按约 100 米格子取；先读缓存，再逐个去查
     val places = remember { androidx.compose.runtime.mutableStateMapOf<String, Place?>() }
     val wanted = remember(track.stays, latest) { (listOfNotNull(latest?.let { it.lat to it.lng }) + track.stays.map { it.lat to it.lng }).distinctBy { Places.cell(it.first, it.second) } }
@@ -219,6 +223,7 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
                 track.stays.forEachIndexed { i, s ->
                     if (i > 0) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
                     StayRow(s, placeAt(s.lat, s.lng), lookup, timeline.groupOf(s)) { editing = s.lat to s.lng }
+                    app.resound.ui.context.StayEvents(s.start, s.end, dayEvents) { openEvent = it }
                 }
             }
         }
@@ -232,6 +237,7 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
                 }.padding(8.dp))
         }
     }
+    if (memory != null) openEvent?.let { e -> app.resound.ui.today.EventSheet(e, memory) { openEvent = null } }
     editing?.let { (la, ln) ->
         EditPlaceSheet(repo, la, ln, placeAt(la, ln), Places.nearestManual(manual, la, ln), context) { editing = null }
     }

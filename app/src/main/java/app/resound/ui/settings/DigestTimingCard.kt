@@ -123,6 +123,20 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
             Spacer(Modifier.width(12.dp))
             app.resound.ui.skills.Toggle(thinking, settings::setDeepThinking)
         }
+
+        // 卡 130：把当时在哪、周围什么声音一起交给大模型，场景和地点判断更准
+        Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+        val situation by settings.includeSituation.collectAsState()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("整理时参考地点和环境音", style = RsType.subhead, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("每段对话附上当时在哪（来自足迹）、周围有什么声音，分场景、认地点更准。地点会一起发给整理用的大模型服务。",
+                    style = RsType.caption, color = c.textTertiary)
+            }
+            Spacer(Modifier.width(12.dp))
+            app.resound.ui.skills.Toggle(situation, settings::setIncludeSituation)
+        }
         Spacer(Modifier.height(6.dp))
         Text("支持 DeepSeek、火山方舟、硅基流动；其他服务按它自己的默认。",
             style = RsType.caption, color = c.textTertiary)

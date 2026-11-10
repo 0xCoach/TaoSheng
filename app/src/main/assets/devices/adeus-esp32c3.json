@@ -1,0 +1,20 @@
+{
+  "id": "adeus-esp32c3",
+  "name": "ADeus ESP32-C3（8 kHz PCM 试用）",
+  "version": 1,
+  "minApp": "0.2.21",
+  "status": "trial",
+  "transport": "ble",
+  "match": {
+    "serviceUuid": "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+  },
+  "mtu": 185,
+  "audio": {
+    "service": "4fafc201-1fb5-459e-8fcc-c5c9c331914b",
+    "notify": "beb5483e-36e1-4688-b7f5-ea07361b26a8",
+    "codec": "pcm16",
+    "sampleRate": 8000,
+    "channels": 1
+  },
+  "offline": "none"
+}

@@ -72,6 +72,7 @@ class DigestRunner(
         val forceNow = force ?: forceOnce.also { forceOnce = false }
         _progress.value = DigestProgress(startedAt = elapsed())
         _running.value = true
+        probe = null
         try {
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
             if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) { record(null, "还没填写大模型密钥"); return false }
@@ -245,6 +246,28 @@ class DigestRunner(
                     return digest(first, preset, key, onEvents) ?: digest(second, preset, key, onEvents)
                 }
             }
+            if (e.rejected) {
+                when (configAccepts(preset, key)) {
+                    null -> return e.type
+                    false -> {
+                        failureDetail = "大模型拒收了整理请求，请到设置里点“检测”检查模型配置"
+                        retryFailure = false
+                        return e.type
+                    }
+                    true -> Unit
+                }
+                // 配置没问题，是这批内容被拒：切小重试，最后只跳过被拒的几句，后面的批次照常整理。
+                dao.removePendingDigest(storedId)
+                actualModels.remove(storedId)
+                splitForRetry(lines, MIN_REJECT_SPLIT_LINES)?.let { (first, second) ->
+                    return digest(first, preset, key, onEvents) ?: digest(second, preset, key, onEvents)
+                }
+                dao.markDigested(lines.map { it.id }, now())
+                diagnostics.abandoned(lines.size, now())
+                clearFailures(lines.first().id)
+                failureDetail = null
+                return null
+            }
             if (e.type == LlmError.Format && failed(lines.first().id) >= MAX_FORMAT_FAILURES) {
                 // 这段连续几次都整理不出来：放弃，原话仍在“原话”页
                 dao.markDigested(lines.map { it.id }, now())
@@ -259,6 +282,20 @@ class DigestRunner(
             failureDetail = "整理结果本地保存失败，将保留结果重试，不重复请求模型"
             LlmError.Format
         }
+    }
+
+    /** 本轮是否已确认“模型配置本身能用”：true 能用，false 连测试话也被拒，null 还没测。 */
+    private var probe: Boolean? = null
+
+    /** 发一句很短的测试话，分清是内容被拒还是配置被拒；网络等暂时问题返回 null，按原错误稍后重试。 */
+    private suspend fun configAccepts(preset: LlmPreset, key: String): Boolean? {
+        probe?.let { return it }
+        val result = try { request(preset, key, PROBE_SYSTEM, PROBE_USER); true }
+            catch (e: CancellationException) { throw e }
+            catch (e: LlmException) { if (e.rejected) false else null }
+            catch (_: Exception) { null }
+        probe = result
+        return result
     }
 
     private fun gapMillis() = settings.pauseMinutes.value * 60_000L
@@ -321,6 +358,8 @@ class DigestRunner(
          */
         const val MAX_LINES = 600
         const val MAX_FORMAT_FAILURES = 3
+        internal const val PROBE_SYSTEM = "你是格式检测助手，只输出 JSON。"
+        internal const val PROBE_USER = "请原样返回这个 JSON：{\"ok\":true}"
         const val MAX_BATCH_CHARS = 40_000
         /** 每句除正文外的编号、时间、说话人（如“[123] 12:34:56 说话人1：”）约 20 字，留点余量 */
         const val LINE_OVERHEAD_CHARS = 30

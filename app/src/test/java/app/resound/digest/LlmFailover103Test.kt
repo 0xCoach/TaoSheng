@@ -55,6 +55,15 @@ class LlmFailover103Test {
             .body(body.toResponseBody()).build()
     }.build())
 
+    @Test fun rejectionTriesBackupButDoesNotCoolPrimary134() = runBlocking {
+        backup()
+        val c = client { 400 to """{"error":{"message":"Content Exists Risk"}}""" }
+        val e = runCatching { chat(c::chatJson) }.exceptionOrNull() as LlmException
+        assertTrue(e.rejected)
+        assertTrue(e.detail.startsWith("大模型服务认为内容不合规"))
+        assertEquals("暂无", failover.coolingDiagnostics())
+    }
+
     @Test fun serverFailureUsesFirstBackupAndCountsReturnedFailureUsage() = runBlocking {
         val b = backup(); backup("second")
         val seen = mutableListOf<String>(); val charged = mutableListOf<LlmReply>()

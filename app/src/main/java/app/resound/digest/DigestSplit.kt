@@ -4,10 +4,12 @@ import app.resound.data.TranscriptLineEntity
 import kotlin.math.abs
 
 internal const val MIN_SPLIT_LINES = 40
+/** 被拒收时切得更细，只跳过出问题的那几句。 */
+internal const val MIN_REJECT_SPLIT_LINES = 8
 
 /** 原话已按时间排序；只在中间一半挑最长停顿，并列时优先靠近中点。 */
-fun splitForRetry(lines: List<TranscriptLineEntity>): Pair<List<TranscriptLineEntity>, List<TranscriptLineEntity>>? {
-    if (lines.size < MIN_SPLIT_LINES) return null
+fun splitForRetry(lines: List<TranscriptLineEntity>, minLines: Int = MIN_SPLIT_LINES): Pair<List<TranscriptLineEntity>, List<TranscriptLineEntity>>? {
+    if (lines.size < maxOf(minLines, 2)) return null
     val firstCut = (lines.size + 3) / 4
     val lastCut = lines.size * 3 / 4
     var prefixEnd = Long.MIN_VALUE

@@ -91,9 +91,14 @@ class LlmFailover(
             attempts++
             try {
                 val trace = runCatching { diagnostics.start(feature, p) }.getOrNull()
-                val result = try {
-                    if (trace == null) call(p, candidate.key) else withContext(trace) { call(p, candidate.key) }
-                } catch (e: Throwable) { trace?.complete(e); throw e }
+                // 异常在 withContext 里先接住、出来后原样抛出：协程会复制穿过 withContext 的异常，
+                // 取消信号必须保持原对象往上传（LlmFailover103Test）。
+                val result = if (trace == null) call(p, candidate.key) else {
+                    var thrown: Throwable? = null
+                    val value = withContext(trace) { try { call(p, candidate.key) } catch (e: Throwable) { thrown = e; null } }
+                    thrown?.let { trace.complete(it); throw it }
+                    @Suppress("UNCHECKED_CAST") (value as T)
+                }
                 if (p.id != primary.id) recent.value = LlmSwitch(now(), feature, primary.name + " / " + primary.model,
                     p.name + " / " + p.model, errors.values.firstOrNull()?.let(::reason) ?: initialReason ?: "主模型暂不可用")
                 if (p.id != primary.id) recent.value?.let {

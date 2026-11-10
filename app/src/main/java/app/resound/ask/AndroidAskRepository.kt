@@ -69,14 +69,30 @@ fun createAskRepository(
     val selection = context.getSharedPreferences("ask-selection", Context.MODE_PRIVATE)
     val repository = RoomAskRepository(database.ask(), scope, { settings.hasKey.value || settings.failover.hasBackup(settings.preset) }, engine = {
         // 一轮问答固定服务和密钥，避免用户切换设置后同一轮混用模型。
-        val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
+        val compatibility = settings.providers.askCompatibility
+        val (preset, key, generations) = synchronized(settings.providers.guard) {
+            Triple(settings.preset, readKey(), settings.providers.saved.value.associate { it.id to compatibility.generation(it.id) })
+        }
         if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
-        val session = app.resound.digest.LlmFailover.StreamSession(preset, key)
+        val session = app.resound.digest.LlmFailover.StreamSession(preset, key).also { it.askFallback = true }
+        fun generation() = generations[session.primary.id] ?: -1L
+        var prefetching = false
         AskEngine(AskStream { messages, requested, delta, _ ->
-            // 即使额度耗尽也保留 tools 定义，同时 tool_choice=none，避免服务把工具语法泄漏进正文。
-            settings.failover.stream("问答", session, messages, definitions, client, delta,
+            // Tools 额度耗尽仍带定义；Prefetch 完全不发送 tools / tool_choice。
+            settings.failover.stream("问答", session, messages, if (prefetching) JSONArray() else definitions, client, delta,
                 { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, allowTools = requested.length() > 0)
-        }, definitions, placeTools::execute, { _, _ -> }, changes::propose)
+        }, definitions, placeTools::execute, { _, _ -> }, changes::propose,
+            mode = {
+                prefetching = compatibility.state(preset).fallback != null
+                if (prefetching) AskMode.Prefetch else AskMode.Tools
+            },
+            markFallback = { reason, actualFailure ->
+                prefetching = true
+                if (actualFailure) compatibility.mark(session.primary, reason, generation())
+            },
+            recordFailure = { compatibility.failed(session.primary, it, generation()) },
+            prefetch = AskPrefetch(tools::execute)::read,
+        )
     }, system = {
         val today = LocalDate.now()
         DigestPrompt.system(app.resound.AppGraph.prompts.text("ask"), today, context.appName).replace("{{TODAY}}", today.toString())

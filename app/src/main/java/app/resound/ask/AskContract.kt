@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
 
 enum class AskRole { User, Assistant }
 
+/** 卡 136：本次回答的查找方式。 */
+enum class AskMode { Tools, Prefetch }
+
 /** 回答引用的出处，点开能回到原话或那件事 */
 data class AskSource(
     /** line = 一句原话；event = 一件事；item = 一条提取项 */
@@ -37,6 +40,7 @@ data class AskMessage(
     val error: String? = null,
     /** 回答里要改数据时附的确认卡片；没有为 null */
     val action: AskAction? = null,
+    val mode: AskMode = AskMode.Tools,
 )
 
 enum class AskActionState { Pending, Done, Cancelled, Failed }

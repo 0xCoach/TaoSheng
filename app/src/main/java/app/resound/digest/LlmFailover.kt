@@ -158,11 +158,19 @@ class LlmFailover(
     }
 
     /** 一轮问答共用 Session；跨工具轮次或出处修复也不能在已输出后切换。 */
-    class StreamSession(var primary: LlmPreset, var key: String) { var emitted = false }
+    class StreamSession(var primary: LlmPreset, var key: String) {
+        var emitted = false
+        /** 仅问问启用：工具兼容错误交给本轮 Prefetch，不能先切换服务掩盖原因。 */
+        var askFallback = false
+    }
     suspend fun stream(feature: String, session: StreamSession, messages: JSONArray, tools: JSONArray,
         client: LlmClient, onText: (String) -> Unit, usage: suspend (Long, Long) -> Unit, allowTools: Boolean,
     ): LlmStreamReply {
         val (reply, actual) = execute(feature, session.primary, session.key, { !session.emitted }) { p, secret ->
+            if (session.askFallback && tools.length() > 0) providers.askCompatibility.state(p).fallback?.let {
+                session.primary = p; session.key = secret
+                throw app.resound.ask.AskPrefetchRequired(it.reason, actualFailure = false)
+            }
             var prompt = 0L; var completion = 0L
             try {
                 if (secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
@@ -172,6 +180,11 @@ class LlmFailover(
                 }, { a, b -> prompt = a; completion = b }, allowTools)
                 session.key = secret
                 result
+            } catch (e: LlmException) {
+                if (session.askFallback && (e.status == 400 || e.type == LlmError.Format)) {
+                    session.primary = p; session.key = secret; session.emitted = true
+                }
+                throw e
             } finally { withContext(NonCancellable) { usage(prompt, completion) } }
         }
         session.primary = actual

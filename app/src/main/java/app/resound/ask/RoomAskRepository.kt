@@ -135,8 +135,8 @@ class RoomAskRepository(
                 engine().answer(system(), history, user.text, context) { update ->
                     synchronized(lock) {
                         if (accepting) {
-                            proposal = update.proposal ?: proposal
-                            current = current.copy(action = proposal?.action, text = update.text, sources = update.sources, progress = update.progress, error = update.error)
+                            proposal = if (update.mode == AskMode.Prefetch) null else update.proposal ?: proposal
+                            current = current.copy(mode = update.mode, action = proposal?.action, text = update.text, sources = update.sources, progress = update.progress, error = update.error)
                             state.value = history + user + current
                         }
                     }
@@ -167,9 +167,9 @@ class RoomAskRepository(
     }
 
     private fun AskMessage.entity(conversationId: Long) = AskMessageEntity(
-        conversationId = conversationId, role = role.name, text = text, sourcesJson = AskCitations.encode(sources), at = at, error = error,
+        conversationId = conversationId, role = role.name, text = text, sourcesJson = AskCitations.encodeMessage(sources, mode), at = at, error = error,
     )
     private fun AskMessageEntity.model() = AskMessage(
-        id, AskRole.valueOf(role), text, AskCitations.decode(sourcesJson), at, streaming = false, error = error, action = ProposedChange.decode(actionJson)?.action,
+        id, AskRole.valueOf(role), text, AskCitations.decode(sourcesJson), at, streaming = false, error = error, action = ProposedChange.decode(actionJson)?.action, mode = AskCitations.mode(sourcesJson),
     )
 }

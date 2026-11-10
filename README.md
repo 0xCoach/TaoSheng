@@ -339,3 +339,17 @@ app/src/main/java/app/resound/
 如果涛声对你有用，点个 ⭐ 让更多人看到。
 
 </div>
+
+## ⭐ Star 历史
+
+<div align="center">
+
+<a href="https://star-history.com/#0xCoach/TaoSheng&amp;Date">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date&amp;theme=dark">
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date">
+  <img alt="Star 增长曲线" src="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date" width="720">
+</picture>
+</a>
+
+</div>

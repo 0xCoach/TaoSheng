@@ -243,3 +243,17 @@ TaoSheng is a personal memory tool. Recording conversations is regulated in many
 ## 📄 License
 
 [MIT](LICENSE) © 2026 0xCoach
+
+## ⭐ Star history
+
+<div align="center">
+
+<a href="https://star-history.com/#0xCoach/TaoSheng&amp;Date">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date&amp;theme=dark">
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date">
+  <img alt="Star history chart" src="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date" width="720">
+</picture>
+</a>
+
+</div>

@@ -92,7 +92,8 @@ class UpdatePreBackupTest {
             engine.install()
             assertNull(withTimeoutOrNull(150) { platform.submitted.await() })
             assertEquals(1, platform.backups)
-            assertTrue(engine.state.value is UpdateState.Ready)
+            // 点了安装但后台备份还没完：界面显示“正在保存”，不像没点上
+            assertTrue((engine.state.value as? UpdateState.Installing)?.backingUp == true)
             releaseBackup.complete(Unit)
             awaitInstall()
             assertEquals(1, platform.backups)

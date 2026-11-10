@@ -208,7 +208,7 @@ internal class UpdateEngine(
                     fetch(release.apk, target, false)
                 }
                 // 只有完整摘要、包名、版本及证书都通过，才让界面出现“安装”。
-                try { verifyReady(target) }
+                try { platform.verify(target, release) }
                 catch (e: Exception) { target.delete(); throw e }
                 store.save("ready" to release.apk.sha256)
                 mutable.value = UpdateState.Ready(info())
@@ -218,6 +218,7 @@ internal class UpdateEngine(
             catch (e: Exception) { fail(e, UPDATE_NETWORK_ERROR, start); return@withLock }
             // Ready 已发布，但继续持有 gate；此时点安装会等待本次备份，不会重复启动。
             val backupStart = System.nanoTime()
+            preBackupRunning = true
             try {
                 backupReady { _, _ -> }
                 log("pre_backup ms=${elapsed(backupStart)} result=ok")
@@ -227,7 +228,7 @@ internal class UpdateEngine(
             } catch (e: Exception) {
                 // 安装包已校验完成；备份失败不撤销 Ready，安装时按原流程重试。
                 log("pre_backup ms=${elapsed(backupStart)} failure=${reason(e)}")
-            }
+            } finally { preBackupRunning = false }
         }
     } }
 
@@ -255,11 +256,19 @@ internal class UpdateEngine(
         store.save("preBackupFor" to manifest!!.apk.sha256, "preBackupAt" to now())
     }
 
+    /** 下载后的后台备份进行中；此时点安装要等它，先把界面切到“正在保存”，免得像没点上 */
+    @Volatile private var preBackupRunning = false
+
     override fun install() { scope.launch(Dispatchers.IO) {
+        val waited = preBackupRunning && mutable.value is UpdateState.Ready
+        if (waited) mutable.value = UpdateState.Installing(info(), true, "正在保存本机数据", 0f)
         gate.withLock {
             restore()
             discardDisabledPreview()
-            if (manifest == null || mutable.value is UpdateState.Installing || store.string("ready") != manifest!!.apk.sha256) return@withLock
+            if (manifest == null || (mutable.value is UpdateState.Installing && !waited) || store.string("ready") != manifest!!.apk.sha256) {
+                if (waited && mutable.value is UpdateState.Installing && manifest != null) mutable.value = UpdateState.Ready(info())
+                return@withLock
+            }
             if (!canInstall()) { mutable.value = UpdateState.Ready(info()); return@withLock }
             val start = System.nanoTime()
             try {

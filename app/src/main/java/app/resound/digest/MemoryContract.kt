@@ -231,6 +231,9 @@ interface MemoryRepository {
 data class LlmPreset(val id: String, val name: String, val baseUrl: String, val model: String)
 
 interface DigestSettings {
+    /** 卡 130：整理时把每段原话当时的地点和环境音一起交给大模型（位置会发给大模型服务商，默认关） */
+    val includeSituation: kotlinx.coroutines.flow.StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(false)
+    fun setIncludeSituation(on: Boolean) {}
     fun headers(presetId: String): List<HeaderEntry> = emptyList()
     fun saveHeaders(presetId: String, headers: List<HeaderEntry>) {}
     val presets: List<LlmPreset>

@@ -1,6 +1,8 @@
 package app.resound.ask
 
 import app.resound.digest.LlmStreamReply
+import app.resound.digest.LlmException
+import app.resound.digest.LlmError
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,16 +19,58 @@ class AskEngine(
     private val search: suspend (String, JSONObject, MutableList<AskSource>) -> JSONObject,
     private val usage: suspend (Long, Long) -> Unit,
     private val propose: ((JSONObject, List<AskSource>) -> ProposedChange)? = null,
+    private val mode: () -> AskMode = { AskMode.Tools },
+    private val markFallback: (AskFailure, Boolean) -> Unit = { _, _ -> },
+    private val recordFailure: (AskFailure) -> Unit = {},
+    private val prefetch: suspend (String, AskContext?) -> AskContext = AskPrefetch(search)::read,
 ) {
-    data class Update(val text: String, val sources: List<AskSource>, val progress: String?, val error: String? = null, val proposal: ProposedChange? = null)
+    data class Update(val text: String, val sources: List<AskSource>, val progress: String?, val error: String? = null, val proposal: ProposedChange? = null, val mode: AskMode = AskMode.Tools)
 
     suspend fun answer(system: String, history: List<AskMessage>, question: String, update: (Update) -> Unit) =
         answer(system, history, question, null, update)
 
     suspend fun answer(system: String, history: List<AskMessage>, question: String, context: AskContext?, update: (Update) -> Unit) {
+        var currentMode = mode()
+        fun emit(value: Update) {
+            value.error?.let { recordFailure(when (it) {
+                AskFailure.Empty.human -> AskFailure.Empty
+                AskFailure.AnswerFormat.human -> AskFailure.AnswerFormat
+                else -> AskFailure.Citation
+            }) }
+            update(value.copy(mode = currentMode))
+        }
+        suspend fun run() {
+            emit(Update("", emptyList(), if (currentMode == AskMode.Prefetch) "正在由程序查找相关记录…" else "正在查找相关记录…"))
+            val evidence = if (currentMode == AskMode.Prefetch) prefetch(question, context) else context
+            answerOnce(system, history, question, evidence, currentMode, ::emit)
+        }
+        try {
+            try { run() } catch (fallback: AskPrefetchRequired) {
+                // 偶尔一次没查记录不代表不会查：只这次改用程序先查，不永久标记。
+                if (fallback.reason != AskFailure.NoLookup) markFallback(fallback.reason, fallback.actualFailure)
+                currentMode = AskMode.Prefetch
+                run() // 同一次问答只兜底一次，丢弃失败轮的文字和工具消息。
+            }
+        } catch (e: LlmException) {
+            recordFailure(AskFailure.from(e, withTools = currentMode == AskMode.Tools))
+            when {
+                e.type == LlmError.Server -> throw LlmException(LlmError.Server, e.status, usage = e.usage)
+                e.type == LlmError.Format && !e.truncated -> throw LlmException(LlmError.Format, e.status, AskFailure.AnswerFormat.human, e.usage)
+                else -> throw e
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            recordFailure(AskFailure.Timeout); throw e
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e
+        } catch (e: Exception) { recordFailure(AskFailure.Query); throw e }
+    }
+
+    private suspend fun answerOnce(system: String, history: List<AskMessage>, question: String,
+        context: AskContext?, mode: AskMode, update: (Update) -> Unit) {
         var proposal: ProposedChange? = null
         fun emit(value: Update) = update(value.copy(proposal = proposal))
         val messages = JSONArray().put(JSONObject().put("role", "system").put("content", system +
+            (if (mode == AskMode.Prefetch) "\n本轮由程序先查，模型只答。只依据本轮资料给出答案，不再调用工具，不能执行或声称完成数据修改。" else "") +
+            "\n不需要查记录的寒暄或通用问题可直接回答，必须以 [无需记录] 开头且不带出处；涉及用户经历必须查证，不能用此标记跳过核实。" +
             "\n本轮提供的局部上下文和重新核验出处也可作为证据，编号仅使用本轮 ref；已有充分原话可直接回答，无需重复检索。历史回答本身不是证据。"))
         val refreshed = context?.sources.orEmpty().associateBy { it.kind to it.id }
         history.takeLast(12).forEach {
@@ -47,24 +91,32 @@ class AskEngine(
             var text = ""
             var prompt = 0L; var completion = 0L
             val reply = try {
-                stream.call(messages, if (count < 6 && !repairing) definitions else JSONArray(), { delta ->
+                stream.call(messages, if (mode == AskMode.Tools && count < 6 && !repairing) definitions else JSONArray(), { delta ->
                     text += delta
-                    val parsed = AskCitations.parse(text, sources)
+                    val parsed = AskCitations.parse(displayText(text), sources)
                     if (!text.contains("DSML")) emit(Update(parsed.text, parsed.sources, null))
                 }, { p, c -> prompt = p; completion = c })
+            } catch (e: LlmException) {
+                if (mode == AskMode.Tools && !e.truncated &&
+                    ((e.type == LlmError.Format && !repairing) || e.status == 400)) throw AskPrefetchRequired(AskFailure.from(e))
+                throw e
             } finally {
                 // 取消也保留已收到的 usage；未返回 usage 时计一次调用、token 为 0，不捏造用量。
                 withContext(NonCancellable) { usage(prompt, completion) }
             }
             if (reply.calls.isEmpty()) {
-                val parsed = AskCitations.parse(reply.content, sources)
+                val casual = reply.content.trimStart().startsWith(NO_RECORDS) && !reply.content.contains("[^")
+                val parsed = AskCitations.parse(displayText(reply.content), sources)
                 reply.diagnostics?.parsed(items = parsed.sources.size, empty = parsed.text.isBlank(),
                     filtered = sources.isNotEmpty() && parsed.sources.isEmpty(),
                     error = if (parsed.invalid || reply.content.contains("DSML") || parsed.text.isBlank()) app.resound.digest.LlmError.Format else null)
                 if (reply.content.contains("DSML")) {
-                    emit(Update("", emptyList(), null, "大模型返回的格式不对")); return
+                    if (mode == AskMode.Tools) throw AskPrefetchRequired(AskFailure.ToolFormat)
+                    emit(Update("", emptyList(), null, AskFailure.AnswerFormat.human)); return
                 }
-                val missing = proposal == null && sources.isNotEmpty() && parsed.sources.isEmpty() &&
+                if (mode == AskMode.Tools && !casual && count == 0 && sources.isEmpty() && context == null &&
+                    parsed.text.isNotBlank()) throw AskPrefetchRequired(AskFailure.NoLookup)
+                val missing = !casual && proposal == null && sources.isNotEmpty() && parsed.sources.isEmpty() &&
                     parsed.text.isNotBlank() && !parsed.text.contains("没找到")
                 if (!repairing && (parsed.invalid || missing)) {
                     repairing = true
@@ -80,9 +132,9 @@ class AskEngine(
                 val error = when {
                     parsed.invalid -> "回答出处仍无法核实，已停止自动重试。请指定事件或补充关键词。"
                     parsed.text.isBlank() -> "没有收到回答，请重试"
-                    // 一次都没查记录：多半是模型不支持工具调用，指给用户去检测，而不是只让重问
-                    proposal == null && parsed.sources.isEmpty() && !parsed.text.contains("没找到") ->
-                        if (count == 0 && sources.isEmpty()) "模型没查记录就作答，可能不支持工具调用，可在设置里检测模型"
+                    // 程序查过也不能让没有出处的经历结论通过。
+                    !casual && proposal == null && parsed.sources.isEmpty() && !parsed.text.contains("没找到") ->
+                        if (mode == AskMode.Prefetch) "没找到可核实的记录，请补充关键词或缩小时间范围"
                         else "回答缺少出处，请重新提问；常出现可在设置里检测模型"
                     else -> null
                 }
@@ -92,7 +144,7 @@ class AskEngine(
             }
             reply.diagnostics?.parsed(items = reply.calls.size, empty = false,
                 error = if (repairing) app.resound.digest.LlmError.Format else null)
-            if (repairing) {
+            if (mode == AskMode.Prefetch || repairing) {
                 emit(Update("", emptyList(), null, "模型未完成出处核对，已停止自动重试")); return
             }
             messages.put(reply.message())
@@ -127,6 +179,13 @@ class AskEngine(
         }
         emit(Update("", emptyList(), null, "查询次数已达上限，请缩小问题范围"))
     }
+
+    private fun displayText(text: String): String {
+        val trimmed = text.trimStart()
+        if (trimmed.isNotEmpty() && NO_RECORDS.startsWith(trimmed)) return ""
+        return if (trimmed.startsWith(NO_RECORDS)) trimmed.removePrefix(NO_RECORDS).trimStart() else text
+    }
+    private companion object { const val NO_RECORDS = "[无需记录]" }
 
     private fun progress(name: String, args: JSONObject): String {
         val keyword = args.optJSONArray("keywords")?.optString(0)?.take(16)?.takeIf { it.isNotBlank() }

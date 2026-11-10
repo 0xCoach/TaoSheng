@@ -22,16 +22,16 @@ class ModelCheckTest {
 
     @Test fun modelIgnoringToolsIsReportedAsNoToolSupport() = runBlocking {
         val r = result(ModelCheck(okJson) { _, _ -> LlmStreamReply("暗号是芝麻开门", emptyList()) }.run())
-        assertEquals(false, r[ModelCheck.TOOLS]!!.first)
-        assertEquals(true, r[ModelCheck.TOOLS]!!.second.startsWith("模型不支持工具调用"))
-        assertEquals(null, r[ModelCheck.CITE]!!.first)
+        assertEquals(true, r[ModelCheck.TOOLS]!!.first)
+        assertEquals(true, r[ModelCheck.TOOLS]!!.second.startsWith("不会自己查记录"))
+        assertEquals(false, r[ModelCheck.CITE]!!.first)
     }
 
     @Test fun serverRejectingToolsIsReportedAsNoToolSupport() = runBlocking {
         val r = result(ModelCheck(okJson) { _, tools ->
             if (tools.length() > 0) throw LlmException(LlmError.Server, 400) else LlmStreamReply("好", emptyList())
         }.run())
-        assertEquals(false to "模型不支持工具调用", r[ModelCheck.TOOLS])
+        assertEquals(true to "不会自己查记录，问问将改用程序先查（可用）", r[ModelCheck.TOOLS])
     }
 
     @Test fun answerWithoutMarkerFailsCitation() = runBlocking {

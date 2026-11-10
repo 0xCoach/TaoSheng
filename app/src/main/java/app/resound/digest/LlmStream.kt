@@ -3,10 +3,11 @@ package app.resound.digest
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 每个请求内部按 index 拼接工具名、id、参数；绝不把服务端异常正文交给界面。 */
-data class LlmToolCall(val id: String, val name: String, val arguments: String) {
+/** 每个请求内部归并工具分片；绝不把服务端异常正文交给界面。 */
+data class LlmToolCall(val id: String, val name: String, val arguments: String, val extraContent: JSONObject? = null) {
     fun json(): JSONObject = JSONObject().put("id", id).put("type", "function")
         .put("function", JSONObject().put("name", name).put("arguments", arguments))
+        .also { if (extraContent != null) it.put("extra_content", JSONObject(extraContent.toString())) }
 }
 data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val reasoningContent: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null) {
     fun message(): JSONObject = JSONObject().put("role", "assistant").put("content", content.ifEmpty { null } ?: JSONObject.NULL)
@@ -24,8 +25,9 @@ internal class LlmSseParser(
     private val text = StringBuilder()
     private val reasoning = StringBuilder()
     private var hasReasoning = false
-    private data class CallParts(val id: StringBuilder = StringBuilder(), val name: StringBuilder = StringBuilder(), val arguments: StringBuilder = StringBuilder())
+    private data class CallParts(val id: StringBuilder = StringBuilder(), val name: StringBuilder = StringBuilder(), val arguments: StringBuilder = StringBuilder(), val extra: JSONObject = JSONObject())
     private val calls = sortedMapOf<Int, CallParts>()
+    private val ids = mutableMapOf<String, Int>()
     var done = false; private set
     private var finished = false
     private var chars = 0
@@ -54,6 +56,7 @@ internal class LlmSseParser(
                     val reason = choice.getString("finish_reason")
                     diagnostics?.finishReason(reason)
                     diagnostics?.content(text.toString())
+                    if (reason == "length") throw LlmException(LlmError.Format, detail = LlmException.TRUNCATED, truncated = true)
                     if (reason !in setOf("stop", "tool_calls")) throw LlmException(LlmError.Format)
                     finished = true
                 }
@@ -69,10 +72,21 @@ internal class LlmSseParser(
                 val toolCalls = delta.optJSONArray("tool_calls") ?: JSONArray()
                 for (j in 0 until toolCalls.length()) {
                     val call = toolCalls.getJSONObject(j)
-                    val index = call.getInt("index")
+                    val explicit = !call.isNull("index")
+                    val id = if (call.isNull("id")) null else call.getString("id")
+                    val index = if (explicit) call.getInt("index") else if (id != null) {
+                        ids[id] ?: (0..31).firstOrNull { it !in calls }
+                            ?: throw LlmException(LlmError.Format)
+                    } else j
                     if (index !in 0..31) throw LlmException(LlmError.Format)
                     val parts = calls.getOrPut(index) { CallParts() }
-                    if (!call.isNull("id")) parts.id.append(call.getString("id"))
+                    if (id != null) {
+                        if (explicit || parts.id.isEmpty()) parts.id.append(id)
+                        ids[parts.id.toString()] = index
+                    }
+                    call.optJSONObject("extra_content")?.let { extra ->
+                        merge(parts.extra, extra); chars += extra.toString().length
+                    }
                     call.optJSONObject("function")?.let { f ->
                         if (!f.isNull("name")) parts.name.append(f.getString("name"))
                         if (!f.isNull("arguments")) {
@@ -85,14 +99,22 @@ internal class LlmSseParser(
         } catch (e: LlmException) { diagnostics?.content(text.toString()); throw e }
         catch (_: Exception) { throw LlmException(LlmError.Format) }
     }
+    private fun merge(target: JSONObject, incoming: JSONObject) {
+        incoming.keys().forEach { key ->
+            val value = incoming.get(key)
+            val previous = target.optJSONObject(key)
+            if (value is JSONObject && previous != null) merge(previous, value)
+            else target.put(key, value)
+        }
+    }
     fun recordPartial() { diagnostics?.content(text.toString()) }
 
     fun finish(): LlmStreamReply {
         dispatch()
         if (!done || !finished) throw LlmException(LlmError.Format)
-        val result = calls.values.map {
-            if (it.id.isEmpty() || it.name.isEmpty()) throw LlmException(LlmError.Format)
-            LlmToolCall(it.id.toString(), it.name.toString(), it.arguments.toString())
+        val result = calls.map { (index, it) ->
+            if (it.name.isEmpty()) throw LlmException(LlmError.Format)
+            LlmToolCall(it.id.toString().ifEmpty { "resound_call_$index" }, it.name.toString(), it.arguments.toString(), it.extra.takeIf { extra -> extra.length() > 0 })
         }
         if (result.map { it.id }.distinct().size != result.size) throw LlmException(LlmError.Format)
         return LlmStreamReply(text.toString(), result, reasoning.toString().takeIf { hasReasoning })

@@ -48,6 +48,7 @@ class AndroidLlmProviders internal constructor(
     }
     internal val guard = Any()
     private val prefs = context.getSharedPreferences("llm-providers", Context.MODE_PRIVATE)
+    val askCompatibility = app.resound.ask.AskCompatibility(context)
     override val templates = parseTemplates(context.assets.open("llm-providers.json").bufferedReader().use { it.readText() }.also(LlmInputBudget::configure))
     private val listeners = mutableListOf<(String?) -> Unit>()
     /** 必须先将技能引用落盘，删除失败时不移除服务商/密钥。 */
@@ -108,6 +109,7 @@ class AndroidLlmProviders internal constructor(
     }
     internal fun listen(listener: (String?) -> Unit) = synchronized(guard) { listeners += listener }
     private fun publish(list: List<SavedProvider>, active: String, changed: String?) {
+        changed?.let(askCompatibility::changed)
         _saved.value = list.map { it.copy(hasKey = keys.has(it.id)) }
         _activeId.value = active
         listeners.forEach { it(changed) }

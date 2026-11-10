@@ -27,7 +27,11 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 }
 
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
-class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null) : Exception(detail)
+class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null, val truncated: Boolean = false) : Exception(detail) {
+    companion object {
+        const val TRUNCATED = "回答没写完就被截断了：模型思考太久，可在设置里关掉深度思考或换个模型"
+    }
+}
 
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null)
 /** 400 类拒收：换个时间重发同样内容也不会成功。 */
@@ -106,7 +110,7 @@ class LlmClient(
     ): LlmStreamReply = suspendCancellableCoroutine { cont ->
         val body = JSONObject().put("model", preset.model).put("messages", messages)
             .put("stream", true).put("stream_options", JSONObject().put("include_usage", true))
-            .put("temperature", 0.2).put("max_tokens", 1800)
+            .put("temperature", 0.2).put("max_tokens", 4096)
         if (tools.length() > 0) body.put("tools", tools).put("tool_choice", if (allowTools) "auto" else "none")
         applyLlmOptions(preset, body)
         val request = Request.Builder().url(preset.baseUrl.trimEnd('/') + "/chat/completions")

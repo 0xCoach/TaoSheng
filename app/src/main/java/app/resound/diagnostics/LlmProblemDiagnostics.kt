@@ -42,6 +42,10 @@ internal class LlmProblemDiagnostics(
             val primary = saved.firstOrNull { it.optString("id") == active } ?: saved.firstOrNull()
             buildString {
                 appendLine("服务商=${primary?.optString("name") ?: "暂无"} 模型=${primary?.optString("model") ?: "暂无"} 服务地址=${safeServiceAddress(primary?.optString("baseUrl").orEmpty())}")
+                val ask = primary?.let { app.resound.ask.AskCompatibility(context).state(
+                    app.resound.digest.LlmPreset(it.optString("id"), "", "", it.optString("model"))) }
+                appendLine("问问程序先查=${ask?.fallback != null} 标记原因=${ask?.fallback?.reason?.human ?: "暂无"} 时间=${LlmDiagnostics.stamp(ask?.fallback?.at ?: 0)}")
+                appendLine("上次实际问答失败=${ask?.lastFailure?.reason?.human ?: "暂无"} 时间=${LlmDiagnostics.stamp(ask?.lastFailure?.at ?: 0)}")
                 appendLine("备用切换=${context.getSharedPreferences("digest", 0).getBoolean("failoverEnabled", true)}")
                 append("备用列表（已保存的其他配置）：")
                 append(saved.filter { it != primary }.joinToString("；") { "${it.optString("name")} / ${it.optString("model")}" }.ifBlank { "暂无" })

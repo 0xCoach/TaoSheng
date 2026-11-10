@@ -111,19 +111,27 @@ class AndroidDigestSettings internal constructor(
     }
 
     override suspend fun check(): Result<List<ModelCheckItem>> {
-        val (selected, key) = skillCredentials(null)
+        val compatibility = providers.askCompatibility
+        val (selected, key, generation) = synchronized(providers.guard) {
+            val (preset, secret) = skillCredentials(null)
+            Triple(preset, secret, compatibility.generation(preset.id))
+        }
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return Result.success(ModelCheck(
             json = { system, user ->
                 client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
             },
+            toolResult = { reason ->
+                if (reason == null) compatibility.passed(selected, generation)
+                else compatibility.mark(selected, reason, generation, actualFailure = false)
+            },
             stream = { messages, tools ->
                 var prompt = 0L; var completion = 0L
                 try { client.streamChat(selected, key, messages, tools, {}, { p, c -> prompt = p; completion = c }) }
                 finally { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(LlmReply("", prompt, completion)) } }
             },
-        ).run())
+        ).run().map { it.copy(lastAskFailure = compatibility.state(selected).lastFailure) })
     }
 
     companion object {

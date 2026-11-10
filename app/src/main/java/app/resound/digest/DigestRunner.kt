@@ -42,6 +42,8 @@ class DigestRunner(
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = settings.digestRequest(client),
     private val situation: app.resound.context.SituationLookup? = null,
 ) {
+    private val diagnostics = app.resound.diagnostics.LlmDiagnostics(context)
+    private val responseTraces = mutableMapOf<String, app.resound.diagnostics.LlmResponseTrace>()
     private val appContext = context.applicationContext
     private val appName = context.appName
 
@@ -175,7 +177,8 @@ class DigestRunner(
                 val received = try {
                     settings.failover.chat("整理", preset, key, system, user, request) { usage ->
                         dao.addUsage(LocalDate.now().toString(), usage.promptTokens, usage.completionTokens, app.resound.usage.UsagePurpose.Digest)
-                    }.also { actualModels[batchId] = it.actualModel ?: preset.model }
+                    }.also { actualModels[batchId] = it.actualModel ?: preset.model
+                        it.diagnostics?.let { trace -> responseTraces[batchId] = trace } }
                 } catch (e: LlmException) { clearInFlight(); throw e }
                 catch (e: LlmInputLimitException) { clearInFlight(); throw e }
                 PendingDigest(batchId, lines.joinToString(",") { it.id.toString() }, received.content,
@@ -184,14 +187,17 @@ class DigestRunner(
                         unsavedReply = it
                         val saved = dao.rememberDigest(it)
                         unsavedReply = null
-                        if (!saved) { actualModels.remove(batchId); clearInFlight(); return null }
+                        if (!saved) { responseTraces.remove(batchId); actualModels.remove(batchId); clearInFlight(); return null }
                     }
             }
             clearInFlight()
             // 用户关停/重新开启寻物后，不能把旧响应冒充新一轮提取。
             thingBatch = stored.thingRevision?.let { revision -> thingBatch?.copy(revision = revision) }
             val reply = LlmReply(stored.content, stored.promptTokens, stored.completionTokens)
-            val (events, items) = DigestPrompt.parse(reply.content, indexed)
+            val trace = responseTraces.remove(batchId) ?: runCatching {
+                diagnostics.start("整理（缓存解析）", preset.copy(name = "暂无（历史缓存）", model = "暂无")).also { it.content(reply.content) }
+            }.getOrNull()
+            val (events, items) = DigestPrompt.parse(reply.content, indexed, diagnostics = trace)
             val at = now()
             val save: suspend () -> Unit = { dao.saveDigest(
                 events = events.map { e ->
@@ -229,6 +235,7 @@ class DigestRunner(
         } catch (e: LlmInputLimitException) {
             throw e
         } catch (e: LlmException) {
+            diagnostics.error(e.type, now())
             failureDetail = e.detail
             if (e.type == LlmError.Format) {
                 dao.removePendingDigest(storedId)
@@ -241,6 +248,7 @@ class DigestRunner(
             if (e.type == LlmError.Format && failed(lines.first().id) >= MAX_FORMAT_FAILURES) {
                 // 这段连续几次都整理不出来：放弃，原话仍在“原话”页
                 dao.markDigested(lines.map { it.id }, now())
+                diagnostics.abandoned(lines.size, now())
                 clearFailures(lines.first().id)
                 null
             } else e.type

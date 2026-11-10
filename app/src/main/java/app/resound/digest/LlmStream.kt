@@ -8,7 +8,7 @@ data class LlmToolCall(val id: String, val name: String, val arguments: String) 
     fun json(): JSONObject = JSONObject().put("id", id).put("type", "function")
         .put("function", JSONObject().put("name", name).put("arguments", arguments))
 }
-data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val reasoningContent: String? = null) {
+data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val reasoningContent: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null) {
     fun message(): JSONObject = JSONObject().put("role", "assistant").put("content", content.ifEmpty { null } ?: JSONObject.NULL)
         .also { if (calls.isNotEmpty()) it.put("tool_calls", JSONArray(calls.map { c -> c.json() })) }
         .also { if (reasoningContent != null) it.put("reasoning_content", reasoningContent) }
@@ -18,6 +18,7 @@ data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val
 internal class LlmSseParser(
     private val onText: (String) -> Unit,
     private val onUsage: (Long, Long) -> Unit,
+    private val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null,
 ) {
     private val data = StringBuilder()
     private val text = StringBuilder()
@@ -51,6 +52,8 @@ internal class LlmSseParser(
                 if (choice.optInt("index", 0) != 0) continue
                 if (!choice.isNull("finish_reason")) {
                     val reason = choice.getString("finish_reason")
+                    diagnostics?.finishReason(reason)
+                    diagnostics?.content(text.toString())
                     if (reason !in setOf("stop", "tool_calls")) throw LlmException(LlmError.Format)
                     finished = true
                 }
@@ -79,9 +82,11 @@ internal class LlmSseParser(
                 }
                 if (chars > 256_000) throw LlmException(LlmError.Format)
             }
-        } catch (e: LlmException) { throw e }
+        } catch (e: LlmException) { diagnostics?.content(text.toString()); throw e }
         catch (_: Exception) { throw LlmException(LlmError.Format) }
     }
+    fun recordPartial() { diagnostics?.content(text.toString()) }
+
     fun finish(): LlmStreamReply {
         dispatch()
         if (!done || !finished) throw LlmException(LlmError.Format)

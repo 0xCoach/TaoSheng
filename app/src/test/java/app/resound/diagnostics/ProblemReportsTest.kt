@@ -64,18 +64,26 @@ class ProblemReportsTest {
             val key = "sk-" + "secret".repeat(10)
             val hex = "abcdef12".repeat(4)
             val stats = RoomCaptureStatsRepository(context, database.capture()) { "步骤=12 $key $hex" }
-            val reports = LocalProblemReports(context, crashes, stats, updater)
+            val reports = LocalProblemReports(context, crashes, stats, updater, database.memory())
             context.getSharedPreferences("onboarding", 0).edit()
                 .putLong("count_wizard_shown", 2)
                 .putLong(app.resound.onboarding.LocalOnboarding.ELAPSED, 1500).commit()
             assertEquals(2000L, reports.lastCrashAt.value)
             repeat(55) { UpdateDiagnostics.record(context, "step=$it") }
+            LlmDiagnostics(context).start("整理", app.resound.digest.LlmPreset("fixture", "测试服务商", "https://example.com/v1", "model")).also {
+                it.content("测试原话不能导出"); it.complete()
+            }
+            context.getSharedPreferences("llm-providers", 0).edit().putString("saved",
+                """[{"id":"test","name":"测试","model":"test","baseUrl":"https://example.com/v1?key=$key","headers":{"X-Private-Header":"private-header-value"}}]""").commit()
             val file = reports.export()
             assertTrue(file.canonicalPath.startsWith(context.cacheDir.canonicalPath + "/"))
             val text = file.readText()
             assertTrue(text.contains("预览通道=true")); assertTrue(text.contains("步骤=12"))
             assertTrue(text.contains("step=54")); assertFalse(text.contains("step=0\n"))
             assertFalse(text.contains(key)); assertFalse(text.contains(hex)); assertFalse(text.contains("不要导出"))
+            assertTrue(text.contains("整理与大模型诊断")); assertTrue(text.contains("最近大模型响应摘要"))
+            assertFalse(text.contains("测试原话不能导出")); assertFalse(text.contains("private-header-value"))
+            assertFalse(text.contains("X-Private-Header"))
             assertTrue(text.contains("新手上手（仅本地计数与耗时）"))
             assertTrue(text.contains("wizard_shown count=2"))
             assertTrue(text.contains("first_transcript_after_wizard_ms=1500"))

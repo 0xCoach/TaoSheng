@@ -19,6 +19,8 @@ internal class LocalProblemReports(
     private val crashes: CrashRecords,
     private val stats: CaptureStatsRepository,
     private val updater: AppUpdater,
+    private val memoryDao: app.resound.data.MemoryDao? = null,
+    private val failover: app.resound.digest.LlmFailover? = null,
 ) : ProblemReports {
     private val prefs = context.getSharedPreferences("problem-reports", Context.MODE_PRIVATE)
     private val unseen = MutableStateFlow(crashes.latestAt()?.takeIf { it > prefs.getLong("seenCrashAt", 0) })
@@ -42,6 +44,8 @@ internal class LocalProblemReports(
                 appendLine("生成时间=$at")
                 appendLine("\n最近闪退（最多 10 条）"); appendLine(crashes.dump())
                 appendLine("\n运行诊断"); appendLine(diagnostics.readText())
+                appendLine("\n整理与大模型诊断")
+                appendLine(runCatching { LlmProblemDiagnostics(context, memoryDao, failover).dump() }.getOrDefault("暂无"))
                 appendLine("\n环境音识别"); appendLine(envDiagnostics)
                 appendLine("\n推送诊断")
                 appendLine(app.resound.push.PushDiagnostics.dump(context.getSharedPreferences("push", Context.MODE_PRIVATE)))

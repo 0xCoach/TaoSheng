@@ -29,7 +29,7 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
 class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null) : Exception(detail)
 
-data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null)
+data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null)
 class LlmInputLimitException(message: String = "内容超出所选模型的容量，请换用容量更大的模型") : IllegalArgumentException(message)
 
 /** 兼容 OpenAI chat/completions 的服务（DeepSeek、方舟、自建）。 */
@@ -37,8 +37,20 @@ class LlmClient(
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
     private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
+    private val diagnostics: app.resound.diagnostics.LlmDiagnostics? = null,
 ) {
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
+        val trace = kotlin.coroutines.coroutineContext[app.resound.diagnostics.LlmResponseTrace]
+            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
+        try {
+            val reply = chatJsonRaw(preset, key, system, user, thinking, trace)
+            trace?.complete()
+            reply.copy(diagnostics = trace)
+        } catch (e: Throwable) { trace?.complete(e); throw e }
+    }
+
+    private suspend fun chatJsonRaw(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean,
+        trace: app.resound.diagnostics.LlmResponseTrace?): LlmReply {
         if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
         val body = JSONObject()
             .put("model", preset.model)
@@ -53,13 +65,17 @@ class LlmClient(
             .serviceHeaders(key, requestHeaders(preset))
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .build()
-        try { clientFor(preset).newCall(request).consumeResponse {
+        return try { clientFor(preset).newCall(request).consumeResponse {
+            trace?.http(it.code)
             val raw = it.body?.string().orEmpty()
+            trace?.content(raw)
             val json = runCatching { JSONObject(raw) }.getOrNull()
             val usage = json?.optJSONObject("usage")?.let { u -> LlmReply("", u.optLong("prompt_tokens"), u.optLong("completion_tokens")) }
             if (it.code !in 200..299) throw httpError(it.code, usage)
+            trace?.finishReason(json?.optJSONArray("choices")?.optJSONObject(0)?.optString("finish_reason")?.takeUnless { reason -> reason == "null" })
             val content = json?.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
                 ?: throw LlmException(LlmError.Format, usage = usage)
+            trace?.content(content)
             LlmReply(content, usage?.promptTokens ?: 0, usage?.completionTokens ?: 0)
 
         } } catch (e: IOException) { throw LlmException(LlmError.Network, detail = app.resound.transcribe.modelServiceError(preset.baseUrl, e, LlmError.Network.human)) }
@@ -70,6 +86,21 @@ class LlmClient(
         preset: LlmPreset, key: String, messages: JSONArray, tools: JSONArray,
         onText: (String) -> Unit, onUsage: (Long, Long) -> Unit,
         allowTools: Boolean = true,
+    ): LlmStreamReply {
+        val trace = kotlin.coroutines.coroutineContext[app.resound.diagnostics.LlmResponseTrace]
+            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
+        return try {
+            val reply = streamChatRaw(preset, key, messages, tools, onText, onUsage, allowTools, trace)
+            trace?.content(reply.content)
+            trace?.complete()
+            reply.copy(diagnostics = trace)
+        } catch (e: Throwable) { trace?.complete(e); throw e }
+    }
+
+    private suspend fun streamChatRaw(
+        preset: LlmPreset, key: String, messages: JSONArray, tools: JSONArray,
+        onText: (String) -> Unit, onUsage: (Long, Long) -> Unit, allowTools: Boolean,
+        trace: app.resound.diagnostics.LlmResponseTrace?,
     ): LlmStreamReply = suspendCancellableCoroutine { cont ->
         val body = JSONObject().put("model", preset.model).put("messages", messages)
             .put("stream", true).put("stream_options", JSONObject().put("include_usage", true))
@@ -87,20 +118,23 @@ class LlmClient(
             }
             override fun onResponse(call: Call, response: Response) {
                 try {
+                    trace?.http(response.code)
                     val reply = response.use {
                         if (it.code !in 200..299) {
                             val usage = runCatching { JSONObject(it.body?.string().orEmpty()).optJSONObject("usage") }.getOrNull()
                             usage?.let { u -> onUsage(u.optLong("prompt_tokens"), u.optLong("completion_tokens")) }
                             throw httpError(it.code)
                         }
-                        val parser = LlmSseParser({ delta -> if (cont.isActive) onText(delta) }, onUsage)
+                        val parser = LlmSseParser({ delta -> if (cont.isActive) onText(delta) }, onUsage, trace)
                         val source = it.body?.source() ?: throw LlmException(LlmError.Format)
-                        while (!parser.done) {
-                            if (!cont.isActive) return
-                            val line = source.readUtf8LineStrict(256_000)
-                            parser.line(line)
-                        }
-                        parser.finish()
+                        try {
+                            while (!parser.done) {
+                                if (!cont.isActive) return
+                                val line = source.readUtf8LineStrict(256_000)
+                                parser.line(line)
+                            }
+                            parser.finish()
+                        } finally { parser.recordPartial() }
                     }
                     if (cont.isActive) cont.resume(reply)
                 } catch (e: Exception) {

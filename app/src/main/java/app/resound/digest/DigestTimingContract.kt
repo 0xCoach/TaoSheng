@@ -9,7 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
  * 时间点错过了（没网、关机、被系统推迟到下一个点之后）不补，等下一个点；用户随时可点“现在整理”。
  * 每日回顾、每周回顾生成前先整理一次，不管选的是哪种方式。
  */
-enum class DigestMode { Interval, TimePoints }
+/**
+ * 卡 127：Off = 不自动整理（只转写）。间隔、时间点、回顾前的整理都不跑；用户点“现在整理”仍可手动整理。
+ * 给“转写交给自己的系统去整理”的用户省大模型费用。
+ */
+enum class DigestMode { Interval, TimePoints, Off }
 
 interface DigestTiming {
     val mode: StateFlow<DigestMode>

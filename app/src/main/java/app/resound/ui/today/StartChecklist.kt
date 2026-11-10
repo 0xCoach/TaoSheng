@@ -72,16 +72,7 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
         setupDone = AppGraph.isReady && AppGraph.setup.items().all { it.done == true }
     }
     val c = Rs.colors
-    val prepare = {
-        settings?.let { s ->
-            // 适配过 NPU 的芯片两个都下：NPU 跑不起来时自动退回 CPU，不至于没模型可用
-            val chosen = if (LocalModels.npuSupported()) LocalBackend.Npu else LocalBackend.Cpu
-            s.setBackend(chosen); s.setSource(TranscribeSource.Local); s.download(chosen)
-            if (chosen == LocalBackend.Npu) s.download(LocalBackend.Cpu)
-        }
-        asrPrefs.edit().putBoolean("speakers-enabled", true).apply()
-        LocalModels.enqueueSpeakers(context)
-    }
+    val prepare = { prepareLocalAsr(context, settings) }
     val listening = status.state != CaptureState.Stopped && status.state != CaptureState.NoPermission
     val steps = listOf(
         Step("开始聆听", "允许麦克风和通知，有人说话才会录", listening, SettingsPage.Capture),
@@ -111,9 +102,25 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
         Step("设置整理模型", "填一个大模型密钥，把原话整理成事和待办", hasLlmKey, SettingsPage.Model),
         Step("后台不被关掉", "按清单关掉电池优化等，保证全天收音", setupDone, SettingsPage.Capture),
     )
-    val doneCount = steps.count { it.done }
+    // 0.2.21：走过开箱向导的用户，前面几项已在向导里做完，这里改成“继续完善”的可选项
+    val wizard = remember { prefs.getBoolean("onboarded", false) }
+    val backupState = if (AppGraph.isBackupReady) AppGraph.backup.state.collectAsState().value else null
+    val localBackup = if (AppGraph.isBackupReady) AppGraph.backup.local.collectAsState().value else null
+    val pushChannels = if (AppGraph.isPushReady) AppGraph.push.channels.collectAsState(emptyList()).value else emptyList()
+    val footprint = if (AppGraph.isLocationReady) AppGraph.location.settings.enabled.collectAsState().value else false
+    val shown = if (!wizard) steps else buildList {
+        if (!listening) add(steps[0])
+        if (!transcribeReady && !asrDownloading) add(steps[1])
+        if (!hasLlmKey) add(steps[3])
+        if (local) add(steps[2])
+        add(steps[4])
+        add(Step("设置备份", "坚果云、WebDAV 或 S3，换手机也不丢", backupState?.lastBackupAt != null || localBackup?.lastAt != null, SettingsPage.Backup))
+        add(Step("推送到微信等", "每日回顾、待办提醒推到你常用的地方", pushChannels.isNotEmpty(), SettingsPage.Push))
+        add(Step("足迹", "记下每天去过哪，事件上显示当时在哪", footprint, SettingsPage.Location))
+    }
+    val doneCount = shown.count { it.done }
     // 全部完成过一次就永久记住：以后打开 App 不再闪出清单（启动瞬间各项状态还没读到会被当成没完成）
-    if (doneCount == steps.size) {
+    if (doneCount == shown.size) {
         LaunchedEffect(Unit) { prefs.edit().putBoolean(DISMISSED, true).apply(); dismissed = true }
         return
     }
@@ -121,9 +128,9 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
     Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("上手清单", style = RsType.headline, color = c.text)
+            Text(if (wizard) "继续完善" else "上手清单", style = RsType.headline, color = c.text)
             Spacer(Modifier.width(8.dp))
-            Text("$doneCount / ${steps.size}", style = RsType.caption, color = c.accent)
+            Text("$doneCount / ${shown.size}", style = RsType.caption, color = c.accent)
             Spacer(Modifier.weight(1f))
             Text("不再显示", style = RsType.caption, color = c.textTertiary,
                 modifier = Modifier.springClick { prefs.edit().putBoolean(DISMISSED, true).apply(); dismissed = true }.padding(4.dp))
@@ -131,14 +138,14 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
         Spacer(Modifier.height(4.dp))
         // 进度条：完成几步亮几格
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            steps.forEach { step ->
+            shown.forEach { step ->
                 val color by animateColorAsState(if (step.done) c.accent else c.separator, label = "stepBar")
                 Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
             }
         }
         // 第一个没做的步骤高亮，做完的变淡
-        val next = steps.indexOfFirst { !it.done }
-        steps.forEachIndexed { i, step ->
+        val next = shown.indexOfFirst { !it.done }
+        shown.forEachIndexed { i, step ->
             Row(Modifier.fillMaxWidth().springClick { ShellNav.openSettings(step.page) }.padding(vertical = 10.dp),
                 verticalAlignment = Alignment.Top) {
                 Box(Modifier.padding(top = 1.dp).size(24.dp).clip(CircleShape).background(when {
@@ -168,7 +175,7 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
 }
 
 /** “转写模型：下载 34% · 56/162 MB”；还没开始时显示排队 */
-private fun downloadLine(settings: AndroidTranscribeSettings?, backend: LocalBackend, prefs: android.content.SharedPreferences): String? {
+internal fun downloadLine(settings: AndroidTranscribeSettings?, backend: LocalBackend, prefs: android.content.SharedPreferences): String? {
     settings ?: return null
     if (settings.modelReady(backend)) return null
     return "转写模型：" + (prefs.getString("download-${backend.name}", null) ?: "排队中")
@@ -182,3 +189,17 @@ private fun SmallAction(text: String, filled: Boolean, onClick: () -> Unit) {
 }
 
 private const val DISMISSED = "startChecklistDismissed"
+
+/**
+ * 一键准备本机转写：适配过 NPU 的芯片两个都下（NPU 跑不起来时自动退回 CPU），同时下说话人模型并打开分人。
+ * 上手清单和开箱向导共用。
+ */
+internal fun prepareLocalAsr(context: Context, settings: AndroidTranscribeSettings?) {
+    settings?.let { s ->
+        val chosen = if (LocalModels.npuSupported()) LocalBackend.Npu else LocalBackend.Cpu
+        s.setBackend(chosen); s.setSource(TranscribeSource.Local); s.download(chosen)
+        if (chosen == LocalBackend.Npu) s.download(LocalBackend.Cpu)
+    }
+    context.getSharedPreferences("local-asr", Context.MODE_PRIVATE).edit().putBoolean("speakers-enabled", true).apply()
+    LocalModels.enqueueSpeakers(context)
+}

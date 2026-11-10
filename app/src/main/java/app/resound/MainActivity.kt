@@ -132,7 +132,10 @@ class MainActivity : ComponentActivity() {
                         consumePrivacyRequest()
                     }
                 }
-                AppShell(
+                // 0.2.21：新用户先走开箱向导，走完再进主界面
+                var onboarding by remember { mutableStateOf(app.resound.ui.onboarding.shouldShowOnboarding(this@MainActivity)) }
+                if (onboarding) app.resound.ui.onboarding.OnboardingWizard(capture, transcripts, memory) { onboarding = false }
+                else AppShell(
                     listOf(
                         "今天" to { TodayScreen(capture, stats, transcripts, memory, digestSettings, mode, setMode, ShellBottomPadding) },
                         "问问" to { AskScreen(ask, ShellBottomPadding) },

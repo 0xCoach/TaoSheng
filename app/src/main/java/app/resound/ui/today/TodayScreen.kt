@@ -244,6 +244,7 @@ fun TodayScreen(
                     app.resound.ui.settings.CrashNotice(topGap = 20.dp)
                     // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
                     StartChecklist(capture, hasKey, topGap = 20.dp)
+                    app.resound.ui.onboarding.OnboardingTipCard(topGap = 12.dp)
                 }
             }
         }
@@ -571,6 +572,22 @@ private fun OverviewCard(
                 modifier = Modifier.clip(CircleShape).background(white.copy(alpha = 0.2f)).springClick(onToggle)
                     .padding(horizontal = 12.dp, vertical = 5.dp),
             )
+        }
+        // 0.2.21：整理因余额不足 / 密钥无效失败时，直接给出处理入口（DeepSeek 直达充值页，其他去模型设置）
+        val err = digest.lastError
+        if (!digest.running && (err == app.resound.digest.LlmError.Quota.human || err == app.resound.digest.LlmError.Auth.human)) {
+            val context = LocalContext.current
+            val quota = err == app.resound.digest.LlmError.Quota.human
+            val deepseek = app.resound.AppGraph.isLlmProvidersReady && app.resound.AppGraph.llmProviders.let { p ->
+                p.saved.value.firstOrNull { it.id == p.activeId.value }?.templateId == "deepseek" }
+            Spacer(Modifier.height(8.dp))
+            Text(if (quota) (if (deepseek) "去 DeepSeek 充值 ›" else "去模型设置看看 ›") else "检查整理模型的密钥 ›",
+                style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = white,
+                modifier = Modifier.clip(CircleShape).background(white.copy(alpha = 0.2f)).springClick {
+                    if (quota && deepseek) runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://platform.deepseek.com/top_up")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    else app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Model)
+                }.padding(horizontal = 12.dp, vertical = 5.dp))
         }
         if (digest.running) {
             Spacer(Modifier.height(6.dp))

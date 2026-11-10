@@ -50,7 +50,9 @@ class LocalAsrService : Service() {
         scope.launch {for(request in queue){
             try {if(request.id !in cancelled){
                 val wake = InferenceWakeLock(getSystemService(PowerManager::class.java)
-                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "resound:local-asr"))
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "resound:local-asr")) { startedAt, millis ->
+                    app.resound.transcribe.TranscribePowerDiagnostics.held(this@LocalAsrService, startedAt, millis)
+                }
                 activeWake = request.id to wake
                 try {
                     if(request.id !in cancelled) wake.run(request.data.getLong("timeoutMillis", InferenceWakeLock.MAX_MILLIS)) { process(request) }

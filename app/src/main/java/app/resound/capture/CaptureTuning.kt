@@ -17,6 +17,8 @@ object CaptureTuning {
     const val SPEECH_THRESHOLD = 0.5f
     const val BIT_RATE = 24_000
     const val HEARTBEAT_MS = 60_000L
+    /** 锁屏未充电的实时转写批次，首次入队后至少等待 10 分钟。 */
+    const val BATCH_DELAY_MS = 10 * 60_000L
     const val BATTERY_MS = 600_000L
     const val MIC_RETRY_MS = 3_000L
 }

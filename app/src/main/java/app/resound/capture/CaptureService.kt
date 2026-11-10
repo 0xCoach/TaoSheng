@@ -43,7 +43,12 @@ class CaptureService : Service() {
     private val micClock = MicOpenClock(SystemClock::elapsedRealtime)
     private val chargeEpoch = java.util.concurrent.atomic.AtomicLong(0)
     private val powerReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context?, intent: Intent?) { chargeEpoch.incrementAndGet() }
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action != Intent.ACTION_SCREEN_ON) chargeEpoch.incrementAndGet()
+            if (intent?.action == Intent.ACTION_SCREEN_ON || intent?.action == Intent.ACTION_POWER_CONNECTED) {
+                scope.launch(Dispatchers.IO) { app.resumeWaitingTranscriptionBatch(intent.action) }
+            }
+        }
     }
     private suspend fun samplePower() {
         val epoch = chargeEpoch.get()
@@ -69,6 +74,7 @@ class CaptureService : Service() {
         playback = PlaybackMonitor(this)
         registerReceiver(powerReceiver, android.content.IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(Intent.ACTION_SCREEN_ON)
         })
         scope.launch {
             try { for (command in commands) {

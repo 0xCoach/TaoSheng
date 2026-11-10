@@ -1068,6 +1068,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
     }) { editing = false }
     if (exportingEvent) app.resound.ui.transcript.ExportSheet(lines.map { it.segmentId }.filter { it > 0 }.distinct(),
         app.resound.ui.transcript.exportTitle(listOf(shown), shown.startAt, shown.endAt)) { exportingEvent = false }
+    val sheetGuard = app.resound.ui.verify.rememberSheetGuard(sheet, onClose)
     ModalBottomSheet(onDismissRequest = onClose, sheetState = sheet, containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
@@ -1078,7 +1079,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
         if (choosingCopy) CopySheet(listOf(shown), memory, onDone = { copied = true }) { choosingCopy = false }
         // 文字可长按选中复制
         SelectionContainer {
-        Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
+        Column(Modifier.nestedScroll(sheetGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${relativeDate(event.startAt)} ${formatClock(event.startAt)} – ${formatClock(event.endAt)} · ${sceneLine(event)}", style = RsType.caption,
                     color = c.textSecondary, modifier = Modifier.weight(1f))
@@ -1293,11 +1294,13 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
     var deleteArmed by remember(item.id) { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(deleteArmed) { if (deleteArmed) { kotlinx.coroutines.delay(3000); deleteArmed = false } }
     if (editing || editingStrong) app.resound.ui.items.EditItemSheet(item, memory, strongOn = editingStrong) { editing = false; editingStrong = false }
-    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = c.background, dragHandle = {
+    val itemSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val itemGuard = app.resound.ui.verify.rememberSheetGuard(itemSheet, onClose)
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = itemSheet, containerColor = c.background, dragHandle = {
         Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator))
     }) {
         SelectionContainer {
-        Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
+        Column(Modifier.nestedScroll(itemGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
             CategoryChip(item.category, item.kind)
             Spacer(Modifier.height(12.dp))
             Text(item.content, style = RsType.title, color = c.text)

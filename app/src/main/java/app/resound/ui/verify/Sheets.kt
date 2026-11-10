@@ -18,6 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -73,6 +76,43 @@ val SheetScrollGuard = object : androidx.compose.ui.input.nestedscroll.NestedScr
     }
 }
 
+/**
+ * 在 [SheetScrollGuard] 之外再管“慢慢下拉关闭”：比屏幕还高的面板，系统要拉过一半高度才关，慢拉总是弹回去。
+ * 这里松手时面板已被拉下超过 [SLOW_CLOSE] 就直接收起关闭；快速下甩仍交给系统。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun rememberSheetGuard(state: SheetState, onDismiss: () -> Unit): androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+    val close = with(androidx.compose.ui.platform.LocalDensity.current) { SLOW_CLOSE.toPx() }
+    val dismiss by androidx.compose.runtime.rememberUpdatedState(onDismiss)
+    return remember(state) {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            var rest = Float.NaN
+            fun offset() = runCatching { state.requireOffset() }.getOrNull()
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                // 记下全展开时的位置，作为“拉了多少”的起点
+                offset()?.let { if (rest.isNaN() || it < rest) rest = it }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+            override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset,
+                                      source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) =
+                SheetScrollGuard.onPostScroll(consumed, available, source)
+            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                val pulled = offset()?.let { o -> if (rest.isNaN()) 0f else o - rest } ?: 0f
+                if (pulled > close && available.y >= 0f && consumed.y == 0f) {
+                    // 先收起再关闭；之后系统按 0 速度归位时已在收起位置，不会再弹回
+                    runCatching { state.hide() }
+                    dismiss()
+                    return available
+                }
+                return SheetScrollGuard.onPostFling(consumed, available)
+            }
+        }
+    }
+}
+
+private val SLOW_CLOSE = 96.dp
+
 /** 从底部弹出的面板：标题 + 说明 + 内容；所有确认、编辑类弹窗统一用它 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,15 +121,17 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
             fixedHeight: Boolean = false,
             content: @Composable ColumnScope.() -> Unit) {
     val c = Rs.colors
+    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val guard = rememberSheetGuard(state, onDismiss)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = state,
         containerColor = c.card,
         dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator)) },
     ) {
         Column(
             Modifier.then(if (fixedHeight) Modifier.fillMaxHeight(0.92f) else Modifier)
-                .nestedScroll(SheetScrollGuard)
+                .nestedScroll(guard)
                 .verticalScroll(rememberScrollState()).imePadding().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

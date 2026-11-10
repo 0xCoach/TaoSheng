@@ -524,13 +524,15 @@ internal fun ExportSheet(diary: DiaryRepository, date: LocalDate, onClose: () ->
         Range.Custom -> custom
     }
 
+    val guardSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetGuard = app.resound.ui.verify.rememberSheetGuard(guardSheet, onClose)
     ModalBottomSheet(
         onDismissRequest = onClose,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = guardSheet,
         containerColor = c.background,
         dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator)) },
     ) {
-        Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
+        Column(Modifier.nestedScroll(sheetGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 36.dp)) {
             Text("导出日记", style = RsType.title, color = c.text)
             Spacer(Modifier.height(4.dp))
             Text("生成 Markdown 文件，可以发到微信、存进笔记软件", style = RsType.subhead, color = c.textSecondary)

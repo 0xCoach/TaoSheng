@@ -55,14 +55,16 @@ fun ReviewRow(review: DailyReview, onOpen: () -> Unit) {
 @Composable
 fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
     val c = Rs.colors
+    val guardSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetGuard = app.resound.ui.verify.rememberSheetGuard(guardSheet, onClose)
     ModalBottomSheet(
         onDismissRequest = onClose,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = guardSheet,
         containerColor = c.background,
         dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator)) },
     ) {
         SelectionContainer {
-            Column(Modifier.nestedScroll(app.resound.ui.verify.SheetScrollGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
+            Column(Modifier.nestedScroll(sheetGuard).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
                 Text("${dayTitle(review.date)} · 日报", style = RsType.caption, color = c.accent)
                 ReportCopyActions(blocks = { app.resound.ui.dailyReviewCopyBlocks(review) }) { dailyReviewCopyText(review) }
                 Spacer(Modifier.height(6.dp))

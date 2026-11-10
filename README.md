@@ -15,7 +15,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.21-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.2.22-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -86,7 +86,7 @@
 25. **📝 导入录音自动出纪要**：分会议、培训、通话·访谈、普通四类，导入后自动转写、认人，按类型生成纪要。
 26. **🔊 环境音识别**：听出说话之外的声音（音乐、键盘声、雨、宠物、流水、家电、脚步、闹钟、车流 9 类），写进事件和周报的“声音印象”。
 27. **📋 日报周报一键复制**：全文复制、按模块多选复制或自由选字，格式和勾选状态都保留。
-28. **🏫 课堂模式与停录时段**：一个人主讲的上课、讲座可开课堂模式，不区分说话人、转写更快，到点自动恢复；设好时段自动停录，比如夜里不录。
+28. **🎙️ 专题录音与停录时段**：会议、培训、通话、口播稿一键开始，可暂停、预约，结束后合成一件事出纪要（培训不区分说话人）；忘了开始可事后补；设好时段自动停录，比如夜里不录。
 29. **⬆️ App 内检查更新**：优先下载几 MB 的差异包，国内走魔搭镜像；下载完就在后台备份好，点安装直接弹出系统确认。
 30. **📍 足迹**：跟着录音一起记下每天去过哪，停留的地方显示地名、自动认出“家”；一天按地点分成时间轴，每个停留点下面列出当时发生的事；可每天推送“每日足迹”。定位只存在手机里。
 31. **📡 专用录音设备（试用）**：搜索、配对 Omi、声云录音卡、ADeus 开源吊坠等蓝牙录音设备，配对后在“录音输入”里选它就用它录；断开时自动换回手机麦克风，连回来把设备里存的那段补传进来。每种设备由一张“说明卡”描述，新设备不用发新版就能支持，下发的说明卡都带官方签名。
@@ -149,7 +149,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.2.21**（最新） | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.21-arm64.apk) | 新增足迹，并和声音、环境音联动（事件显示当时在哪、问问按地点问）；专用录音设备接入（试用）；开箱向导三分钟上手；锁屏本地转写更省电；更新前备份提前；问题记录含大模型诊断。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0221--2026-11-10) |
+| **v0.2.22**（最新） | 2026-11-11 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.22-arm64.apk) | 新增专题录音（会议、培训、通话、口播稿，结束后合成一件事出纪要，可暂停、预约、事后补）；问问换模型也能用（Gemini 兼容、程序先查兜底）；整理被拒收不再卡住。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0222--2026-11-11) |
+| **v0.2.21** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.21-arm64.apk) | 新增足迹，并和声音、环境音联动（事件显示当时在哪、问问按地点问）；专用录音设备接入（试用）；开箱向导三分钟上手；锁屏本地转写更省电；更新前备份提前；问题记录含大模型诊断。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0221--2026-11-10) |
 | **v0.2.20** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/TaoSheng-v0.2.20-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.20-arm64.apk) | 修复麦克风“假运行”丢录音；蓝牙录音让出话筒给输入法；备份可选 WebDAV、S3；导出可只要文字、可选 Markdown；文件夹自动导入；推送换行；自定义请求头与 OpenCode Go。[详细更新日志](CHANGELOG.md#0220--2026-11-10) |
 | **v0.2.19** | 2026-11-08 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.19-arm64.apk) | 整理不再切碎；新增“整理前先思考”开关；多选合并几件事；重新整理显示分批进度，修复整天重新整理闪退。[详细更新日志](CHANGELOG.md#0219--2026-11-08) |
 | **v0.2.18** | 2026-11-08 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.18-arm64.apk) | 声纹样本管理：每个人的样本能回放、删除，样本声音可一键清除；自定义转写可填写完整请求地址。[详细更新日志](CHANGELOG.md#0218--2026-11-08) |
@@ -170,7 +171,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 - 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
 - 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
 - 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
-- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/SHA256SUMS)。
+- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/SHA256SUMS)。
 - 正式签名证书指纹（SHA-256）：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`。只认这个签名的安装包，别处下载的改装版可能被动过手脚。
 
 ### 从源码编译

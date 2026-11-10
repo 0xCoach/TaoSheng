@@ -208,14 +208,26 @@ internal class UpdateEngine(
                     fetch(release.apk, target, false)
                 }
                 // 只有完整摘要、包名、版本及证书都通过，才让界面出现“安装”。
-                try { platform.verify(target, release) }
+                try { verifyReady(target) }
                 catch (e: Exception) { target.delete(); throw e }
                 store.save("ready" to release.apk.sha256)
                 mutable.value = UpdateState.Ready(info())
                 platform.dismissNotification()
                 log("ready incremental=${patch != null} bytes=${target.length()} ms=${elapsed(start)} result=ok")
             } catch (e: CancellationException) { mutable.value = UpdateState.Available(info()); throw e }
-            catch (e: Exception) { fail(e, UPDATE_NETWORK_ERROR, start) }
+            catch (e: Exception) { fail(e, UPDATE_NETWORK_ERROR, start); return@withLock }
+            // Ready 已发布，但继续持有 gate；此时点安装会等待本次备份，不会重复启动。
+            val backupStart = System.nanoTime()
+            try {
+                backupReady { _, _ -> }
+                log("pre_backup ms=${elapsed(backupStart)} result=ok")
+            } catch (e: CancellationException) {
+                log("pre_backup ms=${elapsed(backupStart)} result=cancelled")
+                throw e
+            } catch (e: Exception) {
+                // 安装包已校验完成；备份失败不撤销 Ready，安装时按原流程重试。
+                log("pre_backup ms=${elapsed(backupStart)} failure=${reason(e)}")
+            }
         }
     } }
 
@@ -237,6 +249,12 @@ internal class UpdateEngine(
         platform.verify(file, manifest!!)
     }
 
+    /** 只在完整备份成功后写入；AndroidUpdateStore 将两项一起持久化。 */
+    private suspend fun backupReady(progress: (String, Float) -> Unit) {
+        platform.backup(progress)
+        store.save("preBackupFor" to manifest!!.apk.sha256, "preBackupAt" to now())
+    }
+
     override fun install() { scope.launch(Dispatchers.IO) {
         gate.withLock {
             restore()
@@ -247,10 +265,20 @@ internal class UpdateEngine(
             try {
                 try { verifyReady(apkFile()) }
                 catch (e: Exception) { apkFile().delete(); store.save("ready" to null); throw e }
-                mutable.value = UpdateState.Installing(info(), true, "正在保存本机数据", 0f)
-                try { platform.backup { step, p -> mutable.value = UpdateState.Installing(info(), true, step, p) } }
-                catch (e: CancellationException) { throw e }
+                val backupAt = store.long("preBackupAt")
+                val reuseBackup = store.string("preBackupFor") == manifest!!.apk.sha256 &&
+                    backupAt > 0 && now() - backupAt in 0 until 6 * HOUR
+                var backupMs = 0L
+                try {
+                    if (!reuseBackup) {
+                        mutable.value = UpdateState.Installing(info(), true, "正在保存本机数据", 0f)
+                        val backupStart = System.nanoTime()
+                        try { backupReady { step, p -> mutable.value = UpdateState.Installing(info(), true, step, p) } }
+                        finally { backupMs = elapsed(backupStart) }
+                    }
+                } catch (e: CancellationException) { throw e }
                 catch (e: Exception) { throw UpdateFailure("更新前备份没成功，没有安装", "backup_${reason(e)}") }
+                finally { log("install_backup reused=$reuseBackup backup_ms=$backupMs") }
                 mutable.value = UpdateState.Installing(info(), false)
                 platform.install(apkFile()) { session -> store.save("session" to session.toLong(), "installStarted" to now()) }
                 log("install incremental=${patch != null} bytes=${apkFile().length()} ms=${elapsed(start)} result=submitted")

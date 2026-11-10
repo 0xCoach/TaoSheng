@@ -78,6 +78,12 @@ class MainActivity : ComponentActivity() {
             _privacyRequest.value = "deleteRecent"
             return
         }
+        // 点“会议纪要好了”等专题通知：打开那场专题
+        if (intent?.getStringExtra("open") == "topic") {
+            intent.getLongExtra("topicId", 0L).takeIf { it > 0 }?.let { app.resound.ui.topic.TopicUi.openTopic = it }
+            tabRequest = 0 to System.nanoTime()
+            return
+        }
         if (intent?.getStringExtra("open") == "card") {
             openCardId = (intent.data?.getQueryParameter("id") ?: intent.getStringExtra("id"))?.toLongOrNull()
             return

@@ -91,18 +91,11 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
             else -> ActionButton("开始聆听", ActionKind.Primary) { capture.start(); onDismiss() }
         }
 
-        if (AppGraph.isAsrSpeedReady) {
-            val speed = AppGraph.asrSpeed
-            val separate by speed.separateSpeakers.collectAsState()
-            val classMode by speed.classMode.collectAsState()
-            if (separate) {
-                Spacer(Modifier.height(10.dp))
-                Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(0.5.dp).background(c.separator))
-                Label("课堂模式")
-                Text(app.resound.ui.transcript.classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption,
-                    color = if (classMode.enabled) c.accent else c.textTertiary)
-                app.resound.ui.transcript.ClassModePicker(classMode, speed, onStarted = onDismiss)
-            }
+        // 专题录音（取代原来的课堂模式：选“培训”就不区分说话人）
+        if (AppGraph.isTopicsReady) {
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(0.5.dp).background(c.separator))
+            app.resound.ui.topic.TopicSection(onDismiss)
         }
 
         if (AppGraph.isPrivacyReady) {

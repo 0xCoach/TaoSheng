@@ -114,6 +114,8 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
             app.resound.ui.importer.ImportRecordSheet(id, onOpenEvent = { app.resound.ui.transcript.PlayerNav.openEvent = it }) { app.resound.ui.transcript.PlayerNav.openImport = null }
         }
         app.resound.ui.transcript.ExportUi.openJob?.let { id -> app.resound.ui.transcript.ExportJobSheet(id) { app.resound.ui.transcript.ExportUi.openJob = null } }
+        // 专题录音的详情、预约、事后补面板
+        app.resound.ui.topic.TopicHost()
         app.resound.ui.today.UndoBar.Host(ShellBottomPadding)
         app.resound.ui.redo.RedoUi.openJob?.let { id -> app.resound.ui.redo.RedoJobSheet(id) { app.resound.ui.redo.RedoUi.openJob = null } }
         androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { app.resound.ui.transcript.LinePlayer.stop() }

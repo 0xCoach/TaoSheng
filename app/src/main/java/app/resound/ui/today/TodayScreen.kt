@@ -493,7 +493,17 @@ private fun OverviewCard(
         if (status.state == CaptureState.MicBusy) status.busyDetail?.let {
             Text(it, style = RsType.caption, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 2.dp))
         }
-        // 课堂模式开着时提醒一句，点开聆听面板可结束
+        // 专题进行中：提醒一句，点开专题详情可记重点、暂停、结束
+        if (app.resound.AppGraph.isTopicsReady) {
+            val topic by app.resound.AppGraph.topics.current.collectAsState()
+            topic?.let { t ->
+                Row(Modifier.padding(top = 6.dp).clip(CircleShape).background(white.copy(alpha = 0.2f))
+                    .springClick { app.resound.ui.topic.TopicUi.openTopic = t.id }.padding(horizontal = 10.dp, vertical = 3.dp)) {
+                    Text(app.resound.ui.topic.topicLine(t, now) + " ›", style = RsType.caption, color = white, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        // 旧版开启的课堂模式（升级前开的）仍提醒一句，点开聆听面板
         if (app.resound.AppGraph.isAsrSpeedReady) {
             val classMode by app.resound.AppGraph.asrSpeed.classMode.collectAsState()
             if (classMode.enabled) Row(Modifier.padding(top = 6.dp).clip(CircleShape).background(white.copy(alpha = 0.2f))
@@ -1195,6 +1205,19 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             }
             if (confirmDelete) Text(if (forget) "删除事件、原话和录音；已确认寻物记录、回顾和问问历史保留。无法恢复。" else "会从时间线里删掉这件事。",
                 style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 6.dp))
+            // 专题：这件事是专题合成的就能看纪要；否则可事后设为专题（可连带前后几件）
+            if (app.resound.AppGraph.isTopicsReady) androidx.compose.foundation.text.selection.DisableSelection {
+                val day = remember(event.id) { java.time.Instant.ofEpochMilli(event.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+                val topic = remember(day) { app.resound.AppGraph.topics.observeDay(day) }.collectAsState(initial = emptyList()).value
+                    .firstOrNull { it.eventId == event.id && it.status != app.resound.topic.TopicStatus.Cancelled }
+                Spacer(Modifier.height(12.dp))
+                Text(if (topic != null) "${topic.kind.title}专题 · 查看纪要 ›" else "设为专题（可连带前后几件事合成一件）›",
+                    style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                    modifier = Modifier.clip(CircleShape).springClick {
+                        if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else app.resound.ui.topic.TopicUi.creatingFrom = shown
+                        onClose()
+                    }.padding(vertical = 4.dp))
+            }
         }
         }
     }

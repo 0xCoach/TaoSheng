@@ -87,7 +87,7 @@ internal fun ClassModePicker(state: ClassModeState, speed: AsrSpeedSettings, onS
 
 /** 分格滑轨：点或拖都对齐到 15 分钟一格；每过整点轻震 */
 @Composable
-private fun StepSlider(value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
+internal fun StepSlider(value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
     val c = Rs.colors
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -129,7 +129,7 @@ private fun StepSlider(value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
     }
 }
 
-private fun durationText(m: Int) = when {
+internal fun durationText(m: Int) = when {
     m < 60 -> "$m 分钟"
     m % 60 == 0 -> "${m / 60} 小时"
     else -> "${m / 60} 小时 ${m % 60} 分"

@@ -662,11 +662,17 @@ private fun SpeakerOptions() {
     }
     if (!separate) return
     Divider()
+    // 课堂模式已并进专题录音：选“培训”专题就临时不分人。升级前开着的课堂模式仍可在这里结束
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("课堂模式", style = RsType.body, color = c.text)
-        Text(classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption,
-            color = if (classMode.enabled) c.accent else c.textSecondary)
-        ClassModePicker(classMode, speed)
+        Text("临时不区分说话人", style = RsType.body, color = c.text)
+        if (classMode.enabled) {
+            Text(classModeLine(classMode, System.currentTimeMillis()), style = RsType.caption, color = c.accent)
+            ClassModePicker(classMode, speed)
+        } else {
+            Text("上课、听讲座时开始一个“培训”专题：这段时间不分人，结束后出培训笔记", style = RsType.caption, color = c.textSecondary)
+            if (app.resound.AppGraph.isTopicsReady) Text("开始培训专题 ›", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.accent,
+                modifier = Modifier.springClick { app.resound.ui.topic.TopicUi.starting = app.resound.topic.TopicKind.Training })
+        }
     }
 }
 

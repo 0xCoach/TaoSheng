@@ -3,7 +3,7 @@
     "type": "function",
     "function": {
       "name": "search_lines",
-      "description": "查原话，最多40句",
+      "description": "查原话，最多40句；用户问“在某地……”时传 place，使用足迹里的地点名；“家”对应标记为家的地点。与时间、关键词等条件同时生效",
       "parameters": {
         "type": "object",
         "properties": {
@@ -26,6 +26,12 @@
           "speaker": {
             "type": "string",
             "description": "说话人名称或原始标签"
+          },
+          "place": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "可选，足迹中的地点名，包含匹配且不区分大小写；“家”只匹配标记为家的地点。未找到时参考返回的 places 候选地名；足迹关闭时按原条件检索并说明没有开启足迹"
           }
         },
         "required": [
@@ -39,7 +45,7 @@
     "type": "function",
     "function": {
       "name": "search_events",
-      "description": "查事件标题、摘要、要点；有关键词时合并本地语义结果，最多10条",
+      "description": "查事件标题、摘要、要点；有关键词时合并本地语义结果，最多10条；用户问“在某地……”时传 place，使用足迹里的地点名；“家”对应标记为家的地点。与时间、关键词等条件同时生效",
       "parameters": {
         "type": "object",
         "properties": {
@@ -62,6 +68,12 @@
           "starred_only": {
             "type": "boolean",
             "description": "只查用户标的重点；没有关键词时按标重点时间倒序"
+          },
+          "place": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "可选，足迹中的地点名，包含匹配且不区分大小写；“家”只匹配标记为家的地点。未找到时参考返回的 places 候选地名；足迹关闭时按原条件检索并说明没有开启足迹"
           }
         },
         "required": [],

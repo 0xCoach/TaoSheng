@@ -79,4 +79,14 @@ class Situation130Test {
         assertEquals("新名字", source.placeDuring(10 * minute, 20 * minute)?.name)
         assertEquals(3, reads)
     }
+
+    // Claude 审核补充：问“家”按家匹配；不限日期的超宽范围按定位记录收窄，不会逐日遍历到天荒地老
+    @Test fun homeMatchesAndUnboundedRangeIsClampedToRecordedDays() = runBlocking {
+        val points = listOf(point(0), point(60 * minute), point(61 * minute, 30.02), point(90 * minute, 30.02))
+        val source = LocalSituationLookup({ true }, { a, b -> points.filter { it.at in a until b } },
+            { lat, _ -> Place(if (lat < 30.01) "书房" else "公司", "地址", "手动", lat < 30.01) },
+            { _, _ -> emptyList() }, zone = { ZoneId.of("UTC") }, pointBounds = { 0L to 90 * minute })
+        assertEquals(listOf("书房"), source.staysAt("家", Long.MIN_VALUE / 2, Long.MAX_VALUE / 2).map { it.name })
+        assertEquals(listOf("公司"), source.staysAt("公司", Long.MIN_VALUE / 2, Long.MAX_VALUE / 2).map { it.name })
+    }
 }

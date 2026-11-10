@@ -25,6 +25,8 @@ class LocalSituationLookup internal constructor(
     private val placeRevision: () -> Long = { 0 },
     private val soundRevision: () -> Long = { 0 },
     private val zone: () -> ZoneId = ZoneId::systemDefault,
+    /** 定位记录的最早、最晚时间；没有记录为 null。用来收窄“不限日期”的查询，避免逐日遍历无限范围 */
+    private val pointBounds: suspend () -> Pair<Long, Long>? = { null },
 ) : SituationLookup {
     private val places = DayCache<List<PlaceAt>>()
     private val environments = DayCache<List<EnvSoundRow>>()
@@ -48,9 +50,15 @@ class LocalSituationLookup internal constructor(
         if (to <= from || placeName.isBlank()) return@withContext emptyList()
         try {
             if (!available()) return@withContext emptyList()
+            // 问问不限日期时会传很宽的范围：收窄到有定位记录的那些天
+            val (lo, hi) = pointBounds()?.let { (a, b) -> maxOf(from, a) to minOf(to, b + 1) } ?: (from to to)
+            if (hi <= lo) return@withContext emptyList()
+            val q = placeName.trim()
             buildList {
-                for (day in days(from, to)) for (stay in dayPlaces(day)) {
-                    if (stay.name.contains(placeName.trim(), ignoreCase = true) && overlap(stay.start, stay.end, from, to) > 0)
+                for (day in days(lo, hi)) for (stay in dayPlaces(day)) {
+                    // “家”对应被认作家的地方；其余按名字包含
+                    val match = if (q == "家") stay.home else stay.name.contains(q, ignoreCase = true)
+                    if (match && overlap(stay.start, stay.end, from, to) > 0)
                         add(stay.copy(start = maxOf(from, stay.start), end = minOf(to, stay.end)))
                 }
             }.sortedBy { it.start }
@@ -122,7 +130,12 @@ class LocalSituationLookup internal constructor(
                 }
             })
             return LocalSituationLookup(location.settings::wanted, database.location()::betweenNow,
-                location.places::cached, database.envSound()::between, places::get, sounds::get)
+                location.places::cached, database.envSound()::between, places::get, sounds::get,
+                pointBounds = {
+                    database.query("SELECT MIN(at), MAX(at) FROM location_points", emptyArray()).use {
+                        if (!it.moveToFirst() || it.isNull(0)) null else it.getLong(0) to it.getLong(1)
+                    }
+                })
         }
 
         private fun overlap(a: Long, b: Long, c: Long, d: Long) = maxOf(0L, minOf(b, d) - maxOf(a, c))

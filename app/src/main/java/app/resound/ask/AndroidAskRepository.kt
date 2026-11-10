@@ -33,7 +33,8 @@ fun createAskRepository(
     val tools = AskTools(database, JSONObject(asset("ask-sql.json")), embedder = { app.resound.search.LocalEmbedder(context) })
     val places by lazy { CachedAskPlaces(app.resound.AppGraph.location, database) }
     val placeTools = AskPlaceTools(tools, { places.enabled() },
-        { name, from, to -> places.staysAt(name, from, to) },
+        // 卡 130 合并后统一用情境查询；没装配时退回问问自带的同语义实现
+        { name, from, to -> if (app.resound.AppGraph.isSituationReady) app.resound.AppGraph.situation.staysAt(name, from, to) else places.staysAt(name, from, to) },
         { from, to -> places.placesDuring(from, to) })
     val changes = AskChanges(database, onChanged = { app.resound.search.EmbeddingScheduler.enqueue(context) })
     val suggestions = AskSuggestions(

@@ -43,7 +43,13 @@ class CaptureService : Service() {
     private val micClock = MicOpenClock(SystemClock::elapsedRealtime)
     private val chargeEpoch = java.util.concurrent.atomic.AtomicLong(0)
     private val powerReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context?, intent: Intent?) { chargeEpoch.incrementAndGet() }
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action != Intent.ACTION_SCREEN_ON) chargeEpoch.incrementAndGet()
+            if (intent?.action == Intent.ACTION_SCREEN_ON || intent?.action == Intent.ACTION_POWER_CONNECTED) {
+                // 补跑失败不能影响录音服务；下一段录音或周期转写会兜底
+                scope.launch(Dispatchers.IO) { runCatching { app.resumeWaitingTranscriptionBatch(intent.action) } }
+            }
+        }
     }
     private suspend fun samplePower() {
         val epoch = chargeEpoch.get()
@@ -69,6 +75,7 @@ class CaptureService : Service() {
         playback = PlaybackMonitor(this)
         registerReceiver(powerReceiver, android.content.IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(Intent.ACTION_SCREEN_ON)
         })
         scope.launch {
             try { for (command in commands) {

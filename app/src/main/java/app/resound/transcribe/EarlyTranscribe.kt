@@ -5,11 +5,13 @@ import android.os.BatteryManager
 import android.os.PowerManager
 
 /**
- * 实时转写：录完一段就转（本机模型常驻，几秒一段，不多耗电，负载比攒半小时一次算更平缓；云端每段都上传）。
+ * 实时转写：亮屏或充电时录完就转，锁屏未充电时攒批。
  * 只转写和认人，整理按整理设置另外排。电量低且没充电、或手机已偏热时先攒着，交给定时转写兜底。
  */
 object EarlyTranscribe {
     const val LOW_BATTERY = 20
+
+    fun shouldBatch(interactive: Boolean, charging: Boolean): Boolean = !interactive && !charging
 
     fun shouldRun(realtime: Boolean, pendingMillis: Long, battery: Int, charging: Boolean, hot: Boolean): Boolean = when {
         !realtime || pendingMillis <= 0 -> false
@@ -42,5 +44,5 @@ object PipelineTimes {
     fun dump(context: Context): String =
         context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString(KEY, "")!!
             .lines().filter { it.isNotBlank() }.joinToString("\n") { "流水线 $it" } + "\n" +
-            context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString("segments073", "").orEmpty()
+            context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString("segments073", "").orEmpty() + "\n" + TranscribePowerDiagnostics.dump(context)
 }

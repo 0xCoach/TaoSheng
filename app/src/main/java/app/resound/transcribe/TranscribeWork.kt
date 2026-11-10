@@ -1,6 +1,9 @@
 package app.resound.transcribe
 
 import android.os.SystemClock
+import android.os.PowerManager
+import android.os.BatteryManager
+import app.resound.capture.CaptureTuning
 import android.content.Context
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -34,7 +37,12 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         val app = applicationContext as ResoundApp
         val mode = inputData.getString(MODE) ?: MODE_FULL
-        if (mode == MODE_REALTIME) BackgroundTranscribeDiagnostics.delayed(applicationContext, inputData)
+        if (mode == MODE_REALTIME) {
+            if ((AppGraph.transcribeSettings as? AndroidTranscribeSettings)?.realtime?.value != true)
+                return Result.success()
+            TranscribePowerDiagnostics.execution(app, inputData.getBoolean(BATCHED, false))
+            BackgroundTranscribeDiagnostics.delayed(applicationContext, inputData)
+        }
         fun expired(): Boolean {
             if (mode != MODE_TIMED) return false
             val target = inputData.getLong(DigestAlarm.TARGET, 0)
@@ -50,7 +58,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         }
         try {
             if (expired()) { missed(); return Result.success() }
-            // 已有麦克风 FGS 不是文档保证的后台启动豁免；实时任务依靠 expedited，不主动再起 FGS。
+            // 已有麦克风 FGS 不是文档保证的后台启动豁免；实时任务按加急/普通批次调度，不主动再起 FGS。
             if (mode != MODE_REALTIME) {
                 try { setForeground(getForegroundInfo()) }
                 catch (e: CancellationException) { throw e }
@@ -71,6 +79,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
         private val pipeline = Mutex()
         const val MODE = "mode"
         const val MODE_REALTIME = "realtime"
+        internal const val BATCHED = "earlyBatched"
         const val MODE_TRANSCRIBE = "transcribe"
         const val MODE_DIGEST = "digest"
         const val MODE_FULL = "full"
@@ -224,20 +233,58 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
     }
     /** 设置/系统时钟改变后旧窗口失效；进程启动和闹钟接续不取消已触发的任务。 */
     fun timingChanged() { manager.cancelAllWorkByTag(TIMED_TAG); scheduleDigest() }
-    /** 每存好一段录音调用：选了实时就马上转；电量低或偏热时先攒着，交给定时转写兜底 */
-    suspend fun segmentSaved(pendingMillis: Long) {
-        if (!settings.ready.value || !EarlyTranscribe.deviceAllows(context, realtime, pendingMillis)) return
-        // 正在跑时追加一轮，接上这段；还在排队时不重复排
-        val running = manager.getWorkInfosForUniqueWork(EARLY_WORK).get().any { it.state == WorkInfo.State.RUNNING }
-        manager.enqueueUniqueWork(EARLY_WORK, if (running) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            earlyRequest(constraints()))
+    /** 每存好一段录音调用；锁屏未充电攒批，低电/偏热仍交给原周期兜底。 */
+    suspend fun segmentSaved(pendingMillis: Long) = earlyMutex.withLock {
+        if (!settings.ready.value || !EarlyTranscribe.deviceAllows(context, realtime, pendingMillis)) return@withLock
+        enqueueEarly(EarlyTranscribe.shouldBatch(
+            context.getSystemService(PowerManager::class.java).isInteractive,
+            context.getSystemService(BatteryManager::class.java).isCharging))
+    }
+
+    private fun enqueueEarly(batch: Boolean) {
+        val infos = manager.getWorkInfosForUniqueWork(EARLY_WORK).get()
+        val running = infos.any { it.state == WorkInfo.State.RUNNING }
+        val waitingBatch = infos.any { BATCH_TAG in it.tags &&
+            it.state in setOf(WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED) }
+        // 正在跑时仍补一轮，但已有等待批次就合并进去，避免每段追加一个空批次。
+        val append = running && !(batch && waitingBatch)
+        manager.enqueueUniqueWork(EARLY_WORK, if (append) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            earlyRequest(constraints(), batch)).result.get()
+    }
+
+    /** 由录音服务的亮屏/接电广播调用；不创建空任务，也不取消当前正在推理的一轮。 */
+    suspend fun resumeWaitingBatch(action: String?) = earlyMutex.withLock {
+        if (action != android.content.Intent.ACTION_SCREEN_ON && action != android.content.Intent.ACTION_POWER_CONNECTED) return@withLock
+        if (!realtime || !settings.ready.value) return@withLock
+        val infos = manager.getWorkInfosForUniqueWork(EARLY_WORK).get()
+        val waiting = infos.filter { BATCH_TAG in it.tags &&
+            it.state in setOf(WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED) }
+        if (waiting.isEmpty()) return@withLock
+        // 原位替换等待任务的请求参数，去掉延迟并加急。即使查询后它刚开始运行，
+        // updateWork 也不会取消该轮推理；BLOCKED 任务保留父依赖，父轮结束即可接上。
+        waiting.forEach { info ->
+            val updated = runCatching { manager.updateWork(earlyRequest(constraints(), id = info.id)).get() }
+            // 个别系统不允许原位改成加急：还在排队的就替换成立即执行（正在跑的不动，避免取消推理）
+            if (updated.isFailure && info.state == WorkInfo.State.ENQUEUED)
+                manager.enqueueUniqueWork(EARLY_WORK, ExistingWorkPolicy.REPLACE, earlyRequest(constraints()))
+        }
     }
     fun observe() = manager.getWorkInfosByTagFlow(TAG)
     companion object {
-        internal fun earlyRequest(constraints: Constraints): OneTimeWorkRequest =
+        private val earlyMutex = Mutex()
+        internal const val BATCH_TAG = "transcribe-early-batch"
+        internal fun earlyRequest(constraints: Constraints, batch: Boolean = false,
+                                  id: java.util.UUID? = null): OneTimeWorkRequest =
             OneTimeWorkRequestBuilder<TranscribeWork>().setConstraints(constraints).addTag(TAG)
-                .setInputData(BackgroundTranscribeDiagnostics.input())
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setInputData(Data.Builder().putAll(BackgroundTranscribeDiagnostics.input())
+                    .putBoolean(TranscribeWork.BATCHED, batch).build())
+                .apply {
+                    if (id != null) setId(id)
+                    if (batch) {
+                        addTag(BATCH_TAG)
+                        setInitialDelay(CaptureTuning.BATCH_DELAY_MS, TimeUnit.MILLISECONDS)
+                    } else setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                }
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build()
         const val TAG = "transcribe"
         const val TIMED_TAG = "digest-timed"

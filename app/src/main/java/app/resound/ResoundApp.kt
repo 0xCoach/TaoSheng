@@ -33,6 +33,7 @@ class ResoundApp : Application() {
         val local = java.time.Instant.ofEpochMilli(target).atZone(java.time.ZoneId.systemDefault())
         return timing.mode.value == DigestMode.TimePoints && local.hour * 60 + local.minute in timing.timePoints.value
     }
+    suspend fun resumeWaitingTranscriptionBatch(action: String?) = transcribeScheduler.resumeWaitingBatch(action)
     fun runTranscriptionNow() = transcribeScheduler.runNow()
     lateinit var controller: AndroidCaptureController
         private set

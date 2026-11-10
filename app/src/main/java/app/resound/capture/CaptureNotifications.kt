@@ -58,6 +58,8 @@ object CaptureNotifications {
         .build()
     }
     fun interrupted(context: Context) {
+        // 与现有中断判定共用入口，即使没有通知权限也保留事实。
+        app.resound.onboarding.LocalOnboarding.captureInterrupted(context)
         channels(context)
         if (!permitted(context)) return
         try { NotificationManagerCompat.from(context).notify(INTERRUPTED, NotificationCompat.Builder(context, "interrupted")

@@ -31,7 +31,8 @@ internal class LocalProblemReports(
         @Suppress("DEPRECATION") val installed = context.packageManager.getPackageInfo(context.packageName, 0)
         val at = Instant.now()
         val diagnostics = stats.exportDiagnostics()
-        val envDiagnostics = (app.resound.AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.diagnostics().orEmpty()
+        val envDiagnostics = if (app.resound.AppGraph.isEnvSoundReady)
+            (app.resound.AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.diagnostics().orEmpty() else ""
         val content = try {
             buildString {
                 appendLine("涛声问题记录")
@@ -47,6 +48,8 @@ internal class LocalProblemReports(
                 appendLine("\n更新诊断（最近 50 行）")
                 appendLine(UpdateDiagnostics.dump(context).lines().takeLast(50).joinToString("\n"))
                 appendLine("\n本机备份诊断（最近 50 行）"); appendLine(app.resound.backup.BackupDiagnostics.dump(context))
+                appendLine("\n新手上手（仅本地计数与耗时）")
+                appendLine(app.resound.onboarding.LocalOnboarding.diagnostics(context.getSharedPreferences("onboarding", Context.MODE_PRIVATE)))
             }
         } finally { diagnostics.delete() }
         val directory = File(context.cacheDir, "problem-reports").apply { check(isDirectory || mkdirs()) }
@@ -60,4 +63,6 @@ internal class LocalProblemReports(
 /** 宁可遮掉看似凭证的长标识，也不把密钥交给分享目标。 */
 internal fun scrubProblemReport(text: String): String = text
     .replace(Regex("sk-[A-Za-z0-9_-]+"), "[密钥已隐藏]")
-    .replace(Regex("[A-Za-z0-9+/_-]{32,}={0,2}"), "[长串已隐藏]")
+    .replace(Regex("[A-Za-z0-9+/_-]{32,}={0,2}")) {
+        if (it.value.trimEnd('=') == app.resound.onboarding.LocalOnboarding.ELAPSED) it.value else "[长串已隐藏]"
+    }

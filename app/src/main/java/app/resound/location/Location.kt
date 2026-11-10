@@ -46,6 +46,8 @@ interface LocationDao {
     @Insert suspend fun insert(point: LocationPoint): Long
     @Query("SELECT * FROM location_points WHERE at >= :from AND at < :to ORDER BY at")
     fun between(from: Long, to: Long): Flow<List<LocationPoint>>
+    @Query("SELECT * FROM location_points WHERE at >= :from AND at < :to ORDER BY at")
+    suspend fun betweenNow(from: Long, to: Long): List<LocationPoint>
     @Query("SELECT * FROM location_points ORDER BY at DESC LIMIT 1")
     suspend fun latest(): LocationPoint?
     @Query("SELECT * FROM location_points ORDER BY at DESC LIMIT 1")

@@ -33,12 +33,13 @@ object DigestPrompt {
         template.replace("{{CALENDAR}}", calendar(today)).replace("{{APP_NAME}}", appName) + "\n\n" + VOICE_INPUT_RULES
 
     /** 给原话编号（从 1 开始），不同录音之间加分隔行。返回正文和“编号 → 句子”。 */
-    fun transcript(lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet()): Pair<String, List<TranscriptLineEntity>> {
+    fun transcript(lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet(), situationHeadings: Map<Int, String> = emptyMap()): Pair<String, List<TranscriptLineEntity>> {
         val time = DateTimeFormatter.ofPattern("HH:mm:ss")
         val text = buildString {
             var segment: Long? = null
             lines.forEachIndexed { i, line ->
                 if (segment != null && line.segmentId != segment) appendLine("—— 新录音 ——")
+                situationHeadings[i]?.let { appendLine(it) }
                 if (segment != line.segmentId && line.segmentId in unseparated)
                     appendLine("本段未区分说话人，未做声纹认人；不得猜测是谁说的，不得默认是本人。")
                 segment = line.segmentId

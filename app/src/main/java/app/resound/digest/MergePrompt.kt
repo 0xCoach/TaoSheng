@@ -20,11 +20,12 @@ object MergePrompt {
     /**
      * 合并的输入：几件事已经整理好的标题、摘要、要点（不重读原话，多长的事都能合，提取项原样保留）。
      */
-    fun input(events: List<app.resound.data.MemoryEventEntity>, zone: ZoneId = ZoneId.systemDefault()): String {
+    fun input(events: List<app.resound.data.MemoryEventEntity>, zone: ZoneId = ZoneId.systemDefault(), situationHeadings: Map<Long, String> = emptyMap()): String {
         val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
         fun at(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(zone).format(time)
         return buildString {
             events.sortedBy { it.startAt }.forEachIndexed { i, e ->
+                situationHeadings[e.id]?.let { appendLine(it) }
                 appendLine("【记录 ${i + 1}】${at(e.startAt)}–${at(e.endAt)} · ${e.scene}")
                 appendLine("标题：${e.title}")
                 if (e.summary.isNotBlank()) appendLine("摘要：${e.summary}")

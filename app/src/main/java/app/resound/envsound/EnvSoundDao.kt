@@ -15,6 +15,8 @@ data class EnvSoundRow(@PrimaryKey val segmentId: Long, val startAt: Long, val e
 interface EnvSoundDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(row: EnvSoundRow)
     @Query("SELECT * FROM env_sounds WHERE segmentId = :id") suspend fun get(id: Long): EnvSoundRow?
+    @Query("SELECT * FROM env_sounds WHERE startAt < :end AND endAt > :start AND reportedWrong = 0 ORDER BY startAt")
+    suspend fun between(start: Long, end: Long): List<EnvSoundRow>
     @Transaction
     @Query("SELECT * FROM env_sounds ORDER BY startAt") fun observe(): Flow<List<EnvSoundRow>>
     @Transaction

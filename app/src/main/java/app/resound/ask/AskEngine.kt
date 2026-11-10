@@ -46,7 +46,8 @@ class AskEngine(
         }
         try {
             try { run() } catch (fallback: AskPrefetchRequired) {
-                markFallback(fallback.reason, fallback.actualFailure)
+                // 偶尔一次没查记录不代表不会查：只这次改用程序先查，不永久标记。
+                if (fallback.reason != AskFailure.NoLookup) markFallback(fallback.reason, fallback.actualFailure)
                 currentMode = AskMode.Prefetch
                 run() // 同一次问答只兜底一次，丢弃失败轮的文字和工具消息。
             }

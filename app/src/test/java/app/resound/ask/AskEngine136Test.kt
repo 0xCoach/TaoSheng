@@ -32,6 +32,16 @@ class AskEngine136Test {
         assertEquals(listOf(source), updates.last().sources)
     }
 
+    @Test fun oneOffNoLookupUsesPrefetchOnceWithoutPermanentMark() = runBlocking {
+        var calls = 0; var marked = false; var result: AskEngine.Update? = null
+        AskEngine(AskStream { _, _, _, _ ->
+            if (++calls == 1) LlmStreamReply("老王上午提了方案", emptyList()) else LlmStreamReply("给老王发方案[^1]", emptyList())
+        }, tools, { _, _, sources -> found(sources) }, { _, _ -> }, markFallback = { _, _ -> marked = true })
+            .answer("", emptyList(), "老王说了什么") { result = it }
+        assertEquals(2, calls); assertFalse(marked)
+        assertEquals(AskMode.Prefetch, result!!.mode); assertNull(result!!.error)
+    }
+
     @Test fun secondRound400RetriesWithoutToolHistoryAndDoesNotRepeatProposal() = runBlocking {
         var calls = 0; var reason: AskFailure? = null; var result: AskEngine.Update? = null
         AskEngine(AskStream { messages, definitions, _, _ ->

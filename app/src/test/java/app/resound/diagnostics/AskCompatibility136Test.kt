@@ -98,7 +98,7 @@ class AskCompatibility136Test {
         val backup = providers.saveNow(null, null, "备", "https://test.invalid/v1", "backup", "test-key", "", "")
         val preset = providers.credentials(primary).first; val fallback = providers.credentials(backup).first
         val store = providers.askCompatibility
-        store.mark(fallback, AskFailure.NoLookup, store.generation(backup), actualFailure = false)
+        store.mark(fallback, AskFailure.ToolFormat, store.generation(backup), actualFailure = false)
         val failover = LlmFailover(context, providers)
         val session = LlmFailover.StreamSession(preset, "test-key").also { it.askFallback = true }
         var prefetching = false; var usages = 0; var result: AskEngine.Update? = null

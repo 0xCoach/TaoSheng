@@ -13,6 +13,7 @@ class AndroidAsrSpeedSettings(
     private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
 ) : AsrSpeedSettings {
+    internal var topicTraining: (Long) -> Boolean = { false }
     private data class Entry(val at: Long, val separate: Boolean, val classroom: Boolean, val until: Long?)
     private var history = JSONArray(prefs.getString("history", "[]")).let { rows ->
         (0 until rows.length()).map { i -> rows.getJSONObject(i).let {
@@ -63,6 +64,6 @@ class AndroidAsrSpeedSettings(
         val entry = history.withIndex().filter { it.value.at <= segmentStartMillis }
             .maxWithOrNull(compareBy<IndexedValue<Entry>> { it.value.at }.thenBy { it.index })?.value
             ?: Entry(Long.MIN_VALUE, true, false, null)
-        return entry.separate && !state(entry, segmentStartMillis).enabled
+        return !topicTraining(segmentStartMillis) && entry.separate && !state(entry, segmentStartMillis).enabled
     }
 }

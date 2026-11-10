@@ -52,7 +52,7 @@ interface CaptureDao {
     fun batteries(start: Long, end: Long): Flow<List<BatteryEntity>>
 }
 
-@Database(entities = [app.resound.devices.DeviceTransfer::class, app.resound.importer.ImportFingerprint::class, app.resound.importer.FolderObservation::class, PrivacyFileCleanup::class, app.resound.things.ThingRow::class, app.resound.things.ThingRecordRow::class, app.resound.things.ThingWatchState::class, app.resound.importer.ImportRecordRow::class, app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
+@Database(entities = [app.resound.topic.TopicRow::class, app.resound.topic.TopicSpanRow::class, app.resound.topic.TopicMarkRow::class, app.resound.devices.DeviceTransfer::class, app.resound.importer.ImportFingerprint::class, app.resound.importer.FolderObservation::class, PrivacyFileCleanup::class, app.resound.things.ThingRow::class, app.resound.things.ThingRecordRow::class, app.resound.things.ThingWatchState::class, app.resound.importer.ImportRecordRow::class, app.resound.redo.RedoSnapshotRow::class, SegmentEntity::class, EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,
     MemoryEventEntity::class, MemoryItemEntity::class, LlmUsageV2Entity::class, AppPowerEntity::class,
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
@@ -60,6 +60,7 @@ interface CaptureDao {
     app.resound.search.ItemFts::class, app.resound.search.EmbeddingEntity::class,
     PendingDigest::class, app.resound.envsound.EnvSoundRow::class, app.resound.skills.SkillCardRow::class, app.resound.skills.SkillRunRow::class, app.resound.location.LocationPoint::class, app.resound.location.PlaceRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 abstract class CaptureDatabase : RoomDatabase() {
+    internal abstract fun topics(): app.resound.topic.TopicDao
     internal abstract fun deviceSync(): app.resound.devices.DeviceSyncStore
     internal abstract fun folderImports(): app.resound.importer.FolderImportDao
     abstract fun imports(): app.resound.importer.ImportRecordDao
@@ -80,7 +81,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun places(): app.resound.location.PlaceDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 32
+        const val VERSION = 33
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -322,7 +323,10 @@ abstract class CaptureDatabase : RoomDatabase() {
                 app.resound.location.PlaceSchema.addManual(db)
             }
         }
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) = app.resound.topic.TopicSchema.create(db)
+        }
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .addMigrations(*MIGRATIONS)
             .addCallback(app.resound.search.SearchIndex.callback).addCallback(app.resound.importer.ImportRecordSchema.callback)

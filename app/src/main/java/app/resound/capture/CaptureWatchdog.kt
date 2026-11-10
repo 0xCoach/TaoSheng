@@ -27,6 +27,7 @@ class CaptureBootReceiver : BroadcastReceiver() {
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, android.app.AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
         val app = context.applicationContext as ResoundApp
         app.rescheduleDigest(changed = true)
+        app.scope.launch { app.topics.repository.tick() }
         app.quietSchedule.refresh()
         CaptureService.recheck()
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return

@@ -33,7 +33,7 @@ internal class ImportSummary(
     private val request: suspend (String, String) -> LlmReply,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<app.resound.data.MemoryItemEntity> = emptyList()): ImportSummaryResult {
+    suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<app.resound.data.MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
         val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()
         val indexed = lines.associateBy { "L${it.id}" }
@@ -59,7 +59,7 @@ internal class ImportSummary(
                 ?: throw LlmException(LlmError.Format)
             return json
         }
-        suspend fun ask(data: String): JSONObject = parse(request(system, SkillInputs.user(SkillInput("已有待办（资料）：$existingData\n$data", indexed), emptyList())).content)
+        suspend fun ask(data: String): JSONObject = parse(request(system, SkillInputs.user(SkillInput("$extraContext\n已有待办（资料）：$existingData\n$data", indexed), emptyList())).content)
         val chunks = ImportChunks.split(lines)
         for ((i, chunk) in chunks.withIndex()) {
             val previous = chunks.getOrNull(i - 1)?.lastOrNull()

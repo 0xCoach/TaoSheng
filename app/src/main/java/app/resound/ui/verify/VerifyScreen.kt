@@ -115,6 +115,7 @@ fun VerifyScreen(
         item { StatusCard(capture) }
         if (app.resound.AppGraph.isQuietScheduleReady) item { QuietSection(app.resound.AppGraph.quietSchedule) }
         if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
+        if (app.resound.AppGraph.isDevicesReady) item { DeviceSection(app.resound.AppGraph.devices, app.resound.AppGraph.deviceCards, app.resound.AppGraph.deviceScanError) }
         if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
         if (app.resound.AppGraph.isFolderImportReady) item { FolderImportSection(app.resound.AppGraph.folderImports) }
         item {

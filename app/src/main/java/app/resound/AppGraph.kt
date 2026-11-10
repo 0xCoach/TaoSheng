@@ -17,6 +17,8 @@ object AppGraph {
     lateinit var deviceScanError: kotlinx.coroutines.flow.StateFlow<String?>
     lateinit var deviceCards: app.resound.devices.DeviceCards
         internal set
+    /** 外设三件都装配好了，界面才显示设备区块 */
+    val isDevicesReady: Boolean get() = ::devices.isInitialized && ::deviceCards.isInitialized && ::deviceScanError.isInitialized
     lateinit var llmFailover: app.resound.digest.LlmFailover
     val isLlmFailoverReady: Boolean get() = ::llmFailover.isInitialized
     lateinit var llmProviders: app.resound.digest.LlmProviders

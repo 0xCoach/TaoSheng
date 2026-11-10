@@ -17,6 +17,12 @@ class AndroidDigestSettings internal constructor(
     fun setFailoverEnabled(enabled: Boolean) = failover.setEnabled(enabled)
     val timing = AndroidDigestTiming(context)
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
+    private val _includeSituation = MutableStateFlow(prefs.getBoolean("includeSituation", false))
+    override val includeSituation = _includeSituation.asStateFlow()
+    override fun setIncludeSituation(on: Boolean) {
+        check(prefs.edit().putBoolean("includeSituation", on).commit())
+        _includeSituation.value = on
+    }
     /** 两句话之间停多久算这段对话结束（分钟）；结束后才整理，避免一件事被切成两半 */
     private val _pauseMinutes = MutableStateFlow(prefs.getInt("pauseMinutes", DEFAULT_PAUSE).coerceIn(PAUSE_RANGE))
     val pauseMinutes = _pauseMinutes.asStateFlow()

@@ -17,6 +17,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
     hotwords: () -> List<String>, template: () -> String, mergeTemplate: () -> String,
     identify: suspend (List<Long>) -> Unit,
     network: (TranscribeSource) -> Boolean,
+    situation: app.resound.context.SituationLookup? = null,
 ): RedoEngine {
     val provider = ConfiguredAsrProvider(context, settings, hotwords)
     val files = SkillFiles(context)
@@ -49,9 +50,10 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
             digestSettings.skillCredentials(presetId)
         }
-        val (text, indexed) = DigestPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
+        val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation)
+        val (text, indexed) = contextPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System.currentTimeMillis() - 60L * 86_400_000))
-        val reply = digestSettings.failover.request("重新整理", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, DigestPrompt.system(template(), LocalDate.now(), context.appName), input)
+        val reply = digestSettings.failover.request("重新整理", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, contextPrompt.system(DigestPrompt.system(template(), LocalDate.now(), context.appName)), input)
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (events, items) = DigestPrompt.parse(reply.content, indexed)
         val at = System.currentTimeMillis()
@@ -67,7 +69,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             digestSettings.skillCredentials(presetId)
         }
         val indexed = lines.sortedBy { it.startAt }
-        val reply = digestSettings.failover.request("合并事件", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, MergePrompt.system(mergeTemplate(), LocalDate.now(), context.appName), MergePrompt.input(events))
+        val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation)
+        val reply = digestSettings.failover.request("合并事件", db.memory(), app.resound.usage.UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, contextPrompt.system(MergePrompt.system(mergeTemplate(), LocalDate.now(), context.appName)), contextPrompt.merge(events))
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (event, items) = MergePrompt.parse(reply.content, indexed)
         val at = System.currentTimeMillis()

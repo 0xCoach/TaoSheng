@@ -40,6 +40,7 @@ class DigestRunner(
     private val unseparated: suspend (List<Long>) -> List<Long> = { emptyList() },
     private val thingExtraction: app.resound.things.DigestThingExtraction? = null,
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = settings.digestRequest(client),
+    private val situation: app.resound.context.SituationLookup? = null,
 ) {
     private val appContext = context.applicationContext
     private val appName = context.appName
@@ -157,8 +158,9 @@ class DigestRunner(
         retryFailure = true
         val batchId = identity(lines)
         var storedId = batchId
-        val (text, indexed) = DigestPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
         return try {
+            val contextPrompt = SituationPrompt(settings.includeSituation.value, situation)
+            val (text, indexed) = contextPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
             val unfinished = dao.unfinishedForDigest()
             val candidates = unfinished.map { it.id }.toSet()
             val ignored = dao.ignoredForDigest(now() - 60L * 86_400_000)
@@ -167,7 +169,7 @@ class DigestRunner(
             val cached = cached(lines, preset)
             storedId = cached?.id ?: batchId
             val stored = cached ?: run {
-                val system = DigestPrompt.system(template(), LocalDate.now(), appName) + (thingBatch?.system?.let { "\n\n$it" } ?: "")
+                val system = contextPrompt.system(DigestPrompt.system(template(), LocalDate.now(), appName)) + (thingBatch?.system?.let { "\n\n$it" } ?: "")
                 val user = (thingBatch?.input?.let { "$it\n\n以下为本次新原话与整理参考：\n" } ?: "") + input
                 check(prefs.edit().putString("inflight", batchId).putString("inflight-lines", lines.joinToString(",") { it.id.toString() }).commit())
                 val received = try {

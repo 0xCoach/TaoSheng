@@ -31,6 +31,10 @@ fun createAskRepository(
     fun asset(name: String) = context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
     val definitions = JSONArray(asset("ask-tools.json"))
     val tools = AskTools(database, JSONObject(asset("ask-sql.json")), embedder = { app.resound.search.LocalEmbedder(context) })
+    val places by lazy { CachedAskPlaces(app.resound.AppGraph.location, database) }
+    val placeTools = AskPlaceTools(tools, { places.enabled() },
+        { name, from, to -> places.staysAt(name, from, to) },
+        { from, to -> places.placesDuring(from, to) })
     val changes = AskChanges(database, onChanged = { app.resound.search.EmbeddingScheduler.enqueue(context) })
     val suggestions = AskSuggestions(
         context.getSharedPreferences("ask-suggestions", Context.MODE_PRIVATE),
@@ -71,7 +75,7 @@ fun createAskRepository(
             // 即使额度耗尽也保留 tools 定义，同时 tool_choice=none，避免服务把工具语法泄漏进正文。
             settings.failover.stream("问答", session, messages, definitions, client, delta,
                 { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, allowTools = requested.length() > 0)
-        }, definitions, tools::execute, { _, _ -> }, changes::propose)
+        }, definitions, placeTools::execute, { _, _ -> }, changes::propose)
     }, system = {
         val today = LocalDate.now()
         DigestPrompt.system(app.resound.AppGraph.prompts.text("ask"), today, context.appName).replace("{{TODAY}}", today.toString())

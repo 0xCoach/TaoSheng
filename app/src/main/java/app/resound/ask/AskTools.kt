@@ -2,6 +2,7 @@ package app.resound.ask
 
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.resound.data.CaptureDatabase
+import app.resound.context.PlaceAt
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -19,7 +20,7 @@ class AskTools(
     private val embedder: () -> app.resound.search.Embedder? = { null },
 ) {
     data class Query(val sql: String, val args: List<Any>, val kind: String)
-    fun query(name: String, input: JSONObject, ids: List<Long>? = null): Query {
+    fun query(name: String, input: JSONObject, ids: List<Long>? = null, stays: List<PlaceAt>? = null): Query {
         require(name in setOf("search_lines", "search_events", "list_items", "get_day"))
         val s = spec.getJSONObject(name)
         val allowed = when (name) {
@@ -51,6 +52,15 @@ class AskTools(
         } }
         val fts = when (name) { "search_lines" -> "lines_fts"; "list_items" -> "items_fts"; else -> "events_fts" }
         val prefix = when (name) { "search_lines" -> "l"; "list_items" -> "i"; else -> "e" }
+        if (stays != null) {
+            require(name in setOf("search_lines", "search_events"))
+            val valid = stays.filter { it.start < it.end }
+            if (valid.isEmpty()) where += "0" else {
+                // 只有本地 Long 时间戳进入 VALUES，模型字符串仍全部绑定；避免长时间范围的绑定数/OR 深度上限。
+                val spans = valid.joinToString { "(${it.start},${it.end})" }
+                where += "EXISTS (SELECT 1 FROM (VALUES $spans) WHERE $prefix.startAt < column2 AND $prefix.endAt > column1)"
+            }
+        }
         if (words.isNotEmpty()) {
             val match = app.resound.search.SearchTokens.match(words)
             if (match.isEmpty()) where += "0" else {
@@ -94,8 +104,8 @@ class AskTools(
 
     private fun withoutKeywords(args: JSONObject) = JSONObject(args.toString()).apply { remove("keywords") }
 
-    private fun semanticIds(name: String, args: JSONObject, vector: FloatArray, model: String): List<Pair<Long, Double>> {
-        val base = query(name, withoutKeywords(args))
+    private fun semanticIds(name: String, args: JSONObject, vector: FloatArray, model: String, stays: List<PlaceAt>?): List<Pair<Long, Double>> {
+        val base = query(name, withoutKeywords(args), stays = stays)
         val kind = base.kind
         val prefix = if (kind == "item") "i" else "e"
         val table = spec.getJSONObject(name).getString("table")
@@ -113,19 +123,22 @@ class AskTools(
         }
     }
 
-    private fun semantic(names: List<String>, args: JSONObject, text: String): Map<String, List<Pair<Long, Double>>> {
+    private fun semantic(names: List<String>, args: JSONObject, text: String, stays: List<PlaceAt>? = null): Map<String, List<Pair<Long, Double>>> {
         val local = embedder() ?: return emptyMap()
         return try {
             if (!local.ready()) emptyMap() else {
                 val vector = app.resound.search.Vectors.normalize(local.embed(text, query = true))
-                names.associateWith { semanticIds(it, args, vector, local.model) }
+                names.associateWith { semanticIds(it, args, vector, local.model, stays) }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (_: Exception) { emptyMap() } // 模型缺失或无法加载时静默退回关键词。
         finally { if (local is AutoCloseable) local.close() }
     }
 
-    fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject {
+    fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject =
+        execute(name, args, sources, null)
+
+    internal fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>, stays: List<PlaceAt>?): JSONObject {
         if (name == "find_things") return app.resound.things.FindThingsTool(db, zone).execute(args, sources)
         val rows: List<JSONObject>
         var truncated = false
@@ -145,15 +158,15 @@ class AskTools(
             rows = top.mapNotNull { found[it.first to it.second] }
             truncated = ranked.size > 10
         } else {
-            val q = query(name, args)
+            val q = query(name, args, stays = stays)
             val keyword = read(q)
             val words = args.optJSONArray("keywords")
             if (name in setOf("search_events", "list_items") && words != null && words.length() > 0) {
                 val text = (0 until words.length()).joinToString(" ") { words.getString(it) }
-                val semantic = semantic(listOf(name), args, text)[name].orEmpty().map { it.first }
+                val semantic = semantic(listOf(name), args, text, stays)[name].orEmpty().map { it.first }
                 val first = keyword.take(20)
                 val ids = app.resound.search.Vectors.merge(first.map { it.getLong("id") }, semantic)
-                val found = (first + read(query(name, withoutKeywords(args), semantic))).associateBy { it.getLong("id") }
+                val found = (first + read(query(name, withoutKeywords(args), semantic, stays))).associateBy { it.getLong("id") }
                 rows = ids.mapNotNull { found[it] }
                 truncated = (keyword.map { it.getLong("id") } + semantic).distinct().size > rows.size
             } else { rows = keyword.take(40); truncated = keyword.size > 40 }

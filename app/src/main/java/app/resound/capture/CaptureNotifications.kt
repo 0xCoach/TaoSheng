@@ -33,6 +33,10 @@ object CaptureNotifications {
         Intent(context, app.resound.MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    private fun openTopic(context: Context, id: Long): PendingIntent = PendingIntent.getActivity(context, 26,
+        Intent(context, app.resound.MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .putExtra("open", "topic").putExtra("topicId", id), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun ongoing(context: Context, paused: Boolean): Notification {
         val prefs = context.getSharedPreferences("capture", Context.MODE_PRIVATE)
         val quietName = prefs.getString("quietName", null).takeIf { paused }
@@ -50,7 +54,12 @@ object CaptureNotifications {
         .setContentText(if (topicLine != null) topicLine else if (quietName != null) "$clock 自动恢复，点此立即恢复" else if (paused) "到点自动恢复，也可点此立即恢复" else "后台运行中")
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
         // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
-        .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(if (paused) action(context, CaptureService.RESUME) else openApp(context))
+        // 专题进行中点通知直接打开这场专题（大按钮记一下/暂停/结束）：系统常把常驻通知收起，按钮要长按才看得到
+        .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(when {
+            paused && topic == null -> action(context, CaptureService.RESUME)
+            topic != null -> openTopic(context, topic.id)
+            else -> openApp(context)
+        })
         .apply {
             if (topic != null) app.resound.topic.TopicNotifications.actions(this, context, topic)
             else {

@@ -48,7 +48,14 @@ class ClassModeTileService : TileService() {
         super.onClick()
         if (!AppGraph.isTopicsReady) return
         val topic = AppGraph.topics.current.value
-        app.resound.topic.TopicActionReceiver.intent(this, if (topic == null) "start" else "end", topic?.id ?: 0).send()
+        if (topic == null) { app.resound.topic.TopicActionReceiver.intent(this, "start", 0).send(); return }
+        // 进行中点一下打开专题面板（记一下/暂停/结束），不直接结束，免得误触
+        val open = android.content.Intent(this, app.resound.MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .putExtra("open", "topic").putExtra("topicId", topic.id)
+        if (android.os.Build.VERSION.SDK_INT >= 34) startActivityAndCollapse(android.app.PendingIntent.getActivity(this, 27, open,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE))
+        else @Suppress("DEPRECATION") startActivityAndCollapse(open)
     }
     override fun onStopListening() { observer?.cancel(); observer = null; super.onStopListening() }
     override fun onDestroy() { scope.cancel(); super.onDestroy() }

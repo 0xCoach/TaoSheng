@@ -65,6 +65,9 @@ class ProblemReportsTest {
             val hex = "abcdef12".repeat(4)
             val stats = RoomCaptureStatsRepository(context, database.capture()) { "步骤=12 $key $hex" }
             val reports = LocalProblemReports(context, crashes, stats, updater)
+            context.getSharedPreferences("onboarding", 0).edit()
+                .putLong("count_wizard_shown", 2)
+                .putLong(app.resound.onboarding.LocalOnboarding.ELAPSED, 1500).commit()
             assertEquals(2000L, reports.lastCrashAt.value)
             repeat(55) { UpdateDiagnostics.record(context, "step=$it") }
             val file = reports.export()
@@ -73,6 +76,9 @@ class ProblemReportsTest {
             assertTrue(text.contains("预览通道=true")); assertTrue(text.contains("步骤=12"))
             assertTrue(text.contains("step=54")); assertFalse(text.contains("step=0\n"))
             assertFalse(text.contains(key)); assertFalse(text.contains(hex)); assertFalse(text.contains("不要导出"))
+            assertTrue(text.contains("新手上手（仅本地计数与耗时）"))
+            assertTrue(text.contains("wizard_shown count=2"))
+            assertTrue(text.contains("first_transcript_after_wizard_ms=1500"))
             reports.dismissCrashNotice()
             assertNull(reports.lastCrashAt.value)
             assertNull(LocalProblemReports(context, crashes, stats, updater).lastCrashAt.value)

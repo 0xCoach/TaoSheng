@@ -139,6 +139,7 @@ class AndroidBackupRepository internal constructor(
                 val summary = HistoryVolumes.sync(context, database, client.volumes(), workspace, backupPassphrase(), state.value.keep)
                 check(prefs.edit().putLong("lastAt", summary.lastAt!!).putLong("lastBytes", summary.lastUploadBytes!!)
                     .putInt("count", summary.days).remove("error").commit())
+                app.resound.onboarding.LocalOnboarding.backupSucceeded(context)
                 BackupRestore.clearSnapshots(context)
                 if (periodic) syncDiary(client)
                 false
@@ -238,6 +239,7 @@ class AndroidBackupRepository internal constructor(
                 val summary = HistoryVolumes.sync(context, database, store, work, backupPassphrase(), local.value.keep)
                 check(prefs.edit().putLong("localLastAt", summary.lastAt!!).putLong("localLastBytes", summary.lastUploadBytes!!)
                     .putInt("localCount", summary.days).commit())
+                app.resound.onboarding.LocalOnboarding.backupSucceeded(context)
                 BackupRestore.clearSnapshots(context)
             }
         }
@@ -249,6 +251,7 @@ class AndroidBackupRepository internal constructor(
             DayVolumes.export(context, database, work, file, backupPassphrase())
             localFiles.export(file, target)
             check(prefs.edit().putLong("localLastAt", System.currentTimeMillis()).putLong("localLastBytes", file.length()).commit())
+            app.resound.onboarding.LocalOnboarding.backupSucceeded(context)
             BackupRestore.clearSnapshots(context)
         }
     }

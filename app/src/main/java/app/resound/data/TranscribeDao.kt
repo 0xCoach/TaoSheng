@@ -27,6 +27,20 @@ data class SegmentWithLines(@Embedded val segment: SegmentEntity,
 
 @Dao
 abstract class TranscribeDao {
+    /** 只读时间元数据；空白句子不算首次转写。 */
+    @Query("SELECT MIN(startAt) FROM transcript_lines WHERE LENGTH(TRIM(text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0")
+    abstract fun onboardingFirstTranscript(): Flow<Long?>
+
+    /** 标签只在同一录音段内比较；uncertain:* 是分块占位符，不是可靠的说话人。 */
+    @Query("""SELECT s.startAt FROM segments s WHERE s.startAt >= :since AND s.sourceId != 'voice-input'
+        AND (SELECT COUNT(DISTINCT CASE WHEN l.speakerTag NOT LIKE 'uncertain:%'
+                AND TRIM(l.speakerTag) != '' THEN l.speakerTag END) >= 2
+            OR MAX(CASE WHEN l.speakerPersonId > 0 THEN 1 ELSE 0 END) = 1
+            FROM transcript_lines l WHERE l.segmentId = s.id
+                AND LENGTH(TRIM(l.text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0)
+        ORDER BY s.startAt DESC LIMIT 1""")
+    abstract fun onboardingMultipleSpeakers(since: Long): Flow<Long?>
+
     @Transaction
     @Query("SELECT * FROM segments WHERE id IN (:ids) ORDER BY startAt, id")
     abstract suspend fun exportSegments(ids: List<Long>): List<SegmentWithLines>

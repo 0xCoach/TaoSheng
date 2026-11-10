@@ -252,6 +252,13 @@ class ResoundApp : Application() {
         app.resound.search.EmbeddingScheduler.start(this)
         val backupRepository = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
         AppGraph.backup = backupRepository
+        AppGraph.onboarding = app.resound.onboarding.LocalOnboarding(
+            getSharedPreferences("onboarding", MODE_PRIVATE), getSharedPreferences("backup", MODE_PRIVATE),
+            database.transcribe().onboardingFirstTranscript(),
+            database.transcribe().onboardingMultipleSpeakers(System.currentTimeMillis() - 2 * app.resound.onboarding.LocalOnboarding.DAY),
+            kotlinx.coroutines.flow.combine(settings.source, settings.modelRevision) { source, _ ->
+                source == TranscribeSource.Local && !app.resound.transcribe.local.LocalModels.speakersEnabled(this)
+            }, transcripts.clock, scope)
         val updater = app.resound.update.createUpdater(this, backupRepository)
         AppGraph.updater = updater
         AppGraph.problemReports = app.resound.diagnostics.LocalProblemReports(this, crashes, AppGraph.stats, updater)

@@ -9,6 +9,8 @@
 Just an Android phone: all-day listening → automatic transcription → knows who's speaking → AI turns it into todos, promises and memories.<br>
 No hardware to buy. No account. Your data stays on your phone.
 
+🌐 Website: [www.taosheng.app](https://www.taosheng.app). Thanks to [@feitian124](https://github.com/feitian124) for helping build it; the website may change as we consider internationalization.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
@@ -211,8 +213,13 @@ Done: always-on capture, cloud / on-device ASR, voiceprints, AI digest / Ask / r
 
 Next:
 
-- [ ] Publish to app stores
-- [ ] iOS app
+- [ ] Keep improving recording, transcription and AI digest
+- [ ] Launch the website and improve onboarding and documentation
+- [ ] Explore ready-to-use, pay-as-you-go AI services
+- [ ] Gradually support ESP32-based and other recorders, and explore an open device integration protocol
+- [ ] Work toward Google Play release and explore an iOS version
+
+*Progress and supported features will depend on development and testing.*
 
 ## ⚠️ Please note
 
@@ -220,6 +227,7 @@ TaoSheng is a personal memory tool. Recording conversations is regulated in many
 
 ## 🙏 Acknowledgements
 
+- [@feitian124](https://github.com/feitian124) — helped build the TaoSheng website.
 - [@ethansunqing](https://github.com/ethansunqing) — reported and diagnosed the OPPO Find N6 SIGILL crash, contributed the initial binary patch in [PR #1](https://github.com/0xCoach/TaoSheng/pull/1), and verified the official ONNX Runtime 1.25.1 upgrade on the device.
 - [@brookDeng](https://github.com/brookDeng) — independently diagnosed the crash on Xiaomi pandora (25098PN5AC) and verified the test APK upgrade, data preservation, and foreground/background listening.
 - [@aadnapp](https://github.com/aadnapp) — contributed an Android 9 compatibility proposal, a manual microphone-release implementation, and on-device test feedback in [PR #7](https://github.com/0xCoach/TaoSheng/pull/7), helping evaluate support for older Android versions.

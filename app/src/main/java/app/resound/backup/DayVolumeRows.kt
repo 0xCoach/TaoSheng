@@ -21,7 +21,7 @@ internal object DayVolumeRows {
         // 足迹（PR #19）：定位点按天分卷
         "location_points" to "at",
     )
-    val global = setOf("import_fingerprints", "folder_observations", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions", "location_places")
+    val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions", "location_places")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()
     fun canonical(value: Any?): String = when (value) {

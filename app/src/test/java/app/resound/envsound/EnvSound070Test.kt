@@ -112,7 +112,7 @@ class EnvSound070Test {
         val failure=LocalEnvSoundRepository(db,context.getSharedPreferences("env070",0),scope,state,{}, { error("decode") },{})
         segment(4);assertFalse(failure.beforeTranscribe(db.transcribe().segment(4)))
     }
-    @Test fun aggregationSplitsHoursAndMergesEvents() = runBlocking {
+    @Test fun aggregationSplitsHoursAndMergesEvents(): Unit = runBlocking {
         val date=LocalDate.of(2026,10,29);val zone=ZoneId.systemDefault();val start=date.atTime(10,59).atZone(zone).toInstant().toEpochMilli()
         clock=start;repo.update(enabled);scores=score("Speech" to .9f,"Rain" to .4f,"Knock" to .4f)
         segment(1,start,120000);runner().run()

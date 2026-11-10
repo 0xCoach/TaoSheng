@@ -76,7 +76,9 @@ class BackupSecrets078Test {
         BackupSettings.apply(context, root) { store, key, value -> seed(store, key, value) }
         assertEquals(beforeKeys + (("push-secrets" to "only-on-target") to "fixture-retained"), credentials)
         beforeSettings.forEach { (store, values) ->
-            assertEquals(values, prefs(store).all.filterKeys { it !in setOf("encryptedKey", "customEncryptedKey") })
+            // 卡 114：恢复时把云端存储类型显式写上，老备份没有这项时按坚果云
+            val expected = if (store == "backup") values + ("cloud" to "Nutstore") else values
+            assertEquals(expected, prefs(store).all.filterKeys { it !in setOf("encryptedKey", "customEncryptedKey") })
         }
         val restored = providers()
         assertEquals(beforeProviders, restored.saved.value); assertEquals(ids.last(), restored.activeId.value)

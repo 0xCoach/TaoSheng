@@ -62,9 +62,10 @@ class AskTools(
             }
         }
         if (words.isNotEmpty()) {
-            val match = app.resound.search.SearchTokens.match(words)
-            if (match.isEmpty()) where += "0" else {
-                where += "$prefix.id IN (SELECT rowid FROM $fts WHERE $fts MATCH ?)"; args += match
+            val terms = app.resound.search.SearchTokens.terms(words)
+            if (terms.isEmpty()) where += "0" else {
+                where += terms.joinToString(" OR ", "(", ")") { "$prefix.id IN (SELECT rowid FROM $fts WHERE $fts MATCH ?)" }
+                args.addAll(terms)
             }
         }
         if (ids != null) {

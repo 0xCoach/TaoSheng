@@ -54,7 +54,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ## ✨ Highlights
 
-1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected.
+1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected; dedicated recorders such as Omi and Sonicloud cards can be paired too (beta, see #27).
 2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud, or any custom ASR (OpenAI-compatible, or a full request URL).
 3. **⏱ Automatic transcribe + digest on your schedule** — every 15–720 minutes; review and skill times are configurable.
 4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker; every voiceprint sample can be played back or deleted.
@@ -62,8 +62,8 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 6. **🃏 Daily cards & custom skills** — meeting notes, check-in, weekly review, mood diary; add your own with JSON + a prompt.
 7. **💬 Ask anything, with citations** — what you said or promised on any day, linked to the original lines.
 8. **🤖 Feed your agent** — daily transcripts + digests (Markdown + JSON) pushed as diffs to 10 channels.
-9. **☁️ Daily backup to WebDAV (Nutstore) and local** — incremental, 3 / 7 / 30-day versions, one-tap restore.
-10. **🧠 Bring your own LLM** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with one-tap switching and balance alerts, or any OpenAI-compatible endpoint, including LAN self-hosted.
+9. **☁️ Daily backup to the cloud and local** — Nutstore, any WebDAV (Nextcloud, Synology…) or S3-compatible storage (Aliyun, Tencent, R2, AWS, MinIO…); incremental, 3 / 7 / 30-day versions, optional passphrase encryption, one-tap restore with settings and keys.
+10. **🧠 Bring your own LLM** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with one-tap switching and balance alerts, or any OpenAI-compatible endpoint (with custom request headers; OpenCode Go built in), including LAN self-hosted.
 11. **🛟 Automatic fallback** — if the main model is down, rate-limited, out of credit or its key fails, the next configured model takes over (on by default).
 12. **🔒 Always on, even when locked** — foreground service + watchdog.
 13. **🔋 Records only speech** — on-device VAD; ~0.5% battery per hour in testing.
@@ -71,14 +71,18 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 15. **⌨️ Remembers keyboard dictation** (optional) with chat context.
 16. **🌙 Daily & weekly reviews**, pushed to you.
 17. **🔁 Repeated ideas merged** ("mentioned N times").
-18. **🔤 Hotwords**, **📂 audio import**, **🗂 timeline scrubbing & stars**.
+18. **🔤 Hotwords**, **📂 audio import** (share to TaoSheng, or watch a folder such as your recorder app's and import new recordings automatically), **🗂 timeline scrubbing & stars**.
 19. **🔐 Privacy first** — no account, keys in Keystore, original audio auto-deleted after 3 days by default (1–365 days, starred kept), never hidden from people around you.
 20. **🔍 Find things** — where you put the keys, who borrowed the power bank: placements, loans and returns are tracked and searchable.
 21. **⏰ Alarm-style to-do reminders** — add by typing or voice; keeps ringing, full-screen on the lock screen.
-22. **🎧 Playback & export** — lyric-style subtitle player; merge segments into one M4A with transcript and subtitles.
+22. **🎧 Playback & export** — lyric-style subtitle player; merge segments into one M4A with transcript and subtitles, or export only the summary, todos and/or transcript as TXT or Markdown.
 23. **📝 Imported recordings get notes** — meeting / training / call·interview / normal, each with its own summary.
 24. **🔊 Ambient sound tags** (9 kinds: music, keyboard, rain, pets…), **📋 one-tap report copying** (full, by module, or free selection), **🏫 class mode & quiet hours**.
-25. **⬆️ In-app updates** — small delta patches first, ModelScope mirror in China, automatic backup before installing.
+25. **⬆️ In-app updates** — small delta patches first, ModelScope mirror in China; the pre-update backup runs right after download, so "Install" goes straight to the system prompt.
+26. **📍 Footprint** — records where you've been alongside capture; named places, "home" detection, a day timeline with the events that happened at each stop, optional daily footprint push. Locations stay on the phone.
+27. **📡 Dedicated recorders (beta)** — scan and pair Bluetooth recorders such as Omi, Sonicloud cards and the open-source ADeus pendant, then pick one as the input; falls back to the phone mic on disconnect and back-fills the gap afterwards. Each device is described by a signed "device card", so new devices can be supported without an app update.
+28. **🧭 Sound, place and ambience linked** — events show where you were ("📍 at the office"); Ask can filter by place ("what did we discuss at the office last week?"); optionally let the digest consider place and ambient sounds (off by default).
+29. **🚀 Three-minute onboarding** — a first-run wizard explains each permission before asking, prepares on-device ASR in the background, walks you through getting a DeepSeek key (auto-detected from the clipboard) and lets you try one sentence end to end; everything else is suggested only when it becomes relevant.
 
 <table>
 <tr>
@@ -111,7 +115,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 </tr>
 <tr>
 <td><b>🌙 Daily & weekly reviews</b><br>Generated every night at 22:00 and every Sunday.</td>
-<td><b>☁️ Daily incremental backup</b><br>Local + WebDAV (Nutstore), 3 / 7 / 30-day versions, one-tap restore on a new phone.</td>
+<td><b>☁️ Daily incremental backup</b><br>Local + Nutstore / WebDAV / S3, 3 / 7 / 30-day versions, one-tap restore on a new phone.</td>
 </tr>
 </table>
 
@@ -127,7 +131,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 - 👥 Multi-speaker segmentation for meetings
 - ✅ Todos: pending / in progress / done — say "sent it" and it knows the task is done
 - 🔁 Repeated ideas merged into one ("mentioned N times")
-- 📣 10 push channels: PushPlus, WeCom, ServerChan, Feishu, DingTalk, Telegram, Email, Notion, WebDAV/Obsidian folder, custom webhook
+- 📣 10 push channels: PushPlus, WeCom, ServerChan, Feishu, DingTalk, Telegram, Email, Notion, sync folder (Nutstore / WebDAV / S3, works with Obsidian), custom webhook
 - 🔐 No account, no server of ours; API keys in Android Keystore; original audio auto-deleted after 3 days by default (adjustable); "forget the last N minutes"
 - 👀 Never hidden: persistent notification and the system mic indicator stay visible
 - 🔧 Every model is swappable — any OpenAI-compatible LLM, including self-hosted
@@ -199,6 +203,15 @@ Kotlin · Jetpack Compose · Room (SQLite + FTS4) · WorkManager · sherpa-onnx 
 
 Almost all code was written by AI: **Claude** did architecture, contracts and every screen; **Codex** did capture, ASR, database, push and backup. The human wrote requirements and tested on a real phone. Nearly a hundred task cards and delivery notes are public in [`docs/任务卡/`](docs/任务卡).
 
+## 🗺 Roadmap
+
+Done: always-on capture, cloud / on-device ASR, voiceprints, AI digest / Ask / reviews / skills, 10 push channels, incremental backup (Nutstore / WebDAV / S3), dictation capture, footprint with sound–place linking, dedicated recorders (beta), first-run wizard.
+
+Next:
+
+- [ ] Publish to app stores
+- [ ] iOS app
+
 ## ⚠️ Please note
 
 TaoSheng is a personal memory tool. Recording conversations is regulated in many places — follow your local laws and tell people around you when required. The persistent notification and mic indicator are intentional; please don't turn this into covert recording software.
@@ -210,6 +223,10 @@ TaoSheng is a personal memory tool. Recording conversations is regulated in many
 - [@aadnapp](https://github.com/aadnapp) — contributed an Android 9 compatibility proposal, a manual microphone-release implementation, and on-device test feedback in [PR #7](https://github.com/0xCoach/TaoSheng/pull/7), helping evaluate support for older Android versions.
 - [@JunWeiUp](https://github.com/JunWeiUp) — contributed on-device voiceprint sample management in [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) (sample playback and deletion, sample-audio cleanup and storage stats, backup exclusion), after proposing a self-hosted async speech service integration in [PR #8](https://github.com/0xCoach/TaoSheng/pull/8).
 - [@SoukNow](https://github.com/SoukNow) — contributed full request URL support for custom transcription in [PR #10](https://github.com/0xCoach/TaoSheng/pull/10).
+- [@JunWeiUp](https://github.com/JunWeiUp) — contributed **Footprint** in [PR #19](https://github.com/0xCoach/TaoSheng/pull/19): all-day location history, place names and home detection, a day timeline, manual place editing and the daily footprint push, verified through long-term daily use.
+- [@sheacoding](https://github.com/sheacoding) — explored Sonicloud recorder-card support end to end in [PR #14](https://github.com/0xCoach/TaoSheng/pull/14)–[#16](https://github.com/0xCoach/TaoSheng/pull/16) (live capture, Bluetooth file import, Wi-Fi transfer), which led to TaoSheng's generic dedicated-recorder architecture.
+- [@a327173196](https://github.com/a327173196) — carefully diagnosed local backup and background transcription on HarmonyOS compatibility layers in [#20](https://github.com/0xCoach/TaoSheng/issues/20) and [#21](https://github.com/0xCoach/TaoSheng/issues/21), and proposed LLM diagnostics in problem reports ([#25](https://github.com/0xCoach/TaoSheng/issues/25)).
+- [@BulbLi](https://github.com/BulbLi) — requested OpenCode Go and custom request headers in [#18](https://github.com/0xCoach/TaoSheng/issues/18).
 
 [Omi](https://github.com/BasedHardware/omi) · [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) · [Silero VAD](https://github.com/snakers4/silero-vad) · [3D-Speaker / CAM++](https://github.com/modelscope/3D-Speaker) · [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) · [pyannote](https://github.com/pyannote/pyannote-audio). Third-party sources and licenses: [`docs/third-party/`](docs/third-party).
 

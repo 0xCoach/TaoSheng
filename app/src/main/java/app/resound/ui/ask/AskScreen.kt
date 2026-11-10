@@ -169,6 +169,11 @@ private fun AnswerCard(m: AskMessage, onConfirm: () -> Unit, onCancel: () -> Uni
             Spacer(Modifier.height(14.dp))
             ActionCard(a, onConfirm, onCancel)
         }
+        // 模型不会自己查记录时由程序代查；只在这种情况标一句，平常不占地方
+        if (m.mode == app.resound.ask.AskMode.Prefetch && m.error == null && !m.streaming && m.text.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text("由程序先查记录后回答", style = RsType.caption, color = c.textTertiary)
+        }
         if (m.sources.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
             Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))

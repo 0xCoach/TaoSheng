@@ -759,7 +759,7 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             val items = r.getOrNull()
             if (items == null) Text(r.exceptionOrNull()?.message ?: "检测没通过", style = RsType.caption, color = c.critical)
-            else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { items.forEach { ModelCheckRow(it) } }
+            else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { ModelCheckList(items) }
         }
         Spacer(Modifier.height(6.dp))
         if(presetId!="custom") Text("每种服务的密钥分开保存在手机安全区里，不会显示。", style = RsType.caption, color = c.textTertiary)
@@ -770,7 +770,8 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
 @Composable
 internal fun ModelCheckRow(item: app.resound.digest.ModelCheckItem) {
     val c = Rs.colors
-    val color = when (item.ok) { true -> c.good; false -> c.critical; null -> c.textTertiary }
+    // 降级可用（如问问改用程序先查）用提醒色，不算失败
+    val color = if (item.degraded) c.warning else when (item.ok) { true -> c.good; false -> c.critical; null -> c.textTertiary }
     Row(verticalAlignment = Alignment.Top) {
         Box(Modifier.padding(top = 5.dp)) { Dot(color, 7.dp) }
         Spacer(Modifier.width(8.dp))
@@ -778,6 +779,18 @@ internal fun ModelCheckRow(item: app.resound.digest.ModelCheckItem) {
             Text(item.feature, style = RsType.subhead, color = c.text)
             Text(item.detail, style = RsType.caption, color = if (item.ok == false) c.critical else c.textSecondary)
         }
+    }
+}
+
+/** 各项结果 + 只显示一次的“上次实际问答失败”（检测全绿但实战失败时，能看到原因） */
+@Composable
+internal fun ModelCheckList(items: List<app.resound.digest.ModelCheckItem>) {
+    val c = Rs.colors
+    items.forEach { ModelCheckRow(it) }
+    items.firstNotNullOfOrNull { it.lastAskFailure }?.let { f ->
+        val time = java.time.Instant.ofEpochMilli(f.at).atZone(java.time.ZoneId.systemDefault())
+            .format(java.time.format.DateTimeFormatter.ofPattern("M月d日 HH:mm"))
+        Text("上次实际问答失败（$time）：${f.reason.human}", style = RsType.caption, color = c.textSecondary)
     }
 }
 

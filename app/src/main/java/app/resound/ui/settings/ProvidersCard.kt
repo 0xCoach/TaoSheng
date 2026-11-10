@@ -138,7 +138,7 @@ fun ProvidersCard(providers: LlmProviders) {
                 Column(Modifier.padding(start = 32.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val items = r.getOrNull()
                     if (items == null) Text(r.exceptionOrNull()?.message ?: "检测没通过", style = RsType.caption, color = c.critical)
-                    else items.forEach { app.resound.ui.today.ModelCheckRow(it) }
+                    else app.resound.ui.today.ModelCheckList(items)
                 }
             }
         }

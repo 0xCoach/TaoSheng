@@ -9,6 +9,8 @@
 一部安卓手机就够：全天收音 → 自动转写 → 认出谁在说 → AI 整理成待办、约定和记忆。<br>
 不用买硬件，不用注册账号，数据只在你自己手机里。
 
+🌐 官网：[www.taosheng.app](https://www.taosheng.app)，感谢 [@feitian124](https://github.com/feitian124) 帮忙制作，后续如考虑国际化或可能调整。
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
@@ -292,8 +294,13 @@ app/src/main/java/app/resound/
 
 下一步：
 
-- [ ] 上架应用商店
-- [ ] iOS 版
+- [ ] 持续优化录音、转写和 AI 整理体验
+- [ ] 上线官网，完善新手引导和使用文档
+- [ ] 探索开箱即用、按量付费的 AI 服务
+- [ ] 逐步适配 ESP32 等录音设备，探索开放接入协议
+- [ ] 推进 Google Play 上架，探索 iOS 版本
+
+*具体进度和支持范围以实际开发和测试结果为准。*
 
 ## ⚠️ 使用须知
 
@@ -304,6 +311,7 @@ app/src/main/java/app/resound/
 
 ## 🙏 致谢
 
+- [@feitian124](https://github.com/feitian124)：感谢帮忙制作涛声官网。
 - [@ethansunqing](https://github.com/ethansunqing)：在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中报告并定位 OPPO Find N6 的 SIGILL 闪退，提供初始二进制补丁方案，并完成 ONNX Runtime 1.25.1 升级后的真机复测。
 - [@brookDeng](https://github.com/brookDeng)：补充小米 pandora（25098PN5AC）的独立故障分析，以及升级测试版后的覆盖安装、数据保留和前后台聆听复测。
 - [@aadnapp](https://github.com/aadnapp)：在 [PR #7](https://github.com/0xCoach/TaoSheng/pull/7) 中提供 Android 9 兼容适配方案、手动让出麦克风的实现及真机测试反馈，为项目评估旧系统支持提供了参考。
@@ -330,5 +338,19 @@ app/src/main/java/app/resound/
 <div align="center">
 
 如果涛声对你有用，点个 ⭐ 让更多人看到。
+
+</div>
+
+## ⭐ Star 历史
+
+<div align="center">
+
+<a href="https://star-history.com/#0xCoach/TaoSheng&amp;Date">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date&amp;theme=dark">
+  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date">
+  <img alt="Star 增长曲线" src="https://api.star-history.com/svg?repos=0xCoach/TaoSheng&amp;type=Date" width="720">
+</picture>
+</a>
 
 </div>

@@ -14,7 +14,8 @@ class AndroidCaptureController(private val context: Context, private val store: 
     internal fun update(state: CaptureState, pausedUntil: Long? = null, level: Float = 0f, busyDetail: String? = null, quietName: String? = null) {
         val old = current.value
         current.value = old.copy(state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil, level = level,
-            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy }, quietName = quietName.takeIf { state == CaptureState.Paused })
+            busyDetail = busyDetail.takeIf { state == CaptureState.MicBusy }, quietName = quietName.takeIf { state == CaptureState.Paused },
+            sourceName = (context.applicationContext as? app.resound.ResoundApp)?.inputs?.status?.value?.using?.name ?: old.sourceName)
         if (CaptureTilePolicy.action(old.state) != CaptureTilePolicy.action(state) || old.pausedUntil != pausedUntil) {
             CaptureTileService.refresh(context)
         }

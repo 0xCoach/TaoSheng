@@ -20,6 +20,8 @@ internal interface LiveProtocol {
 internal data class LinkDiagnostics(val received: Long, val lost: Long, val crcFailures: Long, val decodeFailures: Long)
 internal interface LinkedDevice : DeviceLink {
     val disconnectedAt: Long? get() = null
+    /** Some firmwares cannot read stored files while supplying realtime sound. */
+    val backfillBeforeLive: Boolean get() = false
     suspend fun close()
 }
 

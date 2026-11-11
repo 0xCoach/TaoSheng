@@ -13,8 +13,12 @@ import app.resound.ResoundApp
 import app.resound.AppGraph
 import app.resound.importer.deviceImport
 import app.resound.importer.AndroidAudioImporter
+import app.resound.importer.ImportFingerprint
+import app.resound.importer.audioFingerprint
 import app.resound.update.UpdateDiagnostics
 import app.resound.devices.plugins.sonicloud.*
+import app.resound.devices.plugins.d3200.*
+import app.resound.ui.verify.DeviceOptionsUi
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
@@ -40,7 +44,10 @@ internal class AndroidPairedDeviceStore(private val prefs: SharedPreferences) : 
 }
 
 @SuppressLint("MissingPermission")
-internal class AndroidDeviceRadio(private val context: Context) : DeviceRadio {
+internal class AndroidDeviceRadio(private val context: Context,
+    private val connectors: Map<String, suspend (BluetoothDevice) -> LinkedDevice> = emptyMap(),
+    private val observe: (ScanResult) -> Unit = {},
+) : DeviceRadio {
     private val adapter get() = context.getSystemService(BluetoothManager::class.java)?.adapter
     private var scanner: BluetoothLeScanner? = null
     private var callback: ScanCallback? = null
@@ -57,6 +64,7 @@ internal class AndroidDeviceRadio(private val context: Context) : DeviceRadio {
         val cb = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, value: ScanResult) {
                 try {
+                    observe(value)
                     val record = value.scanRecord
                     val manufacturers = record?.manufacturerSpecificData
                     result(DeviceAdvertisement(value.device.address, record?.deviceName ?: value.device.name,
@@ -84,17 +92,20 @@ internal class AndroidDeviceRadio(private val context: Context) : DeviceRadio {
     override suspend fun connect(address: String, card: DeviceCard): LinkedDevice {
         permission(false)
         val device = requireNotNull(adapter?.takeIf { it.isEnabled }).getRemoteDevice(address)
-        return AndroidDeviceLink.connect(context, device, card)
+        return connectors[card.id]?.invoke(device) ?: AndroidDeviceLink.connect(context, device, card)
     }
 }
 
 /** 品牌注册只放装配层；每台设备独立文件插件实例，避免序号/文件列表相互覆盖。 */
 internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices {
+    DeviceOptionsUi.register("d3200") { device -> D3200OptionsEntry(device.address) }
     val syncs = mutableMapOf<String, DeviceSync>()
+    val files = mutableMapOf<String, D3200Files>()
     val ingest = deviceImport(app, app.database, AppGraph.importer as AndroidAudioImporter)
     return ManagedDevices(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
-        AndroidDeviceRadio(app), app.scope,
+        AndroidDeviceRadio(app, mapOf("d3200" to { device -> D3200Connection.connect(app, device, app.d3200) }), app.d3200::observe), app.scope,
         source = { row, card, link, ready, battery ->
+            if (link is D3200Connection) D3200AudioSource(link, row.name, ready) else {
             val protocol = if (card.filePlugin == "sonicloud") SonicloudLive() else object : LiveProtocol {}
             CardAudioSource(ManagedDevices.deviceKey(row.address), row.name, card, link, protocol,
                 ready = ready, battery = battery, report = { stats ->
@@ -103,13 +114,42 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices 
                     UpdateDiagnostics.record(app,
                         "device_link 设备 $label 收包=${stats.received} 丢包=${stats.lost} 校验失败=${stats.crcFailures} 解码失败=${stats.decodeFailures}")
                 })
+            }
         }, onLinked = { row, card, link, start, end, offset, progress ->
+            if (link is D3200Connection && link.recording != 0) {
+                app.d3200.report(row.address) { it.copy(sync = "正在录音；按设备键停止并保存后补传") }
+            } else if (link is D3200Connection && !app.d3200.autoSync && !app.d3200.requested(row.address)) {
+                app.d3200.report(row.address) { it.copy(sync = "自动补传已关闭；可在设备选项中立即检查") }
+            } else {
+            val plugin = files.getOrPut(row.address) { D3200Files() }
             val sync = syncs.getOrPut(row.address) { DeviceSync(row.address, File(app.filesDir, "device-sync/downloads"),
-                app.database, listOf(SonicloudFiles()), ingest) }
+                app.database, listOf(SonicloudFiles(), plugin), ingest = { source, file, slice, key ->
+                    if (card.filePlugin == "d3200") {
+                        val ogg = File(app.cacheDir, "d3200-import-$key.ogg")
+                        try {
+                            require(source.length() > 0 && source.length() % 160 == 0L)
+                            D3200Ogg.write(source, ogg, D3200HistoryCore.Range(0, source.length() / 160))
+                            ingest(ogg, file.copy(format = FileFormat.Ogg, bytes = ogg.length()), slice, key)
+                            if (slice.from == 0L && slice.to == file.durationMillis)
+                                app.database.folderImports().remember(ImportFingerprint(audioFingerprint(source), System.currentTimeMillis()))
+                        } finally { ogg.delete() }
+                    } else ingest(source, file, slice, key)
+                }, newestFirst = card.filePlugin == "d3200") }
             coroutineScope {
                 val observer = launch { sync.progress.collect(progress) }
-                try { sync.onLinked(card, link, start, end, offset) }
+                try {
+                    if (link is D3200Connection) {
+                        val request = app.d3200.request(row.address)
+                        app.d3200.report(row.address) { it.copy(sync = "正在检查已保存的离线录音") }
+                        app.d3200.journal(row.address).seed(plugin.list(link))
+                        sync.importAll(card, link, 0L)
+                        check(app.database.deviceSync().rows(row.address).none { !it.imported }) { "补传或导入尚未完成，已保留进度" }
+                        app.d3200.acknowledge(row.address, request)
+                        app.d3200.report(row.address) { it.copy(sync = "离线录音已检查并确认导入；设备原文件保留") }
+                    } else sync.onLinked(card, link, start, end, offset)
+                }
                 finally { observer.cancelAndJoin(); progress(null) }
+            }
             }
         })
 }

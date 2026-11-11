@@ -3,7 +3,6 @@ package app.resound.devices
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.*
-import android.bluetooth.le.*
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -14,8 +13,7 @@ import app.resound.AppGraph
 import app.resound.importer.deviceImport
 import app.resound.importer.AndroidAudioImporter
 import app.resound.update.UpdateDiagnostics
-import app.resound.devices.android.AndroidBluetoothCenter
-import app.resound.devices.android.AndroidDevicePlatform
+import app.resound.devices.android.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
@@ -41,27 +39,15 @@ internal class AndroidPairedDeviceStore(private val prefs: SharedPreferences) : 
 }
 
 @SuppressLint("MissingPermission")
-internal class AndroidDeviceRadio(private val context: Context, private val center: AndroidBluetoothCenter, private val scope: CoroutineScope) : DeviceRadio {
+internal class AndroidDeviceBond(private val context: Context) {
     private val adapter get() = context.getSystemService(BluetoothManager::class.java)?.adapter
-    private var scanJob: Job? = null
     private fun permission(scan: Boolean) {
         val permissions = if (Build.VERSION.SDK_INT >= 31) listOfNotNull(Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_SCAN.takeIf { scan }) else if (scan) listOf(Manifest.permission.ACCESS_FINE_LOCATION) else emptyList()
         if (permissions.any { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED })
             throw SecurityException("缺少蓝牙权限")
     }
-    override fun startScan(result: (DeviceAdvertisement) -> Unit, error: (String) -> Unit) {
-        permission(true)
-        stopScan()
-        scanJob = scope.launch {
-            try {
-                center.scan().collect { ad -> result(DeviceAdvertisement(ad.platformHandle, ad.name, ad.services, ad.manufacturerData.keys, ad.rssi)) }
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { error("蓝牙搜索不可用，请检查权限和蓝牙开关") }
-        }
-    }
-    override fun stopScan() { scanJob?.cancel(); scanJob = null }
-    override suspend fun pair(address: String, bond: Boolean) {
+    suspend fun pair(address: String, bond: Boolean) {
         permission(false)
         val device = requireNotNull(adapter?.takeIf { it.isEnabled }).getRemoteDevice(address)
         if (!bond || device.bondState == BluetoothDevice.BOND_BONDED) return
@@ -71,37 +57,30 @@ internal class AndroidDeviceRadio(private val context: Context, private val cent
             check(device.bondState == BluetoothDevice.BOND_BONDED) { "系统配对未完成" }
         }
     }
-    override suspend fun connect(address: String, card: DeviceCard): LinkedDevice {
-        permission(false)
-        val device = requireNotNull(adapter?.takeIf { it.isEnabled }).getRemoteDevice(address)
-        return AndroidDeviceLink.connect(context, device, card)
-    }
 }
 
-/** 保留旧设备运行路径；平台容器为卡 141 预备。 */
-internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices {
+/** 唯一扫描入口和连接工厂均来自平台容器，实时录音改由 DeviceHub 持有连接。 */
+internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
     val platform = AndroidDevicePlatform(app, app.scope)
     AppGraph.devicePlatform = platform
     val syncs = mutableMapOf<String, DeviceSync>()
+    val plugins = emptyList<FileSourcePlugin>()
     val ingest = deviceImport(app, app.database, AppGraph.importer as AndroidAudioImporter)
-    return ManagedDevices(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
-        AndroidDeviceRadio(app, platform.bluetooth, app.scope), app.scope,
-        source = { row, card, link, ready, battery ->
-            val protocol = object : LiveProtocol {}
-            CardAudioSource(ManagedDevices.deviceKey(row.address), row.name, card, link, protocol,
-                ready = ready, battery = battery, report = { stats ->
-                    // 地址仅做不可逆短标识，不记录声音、设备名字或完整地址。
-                    val label = MessageDigest.getInstance("SHA-256").digest(row.address.toByteArray()).take(6).joinToString("") { "%02x".format(it) }
-                    UpdateDiagnostics.record(app,
-                        "device_link 设备 $label 收包=${stats.received} 丢包=${stats.lost} 校验失败=${stats.crcFailures} 解码失败=${stats.decodeFailures}")
-                })
-        }, onLinked = { row, card, link, start, end, offset, progress ->
+    return DeviceInputs(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
+        platform.repository, { address, card -> platform.connector { card.link.mtu }.connect(address) },
+        platform.toolbox, platform.clock, platform.extras, { platform.bluetooth.scan() },
+        AndroidDeviceBond(app)::pair, AndroidDevicePlatform::legacyIdentity, app.scope, plugins,
+        onLinked = { row, card, link, start, end, offset, progress ->
             val sync = syncs.getOrPut(row.address) { DeviceSync(row.address, File(app.filesDir, "device-sync/downloads"),
-                app.database, emptyList(), ingest) }
+                app.database, plugins, ingest) }
             coroutineScope {
                 val observer = launch { sync.progress.collect(progress) }
                 try { sync.onLinked(card, link, start, end, offset) }
                 finally { observer.cancelAndJoin(); progress(null) }
             }
+        }, report = { address, stats ->
+            val label = MessageDigest.getInstance("SHA-256").digest(address.toByteArray()).take(6).joinToString("") { "%02x".format(it) }
+            UpdateDiagnostics.record(app,
+                "device_link 设备 $label 收包=${stats.received} 丢包=${stats.lost} 校验失败=${stats.crcFailures} 解码失败=${stats.decodeFailures}")
         })
 }

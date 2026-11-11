@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.SystemClock
 import app.resound.devices.AndroidDeviceLink
 import app.resound.devices.Codec
-import app.resound.devices.ManagedDevices
 import app.resound.devices.core.AndroidOpusDecoder
 import app.resound.devices.driver.*
 import app.resound.devices.hub.*
@@ -52,7 +51,7 @@ internal class AndroidDriverOpusDecoder(private val sampleRate: Int, private val
     override fun close() = decoder.close()
 }
 
-/** 由 AppGraph 保存唯一容器；卡 141 注入 DeviceHub 即可，当前只共享旧扫描入口。 */
+/** 由 AppGraph 保存唯一容器；扫描和 DeviceHub 连接共用此平台入口。 */
 class AndroidDevicePlatform(private val context: Context, private val scope: CoroutineScope) {
     val clock: ClockPort = AndroidClockPort()
     private val preferences = context.getSharedPreferences("device-drivers", Context.MODE_PRIVATE)
@@ -183,7 +182,7 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
         catch (_: Exception) { file?.let { activeCaptures.update { names -> names - it.name } }; return null }
     }
     companion object {
-        fun legacyIdentity(address: String) = DeviceIdentity(DeviceId("android:" + ManagedDevices.deviceKey(address)), IdScope.PlatformLocal)
+        fun legacyIdentity(address: String) = DeviceIdentity(DeviceId("android:" + DeviceInputs.deviceKey(address)), IdScope.PlatformLocal)
     }
 }
 

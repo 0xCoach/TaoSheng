@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import app.resound.devices.*
+import app.resound.devices.android.DeviceInputs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -40,13 +41,13 @@ class AndroidInputDevices(context: Context) : InputDevices {
     private val catalog = InputCatalog()
     private var cardRoutes = emptyList<InputRoute>()
     private var onChoice: (InputChoice) -> Unit = {}
-    internal fun attachCards(devices: ManagedDevices, cards: DeviceCards, scope: CoroutineScope) {
+    internal fun attachCards(devices: DeviceInputs, cards: DeviceCards, scope: CoroutineScope) {
         onChoice = devices::select
         devices.select(choice.value)
         scope.launch {
             combine(devices.devices, cards.cards) { states, installed ->
                 states.filter { state -> installed.any { it.enabled && it.card.id == state.cardId && it.card.audio != null } }.map {
-                    InputRoute(InputDevice(ManagedDevices.deviceKey(it.address), it.name, InputKind.CardDevice,
+                    InputRoute(InputDevice(DeviceInputs.deviceKey(it.address), it.name, InputKind.CardDevice,
                         it.status == DeviceStatus.Live || it.status == DeviceStatus.Backfilling))
                 }
             }.collect { routes -> synchronized(this@AndroidInputDevices) { cardRoutes = routes; refresh() } }

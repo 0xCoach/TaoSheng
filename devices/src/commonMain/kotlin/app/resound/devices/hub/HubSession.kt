@@ -30,7 +30,12 @@ internal class HubSession(
             val open = MutableStateFlow(true)
             val tracked = object : OpusDecoder {
                 override fun decode(packet: ByteArray) = decoder.decode(packet)
-                override fun close() { if (open.compareAndSet(true, false)) decoder.close() }
+                override fun close() {
+                    if (open.compareAndSet(true, false)) {
+                        try { decoder.close() }
+                        finally { decoders.update { all -> all.filterNot { it === this } } }
+                    }
+                }
             }
             decoders.update { it + tracked }
             if (!job.isActive) tracked.close()

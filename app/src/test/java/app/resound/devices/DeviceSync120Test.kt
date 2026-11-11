@@ -5,6 +5,9 @@ import android.content.Context
 import androidx.room.Room
 import app.resound.data.CaptureDatabase
 import app.resound.importer.*
+import app.resound.devices.driver.MillisRange
+import app.resound.devices.driver.DriverStore
+import app.resound.data.SegmentEntity
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.junit.*
@@ -112,6 +115,33 @@ class DeviceSync120Test {
         sync.onLinked(card, link, 12000, 14000, 0)
         sync.onLinked(card, link, 15000, 17000, 0)
         assertEquals(listOf(DeviceSlice(0, 6000, 10000), DeviceSlice(6000, 9000, 16000)), slices)
+    }
+    @Test fun liveCoverageIsRecordedAndOnlyUncoveredIntervalsAreImported() = runBlocking {
+        val plugin = Fake(file)
+        val slices = mutableListOf<DeviceSlice>()
+        seedLiveCoverage(db,"address",file,listOf(MillisRange(2000,5000)))
+        sync(plugin) { _,_,slice,_ -> slices += slice }.importAll(card,link,0)
+        assertEquals(setOf(0L to 2000L,5000L to 10000L),slices.map { it.from to it.to }.toSet())
+        assertTrue(db.deviceSync().rows("address").all { it.imported })
+        assertEquals(0,plugin.deleted)
+    }
+    @Test fun crashRecoveryUsesPersistedSegmentsAndSpoolWithoutAssumingClockOffset() = runBlocking {
+        val source = "CardDevice:device:a:1000:11000"
+        val values = mutableMapOf("audioAnchor:$source" to "1000|11000|11040|a")
+        val store = object : DriverStore {
+            override fun getString(key:String) = values[key]
+            override fun putString(key:String,value:String?) { if (value == null) values.remove(key) else values[key] = value }
+            override fun getBytes(key:String):ByteArray? = null
+            override fun putBytes(key:String,value:ByteArray?) {}
+            override fun keys():Set<String> = values.keys
+        }
+        db.capture().segment(SegmentEntity(startAt=12010,endAt=13020,sourceId=source,path="one.ogg",sizeBytes=1))
+        db.capture().segment(SegmentEntity(startAt=12010,endAt=13020,sourceId="other",path="two.ogg",sizeBytes=1))
+        val spool = File(root,"spool").apply { mkdirs() }
+        File(spool,"14000_piece.source").writeText(source)
+        File(spool,"14000_piece.pcm").writeBytes(ByteArray(32000))
+        assertEquals(setOf(MillisRange(2020,2980),MillisRange(4000,4960)),
+            recoverDriverCoverage(db,spool,file.copy(format=FileFormat.Opus),store).toSet())
     }
     @Test fun importFailureRetainsSource() = runBlocking {
         val plugin = Fake(file)

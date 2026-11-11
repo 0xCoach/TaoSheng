@@ -10,6 +10,7 @@ PLUGIN_ROOTS = (
     COMMON + "kotlin/app/resound/devices/plugins/",
     "app/src/main/java/app/resound/devices/plugins/",
 )
+ASSEMBLY_CATALOGS = {"app/src/main/java/app/resound/devices/android/DriverCatalog.kt"}
 EXTRA_BRANDS = {"d3200", "sonicloud", "omi", "adeus", "folotoy", "plaud", "limitless", "bee"}
 # 卡 140 已清空历史品牌豁免；任何新增越界引用均报错。
 KNOWN_BRANDS_140 = set()
@@ -162,7 +163,7 @@ def check(root):
                 error(path, line_at(text, match.start()), "共用层禁止平台依赖：" + match[0])
         plugin_root = next((p for p in PLUGIN_ROOTS if path.startswith(p)), None)
         is_test = any(part.lower() == "tests" or part.lower().endswith("test") for part in relative.parts[:-1])
-        if not plugin_root and not is_test and not path.startswith(("docs/", "app/src/main/assets/devices/")):
+        if not plugin_root and not is_test and path not in ASSEMBLY_CATALOGS and not path.startswith(("docs/", "app/src/main/assets/devices/")):
             for number, line in enumerate(text.splitlines(), 1):
                 if brand_pattern.search(line):
                     key = (path, line.strip())

@@ -57,6 +57,15 @@ class CheckDevicesTest(unittest.TestCase):
         self.assertEqual(1, len(errors))
         self.assertIn("插件 omi 不得引用插件 sonicloud", errors[0])
 
+    def test_driver_catalog_is_only_brand_assembly_exception(self):
+        catalog = "app/src/main/java/app/resound/devices/android/DriverCatalog.kt"
+        neighbor = "app/src/main/java/app/resound/devices/android/Other.kt"
+        self.write(catalog, 'import app.resound.devices.plugins.d3200.D3200Driver')
+        self.write(neighbor, 'import app.resound.devices.plugins.d3200.D3200Driver')
+        errors = check(self.root)
+        self.assertEqual(1, len(errors))
+        self.assertTrue(errors[0].startswith(neighbor + ":1:"))
+
     def test_dependency_allowlist(self):
         for dependency in ['implementation("com.example:bad:1.0")', 'api(libs.hidden)',
                            'compileOnly("com.example:bad:1.0")']:

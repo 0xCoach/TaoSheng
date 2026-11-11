@@ -46,7 +46,7 @@ class AndroidInputDevices(context: Context) : InputDevices {
         devices.select(choice.value)
         scope.launch {
             combine(devices.devices, cards.cards) { states, installed ->
-                states.filter { state -> installed.any { it.enabled && it.card.id == state.cardId && it.card.audio != null } }.map {
+                states.filter { state -> devices.hasLiveInput(state.cardId, installed) }.map {
                     InputRoute(InputDevice(DeviceInputs.deviceKey(it.address), it.name, InputKind.CardDevice,
                         it.status == DeviceStatus.Live || it.status == DeviceStatus.Backfilling))
                 }

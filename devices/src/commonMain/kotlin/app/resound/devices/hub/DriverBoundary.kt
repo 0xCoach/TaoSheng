@@ -85,6 +85,8 @@ internal class GuardedConnection private constructor(
                     override suspend fun start() = b.call { live.start() }
                     override suspend fun stop() = b.call { live.stop() }
                     override val frames = b.stream { live.frames }
+                    override fun processed(origin: ChunkOrigin, samples: Int) = live.processed(origin, samples)
+                    override fun captureFinished(discarded: Boolean) = live.captureFinished(discarded)
                 }
             }, raw.files?.let { files ->
                 val caps = files.caps

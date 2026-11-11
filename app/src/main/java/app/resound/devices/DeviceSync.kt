@@ -12,6 +12,10 @@ import java.io.RandomAccessFile
 import java.security.MessageDigest
 
 internal data class DeviceSlice(val from: Long, val to: Long, val start: Long)
+internal fun deviceTransferKey(device: String, file: DeviceFile, from: Long, to: Long): String {
+    val identity = "$device|${file.id}|${file.bytes}|${file.startedAt}|${file.durationMillis}|$from|$to"
+    return MessageDigest.getInstance("SHA-256").digest(identity.toByteArray()).joinToString("") { "%02x".format(it) }
+}
 internal fun deviceSlice(file: DeviceFile, gapStart: Long?, gapEnd: Long?, offset: Long?, modified: Long?): DeviceSlice? {
     val duration = requireNotNull(file.durationMillis) { "缺少录音时长" }
     require(duration > 0)
@@ -34,6 +38,7 @@ internal class DeviceSync(
     private val db: CaptureDatabase,
     plugins: List<FileSourcePlugin>,
     private val ingest: suspend (File, DeviceFile, DeviceSlice, String) -> Unit,
+    private val newestFirst: Boolean = false,
 ) {
     private val plugins = plugins.associateBy { it.id }
     private val mutableProgress = MutableStateFlow<BackfillProgress?>(null)
@@ -70,16 +75,16 @@ internal class DeviceSync(
                             else listOf(a to minOf(b, old.fromMillis), maxOf(a, old.toMillis) to b).filter { it.first < it.second }
                         }
                         for ((from, to) in ranges) {
-                            val identity = "$deviceKey|${file.id}|${file.bytes}|${file.startedAt}|${file.durationMillis}|$from|$to"
-                            val key = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray()).joinToString("") { "%02x".format(it) }
+                            val key = deviceTransferKey(deviceKey, file, from, to)
                             val row = DeviceTransfer(key, deviceKey, file.id, file.name, file.bytes, file.startedAt,
                                 file.durationMillis, file.format.name, from, to, slice.start + from - slice.from)
                             db.deviceSync().save(row); previous += row
                         }
                     } catch (e: IllegalArgumentException) { problem(e.message ?: "文件时间无效") }
                 }
-                val jobs = db.deviceSync().rows(deviceKey).filter { !it.deleted && (!it.imported ||
+                val pending = db.deviceSync().rows(deviceKey).filter { !it.deleted && (!it.imported ||
                     (plugin.caps.delete && it.fromMillis == 0L && it.toMillis == it.duration)) }
+                val jobs = if (newestFirst) pending.sortedByDescending { it.phoneStart } else pending
                 mutableProgress.value = BackfillProgress(jobs.size, 0, jobs.sumOf { it.size ?: 0 }, 0)
                 for (job in jobs) {
                     val file = files.firstOrNull { it.id == job.fileId && it.bytes == job.size && it.durationMillis == job.duration && it.startedAt == job.startedAt } ?: continue

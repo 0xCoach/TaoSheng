@@ -63,6 +63,13 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
         set(value) { preferences.edit().putBoolean("captureEnabled", value).apply() }
     val bluetooth = AndroidBluetoothCenter(context, scope, clock)
     val extras: PlatformExtras = object : PlatformExtras { override val classicSerial: ClassicSerialPort? = null }
+    internal fun extrasFor(handle: String, driverId: String): PlatformExtras = object : PlatformExtras {
+        override val classicSerial: ClassicSerialPort = AndroidClassicSerial(context) {
+            val selection = repository.selections().firstOrNull { it.platformHandle == handle && it.driverId == driverId }
+            val key = selection?.deviceId?.let { "id:${it.value}" } ?: "handle:$handle"
+            repository.store(driverId, key).getString("classicAddress")
+        }
+    }
     val toolbox: Toolbox = object : Toolbox {
         override val crypto: CryptoPort = JcaCryptoPort()
         override fun opusDecoder(sampleRate: Int, channels: Int): OpusDecoder = AndroidDriverOpusDecoder(sampleRate, channels)

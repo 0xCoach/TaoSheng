@@ -12,6 +12,9 @@ import app.resound.ResoundApp
 import app.resound.AppGraph
 import app.resound.importer.deviceImport
 import app.resound.importer.AndroidAudioImporter
+import app.resound.importer.ImportFingerprint
+import app.resound.importer.audioFingerprint
+import app.resound.devices.driver.SettingValue
 import app.resound.update.UpdateDiagnostics
 import app.resound.devices.android.*
 import kotlinx.coroutines.*
@@ -66,6 +69,7 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
     val syncs = mutableMapOf<String, DeviceSync>()
     val plugins = emptyList<FileSourcePlugin>()
     val ingest = deviceImport(app, app.database, AppGraph.importer as AndroidAudioImporter)
+    val registered = DriverCatalog.registered()
     return DeviceInputs(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
         platform.repository, { address, card -> platform.connector { card.link.mtu }.connect(address) },
         platform.toolbox, platform.clock, platform.extras, { platform.bluetooth.scan() },
@@ -82,5 +86,43 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
             val label = MessageDigest.getInstance("SHA-256").digest(address.toByteArray()).take(6).joinToString("") { "%02x".format(it) }
             UpdateDiagnostics.record(app,
                 "device_link 设备 $label 收包=${stats.received} 丢包=${stats.lost} 校验失败=${stats.crcFailures} 解码失败=${stats.decodeFailures}")
+        }, registered = registered, extrasFor = platform::extrasFor,
+        onDriverLinked = { row, connection, link, manual, progress ->
+            val auto = connection.settings?.schema()?.firstOrNull { it.key == "autoSync" }?.value as? SettingValue.Bool
+            if (manual || auto?.value != false) {
+                val files = connection.files
+                if (files != null) {
+                    val adapter = DriverFileAdapter(row.cardId, files)
+                    val listed = adapter.list(link)
+                    val selection = platform.repository.selections().first { it.platformHandle == row.address }
+                    val storeKey = selection.deviceId?.let { "id:${it.value}" } ?: "handle:${row.address}"
+                    val driverStore = platform.repository.store(selection.driverId,storeKey)
+                    app.segmentFiles.awaitReady()
+                    for (file in listed) {
+                        val covered = adapter.original(file).liveCovered + recoverDriverCoverage(app.database,File(app.filesDir,"segment-spool"),file,driverStore)
+                        seedLiveCoverage(app.database,row.address,file,covered)
+                    }
+                    val card = registered.first { it.driver.meta.id == row.cardId }.transport.copy(filePlugin = adapter.id)
+                    val sync = DeviceSync(row.address,File(app.filesDir,"device-sync/downloads"),app.database,listOf(adapter),
+                        ingest = { source,file,slice,key ->
+                            val converted = File(app.cacheDir,"device-import-$key.ogg")
+                            try {
+                                if (DriverCatalog.encode(row.cardId,source,converted)) {
+                                    ingest(converted,file.copy(format=FileFormat.Ogg,bytes=converted.length()),slice,key)
+                                    if (slice.from == 0L && slice.to == file.durationMillis)
+                                        app.database.folderImports().remember(ImportFingerprint(audioFingerprint(source),System.currentTimeMillis()))
+                                } else ingest(source,file,slice,key)
+                            } finally { converted.delete() }
+                        },newestFirst=connection.policy.newestFirst)
+                    coroutineScope {
+                        val observer = launch { sync.progress.collect(progress) }
+                        try {
+                            sync.importAll(card,link,row.clockOffset)
+                            check(app.database.deviceSync().rows(row.address).none { !it.imported }) { "设备文件尚未完成导入" }
+                        }
+                        finally { observer.cancelAndJoin(); progress(null) }
+                    }
+                }
+            }
         })
 }

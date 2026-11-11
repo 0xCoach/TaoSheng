@@ -1,8 +1,9 @@
 package app.resound.devices.core
 
-import org.json.JSONTokener
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonPrimitive
 
-/** Android 的 JSONTokener 容忍单引号、注释、重复键等；在读卡前先拒绝这些非标准写法。 */
+/** 在构造 JSON 树前校验语法、深度和重复键（含转义后相同的键），避免解析库覆盖字段。 */
 internal fun validateCardJson(text: String) = StrictJson(text).validate()
 
 private class StrictJson(private val text: String) {
@@ -44,7 +45,7 @@ private class StrictJson(private val text: String) {
         val start = at++
         while (at < text.length) {
             val char = text[at++]
-            if (char == '"') return JSONTokener(text.substring(start, at)).nextValue() as String
+            if (char == '"') return Json.parseToJsonElement(text.substring(start, at)).jsonPrimitive.content
             if (char < ' ') bad()
             if (char == '\\') {
                 when (text.getOrNull(at++)) {

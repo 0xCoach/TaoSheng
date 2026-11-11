@@ -17,7 +17,8 @@ internal fun deviceSlice(file: DeviceFile, gapStart: Long?, gapEnd: Long?, offse
     require(duration > 0)
     if (gapStart == null && gapEnd == null) return DeviceSlice(0, duration,
         file.startedAt?.plus(offset ?: 0) ?: requireNotNull(modified) { "缺少录音时间" } - duration)
-    val start = if (offset != null && file.startedAt != null) file.startedAt + offset
+    val startedAt = file.startedAt
+    val start = if (offset != null && startedAt != null) startedAt + offset
         else requireNotNull(modified) { "缺少可靠的文件修改时间" } - duration
     require(gapStart != null && gapEnd != null && gapEnd > gapStart)
     if (start >= gapEnd || start + duration <= gapStart) return null

@@ -1,18 +1,19 @@
 package app.resound.devices.core
 
 import app.resound.devices.*
-import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
 
 class CardCodec118Test {
     private val parser = CardParser("0.2.21")
-    private fun json(name: String) = File("src/main/assets/devices/$name.json").readText()
+    private fun json(name: String) = File(System.getProperty("deviceCardsDir"), "$name.json").readText()
     private fun card(name: String) = parser.parse(json(name)).getOrThrow()
-    private fun invalid(name: String, expected: String, edit: (JSONObject) -> Unit) {
-        val j = JSONObject(json(name)); edit(j)
-        val error = parser.parse(j.toString()).exceptionOrNull()
+    private fun invalid(name: String, expected: String, edit: (String) -> String) {
+        val original = json(name)
+        val edited = edit(original)
+        assertNotEquals("测试必须修改输入", original, edited)
+        val error = parser.parse(edited).exceptionOrNull()
         assertNotNull("应拒绝：$expected", error)
         assertTrue("实际原因：${error?.message}", error!!.message.orEmpty().contains(expected))
     }
@@ -23,8 +24,9 @@ class CardCodec118Test {
     @Test fun bundledCardsAndReviewSummary() {
         val omi = card("omi"); val soni = card("sonicloud")
         assertEquals(CardStatus.Trial, omi.status); assertEquals(CardStatus.Trial, soni.status)
-        assertEquals(Codec.Pcm16, omi.audio!!.codecMap[0]); assertEquals(Codec.Pcm8, omi.audio.codecMap[1])
-        assertEquals(Codec.Opus10, omi.audio.codecMap[20]); assertEquals(Codec.Opus20, omi.audio.codecMap[21])
+        val omiAudio = omi.audio!!
+        assertEquals(Codec.Pcm16, omiAudio.codecMap[0]); assertEquals(Codec.Pcm8, omiAudio.codecMap[1])
+        assertEquals(Codec.Opus10, omiAudio.codecMap[20]); assertEquals(Codec.Opus20, omiAudio.codecMap[21])
         assertEquals(OfflineMode.Files, soni.offline); assertEquals("sonicloud", soni.filePlugin)
         val report = describeCard(soni)
         listOf("试用", "0000ae22", "TYPE=1 CMD=0", "len + payload", "命令字节示例", "文件插口 sonicloud").forEach { assertTrue(report, report.contains(it)) }
@@ -32,23 +34,23 @@ class CardCodec118Test {
     }
 
     @Test fun rejectsUnknownFieldsEnumsAndMalformedUuid() {
-        invalid("omi", "未知字段") { it.getJSONObject("audio").put("shell", "run") }
-        invalid("omi", "未知取值") { it.put("status", "Trial") }
-        invalid("omi", "UUID") { it.getJSONObject("audio").put("notify", "19b1") }
-        invalid("omi", "未知取值") { it.getJSONObject("audio").getJSONObject("codecMap").put("20", "aac") }
+        invalid("omi", "未知字段") { it.replace("\"audio\": {", "\"audio\": {\"shell\": \"run\",") }
+        invalid("omi", "未知取值") { it.replace("\"trial\"", "\"Trial\"") }
+        invalid("omi", "UUID") { it.replace("19b10001-e8f2-537e-4f6c-d104768a1214", "19b1") }
+        invalid("omi", "未知取值") { it.replace("\"opus10\"", "\"aac\"") }
     }
 
     @Test fun rejectsBrokenReferencesAndMissingDependencies() {
-        invalid("sonicloud", "role=crc") { it.getJSONObject("frame").getJSONArray("fields").getJSONObject(2).remove("crc") }
-        invalid("sonicloud", "必须引用存在且 role=len 的字段") { it.getJSONObject("frame").getJSONObject("payload").put("lengthFrom", "missing") }
-        invalid("omi", "keepAlive") { it.put("keepAliveSec", 10) }
-        invalid("sonicloud", "filePlugin") { it.remove("filePlugin") }
-        invalid("sonicloud", "引用不存在") { it.getJSONObject("frame").getJSONArray("fields").getJSONObject(2).getJSONObject("crc").put("over", org.json.JSONArray(listOf("missing"))) }
+        invalid("sonicloud", "role=crc") { it.replace(Regex(""",\s*"crc": \{[^\}]*\}"""), "") }
+        invalid("sonicloud", "必须引用存在且 role=len 的字段") { it.replace("\"lengthFrom\": \"len\"", "\"lengthFrom\": \"missing\"") }
+        invalid("omi", "keepAlive") { it.replace("\"mtu\": 247", "\"mtu\": 247, \"keepAliveSec\": 10") }
+        invalid("sonicloud", "filePlugin") { it.replace(",\n  \"filePlugin\": \"sonicloud\"", "") }
+        invalid("sonicloud", "引用不存在") { it.replace("\"len\",\n            \"payload\"", "\"missing\"") }
     }
 
     @Test fun rejectsBadVersionAndTooOldApp() {
-        invalid("omi", "版本格式") { it.put("minApp", "0.2") }
-        invalid("omi", "需要涛声 0.2.22 以上") { it.put("minApp", "0.2.22") }
+        invalid("omi", "版本格式") { it.replace("\"minApp\": \"0.2.21\"", "\"minApp\": \"0.2\"") }
+        invalid("omi", "需要涛声 0.2.22 以上") { it.replace("\"minApp\": \"0.2.21\"", "\"minApp\": \"0.2.22\"") }
         assertTrue(CardParser("0.2.20").parse(json("omi")).exceptionOrNull()!!.message!!.contains("需要涛声 0.2.21 以上"))
         assertTrue(CardParser("0.2.21-preview.1").parse(json("omi")).isSuccess)
     }
@@ -57,8 +59,8 @@ class CardCodec118Test {
         for (bad in listOf("{'id':'omi'}", "{\"id\":\"a\",\"id\":\"b\"}", "{\"id\":1,}", "{\"id\":01}", json("omi") + " false")) {
             assertTrue(bad, parser.parse(bad).isFailure)
         }
-        invalid("omi", "必须为整数") { it.put("mtu", "247") }
-        invalid("omi", "hex:") { it.put("keepAlive", "hex:A") }
+        invalid("omi", "必须为整数") { it.replace("\"mtu\": 247", "\"mtu\": \"247\"") }
+        invalid("omi", "hex:") { it.replace("\"mtu\": 247", "\"mtu\": 247, \"keepAlive\": \"hex:A\"") }
     }
 
     @Test fun crcStandardCheckValues() {

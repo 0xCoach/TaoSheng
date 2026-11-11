@@ -73,6 +73,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":devices"))
     implementation("org.ahocorasick:ahocorasick:0.4.0") // 随包 TinyPinyin 的依赖
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     implementation("androidx.documentfile:documentfile:1.0.0")

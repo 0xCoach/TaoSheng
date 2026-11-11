@@ -46,4 +46,4 @@ private fun commandText(command: CardCommand?): String = when (command) {
     is CardCommand.Raw -> command.bytes.hexText()
     is CardCommand.Framed -> "按外壳组装 TYPE=${command.type} CMD=${command.cmd} PAYLOAD=${command.payload.hexText()}"
 }
-private fun ByteArray.hexText(): String = "hex:" + joinToString("") { "%02X".format(it.toInt() and 255) }
+private fun ByteArray.hexText(): String = "hex:" + joinToString("") { (it.toInt() and 255).toString(16).uppercase().padStart(2, '0') }

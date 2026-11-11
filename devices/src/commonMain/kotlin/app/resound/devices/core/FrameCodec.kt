@@ -1,7 +1,6 @@
 package app.resound.devices.core
 
 import app.resound.devices.*
-import java.io.ByteArrayOutputStream
 
 /** fields 为无符号字段值。payload 是卡定义的整个载荷，不一定已排除命令头。 */
 data class DecodedFrame(val fields: Map<String, Long>, val payload: ByteArray)
@@ -25,7 +24,7 @@ class FrameCodec(private val spec: FrameSpec, private val maxPayloadBytes: Int =
     private var lost = 0L
     private var crcFailures = 0L
     private var discarded = 0L
-    private var fragments: ByteArrayOutputStream? = null
+    private var fragments: ByteAccumulator? = null
     private var fragmentFields: Map<String, Long>? = null
     private var nextFragment = 0L
     val diagnostics get() = FrameDiagnostics(received, lost, crcFailures, discarded)
@@ -73,7 +72,7 @@ class FrameCodec(private val spec: FrameSpec, private val maxPayloadBytes: Int =
         if (gap) discardFragments()
         if (index == fragment.restartAt.toLong()) {
             val ready = fragments?.let { DecodedFrame(fragmentFields!!, it.toByteArray()) }
-            fragments = ByteArrayOutputStream().apply { write(frame.payload) }
+            fragments = ByteAccumulator().apply { write(frame.payload) }
             fragmentFields = frame.fields
             nextFragment = index + 1
             return ready
@@ -147,11 +146,11 @@ class FrameCodec(private val spec: FrameSpec, private val maxPayloadBytes: Int =
             raw[field.name] = field.const?.copyOf() ?: write(value, field, probeOrder)
         }
         spec.fields.forEach { field -> field.crc?.let { raw[field.name] = write(checksum(it, raw), field, probeOrder) } }
-        return ByteArrayOutputStream().apply { spec.fields.forEach { write(raw.getValue(it.name)) }; write(payload) }.toByteArray()
+        return ByteAccumulator().apply { spec.fields.forEach { write(raw.getValue(it.name)) }; write(payload) }.toByteArray()
     }
 
     private fun checksum(crc: CrcSpec, raw: Map<String, ByteArray>): Long = Crc.compute(crc.algo,
-        ByteArrayOutputStream().apply { crc.over.forEach { write(raw.getValue(it)) } }.toByteArray())
+        ByteAccumulator().apply { crc.over.forEach { write(raw.getValue(it)) } }.toByteArray())
 
     private fun read(bytes: ByteArray, order: Endian): Long {
         var value = 0L

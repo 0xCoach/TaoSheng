@@ -1,9 +1,7 @@
 package app.resound.devices.core
 
 import app.resound.devices.*
-import org.json.JSONArray
-import org.json.JSONObject
-import org.json.JSONTokener
+import kotlinx.serialization.json.*
 
 /** 字段表的 JSON 入口；版本由宿主传入，避免核心依赖 BuildConfig 或写死版本。 */
 class CardParser(currentAppVersion: String) {
@@ -12,15 +10,13 @@ class CardParser(currentAppVersion: String) {
     fun parse(json: String): Result<DeviceCard> = parse(json, checkAppVersion = true)
 
     // 参数表先完整校验，再由加载器按宿主版本筛选；不因一张未来版本卡丢弃整表。
-    internal fun parseForCatalog(json: String): Result<DeviceCard> = parse(json, checkAppVersion = false)
-    internal fun supports(minApp: String): Boolean = compareVersions(version(minApp, "minApp"), current) <= 0
+    fun parseForCatalog(json: String): Result<DeviceCard> = parse(json, checkAppVersion = false)
+    fun supports(minApp: String): Boolean = compareVersions(version(minApp, "minApp"), current) <= 0
 
     private fun parse(json: String, checkAppVersion: Boolean): Result<DeviceCard> = runCatching {
         require(json.length <= 256 * 1024) { "说明卡：超过 256 KiB" }
         validateCardJson(json)
-        val tokener = JSONTokener(json)
-        val root = tokener.nextValue() as? JSONObject ?: fail("说明卡", "必须为 JSON 对象")
-        require(tokener.nextClean() == '\u0000') { "说明卡：JSON 后有多余内容" }
+        val root = Json.parseToJsonElement(json) as? JsonObject ?: fail("说明卡", "必须为 JSON 对象")
         val r = Obj(root, "说明卡")
         r.only("id", "name", "version", "minApp", "status", "transport", "match", "mtu", "bond",
             "keepAliveSec", "keepAlive", "audio", "frame", "battery", "clock", "offline", "filePlugin")
@@ -36,8 +32,8 @@ class CardParser(currentAppVersion: String) {
                 uuid(it, "match.serviceUuid")
             }
             val manufacturer = m.optional("manufacturerId") {
-                val v = m.value("manufacturerId")
-                if (v is String && v.matches(Regex("0x[0-9a-fA-F]{1,4}"))) v.substring(2).toInt(16)
+                val v = m.value("manufacturerId").stringOrNull()
+                if (v != null && v.matches(Regex("0x[0-9a-fA-F]{1,4}"))) v.substring(2).toInt(16)
                 else m.int("manufacturerId", range = 0..65535)
             }
             check(names.isNotEmpty() || services.isNotEmpty() || manufacturer != null, "match", "至少填写一种识别规则")
@@ -73,11 +69,12 @@ class CardParser(currentAppVersion: String) {
         audio?.frame?.let { spec -> commands.forEach { validateCommand(it, spec) } }
         val battery = r.optional("battery") {
             val b = r.value("battery")
-            if (b is String) {
-                check(b == "standard", "battery", "未知取值 $b")
+            val name = b.stringOrNull()
+            if (name != null) {
+                check(name == "standard", "battery", "未知取值 $name")
                 CardBattery()
             } else {
-                val o = Obj(b as? JSONObject ?: fail("battery", "必须为 standard 或对象"), "battery")
+                val o = Obj(b as? JsonObject ?: fail("battery", "必须为 standard 或对象"), "battery")
                 o.only("service", "read")
                 CardBattery(false, uuid(o.str("service"), "battery.service"), uuid(o.str("read"), "battery.read"))
             }
@@ -115,8 +112,9 @@ class CardParser(currentAppVersion: String) {
         }
         val payload = f.optional("payload") {
             when (val p = f.value("payload")) {
-                "rest" -> PayloadSpec.Rest
-                is JSONObject -> Obj(p, "frame.payload").let { o -> o.only("lengthFrom"); PayloadSpec.LengthFrom(o.str("lengthFrom")) }
+                is JsonPrimitive -> if (p.stringOrNull() == "rest") PayloadSpec.Rest
+                    else fail("frame.payload", "必须为 rest 或 lengthFrom 对象")
+                is JsonObject -> Obj(p, "frame.payload").let { o -> o.only("lengthFrom"); PayloadSpec.LengthFrom(o.str("lengthFrom")) }
                 else -> fail("frame.payload", "必须为 rest 或 lengthFrom 对象")
             }
         } ?: PayloadSpec.Rest
@@ -129,9 +127,10 @@ class CardParser(currentAppVersion: String) {
             f.optional("probe") { command(f.value("probe"), "frame.probe") }).also { validateFrame(it) }
     }
 
-    private fun command(value: Any, path: String): CardCommand = when (value) {
-        is String -> CardCommand.Raw(hex(value, path).also { check(it.isNotEmpty(), path, "命令不能为空") })
-        is JSONObject -> Obj(value, path).let { o ->
+    private fun command(value: JsonElement, path: String): CardCommand = when (value) {
+        is JsonPrimitive -> CardCommand.Raw(hex(value.stringOrNull() ?: fail(path, "必须为 hex: 字节串或命令对象"), path)
+            .also { check(it.isNotEmpty(), path, "命令不能为空") })
+        is JsonObject -> Obj(value, path).let { o ->
             o.only("type", "cmd", "payload")
             CardCommand.Framed(o.int("type", range = 0..255), o.int("cmd", range = 0..255),
                 o.optional("payload") { hex(o.str("payload"), "$path.payload") } ?: ByteArray(0))
@@ -139,40 +138,49 @@ class CardParser(currentAppVersion: String) {
         else -> fail(path, "必须为 hex: 字节串或命令对象")
     }
 
-    private class Obj(private val json: JSONObject, val path: String) {
-        fun has(key: String) = json.has(key)
-        fun keys(): List<String> = json.keys().asSequence().toList()
+    private class Obj(private val json: JsonObject, val path: String) {
+        fun has(key: String) = key in json
+        fun keys(): List<String> = json.keys.toList()
         fun only(vararg allowed: String) { keys().firstOrNull { it !in allowed }?.let { fail("$path.$it", "未知字段") } }
-        fun value(key: String): Any = if (!has(key) || json.isNull(key)) fail("$path.$key", "缺少值，不能为 null") else json.get(key)
+        fun value(key: String): JsonElement = json[key]?.takeUnless { it == JsonNull }
+            ?: fail("$path.$key", "缺少值，不能为 null")
         fun str(key: String, default: String? = null): String {
             if (!has(key) && default != null) return default
-            return (value(key) as? String)?.takeIf { it.isNotBlank() } ?: fail("$path.$key", "必须为非空字符串")
+            return value(key).stringOrNull()?.takeIf { it.isNotBlank() } ?: fail("$path.$key", "必须为非空字符串")
         }
         fun int(key: String, default: Int? = null, range: IntRange): Int {
             if (!has(key) && default != null) return default
-            val v = value(key)
-            val number = if (v is Int || v is Long) (v as Number).toLong() else fail("$path.$key", "必须为整数")
+            // 不用宽松的数值转换：带引号、浮点和指数形式不能充当整数。
+            val v = value(key) as? JsonPrimitive ?: fail("$path.$key", "必须为整数")
+            val number = v.takeIf { !it.isString && INTEGER.matches(it.content) }?.content?.toLongOrNull()
+                ?: fail("$path.$key", "必须为整数")
             check(number in range.first.toLong()..range.last.toLong(), "$path.$key", "必须在 ${range.first}–${range.last} 之间")
             return number.toInt()
         }
-        fun bool(key: String, default: Boolean): Boolean = if (!has(key)) default else value(key) as? Boolean ?: fail("$path.$key", "必须为布尔值")
-        fun obj(key: String) = Obj(value(key) as? JSONObject ?: fail("$path.$key", "必须为对象"), "$path.$key")
+        fun bool(key: String, default: Boolean): Boolean {
+            if (!has(key)) return default
+            val v = value(key) as? JsonPrimitive
+            return v?.takeIf { !it.isString }?.booleanOrNull ?: fail("$path.$key", "必须为布尔值")
+        }
+        fun obj(key: String) = Obj(value(key) as? JsonObject ?: fail("$path.$key", "必须为对象"), "$path.$key")
         fun strings(key: String, required: Boolean = false): List<String> {
             if (!has(key) && !required) return emptyList()
-            val a = value(key) as? JSONArray ?: fail("$path.$key", "必须为数组")
-            return (0 until a.length()).map { i -> (a.get(i) as? String)?.takeIf { it.isNotBlank() } ?: fail("$path.$key[$i]", "必须为非空字符串") }
+            val a = value(key) as? JsonArray ?: fail("$path.$key", "必须为数组")
+            return a.mapIndexed { i, v -> v.stringOrNull()?.takeIf { it.isNotBlank() } ?: fail("$path.$key[$i]", "必须为非空字符串") }
         }
-        fun stringOrStrings(key: String) = if (value(key) is String) listOf(str(key)) else strings(key)
+        fun stringOrStrings(key: String) = if (value(key).stringOrNull() != null) listOf(str(key)) else strings(key)
         fun objects(key: String): List<Obj> {
             if (!has(key)) return emptyList()
-            val a = value(key) as? JSONArray ?: fail("$path.$key", "必须为数组")
-            check(a.length() <= 64, "$path.$key", "字段不能超过 64 项")
-            return (0 until a.length()).map { i -> Obj(a.get(i) as? JSONObject ?: fail("$path.$key[$i]", "必须为对象"), "$path.$key[$i]") }
+            val a = value(key) as? JsonArray ?: fail("$path.$key", "必须为数组")
+            check(a.size <= 64, "$path.$key", "字段不能超过 64 项")
+            return a.mapIndexed { i, v -> Obj(v as? JsonObject ?: fail("$path.$key[$i]", "必须为对象"), "$path.$key[$i]") }
         }
         fun <T> optional(key: String, block: () -> T): T? = if (has(key)) block() else null
     }
 
     companion object {
+        private val INTEGER = Regex("-?(?:0|[1-9][0-9]*)")
+        private fun JsonElement.stringOrNull(): String? = (this as? JsonPrimitive)?.takeIf { it.isString }?.content
         private fun codec(value: String, path: String) = choice(value, path, Codec.entries.associateBy { it.name.lowercase() })
         private fun uuid(value: String, path: String): String {
             check(value.matches(Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")), path, "UUID 必须为完整 128 位格式")

@@ -3,7 +3,7 @@ package app.resound.devices
 import app.resound.devices.core.FrameCodec
 
 /** LengthFrom 卡按声明长度拼半包/拆多包；Rest 保留 notify 边界（含分片号）。 */
-internal class NotificationFrames(private val spec: FrameSpec) {
+class NotificationFrames(private val spec: FrameSpec) {
     private var buffer = byteArrayOf()
     fun accept(bytes: ByteArray, codec: FrameCodec): List<ByteArray> {
         val payload = spec.payload as? PayloadSpec.LengthFrom ?: return listOf(bytes)

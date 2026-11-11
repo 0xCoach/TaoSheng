@@ -6,6 +6,7 @@ local.properties
 .DS_Store
 .kotlin/
 .codex-logs/
+tools/__pycache__/
 # 问问离线验证的只读快照和原始响应
 tools/ask-probe/private/
 tools/ask-probe/__pycache__/

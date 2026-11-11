@@ -75,7 +75,8 @@ class Device119Test {
     @Test fun sonicHalfPacketsControlFilteringCrcAndStop() = runBlocking {
         val card = card("sonicloud")
         val link = Link()
-        val fixed = card.audio!!.frame.copy(fields = card.audio.frame.fields.map { it.copy(endian = Endian.Le) })
+        val frame = card.audio!!.frame
+        val fixed = frame.copy(fields = frame.fields.map { it.copy(endian = Endian.Le) })
         val encoder = FrameCodec(fixed)
         var decoded = 0
         var report: LinkDiagnostics? = null

@@ -46,8 +46,9 @@ class CheckDevicesTest(unittest.TestCase):
         path = "app/src/main/java/app/resound/devices/AndroidDevices.kt"
         self.write(path, 'import app.resound.devices.plugins.sonicloud.*\nval brand = "NEW-BRAND OMI"\nval ordinary = "beeper"')
         errors = check(self.root)
-        self.assertEqual(1, len(errors))
-        self.assertTrue(errors[0].startswith(path + ":2:"))
+        self.assertEqual(2, len(errors))
+        self.assertTrue(errors[0].startswith(path + ":1:"))
+        self.assertTrue(errors[1].startswith(path + ":2:"))
 
     def test_cross_plugin(self):
         path = COMMON + "kotlin/app/resound/devices/plugins/omi/Driver.kt"

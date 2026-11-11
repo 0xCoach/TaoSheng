@@ -1,6 +1,6 @@
 {
-  "id": "sonicloud",
-  "name": "声云实时收音",
+  "id": "synthetic",
+  "name": "合成帧测试",
   "version": 1,
   "minApp": "0.2.21",
   "status": "trial",
@@ -68,5 +68,5 @@
     }
   },
   "offline": "files",
-  "filePlugin": "sonicloud"
+  "filePlugin": "synthetic"
 }

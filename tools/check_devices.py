@@ -11,13 +11,8 @@ PLUGIN_ROOTS = (
     "app/src/main/java/app/resound/devices/plugins/",
 )
 EXTRA_BRANDS = {"d3200", "sonicloud", "omi", "adeus", "folotoy", "plaud", "limitless", "bee"}
-# 已知待清理（卡 140）：精确到文件及整行，每项只豁免一次；不放过同文件的新增引用。
-KNOWN_BRANDS_140 = {
-    ("app/src/main/java/app/resound/devices/AndroidDevices.kt",
-     "import app.resound.devices.plugins.sonicloud.*"),
-    ("app/src/main/java/app/resound/devices/AndroidDevices.kt",
-     'val protocol = if (card.filePlugin == "sonicloud") SonicloudLive() else object : LiveProtocol {}'),
-}
+# 卡 140 已清空历史品牌豁免；任何新增越界引用均报错。
+KNOWN_BRANDS_140 = set()
 ALLOWED_LIBRARIES = {
     "org.jetbrains.kotlin:kotlin-stdlib",
     "org.jetbrains.kotlinx:kotlinx-coroutines-core",
@@ -194,7 +189,7 @@ def main():
     for error in errors:
         print(error)
     if not errors:
-        print("设备边界检查通过（卡 140 的 2 条已知引用按整行豁免）")
+        print("设备边界检查通过（无品牌白名单）")
     return 1 if errors else 0
 
 

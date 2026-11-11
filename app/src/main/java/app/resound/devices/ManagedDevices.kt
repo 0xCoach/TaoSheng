@@ -37,7 +37,10 @@ internal class ManagedDevices(
     private val retryMillis: Long = 3000,
 ) : Devices {
     private val remembered = MutableStateFlow(store.read())
-    private val states = MutableStateFlow(remembered.value.map { it.state() })
+    private val states = MutableStateFlow(remembered.value.map { row ->
+        row.state().let { if (cards.cards.value.any { it.card.id == row.cardId && it.enabled }) it
+            else it.copy(lastError = "设备说明卡不可用") }
+    })
     override val devices = states.asStateFlow()
     private val discoveries = MutableStateFlow<List<FoundDevice>>(emptyList())
     override val found = discoveries.asStateFlow()
@@ -55,6 +58,11 @@ internal class ManagedDevices(
         scope.launch {
             cards.cards.collect { enabled ->
                 discoveries.value = discoveries.value.filter { d -> enabled.any { it.card.id == d.cardId && it.enabled } }
+                states.update { rows -> rows.map { row ->
+                    if (enabled.none { it.card.id == row.cardId && it.enabled })
+                        row.copy(status = DeviceStatus.Disconnected, backfill = null, lastError = "设备说明卡不可用")
+                    else if (row.lastError == "设备说明卡不可用") row.copy(lastError = null) else row
+                } }
             }
         }
         scope.launch {
@@ -106,7 +114,7 @@ internal class ManagedDevices(
                         if (stream.value === bus) stream.value = null
                         bus.close(failure ?: AudioSourceException(AudioSourceException.Reason.Disconnected))
                         update(identity.address) { it.copy(status = if (failure == null) DeviceStatus.Disconnected else DeviceStatus.Waiting,
-                            backfill = null, lastError = failure?.message) }
+                            backfill = null, lastError = if (cards.cards.value.none { c -> c.card.id == identity.cardId && c.enabled }) "设备说明卡不可用" else failure?.message) }
                         withContext(NonCancellable) { link?.close() }
                     }
                     delay(retryMillis)

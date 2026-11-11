@@ -14,7 +14,8 @@ import app.resound.AppGraph
 import app.resound.importer.deviceImport
 import app.resound.importer.AndroidAudioImporter
 import app.resound.update.UpdateDiagnostics
-import app.resound.devices.plugins.sonicloud.*
+import app.resound.devices.android.AndroidBluetoothCenter
+import app.resound.devices.android.AndroidDevicePlatform
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
@@ -40,10 +41,9 @@ internal class AndroidPairedDeviceStore(private val prefs: SharedPreferences) : 
 }
 
 @SuppressLint("MissingPermission")
-internal class AndroidDeviceRadio(private val context: Context) : DeviceRadio {
+internal class AndroidDeviceRadio(private val context: Context, private val center: AndroidBluetoothCenter, private val scope: CoroutineScope) : DeviceRadio {
     private val adapter get() = context.getSystemService(BluetoothManager::class.java)?.adapter
-    private var scanner: BluetoothLeScanner? = null
-    private var callback: ScanCallback? = null
+    private var scanJob: Job? = null
     private fun permission(scan: Boolean) {
         val permissions = if (Build.VERSION.SDK_INT >= 31) listOfNotNull(Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_SCAN.takeIf { scan }) else if (scan) listOf(Manifest.permission.ACCESS_FINE_LOCATION) else emptyList()
@@ -53,24 +53,14 @@ internal class AndroidDeviceRadio(private val context: Context) : DeviceRadio {
     override fun startScan(result: (DeviceAdvertisement) -> Unit, error: (String) -> Unit) {
         permission(true)
         stopScan()
-        val scan = requireNotNull(adapter?.takeIf { it.isEnabled }?.bluetoothLeScanner)
-        val cb = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, value: ScanResult) {
-                try {
-                    val record = value.scanRecord
-                    val manufacturers = record?.manufacturerSpecificData
-                    result(DeviceAdvertisement(value.device.address, record?.deviceName ?: value.device.name,
-                        record?.serviceUuids.orEmpty().map { it.uuid.toString() }.toSet(),
-                        (0 until (manufacturers?.size() ?: 0)).map { manufacturers!!.keyAt(it) }.toSet(), value.rssi))
-                } catch (_: SecurityException) { error("蓝牙权限已撤回") }
-            }
-            override fun onBatchScanResults(results: MutableList<ScanResult>) { results.forEach { onScanResult(0, it) } }
-            override fun onScanFailed(errorCode: Int) { error("蓝牙搜索失败（$errorCode）") }
+        scanJob = scope.launch {
+            try {
+                center.scan().collect { ad -> result(DeviceAdvertisement(ad.platformHandle, ad.name, ad.services, ad.manufacturerData.keys, ad.rssi)) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { error("蓝牙搜索不可用，请检查权限和蓝牙开关") }
         }
-        scanner = scan; callback = cb
-        scan.startScan(null, ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), cb)
     }
-    override fun stopScan() { val old = callback; callback = null; if (old != null) scanner?.stopScan(old); scanner = null }
+    override fun stopScan() { scanJob?.cancel(); scanJob = null }
     override suspend fun pair(address: String, bond: Boolean) {
         permission(false)
         val device = requireNotNull(adapter?.takeIf { it.isEnabled }).getRemoteDevice(address)
@@ -88,14 +78,16 @@ internal class AndroidDeviceRadio(private val context: Context) : DeviceRadio {
     }
 }
 
-/** 品牌注册只放装配层；每台设备独立文件插件实例，避免序号/文件列表相互覆盖。 */
+/** 保留旧设备运行路径；平台容器为卡 141 预备。 */
 internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices {
+    val platform = AndroidDevicePlatform(app, app.scope)
+    AppGraph.devicePlatform = platform
     val syncs = mutableMapOf<String, DeviceSync>()
     val ingest = deviceImport(app, app.database, AppGraph.importer as AndroidAudioImporter)
     return ManagedDevices(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
-        AndroidDeviceRadio(app), app.scope,
+        AndroidDeviceRadio(app, platform.bluetooth, app.scope), app.scope,
         source = { row, card, link, ready, battery ->
-            val protocol = if (card.filePlugin == "sonicloud") SonicloudLive() else object : LiveProtocol {}
+            val protocol = object : LiveProtocol {}
             CardAudioSource(ManagedDevices.deviceKey(row.address), row.name, card, link, protocol,
                 ready = ready, battery = battery, report = { stats ->
                     // 地址仅做不可逆短标识，不记录声音、设备名字或完整地址。
@@ -105,7 +97,7 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices 
                 })
         }, onLinked = { row, card, link, start, end, offset, progress ->
             val sync = syncs.getOrPut(row.address) { DeviceSync(row.address, File(app.filesDir, "device-sync/downloads"),
-                app.database, listOf(SonicloudFiles()), ingest) }
+                app.database, emptyList(), ingest) }
             coroutineScope {
                 val observer = launch { sync.progress.collect(progress) }
                 try { sync.onLinked(card, link, start, end, offset) }

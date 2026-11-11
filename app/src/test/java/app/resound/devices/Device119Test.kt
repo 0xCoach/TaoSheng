@@ -5,7 +5,6 @@ import android.content.Context
 import app.resound.audio.*
 import app.resound.backup.BackupSettings
 import app.resound.devices.core.*
-import app.resound.devices.plugins.sonicloud.SonicloudLive
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -20,7 +19,7 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [32], manifest = Config.NONE, application = Application::class)
 class Device119Test {
-    private fun card(name: String = "omi") = CardParser("0.2.21").parse(File("src/main/assets/devices/$name.json").readText()).getOrThrow()
+    private fun card(name: String = "omi") = CardParser("0.2.21").parse(if (name == "synthetic") javaClass.getResource("/devices/synthetic.json")!!.readText() else File("src/main/assets/devices/$name.json").readText()).getOrThrow()
     private class Cards(card: DeviceCard, enabled: Boolean = true) : DeviceCards {
         override val cards = MutableStateFlow(listOf(InstalledCard(card, CardSource.Bundled, enabled)))
         override fun parse(json: String) = CardParser("0.2.21").parse(json)
@@ -72,8 +71,8 @@ class Device119Test {
         assertTrue(result.all { it.samples.size == 480 && it.samples.all { v -> v == 1.toShort() } })
     }
 
-    @Test fun sonicHalfPacketsControlFilteringCrcAndStop() = runBlocking {
-        val card = card("sonicloud")
+    @Test fun syntheticHalfPacketsControlFilteringCrcAndStop() = runBlocking {
+        val card = card("synthetic")
         val link = Link()
         val frame = card.audio!!.frame
         val fixed = frame.copy(fields = frame.fields.map { it.copy(endian = Endian.Le) })
@@ -96,7 +95,13 @@ class Device119Test {
                 }
             }
         }
-        val audio = CardAudioSource("device", "设备", card, link, SonicloudLive(), opus = { _, _ -> object : OpusDecoder {
+        val audio = CardAudioSource("device", "设备", card, link, object : LiveProtocol {
+            override val withResponse = false
+            override fun audio(frame: DecodedFrame) = frame.payload.takeIf {
+                it.size > 2 && it[0] == 1.toByte() && it[1] == 1.toByte()
+            }?.copyOfRange(2, frame.payload.size)
+            override fun batteryQuery(): CardCommand = CardCommand.Framed(0, 3)
+        }, opus = { _, _ -> object : OpusDecoder {
             override fun decode(packet: ByteArray): List<DecodedPcm> {
                 assertArrayEquals(byteArrayOf(7), packet); decoded++
                 return listOf(DecodedPcm(ShortArray(480) { 123 }, 16000, 1))
@@ -151,8 +156,10 @@ class Device119Test {
     @Test fun missingAndroidScanPermissionReturnsErrorWithoutThrowing() = runBlocking {
         val job = SupervisorJob()
         try {
-            val managed = ManagedDevices(Cards(card()), Store(), AndroidDeviceRadio(RuntimeEnvironment.getApplication()),
-                CoroutineScope(coroutineContext + job), ::source)
+            val context = RuntimeEnvironment.getApplication()
+            val worker = CoroutineScope(coroutineContext + job)
+            val center = app.resound.devices.android.AndroidBluetoothCenter(context, worker, app.resound.devices.android.AndroidClockPort())
+            val managed = ManagedDevices(Cards(card()), Store(), AndroidDeviceRadio(context, center, worker), worker, ::source)
             managed.startScan()
             assertTrue(managed.lastError.value!!.contains("权限"))
             assertTrue(managed.found.value.isEmpty())
@@ -229,6 +236,20 @@ class Device119Test {
         store.write(emptyList()); cardPrefs.edit().clear().commit()
         BackupSettings.apply(context, dir) { _, _, _ -> }
         assertEquals(listOf(row), store.read()); assertTrue(cardPrefs.getBoolean("enabled:omi", false))
+    }
+
+    @Test fun missingPairedCardIsUnavailableAndNeverConnects() = runBlocking {
+        val cards = Cards(card()).apply { cards.value = emptyList() }
+        val row = RememberedDevice("AA:BB:CC:DD:EE:FF", "removed-card", "旧设备")
+        val radio = Radio(); val job = SupervisorJob()
+        val managed = ManagedDevices(cards, Store(listOf(row)), radio, CoroutineScope(coroutineContext + job), ::source)
+        try {
+            managed.select(InputChoice.Device(ManagedDevices.deviceKey(row.address), row.name)); managed.recording(true)
+            yield()
+            assertEquals(DeviceStatus.Disconnected, managed.devices.value.single().status)
+            assertEquals("设备说明卡不可用", managed.devices.value.single().lastError)
+            assertTrue(radio.connections.tryReceive().isFailure)
+        } finally { job.cancelAndJoin() }
     }
 
     @Test fun clockEncodingUsesDeclaredEndianAndUtcBcd() {

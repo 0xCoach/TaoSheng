@@ -9,6 +9,10 @@ import android.os.Looper
 import app.resound.audio.AudioSourceException
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import app.resound.devices.driver.DeviceException
+import app.resound.devices.driver.ErrorCode
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
@@ -18,6 +22,8 @@ import java.util.UUID
 /** 每条连接一个队列。GATT 操作及回调均在主线程，等回调完成才开始下一项；超时整条连接作废。 */
 @SuppressLint("MissingPermission")
 internal class AndroidDeviceLink private constructor() : LinkedDevice {
+    private val disconnectEvents = MutableSharedFlow<DeviceException>(replay = 1)
+    val disconnections = disconnectEvents.asSharedFlow()
     private val handler = Handler(Looper.getMainLooper())
     private val queue = Mutex()
     private var gatt: BluetoothGatt? = null
@@ -43,6 +49,7 @@ internal class AndroidDeviceLink private constructor() : LinkedDevice {
         if (ended != null) return
         disconnectedAt = System.currentTimeMillis()
         ended = error
+        disconnectEvents.tryEmit(DeviceException(ErrorCode.Disconnected))
         connected.completeExceptionally(error); pending?.result?.completeExceptionally(error)
         synchronized(subscriptions) { subscriptions.values.forEach { s -> s.channels.forEach { it.close(error) } } }
         gatt?.let { runCatching { it.disconnect() }; runCatching { it.close() } }; gatt = null
@@ -128,7 +135,7 @@ internal class AndroidDeviceLink private constructor() : LinkedDevice {
         serial {
             // 即便收集器正在等待切主线程，这里也先完成已登记通知的 CCCD，保证订阅先于命令。
             enableSubscriptions()
-            require(bytes.size <= minOf(mtu - 3, 512)) { "命令超过单次蓝牙写入长度，不拆分发送" }
+            if (bytes.size > mtu - 3) throw DeviceException(ErrorCode.WriteTooLong)
             val c = characteristic(service, characteristic)
             val type = when {
                 withResponse && c.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0 -> BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
@@ -160,14 +167,15 @@ internal class AndroidDeviceLink private constructor() : LinkedDevice {
     override suspend fun close() { withContext(Dispatchers.Main.immediate) { disconnect() } }
     companion object {
         private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        suspend fun connect(context: Context, device: BluetoothDevice, card: DeviceCard): AndroidDeviceLink = withContext(Dispatchers.Main.immediate) {
+        suspend fun connect(context: Context, device: BluetoothDevice, card: DeviceCard): AndroidDeviceLink = connect(context, device, card.link.mtu)
+        suspend fun connect(context: Context, device: BluetoothDevice, mtuPreference: Int?): AndroidDeviceLink = withContext(Dispatchers.Main.immediate) {
             val link = AndroidDeviceLink()
             try {
                 link.gatt = device.connectGatt(context.applicationContext, false, link.callback, BluetoothDevice.TRANSPORT_LE,
                     BluetoothDevice.PHY_LE_1M_MASK, link.handler) ?: error("无法创建蓝牙连接")
                 withTimeout(15_000) { link.connected.await() }
                 link.serial {
-                    card.link.mtu?.let { size -> link.operation("mtu") { it.requestMtu(size) } }
+                    mtuPreference?.let { size -> link.operation("mtu") { it.requestMtu(size) } }
                     link.operation("services") { it.discoverServices() }
                 }
                 link

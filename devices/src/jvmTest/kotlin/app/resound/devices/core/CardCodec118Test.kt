@@ -7,7 +7,7 @@ import java.io.File
 
 class CardCodec118Test {
     private val parser = CardParser("0.2.21")
-    private fun json(name: String) = File(System.getProperty("deviceCardsDir"), "$name.json").readText()
+    private fun json(name: String) = if (name == "synthetic") javaClass.getResource("/devices/synthetic.json")!!.readText() else File(System.getProperty("deviceCardsDir"), "$name.json").readText()
     private fun card(name: String) = parser.parse(json(name)).getOrThrow()
     private fun invalid(name: String, expected: String, edit: (String) -> String) {
         val original = json(name)
@@ -22,15 +22,15 @@ class CardCodec118Test {
     private val capture = hex("5a 03 9e 20 1e 00 02 02 00 00 00 00 6e 6f 74 65 32 30 32 36 30 37 31 30 2d 31 36 32 39 33 38 2e 77 61 76 00")
 
     @Test fun bundledCardsAndReviewSummary() {
-        val omi = card("omi"); val soni = card("sonicloud")
-        assertEquals(CardStatus.Trial, omi.status); assertEquals(CardStatus.Trial, soni.status)
+        val omi = card("omi"); val synthetic = card("synthetic")
+        assertEquals(CardStatus.Trial, omi.status); assertEquals(CardStatus.Trial, synthetic.status)
         val omiAudio = omi.audio!!
         assertEquals(Codec.Pcm16, omiAudio.codecMap[0]); assertEquals(Codec.Pcm8, omiAudio.codecMap[1])
         assertEquals(Codec.Opus10, omiAudio.codecMap[20]); assertEquals(Codec.Opus20, omiAudio.codecMap[21])
-        assertEquals(OfflineMode.Files, soni.offline); assertEquals("sonicloud", soni.filePlugin)
-        val report = describeCard(soni)
-        listOf("试用", "0000ae22", "TYPE=1 CMD=0", "len + payload", "命令字节示例", "文件插口 sonicloud").forEach { assertTrue(report, report.contains(it)) }
-        assertEquals(247, soni.link.mtu)
+        assertEquals(OfflineMode.Files, synthetic.offline); assertEquals("synthetic", synthetic.filePlugin)
+        val report = describeCard(synthetic)
+        listOf("试用", "0000ae22", "TYPE=1 CMD=0", "len + payload", "命令字节示例", "文件插口 synthetic").forEach { assertTrue(report, report.contains(it)) }
+        assertEquals(247, synthetic.link.mtu)
     }
 
     @Test fun rejectsUnknownFieldsEnumsAndMalformedUuid() {
@@ -41,11 +41,11 @@ class CardCodec118Test {
     }
 
     @Test fun rejectsBrokenReferencesAndMissingDependencies() {
-        invalid("sonicloud", "role=crc") { it.replace(Regex(""",\s*"crc": \{[^\}]*\}"""), "") }
-        invalid("sonicloud", "必须引用存在且 role=len 的字段") { it.replace("\"lengthFrom\": \"len\"", "\"lengthFrom\": \"missing\"") }
+        invalid("synthetic", "role=crc") { it.replace(Regex(""",\s*"crc": \{[^\}]*\}"""), "") }
+        invalid("synthetic", "必须引用存在且 role=len 的字段") { it.replace("\"lengthFrom\": \"len\"", "\"lengthFrom\": \"missing\"") }
         invalid("omi", "keepAlive") { it.replace("\"mtu\": 247", "\"mtu\": 247, \"keepAliveSec\": 10") }
-        invalid("sonicloud", "filePlugin") { it.replace(",\n  \"filePlugin\": \"sonicloud\"", "") }
-        invalid("sonicloud", "引用不存在") { it.replace("\"len\",\n            \"payload\"", "\"missing\"") }
+        invalid("synthetic", "filePlugin") { it.replace(",\n  \"filePlugin\": \"synthetic\"", "") }
+        invalid("synthetic", "引用不存在") { it.replace("\"len\",\n            \"payload\"", "\"missing\"") }
     }
 
     @Test fun rejectsBadVersionAndTooOldApp() {
@@ -71,7 +71,7 @@ class CardCodec118Test {
     }
 
     @Test fun realCaptureLocksEndianAndExtractsData() {
-        val codec = FrameCodec(card("sonicloud").audio!!.frame)
+        val codec = FrameCodec(card("synthetic").audio!!.frame)
         assertNull(codec.accept(capture))
         assertEquals(Endian.Le, codec.probe(capture))
         val frame = codec.accept(capture)!!
@@ -86,7 +86,7 @@ class CardCodec118Test {
     }
 
     @Test fun probeBigEndianAndAmbiguousResponse() {
-        val spec = card("sonicloud").audio!!.frame
+        val spec = card("synthetic").audio!!.frame
         val big = capture.copyOf().also { it[2] = 0; it[3] = 0; it[4] = 0; it[5] = 30 }
         val crc = Crc.compute(CrcAlgo.Crc16Xmodem, big.copyOfRange(4, big.size))
         big[2] = (crc shr 8).toByte(); big[3] = crc.toByte()
@@ -100,7 +100,7 @@ class CardCodec118Test {
     }
 
     @Test fun commandEncodingMatchesCaptureAndExplicitFieldLayout() {
-        val codec = FrameCodec(card("sonicloud").audio!!.frame)
+        val codec = FrameCodec(card("synthetic").audio!!.frame)
         codec.probe(capture)
         val command = CardCommand.Framed(2, 2, capture.copyOfRange(8, 36))
         repeat(3) { codec.encode(command) }

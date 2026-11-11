@@ -10,7 +10,7 @@ import java.io.File
 internal object BackupSettings {
     val prefs = setOf("transcribe", "local-asr", "capture", "ui", "review", "push", "diary", "digest", "setup",
         "backup", "ask-selection", "usage", "inputs", "voice-input", "llm-providers", "llm-balance",
-        "asr-speed", "env-sound", "redo-choices", "import-kinds", "app-update", "folder-imports", "devices", "device-cards", "location")
+        "asr-speed", "env-sound", "redo-choices", "import-kinds", "app-update", "folder-imports", "devices", "device-cards", "device-drivers", "location")
     val stores = mapOf("digest-secrets" to "resound-llm-aes-v1", "push-secrets" to "resound-push-aes-v1",
         "backup-secrets" to "resound-backup-aes-v1", "transcribe" to "resound-asr-aes-v1",
         "transcribe-header-secrets" to "resound-asr-headers-aes-v1", "location-secrets" to "resound-location-aes-v1")

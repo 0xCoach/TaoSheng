@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.room.Room
 import app.resound.data.CaptureDatabase
 import app.resound.importer.*
-import app.resound.devices.plugins.sonicloud.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.junit.*
@@ -138,10 +137,10 @@ class DeviceSync120Test {
     @Test fun protocolMatchesRealDownloadFrameAndReassembles() {
         val expected = "5a 03 9e 20 1e 00 02 02 00 00 00 00 6e 6f 74 65 32 30 32 36 30 37 31 30 2d 31 36 32 39 33 38 2e 77 61 76 00"
             .split(" ").map { it.toInt(16).toByte() }.toByteArray()
-        val frames = FileFrames()
+        val frames = SyntheticFileFrames()
         repeat(3) { frames.command(0) }
         assertArrayEquals(expected, frames.download("note20260710-162938.wav"))
-        val parser = FileFrames.Parser()
+        val parser = SyntheticFileFrames.Parser()
         assertTrue(parser.feed(expected.copyOfRange(0, 10)).isEmpty())
         assertArrayEquals(expected.copyOfRange(6, 36), parser.feed(expected.copyOfRange(10, 36)).single())
     }
@@ -149,44 +148,16 @@ class DeviceSync120Test {
         // 官方真实抓包，用于独立核对 CRC，而非用待测编码器自证。
         val packet = "5a 03 9e 20 1e 00 02 02 00 00 00 00 6e 6f 74 65 32 30 32 36 30 37 31 30 2d 31 36 32 39 33 38 2e 77 61 76 00"
             .split(" ").map { it.toInt(16).toByte() }.toByteArray()
-        val parser = FileFrames.Parser()
+        val parser = SyntheticFileFrames.Parser()
         val result = parser.feed(byteArrayOf(0, 1) + packet + packet + packet.copyOfRange(0, 5))
         assertEquals(2, result.size)
         result.forEach { assertArrayEquals(packet.copyOfRange(6, packet.size), it) }
         assertEquals(1, parser.feed(packet.copyOfRange(5, packet.size)).size)
         val corrupt = packet.copyOf().also { it[it.lastIndex] = 1 }
-        assertThrows(IllegalStateException::class.java) { FileFrames.Parser().feed(corrupt) }
-        assertThrows(IllegalArgumentException::class.java) { FileFrames.Parser().feed(byteArrayOf(0x5a, 0, 0, 0, 1, 0x20)) }
+        assertThrows(IllegalStateException::class.java) { SyntheticFileFrames.Parser().feed(corrupt) }
+        assertThrows(IllegalArgumentException::class.java) { SyntheticFileFrames.Parser().feed(byteArrayOf(0x5a, 0, 0, 0, 1, 0x20)) }
     }
 
-    @Test fun pluginListsTruncatedNamesAndWritesDownloadOnce() = runBlocking {
-        val notifications = MutableSharedFlow<ByteArray>()
-        val writes = mutableListOf<ByteArray>()
-        val responses = FileFrames()
-        val fake = object : DeviceLink {
-            override val mtu = 23
-            override suspend fun read(service: String, characteristic: String) = byteArrayOf()
-            override fun notifications(service: String, characteristic: String) = notifications
-            override suspend fun write(service: String, characteristic: String, bytes: ByteArray, withResponse: Boolean) {
-                writes += bytes
-                if (bytes[7] == 0.toByte()) {
-                    val body = ByteBuffer.allocate(32).order(ByteOrder.BIG_ENDIAN).putInt(1).putInt(2).putInt(123)
-                        .put("note20260710-162938.".toByteArray().copyOf(20)).array()
-                    notifications.emit(responses.command(1, body))
-                    notifications.emit(responses.command(18, byteArrayOf(0)))
-                } else {
-                    notifications.emit(responses.command(3))
-                    notifications.emit(responses.command(4, byteArrayOf(1, 2)))
-                    notifications.emit(responses.command(5, byteArrayOf(0)))
-                }
-            }
-        }
-        val plugin = SonicloudFiles()
-        val row = plugin.list(fake).single()
-        assertEquals("note20260710-162938.wav", row.name); assertEquals(2000L, row.durationMillis)
-        assertEquals(listOf(1.toByte(), 2.toByte()), plugin.download(fake, row, 0).toList().single().toList())
-        assertEquals(36, writes.last().size); assertEquals(2, writes.size)
-    }
     @Test fun migrationFrom30PreservesDataAndPersistsTransfers() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val name = "device120-migration.db"; context.deleteDatabase(name)

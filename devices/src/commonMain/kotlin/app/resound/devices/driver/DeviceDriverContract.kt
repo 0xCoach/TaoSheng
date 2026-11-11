@@ -239,6 +239,27 @@ interface LiveAudio {
     suspend fun stop()
     /** 已解码的声音：一律 16 kHz 单声道 16 位 PCM（双声道由驱动合成单声道） */
     val frames: Flow<AudioChunk>
+    /**
+     * 录音链路（人声检测）已处理完带 [origin] 的那一块里的 [samples] 个采样。
+     * 设备边录边存时，驱动据此记下“这段已实时收到”，之后在 [RecordingFile.liveCovered] 里报给核心，补传时跳过，避免重复。
+     * 只在录音链路真正处理后才调用；排队中、被丢弃的声音不会回报。
+     */
+    fun processed(origin: ChunkOrigin, samples: Int) {}
+    /** 本次收音结束。[discarded]=true 表示最后一段被丢弃（未保存） */
+    fun captureFinished(discarded: Boolean) {}
+}
+
+/** 这一块声音在设备自己那份录音里的位置；设备不边录边存时为 null */
+data class ChunkOrigin(
+    /** 对应 [RecordingFile.id] */
+    val fileId: String,
+    /** 这一块第一个采样在该录音里的毫秒位置 */
+    val offsetMillis: Long,
+)
+
+/** 一段毫秒区间，左闭右开 */
+data class MillisRange(val fromMillis: Long, val toMillis: Long) {
+    init { require(fromMillis in 0..toMillis) { "区间不合法：$fromMillis..$toMillis" } }
 }
 
 data class AudioChunk(
@@ -247,9 +268,11 @@ data class AudioChunk(
     val deviceTime: DeviceTime? = null,
     /** 这一块之前发现丢了多少个采样（序号跳号换算）；0 表示连续 */
     val lostSamplesBefore: Int = 0,
+    /** 设备边录边存时，这一块在设备录音里的位置 */
+    val origin: ChunkOrigin? = null,
 ) {
     override fun equals(other: Any?) = other is AudioChunk && pcm.contentEquals(other.pcm) &&
-        deviceTime == other.deviceTime && lostSamplesBefore == other.lostSamplesBefore
+        deviceTime == other.deviceTime && lostSamplesBefore == other.lostSamplesBefore && origin == other.origin
     override fun hashCode() = 31 * pcm.contentHashCode() + lostSamplesBefore
 }
 
@@ -290,10 +313,12 @@ data class RecordingFile(
     val start: DeviceTime,
     val durationMillis: Long?,
     val checksum: ByteArray? = null,
+    /** 这份录音里已经实时收到并处理过的区间（相对录音开头的毫秒）；核心补传时跳过这些部分 */
+    val liveCovered: List<MillisRange> = emptyList(),
 ) {
     override fun equals(other: Any?) = other is RecordingFile && id == other.id && state == other.state &&
         bytes == other.bytes && format == other.format && start == other.start &&
-        durationMillis == other.durationMillis && sameBytes(checksum, other.checksum)
+        durationMillis == other.durationMillis && sameBytes(checksum, other.checksum) && liveCovered == other.liveCovered
     override fun hashCode() = id.hashCode()
 }
 

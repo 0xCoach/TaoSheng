@@ -252,6 +252,7 @@ class CaptureService : Service() {
         var zeroAlerted = false
         while (currentCoroutineContext().isActive) {
             var segmenter: SpeechSegmenter? = null
+            var timeline: AudioTimeline? = null
             var retryMs = CaptureTuning.MIC_RETRY_MS
             try {
                 val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
@@ -259,6 +260,8 @@ class CaptureService : Service() {
                 else ExternalAudioSource(this, route.device,
                     app.inputs.port(requireNotNull(route.portId))
                         ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)
+                // 卡 143：设备音源可带设备时间和存档来源，并在人声检测后回报“已处理”
+                timeline = source as? AudioTimeline
                 val sensitivity = VadSensitivity.forInput(route.device.kind)
                 SileroVad(this, sensitivity).use { vad ->
                     var levelAt = 0L
@@ -302,7 +305,8 @@ class CaptureService : Service() {
                             CaptureNotifications.cancelSilentMic(this@CaptureService)
                         }
                         val cutter = segmenter ?: SpeechSegmenter(app.segmentFiles.sink(
-                            System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE, source.id, sensitivity.minSpeechSamples),
+                            timeline?.frameEpochMillis ?: (System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE),
+                            timeline?.frameArchiveId ?: source.id, sensitivity.minSpeechSamples),
                             sensitivity.minSpeechSamples).also { segmenter = it }
                         vad.accept(frame) { pcm, speech, level ->
                             cutter.accept(pcm, speech, playback.speakerPlaying)
@@ -322,6 +326,7 @@ class CaptureService : Service() {
                             // 每 50 毫秒报一次这段时间里的最大音量，界面据此画真实波形
                             if (elapsed - levelAt >= 50) { controller.level(levelPeak); levelPeak = 0f; levelAt = elapsed }
                         }
+                        timeline?.processed(frame.size)
                     }
                 }
             } catch (e: AudioSourceException) {
@@ -349,6 +354,7 @@ class CaptureService : Service() {
                 throw AudioSourceException(AudioSourceException.Reason.Unknown, "${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
+                timeline?.finished(discardOnFinish)
                 controller.level(0f)
             }
             delay(retryMs)

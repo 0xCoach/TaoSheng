@@ -37,7 +37,7 @@ internal class D3200AudioSource(
     }
     override fun events(): Flow<AudioEvent> = flow {
         // ready() is awaited by ManagedDevices on this firmware; DeviceSync finishes before auto-start.
-        for (step in D3200HistoryCore.startup(connection.recording, sync = true, connection.settings.autoStart)) {
+        for (step in D3200HistoryCore.startup(connection.recording, sync = true, connection.settings.shouldAutoStart(connection.address))) {
             when (step) {
                 D3200HistoryCore.Startup.SyncSaved, D3200HistoryCore.Startup.WaitForSave -> ready(0L)
                 D3200HistoryCore.Startup.StartRecording -> connection.startRecording()
@@ -45,9 +45,10 @@ internal class D3200AudioSource(
         }
         var listing = connection.listCurrent()
         file = D3200Protocol.currentFile(listing)
-        while (file == 0L) {
-            connection.settings.report(connection.address) { it.copy(sync = "已完成补传；等待设备开始新录音") }
+        while (file == 0L || connection.recording != 1) {
+            connection.settings.report(connection.address) { it.copy(sync = "等待设备开始录音；补传要求先停止并保存文件") }
             emit(AudioEvent.Busy("等待录音豆开始新录音")); delay(1000)
+            connection.refreshRecording()
             listing = connection.listCurrent(); file = D3200Protocol.currentFile(listing)
         }
         D3200HistoryCore.epoch(file, System.currentTimeMillis())
@@ -59,6 +60,7 @@ internal class D3200AudioSource(
             emit(AudioEvent.Available)
             while (true) {
                 currentCoroutineContext().ensureActive()
+                if (!connection.controlling && connection.recording != 1) throw IOException("设备录音已停止或暂停，重新连接检查保存文件")
                 if (SystemClock.elapsedRealtime() - lastPcm > 12000) throw IOException("录音豆未继续提供可解码音频")
                 val frame = connection.receive() ?: continue
                 val payload = D3200Protocol.payload(frame)
@@ -74,6 +76,7 @@ internal class D3200AudioSource(
                             if (anchor == null) anchor = now - (slice.seq - first) * 20
                             require(now - requireNotNull(anchor) - (slice.seq - first) * 20 < 4000) { "实时声音延迟过大，需要追到尾部" }
                             for (pcm in decoder.decode(connection.crypto.decrypt(slice))) {
+                                connection.receiving()
                                 emit(AudioEvent.Frame(pcm)); emitted += pcm.size; lastPcm = SystemClock.elapsedRealtime()
                             }
                         }

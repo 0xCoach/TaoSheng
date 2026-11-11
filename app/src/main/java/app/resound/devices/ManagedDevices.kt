@@ -69,7 +69,8 @@ internal class ManagedDevices(
                     var link: LinkedDevice? = null
                     var failure: AudioSourceException? = null
                     val bus = DeviceAudioBus()
-                    update(identity.address) { it.copy(status = DeviceStatus.Connecting, lastError = null) }
+                    update(identity.address) { it.copy(status = DeviceStatus.Connecting,
+                        battery = if (card.id == "d3200") null else it.battery, lastError = null) }
                     try {
                         val connected = radio.connect(identity.address, card)
                         link = connected
@@ -112,7 +113,7 @@ internal class ManagedDevices(
                         if (stream.value === bus) stream.value = null
                         bus.close(failure ?: AudioSourceException(AudioSourceException.Reason.Disconnected))
                         update(identity.address) { it.copy(status = if (failure == null) DeviceStatus.Disconnected else DeviceStatus.Waiting,
-                            backfill = null, lastError = failure?.message) }
+                            battery = if (card.id == "d3200") null else it.battery, backfill = null, lastError = failure?.message) }
                         withContext(NonCancellable) { link?.close() }
                     }
                     delay(retryMillis)

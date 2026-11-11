@@ -21,7 +21,7 @@ internal object D3200Protocol {
     fun le32(n: Long) = ByteArray(4) { (n ushr (8 * it)).toByte() }
     fun frame(type: Int, id: Int, payload: ByteArray = byteArrayOf()): ByteArray {
         require((type shl 8 or id) in setOf(0x0101, 0x2e01, 0x1a0e, 0x1b0e, 0x1a07, 0x1882))
-        if (type == 0x18) require(payload.contentEquals(byteArrayOf(1)))
+        if (type == 0x18) require(payload.contentEquals(byteArrayOf(1)) || payload.contentEquals(byteArrayOf(2)))
         val b = byteArrayOf(8, 0xee.toByte(), 0, 0, 0, type.toByte(), id.toByte(), 0, 0) + payload + byteArrayOf(0)
         b[7] = b.size.toByte(); b[8] = (b.size ushr 8).toByte()
         b[b.lastIndex] = b.dropLast(1).sumOf { it.toInt() and 255 }.toByte()

@@ -103,9 +103,12 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices 
     val files = mutableMapOf<String, D3200Files>()
     val ingest = deviceImport(app, app.database, AppGraph.importer as AndroidAudioImporter)
     return ManagedDevices(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
-        AndroidDeviceRadio(app, mapOf("d3200" to { device -> D3200Connection.connect(app, device, app.d3200) }), app.d3200::observe), app.scope,
+        AndroidDeviceRadio(app, mapOf("d3200" to { device -> app.d3200.connect(app, device) }), app.d3200::observe), app.scope,
         source = { row, card, link, ready, battery ->
-            if (link is D3200Connection) D3200AudioSource(link, row.name, ready) else {
+            if (link is D3200Connection) {
+                link.battery(battery)
+                D3200AudioSource(link, row.name, ready)
+            } else {
             val protocol = if (card.filePlugin == "sonicloud") SonicloudLive() else object : LiveProtocol {}
             CardAudioSource(ManagedDevices.deviceKey(row.address), row.name, card, link, protocol,
                 ready = ready, battery = battery, report = { stats ->
@@ -141,8 +144,10 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): ManagedDevices 
                     if (link is D3200Connection) {
                         val request = app.d3200.request(row.address)
                         app.d3200.report(row.address) { it.copy(sync = "正在检查已保存的离线录音") }
-                        app.d3200.journal(row.address).seed(plugin.list(link))
-                        sync.importAll(card, link, 0L)
+                        link.backfill {
+                            app.d3200.journal(row.address).seed(plugin.list(link))
+                            sync.importAll(card, link, 0L)
+                        }
                         check(app.database.deviceSync().rows(row.address).none { !it.imported }) { "补传或导入尚未完成，已保留进度" }
                         app.d3200.acknowledge(row.address, request)
                         app.d3200.report(row.address) { it.copy(sync = "离线录音已检查并确认导入；设备原文件保留") }

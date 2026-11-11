@@ -57,11 +57,11 @@ interface DeviceDriver {
 }
 
 data class DriverMeta(
-    /** 驱动编号：小写字母、数字、横线、冒号，如 taoecho、card:omi、d3200 */
+    /** 驱动编号：小写字母、数字、横线、冒号，如 taoecho、card:<说明卡编号>、<插件编号> */
     val id: String,
     val tier: DriverTier,
     val stability: Stability,
-    /** 显示名，如“安克 / 飞书录音豆 D3200” */
+    /** 显示名（品牌 + 型号） */
     val name: LocalizedText,
     /** 别名，搜索用（如“安克录音豆”“飞书录音豆”） */
     val aliases: List<String> = emptyList(),

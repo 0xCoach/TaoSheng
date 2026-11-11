@@ -17,10 +17,6 @@ KNOWN_BRANDS_140 = {
      "import app.resound.devices.plugins.sonicloud.*"),
     ("app/src/main/java/app/resound/devices/AndroidDevices.kt",
      'val protocol = if (card.filePlugin == "sonicloud") SonicloudLive() else object : LiveProtocol {}'),
-    (COMMON + "kotlin/app/resound/devices/driver/DeviceDriverContract.kt",
-     "/** 驱动编号：小写字母、数字、横线、冒号，如 taoecho、card:omi、d3200 */"),
-    (COMMON + "kotlin/app/resound/devices/driver/DeviceDriverContract.kt",
-     "/** 显示名，如“安克 / 飞书录音豆 D3200” */"),
 }
 ALLOWED_LIBRARIES = {
     "org.jetbrains.kotlin:kotlin-stdlib",
@@ -198,7 +194,7 @@ def main():
     for error in errors:
         print(error)
     if not errors:
-        print("设备边界检查通过（卡 140 的 4 条已知引用按整行豁免）")
+        print("设备边界检查通过（卡 140 的 2 条已知引用按整行豁免）")
     return 1 if errors else 0
 
 

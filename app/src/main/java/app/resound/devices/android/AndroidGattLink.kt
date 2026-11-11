@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.*
 
 /** 底层 serial 队列和 CCCD 复用保留；本层增加新约定的长度与错误编码。 */
 internal class AndroidGattLink(private val delegate: LinkedDevice) : GattLink {
+    val disconnectedAt get() = delegate.disconnectedAt
     override fun maxWriteLength(withResponse: Boolean) = if (delegate.mtu >= 23) delegate.mtu - 3 else 20
     override suspend fun read(service: String, characteristic: String) = platformCall { delegate.read(service, characteristic) }
     override suspend fun write(service: String, characteristic: String, bytes: ByteArray, withResponse: Boolean) {

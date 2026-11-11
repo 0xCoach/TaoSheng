@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.first
 class ResoundApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
-    internal lateinit var cardDevices: app.resound.devices.ManagedDevices
+    internal lateinit var cardDevices: app.resound.devices.android.DeviceInputs
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }

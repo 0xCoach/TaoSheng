@@ -142,6 +142,9 @@ class DeviceHubTest {
     @Test fun timersClampLimitAndDisconnectCancelsThemAndDecoder() = runTest {
         val f = Fixture(this); f.start(); val session = f.sessions.single()
         var runs = 0
+        // 丢包会重建解码器；主动关闭后不应在断连时重复释放，也不再滞留会话列表。
+        repeat(2) { session.toolbox.opusDecoder(16000, 1).also { it.close(); it.close() } }
+        assertEquals(2, f.decodersClosed)
         session.toolbox.opusDecoder(16000, 1)
         val task = session.schedule("a", 1) { runs++ }
         repeat(3) { session.schedule("other$it", 999_999) {} }
@@ -150,7 +153,7 @@ class DeviceHubTest {
         advanceTimeBy(1); runCurrent(); assertEquals(1, runs)
         task.cancel(); runCurrent(); session.schedule("replacement", 30_000) { runs++ }
         f.links.single().disconnected.emit(DeviceException(ErrorCode.Disconnected)); runCurrent()
-        assertEquals(1, f.decodersClosed)
+        assertEquals(3, f.decodersClosed)
         f.hub.disable("handle-1"); advanceTimeBy(120_000); runCurrent(); assertEquals(1, runs)
     }
     @Test fun timersIsolateExceptionsAndDiagnosticsStayBounded() = runTest {

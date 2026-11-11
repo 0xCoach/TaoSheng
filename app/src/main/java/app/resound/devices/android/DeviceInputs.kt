@@ -278,6 +278,19 @@ internal class DeviceInputs(
         error is DeviceException && error.detail == "zero-pcm" -> AudioSourceException(AudioSourceException.Reason.Disconnected, CaptureHealth.ZERO_PCM)
         else -> AudioSourceException(AudioSourceException.Reason.Disconnected, "设备连接或声音协议失败")
     }
+    /** 卡 144：这台设备当前用的驱动是否被停用（连续出错或用户停用） */
+    fun disabledReason(address: String): DisableReason? {
+        val selection = repository.selections().firstOrNull { it.platformHandle == address } ?: return null
+        val key = selection.deviceId?.let { "id:${it.value}" } ?: "handle:$address"
+        return repository.disabled(selection.driverId, key)
+    }
+    /** 卡 144：用户手动重新启用被停用的驱动；下次收音或管理时重新连接 */
+    fun enableDriver(address: String) {
+        val selection = repository.selections().firstOrNull { it.platformHandle == address } ?: return
+        val key = selection.deviceId?.let { "id:${it.value}" } ?: "handle:$address"
+        repository.setDisabled(selection.driverId, key, null)
+        update(address) { it.copy(lastError = null) }
+    }
     fun select(choice: InputChoice) { selected.value = (choice as? InputChoice.Device)?.key }
     fun recording(value: Boolean) { active.value = value }
 

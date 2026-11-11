@@ -125,6 +125,14 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
             if (name in activeCaptures.value) false else File(captureDirectory(), name).delete()
         }
     }
+    /** 卡 144：把录包复制到缓存目录供分享（缓存目录已在 FileProvider 里开放），返回复制出的文件 */
+    suspend fun exportCapture(name: String): File = withContext(Dispatchers.IO) {
+        require(validCaptureName(name)) { "非法录包文件名" }
+        captureFilesMutex.withLock {
+            val target = File(context.cacheDir, "device-captures").apply { mkdirs() }.resolve(name)
+            File(captureDirectory(), name).copyTo(target, overwrite = true)
+        }
+    }
     private fun captureDirectory() = File(context.filesDir, "device-captures")
     private fun validCaptureName(name: String) = Regex("[a-z0-9:-]{1,64}-[0-9]+\\.txt").matches(name)
 

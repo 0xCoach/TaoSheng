@@ -1,0 +1,19 @@
+{
+  "id": "d3200",
+  "name": "安克 / 飞书录音豆 D3200",
+  "version": 1,
+  "minApp": "0.2.22",
+  "status": "trial",
+  "transport": "ble",
+  "match": { "serviceUuid": "020cf5da-0000-1000-8000-00805f9b34fb" },
+  "mtu": 517,
+  "audio": {
+    "service": "020cf5da-0000-1000-8000-00805f9b34fb",
+    "notify": "00008888-0000-1000-8000-00805f9b34fb",
+    "write": "00007777-0000-1000-8000-00805f9b34fb",
+    "codec": "opus20", "sampleRate": 16000, "channels": 2
+  },
+  "frame": { "fields": [], "payload": "rest", "opusPerPacket": "one" },
+  "offline": "files",
+  "filePlugin": "d3200"
+}

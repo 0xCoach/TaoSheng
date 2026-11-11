@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.first
 class ResoundApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
+    val d3200 by lazy { app.resound.devices.plugins.d3200.D3200Coordinator(this) }
     internal lateinit var cardDevices: app.resound.devices.ManagedDevices
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }

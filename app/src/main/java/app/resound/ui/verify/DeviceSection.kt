@@ -70,6 +70,7 @@ fun DeviceSection(devices: Devices, cards: DeviceCards, scanError: kotlinx.corou
             paired.forEachIndexed { i, d ->
                 if (i > 0) Divider64()
                 PairedRow(d) { detail = d.address }
+                DeviceOptionsUi.Content(d)
             }
             if (scanning || found.isNotEmpty()) {
                 if (paired.isNotEmpty()) Divider64()

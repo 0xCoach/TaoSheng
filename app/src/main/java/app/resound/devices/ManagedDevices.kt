@@ -69,7 +69,8 @@ internal class ManagedDevices(
                     var link: LinkedDevice? = null
                     var failure: AudioSourceException? = null
                     val bus = DeviceAudioBus()
-                    update(identity.address) { it.copy(status = DeviceStatus.Connecting, lastError = null) }
+                    update(identity.address) { it.copy(status = DeviceStatus.Connecting,
+                        battery = if (card.id == "d3200") null else it.battery, lastError = null) }
                     try {
                         val connected = radio.connect(identity.address, card)
                         link = connected
@@ -77,17 +78,23 @@ internal class ManagedDevices(
                         coroutineScope {
                             var sync: Job? = null
                             try {
-                                source(current, card, connected, { offset ->
+                                val audio = source(current, card, connected, { offset ->
                                     val restored = now()
                                     // 旧文件按断开前的偏差换算；刚写的新时钟不能回填成旧偏差。
-                                    if (card.offline == OfflineMode.Files) sync = launch {
+                                    if (card.offline == OfflineMode.Files) {
+                                        val backfill: suspend () -> Unit = {
                                         onLinked(current, card, connected, current.gapStart,
                                             current.gapStart?.let { restored }, current.clockOffset) { progress ->
-                                            update(identity.address) { it.copy(backfill = progress) }
+                                            update(identity.address) { it.copy(backfill = progress,
+                                                status = if (progress != null && it.status != DeviceStatus.Live) DeviceStatus.Backfilling else it.status) }
                                         }
                                         saveRow(identity.address) { it.copy(gapStart = null, clockOffset = offset) }
+                                        }
+                                        if (connected.backfillBeforeLive) backfill() else sync = launch { backfill() }
                                     } else saveRow(identity.address) { it.copy(gapStart = null, clockOffset = offset) }
-                                }, { value -> update(identity.address) { it.copy(battery = value) } }).events().collect { event ->
+                                }, { value -> update(identity.address) { it.copy(battery = value) } })
+                                bus.timeline = audio as? AudioTimeline
+                                audio.events().collect { event ->
                                     if (event is AudioEvent.Frame && stream.value !== bus) {
                                         stream.value = bus
                                         update(identity.address) { it.copy(status = DeviceStatus.Live, lastError = null) }
@@ -106,7 +113,7 @@ internal class ManagedDevices(
                         if (stream.value === bus) stream.value = null
                         bus.close(failure ?: AudioSourceException(AudioSourceException.Reason.Disconnected))
                         update(identity.address) { it.copy(status = if (failure == null) DeviceStatus.Disconnected else DeviceStatus.Waiting,
-                            backfill = null, lastError = failure?.message) }
+                            battery = if (card.id == "d3200") null else it.battery, backfill = null, lastError = failure?.message) }
                         withContext(NonCancellable) { link?.close() }
                     }
                     delay(retryMillis)
@@ -116,13 +123,24 @@ internal class ManagedDevices(
     }
     fun select(choice: InputChoice) { selected.value = (choice as? InputChoice.Device)?.key }
     fun recording(value: Boolean) { active.value = value }
-    fun audioSource(key: String): AudioSource = object : AudioSource {
+    fun audioSource(key: String): AudioSource = object : AudioSource, AudioTimeline {
+        private var timeline: AudioTimeline? = null
+        private var epoch: Long? = null
+        private var archive: String? = null
+        override val epochMillis get() = epoch
+        override val archiveSourceId get() = archive
+        override fun processed(at: Long?, samples: Int) { timeline?.processed(at, samples) }
+        override fun finishCapture() { timeline?.finishCapture() }
         override val id = key
         override val displayName = devices.value.find { deviceKey(it.address) == key }?.name ?: "专用录音设备"
         override fun events(): Flow<AudioEvent> = flow {
             if (selected.value != key) throw AudioSourceException(AudioSourceException.Reason.Disconnected)
             val current = stream.value ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected)
-            emitAll(current.events())
+            timeline = current.timeline
+            current.events().collect { delivery ->
+                epoch = delivery.epoch; archive = delivery.archive
+                emit(delivery.event)
+            }
         }
     }
     @Synchronized private fun update(address: String, change: (DeviceState) -> DeviceState) {
@@ -184,16 +202,19 @@ private fun RememberedDevice.state() = DeviceState(address, name, cardId, Device
 
 /** 有界广播，关闭携带故障；不会用 SharedFlow 吞掉断开。 */
 internal class DeviceAudioBus {
-    private val listeners = mutableSetOf<Channel<AudioEvent>>()
+    var timeline: AudioTimeline? = null
+    data class Delivery(val event: AudioEvent, val epoch: Long?, val archive: String?)
+    private val listeners = mutableSetOf<Channel<Delivery>>()
     private var ended: AudioSourceException? = null
-    fun events(): Flow<AudioEvent> = flow {
-        val channel = Channel<AudioEvent>(64)
+    fun events(): Flow<Delivery> = flow {
+        val channel = Channel<Delivery>(64)
         synchronized(this@DeviceAudioBus) { ended?.let { channel.close(it) } ?: listeners.add(channel) }
         try { for (event in channel) emit(event) }
         finally { synchronized(this@DeviceAudioBus) { listeners.remove(channel) }; channel.cancel() }
     }
     @Synchronized fun send(event: AudioEvent) {
-        listeners.forEach { if (!it.trySend(event).isSuccess) throw AudioSourceException(AudioSourceException.Reason.Disconnected, "设备声音消费超时") }
+        val delivery = Delivery(event, timeline?.epochMillis, timeline?.archiveSourceId)
+        listeners.forEach { if (!it.trySend(delivery).isSuccess) throw AudioSourceException(AudioSourceException.Reason.Disconnected, "设备声音消费超时") }
     }
     @Synchronized fun close(error: AudioSourceException) { ended = error; listeners.forEach { it.close(error) }; listeners.clear() }
 }

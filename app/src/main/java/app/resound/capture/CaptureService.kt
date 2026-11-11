@@ -252,6 +252,7 @@ class CaptureService : Service() {
         var zeroAlerted = false
         while (currentCoroutineContext().isActive) {
             var segmenter: SpeechSegmenter? = null
+            var timeline: app.resound.devices.AudioTimeline? = null
             var retryMs = CaptureTuning.MIC_RETRY_MS
             try {
                 val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
@@ -259,6 +260,7 @@ class CaptureService : Service() {
                 else ExternalAudioSource(this, route.device,
                     app.inputs.port(requireNotNull(route.portId))
                         ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)
+                timeline = source as? app.resound.devices.AudioTimeline
                 val sensitivity = VadSensitivity.forInput(route.device.kind)
                 SileroVad(this, sensitivity).use { vad ->
                     var levelAt = 0L
@@ -294,6 +296,7 @@ class CaptureService : Service() {
                             if (previous.key != route.device.key || note != null)
                                 store.inputSwitched("${previous.name} → ${route.device.name}；${note ?: "录音输入切换"}")
                             reported = true
+                            controller.update(state)
                         }
                         val frame = (event as AudioEvent.Frame).samples
                         if (busy) { store.event(WatchdogEventType.MicReleased); busy = false }
@@ -302,7 +305,8 @@ class CaptureService : Service() {
                             CaptureNotifications.cancelSilentMic(this@CaptureService)
                         }
                         val cutter = segmenter ?: SpeechSegmenter(app.segmentFiles.sink(
-                            System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE, source.id, sensitivity.minSpeechSamples),
+                            timeline?.epochMillis ?: (System.currentTimeMillis() - frame.size * 1000L / AudioSource.SAMPLE_RATE),
+                            timeline?.archiveSourceId ?: source.id, sensitivity.minSpeechSamples),
                             sensitivity.minSpeechSamples).also { segmenter = it }
                         vad.accept(frame) { pcm, speech, level ->
                             cutter.accept(pcm, speech, playback.speakerPlaying)
@@ -322,6 +326,7 @@ class CaptureService : Service() {
                             // 每 50 毫秒报一次这段时间里的最大音量，界面据此画真实波形
                             if (elapsed - levelAt >= 50) { controller.level(levelPeak); levelPeak = 0f; levelAt = elapsed }
                         }
+                        timeline?.processed(timeline?.epochMillis, frame.size)
                     }
                 }
             } catch (e: AudioSourceException) {
@@ -349,6 +354,7 @@ class CaptureService : Service() {
                 throw AudioSourceException(AudioSourceException.Reason.Unknown, "${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 if (discardOnFinish) segmenter?.discard() else segmenter?.finish()
+                timeline?.finishCapture()
                 controller.level(0f)
             }
             delay(retryMs)
@@ -390,14 +396,16 @@ class CaptureService : Service() {
     private fun startForegroundWithLocation() {
         val notification = CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis())
         val location = if (AppGraph.isLocationReady) AppGraph.location else null
+        val connected = if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else 0
         var tracking = false
         if (location?.settings?.wanted() == true) {
             try {
-                startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or connected)
                 tracking = true
             } catch (_: RuntimeException) { }
         }
-        if (!tracking) startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        if (!tracking) startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or connected)
         if (tracking) location?.tracker?.start() else location?.tracker?.stop()
     }
     private fun stopLocation() { if (AppGraph.isLocationReady) AppGraph.location.tracker.stop() }

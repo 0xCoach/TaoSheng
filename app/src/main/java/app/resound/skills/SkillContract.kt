@@ -50,6 +50,23 @@ enum class SkillRange { Day, Week, SinceLastRun }
 
 enum class SkillSpeakers { MeOnly, All }
 
+/**
+ * 出卡门槛（卡 146）。由程序按原话硬数据判断，不靠大模型自觉：
+ * 1. 调用大模型前：本次范围内的原话达不到门槛，直接不出卡、不调用模型，结果写明原因；
+ * 2. 出卡后：每张卡片自己的起止时间内的原话也必须达到门槛，否则这张卡丢弃（防止长时间里挑两句凑会议）。
+ * 只统计原话（transcript_lines），不看事件摘要。
+ */
+data class SkillGate(
+    /** 至少几个不同的说话人。“待确认”不算一个人；“我”、人名、“说话人N”各算一个 */
+    val minSpeakers: Int = 1,
+    /** 第一句到最后一句至少隔多少分钟 */
+    val minSpanMinutes: Int = 0,
+    /** 至少多少句原话 */
+    val minLines: Int = 0,
+    /** 语音输入打的字算不算（会议默认不算） */
+    val countVoiceInput: Boolean = false,
+)
+
 /** 卡片积木：卡片上一项内容的类型 */
 enum class FieldType {
     /** 一句话 */
@@ -116,6 +133,8 @@ data class Skill(
     val promptCustomized: Boolean,
     /** 这个技能有官方新版本可合并（仅 Mine 中从官方复制来的） */
     val upstreamUpdated: Boolean = false,
+    /** 出卡门槛；null 表示不设（卡 146） */
+    val gate: SkillGate? = null,
 )
 
 /** 卡片上一项的值；按 FieldType 只用对应的那个属性 */

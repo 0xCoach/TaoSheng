@@ -397,13 +397,22 @@ class CaptureService : Service() {
         val notification = CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis())
         val location = if (AppGraph.isLocationReady) AppGraph.location else null
         var tracking = false
+        // 卡 143：有蓝牙连接权限时加“连接设备”类型，让外设连接在后台不被系统限制；被拒就退回原来的类型
+        val connected = if (android.os.Build.VERSION.SDK_INT < 31 || androidx.core.content.ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else 0
+        fun start(types: Int) {
+            if (connected != 0) try { startForeground(CaptureNotifications.ONGOING, notification, types or connected); return }
+                catch (_: RuntimeException) { }
+            startForeground(CaptureNotifications.ONGOING, notification, types)
+        }
         if (location?.settings?.wanted() == true) {
             try {
-                startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                start(ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
                 tracking = true
             } catch (_: RuntimeException) { }
         }
-        if (!tracking) startForeground(CaptureNotifications.ONGOING, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        if (!tracking) start(ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         if (tracking) location?.tracker?.start() else location?.tracker?.stop()
     }
     private fun stopLocation() { if (AppGraph.isLocationReady) AppGraph.location.tracker.stop() }

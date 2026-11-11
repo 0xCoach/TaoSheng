@@ -3,6 +3,7 @@ package app.resound.devices.hub
 import app.resound.devices.driver.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 
 /** 同步 schedule/log 用 StateFlow CAS；不依赖线程、阻塞锁或平台对象。 */
@@ -82,6 +83,21 @@ internal class HubSession(
             if (tasks.compareAndSet(old, old + (name to timer))) break
         }
         timer.invokeOnCompletion { tasks.update { if (it[name] === timer) it - name else it } }
+        timer.start()
+        return object : ScheduledTask { override fun cancel() { timer.cancel() } }
+    }
+    private val heartbeat = MutableStateFlow<Job?>(null)
+    override fun keepAlive(everyMillis: Long, task: suspend () -> Unit): ScheduledTask {
+        if (!job.isActive) throw DeviceException(ErrorCode.Disconnected)
+        val timer = scope.launch(start = CoroutineStart.LAZY) {
+            while (isActive) {
+                delay(everyMillis.coerceAtLeast(1_000))
+                try { boundary.call { task() } }
+                catch (_: DeviceException) { /* 边界已记账，下一次仍可执行。 */ }
+            }
+        }
+        heartbeat.getAndUpdate { timer }?.cancel()
+        timer.invokeOnCompletion { heartbeat.compareAndSet(timer, null) }
         timer.start()
         return object : ScheduledTask { override fun cancel() { timer.cancel() } }
     }

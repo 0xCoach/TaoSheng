@@ -103,6 +103,12 @@ interface DriverSession {
     val extras: PlatformExtras
     /** 定时任务；核心限制最短间隔（不足按最短间隔执行）和同时运行数，连接断开自动取消 */
     fun schedule(name: String, everyMillis: Long, task: suspend () -> Unit): ScheduledTask
+    /**
+     * 链路心跳：每个连接最多一个，间隔不短于 1 秒（定时任务最短 30 秒，心跳是唯一例外）。
+     * 只用于设备要求的保持命令（如协议心跳、灯光状态续发），不要拿来轮询状态。连接断开自动取消；
+     * 再次调用会替换上一个心跳。
+     */
+    fun keepAlive(everyMillis: Long, task: suspend () -> Unit): ScheduledTask = throw DeviceException(ErrorCode.Unsupported)
     /** 诊断日志，进诊断导出；不要写录音内容和密钥 */
     fun log(level: LogLevel, message: String)
 }

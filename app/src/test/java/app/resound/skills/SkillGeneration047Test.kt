@@ -58,7 +58,9 @@ class SkillGeneration047Test {
         root = File(context.cacheDir, "skills047").apply { deleteRecursively(); mkdirs() }
         files = SkillFiles(root) {
             File("src/main/assets/skills").listFiles()!!.map { dir ->
-                SkillJson.parse(File(dir, "skill.json").readText(), SkillOrigin.Builtin) to File(dir, "prompt.md").readText()
+                // 本组的少量原话专测后台生成与日限额；门槛另由 SkillGate146Test 验证。
+                val d = SkillJson.parse(File(dir, "skill.json").readText(), SkillOrigin.Builtin)
+                d.copy(skill = d.skill.copy(gate = null), gateSpecified = false) to File(dir, "prompt.md").readText()
             }
         }
         files.skills.value.filter { it.origin != SkillOrigin.Core }.forEach { s -> files.change(s.id) {

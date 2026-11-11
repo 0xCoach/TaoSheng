@@ -4,12 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** 文件格式独立于界面约定；来源元数据不混进用户覆盖项。 */
-data class SkillDefinition(val skill: Skill, val order: Int = 0, val sourceId: String? = null, val sourceVersion: Int? = null)
+data class SkillDefinition(val skill: Skill, val order: Int = 0, val sourceId: String? = null, val sourceVersion: Int? = null,
+    val gateSpecified: Boolean = skill.gate != null)
 
 object SkillJson {
     private val keyPattern = Regex("[a-z0-9_]+")
     fun validKey(key: String) = key.matches(keyPattern)
     fun validate(s: Skill) {
+        s.gate?.let(SkillGateRules::validate)
         require(validKey(s.id)) { "技能 id 只能使用小写英文、数字和下划线" }
         require(s.name.isNotBlank() && s.version >= 1)
         require(s.maxCardsPerDay in 1..20)
@@ -23,16 +25,18 @@ object SkillJson {
     }
     fun parse(text: String, origin: SkillOrigin): SkillDefinition {
         val j = JSONObject(text)
+        val gate = SkillGateJson.read(text)
         require(j.getInt("formatVersion") == 1) { "不支持的技能文件格式" }
         val scope = j.getJSONObject("scope")
         val s = Skill(j.getString("id"), j.getString("name"), j.getString("summary"), j.getString("icon"),
             origin, j.getInt("version"), j.optBoolean("enabled", true), trigger(j.getJSONObject("trigger")),
             SkillScope(SkillRange.valueOf(scope.getString("range")), SkillSpeakers.valueOf(scope.getString("speakers")), scope.getBoolean("includeLines")),
-            fields(j.getJSONArray("fields")), j.getInt("maxCardsPerDay"), j.getBoolean("push"), j.nullString("presetId"), false)
+            fields(j.getJSONArray("fields")), j.getInt("maxCardsPerDay"), j.getBoolean("push"), j.nullString("presetId"), false,
+            gate = gate.gate)
         validate(s)
         val source = j.nullString("sourceId")
         require(source == null || validKey(source))
-        return SkillDefinition(s, j.optInt("order", 0), source, if (j.isNull("sourceVersion")) null else j.getInt("sourceVersion"))
+        return SkillDefinition(s, j.optInt("order", 0), source, if (j.isNull("sourceVersion")) null else j.getInt("sourceVersion"), gate.specified)
     }
     fun trigger(j: JSONObject): SkillTrigger = when (j.getString("type")) {
         "Daily" -> SkillTrigger.Daily(j.getInt("minutes"), j.optJSONArray("weekdays").elements().map { (it as Number).toInt() }.toSet())
@@ -59,6 +63,7 @@ object SkillJson {
             .put("scope", JSONObject().put("range", scope.range.name).put("speakers", scope.speakers.name).put("includeLines", scope.includeLines))
             .put("fields", fields(fields)).put("maxCardsPerDay", maxCardsPerDay).put("push", push).put("presetId", presetId ?: JSONObject.NULL)
             .put("order", d.order).put("sourceId", d.sourceId ?: JSONObject.NULL).put("sourceVersion", d.sourceVersion ?: JSONObject.NULL).toString(2)
+            .let { SkillGateJson.write(it, gate, d.gateSpecified) }
     }
     fun values(values: Map<String, FieldValue>) = JSONObject().apply {
         values.forEach { (key, v) -> put(key, JSONObject().put("text", v.text ?: JSONObject.NULL).put("items", JSONArray(v.items))

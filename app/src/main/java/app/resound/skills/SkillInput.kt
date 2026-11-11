@@ -2,6 +2,7 @@ package app.resound.skills
 
 import app.resound.appDisplayName
 import app.resound.data.TranscriptLineEntity
+import app.resound.data.MemoryEventEntity
 import app.resound.digest.DigestPrompt
 import app.resound.voiceprint.VoiceprintThresholds
 import java.time.*
@@ -9,6 +10,7 @@ import java.time.format.DateTimeFormatter
 
 val SKILL_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
 data class SkillInput(val data: String, val lines: Map<String, TranscriptLineEntity>)
+internal data class SkillSource(val events: List<MemoryEventEntity>, val lines: List<TranscriptLineEntity>)
 
 object SkillInputs {
     private val clock = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -31,7 +33,15 @@ object SkillInputs {
         while (count > limit && cut < lines.size) count -= size(lines[cut++])
         return lines.drop(cut)
     }
-    suspend fun load(dao: SkillDao, skill: Skill, date: LocalDate, since: Long?, until: Long): SkillInput {
+    internal fun gateLines(raw: List<TranscriptLineEntity>, speakers: SkillSpeakers): List<SkillGateLine> =
+        raw.filter { speakers != SkillSpeakers.MeOnly || it.speakerName == "我" }
+            .map { SkillGateLine(it.startAt, speaker(it), it.voiceInputJson != null) }
+
+    suspend fun load(dao: SkillDao, skill: Skill, date: LocalDate, since: Long?, until: Long): SkillInput =
+        prepare(dao, skill, date, until, source(dao, skill, date, since, until))
+
+    /** 只读取完整范围，尚未组织模型输入，也没有按字数裁剪。 */
+    internal suspend fun source(dao: SkillDao, skill: Skill, date: LocalDate, since: Long?, until: Long): SkillSource {
         val range = skill.scope.range
         val dayStart = date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
         val startDate = if (range == SkillRange.Week) date.with(DayOfWeek.MONDAY) else date
@@ -40,8 +50,20 @@ object SkillInputs {
         val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
         val events = dao.events(start, end, if (range == SkillRange.SinceLastRun) since ?: (dayStart - 1) else -1, until)
         val ids = events.map { it.id }
-        val raw = if (!skill.scope.includeLines || range == SkillRange.Week) emptyList()
-            else if (range == SkillRange.SinceLastRun) dao.eventLines(ids) else dao.lines(dayStart, end)
+        // 门槛独立于是否把原话送给模型；按周、不带原话的技能也要用完整范围判定。
+        val raw = if (skill.gate == null && (!skill.scope.includeLines || range == SkillRange.Week)) emptyList()
+            else if (range == SkillRange.SinceLastRun) dao.eventLines(ids) else dao.lines(start, end)
+        return SkillSource(events, raw)
+    }
+
+    internal suspend fun prepare(dao: SkillDao, skill: Skill, date: LocalDate, until: Long, source: SkillSource): SkillInput {
+        val range = skill.scope.range
+        val startDate = if (range == SkillRange.Week) date.with(DayOfWeek.MONDAY) else date
+        val start = startDate.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+        val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+        val events = source.events
+        val ids = events.map { it.id }
+        val raw = if (!skill.scope.includeLines || range == SkillRange.Week) emptyList() else source.lines
         val lines = boundedLines(raw, skill.scope.speakers)
         val indexed = lines.mapIndexed { i, l -> "L${i + 1}" to l }.toMap()
         val data = buildString {

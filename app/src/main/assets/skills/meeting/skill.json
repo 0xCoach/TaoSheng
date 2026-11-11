@@ -14,6 +14,12 @@
     "speakers": "All",
     "includeLines": true
   },
+  "gate": {
+    "minSpeakers": 2,
+    "minSpanMinutes": 10,
+    "minLines": 20,
+    "countVoiceInput": false
+  },
   "fields": [
     {
       "key": "topic",

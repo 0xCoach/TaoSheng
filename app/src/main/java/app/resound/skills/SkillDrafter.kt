@@ -30,6 +30,7 @@ object SkillDrafter {
   "trigger": {"type": "Daily", "minutes": 1260, "weekdays": []} 或 {"type": "AfterDigest", "minGapMinutes": 60} 或 {"type": "Manual"},
   "scope": {"range": "Day | Week | SinceLastRun", "speakers": "All | MeOnly", "includeLines": true},
   "maxCardsPerDay": 1,
+  "gate": null 或 {"minSpeakers": 2, "minSpanMinutes": 10, "minLines": 20, "countVoiceInput": false},
   "fields": [{"key": "英文小写下划线", "label": "中文名", "type": "Text | Paragraph | Bullets | Checklist | Quotes | Tags | Number | Rating", "hint": "这一项写什么", "required": true}],
   "prompt": "给大模型的要求"
 }}
@@ -37,6 +38,7 @@ object SkillDrafter {
 - trigger：描述里有固定时间或“每天/每晚/每周几” → Daily（minutes 是一天里的分钟数，如 21:00 = 1260；weekdays 1=周一…7=周日，空表示每天）；“每次聊到/开会时/发生时” → AfterDigest；说不清 → Daily 21:00。
 - scope：只关于“我自己”的（我的情绪、我的习惯、我说过的话）→ MeOnly，其余 All；按周总结 → Week 且 includeLines=false；需要准确原话 → includeLines=true。
 - maxCardsPerDay：一天一张的总结填 1；一件事一张（如每次聚会、每个客户）填 3～8。
+- gate：会议、访谈、例会等多人讨论类技能要给出合理的出卡门槛；通常至少 2 人、10 分钟、20 句，countVoiceInput=false（语音输入打的字不算现场讨论），按用户实际场景调整。不需要门槛的填 null。人数必须是 1～20 的整数，分钟数 0～600，句数 0～5000。程序会在调用前和每张卡的起止时间内检查原话，不达标就不出卡；卡片必须给出真实起止时间。
 - fields：2～6 项，第一项通常是 Text 的一句话概括并 required=true；Text=一句话，Paragraph=一段话，Bullets=要点，Checklist=可勾选清单，Quotes=原话引用，Tags=标签，Number=数字，Rating=1～5 分。key 用简短英文，彼此不同。
 - prompt：150～300 字简明中文，写清楚找什么内容、每项怎么写、什么情况不出卡（宁缺毋滥）。不用写“只算我说的话、不编造、带出处、北京时间”这些总规则，系统会自动加。
 - 名字、说明、各项名字都用中文，不夹英文单词。
@@ -63,7 +65,7 @@ object SkillDrafter {
         return DraftStep.Ask(q.take(80), options)
     }
 
-    /** 解析并收紧技能定义；缺的给默认值，超出范围的夹到合法值 */
+    /** 解析并收紧技能定义；门槛非法则拒绝，其余设置沿用原有默认/裁剪规则。 */
     fun parse(j: JSONObject, id: String): SkillDraft {
         val trigger = runCatching { SkillJson.trigger(j.getJSONObject("trigger")) }.getOrNull()?.let {
             when (it) {
@@ -97,6 +99,7 @@ object SkillDrafter {
             origin = SkillOrigin.Mine, version = 1, enabled = true, trigger = trigger, scope = scope, fields = fields,
             maxCardsPerDay = j.optInt("maxCardsPerDay", 1).coerceIn(1, 20), push = trigger is SkillTrigger.Daily,
             presetId = null, promptCustomized = false,
+            gate = SkillGateJson.read(j.toString()).gate,
         )
         SkillJson.validate(skill)
         return SkillDraft(skill, prompt)

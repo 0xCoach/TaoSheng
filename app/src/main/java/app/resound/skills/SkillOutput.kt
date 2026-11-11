@@ -20,8 +20,8 @@ object SkillOutput {
                 if (skill.fields.any { it.required && empty(mapped.getValue(it.key)) }) return@mapNotNull null
                 val title = c.nullString("title") ?: return@mapNotNull null
                 val entity = if (skill.maxCardsPerDay == 1) date.toString() else c.nullString("entity") ?: return@mapNotNull null
-                // 一天一张的总结卡放在它运行的时刻（定时的用设定时间，还没到就用现在），不用模型挑的时间
-                val at = if (skill.maxCardsPerDay == 1) {
+                // 无门槛的一日总结沿用运行时刻；有门槛的卡保留自己的时段，供原话复核。
+                val at = if (skill.maxCardsPerDay == 1 && skill.gate == null) {
                     val planned = (skill.trigger as? SkillTrigger.Daily)?.let { date.atTime(it.minutes / 60, it.minutes % 60).atZone(SKILL_ZONE).toInstant().toEpochMilli() }
                     val endOfDay = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() - 60_000
                     minOf(planned ?: now, now, endOfDay)

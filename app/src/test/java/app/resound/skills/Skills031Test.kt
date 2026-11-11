@@ -41,7 +41,8 @@ class Skills031Test {
     private var response: suspend (String, String) -> LlmReply = { _, _ -> LlmReply("""{"cards":[],"nothing_reason":"没有会议"}""", 10, 2) }
     private fun official() = File("src/main/assets/skills").listFiles()!!.map { dir ->
         val d = SkillJson.parse(File(dir, "skill.json").readText(), SkillOrigin.Builtin)
-        d.copy(skill = d.skill.copy(version = version)) to File(dir, "prompt.md").readText()
+        // 本组验证原有调度/存储规则，沿用无门槛样本；官方门槛由 SkillGate146Test 使用真实 assets 验证。
+        d.copy(skill = d.skill.copy(version = version, gate = null), gateSpecified = false) to File(dir, "prompt.md").readText()
     }
     @Before fun setup() {
         root = File(context.cacheDir, "skills031").apply { deleteRecursively(); mkdirs() }

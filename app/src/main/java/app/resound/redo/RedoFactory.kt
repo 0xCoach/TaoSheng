@@ -88,7 +88,14 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             val date = LocalDate.ofEpochDay(group.second)
             val start = date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
             val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
-            val bounded = SkillInputs.boundedLines(lines.filter { it.startAt < end && it.endAt > start }, skill.scope.speakers)
+            val raw = lines.filter { it.startAt < end && it.endAt > start }
+            val gateLines = SkillInputs.gateLines(raw, skill.scope.speakers)
+            val gateFailure = SkillGateRules.failure(skill.gate, gateLines)
+            if (gateFailure != null) {
+                app.resound.update.UpdateDiagnostics.record(context, "重做技能 ${skill.id}：$gateFailure")
+                return@flatMap emptyList()
+            }
+            val bounded = SkillInputs.boundedLines(raw, skill.scope.speakers)
             val indexed = bounded.mapIndexed { i, l -> "L${i + 1}" to l }.toMap()
             val input = SkillInput(buildString {
                 appendLine("归属日期：$date；以下是这段时间重新整理后的事件：")
@@ -99,7 +106,11 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             val (preset, key) = digestSettings.skillCredentials(skill.presetId)
             val reply = digestSettings.failover.request("重做技能", db.memory(), app.resound.usage.UsagePurpose.Skill, llm::chatJson)(preset, key, SkillPrompt.system(skill, files.prompt(skill.id), date), SkillInputs.user(input, hotwords()))
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
-            SkillOutput.parse(reply.content, skill, date, input, System.currentTimeMillis(), false).rows.take(skill.maxCardsPerDay)
+            val rows = SkillOutput.parse(reply.content, skill, date, input, System.currentTimeMillis(), false).rows
+            val accepted = rows.filter { SkillGateRules.cardFailure(skill.gate, gateLines, it.at, it.endAt) == null }
+            if (accepted.size < rows.size) app.resound.update.UpdateDiagnostics.record(context,
+                "重做技能 ${skill.id}：门槛复核丢弃 ${rows.size - accepted.size} 张")
+            accepted.take(skill.maxCardsPerDay)
         }
     }, pauseMillis = { digestSettings.pauseMinutes.value * 60_000L })
 }

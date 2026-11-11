@@ -48,6 +48,7 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         state.value = cores() + definitions.values.map { (d, _) ->
             val s = d.skill; val o = overrides.optJSONObject(s.id) ?: JSONObject()
             s.copy(enabled = o.optBoolean("enabled", s.enabled), push = o.optBoolean("push", s.push),
+                gate = if (!d.gateSpecified && d.sourceId != null) definitions[d.sourceId]?.first?.skill?.gate else s.gate,
                 trigger = if (s.trigger is SkillTrigger.Daily && o.has("schedule")) SkillJson.trigger(o.getJSONObject("schedule")) else s.trigger,
                 presetId = if (o.has("presetId")) o.nullString("presetId") else s.presetId,
                 promptCustomized = read(File(root, "prompts/${s.id}.md")) != null ||
@@ -98,7 +99,7 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         while (target in definitions || File(root, "mine/$target").exists()) target = "my_${id}_${n++}"
         val copy = requireNotNull(skills.value.find { it.id == id }).copy(id = target, name = "${d.skill.name}（我的版本）",
             origin = SkillOrigin.Mine, promptCustomized = false, upstreamUpdated = false)
-        val definition = SkillDefinition(copy, d.order, id, d.skill.version)
+        val definition = SkillDefinition(copy.copy(gate = null), d.order, id, d.skill.version, gateSpecified = false)
         write(File(root, "mine/$target/prompt.md"), prompt(id))
         write(File(root, "mine/$target/default.md"), defaultPrompt(id))
         write(File(root, "mine/$target/skill.json"), SkillJson.encode(definition)); reload(); target
@@ -107,7 +108,10 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         require(s.origin == SkillOrigin.Mine && s.id.startsWith("my_")); SkillJson.validate(s); require(prompt.isNotBlank())
         val old = definitions[s.id]?.first
         val version = if (old == null) 1 else old.skill.version + if (old.skill.fields != s.fields) 1 else 0
-        val d = (old ?: SkillDefinition(s)).copy(skill = s.copy(version = version))
+        // 保存改名/提示词等无关编辑时，不把当前继承值固化。改过门槛（包括改成 null）才显式保存。
+        val inherit = old?.sourceId != null && !old.gateSpecified && s.gate == skills.value.find { it.id == s.id }?.gate
+        val d = (old ?: SkillDefinition(s)).copy(skill = s.copy(version = version, gate = if (inherit) null else s.gate),
+            gateSpecified = !inherit)
         write(File(root, "mine/${s.id}/prompt.md"), prompt)
         // 新建时留一份默认要求，以后改坏了能恢复；已有的不覆盖
         if (read(File(root, "mine/${s.id}/default.md")) == null) write(File(root, "mine/${s.id}/default.md"), prompt)

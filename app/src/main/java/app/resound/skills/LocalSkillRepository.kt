@@ -139,7 +139,7 @@ class LocalSkillRepository(
             }
         }
         running.value = running.value + id
-        var tokens = 0L; var retryable = false
+        var tokens = 0L; var retryable = false; var gateDiscarded = 0
         try {
             // 每周回顾实际是内置 weekly 技能；通过共用入口覆盖自动、手动和试跑。
             if (id == "weekly") { beforeWeeklyReview(); started = now() }
@@ -148,42 +148,55 @@ class LocalSkillRepository(
                 if (key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset)) SkillRunResult.Failed("还没填写大模型密钥") else {
                     // 每个归属日各记各的进度，别的日子的运行不算。
                     val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }?.at
-                    val input = SkillInputs.load(dao, skill, date, since, started)
-                    if (skill.scope.speakers == SkillSpeakers.MeOnly && skill.scope.includeLines && input.lines.isEmpty()) {
-                        SkillRunResult.Nothing(if (skill.id == "mood_diary") "今天没有明显的情绪表达" else "今天记录太少")
-                    } else {
-                        var parsed: SkillOutput.Parsed? = null
-                        for (attempt in 0..1) {
-                            try {
-                                val reply = request(preset, key, SkillPrompt.system(skill, promptOverride ?: files.prompt(id), date), SkillInputs.user(input, hotwords()))
-                                tokens += reply.promptTokens + reply.completionTokens
-                                withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(started).toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
-                                parsed = SkillOutput.parse(reply.content, skill, date, input, now(), manual = !auto)
-                                break
-                            } catch (e: LlmException) {
-                                if (e.type != LlmError.Format || attempt == 1) throw e
-                            }
-                        }
-                        val output = requireNotNull(parsed)
-                        val cards = mutableListOf<SkillCard>()
-                        var skippedReason = output.reason
-                        if (preview) cards += output.rows.take(skill.maxCardsPerDay).map { it.card() }
-                        else {
-                            for (row in output.rows) {
-                                val saved = when (val merged = dao.mergeWithReason(row, skill.maxCardsPerDay, manual = !auto)) {
-                                    SkillMergeResult.Deleted -> { skippedReason = "这天的卡你删过，自动运行跳过了"; continue }
-                                    is SkillMergeResult.Full -> { skippedReason = "今天已经有 ${merged.count} 张，达到每天上限"; continue }
-                                    is SkillMergeResult.Saved -> merged
-                                }
-                                cards.removeAll { it.id == saved.row.id }; cards += saved.row.card()
-                                if (auto && skill.push && saved.isNew) {
-                                    try { saved.row.card().let { card -> notifier.send(SkillCardPush.title(card), SkillCardPush.body(card), "resound://card?open=card&id=${saved.row.id}", PushTopic.SkillCard) } }
-                                    catch (e: CancellationException) { throw e }
-                                    catch (_: Exception) { /* 卡已保存；推送通道记录自己的错误，不重复生成。 */ }
+                    val source = SkillInputs.source(dao, skill, date, since, started)
+                    val gateLines = SkillInputs.gateLines(source.lines, skill.scope.speakers)
+                    val gateFailure = SkillGateRules.failure(skill.gate, gateLines)
+                    if (gateFailure != null) SkillRunResult.Nothing(gateFailure) else {
+                        val input = SkillInputs.prepare(dao, skill, date, started, source)
+                        if (skill.scope.speakers == SkillSpeakers.MeOnly && skill.scope.includeLines && input.lines.isEmpty()) {
+                            SkillRunResult.Nothing(if (skill.id == "mood_diary") "今天没有明显的情绪表达" else "今天记录太少")
+                        } else {
+                            var parsed: SkillOutput.Parsed? = null
+                            for (attempt in 0..1) {
+                                try {
+                                    val reply = request(preset, key, SkillPrompt.system(skill, promptOverride ?: files.prompt(id), date), SkillInputs.user(input, hotwords()))
+                                    tokens += reply.promptTokens + reply.completionTokens
+                                    withContext(NonCancellable) { memory.addUsage(SkillSchedule.date(started).toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
+                                    parsed = SkillOutput.parse(reply.content, skill, date, input, now(), manual = !auto)
+                                    break
+                                } catch (e: LlmException) {
+                                    if (e.type != LlmError.Format || attempt == 1) throw e
                                 }
                             }
+                            val output = requireNotNull(parsed)
+                            val cards = mutableListOf<SkillCard>()
+                            var skippedReason = output.reason
+                            val rows = output.rows.filter { row ->
+                                val reason = SkillGateRules.cardFailure(skill.gate, gateLines, row.at, row.endAt)
+                                if (reason != null) {
+                                    if (gateDiscarded == 0) skippedReason = reason
+                                    gateDiscarded++
+                                }
+                                reason == null
+                            }
+                            if (preview) cards += rows.take(skill.maxCardsPerDay).map { it.card() }
+                            else {
+                                for (row in rows) {
+                                    val saved = when (val merged = dao.mergeWithReason(row, skill.maxCardsPerDay, manual = !auto)) {
+                                        SkillMergeResult.Deleted -> { skippedReason = "这天的卡你删过，自动运行跳过了"; continue }
+                                        is SkillMergeResult.Full -> { skippedReason = "今天已经有 ${merged.count} 张，达到每天上限"; continue }
+                                        is SkillMergeResult.Saved -> merged
+                                    }
+                                    cards.removeAll { it.id == saved.row.id }; cards += saved.row.card()
+                                    if (auto && skill.push && saved.isNew) {
+                                        try { saved.row.card().let { card -> notifier.send(SkillCardPush.title(card), SkillCardPush.body(card), "resound://card?open=card&id=${saved.row.id}", PushTopic.SkillCard) } }
+                                        catch (e: CancellationException) { throw e }
+                                        catch (_: Exception) { /* 卡已保存；推送通道记录自己的错误，不重复生成。 */ }
+                                    }
+                                }
+                            }
+                            if (cards.isEmpty()) SkillRunResult.Nothing(skippedReason) else SkillRunResult.Cards(cards)
                         }
-                        if (cards.isEmpty()) SkillRunResult.Nothing(skippedReason) else SkillRunResult.Cards(cards)
                     }
                 }
             } catch (e: CancellationException) { throw e }
@@ -195,22 +208,22 @@ class LocalSkillRepository(
                     else -> e.type.human
                 })
             } catch (_: Exception) { SkillRunResult.Failed("技能运行失败，请重试") }
-            record(id, date, started, kind, result, tokens, retryable)
+            record(id, date, started, kind, result, tokens, retryable, gateDiscarded)
             SkillAttempt(result, retryable)
         } catch (e: CancellationException) {
             // 被系统中断的已计费用量仍留痕；不会被当成成功的增量游标。
-            withContext(NonCancellable) { record(id, date, started, kind, SkillRunResult.Failed(if (background) "系统暂停，等待后台重试" else "运行已中断"), tokens, true) }
+            withContext(NonCancellable) { record(id, date, started, kind, SkillRunResult.Failed(if (background) "系统暂停，等待后台重试" else "运行已中断"), tokens, true, gateDiscarded) }
             throw e
         } finally { running.value = running.value - id }
     }
-    private suspend fun record(id: String, date: LocalDate, at: Long, kind: String, result: SkillRunResult, tokens: Long, retryable: Boolean) {
+    private suspend fun record(id: String, date: LocalDate, at: Long, kind: String, result: SkillRunResult, tokens: Long, retryable: Boolean, gateDiscarded: Int = 0) {
         val text = when (result) {
             is SkillRunResult.Cards -> "出了 ${result.cards.size} 张卡"
             is SkillRunResult.Nothing -> result.reason
             is SkillRunResult.Failed -> result.reason
         }
         dao.run(SkillRunRow(skillId = id, date = date.toEpochDay(), at = at, ok = result !is SkillRunResult.Failed,
-            result = text, tokens = tokens, kind = kind, retryable = retryable))
+            result = text + if (gateDiscarded > 0) "；门槛复核丢弃 $gateDiscarded 张" else "", tokens = tokens, kind = kind, retryable = retryable))
         dao.trimRuns(now() - TimeUnit.DAYS.toMillis(30))
     }
 }

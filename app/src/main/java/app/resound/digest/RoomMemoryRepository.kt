@@ -131,8 +131,8 @@ class RoomMemoryRepository(
             val tasks = items.filter { it.category in setOf("待办", "约定", "备忘") }
             DayItems(
                 mentioned = tasks.filter { it.at >= start && it.at < end },
-                due = tasks.filter { it.dueAt != null && it.dueAt >= start && it.dueAt < end }.sortedBy { it.dueAt },
-                done = items.filter { it.doneAt != null && it.doneAt >= start && it.doneAt < end }.sortedBy { it.doneAt },
+                due = tasks.filter { it.dueAt?.let { at -> at >= start && at < end } == true }.sortedBy { it.dueAt },
+                done = items.filter { it.doneAt?.let { at -> at >= start && at < end } == true }.sortedBy { it.doneAt },
                 notes = items.filter { it.category in setOf("灵感", "关键信息", "决定", "知识") && it.at >= start && it.at < end },
             )
         }.flowOn(Dispatchers.IO)

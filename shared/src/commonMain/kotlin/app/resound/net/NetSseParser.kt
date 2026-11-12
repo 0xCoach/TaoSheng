@@ -1,7 +1,7 @@
 package app.resound.net
 
 /** readLine 由 Okio 提供，UTF-8 / 网络分片不影响行边界；也支持 SSE 多行 data、注释和 CRLF。 */
-internal class NetSseParser(
+class NetSseParser(
     private val onText: (String) -> Unit,
     private val onUsage: (Long, Long) -> Unit,
     private val diagnostics: NetworkTrace? = null,

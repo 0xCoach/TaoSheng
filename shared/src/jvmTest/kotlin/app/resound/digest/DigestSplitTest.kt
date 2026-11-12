@@ -1,11 +1,12 @@
 package app.resound.digest
 
-import app.resound.data.TranscriptLineEntity
+import app.resound.digest.core.TranscriptLineData
 import org.junit.Assert.*
 import org.junit.Test
 
 class DigestSplitTest {
-    private fun line(index: Int, start: Long) = TranscriptLineEntity(
+    private fun splitForRetry(lines: List<TranscriptLineData>) = splitDigestForRetry(lines, start = { it.startAt }, end = { it.endAt })
+    private fun line(index: Int, start: Long) = TranscriptLineData(
         id = index + 1L, segmentId = 1, startAt = start, endAt = start + 500, text = "合成原话", speakerTag = null,
     )
 

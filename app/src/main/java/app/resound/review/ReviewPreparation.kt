@@ -53,12 +53,6 @@ internal object ReviewPreparation {
         }
 
     /** 只吞本次超时和普通失败，系统取消必须继续抛出；等待流水线锁也包含在额度内。 */
-    internal suspend fun prepare(timeoutMillis: Long = 10 * 60_000L, record: (String) -> Unit, action: suspend () -> String): Boolean {
-        val result = try {
-            withTimeoutOrNull(timeoutMillis) { action() } ?: "超时，使用已有内容"
-        } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { "失败，使用已有内容" }
-        record(result)
-        return result == "完成"
-    }
+    internal suspend fun prepare(timeoutMillis: Long = 10 * 60_000L, record: (String) -> Unit, action: suspend () -> String) =
+        ReviewPreparationRules.prepare(timeoutMillis, record, action)
 }

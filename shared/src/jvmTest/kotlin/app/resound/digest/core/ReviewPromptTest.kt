@@ -1,6 +1,7 @@
-package app.resound.review
+package app.resound.digest.core
 
-import app.resound.digest.LlmException
+import app.resound.net.NetLlmError as LlmError
+import app.resound.net.NetLlmException as LlmException
 import org.junit.Assert.*
 import org.junit.Test
 

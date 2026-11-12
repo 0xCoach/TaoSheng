@@ -15,108 +15,22 @@ data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val
         .also { if (reasoningContent != null) it.put("reasoning_content", reasoningContent) }
 }
 
-/** readLine 由 Okio 提供，UTF-8 / 网络分片不影响行边界；也支持 SSE 多行 data、注释和 CRLF。 */
-internal class LlmSseParser(
-    private val onText: (String) -> Unit,
-    private val onUsage: (Long, Long) -> Unit,
-    private val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null,
-) {
-    private val data = StringBuilder()
-    private val text = StringBuilder()
-    private val reasoning = StringBuilder()
-    private var hasReasoning = false
-    private data class CallParts(val id: StringBuilder = StringBuilder(), val name: StringBuilder = StringBuilder(), val arguments: StringBuilder = StringBuilder(), val extra: JSONObject = JSONObject())
-    private val calls = sortedMapOf<Int, CallParts>()
-    private val ids = mutableMapOf<String, Int>()
-    var done = false; private set
-    private var finished = false
-    private var chars = 0
-
-    fun line(line: String) {
-        if (done) return
-        if (line.isEmpty()) { dispatch(); return }
-        if (line.startsWith("data:")) {
-            data.append(line.substring(5).removePrefix(" ")).append('\n')
-            if (data.length > 256_000) throw LlmException(LlmError.Format)
-        }
+/** 旧 OkHttp 门面也使用共用 SSE 规则；只转换平台 JSON 和诊断类型。 */
+internal class LlmSseParser(onText: (String) -> Unit, onUsage: (Long, Long) -> Unit,
+    diagnostics: app.resound.diagnostics.LlmResponseTrace? = null) {
+    private val core = app.resound.net.NetSseParser(onText, onUsage, diagnostics?.let { trace -> object : app.resound.net.NetworkTrace {
+        override fun http(status: Int) = trace.http(status)
+        override fun content(text: String) = trace.content(text)
+        override fun finishReason(reason: String?) = trace.finishReason(reason)
+    } })
+    val done get() = core.done
+    private inline fun <T> result(block: () -> T): T = try { block() } catch (e: app.resound.net.NetLlmException) {
+        val type = LlmError.valueOf(e.type.name)
+        throw LlmException(type, e.status, e.detail ?: type.human, truncated = e.truncated)
     }
-    private fun dispatch() {
-        val payload = data.toString().trim(); data.clear()
-        if (payload.isEmpty()) return
-        if (payload == "[DONE]") { done = true; return }
-        try {
-            val json = JSONObject(payload)
-            json.optJSONObject("usage")?.let { onUsage(it.optLong("prompt_tokens").coerceAtLeast(0), it.optLong("completion_tokens").coerceAtLeast(0)) }
-            if (json.has("error")) throw LlmException(LlmError.Server)
-            val choices = json.optJSONArray("choices") ?: return
-            for (i in 0 until choices.length()) {
-                val choice = choices.getJSONObject(i)
-                if (choice.optInt("index", 0) != 0) continue
-                if (!choice.isNull("finish_reason")) {
-                    val reason = choice.getString("finish_reason")
-                    diagnostics?.finishReason(reason)
-                    diagnostics?.content(text.toString())
-                    if (reason == "length") throw LlmException(LlmError.Format, detail = LlmException.TRUNCATED, truncated = true)
-                    if (reason !in setOf("stop", "tool_calls")) throw LlmException(LlmError.Format)
-                    finished = true
-                }
-                val delta = choice.optJSONObject("delta") ?: continue
-                if (!delta.isNull("reasoning_content")) {
-                    val part = delta.getString("reasoning_content")
-                    hasReasoning = true; reasoning.append(part); chars += part.length
-                }
-                if (!delta.isNull("content")) {
-                    val part = delta.getString("content"); text.append(part); chars += part.length
-                    onText(part)
-                }
-                val toolCalls = delta.optJSONArray("tool_calls") ?: JSONArray()
-                for (j in 0 until toolCalls.length()) {
-                    val call = toolCalls.getJSONObject(j)
-                    val explicit = !call.isNull("index")
-                    val id = if (call.isNull("id")) null else call.getString("id")
-                    val index = if (explicit) call.getInt("index") else if (id != null) {
-                        ids[id] ?: (0..31).firstOrNull { it !in calls }
-                            ?: throw LlmException(LlmError.Format)
-                    } else j
-                    if (index !in 0..31) throw LlmException(LlmError.Format)
-                    val parts = calls.getOrPut(index) { CallParts() }
-                    if (id != null) {
-                        if (explicit || parts.id.isEmpty()) parts.id.append(id)
-                        ids[parts.id.toString()] = index
-                    }
-                    call.optJSONObject("extra_content")?.let { extra ->
-                        merge(parts.extra, extra); chars += extra.toString().length
-                    }
-                    call.optJSONObject("function")?.let { f ->
-                        if (!f.isNull("name")) parts.name.append(f.getString("name"))
-                        if (!f.isNull("arguments")) {
-                            val part = f.getString("arguments"); parts.arguments.append(part); chars += part.length
-                        }
-                    }
-                }
-                if (chars > 256_000) throw LlmException(LlmError.Format)
-            }
-        } catch (e: LlmException) { diagnostics?.content(text.toString()); throw e }
-        catch (_: Exception) { throw LlmException(LlmError.Format) }
-    }
-    private fun merge(target: JSONObject, incoming: JSONObject) {
-        incoming.keys().forEach { key ->
-            val value = incoming.get(key)
-            val previous = target.optJSONObject(key)
-            if (value is JSONObject && previous != null) merge(previous, value)
-            else target.put(key, value)
-        }
-    }
-    fun recordPartial() { diagnostics?.content(text.toString()) }
-
-    fun finish(): LlmStreamReply {
-        dispatch()
-        if (!done || !finished) throw LlmException(LlmError.Format)
-        val result = calls.map { (index, it) ->
-            if (it.name.isEmpty()) throw LlmException(LlmError.Format)
-            LlmToolCall(it.id.toString().ifEmpty { "resound_call_$index" }, it.name.toString(), it.arguments.toString(), it.extra.takeIf { extra -> extra.length() > 0 })
-        }
-        if (result.map { it.id }.distinct().size != result.size) throw LlmException(LlmError.Format)
-        return LlmStreamReply(text.toString(), result, reasoning.toString().takeIf { hasReasoning })
-    }
+    fun line(line: String) = result { core.line(line) }
+    fun recordPartial() = core.recordPartial()
+    fun finish(): LlmStreamReply = result { core.finish().let { reply ->
+        LlmStreamReply(reply.content, reply.calls.map { LlmToolCall(it.id, it.name, it.arguments, it.extraContent?.let(::JSONObject)) }, reply.reasoningContent)
+    } }
 }

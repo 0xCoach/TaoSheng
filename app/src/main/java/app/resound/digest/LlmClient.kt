@@ -36,7 +36,7 @@ class LlmException(val type: LlmError, val status: Int = 0, val detail: String =
 data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null)
 /** 400 类拒收：换个时间重发同样内容也不会成功。 */
 val LlmException.rejected: Boolean get() = type == LlmError.Server && status in LlmClient.REJECTED_STATUS
-class LlmInputLimitException(message: String = "内容超出所选模型的容量，请换用容量更大的模型") : IllegalArgumentException(message)
+
 
 /** 安卓兼容入口；业务 JSON、SSE 与 HTTP 规则在 shared，旧链路保留到 0.3.1。 */
 class LlmClient(

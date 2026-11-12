@@ -1,16 +1,18 @@
-package app.resound.digest
+package app.resound.digest.core
 
-import app.resound.data.TranscriptLineEntity
+import app.resound.net.NetLlmError as LlmError
+import app.resound.net.NetLlmException as LlmException
+
 import org.junit.Assert.*
 import org.junit.Test
-import java.time.ZoneId
+import kotlinx.datetime.TimeZone
 
 /** 合并提示词的解析（卡 105）：一条 merged + items，merged 覆盖全部原话行。 */
 class MergePrompt105Test {
-    private val zone: ZoneId = ZoneId.of("Asia/Shanghai")
+    private val zone: TimeZone = TimeZone.of("Asia/Shanghai")
 
     private fun line(id: Long, start: Long = 1000, end: Long = 2000) =
-        TranscriptLineEntity(id, id, start, end, "原话$id", null, eventId = id, digestedAt = 1)
+        TranscriptLineData(id, id, start, end, "原话$id", null, eventId = id, digestedAt = 1)
 
     @Test fun parsesOneMergedEventCoveringEveryLine() {
         val lines = listOf(line(1, 1000, 2000), line(2, 3000, 4000))

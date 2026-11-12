@@ -24,8 +24,7 @@ class LlmFailover(
     val enabled = mutableEnabled.asStateFlow()
     private val recent = MutableStateFlow<LlmSwitch?>(null)
     val latestSwitch = recent.asStateFlow()
-    private data class Cooling(val until: Long, val reason: String, val error: LlmException)
-    private val cooling = mutableMapOf<String, Cooling>()
+    private val cooling = mutableMapOf<String, FailoverCooling>()
     // 配置修改后，旧的在途请求不能再次把新配置放进冷却。
     private val generations = mutableMapOf<String, Long>()
     init {
@@ -50,15 +49,14 @@ class LlmFailover(
     fun hasBackup(primary: LlmPreset): Boolean = enabled.value && synchronized(providers.guard) {
         providers.saved.value.any { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
     }
-    private data class Candidate(val preset: LlmPreset, val key: String, val generation: Long)
-    private fun candidates(primary: LlmPreset, key: String, enabled: Boolean): List<Candidate> {
+    private fun candidates(primary: LlmPreset, key: String, enabled: Boolean): List<FailoverCandidate> {
         val credentials = synchronized(providers.guard) {
             listOf(primary to key) + if (!enabled) emptyList() else providers.saved.value
                 .filter { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
                 .map { it.preset() to providers.readKey(it.id) }
         }
         return synchronized(this) {
-            credentials.map { Candidate(it.first, it.second, generations[it.first.id] ?: 0) }
+            credentials.map { FailoverCandidate(it.first, it.second, generations[it.first.id] ?: 0) }
         }
     }
     private fun reason(error: Exception): String = when (error) {
@@ -72,64 +70,44 @@ class LlmFailover(
         }
         else -> "模型服务出错"
     }
+    private val rules = FailoverRules(object : FailoverStore {
+        override fun cooling(id: String) = synchronized(this@LlmFailover) { cooling[id] }
+        override fun coolingSnapshot(ids: List<String>) = synchronized(this@LlmFailover) {
+            ids.mapNotNull { id -> cooling[id]?.let { id to it } }.toMap()
+        }
+        override fun coolIfCurrent(id: String, generation: Long, value: FailoverCooling) = synchronized(this@LlmFailover) {
+            if ((generations[id] ?: 0) == generation) cooling[id] = value
+        }
+    }, app.resound.platform.NowMillis(now), LlmInputBudget::inputChars,
+        classify = { e -> when (e) {
+            is LlmInputLimitException -> FailoverFailure(reason(e), capacity = true)
+            is LlmException -> FailoverFailure(reason(e), format = e.type == LlmError.Format,
+                rejected = e.rejected, longCooling = e.type in setOf(LlmError.Auth, LlmError.Quota))
+            else -> null
+        } },
+        safeCoolingError = { e -> (e as LlmException).let { LlmException(it.type, it.status, it.detail) } },
+        exhausted = { e, suffix -> when (e) {
+            is LlmException -> LlmException(e.type, e.status, e.detail + suffix)
+            is LlmInputLimitException -> LlmInputLimitException(e.message + suffix)
+            else -> e
+        } })
+
     private suspend fun <T> execute(feature: String, primary: LlmPreset, key: String,
         canSwitch: () -> Boolean = { true }, call: suspend (LlmPreset, String) -> T): Pair<T, LlmPreset> {
         val on = enabled.value && canSwitch()
-        val candidates = candidates(primary, key, on)
-        fun ordered(list: List<Candidate>) = synchronized(this) {
-            if (!on) list else list.sortedBy { (cooling[it.preset.id]?.until ?: 0) > now() }
-        }
-        var remaining = ordered(candidates.take(3)).toMutableList()
-        var attempts = 0
-        val errors = linkedMapOf<String, Exception>()
-        var minimumCapacity = -1
-        val initialReason = synchronized(this) { cooling[primary.id]?.reason }
-        while (remaining.isNotEmpty() && attempts < 3) {
-            val candidate = remaining.removeAt(0)
+        return rules.execute(primary, candidates(primary, key, on), on, canSwitch, switched = { p, reason ->
+            recent.value = LlmSwitch(now(), feature, primary.name + " / " + primary.model, p.name + " / " + p.model, reason)
+            recent.value?.let { diagnostics.switched(it.at, it.originalModel, it.actualModel, it.reason) }
+        }) { candidate ->
             val p = candidate.preset
-            if (LlmInputBudget.inputChars(p) <= minimumCapacity) continue
-            attempts++
-            try {
-                val trace = runCatching { diagnostics.start(feature, p) }.getOrNull()
-                // 异常在 withContext 里先接住、出来后原样抛出：协程会复制穿过 withContext 的异常，
-                // 取消信号必须保持原对象往上传（LlmFailover103Test）。
-                val result = if (trace == null) call(p, candidate.key) else {
-                    var thrown: Throwable? = null
-                    val value = withContext(trace) { try { call(p, candidate.key) } catch (e: Throwable) { thrown = e; null } }
-                    thrown?.let { trace.complete(it); throw it }
-                    @Suppress("UNCHECKED_CAST") (value as T)
-                }
-                if (p.id != primary.id) recent.value = LlmSwitch(now(), feature, primary.name + " / " + primary.model,
-                    p.name + " / " + p.model, errors.values.firstOrNull()?.let(::reason) ?: initialReason ?: "主模型暂不可用")
-                if (p.id != primary.id) recent.value?.let {
-                    diagnostics.switched(it.at, it.originalModel, it.actualModel, it.reason)
-                }
-                return result to p
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) {
-                if (e !is LlmInputLimitException && e !is LlmException) throw e
-                if (!on || !canSwitch() || (e is LlmException && e.type == LlmError.Format)) throw e
-                errors[p.id] = e
-                if (e is LlmInputLimitException) {
-                    minimumCapacity = maxOf(minimumCapacity, LlmInputBudget.inputChars(p))
-                    // 不够大的候选不消耗一次请求名额；在完整 saved 顺序中找更大容量。
-                    remaining = ordered(candidates.filter { it.preset.id !in errors &&
-                        LlmInputBudget.inputChars(it.preset) > minimumCapacity }).toMutableList()
-                } else if (!(e as LlmException).rejected) synchronized(this) {
-                    // 拒收是这次内容的问题，不让主模型进冷却、连累问问等其他功能。
-                    if ((generations[p.id] ?: 0) == candidate.generation) {
-                        val long = e.type in setOf(LlmError.Auth, LlmError.Quota)
-                        cooling[p.id] = Cooling(now() + (if (long) 30 else 5) * 60_000L, reason(e), LlmException(e.type, e.status, e.detail))
-                    }
-                }
+            val trace = runCatching { diagnostics.start(feature, p) }.getOrNull()
+            if (trace == null) call(p, candidate.key) else {
+                // 保持取消异常原对象，不让 withContext 复制异常。
+                var thrown: Throwable? = null
+                val value = withContext(trace) { try { call(p, candidate.key) } catch (e: Throwable) { thrown = e; null } }
+                thrown?.let { trace.complete(it); throw it }
+                @Suppress("UNCHECKED_CAST") (value as T)
             }
-        }
-        val error = errors[primary.id] ?: synchronized(this) { cooling[primary.id]?.error } ?: errors.values.first()
-        val suffix = if (candidates.size > 1) "；备用模型也没成功" else ""
-        throw when (error) {
-            is LlmException -> LlmException(error.type, error.status, error.detail + suffix)
-            is LlmInputLimitException -> LlmInputLimitException(error.message + suffix)
-            else -> error
         }
     }
 

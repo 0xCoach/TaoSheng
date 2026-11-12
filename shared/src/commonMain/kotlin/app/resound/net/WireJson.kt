@@ -13,6 +13,8 @@ internal class Obj private constructor(private val fields: MutableMap<String, An
     fun isNull(key: String) = fields[key] == null || fields[key] == JsonNull
     fun length() = fields.size
     fun keys() = fields.keys
+    fun opt(key: String): Any? = fields[key]?.let { if (it is JsonPrimitive && !it.isString && it != JsonNull) it.longOrNull ?: it.doubleOrNull ?: it.booleanOrNull else it }
+    fun getBoolean(key: String) = getString(key).lowercase().toBooleanStrict()
     fun get(key: String): Any = fields[key] ?: error("缺少字段")
     fun optJSONObject(key: String) = fields[key] as? Obj
     fun optJSONArray(key: String) = fields[key] as? Arr
@@ -37,6 +39,9 @@ internal class Arr private constructor(private val items: MutableList<Any?>, unu
     fun getJSONObject(i: Int) = items[i] as Obj
     fun optJSONObject(i: Int) = items.getOrNull(i) as? Obj
     fun getString(i: Int) = items[i].toString()
+    fun optString(i: Int) = items.getOrNull(i)?.toString().orEmpty()
+    fun isNull(i: Int) = items.getOrNull(i) == null || items.getOrNull(i) == JsonNull
+    fun getLong(i: Int) = items[i].toString().toDouble().toLong()
     fun element() = JsonArray(items.map(::wrap))
     override fun toString() = wire(element())
 }

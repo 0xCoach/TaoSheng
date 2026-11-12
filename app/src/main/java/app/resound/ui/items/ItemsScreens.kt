@@ -210,7 +210,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                                 item(key = "older") {
                                     Row(Modifier.fillMaxWidth().springClick { olderOpen = !olderOpen }.padding(start = 4.dp, top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text("更早没确认的 · ${older.size} 条", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.textSecondary, modifier = Modifier.weight(1f))
-                                        Text(if (olderOpen) "收起" else "展开", style = RsType.caption, color = c.accent)
+                                        Text(if (olderOpen) "收起 ⌃" else "展开 ⌄", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
                                     }
                                 }
                                 if (olderOpen) groupedItems(older, Grouping.Mentioned, checkable = false, keyPrefix = "o", swipe = swipe, onToggle = toggle, onBell = bell) { opened = it }
@@ -600,8 +600,8 @@ private fun Capsules(names: List<String>, selected: Int, onSelect: (Int) -> Unit
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         names.forEachIndexed { i, n ->
             val on = i == selected
-            val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "cap")
-            val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "capFg")
+            val bg by animateColorAsState(if (on) c.selected else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "cap")
+            val fg by animateColorAsState(if (on) c.onSelected else c.textSecondary, label = "capFg")
             Text(n, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
                 modifier = Modifier.springClick { onSelect(i) }.clip(CircleShape).background(bg).padding(horizontal = 16.dp, vertical = 8.dp))
         }

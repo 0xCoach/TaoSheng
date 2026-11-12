@@ -217,8 +217,8 @@ internal fun KindChoice(selected: app.resound.importer.ImportKind?, onSelect: (a
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         app.resound.importer.ImportKind.entries.forEach { k ->
             val on = k == selected
-            val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "kind")
-            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
+            val bg by animateColorAsState(if (on) c.selected else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "kind")
+            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
     }
@@ -255,9 +255,9 @@ private fun StartEditor(start: Long, onChange: (Long) -> Unit) {
             (0L..3L).forEach { back ->
                 val d = today.minusDays(back)
                 val on = d == day
-                val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "importDay")
+                val bg by animateColorAsState(if (on) c.selected else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "importDay")
                 Text(listOf("今天", "昨天", "前天", d.format(DateTimeFormatter.ofPattern("M月d日")))[back.toInt()],
-                    style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
+                    style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary,
                     modifier = Modifier.clip(CircleShape).background(bg).springClick { day = d; emit() }.padding(horizontal = 12.dp, vertical = 7.dp))
             }
         }

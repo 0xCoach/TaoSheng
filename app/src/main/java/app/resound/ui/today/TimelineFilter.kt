@@ -115,18 +115,18 @@ internal fun FilterChips(options: List<Pair<TimelineFilter, Int>>, selected: Tim
 @Composable
 private fun Chip(f: TimelineFilter, count: Int, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "chip")
+    val bg by animateColorAsState(if (on) c.selected else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "chip")
     Row(Modifier.clip(CircleShape).background(bg).springClick(onClick).padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically) {
         val dot = when (f) { TimelineFilter.Media -> c.textTertiary; is TimelineFilter.Person -> c.accent.copy(alpha = 0.6f); else -> null }
         if (dot != null) {
-            Box(Modifier.size(7.dp).clip(CircleShape).background(if (on) c.onAccent.copy(alpha = 0.8f) else dot))
+            Box(Modifier.size(7.dp).clip(CircleShape).background(if (on) c.onSelected.copy(alpha = 0.8f) else dot))
             Spacer(Modifier.width(6.dp))
         }
-        Text(f.label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary, maxLines = 1)
+        Text(f.label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary, maxLines = 1)
         if (f != TimelineFilter.All) {
             Spacer(Modifier.width(4.dp))
-            Text("$count", style = RsType.caption, color = if (on) c.onAccent.copy(alpha = 0.85f) else c.textTertiary)
+            Text("$count", style = RsType.caption, color = if (on) c.onSelected.copy(alpha = 0.85f) else c.textTertiary)
         }
     }
 }

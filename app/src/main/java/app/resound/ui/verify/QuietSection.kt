@@ -193,7 +193,7 @@ internal fun daysText(days: Set<DayOfWeek>): String = when (days) {
 private fun TimeCard(label: String, minutes: Int, tag: String?, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by androidx.compose.animation.animateColorAsState(if (selected) c.accentSoft else c.card, label = "timeCard")
-    val edge by androidx.compose.animation.animateColorAsState(if (selected) c.accent else c.separator, label = "timeEdge")
+    val edge by androidx.compose.animation.animateColorAsState(if (selected) c.selected else c.separator, label = "timeEdge")
     Column(modifier.clip(RoundedCornerShape(16.dp)).background(bg).border(1.dp, edge, RoundedCornerShape(16.dp))
         .springClick(onClick).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,9 +213,9 @@ private fun TimeCard(label: String, minutes: Int, tag: String?, selected: Boolea
 @Composable
 private fun DayDot(label: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by androidx.compose.animation.animateColorAsState(if (on) c.accent else c.card, label = "day")
+    val bg by androidx.compose.animation.animateColorAsState(if (on) c.selected else c.card, label = "day")
     Box(Modifier.size(38.dp).clip(CircleShape).background(bg).springClick(onClick), contentAlignment = Alignment.Center) {
-        Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary)
+        Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary)
     }
 }
 

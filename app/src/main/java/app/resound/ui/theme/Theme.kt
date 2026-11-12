@@ -39,6 +39,10 @@ data class RsColors(
     val fill: Color,
     /** 铺在主题色上的文字 / 图标颜色：日间主题色是橙，配白字；夜间主题色是近白，配深色字 */
     val onAccent: Color,
+    /** 选中状态的底色（筛选胶囊、分段、日历选中日等）：日间同主题橙；夜间浅灰，把白色留给主要按钮 */
+    val selected: Color,
+    /** 选中状态上的文字 */
+    val onSelected: Color,
     /** 分段切换器的底条；日间是浅灰，夜间是半透明白（不能用分隔线色改透明度，夜间分隔线本身就是半透明的） */
     val track: Color,
     /** 分段切换器选中的那一格；日间白色，夜间比底条亮一级 */
@@ -65,6 +69,8 @@ val LightRs = RsColors(
     elevated = Color(0xFFFFFFFF),
     fill = Color(0xFFF4F2EF),
     onAccent = Color(0xFFFFFFFF),
+    selected = Color(0xFFF07B2E),
+    onSelected = Color(0xFFFFFFFF),
     track = Color(0xB3ECE8E3),
     trackThumb = Color(0xFFFFFFFF),
     hairline = Color(0x00000000),
@@ -80,7 +86,7 @@ val DarkRs = RsColors(
     textTertiary = Color(0x7AFFFFFF),  // 白 48%（深灰卡片上对比度约 4.9）
     separator = Color(0x14FFFFFF),     // 白 8%
     // 夜间只用黑白灰：主题色是近白（主要按钮白底深字），浅底是中性灰；品牌橙只留在首页主卡（OverviewCard 里单独写）
-    accent = Color(0xFFEBEBEB),
+    accent = Color(0xFFE3E3E6),       // 略灰的白：纯黑 OLED 上大块纯白会发光刺眼
     accentSoft = Color(0xFF2C2C2E),
     // 状态色保留但调暗调淡，只用在小圆点和文字上
     good = Color(0xFF55A86F),
@@ -90,6 +96,8 @@ val DarkRs = RsColors(
     elevated = Color(0xFF2C2C2E),
     fill = Color(0x1FFFFFFF),          // 白 12%
     onAccent = Color(0xFF1C1C1E),
+    selected = Color(0xFF48484A),
+    onSelected = Color(0xEBFFFFFF),
     track = Color(0x1FFFFFFF),
     trackThumb = Color(0xFF48484A),
     hairline = Color(0x12FFFFFF),      // 白 7%

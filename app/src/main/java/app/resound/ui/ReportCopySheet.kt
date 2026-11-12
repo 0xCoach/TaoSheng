@@ -143,7 +143,7 @@ private fun CopyTextAction(label: String, enabled: Boolean, onClick: () -> Unit)
 private fun CopyModuleCard(block: ReportCopyBlock, checked: Boolean, onChecked: (Boolean) -> Unit) {
     val c = Rs.colors
     val background by animateColorAsState(if (checked) c.accentSoft else c.card, tween(180), label = "copyCard")
-    val border by animateColorAsState(if (checked) c.accent.copy(alpha = 0.65f) else c.separator.fade(0.6f), tween(180), label = "copyBorder")
+    val border by animateColorAsState(if (checked) c.selected.copy(alpha = 0.65f) else c.separator.fade(0.6f), tween(180), label = "copyBorder")
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(background)
         .border(1.dp, border, RoundedCornerShape(18.dp))
         .toggleable(checked, role = Role.Checkbox, onValueChange = onChecked)

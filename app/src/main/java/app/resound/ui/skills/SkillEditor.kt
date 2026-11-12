@@ -241,8 +241,8 @@ fun SkillEditor(skill: Skill, prompt: String, repo: SkillRepository, isNew: Bool
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     TYPES.forEach { (t, label) ->
                         val on = f.type == t
-                        Text(label, style = RsType.caption, color = if (on) c.onAccent else c.textSecondary,
-                            modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.card).springClick { f.type = t }
+                        Text(label, style = RsType.caption, color = if (on) c.onSelected else c.textSecondary,
+                            modifier = Modifier.clip(CircleShape).background(if (on) c.selected else c.card).springClick { f.type = t }
                                 .padding(horizontal = 10.dp, vertical = 5.dp))
                     }
                     val req = f.required

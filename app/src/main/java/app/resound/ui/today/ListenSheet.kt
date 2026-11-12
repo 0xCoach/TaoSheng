@@ -143,8 +143,8 @@ private fun Label(text: String) {
 @Composable
 private fun Choice(text: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "listenChoice")
-    val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "listenChoiceFg")
+    val bg by animateColorAsState(if (on) c.selected else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "listenChoice")
+    val fg by animateColorAsState(if (on) c.onSelected else c.textSecondary, label = "listenChoiceFg")
     Box(modifier.springClick(onClick).clip(CircleShape).background(bg).padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg, maxLines = 1)
     }

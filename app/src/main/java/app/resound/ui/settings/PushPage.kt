@@ -305,8 +305,8 @@ private fun Field(value: String, hint: String, secret: Boolean, onChange: (Strin
 private fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     // 未选中用白底：放在浅色分块里也看得清
-    val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "pushChoice")
-    val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "pushChoiceFg")
+    val bg by animateColorAsState(if (on) c.selected else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "pushChoice")
+    val fg by animateColorAsState(if (on) c.onSelected else c.textSecondary, label = "pushChoiceFg")
     Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
         modifier = Modifier.springClick(onClick).clip(CircleShape).background(bg).padding(horizontal = 14.dp, vertical = 8.dp))
 }
@@ -485,11 +485,11 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
                 listOf("一", "二", "三", "四", "五", "六", "日").forEachIndexed { i, w ->
                     val d = i + 1
                     val on = t.weekdays.isEmpty() || d in t.weekdays
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.fill).springClick {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.selected else c.fill).springClick {
                         val cur = t.weekdays.ifEmpty { (1..7).toSet() }
                         val next = if (d in cur) cur - d else cur + d
                         if (next.isNotEmpty()) onChange(sub.copy(trigger = t.copy(weekdays = if (next.size == 7) emptySet() else next)))
-                    }, contentAlignment = Alignment.Center) { Text(w, style = RsType.subhead, color = if (on) c.onAccent else c.textSecondary) }
+                    }, contentAlignment = Alignment.Center) { Text(w, style = RsType.subhead, color = if (on) c.onSelected else c.textSecondary) }
                 }
             }
         }

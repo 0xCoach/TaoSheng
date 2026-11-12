@@ -121,7 +121,7 @@ internal class TimelineSelection {
 @Composable
 internal fun SelectCircle(selected: Boolean) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (selected) c.accent else Color.Transparent, label = "selBg")
+    val bg by animateColorAsState(if (selected) c.selected else Color.Transparent, label = "selBg")
     val pop by animateFloatAsState(if (selected) 1f else 0.92f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "selPop")
     Box(
         Modifier.size(22.dp).scale(pop).clip(CircleShape).background(bg)

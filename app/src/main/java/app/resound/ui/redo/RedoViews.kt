@@ -77,8 +77,8 @@ fun AsrChoice(chooser: AsrChooser, durationMs: Long, selected: TranscribeSource,
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg)
                 .then(if (o.ready) Modifier.springClick { onSelect(o.source) } else Modifier)
                 .padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(18.dp).clip(CircleShape).background(if (on) c.accent else c.separator), contentAlignment = Alignment.Center) {
-                    if (on) Box(Modifier.size(7.dp).clip(CircleShape).background(c.onAccent))
+                Box(Modifier.size(18.dp).clip(CircleShape).background(if (on) c.selected else c.separator), contentAlignment = Alignment.Center) {
+                    if (on) Box(Modifier.size(7.dp).clip(CircleShape).background(c.onSelected))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -157,8 +157,8 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg)
                         .then(if (o.ready) Modifier.springClick { llm = o.presetId } else Modifier)
                         .padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(18.dp).clip(CircleShape).background(if (on) c.accent else c.separator), contentAlignment = Alignment.Center) {
-                            if (on) Box(Modifier.size(7.dp).clip(CircleShape).background(c.onAccent))
+                        Box(Modifier.size(18.dp).clip(CircleShape).background(if (on) c.selected else c.separator), contentAlignment = Alignment.Center) {
+                            if (on) Box(Modifier.size(7.dp).clip(CircleShape).background(c.onSelected))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {

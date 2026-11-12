@@ -80,10 +80,10 @@ internal fun PauseLengthSheet(current: Int, onPick: (Int) -> Unit, onDismiss: ()
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PAUSE_CHOICES.forEach { m ->
                 val on = m == current
-                val bg by animateColorAsState(if (on) c.accent else c.fill, label = "pauseChoice")
+                val bg by animateColorAsState(if (on) c.selected else c.fill, label = "pauseChoice")
                 Box(Modifier.weight(1f).springClick { onPick(m) }.clip(CircleShape).background(bg).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
                     Text(HomeRules.pauseLabel(m), style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
-                        color = if (on) c.onAccent else c.textSecondary, maxLines = 1)
+                        color = if (on) c.onSelected else c.textSecondary, maxLines = 1)
                 }
             }
         }

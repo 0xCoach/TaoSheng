@@ -253,12 +253,12 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
         if (template != null) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             template.models.forEachIndexed { i, m ->
                 val on = !otherModel && m == model
-                Text(m + if (i == 0) " · 推荐" else "", style = RsType.subhead, color = if (on) c.onAccent else c.textSecondary,
-                    modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.fill).springClick { model = m; otherModel = false; result = null }
+                Text(m + if (i == 0) " · 推荐" else "", style = RsType.subhead, color = if (on) c.onSelected else c.textSecondary,
+                    modifier = Modifier.clip(CircleShape).background(if (on) c.selected else c.fill).springClick { model = m; otherModel = false; result = null }
                         .padding(horizontal = 12.dp, vertical = 8.dp))
             }
-            Text("其他", style = RsType.subhead, color = if (otherModel) c.onAccent else c.textSecondary,
-                modifier = Modifier.clip(CircleShape).background(if (otherModel) c.accent else c.fill).springClick { otherModel = true; model = ""; result = null }
+            Text("其他", style = RsType.subhead, color = if (otherModel) c.onSelected else c.textSecondary,
+                modifier = Modifier.clip(CircleShape).background(if (otherModel) c.selected else c.fill).springClick { otherModel = true; model = ""; result = null }
                     .padding(horizontal = 12.dp, vertical = 8.dp))
         }
         if (custom || otherModel) SheetInput(model, "模型名，如 deepseek-flash") { model = it.trim(); result = null }

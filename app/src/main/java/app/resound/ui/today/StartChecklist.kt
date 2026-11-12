@@ -22,6 +22,7 @@ import app.resound.capture.CaptureState
 import app.resound.ui.ShellNav
 import app.resound.ui.settings.SettingsPage
 import app.resound.ui.theme.Rs
+import app.resound.ui.theme.fade
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.springClick
@@ -140,7 +141,8 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
         // 进度条：完成几步亮几格
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             shown.forEach { step ->
-                val color by animateColorAsState(if (step.done) c.accent else c.separator, label = "stepBar")
+                // 进度条是辅助信息：夜间降到六成白，不和按钮抢
+                val color by animateColorAsState(if (step.done) (if (c.isDark) c.accent.fade(0.6f) else c.accent) else c.track, label = "stepBar")
                 Box(Modifier.weight(1f).height(4.dp).clip(CircleShape).background(color))
             }
         }

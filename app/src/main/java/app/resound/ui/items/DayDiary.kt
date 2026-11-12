@@ -169,9 +169,9 @@ private fun NavArrow(text: String, enabled: Boolean = true, onClick: () -> Unit)
 @Composable
 private fun DayCell(d: LocalDate, weekday: String?, selected: Boolean, today: Boolean, active: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (selected) c.accent else c.accent.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "dayBg")
+    val bg by animateColorAsState(if (selected) c.selected else c.accent.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "dayBg")
     val fg = when {
-        selected -> c.onAccent
+        selected -> c.onSelected
         !enabled -> c.separator
         today -> c.accent
         else -> c.text
@@ -592,8 +592,8 @@ internal fun ExportSheet(diary: DiaryRepository, date: LocalDate, onClose: () ->
 @Composable
 private fun Choice(text: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
-    val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "choiceFg")
+    val bg by animateColorAsState(if (on) c.selected else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
+    val fg by animateColorAsState(if (on) c.onSelected else c.textSecondary, label = "choiceFg")
     Box(modifier.clip(CircleShape).background(bg).springClick(onClick).padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg)
     }

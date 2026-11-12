@@ -90,7 +90,7 @@ private fun Divider() = Box(Modifier.padding(start = 64.dp).fillMaxWidth().heigh
 @Composable
 private fun ChoiceRow(title: String, sub: String, glyph: String, tint: Color, selected: Boolean, dim: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
-    val ring by animateColorAsState(if (selected) c.accent else c.separator, label = "ring")
+    val ring by animateColorAsState(if (selected) c.selected else c.separator, label = "ring")
     Row(Modifier.fillMaxWidth().springClick(onClick).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(36.dp).clip(CircleShape).background(tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
             Text(glyph, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = tint)

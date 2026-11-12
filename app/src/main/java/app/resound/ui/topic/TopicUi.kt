@@ -96,8 +96,8 @@ internal fun TopicKindChoice(selected: TopicKind, onSelect: (TopicKind) -> Unit)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TopicKind.entries.forEach { k ->
             val on = k == selected
-            val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
-            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
+            val bg by animateColorAsState(if (on) c.selected else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
+            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
     }
@@ -650,10 +650,10 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             DayOfWeek.entries.forEach { d ->
                 val on = d in repeat
-                val bg by animateColorAsState(if (on) c.accent else c.fill, label = "repeatDay")
+                val bg by animateColorAsState(if (on) c.selected else c.fill, label = "repeatDay")
                 Box(Modifier.weight(1f).clip(CircleShape).background(bg).springClick { repeat = if (on) repeat - d else repeat + d }.padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center) {
-                    Text(weekName(d), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary)
+                    Text(weekName(d), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary)
                 }
             }
         }
@@ -725,8 +725,8 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
                 val on = e.id in picked
                 Row(Modifier.fillMaxWidth().springClick { picked = if (on) picked - e.id else picked + e.id }.padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(20.dp).clip(CircleShape).background(if (on) c.accent else c.separator), contentAlignment = Alignment.Center) {
-                        if (on) Text("✓", style = RsType.caption, color = c.onAccent)
+                    Box(Modifier.size(20.dp).clip(CircleShape).background(if (on) c.selected else c.separator), contentAlignment = Alignment.Center) {
+                        if (on) Text("✓", style = RsType.caption, color = c.onSelected)
                     }
                     Spacer(Modifier.width(10.dp))
                     Text(formatClock(e.startAt), style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.widthIn(min = 46.dp))

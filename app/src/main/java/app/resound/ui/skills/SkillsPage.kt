@@ -331,14 +331,14 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         (1..7).forEach { d ->
                             val on = t.weekdays.isEmpty() || d in t.weekdays
-                            Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.fill)
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.selected else c.fill)
                                 .springClick {
                                     val cur = t.weekdays.ifEmpty { (1..7).toSet() }
                                     val next = if (d in cur) cur - d else cur + d
                                     if (next.isNotEmpty()) repo.setSchedule(s.id, t.minutes, if (next.size == 7) emptySet() else next)
                                 },
                                 contentAlignment = Alignment.Center) {
-                                Text(WEEK[d - 1], style = RsType.subhead, color = if (on) c.onAccent else c.textSecondary)
+                                Text(WEEK[d - 1], style = RsType.subhead, color = if (on) c.onSelected else c.textSecondary)
                             }
                         }
                     }
@@ -369,8 +369,8 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     (listOf<LlmPreset?>(null) + presets).forEach { p ->
                         val on = s.presetId == p?.id
-                        Text(p?.name ?: "跟随整理模型", style = RsType.subhead, color = if (on) c.onAccent else c.text,
-                            modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.fill).springClick { repo.setPreset(s.id, p?.id) }
+                        Text(p?.name ?: "跟随整理模型", style = RsType.subhead, color = if (on) c.onSelected else c.text,
+                            modifier = Modifier.clip(CircleShape).background(if (on) c.selected else c.fill).springClick { repo.setPreset(s.id, p?.id) }
                                 .padding(horizontal = 14.dp, vertical = 8.dp))
                     }
                 }

@@ -10,6 +10,8 @@ suspend fun insert(row: TopicRow): Long
 suspend fun update(row: TopicRow)
 suspend fun span(row: TopicSpanRow): Long
 suspend fun mark(row: TopicMarkRow): Long
+/** 删除一个重点；只删属于该专题的，避免误删别的专题 */
+suspend fun unmark(topicId: Long, markId: Long)
 suspend fun closeSpan(id: Long, at: Long)
 suspend fun deleteSpans(id: Long)
 suspend fun digestedUntil(start: Long, end: Long): Long?

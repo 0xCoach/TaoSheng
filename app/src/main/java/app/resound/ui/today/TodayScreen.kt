@@ -336,6 +336,7 @@ fun TodayScreen(
         onDelete = { batchDeleting = list.map { it.id }.filter { it in selection.ids } })
     // 复制完的小提示：底部浮一下就消失
     PauseBar(pausedNote, bottomPadding, capture) { pausedNote = null }
+    HomeSnackBar(bottomPadding)
     androidx.compose.animation.AnimatedVisibility(copyNote != null, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding + 24.dp),
         enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
         exit = androidx.compose.animation.fadeOut()) {

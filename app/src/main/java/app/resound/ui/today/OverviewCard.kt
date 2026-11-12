@@ -247,7 +247,14 @@ private fun ColumnScope.LiveCard(
                     var confirmEnd by remember(t.id) { mutableStateOf(false) }
                     LaunchedEffect(confirmEnd) { if (confirmEnd) { delay(4000); confirmEnd = false } }
                     RoundKey(ink, filled = false, glyph = Glyph.Star, label = "记一下", accent = true, badge = t.marks.size) {
-                        buzz(); scope.launch { runCatching { AppGraph.topics.mark() }.onSuccess { Toast.makeText(context, "已记下这个时刻", Toast.LENGTH_SHORT).show() } }
+                        buzz(); scope.launch {
+                            // 记下后底部给“撤销”，误触当场就能撤
+                            val r = runCatching { app.resound.ui.topic.TopicMarks.markAndGet() }
+                            val got = r.getOrNull()
+                            if (got != null) HomeSnacks.current = HomeSnack("已记下 ${formatClock(got.third)}", "撤销") {
+                                runCatching { app.resound.ui.topic.TopicMarks.unmark(got.first, got.second) }
+                            } else if (r.isSuccess) Toast.makeText(context, "已记下这个时刻", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     Spacer(Modifier.width(8.dp))
                     RoundKey(ink, filled = false, glyph = if (paused) Glyph.Play else Glyph.Pause, label = if (paused) "继续专题" else "暂停专题") {

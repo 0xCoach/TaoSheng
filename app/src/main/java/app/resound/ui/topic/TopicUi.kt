@@ -207,6 +207,7 @@ internal fun TopicRunningPanel(t: Topic) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(t.id) { while (true) { delay(20_000); now = System.currentTimeMillis() } }
     var confirmEnd by remember(t.id) { mutableStateOf(false) }
+    var justMarked by remember(t.id) { mutableStateOf<Triple<Long, Long, Long>?>(null) }
     LaunchedEffect(confirmEnd) { if (confirmEnd) { delay(4000); confirmEnd = false } }
     val paused = t.status == TopicStatus.Paused
     RsCard(color = c.accentSoft, padding = PaddingValues(16.dp)) {
@@ -215,7 +216,7 @@ internal fun TopicRunningPanel(t: Topic) {
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill("★ 记一下", filled = true, Modifier.weight(1f)) {
-                scope.launch { if (guarded(context) { AppGraph.topics.mark() }) Toast.makeText(context, "已记下这个时刻", Toast.LENGTH_SHORT).show() }
+                scope.launch { var got: Triple<Long, Long, Long>? = null; if (guarded(context) { got = TopicMarks.markAndGet() }) justMarked = got }
             }
             Pill(if (paused) "继续" else "暂停", filled = false, Modifier.weight(1f)) {
                 scope.launch { guarded(context) { if (paused) AppGraph.topics.resume() else AppGraph.topics.pause() } }
@@ -225,6 +226,7 @@ internal fun TopicRunningPanel(t: Topic) {
                 scope.launch { if (guarded(context) { AppGraph.topics.end() }) Toast.makeText(context, "专题已结束，转写好后自动出纪要", Toast.LENGTH_SHORT).show() }
             }
         }
+        MarkUndoLine(justMarked, c.textSecondary, c.text) { justMarked = null }
         if (paused) Text("暂停期间说的话不算进专题；结束时间不顺延", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
         if (t.plannedEndAt != null) LinkText("延长 30 分钟 ›") { scope.launch { guarded(context) { AppGraph.topics.extend(30) } } }
     }
@@ -290,6 +292,8 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
         value = t.eventId?.takeIf { AppGraph.isMemoryReady }?.let { AppGraph.memory.eventById(it) }
     }
     var cutting by remember { mutableStateOf(false) }
+    // 已出纪要的专题删了重点：纪要不自动重写，提示可“重新生成”
+    var marksChanged by remember(id) { mutableStateOf(false) }
     var confirmCancel by remember { mutableStateOf(false) }
     LaunchedEffect(confirmCancel) { if (confirmCancel) { delay(4000); confirmCancel = false } }
     val day = Instant.ofEpochMilli(start).atZone(zone).toLocalDate()
@@ -343,7 +347,9 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
         // ③ 时间轴
         if (tl != null) {
             Label("时间轴")
-            TimelineCard(tl, live) { at ->
+            TimelineCard(tl, live, t.marks, onRemove = { m ->
+                scope.launch { if (guarded(context) { AppGraph.topics.unmark(t.id, m.id) } && t.status == TopicStatus.Done) marksChanged = true }
+            }) { at ->
                 // 点 ★：找到这一刻所在的录音段，打开原话页并滚到那里；找不到就打开合成的那件事
                 scope.launch {
                     val atDay = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
@@ -417,6 +423,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
                     CutPanel(t, day) { cutting = false }
                 }
             }
+            if (marksChanged) Text("重点改了，可点上面“重新生成”更新纪要", style = RsType.caption, color = c.textSecondary)
             if (confirmCancel) Text("取消后合成的事和纪要删除，这段原话按平常方式重新整理；录音和原话不删。", style = RsType.caption, color = c.textTertiary)
         }
     }
@@ -443,6 +450,7 @@ private fun LiveHero(t: Topic, includedMs: Long) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val paused = t.status == TopicStatus.Paused
     var confirmEnd by remember(t.id) { mutableStateOf(false) }
+    var justMarked by remember(t.id) { mutableStateOf<Triple<Long, Long, Long>?>(null) }
     LaunchedEffect(confirmEnd) { if (confirmEnd) { delay(4000); confirmEnd = false } }
     val shape = RoundedCornerShape(20.dp)
     val bg = if (c.isDark) Modifier.clip(shape).background(c.fill)
@@ -464,7 +472,7 @@ private fun LiveHero(t: Topic, includedMs: Long) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             HeroButton("★ 记一下", primary = true, Modifier.weight(1f)) {
                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                scope.launch { if (guarded(context) { AppGraph.topics.mark() }) Toast.makeText(context, "已记下这个时刻", Toast.LENGTH_SHORT).show() }
+                scope.launch { var got: Triple<Long, Long, Long>? = null; if (guarded(context) { got = TopicMarks.markAndGet() }) justMarked = got }
             }
             HeroButton(if (paused) "继续" else "暂停", primary = false, Modifier.weight(1f), bg = pill, fg = fg) {
                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
@@ -474,6 +482,25 @@ private fun LiveHero(t: Topic, includedMs: Long) {
                 if (!confirmEnd) { confirmEnd = true; return@HeroButton }
                 scope.launch { if (guarded(context) { AppGraph.topics.end() }) Toast.makeText(context, "专题已结束，转写好后自动出纪要", Toast.LENGTH_SHORT).show() }
             }
+        }
+        MarkUndoLine(justMarked, soft, fg) { justMarked = null }
+    }
+}
+
+/** 刚记下一个重点：按钮下方出现“已记下 10:05 · 撤销”，5 秒后消失（误触当场就能撤） */
+@Composable
+private fun MarkUndoLine(mark: Triple<Long, Long, Long>?, soft: Color, strong: Color, onDone: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(mark) { if (mark != null) { delay(5_000); onDone() } }
+    androidx.compose.animation.AnimatedVisibility(mark != null) {
+        val m = mark ?: return@AnimatedVisibility
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("已记下 ${formatClock(m.third)}", style = RsType.subhead, color = soft, modifier = Modifier.weight(1f))
+            Text("撤销", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = strong,
+                modifier = Modifier.clip(CircleShape).springClick {
+                    onDone(); scope.launch { guarded(context) { TopicMarks.unmark(m.first, m.second) } }
+                }.padding(horizontal = 8.dp, vertical = 4.dp))
         }
     }
 }
@@ -507,7 +534,8 @@ private fun HeroNote(text: String, error: Boolean = false, spinning: Boolean = f
 
 /** 时间轴：橙色段算进专题，灰色段是暂停或剪掉的；★ 是重点；进行中有一条竖线表示“现在” */
 @Composable
-private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolean, onMark: (Long) -> Unit) {
+private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolean, marks: List<app.resound.topic.TopicMark>,
+                         onRemove: (app.resound.topic.TopicMark) -> Unit, onMark: (Long) -> Unit) {
     val c = Rs.colors
     val gray = if (c.isDark) Color.White.copy(alpha = 0.22f) else Color(0xFFD8D3CC)
     val track = if (c.isDark) Color.White.copy(alpha = 0.1f) else Color(0xFFECE8E3)
@@ -532,8 +560,17 @@ private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolea
                     modifier = Modifier.weight(1f))
             }
         }
-        if (tl.marks.isNotEmpty()) Text("★ 重点：" + tl.marks.joinToString("、") { formatClock(it.second) },
-            style = RsType.subhead.copy(fontFeatureSettings = "tnum"), color = c.accent, modifier = Modifier.padding(top = 8.dp))
+        // 重点：一个个小胶囊，点时刻跳到原话，点 × 删除标错的
+        if (marks.isNotEmpty()) FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            marks.sortedBy { it.at }.forEach { m ->
+                Row(Modifier.clip(CircleShape).background(c.fill), verticalAlignment = Alignment.CenterVertically) {
+                    Text("★ ${formatClock(m.at)}", style = RsType.subhead.copy(fontFeatureSettings = "tnum"), color = c.text,
+                        modifier = Modifier.springClick { onMark(m.at) }.padding(start = 10.dp, end = 4.dp, top = 5.dp, bottom = 5.dp))
+                    Text("×", style = RsType.subhead, color = c.textTertiary,
+                        modifier = Modifier.springClick { onRemove(m) }.padding(start = 4.dp, end = 10.dp, top = 5.dp, bottom = 5.dp))
+                }
+            }
+        }
         if (tl.bars.any { !it.included } || tl.marks.isNotEmpty()) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             LegendDot(c.accent, "算进专题")
             if (tl.bars.any { !it.included }) LegendDot(gray, "暂停或剪掉")

@@ -1,5 +1,6 @@
 package app.resound.health
 
+import app.resound.scheduling.refreshWhileNeeded
 import android.Manifest
 import android.app.Activity
 import android.app.AppOpsManager
@@ -97,7 +98,7 @@ class AndroidHealthCheck(
                 refresh()
             }
         }
-        owner.launch { while (isActive) { delay(60_000); refresh() } }
+        owner.launch { current.subscriptionCount.map { it > 0 }.refreshWhileNeeded(60_000) { refresh() } }
         appOps.startWatchingMode(AppOpsManager.OPSTR_RECORD_AUDIO, app.packageName, permissions)
         capturePrefs.registerOnSharedPreferenceChangeListener(preferenceChanges)
         app.registerActivityLifecycleCallbacks(lifecycle)

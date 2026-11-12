@@ -15,7 +15,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase, scope: CoroutineScope) : VoiceInputCapture {
+class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase, scope: CoroutineScope,
+    private val today: () -> LocalDate = LocalDate::now) : VoiceInputCapture {
     private val prefs = context.getSharedPreferences("voice-input", Context.MODE_PRIVATE)
     // 上下文不再单独开关：记语音输入就一定带上下文，不记就只靠录音
     private val mutable = MutableStateFlow(VoiceInputSettings(prefs.getBoolean("enabled", false),
@@ -37,10 +38,10 @@ class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase
         override fun onChange(selfChange: Boolean) { service.value = enabled() }
     }
     private val rows = db.voiceInput().observed().shareIn(scope, SharingStarted.Eagerly, 1)
-    private val clock = flow { while (true) { emit(LocalDate.now()); delay(60000) } }
+    private val clock = flow { while (true) { emit(today()); delay(60000) } }
     override val todayCount = combine(rows, clock) { lines, today ->
         lines.count { Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate() == today }
-    }.stateIn(scope, SharingStarted.Eagerly, 0)
+    }.stateIn(scope, SharingStarted.WhileSubscribed(0), 0)
     override val seenApps = rows.map { lines -> lines.mapNotNull { VoiceInputMetadata.read(it.voiceInputJson) }
         .distinctBy { it.packageName }.map { InputApp(it.packageName, it.app) }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())

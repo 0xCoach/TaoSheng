@@ -70,7 +70,7 @@ class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private
         legacy?.let { return@withContext it.recognize(audio,key,beforeAudio) }
         val endpoint = settings.customEndpoint
         val urls = runCatching { transcriptionEndpoints(endpoint, settings.customEndpointMode) }.getOrElse { throw AsrException(AsrError.Protocol) }
-        val http = OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
+        val http = app.resound.net.defaultAndroidHttp.newBuilder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
         val network = app.resound.net.androidNetwork(http)
         try {
             val upload = app.resound.net.AudioUpload(audio.file.name, audio.format, audio.file.length()) { consume ->
@@ -88,7 +88,6 @@ class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private
         } catch(e:kotlinx.coroutines.CancellationException){throw e}
         catch(e:AsrException){throw e}
         catch(e:java.io.IOException){throw AsrException(AsrError.Network,detail=modelServiceError(endpoint,e,AsrError.Network.human))}
-        finally { network.close(); http.dispatcher.executorService.shutdown(); http.connectionPool.evictAll() }
     }
 }
 class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {

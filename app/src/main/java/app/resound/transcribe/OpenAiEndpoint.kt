@@ -35,7 +35,7 @@ object OpenAiEndpoint {
     fun transcriptions(input:String)=bases(input).map{"$it/audio/transcriptions"}
 }
 data class RemoteModels(val base:String,val ids:List<String>)
-suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){
+suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=(if (app.resound.AppGraph.legacyNetwork) OkHttpClient.Builder() else app.resound.net.defaultAndroidHttp.newBuilder()).connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){
     if (app.resound.AppGraph.legacyNetwork) return@withContext legacyFetchRemoteModels(endpoint, key, client, headers)
     val network = app.resound.net.androidNetwork(client)
     try {
@@ -44,7 +44,6 @@ suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=Ok
     } catch(e:kotlinx.coroutines.CancellationException){throw e}
     catch(e:IllegalStateException){throw e}
     catch(e:Exception){throw IllegalStateException(modelServiceError(endpoint,e,"拉取失败，请检查地址和网络；也可手动填写模型"))}
-    finally { network.close(); client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
 }
 
 internal suspend fun legacyFetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){

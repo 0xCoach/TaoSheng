@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 class DoubaoAsrProvider(
     private val reader: AsrAudioReader,
     private val config: DoubaoConfig = DoubaoConfig(),
-    private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS)
+    private val client: OkHttpClient = (if (app.resound.AppGraph.legacyNetwork) OkHttpClient.Builder() else app.resound.net.defaultAndroidHttp.newBuilder()).connectTimeout(15,TimeUnit.SECONDS)
         .readTimeout(0,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
     private val headers: () -> List<HeaderEntry> = { emptyList() },
     private val hotwords: () -> List<String> = { emptyList() },
@@ -24,16 +24,15 @@ class DoubaoAsrProvider(
                     // 外层计时也覆盖音频准备，与旧实现一致。
                     try { kotlinx.coroutines.withTimeout(config.timeoutFor(audio.durationMillis)) {
                         measureAsr(AsrPart.Prepare) { reader.prepare(audio) }.use { prepared ->
-                            val sockets = app.resound.net.AndroidSocketControl(client)
-                            val network = app.resound.net.androidNetwork(client,sockets)
-                            try {
+                            val connectId = java.util.UUID.randomUUID().toString()
+                            app.resound.net.withAndroidSocket(client, connectId) { network, sockets, configureSocket ->
                                 app.resound.net.NetDoubao(network,config,::gunzip,object : app.resound.net.NetworkAsrMetrics {
                                     override suspend fun <T> measure(part: String, block: suspend () -> T): T = measureAsr(AsrPart.valueOf(part),block)
-                                },sockets).recognize(audio.durationMillis,prepared.format,audio.separateSpeakers,
-                                    Hotwords.doubao(hotwords()),key,java.util.UUID.randomUUID().toString(),headers(),beforeAudio) { emit ->
+                                },sockets,configureSocket).recognize(audio.durationMillis,prepared.format,audio.separateSpeakers,
+                                    Hotwords.doubao(hotwords()),key,connectId,headers(),beforeAudio) { emit ->
                                     AsrAudioReader.chunks(prepared,emit)
                                 }
-                            } finally { sockets.cancel(); network.close() }
+                            }
                         }
                     } } catch(e: kotlinx.coroutines.TimeoutCancellationException) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()

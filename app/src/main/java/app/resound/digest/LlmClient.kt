@@ -40,13 +40,13 @@ val LlmException.rejected: Boolean get() = type == LlmError.Server && status in 
 
 /** 安卓兼容入口；业务 JSON、SSE 与 HTTP 规则在 shared，旧链路保留到 0.3.1。 */
 class LlmClient(
-    private val http: OkHttpClient = OkHttpClient.Builder()
+    private val http: OkHttpClient = (if (app.resound.AppGraph.legacyNetwork) OkHttpClient.Builder() else app.resound.net.defaultAndroidHttp.newBuilder())
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
     private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
     private val diagnostics: app.resound.diagnostics.LlmDiagnostics? = null,
 ) {
     private val legacy = if (app.resound.AppGraph.legacyNetwork) LegacyLlmClient(http, requestHeaders, diagnostics) else null
-    private fun network(preset: LlmPreset): io.ktor.client.HttpClient {
+    private suspend fun network(preset: LlmPreset): io.ktor.client.HttpClient {
         if (preset.baseUrl.isBlank() || preset.model.isBlank()) throw LlmException(LlmError.Format)
         return app.resound.net.androidNetwork(http.newBuilder().followRedirects(false).followSslRedirects(false)
             .connectTimeout(10, TimeUnit.SECONDS).apply {
@@ -74,8 +74,7 @@ class LlmClient(
         try {
             if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
             val client = network(preset)
-            val reply = try { core(client, preset).chat(preset, key, requestHeaders(preset), system, user, thinking, trace(t)) }
-                finally { client.close() }
+            val reply = core(client, preset).chat(preset, key, requestHeaders(preset), system, user, thinking, trace(t))
             t?.complete()
             LlmReply(reply.content, reply.promptTokens, reply.completionTokens, diagnostics = t)
         } catch (e: Throwable) {
@@ -90,8 +89,7 @@ class LlmClient(
             ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
         try {
             val client = network(preset)
-            val r = try { core(client, preset).stream(preset, key, requestHeaders(preset), messages.toString(), tools.toString(), onText, onUsage, allowTools, trace(t)) }
-                finally { client.close() }
+            val r = core(client, preset).stream(preset, key, requestHeaders(preset), messages.toString(), tools.toString(), onText, onUsage, allowTools, trace(t))
             t?.content(r.content); t?.complete()
             return LlmStreamReply(r.content, r.calls.map { LlmToolCall(it.id, it.name, it.arguments, it.extraContent?.let(::JSONObject)) }, r.reasoningContent, t)
         } catch(e: Throwable) {

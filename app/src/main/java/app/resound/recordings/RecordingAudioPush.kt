@@ -1,5 +1,7 @@
 package app.resound.recordings
 
+import app.resound.scheduling.BackgroundRefreshPolicy
+import app.resound.scheduling.refreshWhileNeeded
 import android.content.Context
 import androidx.work.*
 import app.resound.AppGraph
@@ -123,7 +125,8 @@ internal fun attachRecordingArchive(context: Context, database: CaptureDatabase,
     channels.audioPush = audio
     scope.launch(Dispatchers.IO) {
         merge(channels.channels.map { Unit }, database.invalidationTracker.createFlow("segments", "transcript_lines", "memory_events", "env_sounds").map { Unit },
-            flow { while (currentCoroutineContext().isActive) { emit(Unit); delay(60_000) } })
+            channelFlow { channels.channels.map { list -> BackgroundRefreshPolicy.audioNeedsTick(list) }
+                .refreshWhileNeeded(60_000) { send(Unit) } })
             .debounce(1000).collect { audio.refresh() }
     }
     WorkManager.getInstance(context).enqueueUniquePeriodicWork("recording-audio-sweep", ExistingPeriodicWorkPolicy.KEEP,

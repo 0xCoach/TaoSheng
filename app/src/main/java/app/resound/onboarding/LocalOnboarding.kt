@@ -47,8 +47,10 @@ internal class LocalOnboarding(
             combine(multipleSpeakersAt, needsLocalSpeakers) { at, needed -> at to needed }
                 .collect { (at, needed) -> updateSpeakers(at, needed) }
         }
-        // 复用转写仓库已有的分钟心跳，不新增计时器或数据库轮询。
-        scope.launch { heartbeat.collect { refresh() } }
+        // 只有提示正在显示时订阅分钟心跳；设置/数据变化仍即时更新。
+        scope.launch { currentTips.subscriptionCount.map { it > 0 }.distinctUntilChanged().collectLatest { visible ->
+            if (visible) heartbeat.collect { refresh() }
+        } }
     }
 
     @Synchronized private fun rememberFirst(at: Long) {

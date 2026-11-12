@@ -123,10 +123,10 @@ class LlmBalanceChecker(
     internal suspend fun fetch(src: BalanceSource): LlmBalance {
         if (app.resound.AppGraph.legacyNetwork) return legacyFetch(src)
         val network = app.resound.net.androidNetwork(http)
-        try {
+        run {
             val b = app.resound.net.queryBalance(network, src.url, src.key, src.headers, src.path)
             return LlmBalance(b.total, b.granted, b.toppedUp, b.currency, b.available, now())
-        } finally { network.close() }
+        }
     }
     internal suspend fun legacyFetch(src: BalanceSource): LlmBalance = withContext(Dispatchers.IO) {
         val url = src.url.toHttpUrlOrNull() ?: error("查询地址格式不对")

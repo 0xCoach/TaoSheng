@@ -178,6 +178,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 ### 从源码编译
 
+提交前请完成本地检查；推送到 main 或提交 PR 后，GitHub Actions 会自动检查共用边界、安卓编译与单测，并在共用代码或构建配置变化时检查 iOS 编译。
+
 ```bash
 git clone https://github.com/0xCoach/TaoSheng.git
 cd TaoSheng

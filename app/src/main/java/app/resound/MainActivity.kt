@@ -74,6 +74,18 @@ class MainActivity : ComponentActivity() {
         // 点“重做完成”通知：打开结果面板（可撤销）
         intent?.getStringExtra(app.resound.redo.EXTRA_REDO_JOB)?.let { app.resound.ui.redo.RedoUi.openJob = it }
         lifecycleScope.launch { receiveSharedAudio(intent) }
+        // 卡 147/148：长按快捷开关。专题开关 → 进行中打开那场专题，否则打开“开始专题”（上次的类型）；聆听开关 → 录音与后台页
+        if (intent?.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") {
+            @Suppress("DEPRECATION")
+            val tile = intent.getParcelableExtra<android.content.ComponentName>(Intent.EXTRA_COMPONENT_NAME)?.className.orEmpty()
+            if (tile.endsWith("ClassModeTileService")) {
+                tabRequest = 0 to System.nanoTime()
+                val current = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
+                if (current != null) app.resound.ui.topic.TopicUi.openTopic = current.id
+                else app.resound.ui.topic.TopicUi.starting = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else app.resound.topic.TopicKind.Meeting
+            } else app.resound.ui.ShellNav.openSettings(SettingsPage.Capture)
+            return
+        }
         if (intent?.getStringExtra("open") == "deleteRecent") {
             _privacyRequest.value = "deleteRecent"
             return

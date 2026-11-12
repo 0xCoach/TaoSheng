@@ -1,0 +1,13 @@
+来源	起始版本	旧库触发器	升级后触发器	缺失名单
+historical	10	0	15	无
+historical	11	10	15	无
+historical	17	10	15	无
+historical	18	10	15	无
+historical	25	10	15	无
+historical	26	11	15	无
+historical	27	14	15	无
+historical	28	14	15	无
+historical	29	15	15	无
+historical	32	15	15	无
+schema-only	18	0	5	search_event_delete,search_event_hidden,search_event_insert,search_event_update,search_item_delete,search_item_insert,search_item_update,search_line_delete,search_line_insert,search_line_update
+schema-only	27	0	2	search_event_delete,search_event_hidden,search_event_insert,search_event_update,search_item_delete,search_item_insert,search_item_update,search_line_delete,search_line_insert,search_line_update,things_event_deleted,things_event_hidden,things_line_deleted

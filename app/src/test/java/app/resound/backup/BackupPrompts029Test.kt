@@ -25,7 +25,6 @@ import org.robolectric.annotation.SQLiteMode
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Collections
 import java.util.zip.ZipFile
 
 @RunWith(RobolectricTestRunner::class)
@@ -171,50 +170,61 @@ class BackupPrompts029Test {
             override suspend fun markdown(from: LocalDate, to: LocalDate, includeLines: Boolean) = "# 日记 $from"
             override suspend fun exportFile(from: LocalDate, to: LocalDate, includeLines: Boolean): Uri = error("不调用")
         }
-        val requests = Collections.synchronizedList(mutableListOf<RecordedRequest>())
-        var failUpload = true
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                requests += request
-                return when {
-                    request.method == "GET" || request.method == "HEAD" -> MockResponse().setResponseCode(404)
-                    request.method == "PROPFIND" -> listing(emptyList())
-                    request.method == "PUT" && WebDavClient.DIARY_FOLDER !in request.requestUrl!!.pathSegments && failUpload -> MockResponse().setResponseCode(503)
-                    else -> MockResponse().setResponseCode(201)
-                }
-            }
-        }
+        val remote = BackupWebDavDispatcher().apply { failBackupUploads = true }
+        server.dispatcher = remote
+        val requests = remote.requests
         val repository = AndroidBackupRepository(context, db, diary = diary, passphrases = store, clientFactory = { client })
         val snapshot = File(context.noBackupFilesDir, "before-restore/keep.zip").apply { parentFile!!.mkdirs(); writeText("snapshot") }
         repository.setEncryption("test-only"); repository.setEnabled(true)
         assertTrue(repository.state.value.encrypted)
         assertTrue(repository.runBackup(true)); assertTrue(snapshot.exists())
-        failUpload = false
+        assertEquals("坚果云暂时不可用", repository.state.value.lastError)
+        assertTrue(repository.remoteBackups().getOrThrow().isEmpty())
+        assertFalse(requests.any { it.method == "PUT" && WebDavClient.DIARY_FOLDER in it.requestUrl!!.pathSegments })
+        remote.failBackupUploads = false
         assertFalse(repository.runBackup(true)); assertNull(repository.state.value.lastError)
         assertFalse(snapshot.exists())
+        val encryptedPoint = repository.remoteBackups().getOrThrow().single()
+        assertTrue(encryptedPoint.encrypted)
         repository.setEncryption(null)
         assertFalse(repository.state.value.encrypted)
         assertFalse(repository.runBackup(true)); assertNull(repository.state.value.lastError)
-        val moves = requests.filter { it.method == "MOVE" }.map { it.getHeader("Destination")!! }
-        assertTrue(moves[0].endsWith(".zip.enc")); assertTrue(moves[1].endsWith(".zip"))
-        val uploads = requests.filter { it.method == "PUT" && WebDavClient.FOLDER in it.requestUrl!!.pathSegments }
-        assertFalse(uploads[1].body.clone().readByteArray().take(2) == listOf(80.toByte(), 75.toByte()))
-        assertEquals(listOf(80.toByte(), 75.toByte()), uploads[2].body.clone().readByteArray().take(2))
+        val points = repository.remoteBackups().getOrThrow()
+        assertEquals(2, points.size)
+        val plainPoint = points.single { it.name != encryptedPoint.name }
+        assertFalse(plainPoint.encrypted)
+        // 卡 039 后扩展名属于逻辑分卷；远端 .bin 对象须由恢复点的引用定位。
+        fun stateObject(point: RemoteBackup, logical: String): File {
+            val checkpoint = JSONObject(remote.read("/dav/${WebDavClient.FOLDER}/${point.name}").toString(Charsets.UTF_8))
+            assertEquals(point.encrypted, checkpoint.getBoolean("encrypted"))
+            val refs = checkpoint.getJSONArray("refs")
+            val state = (0 until refs.length()).map(refs::getJSONObject).single { it.getString("logical") == logical }
+            return File(root, logical).apply { writeBytes(remote.read("/dav/${WebDavClient.FOLDER}/${state.getString("path")}")) }
+        }
+        val encrypted = stateObject(encryptedPoint, "resound-state.zip.enc")
+        assertTrue(BackupEncryption.isEncrypted(encrypted))
+        val decrypted = File(root, "decrypted-state.zip")
+        BackupEncryption.decrypt(encrypted, decrypted, "test-only", null)
+        val plain = stateObject(plainPoint, "resound-state.zip")
+        assertFalse(BackupEncryption.isEncrypted(plain))
+        for (file in listOf(decrypted, plain)) ZipFile(file).use { assertNotNull(it.getEntry("settings.json")) }
         assertEquals(4, requests.count { it.method == "PUT" && WebDavClient.DIARY_FOLDER in it.requestUrl!!.pathSegments })
-        assertTrue(requests.filter { it.method == "DELETE" }.all { it.requestUrl!!.pathSegments.last().let { name -> name.endsWith(".part") || name.startsWith("resound-state.") } })
+        assertFalse(remote.paths().any { it.endsWith(".part") })
+        assertTrue(requests.filter { it.method == "DELETE" }.all { it.requestUrl!!.pathSegments.last().endsWith(".part") })
         repository.setEnabled(false)
     }
     @Test fun templatesReadDefaultsAndPersistOverridesInBackup() {
         val templates = LocalPromptTemplates(context)
-        assertEquals(listOf("digest", "review", "ask"), templates.list.value.map { it.id })
-        for (id in listOf("digest", "review", "ask")) {
+        val expectedIds = listOf("digest", "review", "ask", "things", "merge")
+        assertEquals(expectedIds, templates.list.value.map { it.id })
+        for (id in expectedIds) {
             assertEquals(templates.defaultText(id), templates.text(id))
             assertTrue(templates.save(id, templates.defaultText(id) + "\n自定义规则").isSuccess)
             assertTrue(LocalPromptTemplates(context).text(id).endsWith("自定义规则"))
         }
         assertTrue(templates.list.value.all { it.customized })
         ZipFile(archive()).use { zip ->
-            for (id in listOf("digest", "review", "ask")) {
+            for (id in expectedIds) {
                 assertEquals(templates.text(id), zip.getInputStream(zip.getEntry("files/prompts/$id.md")).bufferedReader().readText())
             }
         }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.search.SearchUpgradeTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:27:49.732Z" hostname="CoachdeMacBook-Air.local" time="0.193">
+  <properties/>
+  <testcase name="ftsTracksInsertUpdateDeleteAndRetainsSpeakerTimeAndHiddenFilters" classname="app.resound.search.SearchUpgradeTest" time="0.058"/>
+  <testcase name="embeddingBatchCapsNormalizesAndRejectsStaleSnapshot" classname="app.resound.search.SearchUpgradeTest" time="0.033"/>
+  <testcase name="tenToElevenAndOneToElevenBackfillAndPreserveData" classname="app.resound.search.SearchUpgradeTest" time="0.102"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

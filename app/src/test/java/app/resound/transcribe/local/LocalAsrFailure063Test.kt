@@ -55,13 +55,18 @@ class LocalAsrFailure063Test {
         }
         val runner = TranscribeRunner(db.transcribe(), provider, { "" }, { _, _ -> }, deferAudioCleanup = true)
         assertFalse(runner.run())
-        assertEquals(listOf("missing.ogg", "good.ogg"), calls)
+        // 卡 065：缺文件在转写前直接放弃，保留失败记录且不交给转写器。
+        assertEquals(listOf("good.ogg"), calls)
         val failed = db.transcribe().segment(1)
-        assertEquals("Failed", failed.status); assertEquals("录音文件已不存在", failed.error)
+        assertEquals("Abandoned", failed.status); assertEquals("录音文件已不存在", failed.error)
         assertEquals(1, failed.attempts); assertNull(failed.nextRetryAt)
+        assertNotNull(failed.completedAt); assertEquals(failed.completedAt, failed.firstFailedAt)
         assertEquals("Done", db.transcribe().segment(2).status)
-        assertEquals("Audio", db.transcribe().recentAttempts().single { it.segmentId == 1L }.errorType)
+        val attempt = db.transcribe().recentAttempts().single { it.segmentId == 1L }
+        assertEquals("Audio", attempt.errorType); assertEquals("Abandoned", attempt.result)
+        assertEquals(0L, attempt.sentMillis)
         assertTrue(db.transcribe().candidates(Long.MAX_VALUE).isEmpty())
+        assertNull(db.transcribe().earliestRetry())
         assertFalse(AsrError.Audio in TranscribePolicy.ROUND_STOPPERS)
     }
 

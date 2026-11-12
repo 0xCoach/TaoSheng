@@ -9,13 +9,16 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import app.resound.AppGraph
 import app.resound.R
+import app.resound.topic.TopicQuickPolicy
+import app.resound.quick.QuickPrefsRules
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.*
 
 /** 保留组件名以兼容已添加的磁贴；新动作统一进入专题，旧课堂设置与历史仍可读取。 */
 class ClassModeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
-        app.resound.topic.TopicActionReceiver.intent(context, if (topic == null) "start" else "end", topic?.id ?: 0).send()
+        app.resound.topic.TopicActionReceiver.intent(context, TopicQuickPolicy.receiverAction(topic != null), topic?.id ?: 0).send()
     }
 }
 
@@ -27,11 +30,11 @@ class ClassModeTileService : TileService() {
         observer?.cancel()
         render()
         if (!AppGraph.isTopicsReady) return
-        observer = scope.launch { AppGraph.topics.current.collect { render() } }
+        observer = scope.launch { combine(AppGraph.topics.current, AppGraph.quickPrefs.lastTopicKind) { _, _ -> Unit }.collect { render() } }
     }
     private fun render() {
         qsTile?.apply {
-            label = "专题录音"
+            label = TopicQuickPolicy.TILE_LABEL
             icon = Icon.createWithResource(this@ClassModeTileService, R.drawable.ic_notify)
             val usable = AppGraph.isTopicsReady
             state = when {
@@ -39,7 +42,8 @@ class ClassModeTileService : TileService() {
                 AppGraph.topics.current.value != null -> Tile.STATE_ACTIVE
                 else -> Tile.STATE_INACTIVE
             }
-            subtitle = if (!usable) "专题准备中" else AppGraph.topics.current.value?.let { app.resound.topic.TopicNotifications.line(it) } ?: "点一下开始专题"
+            subtitle = TopicQuickPolicy.tileSubtitle(usable, if (usable) AppGraph.topics.current.value?.let { app.resound.topic.TopicNotifications.line(it) } else null,
+                if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else QuickPrefsRules.defaultTopic)
             contentDescription = "$label，$subtitle"
             updateTile()
         }

@@ -31,6 +31,8 @@ object AppGraph {
     val isQuickPrefsReady: Boolean get() = ::quickPrefs.isInitialized
     lateinit var health: app.resound.health.HealthCheck
     val isHealthReady: Boolean get() = ::health.isInitialized
+    lateinit var settingsSearch: app.resound.settingsearch.SettingsSearch
+    val isSettingsSearchReady: Boolean get() = ::settingsSearch.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
     lateinit var llmBalance: app.resound.usage.LlmBalanceChecker
     val isLlmBalanceReady: Boolean get() = ::llmBalance.isInitialized

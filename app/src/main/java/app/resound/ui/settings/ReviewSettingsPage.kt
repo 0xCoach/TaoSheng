@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -85,7 +86,7 @@ fun ReviewSettingsPage(repo: ReviewRepository, bottomPadding: Dp) {
             }
             Spacer(Modifier.height(12.dp))
             Pill(if (s.generating) "生成中…" else "生成${listOf("今天", "昨天", "前天")[day.toInt()]}的回顾", filled = !s.generating) {
-                if (!s.generating) repo.generateNow(LocalDate.now().minusDays(day))
+                if (!s.generating) repo.generateNow(LocalDate.now().minusDays(day).toKotlinLocalDate())
             }
             // 生成中显示进行到哪一步；结束后显示没生成或不完整的原因（“已用现有内容生成”只是提醒，用灰色）
             val note = if (s.generating) s.stage else s.lastError

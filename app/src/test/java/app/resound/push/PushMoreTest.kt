@@ -1,5 +1,6 @@
 package app.resound.push
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -227,12 +228,12 @@ class PushMoreTest {
         }
     }
     private fun event(id: Long = 1, start: Long = at) = MemoryEventEntity(id, start, start + 1000, "会议", "讨论方案", "摘要", "[\"要点\"]", "[\"小王\"]", null, null, null, true, false, start, "test")
-    private fun card() = SkillCard(1, "meeting", "会议纪要", "meeting", date, at, null, "方案会", "会议摘要",
+    private fun card() = SkillCard(1, "meeting", "会议纪要", "meeting", date.toKotlinLocalDate(), at, null, "方案会", "会议摘要",
         listOf(SkillField("points", "要点", FieldType.Bullets, ""), SkillField("todo", "清单", FieldType.Checklist, ""), SkillField("quotes", "原话", FieldType.Quotes, "")),
         mapOf("points" to FieldValue(items = listOf("报价")), "todo" to FieldValue(items = listOf("发送"), checked = listOf(true)), "quotes" to FieldValue(quotes = listOf(CardQuote(1, "我", at, "引用\n下一行")))), listOf(1), at, false)
     @Test fun dailyJsonHasCompleteFieldsAndOptionalLinesSurviveRetrySnapshot() {
         val input = ReviewInput(listOf(event()), listOf(MemoryItemEntity(1, 1, "待办", "我要做", "发报价", null, at, "小王", 1, "Accepted", at)))
-        val review = DailyReview(date, "简述", listOf(ReviewSection("一句话", listOf("内容"), listOf(1))), at)
+        val review = DailyReview(date.toKotlinLocalDate(), "简述", listOf(ReviewSection("一句话", listOf("内容"), listOf(1))), at)
         val lines = listOf(TranscriptLineEntity(1, 1, at, at + 1000, "原句", "speaker1", "我"))
         val j = dailyMemoryJson(date, at, "# 文档", review, input, listOf(card()), lines)
         assertEquals(setOf("type", "version", "app", "date", "generatedAt", "markdown", "data"), j.keys().asSequence().toSet())

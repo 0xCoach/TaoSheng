@@ -4,7 +4,7 @@ import app.resound.platform.SharedJson
 import kotlinx.serialization.json.*
 
 /** 协议迁移的窄适配层：仅封装 JsonElement，保留旧服务的数字字符串与 null 语义。 */
-internal class Obj private constructor(private val fields: MutableMap<String, Any?>) {
+class Obj private constructor(private val fields: MutableMap<String, Any?>) {
     constructor() : this(linkedMapOf())
     constructor(text: String) : this((SharedJson.parseToJsonElement(text) as JsonObject).mapValues { unwrap(it.value) }.toMutableMap())
     fun put(key: String, value: Any?): Obj = apply { if (value == null) fields.remove(key) else fields[key] = value }
@@ -24,24 +24,29 @@ internal class Obj private constructor(private val fields: MutableMap<String, An
     fun optString(key: String, fallback: String = "") = fields[key]?.toString() ?: fallback
     fun optLong(key: String, fallback: Long = 0) = fields[key]?.toString()?.toDoubleOrNull()?.toLong() ?: fallback
     fun optInt(key: String, fallback: Int = 0) = optLong(key, fallback.toLong()).toInt()
+    fun getLong(key: String) = getString(key).let { it.toLongOrNull() ?: it.toDouble().toLong() }
+    fun getDouble(key: String) = getString(key).toDouble()
+    fun toString(indent: Int) = kotlinx.serialization.json.Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), element())
     fun getInt(key: String) = getString(key).toDouble().toInt()
     fun optBoolean(key: String, fallback: Boolean = false) = fields[key]?.toString()?.lowercase()?.toBooleanStrictOrNull() ?: fallback
     fun element(): JsonObject = JsonObject(fields.mapValues { wrap(it.value) })
     override fun toString() = wire(element())
     companion object { val NULL = JsonNull }
 }
-internal class Arr private constructor(private val items: MutableList<Any?>, unused: Unit) {
+class Arr private constructor(private val items: MutableList<Any?>, unused: Unit) {
     constructor() : this(mutableListOf(), Unit)
     constructor(text: String) : this((SharedJson.parseToJsonElement(text) as JsonArray).map { unwrap(it) }.toMutableList(), Unit)
     constructor(items: List<Any?>) : this(items.toMutableList(), Unit)
     fun put(value: Any?): Arr = apply { items.add(value ?: JsonNull) }
     fun length() = items.size
+    fun get(i: Int): Any = items[i]!!.let { if (it is JsonPrimitive && !it.isString && it != JsonNull) it.longOrNull ?: it.doubleOrNull ?: it.booleanOrNull ?: it else it }
+    fun optBoolean(i: Int, fallback: Boolean = false) = items.getOrNull(i)?.toString()?.lowercase()?.toBooleanStrictOrNull() ?: fallback
     fun getJSONObject(i: Int) = items[i] as Obj
     fun optJSONObject(i: Int) = items.getOrNull(i) as? Obj
     fun getString(i: Int) = items[i].toString()
     fun optString(i: Int) = items.getOrNull(i)?.toString().orEmpty()
     fun isNull(i: Int) = items.getOrNull(i) == null || items.getOrNull(i) == JsonNull
-    fun getLong(i: Int) = items[i].toString().toDouble().toLong()
+    fun getLong(i: Int) = items[i].toString().let { it.toLongOrNull() ?: it.toDouble().toLong() }
     fun element() = JsonArray(items.map(::wrap))
     override fun toString() = wire(element())
 }

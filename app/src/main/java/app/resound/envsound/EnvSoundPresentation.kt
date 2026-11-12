@@ -1,5 +1,6 @@
 package app.resound.envsound
 
+import kotlinx.datetime.toJavaLocalDate
 import app.resound.AppGraph
 import app.resound.review.DailyReview
 import app.resound.skills.*
@@ -22,8 +23,8 @@ object EnvSoundPresentation {
         if(!AppGraph.isEnvSoundReady) return card
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return card
         if(!repo.settings.value.showInSummaries) return card
-        val start = if(card.skillId == "weekly") card.date.with(DayOfWeek.MONDAY).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.at
-        val end = if(card.skillId == "weekly") card.date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.endAt ?: return card
+        val start = if(card.skillId == "weekly") card.date.toJavaLocalDate().with(DayOfWeek.MONDAY).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.at
+        val end = if(card.skillId == "weekly") card.date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.endAt ?: return card
         val events = repo.eventMetadata.value.filter { it.startAt < end && it.endAt > start && it.createdAt <= card.generatedAt }
             .sortedBy { it.startAt }
         if (card.skillId == "weekly") return weekly(card, events.mapNotNull { repo.presentation.value[it.id] })

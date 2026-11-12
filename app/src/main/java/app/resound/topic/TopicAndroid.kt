@@ -123,7 +123,7 @@ class TopicActionReceiver : BroadcastReceiver() {
                     "start" -> {
                         val result = repository.start(AppGraph.quickPrefs.lastTopicKind.value, null)
                         when {
-                            result.error != null -> TopicNotifications.error(context, result.error)
+                            result.error != null -> TopicNotifications.error(context, requireNotNull(result.error))
                             result.recordingDisabled -> TopicNotifications.show(context, result.topicId!!, TopicReminder.RecordingOff, scheduled = false)
                             result.quietOverride -> TopicNotifications.error(context, TopicQuickPolicy.QUIET_STARTED)
                         }

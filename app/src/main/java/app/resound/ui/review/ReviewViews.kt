@@ -1,5 +1,6 @@
 package app.resound.ui.review
 
+import kotlinx.datetime.toJavaLocalDate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,7 +44,7 @@ import java.util.Locale
 fun ReviewRow(review: DailyReview, onOpen: () -> Unit) {
     val c = Rs.colors
     Column(Modifier.fillMaxWidth().background(c.accentSoft).springClick(onOpen).padding(horizontal = 18.dp, vertical = 14.dp)) {
-        Text(dayTitle(review.date), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
+        Text(dayTitle(review.date.toJavaLocalDate()), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
         Spacer(Modifier.height(4.dp))
         Text(review.brief, style = RsType.body, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
@@ -62,7 +63,7 @@ fun ReviewSheet(review: DailyReview, onClose: () -> Unit) {
     ) {
         SelectionContainer {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
-                Text("${dayTitle(review.date)} · 日报", style = RsType.caption, color = c.accent)
+                Text("${dayTitle(review.date.toJavaLocalDate())} · 日报", style = RsType.caption, color = c.accent)
                 ReportCopyActions(blocks = { app.resound.ui.dailyReviewCopyBlocks(review) }) { dailyReviewCopyText(review) }
                 Spacer(Modifier.height(6.dp))
                 val lead = review.sections.firstOrNull { it.title == "一句话" }?.lines?.firstOrNull() ?: review.brief

@@ -1,5 +1,6 @@
 package app.resound.ui.importer
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -88,7 +89,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
     val r = remember(id) { kinds.record(id) }.collectAsState(initial = null).value ?: return
     val date = remember(r.startAt) { java.time.Instant.ofEpochMilli(r.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
+    val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
     val segments by remember(date) { AppGraph.transcripts.day(date) }.collectAsState(initial = emptyList())
     val events = remember(date) { AppGraph.memory.events(date) }.collectAsState(initial = null).value.orEmpty()
     var openedCard by remember { mutableStateOf<SkillCard?>(null) }

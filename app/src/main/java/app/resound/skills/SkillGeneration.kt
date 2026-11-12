@@ -1,5 +1,6 @@
 package app.resound.skills
 
+import kotlinx.datetime.toJavaLocalDate
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import androidx.work.*
@@ -10,7 +11,9 @@ import app.resound.push.LocalNotifier
 import app.resound.push.Notifier
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.toKotlinLocalDate
+import app.resound.skills.core.toEpochDay
 import java.util.concurrent.TimeUnit
 
 /** 页面只提交意图；等待、恢复及结果观察均使用 Application 的 scope。 */
@@ -40,6 +43,7 @@ class SkillGeneration(
         }
     }
 
+    fun generate(id: String, date: java.time.LocalDate) = generate(id, date.toKotlinLocalDate())
     fun generate(id: String, date: LocalDate) = synchronized(lock) {
         val key = id to date
         if (key in active.value) return@synchronized
@@ -143,12 +147,12 @@ class SkillGenerationWork(context: Context, params: WorkerParameters) : Coroutin
 
     override suspend fun doWork(): Result {
         val skillId = inputData.getString(SkillGeneration.SKILL) ?: return Result.failure()
-        val date = runCatching { LocalDate.parse(inputData.getString(SkillGeneration.DATE)) }.getOrNull() ?: return Result.failure()
+        val date = runCatching { LocalDate.parse(requireNotNull(inputData.getString(SkillGeneration.DATE))) }.getOrNull() ?: return Result.failure()
         val repository = AppGraph.skills as LocalSkillRepository
         // 不吞 CancellationException：系统停止后由 WorkManager 重新排队，不发布终态。
         val attempt = if (skillId == "weekly") withReviewForeground {
-            repository.runGeneration(skillId, date, canRetry = runAttemptCount < 2)
-        } else repository.runGeneration(skillId, date, canRetry = runAttemptCount < 2)
+            repository.runGeneration(skillId, date.toJavaLocalDate(), canRetry = runAttemptCount < 2)
+        } else repository.runGeneration(skillId, date.toJavaLocalDate(), canRetry = runAttemptCount < 2)
         if (attempt.retryable) return Result.retry()
         val result = attempt.result
         val notice = SkillGenerationNotice.from(repository.skills.value.find { it.id == skillId }?.name ?: "技能", date, result)

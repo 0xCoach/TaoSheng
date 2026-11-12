@@ -1,5 +1,6 @@
 package app.resound.ui.preview
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.skills.CardQuote
 import app.resound.skills.FieldType
 import app.resound.skills.FieldValue
@@ -66,7 +67,7 @@ class FakeSkillRepository : SkillRepository {
 
     private val today = LocalDate.now()
     private val _cards = MutableStateFlow(listOf(
-        SkillCard(1, "meeting", "会议速记", "meeting", today, at(today, 10, 30), at(today, 11, 15), "回响技能框架方案评审",
+        SkillCard(1, "meeting", "会议速记", "meeting", today.toKotlinLocalDate(), at(today, 10, 30), at(today, 11, 15), "回响技能框架方案评审",
             "定了用统一卡片样式、支持手动生成，卡片放进记忆按天里。", meetingFields, mapOf(
                 "topic" to FieldValue(text = "回响要不要借鉴百宝箱做技能"),
                 "conclusion" to FieldValue(text = "做。卡片用回响统一样式，可以手动生成，不单独加选项卡，放进记忆按天和按类。"),
@@ -77,7 +78,7 @@ class FakeSkillRepository : SkillRepository {
             ), emptyList(), at(today, 11, 20), false),
     ))
 
-    override fun cards(date: LocalDate): Flow<List<SkillCard>> = _cards.map { l -> l.filter { it.date == date }.sortedBy { it.at } }
+    override fun cards(date: kotlinx.datetime.LocalDate): Flow<List<SkillCard>> = _cards.map { l -> l.filter { it.date == date }.sortedBy { it.at } }
     override fun cardsOf(skillId: String): Flow<List<SkillCard>> = _cards.map { l -> l.filter { it.skillId == skillId }.sortedByDescending { it.at } }
     override fun card(id: Long): Flow<SkillCard?> = _cards.map { l -> l.firstOrNull { it.id == id } }
     override val skillsWithCards: Flow<List<String>> = _cards.map { l -> l.sortedByDescending { it.at }.map { it.skillId }.distinct() }
@@ -104,11 +105,11 @@ class FakeSkillRepository : SkillRepository {
     }
     override fun resetPrompt(skillId: String) { prompts.remove(skillId); edit(skillId) { it.copy(promptCustomized = false) } }
 
-    override suspend fun runNow(skillId: String, date: LocalDate): SkillRunResult {
+    override suspend fun runNow(skillId: String, date: kotlinx.datetime.LocalDate): SkillRunResult {
         delay(1200)
         return SkillRunResult.Nothing("示例数据：这天没有够格的内容")
     }
-    override suspend fun trial(skillId: String, date: LocalDate, promptOverride: String?): SkillRunResult {
+    override suspend fun trial(skillId: String, date: kotlinx.datetime.LocalDate, promptOverride: String?): SkillRunResult {
         delay(1200)
         return SkillRunResult.Cards(_cards.value.take(1).map { it.copy(id = -1, date = date) })
     }

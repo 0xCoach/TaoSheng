@@ -1,5 +1,6 @@
 package app.resound.push
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.content.Context
 import androidx.work.*
@@ -90,7 +91,7 @@ class PushChannelsTest {
             }
             assertEquals(3, fake.requests.size)
             // JSON 不受支持时，带回顾的消息也必须真正按 Markdown 渲染。
-            val review = app.resound.review.DailyReview(java.time.LocalDate.parse("2026-10-23"), "简述", emptyList(), 1)
+            val review = app.resound.review.DailyReview(java.time.LocalDate.parse("2026-10-23").toKotlinLocalDate(), "简述", emptyList(), 1)
             val reviewMessage = message.copy(review = review)
             fake.reply("{\"errcode\":0}")
             fake.transport.send(PushKind.WeCom, PushFormat.Json, configs.getValue(PushKind.WeCom), reviewMessage).getOrThrow()

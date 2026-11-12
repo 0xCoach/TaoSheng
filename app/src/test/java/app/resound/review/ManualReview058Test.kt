@@ -1,5 +1,6 @@
 package app.resound.review
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -59,7 +60,7 @@ class ManualReview058Test {
     }
     private fun assertEnded(r: RoomReviewRepository, error: String?) {
         assertEquals(error, r.state.value.lastError)
-        assertEquals(if (error == null) null else date, r.state.value.lastErrorDate)
+        assertEquals(if (error == null) null else date.toKotlinLocalDate(), r.state.value.lastErrorDate)
         assertFalse(r.state.value.generating)
         assertNull(r.state.value.stage)
     }
@@ -69,7 +70,7 @@ class ManualReview058Test {
         r.run(date, false)
         assertEnded(r, "10月28日 22:00 – 10月29日 22:00 没有可写进回顾的事")
         assertEquals(date.toString(), prefs.getString("lastErrorDate", null))
-        assertEquals(date, repo().state.value.lastErrorDate)
+        assertEquals(date.toKotlinLocalDate(), repo().state.value.lastErrorDate)
         r.run(date, true)
         assertEnded(r, null)
         assertEquals(0, calls)

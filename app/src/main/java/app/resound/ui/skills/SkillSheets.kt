@@ -1,5 +1,6 @@
 package app.resound.ui.skills
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -94,8 +95,8 @@ fun MakeCardSheet(date: LocalDate, repo: SkillRepository, onDismiss: () -> Unit)
     val label = if (date == LocalDate.now()) "今天" else date.format(DateTimeFormatter.ofPattern("M月d日"))
     RsSheet("给$label 生成卡片", "选一个技能，用这天的记录在后台生成，好了会发通知；已有的同一张会更新。关着的技能也能手动生成。", onDismiss = onDismiss) {
         skills.forEach { s ->
-            val busy = (s.id to date) in generating
-            val outcome = generated[s.id to date]?.takeIf { s.id in asked && !busy }?.let { r ->
+            val busy = (s.id to date.toKotlinLocalDate()) in generating
+            val outcome = generated[s.id to date.toKotlinLocalDate()]?.takeIf { s.id in asked && !busy }?.let { r ->
                 when (r) {
                     is SkillRunResult.Cards -> "出了 ${r.cards.size} 张，已放进这天"
                     is SkillRunResult.Nothing -> "没出卡：${r.reason}"
@@ -106,7 +107,7 @@ fun MakeCardSheet(date: LocalDate, repo: SkillRepository, onDismiss: () -> Unit)
                 .springClick {
                     if (busy) return@springClick
                     asked = asked + s.id
-                    repo.generate(s.id, date)
+                    repo.generate(s.id, date.toKotlinLocalDate())
                 }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 SkillIcon(s.icon, 38.dp)
                 Spacer(Modifier.width(12.dp))

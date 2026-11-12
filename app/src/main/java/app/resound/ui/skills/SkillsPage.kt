@@ -1,5 +1,6 @@
 package app.resound.ui.skills
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.appDisplayName
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -240,12 +241,16 @@ private fun weekdayText(days: Set<Int>): String = when {
 
 private fun hm(minutes: Int) = "%d:%02d".format(minutes / 60, minutes % 60)
 
-private fun statusLine(st: SkillStatus?): Pair<String, Boolean>? = when {
-    st == null -> null
-    st.running -> "正在运行…" to false
-    st.lastFailed && st.lastResult != null -> st.lastResult to true
-    st.lastRunAt != null && st.lastResult != null -> "${shortTime(st.lastRunAt)} ${st.lastResult}" to false
-    else -> null
+private fun statusLine(st: SkillStatus?): Pair<String, Boolean>? {
+    val lastResult = st?.lastResult
+    val lastRunAt = st?.lastRunAt
+    return when {
+        st == null -> null
+        st.running -> "正在运行…" to false
+        st.lastFailed && lastResult != null -> lastResult to true
+        lastRunAt != null && lastResult != null -> "${shortTime(lastRunAt)} ${lastResult}" to false
+        else -> null
+    }
 }
 
 private fun shortTime(at: Long): String {
@@ -479,15 +484,15 @@ private fun TryCard(s: Skill, repo: SkillRepository, prompt: String?) {
     var saved by remember { mutableStateOf(false) }
     val date = LocalDate.now().minusDays(day.toLong())
     // 生成走后台（切页面不中断），试跑只是预览、留在本页
-    val generating = (s.id to date) in repo.generating.collectAsState().value
-    val generated = repo.generated.collectAsState().value[s.id to date]
+    val generating = (s.id to date.toKotlinLocalDate()) in repo.generating.collectAsState().value
+    val generated = repo.generated.collectAsState().value[s.id to date.toKotlinLocalDate()]
     if (saved && !generating && generated != null) result = generated
     fun go(save: Boolean) {
         if (busy || generating) return
         result = null; saved = save
-        if (save) { repo.generate(s.id, date); return }
+        if (save) { repo.generate(s.id, date.toKotlinLocalDate()); return }
         busy = true
-        scope.launch { result = try { repo.trial(s.id, date, prompt) } finally { busy = false } }
+        scope.launch { result = try { repo.trial(s.id, date.toKotlinLocalDate(), prompt) } finally { busy = false } }
     }
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Text("试一下", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)

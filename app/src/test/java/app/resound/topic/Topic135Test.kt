@@ -22,7 +22,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.SQLiteMode
 import java.io.File
-import java.time.DayOfWeek
+import kotlinx.datetime.DayOfWeek
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -171,7 +171,7 @@ class Topic135Test {
     @Test fun overlappingLiveRetroactiveAndFutureWeeklyReservationsAreRejected() = runBlocking {
         val future = time + 10 * 86_400_000L
         val day = java.time.Instant.ofEpochMilli(future).atZone(ZoneId.of("Asia/Shanghai")).dayOfWeek
-        assertTrue(repo.schedule(TopicKind.Meeting, null, future, future + 60_000, setOf(day)).isSuccess)
+        assertTrue(repo.schedule(TopicKind.Meeting, null, future, future + 60_000, setOf(DayOfWeek.valueOf(day.name))).isSuccess)
         assertTrue(repo.schedule(TopicKind.Meeting, null, future + 7 * 86_400_000L, future + 7 * 86_400_000L + 60_000).isFailure)
         val saturday = ZonedDateTime.of(2027, 1, 2, 9, 0, 0, 0, ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
         assertTrue(repo.schedule(TopicKind.Meeting, null, saturday, saturday + 60 * 60 * 60_000L,

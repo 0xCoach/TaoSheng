@@ -1,5 +1,6 @@
 package app.resound.push
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.review.DailyReview
 import app.resound.review.ReviewSection
 import okhttp3.Request
@@ -55,7 +56,7 @@ class Webhook057Test {
     }
 
     @Test fun reviewUsesReviewDateAndMarkdownBody() {
-        val review = DailyReview(LocalDate.parse("2026-10-28"), "摘要",
+        val review = DailyReview(LocalDate.parse("2026-10-28").toKotlinLocalDate(), "摘要",
             listOf(ReviewSection("要紧的", listOf("一件事"), listOf(null))), 1)
         val r = request(PushFormat.Markdown, message.copy(review = review, topic = PushTopic.DailyReview))
         assertEquals("# 中文标题\n\n${review.pushBody(PushFormat.Markdown)}", r.text())

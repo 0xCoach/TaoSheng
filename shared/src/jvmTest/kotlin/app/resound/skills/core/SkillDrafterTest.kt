@@ -1,15 +1,10 @@
-package app.resound.skills
+package app.resound.skills.core
+import app.resound.skills.*
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
-import android.app.Application
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class SkillDrafterTest {
     @Test fun askReturnsQuestionWithOptions() {
         val step = SkillDrafter.step("""{"ask":"想什么时候看？","options":["每晚","每次发生时"]}""", "my_x", mustFinish = false)

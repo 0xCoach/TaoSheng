@@ -6,6 +6,7 @@ import app.resound.data.CaptureDatabase
 import app.resound.data.MemoryEventEntity
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
+import app.resound.digest.snapshot
 import app.resound.digest.LlmPreset
 import app.resound.digest.LlmReply
 import app.resound.push.Notifier
@@ -108,7 +109,7 @@ class SkillGate146Test {
         nothing(r.trial("meeting", day), "不到 10 分钟")
         assertEquals(0, calls)
         assertEquals(SkillGateStats(0, 0, 0), SkillGateRules.stats(gate,
-            SkillInputs.gateLines(db.skills().eventLines(listOf(1)), SkillSpeakers.All)))
+            SkillInputs.gateLines(db.skills().eventLines(listOf(1)).map { it.snapshot() }, SkillSpeakers.All)))
         official = official.copy(skill = official.skill.copy(gate = gate.copy(countVoiceInput = true)))
         files.reload()
         reply = output(card("typed", "10:00", "10:20"))
@@ -128,7 +129,7 @@ class SkillGate146Test {
         assertEquals(1, calls); assertEquals(1, result.cards.size)
         assertTrue(input.contains("原话按身份/字数裁剪"))
         val source = SkillInputs.source(db.skills(), current(), day, null, start + 12 * 3_600_000)
-        assertTrue(SkillInputs.boundedLines(source.lines, SkillSpeakers.All).size < 20)
+        assertTrue(app.resound.skills.core.SkillInputs.boundedLines(source.lines, SkillSpeakers.All).size < 20)
         assertEquals(1, db.skills().dayRows("meeting", day.toEpochDay()).size)
     }
 

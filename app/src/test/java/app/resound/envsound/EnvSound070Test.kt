@@ -1,5 +1,6 @@
 package app.resound.envsound
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -140,9 +141,9 @@ class EnvSound070Test {
         val id=db.memory().insertEvent(MemoryEventEntity(startAt=clock,endAt=clock+60000,scene="其他",title="事情",summary="原摘要",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=clock,model="test"))
         withTimeout(3000) { repo.presentation.first { id in it };repo.eventMetadata.first { it.any { e -> e.id == id } } }
         app.resound.AppGraph.envSound=repo
-        val review=app.resound.review.DailyReview(date,"摘要",listOf(app.resound.review.ReviewSection("发生了什么",listOf("事情"),listOf(id))),clock)
+        val review=app.resound.review.DailyReview(date.toKotlinLocalDate(),"摘要",listOf(app.resound.review.ReviewSection("发生了什么",listOf("事情"),listOf(id))),clock)
         assertTrue(EnvSoundPresentation.decorate(review).sections[0].lines[0].contains("期间有敲门声"))
-        val card=app.resound.skills.SkillCard(1,"weekly","周回顾","",date,clock,null,"标题","摘要",emptyList(),emptyMap(),emptyList(),clock,false)
+        val card=app.resound.skills.SkillCard(1,"weekly","周回顾","",date.toKotlinLocalDate(),clock,null,"标题","摘要",emptyList(),emptyMap(),emptyList(),clock,false)
         assertEquals(listOf("敲门声", "雨"), EnvSoundPresentation.decorate(card).values.getValue("env_sound_impression").items)
         val overview = EnvSoundPresentation.weekly(card, listOf(
             EventSounds(id,setOf(EnvTag.Rain),setOf(SpecialSound.Knock),false),

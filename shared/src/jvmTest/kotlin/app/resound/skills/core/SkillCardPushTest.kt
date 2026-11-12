@@ -1,12 +1,13 @@
-package app.resound.skills
+package app.resound.skills.core
+import app.resound.skills.*
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 class SkillCardPushTest {
     @Test fun listsFieldsUnderSummaryAndSkipsEmptyOnes() {
-        val card = SkillCard(1, "evening", "收工打卡", "moon", LocalDate.of(2026, 10, 27), 0, null, "周二收工", "推进了省电改造。",
+        val card = SkillCard(1, "evening", "收工打卡", "moon", LocalDate(2026, 10, 27), 0, null, "周二收工", "推进了省电改造。",
             listOf(
                 SkillField("done", "今天做了什么", FieldType.Bullets, ""),
                 SkillField("progress", "推进到哪", FieldType.Paragraph, ""),
@@ -21,7 +22,7 @@ class SkillCardPushTest {
             ), emptyList(), 0, false)
         assertEquals("收工打卡 · 周二收工", SkillCardPush.title(card))
         assertEquals("""
-            ${app.resound.OutputTime().moment(card.at)}
+            1970-01-01 08:00
             推进了省电改造。
             【今天做了什么】
             · 改收音循环
@@ -30,6 +31,6 @@ class SkillCardPushTest {
             ☑ 测耗电
             ☐ 发版
             【收工一句话】稳步推进
-        """.trimIndent(), SkillCardPush.body(card))
+        """.trimIndent(), SkillCardPush.body(card, { "1970-01-01 08:00" }, { _, _ -> "unused" }, { it.toString() }))
     }
 }

@@ -20,7 +20,7 @@ data class SkillCardRow(
     /** 合并后的旧 entity 也要保留，避免换 entity 后软删除失效。 */
     val aliasesJson: String = "[]",
 ) {
-    fun card() = app.resound.envsound.EnvSoundPresentation.decorate(SkillCard(id, skillId, skillName, icon, LocalDate.ofEpochDay(date), at, endAt, title, summary,
+    fun card() = app.resound.envsound.EnvSoundPresentation.decorate(SkillCard(id, skillId, skillName, icon, kotlinx.datetime.LocalDate.fromEpochDays(date.toInt()), at, endAt, title, summary,
         SkillJson.fields(JSONArray(fieldsJson)), SkillJson.values(JSONObject(valuesJson)),
         JSONArray(evidenceJson).elements().map { (it as Number).toLong() }, generatedAt, manual))
     fun entities() = JSONArray(aliasesJson).elements().map { it.toString() }.toSet() + entity
@@ -88,29 +88,15 @@ abstract class SkillDao {
     /** 删除判断、手动恢复、合并和日上限在同一事务里完成。 */
     @Transaction
     open suspend fun mergeWithReason(incoming: SkillCardRow, max: Int, manual: Boolean = false): SkillMergeResult {
-        val existing = dayRows(incoming.skillId, incoming.date)
-        if (!manual && existing.any { it.deletedAt != null && incoming.entity in it.entities() }) return SkillMergeResult.Deleted
-        var matches = existing.filter { (manual || it.deletedAt == null) && incoming.entity in it.entities() }
-        var start = minOf(incoming.at, matches.minOfOrNull { it.at } ?: incoming.at)
-        var end = (matches.mapNotNull { it.endAt } + listOfNotNull(incoming.endAt)).maxOrNull()
-        // 闭包处理：新时段可能连上两张此前分开的会议卡。
-        if (incoming.endAt != null) do {
-            val previous = matches.size
-            if (!manual && existing.any { it.deletedAt != null && it.endAt != null && it.at <= end!! && it.endAt >= start }) return SkillMergeResult.Deleted
-            matches = existing.filter { (manual || it.deletedAt == null) && (it in matches || (it.endAt != null && it.at <= end!! && it.endAt >= start)) }
-            start = minOf(start, matches.minOfOrNull { it.at } ?: start)
-            end = (matches.mapNotNull { it.endAt } + listOfNotNull(end)).maxOrNull()
-        } while (matches.size != previous)
-        val activeCount = existing.count { it.deletedAt == null }
-        if (matches.none { it.deletedAt == null } && activeCount >= max) return SkillMergeResult.Full(activeCount)
-        val keep = matches.minByOrNull { it.id }
-        val allEvidence = (matches.flatMap { JSONArray(it.evidenceJson).elements() } + JSONArray(incoming.evidenceJson).elements()).distinct()
-        val merged = incoming.copy(id = keep?.id ?: 0, entity = keep?.entity ?: incoming.entity,
-            at = if (incoming.endAt != null) start else incoming.at, endAt = end,
-            aliasesJson = JSONArray((matches.flatMap { it.entities() } + incoming.entity).distinct()).toString(),
-            evidenceJson = JSONArray(allEvidence).toString(), deletedAt = null)
-        if (matches.size > 1) removeMerged(matches.filter { it.id != keep!!.id }.map { it.id })
-        val id = save(merged)
-        return SkillMergeResult.Saved(merged.copy(id = if (merged.id == 0L) id else merged.id), matches.none { it.deletedAt == null })
+        return when (val plan = app.resound.skills.core.SkillMergeRules.merge(incoming.snapshot(),dayRows(incoming.skillId,incoming.date).map { it.snapshot() },max,manual)) {
+            app.resound.skills.core.SkillMergePlan.Deleted -> SkillMergeResult.Deleted
+            is app.resound.skills.core.SkillMergePlan.Full -> SkillMergeResult.Full(plan.count)
+            is app.resound.skills.core.SkillMergePlan.Saved -> {
+                if (plan.removeIds.isNotEmpty()) removeMerged(plan.removeIds)
+                val row = plan.row.android()
+                val id = save(row)
+                SkillMergeResult.Saved(row.copy(id = if (row.id == 0L) id else row.id),plan.isNew)
+            }
+        }
     }
 }

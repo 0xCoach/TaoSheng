@@ -1,5 +1,6 @@
 package app.resound.diary
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -47,7 +48,7 @@ class LocalDiaryRepository(
         var date = from
         while (!date.isAfter(to)) {
             val sections = mutableListOf<String>()
-            reviews.daily(date).first()?.let { review ->
+            reviews.daily(date.toKotlinLocalDate()).first()?.let { review ->
                 val content = review.sections.mapNotNull { section ->
                     val lines = section.lines.filter { it.isNotBlank() }
                     if (lines.isEmpty()) null

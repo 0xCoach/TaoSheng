@@ -3,9 +3,9 @@ package app.resound.push
 import app.resound.review.DailyReview
 import app.resound.review.ReviewSection
 import org.json.JSONObject
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
-internal fun DailyReview.pushDate(): String = "${date.monthValue}月${date.dayOfMonth}日"
+internal fun DailyReview.pushDate(): String = "${date.monthNumber}月${date.dayOfMonth}日"
 internal fun DailyReview.pushTitle(): String = "${pushDate()}回顾"
 
 internal fun DailyReview.pushBody(format: PushFormat): String = PushBodyRules.body(

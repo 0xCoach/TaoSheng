@@ -62,7 +62,7 @@ data class InnerPage(val title: String, val backLabel: String, val onBack: () ->
 
 val LocalSettingsInner = androidx.compose.runtime.staticCompositionLocalOf<(InnerPage?) -> Unit> { {} }
 
-enum class SettingsPage(val title: String) { Skills("整理技能"), Capture("录音与后台"), Transcript("原话与转写"), Model("整理模型"), Voiceprint("声纹与人物"), Review("每日回顾"), Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境音识别"), Location("足迹"), Backup("数据备份"), Update("版本更新"), About("关于涛声") }
+enum class SettingsPage(val title: String) { Skills("整理技能"), Capture("录音与后台"), Devices("外接设备"), Advanced("高级与诊断"), Transcript("原话与转写"), Model("模型与整理时间"), Voiceprint("声纹与人物"), Review("每日回顾"), Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境音识别"), Location("足迹"), Backup("数据备份"), Update("版本更新"), About("关于涛声") }
 
 /**
  * 设置：iOS 设置页式分组圆角列表。点一行进入二级页面，左上角返回或系统返回键回到列表。

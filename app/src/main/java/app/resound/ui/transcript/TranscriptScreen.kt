@@ -151,7 +151,7 @@ fun TranscriptScreen(
         val (d, segId) = focus ?: return@LaunchedEffect
         if (d != date) return@LaunchedEffect
         val i = segments?.indexOfFirst { it.segmentId == segId } ?: return@LaunchedEffect
-        if (i >= 0) { listState.animateScrollToItem(i + 2 + (if (settingsOpen || !hasKey) 1 else 0)); PlayerNav.transcriptFocus = null }
+        if (i >= 0) { listState.animateScrollToItem(i + 3 + (if (app.resound.AppGraph.isHotwordsReady) 1 else 0)); PlayerNav.transcriptFocus = null }
     }
     var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var boxTop by remember { mutableStateOf(0f) }
@@ -170,20 +170,21 @@ fun TranscriptScreen(
     val chosen = segments.orEmpty().filter { it.segmentId in selection.ids }.sortedBy { it.startAt }
     Box(Modifier.fillMaxSize().background(c.background).onGloballyPositioned { boxTop = it.boundsInRoot().top }) {
     LazyColumn(
-        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).onGloballyPositioned { viewport = it.boundsInRoot() },
+        Modifier.fillMaxSize().onGloballyPositioned { viewport = it.boundsInRoot() },
         state = listState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomPadding + 24.dp + if (selection.active) 120.dp else 0.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp + if (selection.active) 120.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
-            QueueCard(repo, hasKey, realtime, local, settingsOpen || !hasKey, footer = {
+            QueueCard(repo, hasKey, realtime, local, settingsShown = true, footer = {
                 if (app.resound.AppGraph.isUsageReady) app.resound.ui.settings.AsrUsageRow(app.resound.AppGraph.usage)
                 if (app.resound.AppGraph.isOriginalAudioReady) OriginalAudioRow(app.resound.AppGraph.originalAudio)
                 RecordingPackRow()
             }) { settingsOpen = !settingsOpen }
         }
-        // 收起时不占位置（用列表自带的出现/消失动画）
-        if (settingsOpen || !hasKey) item(key = "settings") { SettingsCard(settings, onSaved = { settingsOpen = false }) }
+        item(key = "settings") { SettingsCard(settings, onSaved = {}) }
+        // 热词并进本页（原来是设置首页单独一行）
+        if (app.resound.AppGraph.isHotwordsReady) item(key = "hotwords") { HotwordCard(app.resound.AppGraph.hotwords) }
         item {
             val list = segments.orEmpty()
             Section("录音原话", trailing = {
@@ -288,8 +289,9 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
                 Text(it, style = RsType.headline, color = c.text)
             }
             Spacer(Modifier.weight(1f))
-            Text(
-                if (settingsShown) "收起设置" else "模型和转写设置",
+            // 11-12：转写设置在本页直接平铺，不再要点开
+            if (!settingsShown) Text(
+                "模型和转写设置",
                 style = RsType.subhead,
                 color = c.accent,
                 modifier = Modifier.springClick(onToggleSettings).padding(4.dp),

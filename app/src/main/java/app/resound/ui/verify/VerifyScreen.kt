@@ -91,33 +91,75 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** 录音与后台页：录音状态、当天统计、守护记录、小米设置引导。 */
+/**
+ * 录音与后台页（11-12 精简）：状态、停录时段、录音来源（设备改成一行入口）、导入、后台。
+ * 统计、守护记录、麦克风占用、导出收进“高级与诊断”；外接设备有自己的页。
+ */
 @Composable
 fun VerifyScreen(
     capture: CaptureController,
     stats: CaptureStatsRepository,
     setup: SetupGuide,
-    themeMode: ThemeMode,
-    onThemeMode: (ThemeMode) -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp,
 ) {
+    val c = Rs.colors
+    LazyColumn(
+        Modifier.fillMaxSize().background(c.background),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+    ) {
+        item { StatusCard(capture) }
+        if (app.resound.AppGraph.isQuietScheduleReady) item { QuietSection(app.resound.AppGraph.quietSchedule) }
+        if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
+        if (app.resound.AppGraph.isDevicesReady) item {
+            LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }
+        }
+        if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
+        if (app.resound.AppGraph.isFolderImportReady) item { FolderImportSection(app.resound.AppGraph.folderImports) }
+        item { SetupSection(setup) }
+        item { LinkRow("运行记录与诊断", "统计 · 守护 · 麦克风占用") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Advanced) } }
+    }
+}
+
+/** 外接设备页：原来夹在“录音与后台”里，11-12 单独成页 */
+@Composable
+fun DevicesPage(bottomPadding: androidx.compose.ui.unit.Dp) {
+    val c = Rs.colors
+    LazyColumn(
+        Modifier.fillMaxSize().background(c.background),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+    ) {
+        if (app.resound.AppGraph.isDevicesReady) item { DeviceSection(app.resound.AppGraph.devices, app.resound.AppGraph.deviceCards, app.resound.AppGraph.deviceScanError) }
+        else item { Text("设备功能准备中", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(4.dp)) }
+    }
+}
+
+/** 设置首页和录音页上“外接设备”一行右侧的状态：“TaoEcho 已连接”“未连接”“已添加 2 个” */
+@Composable
+fun devicesSummary(): String {
+    if (!app.resound.AppGraph.isInputsReady) return "未连接"
+    val status by app.resound.AppGraph.inputs.status.collectAsState()
+    val using = status.using
+    return if (using.kind != app.resound.audio.InputKind.Phone) "${using.name} 已连接" else "未连接"
+}
+
+/** 高级与诊断：整理要求（提示词）、每日统计、守护记录、麦克风占用、导出 */
+@Composable
+fun AdvancedPage(stats: CaptureStatsRepository, bottomPadding: androidx.compose.ui.unit.Dp) {
     val c = Rs.colors
     var dayOffset by remember { mutableIntStateOf(0) }
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
     val day by remember(date) { stats.dayStats(date) }.collectAsState(initial = null)
     val events by remember(date) { stats.watchdogEvents(date) }.collectAsState(initial = emptyList())
-
     LazyColumn(
-        Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp + app.resound.ui.ShellBottomPadding),
+        Modifier.fillMaxSize().background(c.background),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
-        item { Header(themeMode, onThemeMode) }
-        item { StatusCard(capture) }
-        if (app.resound.AppGraph.isQuietScheduleReady) item { QuietSection(app.resound.AppGraph.quietSchedule) }
-        if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
-        if (app.resound.AppGraph.isDevicesReady) item { DeviceSection(app.resound.AppGraph.devices, app.resound.AppGraph.deviceCards, app.resound.AppGraph.deviceScanError) }
-        if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
-        if (app.resound.AppGraph.isFolderImportReady) item { FolderImportSection(app.resound.AppGraph.folderImports) }
+        if (app.resound.AppGraph.isPromptsReady) item {
+            LinkRow("整理要求", "整理时给模型的指令") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Prompts) }
+        }
         item {
             Section("每日统计") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -127,23 +169,23 @@ fun VerifyScreen(
             }
         }
         item { WatchdogSection(remember(events) { compactEvents(events.sortedByDescending { it.at }) }) }
-        item { SetupSection(setup) }
         item { MicHolderSection() }
         item { ExportRow(stats) }
     }
 }
 
+/** 一行入口卡片：标题 + 右侧状态 + › */
 @Composable
-private fun Header(themeMode: ThemeMode, onThemeMode: (ThemeMode) -> Unit) {
+fun LinkRow(title: String, value: String, onClick: () -> Unit) {
     val c = Rs.colors
-    val today = remember { LocalDate.now().format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)) }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
-        Column(Modifier.weight(1f)) {
-            Text(today, style = RsType.subhead, color = c.textSecondary)
-            Spacer(Modifier.height(2.dp))
-            Text(stringResource(R.string.app_name), style = RsType.largeTitle, color = c.text)
+    RsCard(padding = PaddingValues(0.dp)) {
+        Row(Modifier.fillMaxWidth().springClick(onClick).padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = RsType.body, color = c.text, maxLines = 1)
+            Text(value, style = RsType.subhead, color = c.textTertiary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1f).padding(start = 12.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
         }
-        ThemeModePill(themeMode, onThemeMode)
     }
 }
 

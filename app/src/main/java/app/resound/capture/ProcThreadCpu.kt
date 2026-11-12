@@ -35,12 +35,13 @@ internal object ProcThreadCpu {
         require(ticks > 0)
         val directories = requireNotNull(tasks.listFiles()).filter { it.name.toLongOrNull() != null }
         require(directories.isNotEmpty())
-        directories.map { task ->
+        // 列目录和读文件之间线程可能刚好退出：只跳过那一条，不为它丢掉整次采样。
+        directories.mapNotNull { task -> runCatching {
             val stat = requireNotNull(parseStat(File(task, "stat").readText(), ticks))
             val name = File(task, "comm").readText().trimEnd('\n', '\r')
             require(name.isNotEmpty())
             ThreadCpuSample("${task.name}:${stat.startTicks}", if (task.name == mainTid) "main" else name, stat.cpuMs)
-        }
+        }.getOrNull() }.also { require(it.isNotEmpty()) }
     }.getOrNull()
 
     fun read(): List<ThreadCpuSample>? = read(File("/proc/self/task"), android.os.Process.myPid().toString()) {

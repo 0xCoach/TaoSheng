@@ -25,13 +25,16 @@ internal class ThreadCpuDiagnostics {
                 val interactive = runCatching { context.getSystemService(PowerManager::class.java).isInteractive }.getOrNull()
                 val current = ProcThreadCpu.read()
                 val elapsed = previousAt?.let { at - it }?.takeIf { it > 0 }
+                val previous0 = previous
                 val delta = if (elapsed != null && current != null) previous?.let { ThreadCpuRules.delta(it, current) } else null
                 // 失败后下一次重新建基线，避免将线程历史累计值误记为一个采样区间。
                 previous = current
                 previousAt = at
+                val others = if (delta != null && current != null) previous0?.let { ThreadCpuRules.topOthers(it, current) }.orEmpty() else emptyList()
                 val status = when { current == null -> "unavailable"; delta == null -> "baseline"; else -> "ok" }
                 val line = listOf(wall, charging ?: "", interactive ?: "", state, elapsed ?: "",
-                    delta?.entries?.joinToString(";") { "${it.key}=${it.value}" }.orEmpty(), status).joinToString("\t")
+                    delta?.entries?.joinToString(";") { "${it.key}=${it.value}" }.orEmpty(), status,
+                    others.joinToString(";") { "${it.first}=${it.second}" }).joinToString("\t")
                 append(context, line)
             }.onFailure {
                 previous = null
@@ -61,7 +64,7 @@ internal class ThreadCpuDiagnostics {
         }
 
         suspend fun dump(context: Context): String = withContext(Dispatchers.IO) { fileMutex.withLock { runCatching {
-            "时间戳ms\t充电\t亮屏\t录音状态\t距上次ms\t各组CPU增量ms\t采样状态\n" +
+            "时间戳ms\t充电\t亮屏\t录音状态\t距上次ms\t各组CPU增量ms\t采样状态\t其他组前三\n" +
                 rows(file(context)).takeLast(MAX_LINES).joinToString("\n")
         }.getOrDefault("线程CPU诊断读取失败") } }
     }

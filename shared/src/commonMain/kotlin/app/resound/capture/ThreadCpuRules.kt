@@ -23,6 +23,19 @@ object ThreadCpuRules {
     fun totals(samples: List<ThreadCpuSample>): Map<String, Long> = samples
         .groupBy { group(it.name) }.mapValues { (_, rows) -> rows.sumOf { it.cpuMs.coerceAtLeast(0) } }
 
+    /**
+     * “其他”组里最费的几个线程名（去掉编号后合并），用来发现还没归组的热点。
+     * 这一组只剩代码里起的线程名（联网线程名可能带网址，已归到 OkHttp 组，不会出现在这里）。
+     */
+    fun topOthers(previous: List<ThreadCpuSample>, current: List<ThreadCpuSample>, limit: Int = 3): List<Pair<String, Long>> {
+        val before = previous.associateBy { it.identity }
+        return current.filter { group(it.name) == "其他" }.groupBy { it.name.filterNot(Char::isDigit).trimEnd('-', '_', ' ') }
+            .mapValues { (_, rows) -> rows.sumOf { row ->
+                val old = before[row.identity]?.cpuMs
+                (if (old != null && row.cpuMs >= old) row.cpuMs - old else row.cpuMs).coerceAtLeast(0)
+            } }.filterValues { it > 0 }.entries.sortedByDescending { it.value }.take(limit).map { it.key to it.value }
+    }
+
     /** 先按身份相减再归组；新线程/计数重置从零起算，消失的线程没有可读尾值，不能推算。 */
     fun delta(previous: List<ThreadCpuSample>, current: List<ThreadCpuSample>): Map<String, Long> {
         val before = previous.associateBy { it.identity }

@@ -37,4 +37,11 @@ class ThreadCpuRules171Test {
         assertEquals(mapOf("OkHttp" to 20L, "其他" to 0L), ThreadCpuRules.delta(previous,
             listOf(ThreadCpuSample("1:10", "OkHttp", 120), ThreadCpuSample("2:10", "private", -5))))
     }
+
+    @Test fun topOthersMergesNumberedThreadsAndRanksByDelta() {
+        val previous = listOf(ThreadCpuSample("1", "pool-2-thread-1", 100), ThreadCpuSample("2", "onnx-worker", 0))
+        val current = listOf(ThreadCpuSample("1", "pool-2-thread-1", 130), ThreadCpuSample("3", "pool-3-thread-1", 20),
+            ThreadCpuSample("2", "onnx-worker", 400), ThreadCpuSample("4", "OkHttp api.example.com", 999))
+        assertEquals(listOf("onnx-worker" to 400L, "pool--thread" to 50L), ThreadCpuRules.topOthers(previous, current))
+    }
 }

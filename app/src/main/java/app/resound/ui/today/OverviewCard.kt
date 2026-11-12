@@ -171,6 +171,7 @@ private fun ColumnScope.LiveCard(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val status by capture.status.collectAsStateWithLifecycle()
+    val micLevel by capture.level.collectAsStateWithLifecycle(0f)
     val digest by memory.state.collectAsStateWithLifecycle()
     val queue by transcripts.queue.collectAsStateWithLifecycle()
     val digestProgress by (if (AppGraph.isDigestProgressReady) AppGraph.digestProgress
@@ -221,7 +222,7 @@ private fun ColumnScope.LiveCard(
             }
             // 声波只在状态文字和按钮之间的空档里，两头淡出，不压字和按钮；专题进行中不放（那一行按钮多）
             // 平时和专题进行中都显示声波；空档不够时自动变窄
-            if (roomy && controls != HomeControls.None) BreathingWave(status.level, active, recording,
+            if (roomy && controls != HomeControls.None) BreathingWave(micLevel, active, recording,
                 Modifier.weight(1f).padding(horizontal = 8.dp).height(22.dp)
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
                     .drawWithContent {

@@ -27,6 +27,8 @@ import kotlin.random.Random
 class FakeCaptureController : CaptureController {
     private val _status = MutableStateFlow(CaptureStatus(CaptureState.Listening, System.currentTimeMillis()))
     override val status: StateFlow<CaptureStatus> = _status
+    private val _level = MutableStateFlow(0f)
+    override val level: StateFlow<Float> = _level
 
     init {
         CoroutineScope(Dispatchers.Default).launch {
@@ -38,11 +40,10 @@ class FakeCaptureController : CaptureController {
                 if (s.state != CaptureState.Listening && s.state != CaptureState.Recording) continue
                 val talking = (tick / 60) % 3 != 0
                 val state = if (talking) CaptureState.Recording else CaptureState.Listening
-                val level = if (talking) Random.nextFloat() * 0.8f + 0.1f else 0.03f
+                _level.value = if (talking) Random.nextFloat() * 0.8f + 0.1f else 0.03f
                 _status.value = s.copy(
                     state = state,
                     since = if (state != s.state) System.currentTimeMillis() else s.since,
-                    level = level,
                 )
             }
         }

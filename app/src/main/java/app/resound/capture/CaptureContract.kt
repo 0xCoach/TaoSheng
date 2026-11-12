@@ -18,8 +18,6 @@ data class CaptureStatus(
     val pausedUntil: Long? = null,
     /** 当前音频来源的名字，例如 "手机麦克风" */
     val sourceName: String = "手机麦克风",
-    /** 实时音量 0..1，给界面画声波，约每 100 毫秒更新 */
-    val level: Float = 0f,
     /** 麦克风被占时的说明，例如“通话中”“可能是 小红书 或 讯飞输入法（语音输入）”；其他状态为 null */
     val busyDetail: String? = null,
     /** 卡 056：因停录时段而暂停时为该时段的名字（如“睡眠”），此时 state = Paused、pausedUntil = 时段结束；其他情况为 null */
@@ -28,6 +26,13 @@ data class CaptureStatus(
 
 interface CaptureController {
     val status: StateFlow<CaptureStatus>
+
+    /**
+     * 实时音量 0..1，给界面画声波，约每 50 毫秒更新。
+     * 卡 172：单独一条流，不放进 [status]——音量每秒变几十次，放在一起会让只关心状态的后台订阅者（小组件、快捷菜单、体检）全天被叫醒。
+     * 只在界面显示声波时订阅。
+     */
+    val level: Flow<Float> get() = kotlinx.coroutines.flow.flowOf(0f)
 
     fun start()
 

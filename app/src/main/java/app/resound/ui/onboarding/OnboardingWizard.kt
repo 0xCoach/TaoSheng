@@ -367,6 +367,7 @@ private fun ColumnScope.DeepSeek(onNext: () -> Unit, onLater: () -> Unit) {
 private fun ColumnScope.TryIt(capture: CaptureController, transcripts: TranscriptRepository, memory: MemoryRepository, since: Long, onDone: () -> Unit) {
     val c = Rs.colors
     val status by capture.status.collectAsStateWithLifecycle()
+    val micLevel by capture.level.collectAsStateWithLifecycle(0f)
     val today = remember { LocalDate.now() }
     val segments by remember { transcripts.day(today) }.collectAsStateWithLifecycle(emptyList())
     val line = segments.flatMap { it.lines }.filter { it.startAt >= since && it.text.isNotBlank() }.maxByOrNull { it.startAt }
@@ -393,7 +394,7 @@ private fun ColumnScope.TryIt(capture: CaptureController, transcripts: Transcrip
     Text("比如：“明天下午三点和老王开会。”说完停一两秒。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(28.dp))
     // 实时音量：说话时柱子跟着跳，让人知道涛声在听
-    val level by animateFloatAsState(status.level.coerceIn(0f, 1f), tween(80), label = "level")
+    val level by animateFloatAsState(micLevel.coerceIn(0f, 1f), tween(80), label = "level")
     Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically) {
         listOf(0.5f, 0.8f, 1f, 0.7f, 0.9f, 0.6f, 0.4f).forEach { k ->

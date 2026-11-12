@@ -265,6 +265,7 @@ private fun StatusCard(capture: CaptureController) {
     val c = Rs.colors
     val context = LocalContext.current
     val status by capture.status.collectAsStateWithLifecycle()
+    val micLevel by capture.level.collectAsStateWithLifecycle(0f)
     val active = status.state == CaptureState.Listening || status.state == CaptureState.Recording
     val recording = status.state == CaptureState.Recording
 
@@ -319,7 +320,7 @@ private fun StatusCard(capture: CaptureController) {
             modifier = Modifier.padding(start = 17.dp),
         )
         BreathingWave(
-            level = status.level,
+            level = micLevel,
             active = active,
             recording = recording,
             modifier = Modifier.fillMaxWidth().height(84.dp).padding(vertical = 10.dp),

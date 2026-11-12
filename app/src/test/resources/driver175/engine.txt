@@ -1,0 +1,4 @@
+columns=["sqlite_version"]
+[{"text":"3.32.2"}]
+columns=[]
+

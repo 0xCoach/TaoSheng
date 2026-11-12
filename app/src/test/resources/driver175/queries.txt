@@ -1,0 +1,241 @@
+CASE context.refresh.line
+INPUT line/1
+RESULT {"at":1794448800001,"id":1,"kind":"line","quote":"交通发票1，中文报销 A12!","title":"某人"}
+SQL SELECT l.id,l.startAt AS at,COALESCE(l.speakerName,l.speakerTag,'某人') AS title,l.text AS quote FROM transcript_lines l WHERE l.id=? AND (l.eventId IS NULL OR EXISTS(SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0))
+ARGS [1]
+columns=["id","at","title","quote"]
+[{"integer":1},{"integer":1794448800001},{"text":"某人"},{"text":"交通发票1，中文报销 A12!"}]
+CASE context.refresh.event
+INPUT event/1
+RESULT {"at":1794448800001,"id":1,"kind":"event","quote":"交通发票1，中文报销 A12!","summary":"中文报销，发票 A12!","title":"交通发票1"}
+SQL SELECT e.id,e.startAt AS at,e.title,e.summary,COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), '') AS quote FROM memory_events e WHERE e.id=? AND e.deleted=0
+ARGS [1]
+columns=["id","at","title","summary","quote"]
+[{"integer":1},{"integer":1794448800001},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"text":"交通发票1，中文报销 A12!"}]
+CASE context.refresh.item
+INPUT item/1
+RESULT {"at":1794448800001,"id":1,"kind":"item","quote":"交通发票1，中文报销 A12!","status":"Pending","summary":"交通发票1，中文报销","title":"灵感"}
+SQL SELECT i.id,COALESCE(e.startAt,i.createdAt) AS at,i.category AS title,i.content AS summary,i.status, COALESCE((SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),NULLIF(COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), ''),''),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND i.mergedInto IS NULL AND (e.id IS NULL OR e.deleted=0)
+ARGS [1]
+columns=["id","at","title","summary","status","quote"]
+[{"integer":1},{"integer":1794448800001},{"text":"灵感"},{"text":"交通发票1，中文报销"},{"text":"Pending"},{"text":"交通发票1，中文报销 A12!"}]
+CASE context.refresh.hidden
+INPUT event/3
+RESULT null
+SQL SELECT e.id,e.startAt AS at,e.title,e.summary,COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), '') AS quote FROM memory_events e WHERE e.id=? AND e.deleted=0
+ARGS [3]
+columns=["id","at","title","summary","quote"]
+
+CASE context.record.event
+INPUT event/1
+RESULT "AskContextRecord(eventId=1, at=1794448800001, title=交通发票1, summary=中文报销，发票 A12!, content=null, category=null)"
+SQL SELECT id,title,summary,startAt FROM memory_events WHERE id=? AND deleted=0
+ARGS [1]
+columns=["id","title","summary","startAt"]
+[{"integer":1},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"integer":1794448800001}]
+CASE context.record.item
+INPUT item/1
+RESULT "AskContextRecord(eventId=1, at=1794448800001, title=交通发票1, summary=中文报销，发票 A12!, content=交通发票1，中文报销, category=灵感)"
+SQL SELECT e.id,COALESCE(e.title,i.category),COALESCE(e.summary,i.sourceText,''),COALESCE(e.startAt,i.createdAt),i.content,i.category FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)
+ARGS [1]
+columns=["id","COALESCE(e.title,i.category)","COALESCE(e.summary,i.sourceText,'')","COALESCE(e.startAt,i.createdAt)","content","category"]
+[{"integer":1},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"integer":1794448800001},{"text":"交通发票1，中文报销"},{"text":"灵感"}]
+CASE context.lines
+INPUT eventId=1
+RESULT "[AskContextLine(id=1, at=1794448800001, text=交通发票1，中文报销 A12!, speaker=某人, voiceInput=null)]"
+SQL SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40
+ARGS [1]
+columns=["id","startAt","text","coalesce(speakerName,speakerTag,'某人')","voiceInputJson"]
+[{"integer":1},{"integer":1794448800001},{"text":"交通发票1，中文报销 A12!"},{"text":"某人"},null]
+CASE changes.item_status
+INPUT {"operation":"item_status","id":1,"status":"Done"}
+RESULT {"args":{"id":1,"operation":"item_status","status":"Done"},"detail":"交通发票1，中文报销\n状态：待确认 → 完成","expected":"{\"content\":\"交通发票1，中文报销\",\"status\":\"Pending\"}","operation":"item_status","state":"Pending","summary":"把『交通发票1，中文报销』标为完成"}
+SQL SELECT i.content,i.status,i.dueAt FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)
+ARGS [1]
+columns=["content","status","dueAt"]
+[{"text":"交通发票1，中文报销"},{"text":"Pending"},null]
+CASE changes.event_star
+INPUT {"operation":"event_star","id":1,"starred":true}
+RESULT {"args":{"id":1,"operation":"event_star","starred":true},"detail":"交通发票1\n重点：false → true；确认后，待确认的待办和备忘会加入进行中。","expected":"{\"content\":\"交通发票1\",\"status\":\"0\"}","operation":"event_star","state":"Pending","summary":"标重点：交通发票1"}
+SQL SELECT title,starred FROM memory_events WHERE id=? AND deleted=0
+ARGS [1]
+columns=["title","starred"]
+[{"text":"交通发票1"},{"integer":0}]
+CASE review.materialChanges
+INPUT SELECT 1
+RESULT 1
+SQL SELECT 1
+ARGS []
+columns=["1"]
+[{"integer":1}]
+CASE embedding.pending
+INPUT model=unbuilt
+RESULT "[Document(kind=event, id=1, text=交通发票1\n中文报销，发票 A12!\n[\"交通票据\"]), Document(kind=event, id=2, text=交通发票2\n中文报销，发票 A12!\n[\"交通票据\"]), Document(kind=item, id=1, text=灵感\n交通发票1，中文报销), Document(kind=item, id=2, text=灵感\n交通发票2，中文报销)]"
+SQL SELECT d.* FROM (SELECT 'event' AS kind,id,title||char(10)||summary||char(10)||pointsJson AS text FROM memory_events WHERE deleted=0 UNION ALL SELECT 'item',i.id,i.category||char(10)||i.content FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.deleted=0 AND (e.id IS NULL OR e.deleted=0)) d LEFT JOIN embeddings v ON v.kind=d.kind AND v.refId=d.id AND v.model=? WHERE v.refId IS NULL LIMIT 64
+ARGS ["unbuilt"]
+columns=["kind","id","text"]
+[{"text":"event"},{"integer":1},{"text":"交通发票1\n中文报销，发票 A12!\n[\"交通票据\"]"}]
+[{"text":"event"},{"integer":2},{"text":"交通发票2\n中文报销，发票 A12!\n[\"交通票据\"]"}]
+[{"text":"item"},{"integer":1},{"text":"灵感\n交通发票1，中文报销"}]
+[{"text":"item"},{"integer":2},{"text":"灵感\n交通发票2，中文报销"}]
+CASE fts.search_lines.chinese
+INPUT {"keywords":["发票"]}
+RESULT {"results":[{"at":1794448800002,"id":2,"kind":"line","quote":"交通发票2，中文报销 A12!","ref":1,"time":"2026-11-12 02:00","title":"合成人物","voice_input":null},{"at":1794448800001,"id":1,"kind":"line","quote":"交通发票1，中文报销 A12!","ref":2,"time":"2026-11-12 02:00","title":"某人","voice_input":null}],"truncated":false}
+SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41
+ARGS ["\"发票\""]
+columns=["id","at","title","quote","voiceInputJson"]
+[{"integer":2},{"integer":1794448800002},{"text":"合成人物"},{"text":"交通发票2，中文报销 A12!"},null]
+[{"integer":1},{"integer":1794448800001},{"text":"某人"},{"text":"交通发票1，中文报销 A12!"},null]
+CASE fts.search_lines.multi
+INPUT {"keywords":["发票","中文报销"]}
+RESULT {"results":[{"at":1794448800002,"id":2,"kind":"line","quote":"交通发票2，中文报销 A12!","ref":1,"time":"2026-11-12 02:00","title":"合成人物","voice_input":null},{"at":1794448800001,"id":1,"kind":"line","quote":"交通发票1，中文报销 A12!","ref":2,"time":"2026-11-12 02:00","title":"某人","voice_input":null}],"truncated":false}
+SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?) OR l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41
+ARGS ["\"发票\"","\"中文\" \"文报\" \"报销\""]
+columns=["id","at","title","quote","voiceInputJson"]
+[{"integer":2},{"integer":1794448800002},{"text":"合成人物"},{"text":"交通发票2，中文报销 A12!"},null]
+[{"integer":1},{"integer":1794448800001},{"text":"某人"},{"text":"交通发票1，中文报销 A12!"},null]
+CASE fts.search_lines.punctuation
+INPUT {"keywords":["中文，报销! A12"]}
+RESULT {"results":[{"at":1794448800002,"id":2,"kind":"line","quote":"交通发票2，中文报销 A12!","ref":1,"time":"2026-11-12 02:00","title":"合成人物","voice_input":null},{"at":1794448800001,"id":1,"kind":"line","quote":"交通发票1，中文报销 A12!","ref":2,"time":"2026-11-12 02:00","title":"某人","voice_input":null}],"truncated":false}
+SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41
+ARGS ["\"中文\" \"报销\" \"a12\""]
+columns=["id","at","title","quote","voiceInputJson"]
+[{"integer":2},{"integer":1794448800002},{"text":"合成人物"},{"text":"交通发票2，中文报销 A12!"},null]
+[{"integer":1},{"integer":1794448800001},{"text":"某人"},{"text":"交通发票1，中文报销 A12!"},null]
+CASE fts.search_lines.none
+INPUT {"keywords":["完全不存在"]}
+RESULT {"results":[],"truncated":false}
+SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41
+ARGS ["\"完全\" \"全不\" \"不存\" \"存在\""]
+columns=["id","at","title","quote","voiceInputJson"]
+
+CASE fts.search_events.chinese
+INPUT {"keywords":["发票"]}
+RESULT {"results":[{"at":1794448800002,"id":2,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票2，中文报销 A12!","ref":1,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票2"},{"at":1794448800001,"id":1,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票1，中文报销 A12!","ref":2,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票1"}],"truncated":false}
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS ["\"发票\""]
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+[{"integer":2},{"integer":1794448800002},{"text":"交通发票2"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票2，中文报销 A12!"},{"integer":0},null]
+[{"integer":1},{"integer":1794448800001},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票1，中文报销 A12!"},{"integer":0},null]
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+
+CASE fts.search_events.multi
+INPUT {"keywords":["发票","中文报销"]}
+RESULT {"results":[{"at":1794448800002,"id":2,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票2，中文报销 A12!","ref":1,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票2"},{"at":1794448800001,"id":1,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票1，中文报销 A12!","ref":2,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票1"}],"truncated":false}
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?) OR e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS ["\"发票\"","\"中文\" \"文报\" \"报销\""]
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+[{"integer":2},{"integer":1794448800002},{"text":"交通发票2"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票2，中文报销 A12!"},{"integer":0},null]
+[{"integer":1},{"integer":1794448800001},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票1，中文报销 A12!"},{"integer":0},null]
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+
+CASE fts.search_events.punctuation
+INPUT {"keywords":["中文，报销! A12"]}
+RESULT {"results":[{"at":1794448800002,"id":2,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票2，中文报销 A12!","ref":1,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票2"},{"at":1794448800001,"id":1,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票1，中文报销 A12!","ref":2,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票1"}],"truncated":false}
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS ["\"中文\" \"报销\" \"a12\""]
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+[{"integer":2},{"integer":1794448800002},{"text":"交通发票2"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票2，中文报销 A12!"},{"integer":0},null]
+[{"integer":1},{"integer":1794448800001},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票1，中文报销 A12!"},{"integer":0},null]
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+
+CASE fts.search_events.none
+INPUT {"keywords":["完全不存在"]}
+RESULT {"results":[],"truncated":false}
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS ["\"完全\" \"全不\" \"不存\" \"存在\""]
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+
+CASE fts.list_items.chinese
+INPUT {"keywords":["发票"]}
+RESULT {"results":[{"at":1794448800002,"dueText":null,"id":2,"kind":"item","quote":"交通发票2，中文报销 A12!","ref":1,"status":"Pending","summary":"交通发票2，中文报销","time":"2026-11-12 02:00","title":"灵感"},{"at":1794448800001,"dueText":null,"id":1,"kind":"item","quote":"交通发票1，中文报销 A12!","ref":2,"status":"Pending","summary":"交通发票1，中文报销","time":"2026-11-12 02:00","title":"灵感"}],"truncated":false}
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS ["\"发票\""]
+columns=["id","at","title","summary","status","dueText","quote"]
+[{"integer":2},{"integer":1794448800002},{"text":"灵感"},{"text":"交通发票2，中文报销"},{"text":"Pending"},null,{"text":"交通发票2，中文报销 A12!"}]
+[{"integer":1},{"integer":1794448800001},{"text":"灵感"},{"text":"交通发票1，中文报销"},{"text":"Pending"},null,{"text":"交通发票1，中文报销 A12!"}]
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","status","dueText","quote"]
+
+CASE fts.list_items.multi
+INPUT {"keywords":["发票","中文报销"]}
+RESULT {"results":[{"at":1794448800002,"dueText":null,"id":2,"kind":"item","quote":"交通发票2，中文报销 A12!","ref":1,"status":"Pending","summary":"交通发票2，中文报销","time":"2026-11-12 02:00","title":"灵感"},{"at":1794448800001,"dueText":null,"id":1,"kind":"item","quote":"交通发票1，中文报销 A12!","ref":2,"status":"Pending","summary":"交通发票1，中文报销","time":"2026-11-12 02:00","title":"灵感"}],"truncated":false}
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?) OR i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS ["\"发票\"","\"中文\" \"文报\" \"报销\""]
+columns=["id","at","title","summary","status","dueText","quote"]
+[{"integer":2},{"integer":1794448800002},{"text":"灵感"},{"text":"交通发票2，中文报销"},{"text":"Pending"},null,{"text":"交通发票2，中文报销 A12!"}]
+[{"integer":1},{"integer":1794448800001},{"text":"灵感"},{"text":"交通发票1，中文报销"},{"text":"Pending"},null,{"text":"交通发票1，中文报销 A12!"}]
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","status","dueText","quote"]
+
+CASE fts.list_items.punctuation
+INPUT {"keywords":["中文，报销! A12"]}
+RESULT {"results":[],"truncated":false}
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS ["\"中文\" \"报销\" \"a12\""]
+columns=["id","at","title","summary","status","dueText","quote"]
+
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","status","dueText","quote"]
+
+CASE fts.list_items.none
+INPUT {"keywords":["完全不存在"]}
+RESULT {"results":[],"truncated":false}
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS ["\"完全\" \"全不\" \"不存\" \"存在\""]
+columns=["id","at","title","summary","status","dueText","quote"]
+
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS []
+columns=["id","at","title","summary","status","dueText","quote"]
+
+CASE tools.semanticIds
+INPUT semantic_search/query=合成向量
+RESULT {"results":[{"at":1794448800001,"id":1,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票1，中文报销 A12!","ref":1,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票1"},{"at":1794448800002,"id":2,"kind":"event","people":"[]","points":"[\"交通票据\"]","quote":"交通发票2，中文报销 A12!","ref":2,"starred":false,"starred_at":null,"summary":"中文报销，发票 A12!","time":"2026-11-12 02:00","title":"交通发票2"},{"at":1794448800001,"dueText":null,"id":1,"kind":"item","quote":"交通发票1，中文报销 A12!","ref":3,"status":"Pending","summary":"交通发票1，中文报销","time":"2026-11-12 02:00","title":"灵感"},{"at":1794448800002,"dueText":null,"id":2,"kind":"item","quote":"交通发票2，中文报销 A12!","ref":4,"status":"Pending","summary":"交通发票2，中文报销","time":"2026-11-12 02:00","title":"灵感"}],"truncated":false}
+SQL SELECT v.refId,v.dim,v.vector FROM embeddings v JOIN memory_events e WHERE e.deleted=0 AND v.kind=? AND v.refId=e.id AND v.model=?
+ARGS ["event","synthetic"]
+columns=["refId","dim","vector"]
+[{"integer":1},{"integer":2},{"blob":"0000803f00000000"}]
+[{"integer":2},{"integer":2},{"blob":"0000803f00000000"}]
+SQL SELECT v.refId,v.dim,v.vector FROM embeddings v JOIN memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND v.kind=? AND v.refId=i.id AND v.model=?
+ARGS ["item","synthetic"]
+columns=["refId","dim","vector"]
+[{"integer":1},{"integer":2},{"blob":"0000803f00000000"}]
+[{"integer":2},{"integer":2},{"blob":"0000803f00000000"}]
+SQL SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND e.id IN (?, ?) ORDER BY e.startAt DESC, e.id DESC LIMIT 41
+ARGS [1,2]
+columns=["id","at","title","summary","points","people","quote","starred","starred_at"]
+[{"integer":2},{"integer":1794448800002},{"text":"交通发票2"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票2，中文报销 A12!"},{"integer":0},null]
+[{"integer":1},{"integer":1794448800001},{"text":"交通发票1"},{"text":"中文报销，发票 A12!"},{"text":"[\"交通票据\"]"},{"text":"[]"},{"text":"交通发票1，中文报销 A12!"},{"integer":0},null]
+SQL SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.id IN (?, ?) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41
+ARGS [1,2]
+columns=["id","at","title","summary","status","dueText","quote"]
+[{"integer":2},{"integer":1794448800002},{"text":"灵感"},{"text":"交通发票2，中文报销"},{"text":"Pending"},null,{"text":"交通发票2，中文报销 A12!"}]
+[{"integer":1},{"integer":1794448800001},{"text":"灵感"},{"text":"交通发票1，中文报销"},{"text":"Pending"},null,{"text":"交通发票1，中文报销 A12!"}]
+CASE ideas.merge
+INPUT model=synthetic
+RESULT "columns=[\"id\",\"mergedInto\"]\n[{\"integer\":1},null]\n[{\"integer\":2},{\"integer\":1}]\n[{\"integer\":3},null]\n"
+SQL SELECT i.id,v.vector,v.dim FROM memory_items i JOIN memory_events e ON e.id=i.eventId JOIN embeddings v ON v.kind='item' AND v.refId=i.id AND v.model=? WHERE i.deleted=0 AND e.deleted=0 AND i.category='灵感' AND i.mergedInto IS NULL AND i.noMerge=0 AND i.editedAt IS NULL ORDER BY i.createdAt,i.id
+ARGS ["synthetic"]
+columns=["id","vector","dim"]
+[{"integer":1},{"blob":"0000803f00000000"},{"integer":2}]
+[{"integer":2},{"blob":"0000803f00000000"},{"integer":2}]
+SQL SELECT id,mergedInto FROM memory_items ORDER BY id
+ARGS []
+columns=["id","mergedInto"]
+[{"integer":1},null]
+[{"integer":2},{"integer":1}]
+[{"integer":3},null]

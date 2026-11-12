@@ -1,12 +1,12 @@
 package app.resound.skills
 
 /** 门槛只接收原话的基本数据；时间是同一时间轴上的毫秒，由调用方提供。 */
-internal data class SkillGateLine(val startAt: Long, val speaker: String, val voiceInput: Boolean)
+data class SkillGateLine(val startAt: Long, val speaker: String, val voiceInput: Boolean)
 
-internal data class SkillGateStats(val speakers: Int, val spanMillis: Long, val lines: Int)
+data class SkillGateStats(val speakers: Int, val spanMillis: Long, val lines: Int)
 
 /** 不依赖数据库、时钟或平台；调用前和逐卡复核共用同一口径。 */
-internal object SkillGateRules {
+object SkillGateRules {
     fun validate(gate: SkillGate) {
         require(gate.minSpeakers in 1..20) { "门槛人数须为 1～20" }
         require(gate.minSpanMinutes in 0..600) { "门槛分钟数须为 0～600" }

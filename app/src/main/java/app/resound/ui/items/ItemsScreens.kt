@@ -1,5 +1,7 @@
 package app.resound.ui.items
 
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.ui.ScrollTopButton
 import app.resound.ui.things.AddThingHost
 import app.resound.ui.things.thingsTab
@@ -316,13 +318,13 @@ fun MemoryScreen(
     LaunchedEffect(epochDay) { if (listState.firstVisibleItemIndex > 1) listState.scrollToItem(0) }
 
     // 按天要的数据
-    val review by remember(date, reviews) { reviews?.daily(date) ?: flowOf(null) }.collectAsState(initial = null)
+    val review by remember(date, reviews) { reviews?.daily(date.toKotlinLocalDate()) ?: flowOf(null) }.collectAsState(initial = null)
     val events by remember(date) { memory.events(date) }.collectAsState(initial = null)
     val day by remember(date) { memory.dayItems(date) }.collectAsState(initial = null)
     val segments by remember(date, transcripts) { transcripts?.day(date) ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
     val lines = remember(segments) { dayLines(segments) }
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val dayCards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
+    val dayCards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var makingCard by remember { mutableStateOf(false) }
     var deletingEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
@@ -360,10 +362,10 @@ fun MemoryScreen(
     // 按天页的时间线筛选，换一天回到全部
     var dayFilter by remember(date) { mutableStateOf<app.resound.ui.today.TimelineFilter>(app.resound.ui.today.TimelineFilter.All) }
     // 卡 058：这天回顾的进度、原因和窗口；“生成回顾”是否出现与后端判断一致
-    val hasMaterial by remember(date, reviews) { reviews?.hasMaterial(date) ?: flowOf(false) }.collectAsState(initial = true)
-    val reviewWindow = remember(date, reviews, reviewState?.dailyAtMinutes) { reviews?.windowText(date).orEmpty() }
+    val hasMaterial by remember(date, reviews) { reviews?.hasMaterial(date.toKotlinLocalDate()) ?: flowOf(false) }.collectAsState(initial = true)
+    val reviewWindow = remember(date, reviews, reviewState?.dailyAtMinutes) { reviews?.windowText(date.toKotlinLocalDate()).orEmpty() }
     val reviewInfo = reviews?.let {
-        val note = reviewState?.lastError?.takeIf { reviewState.lastErrorDate == date }
+        val note = reviewState?.lastError?.takeIf { reviewState.lastErrorDate == date.toKotlinLocalDate() }
         app.resound.ui.items.ReviewInfo(reviewState?.stage, note, soft = note?.startsWith("已用现有内容生成") == true, hasMaterial = hasMaterial, window = reviewWindow)
     }
 
@@ -371,7 +373,7 @@ fun MemoryScreen(
     LaunchedEffect(openReview) { openReview?.let { byDay = true; epochDay = it.toEpochDay() } }
     LaunchedEffect(openReview, review) {
         if (openReview != null && !showReview) { onReviewShown(); return@LaunchedEffect }
-        if (openReview != null && review?.date == openReview) { openedReview = review; onReviewShown() }
+        if (openReview != null && review?.date?.toJavaLocalDate() == openReview) { openedReview = review; onReviewShown() }
     }
 
     app.resound.ui.ScrollToTopOnReselect(listState)
@@ -407,7 +409,7 @@ fun MemoryScreen(
                 onOpenEvent = { openedEvent = it },
                 onOpenItem = { opened = it },
                 onToggleDone = { memory.setItemStatus(it.id, if (it.status == ItemStatus.Done) ItemStatus.Accepted else ItemStatus.Done) },
-                onGenerate = reviews?.let { r -> { r.generateNow(date) } },
+                onGenerate = reviews?.let { r -> { r.generateNow(date.toKotlinLocalDate()) } },
                 generating = reviewState?.generating == true,
                 reviewInfo = reviewInfo,
                 newestFirst = newestFirst,
@@ -477,7 +479,7 @@ fun MemoryScreen(
                         history.groupBy { it.date }.forEach { (d, list) ->
                             item(key = "h$chip$d") {
                                 Column(Modifier.padding(bottom = 16.dp)) {
-                                    Text(dayLabel(d), style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
+                                    Text(dayLabel(d.toJavaLocalDate()), style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
                                         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
                                     RsCard(padding = PaddingValues(vertical = 2.dp)) {
                                         list.forEachIndexed { i, card ->

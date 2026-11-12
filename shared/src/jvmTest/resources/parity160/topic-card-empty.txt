@@ -1,0 +1,9 @@
+[{"key":"organized","label":"整理版","type":"Paragraph","hint":"保留本人说法","required":true},{"key":"verbatim","label":"原话版","type":"Paragraph","hint":"只补标点、分段","required":true},{"key":"organized_size","label":"整理版字数与时长","type":"Text","hint":"本地统计","required":false},{"key":"verbatim_size","label":"原话版字数与时长","type":"Text","hint":"本地统计","required":false}]
+{"organized":{"text":"没有可用的转写原话","items":[],"checked":[],"number":null,"unit":null,"rating":null,"quotes":[]},"verbatim":{"text":"没有可用的转写原话","items":[],"checked":[],"number":null,"unit":null,"rating":null,"quotes":[]},"organized_size":{"text":"0 字 · 约念 0 分钟","items":[],"checked":[],"number":null,"unit":null,"rating":null,"quotes":[]},"verbatim_size":{"text":"0 字 · 约念 0 分钟","items":[],"checked":[],"number":null,"unit":null,"rating":null,"quotes":[]}}
+[]
+0
+0
+10000
+口播 /
+😀
+整理版与原话版

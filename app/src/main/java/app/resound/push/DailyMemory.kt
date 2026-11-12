@@ -1,5 +1,6 @@
 package app.resound.push
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.content.Context
 import app.resound.data.*
 import app.resound.diary.LocalDiaryRepository
@@ -61,7 +62,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         }
     }
     private val safeReviews = object : ReviewRepository by reviews {
-        override fun daily(date: LocalDate) = flow { emit(localRecord("review", date.toEpochDay()) { reviews.daily(date).first() }) }
+        override fun daily(date: kotlinx.datetime.LocalDate) = flow { emit(localRecord("review", date.toEpochDays().toLong()) { reviews.daily(date).first() }) }
     }
     private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, ::cards) { date ->
         window(date).let { (start, end) -> (start + 1) to (end + 1) }
@@ -69,7 +70,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
     suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {
         val target = date ?: latestDate(withLines) ?: return null
         val source = input(target)
-        val review = localRecord("review", target.toEpochDay()) { reviews.daily(target).first() }
+        val review = localRecord("review", target.toEpochDay()) { reviews.daily(target.toKotlinLocalDate()).first() }
         val cards = cards(target)
         val (start, end) = window(target)
         val lines = if (withLines) dao.diaryLines(start + 1, end + 1).filter { it.text.isNotBlank() } else null

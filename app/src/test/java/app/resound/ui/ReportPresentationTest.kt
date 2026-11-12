@@ -1,5 +1,6 @@
 package app.resound.ui
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
@@ -31,7 +32,7 @@ class ReportPresentationTest {
         val at=date.atTime(21,0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
         val weekly=SkillJson.parse(File("src/main/assets/skills/weekly/skill.json").readText(),SkillOrigin.Builtin).skill
         org.junit.Assert.assertEquals(listOf("one_line","highlights","todo_review","next_week"),weekly.fields.map { it.key })
-        val card=SkillCard(1,"weekly","每周回顾","calendar_week",date,at,null,"本周回顾","完成项目讨论",
+        val card=SkillCard(1,"weekly","每周回顾","calendar_week",date.toKotlinLocalDate(),at,null,"本周回顾","完成项目讨论",
             weekly.fields + listOf(SkillField("env_sound_impression","本周声音印象",FieldType.Tags,""),SkillField("env_sound_observations","各件事的环境",FieldType.Bullets,"")),
             mapOf("one_line" to FieldValue(text="这一周，逐步完成项目整理。"),
                 "highlights" to FieldValue(items=listOf("项目推进：方案完成修订，进入验证阶段。")),
@@ -40,7 +41,7 @@ class ReportPresentationTest {
         var mode by mutableStateOf(ThemeMode.Light)
         compose.setContent { ResoundTheme(mode) {
             Column(Modifier.fillMaxSize().background(Rs.colors.background).padding(16.dp)) {
-                ReviewRow(app.resound.review.DailyReview(date,"今天完成了方案整理。",emptyList(),0)) {}
+                ReviewRow(app.resound.review.DailyReview(date.toKotlinLocalDate(),"今天完成了方案整理。",emptyList(),0)) {}
                 Spacer(Modifier.height(12.dp));SkillCardRow(card)
                 Spacer(Modifier.height(20.dp));SkillCardBody(card)
             }

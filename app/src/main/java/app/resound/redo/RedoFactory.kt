@@ -5,6 +5,7 @@ import app.resound.appName
 import app.resound.data.*
 import app.resound.digest.*
 import app.resound.transcribe.*
+import app.resound.digest.snapshot
 import app.resound.skills.*
 import app.resound.usage.UsagePurpose
 import kotlinx.coroutines.*
@@ -89,7 +90,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             val start = date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
             val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
             val raw = lines.filter { it.startAt < end && it.endAt > start }
-            val gateLines = SkillInputs.gateLines(raw, skill.scope.speakers)
+            val gateLines = SkillInputs.gateLines(raw.map { it.snapshot() }, skill.scope.speakers)
             val gateFailure = SkillGateRules.failure(skill.gate, gateLines)
             if (gateFailure != null) {
                 app.resound.update.UpdateDiagnostics.record(context, "重做技能 ${skill.id}：$gateFailure")

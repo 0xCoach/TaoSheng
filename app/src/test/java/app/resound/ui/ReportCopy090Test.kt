@@ -1,5 +1,6 @@
 package app.resound.ui
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.content.ClipboardManager
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -25,10 +26,10 @@ class ReportCopy090Test {
     private val date = LocalDate.of(2026, 11, 2)
     private val at = date.atTime(21, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
     private fun card(fields: List<SkillField>, values: Map<String, FieldValue>, id: String = "meeting") =
-        SkillCard(1, id, "报告", "meeting", date, at, at + 60_000, "完整报告", "摘要", fields, values, emptyList(), at, false)
+        SkillCard(1, id, "报告", "meeting", date.toKotlinLocalDate(), at, at + 60_000, "完整报告", "摘要", fields, values, emptyList(), at, false)
 
     @Test fun dailyButtonCopiesSectionsBelowTheVisibleArea() {
-        val review = DailyReview(date, "完整日报摘要", (1..20).map {
+        val review = DailyReview(date.toKotlinLocalDate(), "完整日报摘要", (1..20).map {
             ReviewSection("栏目$it", listOf("内容$it 第一条", "内容$it 第二条"), emptyList())
         }, at)
         compose.setContent { ResoundTheme(ThemeMode.Light) { ReviewSheet(review) {} } }

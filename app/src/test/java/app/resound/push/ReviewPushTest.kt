@@ -1,5 +1,6 @@
 package app.resound.push
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -32,7 +33,7 @@ class ReviewPushTest {
     private val date = LocalDate.parse("2026-10-23")
     private val zone = ZoneId.of("Asia/Shanghai")
     private val at = date.atStartOfDay(zone).toInstant().toEpochMilli()
-    private val review = DailyReview(date, "简洁摘要", listOf(
+    private val review = DailyReview(date.toKotlinLocalDate(), "简洁摘要", listOf(
         ReviewSection("一句话", listOf("今天完成了方案，明确下一步。"), listOf(1L)),
         ReviewSection("要紧的", listOf("确认方案"), listOf(1L)),
         ReviewSection("待办", listOf("", "  "), listOf(null, null)),
@@ -113,7 +114,7 @@ class ReviewPushTest {
     @Test fun testUsesLatestReviewDespiteSwitchesAndKeepsItOnRetry() = runBlocking {
         fixture { db, reviews, channels, fake, local ->
             seed(db)
-            seed(db, review.copy(date = date.minusDays(1), brief = "旧摘要"))
+            seed(db, review.copy(date = date.minusDays(1).toKotlinLocalDate(), brief = "旧摘要"))
             reviews.setPushEnabled(false)
             val id = channels.add(topics = emptySet())
             channels.setEnabled(id, false)

@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.ZoneId
 
 class RoomReviewRepository(
@@ -39,12 +41,16 @@ class RoomReviewRepository(
     private val work: androidx.work.WorkManager? = null,
     private val hasBackup: (LlmPreset) -> Boolean = { false },
 ) : ReviewRepository {
+    override fun daily(date: kotlinx.datetime.LocalDate) = daily(date.toJavaLocalDate())
+    override fun generateNow(date: kotlinx.datetime.LocalDate) = generateNow(date.toJavaLocalDate())
+    override fun hasMaterial(date: kotlinx.datetime.LocalDate) = hasMaterial(date.toJavaLocalDate())
+    override fun windowText(date: kotlinx.datetime.LocalDate) = windowText(date.toJavaLocalDate())
     private val gate = Mutex()
     private val mutable = MutableStateFlow(ReviewState(false, prefs.getString("lastError", null)?.let { if (it.startsWith("生成失败：")) REVIEW_FAILURE else it },
         prefs.getInt("dailyAtMinutes", 22 * 60).coerceIn(0, 1439), prefs.getBoolean("pushEnabled", true),
-        lastErrorDate = prefs.getString("lastErrorDate", null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }))
+        lastErrorDate = prefs.getString("lastErrorDate", null)?.let { runCatching { LocalDate.parse(it).toKotlinLocalDate() }.getOrNull() }))
     override val state = mutable.asStateFlow()
-    override fun daily(date: LocalDate): Flow<DailyReview?> = combine(dao.daily(date.toString()), app.resound.envsound.EnvSoundPresentation.changes()) { row, _ -> row?.toModel() }.flowOn(Dispatchers.IO)
+    fun daily(date: LocalDate): Flow<DailyReview?> = combine(dao.daily(date.toString()), app.resound.envsound.EnvSoundPresentation.changes()) { row, _ -> row?.toModel() }.flowOn(Dispatchers.IO)
     override fun recent(): Flow<List<DailyReview>> = combine(dao.recent(), app.resound.envsound.EnvSoundPresentation.changes()) { rows, _ -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
     @Volatile private var running = false
     private val generation = work?.let { manager ->
@@ -55,7 +61,7 @@ class RoomReviewRepository(
             },
             failed = { date, message -> error(message, date) })
     }
-    override fun generateNow(date: LocalDate) {
+    fun generateNow(date: LocalDate) {
         if (generation == null) {
             error(REVIEW_FAILURE, date)
             return
@@ -63,13 +69,13 @@ class RoomReviewRepository(
         generation.generate(date)
     }
 
-    override fun hasMaterial(date: LocalDate): Flow<Boolean> =
+    fun hasMaterial(date: LocalDate): Flow<Boolean> =
         combine(state.map { it.dailyAtMinutes }.distinctUntilChanged(),
             dao.materialChanges(androidx.sqlite.db.SimpleSQLiteQuery("SELECT 1"))) { minutes, _ ->
             material(date, minutes, zone()).second != null
         }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
-    override fun windowText(date: LocalDate): String {
+    fun windowText(date: LocalDate): String {
         val minutes = state.value.dailyAtMinutes
         fun label(day: LocalDate) = "${day.monthValue}月${day.dayOfMonth}日 ${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}"
         return "${label(date.minusDays(1))} – ${label(date)}"
@@ -167,7 +173,7 @@ class RoomReviewRepository(
     private fun error(message: String?, date: LocalDate) {
         val errorDate = date.takeIf { message != null }
         prefs.edit().putString("lastError", message).putString("lastErrorDate", errorDate?.toString()).apply()
-        mutable.update { it.copy(lastError = message, lastErrorDate = errorDate) }
+        mutable.update { it.copy(lastError = message, lastErrorDate = errorDate?.toKotlinLocalDate()) }
     }
-    private fun ReviewEntity.toModel() = app.resound.envsound.EnvSoundPresentation.decorate(DailyReview(LocalDate.parse(startDate), brief, ReviewPrompt.decode(sectionsJson), generatedAt))
+    private fun ReviewEntity.toModel() = app.resound.envsound.EnvSoundPresentation.decorate(DailyReview(LocalDate.parse(startDate).toKotlinLocalDate(), brief, ReviewPrompt.decode(sectionsJson), generatedAt))
 }

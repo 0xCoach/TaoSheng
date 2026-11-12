@@ -1,5 +1,7 @@
 package app.resound.skills
 
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinLocalDate
 import android.content.Context
 import androidx.work.*
 import app.resound.AppGraph
@@ -9,36 +11,14 @@ import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 object SkillSchedule {
-    const val DAILY = "daily"
-    const val AFTER = "after_digest"
-    const val MANUAL = "manual"
-    const val TRIAL = "trial"
-    fun automatic(r: SkillRunRow) = r.kind == DAILY || r.kind == AFTER
-    fun date(at: Long): LocalDate = Instant.ofEpochMilli(at).atZone(SKILL_ZONE).toLocalDate()
-    fun autoCount(runs: List<SkillRunRow>, day: LocalDate) = runs.count { automatic(it) && date(it.at) == day }
-    /** 当天已错过但尚未跑的排到现在；只枚举今天及以后，不补昨天。 */
-    fun next(skill: Skill, runs: List<SkillRunRow>, now: Long, catchUp: Boolean = true): Long? {
-        val t = skill.trigger as? SkillTrigger.Daily ?: return null
-        if (!skill.enabled || skill.origin == SkillOrigin.Core) return null
-        val today = date(now)
-        for (offset in 0L..7L) {
-            val day = today.plusDays(offset)
-            if (t.weekdays.isNotEmpty() && day.dayOfWeek.value !in t.weekdays) continue
-            if (autoCount(runs, day) >= 6) continue
-            val time = day.atStartOfDay(SKILL_ZONE).plusMinutes(t.minutes.toLong()).toInstant().toEpochMilli()
-            val period = runs.filter { it.kind == DAILY && it.date == day.toEpochDay() }
-            if (period.isNotEmpty()) {
-                val last = period.last()
-                if (last.ok || !last.retryable || period.size >= 2) continue
-                val retry = maxOf(time, last.at + TimeUnit.MINUTES.toMillis(10))
-                if (date(retry) != day) continue
-                return maxOf(now, retry)
-            }
-            if (time > now) return time
-            if (catchUp && offset == 0L) return now
-        }
-        return null
-    }
+ const val DAILY = "daily"
+ const val AFTER = "after_digest"
+ const val MANUAL = "manual"
+ const val TRIAL = "trial"
+ fun automatic(r: SkillRunRow) = app.resound.skills.core.SkillSchedule.automatic(r.snapshot())
+ fun date(at: Long): LocalDate = app.resound.skills.core.SkillSchedule.date(at).toJavaLocalDate()
+ fun autoCount(runs: List<SkillRunRow>, day: LocalDate) = app.resound.skills.core.SkillSchedule.autoCount(runs.map { it.snapshot() }, day.toKotlinLocalDate())
+ fun next(skill: Skill, runs: List<SkillRunRow>, now: Long, catchUp: Boolean = true) = app.resound.skills.core.SkillSchedule.next(skill, runs.map { it.snapshot() }, now, catchUp)
 }
 
 class SkillScheduler(private val context: Context) {

@@ -3,11 +3,11 @@ package app.resound.skills
 import kotlinx.serialization.json.*
 
 /** 缺字段=继承；显式 null=关闭；对象=用户指定。旧文件不需要迁移。 */
-internal data class SkillGateSetting(val gate: SkillGate?, val specified: Boolean)
+data class SkillGateSetting(val gate: SkillGate?, val specified: Boolean)
 
-internal object SkillGateJson {
+object SkillGateJson {
     fun read(text: String): SkillGateSetting {
-        val root = Json.parseToJsonElement(text).jsonObject
+        val root = app.resound.platform.SharedJson.parseToJsonElement(text).jsonObject
         val raw = root["gate"]
         val gate = when (raw) {
             null, JsonNull -> null
@@ -32,7 +32,7 @@ internal object SkillGateJson {
 
     fun write(text: String, gate: SkillGate?, specified: Boolean): String {
         gate?.let(SkillGateRules::validate)
-        val root = Json.parseToJsonElement(text).jsonObject.toMutableMap()
+        val root = app.resound.platform.SharedJson.parseToJsonElement(text).jsonObject.toMutableMap()
         if (!specified) root.remove("gate") else root["gate"] = gate?.let {
             buildJsonObject {
                 put("minSpeakers", it.minSpeakers)

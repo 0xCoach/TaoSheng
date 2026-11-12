@@ -1,5 +1,6 @@
 package app.resound.skills
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager
@@ -33,7 +34,7 @@ class SkillGeneration047Test {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val day = LocalDate.parse("2026-10-24")
     private val start = day.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
-    private val key get() = "evening_note" to day
+    private val key get() = "evening_note" to day.toKotlinLocalDate()
     private lateinit var db: CaptureDatabase
     private lateinit var files: SkillFiles
     private lateinit var root: File
@@ -84,7 +85,7 @@ class SkillGeneration047Test {
         .setInputData(workDataOf(SkillGeneration.SKILL to key.first, SkillGeneration.DATE to day.toString()))
         .setRunAttemptCount(attempt).build()
     private suspend fun queued(): WorkInfo = withTimeout(5000) {
-        work.getWorkInfosForUniqueWorkFlow(SkillGeneration.name(key.first, day)).first { it.isNotEmpty() }.single()
+        work.getWorkInfosForUniqueWorkFlow(SkillGeneration.name(key.first, day.toKotlinLocalDate())).first { it.isNotEmpty() }.single()
     }
     private fun notifications() = context.getSystemService(NotificationManager::class.java).activeNotifications
         .filter { it.notification.flags and Notification.FLAG_ONGOING_EVENT == 0 }
@@ -133,7 +134,7 @@ class SkillGeneration047Test {
         assertTrue(key in r.generating.value); assertFalse(key in r.generated.value)
         val info = queued()
         assertEquals(NetworkType.CONNECTED, info.constraints.requiredNetworkType)
-        val request = SkillGeneration.request(key.first, day)
+        val request = SkillGeneration.request(key.first, day.toKotlinLocalDate())
         assertTrue(request.workSpec.expedited)
         assertEquals(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST, request.workSpec.outOfQuotaPolicy)
         WorkManagerTestInitHelper.getTestDriver(context)!!.setAllConstraintsMet(info.id)
@@ -142,13 +143,13 @@ class SkillGeneration047Test {
         assertEquals(1, notifications().size); assertEquals(0, pushes.get())
         r.generate(key.first, day)
         assertTrue(key in r.generating.value); assertFalse(key in r.generated.value)
-        withTimeout(5000) { work.getWorkInfosForUniqueWorkFlow(SkillGeneration.name(key.first, day)).first { it.isNotEmpty() && it.singleOrNull()?.id != info.id } }
+        withTimeout(5000) { work.getWorkInfosForUniqueWorkFlow(SkillGeneration.name(key.first, day.toKotlinLocalDate())).first { it.isNotEmpty() && it.singleOrNull()?.id != info.id } }
         Unit
     }
 
     @Test fun restoresPendingWorkAfterRepositoryRestartAndKeepsExistingRequest() = runBlocking {
-        val request = SkillGeneration.request(key.first, day)
-        work.enqueueUniqueWork(SkillGeneration.name(key.first, day), ExistingWorkPolicy.KEEP, request).await()
+        val request = SkillGeneration.request(key.first, day.toKotlinLocalDate())
+        work.enqueueUniqueWork(SkillGeneration.name(key.first, day.toKotlinLocalDate()), ExistingWorkPolicy.KEEP, request).await()
         val appScope = scope()
         val generation = SkillGeneration(work, db.skills(), appScope)
         val r = repo(appScope, generation); AppGraph.skills = r
@@ -183,7 +184,7 @@ class SkillGeneration047Test {
         assertEquals(LlmError.Auth.human, failure.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         assertEquals(day.toString(), shadowOf(failure.contentIntent).savedIntent.getStringExtra("date"))
         val card = db.skills().dayRows(key.first, day.toEpochDay()).single().card()
-        val multi = SkillGenerationNotice.from("收工打卡", day, SkillRunResult.Cards(listOf(card, card.copy(id = 99))))
+        val multi = SkillGenerationNotice.from("收工打卡", day.toKotlinLocalDate(), SkillRunResult.Cards(listOf(card, card.copy(id = 99))))
         assertEquals("出了 2 张", multi.body); assertEquals("resound://day?open=day&date=$day", multi.link)
         assertEquals(0, pushes.get())
     }

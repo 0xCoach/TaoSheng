@@ -1,5 +1,6 @@
 package app.resound.push
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.review.DailyReview
 import app.resound.review.ReviewSection
 import okhttp3.FormBody
@@ -55,7 +56,7 @@ class PushNewline113Test {
         val json = request(PushKind.PushPlus, PushFormat.Json).json()
         assertEquals(message.envelope(PushFormat.Json).toString(), json.getString("content"))
         assertEquals(body, JSONObject(json.getString("content")).getString("body"))
-        val review = DailyReview(LocalDate.parse("2026-11-09"), "摘要一\n摘要二", listOf(
+        val review = DailyReview(LocalDate.parse("2026-11-09").toKotlinLocalDate(), "摘要一\n摘要二", listOf(
             ReviewSection("事项", listOf("甲", "乙"), listOf(null, null))), 1)
         val content = request(PushKind.PushPlus, PushFormat.Markdown, message.copy(review = review)).json().getString("content")
         assertTrue(content.contains("摘要一<br/>\n摘要二"))

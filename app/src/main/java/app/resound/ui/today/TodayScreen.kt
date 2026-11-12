@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.foundation.gestures.detectTapGestures
 import app.resound.ui.theme.fade
 import app.resound.ui.ScrollTopButton
@@ -161,7 +162,7 @@ fun TodayScreen(
     var opened by remember { mutableStateOf<MemoryEvent?>(null) }
     var openedItem by remember { mutableStateOf<MemoryItem?>(null) }
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val cards by remember(date) { skills.cards(date) }.collectAsState(initial = emptyList())
+    val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var openedImport by remember { mutableStateOf<Long?>(null) }
     var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
@@ -1008,7 +1009,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             // 专题：这件事是专题合成的就能看纪要；否则可事后设为专题（可连带前后几件）
             if (app.resound.AppGraph.isTopicsReady) androidx.compose.foundation.text.selection.DisableSelection {
                 val day = remember(event.id) { java.time.Instant.ofEpochMilli(event.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
-                val topic = remember(day) { app.resound.AppGraph.topics.observeDay(day) }.collectAsState(initial = emptyList()).value
+                val topic = remember(day) { app.resound.AppGraph.topics.observeDay(day.toKotlinLocalDate()) }.collectAsState(initial = emptyList()).value
                     .firstOrNull { it.eventId == event.id && it.status != app.resound.topic.TopicStatus.Cancelled }
                 Spacer(Modifier.height(12.dp))
                 Text(if (topic != null) "${topic.kind.title}专题 · 查看纪要 ›" else "设为专题（可连带前后几件事合成一件）›",

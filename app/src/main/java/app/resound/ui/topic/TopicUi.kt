@@ -324,7 +324,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
                 Text("查看完整纪要 ›", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
             }
-            t.status == TopicStatus.Scheduled -> HeroNote("到点自动开始、自动结束" + (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(it) } else "")) {
+            t.status == TopicStatus.Scheduled -> HeroNote("到点自动开始、自动结束" + (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(DayOfWeek.valueOf(it.name)) } else "")) {
                 ActionButton("取消这次预约", ActionKind.Danger) { scope.launch { if (guarded(context) { AppGraph.topics.cancelSchedule(t.id) }) onDismiss() } }
             }
             t.status == TopicStatus.Failed -> HeroNote(statusText(t) ?: "", error = true) {
@@ -348,7 +348,8 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
             if (t.status != TopicStatus.Scheduled) add(Triple("这段时间的原话", day.format(java.time.format.DateTimeFormatter.ofPattern("M月d日"))) {
                 onDismiss(); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)
             })
-            if (live && t.plannedEndAt != null) add(Triple("延长 30 分钟", "到 " + formatClock(t.plannedEndAt + 30 * 60_000L)) {
+            val plannedEndAt = t.plannedEndAt
+            if (live && plannedEndAt != null) add(Triple("延长 30 分钟", "到 " + formatClock(plannedEndAt + 30 * 60_000L)) {
                 scope.launch { guarded(context) { AppGraph.topics.extend(30) } }
             })
         }
@@ -607,7 +608,7 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
         ActionButton(if (busy) "正在预约…" else "预约", ActionKind.Primary, enabled = valid && !busy) {
             busy = true
             scope.launch {
-                val r = runCatching { AppGraph.topics.schedule(kind, name.trim().ifEmpty { null }, ms(from), ms(to), repeat) }.getOrElse { Result.failure(it) }
+                val r = runCatching { AppGraph.topics.schedule(kind, name.trim().ifEmpty { null }, ms(from), ms(to), repeat.map { kotlinx.datetime.DayOfWeek.valueOf(it.name) }.toSet()) }.getOrElse { Result.failure(it) }
                 busy = false
                 Toast.makeText(context, r.fold({ "已预约，到点会通知你" }, { (it as? app.resound.topic.TopicException)?.message ?: it.message ?: "没预约成功，请再试一次" }), Toast.LENGTH_SHORT).show()
                 if (r.isSuccess) onDismiss()
@@ -623,7 +624,7 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
                             Text(topicLabel(s), style = RsType.subhead, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text((s.plannedStartAt?.let { app.resound.ui.verify.formatUpcoming(it) } ?: "") +
                                 (s.plannedEndAt?.let { "–" + formatClock(it) } ?: "") +
-                                (if (s.repeat.isNotEmpty()) " · 每周" + s.repeat.sorted().joinToString("、") { weekName(it) } else ""),
+                                (if (s.repeat.isNotEmpty()) " · 每周" + s.repeat.sorted().joinToString("、") { weekName(DayOfWeek.valueOf(it.name)) } else ""),
                                 style = RsType.caption, color = c.textSecondary)
                         }
                         Text("取消", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.critical,
@@ -685,11 +686,12 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
             app.resound.ui.transcript.RangeEnd("到", rTo.first, rTo.second, LocalDate.now().minusDays(30), LocalDate.now()) { d, tm -> rTo = d to tm }
         }
         val p = preview
+        val previewError = p?.error
         Text(when {
             from == null && !rangeValid -> "开始时间要早于结束时间"
             from != null && picked.isEmpty() -> "至少勾一件"
             p == null -> "正在计算…"
-            p.error != null -> p.error
+            previewError != null -> previewError
             p.conflict -> "和已有的专题时间重叠了"
             else -> buildString {
                 append("${formatClock(p.startAt)}–${formatClock(p.endAt)}")

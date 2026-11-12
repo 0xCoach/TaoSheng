@@ -29,7 +29,7 @@ fun createAskRepository(
     readKey: () -> String = settings::readKey,
 ): RoomAskRepository {
     fun asset(name: String) = context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
-    val definitions = JSONArray(asset("ask-tools.json"))
+    val definitions = JSONArray(app.resound.ask.core.AskDefinitions.json())
     val tools = AskTools(database, JSONObject(asset("ask-sql.json")), embedder = { app.resound.search.LocalEmbedder(context) })
     val places by lazy { CachedAskPlaces(app.resound.AppGraph.location, database) }
     val placeTools = AskPlaceTools(tools, { places.enabled() },

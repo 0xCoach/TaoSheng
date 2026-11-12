@@ -1,7 +1,7 @@
 package app.resound.ask
 
-import org.json.JSONArray
-import org.json.JSONObject
+import app.resound.net.Arr as JSONArray
+import app.resound.net.Obj as JSONObject
 
 object AskCitations {
     private val marker = Regex("\\[\\^(\\d+)\\]")

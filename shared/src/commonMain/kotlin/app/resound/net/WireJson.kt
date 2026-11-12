@@ -15,15 +15,16 @@ internal class Obj private constructor(private val fields: MutableMap<String, An
     fun keys() = fields.keys
     fun opt(key: String): Any? = fields[key]?.let { if (it is JsonPrimitive && !it.isString && it != JsonNull) it.longOrNull ?: it.doubleOrNull ?: it.booleanOrNull else it }
     fun getBoolean(key: String) = getString(key).lowercase().toBooleanStrict()
-    fun get(key: String): Any = fields[key] ?: error("缺少字段")
+    fun get(key: String): Any = fields[key] ?: throw IllegalArgumentException("缺少字段")
     fun optJSONObject(key: String) = fields[key] as? Obj
     fun optJSONArray(key: String) = fields[key] as? Arr
-    fun getJSONArray(key: String) = optJSONArray(key) ?: error("字段不是数组")
-    fun getJSONObject(key: String) = optJSONObject(key) ?: error("字段不是对象")
+    fun getJSONArray(key: String) = optJSONArray(key) ?: throw IllegalArgumentException("字段不是数组")
+    fun getJSONObject(key: String) = optJSONObject(key) ?: throw IllegalArgumentException("字段不是对象")
     fun getString(key: String): String = get(key).toString()
     fun optString(key: String, fallback: String = "") = fields[key]?.toString() ?: fallback
     fun optLong(key: String, fallback: Long = 0) = fields[key]?.toString()?.toDoubleOrNull()?.toLong() ?: fallback
     fun optInt(key: String, fallback: Int = 0) = optLong(key, fallback.toLong()).toInt()
+    fun getLong(key: String) = getString(key).toLongOrNull() ?: getString(key).toDouble().toLong()
     fun getInt(key: String) = getString(key).toDouble().toInt()
     fun optBoolean(key: String, fallback: Boolean = false) = fields[key]?.toString()?.lowercase()?.toBooleanStrictOrNull() ?: fallback
     fun element(): JsonObject = JsonObject(fields.mapValues { wrap(it.value) })
@@ -34,6 +35,7 @@ internal class Arr private constructor(private val items: MutableList<Any?>, unu
     constructor() : this(mutableListOf(), Unit)
     constructor(text: String) : this((SharedJson.parseToJsonElement(text) as JsonArray).map { unwrap(it) }.toMutableList(), Unit)
     constructor(items: List<Any?>) : this(items.toMutableList(), Unit)
+    fun remove(index: Int) = items.removeAt(index)
     fun put(value: Any?): Arr = apply { items.add(value ?: JsonNull) }
     fun length() = items.size
     fun getJSONObject(i: Int) = items[i] as Obj

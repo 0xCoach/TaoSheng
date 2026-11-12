@@ -1,0 +1,1 @@
+{"sql":"SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41","kind":"line"}

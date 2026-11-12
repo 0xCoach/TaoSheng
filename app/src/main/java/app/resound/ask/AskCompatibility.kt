@@ -21,18 +21,8 @@ enum class AskFailure(val human: String) {
     Network(LlmError.Network.human), Server(LlmError.Server.human);
 
     companion object {
-        fun from(error: LlmException, withTools: Boolean = true): AskFailure = when {
-            error.truncated -> Truncated
-            error.status == 400 && withTools -> ToolRejected
-            error.type == LlmError.Format -> if (withTools) ToolFormat else AnswerFormat
-            else -> when (error.type) {
-                LlmError.Auth -> Auth
-                LlmError.Quota -> Quota
-                LlmError.RateLimit -> RateLimit
-                LlmError.Network -> Network
-                else -> Server
-            }
-        }
+        fun from(error: LlmException, withTools: Boolean = true): AskFailure =
+            valueOf(app.resound.ask.core.AskFailure.from(error.toAskNet(), withTools).name)
     }
 }
 

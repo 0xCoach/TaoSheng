@@ -1,0 +1,266 @@
+package app.resound.ask.core
+import app.resound.net.Arr
+
+object AskDefinitions {
+    fun json(): String = Arr(raw).toString()
+    private val raw = """[
+  {
+    "type": "function",
+    "function": {
+      "name": "search_lines",
+      "description": "查原话，最多40句；用户问“在某地……”时传 place，使用足迹里的地点名；“家”对应标记为家的地点。与时间、关键词等条件同时生效",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "description": "中文短关键词，多个词 OR；空数组表示不限关键词"
+          },
+          "from": {
+            "type": "string",
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "to": {
+            "type": "string",
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "speaker": {
+            "type": "string",
+            "description": "说话人名称或原始标签"
+          },
+          "place": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "可选，足迹中的地点名，包含匹配且不区分大小写；“家”只匹配标记为家的地点。未找到时参考返回的 places 候选地名；足迹关闭时按原条件检索并说明没有开启足迹"
+          }
+        },
+        "required": [
+          "keywords"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "search_events",
+      "description": "查事件标题、摘要、要点；有关键词时合并本地语义结果，最多10条；用户问“在某地……”时传 place，使用足迹里的地点名；“家”对应标记为家的地点。与时间、关键词等条件同时生效",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "description": "中文短关键词，多个词 OR；空数组表示不限关键词"
+          },
+          "from": {
+            "type": "string",
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "to": {
+            "type": "string",
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "starred_only": {
+            "type": "boolean",
+            "description": "只查用户标的重点；没有关键词时按标重点时间倒序"
+          },
+          "place": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "可选，足迹中的地点名，包含匹配且不区分大小写；“家”只匹配标记为家的地点。未找到时参考返回的 places 候选地名；足迹关闭时按原条件检索并说明没有开启足迹"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_items",
+      "description": "查提取项",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "待办",
+              "约定",
+              "备忘",
+              "灵感",
+              "关键信息",
+              "决定",
+              "知识"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Accepted",
+              "Ignored",
+              "Done"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "to": {
+            "type": "string",
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "description": "中文短关键词，多个词 OR；空数组表示不限关键词"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_day",
+      "description": "查某天事件概要",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "YYYY-MM-DD"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "semantic_search",
+      "description": "按意思找事件和条目，适合措辞不同或关键词没命中；模型未就绪时返回空结果",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "完整检索意图"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "propose_change",
+      "description": "仅准备一个待确认改动，不会修改数据；已有记录必须先查到，id 用结果的 id，不用 ref。每条回答最多一次。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "item_status",
+              "create_item",
+              "item_due",
+              "event_star"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "description": "已有条目或事件的 id；新建不传"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Done",
+              "Accepted",
+              "Ignored"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "待办",
+              "备忘"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "due": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm；null 清除截止时间"
+          },
+          "starred": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "find_things",
+      "description": "查物品当前状态、最后位置和最近5条已确认记录，同时返回未确认发现。query按物品名字、别名、位置、借给谁查；place按位置反向查。没有结果或只有很旧记录时继续search_lines查原话。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "物品名称或别名，可不填"
+          },
+          "place": {
+            "type": "string",
+            "description": "位置，例如书柜，可不填"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+]
+"""
+}

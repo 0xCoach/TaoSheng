@@ -1,10 +1,11 @@
 package app.resound.ask
 
-import app.resound.digest.LlmStreamReply
-import app.resound.digest.LlmToolCall
+import app.resound.ask.core.*
+import app.resound.net.*
+
 import kotlinx.coroutines.runBlocking
-import org.json.JSONArray
-import org.json.JSONObject
+import app.resound.net.Arr as JSONArray
+import app.resound.net.Obj as JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -15,13 +16,13 @@ class AskCitationRepair097Test {
     @Test fun wrongDatabaseIdAndMissingReferenceAreRepairedOnceAndUsageIsCounted() = runBlocking {
         for (first in listOf("先试运行两周[^42]", "先试运行两周")) {
             var calls = 0; var usages = 0; var total = 0L
-            val updates = mutableListOf<AskEngine.Update>()
-            val engine = AskEngine(AskStream { messages, tools, _, usage ->
+            val updates = mutableListOf<AskEngineCore.Update>()
+            val engine = engine(TestStream { messages, tools, _, usage ->
                 calls++; usage(20, 4)
-                if (calls == 1) LlmStreamReply(first, emptyList()) else {
+                if (calls == 1) reply(first, emptyList()) else {
                     assertEquals(0, tools.length())
                     assertTrue(messages.toString().contains("数据库 id 不是 ref"))
-                    LlmStreamReply("先试运行两周，再复盘。[^1]", emptyList())
+                    reply("先试运行两周，再复盘。[^1]", emptyList())
                 }
             }, JSONArray().put(JSONObject()), { _, _, _ -> error("不能调用工具") }, { p, c -> usages++; total += p + c })
             engine.answer("", emptyList(), "最后结论是啥", context, updates::add)
@@ -33,11 +34,11 @@ class AskCitationRepair097Test {
 
     @Test fun repeatedBadCitationsAndUnexpectedToolCallsStopWithoutLoopingOrChangingData() = runBlocking {
         for (unexpectedTool in listOf(false, true)) {
-            var calls = 0; var result: AskEngine.Update? = null
-            val engine = AskEngine(AskStream { _, _, _, _ ->
+            var calls = 0; var result: AskEngineCore.Update? = null
+            val engine = engine(TestStream { _, _, _, _ ->
                 calls++
-                if (unexpectedTool && calls == 2) LlmStreamReply("", listOf(LlmToolCall("x", "propose_change", "{}")))
-                else LlmStreamReply("结论[^999]", emptyList())
+                if (unexpectedTool && calls == 2) reply("", listOf(tool("x", "propose_change", "{}")))
+                else reply("结论[^999]", emptyList())
             }, JSONArray(), { _, _, _ -> error("不能执行工具") }, { _, _ -> }, { _, _ -> error("不能修改数据") })
             engine.answer("", emptyList(), "最后结论是啥", context) { result = it }
             assertEquals(2, calls); assertNotNull(result!!.error)
@@ -46,13 +47,13 @@ class AskCitationRepair097Test {
     }
 
     @Test fun repairStillFitsAfterSixToolRoundsAndCannotExpandToolBudget() = runBlocking {
-        var calls = 0; var searches = 0; var result: AskEngine.Update? = null
-        val engine = AskEngine(AskStream { _, tools, _, _ ->
+        var calls = 0; var searches = 0; var result: AskEngineCore.Update? = null
+        val engine = engine(TestStream { _, tools, _, _ ->
             calls++
             when {
-                calls <= 6 -> LlmStreamReply("", listOf(LlmToolCall("$calls", "search_lines", "{}")))
-                calls == 7 -> { assertEquals(0, tools.length()); LlmStreamReply("结论[^42]", emptyList()) }
-                else -> { assertEquals(0, tools.length()); LlmStreamReply("先试运行两周[^1]", emptyList()) }
+                calls <= 6 -> reply("", listOf(tool("$calls", "search_lines", "{}")))
+                calls == 7 -> { assertEquals(0, tools.length()); reply("结论[^42]", emptyList()) }
+                else -> { assertEquals(0, tools.length()); reply("先试运行两周[^1]", emptyList()) }
             }
         }, JSONArray().put(JSONObject()), { _, _, sources -> searches++; if (sources.isEmpty()) sources += source; JSONObject().put("ref", 1) }, { _, _ -> })
         engine.answer("", emptyList(), "最后结论是啥") { result = it }

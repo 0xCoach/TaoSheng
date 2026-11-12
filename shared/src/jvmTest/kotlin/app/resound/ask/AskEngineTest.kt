@@ -1,9 +1,10 @@
 package app.resound.ask
 
-import app.resound.digest.*
+import app.resound.ask.core.*
+import app.resound.net.*
 import kotlinx.coroutines.runBlocking
-import org.json.JSONArray
-import org.json.JSONObject
+import app.resound.net.Arr as JSONArray
+import app.resound.net.Obj as JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -17,13 +18,13 @@ class AskEngineTest {
         assertEquals(result.sources,AskCitations.decode(AskCitations.encode(result.sources)))
     }
     @Test fun fakeServiceCallsToolThenStreamsCitedAnswerAndCountsUsage() = runBlocking {
-        var requests=0; var executions=0; var tokens=0L; val updates=mutableListOf<AskEngine.Update>()
-        val engine=AskEngine(AskStream { messages, _, delta, usage ->
+        var requests=0; var executions=0; var tokens=0L; val updates=mutableListOf<AskEngineCore.Update>()
+        val engine=engine(TestStream { messages, _, delta, usage ->
             usage(10,2)
-            if (requests++==0) LlmStreamReply("",listOf(LlmToolCall("a","search_lines","{\"keywords\":[\"老王\"]}")))
+            if (requests++==0) reply("",listOf(tool("a","search_lines","{\"keywords\":[\"老王\"]}")))
             else {
                 assertEquals("tool",messages.getJSONObject(messages.length()-1).getString("role"))
-                delta("要发方案"); delta("[^1]"); LlmStreamReply("要发方案[^1]",emptyList())
+                delta("要发方案"); delta("[^1]"); reply("要发方案[^1]",emptyList())
             }
         },JSONArray().put(JSONObject()), { name,args,sources ->
             assertEquals("search_lines",name); assertEquals("老王",args.getJSONArray("keywords").getString(0))
@@ -36,25 +37,25 @@ class AskEngineTest {
     }
     @Test fun parallelToolCallsCannotExceedSixAndFinalRequestDisablesTools() = runBlocking {
         var requests=0; var executions=0
-        val engine=AskEngine(AskStream { _,tools,_,_ ->
-            if(requests++==0) LlmStreamReply("",(0..8).map { LlmToolCall("$it","search_events","{}") })
-            else { assertEquals(0,tools.length()); LlmStreamReply("没找到",emptyList()) }
+        val engine=engine(TestStream { _,tools,_,_ ->
+            if(requests++==0) reply("",(0..8).map { tool("$it","search_events","{}") })
+            else { assertEquals(0,tools.length()); reply("没找到",emptyList()) }
         },JSONArray().put(JSONObject()),{ _,_,_ -> executions++; JSONObject() },{_,_->})
         engine.answer("",emptyList(),"不存在",{})
         assertEquals(6,executions); assertEquals(2,requests)
     }
     @Test fun malformedToolArgumentsAreRecoverableAndUncitedConclusionGetsError() = runBlocking {
-        var round=0; var result: AskEngine.Update?=null
-        val engine=AskEngine(AskStream { messages,_,_,_->
-            if(round++==0) LlmStreamReply("",listOf(LlmToolCall("a","search_lines","not json")))
-            else { assertTrue(messages.toString().contains("参数无效")); LlmStreamReply("你已经答应了",emptyList()) }
+        var round=0; var result: AskEngineCore.Update?=null
+        val engine=engine(TestStream { messages,_,_,_->
+            if(round++==0) reply("",listOf(tool("a","search_lines","not json")))
+            else { assertTrue(messages.toString().contains("参数无效")); reply("你已经答应了",emptyList()) }
         },JSONArray(),{_,_,_->error("不能执行")},{_,_->})
         engine.answer("",emptyList(),"问题",{result=it})
         assertEquals("回答缺少出处，请重新提问；常出现可在设置里检测模型",result!!.error)
     }
     @Test fun answerWithoutAnyLookupPrefetchesButStillRejectsUncitedConclusion() = runBlocking {
-        var result: AskEngine.Update?=null
-        val engine=AskEngine(AskStream { _,_,_,_-> LlmStreamReply("你明天要开会",emptyList()) },JSONArray(),{_,_,_->JSONObject()},{_,_->})
+        var result: AskEngineCore.Update?=null
+        val engine=engine(TestStream { _,_,_,_-> reply("你明天要开会",emptyList()) },JSONArray(),{_,_,_->JSONObject()},{_,_->})
         engine.answer("",emptyList(),"明天干嘛",{result=it})
         assertEquals("没找到可核实的记录，请补充关键词或缩小时间范围",result!!.error)
     }

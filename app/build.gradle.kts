@@ -33,7 +33,7 @@ android {
     // 正式签名只放在负责人电脑上（~/.config/taosheng/signing.properties），不进仓库；
     // 其他人编译时找不到就退回调试签名，不影响编译
     val releaseSigning = File(System.getProperty("user.home"), ".config/taosheng/signing.properties")
-        .takeIf { it.isFile }
+        .takeIf { !providers.gradleProperty("skipSigningSecrets").map(String::toBoolean).getOrElse(false) && it.isFile }
         ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
     signingConfigs {
         if (releaseSigning != null) create("release") {
@@ -115,3 +115,13 @@ dependencies {
 }
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
+// 卡 151：Ktor 引擎兼容现有 OkHttp；禁止传递依赖升级范围外网络组件。
+configurations.configureEach {
+    resolutionStrategy.force(
+        "com.squareup.okhttp3:okhttp:4.12.0",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0",
+        "org.jetbrains.kotlin:kotlin-stdlib:2.2.20",
+    )
+}

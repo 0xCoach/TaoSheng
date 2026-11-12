@@ -54,6 +54,7 @@ class ResoundApp : Application() {
             files = app.resound.platform.LocalFileStore(app.resound.platform.AndroidDispatchers),
             dispatchers = app.resound.platform.AndroidDispatchers,
         )
+        AppGraph.configureNetwork(AppGraph.platform.keyValueStore)
         val crashes = app.resound.diagnostics.CrashRecords(this)
         crashes.installHandler()
         appDisplayName = appName

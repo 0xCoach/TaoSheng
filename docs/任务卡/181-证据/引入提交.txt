@@ -1,0 +1,30 @@
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S 'search_${kind}_insert' -- app/src/main/java/app/resound/search/SearchIndex.kt
+df12a83be8ee2113481884a518447d65103cb1b6 2026-10-24T11:45:08+08:00 回响 Resound：初始提交
+a577273536eb7312f6f8310d02e5dbf858339c66 2026-10-24T00:16:13+08:00 完成026搜索升级与问问改数据确认后端
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S 'search_${kind}_update' -- app/src/main/java/app/resound/search/SearchIndex.kt
+df12a83be8ee2113481884a518447d65103cb1b6 2026-10-24T11:45:08+08:00 回响 Resound：初始提交
+a577273536eb7312f6f8310d02e5dbf858339c66 2026-10-24T00:16:13+08:00 完成026搜索升级与问问改数据确认后端
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S 'search_${kind}_delete' -- app/src/main/java/app/resound/search/SearchIndex.kt
+df12a83be8ee2113481884a518447d65103cb1b6 2026-10-24T11:45:08+08:00 回响 Resound：初始提交
+a577273536eb7312f6f8310d02e5dbf858339c66 2026-10-24T00:16:13+08:00 完成026搜索升级与问问改数据确认后端
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S search_event_hidden -- app/src/main/java/app/resound/search/SearchIndex.kt
+df12a83be8ee2113481884a518447d65103cb1b6 2026-10-24T11:45:08+08:00 回响 Resound：初始提交
+a577273536eb7312f6f8310d02e5dbf858339c66 2026-10-24T00:16:13+08:00 完成026搜索升级与问问改数据确认后端
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S import_segment_deleted -- app/src/main/java/app/resound/importer/ImportRecordDao.kt
+52b9103bba120e4b70b774b828be835481f3dcab 2026-10-30T18:03:22+08:00 实现导入录音按类型分人和纪要整理
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S things_line_deleted -- app/src/main/java/app/resound/things/ThingData.kt
+0bbc36e65e4cd0f3dccc110c776f38af7827c0c5 2026-10-30T23:18:27+08:00 实现卡072寻物后端并记录真实验证待确认事项
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S things_event_hidden -- app/src/main/java/app/resound/things/ThingData.kt
+0bbc36e65e4cd0f3dccc110c776f38af7827c0c5 2026-10-30T23:18:27+08:00 实现卡072寻物后端并记录真实验证待确认事项
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S things_event_deleted -- app/src/main/java/app/resound/things/ThingData.kt
+0bbc36e65e4cd0f3dccc110c776f38af7827c0c5 2026-10-30T23:18:27+08:00 实现卡072寻物后端并记录真实验证待确认事项
+
+$ git log --all '--format=%H %ad %s' --date=iso-strict -S digest_pending_source_deleted -- app/src/main/java/app/resound/data/PendingDigest.kt
+774263c65565949d9371b807692b525e419851c5 2026-11-02T21:28:20+08:00 逐项修复审计问题并验证备份回滚与整理结果重放

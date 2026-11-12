@@ -42,7 +42,6 @@ import app.resound.ui.verify.formatClock
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.launch
 
-private val PAUSE_MINUTES = listOf(15, 30, 60, 120)
 private val FORGET_MINUTES = listOf(10, 30, 60)
 
 /** 点主卡上的“正在聆听”：暂停（选时长）/ 恢复 / 开始；删除最近一段（点两次才删） */
@@ -52,7 +51,7 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val status by capture.status.collectAsState()
-    var pauseFor by remember { mutableIntStateOf(30) }
+    var pauseFor by remember { mutableIntStateOf(if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastPauseMinutes.value else 30) }
     var forgetFor by remember { mutableIntStateOf(10) }
     var confirm by remember { mutableStateOf(startOnForget) }
     var busy by remember { mutableStateOf(false) }
@@ -83,9 +82,9 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
             listening -> {
                 Label("暂停多久")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PAUSE_MINUTES.forEach { m -> Choice(if (m < 60) "$m 分钟" else "${m / 60} 小时", m == pauseFor, Modifier.weight(1f)) { pauseFor = m } }
+                    PAUSE_CHOICES.forEach { m -> Choice(if (m < 60) "$m 分钟" else "${m / 60} 小时", m == pauseFor, Modifier.weight(1f)) { pauseFor = m } }
                 }
-                ActionButton("暂停", ActionKind.Primary) { capture.pause(pauseFor); onDismiss() }
+                ActionButton("暂停", ActionKind.Primary) { capture.pause(pauseFor); rememberPauseMinutes(pauseFor); onDismiss() }
             }
             status.state == CaptureState.Paused -> ActionButton("现在恢复", ActionKind.Primary) { capture.resume(); onDismiss() }
             else -> ActionButton("开始聆听", ActionKind.Primary) { capture.start(); onDismiss() }

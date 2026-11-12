@@ -26,6 +26,11 @@ object AppGraph {
     val isLlmProvidersReady: Boolean get() = ::llmProviders.isInitialized
     lateinit var topics: app.resound.topic.TopicRepository
     val isTopicsReady: Boolean get() = ::topics.isInitialized
+    // 卡 147：快捷操作记住上次选择、设置体检（底层由卡 147 装配）
+    lateinit var quickPrefs: app.resound.quick.QuickPrefs
+    val isQuickPrefsReady: Boolean get() = ::quickPrefs.isInitialized
+    lateinit var health: app.resound.health.HealthCheck
+    val isHealthReady: Boolean get() = ::health.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
     lateinit var llmBalance: app.resound.usage.LlmBalanceChecker
     val isLlmBalanceReady: Boolean get() = ::llmBalance.isInitialized

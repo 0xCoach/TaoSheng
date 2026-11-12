@@ -63,6 +63,20 @@ private fun minutesText(ms: Long): String {
 private fun startOf(t: Topic) = t.spans.minOfOrNull { it.startAt } ?: t.plannedStartAt ?: t.createdAt
 private fun endOf(t: Topic, now: Long) = t.spans.maxOfOrNull { it.endAt ?: now } ?: t.plannedEndAt ?: now
 
+/** 首页主卡专题行：“会议专题 · 23 分”“周会 · 1 小时 5 分” */
+fun topicHomeTitle(t: Topic, now: Long = System.currentTimeMillis()): String {
+    val m = ((now - startOf(t)) / 60_000).coerceAtLeast(0)
+    val name = t.name?.takeIf { it.isNotBlank() } ?: (t.kind.title + "专题")
+    return "$name · " + if (m < 60) "$m 分" else "${m / 60} 小时 ${m % 60} 分"
+}
+
+/** 首页主卡专题副行：“已暂停 · 已记下 2 处重点 · 11:00 结束”；没什么可说时为空 */
+fun topicHomeSub(t: Topic): String = buildList {
+    if (t.status == TopicStatus.Paused) add("已暂停")
+    if (t.marks.isNotEmpty()) add("已记下 ${t.marks.size} 处重点")
+    t.plannedEndAt?.let { add(formatClock(it) + " 结束") }
+}.joinToString(" · ")
+
 /** “会议中 · 已 35 分钟 · 11:00 结束” */
 fun topicLine(t: Topic, now: Long = System.currentTimeMillis()): String = buildString {
     append(topicLabel(t))

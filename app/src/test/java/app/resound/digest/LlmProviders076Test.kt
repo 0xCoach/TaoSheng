@@ -203,6 +203,29 @@ class LlmProviders076Test {
         assertEquals(LlmClient.MAX_JSON_OUTPUT_TOKENS, body("https://api.deepseek.com", "deepseek-flash", false).getInt("max_tokens"))
         assertFalse(body("https://api.example.com/v1", "qwen-plus", true).has("thinking"))
     }
+    @Test fun glmHybridModelsFollowThinkingSwitch() {
+        fun body(url: String, model: String, thinking: Boolean) = JSONObject().put("max_tokens", LlmClient.MAX_JSON_OUTPUT_TOKENS)
+            .also { applyLlmOptions(LlmPreset("x", "x", url, model), it, thinking) }
+        // GLM-4.5/4.6/4.7 默认会思考：开关关着时要明确关掉，否则长批次被思考内容截断
+        for ((url, model) in listOf("https://open.bigmodel.cn/api/paas/v4" to "glm-4.7", "https://open.bigmodel.cn/api/paas/v4" to "glm-4.5-air",
+            "https://api.z.ai/api/paas/v4" to "GLM-4.6", "https://api.vipdlab.com/v1" to "zai-org/GLM-4.7")) {
+            val off = body(url, model, false)
+            assertEquals(model, "disabled", off.getJSONObject("thinking").getString("type"))
+            assertEquals(LlmClient.MAX_JSON_OUTPUT_TOKENS, off.getInt("max_tokens"))
+            val on = body(url, model, true)
+            assertEquals(model, "enabled", on.getJSONObject("thinking").getString("type"))
+            assertEquals(LlmClient.THINKING_JSON_OUTPUT_TOKENS, on.getInt("max_tokens"))
+        }
+        assertFalse(body("https://api.siliconflow.cn/v1", "zai-org/GLM-4.7", false).getBoolean("enable_thinking"))
+        assertTrue(body("https://api.siliconflow.cn/v1", "zai-org/GLM-4.7", true).getBoolean("enable_thinking"))
+        // 旧型号不支持思考开关，不加参数
+        assertFalse(body("https://open.bigmodel.cn/api/paas/v4", "glm-4-flash", false).has("thinking"))
+        assertFalse(body("https://open.bigmodel.cn/api/paas/v4", "glm-4-plus", false).has("thinking"))
+        // GLM-5.3 只有思考模式：始终开启，上限放宽
+        val g53 = body("https://open.bigmodel.cn/api/paas/v4", "glm-5.3-flash", false)
+        assertEquals("enabled", g53.getJSONObject("thinking").getString("type"))
+        assertEquals(LlmClient.THINKING_JSON_OUTPUT_TOKENS, g53.getInt("max_tokens"))
+    }
     @Test fun realClientUsesDocumentedParametersForTemplateModels() = runBlocking {
         val seen = mutableListOf<JSONObject>()
         val http = OkHttpClient.Builder().addInterceptor { chain ->

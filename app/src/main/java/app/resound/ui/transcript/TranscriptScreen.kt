@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.map
 import app.resound.ui.theme.fade
 import androidx.compose.ui.unit.sp
@@ -59,7 +60,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -131,10 +131,10 @@ fun TranscriptScreen(
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
     // 话都已记在语音输入那条里的录音段不显示
     val segments by remember(date) { repo.day(date).map { day -> day.filterNot { it.status == TranscriptStatus.Done && it.lines.isEmpty() } } }
-        .collectAsState(initial = null)
-    val hasKey by settings.ready.collectAsState()
-    val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsState()?.value == true
-    val local = (settings as? AndroidTranscribeSettings)?.source?.collectAsState()?.value == TranscribeSource.Local
+        .collectAsStateWithLifecycle(initialValue = null)
+    val hasKey by settings.ready.collectAsStateWithLifecycle()
+    val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsStateWithLifecycle()?.value == true
+    val local = (settings as? AndroidTranscribeSettings)?.source?.collectAsStateWithLifecycle()?.value == TranscribeSource.Local
     var settingsOpen by remember { mutableStateOf(false) }
     // 多选（和首页同一套：长按进入、点选、选到这儿）；换一天就重置
     val selection = remember(date) { app.resound.ui.today.TimelineSelection() }
@@ -163,7 +163,7 @@ fun TranscriptScreen(
         selection.reachTarget(order, viewport.top, minOf(viewport.bottom, bottomEdge)) else null
     val context = LocalContext.current
     val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
-    val dayEvents by remember(date, memory) { memory?.events(date) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val dayEvents by remember(date, memory) { memory?.events(date) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var exporting by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var deleting by remember { mutableStateOf<List<Long>?>(null) }
     var retranscribing by remember { mutableStateOf<List<Long>?>(null) }
@@ -264,7 +264,7 @@ fun TranscriptScreen(
 private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boolean, local: Boolean, settingsShown: Boolean,
                       footer: @Composable () -> Unit = {}, onToggleSettings: () -> Unit) {
     val c = Rs.colors
-    val q by repo.queue.collectAsState()
+    val q by repo.queue.collectAsStateWithLifecycle()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -383,13 +383,13 @@ private fun ProgressSweep(modifier: Modifier) {
 private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
-    val hasKey by settings.hasKey.collectAsState()
-    val ready by settings.ready.collectAsState()
+    val hasKey by settings.hasKey.collectAsStateWithLifecycle()
+    val ready by settings.ready.collectAsStateWithLifecycle()
     val advanced = settings as? AndroidTranscribeSettings
-    val source = advanced?.source?.collectAsState()?.value ?: TranscribeSource.Doubao
+    val source = advanced?.source?.collectAsStateWithLifecycle()?.value ?: TranscribeSource.Doubao
     val local = source == TranscribeSource.Local
-    val interval by settings.intervalMinutes.collectAsState()
-    val wifiOnly by settings.wifiOnly.collectAsState()
+    val interval by settings.intervalMinutes.collectAsStateWithLifecycle()
+    val wifiOnly by settings.wifiOnly.collectAsStateWithLifecycle()
     var editing by remember(source) { mutableStateOf(false) }
     var input by remember(source) { mutableStateOf("") }
     var testing by remember { mutableStateOf(false) }
@@ -455,7 +455,7 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
 
         Text("多久转写一次", style = RsType.body, color = c.text)
         Spacer(Modifier.height(10.dp))
-        val realtime = advanced?.realtime?.collectAsState()?.value
+        val realtime = advanced?.realtime?.collectAsStateWithLifecycle()?.value
         IntervalChoice(interval, realtime, { advanced?.setRealtime(it) }) { settings.setIntervalMinutes(it) }
         Spacer(Modifier.height(6.dp))
         Text(when {
@@ -475,7 +475,7 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
         }
 
         if (app.resound.AppGraph.isPlaybackSkipReady) {
-            val skip by app.resound.AppGraph.playbackSkip.enabled.collectAsState()
+            val skip by app.resound.AppGraph.playbackSkip.enabled.collectAsStateWithLifecycle()
             if (!local) Divider()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -527,10 +527,10 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
 @Composable
 private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     val c=Rs.colors
-    val backend by settings.backend.collectAsState()
-    val language by settings.language.collectAsState()
-    val actual by settings.localStatus.collectAsState()
-    val revision by settings.modelRevision.collectAsState()
+    val backend by settings.backend.collectAsStateWithLifecycle()
+    val language by settings.language.collectAsStateWithLifecycle()
+    val actual by settings.localStatus.collectAsStateWithLifecycle()
+    val revision by settings.modelRevision.collectAsStateWithLifecycle()
     val supported=LocalModels.npuSupported()
     Text("SenseVoice · 离线识别", style=RsType.body,color=c.text)
     Text("录音不出手机。按下面“多久转写一次”识别；说话期间模型常驻，安静 6 分钟后释放内存。", style=RsType.caption,color=c.textSecondary)
@@ -543,7 +543,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     val context=androidx.compose.ui.platform.LocalContext.current
     LocalBackend.entries.filter { it==LocalBackend.Cpu || supported }.forEach { mode ->
         val downloaded=remember(revision,mode){settings.modelReady(mode)}
-        val work by remember(mode){LocalModels.downloadActive(context,LocalModels.workName(mode))}.collectAsState(null)
+        val work by remember(mode){LocalModels.downloadActive(context,LocalModels.workName(mode))}.collectAsStateWithLifecycle(null)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -652,8 +652,8 @@ private const val REALTIME = -2
 private fun SpeakerOptions() {
     val c = Rs.colors
     val speed = app.resound.AppGraph.asrSpeed
-    val separate by speed.separateSpeakers.collectAsState()
-    val classMode by speed.classMode.collectAsState()
+    val separate by speed.separateSpeakers.collectAsStateWithLifecycle()
+    val classMode by speed.classMode.collectAsStateWithLifecycle()
     Divider()
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {

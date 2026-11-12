@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +42,7 @@ import java.time.LocalDate
 @Composable
 fun ReviewSettingsPage(repo: ReviewRepository, bottomPadding: Dp) {
     val c = Rs.colors
-    val s by repo.state.collectAsState()
+    val s by repo.state.collectAsStateWithLifecycle()
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
             Text("每天几点生成", style = RsType.body, color = c.text)

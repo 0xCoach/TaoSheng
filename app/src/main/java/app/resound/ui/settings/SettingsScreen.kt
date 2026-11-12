@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -30,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,7 +81,7 @@ fun SettingsScreen(
     var open by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
     var inner by remember { mutableStateOf<InnerPage?>(null) }
     BackHandler(open != null) { open = null }
-    val requested by app.resound.ui.ShellNav.settingsPage.collectAsState()
+    val requested by app.resound.ui.ShellNav.settingsPage.collectAsStateWithLifecycle()
     LaunchedEffect(requested) { requested?.let { open = it; inner = null; app.resound.ui.ShellNav.settingsPage.value = null } }
     AnimatedContent(
         open,

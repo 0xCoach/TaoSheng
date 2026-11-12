@@ -1,5 +1,6 @@
 package app.resound.ui.voiceprint
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,8 +44,8 @@ val LocalVoiceprint = staticCompositionLocalOf<VoiceprintRepository?> { null }
 @Composable
 fun VoiceprintCard(repo: VoiceprintRepository) {
     val c = Rs.colors
-    val state by repo.state.collectAsState()
-    val people by repo.people.collectAsState()
+    val state by repo.state.collectAsStateWithLifecycle()
+    val people by repo.people.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<Long?>(null) }
     var adding by remember { mutableStateOf(false) }
     if (adding) AddPersonDialog(repo) { adding = false }
@@ -82,7 +82,7 @@ private fun RecomputeCard() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val infos by remember {
         androidx.work.WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(app.resound.voiceprint.VoiceprintRecomputeWork.NAME)
-    }.collectAsState(initial = emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
     val latest = infos.lastOrNull()?.state
     val running = latest == androidx.work.WorkInfo.State.RUNNING || latest == androidx.work.WorkInfo.State.ENQUEUED
     var days by remember { mutableStateOf(1) } // 0=1 天 1=7 天 2=30 天
@@ -109,7 +109,7 @@ private fun RecomputeCard() {
 private fun SampleAudioCard(repo: VoiceprintRepository) {
     val c = Rs.colors
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val bytes by repo.sampleAudioBytes.collectAsState()
+    val bytes by repo.sampleAudioBytes.collectAsStateWithLifecycle()
     var confirm by remember { mutableStateOf(false) }
     var clearing by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<Pair<String, Boolean>?>(null) }

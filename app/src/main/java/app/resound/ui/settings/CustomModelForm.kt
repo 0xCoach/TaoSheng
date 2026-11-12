@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -101,7 +102,7 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
             }
         }
         if(modes!=null && full) {
-            val prompt by modes.prompt.collectAsState()
+            val prompt by modes.prompt.collectAsStateWithLifecycle()
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.unit.sp
 import app.resound.appDisplayName
@@ -52,7 +53,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -140,7 +140,7 @@ fun DevicesPage(bottomPadding: androidx.compose.ui.unit.Dp) {
 @Composable
 fun devicesSummary(): String {
     if (!app.resound.AppGraph.isInputsReady) return "未连接"
-    val status by app.resound.AppGraph.inputs.status.collectAsState()
+    val status by app.resound.AppGraph.inputs.status.collectAsStateWithLifecycle()
     val using = status.using
     return if (using.kind != app.resound.audio.InputKind.Phone) "${using.name} 已连接" else "未连接"
 }
@@ -151,8 +151,8 @@ fun AdvancedPage(stats: CaptureStatsRepository, bottomPadding: androidx.compose.
     val c = Rs.colors
     var dayOffset by remember { mutableIntStateOf(0) }
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
-    val day by remember(date) { stats.dayStats(date) }.collectAsState(initial = null)
-    val events by remember(date) { stats.watchdogEvents(date) }.collectAsState(initial = emptyList())
+    val day by remember(date) { stats.dayStats(date) }.collectAsStateWithLifecycle(initialValue = null)
+    val events by remember(date) { stats.watchdogEvents(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
     LazyColumn(
         Modifier.fillMaxSize().background(c.background),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
@@ -248,7 +248,7 @@ private fun ThemeIcon(mode: ThemeMode, ink: Color, paper: Color, modifier: Modif
 private fun StatusCard(capture: CaptureController) {
     val c = Rs.colors
     val context = LocalContext.current
-    val status by capture.status.collectAsState()
+    val status by capture.status.collectAsStateWithLifecycle()
     val active = status.state == CaptureState.Listening || status.state == CaptureState.Recording
     val recording = status.state == CaptureState.Recording
 

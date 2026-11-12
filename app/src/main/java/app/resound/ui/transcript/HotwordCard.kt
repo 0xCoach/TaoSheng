@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,8 +40,8 @@ import app.resound.ui.verify.springClick
 @Composable
 fun HotwordCard(settings: HotwordSettings) {
     val c = Rs.colors
-    val words by settings.words.collectAsState()
-    val auto by settings.automatic.collectAsState()
+    val words by settings.words.collectAsStateWithLifecycle()
+    val auto by settings.automatic.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     var note by remember { mutableStateOf<String?>(null) }
     fun add() {

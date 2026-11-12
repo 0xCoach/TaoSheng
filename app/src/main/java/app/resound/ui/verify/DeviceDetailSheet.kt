@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -44,7 +45,7 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow<Map<String, DeviceStatusModel>>(emptyMap()) }).collectAsState()
+    val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow<Map<String, DeviceStatusModel>>(emptyMap()) }).collectAsStateWithLifecycle()
     var live by remember { mutableStateOf(previewInfo) }
     var busy by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }

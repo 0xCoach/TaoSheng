@@ -1,5 +1,6 @@
 package app.resound.ui.ask
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
@@ -42,7 +43,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,10 +84,10 @@ import java.time.format.DateTimeFormatter
 fun AskScreen(repo: AskRepository, bottomPadding: Dp) {
     var showHistory by remember { mutableStateOf(false) }
     if (showHistory) { AskHistoryScreen(repo, bottomPadding) { showHistory = false }; return }
-    val current by repo.currentConversation.collectAsState()
+    val current by repo.currentConversation.collectAsStateWithLifecycle()
     val c = Rs.colors
-    val messages by repo.messages.collectAsState(initial = emptyList())
-    val suggestions by repo.suggestions.collectAsState()
+    val messages by repo.messages.collectAsStateWithLifecycle(initialValue = emptyList())
+    val suggestions by repo.suggestions.collectAsStateWithLifecycle()
     val streaming = messages.any { it.streaming }
     val listState = rememberLazyListState()
     // 有新消息或回答变长时滚到底

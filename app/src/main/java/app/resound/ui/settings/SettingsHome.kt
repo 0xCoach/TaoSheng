@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -78,13 +79,13 @@ internal fun SettingsList(
     onOpen: (SettingsPage) -> Unit,
 ) {
     val c = Rs.colors
-    val status by capture.status.collectAsState()
-    val asrKey by transcribeSettings.ready.collectAsState()
-    val llmKey by digestSettings.hasKey.collectAsState()
-    val preset by digestSettings.presetId.collectAsState()
-    val vp = LocalVoiceprint.current?.state?.collectAsState()?.value
+    val status by capture.status.collectAsStateWithLifecycle()
+    val asrKey by transcribeSettings.ready.collectAsStateWithLifecycle()
+    val llmKey by digestSettings.hasKey.collectAsStateWithLifecycle()
+    val preset by digestSettings.presetId.collectAsStateWithLifecycle()
+    val vp = LocalVoiceprint.current?.state?.collectAsStateWithLifecycle()?.value
     var query by rememberSaveable { mutableStateOf("") }
-    val report = if (AppGraph.isHealthReady) AppGraph.health.report.collectAsState().value else null
+    val report = if (AppGraph.isHealthReady) AppGraph.health.report.collectAsStateWithLifecycle().value else null
     LaunchedEffect(Unit) { if (AppGraph.isHealthReady) AppGraph.health.refresh() }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -136,7 +137,7 @@ internal fun SettingsList(
         item {
             GroupSection("记录") {
                 val inputLabel = if (AppGraph.isInputsReady)
-                    AppGraph.inputs.status.collectAsState().value.using.let { if (it.kind == app.resound.audio.InputKind.Phone) null else it.name } else null
+                    AppGraph.inputs.status.collectAsStateWithLifecycle().value.using.let { if (it.kind == app.resound.audio.InputKind.Phone) null else it.name } else null
                 val captureLine = when (status.state) {
                     CaptureState.Listening, CaptureState.Recording -> "正在聆听" + (inputLabel?.let { " · $it" } ?: "")
                     CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") +
@@ -153,10 +154,10 @@ internal fun SettingsList(
                 }
                 Divider()
                 val asr = transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings
-                val asrSource = asr?.source?.collectAsState()?.value?.title ?: "豆包"
-                val asrRealtime = asr?.realtime?.collectAsState()?.value == true
-                val asrInterval = transcribeSettings.intervalMinutes.collectAsState().value
-                val queue = if (AppGraph.isTranscribeReady) AppGraph.transcripts.queue.collectAsState().value else null
+                val asrSource = asr?.source?.collectAsStateWithLifecycle()?.value?.title ?: "豆包"
+                val asrRealtime = asr?.realtime?.collectAsStateWithLifecycle()?.value == true
+                val asrInterval = transcribeSettings.intervalMinutes.collectAsStateWithLifecycle().value
+                val queue = if (AppGraph.isTranscribeReady) AppGraph.transcripts.queue.collectAsStateWithLifecycle().value else null
                 val failed = queue?.failed ?: 0
                 val asrLine = when {
                     !asrKey -> "转写未就绪"
@@ -176,7 +177,7 @@ internal fun SettingsList(
                     SRow(SettingsGlyph.Wave, Tints.env, "环境音识别", v) { onOpen(SettingsPage.EnvSound) }
                 }
                 if (AppGraph.isLocationReady) {
-                    val locOn = AppGraph.location.settings.enabled.collectAsState().value
+                    val locOn = AppGraph.location.settings.enabled.collectAsStateWithLifecycle().value
                     Divider()
                     SRow(SettingsGlyph.Pin, Tints.location, "足迹", if (locOn) "记录全天位置" else "未开启") { onOpen(SettingsPage.Location) }
                 }
@@ -185,17 +186,17 @@ internal fun SettingsList(
         // ---------- 整理 ----------
         item {
             GroupSection("整理") {
-                val digestInterval = (digestSettings as? app.resound.digest.AndroidDigestSettings)?.intervalMinutes?.collectAsState()?.value
+                val digestInterval = (digestSettings as? app.resound.digest.AndroidDigestSettings)?.intervalMinutes?.collectAsStateWithLifecycle()?.value
                 val providerName = if (AppGraph.isLlmProvidersReady) AppGraph.llmProviders.let { p ->
-                    val saved by p.saved.collectAsState(); val id by p.activeId.collectAsState(); saved.firstOrNull { it.id == id }?.name
+                    val saved by p.saved.collectAsStateWithLifecycle(); val id by p.activeId.collectAsStateWithLifecycle(); saved.firstOrNull { it.id == id }?.name
                 } else null
                 val model = providerName ?: digestSettings.presets.firstOrNull { it.id == preset }?.name ?: ""
                 val timing = if (AppGraph.isDigestTimingReady) AppGraph.digestTiming else null
-                val timed = timing?.mode?.collectAsState()?.value == app.resound.digest.DigestMode.TimePoints
-                val points = timing?.timePoints?.collectAsState()?.value.orEmpty()
+                val timed = timing?.mode?.collectAsStateWithLifecycle()?.value == app.resound.digest.DigestMode.TimePoints
+                val points = timing?.timePoints?.collectAsStateWithLifecycle()?.value.orEmpty()
                 val when_ = if (timed) " · 每天 ${points.size} 个时间点" else digestInterval?.let { " · 每 $it 分钟" } ?: ""
-                val bal = if (AppGraph.isLlmBalanceReady) AppGraph.llmBalance.state.collectAsState().value.balance else null
-                val line = if (AppGraph.isLlmBalanceReady) AppGraph.llmBalance.threshold.collectAsState().value else 0.0
+                val bal = if (AppGraph.isLlmBalanceReady) AppGraph.llmBalance.state.collectAsStateWithLifecycle().value.balance else null
+                val line = if (AppGraph.isLlmBalanceReady) AppGraph.llmBalance.threshold.collectAsStateWithLifecycle().value else 0.0
                 val low = bal != null && line > 0 && (bal.total < line || !bal.available)
                 val modelLine = when {
                     !llmKey -> "未设置"
@@ -206,10 +207,10 @@ internal fun SettingsList(
                 SRow(SettingsGlyph.Sparkle, Tints.model, SettingsPage.Model.title, modelLine,
                     alert = when { !llmKey || (bal != null && !bal.available) -> c.critical; low -> c.warning; else -> null }) { onOpen(SettingsPage.Model) }
                 Divider()
-                val skillList = app.resound.ui.skills.skillRepo().skills.collectAsState().value
+                val skillList = app.resound.ui.skills.skillRepo().skills.collectAsStateWithLifecycle().value
                 SRow(SettingsGlyph.Grid, Tints.skills, "整理技能", "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个") { onOpen(SettingsPage.Skills) }
                 if (AppGraph.isPushReady) {
-                    val channels = AppGraph.push.channels.collectAsState(initial = emptyList()).value
+                    val channels = AppGraph.push.channels.collectAsStateWithLifecycle(initialValue = emptyList()).value
                     Divider()
                     SRow(SettingsGlyph.Send, Tints.push, "推送通道", channels.count { it.enabled }.let { if (it == 0) "只发手机通知" else "$it 个通道" }) { onOpen(SettingsPage.Push) }
                 }
@@ -218,8 +219,8 @@ internal fun SettingsList(
         // ---------- 数据（备份没准备好时整组不显示，不写“开发中”） ----------
         if (AppGraph.isBackupReady) item {
             GroupSection("数据") {
-                val b = AppGraph.backup.state.collectAsState().value
-                val lb = AppGraph.backup.local.collectAsState().value
+                val b = AppGraph.backup.state.collectAsStateWithLifecycle().value
+                val lb = AppGraph.backup.local.collectAsStateWithLifecycle().value
                 val parts = buildList {
                     if (b.account != null) add(Triple(b.cloud.title(), b.lastError == null && b.lastBackupAt != null, b.lastBackupAt))
                     if (lb.folder != null) add(Triple("本机", lb.lastError == null && lb.lastAt != null, lb.lastAt))
@@ -240,7 +241,7 @@ internal fun SettingsList(
                 }
                 if (AppGraph.isUpdaterReady) {
                     val updater = AppGraph.updater
-                    val (summary, fresh) = updateSummary(updater.currentVersion, updater.state.collectAsState().value)
+                    val (summary, fresh) = updateSummary(updater.currentVersion, updater.state.collectAsStateWithLifecycle().value)
                     Divider()
                     SRow(SettingsGlyph.Up, Tints.update, "版本更新", summary, alert = if (fresh) c.accent else null) { onOpen(SettingsPage.Update) }
                 }

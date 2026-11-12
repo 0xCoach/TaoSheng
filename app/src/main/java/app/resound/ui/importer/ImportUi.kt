@@ -1,5 +1,6 @@
 package app.resound.ui.importer
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.resound.appDisplayName
 import android.net.Uri
 import android.widget.Toast
@@ -33,7 +34,6 @@ import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -71,7 +71,7 @@ import java.time.format.DateTimeFormatter
 fun ImportHost() {
     if (!AppGraph.isImporterReady) return
     val importer = AppGraph.importer
-    val pending by importer.pending.collectAsState()
+    val pending by importer.pending.collectAsStateWithLifecycle()
     if (pending.isNotEmpty()) ImportSheet(importer, pending)
 }
 
@@ -96,7 +96,7 @@ fun ImportButton() {
 fun ImportBanner(modifier: Modifier = Modifier) {
     if (!AppGraph.isImporterReady) return
     val c = Rs.colors
-    val p by AppGraph.importer.progress.collectAsState()
+    val p by AppGraph.importer.progress.collectAsStateWithLifecycle()
     AnimatedVisibility(p.running || p.error != null, modifier, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

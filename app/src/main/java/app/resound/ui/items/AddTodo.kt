@@ -1,5 +1,6 @@
 package app.resound.ui.items
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -35,7 +36,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -241,7 +241,7 @@ private val CANCELLED = Any()
 @Composable
 private fun StatusCard(phase: Phase, cancelArmed: Boolean, voice: TodoVoiceInput, noun: String) {
     val c = Rs.colors
-    val level by voice.level.collectAsState()
+    val level by voice.level.collectAsStateWithLifecycle()
     var seconds by remember(phase) { mutableIntStateOf(0) }
     LaunchedEffect(phase) { if (phase == Phase.Listening) while (true) { delay(1000); seconds++ } }
     val bg by animateColorAsState(if (cancelArmed) c.critical else c.card, label = "statusBg")

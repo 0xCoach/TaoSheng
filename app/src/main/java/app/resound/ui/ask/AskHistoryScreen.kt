@@ -1,5 +1,6 @@
 package app.resound.ui.ask
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -55,8 +56,8 @@ internal fun AskHistoryScreen(repo: AskRepository, bottomPadding: Dp, onBack: ()
     var query by remember { mutableStateOf("") }
     var limit by remember(query) { mutableIntStateOf(30) }
     val flow = remember(repo, query, limit) { repo.history(query, limit + 1) }
-    val rows by flow.collectAsState(initial = emptyList())
-    val current by repo.currentConversation.collectAsState()
+    val rows by flow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val current by repo.currentConversation.collectAsStateWithLifecycle()
     var managing by remember { mutableStateOf<AskConversation?>(null) }
     val haptic = LocalHapticFeedback.current
     BackHandler(onBack = onBack)

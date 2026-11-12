@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,7 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,13 +42,13 @@ import kotlinx.coroutines.launch
 fun BalanceCard(checker: LlmBalanceChecker, settings: AndroidDigestSettings) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
-    val state by checker.state.collectAsState()
-    val threshold by checker.threshold.collectAsState()
-    val presetId by settings.presetId.collectAsState()
-    val hasKey by settings.hasKey.collectAsState()
-    val custom by checker.custom.collectAsState()
+    val state by checker.state.collectAsStateWithLifecycle()
+    val threshold by checker.threshold.collectAsStateWithLifecycle()
+    val presetId by settings.presetId.collectAsStateWithLifecycle()
+    val hasKey by settings.hasKey.collectAsStateWithLifecycle()
+    val custom by checker.custom.collectAsStateWithLifecycle()
     // 完全自填的服务商可以自己填余额查询；从模板建的，模板没有余额接口就不显示这张卡
-    val activeProvider = if (app.resound.AppGraph.isLlmProvidersReady) app.resound.AppGraph.llmProviders.saved.collectAsState().value.firstOrNull { it.id == presetId } else null
+    val activeProvider = if (app.resound.AppGraph.isLlmProvidersReady) app.resound.AppGraph.llmProviders.saved.collectAsStateWithLifecycle().value.firstOrNull { it.id == presetId } else null
     val isCustom = activeProvider?.templateId == null
     var editingLine by remember { mutableStateOf(false) }
     var editingSource by remember { mutableStateOf(false) }

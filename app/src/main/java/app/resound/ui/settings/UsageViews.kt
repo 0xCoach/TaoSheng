@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,8 +77,8 @@ private fun purposeColor(p: UsagePurpose): Color = when (p) {
 fun LlmUsageCard(repo: UsageRepository) {
     val c = Rs.colors
     val today = remember { LocalDate.now() }
-    val rows by remember { repo.llm(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
-    val price by repo.price.collectAsState()
+    val rows by remember { repo.llm(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val price by repo.price.collectAsStateWithLifecycle()
     var range by remember { mutableStateOf(0) } // 0 今天 1 本周 2 本月(30 天)
     var editing by remember { mutableStateOf(false) }
     val from = when (range) { 0 -> today; 1 -> today.minusDays((today.dayOfWeek.value - 1).toLong()); else -> today.minusDays(29) }
@@ -143,8 +143,8 @@ fun LlmUsageCard(repo: UsageRepository) {
 @Composable
 fun AsrUsageRow(repo: UsageRepository) {
     val today = remember { LocalDate.now() }
-    val rows by remember { repo.asr(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
-    val price by repo.price.collectAsState()
+    val rows by remember { repo.asr(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val price by repo.price.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     fun minutes(ms: Long) = (ms + 59_999) / 60_000
     val todayMs = rows.filter { it.date.toJavaLocalDate() == today }.sumOf { it.cloudMillis }
@@ -161,8 +161,8 @@ fun AsrUsageRow(repo: UsageRepository) {
 fun AsrUsageCard(repo: UsageRepository) {
     val c = Rs.colors
     val today = remember { LocalDate.now() }
-    val rows by remember { repo.asr(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
-    val price by repo.price.collectAsState()
+    val rows by remember { repo.asr(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val price by repo.price.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf(false) }
     fun minutes(ms: Long) = (ms + 59_999) / 60_000
     val todayMs = rows.filter { it.date.toJavaLocalDate() == today }.sumOf { it.cloudMillis }

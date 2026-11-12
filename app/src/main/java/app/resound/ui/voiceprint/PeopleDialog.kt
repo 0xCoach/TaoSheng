@@ -1,5 +1,6 @@
 package app.resound.ui.voiceprint
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -46,8 +47,8 @@ private val READ_PASSAGES = listOf(
 @Composable
 fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss: () -> Unit) {
     val c = Rs.colors
-    val people by repo.people.collectAsState()
-    val voiceState by repo.state.collectAsState()
+    val people by repo.people.collectAsStateWithLifecycle()
+    val voiceState by repo.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf(person.name) }
     var editing by remember { mutableStateOf(false) }
@@ -205,7 +206,7 @@ fun SpeakerSegmentationSettings() {
     var enabled by remember { mutableStateOf(prefs.getBoolean("speakers-enabled", true)) }
     var downloaded by remember { mutableStateOf(LocalModels.ready(context, LocalModels.speakers)) }
     var downloadState by remember { mutableStateOf("") }
-    val work by remember { LocalModels.downloadActive(context, LocalModels.SPEAKERS_WORK) }.collectAsState(null)
+    val work by remember { LocalModels.downloadActive(context, LocalModels.SPEAKERS_WORK) }.collectAsStateWithLifecycle(null)
     LaunchedEffect(downloaded) {
         while (!downloaded) {
             downloaded = LocalModels.ready(context, LocalModels.speakers)
@@ -260,7 +261,7 @@ private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
 /** 原话长按“这是谁”：选已有的人，或输入新名字 */
 @Composable
 fun AssignPersonDialog(repo: VoiceprintRepository, lineId: Long, onDismiss: () -> Unit) {
-    val people by repo.people.collectAsState()
+    val people by repo.people.collectAsStateWithLifecycle()
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }

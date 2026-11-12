@@ -1,9 +1,9 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.content.Context
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -192,7 +192,7 @@ fun displayVersion(version: String): String =
 private fun PreviewCard() {
     val c = Rs.colors
     val updater = AppGraph.updater
-    val on by updater.previewChannel.collectAsState()
+    val on by updater.previewChannel.collectAsStateWithLifecycle()
     AboutCard("开发者选项") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -261,7 +261,7 @@ internal fun ExportProblemPill(label: String = "导出问题记录", onDone: () 
 fun CrashNotice(topGap: Dp = 0.dp) {
     if (!AppGraph.isProblemReportsReady) return
     val c = Rs.colors
-    val at by AppGraph.problemReports.lastCrashAt.collectAsState()
+    val at by AppGraph.problemReports.lastCrashAt.collectAsStateWithLifecycle()
     if (at == null) return
     Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {

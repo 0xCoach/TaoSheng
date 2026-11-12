@@ -1,5 +1,6 @@
 package app.resound.ui.voiceprint
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
 import app.resound.ui.theme.fade
 import androidx.compose.animation.core.*
@@ -37,8 +38,8 @@ private fun secondsText(ms: Long) = if (ms <= 0L) null else "%.1f 秒".format(ms
 /** 人物详情里的两块：此人的声纹样本（可听、可删），以及被认成此人的原话（可加入声纹、可移除） */
 @Composable
 internal fun PersonSamples(repo: VoiceprintRepository, person: VoiceprintPerson) {
-    val samples by remember(person.id) { repo.samples(person.id) }.collectAsState(null)
-    val lines by remember(person.id) { repo.lines(person.id) }.collectAsState(null)
+    val samples by remember(person.id) { repo.samples(person.id) }.collectAsStateWithLifecycle(null)
+    val lines by remember(person.id) { repo.lines(person.id) }.collectAsStateWithLifecycle(null)
     DisposableEffect(Unit) { onDispose { SamplePlayer.stop() } }
     SampleSection(repo, person, samples)
     LineSection(repo, person, lines)

@@ -1,5 +1,6 @@
 package app.resound.ui.items
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -24,7 +25,6 @@ import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -170,7 +170,7 @@ internal fun DueChoice(day: LocalDate?, time: LocalTime?, onDay: (LocalDate?) ->
 @Composable
 internal fun ReminderSheet(memory: MemoryRepository, onDismiss: () -> Unit) {
     val c = Rs.colors
-    val r by memory.appointmentReminders.collectAsState()
+    val r by memory.appointmentReminders.collectAsStateWithLifecycle()
     fun set(v: AppointmentReminders) = memory.setAppointmentReminders(v)
     RsSheet("约定提醒", "有时间的约定和待办会提前提醒你，和到期提醒走同一个地方（手机通知和推送通道）。", onDismiss = onDismiss) {
         var setup by remember { mutableStateOf(false) }

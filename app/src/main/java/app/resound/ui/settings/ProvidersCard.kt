@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,21 +60,21 @@ private const val WORKSPACE = "{WorkspaceId}"
 @Composable
 fun ProvidersCard(providers: LlmProviders) {
     val c = Rs.colors
-    val saved by providers.saved.collectAsState()
-    val active by providers.activeId.collectAsState()
+    val saved by providers.saved.collectAsStateWithLifecycle()
+    val active by providers.activeId.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<SavedProvider?>(null) }
     var adding by remember { mutableStateOf(false) }
     val checker = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance else null
-    val balance = checker?.state?.collectAsState()?.value
-    val threshold = checker?.threshold?.collectAsState()?.value ?: 0.0
+    val balance = checker?.state?.collectAsStateWithLifecycle()?.value
+    val threshold = checker?.threshold?.collectAsStateWithLifecycle()?.value ?: 0.0
     var editingLine by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
     var checkResult by remember(active) { mutableStateOf<Result<List<app.resound.digest.ModelCheckItem>>?>(null) }
     androidx.compose.runtime.LaunchedEffect(active, saved) { checker?.refresh() }
     val failover = if (app.resound.AppGraph.isLlmFailoverReady) app.resound.AppGraph.llmFailover else null
-    val failoverOn = failover?.enabled?.collectAsState()?.value == true
-    val lastSwitch = failover?.latestSwitch?.collectAsState()?.value
+    val failoverOn = failover?.enabled?.collectAsStateWithLifecycle()?.value == true
+    val lastSwitch = failover?.latestSwitch?.collectAsStateWithLifecycle()?.value
     // 与切换层一致：当前之外、可用的服务商按列表顺序当备用，每次最多再试两个。
     val backups = saved.filter { it.id != active && it.hasKey }.map { it.id }
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {

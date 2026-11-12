@@ -1,5 +1,6 @@
 package app.resound.ui.onboarding
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -7,7 +8,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +26,7 @@ import app.resound.ui.verify.RsCard
 @Composable
 fun OnboardingTipCard(topGap: Dp = 0.dp) {
     if (!AppGraph.isOnboardingReady) return
-    val tips by AppGraph.onboarding.tips.collectAsState()
+    val tips by AppGraph.onboarding.tips.collectAsStateWithLifecycle()
     val tip = tips.firstOrNull() ?: return
     val c = Rs.colors
     val (icon, title, body, page) = when (tip) {

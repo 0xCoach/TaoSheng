@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -165,22 +166,22 @@ private fun ColumnScope.LiveCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val status by capture.status.collectAsState()
-    val digest by memory.state.collectAsState()
-    val queue by transcripts.queue.collectAsState()
+    val status by capture.status.collectAsStateWithLifecycle()
+    val digest by memory.state.collectAsStateWithLifecycle()
+    val queue by transcripts.queue.collectAsStateWithLifecycle()
     val digestProgress by (if (AppGraph.isDigestProgressReady) AppGraph.digestProgress
-        else remember { kotlinx.coroutines.flow.MutableStateFlow(app.resound.digest.DigestProgress()) }).collectAsState()
+        else remember { kotlinx.coroutines.flow.MutableStateFlow(app.resound.digest.DigestProgress()) }).collectAsStateWithLifecycle()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(digest.running) { while (true) { now = System.currentTimeMillis(); delay(if (digest.running) 1_000 else 20_000) } }
-    val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.collectAsState().value else null
+    val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.collectAsStateWithLifecycle().value else null
     val active = status.state == CaptureState.Listening || status.state == CaptureState.Recording
     val recording = status.state == CaptureState.Recording
     val inCall = status.busyDetail == app.resound.audio.MicYield.IN_CALL
     val controls = HomeRules.controls(homeCapture(status.state, inCall), topic != null)
-    val lastPause = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastPauseMinutes.collectAsState().value else 30
+    val lastPause = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastPauseMinutes.collectAsStateWithLifecycle().value else 30
 
     var listenOpen by remember { mutableStateOf(false) }
-    val forgetRequested by app.resound.ui.ShellNav.forgetRecent.collectAsState()
+    val forgetRequested by app.resound.ui.ShellNav.forgetRecent.collectAsStateWithLifecycle()
     if (listenOpen || forgetRequested) ListenSheet(capture, startOnForget = forgetRequested) {
         listenOpen = false; app.resound.ui.ShellNav.forgetRecent.value = false
     }
@@ -266,7 +267,7 @@ private fun ColumnScope.LiveCard(
     subLine?.let { Text(it, style = RsType.caption, color = ink.soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 1.dp)) }
     // 旧版开启的课堂模式（升级前开的）仍提醒一句，点开聆听面板
     if (AppGraph.isAsrSpeedReady) {
-        val classMode by AppGraph.asrSpeed.classMode.collectAsState()
+        val classMode by AppGraph.asrSpeed.classMode.collectAsStateWithLifecycle()
         if (classMode.enabled) Row(Modifier.padding(top = 6.dp).clip(CircleShape).background(ink.pill)
             .springClick { listenOpen = true }.padding(horizontal = 10.dp, vertical = 3.dp)) {
             Text(app.resound.ui.transcript.classModeLine(classMode, now) + " ›", style = RsType.caption, color = ink.pillText, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -287,20 +288,20 @@ private fun ColumnScope.LiveCard(
     Box(Modifier.fillMaxWidth().height(0.5.dp).background(ink.divider))
     Spacer(Modifier.height(8.dp))
     val timing = if (AppGraph.isDigestTimingReady) AppGraph.digestTiming else null
-    val timedMode = timing?.mode?.collectAsState()?.value == app.resound.digest.DigestMode.TimePoints
-    val nextAt = timing?.nextDigestAt?.collectAsState()?.value
+    val timedMode = timing?.mode?.collectAsStateWithLifecycle()?.value == app.resound.digest.DigestMode.TimePoints
+    val nextAt = timing?.nextDigestAt?.collectAsStateWithLifecycle()?.value
     val nextDigest = if (!timedMode) null else nextAt?.let { at ->
         val day = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
         "下次整理 " + (if (day != LocalDate.now()) "明天 " else "") + formatClock(at)
     } ?: "未设整理时间点"
-    val pipeline by app.resound.PipelineProgress.state.collectAsState()
+    val pipeline by app.resound.PipelineProgress.state.collectAsStateWithLifecycle()
     val stage = pipeline.stage
     val busy = digest.running || queue.running || stage != null
     val toTranscribe = queue.pending + queue.failed
     val err = digest.lastError
     val quotaOrAuth = !digest.running && (err == app.resound.digest.LlmError.Quota.human || err == app.resound.digest.LlmError.Auth.human)
     val provider = if (AppGraph.isLlmProvidersReady) AppGraph.llmProviders.let { p ->
-        val saved by p.saved.collectAsState(); val id by p.activeId.collectAsState(); saved.firstOrNull { it.id == id }
+        val saved by p.saved.collectAsStateWithLifecycle(); val id by p.activeId.collectAsStateWithLifecycle(); saved.firstOrNull { it.id == id }
     } else null
     val model = HomeRules.modelButton(provider?.name, hasKey, quotaOrAuth)
     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +50,7 @@ fun ListenSheet(capture: CaptureController, startOnForget: Boolean = false, onDi
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val status by capture.status.collectAsState()
+    val status by capture.status.collectAsStateWithLifecycle()
     var pauseFor by remember { mutableIntStateOf(if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastPauseMinutes.value else 30) }
     var forgetFor by remember { mutableIntStateOf(10) }
     var confirm by remember { mutableStateOf(startOnForget) }

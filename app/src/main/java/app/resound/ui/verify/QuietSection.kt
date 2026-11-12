@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -21,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,8 +45,8 @@ import java.time.DayOfWeek
 @Composable
 internal fun QuietSection(schedule: QuietSchedule) {
     val c = Rs.colors
-    val rules by schedule.rules.collectAsState()
-    val active by schedule.active.collectAsState()
+    val rules by schedule.rules.collectAsStateWithLifecycle()
+    val active by schedule.active.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<QuietRule?>(null) }
     var adding by remember { mutableStateOf(false) }
     Section("停录时段", trailing = {

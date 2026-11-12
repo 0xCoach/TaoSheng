@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
@@ -25,7 +26,7 @@ import app.resound.ui.theme.RsType
 @Composable
 fun FolderImportSection(imports: FolderImports) {
     val c = Rs.colors
-    val state by imports.state.collectAsState()
+    val state by imports.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf<android.net.Uri?>(null) }
     var editing by remember { mutableStateOf<WatchedFolder?>(null) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) adding = uri }

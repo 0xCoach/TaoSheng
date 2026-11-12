@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -27,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +62,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
     val c = Rs.colors
-    val s by repo.state.collectAsState()
+    val s by repo.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val configured = s.account != null && s.hasPassword
     var settingPass by remember { mutableStateOf(false) }
@@ -73,7 +73,7 @@ fun BackupPage(repo: BackupRepository, bottomPadding: Dp) {
     var cloud by remember(cloudCache) { mutableStateOf(cloudCache.summary) }
     var cloudReadError by remember(cloudCache) { mutableStateOf<String?>(null) }
     var restoringAll by remember { mutableStateOf<String?>(null) }
-    val local by repo.local.collectAsState()
+    val local by repo.local.collectAsStateWithLifecycle()
     var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(if (configured && local.folder == null) 1 else 0) }
     androidx.compose.runtime.LaunchedEffect(cloudCache, s.lastBackupAt, tab) {
         if (configured && tab == 1) {

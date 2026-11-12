@@ -1,5 +1,6 @@
 package app.resound.ui.skills
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.toKotlinLocalDate
 import app.resound.appDisplayName
 import androidx.activity.compose.BackHandler
@@ -39,7 +40,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,13 +87,13 @@ fun SkillsPage(
     bottomPadding: Dp,
     corePage: @Composable (String, Dp) -> Unit,
 ) {
-    val backendSkills by repo.skills.collectAsState()
+    val backendSkills by repo.skills.collectAsStateWithLifecycle()
     // “问问”不出卡片，但它的提示词也归到技能页的“基础”里统一改
     val skills = remember(backendSkills) {
         val i = backendSkills.indexOfLast { it.origin == SkillOrigin.Core } + 1
         (backendSkills.take(i) + ASK_CORE + backendSkills.drop(i)).map { s -> CORE_SUMMARY[s.id]?.let { s.copy(summary = it) } ?: s }
     }
-    val status by repo.status.collectAsState()
+    val status by repo.status.collectAsStateWithLifecycle()
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
     val open = skills.firstOrNull { it.id == openId }
     // 正在编辑的技能（新建时是空白模板）
@@ -484,8 +484,8 @@ private fun TryCard(s: Skill, repo: SkillRepository, prompt: String?) {
     var saved by remember { mutableStateOf(false) }
     val date = LocalDate.now().minusDays(day.toLong())
     // 生成走后台（切页面不中断），试跑只是预览、留在本页
-    val generating = (s.id to date.toKotlinLocalDate()) in repo.generating.collectAsState().value
-    val generated = repo.generated.collectAsState().value[s.id to date.toKotlinLocalDate()]
+    val generating = (s.id to date.toKotlinLocalDate()) in repo.generating.collectAsStateWithLifecycle().value
+    val generated = repo.generated.collectAsStateWithLifecycle().value[s.id to date.toKotlinLocalDate()]
     if (saved && !generating && generated != null) result = generated
     fun go(save: Boolean) {
         if (busy || generating) return

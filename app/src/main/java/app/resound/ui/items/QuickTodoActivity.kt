@@ -1,5 +1,6 @@
 package app.resound.ui.items
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -87,7 +88,7 @@ private fun QuickTodoFlow(onClose: () -> Unit) {
     }
     val c = Rs.colors
     RsSheet("说一下要做的事", "几件事一起说也行，说完点“说完了”", onDismiss = { voice.cancel(); onClose() }) {
-        val level by voice.level.collectAsState()
+        val level by voice.level.collectAsStateWithLifecycle()
         Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
             when (phase) {
                 QuickPhase.Listening -> BreathingWave(level, active = true, recording = true, modifier = Modifier.fillMaxWidth().height(40.dp), tint = c.accent)

@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -42,7 +43,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,16 +62,16 @@ import app.resound.ui.verify.springClick
 @Composable
 fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if (AppGraph.isDigestTimingReady) AppGraph.digestTiming else null) {
     val c = Rs.colors
-    val interval by settings.intervalMinutes.collectAsState()
-    val pause by settings.pauseMinutes.collectAsState()
-    val maxWait by settings.maxWaitMinutes.collectAsState()
+    val interval by settings.intervalMinutes.collectAsStateWithLifecycle()
+    val pause by settings.pauseMinutes.collectAsStateWithLifecycle()
+    val maxWait by settings.maxWaitMinutes.collectAsStateWithLifecycle()
     RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Text("什么时候整理", style = RsType.body, color = c.text)
         Spacer(Modifier.height(4.dp))
         Text("把转写好的原话整理成一件件事。转写在「原话与转写」里单独设置。", style = RsType.caption, color = c.textSecondary)
 
         Spacer(Modifier.height(16.dp))
-        val mode = timing?.mode?.collectAsState()?.value ?: DigestMode.Interval
+        val mode = timing?.mode?.collectAsStateWithLifecycle()?.value ?: DigestMode.Interval
         if (timing != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MinuteChip("按间隔", mode == DigestMode.Interval) { timing.setMode(DigestMode.Interval) }
@@ -112,7 +112,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
             style = RsType.caption, color = c.textTertiary)
 
         Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
-        val thinking by settings.deepThinking.collectAsState()
+        val thinking by settings.deepThinking.collectAsStateWithLifecycle()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("整理前先思考", style = RsType.subhead, color = c.text)
@@ -126,7 +126,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
 
         // 卡 130：把当时在哪、周围什么声音一起交给大模型，场景和地点判断更准
         Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
-        val situation by settings.includeSituation.collectAsState()
+        val situation by settings.includeSituation.collectAsStateWithLifecycle()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("整理时参考地点和环境音", style = RsType.subhead, color = c.text)
@@ -148,7 +148,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
 @Composable
 private fun TimePoints(timing: DigestTiming) {
     val c = Rs.colors
-    val points by timing.timePoints.collectAsState()
+    val points by timing.timePoints.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     // 从系统设置回来时重查准点权限
     var exact by remember { mutableStateOf(timing.canScheduleExact()) }

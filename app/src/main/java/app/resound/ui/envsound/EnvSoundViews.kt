@@ -1,5 +1,6 @@
 package app.resound.ui.envsound
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -26,7 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,9 +88,9 @@ private fun eventDate(e: MemoryEvent) = Instant.ofEpochMilli(e.startAt).atZone(Z
 fun EventEnvLine(event: MemoryEvent, modifier: Modifier = Modifier) {
     if (!AppGraph.isEnvSoundReady) return
     val repo = AppGraph.envSound
-    val s by repo.settings.collectAsState()
+    val s by repo.settings.collectAsStateWithLifecycle()
     if (!s.enabled || !s.showInSummaries) return
-    val map by EnvCache.eventSounds(repo, eventDate(event)).collectAsState()
+    val map by EnvCache.eventSounds(repo, eventDate(event)).collectAsStateWithLifecycle()
     val line = map[event.id]?.line() ?: return
     Text(line, style = RsType.caption, color = Rs.colors.textTertiary, maxLines = 1, modifier = modifier)
 }
@@ -101,9 +101,9 @@ fun EventEnvLine(event: MemoryEvent, modifier: Modifier = Modifier) {
 fun EventEnvDetail(event: MemoryEvent, modifier: Modifier = Modifier) {
     if (!AppGraph.isEnvSoundReady) return
     val repo = AppGraph.envSound
-    val s by repo.settings.collectAsState()
+    val s by repo.settings.collectAsStateWithLifecycle()
     if (!s.enabled || !s.showInSummaries) return
-    val map by EnvCache.eventSounds(repo, eventDate(event)).collectAsState()
+    val map by EnvCache.eventSounds(repo, eventDate(event)).collectAsStateWithLifecycle()
     val es = map[event.id] ?: return
     if (es.tags.isEmpty() && es.sounds.isEmpty() && !es.media) return
     val c = Rs.colors
@@ -128,9 +128,9 @@ private fun Tag(text: String, bg: Color, fg: Color) =
 fun EnvFlaggedRow(date: LocalDate) {
     if (!AppGraph.isEnvSoundReady) return
     val repo = AppGraph.envSound
-    val s by repo.settings.collectAsState()
+    val s by repo.settings.collectAsStateWithLifecycle()
     if (!s.enabled) return
-    val list by remember(date) { repo.flagged(date) }.collectAsState(initial = emptyList())
+    val list by remember(date) { repo.flagged(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
     if (list.isEmpty()) return
     val c = Rs.colors
     var open by remember { mutableStateOf(false) }
@@ -225,8 +225,8 @@ private fun Pill(text: String, primary: Boolean, onClick: () -> Unit) {
 @Composable
 fun envSoundSummary(): String? {
     if (!AppGraph.isEnvSoundReady) return null
-    val s by AppGraph.envSound.settings.collectAsState()
-    val m by AppGraph.envSound.model.collectAsState()
+    val s by AppGraph.envSound.settings.collectAsStateWithLifecycle()
+    val m by AppGraph.envSound.model.collectAsStateWithLifecycle()
     return when {
         !s.enabled -> "未开启"
         m is EnvModelState.Downloading -> "下载模型中"
@@ -239,9 +239,9 @@ fun envSoundSummary(): String? {
 @Composable
 fun EnvSoundPage(repo: EnvSoundRepository, bottomPadding: Dp) {
     val c = Rs.colors
-    val s by repo.settings.collectAsState()
-    val model by repo.model.collectAsState()
-    val stats by remember { repo.stats(7) }.collectAsState(initial = null)
+    val s by repo.settings.collectAsStateWithLifecycle()
+    val model by repo.model.collectAsStateWithLifecycle()
+    val stats by remember { repo.stats(7) }.collectAsStateWithLifecycle(initialValue = null)
     fun set(v: EnvSoundSettings) = repo.update(v)
     Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -337,8 +337,8 @@ private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> U
 fun rememberHourSounds(date: LocalDate): Map<Int, app.resound.envsound.HourSound> {
     if (!AppGraph.isEnvSoundReady) return emptyMap()
     val repo = AppGraph.envSound
-    val s by repo.settings.collectAsState()
-    val list by remember(date) { repo.hourly(date) }.collectAsState(initial = emptyList())
+    val s by repo.settings.collectAsStateWithLifecycle()
+    val list by remember(date) { repo.hourly(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
     if (!s.enabled || !s.showInSummaries) return emptyMap()
     return remember(list) { list.associateBy { it.hour } }
 }

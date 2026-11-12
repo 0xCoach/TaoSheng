@@ -1,5 +1,6 @@
 package app.resound.ui.onboarding
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.content.ClipboardManager
 import android.content.Context
@@ -241,7 +242,7 @@ private fun Reason(icon: String, title: String, why: String) {
 @Composable
 private fun modelReady(): Boolean {
     val settings = (if (AppGraph.isTranscribeReady) AppGraph.transcribeSettings as? AndroidTranscribeSettings else null) ?: return true
-    return settings.ready.collectAsState().value
+    return settings.ready.collectAsStateWithLifecycle().value
 }
 
 private val percent = Regex("""下载 (\d+)%""")
@@ -255,9 +256,9 @@ private fun ModelProgress(big: Boolean = false) {
     val c = Rs.colors
     val context = LocalContext.current
     val settings = (if (AppGraph.isTranscribeReady) AppGraph.transcribeSettings as? AndroidTranscribeSettings else null) ?: return
-    val ready by settings.ready.collectAsState()
-    val revision by settings.modelRevision.collectAsState()
-    val backend by settings.backend.collectAsState()
+    val ready by settings.ready.collectAsStateWithLifecycle()
+    val revision by settings.modelRevision.collectAsStateWithLifecycle()
+    val backend by settings.backend.collectAsStateWithLifecycle()
     val prefs = remember { context.getSharedPreferences("local-asr", Context.MODE_PRIVATE) }
     val status = remember(revision, ready) { if (ready) null else prefs.getString("download-${backend.name}", null) }
     val pct = status?.let { percent.find(it)?.groupValues?.get(1)?.toIntOrNull() }
@@ -365,13 +366,13 @@ private fun ColumnScope.DeepSeek(onNext: () -> Unit, onLater: () -> Unit) {
 @Composable
 private fun ColumnScope.TryIt(capture: CaptureController, transcripts: TranscriptRepository, memory: MemoryRepository, since: Long, onDone: () -> Unit) {
     val c = Rs.colors
-    val status by capture.status.collectAsState()
+    val status by capture.status.collectAsStateWithLifecycle()
     val today = remember { LocalDate.now() }
-    val segments by remember { transcripts.day(today) }.collectAsState(emptyList())
+    val segments by remember { transcripts.day(today) }.collectAsStateWithLifecycle(emptyList())
     val line = segments.flatMap { it.lines }.filter { it.startAt >= since && it.text.isNotBlank() }.maxByOrNull { it.startAt }
-    val events by remember { memory.events(today) }.collectAsState(emptyList())
+    val events by remember { memory.events(today) }.collectAsStateWithLifecycle(emptyList())
     val event = events.filter { it.startAt >= since - 60_000 }.maxByOrNull { it.startAt }
-    val hasKey = if (AppGraph.isMemoryReady) AppGraph.digestSettings.hasKey.collectAsState().value else false
+    val hasKey = if (AppGraph.isMemoryReady) AppGraph.digestSettings.hasKey.collectAsStateWithLifecycle().value else false
     var organizing by remember { mutableStateOf(false) }
     val ready = modelReady()
     Spacer(Modifier.height(20.dp))

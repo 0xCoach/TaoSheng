@@ -1,5 +1,6 @@
 package app.resound.ui.items
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -40,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,9 +94,9 @@ internal fun DatePickerStrip(memory: MemoryRepository, date: LocalDate, onPick: 
     var shownMonth by remember(date) { mutableStateOf(YearMonth.from(date)) }
     val weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     // 一周可能跨两个月，两个月的打点都要
-    val active1 by remember(YearMonth.from(weekStart)) { memory.activeDays(YearMonth.from(weekStart)) }.collectAsState(initial = emptySet())
-    val active2 by remember(YearMonth.from(weekStart.plusDays(6))) { memory.activeDays(YearMonth.from(weekStart.plusDays(6))) }.collectAsState(initial = emptySet())
-    val monthActive by remember(shownMonth) { memory.activeDays(shownMonth) }.collectAsState(initial = emptySet())
+    val active1 by remember(YearMonth.from(weekStart)) { memory.activeDays(YearMonth.from(weekStart)) }.collectAsStateWithLifecycle(initialValue = emptySet())
+    val active2 by remember(YearMonth.from(weekStart.plusDays(6))) { memory.activeDays(YearMonth.from(weekStart.plusDays(6))) }.collectAsStateWithLifecycle(initialValue = emptySet())
+    val monthActive by remember(shownMonth) { memory.activeDays(shownMonth) }.collectAsStateWithLifecycle(initialValue = emptySet())
 
     RsCard(padding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -509,7 +509,7 @@ internal fun ExportSheet(diary: DiaryRepository, date: LocalDate, onClose: () ->
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sync by diary.cloudSync.collectAsState()
+    val sync by diary.cloudSync.collectAsStateWithLifecycle()
     var range by remember { mutableStateOf(Range.Day) }
     var withLines by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }

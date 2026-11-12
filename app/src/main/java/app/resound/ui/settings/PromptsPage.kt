@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +21,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +48,7 @@ import app.resound.ui.verify.springClick
 @Composable
 fun PromptsPage(repo: PromptTemplates, bottomPadding: Dp) {
     val c = Rs.colors
-    val list by repo.list.collectAsState()
+    val list by repo.list.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<PromptInfo?>(null) }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -119,7 +119,7 @@ private fun PromptEditor(repo: PromptTemplates, info: PromptInfo, onDismiss: () 
 @Composable
 fun PromptCard(repo: PromptTemplates, id: String) {
     val c = Rs.colors
-    val info = repo.list.collectAsState().value.firstOrNull { it.id == id } ?: return
+    val info = repo.list.collectAsStateWithLifecycle().value.firstOrNull { it.id == id } ?: return
     var editing by remember { mutableStateOf(false) }
     RsCard(Modifier.springClick { editing = true }, padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

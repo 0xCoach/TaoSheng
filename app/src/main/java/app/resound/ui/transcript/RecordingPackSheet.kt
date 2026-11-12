@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -17,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -51,7 +51,7 @@ import java.time.LocalDate
 internal fun RecordingPackRow() {
     if (!AppGraph.isRecordingPackerReady) return
     val packer = AppGraph.recordingPacker
-    val current by packer.current.collectAsState()
+    val current by packer.current.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     val st = current?.second
     SettingLine("录音包", when (st) {
@@ -66,8 +66,8 @@ internal fun RecordingPackRow() {
 private fun RecordingPackSheet(packer: RecordingPacker, onDismiss: () -> Unit) {
     val c = Rs.colors
     val context = LocalContext.current
-    val days by packer.availableDays.collectAsState()
-    val current by packer.current.collectAsState()
+    val days by packer.availableDays.collectAsStateWithLifecycle()
+    val current by packer.current.collectAsStateWithLifecycle()
     var started by remember { mutableStateOf<String?>(null) }
     val today = LocalDate.now()
     val oldest = days.minOrNull() ?: today

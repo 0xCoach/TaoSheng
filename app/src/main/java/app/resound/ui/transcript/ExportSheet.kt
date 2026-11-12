@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
@@ -23,7 +24,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -147,7 +147,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
         }
         OptionRow("跳过媒体片段", "电视、视频的声音不导出", skipMedia) { skipMedia = it; p.edit().putBoolean("exportSkipMedia", it).apply() }
         val jobs = if (app.resound.AppGraph.isExportJobsReady) app.resound.AppGraph.exportJobs else null
-        val job = jobId?.let { id -> jobs?.jobs?.collectAsState()?.value?.firstOrNull { it.id == id } }
+        val job = jobId?.let { id -> jobs?.jobs?.collectAsStateWithLifecycle()?.value?.firstOrNull { it.id == id } }
         val running = progress
         val ready = done
         when {
@@ -499,7 +499,7 @@ internal fun JobBody(job: app.resound.transcribe.ExportJob, onClose: () -> Unit)
 @Composable
 fun ExportJobSheet(jobId: String, onDismiss: () -> Unit) {
     if (!app.resound.AppGraph.isExportJobsReady) { onDismiss(); return }
-    val job = app.resound.AppGraph.exportJobs.jobs.collectAsState().value.firstOrNull { it.id == jobId }
+    val job = app.resound.AppGraph.exportJobs.jobs.collectAsStateWithLifecycle().value.firstOrNull { it.id == jobId }
     if (job == null) { LaunchedEffect(Unit) { LinePlayer.notice = "这次导出的文件已清理"; onDismiss() }; return }
     fun close() { ExportUi.seen(jobId); onDismiss() }
     RsSheet(job.title, null, onDismiss = { close() }) {
@@ -531,7 +531,7 @@ object ExportUi {
 fun ExportCapsule(bottomPadding: androidx.compose.ui.unit.Dp) {
     if (!app.resound.AppGraph.isExportJobsReady) return
     val c = Rs.colors
-    val jobs by app.resound.AppGraph.exportJobs.jobs.collectAsState()
+    val jobs by app.resound.AppGraph.exportJobs.jobs.collectAsStateWithLifecycle()
     val job = jobs.lastOrNull { it.state is app.resound.transcribe.ExportJobState.Running } ?: jobs.lastOrNull { it.state is app.resound.transcribe.ExportJobState.Done }
     val text = when (val st = job?.state) {
         is app.resound.transcribe.ExportJobState.Running -> "正在导出 ${(st.fraction * 100).toInt()}% ›"

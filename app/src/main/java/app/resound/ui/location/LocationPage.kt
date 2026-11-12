@@ -1,5 +1,6 @@
 package app.resound.ui.location
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -78,7 +78,7 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val enabled by repo.settings.enabled.collectAsState()
+    val enabled by repo.settings.enabled.collectAsStateWithLifecycle()
     // 权限在系统页改完回来要刷新
     var permTick by remember { mutableIntStateOf(0) }
     // 从系统权限页、定位设置回来，或刚给完权限：重设前台类型，并立刻要一次位置
@@ -93,26 +93,26 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
 
     var date by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     val day = LocalDate.ofEpochDay(date)
-    val points by remember(date) { repo.day(day) }.collectAsState(emptyList())
+    val points by remember(date) { repo.day(day) }.collectAsStateWithLifecycle(emptyList())
     val track = remember(points) { Track.day(points) }
     val zone = ZoneId.systemDefault()
     val dayFrom = day.atStartOfDay(zone).toInstant().toEpochMilli()
     val dayTo = if (day == LocalDate.now()) System.currentTimeMillis() else day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    val manual by repo.places.manual.collectAsState(emptyList())
+    val manual by repo.places.manual.collectAsStateWithLifecycle(emptyList())
     val timeline = remember(track, dayTo / 60_000, manual) {
         Timeline.build(track.points, track.stays, dayFrom, dayTo) { la, ln -> Places.nearestManual(manual, la, ln)?.home == true }
     }
     // 正在改的地点：坐标 + 当前显示的地名
     var editing by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var view by rememberSaveable { mutableIntStateOf(0) }
-    val error by repo.tracker.lastError.collectAsState()
+    val error by repo.tracker.lastError.collectAsStateWithLifecycle()
     var confirmClear by remember(date) { mutableStateOf(false) }
-    val lookup by repo.settings.lookup.collectAsState()
-    val hasKey by repo.settings.hasAmapKey.collectAsState()
-    val latest by remember { repo.latest() }.collectAsState(null)
+    val lookup by repo.settings.lookup.collectAsStateWithLifecycle()
+    val hasKey by repo.settings.hasAmapKey.collectAsStateWithLifecycle()
+    val latest by remember { repo.latest() }.collectAsStateWithLifecycle(null)
     // 0.2.21：停留点下挂这段时间里的事；当天事件取一次
     val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
-    val dayEvents by remember(date, memory) { memory?.events(day) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(emptyList())
+    val dayEvents by remember(date, memory) { memory?.events(day) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(emptyList())
     var openEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
     // 地名按约 100 米格子取；先读缓存，再逐个去查
     val places = remember { androidx.compose.runtime.mutableStateMapOf<String, Place?>() }
@@ -124,7 +124,7 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
             places[cell] = repo.places.cached(lat, lng) ?: repo.places.resolve(lat, lng)
         }
     }
-    val placeError by repo.places.lastError.collectAsState()
+    val placeError by repo.places.lastError.collectAsStateWithLifecycle()
     // 手动改过的优先，其次自动查到的
     val placeAt: (Double, Double) -> Place? = { la, ln -> with(Places) { nearestManual(manual, la, ln)?.toPlace() } ?: places[Places.cell(la, ln)] }
 

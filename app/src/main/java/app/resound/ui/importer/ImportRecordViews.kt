@@ -1,5 +1,6 @@
 package app.resound.ui.importer
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,12 +86,12 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
     val c = Rs.colors
     val context = LocalContext.current
     val kinds = AppGraph.importKinds
-    val r = remember(id) { kinds.record(id) }.collectAsState(initial = null).value ?: return
+    val r = remember(id) { kinds.record(id) }.collectAsStateWithLifecycle(initialValue = null).value ?: return
     val date = remember(r.startAt) { java.time.Instant.ofEpochMilli(r.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
-    val segments by remember(date) { AppGraph.transcripts.day(date) }.collectAsState(initial = emptyList())
-    val events = remember(date) { AppGraph.memory.events(date) }.collectAsState(initial = null).value.orEmpty()
+    val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val segments by remember(date) { AppGraph.transcripts.day(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val events = remember(date) { AppGraph.memory.events(date) }.collectAsStateWithLifecycle(initialValue = null).value.orEmpty()
     var openedCard by remember { mutableStateOf<SkillCard?>(null) }
     val onOpenCard: (SkillCard) -> Unit = { openedCard = it }
     openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, skills) { openedCard = null } }

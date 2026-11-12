@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -26,7 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -72,8 +72,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun PushPage(repo: PushChannels, bottomPadding: Dp) {
     val c = Rs.colors
-    val channels by repo.channels.collectAsState(initial = emptyList())
-    val logs by remember { repo.logs(30) }.collectAsState(initial = emptyList())
+    val channels by repo.channels.collectAsStateWithLifecycle(initialValue = emptyList())
+    val logs by remember { repo.logs(30) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var editing by remember { mutableStateOf<PushChannel?>(null) }
     var adding by remember { mutableStateOf(false) }
 
@@ -165,9 +165,9 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
     var format by remember { mutableStateOf(ch?.format ?: PushFormat.Markdown) }
     var sub by remember { mutableStateOf(ch?.subscription ?: PushSubscription.PhoneNotice) }
     var linked by remember { mutableStateOf(ch?.useLinkedNutstore ?: true) }
-    val linkedAccount by repo.linkedNutstoreAccount.collectAsState(initial = null)
+    val linkedAccount by repo.linkedNutstoreAccount.collectAsStateWithLifecycle(initialValue = null)
     // 卡 114：借用的是数据备份里选的那种云端存储（坚果云 / WebDAV / S3），显示它的名字和地址，不显示密钥 ID
-    val backupState = if (app.resound.AppGraph.isBackupReady) app.resound.AppGraph.backup.state.collectAsState().value else null
+    val backupState = if (app.resound.AppGraph.isBackupReady) app.resound.AppGraph.backup.state.collectAsStateWithLifecycle().value else null
     val caps = remember(kind) { repo.capabilities(kind) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Result<String>?>(null) }
@@ -251,10 +251,10 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         }
         if (ch != null) {
             // 推送状态 + 现在推一次 / 全部重新生成
-            val st by remember(ch.id) { repo.status(ch.id) }.collectAsState(initial = null)
+            val st by remember(ch.id) { repo.status(ch.id) }.collectAsStateWithLifecycle(initialValue = null)
             st?.let { s -> StatusLine(s) }
             if (caps.audio && ch.subscription.audio != app.resound.push.AudioPush.Off) {
-                val a by remember(ch.id) { repo.audioStatus(ch.id) }.collectAsState(initial = null)
+                val a by remember(ch.id) { repo.audioStatus(ch.id) }.collectAsStateWithLifecycle(initialValue = null)
                 a?.let { s ->
                     val month = s.monthlyEstimateBytes?.let { " · 按最近 7 天估一个月约 ${app.resound.ui.verify.formatBytes(it)}" } ?: ""
                     Text("录音：已传 ${s.uploaded} 段" + (if (s.pending > 0) "，待传 ${s.pending} 段" else "") +

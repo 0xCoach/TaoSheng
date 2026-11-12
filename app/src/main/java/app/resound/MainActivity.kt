@@ -1,5 +1,6 @@
 package app.resound
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -22,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import app.resound.capture.CaptureState
 import app.resound.ui.AppShell
@@ -142,7 +142,7 @@ class MainActivity : ComponentActivity() {
                     mode = it
                     prefs.edit().putString("theme", it.name).apply()
                 }
-                val privacy by privacyRequest.collectAsState()
+                val privacy by privacyRequest.collectAsStateWithLifecycle()
                 LaunchedEffect(privacy) {
                     if (privacy == "deleteRecent") {
                         app.resound.ui.ShellNav.forgetRecent.value = true
@@ -214,7 +214,7 @@ class MainActivity : ComponentActivity() {
                 app.resound.ui.importer.ImportHost()
                 openCardId?.let { id ->
                     val repo = remember { app.resound.ui.skills.skillRepo() }
-                    val card by remember(id) { repo.card(id) }.collectAsState(initial = null)
+                    val card by remember(id) { repo.card(id) }.collectAsStateWithLifecycle(initialValue = null)
                     card?.let { app.resound.ui.skills.SkillCardSheet(it, repo) { openCardId = null } }
                 }
                 }

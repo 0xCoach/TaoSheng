@@ -1,5 +1,6 @@
 package app.resound.ui.alarm
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -32,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,7 +77,7 @@ class StrongAlarmActivity : ComponentActivity() {
         val text = intent.getStringExtra(StrongReminders.EXTRA_TEXT).orEmpty()
         setContent {
             ResoundTheme {
-                val ringing by AlarmPlayer.ringing.collectAsState()
+                val ringing by AlarmPlayer.ringing.collectAsStateWithLifecycle()
                 // 只要这条不再响（被按掉或一分钟到了），整屏页就收起
                 var seen by remember { mutableStateOf(false) }
                 LaunchedEffect(ringing) { if (ringing == itemId) seen = true else if (seen) finish() }

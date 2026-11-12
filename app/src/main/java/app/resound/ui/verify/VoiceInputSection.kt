@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.resound.appDisplayName
 import android.content.Intent
 import android.provider.Settings
@@ -20,7 +21,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,10 +39,10 @@ import app.resound.ui.theme.RsType
 fun VoiceInputSection(capture: VoiceInputCapture) {
     val c = Rs.colors
     val context = LocalContext.current
-    val s by capture.settings.collectAsState()
-    val on by capture.serviceEnabled.collectAsState()
-    val today by capture.todayCount.collectAsState()
-    val apps by capture.seenApps.collectAsState()
+    val s by capture.settings.collectAsStateWithLifecycle()
+    val on by capture.serviceEnabled.collectAsStateWithLifecycle()
+    val today by capture.todayCount.collectAsStateWithLifecycle()
+    val apps by capture.seenApps.collectAsStateWithLifecycle()
     fun openSettings() = runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     Section("语音输入") {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {

@@ -1,5 +1,6 @@
 package app.resound.ui
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.remember
 import androidx.compose.animation.Crossfade
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -66,7 +66,7 @@ fun AppShell(tabs: List<Pair<String, @Composable () -> Unit>>, request: Pair<Int
     var tab by rememberSaveable { mutableIntStateOf(0) }
     // 外部（如点通知）要求切到某一页；Long 用来区分同一页的多次请求
     androidx.compose.runtime.LaunchedEffect(request) { request?.let { tab = it.first } }
-    val navRequest by ShellNav.request.collectAsState()
+    val navRequest by ShellNav.request.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(navRequest) { navRequest?.let { tab = it.first } }
     val holder = rememberSaveableStateHolder()
     // 再点一下当前底栏图标的次数，按页记；页面拿到后回到顶部

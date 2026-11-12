@@ -1,5 +1,6 @@
 package app.resound.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -27,7 +28,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,7 +57,7 @@ import app.resound.ui.verify.springClick
 fun UpdatePage(updater: AppUpdater, bottom: Dp) {
     val c = Rs.colors
     val context = LocalContext.current
-    val state by updater.state.collectAsState()
+    val state by updater.state.collectAsStateWithLifecycle()
     // 从系统设置“允许安装应用”回来时重新判断
     var resumed by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) { resumed++; onPauseOrDispose {} }
@@ -97,7 +97,7 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
             }
         }
 
-        val auto by updater.autoCheck.collectAsState()
+        val auto by updater.autoCheck.collectAsStateWithLifecycle()
         RsCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {

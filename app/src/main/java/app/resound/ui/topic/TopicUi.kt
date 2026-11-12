@@ -1,5 +1,6 @@
 package app.resound.ui.topic
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -139,7 +140,7 @@ private suspend fun guarded(context: android.content.Context, block: suspend () 
 @Composable
 fun TopicSection(onDismiss: () -> Unit, initialKind: TopicKind = TopicKind.Meeting, showLabel: Boolean = true) {
     if (!AppGraph.isTopicsReady) return
-    val current by AppGraph.topics.current.collectAsState()
+    val current by AppGraph.topics.current.collectAsStateWithLifecycle()
     if (showLabel) Label("专题录音")
     current?.let { TopicRunningPanel(it); return }
     TopicStartPanel(initialKind, onStarted = onDismiss)
@@ -249,7 +250,7 @@ fun TopicHost() {
     TopicUi.creatingFrom?.let { e -> TopicCreateSheet(e) { TopicUi.creatingFrom = null } }
     if (TopicUi.creatingRange) TopicCreateSheet(null) { TopicUi.creatingRange = false }
     TopicUi.starting?.let { k ->
-        val current by AppGraph.topics.current.collectAsState()
+        val current by AppGraph.topics.current.collectAsStateWithLifecycle()
         // 与聆听面板里的“专题录音”一节相同：开始、预约、忘了点开始时事后选一段时间；进行中则直接操作
         RsSheet(if (current != null) "专题录音" else "开始专题", onDismiss = { TopicUi.starting = null }) {
             TopicSection({ TopicUi.starting = null }, k, showLabel = false)
@@ -275,13 +276,13 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val t = remember(id) { AppGraph.topics.observe(id) }.collectAsState(initial = null).value ?: return
+    val t = remember(id) { AppGraph.topics.observe(id) }.collectAsStateWithLifecycle(initialValue = null).value ?: return
     val live = t.status == TopicStatus.Running || t.status == TopicStatus.Paused
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(live) { while (live) { now = System.currentTimeMillis(); delay(1_000) } }
     val start = startOf(t); val end = endOf(t, now)
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val card = t.cardId?.let { cid -> remember(cid) { skills.card(cid) }.collectAsState(initial = null).value }
+    val card = t.cardId?.let { cid -> remember(cid) { skills.card(cid) }.collectAsStateWithLifecycle(initialValue = null).value }
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     openedCard?.let { app.resound.ui.skills.SkillCardSheet(it, skills) { openedCard = null } }
     val event by produceState<MemoryEvent?>(null, t.eventId, t.revision) {
@@ -580,7 +581,7 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     fun ms(p: Pair<LocalDate, LocalTime>) = p.first.atTime(p.second).atZone(zone).toInstant().toEpochMilli()
     val valid = ms(from) < ms(to) && ms(from) > System.currentTimeMillis() && ms(to) - ms(from) <= 4 * 3600_000L
-    val scheduled by remember { AppGraph.topics.observeScheduled() }.collectAsState(initial = emptyList())
+    val scheduled by remember { AppGraph.topics.observeScheduled() }.collectAsStateWithLifecycle(initialValue = emptyList())
     RsSheet("预约专题", "到点自动开始、自动结束", onDismiss = onDismiss, fixedHeight = true) {
         TopicKindChoice(kind) { kind = it }
         NameInput(name, { name = it }, "名字（如“周三例会”，可不填）")
@@ -652,7 +653,7 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     // 按事件
     val day = from?.let { Instant.ofEpochMilli(it.startAt).atZone(zone).toLocalDate() } ?: LocalDate.now()
-    val dayEvents = if (from != null && AppGraph.isMemoryReady) remember(day) { AppGraph.memory.events(day) }.collectAsState(initial = null).value.orEmpty() else emptyList()
+    val dayEvents = if (from != null && AppGraph.isMemoryReady) remember(day) { AppGraph.memory.events(day) }.collectAsStateWithLifecycle(initialValue = null).value.orEmpty() else emptyList()
     val nearby = dayEvents.filter { from != null && it.endAt > from.startAt - 3 * 3600_000L && it.startAt < from.endAt + 3 * 3600_000L }.sortedBy { it.startAt }
     var picked by remember(from?.id) { mutableStateOf(setOfNotNull(from?.id)) }
     // 按时间段

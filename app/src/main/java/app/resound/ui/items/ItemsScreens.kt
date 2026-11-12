@@ -1,5 +1,6 @@
 package app.resound.ui.items
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toKotlinLocalDate
 import app.resound.ui.ScrollTopButton
@@ -37,7 +38,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -122,9 +122,9 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     val today = remember { LocalDate.now() }
     // 已完成默认看 7 天，“查看更早”每次再往前一个月
     var doneDays by rememberSaveable { mutableStateOf(7) }
-    val pendingItems by remember { memory.items(TASKS, setOf(ItemStatus.Pending)) }.collectAsState(initial = null)
-    val ongoingItems by remember { memory.ongoing() }.collectAsState(initial = null)
-    val doneItems by remember(doneDays) { memory.doneItems(today.minusDays(doneDays - 1L)) }.collectAsState(initial = null)
+    val pendingItems by remember { memory.items(TASKS, setOf(ItemStatus.Pending)) }.collectAsStateWithLifecycle(initialValue = null)
+    val ongoingItems by remember { memory.ongoing() }.collectAsStateWithLifecycle(initialValue = null)
+    val doneItems by remember(doneDays) { memory.doneItems(today.minusDays(doneDays - 1L)) }.collectAsStateWithLifecycle(initialValue = null)
     // 进入页面时停在第一个有内容的栏（待确认 → 进行中 → 已完成），都没有就停在进行中；之后不再自动跳
     var decided by rememberSaveable { mutableStateOf(false) }
     var tabIndex by rememberSaveable { mutableStateOf(1) }
@@ -318,25 +318,25 @@ fun MemoryScreen(
     LaunchedEffect(epochDay) { if (listState.firstVisibleItemIndex > 1) listState.scrollToItem(0) }
 
     // 按天要的数据
-    val review by remember(date, reviews) { reviews?.daily(date.toKotlinLocalDate()) ?: flowOf(null) }.collectAsState(initial = null)
-    val events by remember(date) { memory.events(date) }.collectAsState(initial = null)
-    val day by remember(date) { memory.dayItems(date) }.collectAsState(initial = null)
-    val segments by remember(date, transcripts) { transcripts?.day(date) ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
+    val review by remember(date, reviews) { reviews?.daily(date.toKotlinLocalDate()) ?: flowOf(null) }.collectAsStateWithLifecycle(initialValue = null)
+    val events by remember(date) { memory.events(date) }.collectAsStateWithLifecycle(initialValue = null)
+    val day by remember(date) { memory.dayItems(date) }.collectAsStateWithLifecycle(initialValue = null)
+    val segments by remember(date, transcripts) { transcripts?.day(date) ?: flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val lines = remember(segments) { dayLines(segments) }
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val dayCards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
+    val dayCards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var makingCard by remember { mutableStateOf(false) }
     var deletingEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
     val deleteNow = app.resound.ui.today.rememberDeleteEvent(memory)
-    val cardSkillIds by remember { skills.skillsWithCards }.collectAsState(initial = emptyList())
-    val skillNames = skills.skills.collectAsState().value.associate { it.id to it.name }
+    val cardSkillIds by remember { skills.skillsWithCards }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val skillNames = skills.skills.collectAsStateWithLifecycle().value.associate { it.id to it.name }
     var chipIndex by rememberSaveable { mutableStateOf(0) }
-    val starred by remember { memory.starredEvents() }.collectAsState(initial = null)
+    val starred by remember { memory.starredEvents() }.collectAsStateWithLifecycle(initialValue = null)
     // “卡片”分类的第二排小胶囊：回顾 + 出过卡的技能（按最近出卡排序）
     val chips = (if (reviews != null) listOf("review") else emptyList()) + cardSkillIds.filter { it != "review" }
     val chip = chips.getOrNull(chipIndex.coerceIn(0, (chips.size - 1).coerceAtLeast(0)))
-    val history by remember(chip) { if (chip == null || chip == "review") flowOf(emptyList()) else skills.cardsOf(chip) }.collectAsState(initial = emptyList())
+    val history by remember(chip) { if (chip == null || chip == "review") flowOf(emptyList()) else skills.cardsOf(chip) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val hourSlots = remember(events, newestFirst) {
         val sorted = if (newestFirst) events.orEmpty().sortedByDescending { it.startAt } else events.orEmpty().sortedBy { it.startAt }
         sorted.groupBy { eventHourOf(it.startAt) }.map { (h, list) ->
@@ -346,23 +346,23 @@ fun MemoryScreen(
     // 跨了至少 3 个小时才有跳转的意义；全挤在一两个小时里只会显示孤零零一个数字
     val showIndex = byDay && events.orEmpty().size >= 6 && hourSlots.size >= 3
     // 按类要的数据
-    val items by remember(tab) { tab.source(memory) }.collectAsState(initial = null)
-    val reviewList by remember(reviews) { reviews?.recent() ?: flowOf(emptyList()) }.collectAsState(initial = emptyList())
-    val reviewState = reviews?.state?.collectAsState()?.value
+    val items by remember(tab) { tab.source(memory) }.collectAsStateWithLifecycle(initialValue = null)
+    val reviewList by remember(reviews) { reviews?.recent() ?: flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val reviewState = reviews?.state?.collectAsStateWithLifecycle()?.value
     // 寻物（卡 079）
     val things = remember { app.resound.ui.things.thingRepo() }
     val onThings = !byDay && tab.name == "寻物"
     var thingQuery by rememberSaveable { mutableStateOf("") }
     var thingFilter by rememberSaveable { mutableStateOf(app.resound.ui.things.ThingFilter.All) }
     val thingList by app.resound.ui.things.rememberThingList(things, thingQuery)
-    val thingPending by remember { things.pending() }.collectAsState(initial = emptyList())
+    val thingPending by remember { things.pending() }.collectAsStateWithLifecycle(initialValue = emptyList())
     var openedThing by remember { mutableStateOf<Long?>(null) }
     var thingPendingOpen by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     // 按天页的时间线筛选，换一天回到全部
     var dayFilter by remember(date) { mutableStateOf<app.resound.ui.today.TimelineFilter>(app.resound.ui.today.TimelineFilter.All) }
     // 卡 058：这天回顾的进度、原因和窗口；“生成回顾”是否出现与后端判断一致
-    val hasMaterial by remember(date, reviews) { reviews?.hasMaterial(date.toKotlinLocalDate()) ?: flowOf(false) }.collectAsState(initial = true)
+    val hasMaterial by remember(date, reviews) { reviews?.hasMaterial(date.toKotlinLocalDate()) ?: flowOf(false) }.collectAsStateWithLifecycle(initialValue = true)
     val reviewWindow = remember(date, reviews, reviewState?.dailyAtMinutes) { reviews?.windowText(date.toKotlinLocalDate()).orEmpty() }
     val reviewInfo = reviews?.let {
         val note = reviewState?.lastError?.takeIf { reviewState.lastErrorDate == date.toKotlinLocalDate() }

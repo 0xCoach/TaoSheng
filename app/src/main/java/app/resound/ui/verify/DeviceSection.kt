@@ -1,5 +1,6 @@
 package app.resound.ui.verify
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -42,12 +43,12 @@ import app.resound.ui.theme.RsType
 fun DeviceSection(devices: Devices, cards: DeviceCards, scanError: kotlinx.coroutines.flow.StateFlow<String?>) {
     val c = Rs.colors
     val context = LocalContext.current
-    val paired by devices.devices.collectAsState()
-    val found by devices.found.collectAsState()
-    val error by scanError.collectAsState()
-    val installed by cards.cards.collectAsState()
+    val paired by devices.devices.collectAsStateWithLifecycle()
+    val found by devices.found.collectAsStateWithLifecycle()
+    val error by scanError.collectAsStateWithLifecycle()
+    val installed by cards.cards.collectAsStateWithLifecycle()
     val inputs = devices as? app.resound.devices.android.DeviceInputs
-    val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, app.resound.devices.driver.DeviceStatusModel>()) }).collectAsState()
+    val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, app.resound.devices.driver.DeviceStatusModel>()) }).collectAsStateWithLifecycle()
     val plugins = remember { app.resound.devices.android.DriverCatalog.registered().map { it.driver.meta } }
     fun metaFor(cardId: String): app.resound.devices.driver.DriverMeta? = plugins.firstOrNull { it.id == cardId }
         ?: installed.firstOrNull { it.card.id == cardId }?.card?.let { card ->

@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,9 +47,9 @@ import kotlinx.coroutines.launch
 /** 状态卡里的一行：保留几天 · 重点是否长期保留 · 占用；点开在面板里改 */
 @Composable
 internal fun OriginalAudioRow(audio: OriginalAudio) {
-    val days by audio.retentionDays.collectAsState()
-    val keepStarred by audio.keepStarred.collectAsState()
-    val usage by audio.usage().collectAsState(initial = null)
+    val days by audio.retentionDays.collectAsStateWithLifecycle()
+    val keepStarred by audio.keepStarred.collectAsStateWithLifecycle()
+    val usage by audio.usage().collectAsStateWithLifecycle(initialValue = null)
     var open by remember { mutableStateOf(false) }
     SettingLine("原声", "保留 $days 天" + (if (keepStarred) " · 重点长期保留" else "") + (usage?.takeIf { it.bytes > 0 }?.let { " · 占用 ${formatBytes(it.bytes)}" } ?: "")) { open = true }
     if (open) RsSheet("原声", usage?.let(::usageLine), onDismiss = { open = false }) { OriginalAudioSettings(audio) }
@@ -74,8 +74,8 @@ internal fun SettingLine(label: String, value: String, onClick: () -> Unit) {
 private fun OriginalAudioSettings(audio: OriginalAudio) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
-    val days by audio.retentionDays.collectAsState()
-    val keepStarred by audio.keepStarred.collectAsState()
+    val days by audio.retentionDays.collectAsStateWithLifecycle()
+    val keepStarred by audio.keepStarred.collectAsStateWithLifecycle()
     var shorten by remember { mutableStateOf<Pair<Int, AudioTrim>?>(null) }
     var clearing by remember { mutableStateOf(false) }
     Text("保留几天", style = RsType.body, color = c.text)
@@ -182,7 +182,7 @@ internal fun AddHotwordSheet(text: String, onDismiss: () -> Unit) {
     val c = Rs.colors
     var word by remember { mutableStateOf(text.take(30)) }
     val hotwords = app.resound.AppGraph.hotwords
-    val words by hotwords.words.collectAsState()
+    val words by hotwords.words.collectAsStateWithLifecycle()
     RsSheet("加入热词", "删到只剩想加的词，如人名、地名、专有名词", onDismiss = onDismiss) {
         SheetInput(word, "要加的词") { word = it.take(30) }
         Text("以后转写会优先认这个词，整理时也会按它纠正同音字", style = RsType.caption, color = c.textTertiary)

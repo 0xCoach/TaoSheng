@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.unit.sp
 import app.resound.ui.theme.fade
 import androidx.compose.foundation.text.TextAutoSize
@@ -25,7 +26,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -138,8 +138,8 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
-        .collectAsState(initial = null)
-    val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsState().value else emptyList()
+        .collectAsStateWithLifecycle(initialValue = null)
+    val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsStateWithLifecycle().value else emptyList()
     // 待转写的段数上面录音卡已经写了，这里不再重复
     val pending = ""
     // 点标题收起成一行 / 展开；记住上次的选择

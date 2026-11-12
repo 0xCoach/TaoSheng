@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.foundation.gestures.detectTapGestures
 import app.resound.ui.theme.fade
@@ -62,7 +63,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -149,28 +149,28 @@ fun TodayScreen(
     val c = Rs.colors
     var dayOffset by remember { mutableIntStateOf(0) }
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
-    val events by remember(date) { memory.events(date) }.collectAsState(initial = null)
-    val pending by remember { memory.pendingItems() }.collectAsState(initial = emptyList())
+    val events by remember(date) { memory.events(date) }.collectAsStateWithLifecycle(initialValue = null)
+    val pending by remember { memory.pendingItems() }.collectAsStateWithLifecycle(initialValue = emptyList())
     // 卡 079：寻物的待确认和待办的放在一起；3 天前的只在寻物页
     val things = remember { app.resound.ui.things.thingRepo() }
-    val thingPendingAll by remember { things.pending() }.collectAsState(initial = emptyList())
+    val thingPendingAll by remember { things.pending() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val thingPending = thingPendingAll.filter { it.recent() }
     var openedThingRecord by remember { mutableStateOf<app.resound.things.ThingRecord?>(null) }
     val pendingCount = pending.size + thingPending.size
-    val hasKey by settings.hasKey.collectAsState()
-    val day by remember(date) { stats.dayStats(date) }.collectAsState(initial = null)
+    val hasKey by settings.hasKey.collectAsStateWithLifecycle()
+    val day by remember(date) { stats.dayStats(date) }.collectAsStateWithLifecycle(initialValue = null)
     var opened by remember { mutableStateOf<MemoryEvent?>(null) }
     var openedItem by remember { mutableStateOf<MemoryItem?>(null) }
     val skills = remember { app.resound.ui.skills.skillRepo() }
-    val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
+    val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
     var openedImport by remember { mutableStateOf<Long?>(null) }
     var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
     val deleteNow = rememberDeleteEvent(memory)
-    val segments by remember(date) { transcripts.day(date) }.collectAsState(initial = emptyList())
+    val segments by remember(date) { transcripts.day(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val dayLines = remember(segments) { segments.flatMap { it.lines }.sortedBy { it.startAt } }
     val importing = if (app.resound.AppGraph.isImporterReady)
-        app.resound.AppGraph.importer.progress.collectAsState().value.let { it.running || it.error != null } else false
+        app.resound.AppGraph.importer.progress.collectAsStateWithLifecycle().value.let { it.running || it.error != null } else false
 
     val list = events.orEmpty()
     // 筛选：全部 / 重点 / 有待办 / 会议 / 媒体 / 提到的人；换一天回到全部。筛选时技能卡不显示
@@ -187,7 +187,7 @@ fun TodayScreen(
     val shownCards = if (events == null) emptyList() else
         when (filter) { TimelineFilter.All -> cards; TimelineFilter.Meeting -> cards.filter { it.skillId == "meeting" }; else -> emptyList() }
     // 导入的录音在时间线上只占一张卡：这段时间整理出的事和它的纪要收进卡里（只在“全部”时合并）
-    val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date) }.collectAsState(initial = emptyList()).value else emptyList()
+    val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date) }.collectAsStateWithLifecycle(initialValue = emptyList()).value else emptyList()
     val folded = if (filter == TimelineFilter.All) records else emptyList()
     val inImport: (MemoryEvent) -> app.resound.importer.ImportRecord? = { e -> folded.firstOrNull { e.startAt >= it.startAt && e.startAt < it.endAt } }
     val importEntries = folded.map { rec -> TimelineEntry.Import(rec, shownEvents.filter { inImport(it) == rec }) }
@@ -202,7 +202,7 @@ fun TodayScreen(
     // 换筛选时已选的保留，只去掉当天已不存在的
     val allIds = remember(list) { list.map { it.id } }
     LaunchedEffect(allIds) { selection.retain(allIds); if (allIds.isEmpty() && selection.active) selection.exit() }
-    val transcribeQueue by transcripts.queue.collectAsState()
+    val transcribeQueue by transcripts.queue.collectAsStateWithLifecycle()
     val rhythmScope = rememberCoroutineScope()
     androidx.activity.compose.BackHandler(selection.active) { selection.exit() }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -357,7 +357,7 @@ fun TodayScreen(
     batchCopying?.let { evs -> CopySheet(evs, memory, onDone = { copyNote = it; selection.exit() }) { batchCopying = null } }
     batchDeleting?.let { ids ->
         val phases = if (app.resound.AppGraph.isPrivacyReady)
-            (app.resound.AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.eventProgress?.collectAsState()?.value else null
+            (app.resound.AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.eventProgress?.collectAsStateWithLifecycle()?.value else null
         val detail = ids.getOrNull(deleteProgress ?: -1)?.let { phases?.get(it)?.label }
         BatchDeleteSheet(ids.size, deleteProgress, error = deleteError, detail = detail, onConfirm = {
             if (deleteProgress != null) return@BatchDeleteSheet
@@ -496,8 +496,8 @@ internal fun digestLine(running: Boolean, pending: Int, lastRunAt: Long?, error:
 fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
-    val presetId by settings.presetId.collectAsState()
-    val hasKey by settings.hasKey.collectAsState()
+    val presetId by settings.presetId.collectAsStateWithLifecycle()
+    val hasKey by settings.hasKey.collectAsStateWithLifecycle()
     var editing by remember(presetId) { mutableStateOf(false) }
     var input by remember(presetId) { mutableStateOf("") }
     var testing by remember { mutableStateOf(false) }
@@ -683,7 +683,7 @@ internal fun friendlyDue(at: Long, text: String?): String {
 @Composable
 private fun EmptyTimeline(memory: MemoryRepository) {
     val c = Rs.colors
-    val digest by memory.state.collectAsState()
+    val digest by memory.state.collectAsStateWithLifecycle()
     RsCard(padding = PaddingValues(vertical = 32.dp, horizontal = 20.dp)) {
         Text(
             if (digest.pendingLines > 0) "有 ${digest.pendingLines} 句原话等着整理" else "这一天还没有整理出事件",
@@ -862,7 +862,7 @@ private fun sceneLine(event: MemoryEvent): String = buildList {
 internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: () -> Unit) {
     val c = Rs.colors
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val lines by remember(event.id) { memory.eventLines(event.id) }.collectAsState(initial = emptyList())
+    val lines by remember(event.id) { memory.eventLines(event.id) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var important by remember(event.id) { mutableStateOf(event.starred) }
     var confirmDelete by remember { mutableStateOf(false) }
     // 编辑后就地显示新内容（打开时拿到的是快照）；恢复原样也就地切回
@@ -1019,7 +1019,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             // 专题：这件事是专题合成的就能看纪要；否则可事后设为专题（可连带前后几件）
             if (app.resound.AppGraph.isTopicsReady) androidx.compose.foundation.text.selection.DisableSelection {
                 val day = remember(event.id) { java.time.Instant.ofEpochMilli(event.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
-                val topic = remember(day) { app.resound.AppGraph.topics.observeDay(day.toKotlinLocalDate()) }.collectAsState(initial = emptyList()).value
+                val topic = remember(day) { app.resound.AppGraph.topics.observeDay(day.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList()).value
                     .firstOrNull { it.eventId == event.id && it.status != app.resound.topic.TopicStatus.Cancelled }
                 Spacer(Modifier.height(12.dp))
                 Text(if (topic != null) "${topic.kind.title}专题 · 查看纪要 ›" else "设为专题（可连带前后几件事合成一件）›",
@@ -1085,9 +1085,9 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
     ownEvent?.let { e -> EventSheet(e, memory) { ownEvent = null } }
     val c = Rs.colors
     // 跟着数据库走：编辑保存、改状态后，详情里马上是新的时间和内容
-    val latest by remember(opened.id) { memory.item(opened.id) }.collectAsState(initial = opened)
+    val latest by remember(opened.id) { memory.item(opened.id) }.collectAsStateWithLifecycle(initialValue = opened)
     val item = latest ?: opened
-    val eventLines by remember(item.eventId) { item.eventId?.let(memory::eventLines) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsState(initial = null)
+    val eventLines by remember(item.eventId) { item.eventId?.let(memory::eventLines) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = null)
     // 没挂事件、或那句还没整理进事件（如导入纪要里提出的待办）：按原话 id 直接取那句和它所在录音段
     val fallback by androidx.compose.runtime.produceState<List<app.resound.transcribe.TranscriptLine>?>(null, item.sourceLineId, eventLines) {
         val id = item.sourceLineId
@@ -1193,7 +1193,7 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                 androidx.compose.foundation.text.selection.DisableSelection { app.resound.ui.transcript.InlinePlayer(Modifier.padding(top = 10.dp)) }
             }
             // 相似的想法被并进来的那几次：各自的时间和内容，可以拆出来
-            val merged by remember(item.id) { memory.mergedItems(item.id) }.collectAsState(initial = emptyList())
+            val merged by remember(item.id) { memory.mergedItems(item.id) }.collectAsStateWithLifecycle(initialValue = emptyList())
             if (merged.isNotEmpty()) {
                 SheetSection("还说过 ${merged.size} 次")
                 RsCard(padding = PaddingValues(vertical = 4.dp)) {
@@ -1250,7 +1250,7 @@ private fun SheetSection(title: String) {
 @Composable
 internal fun SwipeEvent(event: MemoryEvent, onStar: () -> Unit, onDelete: () -> Unit, content: @Composable (onLongPress: (() -> Unit)?) -> Unit) {
     val phases = if (app.resound.AppGraph.isPrivacyReady)
-        (app.resound.AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.eventProgress?.collectAsState()?.value else null
+        (app.resound.AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.eventProgress?.collectAsStateWithLifecycle()?.value else null
     var saving by remember { mutableStateOf(false) }
     val star by androidx.compose.runtime.rememberUpdatedState(onStar)
     SwipeRow(event.id, if (event.starred) "取消重点" else "★ 标重点", {

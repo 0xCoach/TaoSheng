@@ -53,6 +53,14 @@ class TopicRulesRepository(
     private suspend fun checkConflict(start: Long, end: Long, except: Long? = null, repeat: Set<DayOfWeek> = emptySet()) {
         requireTopic(!TopicPolicy.conflicts(start, end, repeat, dao.all().filter { it.row.id != except }, zone()), TopicPolicy.CONFLICT)
     }
+    override fun observeHistory(): Flow<List<Topic>> = dao.observeAll().map { rows ->
+        rows.map { it.topic() }.sortedWith(
+            compareBy<Topic> { it.status != TopicStatus.Failed }
+                .thenByDescending { it.spans.minOfOrNull { span -> span.startAt } ?: it.plannedStartAt ?: it.createdAt }
+                .thenByDescending { it.id }
+        )
+    }.distinctUntilChanged()
+
     override fun observeDay(date: LocalDate): Flow<List<Topic>> {
         val start = date.atStartOfDayIn(zone()).toEpochMilliseconds()
         val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone()).toEpochMilliseconds()

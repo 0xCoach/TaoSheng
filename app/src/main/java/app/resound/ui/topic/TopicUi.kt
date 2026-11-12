@@ -49,6 +49,7 @@ import java.time.ZoneId
 /** 卡 135 专题录音的界面入口；面板都挂在 AppShell 上，任何页面都能打开 */
 object TopicUi {
     var openTopic by mutableStateOf<Long?>(null)
+    var historyRequested by mutableStateOf(false)
     var scheduling by mutableStateOf(false)
     /** 事后补：从某件事出发（可连带前后几件），或为 null 时按时间段 */
     var creatingFrom by mutableStateOf<MemoryEvent?>(null)
@@ -255,10 +256,60 @@ fun TopicHost() {
     TopicUi.starting?.let { k ->
         val current by AppGraph.topics.current.collectAsStateWithLifecycle()
         // 与聆听面板里的“专题录音”一节相同：开始、预约、忘了点开始时事后选一段时间；进行中则直接操作
-        RsSheet(if (current != null) "专题录音" else "开始专题", onDismiss = { TopicUi.starting = null }) {
-            TopicSection({ TopicUi.starting = null }, k, showLabel = false)
+        var history by remember { mutableStateOf(TopicUi.historyRequested) }
+        LaunchedEffect(Unit) { TopicUi.historyRequested = false }
+        val records by remember { AppGraph.topics.observeHistory() }.collectAsStateWithLifecycle(initialValue = emptyList())
+        val failed = records.count { it.status == TopicStatus.Failed }
+        RsSheet("专题", onDismiss = { TopicUi.starting = null }, fixedHeight = true) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Pill(if (current != null) "当前专题" else "开始专题", !history, Modifier.weight(1f)) { history = false }
+                Pill(if (failed > 0) "专题记录 · $failed 待重试" else "专题记录", history, Modifier.weight(1f)) { history = true }
+            }
+            if (history) TopicHistory(records) { id ->
+                TopicUi.starting = null
+                TopicUi.openTopic = id
+            } else TopicSection({ TopicUi.starting = null }, k, showLabel = false)
         }
     }
+}
+
+@Composable
+private fun TopicHistory(records: List<Topic>, open: (Long) -> Unit) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var retrying by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    Text("使用已有原话整理，不需要重新转写。点记录可查看详情。", style = RsType.caption, color = c.textSecondary)
+    if (records.isEmpty()) Text("还没有专题记录", style = RsType.body, color = c.textSecondary)
+    var shown by remember { mutableIntStateOf(30) }
+    records.take(shown).forEach { t ->
+        key(t.id) {
+            RsCard {
+                Column(Modifier.fillMaxWidth().springClick { open(t.id) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(topicLabel(t), style = RsType.subhead, color = c.text)
+                    val at = t.spans.minOfOrNull { it.startAt } ?: t.plannedStartAt ?: t.createdAt
+                    val date = Instant.ofEpochMilli(at).atZone(zone)
+                    Text("${date.toLocalDate()} · ${formatClock(at)} · ${t.kind.title}", style = RsType.caption, color = c.textSecondary)
+                    Text(statusText(t) ?: when (t.status) {
+                        TopicStatus.Done -> "已完成"
+                        TopicStatus.Running -> "正在录制"
+                        TopicStatus.Paused -> "已暂停"
+                        else -> "等待处理"
+                    }, style = RsType.caption, color = if (t.status == TopicStatus.Failed) c.critical else c.textSecondary)
+                }
+                if (t.status == TopicStatus.Failed) ActionButton(
+                    if (t.id in retrying) "正在提交…" else "重试整理", ActionKind.Primary, enabled = t.id !in retrying
+                ) {
+                    retrying = retrying + t.id
+                    scope.launch {
+                        try { guarded(context) { AppGraph.topics.regenerate(t.id) } }
+                        finally { retrying = retrying - t.id }
+                    }
+                }
+            }
+        }
+    }
+    if (records.size > shown) LinkText("加载更多专题 ›") { shown += 30 }
 }
 
 private fun statusText(t: Topic): String? = when (t.status) {
@@ -301,6 +352,11 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
     val busy = t.status == TopicStatus.Summarizing
 
     RsSheet(topicLabel(t), onDismiss = onDismiss, fixedHeight = true) {
+        LinkText("全部专题记录 ›") {
+            onDismiss()
+            TopicUi.historyRequested = true
+            TopicUi.starting = TopicKind.Meeting
+        }
         // ① 头部副行：类型胶囊 + 时间时长
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(t.kind.title, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,

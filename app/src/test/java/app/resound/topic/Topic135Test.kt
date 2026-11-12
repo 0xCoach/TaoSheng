@@ -335,6 +335,25 @@ class Topic135Test {
         assertNull(db.memory().event(new.eventId)); assertNull(db.skills().card(new.cardId!!).first())
     }
 
+    @Test fun failedHistoryWithoutEventCanRetryExistingSpeechExactlyOnce() = runBlocking {
+        line(1, time - 1000, "已有原话")
+        val id = ended()
+        engine(generator { _, _ -> throw LlmException(LlmError.Auth) }).run()
+        val failed = repo.observeHistory().first().first()
+        assertEquals(id, failed.id)
+        assertEquals(TopicStatus.Failed, failed.status)
+        assertNull(failed.eventId)
+        val original = db.topics().lines(id)
+        repo.regenerate(id)
+        engine().run()
+        val done = repo.observeHistory().first().first()
+        assertEquals(TopicStatus.Done, done.status)
+        assertNotNull(done.eventId)
+        assertEquals(original.map { it.text }, db.topics().lines(id).map { it.text })
+        engine().run()
+        assertEquals(done.eventId, db.topics().get(id)!!.row.eventId)
+    }
+
     @Test fun failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult() = runBlocking {
         line(1, time - 1000); val id = ended()
         engine(generator { _, _ -> throw IllegalStateException("不能写进错误的原话和名字") }).run()

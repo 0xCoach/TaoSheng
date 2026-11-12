@@ -200,10 +200,10 @@ class Starred041Test {
         assertEquals(listOf(9L), reminder.eventIds); assertEquals("你 10 月 20 日标过重点的「事件9」，还没进展", reminder.lines.single())
     }
 
-    @Test fun weeklyVersionTwoIncludesOldEventsStarredThisWeekAndItemProgress() = runBlocking {
+    @Test fun weeklyIncludesOldEventsStarredThisWeekAndItemProgress() = runBlocking {
         val skill = SkillJson.parse(File("src/main/assets/skills/weekly/skill.json").readText(), SkillOrigin.Builtin).skill
-        assertEquals(2, skill.version)
-        assertEquals(FieldType.Bullets, skill.fields.single { it.key == "starred" }.type)
+        assertEquals(3, skill.version)
+        assertEquals(FieldType.Bullets, skill.fields.single { it.key == "highlights" }.type)
         event(1, at - 20 * days, at - days); item(11, 1, status = "Done", done = at)
         event(2, at - 20 * days, at - 10 * days); event(3, at - 20 * days, at - days, deleted = true)
         val input = SkillInputs.load(db.skills(), skill, day, null, at + days).data

@@ -118,7 +118,10 @@ class ReviewInputLimit101Test {
         val old = LlmInputBudget.parse("""[{"id":"old","models":["legacy"]}]""")
         assertEquals(128_000, old.getValue("old" to "legacy").contextTokens)
         assertEquals(113_408, old.getValue("old" to "legacy").inputChars)
-        assertEquals(12, AndroidLlmProviders.parseTemplates(assets()).size)
+        // 目录可新增服务商（卡 116 新增 OpenCode Go），不把数量当协议。
+        val catalog = JSONArray(assets())
+        val expectedIds = (0 until catalog.length()).map { catalog.getJSONObject(it).getString("id") }
+        assertEquals(expectedIds, AndroidLlmProviders.parseTemplates(assets()).map { it.id })
     }
 
     @Test fun fallbackAndMissingWorkerShowChinese() = runBlocking {

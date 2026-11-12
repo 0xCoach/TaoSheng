@@ -17,7 +17,7 @@ import java.time.ZoneId
 @Config(sdk=[29],manifest=Config.NONE,application=Application::class)
 class AskToolsTest {
     @Test fun allToolsFilterOrEscapingTimeSpeakerDeletedAndCap() {
-        val db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).addCallback(app.resound.search.SearchIndex.callback).allowMainThreadQueries().build()
         try {
             val sqlite=db.openHelper.writableDatabase
             val at=AskTools.timestamp("2026-10-23 15:00",false,ZoneId.of("Asia/Shanghai"))
@@ -32,10 +32,13 @@ class AskToolsTest {
             val sources=mutableListOf<AskSource>()
             fun find(name:String,args:String)=tools.execute(name,JSONObject(args),sources).getJSONArray("results")
             assertEquals(2,find("search_lines","""{"keywords":["100%_","老王"]}""").length())
-            assertEquals(1,find("search_lines","""{"keywords":["%_"],"speaker":"我","from":"2026-10-23","to":"2026-10-23 15:00"}""").length())
+            // FTS 忽略标点；纯标点不匹配，带数字的词仍验证说话人和时间过滤。
+            assertEquals(0,find("search_lines","""{"keywords":["%_"]}""").length())
+            assertEquals(1,find("search_lines","""{"keywords":["100%_"],"speaker":"我","from":"2026-10-23","to":"2026-10-23 15:00"}""").length())
             assertEquals(0,find("search_lines","""{"keywords":["' OR 1=1 --"]}""").length())
             assertEquals(2,find("search_events","""{"keywords":["投屏"]}""").length())
-            assertEquals(2,find("search_events","""{"keywords":["老王"]}""").length())
+            // 卡 026 事件索引只含标题、摘要、要点；peopleJson 仅作为返回资料。
+            assertEquals(0,find("search_events","""{"keywords":["老王"]}""").length())
             assertEquals(2,find("get_day","""{"date":"2026-10-23"}""").length())
             assertEquals(0,find("get_day","""{"date":"2026-10-22"}""").length())
             assertEquals(1,find("list_items","""{"category":"灵感","status":"Pending","from":"2026-10-23","to":"2026-10-23"}""").length())

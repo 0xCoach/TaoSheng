@@ -98,7 +98,7 @@ class Subscription042Test {
     }
     private fun repo(server: Server, secrets: Secrets = Secrets(), settings: android.content.SharedPreferences = prefs(), directory: File = temp.newFolder()) =
         AndroidPushChannels(settings, prefs(), secrets, server.transport, {}, stateDirectory = directory)
-    private fun channel(kind: PushKind = PushKind.Webhook, sub: PushSubscription = subscription) = PushChannel(1, kind, "测试", true, Subscriptions.topics(sub), PushFormat.Markdown, "", subscription = sub)
+    private fun channel(kind: PushKind = PushKind.Webhook, sub: PushSubscription = subscription) = PushChannel(1, kind, "测试", true, Subscriptions.topics(sub), if (kind == PushKind.Webhook) PushFormat.Json else PushFormat.Markdown, "", subscription = sub)
     private fun runtime(server: Server, ch: PushChannel, time: () -> Long = { at }, queued: MutableList<Long> = mutableListOf(), directory: File = temp.newFolder()): SubscriptionRuntime =
         SubscriptionRuntime(prefs(), directory, { ch }, { ch to if (ch.kind == PushKind.MarkdownFolder) folder else if (ch.kind == PushKind.Notion) mapOf("token" to "test", "databaseId" to "1".repeat(32)) else hook },
             server.transport, { _, whenAt, _ -> queued += whenAt }, { _, _, _ -> }, time, { zone })
@@ -140,7 +140,7 @@ class Subscription042Test {
         Server().use { f ->
             val p = prefs(); val secrets = Secrets(); val r = repo(f, secrets, p)
             val sub = subscription.copy(trigger = RecordTrigger.Manual)
-            assertEquals("先在数据备份里连接坚果云，或改为单独配置", r.saveWithSubscription(null, PushKind.MarkdownFolder, "资料", emptyMap(), sub, PushFormat.Markdown, true).exceptionOrNull()?.message)
+            assertEquals("先在数据备份里连接云端存储，或改为单独配置", r.saveWithSubscription(null, PushKind.MarkdownFolder, "资料", emptyMap(), sub, PushFormat.Markdown, true).exceptionOrNull()?.message)
             var credentials = folder - "folder"
             val accounts = MutableStateFlow<String?>(credentials["account"])
             r.linkedCredentials = { credentials }; r.linkedAccount = accounts

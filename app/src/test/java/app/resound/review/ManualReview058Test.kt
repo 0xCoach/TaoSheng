@@ -135,9 +135,22 @@ class ManualReview058Test {
         modelId = "custom"
         r.run(date, false)
         assertEnded(r, null)
-        reply = { throw LlmException(LlmError.Network, detail = "密钥和服务原文") }
-        assertTrue(r.run(date, false))
-        assertEnded(r, LlmError.Network.human + "，稍后再试")
+        // 卡 103 转交 LlmClient 的安全 detail；从真实异常转换入口验证脱敏。
+        val http = okhttp3.OkHttpClient.Builder().addInterceptor {
+            throw java.net.UnknownHostException("密钥和服务原文")
+        }.build()
+        try {
+            reply = { LlmClient(http).chatJson(LlmPreset("custom", "测试", "https://example.invalid", "test"), "", "", "测试") }
+            assertTrue(r.run(date, false))
+            assertEnded(r, "找不到这个地址，请检查拼写")
+            assertFalse(prefs.all.toString().contains("密钥和服务原文"))
+            reply = { throw LlmException(LlmError.Network, detail = "找不到这个地址，请检查拼写；备用模型也没成功") }
+            assertTrue(r.run(date, false))
+            assertEnded(r, "找不到这个地址，请检查拼写；备用模型也没成功")
+        } finally {
+            http.dispatcher.executorService.shutdown()
+            http.connectionPool.evictAll()
+        }
         reply = { throw IllegalArgumentException("原文") }
         r.run(date, false)
         assertEnded(r, "生成失败，请稍后重试")

@@ -200,8 +200,12 @@ private fun ColumnScope.LiveCard(
         }
     }
     val waveAlpha = if (Rs.colors.isDark) 0.6f else 0.75f
+    // 屏幕窄或系统字体调大时先舍弃声波（装饰），把空间全给状态文字，避免“正在聆听”被挤成“正在…”
+    val roomy = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 360 &&
+        androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
     Row(Modifier.fillMaxWidth().height(36.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f, fill = false).springClick {
+            // 紧凑时状态文字撑满中间，按钮自然靠右；宽松时与声波分享空档
+            Row(Modifier.weight(1f, fill = !roomy).springClick {
                 if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else listenOpen = true
             }, verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (active || topic != null) ink.dot else ink.dot.copy(alpha = 0.45f)))
@@ -213,7 +217,7 @@ private fun ColumnScope.LiveCard(
             }
             // 声波只在状态文字和按钮之间的空档里，两头淡出，不压字和按钮；专题进行中不放（那一行按钮多）
             // 平时和专题进行中都显示声波；空档不够时自动变窄
-            if (controls != HomeControls.None) BreathingWave(status.level, active, recording,
+            if (roomy && controls != HomeControls.None) BreathingWave(status.level, active, recording,
                 Modifier.weight(1f).padding(horizontal = 8.dp).height(22.dp)
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
                     .drawWithContent {
@@ -221,7 +225,8 @@ private fun ColumnScope.LiveCard(
                         drawRect(Brush.horizontalGradient(0f to Color.Transparent, 0.2f to Color.Black, 0.8f to Color.Black, 1f to Color.Transparent),
                             blendMode = BlendMode.DstIn)
                     }, tint = ink.wave)
-            else Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+            else if (roomy) Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+            else Spacer(Modifier.width(8.dp))
             fun buzz() = haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             when (controls) {
                 HomeControls.TopicAndPause, HomeControls.TopicAndResume -> {

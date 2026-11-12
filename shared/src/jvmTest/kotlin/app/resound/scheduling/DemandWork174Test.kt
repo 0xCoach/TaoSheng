@@ -14,16 +14,6 @@ class DemandWork174Test {
         assertFalse(DemandWorkPolicy.privacy(0))
         assertTrue(DemandWorkPolicy.privacy(1))
     }
-    @Test fun cleanupKeepsBothRetentionAndOrphanRecovery() {
-        assertFalse(DemandWorkPolicy.audioCleanup(false, false))
-        assertTrue(DemandWorkPolicy.audioCleanup(true, false))
-        assertTrue(DemandWorkPolicy.audioCleanup(false, true))
-    }
-    @Test fun unfinishedImportsExpireButSuccessfulAndReadingOnesUseTheirOwnLifecycle() {
-        assertTrue(DemandWorkPolicy.importNeedsCleanup("Failed"))
-        assertFalse(DemandWorkPolicy.importNeedsCleanup("Done"))
-        assertFalse(DemandWorkPolicy.importNeedsCleanup("Running"))
-    }
     @Test fun stoppingCancelsWatchdogAndEnabledPauseKeepsIt() {
         assertFalse(DemandWorkPolicy.watchdog(false))
         assertTrue(DemandWorkPolicy.watchdog(true))

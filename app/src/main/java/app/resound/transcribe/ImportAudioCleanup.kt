@@ -3,14 +3,7 @@ package app.resound.transcribe
 import android.content.Context
 import androidx.work.*
 import app.resound.ResoundApp
-import app.resound.AppGraph
 import app.resound.data.TranscribeDao
-import app.resound.data.CaptureDatabase
-import app.resound.scheduling.DemandWorkPolicy
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -48,33 +41,12 @@ class ImportAudioCleanupWork(context: Context, params: WorkerParameters) : Corou
                 if (!app.database.transcribe().hasImportPath(file.path, file.path)) file.delete()
             }
         }
-        reconcile(applicationContext, app.database, AppGraph.originalAudio as LocalOriginalAudio)
         return Result.success()
     }
     companion object {
-        private val scheduling = Mutex()
-        @OptIn(ExperimentalCoroutinesApi::class)
-        internal fun observe(context: Context, db: CaptureDatabase, original: LocalOriginalAudio, scope: CoroutineScope) = scope.launch {
-            merge(db.invalidationTracker.createFlow("segments", "memory_events").map { Unit },
-                original.retentionDays.map { Unit }, original.keepStarred.map { Unit })
-                .collect { reconcile(context, db, original) }
-        }
-        internal suspend fun reconcile(context: Context, db: CaptureDatabase, original: LocalOriginalAudio) = scheduling.withLock {
-            val imports = db.transcribe().importedAudio().any {
-                DemandWorkPolicy.importNeedsCleanup(it.status) && File(it.path).isFile
-            }
-            val orphans = File(context.filesDir, "import-segments").listFiles().orEmpty().any {
-                it.isFile && !db.transcribe().hasImportPath(it.path, it.path)
-            }
-            schedule(context, imports || original.hasExpiringAudio(), orphans)
-        }
-        internal fun schedule(context: Context, hasExpiringAudio: Boolean, hasOrphans: Boolean) {
-            val work = WorkManager.getInstance(context)
-            if (DemandWorkPolicy.audioCleanup(hasExpiringAudio, hasOrphans))
-                work.enqueueUniquePeriodicWork("import-audio-cleanup", ExistingPeriodicWorkPolicy.KEEP,
-                    PeriodicWorkRequestBuilder<ImportAudioCleanupWork>(1, TimeUnit.HOURS)
-                        .setInitialDelay(1, TimeUnit.HOURS).build())
-            else work.cancelUniqueWork("import-audio-cleanup")
+        fun schedule(context: Context) {
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork("import-audio-cleanup", ExistingPeriodicWorkPolicy.KEEP,
+                PeriodicWorkRequestBuilder<ImportAudioCleanupWork>(1, TimeUnit.HOURS).build())
         }
     }
 }

@@ -303,7 +303,7 @@ class ResoundApp : Application() {
             AppGraph.importer as app.resound.importer.AndroidAudioImporter)
         AppGraph.folderImports = folderImports
         registerActivityLifecycleCallbacks(app.resound.importer.FolderImportForeground(folderImports))
-        ImportAudioCleanupWork.observe(this, database, originalAudio, scope)
+        ImportAudioCleanupWork.schedule(this)
         watchdogPreferences = CaptureWatchdog.observe(this, store.prefs)
     }
 }

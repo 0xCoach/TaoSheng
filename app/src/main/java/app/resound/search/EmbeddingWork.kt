@@ -1,6 +1,5 @@
 package app.resound.search
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -21,15 +20,7 @@ object EmbeddingScheduler {
     fun start(context: Context) {
         val app = context.applicationContext as ResoundApp
         observe(context, app.database, app.scope)
-        // 仅在电量由不允许变为允许时补排；不以电量广播的频率查询数据库。
-        var allowed = powerAllowed(context)
-        context.registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val next = powerAllowed(context)
-                if (next && !allowed) enqueue(context)
-                allowed = next
-            }
-        }, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        // 等电量不靠广播：低电量时排的是带“充电中”约束的任务（见 waitForPower），电量只有充电才会回升。
     }
     internal fun observe(context: Context, db: CaptureDatabase, scope: CoroutineScope) = scope.launch {
         WorkManager.getInstance(context).cancelUniqueWork("search-embedding-catchup")

@@ -156,27 +156,4 @@ class DemandWork174Test {
         assertTrue(active("capture-watchdog").isEmpty())
         prefs.unregisterOnSharedPreferenceChangeListener(listener)
     }
-    @Test fun importCleanupStartupRecoversFilesAndPreservesOrdinaryAudioRetention() = runBlocking {
-        ImportAudioCleanupWork.reconcile(context, db, original)
-        assertTrue(active("import-audio-cleanup").isEmpty())
-        val file = segment("mic")
-        ImportAudioCleanupWork.observe(context, db, original, scope)
-        until { active("import-audio-cleanup").isNotEmpty() }
-        assertEquals(60 * 60_000L, active("import-audio-cleanup").single().periodicityInfo!!.repeatIntervalMillis)
-        file.delete()
-        ImportAudioCleanupWork.reconcile(context, db, original)
-        assertTrue(active("import-audio-cleanup").isEmpty())
-        File(context.filesDir, "import-segments").mkdirs()
-        File(context.filesDir, "import-segments/orphan.ogg").writeText("synthetic")
-        ImportAudioCleanupWork.reconcile(context, db, original)
-        assertEquals(1, active("import-audio-cleanup").size)
-    }
-    @Test fun importWritesTriggerCleanupWithoutRestartAndReadingImportIsProtected() = runBlocking {
-        segment("import", "Running")
-        ImportAudioCleanupWork.reconcile(context, db, original)
-        assertTrue(active("import-audio-cleanup").isEmpty())
-        ImportAudioCleanupWork.observe(context, db, original, scope)
-        db.transcribe().update(db.transcribe().segment(1).copy(status = "Failed", nextRetryAt = 100, attempts = 1))
-        until { active("import-audio-cleanup").isNotEmpty() }
-    }
 }

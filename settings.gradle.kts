@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "resound"
 include(":app")
 include(":devices")
+include(":shared")

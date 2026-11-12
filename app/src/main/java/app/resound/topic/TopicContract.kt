@@ -5,10 +5,6 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-/** 卡 135：界面仅通过 AppGraph.topics 使用。时间均为 epoch 毫秒，时段为 [startAt, endAt)。 */
-enum class TopicKind(val title: String) {
-    Meeting("会议"), Training("培训"), Call("通话 / 访谈"), Script("口播稿"), Normal("普通")
-}
 enum class TopicStatus { Scheduled, Running, Paused, Ended, Summarizing, Done, Failed, Cancelled }
 data class TopicSpan(val id: Long, val startAt: Long, val endAt: Long?)
 data class TopicMark(val id: Long, val at: Long)

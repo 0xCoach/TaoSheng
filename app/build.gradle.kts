@@ -74,6 +74,7 @@ kotlin {
 
 dependencies {
     implementation(project(":devices"))
+    implementation(project(":shared"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0") // 与共用模块一致；技能门槛 JSON 可供 iOS 复用
     implementation("org.ahocorasick:ahocorasick:0.4.0") // 随包 TinyPinyin 的依赖
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")

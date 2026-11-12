@@ -18,6 +18,8 @@ object AppGraph {
     lateinit var health: app.resound.health.HealthCheck
     val isHealthReady: Boolean get() = ::health.isInitialized
     val settingsSearch: app.resound.settingsearch.SettingsSearch = app.resound.settingsearch.DefaultSettingsSearch()
+    /** 设置搜索是纯 Kotlin 对象，始终可用 */
+    val isSettingsSearchReady: Boolean get() = true
 
     internal lateinit var devicePlatform: app.resound.devices.android.AndroidDevicePlatform
     lateinit var devices: app.resound.devices.Devices
@@ -32,13 +34,6 @@ object AppGraph {
     val isLlmProvidersReady: Boolean get() = ::llmProviders.isInitialized
     lateinit var topics: app.resound.topic.TopicRepository
     val isTopicsReady: Boolean get() = ::topics.isInitialized
-    // 卡 147：快捷操作记住上次选择、设置体检（底层由卡 147 装配）
-    lateinit var quickPrefs: app.resound.quick.QuickPrefs
-    val isQuickPrefsReady: Boolean get() = ::quickPrefs.isInitialized
-    lateinit var health: app.resound.health.HealthCheck
-    val isHealthReady: Boolean get() = ::health.isInitialized
-    lateinit var settingsSearch: app.resound.settingsearch.SettingsSearch
-    val isSettingsSearchReady: Boolean get() = ::settingsSearch.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
     lateinit var llmBalance: app.resound.usage.LlmBalanceChecker
     val isLlmBalanceReady: Boolean get() = ::llmBalance.isInitialized

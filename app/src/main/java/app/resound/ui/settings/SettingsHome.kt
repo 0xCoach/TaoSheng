@@ -113,6 +113,8 @@ internal fun SettingsList(
                     hits.forEachIndexed { i, e ->
                         if (i > 0) Divider(inset = 18.dp)
                         Row(Modifier.fillMaxWidth().springClick {
+                            // “外观”就在设置首页：清空搜索回到首页即可
+                            if (e.anchor == "appearance") { query = ""; return@springClick }
                             val page = runCatching { SettingsPage.valueOf(e.page) }.getOrNull()
                             if (page != null) { SettingsHighlight.anchor = e.anchor; onOpen(page) }
                         }.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -361,6 +363,8 @@ private fun HealthCard(r: HealthReport, capture: CaptureController, onOpen: (Set
 private fun nextBackupText(at: Long): String {
     val t = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault())
     val hm = "%d:%02d".format(t.hour, t.minute)
+    // 自动备份在凌晨（约 3:10）：写“凌晨 3:10”，比“明天 3:10”更自然
+    if (t.hour < 6) return "凌晨 $hm"
     return if (t.toLocalDate() == java.time.LocalDate.now()) hm else "明天 $hm".takeIf { t.toLocalDate() == java.time.LocalDate.now().plusDays(1) } ?: "${t.monthValue}/${t.dayOfMonth} $hm"
 }
 

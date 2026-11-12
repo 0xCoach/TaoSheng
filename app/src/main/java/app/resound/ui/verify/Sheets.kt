@@ -1,6 +1,7 @@
 package app.resound.ui.verify
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +73,8 @@ private val KeepUpwardScroll = object : androidx.compose.ui.input.nestedscroll.N
 fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
             /** 内容会随选择变长变短的面板设为 true：固定高度，避免高度突变时系统误判成下滑关闭 */
             fixedHeight: Boolean = false,
+            /** 标题行右侧（如“⋯”更多菜单） */
+            trailing: (@Composable () -> Unit)? = null,
             content: @Composable ColumnScope.() -> Unit) {
     val c = Rs.colors
     ModalBottomSheet(
@@ -86,7 +89,11 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
                 .verticalScroll(rememberScrollState()).imePadding().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(title, style = RsType.title, color = c.text)
+            if (trailing == null) Text(title, style = RsType.title, color = c.text)
+            else Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = RsType.title, color = c.text, modifier = Modifier.weight(1f))
+                trailing()
+            }
             subtitle?.let { Text(it, style = RsType.subhead, color = c.textSecondary) }
             Spacer(Modifier.height(2.dp))
             content()

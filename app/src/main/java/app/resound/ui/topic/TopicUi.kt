@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.resound.AppGraph
 import app.resound.digest.MemoryEvent
 import app.resound.topic.Topic
@@ -262,14 +263,19 @@ private fun statusText(t: Topic): String? = when (t.status) {
     else -> null
 }
 
-/** 专题详情：纪要、合成的那件事、各段时间和重点、改类型/名字、重新生成、剪掉一段、取消 */
+/**
+ * 专题详情（11-12 改版）：四块——头部（标题、类型胶囊、时间时长、右上“⋯”）、主角区（随状态变）、时间轴、相关。
+ * 改类型或名字、剪掉一段、重新生成、取消专题收进“⋯”，点了再弹出对应的小面板。
+ */
 @Composable
 fun TopicSheet(id: Long, onDismiss: () -> Unit) {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val t = remember(id) { AppGraph.topics.observe(id) }.collectAsState(initial = null).value ?: return
-    val now = System.currentTimeMillis()
+    val live = t.status == TopicStatus.Running || t.status == TopicStatus.Paused
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(live) { while (live) { now = System.currentTimeMillis(); delay(1_000) } }
     val start = startOf(t); val end = endOf(t, now)
     val skills = remember { app.resound.ui.skills.skillRepo() }
     val card = t.cardId?.let { cid -> remember(cid) { skills.card(cid) }.collectAsState(initial = null).value }
@@ -278,75 +284,250 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
     val event by produceState<MemoryEvent?>(null, t.eventId, t.revision) {
         value = t.eventId?.takeIf { AppGraph.isMemoryReady }?.let { AppGraph.memory.eventById(it) }
     }
-    var editKind by remember(t.id, t.kind) { mutableStateOf(t.kind) }
-    var editName by remember(t.id, t.name) { mutableStateOf(t.name.orEmpty()) }
     var cutting by remember { mutableStateOf(false) }
     var confirmCancel by remember { mutableStateOf(false) }
     LaunchedEffect(confirmCancel) { if (confirmCancel) { delay(4000); confirmCancel = false } }
     val day = Instant.ofEpochMilli(start).atZone(zone).toLocalDate()
-    RsSheet(topicLabel(t), "${t.kind.title} · ${app.resound.ui.verify.formatUpcoming(start).substringBefore(' ')} ${formatClock(start)}–${formatClock(end)}", onDismiss = onDismiss, fixedHeight = true) {
-        if (t.status == TopicStatus.Running || t.status == TopicStatus.Paused) TopicRunningPanel(t)
-        statusText(t)?.let { Text(it, style = RsType.subhead, color = if (t.status == TopicStatus.Failed) c.critical else c.textSecondary) }
-        // 纪要卡片 + 合成的那件事
-        if (t.kind != TopicKind.Normal && t.status != TopicStatus.Scheduled) RsCard(color = c.fill, padding = PaddingValues(16.dp)) {
-            if (card != null) Row(Modifier.fillMaxWidth().springClick { openedCard = card }, verticalAlignment = Alignment.CenterVertically) {
-                app.resound.ui.skills.SkillIcon(card.icon, 36.dp)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(card.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 2)
-                    Text(card.summary, style = RsType.caption, color = c.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                }
-                Text("›", style = RsType.title, color = c.textTertiary)
-            } else Text(if (t.status == TopicStatus.Done || t.status == TopicStatus.Failed) "还没有纪要，可以点下面“重新生成”" else "结束并转写完后自动出纪要",
-                style = RsType.subhead, color = c.textTertiary)
+    val canEdit = t.status != TopicStatus.Scheduled && t.status != TopicStatus.Cancelled
+    val busy = t.status == TopicStatus.Summarizing
+
+    RsSheet(topicLabel(t), onDismiss = onDismiss, fixedHeight = true) {
+        // ① 头部副行：类型胶囊 + 时间时长
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(t.kind.title, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                modifier = Modifier.clip(CircleShape).background(c.accentSoft).padding(horizontal = 9.dp, vertical = 3.dp))
+            Spacer(Modifier.width(8.dp))
+            val dayText = app.resound.ui.verify.formatUpcoming(start).substringBefore(' ')
+            Text(when {
+                t.status == TopicStatus.Scheduled -> "预约 $dayText ${formatClock(t.plannedStartAt ?: start)}" + (t.plannedEndAt?.let { "–" + formatClock(it) } ?: "")
+                live -> "$dayText ${formatClock(start)} 开始" + (t.plannedEndAt?.let { " · ${formatClock(it)} 结束" } ?: "")
+                else -> "$dayText ${formatClock(start)}–${formatClock(end)}"
+            }, style = RsType.subhead.copy(fontFeatureSettings = "tnum"), color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        event?.let { e ->
-            RsCard(color = c.fill, padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
-                Row(Modifier.fillMaxWidth().springClick { app.resound.ui.transcript.PlayerNav.openEvent = e }, verticalAlignment = Alignment.CenterVertically) {
+        val tl = app.resound.topic.TopicTimeline.layout(t.spans.map { it.startAt to it.endAt }, t.marks.map { it.at }, now, t.plannedEndAt)
+
+        // ② 主角区
+        when {
+            live -> LiveHero(t, tl?.includedMs ?: 0L)
+            t.status == TopicStatus.Done && card != null -> Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if (c.isDark) c.fill else c.card)
+                .springClick { openedCard = card }.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    app.resound.ui.skills.SkillIcon(card.icon, 40.dp)
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("合成的这件事", style = RsType.caption, color = c.textTertiary)
-                        Text(e.title, style = RsType.subhead, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(card.title, style = RsType.headline, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(4.dp))
+                        Text(card.summary, style = RsType.subhead.copy(lineHeight = 20.sp), color = c.textSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
                     }
-                    Text("›", style = RsType.subhead, color = c.textTertiary)
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("查看完整纪要 ›", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
+            }
+            t.status == TopicStatus.Scheduled -> HeroNote("到点自动开始、自动结束" + (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(it) } else "")) {
+                ActionButton("取消这次预约", ActionKind.Danger) { scope.launch { if (guarded(context) { AppGraph.topics.cancelSchedule(t.id) }) onDismiss() } }
+            }
+            t.status == TopicStatus.Failed -> HeroNote(statusText(t) ?: "", error = true) {
+                ActionButton("重试", ActionKind.Primary, enabled = !busy) { scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } } }
+            }
+            t.status == TopicStatus.Done && t.kind != TopicKind.Normal -> HeroNote("还没有纪要") {
+                ActionButton("生成纪要", ActionKind.Primary, enabled = !busy) { scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } } }
+            }
+            else -> statusText(t)?.let { HeroNote(it, spinning = t.status == TopicStatus.Summarizing || t.status == TopicStatus.Ended) }
+        }
+
+        // ③ 时间轴
+        if (tl != null) {
+            Label("时间轴")
+            TimelineCard(tl, live) { event?.let { e -> app.resound.ui.transcript.PlayerNav.openEvent = e } }
+        }
+
+        // ④ 相关
+        val related = buildList<Triple<String, String, () -> Unit>> {
+            event?.let { e -> add(Triple("合成的这件事", e.title) { app.resound.ui.transcript.PlayerNav.openEvent = e }) }
+            if (t.status != TopicStatus.Scheduled) add(Triple("这段时间的原话", day.format(java.time.format.DateTimeFormatter.ofPattern("M月d日"))) {
+                onDismiss(); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)
+            })
+            if (live && t.plannedEndAt != null) add(Triple("延长 30 分钟", "到 " + formatClock(t.plannedEndAt + 30 * 60_000L)) {
+                scope.launch { guarded(context) { AppGraph.topics.extend(30) } }
+            })
+        }
+        if (related.isNotEmpty()) {
+            Label("相关")
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (c.isDark) c.fill else c.card)) {
+                related.forEachIndexed { i, (title, value, go) ->
+                    if (i > 0) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).springClick(go).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(title, style = RsType.body, color = c.text)
+                        Text(value, style = RsType.subhead, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1f).padding(start = 12.dp, end = 8.dp))
+                        Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
+                    }
                 }
             }
         }
-        // 各段时间与重点
-        if (t.spans.isNotEmpty()) {
-            Label(if (t.spans.size > 1) "分 ${t.spans.size} 段（中间暂停或剪掉的不算）" else "时间")
-            t.spans.forEach { s ->
-                Text("${formatClock(s.startAt)} – ${s.endAt?.let(::formatClock) ?: "进行中"}" + (s.endAt?.let { " · ${minutesText(it - s.startAt)}" } ?: ""),
-                    style = RsType.subhead.copy(fontFeatureSettings = "tnum"), color = c.textSecondary)
+
+        // ⑤ 调整：只有一组类型 + 名字；改了才出现保存
+        if (canEdit) {
+            Label("调整")
+            var editKind by remember(t.id, t.kind) { mutableStateOf(t.kind) }
+            var editName by remember(t.id, t.name) { mutableStateOf(t.name.orEmpty()) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (c.isDark) c.fill else c.card).padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TopicKindChoice(editKind) { editKind = it }
+                NameInput(editName, { editName = it }, "名字（可不填，填了转写时认得更准）")
+                val changed = editKind != t.kind || editName.trim() != t.name.orEmpty()
+                androidx.compose.animation.AnimatedVisibility(changed) {
+                    ActionButton(if (live) "保存" else "保存并重新整理", ActionKind.Primary, enabled = !busy) {
+                        scope.launch { guarded(context) { AppGraph.topics.update(t.id, editKind, editName.trim().ifEmpty { null }) } }
+                    }
+                }
+            }
+            // ⑥ 操作：一排按钮直接放出来；剪掉一段在原地展开，取消点两次
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!live) ActionPill(if (cutting) "收起" else "剪掉一段", Modifier.weight(1f)) { cutting = !cutting }
+                if (t.status == TopicStatus.Done || t.status == TopicStatus.Failed) ActionPill("重新生成", Modifier.weight(1f), enabled = !busy) {
+                    scope.launch { if (guarded(context) { AppGraph.topics.regenerate(t.id) }) Toast.makeText(context, "正在重新生成", Toast.LENGTH_SHORT).show() }
+                }
+                ActionPill(if (confirmCancel) "确定取消？" else "取消专题", Modifier.weight(1f), danger = true, confirm = confirmCancel) {
+                    if (!confirmCancel) { confirmCancel = true; return@ActionPill }
+                    scope.launch { if (guarded(context) { AppGraph.topics.cancel(t.id) }) onDismiss() }
+                }
+            }
+            androidx.compose.animation.AnimatedVisibility(cutting) {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (c.isDark) c.fill else c.card).padding(14.dp)) {
+                    Text("剪掉的部分（如课间闲聊）回到平常整理，专题自动重新生成", style = RsType.caption, color = c.textSecondary)
+                    Spacer(Modifier.height(8.dp))
+                    CutPanel(t, day) { cutting = false }
+                }
+            }
+            if (confirmCancel) Text("取消后合成的事和纪要删除，这段原话按平常方式重新整理；录音和原话不删。", style = RsType.caption, color = c.textTertiary)
+        }
+    }
+}
+
+/** 操作按钮：浅底胶囊；危险操作红字，确认时变红底 */
+@Composable
+private fun ActionPill(text: String, modifier: Modifier, danger: Boolean = false, confirm: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    val c = Rs.colors
+    val bg by animateColorAsState(if (confirm) c.critical else if (c.isDark) c.fill else c.card, label = "actionPill")
+    Box(modifier.clip(CircleShape).background(bg).then(if (enabled) Modifier.springClick(onClick) else Modifier).padding(vertical = 11.dp),
+        contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), maxLines = 1,
+            color = when { confirm -> Color.White; danger -> c.critical; !enabled -> c.textTertiary; else -> c.text })
+    }
+}
+
+/** 进行中：大字计时 + ★ 记一下 / 暂停·继续 / 结束（结束点两次） */
+@Composable
+private fun LiveHero(t: Topic, includedMs: Long) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val paused = t.status == TopicStatus.Paused
+    var confirmEnd by remember(t.id) { mutableStateOf(false) }
+    LaunchedEffect(confirmEnd) { if (confirmEnd) { delay(4000); confirmEnd = false } }
+    val shape = RoundedCornerShape(20.dp)
+    val bg = if (c.isDark) Modifier.clip(shape).background(c.fill)
+        .background(androidx.compose.ui.graphics.Brush.radialGradient(listOf(c.accent.copy(alpha = 0.22f), Color.Transparent), center = androidx.compose.ui.geometry.Offset.Zero, radius = 800f))
+        else Modifier.clip(shape).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF2873F), Color(0xFFE2632A), Color(0xFFCF4A1E))))
+    val fg = if (c.isDark) c.text else Color.White
+    val soft = if (c.isDark) c.textSecondary else Color.White.copy(alpha = 0.88f)
+    val pill = if (c.isDark) c.elevated else Color.White.copy(alpha = 0.22f)
+    Column(Modifier.fillMaxWidth().then(bg).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(if (c.isDark) c.accent else Color.White).then(if (paused) Modifier.background(Color.Transparent) else Modifier))
+            Spacer(Modifier.width(8.dp))
+            Text(listOfNotNull(if (paused) "已暂停 · 暂停期间不算进专题" else "正在录", t.marks.takeIf { it.isNotEmpty() }?.let { "已记下 ${it.size} 处重点" }).joinToString(" · "),
+                style = RsType.subhead, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text(app.resound.topic.TopicTimeline.clock(includedMs), style = RsType.largeTitle.copy(fontSize = 40.sp, lineHeight = 46.sp,
+            fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", letterSpacing = (-0.5).sp), color = fg, modifier = Modifier.padding(top = 4.dp))
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            HeroButton("★ 记一下", primary = true, Modifier.weight(1f)) {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                scope.launch { if (guarded(context) { AppGraph.topics.mark() }) Toast.makeText(context, "已记下这个时刻", Toast.LENGTH_SHORT).show() }
+            }
+            HeroButton(if (paused) "继续" else "暂停", primary = false, Modifier.weight(1f), bg = pill, fg = fg) {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                scope.launch { guarded(context) { if (paused) AppGraph.topics.resume() else AppGraph.topics.pause() } }
+            }
+            HeroButton(if (confirmEnd) "确定结束？" else "结束", primary = false, Modifier.weight(1f), bg = if (confirmEnd) c.critical else pill, fg = if (confirmEnd) Color.White else fg) {
+                if (!confirmEnd) { confirmEnd = true; return@HeroButton }
+                scope.launch { if (guarded(context) { AppGraph.topics.end() }) Toast.makeText(context, "专题已结束，转写好后自动出纪要", Toast.LENGTH_SHORT).show() }
             }
         }
-        if (t.marks.isNotEmpty()) Text("★ 重点：" + t.marks.joinToString("、") { formatClock(it.at) }, style = RsType.subhead, color = c.accent)
-        if (t.status == TopicStatus.Scheduled) {
-            Text("预约：${formatClock(t.plannedStartAt ?: start)}–${t.plannedEndAt?.let(::formatClock) ?: ""}" +
-                (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(it) } else ""), style = RsType.subhead, color = c.textSecondary)
-            ActionButton("取消这次预约", ActionKind.Danger) { scope.launch { if (guarded(context) { AppGraph.topics.cancelSchedule(t.id) }) onDismiss() } }
-            return@RsSheet
-        }
-        if (t.status == TopicStatus.Cancelled) return@RsSheet
-        // 改类型 / 名字
-        Label("类型或名字不对？改了会重新生成")
-        TopicKindChoice(editKind) { editKind = it }
-        NameInput(editName, { editName = it }, "名字（可不填）")
-        val changed = editKind != t.kind || editName.trim() != t.name.orEmpty()
-        val busy = t.status == TopicStatus.Summarizing
-        if (changed) ActionButton("保存并重新整理", ActionKind.Primary, enabled = !busy) {
-            scope.launch { guarded(context) { AppGraph.topics.update(t.id, editKind, editName.trim().ifEmpty { null }) } }
-        } else if (t.status == TopicStatus.Done || t.status == TopicStatus.Failed) ActionButton("重新生成", ActionKind.Secondary, enabled = !busy) {
-            scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } }
-        }
-        // 剪掉中间一段（如课间闲聊）
-        if (!cutting) LinkText("剪掉中间一段（如课间闲聊） ›") { cutting = true }
-        else CutPanel(t, day) { cutting = false }
-        ActionButton(if (confirmCancel) "确定取消？再点一次" else "取消这个专题", ActionKind.Danger) {
-            if (!confirmCancel) { confirmCancel = true; return@ActionButton }
-            scope.launch { if (guarded(context) { AppGraph.topics.cancel(t.id) }) onDismiss() }
-        }
-        Text("取消后合成的事和纪要删除，这段原话按平常方式重新整理；录音和原话不删。", style = RsType.caption, color = c.textTertiary)
     }
+}
+
+@Composable
+private fun HeroButton(text: String, primary: Boolean, modifier: Modifier, bg: Color? = null, fg: Color? = null, onClick: () -> Unit) {
+    val c = Rs.colors
+    val b = bg ?: if (c.isDark) c.accent else Color.White
+    val f = fg ?: if (c.isDark) Color(0xFF1A0F07) else Color(0xFFD2511F)
+    Box(modifier.clip(CircleShape).background(b).springClick(onClick).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = f, maxLines = 1)
+    }
+}
+
+/** 主角区的说明卡：预约、整理中、失败、没有纪要 */
+@Composable
+private fun HeroNote(text: String, error: Boolean = false, spinning: Boolean = false, action: (@Composable () -> Unit)? = null) {
+    val c = Rs.colors
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if (c.isDark) c.fill else c.card).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (spinning) {
+                androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = c.accent, strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+            }
+            Text(text, style = RsType.subhead, color = if (error) c.critical else c.textSecondary)
+        }
+        action?.invoke()
+    }
+}
+
+/** 时间轴：橙色段算进专题，灰色段是暂停或剪掉的；★ 是重点；进行中有一条竖线表示“现在” */
+@Composable
+private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolean, onMark: () -> Unit) {
+    val c = Rs.colors
+    val gray = if (c.isDark) Color.White.copy(alpha = 0.22f) else Color(0xFFD8D3CC)
+    val track = if (c.isDark) Color.White.copy(alpha = 0.1f) else Color(0xFFECE8E3)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (c.isDark) c.fill else c.card).padding(horizontal = 16.dp, vertical = 14.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().height(30.dp)) {
+            val w = maxWidth
+            Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(8.dp).clip(CircleShape).background(track))
+            tl.bars.forEach { b ->
+                Box(Modifier.offset(x = w * b.from).padding(top = 12.dp).width(w * (b.to - b.from).coerceAtLeast(0.01f)).height(8.dp)
+                    .clip(CircleShape).background(if (b.included) c.accent else gray))
+            }
+            tl.now?.let { p -> Box(Modifier.offset(x = w * p - 1.dp).padding(top = 7.dp).width(2.dp).height(18.dp).clip(CircleShape).background(c.text)) }
+            tl.marks.forEach { (p, _) ->
+                Text("★", style = RsType.subhead, color = c.accent, modifier = Modifier.offset(x = w * p - 7.dp, y = (-6).dp).springClick(onMark))
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+            val mid = tl.startAt + (tl.endAt - tl.startAt) / 2
+            listOf(tl.startAt, mid, tl.endAt).forEachIndexed { i, at ->
+                Text(formatClock(at), style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = c.textTertiary,
+                    textAlign = when (i) { 0 -> androidx.compose.ui.text.style.TextAlign.Start; 1 -> androidx.compose.ui.text.style.TextAlign.Center; else -> androidx.compose.ui.text.style.TextAlign.End },
+                    modifier = Modifier.weight(1f))
+            }
+        }
+        if (tl.bars.any { !it.included } || tl.marks.isNotEmpty()) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            LegendDot(c.accent, "算进专题")
+            if (tl.bars.any { !it.included }) LegendDot(gray, "暂停或剪掉")
+            if (tl.marks.isNotEmpty()) Text("★ 重点", style = RsType.caption, color = c.textTertiary)
+        }
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, text: String) = Row(verticalAlignment = Alignment.CenterVertically) {
+    Box(Modifier.size(width = 10.dp, height = 6.dp).clip(CircleShape).background(color))
+    Spacer(Modifier.width(4.dp))
+    Text(text, style = RsType.caption, color = Rs.colors.textTertiary)
 }
 
 @Composable
@@ -360,9 +541,7 @@ private fun CutPanel(t: Topic, day: LocalDate, onDone: () -> Unit) {
     var to by remember { mutableStateOf(first.plusMinutes(10).let { it.toLocalDate() to it.toLocalTime().withSecond(0).withNano(0) }) }
     fun ms(p: Pair<LocalDate, LocalTime>) = p.first.atTime(p.second).atZone(zone).toInstant().toEpochMilli()
     val valid = ms(from) < ms(to)
-    RsCard(color = c.fill, padding = PaddingValues(14.dp)) {
-        Text("剪掉的部分回到平常整理，专题自动重新生成", style = RsType.caption, color = c.textSecondary)
-        Spacer(Modifier.height(8.dp))
+    Column {
         app.resound.ui.transcript.RangeEnd("从", from.first, from.second, day.minusDays(1), day.plusDays(1)) { d, tm -> from = d to tm }
         app.resound.ui.transcript.RangeEnd("到", to.first, to.second, day.minusDays(1), day.plusDays(1)) { d, tm -> to = d to tm }
         if (!valid) Text("开始时间要早于结束时间", style = RsType.caption, color = c.warning)

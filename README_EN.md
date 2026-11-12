@@ -168,6 +168,8 @@ arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https:/
 
 ### Build from source
 
+Run local checks before submitting; GitHub Actions checks shared-code boundaries, Android compilation and unit tests on main pushes and PRs, plus iOS compilation when shared code or build configuration changes.
+
 
 **You need:** Android 10+ (arm64; developed on Xiaomi 14 Pro / HyperOS 3), an ASR option (Doubao Speech API key, or on-device ASR), and an OpenAI-compatible LLM API key (DeepSeek by default).
 

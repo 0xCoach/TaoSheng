@@ -50,21 +50,7 @@ internal object PushErrors {
         return clean("${kind.title}：${short.ifBlank { "服务拒绝了消息，检查密钥和当天额度" }}", values)
     }
 
-    fun status(code: Int, folder: Boolean = false): String = when (code) {
-        400 -> "服务拒绝了请求（400）：多为参数或格式不对，检查通道设置"
-        401, 403 -> "认证失败（$code）：检查密钥、Token 或权限"
-        404 -> "地址不存在（404）：检查接口路径"
-        409 -> "文件夹冲突（409）：检查父文件夹是否存在及路径是否正确"
-        412 -> "文件已被修改（412）：稍后重试，避免覆盖其他修改"
-        413 -> "内容太大（413）：接收端限制了大小"
-        423 -> "文件被锁定（423）：关闭占用文件的应用后重试"
-        429 -> "发送太频繁（429）：稍后再试，或检查当天额度"
-        503 -> if (folder) "坚果云暂时限流，稍后会自动续传" else "服务出错（503）：对方服务器问题，稍后会自动重试"
-        507 -> if (folder) "存储空间不足（507）：清理坚果云空间或增加容量" else "服务出错（507）：对方服务器问题，稍后会自动重试"
-        in 500..599 -> "服务出错（$code）：对方服务器问题，稍后会自动重试"
-        in 300..399 -> "服务要求跳转（$code），已停止发送：检查地址是否完整"
-        else -> "服务拒绝了请求（$code）：检查通道设置"
-    }
+    fun status(code: Int, folder: Boolean = false) = PushErrorRules.status(code, folder)
 
     fun failure(error: Throwable, values: Map<String, String>, endpoint: String = ""): PushFailure {
         PushTrace.current()?.let { if (error !is PushFailure || it.exception.isEmpty()) it.exception = error.javaClass.simpleName }

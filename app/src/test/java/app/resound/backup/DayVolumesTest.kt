@@ -15,6 +15,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.SQLiteMode
 import java.io.File
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
 import java.util.UUID
 
@@ -255,7 +256,7 @@ class DayVolumesTest {
         val room = CaptureDatabase.open(context, File(restore(), BackupArchive.DATABASE).path)
         try {
             val repo = app.resound.usage.RoomUsageRepository(room.memory(), room.transcribe(), context.getSharedPreferences("usage", 0))
-            val rows = repo.llm(LocalDate.parse("2026-10-23"), LocalDate.parse("2026-10-24")).first()
+            val rows = repo.llm(LocalDate.parse("2026-10-23").toKotlinLocalDate(), LocalDate.parse("2026-10-24").toKotlinLocalDate()).first()
             assertEquals(3, rows.size); assertEquals(37L, rows.sumOf { it.promptTokens })
             assertEquals(setOf(app.resound.usage.UsagePurpose.Digest, app.resound.usage.UsagePurpose.Ask, app.resound.usage.UsagePurpose.Other), rows.map { it.purpose }.toSet())
         } finally { room.close() }

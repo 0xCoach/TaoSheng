@@ -191,13 +191,7 @@ internal class PushTransport(private val client: OkHttpClient = OkHttpClient(), 
     companion object {
         internal fun feishuSign(timestamp: Long, secret: String) = Base64.getEncoder().encodeToString(hmac("$timestamp\n$secret", ""))
         internal fun dingTalkSign(timestamp: Long, secret: String) = Base64.getEncoder().encodeToString(hmac(secret, "$timestamp\n$secret"))
-        internal fun renderedBody(body: String, format: PushFormat): String = if (format != PushFormat.Text) body else body
-            .replace(Regex("(?m)^\\s{0,3}#{1,6}\\s+"), "")
-            .replace(Regex("!?\\[([^\\]]*)\\]\\(([^)]+)\\)"), "$1 ($2)")
-            .replace(Regex("(?m)^([ \\t]*)[-*+]\\s+\\[[ xX]\\]\\s*"), "$1")
-            .replace(Regex("(?m)^([ \\t]*)[-*+]\\s+"), "$1")
-            .replace(Regex("(?m)^\\s*>\\s?"), "")
-            .replace("**", "").replace("__", "").replace("`", "")
+        internal fun renderedBody(body: String, format: PushFormat) = PushBodyRules.renderedBody(body, format)
     }
 }
 internal fun hmac(secret: String, text: String): ByteArray = Mac.getInstance("HmacSHA256").run {

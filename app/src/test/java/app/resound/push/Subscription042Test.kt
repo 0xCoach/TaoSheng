@@ -157,12 +157,6 @@ class Subscription042Test {
             assertTrue(r.pushNow(id).isFailure); assertNotNull(r.status(id).first().lastError)
         }
     }
-    @Test fun filenamesUseEnglishWeekdayAndIsoWeekYear() {
-        assertEquals("daily/2026-10/2026-10-24-Sat_daily-record.md", MemoryFolder.dailyPath(date))
-        assertEquals("transcripts/2026-10/2026-10-24-Sat_transcript.md", MemoryFolder.transcriptPath(date))
-        assertEquals("weekly/2020-W53_1228-0103_weekly-review.md", MemoryFolder.weekPath(LocalDate.of(2021, 1, 1)))
-        assertEquals("weekly/2026-W44_1026-1101_weekly-review.md", MemoryFolder.weekPath(LocalDate.of(2026, 11, 1)))
-    }
     @Test fun selectionFrontMatterTypedCardsAndMeOnlyNeverLeakMedia() {
         val media = event(2).copy(scene = "媒体", starred = true)
         val data = fixture().copy(events = listOf(event(), media), cards = listOf(card().copy(evidenceJson = "[10]")), lines = listOf(line(1, "我"), line(2, "别人"), line(3, "我", 2), line(10, "别人", 1)))

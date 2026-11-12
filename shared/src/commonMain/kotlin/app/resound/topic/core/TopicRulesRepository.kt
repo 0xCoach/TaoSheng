@@ -266,6 +266,18 @@ class TopicRulesRepository(
             dao.update(row.copy(status = "Cancelled", revision = row.revision + 1, error = null))
         }
     } }
+    override suspend fun delete(topicId: Long) {
+        edit {
+            val g = get(topicId)
+            requireTopic(g.row.status !in setOf("Running", "Paused"), "专题还在进行，请先结束或取消")
+            if (g.row.status != "Cancelled") {
+                releaseGenerated(g)
+                if (g.row.status != "Scheduled") g.spans.forEach { dao.releaseRange(it.startAt, it.endAt ?: minOf(now(), g.deadline())) }
+            }
+            dao.deleteTopic(topicId)
+        }
+        checkpoints.remove(topicId)
+    }
     override suspend fun regenerate(topicId: Long) {
         edit {
             val g = get(topicId)

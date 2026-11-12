@@ -48,6 +48,11 @@ interface TopicRepository {
     suspend fun createFromRange(start: Long, end: Long, kind: TopicKind, name: String?): Result<Long>
     suspend fun cut(topicId: Long, start: Long, end: Long)
     suspend fun cancel(topicId: Long)
+    /**
+     * 删除专题记录（卡 179）：先按“取消”处理——合成的事和纪要删除、这段原话回到平常整理，录音和原话不删——再把记录本身删掉。
+     * 进行中的专题不能删，先结束或取消。
+     */
+    suspend fun delete(topicId: Long)
     suspend fun regenerate(topicId: Long)
 }
 

@@ -97,17 +97,26 @@ fun topicLine(t: Topic, now: Long = System.currentTimeMillis()): String = buildS
     t.plannedEndAt?.let { append(" · ").append(formatClock(it)).append(" 结束") }
 }
 
+internal fun kindIcon(k: TopicKind) = when (k) {
+    TopicKind.Meeting -> "meeting"; TopicKind.Training -> "bulb"; TopicKind.Call -> "chat"; TopicKind.Script -> "mic"; else -> "timeline"
+}
+
+/** 类型：一排图标方块，点哪个选哪个；选中的橙色描边加浅橙底 */
 @Composable
 internal fun TopicKindChoice(selected: TopicKind, onSelect: (TopicKind) -> Unit) {
     val c = Rs.colors
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TopicKind.entries.forEach { k ->
             val on = k == selected
-            val bg by animateColorAsState(if (on) c.selected else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
-            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary,
-                modifier = Modifier.clip(CircleShape).background(bg)
-                    .then(if (on && c.isDark) Modifier.border(1.dp, c.textTertiary.copy(alpha = 0.6f), CircleShape) else Modifier)
-                    .springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
+            val bg by animateColorAsState(if (on) c.accentSoft else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
+            val edge by animateColorAsState(if (on) c.accent else Color.Transparent, label = "topicKindEdge")
+            Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(bg).border(1.5.dp, edge, RoundedCornerShape(16.dp))
+                .springClick { onSelect(k) }.padding(top = 12.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                app.resound.ui.skills.SkillIcon(kindIcon(k), 30.dp)
+                Spacer(Modifier.height(7.dp))
+                Text(k.title.replace(" / ", "·"), style = RsType.caption.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium),
+                    color = if (on) c.text else c.textSecondary, maxLines = 1, softWrap = false)
+            }
         }
     }
 }
@@ -154,9 +163,35 @@ fun TopicSection(onDismiss: () -> Unit, initialKind: TopicKind = TopicKind.Meeti
     if (showLabel) Label("专题录音")
     current?.let { TopicRunningPanel(it); return }
     TopicStartPanel(initialKind, onStarted = onDismiss)
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        LinkText("预约专题 ›") { TopicUi.scheduling = true }
-        LinkText("忘了点开始？选一段时间 ›") { TopicUi.creatingRange = true }
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        SideEntry("预约专题", "到点自动开始", Modifier.weight(1f)) { TopicUi.scheduling = true }
+        SideEntry("忘了点开始", "事后选一段时间", Modifier.weight(1f)) { TopicUi.creatingRange = true }
+    }
+}
+
+/** 开始面板下方的次要入口：标题 + 一句说明 */
+@Composable
+private fun SideEntry(title: String, note: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = Rs.colors
+    Row(modifier.clip(RoundedCornerShape(16.dp)).background(c.fill).springClick(onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1)
+            Text(note, style = RsType.caption, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary)
+    }
+}
+
+/** 点选胶囊：选中是橙色描边加浅橙底 */
+@Composable
+internal fun ChoicePill(text: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = Rs.colors
+    val bg by animateColorAsState(if (on) c.accentSoft else c.fill, label = "choicePill")
+    val edge by animateColorAsState(if (on) c.accent else Color.Transparent, label = "choicePillEdge")
+    Box(modifier.clip(CircleShape).background(bg).border(1.5.dp, edge, CircleShape).springClick(onClick).padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium),
+            color = if (on) c.text else c.textSecondary, maxLines = 1, softWrap = false)
     }
 }
 
@@ -170,26 +205,23 @@ internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStart
     var minutes by remember { mutableIntStateOf(60) }
     var unlimited by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
-    var timingOpen by remember { mutableStateOf(false) }
-    Label("专题类型")
     TopicKindChoice(kind) { kind = it }
-    Text(kindHint(kind), style = RsType.caption, color = c.textTertiary)
-    Spacer(Modifier.height(4.dp))
-    Label("名称")
-    NameInput(name, { name = it }, "例如：产品讨论会（可不填）")
-    Row(Modifier.fillMaxWidth().springClick { timingOpen = !timingOpen }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("结束方式", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
-        Text(if (unlimited) "手动结束" else "$minutes 分钟后", style = RsType.subhead, color = c.textSecondary)
-        Text(if (timingOpen) " ⌃" else " ⌄", style = RsType.subhead, color = c.textTertiary)
-    }
-    if (timingOpen) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(0, 60, 120).forEach { value ->
-                ActionPill(if (value == 0) "手动结束" else "${value / 60} 小时", Modifier.weight(1f)) { unlimited = value == 0; if (value > 0) minutes = value }
-            }
+    Text(kindHint(kind), style = RsType.subhead, color = c.textSecondary)
+    Spacer(Modifier.height(2.dp))
+    NameInput(name, { name = it }, "名字，例如：产品讨论会（可不填）")
+    // 结束方式：直接排出来点选，不用再展开
+    Label("什么时候结束")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(0 to "我来结束", 30 to "30 分钟", 60 to "1 小时", 120 to "2 小时").forEach { (value, text) ->
+            val on = if (value == 0) unlimited else !unlimited && minutes == value
+            ChoicePill(text, on, Modifier.weight(1f)) { unlimited = value == 0; if (value > 0) minutes = value }
         }
-        if (!unlimited) app.resound.ui.transcript.StepSlider(minutes, enabled = true) { minutes = it }
-        Text("一次最长 4 小时；手动结束时，不会在 1 小时后自动停止。", style = RsType.caption, color = c.textTertiary)
+    }
+    androidx.compose.animation.AnimatedVisibility(!unlimited) {
+        Column {
+            app.resound.ui.transcript.StepSlider(minutes, enabled = true) { minutes = it }
+            Text("到点前会提醒，可以延长；一次最长 4 小时。", style = RsType.caption, color = c.textTertiary)
+        }
     }
     Spacer(Modifier.height(4.dp))
     ActionButton(if (busy) "正在开始…" else "开始${if (kind == TopicKind.Call) "访谈" else kind.title}", ActionKind.Primary, enabled = !busy) {
@@ -292,12 +324,15 @@ private fun TopicHistory(records: List<Topic>, open: (Long) -> Unit) {
     val scope = rememberCoroutineScope()
     var retrying by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var shown by remember { mutableIntStateOf(30) }
+    var managing by remember { mutableStateOf(false) }
     TopicHistoryContent(records, TopicUi.historyQuery, { TopicUi.historyQuery = it; shown = 30 },
         TopicUi.historyAttention, { TopicUi.historyAttention = it; shown = 30 }, shown, { shown += 30 },
         progress = { t -> remember(t.id) { AppGraph.topics.observeProgress(t.id) }.collectAsStateWithLifecycle(initialValue = TopicProgress()).value },
         busyIds = retrying, open = open, retry = { id ->
             retrying = retrying + id
             scope.launch { try { guarded(context) { AppGraph.topics.regenerate(id) } } finally { retrying = retrying - id } }
+        }, managing = managing, setManaging = { managing = it }, delete = { id ->
+            scope.launch { if (guarded(context) { AppGraph.topics.delete(id) }) Toast.makeText(context, "专题已删除", Toast.LENGTH_SHORT).show() }
         })
 }
 
@@ -463,9 +498,15 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
                 if (t.status == TopicStatus.Done || t.status == TopicStatus.Failed) ActionPill("重新生成", Modifier.weight(1f), enabled = !busy) {
                     scope.launch { if (guarded(context) { AppGraph.topics.regenerate(t.id) }) Toast.makeText(context, "正在重新生成", Toast.LENGTH_SHORT).show() }
                 }
-                ActionPill(if (confirmCancel) "确定取消？" else "取消专题", Modifier.weight(1f), danger = true, confirm = confirmCancel) {
+                // 进行中只能取消；已结束的直接删除（记录一起删掉）
+                ActionPill(if (confirmCancel) (if (live) "确定取消？" else "确定删除？") else if (live) "取消专题" else "删除专题", Modifier.weight(1f), danger = true, confirm = confirmCancel) {
                     if (!confirmCancel) { confirmCancel = true; return@ActionPill }
-                    scope.launch { if (guarded(context) { AppGraph.topics.cancel(t.id) }) onDismiss() }
+                    scope.launch {
+                        if (guarded(context) { if (live) AppGraph.topics.cancel(t.id) else AppGraph.topics.delete(t.id) }) {
+                            if (!live) Toast.makeText(context, "专题已删除", Toast.LENGTH_SHORT).show()
+                            adjusting = false; onDismiss()
+                        }
+                    }
                 }
             }
             androidx.compose.animation.AnimatedVisibility(cutting) {
@@ -476,7 +517,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
                 }
             }
             if (marksChanged) Text("重点改了，可点上面“重新生成”更新纪要", style = RsType.caption, color = c.textSecondary)
-            if (confirmCancel) Text("取消后合成的事和纪要删除，这段原话按平常方式重新整理；录音和原话不删。", style = RsType.caption, color = c.textTertiary)
+            if (confirmCancel) Text((if (live) "取消后" else "删除后") + "合成的事和纪要删除，这段原话按平常方式重新整理；录音和原话不删。", style = RsType.caption, color = c.textTertiary)
         }
 }
 
@@ -510,7 +551,7 @@ private fun LiveHero(t: Topic, includedMs: Long) {
     val pill = c.trackThumb
     Column(Modifier.fillMaxWidth().then(bg).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(TopicWarm).then(if (paused) Modifier.background(Color.Transparent) else Modifier))
+            Box(Modifier.size(8.dp).clip(CircleShape).background(c.accent).then(if (paused) Modifier.background(Color.Transparent) else Modifier))
             Spacer(Modifier.width(8.dp))
             Text(listOfNotNull(if (paused) "已暂停 · 暂停期间不算进专题" else "正在录", t.marks.takeIf { it.isNotEmpty() }?.let { "已记下 ${it.size} 处重点" }).joinToString(" · "),
                 style = RsType.subhead, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -557,7 +598,7 @@ private fun MarkUndoLine(mark: Triple<Long, Long, Long>?, soft: Color, strong: C
 @Composable
 private fun HeroButton(text: String, primary: Boolean, modifier: Modifier, bg: Color? = null, fg: Color? = null, onClick: () -> Unit) {
     val c = Rs.colors
-    val b = bg ?: TopicWarm
+    val b = bg ?: c.accent
     val f = fg ?: if (c.isDark) c.onAccent else Color(0xFFD2511F)
     Box(modifier.clip(CircleShape).background(b).springClick(onClick).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = f, maxLines = 1)

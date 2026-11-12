@@ -18,6 +18,7 @@ internal class MemoryTopicStore160 : TopicStore {
  override suspend fun unmark(topicId: Long, markId: Long) { marks.removeAll { it.topicId==topicId && it.id==markId } }
  override suspend fun closeSpan(id: Long,at: Long) { for(i in spans.indices) if(spans[i].topicId==id && spans[i].endAt==null) spans[i]=spans[i].copy(endAt=maxOf(spans[i].startAt,at)) }
  override suspend fun deleteSpans(id: Long) { spans.removeAll { it.topicId==id } }
+ override suspend fun deleteTopic(id: Long) { spans.removeAll { it.topicId==id }; marks.removeAll { it.topicId==id }; rows.remove(id) }
  override suspend fun digestedUntil(start: Long,end: Long): Long?=null
  override suspend fun segmentIds(id: Long,now: Long)=emptyList<Long>()
  override suspend fun ordinaryEvents(start: Long,end: Long)=events.filter { it.startAt < end && it.endAt > start }

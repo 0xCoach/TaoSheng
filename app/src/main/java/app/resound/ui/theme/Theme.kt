@@ -49,6 +49,10 @@ data class RsColors(
     val trackThumb: Color,
     /** 卡片描边；日间透明（靠阴影），夜间是极细的白边 */
     val hairline: Color,
+    /** 主要按钮（整行大按钮）的底色：日间同主题橙；夜间是略灰的白，大块橙色在纯黑屏上太抢 */
+    val primary: Color,
+    /** 主要按钮上的文字 */
+    val onPrimary: Color,
     val isDark: Boolean,
 )
 
@@ -74,6 +78,8 @@ val LightRs = RsColors(
     track = Color(0xB3ECE8E3),
     trackThumb = Color(0xFFFFFFFF),
     hairline = Color(0x00000000),
+    primary = Color(0xFFF07B2E),
+    onPrimary = Color(0xFFFFFFFF),
     isDark = false,
 )
 
@@ -85,9 +91,10 @@ val DarkRs = RsColors(
     textSecondary = Color(0x99FFFFFF), // 白 60%
     textTertiary = Color(0x7AFFFFFF),  // 白 48%（深灰卡片上对比度约 4.9）
     separator = Color(0x14FFFFFF),     // 白 8%
-    // 夜间只用黑白灰：主题色是近白（主要按钮白底深字），浅底是中性灰；品牌橙只留在首页主卡（OverviewCard 里单独写）
-    accent = Color(0xFFE3E3E6),       // 略灰的白：纯黑 OLED 上大块纯白会发光刺眼
-    accentSoft = Color(0xFF2C2C2E),
+    // 夜间（11-13 调整）：底、卡片、主要按钮仍是黑白灰；主题橙回到“小面积点缀”——链接字、进度、指示点、
+    // 滑动操作、快速定位滑块等。橙色比日间略亮略淡，在纯黑上清楚又不刺眼。
+    accent = Color(0xFFF08A4B),
+    accentSoft = Color(0xFF3A2A20),   // 橙色约 16% 压在深灰卡片上的实色（不用半透明，避免再改透明度时出错）
     // 状态色保留但调暗调淡，只用在小圆点和文字上
     good = Color(0xFF55A86F),
     warning = Color(0xFFD4A65E),
@@ -95,12 +102,14 @@ val DarkRs = RsColors(
     shadow = Color(0x00000000),
     elevated = Color(0xFF2C2C2E),
     fill = Color(0x1FFFFFFF),          // 白 12%
-    onAccent = Color(0xFF1C1C1E),
+    onAccent = Color(0xFF1C1C1E),     // 橙底上的字用深色，对比度约 7
     selected = Color(0xFF48484A),
     onSelected = Color(0xEBFFFFFF),
     track = Color(0x1FFFFFFF),
     trackThumb = Color(0xFF48484A),
     hairline = Color(0x12FFFFFF),      // 白 7%
+    primary = Color(0xFFE3E3E6),       // 略灰的白：纯黑 OLED 上大块纯白会发光刺眼
+    onPrimary = Color(0xFF1C1C1E),
     isDark = true,
 )
 

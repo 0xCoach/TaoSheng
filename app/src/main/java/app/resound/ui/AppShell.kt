@@ -151,9 +151,9 @@ private fun TabBar(labels: List<String>, selected: Int, onSelect: (Int) -> Unit,
         Row(Modifier.padding(5.dp)) {
             labels.forEachIndexed { i, label ->
                 val on = i == selected
-                // 夜间选中项用中性深灰底 + 白字，不用橙色，整屏只有真正要操作的按钮是橙色；日间保持暖橙
+                // 夜间选中项：中性深灰底 + 橙字（小面积点缀）；日间保持暖橙
                 val onBg = if (c.isDark) c.trackThumb else c.accentSoft
-                val onFg = if (c.isDark) c.text else c.accent
+                val onFg = c.accent
                 val bg by animateColorAsState(if (on) onBg else onBg.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "tabBg")
                 val fg by animateColorAsState(if (on) onFg else c.textSecondary, label = "tabFg")
                 Box(Modifier.clip(CircleShape).background(bg).springClick { onSelect(i) }.padding(horizontal = if (narrow) 9.dp else 13.dp, vertical = 10.dp)) {

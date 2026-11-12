@@ -21,6 +21,7 @@ internal class RoomTopicStore(private val db: app.resound.data.CaptureDatabase) 
  override suspend fun unmark(topicId: Long, markId: Long) = dao.unmark(topicId, markId)
  override suspend fun closeSpan(id: Long, at: Long) = dao.closeSpan(id, at)
  override suspend fun deleteSpans(id: Long) = dao.deleteSpans(id)
+ override suspend fun deleteTopic(id: Long) = dao.deleteTopic(id)
  override suspend fun digestedUntil(start: Long, end: Long) = dao.digestedUntil(start, end)
  override suspend fun segmentIds(id: Long, now: Long) = dao.segments(id,now).map { it.id }
  override suspend fun ordinaryEvents(start: Long, end: Long) = dao.ordinaryEvents(start, end).map { it.snapshot() }

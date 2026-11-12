@@ -35,7 +35,7 @@ internal fun SettingsInput(value:String,onChange:(String)->Unit,hint:String,modi
         textStyle=RsType.body.copy(color=c.text),cursorBrush=SolidColor(c.accent),
         visualTransformation=if(secret)PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions=KeyboardOptions(keyboardType=if(secret)KeyboardType.Password else KeyboardType.Uri,imeAction=ImeAction.Done),modifier=modifier,
-        decorationBox={inner->Box(Modifier.clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal=14.dp,vertical=12.dp)) {
+        decorationBox={inner->Box(Modifier.clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal=14.dp,vertical=12.dp)) {
             if(value.isEmpty())Text(hint,style=RsType.body,color=c.textTertiary)
             inner()
         }})

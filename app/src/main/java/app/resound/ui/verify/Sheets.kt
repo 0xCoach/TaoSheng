@@ -42,7 +42,7 @@ fun ActionButton(text: String, kind: ActionKind, modifier: Modifier = Modifier, 
     val c = Rs.colors
     val (bg, fg) = when (kind) {
         ActionKind.Primary -> c.accent to Color.White
-        ActionKind.Secondary -> c.background to c.text
+        ActionKind.Secondary -> c.fill to c.text
         ActionKind.Danger -> c.critical.copy(alpha = 0.1f) to c.critical
     }
     Box(
@@ -77,8 +77,8 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
-        dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(c.separator)) },
+        containerColor = c.elevated,
+        dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(if (c.isDark) c.textTertiary.copy(alpha = 0.35f) else c.separator)) },
     ) {
         Column(
             Modifier.then(if (fixedHeight) Modifier.fillMaxHeight(0.92f) else Modifier)
@@ -101,7 +101,7 @@ fun SheetInput(value: String, hint: String, wrap: Boolean = false, onChange: (St
     // wrap：长内容自动折行显示（最多 6 行，再长可滚动）；仍是一段话，回车不插入换行
     BasicTextField(
         value, if (wrap) { v -> onChange(v.replace("\n", "")) } else onChange, singleLine = !wrap, maxLines = if (wrap) 6 else 1, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 16.dp, vertical = 14.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(horizontal = 16.dp, vertical = 14.dp),
         decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary); inner() } },
     )
 }

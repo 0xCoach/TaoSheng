@@ -102,7 +102,7 @@ fun MakeCardSheet(date: LocalDate, repo: SkillRepository, onDismiss: () -> Unit)
                     is SkillRunResult.Failed -> r.reason
                 }
             }
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill)
                 .springClick {
                     if (busy) return@springClick
                     asked = asked + s.id

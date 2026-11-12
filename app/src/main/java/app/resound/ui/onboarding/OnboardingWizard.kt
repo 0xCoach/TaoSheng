@@ -273,9 +273,9 @@ private fun ModelProgress(big: Boolean = false) {
         }
         if (!ready) {
             Spacer(Modifier.height(10.dp))
-            if (pct != null && !installing) androidx.compose.material3.LinearProgressIndicator(progress = { shown }, color = c.accent, trackColor = c.background,
+            if (pct != null && !installing) androidx.compose.material3.LinearProgressIndicator(progress = { shown }, color = c.accent, trackColor = c.fill,
                 modifier = Modifier.fillMaxWidth().height(if (big) 8.dp else 6.dp).clip(CircleShape))
-            else androidx.compose.material3.LinearProgressIndicator(color = c.accent, trackColor = c.background,
+            else androidx.compose.material3.LinearProgressIndicator(color = c.accent, trackColor = c.fill,
                 modifier = Modifier.fillMaxWidth().height(if (big) 8.dp else 6.dp).clip(CircleShape))
             Spacer(Modifier.height(8.dp))
             Text(status?.substringAfter(" · ", "")?.takeIf { pct != null && !installing && it.isNotBlank() }

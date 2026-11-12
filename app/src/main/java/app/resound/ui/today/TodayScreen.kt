@@ -853,12 +853,12 @@ private fun categoryColor(category: String): Color {
     val dark = c.isDark
     return when (category) {
         "待办" -> c.accent
-        "约定" -> if (dark) Color(0xFF6CC3BB) else Color(0xFF2E9C93)
-        "备忘" -> if (dark) Color(0xFF8DB8E8) else Color(0xFF4F86C6)
-        "灵感" -> if (dark) Color(0xFFA897D8) else Color(0xFF7E68C2)
-        "关键信息" -> if (dark) Color(0xFFE48FA8) else Color(0xFFCC5E82)
+        "约定" -> if (dark) Color(0xFF8EDDD5) else Color(0xFF2E9C93)
+        "备忘" -> if (dark) Color(0xFFA9C4E4) else Color(0xFF4F86C6)
+        "灵感" -> if (dark) Color(0xFFC2B5F5) else Color(0xFF7E68C2)
+        "关键信息" -> if (dark) Color(0xFFEFA3B9) else Color(0xFFCC5E82)
         "决定" -> c.good
-        else -> if (dark) Color(0xFFD9B67A) else Color(0xFFA9803C)
+        else -> if (dark) Color(0xFFD6C29E) else Color(0xFFA9803C)
     }
 }
 
@@ -1098,7 +1098,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                         modifier = Modifier.padding(top = 4.dp).springClick { showOriginal = !showOriginal })
                 }
                 androidx.compose.animation.AnimatedVisibility(showOriginal) {
-                    RsCard(Modifier.padding(top = 8.dp), padding = PaddingValues(14.dp), color = c.background) {
+                    RsCard(Modifier.padding(top = 8.dp), padding = PaddingValues(14.dp), color = c.fill) {
                         Text("整理时原来写的", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
                         Spacer(Modifier.height(4.dp))
                         Text(orig.title, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.textSecondary)

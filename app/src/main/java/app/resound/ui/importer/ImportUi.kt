@@ -109,7 +109,7 @@ fun ImportBanner(modifier: Modifier = Modifier) {
             if (p.error != null) Text(p.error!!, style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 4.dp))
             else {
                 Spacer(Modifier.height(10.dp))
-                Box(Modifier.fillMaxWidth().height(5.dp).clip(CircleShape).background(c.background)) {
+                Box(Modifier.fillMaxWidth().height(5.dp).clip(CircleShape).background(c.fill)) {
                     Box(Modifier.fillMaxWidth(p.percent / 100f).height(5.dp).clip(CircleShape).background(c.accent))
                 }
                 Text("导入完会马上转写；录音和平时录的一样，按原声保留天数保存", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
@@ -134,7 +134,7 @@ private fun ImportSheet(importer: AudioImporter, pending: List<PendingImport>) {
     ) {
         pending.forEach { p ->
             val start = starts[p.id] ?: 0L
-            RsCard(color = c.background, padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
+            RsCard(color = c.fill, padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(p.info.displayName, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)

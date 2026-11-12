@@ -90,14 +90,14 @@ private fun PromptEditor(repo: PromptTemplates, info: PromptInfo, onDismiss: () 
                 info.requiredPlaceholders.forEach { ph ->
                     val present = ph in text
                     Text(ph, style = RsType.caption.copy(fontFamily = FontFamily.Monospace), color = if (present) c.textSecondary else c.critical,
-                        modifier = Modifier.clip(CircleShape).background(if (present) c.background else c.critical.copy(alpha = 0.1f)).padding(horizontal = 8.dp, vertical = 3.dp))
+                        modifier = Modifier.clip(CircleShape).background(if (present) c.fill else c.critical.copy(alpha = 0.1f)).padding(horizontal = 8.dp, vertical = 3.dp))
                 }
             }
         }
         BasicTextField(
             text, { text = it; error = null },
             textStyle = RsType.subhead.copy(color = c.text, lineHeight = 20.sp), cursorBrush = SolidColor(c.accent),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 420.dp).clip(RoundedCornerShape(14.dp)).background(c.background)
+            modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 420.dp).clip(RoundedCornerShape(14.dp)).background(c.fill)
                 .verticalScroll(rememberScrollState()).padding(14.dp),
         )
         error?.let { Text(it, style = RsType.subhead, color = c.critical) }

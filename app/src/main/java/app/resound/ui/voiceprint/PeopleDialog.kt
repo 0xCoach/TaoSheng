@@ -88,7 +88,7 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
         // 录入：“我”照着屏幕上的短文朗读，三段轮流，比随便说话样本更全
         if (me) {
             val passage = READ_PASSAGES[passageIndex % READ_PASSAGES.size]
-            RsCard(color = c.background, padding = PaddingValues(16.dp)) {
+            RsCard(color = c.fill, padding = PaddingValues(16.dp)) {
                 Text("朗读第 ${passageIndex % READ_PASSAGES.size + 1} / ${READ_PASSAGES.size} 段 · 用平常说话的音量和语速", style = RsType.caption, color = c.textTertiary)
                 Spacer(Modifier.height(8.dp))
                 Text(passage, style = RsType.body.copy(lineHeight = 26.sp), color = c.text)
@@ -171,7 +171,7 @@ fun PersonDialog(repo: VoiceprintRepository, person: VoiceprintPerson, onDismiss
 private fun LearnBar(person: VoiceprintPerson) {
     val c = Rs.colors
     val f = minOf(person.samples / 3f, person.seconds / 30f).coerceIn(0f, 1f)
-    Box(Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(c.background)) {
+    Box(Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(c.fill)) {
         Box(Modifier.fillMaxWidth(f).height(6.dp).clip(CircleShape).background(if (f >= 1f) c.good else c.accent))
     }
 }
@@ -271,7 +271,7 @@ fun AssignPersonDialog(repo: VoiceprintRepository, lineId: Long, onDismiss: () -
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 people.forEach { person ->
                     val on = name.trim() == person.name
-                    val bg by animateColorAsState(if (on) personColor(person) else c.background, label = "who")
+                    val bg by animateColorAsState(if (on) personColor(person) else c.fill, label = "who")
                     Row(
                         Modifier.clip(CircleShape).background(bg).springClick { if (!saving) name = person.name }.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,

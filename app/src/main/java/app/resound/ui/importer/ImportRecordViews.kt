@@ -104,7 +104,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
         if (playingHere) app.resound.ui.transcript.InlinePlayer()
         statusText(r)?.let { Text(it + (r.error?.let { e -> "：$e" } ?: ""), style = RsType.subhead, color = if (r.status == ImportRecordStatus.Failed) c.critical else c.textSecondary) }
         // 纪要
-        if (r.kind != ImportKind.Normal) RsCard(color = c.background, padding = PaddingValues(16.dp)) {
+        if (r.kind != ImportKind.Normal) RsCard(color = c.fill, padding = PaddingValues(16.dp)) {
             if (card != null) Row(Modifier.fillMaxWidth().springClick { onOpenCard(card) }, verticalAlignment = Alignment.CenterVertically) {
                 app.resound.ui.skills.SkillIcon(card.icon, 36.dp)
                 Spacer(Modifier.width(12.dp))
@@ -123,7 +123,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
         // 整理出的事
         if (mine.isNotEmpty()) {
             Text("整理出的 ${mine.size} 件事", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
-            RsCard(color = c.background, padding = PaddingValues(vertical = 4.dp)) {
+            RsCard(color = c.fill, padding = PaddingValues(vertical = 4.dp)) {
                 mine.forEachIndexed { i, e ->
                     if (i > 0) androidx.compose.foundation.layout.Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                     Row(Modifier.fillMaxWidth().springClick { onOpenEvent(e) }.padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {

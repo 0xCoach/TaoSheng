@@ -191,7 +191,7 @@ private fun AddProviderSheet(providers: LlmProviders, onPicked: (ProviderTemplat
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             providers.templates.forEach { t ->
                 Text(t.name, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text,
-                    modifier = Modifier.clip(CircleShape).background(c.background).springClick { onPicked(t) }.padding(horizontal = 14.dp, vertical = 9.dp))
+                    modifier = Modifier.clip(CircleShape).background(c.fill).springClick { onPicked(t) }.padding(horizontal = 14.dp, vertical = 9.dp))
             }
             Text("自己填写", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
                 modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { onPicked(null) }.padding(horizontal = 14.dp, vertical = 9.dp))
@@ -244,7 +244,7 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             val canFetch = url.isNotBlank() && (!needsWorkspace || workspace.isNotBlank()) && (p.hasKey || key.isNotBlank() || custom || headerAuth) && !fetching
             Text(if (fetching) "拉取中…" else "拉取模型", style = RsType.caption.copy(fontWeight = FontWeight.Medium),
                 color = if (canFetch) c.accent else c.textTertiary,
-                modifier = Modifier.clip(CircleShape).background(if (canFetch) c.accentSoft else c.background).springClick {
+                modifier = Modifier.clip(CircleShape).background(if (canFetch) c.accentSoft else c.fill).springClick {
                     if (!canFetch) return@springClick
                     fetching = true
                     scope.launch { fetched = providers.models(p.id.ifBlank { null }, url, keyArg); fetching = false }
@@ -254,17 +254,17 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
             template.models.forEachIndexed { i, m ->
                 val on = !otherModel && m == model
                 Text(m + if (i == 0) " · 推荐" else "", style = RsType.subhead, color = if (on) Color.White else c.textSecondary,
-                    modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.background).springClick { model = m; otherModel = false; result = null }
+                    modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.fill).springClick { model = m; otherModel = false; result = null }
                         .padding(horizontal = 12.dp, vertical = 8.dp))
             }
             Text("其他", style = RsType.subhead, color = if (otherModel) Color.White else c.textSecondary,
-                modifier = Modifier.clip(CircleShape).background(if (otherModel) c.accent else c.background).springClick { otherModel = true; model = ""; result = null }
+                modifier = Modifier.clip(CircleShape).background(if (otherModel) c.accent else c.fill).springClick { otherModel = true; model = ""; result = null }
                     .padding(horizontal = 12.dp, vertical = 8.dp))
         }
         if (custom || otherModel) SheetInput(model, "模型名，如 deepseek-flash") { model = it.trim(); result = null }
         fetched?.let { list ->
             if (list.isEmpty()) Text("没拉到模型列表，可以手动填写", style = RsType.caption, color = c.textTertiary)
-            else Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).clip(RoundedCornerShape(14.dp)).background(c.background)
+            else Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).clip(RoundedCornerShape(14.dp)).background(c.fill)
                 .verticalScroll(rememberScrollState())) {
                 list.forEach { m ->
                     val on = m == model

@@ -181,7 +181,7 @@ private fun Field(value: String, hint: String, type: KeyboardType, secret: Boole
         keyboardOptions = KeyboardOptions(keyboardType = type),
         modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
-            Box(Modifier.clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Box(Modifier.clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 12.dp)) {
                 if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary)
                 inner()
             }

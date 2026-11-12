@@ -348,7 +348,7 @@ fun ThingSheet(thingId: Long, things: ThingRepository, onDismiss: () -> Unit) {
         }
 
         Label("经过")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.background).animateContentSize()) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.fill).animateContentSize()) {
             history.forEachIndexed { i, r ->
                 HistoryRow(r, onEdit = { editing = r }, onDelete = { things.deleteRecord(r.id) })
                 if (i != history.lastIndex) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
@@ -456,7 +456,7 @@ private fun ThingPreview(s: ThingEditState) {
 private fun ThingInput(value: String, hint: String, onCard: Boolean, onChange: (String) -> Unit) {
     val c = Rs.colors
     BasicTextField(value, { onChange(it.replace("\n", "")) }, singleLine = true, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (onCard) c.background else c.card)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (onCard) c.fill else c.card)
             .padding(horizontal = 14.dp, vertical = 13.dp),
         decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary); inner() } })
 }
@@ -500,7 +500,7 @@ internal fun ThingEditFields(s: ThingEditState, onCard: Boolean = true) {
 @Composable
 private fun SaidQuote(text: String, caption: String) {
     val c = Rs.colors
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(caption, style = RsType.caption, color = c.textTertiary)
         Spacer(Modifier.height(3.dp))
         Text("“$text”", style = RsType.body, color = c.textSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
@@ -609,7 +609,7 @@ fun ThingPendingSheet(things: ThingRepository, onDismiss: () -> Unit) {
 @Composable
 private fun PendingGroup(list: List<ThingRecord>, things: ThingRepository, onOpen: (ThingRecord) -> Unit) {
     val c = Rs.colors
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.background).animateContentSize()) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.fill).animateContentSize()) {
         list.forEachIndexed { i, r ->
             Row(Modifier.fillMaxWidth().springClick { onOpen(r) }.padding(start = 16.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -685,7 +685,7 @@ private fun ThingDraftSheet(drafts: ThingDrafts, source: String, things: ThingRe
                     }
                 }
             }
-            if (many) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.background).padding(14.dp)) { body() } else body()
+            if (many) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.fill).padding(14.dp)) { body() } else body()
         }
         Spacer(Modifier.height(6.dp))
         val valid = cards.isNotEmpty() && cards.all { it.state.valid }

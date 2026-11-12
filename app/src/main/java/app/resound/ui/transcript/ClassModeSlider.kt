@@ -73,7 +73,7 @@ internal fun ClassModePicker(state: ClassModeState, speed: AsrSpeedSettings, onS
         }
         StepSlider(minutes, enabled = !unlimited) { minutes = it; unlimited = false }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            val bg by animateColorAsState(if (unlimited) c.accentSoft else c.background, label = "unlimited")
+            val bg by animateColorAsState(if (unlimited) c.accentSoft else c.fill, label = "unlimited")
             Text("不限时", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (unlimited) c.accent else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(bg).springClick { unlimited = !unlimited }.padding(horizontal = 14.dp, vertical = 9.dp))
             Box(Modifier.weight(1f).clip(CircleShape).background(c.accent)
@@ -112,7 +112,7 @@ internal fun StepSlider(value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
         Box(Modifier.fillMaxWidth().height(32.dp)
             .pointerInput(trackPx) { detectTapGestures { set(snap(it.x)) } }
             .pointerInput(trackPx) { detectHorizontalDragGestures { change, _ -> change.consume(); set(snap(change.position.x)) } }) {
-            Box(Modifier.align(Alignment.CenterStart).padding(horizontal = knob / 2).fillMaxWidth().height(6.dp).clip(CircleShape).background(c.background))
+            Box(Modifier.align(Alignment.CenterStart).padding(horizontal = knob / 2).fillMaxWidth().height(6.dp).clip(CircleShape).background(c.fill))
             Box(Modifier.align(Alignment.CenterStart).padding(start = knob / 2).width(offset).height(6.dp).clip(CircleShape).background(fill))
             // 整点刻度
             for (h in 1..MAX / 60) {

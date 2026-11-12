@@ -47,7 +47,7 @@ internal fun StrongSetupSheet(onDismiss: () -> Unit) {
         if (missing == 0) "能查到的都开好了；标“请确认”的，各家手机放在自己的设置里，点进去看一眼。"
         else "还有 $missing 项没打开，强提醒可能不响、不弹出。点“去打开”，开好回来会自动打勾。",
         onDismiss = onDismiss) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.background)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.fill)) {
             items.forEachIndexed { i, item ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     StatusDot(item.ok)

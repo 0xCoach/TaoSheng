@@ -96,7 +96,7 @@ private fun SampleRow(sample: VoiceprintSample, person: VoiceprintPerson, confir
         SampleState.Failed -> "未生效"
     }
     val meta = listOfNotNull(stamp(sample.at), secondsText(sample.millis)).joinToString(" · ")
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(start = 10.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(start = 10.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically) {
         PlayButton(sample, personColor(person), onPlay)
         Spacer(Modifier.width(12.dp))
@@ -154,7 +154,7 @@ private fun LineSection(repo: VoiceprintRepository, person: VoiceprintPerson, li
         else -> Column(Modifier.animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (if (expanded) lines else lines.take(FOLDED)).forEach { line ->
                 key(line.lineId) {
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 10.dp)) {
                         Text("“${line.text}”", style = RsType.body, color = c.text, maxLines = 3, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {

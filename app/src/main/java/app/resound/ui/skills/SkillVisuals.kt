@@ -46,24 +46,24 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** 每种图标一个柔和的底色（日间 / 夜间各一套），线条用同色系的深色 */
-private data class Tint(val light: Color, val dark: Color, val ink: Color)
+/** 每种图标一个柔和的底色（日间 / 夜间各一套），线条日间用同色系深色、夜间用同色系亮色（深底上更清楚） */
+private data class Tint(val light: Color, val dark: Color, val ink: Color, val darkInk: Color)
 
 private val TINTS = mapOf(
-    "meeting" to Tint(Color(0xFFDCE6F2), Color(0xFF2E3A48), Color(0xFF4F6E92)),
-    "sunset" to Tint(Color(0xFFFCE3CF), Color(0xFF4A3426), Color(0xFFE0782E)),
-    "calendar_week" to Tint(Color(0xFFE6E1F3), Color(0xFF36314A), Color(0xFF6E5FA6)),
-    "review" to Tint(Color(0xFFF8DCD3), Color(0xFF4A2F2A), Color(0xFFC8624A)),
-    "timeline" to Tint(Color(0xFFEDE5D6), Color(0xFF3C3529), Color(0xFF8C7652)),
-    "mic" to Tint(Color(0xFFF7E6BF), Color(0xFF473C22), Color(0xFFB98A1C)),
-    "heart" to Tint(Color(0xFFF6D9E1), Color(0xFF4A2B34), Color(0xFFC25A78)),
-    "bulb" to Tint(Color(0xFFD7EEE4), Color(0xFF243F35), Color(0xFF3F8F6F)),
-    "chat" to Tint(Color(0xFFE2ECD8), Color(0xFF313D28), Color(0xFF66864A)),
-    "star" to Tint(Color(0xFFFBE9C6), Color(0xFF4A3D22), Color(0xFFD08A16)),
+    "meeting" to Tint(Color(0xFFDCE6F2), Color(0xFF2E3A48), Color(0xFF4F6E92), Color(0xFFA9C4E4)),
+    "sunset" to Tint(Color(0xFFFCE3CF), Color(0xFF4A3426), Color(0xFFE0782E), Color(0xFFFFB27E)),
+    "calendar_week" to Tint(Color(0xFFE6E1F3), Color(0xFF36314A), Color(0xFF6E5FA6), Color(0xFFC2B5F5)),
+    "review" to Tint(Color(0xFFF8DCD3), Color(0xFF4A2F2A), Color(0xFFC8624A), Color(0xFFF2A08C)),
+    "timeline" to Tint(Color(0xFFEDE5D6), Color(0xFF3C3529), Color(0xFF8C7652), Color(0xFFD6C29E)),
+    "mic" to Tint(Color(0xFFF7E6BF), Color(0xFF473C22), Color(0xFFB98A1C), Color(0xFFEACB7A)),
+    "heart" to Tint(Color(0xFFF6D9E1), Color(0xFF4A2B34), Color(0xFFC25A78), Color(0xFFEFA3B9)),
+    "bulb" to Tint(Color(0xFFD7EEE4), Color(0xFF243F35), Color(0xFF3F8F6F), Color(0xFF8FD6B8)),
+    "chat" to Tint(Color(0xFFE2ECD8), Color(0xFF313D28), Color(0xFF66864A), Color(0xFFB5D493)),
+    "star" to Tint(Color(0xFFFBE9C6), Color(0xFF4A3D22), Color(0xFFD08A16), Color(0xFFF4C66E)),
 )
 
 @Composable
-fun skillInk(icon: String): Color = if (icon == "calendar_week" && Rs.colors.isDark) Color(0xFFC2B5F5) else (TINTS[icon] ?: TINTS.getValue("star")).ink
+fun skillInk(icon: String): Color = (TINTS[icon] ?: TINTS.getValue("star")).let { if (Rs.colors.isDark) it.darkInk else it.ink }
 
 /** 技能图标：圆角方块底 + 自绘线条 */
 @Composable
@@ -71,7 +71,7 @@ fun SkillIcon(icon: String, size: Dp = 44.dp) {
     val c = Rs.colors
     val t = TINTS[icon] ?: TINTS.getValue("star")
     Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(if (c.isDark) t.dark else t.light), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size * 0.5f)) { glyph(icon, t.ink) }
+        Canvas(Modifier.size(size * 0.5f)) { glyph(icon, if (c.isDark) t.darkInk else t.ink) }
     }
 }
 
@@ -243,7 +243,7 @@ private fun FieldBlock(field: SkillField, v: FieldValue, icon: String, onQuote: 
                 v.items.forEach { Text(it, style = RsType.subhead, color = ink, modifier = Modifier.clip(CircleShape).background(ink.copy(alpha = 0.12f)).padding(horizontal = 10.dp, vertical = 4.dp)) }
             }
             FieldType.Quotes -> v.quotes.forEach { q ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.background)
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.fill)
                     .then(if (onQuote != null && q.lineId != null) Modifier.springClick { onQuote(q) } else Modifier).padding(12.dp)) {
                     Box(Modifier.width(3.dp).height(36.dp).clip(CircleShape).background(ink.copy(alpha = 0.6f)))
                     Spacer(Modifier.width(10.dp))

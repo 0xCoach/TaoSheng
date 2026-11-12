@@ -277,7 +277,7 @@ private fun TypeSheet(words: AddWords, onDismiss: () -> Unit, onSubmit: (String)
     RsSheet(words.typeTitle, words.typeSubtitle, onDismiss = onDismiss) {
         BasicTextField(text, { text = it.take(500) }, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
             minLines = 3,
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(horizontal = 16.dp, vertical = 14.dp),
             decorationBox = { inner ->
                 Box {
                     if (text.isEmpty()) Text(words.typeExample, style = RsType.body, color = c.textTertiary)
@@ -330,7 +330,7 @@ internal fun DraftSheet(drafts: TodoDrafts, source: String, onDismiss: () -> Uni
         onDismiss = onDismiss, fixedHeight = true) {
         Text("“$source”", style = RsType.caption, color = c.textTertiary, maxLines = 3)
         cards.forEachIndexed { i, card ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.background).padding(14.dp),
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.fill).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (cards.size > 1) "第 ${i + 1} 条" else "内容", style = RsType.caption, color = c.textSecondary, modifier = Modifier.weight(1f))

@@ -99,12 +99,12 @@ private fun OriginalAudioSettings(audio: OriginalAudio) {
                 textStyle = RsType.body.copy(color = c.text),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 11.dp),
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 11.dp),
                 decorationBox = { inner -> Box { if (input.isEmpty()) Text("填天数", style = RsType.body, color = c.textTertiary); inner() } })
             Text(" 天", style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.width(10.dp))
             Text("确定", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (valid) Color.White else c.textTertiary,
-                modifier = Modifier.clip(CircleShape).background(if (valid) c.accent else c.background)
+                modifier = Modifier.clip(CircleShape).background(if (valid) c.accent else c.fill)
                     .springClick { if (valid) { editing = false; choose(n!!) } }.padding(horizontal = 16.dp, vertical = 9.dp))
         }
         Text(if (input.isEmpty() || valid) "可填 1～365 天；天数越多，占用的手机空间越大" else "请填 1～365 之间的数",

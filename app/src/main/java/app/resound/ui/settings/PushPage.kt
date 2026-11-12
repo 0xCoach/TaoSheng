@@ -296,7 +296,7 @@ private fun Field(value: String, hint: String, secret: Boolean, onChange: (Strin
     BasicTextField(
         value, onChange, singleLine = true, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
         visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 12.dp),
         decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary); inner() } },
     )
 }
@@ -337,7 +337,7 @@ private fun shortName(k: PushKind) = when (k) {
 private fun KindTile(k: PushKind, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     val tint = kindColor(k)
-    val bg by animateColorAsState(if (on) tint.copy(alpha = 0.14f) else c.background, label = "kindBg")
+    val bg by animateColorAsState(if (on) tint.copy(alpha = 0.14f) else c.fill, label = "kindBg")
     Column(modifier.springClick(onClick).clip(RoundedCornerShape(14.dp)).background(bg)
         .then(if (on) Modifier.border(1.5.dp, tint, RoundedCornerShape(14.dp)) else Modifier)
         .padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -491,7 +491,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
                 listOf("一", "二", "三", "四", "五", "六", "日").forEachIndexed { i, w ->
                     val d = i + 1
                     val on = t.weekdays.isEmpty() || d in t.weekdays
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.background).springClick {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.fill).springClick {
                         val cur = t.weekdays.ifEmpty { (1..7).toSet() }
                         val next = if (d in cur) cur - d else cur + d
                         if (next.isNotEmpty()) onChange(sub.copy(trigger = t.copy(weekdays = if (next.size == 7) emptySet() else next)))
@@ -541,7 +541,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
 @Composable
 private fun Block(title: String, desc: String? = null, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val c = Rs.colors
-    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).background(c.background).padding(14.dp),
+    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).background(c.fill).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
         desc?.let { Text(it, style = RsType.caption, color = c.textTertiary) }

@@ -282,7 +282,7 @@ private fun PreviewPlayer(file: java.io.File, srt: java.io.File?) {
     // 当前句：开始时间不晚于播放位置的最后一句（停顿时仍停在上一句，像歌词一样）
     val playingIdx = cues.indexOfLast { it.start <= shown }.coerceAtLeast(0)
     val center = playingIdx
-    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(c.background)
+    Column(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(c.fill)
         .padding(horizontal = 14.dp, vertical = 10.dp)) {
         if (cues.isNotEmpty()) {
             // 歌词式三行：上一句 / 当前这句（加粗）/ 下一句
@@ -401,7 +401,7 @@ private fun ShareChooser(files: List<java.io.File>, name: String, onShared: () -
         options.forEach { kind ->
             val on = kind == last
             Row(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                .background(if (on) c.accentSoft else c.background).springClick {
+                .background(if (on) c.accentSoft else c.fill).springClick {
                     p.edit().putString("shareKind", kind.name).apply()
                     scope.launch {
                         val target = when (kind) {

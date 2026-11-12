@@ -77,7 +77,7 @@ internal fun TopicKindChoice(selected: TopicKind, onSelect: (TopicKind) -> Unit)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TopicKind.entries.forEach { k ->
             val on = k == selected
-            val bg by animateColorAsState(if (on) c.accent else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
+            val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
             Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
@@ -98,7 +98,7 @@ internal fun NameInput(value: String, onChange: (String) -> Unit, hint: String =
     BasicTextField(value, { onChange(it.take(40)) }, singleLine = true, textStyle = RsType.body.copy(color = c.text),
         cursorBrush = SolidColor(c.accent), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
-            Box(Modifier.clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Box(Modifier.clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 12.dp)) {
                 if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary)
                 inner()
             }
@@ -154,7 +154,7 @@ internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStart
     }
     app.resound.ui.transcript.StepSlider(minutes, enabled = !unlimited) { minutes = it; unlimited = false }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        val bg by animateColorAsState(if (unlimited) c.accentSoft else c.background, label = "topicUnlimited")
+        val bg by animateColorAsState(if (unlimited) c.accentSoft else c.fill, label = "topicUnlimited")
         Text("不限时", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (unlimited) c.accent else c.textSecondary,
             modifier = Modifier.clip(CircleShape).background(bg).springClick { unlimited = !unlimited }.padding(horizontal = 14.dp, vertical = 9.dp))
         Box(Modifier.weight(1f).clip(CircleShape).background(if (busy) c.separator else c.accent).springClick {
@@ -274,7 +274,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
         if (t.status == TopicStatus.Running || t.status == TopicStatus.Paused) TopicRunningPanel(t)
         statusText(t)?.let { Text(it, style = RsType.subhead, color = if (t.status == TopicStatus.Failed) c.critical else c.textSecondary) }
         // 纪要卡片 + 合成的那件事
-        if (t.kind != TopicKind.Normal && t.status != TopicStatus.Scheduled) RsCard(color = c.background, padding = PaddingValues(16.dp)) {
+        if (t.kind != TopicKind.Normal && t.status != TopicStatus.Scheduled) RsCard(color = c.fill, padding = PaddingValues(16.dp)) {
             if (card != null) Row(Modifier.fillMaxWidth().springClick { openedCard = card }, verticalAlignment = Alignment.CenterVertically) {
                 app.resound.ui.skills.SkillIcon(card.icon, 36.dp)
                 Spacer(Modifier.width(12.dp))
@@ -287,7 +287,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
                 style = RsType.subhead, color = c.textTertiary)
         }
         event?.let { e ->
-            RsCard(color = c.background, padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
+            RsCard(color = c.fill, padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(Modifier.fillMaxWidth().springClick { app.resound.ui.transcript.PlayerNav.openEvent = e }, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("合成的这件事", style = RsType.caption, color = c.textTertiary)
@@ -346,7 +346,7 @@ private fun CutPanel(t: Topic, day: LocalDate, onDone: () -> Unit) {
     var to by remember { mutableStateOf(first.plusMinutes(10).let { it.toLocalDate() to it.toLocalTime().withSecond(0).withNano(0) }) }
     fun ms(p: Pair<LocalDate, LocalTime>) = p.first.atTime(p.second).atZone(zone).toInstant().toEpochMilli()
     val valid = ms(from) < ms(to)
-    RsCard(color = c.background, padding = PaddingValues(14.dp)) {
+    RsCard(color = c.fill, padding = PaddingValues(14.dp)) {
         Text("剪掉的部分回到平常整理，专题自动重新生成", style = RsType.caption, color = c.textSecondary)
         Spacer(Modifier.height(8.dp))
         app.resound.ui.transcript.RangeEnd("从", from.first, from.second, day.minusDays(1), day.plusDays(1)) { d, tm -> from = d to tm }
@@ -401,7 +401,7 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             DayOfWeek.entries.forEach { d ->
                 val on = d in repeat
-                val bg by animateColorAsState(if (on) c.accent else c.background, label = "repeatDay")
+                val bg by animateColorAsState(if (on) c.accent else c.fill, label = "repeatDay")
                 Box(Modifier.weight(1f).clip(CircleShape).background(bg).springClick { repeat = if (on) repeat - d else repeat + d }.padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center) {
                     Text(weekName(d), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary)
@@ -419,7 +419,7 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
         }
         if (scheduled.isNotEmpty()) {
             Label("已预约")
-            RsCard(color = c.background, padding = PaddingValues(vertical = 4.dp)) {
+            RsCard(color = c.fill, padding = PaddingValues(vertical = 4.dp)) {
                 scheduled.sortedBy { it.plannedStartAt ?: 0 }.forEachIndexed { i, s ->
                     if (i > 0) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -470,7 +470,7 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
         }.getOrNull()
     }
     RsSheet("设为专题", if (from != null) "勾选要合成一件事的几件事" else "选出这场专题的时间", onDismiss = onDismiss, fixedHeight = true) {
-        if (from != null) RsCard(color = c.background, padding = PaddingValues(vertical = 4.dp)) {
+        if (from != null) RsCard(color = c.fill, padding = PaddingValues(vertical = 4.dp)) {
             nearby.forEachIndexed { i, e ->
                 if (i > 0) Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
                 val on = e.id in picked

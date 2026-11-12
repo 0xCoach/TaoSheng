@@ -73,7 +73,7 @@ fun AsrChoice(chooser: AsrChooser, durationMs: Long, selected: TranscribeSource,
         options.forEach { o ->
             val on = o.source == selected && o.ready
             val est: AsrEstimate? = remember(o.source, durationMs) { if (o.ready) chooser.estimate(durationMs, o.source) else null }
-            val bg by animateColorAsState(if (on) c.accentSoft else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "asr")
+            val bg by animateColorAsState(if (on) c.accentSoft else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "asr")
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg)
                 .then(if (o.ready) Modifier.springClick { onSelect(o.source) } else Modifier)
                 .padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -153,7 +153,7 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 llms.forEach { o ->
                     val on = o.presetId == llm
-                    val bg by animateColorAsState(if (on) c.accentSoft else c.background, label = "llm")
+                    val bg by animateColorAsState(if (on) c.accentSoft else c.fill, label = "llm")
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg)
                         .then(if (o.ready) Modifier.springClick { llm = o.presetId } else Modifier)
                         .padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -183,7 +183,7 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
                 etaText(e.etaMillis)?.let { "预计 ${it.removePrefix("约 ")}" },
                 costText(e.costYuan)?.let { "转写 $it" },
             ).joinToString(" · ")
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(14.dp),
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (line.isNotBlank()) Text(line, style = RsType.subhead, color = c.textSecondary)
                 warn.forEach { Text("· $it", style = RsType.caption, color = c.warning) }

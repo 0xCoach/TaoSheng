@@ -210,7 +210,7 @@ private fun MinuteChoices(options: List<Int>, selected: Int, onSelect: (Int) -> 
 private fun MinuteChip(text: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     // 卡片本身是白底，未选中用页面底色才看得出是可点的胶囊
-    val bg by animateColorAsState(if (on) c.accent else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "minuteChip")
+    val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "minuteChip")
     val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "minuteChipFg")
     Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
         modifier = Modifier.springClick(onClick).clip(CircleShape).background(bg).padding(horizontal = 16.dp, vertical = 8.dp))

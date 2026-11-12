@@ -62,7 +62,7 @@ fun HotwordCard(settings: HotwordSettings) {
                 input, { input = it.take(200); note = null }, singleLine = true,
                 textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { add() }),
-                modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 11.dp),
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 11.dp),
                 decorationBox = { inner -> Box { if (input.isEmpty()) Text("输入词语，多个用逗号隔开", style = RsType.body, color = c.textTertiary); inner() } },
             )
             Spacer(Modifier.width(10.dp))
@@ -89,7 +89,7 @@ fun HotwordCard(settings: HotwordSettings) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 auto.forEach { w ->
                     Text(w, style = RsType.subhead, color = c.textSecondary,
-                        modifier = Modifier.clip(CircleShape).background(c.background).padding(horizontal = 12.dp, vertical = 6.dp))
+                        modifier = Modifier.clip(CircleShape).background(c.fill).padding(horizontal = 12.dp, vertical = 6.dp))
                 }
             }
         }

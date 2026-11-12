@@ -230,7 +230,7 @@ fun SkillEditor(skill: Skill, prompt: String, repo: SkillRepository, isNew: Bool
 
         Label("卡片上有什么")
         fields.forEachIndexed { i, f ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     PlainInput(f.label, "这一项的名字", Modifier.weight(1f), bold = true) { f.label = it }
                     if (i > 0) MiniStep("↑") { fields.add(i - 1, fields.removeAt(i)) }
@@ -271,7 +271,7 @@ fun SkillEditor(skill: Skill, prompt: String, repo: SkillRepository, isNew: Bool
         BasicTextField(
             text, { text = it },
             textStyle = RsType.subhead.copy(color = c.text, lineHeight = 20.sp), cursorBrush = SolidColor(c.accent),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 320.dp).clip(RoundedCornerShape(14.dp)).background(c.background)
+            modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 320.dp).clip(RoundedCornerShape(14.dp)).background(c.fill)
                 .verticalScroll(rememberScrollState()).padding(14.dp),
         )
 

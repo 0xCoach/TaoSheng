@@ -68,7 +68,7 @@ fun VoiceInputSection(capture: VoiceInputCapture) {
                             val off = a.packageName in s.excludedPackages
                             Text(if (off) "${a.label} · 不记" else a.label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
                                 color = if (off) Color.White else c.textSecondary,
-                                modifier = Modifier.clip(CircleShape).background(if (off) c.critical else c.background).springClick {
+                                modifier = Modifier.clip(CircleShape).background(if (off) c.critical else c.fill).springClick {
                                     capture.update(s.copy(excludedPackages = if (off) s.excludedPackages - a.packageName else s.excludedPackages + a.packageName))
                                 }.padding(horizontal = 14.dp, vertical = 8.dp))
                         }

@@ -99,7 +99,7 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, strongOn:
 @Composable
 internal fun StrongReminderRow(on: Boolean, onChange: (Boolean) -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (on) c.accentSoft else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "strongRow")
+    val bg by animateColorAsState(if (on) c.accentSoft else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "strongRow")
     var setup by remember { mutableStateOf(false) }
     Column {
     androidx.compose.foundation.layout.Row(
@@ -177,7 +177,7 @@ internal fun ReminderSheet(memory: MemoryRepository, onDismiss: () -> Unit) {
         val context = androidx.compose.ui.platform.LocalContext.current
         val missing = remember { app.resound.push.StrongSetup.missing(context) }
         androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-            .background(c.background).springClick { setup = true }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            .background(c.fill).springClick { setup = true }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("强提醒需要打开的功能", style = RsType.body, color = c.text)
                 Text(if (missing == 0) "已经开好" else "还有 $missing 项没打开", style = RsType.caption, color = if (missing == 0) c.good else c.warning)

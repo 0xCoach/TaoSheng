@@ -333,7 +333,7 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         (1..7).forEach { d ->
                             val on = t.weekdays.isEmpty() || d in t.weekdays
-                            Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.background)
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) c.accent else c.fill)
                                 .springClick {
                                     val cur = t.weekdays.ifEmpty { (1..7).toSet() }
                                     val next = if (d in cur) cur - d else cur + d
@@ -372,7 +372,7 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                     (listOf<LlmPreset?>(null) + presets).forEach { p ->
                         val on = s.presetId == p?.id
                         Text(p?.name ?: "跟随整理模型", style = RsType.subhead, color = if (on) Color.White else c.text,
-                            modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.background).springClick { repo.setPreset(s.id, p?.id) }
+                            modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.fill).springClick { repo.setPreset(s.id, p?.id) }
                                 .padding(horizontal = 14.dp, vertical = 8.dp))
                     }
                 }
@@ -443,7 +443,7 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
 @Composable
 private fun Stepper(text: String, onClick: () -> Unit) {
     val c = Rs.colors
-    Box(Modifier.size(38.dp).clip(CircleShape).background(c.background).springClick(onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(38.dp).clip(CircleShape).background(c.fill).springClick(onClick), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.title, color = c.textSecondary)
     }
 }
@@ -508,7 +508,7 @@ private fun TryCard(s: Skill, repo: SkillRepository, prompt: String?) {
                 ResultNote(if (saved) "已生成 ${r.cards.size} 张，放进了记忆里" else "预览 ${r.cards.size} 张（没有保存）", false)
                 r.cards.forEach { card ->
                     Spacer(Modifier.height(10.dp))
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(14.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(14.dp)) {
                         app.resound.ui.ReportCopyActions(blocks = { app.resound.ui.skillCardCopyBlocks(card) }) { app.resound.ui.skillCardCopyText(card) }
                         androidx.compose.foundation.text.selection.SelectionContainer {
                             Column {
@@ -543,7 +543,7 @@ private fun PromptSheet(s: Skill, repo: SkillRepository, onDismiss: () -> Unit) 
         BasicTextField(
             text, { text = it; error = null },
             textStyle = RsType.subhead.copy(color = c.text, lineHeight = 20.sp), cursorBrush = SolidColor(c.accent),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 380.dp).clip(RoundedCornerShape(14.dp)).background(c.background)
+            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 380.dp).clip(RoundedCornerShape(14.dp)).background(c.fill)
                 .verticalScroll(rememberScrollState()).padding(14.dp),
         )
         error?.let { Text(it, style = RsType.subhead, color = c.critical) }

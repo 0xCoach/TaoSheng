@@ -76,7 +76,7 @@ private fun HeaderField(value: String, hint: String, secret: Boolean = false, on
         value, { v -> onChange(v.replace("\n", "").replace("\r", "")) }, singleLine = true,
         textStyle = RsType.subhead.copy(color = c.text), cursorBrush = SolidColor(c.accent),
         visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 12.dp, vertical = 11.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 12.dp, vertical = 11.dp),
         decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = RsType.subhead, color = c.textTertiary); inner() } },
     )
 }

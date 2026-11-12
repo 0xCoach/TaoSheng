@@ -326,7 +326,7 @@ private fun PlaceSettings(repo: LocationRepository, lookup: Boolean, hasKey: Boo
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { inner ->
-                        Box(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 12.dp)) {
+                        Box(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 12.dp)) {
                             if (key.isEmpty()) Text("粘贴高德 Web 服务 Key", style = RsType.body, color = c.textTertiary)
                             inner()
                         }
@@ -351,7 +351,7 @@ private fun PlaceSettings(repo: LocationRepository, lookup: Boolean, hasKey: Boo
 @Composable
 private fun TrackCanvas(points: List<LocationPoint>, stays: List<Stay>) {
     val c = Rs.colors
-    Canvas(Modifier.fillMaxWidth().height(200.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.background)) {
+    Canvas(Modifier.fillMaxWidth().height(200.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.fill)) {
         val minLat = points.minOf { it.lat }; val maxLat = points.maxOf { it.lat }
         val minLng = points.minOf { it.lng }; val maxLng = points.maxOf { it.lng }
         val midLat = Math.toRadians((minLat + maxLat) / 2)
@@ -544,7 +544,7 @@ private fun EditField(value: String, hint: String, onChange: (String) -> Unit) {
         textStyle = RsType.body.copy(color = c.text), cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
         modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
-            Box(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.background).padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Box(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 14.dp, vertical = 12.dp)) {
                 if (value.isEmpty()) Text(hint, style = RsType.body, color = c.textTertiary)
                 inner()
             }

@@ -592,7 +592,7 @@ internal fun ExportSheet(diary: DiaryRepository, date: LocalDate, onClose: () ->
 @Composable
 private fun Choice(text: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
-    val bg by animateColorAsState(if (on) c.accent else c.background, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
+    val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
     val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "choiceFg")
     Box(modifier.clip(CircleShape).background(bg).springClick(onClick).padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg)

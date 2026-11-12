@@ -111,9 +111,9 @@ fun EventEnvDetail(event: MemoryEvent, modifier: Modifier = Modifier) {
         Text("环境", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)
         Spacer(Modifier.height(6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            es.tags.forEach { Tag(it.title, c.background, c.textSecondary) }
+            es.tags.forEach { Tag(it.title, c.fill, c.textSecondary) }
             es.sounds.forEach { Tag("有${it.title}", c.accentSoft, c.accent) }
-            if (es.media) Tag("含疑似影视外放", c.background, c.textTertiary)
+            if (es.media) Tag("含疑似影视外放", c.fill, c.textTertiary)
         }
     }
 }
@@ -163,7 +163,7 @@ private fun FlaggedSheet(repo: EnvSoundRepository, list: List<SegmentSound>, onD
     DisposableEffect(Unit) { onDispose { stopPlay() } }
     RsSheet("没有转写或被标记的录音", "判断错了可以找回；已跳过的录音至少保留 1 天", onDismiss = onDismiss) {
         list.sortedByDescending { it.startAt }.forEach { seg ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.background).padding(14.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val t = Instant.ofEpochMilli(seg.startAt).atZone(ZoneId.systemDefault())
                     Text("%02d:%02d".format(t.hour, t.minute), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.text)

@@ -623,7 +623,7 @@ internal fun IntervalChoice(interval: Int, realtime: Boolean? = null, onRealtime
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                     modifier = Modifier.width(76.dp),
                     decorationBox = { inner ->
-                        Box(Modifier.clip(CircleShape).background(c.background).padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.clip(CircleShape).background(c.fill).padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                             if (input.isEmpty()) Text("如 20", style = RsType.body, color = c.textTertiary)
                             inner()
                         }
@@ -934,7 +934,7 @@ private fun VoiceInputContext(v: app.resound.transcribe.VoiceInputMeta) {
     if (v.before == null && v.after == null) return
     var open by remember { mutableStateOf(false) }
     Column(Modifier.padding(top = 4.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-        .background(c.background).springClick { open = !open }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        .background(c.fill).springClick { open = !open }.padding(horizontal = 12.dp, vertical = 8.dp)) {
         Text(if (open) "当时的上下文 · 收起" else "当时的上下文 · 点开看", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textSecondary)
         androidx.compose.animation.AnimatedVisibility(open) {
             Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1022,8 +1022,8 @@ private fun BoxScope.SegmentSelectBar(selection: app.resound.ui.today.TimelineSe
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BarAction("▶ 播放", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onPlay)
                 BarAction("导出", c.accent, Color.White, n > 0, Modifier.weight(1f), onExport)
-                BarAction("复制", c.background, c.text, n > 0, Modifier.weight(1f), onCopy)
-                if (app.resound.AppGraph.isRedoReady) BarAction("重新转写", c.background, c.text, n > 0, Modifier.weight(1.4f), onRetranscribe)
+                BarAction("复制", c.fill, c.text, n > 0, Modifier.weight(1f), onCopy)
+                if (app.resound.AppGraph.isRedoReady) BarAction("重新转写", c.fill, c.text, n > 0, Modifier.weight(1.4f), onRetranscribe)
                 BarAction("删除", c.critical.copy(alpha = 0.1f), c.critical, n > 0, Modifier.weight(1f), onDelete)
             }
         }

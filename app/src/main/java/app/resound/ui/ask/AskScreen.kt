@@ -194,7 +194,7 @@ private fun ActionCard(a: app.resound.ask.AskAction, onConfirm: () -> Unit, onCa
     val (bg, tag, tagColor) = when (a.state) {
         app.resound.ask.AskActionState.Pending -> Triple(c.accentSoft, "要改一下吗", c.accent)
         app.resound.ask.AskActionState.Done -> Triple(c.good.copy(alpha = 0.1f), "✓ 已改好", c.good)
-        app.resound.ask.AskActionState.Cancelled -> Triple(c.background, "已取消", c.textTertiary)
+        app.resound.ask.AskActionState.Cancelled -> Triple(c.fill, "已取消", c.textTertiary)
         app.resound.ask.AskActionState.Failed -> Triple(c.critical.copy(alpha = 0.08f), "没改成", c.critical)
     }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg).padding(14.dp)) {
@@ -256,7 +256,7 @@ private fun SourceRow(n: Int, s: AskSource, open: Boolean, onClick: () -> Unit) 
         AnimatedVisibility(open) {
             Column(Modifier.padding(start = 26.dp, top = 6.dp)) {
                 Text("“${s.quote}”", style = RsType.subhead, color = c.text,
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(c.background).padding(10.dp))
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(c.fill).padding(10.dp))
                 if (current != null) Text("查看这件事 ›", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
                     modifier = Modifier.padding(top = 6.dp).springClick { detail = true })
             }

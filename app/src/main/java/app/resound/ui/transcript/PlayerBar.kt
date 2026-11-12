@@ -136,7 +136,7 @@ private fun Bar(inline: Boolean = false) {
                     IconCircle(c.accentSoft, onClick = { LinePlayer.skipSegment() }) { NextIcon(c.accent) }
                     Spacer(Modifier.width(6.dp))
                 }
-                IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
+                IconCircle(c.fill, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
             }
         } else {
             // 展开：顶行 段数 · 回到来源 · 倍速 · 收起 · 关闭；三行字幕；进度条；控制行 上一段 · −15 播放 +15 · 下一段
@@ -154,10 +154,10 @@ private fun Bar(inline: Boolean = false) {
                     SpeedChip()
                     Spacer(Modifier.width(6.dp))
                     if (!inline) {
-                        IconCircle(c.background, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
+                        IconCircle(c.fill, onClick = { expanded = false }) { ChevronDownIcon(c.textTertiary) }
                         Spacer(Modifier.width(6.dp))
                     }
-                    IconCircle(c.background, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
+                    IconCircle(c.fill, onClick = { LinePlayer.stop() }) { CloseIcon(c.textTertiary) }
                 }
                 Column(Modifier.fillMaxWidth().height(92.dp), verticalArrangement = Arrangement.Center) {
                     // 三行一直排满：开头没有上一句时当前句往上顶，结尾没有下一句时往下沉
@@ -198,7 +198,7 @@ private fun Bar(inline: Boolean = false) {
 private fun SegmentPill(label: String, back: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     val tint = if (enabled) c.accent else c.textTertiary.copy(alpha = 0.6f)
-    Row(modifier.height(30.dp).clip(CircleShape).background(if (enabled) c.accentSoft else c.background)
+    Row(modifier.height(30.dp).clip(CircleShape).background(if (enabled) c.accentSoft else c.fill)
         .then(if (enabled) Modifier.springClick(onClick) else Modifier).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
         if (back) { NextIcon(tint, Modifier.graphicsLayer { scaleX = -1f }); Spacer(Modifier.width(4.dp)) }
         Text(label, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = tint)

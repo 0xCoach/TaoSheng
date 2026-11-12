@@ -108,7 +108,7 @@ internal object AnswerMarkdown {
 internal fun AnswerText(text: String) {
     val c = Rs.colors
     val body = RsType.body.copy(lineHeight = 24.sp)
-    val codeBg = c.background
+    val codeBg = c.fill
     fun md(s: String, base: SpanStyle = SpanStyle()) = AnswerMarkdown.inline(s, c.accent, codeBg, base)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (b in AnswerMarkdown.blocks(text)) when (b) {

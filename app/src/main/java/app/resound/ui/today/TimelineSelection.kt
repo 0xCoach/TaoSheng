@@ -173,7 +173,7 @@ internal fun BoxScope.SelectBottomBar(selection: TimelineSelection, order: List<
             }
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BarChip("重做", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onRedo)
-                BarChip("复制", c.background, c.text, n > 0, Modifier.weight(1f), onCopy)
+                BarChip("复制", c.fill, c.text, n > 0, Modifier.weight(1f), onCopy)
                 BarChip("导出", c.accent, Color.White, n > 0, Modifier.weight(1f), onExport)
                 BarChip(if (n > 0) "删除 $n 件" else "删除", c.critical, Color.White, n > 0, Modifier.weight(1.2f), onDelete)
             }

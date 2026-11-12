@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -63,6 +64,8 @@ fun RsCard(
             .shadow(if (c.isDark) 0.dp else 10.dp, RoundedCornerShape(22.dp), ambientColor = c.shadow, spotColor = c.shadow)
             .clip(RoundedCornerShape(22.dp))
             .background(color ?: c.card)
+            // 夜间没有阴影，靠一圈极细的白边让卡片边缘利落
+            .then(if (c.isDark && color == null) Modifier.border(0.5.dp, c.hairline, RoundedCornerShape(22.dp)) else Modifier)
             .padding(padding),
         content = content,
     )

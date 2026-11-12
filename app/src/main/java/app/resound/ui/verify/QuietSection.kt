@@ -124,7 +124,7 @@ private fun QuietRuleSheet(rule: QuietRule?, isNew: Boolean, onSave: (QuietRule)
         SheetInput(name, "如 睡眠、午休、上课") { name = it.take(8) }
         Label("时间")
         // 两张等宽时间卡：开始 → 结束，选中的那张亮起；下面一条居中的滚轮调它，中间写总时长
-        RsCard(padding = PaddingValues(12.dp), color = c.background) {
+        RsCard(padding = PaddingValues(12.dp), color = c.fill) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TimeCard("开始", start, null, !pickingEnd, Modifier.weight(1f)) { pickingEnd = false }
                 Column(Modifier.padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -53,3 +53,4 @@
 
 - 新业务规则文件放 `:shared` 共用模块。
 - 提交前跑 `python3 tools/check_shared.py` 和 `./gradlew :shared:check`。
+- 改了 `:shared` 或 `:devices` 的共用代码，提交前再跑 `zsh tools/check_ios.sh`（iOS 真机与模拟器编译检查，需本机已装 Xcode；脚本会自动清理 iOS 中间产物）。

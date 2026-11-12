@@ -19,6 +19,7 @@ class TopicRulesRepository(
     private val zones: ZoneProvider,
     private val quiet: (Long, Long) -> Boolean = { _, _ -> false },
     private val recordingEnabled: () -> Boolean = { true },
+    private val checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints(),
 ) : TopicRepository {
     private fun now() = clock.now()
     private fun zone() = TimeZone.of(zones.zoneId())
@@ -53,6 +54,11 @@ class TopicRulesRepository(
     private suspend fun checkConflict(start: Long, end: Long, except: Long? = null, repeat: Set<DayOfWeek> = emptySet()) {
         requireTopic(!TopicPolicy.conflicts(start, end, repeat, dao.all().filter { it.row.id != except }, zone()), TopicPolicy.CONFLICT)
     }
+    override fun observeHistory(): Flow<List<Topic>> = dao.observeAll().map { rows ->
+        TopicProcessingRules.history(rows.map { it.topic() })
+    }.distinctUntilChanged()
+    override fun observeProgress(topicId: Long) = checkpoints.observe(topicId)
+
     override fun observeDay(date: LocalDate): Flow<List<Topic>> {
         val start = date.atStartOfDayIn(zone()).toEpochMilliseconds()
         val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone()).toEpochMilliseconds()
@@ -264,8 +270,9 @@ class TopicRulesRepository(
         edit {
             val g = get(topicId)
             requireTopic(g.row.status in setOf("Ended", "Summarizing", "Done", "Failed"), "请先结束专题再重新生成")
-            val row = releaseGenerated(g)
-            dao.update(row.copy(status = "Ended", revision = row.revision + 1, error = null))
+            // 重试失败保留校验通过的块；主动重做已完成专题重新计算，旧成果直到新结果提交才替换。
+            if (g.row.status == "Done") checkpoints.remove(topicId)
+            dao.update(g.row.copy(status = "Ended", revision = g.row.revision + 1, error = null))
         }
         onEnded(topicId)
     }

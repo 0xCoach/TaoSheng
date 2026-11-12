@@ -9,8 +9,9 @@ import java.time.ZoneId
 internal class RoomTopicRepository private constructor(private val core: TopicRulesRepository) : TopicRepository by core {
  constructor(db: app.resound.data.CaptureDatabase, scope: CoroutineScope,
   now: () -> Long = System::currentTimeMillis, zone: () -> ZoneId = ZoneId::systemDefault,
-  quiet: (Long,Long) -> Boolean = { _,_ -> false }, recordingEnabled: () -> Boolean = { true }
- ) : this(TopicRulesRepository(RoomTopicStore(db),scope,NowMillis(now),ZoneProvider { zone().id },quiet,recordingEnabled))
+  quiet: (Long,Long) -> Boolean = { _,_ -> false }, recordingEnabled: () -> Boolean = { true },
+  checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints()
+ ) : this(TopicRulesRepository(RoomTopicStore(db),scope,NowMillis(now),ZoneProvider { zone().id },quiet,recordingEnabled,checkpoints))
  var onChanged: suspend () -> Unit
   get() = core.onChanged
   set(value) { core.onChanged = value }

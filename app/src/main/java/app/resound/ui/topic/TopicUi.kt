@@ -6,6 +6,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +14,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import app.resound.topic.TopicProgress
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +53,9 @@ import java.time.ZoneId
 /** 卡 135 专题录音的界面入口；面板都挂在 AppShell 上，任何页面都能打开 */
 object TopicUi {
     var openTopic by mutableStateOf<Long?>(null)
+    var historyRequested by mutableStateOf(false)
+    var historyQuery by mutableStateOf("")
+    var historyAttention by mutableStateOf(false)
     var scheduling by mutableStateOf(false)
     /** 事后补：从某件事出发（可连带前后几件），或为 null 时按时间段 */
     var creatingFrom by mutableStateOf<MemoryEvent?>(null)
@@ -98,7 +105,9 @@ internal fun TopicKindChoice(selected: TopicKind, onSelect: (TopicKind) -> Unit)
             val on = k == selected
             val bg by animateColorAsState(if (on) c.selected else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
             Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onSelected else c.textSecondary,
-                modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
+                modifier = Modifier.clip(CircleShape).background(bg)
+                    .then(if (on && c.isDark) Modifier.border(1.dp, c.textTertiary.copy(alpha = 0.6f), CircleShape) else Modifier)
+                    .springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
     }
 }
@@ -161,23 +170,30 @@ internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStart
     var minutes by remember { mutableIntStateOf(60) }
     var unlimited by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
-    Text("把一段时间的录音合成一件事，结束后出纪要；没人说话照样不录", style = RsType.caption, color = c.textSecondary)
+    var timingOpen by remember { mutableStateOf(false) }
+    Label("专题类型")
     TopicKindChoice(kind) { kind = it }
     Text(kindHint(kind), style = RsType.caption, color = c.textTertiary)
-    NameInput(name, { name = it })
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(if (unlimited) "不限时" else app.resound.ui.transcript.durationText(minutes), style = RsType.title.copy(fontFeatureSettings = "tnum"),
-            color = if (unlimited) c.textSecondary else c.text, modifier = Modifier.weight(1f))
-        Text(if (unlimited) "手动结束，最长 4 小时" else "到 ${LocalTime.now().plusMinutes(minutes.toLong()).let { "%d:%02d".format(it.hour, it.minute) }} 结束",
-            style = RsType.caption.copy(fontFeatureSettings = "tnum"), color = c.textTertiary, modifier = Modifier.padding(bottom = 3.dp))
+    Spacer(Modifier.height(4.dp))
+    Label("名称")
+    NameInput(name, { name = it }, "例如：产品讨论会（可不填）")
+    Row(Modifier.fillMaxWidth().springClick { timingOpen = !timingOpen }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("结束方式", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+        Text(if (unlimited) "手动结束" else "$minutes 分钟后", style = RsType.subhead, color = c.textSecondary)
+        Text(if (timingOpen) " ⌃" else " ⌄", style = RsType.subhead, color = c.textTertiary)
     }
-    app.resound.ui.transcript.StepSlider(minutes, enabled = !unlimited) { minutes = it; unlimited = false }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        val bg by animateColorAsState(if (unlimited) c.accentSoft else c.fill, label = "topicUnlimited")
-        Text("不限时", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (unlimited) c.accent else c.textSecondary,
-            modifier = Modifier.clip(CircleShape).background(bg).springClick { unlimited = !unlimited }.padding(horizontal = 14.dp, vertical = 9.dp))
-        Box(Modifier.weight(1f).clip(CircleShape).background(if (busy) c.separator else c.accent).springClick {
-            if (busy) return@springClick
+    if (timingOpen) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(0, 60, 120).forEach { value ->
+                ActionPill(if (value == 0) "手动结束" else "${value / 60} 小时", Modifier.weight(1f)) { unlimited = value == 0; if (value > 0) minutes = value }
+            }
+        }
+        if (!unlimited) app.resound.ui.transcript.StepSlider(minutes, enabled = true) { minutes = it }
+        Text("一次最长 4 小时；手动结束时，不会在 1 小时后自动停止。", style = RsType.caption, color = c.textTertiary)
+    }
+    Spacer(Modifier.height(4.dp))
+    ActionButton(if (busy) "正在开始…" else "开始${if (kind == TopicKind.Call) "访谈" else kind.title}", ActionKind.Primary, enabled = !busy) {
+            if (busy) return@ActionButton
             busy = true
             scope.launch {
                 val r = runCatching { AppGraph.topics.start(kind, name.trim().ifEmpty { null }, if (unlimited) null else minutes) }.getOrNull()
@@ -192,10 +208,8 @@ internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStart
                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                 if (r?.topicId != null) { if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.setLastTopicKind(kind); onStarted() }
             }
-        }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-            Text("开始专题", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = Color.White)
-        }
     }
+
 }
 
 /** 进行中：记一下 / 暂停·继续 / 结束；有预设结束时可延长；可随时改类型 */
@@ -248,6 +262,7 @@ private fun Pill(text: String, filled: Boolean, modifier: Modifier, danger: Bool
 @Composable
 fun TopicHost() {
     if (!AppGraph.isTopicsReady) return
+    val historyScroll = rememberScrollState()
     TopicUi.openTopic?.let { id -> TopicSheet(id) { TopicUi.openTopic = null } }
     if (TopicUi.scheduling) TopicScheduleSheet { TopicUi.scheduling = false }
     TopicUi.creatingFrom?.let { e -> TopicCreateSheet(e) { TopicUi.creatingFrom = null } }
@@ -255,10 +270,35 @@ fun TopicHost() {
     TopicUi.starting?.let { k ->
         val current by AppGraph.topics.current.collectAsStateWithLifecycle()
         // 与聆听面板里的“专题录音”一节相同：开始、预约、忘了点开始时事后选一段时间；进行中则直接操作
-        RsSheet(if (current != null) "专题录音" else "开始专题", onDismiss = { TopicUi.starting = null }) {
-            TopicSection({ TopicUi.starting = null }, k, showLabel = false)
+        var history by remember { mutableStateOf(TopicUi.historyRequested) }
+        LaunchedEffect(Unit) { TopicUi.historyRequested = false }
+        val records by remember { AppGraph.topics.observeHistory() }.collectAsStateWithLifecycle(initialValue = emptyList())
+        val failed = records.count { it.status == TopicStatus.Failed }
+        RsSheet("专题", onDismiss = { TopicUi.starting = null }, fixedHeight = history,
+            scrollState = if (history) historyScroll else null) {
+            TopicTabs(history, failed, current != null) { history = it }
+            if (history) TopicHistory(records) { id ->
+                TopicUi.historyRequested = true
+                TopicUi.starting = null
+                TopicUi.openTopic = id
+            } else TopicSection({ TopicUi.starting = null }, k, showLabel = false)
         }
     }
+}
+
+@Composable
+private fun TopicHistory(records: List<Topic>, open: (Long) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var retrying by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var shown by remember { mutableIntStateOf(30) }
+    TopicHistoryContent(records, TopicUi.historyQuery, { TopicUi.historyQuery = it; shown = 30 },
+        TopicUi.historyAttention, { TopicUi.historyAttention = it; shown = 30 }, shown, { shown += 30 },
+        progress = { t -> remember(t.id) { AppGraph.topics.observeProgress(t.id) }.collectAsStateWithLifecycle(initialValue = TopicProgress()).value },
+        busyIds = retrying, open = open, retry = { id ->
+            retrying = retrying + id
+            scope.launch { try { guarded(context) { AppGraph.topics.regenerate(id) } } finally { retrying = retrying - id } }
+        })
 }
 
 private fun statusText(t: Topic): String? = when (t.status) {
@@ -298,9 +338,26 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
     LaunchedEffect(confirmCancel) { if (confirmCancel) { delay(4000); confirmCancel = false } }
     val day = Instant.ofEpochMilli(start).atZone(zone).toLocalDate()
     val canEdit = t.status != TopicStatus.Scheduled && t.status != TopicStatus.Cancelled
-    val busy = t.status == TopicStatus.Summarizing
+    var actionBusy by remember(t.id) { mutableStateOf(false) }
+    val busy = t.status == TopicStatus.Summarizing || actionBusy
+    val progress by remember(t.id) { AppGraph.topics.observeProgress(t.id) }.collectAsStateWithLifecycle(initialValue = TopicProgress())
+    var adjusting by remember { mutableStateOf(false) }
+    var timelineOpen by remember { mutableStateOf(false) }
+    val retry: () -> Unit = {
+        if (!actionBusy) {
+            actionBusy = true
+            scope.launch { try { guarded(context) { AppGraph.topics.regenerate(t.id) } } finally { actionBusy = false } }
+        }
+    }
 
-    RsSheet(topicLabel(t), onDismiss = onDismiss, fixedHeight = true) {
+    RsSheet(topicLabel(t), onDismiss = onDismiss, fixedHeight = true, trailing = {
+        if (canEdit) Text("⋯", style = RsType.title, color = c.textSecondary, modifier = Modifier.springClick { adjusting = !adjusting }.padding(10.dp))
+    }) {
+        LinkText("‹ 专题记录") {
+            onDismiss()
+            TopicUi.historyRequested = true
+            TopicUi.starting = TopicKind.Meeting
+        }
         // ① 头部副行：类型胶囊 + 时间时长
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(t.kind.title, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
@@ -318,26 +375,12 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
         // ② 主角区
         when {
             live -> LiveHero(t, tl?.includedMs ?: 0L)
-            t.status == TopicStatus.Done && card != null -> Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if (c.isDark) c.fill else c.card)
-                .springClick { openedCard = card }.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    app.resound.ui.skills.SkillIcon(card.icon, 40.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(card.title, style = RsType.headline, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.height(4.dp))
-                        Text(card.summary, style = RsType.subhead.copy(lineHeight = 20.sp), color = c.textSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Text("查看完整纪要 ›", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
-            }
+            t.status == TopicStatus.Done && card != null -> TopicCompletedContent(card)
             t.status == TopicStatus.Scheduled -> HeroNote("到点自动开始、自动结束" + (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(DayOfWeek.valueOf(it.name)) } else "")) {
                 ActionButton("取消这次预约", ActionKind.Danger) { scope.launch { if (guarded(context) { AppGraph.topics.cancelSchedule(t.id) }) onDismiss() } }
             }
-            t.status == TopicStatus.Failed -> HeroNote(statusText(t) ?: "", error = true) {
-                ActionButton("重试", ActionKind.Primary, enabled = !busy) { scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } } }
-            }
+            t.status == TopicStatus.Failed -> TopicProgressContent(progress, progress.error ?: t.error, busy, retry)
+            t.status == TopicStatus.Summarizing || t.status == TopicStatus.Ended -> TopicProgressContent(progress, null, busy, retry)
             t.status == TopicStatus.Done && t.kind != TopicKind.Normal -> HeroNote("还没有纪要") {
                 ActionButton("生成纪要", ActionKind.Primary, enabled = !busy) { scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } } }
             }
@@ -346,8 +389,11 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
 
         // ③ 时间轴
         if (tl != null) {
-            Label("时间轴")
-            TimelineCard(tl, live, t.marks, onRemove = { m ->
+            Row(Modifier.fillMaxWidth().springClick { timelineOpen = !timelineOpen }.padding(vertical = 10.dp)) {
+                Text("录制时间轴 · ${t.marks.size} 处重点", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
+                Text(if (timelineOpen) "收起 ⌃" else "展开 ⌄", style = RsType.caption, color = c.textTertiary)
+            }
+            if (timelineOpen) TimelineCard(tl, live, t.marks, onRemove = { m ->
                 scope.launch { if (guarded(context) { AppGraph.topics.unmark(t.id, m.id) } && t.status == TopicStatus.Done) marksChanged = true }
             }) { at ->
                 // 点 ★：找到这一刻所在的录音段，打开原话页并滚到那里；找不到就打开合成的那件事
@@ -365,9 +411,15 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
 
         // ④ 相关
         val related = buildList<Triple<String, String, () -> Unit>> {
+            if (t.status != TopicStatus.Done && card != null) add(Triple("上次生成的纪要", "查看") { openedCard = card })
             event?.let { e -> add(Triple("合成的这件事", e.title) { app.resound.ui.transcript.PlayerNav.openEvent = e }) }
             if (t.status != TopicStatus.Scheduled) add(Triple("这段时间的原话", day.format(java.time.format.DateTimeFormatter.ofPattern("M月d日"))) {
-                onDismiss(); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)
+                scope.launch {
+                    val segment = if (AppGraph.isTranscribeReady) AppGraph.transcripts.day(day).first()
+                        .firstOrNull { it.startAt >= start && it.startAt <= end } else null
+                    segment?.let { app.resound.ui.transcript.PlayerNav.transcriptFocus = day to it.segmentId }
+                    onDismiss(); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)
+                }
             })
             val plannedEndAt = t.plannedEndAt
             if (live && plannedEndAt != null) add(Triple("延长 30 分钟", "到 " + formatClock(plannedEndAt + 30 * 60_000L)) {
@@ -389,9 +441,9 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
             }
         }
 
-        // ⑤ 调整：只有一组类型 + 名字；改了才出现保存
-        if (canEdit) {
-            Label("调整")
+    }
+        // 独立调整面板，长纪要也能直接从右上角进入操作。
+        if (canEdit && adjusting) RsSheet("调整专题", onDismiss = { adjusting = false }) {
             var editKind by remember(t.id, t.kind) { mutableStateOf(t.kind) }
             var editName by remember(t.id, t.name) { mutableStateOf(t.name.orEmpty()) }
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(if (c.isDark) c.fill else c.card).padding(14.dp),
@@ -426,7 +478,6 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
             if (marksChanged) Text("重点改了，可点上面“重新生成”更新纪要", style = RsType.caption, color = c.textSecondary)
             if (confirmCancel) Text("取消后合成的事和纪要删除，这段原话按平常方式重新整理；录音和原话不删。", style = RsType.caption, color = c.textTertiary)
         }
-    }
 }
 
 /** 操作按钮：浅底胶囊；危险操作红字，确认时变红底 */
@@ -453,15 +504,13 @@ private fun LiveHero(t: Topic, includedMs: Long) {
     var justMarked by remember(t.id) { mutableStateOf<Triple<Long, Long, Long>?>(null) }
     LaunchedEffect(confirmEnd) { if (confirmEnd) { delay(4000); confirmEnd = false } }
     val shape = RoundedCornerShape(20.dp)
-    val bg = if (c.isDark) Modifier.clip(shape).background(c.fill)
-        .background(androidx.compose.ui.graphics.Brush.radialGradient(listOf(c.accent.copy(alpha = 0.22f), Color.Transparent), center = androidx.compose.ui.geometry.Offset.Zero, radius = 800f))
-        else Modifier.clip(shape).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF2873F), Color(0xFFE2632A), Color(0xFFCF4A1E))))
-    val fg = if (c.isDark) c.text else Color.White
-    val soft = if (c.isDark) c.textSecondary else Color.White.copy(alpha = 0.88f)
-    val pill = if (c.isDark) c.elevated else Color.White.copy(alpha = 0.22f)
+    val bg = Modifier.clip(shape).background(c.fill)
+    val fg = c.text
+    val soft = c.textSecondary
+    val pill = c.trackThumb
     Column(Modifier.fillMaxWidth().then(bg).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(if (c.isDark) c.accent else Color.White).then(if (paused) Modifier.background(Color.Transparent) else Modifier))
+            Box(Modifier.size(8.dp).clip(CircleShape).background(TopicWarm).then(if (paused) Modifier.background(Color.Transparent) else Modifier))
             Spacer(Modifier.width(8.dp))
             Text(listOfNotNull(if (paused) "已暂停 · 暂停期间不算进专题" else "正在录", t.marks.takeIf { it.isNotEmpty() }?.let { "已记下 ${it.size} 处重点" }).joinToString(" · "),
                 style = RsType.subhead, color = soft, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -508,7 +557,7 @@ private fun MarkUndoLine(mark: Triple<Long, Long, Long>?, soft: Color, strong: C
 @Composable
 private fun HeroButton(text: String, primary: Boolean, modifier: Modifier, bg: Color? = null, fg: Color? = null, onClick: () -> Unit) {
     val c = Rs.colors
-    val b = bg ?: if (c.isDark) c.accent else Color.White
+    val b = bg ?: TopicWarm
     val f = fg ?: if (c.isDark) c.onAccent else Color(0xFFD2511F)
     Box(modifier.clip(CircleShape).background(b).springClick(onClick).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = f, maxLines = 1)

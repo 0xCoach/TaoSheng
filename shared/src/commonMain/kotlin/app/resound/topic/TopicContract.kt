@@ -25,6 +25,9 @@ data class StartResult(val topicId: Long? = null, val quietOverride: Boolean = f
 
 interface TopicRepository {
     val current: StateFlow<Topic?>
+    /** 全部专题记录，按录制时间倒序；不依赖事件已生成。 */
+    fun observeHistory(): Flow<List<Topic>>
+    fun observeProgress(topicId: Long): Flow<TopicProgress>
     fun observeDay(date: LocalDate): Flow<List<Topic>>
     fun observe(topicId: Long): Flow<Topic?>
     fun observeScheduled(): Flow<List<Topic>>

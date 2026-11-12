@@ -16,6 +16,9 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import app.resound.digest.snapshot
 import app.resound.skills.android
+import app.resound.topic.core.TopicProcessingSession
+import app.resound.topic.core.TopicProcessingRules
+import kotlinx.coroutines.delay
 
 internal data class TopicOutput(val event: MemoryEventEntity, val items: List<DigestPrompt.ParsedItem>, val card: SkillCardRow?)
 
@@ -54,7 +57,7 @@ internal class TopicGenerator(
     private val appName: String = "涛声",
 ) {
     suspend fun generate(g: TopicGroup, lines: List<TranscriptLineEntity>, unfinished: List<MemoryItemEntity>,
-        ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet()): TopicOutput {
+        ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null): TopicOutput {
         val row = g.row
         val words = (hotwords() + TopicPolicy.words(row.name)).distinct()
         val kind = TopicKind.valueOf(row.kind)
@@ -64,45 +67,72 @@ internal class TopicGenerator(
         var model = ""
         val batches = TopicBatches(request)
         val data = context(g, lines)
-        for (chunk in DigestRunner.batches(lines)) {
-            val parsed = batches.read(chunk) { part ->
+        val digestChunks = if (session != null) TopicProcessingRules.chunks(lines, { line, text -> line.copy(text = text) }) { it.text } else DigestRunner.batches(lines)
+        session?.phase("提取要点", digestChunks.size)
+        for (chunk in digestChunks) {
+            val read: suspend (List<TranscriptLineEntity>) -> Pair<List<TranscriptLineEntity>, Pair<List<DigestPrompt.ParsedEvent>, List<DigestPrompt.ParsedItem>>> = { part ->
                 val plain = DigestPrompt.transcript(part, unseparated = if (kind == TopicKind.Training) part.map { it.segmentId }.toSet() else unseparated).first
                 val text = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(plain, words), unfinished, ignored)
-                val reply = request(DigestPrompt.system(template(), Instant.ofEpochMilli(part.first().startAt).atZone(ZoneId.systemDefault()).toLocalDate(), appName) +
-                    app.resound.topic.core.TopicGenerationRules.DIGEST_SUFFIX, "$data\n$text")
-                model = reply.actualModel ?: model
-                DigestPrompt.parse(reply.content, part)
+                val system = DigestPrompt.system(template(), Instant.ofEpochMilli(part.first().startAt).atZone(ZoneId.systemDefault()).toLocalDate(), appName) +
+                    app.resound.topic.core.TopicGenerationRules.DIGEST_SUFFIX
+                val input = "$data\n$text"
+                var reply: LlmReply? = null
+                val call: suspend (String, String) -> String = { s, u ->
+                    request(s, u).also { reply = it; model = it.actualModel ?: model }.content
+                }
+                val validate: (String) -> Unit = { value ->
+                    try {
+                        val parsed = DigestPrompt.parse(value, part)
+                        reply?.diagnostics?.parsed(parsed.first.size, parsed.second.size, parsed.first.isEmpty())
+                    } catch (e: LlmException) { reply?.diagnostics?.parsed(empty = value.isBlank(), error = e.type); throw e }
+                }
+                val content = session?.request(system, input, call, validate,
+                    { DigestPrompt.parse(it, part).first.joinToString("\n") { event -> event.summary } })
+                    ?: TopicProcessingRules.normalize(call(system, input)).also(validate)
+                part to DigestPrompt.parse(content, part)
             }
+            val parsed = if (session != null) session.splitRead(chunk, read) else batches.read(chunk) { read(it).second }
             parsed.forEach { (part, result) -> accepted += part; events += result.first; items += result.second }
+            session?.advance()
         }
         val start = g.spans.minOf { it.startAt }; val end = g.spans.maxOf { requireNotNull(it.endAt) }
+        val acceptedIds = accepted.map { it.id }.toSet()
+        val acceptedLines = lines.filter { it.id in acceptedIds }
         val card = when (kind) {
             TopicKind.Normal -> null
-            TopicKind.Script -> script(g, accepted, data, words)
+            TopicKind.Script -> script(g, acceptedLines, data, words, session)
             else -> {
-                val summary = ImportSummary(importTemplate, request, now)
+                val summary = ImportSummary(importTemplate, request, now, session)
                 summary.generate(ImportRecordRow(id = row.id, pendingId = "topic:${row.id}", fileName = row.name ?: kind.title,
                     kind = kind.name, startAt = start, endAt = end, byChannel = false),
-                    if (kind == TopicKind.Training) accepted.map { it.copy(speakerName = null, speakerTag = null) } else accepted,
-                    unfinished + ignored, extraContext = DigestPrompt.withHotwords(context(g, accepted), words)).card
+                    if (kind == TopicKind.Training) acceptedLines.map { it.copy(speakerName = null, speakerTag = null) } else acceptedLines,
+                    unfinished + ignored, extraContext = DigestPrompt.withHotwords(context(g, acceptedLines), words)).card
                     .copy(entity = "topic:${row.id}")
             }
         }
-        val event = app.resound.topic.core.TopicGenerationRules.synthesize(g.snapshot(), events.map { it.shared() }, lines.size, accepted.size, model, now).android()
+        val event = app.resound.topic.core.TopicGenerationRules.synthesize(g.snapshot(), events.map { it.shared() }, lines.size, acceptedLines.size, model, now).android()
         return TopicOutput(event, items.distinctBy { listOf(it.category, it.content, it.dueText, it.who) }, card)
     }
     private fun context(g: TopicGroup, lines: List<TranscriptLineEntity>) = app.resound.topic.core.TopicGenerationRules.context(g.snapshot(), lines.map { it.snapshot() })
 
-    private suspend fun script(g: TopicGroup, lines: List<TranscriptLineEntity>, context: String, words: List<String>): SkillCardRow {
+    private suspend fun script(g: TopicGroup, lines: List<TranscriptLineEntity>, context: String, words: List<String>, session: TopicProcessingSession?): SkillCardRow {
         val organized = mutableListOf<String>(); val verbatim = mutableListOf<String>()
-        val batches = TopicBatches(request)
-        for (chunk in ImportChunks.split(lines)) batches.read(chunk) { part ->
-            val reply = request(SCRIPT_PROMPT, app.resound.topic.core.TopicGenerationRules.scriptInput(context, part.map { it.snapshot() }, words))
-            try {
-                val json = JSONObject(reply.content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```"))
-                app.resound.topic.core.TopicGenerationRules.parseScript(json.toString())
-            } catch (_: Exception) { throw LlmException(LlmError.Format) }
-        }.forEach { (_, text) -> organized += text.first; verbatim += text.second }
+        val chunks = if (session != null) TopicProcessingRules.chunks(lines, { line, text -> line.copy(text = text) }) { it.text } else ImportChunks.split(lines)
+        session?.phase("整理口播稿", chunks.size)
+        fun parse(text: String): Pair<String, String> = try {
+            app.resound.topic.core.TopicGenerationRules.parseScript(TopicProcessingRules.normalize(text))
+        } catch (_: Exception) { throw LlmException(LlmError.Format) }
+        for (chunk in chunks) {
+            val read: suspend (List<TranscriptLineEntity>) -> Pair<String, String> = { part ->
+                val user = app.resound.topic.core.TopicGenerationRules.scriptInput(context, part.map { it.snapshot() }, words)
+                val text = session?.request(SCRIPT_PROMPT, user, { a, b -> request(a, b).content }, { parse(it) }, { parse(it).first })
+                    ?: request(SCRIPT_PROMPT, user).content
+                parse(text)
+            }
+            val results = session?.splitRead(chunk, read) ?: TopicBatches(request).read(chunk, read).map { it.second }
+            results.forEach { organized += it.first; verbatim += it.second }
+            session?.advance()
+        }
         return app.resound.topic.core.TopicGenerationRules.scriptCard(g.snapshot(),organized,verbatim,lines.map { it.id },now).android()
     }
     companion object {
@@ -120,6 +150,7 @@ internal class TopicEngine(
     private val recordingPending: (Long, Long) -> Boolean = { _, _ -> false },
     private val now: () -> Long = System::currentTimeMillis,
     private val ready: (Long) -> Unit = {},
+    private val checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints(),
 ) {
     private val gate = Mutex()
     private val dao = db.topics()
@@ -142,9 +173,13 @@ internal class TopicEngine(
                 g = dao.get(g.row.id) ?: continue
             }
             val revision = g.row.revision
+            var session: TopicProcessingSession? = null
             try {
                 if (waiting(g)) { pending = true; continue }
                 val lines = dao.lines(g.row.id)
+                val source = topicSource(g, lines)
+                session = TopicProcessingSession(g.row.id, source, checkpoints, ::topicHash, ::topicFailure, ::delay)
+                session.begin()
                 val claimed = db.withTransaction {
                     val latest = dao.get(g.row.id)?.row
                     if (latest?.revision != revision || latest.status !in setOf("Ended", "Summarizing")) false
@@ -154,16 +189,19 @@ internal class TopicEngine(
                 val retained = dao.items(g.row.retainedIds()).filterNot { it.deleted }
                 val unfinished = (db.memory().unfinishedForDigest() + retained.filter { it.status !in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
-                val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
+                val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), session)
                 val saved = db.withTransaction {
                     val latest = dao.get(g.row.id) ?: return@withTransaction false
                     if (latest.row.revision != revision || latest.row.status != "Summarizing") return@withTransaction false
                     if (dao.lines(g.row.id) != lines || waiting(latest)) {
                         dao.update(latest.row.copy(status = "Ended")); pending = true; return@withTransaction false
                     }
-                    val existing = (dao.items(latest.row.retainedIds()) + db.memory().protectedItems() + db.memory().unfinishedForDigest() + ignored).distinctBy { it.id }
-                    val eventId = db.memory().insertEvent(result.event)
-                    dao.attachItems(latest.row.retainedIds(), eventId)
+                    val previousEvent = latest.row.eventId?.let { db.memory().event(it) }
+                    val replacement = repository.releaseGenerated(latest)
+                    val existing = (dao.items(replacement.retainedIds()) + db.memory().protectedItems() + db.memory().unfinishedForDigest() + ignored).distinctBy { it.id }
+                    val eventId = db.memory().insertEvent(result.event.copy(starred = replacement.starred,
+                        starredAt = if (replacement.starred) previousEvent?.starredAt ?: now() else null))
+                    dao.attachItems(replacement.retainedIds(), eventId)
                     val items = result.items.filterNot { item -> existing.any { old ->
                         old.category in setOf(item.category, "待办", "约定", "备忘") &&
                             (item.lineId != null && old.lineId == item.lineId || ImportTodoMerge.same(old.content, item.content))
@@ -173,16 +211,17 @@ internal class TopicEngine(
                     db.memory().assignLines(lines.map { it.id }, eventId)
                     db.memory().markDigested(lines.map { it.id }, now())
                     val cardId = result.card?.let { db.skills().save(it) }
-                    dao.update(latest.row.copy(eventId = eventId, cardId = cardId, status = "Done", error = null))
+                    dao.update(replacement.copy(eventId = eventId, cardId = cardId, status = "Done", error = null))
                     true
                 }
-                if (saved) runCatching { ready(g.row.id) }
+                if (saved) { runCatching { session.finish() }; runCatching { ready(g.row.id) } }
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
+            catch (e: Exception) {
+                runCatching { session?.fail(e) }
                 db.withTransaction {
                     val row = dao.get(g.row.id)?.row
                     if (row?.revision == revision && row.status in setOf("Ended", "Summarizing"))
-                        dao.update(row.copy(status = "Failed", error = TopicPolicy.GENERATION_ERROR))
+                        dao.update(row.copy(status = "Failed", error = if (session != null || e is LlmException || e is TopicException) topicFailure(e).message else TopicPolicy.GENERATION_ERROR))
                 }
             }
         }

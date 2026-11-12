@@ -32,11 +32,14 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
     companion object {
         fun create(app: ResoundApp, db: CaptureDatabase, settings: AndroidDigestSettings, llm: LlmClient,
             hotwords: () -> List<String>): TopicFeature {
+            val checkpoints = TopicCheckpointFiles(app) { id ->
+                db.topics().get(id)?.takeIf { it.row.status != "Cancelled" }?.let { topicSource(it, db.topics().lines(id)) }
+            }
             val repository = RoomTopicRepository(db, app.scope, quiet = { start, end ->
                 val rules = app.quietSchedule.rules.value
                 QuietRules.windowAt(rules, start, ZoneId.systemDefault()) != null ||
                     QuietRules.nextChange(rules, start, ZoneId.systemDefault())?.let { it < end } == true
-            }, recordingEnabled = { app.store.prefs.getBoolean("enabled", false) })
+            }, recordingEnabled = { app.store.prefs.getBoolean("enabled", false) }, checkpoints = checkpoints)
             val generator = TopicGenerator({ AppGraph.prompts.text("digest") }, { kind ->
                 val id = "import_${kind.name.lowercase()}"
                 SkillJson.parse(app.assets.open("skills/$id/skill.json").bufferedReader().use { it.readText() }, SkillOrigin.Builtin).skill to
@@ -44,17 +47,19 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             }, request = { system, user ->
                 val (preset, key) = settings.skillCredentials(null)
                 if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
-                val reply = settings.failover.request("专题整理", db.memory(), UsagePurpose.Digest, llm::chatJson)(preset, key, system, user)
+                val reply = settings.failover.request("专题整理", db.memory(), UsagePurpose.Digest, settings.digestRequest(llm))(preset, key, system, user)
                 withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
                 reply
             }, hotwords)
             val engine = TopicEngine(db, repository, generator, app.voiceprintRepository::isReady,
-                app.segmentFiles::pendingInRange, ready = { id -> app.scope.launch {
+                app.segmentFiles::pendingInRange, checkpoints = checkpoints, ready = { id -> app.scope.launch {
                     db.topics().get(id)?.row?.let { TopicNotifications.show(app, id, TopicReminder.Ready, TopicKind.valueOf(it.kind)) }
                 }
                     EmbeddingScheduler.enqueue(app) })
             repository.onChanged = {
-                TopicAlarm(app).schedule(db.topics().all())
+                val rows = db.topics().all()
+                checkpoints.retain(rows.filter { it.row.status != "Cancelled" }.map { it.row.id }.toSet())
+                TopicAlarm(app).schedule(rows)
                 CaptureService.recheck()
                 CaptureService.refreshOngoing()
                 ClassModeTileService.refresh(app)
@@ -62,6 +67,9 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             }
             repository.onEnded = { app.runTranscriptionNow(); TopicWork.enqueue(app) }
             repository.onReminder = { id, type -> TopicNotifications.show(app, id, type) }
+            app.scope.launch {
+                db.topics().observeAll().collect { rows -> checkpoints.retain(rows.filter { it.row.status != "Cancelled" }.map { it.row.id }.toSet()) }
+            }
             app.scope.launch {
                 repository.tick()
                 TopicWork.enqueue(app)
@@ -74,6 +82,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             app.scope.launch {
                 db.transcribe().observeSegments().map { rows -> rows.map { Triple(it.id, it.status, it.voiceprintProcessedAt) } }
                     .distinctUntilChanged().collect {
+                        checkpoints.retain(db.topics().all().filter { it.row.status != "Cancelled" }.map { it.row.id }.toSet())
                         if (db.topics().all().any { it.row.status in setOf("Ended", "Summarizing", "Done") }) TopicWork.enqueue(app)
                     }
             }

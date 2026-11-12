@@ -74,6 +74,7 @@ private val KeepUpwardScroll = object : androidx.compose.ui.input.nestedscroll.N
 fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
             /** 内容会随选择变长变短的面板设为 true：固定高度，避免高度突变时系统误判成下滑关闭 */
             fixedHeight: Boolean = false,
+            scrollState: androidx.compose.foundation.ScrollState? = null,
             /** 标题行右侧（如“⋯”更多菜单） */
             trailing: (@Composable () -> Unit)? = null,
             content: @Composable ColumnScope.() -> Unit) {
@@ -87,7 +88,7 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
         Column(
             Modifier.then(if (fixedHeight) Modifier.fillMaxHeight(0.92f) else Modifier)
                 .nestedScroll(KeepUpwardScroll)
-                .verticalScroll(rememberScrollState()).imePadding().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+                .verticalScroll(scrollState ?: rememberScrollState()).imePadding().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (trailing == null) Text(title, style = RsType.title, color = c.text)

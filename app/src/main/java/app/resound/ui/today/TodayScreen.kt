@@ -190,9 +190,14 @@ fun TodayScreen(
     val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date) }.collectAsStateWithLifecycle(initialValue = emptyList()).value else emptyList()
     val folded = if (filter == TimelineFilter.All) records else emptyList()
     val inImport: (MemoryEvent) -> app.resound.importer.ImportRecord? = { e -> folded.firstOrNull { e.startAt >= it.startAt && e.startAt < it.endAt } }
+    val dayTopics = if (app.resound.AppGraph.isTopicsReady) remember(date) { app.resound.AppGraph.topics.observeDay(date.toKotlinLocalDate()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList()).value else emptyList()
+    val pendingTopics = if (filter == TimelineFilter.All) dayTopics.filter {
+        app.resound.topic.core.TopicProcessingRules.pending(it) && it.eventId == null
+    }.map { TimelineEntry.TopicPending(it) } else emptyList()
     val importEntries = folded.map { rec -> TimelineEntry.Import(rec, shownEvents.filter { inImport(it) == rec }) }
     val entries = (shownEvents.filter { inImport(it) == null }.map { TimelineEntry.Event(it) } +
-        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries)
+        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries + pendingTopics)
         .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
     val groups = entries.groupBy { partOfDay(it.at) }.toList()
 
@@ -310,7 +315,7 @@ fun TodayScreen(
                     modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
                 groups.firstOrNull()?.let { (part, evs) -> TimelineGroup(part, evs, onOpenCard = { openedCard = it }, onOpenImport = { openedImport = it.id },
                     onStar = { memory.setStarred(it.id, !it.starred) }, onDelete = { deleteNow(it) }, selection = selection, order = order) { opened = it } }
-                if (events != null && list.isEmpty()) EmptyTimeline(memory)
+                if (events != null && list.isEmpty() && pendingTopics.isEmpty()) EmptyTimeline(memory)
             }
         }
         items(groups.drop(1), key = { it.first }) { (part, evs) ->
@@ -732,6 +737,7 @@ internal fun partOfDay(at: Long): String = when (Instant.ofEpochMilli(at).atZone
 /** 时间线上的一行：一件事，或一张技能卡的提示 */
 internal sealed interface TimelineEntry {
     val at: Long
+    data class TopicPending(val topic: app.resound.topic.Topic) : TimelineEntry { override val at get() = topic.spans.minOfOrNull { it.startAt } ?: topic.createdAt }
     data class Event(val event: MemoryEvent) : TimelineEntry { override val at get() = event.startAt }
     data class Card(val card: app.resound.skills.SkillCard) : TimelineEntry { override val at get() = card.at }
     /** 卡 077：一份导入的录音（一个或几个文件合成一条），整理出的事收在里面 */
@@ -767,6 +773,13 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                     } else SwipeEvent(e.event, { onStar(e.event) }, { onDelete(e.event) }) { lp ->
                         val start = selection?.let { s -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); s.start(e.event.id) } }
                         TimelineLine(e.event, start ?: lp, interrupted = e.event.id in interrupted) { onOpen(e.event) }
+                    }
+                    is TimelineEntry.TopicPending -> {
+                        val progress by remember(e.topic.id) { app.resound.AppGraph.topics.observeProgress(e.topic.id) }
+                            .collectAsStateWithLifecycle(initialValue = app.resound.topic.TopicProgress())
+                        app.resound.ui.topic.TopicRecordRow(e.topic, progress,
+                            open = { app.resound.ui.topic.TopicUi.openTopic = e.topic.id },
+                            retry = { app.resound.ui.topic.TopicUi.openTopic = e.topic.id }, retryLabel = "查看进度")
                     }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                     is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events.size) { onOpenImport(e.record) }

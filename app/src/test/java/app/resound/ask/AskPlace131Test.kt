@@ -148,7 +148,7 @@ class AskPlace131Test {
         val original = tools()
         val tool = AskPlaceTools(original, { error("不应读足迹开关") }, { _, _, _ -> error("不应查足迹") }, { _, _ -> error("不应查地点") })
         assertEquals(listOf(1L), ids(find("search_events", "{}", tool)))
-        val definitions = org.json.JSONArray(File("src/main/assets/prompts/ask-tools.json").readText())
+        val definitions = org.json.JSONArray(app.resound.ask.core.AskDefinitions.json())
         for (i in 0 until definitions.length()) {
             val f = definitions.getJSONObject(i).getJSONObject("function")
             if (f.getString("name") in setOf("search_events", "search_lines")) {

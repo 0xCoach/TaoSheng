@@ -36,7 +36,7 @@ class AskFollowUp097DeviceTest {
             sql.execSQL("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(9,1000,2000,'会议','纸飞机项目测试会议','试运行两周后复盘','[]','[]',0,0,2000,'fake')")
             sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(42,1,1000,2000,'大家最终决定：纸飞机项目先试运行两周，之后开会复盘。今天没有批准正式推广。',9,'测试员')")
             fun asset(name: String) = context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
-            val definitions = JSONArray(asset("ask-tools.json"))
+            val definitions = JSONArray(app.resound.ask.core.AskDefinitions.json())
             val tools = AskTools(db, JSONObject(asset("ask-sql.json")))
             val reader = AskContextReader(db)
             val client = LlmClient()

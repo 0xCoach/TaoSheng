@@ -49,10 +49,11 @@ class TopicDesignShotsTest {
                 Column(Modifier.fillMaxSize().background(Rs.colors.elevated).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Spacer(Modifier.height(24.dp))
                     Text(when(page) { 2 -> "项目周会"; 3 -> "产品讨论会"; else -> "专题" },style=RsType.title,color=Rs.colors.text)
-                    if(page < 2) TopicTabs(page == 1,1,false) { page = if(it) 1 else 0 }
+                    if(page < 2 || page == 4) TopicTabs(page >= 1,1,false) { page = if(it) 1 else 0 }
                     when(page) {
                         0 -> TopicStartPanel(onStarted = {})
                         1 -> TopicHistoryContent(rows,"",{},false,{},30,{}, { if(it.id==2L) partial else TopicProgress() },emptySet(),{}, { clicked = true })
+                        4 -> TopicHistoryContent(rows,"",{},false,{},30,{}, { if(it.id==2L) partial else TopicProgress() },emptySet(),{}, {}, managing = true)
                         2 -> {
                             Text("会议 · 今天 10:00–11:32",style=RsType.subhead,color=Rs.colors.textSecondary)
                             TopicProgressContent(partial,partial.error,false) { clicked = true }
@@ -66,13 +67,13 @@ class TopicDesignShotsTest {
             }
         }
         listOf(ThemeMode.Light,ThemeMode.Dark).forEach { mode -> theme = mode
-            (0..3).forEach { index -> page = index
+            (0..4).forEach { index -> page = index
                 repeat(4) { compose.mainClock.advanceTimeBy(400); org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle() }
                 val bitmap = compose.runOnUiThread {
                     val view = compose.activity.window.decorView
                     Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888).also { view.draw(android.graphics.Canvas(it)) }
                 }
-                File(dir,"${mode.name}-${listOf("开始专题","专题记录","部分完成","会议纪要")[index]}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
+                File(dir,"${mode.name}-${listOf("开始专题","专题记录","部分完成","会议纪要","管理记录")[index]}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
             }
         }
         page = 2

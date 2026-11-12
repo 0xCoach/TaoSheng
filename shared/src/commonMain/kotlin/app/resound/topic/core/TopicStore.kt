@@ -14,6 +14,8 @@ suspend fun mark(row: TopicMarkRow): Long
 suspend fun unmark(topicId: Long, markId: Long)
 suspend fun closeSpan(id: Long, at: Long)
 suspend fun deleteSpans(id: Long)
+/** 删除专题本身，连同它的时段和重点 */
+suspend fun deleteTopic(id: Long)
 suspend fun digestedUntil(start: Long, end: Long): Long?
 suspend fun segmentIds(id: Long, now: Long): List<Long>
 suspend fun ordinaryEvents(start: Long, end: Long): List<MemoryEventData>

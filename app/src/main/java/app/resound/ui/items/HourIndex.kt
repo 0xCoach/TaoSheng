@@ -151,7 +151,7 @@ fun HourIndex(slots: List<HourSlot>, currentKey: Any?, modifier: Modifier, onJum
         if (touching >= 0) {
             val y = yOf(touching)
             Text(
-                flat[touching].label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White,
+                flat[touching].label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.TopEnd).offset { IntOffset(-(38.dp).roundToPx(), (y - 18.dp.toPx()).roundToInt()) }
                     .wrapContentWidth(Alignment.End, unbounded = true).widthIn(max = 260.dp).shadow(8.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(c.accent)

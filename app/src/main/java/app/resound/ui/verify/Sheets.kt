@@ -43,7 +43,7 @@ enum class ActionKind { Primary, Secondary, Danger }
 fun ActionButton(text: String, kind: ActionKind, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     val c = Rs.colors
     val (bg, fg) = when (kind) {
-        ActionKind.Primary -> c.accent to c.onAccent
+        ActionKind.Primary -> c.primary to c.onPrimary
         ActionKind.Secondary -> c.fill to c.text
         ActionKind.Danger -> c.critical.copy(alpha = 0.1f) to c.critical
     }

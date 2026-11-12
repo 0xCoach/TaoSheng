@@ -49,6 +49,8 @@ internal interface TopicDao {
     @Query("DELETE FROM topic_marks WHERE id = :markId AND topicId = :topicId") suspend fun unmark(topicId: Long, markId: Long)
     @Query("UPDATE topic_spans SET endAt = MAX(startAt, :at) WHERE topicId = :id AND endAt IS NULL") suspend fun closeSpan(id: Long, at: Long)
     @Query("DELETE FROM topic_spans WHERE topicId = :id") suspend fun deleteSpans(id: Long)
+    /** 时段和重点靠外键级联一起删 */
+    @Query("DELETE FROM topics WHERE id = :id") suspend fun deleteTopic(id: Long)
     @Query("""SELECT EXISTS(SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId
         WHERE t.kind = 'Training' AND t.status NOT IN ('Cancelled', 'Scheduled') AND :at >= ts.startAt
         AND :at < COALESCE(ts.endAt, t.plannedEndAt, (SELECT MIN(s.startAt) + 14400000 FROM topic_spans s WHERE s.topicId = t.id)))""")

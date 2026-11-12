@@ -1369,7 +1369,9 @@ internal fun SwipeRow(key: Any, leftLabel: String, onLeft: () -> Unit, onDelete:
                 stage == 2 -> second?.first ?: leftLabel
                 else -> leftLabel
             }
-            Text(if (stage > 0) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White)
+            // 橙色段用“橙底上的字色”（夜间是深色字）；删除红、待办绿仍配白字
+            Text(if (stage > 0) "松手$label" else label, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold),
+                color = if (dx < 0f && stage != 2) c.onAccent else Color.White)
         }
         Box(
             Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.roundToInt(), 0) }

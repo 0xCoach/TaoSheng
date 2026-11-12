@@ -17,10 +17,19 @@ class ExternalAudioSource(
     private val device: InputDevice,
     private val port: AudioDeviceInfo,
     private val onOpenChanged: (Boolean) -> Unit = {},
-) : AudioSource {
+    private val readDurationMillis: () -> Int = { CaptureReadPolicy.INTERACTIVE_MS },
+) : AudioSource, AudioTimeline {
     override val id = device.key
     override val displayName = device.name
-    override fun events(): Flow<AudioEvent> = RoutedRecording(context, { port }, device.kind, onOpenChanged).events()
+    override var frameEpochMillis: Long? = null
+        private set
+    override fun events(): Flow<AudioEvent> {
+        val recording = RoutedRecording(context, { port }, device.kind, readDurationMillis, onOpenChanged)
+        return recording.events().onEach { frameEpochMillis = recording.frameEpochMillis }
+    }
+    override val frameArchiveId: String? get() = null
+    override fun processed(samples: Int) {}
+    override fun finished(discarded: Boolean) {}
 }
 
 /** 手机和外接共用礼让/释放逻辑，只有设备、音源及原生格式不同。 */
@@ -28,10 +37,19 @@ internal class RoutedRecording(
     private val context: Context,
     private val target: () -> AudioDeviceInfo?,
     private val kind: InputKind,
+    private val readDurationMillis: () -> Int = { CaptureReadPolicy.INTERACTIVE_MS },
     private val onOpenChanged: (Boolean) -> Unit,
 ) {
     private val bluetooth = kind == InputKind.BluetoothCall || kind == InputKind.BluetoothLe
-    fun events(): Flow<AudioEvent> = flow {
+    // 时间跟帧一起跨 flowOn 通道；只在消费线程暴露当前帧，不能让 IO 线程提前覆盖。
+    private data class TimedEvent(val event: AudioEvent, val epochMillis: Long? = null)
+    var frameEpochMillis: Long? = null
+        private set
+    fun events(): Flow<AudioEvent> = timedEvents().map { timed ->
+        frameEpochMillis = timed.epochMillis
+        timed.event
+    }
+    private fun timedEvents(): Flow<TimedEvent> = flow {
         fun permitted(permission: String) = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
         if (!permitted(Manifest.permission.RECORD_AUDIO) ||
             bluetooth && Build.VERSION.SDK_INT >= 31 && !permitted(Manifest.permission.BLUETOOTH_CONNECT))
@@ -47,7 +65,7 @@ internal class RoutedRecording(
     }.flowOn(Dispatchers.IO)
 
     /** 录一轮；蓝牙为别的应用让出话筒时返回 true（外层等别人用完再来），其余结束方式照旧抛异常或返回 false。 */
-    private suspend fun FlowCollector<AudioEvent>.recordOnce(manager: AudioManager): Boolean {
+    private suspend fun FlowCollector<TimedEvent>.recordOnce(manager: AudioManager): Boolean {
         var record: AudioRecord? = null
         var ownsCommunication = false
         var requestedCommunication = false
@@ -77,8 +95,9 @@ internal class RoutedRecording(
             signals.attach(opened)
             onOpenChanged(true)
             val converter = PcmInputConverter(opened.sampleRate, opened.channelCount)
-            // 每次读满约 20 毫秒再返回：循环跟着声音的节奏走，不空转
-            val buffer = ShortArray(maxOf(960, opened.sampleRate * opened.channelCount / 50))
+            // 只分配一次最大缓冲，每圈读取当前订阅状态；从批量切回声波最多迟 200 ms。
+            val buffer = ShortArray(CaptureReadPolicy.samples(opened.sampleRate, opened.channelCount, CaptureReadPolicy.BATCH_MS))
+            val clock = PcmBatchClock(opened.sampleRate, opened.channelCount, System::currentTimeMillis)
             var verified = false
             var routeDeadline = SystemClock.elapsedRealtime() + 2_000
             var lastDataAt = SystemClock.elapsedRealtime()
@@ -106,11 +125,13 @@ internal class RoutedRecording(
                         val wasBusy = reported != null
                         report(wait)
                         if (wait != null) {
-                            converter.reset(); verified = false; zeros.reset()
+                            converter.reset(); clock.reset(); verified = false; zeros.reset()
                             routeDeadline = SystemClock.elapsedRealtime() + 2_000
                             lastDataAt = SystemClock.elapsedRealtime()
                         } else if (wasBusy) routeDeadline = SystemClock.elapsedRealtime() + 2_000
-                        val n = opened.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                        val count = CaptureReadPolicy.samples(opened.sampleRate, opened.channelCount, readDurationMillis())
+                        val n = opened.read(buffer, 0, count, AudioRecord.READ_BLOCKING)
+                        if (n > 0 && wait == null) clock.readCompleted(n)
                         lastReturnAt.set(SystemClock.elapsedRealtime())
                         if (stalled.get()) throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入设备没有送来声音")
                         if (n < 0) throw AudioSourceException(if (n == AudioRecord.ERROR_DEAD_OBJECT)
@@ -119,7 +140,7 @@ internal class RoutedRecording(
                         val matches = if (kind == InputKind.Phone) routed?.type == AudioDeviceInfo.TYPE_BUILTIN_MIC else routed?.id == port.id
                         if (wait == null) {
                             if (!matches) {
-                                converter.reset(); zeros.reset()
+                                converter.reset(); clock.reset(); zeros.reset()
                                 if (verified || SystemClock.elapsedRealtime() >= routeDeadline)
                                     throw AudioSourceException(AudioSourceException.Reason.Disconnected, "实际输入不是指定麦克风")
                             } else {
@@ -130,7 +151,7 @@ internal class RoutedRecording(
                                     // 卡 112：读到数据不等于有声音。连续全零超过上限按故障处理，交给采集服务重开。
                                     if (zeros.accept(buffer, n, now))
                                         throw AudioSourceException(AudioSourceException.Reason.Disconnected, CaptureHealth.ZERO_PCM)
-                                    for (frame in converter.accept(buffer, n)) emit(AudioEvent.Frame(frame))
+                                    for (frame in converter.accept(buffer, n)) emit(TimedEvent(AudioEvent.Frame(frame), clock.nextFrame(frame.size)))
                                 }
                                 if (SystemClock.elapsedRealtime() - lastDataAt > 2_000)
                                     throw AudioSourceException(AudioSourceException.Reason.Disconnected, "输入设备没有送来声音")
@@ -169,8 +190,8 @@ internal class RoutedRecording(
 
     /** 最近一次报给采集服务的让麦原因；每次 events() 都新建 RoutedRecording，所以按实例记即可 */
     private var reported: String? = null
-    private suspend fun FlowCollector<AudioEvent>.report(next: String?) {
-        if (next != reported) { reported = next; emit(if (next == null) AudioEvent.Available else AudioEvent.Busy(next)) }
+    private suspend fun FlowCollector<TimedEvent>.report(next: String?) {
+        if (next != reported) { reported = next; emit(TimedEvent(if (next == null) AudioEvent.Available else AudioEvent.Busy(next))) }
     }
 
     @androidx.annotation.RequiresPermission(Manifest.permission.RECORD_AUDIO)
@@ -188,7 +209,7 @@ internal class RoutedRecording(
                 if (minimum <= 0) continue
                 record = AudioRecord.Builder().setAudioSource(source).setAudioFormat(AudioFormat.Builder()
                     .setSampleRate(rate).setChannelMask(mask).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
-                    .setBufferSizeInBytes(maxOf(minimum, rate * count * 2 / 5)).build()
+                    .setBufferSizeInBytes(maxOf(minimum, rate * count * 2)).build()
                 if (record.state != AudioRecord.STATE_INITIALIZED || !record.setPreferredDevice(port)) continue
                 OwnRecordingSessions.add(record.audioSessionId)
                 record.startRecording()

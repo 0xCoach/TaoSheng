@@ -255,11 +255,13 @@ class CaptureService : Service() {
             var timeline: AudioTimeline? = null
             var retryMs = CaptureTuning.MIC_RETRY_MS
             try {
-                val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen)
+                // 卡 173：没人看声波时每 200 毫秒读一批，有人看时保持原节奏
+                val readMillis = { CaptureReadPolicy.durationMillis(controller.levelObserved) }
+                val source: AudioSource = if (route.device.kind == InputKind.Phone) MicAudioSource(this, micClock::setOpen, readMillis)
                 else if (route.device.kind == InputKind.CardDevice) app.cardDevices.audioSource(route.device.key)
                 else ExternalAudioSource(this, route.device,
                     app.inputs.port(requireNotNull(route.portId))
-                        ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen)
+                        ?: throw AudioSourceException(AudioSourceException.Reason.Disconnected), micClock::setOpen, readMillis)
                 // 卡 143：设备音源可带设备时间和存档来源，并在人声检测后回报“已处理”
                 timeline = source as? AudioTimeline
                 val sensitivity = VadSensitivity.forInput(route.device.kind)

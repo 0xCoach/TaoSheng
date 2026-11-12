@@ -41,6 +41,6 @@ object SkillGateJson {
                 put("countVoiceInput", it.countVoiceInput)
             }
         } ?: JsonNull
-        return Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), JsonObject(root))
+        return app.resound.platform.PrettyJson.encodeToString(JsonObject.serializer(), JsonObject(root))
     }
 }

@@ -7,7 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.CancellationException
-import io.ktor.utils.io.errors.IOException
+import kotlinx.io.IOException
 
 interface NetworkTrace {
     fun http(status: Int)

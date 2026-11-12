@@ -49,7 +49,7 @@ object ReviewPrompt {
 
     private fun staleReminder(event: MemoryEventData, zone: TimeZone): String {
         val day = Instant.fromEpochMilliseconds(event.starredAt!!).toLocalDateTime(zone).date
-        return "你 ${day.monthNumber} 月 ${day.day} 日标过重点的「${event.title}」，还没进展"
+        return "你 ${day.month.number} 月 ${day.day} 日标过重点的「${event.title}」，还没进展"
     }
 
     fun staleOnly(source: ReviewInput, zone: TimeZone): Pair<String, List<ReviewSection>> =

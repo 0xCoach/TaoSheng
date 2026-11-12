@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面小组件（卡 167）：日间配色 -->
+<resources>
+    <color name="widget_bg">#FFFFFFFF</color>
+    <color name="widget_text">#FF1D1B19</color>
+    <color name="widget_sub">#FF8A847C</color>
+    <color name="widget_dot">#FFF07B2E</color>
+    <string name="widget_label">涛声快捷</string>
+    <string name="widget_description">看聆听状态，一点加待办、开专题、暂停</string>
+</resources>

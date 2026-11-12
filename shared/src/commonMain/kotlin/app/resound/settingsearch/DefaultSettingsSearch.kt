@@ -39,6 +39,7 @@ internal object SettingsIndex {
             item("录音输入", "input", "手机麦克风 蓝牙耳机 领夹麦 Type-C 切换麦克风")
             item("语音输入记录", "voice-input", "输入法 无障碍 微信打字 口述")
             item("外放跳过", "playback", "听歌 看视频 扬声器 外放不录")
+            item("文件夹导入", "folder-import", "自动导入 扫描文件夹 导入录音 外部录音")
         }
         page("Transcript", "原话与转写", "文字 识别 听写 转文字") {
             item("转写服务", "asr", "豆包 SenseVoice 本地转写 云端转写")
@@ -48,7 +49,6 @@ internal object SettingsIndex {
             item("热词识别", "hotwords", "热词 纠错 错字 人名 术语")
             item("原声保留", "audio-retention", "录音保留 音频删除 存多久 空间")
             item("区分说话人", "speakers", "多人分段 谁说的 分人 说话人")
-            item("文件夹导入", "folder-import", "自动导入 扫描文件夹 导入录音 外部录音")
         }
         page("EnvSound", "环境音识别", "背景声音 声音分类 环境识别") {
             item("开启环境音识别", "env-enabled", "环境模型 环境开关 声音模型")

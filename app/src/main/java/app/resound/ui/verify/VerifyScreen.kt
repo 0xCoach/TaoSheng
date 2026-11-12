@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.resound.ui.settings.settingsAnchor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -104,20 +105,35 @@ fun VerifyScreen(
     bottomPadding: androidx.compose.ui.unit.Dp,
 ) {
     val c = Rs.colors
+    val g = app.resound.AppGraph
+    // 设置搜索命中时先滚到对应区块（区块自己再亮一下描边）
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val order = buildList {
+        add(listOf("permissions", "pause-length", "playback"))
+        if (g.isQuietScheduleReady) add(listOf("quiet"))
+        if (g.isInputsReady) add(listOf("input"))
+        if (g.isDevicesReady) add(emptyList())
+        if (g.isVoiceInputReady) add(listOf("voice-input"))
+        if (g.isFolderImportReady) add(listOf("folder-import"))
+        add(listOf("battery"))
+    }
+    val anchor = app.resound.ui.settings.SettingsHighlight.anchor
+    LaunchedEffect(anchor) { order.indexOfFirst { anchor in it }.takeIf { it >= 0 }?.let { listState.animateScrollToItem(it) } }
     LazyColumn(
         Modifier.fillMaxSize().background(c.background),
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
-        item { StatusCard(capture) }
-        if (app.resound.AppGraph.isQuietScheduleReady) item { QuietSection(app.resound.AppGraph.quietSchedule) }
-        if (app.resound.AppGraph.isInputsReady) item { InputSection(app.resound.AppGraph.inputs) }
-        if (app.resound.AppGraph.isDevicesReady) item {
+        item { Box(Modifier.settingsAnchor("permissions", "pause-length", "playback")) { StatusCard(capture) } }
+        if (g.isQuietScheduleReady) item { Box(Modifier.settingsAnchor("quiet")) { QuietSection(g.quietSchedule) } }
+        if (g.isInputsReady) item { Box(Modifier.settingsAnchor("input")) { InputSection(g.inputs) } }
+        if (g.isDevicesReady) item {
             LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }
         }
-        if (app.resound.AppGraph.isVoiceInputReady) item { VoiceInputSection(app.resound.AppGraph.voiceInput) }
-        if (app.resound.AppGraph.isFolderImportReady) item { FolderImportSection(app.resound.AppGraph.folderImports) }
-        item { SetupSection(setup) }
+        if (g.isVoiceInputReady) item { Box(Modifier.settingsAnchor("voice-input")) { VoiceInputSection(g.voiceInput) } }
+        if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
+        item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }
         item { LinkRow("运行记录与诊断", "统计 · 守护 · 麦克风占用") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Advanced) } }
     }
 }

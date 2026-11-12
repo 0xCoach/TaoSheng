@@ -69,6 +69,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.resound.ui.settings.settingsAnchor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -148,11 +149,20 @@ fun TranscriptScreen(
         val (d, _) = focus ?: return@LaunchedEffect
         dayOffset = java.time.temporal.ChronoUnit.DAYS.between(d, LocalDate.now()).toInt().coerceAtLeast(0)
     }
+    // 设置搜索命中转写设置 / 热词时先滚过去（区块自己再亮一下描边）
+    val searchAnchor = app.resound.ui.settings.SettingsHighlight.anchor
+    LaunchedEffect(searchAnchor) {
+        when (searchAnchor) {
+            "asr", "local-model", "asr-interval", "retry", "audio-retention", "speakers" -> listState.animateScrollToItem(1)
+            "hotwords" -> if (app.resound.AppGraph.isHotwordsReady) listState.animateScrollToItem(2)
+        }
+    }
     LaunchedEffect(focus, segments) {
         val (d, segId) = focus ?: return@LaunchedEffect
         if (d != date) return@LaunchedEffect
         val i = segments?.indexOfFirst { it.segmentId == segId } ?: return@LaunchedEffect
-        if (i >= 0) { listState.animateScrollToItem(i + 3 + (if (app.resound.AppGraph.isHotwordsReady) 1 else 0)); PlayerNav.transcriptFocus = null }
+        // 录音段之前依次是：队列卡、转写设置、[热词]、“录音原话”标题、环境音行
+        if (i >= 0) { listState.animateScrollToItem(i + 4 + (if (app.resound.AppGraph.isHotwordsReady) 1 else 0)); PlayerNav.transcriptFocus = null }
     }
     var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var boxTop by remember { mutableStateOf(0f) }
@@ -183,9 +193,9 @@ fun TranscriptScreen(
                 RecordingPackRow()
             }) { settingsOpen = !settingsOpen }
         }
-        item(key = "settings") { SettingsCard(settings, onSaved = {}) }
+        item(key = "settings") { Box(Modifier.settingsAnchor("asr", "local-model", "asr-interval", "retry", "audio-retention", "speakers")) { SettingsCard(settings, onSaved = {}) } }
         // 热词并进本页（原来是设置首页单独一行）
-        if (app.resound.AppGraph.isHotwordsReady) item(key = "hotwords") { HotwordCard(app.resound.AppGraph.hotwords) }
+        if (app.resound.AppGraph.isHotwordsReady) item(key = "hotwords") { Box(Modifier.settingsAnchor("hotwords")) { HotwordCard(app.resound.AppGraph.hotwords) } }
         item {
             val list = segments.orEmpty()
             Section("录音原话", trailing = {

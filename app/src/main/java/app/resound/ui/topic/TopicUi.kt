@@ -39,6 +39,7 @@ import app.resound.ui.verify.formatClock
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -342,7 +343,18 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
         // ③ 时间轴
         if (tl != null) {
             Label("时间轴")
-            TimelineCard(tl, live) { event?.let { e -> app.resound.ui.transcript.PlayerNav.openEvent = e } }
+            TimelineCard(tl, live) { at ->
+                // 点 ★：找到这一刻所在的录音段，打开原话页并滚到那里；找不到就打开合成的那件事
+                scope.launch {
+                    val atDay = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
+                    val seg = if (AppGraph.isTranscribeReady) runCatching { AppGraph.transcripts.day(atDay).first() }.getOrNull()
+                        ?.filter { it.startAt <= at }?.maxByOrNull { it.startAt } else null
+                    if (seg != null) {
+                        app.resound.ui.transcript.PlayerNav.transcriptFocus = atDay to seg.segmentId
+                        onDismiss(); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)
+                    } else event?.let { e -> app.resound.ui.transcript.PlayerNav.openEvent = e }
+                }
+            }
         }
 
         // ④ 相关
@@ -495,7 +507,7 @@ private fun HeroNote(text: String, error: Boolean = false, spinning: Boolean = f
 
 /** 时间轴：橙色段算进专题，灰色段是暂停或剪掉的；★ 是重点；进行中有一条竖线表示“现在” */
 @Composable
-private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolean, onMark: () -> Unit) {
+private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolean, onMark: (Long) -> Unit) {
     val c = Rs.colors
     val gray = if (c.isDark) Color.White.copy(alpha = 0.22f) else Color(0xFFD8D3CC)
     val track = if (c.isDark) Color.White.copy(alpha = 0.1f) else Color(0xFFECE8E3)
@@ -508,8 +520,8 @@ private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolea
                     .clip(CircleShape).background(if (b.included) c.accent else gray))
             }
             tl.now?.let { p -> Box(Modifier.offset(x = w * p - 1.dp).padding(top = 7.dp).width(2.dp).height(18.dp).clip(CircleShape).background(c.text)) }
-            tl.marks.forEach { (p, _) ->
-                Text("★", style = RsType.subhead, color = c.accent, modifier = Modifier.offset(x = w * p - 7.dp, y = (-6).dp).springClick(onMark))
+            tl.marks.forEach { (p, at) ->
+                Text("★", style = RsType.subhead, color = c.accent, modifier = Modifier.offset(x = w * p - 7.dp, y = (-6).dp).springClick { onMark(at) })
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {

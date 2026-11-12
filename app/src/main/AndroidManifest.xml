@@ -85,6 +85,11 @@
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
         </service>
         <receiver android:name=".capture.ClassModeReceiver" android:exported="false" />
+        <!-- 桌面小组件：聆听状态 + 加待办 / 开专题 / 暂停（卡 167） -->
+        <receiver android:name=".widget.CaptureWidget" android:exported="true" android:label="@string/widget_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_capture_info" />
+        </receiver>
         <service android:name=".capture.VoiceInputService" android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:label="@string/voice_input_service_name">

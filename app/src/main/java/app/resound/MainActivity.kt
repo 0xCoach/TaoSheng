@@ -33,6 +33,7 @@ import app.resound.ui.ask.AskScreen
 import app.resound.ui.preview.FakeAskRepository
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
+import app.resound.ui.settings.settingsAnchor
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import app.resound.ui.voiceprint.VoiceprintCard
@@ -186,8 +187,12 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Transcript -> TranscriptScreen(transcripts, transcribeSettings, bottom)
                                     SettingsPage.Model -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 24.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        if (AppGraph.isLlmProvidersReady) app.resound.ui.settings.ProvidersCard(AppGraph.llmProviders) else ModelCard(digestSettings) {}
-                                        (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.DigestTimingCard(it) }
+                                        Box(Modifier.settingsAnchor("providers", "balance", "failover")) {
+                                            if (AppGraph.isLlmProvidersReady) app.resound.ui.settings.ProvidersCard(AppGraph.llmProviders) else ModelCard(digestSettings) {}
+                                        }
+                                        (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let {
+                                            Box(Modifier.settingsAnchor("digest-timing", "conversation-gap", "thinking", "context")) { app.resound.ui.settings.DigestTimingCard(it) }
+                                        }
                                         // 余额已并入服务商卡片；没有服务商列表时仍用单独的余额卡
                                         if (!AppGraph.isLlmProvidersReady && AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)

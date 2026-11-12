@@ -23,6 +23,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -257,9 +259,31 @@ internal fun SettingsList(
     }
 }
 
-/** 搜索结果点进去后，二级页可据此滚动到并闪一下对应选项（按页逐步接入） */
+/** 搜索结果点进去后，二级页据此滚动到并闪一下对应选项 */
 object SettingsHighlight {
     var anchor by mutableStateOf<String?>(null)
+}
+
+/**
+ * 设置项锚点：被搜索命中时滚进视野，外圈亮一道橙色描边，1.6 秒后淡出并清除。
+ * 一个区块可对应多个锚点（如转写设置卡同时对应“转写服务”“转写间隔”）。
+ */
+@Composable
+fun Modifier.settingsAnchor(vararg keys: String): Modifier {
+    val hit = SettingsHighlight.anchor in keys
+    val accent = Rs.colors.accent
+    val glow by androidx.compose.animation.core.animateFloatAsState(if (hit) 1f else 0f, androidx.compose.animation.core.tween(450), label = "anchor")
+    val requester = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(hit) {
+        if (!hit) return@LaunchedEffect
+        kotlinx.coroutines.delay(250); runCatching { requester.bringIntoView() }
+        kotlinx.coroutines.delay(1600); SettingsHighlight.anchor = null
+    }
+    return this.bringIntoViewRequester(requester).drawWithContent {
+        drawContent()
+        if (glow > 0f) drawRoundRect(accent.copy(alpha = 0.85f * glow), cornerRadius = androidx.compose.ui.geometry.CornerRadius(22.dp.toPx()),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+    }
 }
 
 @Composable

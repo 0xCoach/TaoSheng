@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面小组件：夜间配色（与 App 夜间一致） -->
+<resources>
+    <color name="widget_bg">#FF1C1C1E</color>
+    <color name="widget_text">#FFEBEBEB</color>
+    <color name="widget_sub">#FF8E8E93</color>
+    <color name="widget_dot">#FFD47A44</color>
+</resources>

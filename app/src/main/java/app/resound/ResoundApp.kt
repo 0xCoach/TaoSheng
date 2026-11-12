@@ -274,6 +274,8 @@ class ResoundApp : Application() {
             digestSettings, digestSettings.providers, AppGraph.llmBalance, backupRepository, database.capture(), scope)
         app.resound.quick.attachQuickActionsAndroid(this, scope, controller, AppGraph.topics, AppGraph.quickPrefs,
             app.resound.quick.DefaultQuickActionsPolicy())
+        // 桌面小组件只在状态变化时更新（没有小组件时不做事）
+        app.resound.widget.CaptureWidget.attach(this, scope, controller, AppGraph.topics)
         AppGraph.onboarding = app.resound.onboarding.LocalOnboarding(
             getSharedPreferences("onboarding", MODE_PRIVATE), getSharedPreferences("backup", MODE_PRIVATE),
             database.transcribe().onboardingFirstTranscript(),

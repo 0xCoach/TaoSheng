@@ -56,6 +56,9 @@ class ScreenSizeShots {
             "待办" to { TodoScreen(memory, ShellBottomPadding) },
             "设置" to { SettingsScreen(capture, FakeTranscribeSettings(), digest, ThemeMode.Light, {}, ShellBottomPadding) { _, _ -> } },
             "聆听" to { VerifyScreen(capture, FakeStatsRepository(), FakeSetupGuide(), ShellBottomPadding) },
+            // 卡 167：扩大截图范围，设置二级页也自动出图
+            "原话" to { app.resound.ui.transcript.TranscriptScreen(transcripts, FakeTranscribeSettings(), ShellBottomPadding) },
+            "高级" to { app.resound.ui.verify.AdvancedPage(FakeStatsRepository(), ShellBottomPadding) },
         )
         var tab by androidx.compose.runtime.mutableIntStateOf(0)
         // 波形等动画一直在动，自动走时钟会永远等不到空闲；改成手动拨时钟

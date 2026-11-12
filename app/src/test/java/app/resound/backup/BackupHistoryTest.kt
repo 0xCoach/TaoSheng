@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -42,7 +43,7 @@ class BackupHistoryTest {
         (BackupSettings.prefs+BackupSettings.stores.keys+"backup-encryption-secrets").forEach { context.getSharedPreferences(it,0).edit().clear().commit() }
         File(context.applicationInfo.dataDir,BackupArchive.FEATURES).deleteRecursively()
         File(context.noBackupFilesDir,"backup-restore").deleteRecursively()
-        context.deleteDatabase("capture.db");db=CaptureDatabase.open(context);db.openHelper.writableDatabase
+        context.deleteDatabase("capture.db");db=CaptureDatabase.open(context);db.testSql
         store=object:VolumeStore by disk {
             override fun put(path:String,source:File) {
                 if(fail=="point" && historyPath(path) || fail=="object" && objectPath(path))throw BackupFailure("模拟中断",true)
@@ -52,9 +53,9 @@ class BackupHistoryTest {
         add(1,time,"before");add(2,time-86400000L,"unchanged")
     }
     @After fun cleanup() { db.close();root.deleteRecursively() }
-    private fun add(id:Long,at:Long,title:String) = db.openHelper.writableDatabase.execSQL(
+    private fun add(id:Long,at:Long,title:String) = db.testSql.execSQL(
         "INSERT INTO ask_conversations(id,createdAt,title) VALUES(?,?,?)",arrayOf(id,at,title))
-    private fun edit(title:String) = db.openHelper.writableDatabase.execSQL("UPDATE ask_conversations SET title=? WHERE id=1",arrayOf(title))
+    private fun edit(title:String) = db.testSql.execSQL("UPDATE ask_conversations SET title=? WHERE id=1",arrayOf(title))
     private fun sync(keep:Int=7,pass:String?=null):BackupSummary {
         time+=1000
         return HistoryVolumes.sync(context,db,store,work(),pass,keep,time)
@@ -70,7 +71,7 @@ class BackupHistoryTest {
     }
     private fun title(verified:File):String {
         val restored=CaptureDatabase.open(context,File(verified,BackupArchive.DATABASE).path)
-        return try { restored.openHelper.writableDatabase.query("SELECT title FROM ask_conversations WHERE id=1").use { assertTrue(it.moveToFirst());it.getString(0) } }
+        return try { restored.testSql.query("SELECT title FROM ask_conversations WHERE id=1").use { assertTrue(it.moveToFirst());it.getString(0) } }
         finally { restored.close() }
     }
 
@@ -120,7 +121,7 @@ class BackupHistoryTest {
         val data=pointRefs(old.name).getValue("days/resound-day-2026-10-24.zip.enc")
         File(remote,data).appendText("corrupt")
         assertTrue(runCatching { BackupRestore.restoreVolumes(context,store,db,"old-passphrase",null,db::close,{fail("must not restart")},old.name) }.isFailure)
-        assertTrue(db.isOpen);assertFalse(File(context.noBackupFilesDir,"backup-restore").exists())
+        assertEquals(CaptureDatabase.VERSION, db.testSql.version);assertFalse(File(context.noBackupFilesDir,"backup-restore").exists())
     }
 
     @Test fun cleanupFailureLeavesBothPublishedPointsRestorableUntilNextRetry() {
@@ -166,7 +167,7 @@ class BackupHistoryTest {
             assertTrue(repo.restoreLocal(first.name).isSuccess);assertTrue(restarted)
             BackupRestore.applyPending(context)
             db=CaptureDatabase.open(context)
-            db.openHelper.writableDatabase.query("SELECT title FROM ask_conversations WHERE id=1").use { it.moveToFirst();assertEquals("before",it.getString(0)) }
+            db.testSql.query("SELECT title FROM ask_conversations WHERE id=1").use { it.moveToFirst();assertEquals("before",it.getString(0)) }
         } finally { BackupScheduler(context).cancel() }
     }
 

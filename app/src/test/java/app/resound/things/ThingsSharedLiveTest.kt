@@ -55,7 +55,7 @@ class ThingsSharedLiveTest {
         val digestTemplate=context.assets.open("prompts/digest.md").bufferedReader().readText()
         val thingTemplate=context.assets.open("prompts/things.md").bufferedReader().readText()
         for ((ci,case) in cases.withIndex()) {
-            val db=Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).allowMainThreadQueries()
+            val db=Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
                 .addCallback(SearchIndex.callback).addCallback(ThingSchema.callback).build()
             val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
             val calls=JSONArray()

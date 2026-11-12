@@ -1,8 +1,10 @@
 package app.resound.backup
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import app.resound.data.CaptureDatabase
+import androidx.sqlite.*
+import androidx.sqlite.driver.AndroidSQLiteDriver
+import kotlinx.coroutines.runBlocking
+import app.resound.data.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -34,38 +36,42 @@ internal object BackupArchive {
     }
     fun snapshot(database: CaptureDatabase, destination: File) {
         check(!destination.exists())
-        val source = database.openHelper.writableDatabase
         // IMMEDIATE 事务阻止其他写入；复制主库和 WAL，再由 SQLite 在隔离副本上合并。
+        // 保留现有同步备份边界；这里只等待数据库复制，不在事务内做网络或压缩。
         // 不做 VACUUM，保留页号、空闲页、page_size 和 auto_vacuum，避免重排放大增量。
-        source.beginTransactionNonExclusive()
-        try {
-            val path = requireNotNull(source.path)
-            File(path).copyTo(destination)
-            File("$path-wal").takeIf { it.isFile }?.copyTo(File(destination.path + "-wal"))
-        } finally { source.endTransaction() }
-        try {
-            SQLiteDatabase.openDatabase(destination.path, null, SQLiteDatabase.OPEN_READWRITE).use { copy ->
-                copy.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use {
-                    check(it.moveToFirst() && it.getInt(0) == 0)
+        runBlocking {
+            database.writeTransaction {
+                val path = database.filePath ?: database.readSql("PRAGMA database_list") {
+                    check(it.step()); it.getText(2).also { path -> require(path.isNotEmpty()) }
                 }
-                copy.rawQuery("PRAGMA journal_mode=DELETE", null).use {
-                    check(it.moveToFirst() && it.getString(0).equals("delete", ignoreCase = true))
+                File(path).copyTo(destination)
+                File("$path-wal").takeIf { it.isFile }?.copyTo(File(destination.path + "-wal"))
+            }
+        }
+        try {
+            AndroidSQLiteDriver().open(destination.path).use { copy ->
+                copy.prepare("PRAGMA wal_checkpoint(TRUNCATE)").use {
+                    check(it.step() && it.getLong(0).toInt() == 0)
+                }
+                copy.prepare("PRAGMA journal_mode=DELETE").use {
+                    check(it.step() && it.getText(0).equals("delete", ignoreCase = true))
                 }
             }
         } catch (e: Exception) { destination.delete(); throw e }
         finally { listOf("-wal", "-shm", "-journal").forEach { File(destination.path + it).delete() } }
     }
     internal fun logicalSnapshot(path: String, destination: File) {
-        SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).use { source ->
-            source.beginTransactionNonExclusive()
+        AndroidSQLiteDriver().open(path).use { source ->
+            source.execSQL("BEGIN IMMEDIATE TRANSACTION")
             try {
-                SQLiteDatabase.openOrCreateDatabase(destination, null).use { target ->
-                    target.beginTransaction()
+                AndroidSQLiteDriver().open(destination.path).use { target ->
+                    target.execSQL("BEGIN EXCLUSIVE TRANSACTION")
+                    var committed = false
                     try {
                         target.execSQL("DROP TABLE IF EXISTS android_metadata")
                         val schema = mutableListOf<Triple<String, String, String>>()
-                        source.rawQuery("SELECT type,name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type='table' DESC", null).use {
-                            while (it.moveToNext()) schema += Triple(it.getString(0), it.getString(1), it.getString(2))
+                        source.prepare("SELECT type,name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type='table' DESC").use {
+                            while (it.step()) schema += Triple(it.getText(0), it.getText(1), it.getText(2))
                         }
                         // FTS 创建时会自动建立影子表；复制虚表内容（含 rowid），让 SQLite 重建索引。
                         val virtual = schema.filter { it.first == "table" && it.third.startsWith("CREATE VIRTUAL TABLE", true) }
@@ -78,31 +84,31 @@ internal object BackupArchive {
                             copyTable(source, target, name, name in virtual)
                         }
                         schema.filter { it.first != "table" }.forEach { target.execSQL(it.third) }
-                        source.rawQuery("SELECT name FROM sqlite_master WHERE name='sqlite_sequence'", null).use {
-                            if (it.moveToFirst()) { target.execSQL("DELETE FROM sqlite_sequence"); copyTable(source, target, "sqlite_sequence") }
+                        source.prepare("SELECT name FROM sqlite_master WHERE name='sqlite_sequence'").use {
+                            if (it.step()) { target.execSQL("DELETE FROM sqlite_sequence"); copyTable(source, target, "sqlite_sequence") }
                         }
-                        target.version = source.version
-                        target.setTransactionSuccessful()
-                    } finally { target.endTransaction() }
+                        target.userVersion = source.userVersion
+                        target.execSQL("COMMIT TRANSACTION"); committed = true
+                    } finally { if (!committed) target.execSQL("ROLLBACK TRANSACTION") }
                 }
-            } finally { source.endTransaction() }
+            } finally { source.execSQL("ROLLBACK TRANSACTION") }
         }
     }
-    private fun copyTable(source: SQLiteDatabase, target: SQLiteDatabase, name: String, includeRowId: Boolean = false) {
+    private fun copyTable(source: SQLiteConnection, target: SQLiteConnection, name: String, includeRowId: Boolean = false) {
         val quoted = "\"${name.replace("\"", "\"\"")}\""
-        source.rawQuery("SELECT ${if (includeRowId) "rowid," else ""}* FROM $quoted", null).use { rows ->
+        source.prepare("SELECT ${if (includeRowId) "rowid," else ""}* FROM $quoted").use { rows ->
             val columns = if (includeRowId) rows.columnNames.joinToString(",", "(", ")") { "\"$it\"" } else ""
-            target.compileStatement("INSERT INTO $quoted$columns VALUES (${List(rows.columnCount) { "?" }.joinToString()})").use { insert ->
-                while (rows.moveToNext()) {
+            target.prepare("INSERT INTO $quoted$columns VALUES (${List(rows.getColumnCount()) { "?" }.joinToString()})").use { insert ->
+                while (rows.step()) {
                     insert.clearBindings()
-                    repeat(rows.columnCount) { i -> when (rows.getType(i)) {
-                        android.database.Cursor.FIELD_TYPE_NULL -> insert.bindNull(i + 1)
-                        android.database.Cursor.FIELD_TYPE_INTEGER -> insert.bindLong(i + 1, rows.getLong(i))
-                        android.database.Cursor.FIELD_TYPE_FLOAT -> insert.bindDouble(i + 1, rows.getDouble(i))
-                        android.database.Cursor.FIELD_TYPE_BLOB -> insert.bindBlob(i + 1, rows.getBlob(i))
-                        else -> insert.bindString(i + 1, rows.getString(i))
+                    repeat(rows.getColumnCount()) { i -> when (rows.getColumnType(i)) {
+                        SQLITE_DATA_NULL -> insert.bindNull(i + 1)
+                        SQLITE_DATA_INTEGER -> insert.bindLong(i + 1, rows.getLong(i))
+                        SQLITE_DATA_FLOAT -> insert.bindDouble(i + 1, rows.getDouble(i))
+                        SQLITE_DATA_BLOB -> insert.bindBlob(i + 1, rows.getBlob(i))
+                        else -> insert.bindText(i + 1, rows.getText(i))
                     } }
-                    insert.executeInsert()
+                    insert.step(); insert.reset()
                 }
             }
         }
@@ -146,7 +152,7 @@ internal object BackupArchive {
                 File(staging, "shared_prefs/$name").apply { parentFile!!.mkdirs() })
         }
         val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-        pack(staging, zip, at, version, database.openHelper.writableDatabase.version)
+        pack(staging, zip, at, version, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() })
     }
     internal fun writeHotwords(context: Context, target: File) {
         // 转写设置中含设备绑定的加密密钥；备份仅带热词。
@@ -225,10 +231,10 @@ internal object BackupArchive {
             }
             require(DATABASE in declared && declared + "manifest.json" == names)
             // 校验的是暂存副本，可写打开：安卓的 FTS4 完整性检查要写临时数据，只读打开会报“attempt to write a readonly database”
-            SQLiteDatabase.openDatabase(File(staging, DATABASE).path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
-                require(db.version == sourceVersion)
-                db.rawQuery("PRAGMA integrity_check", null).use {
-                    val rows = buildList { while (it.moveToNext()) add(it.getString(0)) }
+            AndroidSQLiteDriver().open(File(staging, DATABASE).path).use { db ->
+                require(db.userVersion == sourceVersion)
+                db.prepare("PRAGMA integrity_check").use {
+                    val rows = buildList { while (it.step()) add(it.getText(0)) }
                     if (rows != listOf("ok")) android.util.Log.w("ResoundBackup", "完整性检查: ${rows.take(5)}")
                     require(rows == listOf("ok"))
                 }

@@ -1,6 +1,6 @@
 package app.resound.redo
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.digest.*
 import app.resound.transcribe.*
@@ -126,7 +126,7 @@ internal class RedoEngine(
         require(s.ranges.isNotEmpty()) { "所选记录已不存在" }
         val selectors = selectors(s, request.scope)
         if (snapshot == null) {
-            db.withTransaction {
+            db.writeTransaction {
                 checkpoint()
                 val data = snapshots.capture(selectors)
                 snapshot = RedoSnapshotRow(jobId = id, at = now(), payload = JSONObject().put("before", data).put("after", data).toString())
@@ -152,7 +152,7 @@ internal class RedoEngine(
                 try {
                     val result = recognize(segment, request.asr ?: chooser.lastChoice.value)
                     currentCoroutineContext().ensureActive(); checkpoint()
-                    db.withTransaction {
+                    db.writeTransaction {
                         checkpoint()
                         check(snapshots.unchanged(payload.getJSONObject("after"))) { "记录已被修改，请重新重做" }
                         check(db.transcribe().findSegment(segment.id) != null) { "录音已删除" }
@@ -170,7 +170,7 @@ internal class RedoEngine(
                     }
                 } catch (e: CancellationException) { throw e }
                 catch (e: AsrException) {
-                    db.withTransaction {
+                    db.writeTransaction {
                         check(snapshots.unchanged(payload.getJSONObject("after"))) { "记录已被修改，请重新重做" }
                         val attempts = segment.attempts + 1
                         db.transcribe().findSegment(segment.id)?.let { db.transcribe().update(it.copy(status = if (e.type == AsrError.Audio) "Abandoned" else "Failed",
@@ -182,14 +182,14 @@ internal class RedoEngine(
                 }
             }
             try { identify(available.map { it.segment.id }) }
-            finally { withContext(NonCancellable) { db.withTransaction {
+            finally { withContext(NonCancellable) { db.writeTransaction {
                 check(snapshots.unchanged(payload.getJSONObject("after"), voiceprint = true)) { "记录已被修改，请重新重做" }
                 saveAfter()
             } } }
         }
         checkpoint(); currentCoroutineContext().ensureActive()
         if (request.scope == RedoScope.TranscribeOnly) {
-            db.withTransaction { checkpoint(); saveAfter(true) }; return
+            db.writeTransaction { checkpoint(); saveAfter(true) }; return
         }
         progress("重新整理", .7f)
         val lines = (db.transcribe().exportSegments(s.segments.map { it.segment.id }).flatMap { it.lines } + dao.eventLines(s.events.map { it.id }))
@@ -248,7 +248,7 @@ internal class RedoEngine(
         )
         val selectors = mergeSelectors(s.events, s.lines, span)
         if (snapshot == null) {
-            db.withTransaction {
+            db.writeTransaction {
                 checkpoint()
                 val data = snapshots.capture(selectors)
                 snapshot = RedoSnapshotRow(jobId = id, at = now(), payload = JSONObject().put("before", data).put("after", data).toString())
@@ -300,7 +300,7 @@ internal class RedoEngine(
         keepAllItems: Boolean = false,
     ) {
         val oldIds = oldEvents.map { it.id }
-        db.withTransaction {
+        db.writeTransaction {
             checkpoint()
             check(snapshots.unchanged(payload.getJSONObject("after"))) { "记录已被修改，请重新选择后重做" }
             val oldItems = dao.items(oldIds)
@@ -308,9 +308,8 @@ internal class RedoEngine(
                 oldItems.filter { (it.category in setOf("待办", "约定") && it.status in setOf("Accepted", "Done", "Ignored")) || it.deleted || it.editedAt != null }
             // 保留条目先解除旧事件外键；避免删除事件时级联删除用户状态。
             preserved.forEach { dao.item(it.copy(eventId = null)) }
-            val sql = db.openHelper.writableDatabase
-            sql.execSQL("UPDATE transcript_lines SET eventId = NULL WHERE eventId IN (${oldIds.sqlIds()})")
-            sql.execSQL("DELETE FROM memory_events WHERE id IN (${oldIds.sqlIds()})")
+            db.writeSql("UPDATE transcript_lines SET eventId = NULL WHERE eventId IN (${oldIds.sqlIds()})")
+            db.writeSql("DELETE FROM memory_events WHERE id IN (${oldIds.sqlIds()})")
             val ids = newEvents.map { (event, refs) -> db.memory().insertEvent(event).also { db.memory().assignLines(refs, it) } }
             val incoming = itemsFor(ids)
             // 沿用 saveDigest 的保护规则：同类别、同原话/同旧事件或相同文本不重复生成。
@@ -327,7 +326,7 @@ internal class RedoEngine(
                 dao.item(old.copy(eventId = target?.let { ids[it] }))
             }
             db.memory().markDigested(participatingLines.map { it.id }, now())
-            sql.execSQL("DELETE FROM skill_cards WHERE id IN (${cards.filterNot { it.manual }.map { it.id }.sqlIds()})")
+            db.writeSql("DELETE FROM skill_cards WHERE id IN (${cards.filterNot { it.manual }.map { it.id }.sqlIds()})")
             val cardIds = newCards.filterNot { fresh -> cards.any { it.manual && it.skillId == fresh.skillId && (it.entity == fresh.entity || overlap(it.at, it.endAt ?: it.at + 1, fresh.at, fresh.endAt ?: fresh.at + 1) > 0) } }.map { db.skills().save(it.copy(id = 0)) }
             // 提交后按新旧 ID 并集记录，撤销只触碰这些行，不吞掉后来新增的录音/事件。
             val afterSelectors = trackedSelectors.toMutableMap()
@@ -340,7 +339,7 @@ internal class RedoEngine(
     }
 
     suspend fun undo(id: String): Result<Unit> = try {
-        db.withTransaction {
+        db.writeTransaction {
             val row = dao.fullSnapshot() ?: error("撤销快照已失效")
             check(row.jobId == id && now() - row.at < 86_400_000) { "只能撤销一天内最近一次重做" }
             val payload = JSONObject(row.payload); val after = payload.getJSONObject("after"); val before = payload.getJSONObject("before")

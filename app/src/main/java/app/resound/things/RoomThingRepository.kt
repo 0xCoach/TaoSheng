@@ -1,6 +1,6 @@
 package app.resound.things
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -20,7 +20,7 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     init { scope.launch { for (command in commands) try { command() }
         catch (e: CancellationException) { throw e } catch (_: Exception) { problem("寻物保存失败，请重试") } } }
-    private fun change(block: suspend () -> Unit) { check(commands.trySend { db.withTransaction { block() } }.isSuccess) }
+    private fun change(block: suspend () -> Unit) { check(commands.trySend { db.writeTransaction { block() } }.isSuccess) }
     internal suspend fun flush() { val done = CompletableDeferred<Unit>(); commands.send { done.complete(Unit) }; done.await() }
     override val autoDetect = dao.observeState().map { it?.enabled ?: true }.stateIn(scope, SharingStarted.Eagerly, true)
     override fun setAutoDetect(on: Boolean) = change {

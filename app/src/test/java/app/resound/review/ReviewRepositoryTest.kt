@@ -27,7 +27,7 @@ class ReviewRepositoryTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
     private suspend fun fixture(block: suspend (CaptureDatabase, RoomReviewRepository, MutableList<String>) -> Unit) {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val actions = mutableListOf<String>()
         val prefs = context.getSharedPreferences("review-test", Context.MODE_PRIVATE).apply { edit().clear().commit() }

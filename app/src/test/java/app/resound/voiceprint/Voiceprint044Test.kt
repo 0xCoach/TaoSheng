@@ -75,7 +75,7 @@ class Voiceprint044Test {
     private var decodes = 0
     private val clock = 100_000_000L
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob()+Dispatchers.IO)
         repository = LocalVoiceprintRepository(db,scope,{ decodes++;audio.getValue(it.path) },
             { SpeakerEmbedding { computes++; vector(if (it.first()>0) 0 else 1) } },{}, { clock })

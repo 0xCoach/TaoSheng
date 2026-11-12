@@ -1,5 +1,6 @@
 package app.resound.usage
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -47,7 +48,7 @@ class Usage043Test {
         override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) = Unit
     }
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         root = File(context.cacheDir, "usage043").apply { deleteRecursively(); mkdirs() }
         (BackupSettings.prefs + BackupSettings.stores.keys + setOf("ask-suggestions", "digest-state"))
@@ -76,12 +77,12 @@ class Usage043Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             val rows = migrated.memory().usageByPurpose("2026-10-23", "2026-10-24").first()
             assertEquals(listOf("Other", "Other"), rows.map { it.purpose })
             assertEquals(32L, rows.sumOf { it.promptTokens }); assertEquals(8L, rows.sumOf { it.completionTokens })
             assertEquals(3, rows.sumOf { it.calls })
-            migrated.openHelper.writableDatabase.query("SELECT name FROM sqlite_master WHERE name='llm_usage'").use { assertFalse(it.moveToFirst()) }
+            migrated.testSql.query("SELECT name FROM sqlite_master WHERE name='llm_usage'").use { assertFalse(it.moveToFirst()) }
         } finally { migrated.close(); context.deleteDatabase(name) }
     }
 

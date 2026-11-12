@@ -35,7 +35,7 @@ class ReviewTimingTest {
 
     private suspend fun fixture(block: suspend (CaptureDatabase, RoomReviewRepository, Calls) -> Unit) {
         val context = RuntimeEnvironment.getApplication() as Context
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val calls = Calls()
         val prefs = context.getSharedPreferences("review-timing-test", Context.MODE_PRIVATE)

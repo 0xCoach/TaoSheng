@@ -1,9 +1,10 @@
 package app.resound.data
 
+import androidx.sqlite.execSQL
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
 
 /** 只用于本机恢复提交，不进入用户备份；删除任一来源原话时一并作废。 */
 @Entity(tableName = "digest_pending")
@@ -20,16 +21,16 @@ data class PendingDigest(
 }
 
 internal object PendingDigestSchema {
-    fun create(db: SupportSQLiteDatabase) {
+    fun create(db: SQLiteConnection) {
         db.execSQL("CREATE TABLE IF NOT EXISTS digest_pending (id TEXT NOT NULL PRIMARY KEY, lineIds TEXT NOT NULL, content TEXT NOT NULL, day TEXT NOT NULL, promptTokens INTEGER NOT NULL, completionTokens INTEGER NOT NULL, thingRevision INTEGER)")
         install(db)
     }
-    private fun install(db: SupportSQLiteDatabase) {
+    private fun install(db: SQLiteConnection) {
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS digest_pending_source_deleted AFTER DELETE ON transcript_lines BEGIN
             DELETE FROM digest_pending WHERE instr(',' || lineIds || ',', ',' || OLD.id || ',') > 0;
         END""")
     }
     val callback = object : RoomDatabase.Callback() {
-        override fun onOpen(db: SupportSQLiteDatabase) = install(db)
+        override fun onOpen(db: SQLiteConnection) = install(db)
     }
 }

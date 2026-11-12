@@ -23,7 +23,7 @@ class DigestRejected134Test {
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
         listOf("digest-state", "digest").forEach { context.getSharedPreferences(it, 0).edit().clear().commit() }
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         runBlocking {
             db.capture().segment(SegmentEntity(1, 1000, 41_000, "mic", "/synthetic", 0, "Done"))
             db.transcribe().insertLines(lines)

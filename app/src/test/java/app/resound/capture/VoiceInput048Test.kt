@@ -1,5 +1,6 @@
 package app.resound.capture
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -40,7 +41,7 @@ class VoiceInput048Test {
     private fun record(token: String = UUID.randomUUID().toString(), at: Long = start, text: String = "好的明天下午给你", until: Long? = null) =
         InputRecord(token, at, text, meta, until)
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().addCallback(SearchIndex.callback).build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().addCallback(SearchIndex.callback).build()
     }
     @After fun cleanup() { db.close() }
 
@@ -194,8 +195,8 @@ class VoiceInput048Test {
         }
         val migrated = CaptureDatabase.open(context, path.path)
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
-            migrated.openHelper.writableDatabase.query("SELECT text,voiceInputJson,voiceInputPendingUntil FROM transcript_lines").use { c ->
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
+            migrated.testSql.query("SELECT text,voiceInputJson,voiceInputPendingUntil FROM transcript_lines").use { c ->
                 assertTrue(c.moveToFirst()); assertEquals("合成旧句", c.getString(0)); assertTrue(c.isNull(1)); assertTrue(c.isNull(2))
             }
         } finally { migrated.close(); path.delete() }

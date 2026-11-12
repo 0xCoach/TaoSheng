@@ -22,7 +22,7 @@ class ImportAudioCleanup078Test {
     private lateinit var root: File
     private val now = System.currentTimeMillis()
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         root = File(context.cacheDir, "cleanup078").apply { mkdirs() }
     }
     @After fun close() { db.close(); root.deleteRecursively() }

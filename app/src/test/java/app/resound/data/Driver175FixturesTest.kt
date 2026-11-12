@@ -2,11 +2,11 @@ package app.resound.data
 
 import android.app.Application
 import android.content.Context
-import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
-import androidx.sqlite.db.SimpleSQLiteQuery
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.PooledConnection
+import androidx.room.useReaderConnection
+import androidx.sqlite.*
 import app.resound.ask.*
 import app.resound.backup.BackupArchive
 import app.resound.backup.BackupRestore
@@ -14,6 +14,13 @@ import app.resound.search.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.channels.Channel
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -26,14 +33,13 @@ import org.robolectric.annotation.SQLiteMode
 import java.io.File
 import java.time.ZoneId
 
-/** 卡 175 第一段：只调用现有实现。默认逐字对照；录制仅允许创建尚不存在的夹具。 */
+/** 卡 175 第二段：逐字重放旧实现夹具；只读标准答案，实际结果另写 build/driver175-replay。 */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class Driver175FixturesTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val fixtures = File("src/test/resources/driver175")
-    private val recording get() = System.getenv("TAOSHENG_175_RECORD") == "1"
     private val at = 1794448800000L
     private fun schema(version: Int) = JSONObject(File("schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
     private fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
@@ -41,8 +47,21 @@ class Driver175FixturesTest {
 
     private fun golden(name: String, actual: String) {
         val file = File(fixtures, name)
-        if (recording && !file.exists()) { file.parentFile!!.mkdirs(); file.writeText(actual) }
-        assertTrue("缺少夹具 $name；仅在旧实现上设置 TAOSHENG_175_RECORD=1 录制", file.isFile)
+        val replay = File("build/driver175-replay", name)
+        replay.parentFile!!.mkdirs()
+        replay.writeText(actual)
+        if (name == "fresh-install.txt" || name.startsWith("migrations/")) {
+            fun triggers(text: String) = text.lineSequence().filter { it.startsWith("[\"trigger\",") }
+                .map { JSONArray(it).getString(1) }.toSet()
+            val current = triggers(File(fixtures, "fresh-install.txt").readText())
+            val expected = triggers(file.readText())
+            val observed = triggers(actual)
+            File(replay.path + ".triggers.txt").writeText(
+                "expected=${expected.size}\nactual=${observed.size}\ncurrent=${current.size}\n" +
+                    "missing=" + (current - observed).sorted().joinToString(",") + "\n")
+            assertEquals("$name 手写触发器集合", expected, observed)
+        }
+        assertTrue("缺少旧夹具 $name；第二段禁止重录标准答案", file.isFile)
         assertEquals(name, file.readText(), actual)
     }
 
@@ -55,48 +74,49 @@ class Driver175FixturesTest {
         else -> value.toString()
     }
 
-    private fun rows(cursor: Cursor, sort: Boolean = false): String = cursor.use { c ->
-        val rows = buildList {
-            while (c.moveToNext()) add(canonical(JSONArray().apply {
-                repeat(c.columnCount) { i -> put(when (c.getType(i)) {
-                    Cursor.FIELD_TYPE_NULL -> JSONObject.NULL
-                    Cursor.FIELD_TYPE_INTEGER -> JSONObject().put("integer", c.getLong(i))
-                    Cursor.FIELD_TYPE_FLOAT -> JSONObject().put("real", c.getDouble(i))
-                    Cursor.FIELD_TYPE_BLOB -> JSONObject().put("blob", c.getBlob(i).joinToString("") { "%02x".format(it) })
-                    else -> JSONObject().put("text", c.getString(i))
-                }) }
-            }))
-        }
-        "columns=" + canonical(JSONArray(c.columnNames.toList())) + "\n" + (if (sort) rows.sorted() else rows).joinToString("\n") + "\n"
-    }
-
     // 只折叠 SQL 引号以外的空白，保留触发器字符串常量中的换行/空格。
     private fun normalizeSql(sql: String): String {
         val tokens = Regex("'(''|[^'])*'|\"(\"\"|[^\"])*\"|`[^`]*`|\\s+|[^\\s'\"`]+")
         return tokens.findAll(sql).joinToString("") { if (it.value.first().isWhitespace()) " " else it.value }.trim()
     }
 
-    private fun snapshot(db: SupportSQLiteDatabase): String = buildString {
-        append("user_version=${db.version}\n")
+    private fun rows(statement: SQLiteStatement, sort: Boolean = false): String {
+        val columns = (0 until statement.getColumnCount()).map(statement::getColumnName)
+        val values = buildList {
+            while (statement.step()) add(canonical(JSONArray().apply {
+                repeat(statement.getColumnCount()) { i -> put(when (statement.getColumnType(i)) {
+                    SQLITE_DATA_NULL -> JSONObject.NULL
+                    SQLITE_DATA_INTEGER -> JSONObject().put("integer", statement.getLong(i))
+                    SQLITE_DATA_FLOAT -> JSONObject().put("real", statement.getDouble(i))
+                    SQLITE_DATA_BLOB -> JSONObject().put("blob", statement.getBlob(i).joinToString("") { "%02x".format(it) })
+                    else -> JSONObject().put("text", statement.getText(i))
+                }) }
+            }))
+        }
+        return "columns=" + canonical(JSONArray(columns)) + "\n" + (if (sort) values.sorted() else values).joinToString("\n") + "\n"
+    }
+
+    private suspend fun snapshot(db: PooledConnection): String = buildString {
+        val version = db.usePrepared("PRAGMA user_version") { check(it.step()); it.getLong(0) }
+        append("user_version=$version\n")
         val tables = mutableListOf<Pair<String, String?>>()
-        db.query("SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name").use { c ->
-            while (c.moveToNext()) {
-                val sql = if (c.isNull(3)) null else c.getString(3)
-                append(canonical(JSONArray(listOf(c.getString(0), c.getString(1), c.getString(2), sql?.let(::normalizeSql))))).append('\n')
-                if (c.getString(0) == "table") tables += c.getString(1) to sql
+        db.usePrepared("SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name") { stmt ->
+            while (stmt.step()) {
+                val sql = if (stmt.isNull(3)) null else stmt.getText(3)
+                append(canonical(JSONArray(listOf(stmt.getText(0), stmt.getText(1), stmt.getText(2), sql?.let(::normalizeSql))))).append('\n')
+                if (stmt.getText(0) == "table") tables += stmt.getText(1) to sql
             }
         }
         for ((table, sql) in tables.sortedBy { it.first }) {
             append("TABLE ").append(table).append('\n')
-            // 虚表的 rowid 是搜索关联键；影子表、sqlite_sequence、room_master_table 均不忽略。
             val columns = if (sql?.startsWith("CREATE VIRTUAL TABLE", true) == true) "rowid,*" else "*"
-            append(rows(db.query("SELECT $columns FROM ${quote(table)}"), sort = true))
+            append(db.usePrepared("SELECT $columns FROM ${quote(table)}") { rows(it, sort = true) })
         }
     }
 
-    private fun healthy(db: SupportSQLiteDatabase) {
-        db.query("PRAGMA integrity_check").use { assertTrue(it.moveToFirst()); assertEquals("ok", it.getString(0)) }
-        db.query("PRAGMA foreign_key_check").use { assertFalse("合成数据违反外键", it.moveToFirst()) }
+    private suspend fun healthy(db: PooledConnection) {
+        db.usePrepared("PRAGMA integrity_check") { assertTrue(it.step()); assertEquals("ok", it.getText(0)) }
+        db.usePrepared("PRAGMA foreign_key_check") { assertFalse("合成数据违反外键", it.step()) }
     }
 
     /** 所有实体各三行：可空列 null/非 null，中文、引号/转义字符、长正文、BLOB、外键。 */
@@ -173,10 +193,11 @@ class Driver175FixturesTest {
                 }
                 val db = CaptureDatabase.open(context, name) // 产品 open：完整 MIGRATIONS + 四组回调。
                 try {
-                    val sql = db.openHelper.writableDatabase
-                    assertEquals(CaptureDatabase.VERSION, sql.version)
-                    healthy(sql)
-                    golden("migrations/from-${version.toString().padStart(2, '0')}.txt", snapshot(sql))
+                    db.useReaderConnection { sql ->
+                        sql.usePrepared("PRAGMA user_version") { assertTrue(it.step()); assertEquals(CaptureDatabase.VERSION.toLong(), it.getLong(0)) }
+                        healthy(sql)
+                        golden("migrations/from-${version.toString().padStart(2, '0')}.txt", snapshot(sql))
+                    }
                 } finally { db.close() }
             } finally { context.deleteDatabase(name) }
         }
@@ -186,23 +207,64 @@ class Driver175FixturesTest {
         val name = "driver175-new.db"; context.deleteDatabase(name)
         val db = CaptureDatabase.open(context, name)
         try {
-            val sql = db.openHelper.writableDatabase
-            healthy(sql)
-            golden("fresh-install.txt", snapshot(sql))
-            golden("engine.txt", rows(sql.query("SELECT sqlite_version() AS sqlite_version")) + rows(sql.query("PRAGMA compile_options"), true))
+            db.useReaderConnection { sql ->
+                healthy(sql)
+                golden("fresh-install.txt", snapshot(sql))
+                golden("engine.txt", sql.usePrepared("SELECT sqlite_version() AS sqlite_version") { rows(it) } + sql.usePrepared("PRAGMA compile_options") { rows(it, true) })
+            }
         } finally { db.close(); context.deleteDatabase(name) }
     }
 
-    /** 仅调研底层驱动读已有 WAL/FTS 的能力；不设置 Room driver，也不切换产品实现。 */
+    @Test fun writerTransactionCommitsNestedSeed() = runBlocking(Dispatchers.IO) {
+        val name = "driver175-transaction-commit.db"; context.deleteDatabase(name)
+        val db = CaptureDatabase.open(context, name)
+        try {
+            db.writeTransaction { db.writeTransaction { querySeed(db) } }
+            db.useReaderConnection { healthy(it); golden("queries-seed.txt", snapshot(it)) }
+        } finally { db.close(); context.deleteDatabase(name) }
+    }
+
+    @Test fun cancelledWriterRollsBackSeed() = runBlocking(Dispatchers.IO) {
+        val name = "driver175-transaction-cancel.db"; context.deleteDatabase(name)
+        val db = CaptureDatabase.open(context, name)
+        try {
+            try {
+                db.writeTransaction {
+                    db.writeTransaction { querySeed(db) }
+                    throw kotlinx.coroutines.CancellationException("合成取消")
+                }
+                fail("应当传播取消")
+            } catch (_: kotlinx.coroutines.CancellationException) { }
+            db.useReaderConnection { healthy(it); golden("fresh-install.txt", snapshot(it)) }
+        } finally { db.close(); context.deleteDatabase(name) }
+    }
+
+    @Test fun writerNotifiesActiveTableFlow() = runBlocking(Dispatchers.IO) {
+        val name = "driver175-notifications.db"; context.deleteDatabase(name)
+        val db = CaptureDatabase.open(context, name)
+        val changes = Channel<Set<String>>(Channel.UNLIMITED)
+        val observer = launch {
+            db.invalidationTracker.createFlow("segments", "memory_events", "memory_items").collect { changes.send(it) }
+        }
+        try {
+            assertEquals(setOf("segments", "memory_events", "memory_items"), withTimeout(5000) { changes.receive() })
+            db.writeTransaction { querySeed(db) }
+            assertEquals(setOf("segments", "memory_events", "memory_items"), withTimeout(5000) { changes.receive() })
+            db.writeSql("UPDATE segments SET status='Done' WHERE id=1")
+            assertTrue(withTimeout(5000) { changes.receive() }.contains("segments"))
+            db.useReaderConnection { golden("queries-seed.txt", snapshot(it)) }
+        } finally { observer.cancelAndJoin(); changes.close(); db.close(); context.deleteDatabase(name) }
+    }
+
+    /** 验证另一条驱动连接能读到 Room 当前合成 WAL/FTS，前后快照不变。 */
     @Test fun androidDriverReadsExistingSyntheticWalAndFts() = runBlocking(Dispatchers.IO) {
         val name = "driver175-wal-probe.db"; context.deleteDatabase(name)
         val db = CaptureDatabase.open(context, name)
         try {
             querySeed(db)
-            val sql = db.openHelper.writableDatabase
-            sql.query("PRAGMA journal_mode").use { assertTrue(it.moveToFirst()); assertEquals("wal", it.getString(0)) }
+            db.readSql("PRAGMA journal_mode") { assertTrue(it.step()); assertEquals("wal", it.getText(0)) }
             assertTrue(File(context.getDatabasePath(name).path + "-wal").length() > 0)
-            val before = snapshot(sql)
+            val before = db.useReaderConnection { snapshot(it) }
             val connection = androidx.sqlite.driver.AndroidSQLiteDriver().open(context.getDatabasePath(name).path)
             try {
                 connection.prepare("SELECT rowid FROM lines_fts WHERE lines_fts MATCH ? ORDER BY rowid").use { stmt ->
@@ -211,19 +273,18 @@ class Driver175FixturesTest {
                     assertEquals(listOf(1L, 2L, 3L), ids)
                 }
             } finally { connection.close() }
-            assertEquals(before, snapshot(sql))
+            assertEquals(before, db.useReaderConnection { snapshot(it) })
         } finally { db.close(); context.deleteDatabase(name) }
     }
 
-    private fun querySeed(db: CaptureDatabase) {
-        val sql = db.openHelper.writableDatabase
+    private suspend fun querySeed(db: CaptureDatabase) {
         for (id in 1..3) {
-            sql.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(?,?,?,'synthetic',?,1,'Done')", arrayOf(id, at + id, at + 1000 + id, "synthetic-$id"))
-            sql.execSQL("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(?,?,?,'其他',?,'中文报销，发票 A12!','[\"交通票据\"]','[]',0,?,?, 'synthetic')", arrayOf(id, at + id, at + 1000 + id, if (id == 3) "隐藏事件" else "交通发票$id", if (id == 3) 1 else 0, at + id))
-            sql.execSQL("INSERT INTO memory_items(id,eventId,category,content,status,createdAt) VALUES(?,?,'灵感',?,'Pending',?)", arrayOf(id, id, "交通发票$id，中文报销", at + id))
-            sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(?,?,?,?,?,?,?)", arrayOf(id, id, at + id, at + id + 1000, "交通发票$id，中文报销 A12!", id, if (id == 1) null else "合成人物"))
-            sql.execSQL("INSERT INTO embeddings(kind,refId,model,dim,vector,updatedAt) VALUES('item',?,'synthetic',2,?,?)", arrayOf(id, Vectors.encode(floatArrayOf(1f, 0f)), at))
-            sql.execSQL("INSERT INTO embeddings(kind,refId,model,dim,vector,updatedAt) VALUES('event',?,'synthetic',2,?,?)", arrayOf(id, Vectors.encode(floatArrayOf(1f, 0f)), at))
+            db.writeSql("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(?,?,?,'synthetic',?,1,'Done')", arrayOf<Any?>(id, at + id, at + 1000 + id, "synthetic-$id"))
+            db.writeSql("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(?,?,?,'其他',?,'中文报销，发票 A12!','[\"交通票据\"]','[]',0,?,?, 'synthetic')", arrayOf<Any?>(id, at + id, at + 1000 + id, if (id == 3) "隐藏事件" else "交通发票$id", if (id == 3) 1 else 0, at + id))
+            db.writeSql("INSERT INTO memory_items(id,eventId,category,content,status,createdAt) VALUES(?,?,'灵感',?,'Pending',?)", arrayOf<Any?>(id, id, "交通发票$id，中文报销", at + id))
+            db.writeSql("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(?,?,?,?,?,?,?)", arrayOf<Any?>(id, id, at + id, at + id + 1000, "交通发票$id，中文报销 A12!", id, if (id == 1) null else "合成人物"))
+            db.writeSql("INSERT INTO embeddings(kind,refId,model,dim,vector,updatedAt) VALUES('item',?,'synthetic',2,?,?)", arrayOf(id, Vectors.encode(floatArrayOf(1f, 0f)), at))
+            db.writeSql("INSERT INTO embeddings(kind,refId,model,dim,vector,updatedAt) VALUES('event',?,'synthetic',2,?,?)", arrayOf(id, Vectors.encode(floatArrayOf(1f, 0f)), at))
         }
     }
 
@@ -236,14 +297,41 @@ class Driver175FixturesTest {
             .addMigrations(*CaptureDatabase.MIGRATIONS)
             .addCallback(SearchIndex.callback).addCallback(app.resound.importer.ImportRecordSchema.callback)
             .addCallback(app.resound.things.ThingSchema.callback).addCallback(PendingDigestSchema.callback)
-            .setQueryCallback({ sql, args ->
-                if (capturing && sql.trimStart().startsWith("SELECT", true)) {
-                    // 在产品 SELECT 执行前同步读取同一条 SQL；避免 IdeaMerger 写入后重查改变原始结果。
-                    capturing = false
-                    try { captured += Triple(sql, args.toList(), rows(db.query(SimpleSQLiteQuery(sql, args.toTypedArray())))) }
-                    finally { capturing = true }
+            .setDriver(object : SQLiteDriver {
+                private val driver = androidx.sqlite.driver.AndroidSQLiteDriver()
+                override val hasConnectionPool = driver.hasConnectionPool
+                override fun open(fileName: String): SQLiteConnection {
+                    val connection = driver.open(fileName)
+                    return object : SQLiteConnection by connection {
+                        override fun prepare(sql: String): SQLiteStatement {
+                            val statement = connection.prepare(sql)
+                            return object : SQLiteStatement by statement {
+                                private val arguments = mutableMapOf<Int, Any?>()
+                                private var started = false
+                                override fun bindNull(index: Int) { arguments[index] = null; statement.bindNull(index) }
+                                override fun bindLong(index: Int, value: Long) { arguments[index] = value; statement.bindLong(index, value) }
+                                override fun bindDouble(index: Int, value: Double) { arguments[index] = value; statement.bindDouble(index, value) }
+                                override fun bindText(index: Int, value: String) { arguments[index] = value; statement.bindText(index, value) }
+                                override fun bindBlob(index: Int, value: ByteArray) { arguments[index] = value.copyOf(); statement.bindBlob(index, value) }
+                                override fun clearBindings() { arguments.clear(); statement.clearBindings() }
+                                override fun reset() { started = false; statement.reset() }
+                                override fun step(): Boolean {
+                                    if (!started && capturing && sql.trimStart().startsWith("SELECT", true)
+                                        && !sql.contains("room_table_modification_log")) {
+                                        val args = arguments.toSortedMap().values.toList()
+                                        val resultRows = connection.prepare(sql).use {
+                                            it.bindArguments(args.toTypedArray()); rows(it)
+                                        }
+                                        captured += Triple(sql, args, resultRows)
+                                    }
+                                    started = true
+                                    return statement.step()
+                                }
+                            }
+                        }
+                    }
                 }
-            }, { it.run() })
+            })
             .build()
         val out = StringBuilder()
         suspend fun record(id: String, input: String, operation: suspend () -> Any?) {
@@ -257,7 +345,7 @@ class Driver175FixturesTest {
         }
         try {
             querySeed(db)
-            golden("queries-seed.txt", snapshot(db.openHelper.writableDatabase))
+            db.useReaderConnection { golden("queries-seed.txt", snapshot(it)) }
             val reader = AskContextReader(db)
             fun source(kind: String, id: Long = 1) = AskSource(kind, id, at, "合成", "合成")
             for (kind in listOf("line", "event", "item")) record("context.refresh.$kind", "$kind/1") { reader.refresh(source(kind))?.let(::JSONObject) }
@@ -268,7 +356,7 @@ class Driver175FixturesTest {
             for (args in listOf("{\"operation\":\"item_status\",\"id\":1,\"status\":\"Done\"}", "{\"operation\":\"event_star\",\"id\":1,\"starred\":true}")) {
                 record("changes.${JSONObject(args).getString("operation")}", args) { JSONObject(changes.propose(JSONObject(args), listOf(source("item"), source("event"))).encode()) }
             }
-            record("review.materialChanges", "SELECT 1") { db.review().materialChanges(SimpleSQLiteQuery("SELECT 1")).first() }
+            record("review.materialChanges", "SELECT 1") { db.review().materialChanges(androidx.room.RoomRawQuery("SELECT 1")).first() }
             record("embedding.pending", "model=unbuilt") { EmbeddingStore(db).pending("unbuilt").toString() }
             val spec = JSONObject(File("src/main/assets/prompts/ask-sql.json").readText())
             val tools = AskTools(db, spec, ZoneId.of("UTC"))
@@ -285,7 +373,7 @@ class Driver175FixturesTest {
             }
             val semantic = AskTools(db, spec, ZoneId.of("UTC"), { embedder })
             record("tools.semanticIds", "semantic_search/query=合成向量") { semantic.execute("semantic_search", JSONObject().put("query", "合成向量"), mutableListOf()) }
-            record("ideas.merge", "model=synthetic") { IdeaMerger(db).merge("synthetic"); rows(db.query("SELECT id,mergedInto FROM memory_items ORDER BY id", null)) }
+            record("ideas.merge", "model=synthetic") { IdeaMerger(db).merge("synthetic"); db.readSql("SELECT id,mergedInto FROM memory_items ORDER BY id") { rows(it) } }
             golden("queries.txt", out.toString())
         } finally { db.close(); context.deleteDatabase(name) }
     }
@@ -296,18 +384,20 @@ class Driver175FixturesTest {
         File(context.noBackupFilesDir, "backup-restore").deleteRecursively()
         val db = CaptureDatabase.open(context)
         try {
-            val sql = db.openHelper.writableDatabase
             // 备份用业务有效的搜索数据；迁移夹具另覆盖全部表。
             querySeed(db)
-            healthy(sql)
-            golden("backup-before.txt", snapshot(sql))
+            db.useReaderConnection { healthy(it); golden("backup-before.txt", snapshot(it)) }
             val archive = File(root, "synthetic.zip")
             BackupArchive.create(context, db, File(root, "stage").apply { mkdirs() }, archive, at)
             val fixture = File(fixtures, "synthetic-backup.zip")
-            if (recording && !fixture.exists()) archive.copyTo(fixture)
             assertTrue(fixture.isFile)
             // 新生成的备份也校验，固定旧备份永久保留，不能重录覆盖。
-            BackupArchive.verify(archive, File(root, "new-verified"), CaptureDatabase.VERSION)
+            val newVerified = File(root, "new-verified")
+            BackupArchive.verify(archive, newVerified, CaptureDatabase.VERSION)
+            val newBackup = CaptureDatabase.open(context, File(newVerified, BackupArchive.DATABASE).absolutePath)
+            try {
+                newBackup.useReaderConnection { healthy(it); golden("backup-before.txt", snapshot(it)) }
+            } finally { newBackup.close() }
             val verified = File(root, "old-verified")
             BackupArchive.verify(fixture, verified, CaptureDatabase.VERSION)
             db.close()
@@ -315,9 +405,42 @@ class Driver175FixturesTest {
             BackupRestore.applyPending(context)
             val restored = CaptureDatabase.open(context)
             try {
-                healthy(restored.openHelper.writableDatabase)
-                golden("backup-restored.txt", snapshot(restored.openHelper.writableDatabase))
+                restored.useReaderConnection { healthy(it); golden("backup-restored.txt", snapshot(it)) }
             } finally { restored.close() }
         } finally { db.close(); context.deleteDatabase("capture.db"); root.deleteRecursively() }
+    }
+
+    @Test fun backupDuringRecordingWritesKeepsParentsAndSearchConsistent() = runBlocking(Dispatchers.IO) {
+        val name = "driver175-recording-backup.db"; context.deleteDatabase(name)
+        val db = CaptureDatabase.open(context, name)
+        val root = File(context.cacheDir, "driver175-concurrent").apply { mkdirs() }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val requested = CompletableDeferred<Unit>()
+        val writer = launch {
+            db.writeTransaction {
+                db.capture().segment(SegmentEntity(100, at, at + 1000, "mic", "synthetic-recording", 1, "Done"))
+                entered.complete(Unit)
+                release.await()
+                db.writeSql("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text) VALUES(100,100,?,?,'并发录音')", arrayOf(at, at + 1000))
+            }
+        }
+        try {
+            withTimeout(5000) { entered.await() }
+            val copy = File(root, "copy.db")
+            val backup = async(Dispatchers.IO) { requested.complete(Unit); BackupArchive.snapshot(db, copy) }
+            withTimeout(5000) { requested.await() }
+            release.complete(Unit)
+            withTimeout(5000) { writer.join(); backup.await() }
+            androidx.sqlite.driver.AndroidSQLiteDriver().open(copy.path).use { connection ->
+                connection.prepare("PRAGMA integrity_check").use { assertTrue(it.step()); assertEquals("ok", it.getText(0)); assertFalse(it.step()) }
+                connection.prepare("PRAGMA foreign_key_check").use { assertFalse(it.step()) }
+                connection.prepare("SELECT count(*) FROM segments s JOIN transcript_lines l ON l.segmentId=s.id WHERE s.id=100").use { assertTrue(it.step()); assertEquals(1L, it.getLong(0)) }
+                connection.prepare("SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?").use {
+                    it.bindText(1, SearchTokens.terms(listOf("并发录音")).single())
+                    assertTrue(it.step()); assertEquals(100L, it.getLong(0))
+                }
+            }
+        } finally { release.complete(Unit); writer.cancelAndJoin(); db.close(); context.deleteDatabase(name); root.deleteRecursively() }
     }
 }

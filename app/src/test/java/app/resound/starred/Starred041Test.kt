@@ -1,5 +1,6 @@
 package app.resound.starred
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -41,7 +42,7 @@ class Starred041Test {
 
     @Before fun setup() {
         oldZone = TimeZone.getDefault(); TimeZone.setDefault(TimeZone.getTimeZone(zone))
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
@@ -59,7 +60,7 @@ class Starred041Test {
         db.memory().insertItems(listOf(MemoryItemEntity(id, event, category, null, "条目$id", null, null, null,
             null, status, at - 5 * days, doneAt = done)))
     }
-    private fun vector(id: Long, value: FloatArray, model: String = "test") {
+    private suspend fun vector(id: Long, value: FloatArray, model: String = "test") {
         EmbeddingStore(db).save(EmbeddingStore.Document("event", id, "事件$id\n方案进展\n[]"), model, value)
     }
     private val quiet = object : Notifier {
@@ -90,7 +91,7 @@ class Starred041Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.testSql.version)
             val rows = migrated.memory().events(0, 10).first().sortedBy { it.id }
             assertEquals(listOf(false, true), rows.map { it.important })
             assertTrue(rows.all { !it.starred && it.starredAt == null })
@@ -119,7 +120,7 @@ class Starred041Test {
         assertFalse(unstarred.starred); assertNull(unstarred.starredAt)
         // 中途条目 UPDATE 失败时，星标和先接受的条目一起回滚。
         item(41, 4); item(42, 4, category = "备忘")
-        db.openHelper.writableDatabase.execSQL("""CREATE TRIGGER fail_star BEFORE UPDATE OF status ON memory_items
+        db.testSql.execSQL("""CREATE TRIGGER fail_star BEFORE UPDATE OF status ON memory_items
             WHEN NEW.id = 42 BEGIN SELECT RAISE(ABORT, 'test rollback'); END""")
         assertTrue(runCatching { db.memory().setStarred(4, true, at) }.isFailure)
         assertFalse(memory.events(day).first().single { it.id == 4L }.starred)
@@ -185,7 +186,7 @@ class Starred041Test {
     @Test fun reviewInputAndOutputKeepFourStarsAndHistoricalReminder() = runBlocking {
         for (id in 1L..5L) event(id, star = if (id <= 4) at + id else null)
         // 用户主动标星的媒体事件也必须进入回顾。
-        db.openHelper.writableDatabase.execSQL("UPDATE memory_events SET scene='媒体' WHERE id=4")
+        db.testSql.execSQL("UPDATE memory_events SET scene='媒体' WHERE id=4")
         event(9, at - 6 * days, at - 4 * days); item(9, 9)
         val source = db.review().reviewInput(at, at + 1000)
         val input = JSONObject(ReviewPrompt.input(day, source, zone))
@@ -213,7 +214,7 @@ class Starred041Test {
 
     @Test fun dailyMemoryCarriesBooleanAndTimelineStarWithoutMarkingImportantOnly() = runBlocking {
         event(1, star = at, important = false); event(2, important = true)
-        db.openHelper.writableDatabase.execSQL("UPDATE memory_events SET scene='媒体' WHERE id=1")
+        db.testSql.execSQL("UPDATE memory_events SET scene='媒体' WHERE id=1")
         val message = DailyMemorySource(context, memory, reviews(), db.memory(), db.review(), db.skills()).load(day, false)!!
         val json = message.memory!!
         val events = json.getJSONObject("data").getJSONArray("events")

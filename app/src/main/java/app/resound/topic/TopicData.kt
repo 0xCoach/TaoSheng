@@ -1,7 +1,8 @@
 package app.resound.topic
 
+import androidx.sqlite.execSQL
 import androidx.room.*
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
 import app.resound.data.*
 import kotlinx.coroutines.flow.Flow
 
@@ -87,7 +88,7 @@ internal interface TopicDao {
 }
 
 internal object TopicSchema {
-    fun create(db: SupportSQLiteDatabase) {
+    fun create(db: SQLiteConnection) {
         db.execSQL("""CREATE TABLE IF NOT EXISTS topics (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             kind TEXT NOT NULL, name TEXT, status TEXT NOT NULL, createdAt INTEGER NOT NULL,
             plannedStartAt INTEGER, plannedEndAt INTEGER, repeatRule INTEGER, eventId INTEGER, cardId INTEGER,

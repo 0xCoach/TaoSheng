@@ -1,9 +1,9 @@
 package app.resound.search
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
-import androidx.sqlite.db.SimpleSQLiteQuery
 import app.resound.ask.*
 import app.resound.data.*
 import app.resound.digest.LlmStreamReply
@@ -26,20 +26,20 @@ import java.time.ZoneId
 class SearchUpgradeTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val at = AskTools.timestamp("2026-10-23 10:00", false, ZoneId.systemDefault())
-    private fun database() = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
+    private fun database() = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
         .addCallback(SearchIndex.callback).allowMainThreadQueries().build()
     private inline fun <T> CaptureDatabase.use(block: (CaptureDatabase) -> T): T = try { block(this) } finally { close() }
     private fun tools(db: CaptureDatabase, embedder: Embedder? = null) = AskTools(db,
         JSONObject(File("src/main/assets/prompts/ask-sql.json").readText()), embedder = { embedder })
     private fun seed(db: CaptureDatabase, id: Int = 1, title: String = "交通票据", deleted: Int = 0) {
-        val sql = db.openHelper.writableDatabase
+        val sql = db.testSql
         sql.execSQL("INSERT OR IGNORE INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,?,?,'mic','test',1,'Done')", arrayOf(at, at+1000))
         sql.execSQL("""INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model)
             VALUES(?,?,?,'其他',?,'明天把车费发票交给财务','["整理票据"]','[]',0,?,?,'test')""", arrayOf(id,at,at+1000,title,deleted,at))
         sql.execSQL("INSERT INTO memory_items(id,eventId,category,content,status,createdAt) VALUES(?,?,'待办','交通票据交给财务','Pending',?)",arrayOf(id,id,at))
         sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(?,1,?,?,'明天把车费发票交给财务',?,'我')",arrayOf(id,at,at+1000,id))
     }
-    private fun scalar(db: CaptureDatabase, sql: String): Long = db.query(sql, null).use { it.moveToFirst(); it.getLong(0) }
+    private fun scalar(db: CaptureDatabase, sql: String): Long = db.testSql.query(sql, null).use { it.moveToFirst(); it.getLong(0) }
     private fun found(db: CaptureDatabase, name: String, args: String, embedder: Embedder? = null) =
         tools(db, embedder).execute(name, JSONObject(args), mutableListOf()).getJSONArray("results")
     private fun source(kind: String = "item", id: Long = 1) = AskSource(kind, id, at, "记录", "原话")
@@ -53,7 +53,7 @@ class SearchUpgradeTest {
             val text = "中文检索，A12 foo-bar 单!"
             val tokens = listOf("中文", "文检", "检索", "a12", "foo", "bar", "单")
             assertEquals(tokens, SearchTokens.split(text))
-            db.query(SimpleSQLiteQuery("SELECT ${SearchTokens.sql("?")}", arrayOf(text))).use { c ->
+            db.testSql.query("SELECT ${SearchTokens.sql("?")}", arrayOf(text)).use { c ->
                 c.moveToFirst(); assertEquals(tokens.joinToString(" "), c.getString(0))
             }
             assertEquals("(\"中文\" AND \"文检\" AND \"检索\") OR (\"hello\")", SearchTokens.match(listOf("中文检索", "Hello")))
@@ -86,10 +86,10 @@ class SearchUpgradeTest {
                 }
                 old.version = version
             }
-            val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).allowMainThreadQueries().addCallback(SearchIndex.callback)
+            val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().addCallback(SearchIndex.callback)
                 .addMigrations(*CaptureDatabase.MIGRATIONS).build()
             try {
-                assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 验证 schema。
+                assertEquals(CaptureDatabase.VERSION, db.testSql.version) // Room 验证 schema。
                 assertEquals("old", db.transcribe().segment(1).path)
                 if (version == 10) {
                     for (tool in listOf("search_lines","search_events","list_items")) assertEquals(1, found(db,tool,"""{"keywords":["发票"]}""").length())
@@ -106,10 +106,10 @@ class SearchUpgradeTest {
             assertEquals(1,found(db,"search_lines","""{"keywords":["发票"],"speaker":"我","from":"2026-10-23","to":"2026-10-23"}""").length())
             assertEquals(0,found(db,"search_lines","""{"keywords":["发票"],"speaker":"他"}""").length())
             assertEquals(0,found(db,"search_lines","""{"keywords":["发票"],"from":"2026-10-24"}""").length())
-            db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET text='明天吃饭' WHERE id=1")
+            db.testSql.execSQL("UPDATE transcript_lines SET text='明天吃饭' WHERE id=1")
             assertEquals(0,found(db,"search_lines","""{"keywords":["发票"]}""").length())
             assertEquals(1,found(db,"search_lines","""{"keywords":["吃饭"]}""").length())
-            db.openHelper.writableDatabase.execSQL("DELETE FROM transcript_lines WHERE id=1")
+            db.testSql.execSQL("DELETE FROM transcript_lines WHERE id=1")
             assertEquals(0,scalar(db,"SELECT count(*) FROM lines_fts WHERE rowid=1"))
         }
     }
@@ -120,7 +120,7 @@ class SearchUpgradeTest {
         assertEquals(listOf(1,2),Vectors.merge(listOf(1,1,2),emptyList()))
     }
 
-    @Test fun mixedSearchUsesSemanticFiltersAndFallsBackWhenModelUnavailable() {
+    @Test fun mixedSearchUsesSemanticFiltersAndFallsBackWhenModelUnavailable() = runBlocking {
         database().use { db ->
             seed(db); seed(db,2,deleted=1)
             val store = EmbeddingStore(db)
@@ -203,7 +203,7 @@ class SearchUpgradeTest {
         val db = database(); seed(db); seed(db,2,"无关事件")
         val scope = CoroutineScope(SupervisorJob()+Dispatchers.IO)
         try {
-            for (id in 3..50) db.openHelper.writableDatabase.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId) VALUES(?,1,?,?,'原话补充',1)",arrayOf(id,at,at+1000))
+            for (id in 3..50) db.testSql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId) VALUES(?,1,?,?,'原话补充',1)",arrayOf(id,at,at+1000))
             var userText = ""
             val repo = RoomAskRepository(db.ask(),scope,{true},engine={ AskEngine(AskStream { messages,_,_,_->
                 assertEquals(2,messages.length()); userText = messages.getJSONObject(1).getString("content")
@@ -224,20 +224,20 @@ class SearchUpgradeTest {
         } finally { scope.cancel(); scope.coroutineContext[Job]!!.join(); db.close() }
     }
 
-    @Test fun embeddingBatchCapsNormalizesAndRejectsStaleSnapshot() {
+    @Test fun embeddingBatchCapsNormalizesAndRejectsStaleSnapshot() = runBlocking {
         database().use { db ->
             for (id in 1..35) seed(db,id)
             val store = EmbeddingStore(db); val batch = store.pending("test")
             assertEquals(64,batch.size); val first = batch.first()
             store.save(first,"test",floatArrayOf(3f,4f))
-            db.query("SELECT vector,dim FROM embeddings",null).use { c ->
+            db.testSql.query("SELECT vector,dim FROM embeddings",null).use { c ->
                 c.moveToFirst(); assertArrayEquals(floatArrayOf(.6f,.8f),Vectors.decode(c.getBlob(0),c.getInt(1)),.00001f)
             }
-            db.openHelper.writableDatabase.execSQL("UPDATE memory_events SET title='变化' WHERE id=?",arrayOf(first.id))
+            db.testSql.execSQL("UPDATE memory_events SET title='变化' WHERE id=?",arrayOf(first.id))
             assertEquals(0,scalar(db,"SELECT count(*) FROM embeddings"))
             store.save(first,"test",floatArrayOf(3f,4f))
             assertEquals(0,scalar(db,"SELECT count(*) FROM embeddings"))
-            db.openHelper.writableDatabase.execSQL("UPDATE memory_events SET deleted=1 WHERE id=1")
+            db.testSql.execSQL("UPDATE memory_events SET deleted=1 WHERE id=1")
             assertFalse(store.pending("test").any { it.id==1L })
         }
     }

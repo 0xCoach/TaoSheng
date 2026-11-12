@@ -38,7 +38,7 @@ class TranscribeSchedulerTest {
     }
     @After fun close() { manager.cancelAllWork().result.get(); WorkManagerTestInitHelper.closeWorkDatabase() }
     @Test fun playbackSkippedStaysOutOfQueueAndManualOverrideRequeues() = runBlocking {
-        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val audio = java.io.File.createTempFile("playback-test", ".ogg", context.cacheDir).apply { writeBytes(byteArrayOf(1)) }
         try {
@@ -59,7 +59,7 @@ class TranscribeSchedulerTest {
         } finally { scope.cancel(); db.close(); audio.delete() }
     }
     @Test fun repositoryPublishesAndResetsRealRoundProgress() = runBlocking {
-        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java)
+        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .allowMainThreadQueries().build()
         val job = SupervisorJob()
         val scope = CoroutineScope(job + Dispatchers.IO)
@@ -117,7 +117,7 @@ class TranscribeSchedulerTest {
         assertEquals(first.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.IMMEDIATE).get().single().id)
     }
     @Test fun diagnosticsContainOnlyAttemptMetadataAndQueueCounts() = runBlocking {
-        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java)
+        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .allowMainThreadQueries().build()
         val settings = Settings().apply { saveKey("synthetic-key") }
         val job = SupervisorJob()

@@ -250,7 +250,7 @@ class PushMoreTest {
         override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {}
     }
     @Test fun diaryAndDailySourceIncludeTypedCardsAndUseReviewCutoffWindow() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val zone = ZoneId.systemDefault()

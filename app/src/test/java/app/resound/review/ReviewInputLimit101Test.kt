@@ -43,7 +43,7 @@ class ReviewInputLimit101Test {
     private suspend fun repository(preset: LlmPreset, e: MemoryEventEntity,
         chat: suspend (LlmPreset, String, String, String) -> LlmReply,
         check: suspend (RoomReviewRepository) -> Unit) {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val prefs = context.getSharedPreferences("review101", 0).apply { edit().clear().commit() }
         val repo = RoomReviewRepository(db.review(), db.memory(), prefs, scope, { preset to "test" }, chat,

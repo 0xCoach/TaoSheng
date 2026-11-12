@@ -1,7 +1,7 @@
 package app.resound.ask
 
 import app.resound.context.PlaceAt
-import app.resound.data.CaptureDatabase
+import app.resound.data.*
 import app.resound.location.LocationRepository
 import app.resound.location.Track
 import kotlinx.coroutines.flow.first
@@ -40,10 +40,9 @@ class CachedAskPlaces(
 
     suspend fun placesDuring(from: Long, to: Long): List<PlaceAt> {
         if (!enabled() || from >= to) return emptyList()
-        val bounds = database.query("SELECT MIN(at), MAX(at) FROM location_points", emptyArray()).use {
-            if (!it.moveToFirst() || it.isNull(0)) return emptyList()
-            it.getLong(0) to it.getLong(1)
-        }
+        val bounds = database.readSql("SELECT MIN(at), MAX(at) FROM location_points") {
+            if (!it.step() || it.isNull(0)) null else it.getLong(0) to it.getLong(1)
+        } ?: return emptyList()
         val start = maxOf(from, bounds.first)
         val last = minOf(to - 1, bounds.second)
         if (start > last) return emptyList()

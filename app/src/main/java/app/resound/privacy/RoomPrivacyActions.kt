@@ -1,6 +1,6 @@
 package app.resound.privacy
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
@@ -101,7 +101,7 @@ class RoomPrivacyActions(
         return voiceprintGuard {
             onStage(EventDeletionPhase.WaitingForDatabase)
             val files = mutableListOf<Pair<SegmentEntity, List<TranscriptLineEntity>>>()
-            val result = db.withTransaction {
+            val result = db.writeTransaction {
                 onStage(EventDeletionPhase.Records)
                 val segments = select()
                 val events = mutableSetOf<Long>()

@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import app.resound.AppGraph
 import app.resound.ResoundApp
 import app.resound.data.CaptureDatabase
+import app.resound.data.writeSql
 import app.resound.digest.AndroidDigestSettings
 import app.resound.digest.DigestPrompt
 import app.resound.digest.LlmClient
@@ -28,13 +29,12 @@ class AskFollowUp097DeviceTest {
         val settings = AppGraph.digestSettings as AndroidDigestSettings
         val (preset, key) = synchronized(settings.providers.guard) { settings.preset to settings.readKey() }
         val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
-            .addCallback(app.resound.search.SearchIndex.callback).build()
+            .addCallback(app.resound.search.SearchIndex.callback).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         var calls = 0; var tokens = 0L
         try {
-            val sql = db.openHelper.writableDatabase
-            sql.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,2000,'mic','/synthetic',1,'Done')")
-            sql.execSQL("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(9,1000,2000,'会议','纸飞机项目测试会议','试运行两周后复盘','[]','[]',0,0,2000,'fake')")
-            sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(42,1,1000,2000,'大家最终决定：纸飞机项目先试运行两周，之后开会复盘。今天没有批准正式推广。',9,'测试员')")
+            db.writeSql("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,2000,'mic','/synthetic',1,'Done')")
+            db.writeSql("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(9,1000,2000,'会议','纸飞机项目测试会议','试运行两周后复盘','[]','[]',0,0,2000,'fake')")
+            db.writeSql("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(42,1,1000,2000,'大家最终决定：纸飞机项目先试运行两周，之后开会复盘。今天没有批准正式推广。',9,'测试员')")
             fun asset(name: String) = context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
             val definitions = JSONArray(app.resound.ask.core.AskDefinitions.json())
             val tools = AskTools(db, JSONObject(asset("ask-sql.json")))

@@ -1,5 +1,6 @@
 package app.resound.skills
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -47,7 +48,7 @@ class Skills031Test {
     @Before fun setup() {
         root = File(context.cacheDir, "skills031").apply { deleteRecursively(); mkdirs() }
         files = SkillFiles(root, ::official)
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
     @After fun teardown() { scope.cancel(); db.close(); root.deleteRecursively() }
@@ -64,7 +65,7 @@ class Skills031Test {
     private suspend fun seed() {
         db.capture().segment(SegmentEntity(1, start + 36_000_000, start + 37_000_000, "mic", "/unused", 0, "Done"))
         db.memory().insertEvent(MemoryEventEntity(1, start + 36_000_000, start + 37_000_000, "会议", "项目会议", "讨论项目推进", "[]", "[]", null, null, null, false, false, start + 38_000_000, "test"))
-        val sql = db.openHelper.writableDatabase
+        val sql = db.testSql
         sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,speakerName,eventId,digestedAt,speakerManual) VALUES(1,1,?,?, '我来推进项目','我',1,?,0)", arrayOf(start + 36_000_000, start + 36_002_000, start + 38_000_000))
         sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,speakerName,eventId,digestedAt,speakerManual) VALUES(2,1,?,?, '我负责预算','小王',1,?,0)", arrayOf(start + 36_900_000, start + 36_902_000, start + 38_000_000))
     }
@@ -191,7 +192,7 @@ class Skills031Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals(12L, migrated.memory().observeUsage().first().single().promptTokens)
             assertNotNull(migrated.skills().merge(card(), 8)); assertEquals(1, migrated.skills().cards(day.toEpochDay()).first().size)
         } finally { migrated.close(); context.deleteDatabase(name) }
@@ -267,7 +268,7 @@ class Skills031Test {
         }
         val copy = CaptureDatabase.open(context, path)
         try {
-            assertEquals(app.resound.data.CaptureDatabase.VERSION, copy.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, copy.testSql.version)
             for (s in skillsForProbe()) {
                 val input = SkillInputs.load(copy.skills(), s, day, null, start + 86_399_999)
                 val json = JSONObject().put("skillId", s.id).put("date", day.toString())

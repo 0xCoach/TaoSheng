@@ -60,7 +60,7 @@ class ReviewPushTest {
     }
 
     private suspend fun fixture(block: suspend (CaptureDatabase, RoomReviewRepository, AndroidPushChannels, FakeDelivery, MutableList<PushMessage>) -> Unit) {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val fake = FakeDelivery()
         val local = mutableListOf<PushMessage>()

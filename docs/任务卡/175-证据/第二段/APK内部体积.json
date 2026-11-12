@@ -1,0 +1,22 @@
+{
+  "resources/other": {
+    "files": 658,
+    "bytes": 1531710,
+    "compressedBytes": 1186002
+  },
+  "dex": {
+    "files": 33,
+    "bytes": 59268896,
+    "compressedBytes": 59268896
+  },
+  "native": {
+    "files": 10,
+    "bytes": 80001318,
+    "compressedBytes": 31525415
+  },
+  "assets": {
+    "files": 61,
+    "bytes": 33548165,
+    "compressedBytes": 30037450
+  }
+}

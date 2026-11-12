@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -24,7 +25,7 @@ class TranscribePersistenceTest {
     private val created = mutableListOf<File>()
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         dao = db.transcribe()
     }
     @After fun close() { db.close(); created.forEach { it.delete() } }
@@ -131,10 +132,10 @@ class TranscribePersistenceTest {
             old.execSQL("INSERT INTO battery VALUES (1,1000,80,0)")
             old.version = 1
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            val writable = migrated.openHelper.writableDatabase // Room 逐表、列、索引和外键校验真实迁移。
+            val writable = migrated.testSql // Room 逐表、列、索引和外键校验真实迁移。
             val segment = migrated.transcribe().segment(7)
             assertEquals("Pending", segment.status)
             assertEquals("/old/audio.ogg", segment.path)

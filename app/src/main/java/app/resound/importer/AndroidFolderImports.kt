@@ -2,7 +2,7 @@ package app.resound.importer
 
 import android.content.Context
 import android.net.Uri
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -172,7 +172,7 @@ internal class AndroidFolderImports(
                     error = "${file.name}：${e.message ?: "读取失败，下次扫描重试"}"
                 }
             }
-            db.withTransaction { dao.clearObservations(f.id); dao.observe(observations) }
+            db.writeTransaction { dao.clearObservations(f.id); dao.observe(observations) }
             setting = setting.copy(baseline = false, folder = f.copy(lastScanAt = now, imported = f.imported + imported, lastError = error))
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {

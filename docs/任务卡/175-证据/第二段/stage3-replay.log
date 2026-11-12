@@ -1,0 +1,129 @@
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata UP-TO-DATE
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResources UP-TO-DATE
+> Task :devices:packageDebugResources UP-TO-DATE
+> Task :shared:generateDebugResValues UP-TO-DATE
+> Task :shared:generateDebugResources UP-TO-DATE
+> Task :shared:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:processDebugManifest UP-TO-DATE
+> Task :shared:extractDeepLinksDebug UP-TO-DATE
+> Task :shared:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :devices:compileDebugLibraryResources UP-TO-DATE
+> Task :devices:parseDebugLocalResources UP-TO-DATE
+> Task :devices:generateDebugRFile UP-TO-DATE
+> Task :shared:compileDebugLibraryResources UP-TO-DATE
+> Task :shared:parseDebugLocalResources UP-TO-DATE
+> Task :shared:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :devices:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :devices:compileDebugKotlinAndroid UP-TO-DATE
+> Task :devices:javaPreCompileDebug UP-TO-DATE
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :shared:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :shared:compileDebugKotlinAndroid UP-TO-DATE
+> Task :shared:javaPreCompileDebug UP-TO-DATE
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:bundleDebugClassesToRuntimeJar UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugShaders UP-TO-DATE
+> Task :devices:compileDebugShaders NO-SOURCE
+> Task :devices:debugAssetsCopyForAGP NO-SOURCE
+> Task :devices:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugShaders UP-TO-DATE
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:packageDebugUnitTestForUnitTest UP-TO-DATE
+> Task :app:generateDebugUnitTestConfig UP-TO-DATE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :devices:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :devices:processDebugJavaRes UP-TO-DATE
+> Task :shared:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :shared:processDebugJavaRes UP-TO-DATE
+> Task :app:kspDebugUnitTestKotlin
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ask/AskFollowUp097Test.kt:90:135 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ask/AskPlace131Test.kt:63:70 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ask/AskPlace131Test.kt:67:39 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>?' & 'Serializable?']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/BackupHistoryTest.kt:56:75 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/BackupHistoryTest.kt:177:35 The corresponding parameter in the supertype 'Dispatcher' is named 'request'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/DayVolumesTest.kt:54:115 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/DayVolumesTest.kt:222:35 The corresponding parameter in the supertype 'Dispatcher' is named 'request'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/DownloadsBackup123Test.kt:250:77 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/data/Driver175FixturesTest.kt:302:135 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/data/Driver175FixturesTest.kt:303:221 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/data/Driver175FixturesTest.kt:304:130 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/data/Driver175FixturesTest.kt:305:132 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>?' & 'Serializable?']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/digest/DigestTiming053Test.kt:68:29 'field operation: PendingIntent?' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/importer/FolderDocuments117Test.kt:31:98 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/net/KtorParity151Test.kt:190:40 The corresponding parameter in the supertype 'WebSocketListener' is named 'webSocket'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/net/KtorParity151Test.kt:190:53 The corresponding parameter in the supertype 'WebSocketListener' is named 'bytes'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/push/PushNewline113Test.kt:47:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/recordings/RecordingArchive072Test.kt:29:34 'fun createTempDir(prefix: String = ..., suffix: String? = ..., directory: File? = ...): File' is deprecated. Avoid creating temporary directories in the default temp location with this function due to too wide permissions on the newly created directory. Use kotlin.io.path.createTempDirectory instead.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:39 The corresponding parameter in the supertype 'WorkerFactory' is named 'appContext'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:57 The corresponding parameter in the supertype 'WorkerFactory' is named 'workerClassName'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:71 The corresponding parameter in the supertype 'WorkerFactory' is named 'workerParameters'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:38:81 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:39:134 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:40:141 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:206:167 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/topic/TopicDesignShotsTest.kt:29:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/transcribe/ScreenOffBatch126Test.kt:38:70 'fun setIsInteractive(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/BatchDeleteInvestigationTest.kt:29:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/LocalLanguageChoice093Test.kt:19:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/ReportCopy090Test.kt:25:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/ReportModules095Test.kt:18:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/ReportPresentationTest.kt:29:27 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/ReportSelection092Test.kt:23:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/ScreenSizeShots.kt:35:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/SwipeDelete094Test.kt:26:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ui/verify/DeviceUiShots.kt:32:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :app:testDebugUnitTest
+
+BUILD SUCCESSFUL in 13s
+67 actionable tasks: 5 executed, 62 up-to-date

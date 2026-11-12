@@ -1,5 +1,6 @@
 package app.resound.redo
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -33,7 +34,7 @@ class Redo071Test {
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
         listOf("redo-jobs", "redo-choices", "imports", "transcribe", "digest").forEach { context.getSharedPreferences(it, 0).edit().clear().commit() }
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         root = File(context.cacheDir, "redo071-${System.nanoTime()}").apply { mkdirs() }
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
@@ -246,10 +247,10 @@ class Redo071Test {
             old.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1,2,'mic','old',0,'Done')")
             old.version = 23
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals("old", migrated.transcribe().segment(1).path)
             assertNull(migrated.transcribe().segment(1).asrSource); assertFalse(migrated.transcribe().segment(1).redoPending)
             assertNull(migrated.redoData().snapshotMeta())

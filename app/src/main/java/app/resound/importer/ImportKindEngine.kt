@@ -1,6 +1,6 @@
 package app.resound.importer
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.digest.LlmException
 import kotlinx.coroutines.CancellationException
@@ -34,7 +34,7 @@ internal class ImportKindEngine(
                     row = dao.get(row.id) ?: return@audioIdle
                     if (!row.speakersReady) {
                         val warning = prepareSpeakers(row)
-                        db.withTransaction {
+                        db.writeTransaction {
                             if (dao.get(row.id)?.revision == row.revision)
                                 dao.update(row.copy(speakersReady = true, error = warning))
                         }
@@ -43,20 +43,20 @@ internal class ImportKindEngine(
                 row = dao.get(row.id) ?: continue
                 if (!row.speakersReady || !row.summaryRequested) continue
                 val lines = dao.lines(row.id)
-                val claimed = db.withTransaction {
+                val claimed = db.writeTransaction {
                     val current = dao.get(row.id)
                     if (current?.revision != row.revision) false
                     else { dao.update(current.copy(status = "Summarizing")); true }
                 }
                 if (!claimed) continue
                 val result = if (row.kind == ImportKind.Normal.name) null else summary.generate(row, lines, dao.todos(row.id))
-                db.withTransaction {
-                    val current = dao.get(row.id) ?: return@withTransaction
+                db.writeTransaction {
+                    val current = dao.get(row.id) ?: return@writeTransaction
                     // 删除/改类型/重新转写期间，旧网络结果不得复活已删除的文字。
-                    if (current.revision != row.revision) return@withTransaction
+                    if (current.revision != row.revision) return@writeTransaction
                     if (dao.lines(row.id).map { it.copy(eventId = null, digestedAt = null) } != lines.map { it.copy(eventId = null, digestedAt = null) }) {
                         dao.update(current.copy(status = "Transcribing", revision = current.revision + 1))
-                        return@withTransaction
+                        return@writeTransaction
                     }
                     current.cardId?.let { dao.deleteCard(it) }
                     val cardId = result?.card?.let { db.skills().save(it) }
@@ -74,7 +74,7 @@ internal class ImportKindEngine(
                 try { afterReady() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 已保存纪要不因后续调度失败回滚。 */ }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                db.withTransaction {
+                db.writeTransaction {
                     val current = dao.get(row.id)
                     if (current?.revision == row.revision) dao.update(current.copy(status = "Failed", summaryRequested = false,
                         error = (e as? LlmException)?.type?.human ?: "纪要生成失败，请重试"))
@@ -85,8 +85,8 @@ internal class ImportKindEngine(
 
     suspend fun change(id: Long, kind: ImportKind) = gate.withLock {
         audioIdle {
-            db.withTransaction {
-                val old = dao.get(id) ?: return@withTransaction
+            db.writeTransaction {
+                val old = dao.get(id) ?: return@writeTransaction
                 val segments = dao.segments(id)
                 old.cardId?.let { dao.deleteCard(it) }
                 val byChannel = kind == ImportKind.Call && segments.any { it.importChannel != null }
@@ -114,10 +114,10 @@ internal class ImportKindEngine(
     }
 
     suspend fun regenerate(id: Long) = gate.withLock {
-        db.withTransaction {
-            val row = dao.get(id) ?: return@withTransaction
+        db.writeTransaction {
+            val row = dao.get(id) ?: return@writeTransaction
             // 无原声的改类型必须显式重新导入，不能把旧分人结果冒充新类型。
-            if (row.error?.startsWith("原声已清理") == true) return@withTransaction
+            if (row.error?.startsWith("原声已清理") == true) return@writeTransaction
             row.cardId?.let { dao.deleteCard(it) }
             dao.update(row.copy(cardId = null, revision = row.revision + 1, status = "Transcribing", error = null, summaryRequested = true))
         }
@@ -137,7 +137,7 @@ internal object ImportTodoMerge {
             else roots += row
         }
     }
-    suspend fun all(db: CaptureDatabase) = db.withTransaction {
+    suspend fun all(db: CaptureDatabase) = db.writeTransaction {
         db.imports().ids().forEach { merge(db, it) }
     }
 }

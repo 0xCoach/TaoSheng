@@ -22,6 +22,8 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21
   :app:testDebugUnitTest --tests app.resound.data.Driver175FixturesTest
 ```
 
-首次录制才设置 `TAOSHENG_175_RECORD=1`；即使设置，也只创建不存在的文件，已有文件仍逐字断言。不能通过删除/重录旧夹具让第二段“通过”。ZIP 有生成时间元数据，不比较重打包 ZIP 字节；永久保存旧 ZIP，验证其 SHA、解包内容和恢复结果。迁移全部走产品 open 中的 `.addMigrations(*MIGRATIONS)`，版本断言使用 `CaptureDatabase.VERSION`。
+第一段录制器保存在提交 `23d6503`；第二段当前测试只读本目录，已移除录制入口，实际结果另存 `app/build/driver175-replay/`。不能通过删除/重录旧夹具让第二段“通过”。ZIP 有生成时间元数据，不比较重打包 ZIP 字节；永久保存旧 ZIP，验证其 SHA、解包内容和恢复结果，新生成 ZIP 的解包数据库也逐字对照。迁移全部走产品 open 中的 `.addMigrations(*MIGRATIONS)`，版本断言使用 `CaptureDatabase.VERSION`。
 
-查询录制利用旧 Room 的同步 QueryCallback，在产品 SELECT 前对同一连接/SQL/绑定参数读取结果，再执行产品入口并记录返回值；合成场景无并发写入。这样不会在 IdeaMerger 写完后再查询而丢失合并前候选。第二段 Room 2.8.4 driver 模式不支持 setQueryCallback，需要把测试采集器改为 SQLiteDriver/SQLiteStatement 包装，继续读取本目录旧答案；不能改产品查询来适配测试。
+第一段查询录制利用旧 Room 的同步 QueryCallback，在产品 SELECT 前对同一连接/SQL/绑定参数读取结果。第二段已改为 SQLiteDriver/SQLiteStatement 包装，在第一次 step 前读取同一 SQL 和绑定值；仅排除原 QueryCallback 不采集的 Room 内部 `room_table_modification_log` 通知查询，不过滤产品 SELECT。合成查询场景无并发写入，IdeaMerger 的候选仍在合并前采集，25 组旧答案逐字相同。
+
+第二段另用旧输入库/新装快照验证嵌套提交、取消回滚和写入通知；并发录音备份单独检查父子行、FTS、integrity_check、foreign_key_check。每个来源版本的触发器集合与旧快照相等，并记录相对现行 15 个触发器的缺失项；未补历史 SQL。

@@ -1,22 +1,20 @@
 package app.resound.search
 
-import androidx.room.withTransaction
-import androidx.sqlite.db.SimpleSQLiteQuery
-import app.resound.data.CaptureDatabase
+import app.resound.data.*
 
 /** 只比较当前模型、向量已就绪的独立灵感；早记录为主，原文和出处始终保留。 */
 class IdeaMerger(private val db: CaptureDatabase) {
     private data class Idea(val id: Long, val vector: FloatArray)
 
-    suspend fun merge(model: String) = db.withTransaction {
-        val ideas = db.query(SimpleSQLiteQuery("""SELECT i.id,v.vector,v.dim FROM memory_items i
+    suspend fun merge(model: String) = db.writeTransaction {
+        val ideas = db.readSql("""SELECT i.id,v.vector,v.dim FROM memory_items i
             JOIN memory_events e ON e.id=i.eventId
             JOIN embeddings v ON v.kind='item' AND v.refId=i.id AND v.model=?
             WHERE i.deleted=0 AND e.deleted=0 AND i.category='灵感' AND i.mergedInto IS NULL AND i.noMerge=0 AND i.editedAt IS NULL
-            ORDER BY i.createdAt,i.id""", arrayOf(model))).use { cursor ->
+            ORDER BY i.createdAt,i.id""", arrayOf(model)) { cursor ->
             buildList {
-                while (cursor.moveToNext()) {
-                    val vector = runCatching { Vectors.normalize(Vectors.decode(cursor.getBlob(1), cursor.getInt(2))) }.getOrNull()
+                while (cursor.step()) {
+                    val vector = runCatching { Vectors.normalize(Vectors.decode(cursor.getBlob(1), cursor.getLong(2).toInt())) }.getOrNull()
                     if (vector != null) add(Idea(cursor.getLong(0), vector))
                 }
             }

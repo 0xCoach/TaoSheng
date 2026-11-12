@@ -2,7 +2,7 @@ package app.resound.envsound
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.transcribe.*
 import kotlinx.coroutines.*
@@ -63,7 +63,7 @@ class LocalEnvSoundRepository(
             val elapsed = (now()-start).coerceAtLeast(0)
             val row = EnvSoundRow(segment.id,segment.startAt,segment.endAt,segment.path,decision.verdict.name,decision.reason,
                 decision.tags.encoded(),decision.sounds.encoded(),scores.json(),decision.skip,decision.markMedia,elapsedMs=elapsed)
-            db.withTransaction { if(db.transcribe().findSegment(segment.id) != null) dao.insert(row) }
+            db.writeTransaction { if(db.transcribe().findSegment(segment.id) != null) dao.insert(row) }
             log("环境音 ${elapsed}ms ${decision.verdict.name}")
             return decision.skip
         } catch(e: CancellationException) { throw e }
@@ -92,7 +92,7 @@ class LocalEnvSoundRepository(
     }
     override suspend fun restore(segmentId: Long): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            db.withTransaction {
+            db.writeTransaction {
                 val row = requireNotNull(dao.get(segmentId)) { "未找到这段录音" }
                 check(File(row.path).isFile) { "这段录音已过保留期" }
                 if(row.skipped && !row.restored) {
@@ -106,8 +106,8 @@ class LocalEnvSoundRepository(
     }
     override fun reportWrong(segmentId: Long) {
         scope.launch {
-            db.withTransaction {
-                val row = dao.get(segmentId) ?: return@withTransaction
+            db.writeTransaction {
+                val row = dao.get(segmentId) ?: return@writeTransaction
                 dao.wrong(segmentId)
                 if((row.skipped || row.verdict == "Skippable") && File(row.path).isFile) {
                     if(dao.requeueCorrection(segmentId) > 0 && row.skipped) dao.restored(segmentId)

@@ -1,7 +1,6 @@
 package app.resound.ask
 
-import androidx.sqlite.db.SimpleSQLiteQuery
-import app.resound.data.CaptureDatabase
+import app.resound.data.*
 import app.resound.context.PlaceAt
 import org.json.JSONObject
 import java.time.ZoneId
@@ -25,17 +24,17 @@ class AskTools(
         core.query(name, input.toString(), ids, stays).let { Query(it.sql, it.args, it.kind) }
     }
 
-    private fun read(q: Query): List<JSONObject> = db.query(SimpleSQLiteQuery(q.sql, q.args.toTypedArray())).use { cursor ->
+    private fun read(q: Query): List<JSONObject> = db.readSqlBlocking(q.sql, q.args.toTypedArray()) { cursor ->
         buildList {
-            while (cursor.moveToNext()) {
+            while (cursor.step()) {
                 val row = JSONObject()
                 cursor.columnNames.forEachIndexed { i, column ->
                     row.put(if (column == "voiceInputJson") "voice_input" else column, when {
                         cursor.isNull(i) -> JSONObject.NULL
-                        column == "voiceInputJson" -> app.resound.transcribe.VoiceInputMetadata.read(cursor.getString(i))?.let { app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(750), after = it.after?.take(750))) } ?: JSONObject.NULL
+                        column == "voiceInputJson" -> app.resound.transcribe.VoiceInputMetadata.read(cursor.getText(i))?.let { app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(750), after = it.after?.take(750))) } ?: JSONObject.NULL
                         column == "starred" -> cursor.getInt(i) != 0
                         column in setOf("id", "at", "starred_at") -> cursor.getLong(i)
-                        else -> cursor.getString(i).take(900)
+                        else -> cursor.getText(i).take(900)
                     })
                 }
                 add(row.put("kind", q.kind))
@@ -53,10 +52,10 @@ class AskTools(
         val from = table + " WHERE " + base.sql.substringAfterLast(" FROM $table WHERE ").substringBeforeLast(" ORDER BY ")
         // 使用与关键词完全相同的时间/类别/状态/删除过滤；向量不进入云端。
         val sql = "SELECT v.refId,v.dim,v.vector FROM embeddings v JOIN $from AND v.kind=? AND v.refId=$prefix.id AND v.model=?"
-        return db.query(SimpleSQLiteQuery(sql, (base.args + listOf(kind, model)).toTypedArray())).use { c ->
+        return db.readSqlBlocking(sql, (base.args + listOf(kind, model)).toTypedArray()) { c ->
             buildList {
-                while (c.moveToNext()) {
-                    val values = runCatching { app.resound.search.Vectors.decode(c.getBlob(2), c.getInt(1)) }.getOrNull() ?: continue
+                while (c.step()) {
+                    val values = runCatching { app.resound.search.Vectors.decode(c.getBlob(2), c.getLong(1).toInt()) }.getOrNull() ?: continue
                     val score = app.resound.search.Vectors.cosine(vector, values)
                     if (score.isFinite()) add(c.getLong(0) to score)
                 }

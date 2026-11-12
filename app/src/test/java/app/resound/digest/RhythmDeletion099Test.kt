@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -19,7 +20,7 @@ import java.time.ZoneId
 class RhythmDeletion099Test {
     private val zone = ZoneId.of("Asia/Shanghai")
     private val today = LocalDate.parse("2026-11-03").atStartOfDay(zone).toInstant().toEpochMilli()
-    private fun database() = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).build()
+    private fun database() = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
     private fun event(id: Long, at: Long, scene: String = "会议", end: Long = at + 60_000) =
         MemoryEventEntity(id, at, end, scene, "合成事件", "摘要", "[]", "[\"测试员\"]", null, null, null, false, createdAt = at, model = "test")
 
@@ -47,7 +48,7 @@ class RhythmDeletion099Test {
             db.memory().insertEvent(event(900, today + 10_000, "媒体", today + 20_000))
             val start = today - 7 * 86_400_000
             val original = withContext(Dispatchers.IO) {
-                db.openHelper.readableDatabase.query("""SELECT l.startAt,l.endAt FROM transcript_lines l
+                db.testSql.query("""SELECT l.startAt,l.endAt FROM transcript_lines l
                     LEFT JOIN memory_events e ON e.id=l.eventId WHERE l.startAt >= $start AND l.startAt < $today
                     AND (e.id IS NULL OR e.deleted=0) AND NOT EXISTS (SELECT 1 FROM memory_events m WHERE m.deleted=0
                     AND m.scene='媒体' AND l.startAt<m.endAt AND l.endAt>m.startAt) ORDER BY l.startAt,l.id""").use { cursor ->

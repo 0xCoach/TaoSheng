@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class VoiceprintRematchTest {
     private val context = RuntimeEnvironment.getApplication()
-    private val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+    private val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val scheduled = Channel<Unit>(Channel.UNLIMITED)
     private val audio = mutableMapOf<String, ShortArray>()

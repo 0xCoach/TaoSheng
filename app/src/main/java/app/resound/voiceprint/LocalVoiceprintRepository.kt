@@ -1,6 +1,6 @@
 package app.resound.voiceprint
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.transcribe.TranscribePolicy
 import kotlinx.coroutines.*
@@ -34,7 +34,7 @@ class LocalVoiceprintRepository(
     private var resetGeneration = 0L
     private val reading = mutableMapOf<Long, Int>()
     private val cache by lazy {
-        val path = db.openHelper.writableDatabase.path
+        val path = db.filePath
         VoiceprintFeatureCache(path?.takeUnless { it.isBlank() || it == ":memory:" }
             ?.let { File("$it.voiceprint-features") })
     }
@@ -65,14 +65,14 @@ class LocalVoiceprintRepository(
         require(id != 0L)
         gate.withLock {
             val value = validName(name)
-            db.withTransaction { dao.renamePerson(id, value); dao.renameResults(id, value) }
+            db.writeTransaction { dao.renamePerson(id, value); dao.renameResults(id, value) }
             revision++
         }
     }
     override fun deletePerson(id: Long) = launchAudioAction {
         require(id != 0L)
         gate.withLock {
-            db.withTransaction {
+            db.writeTransaction {
                 dao.allSamples().filter { it.personId == id }.forEach { sampleAudioStore.delete("local-${it.id}") }
                 dao.clearPersonResults(id); dao.clearPersonSamples(id); dao.deletePerson(id); invalidateRetained()
             }
@@ -108,8 +108,8 @@ class LocalVoiceprintRepository(
     override fun deleteSample(key: String) = launchAudioAction {
         val id = requireNotNull(key.removePrefix("local:").toLongOrNull())
         gate.withLock {
-            db.withTransaction {
-                val sample = dao.sample(id) ?: return@withTransaction
+            db.writeTransaction {
+                val sample = dao.sample(id) ?: return@writeTransaction
                 dao.deleteSample(id); sampleAudioStore.delete("local-$id")
                 // 删掉原话来源的样本后，不让自动学习立刻把同一段声音补回来。
                 if (sample.segmentId != null && sample.groupKey != null && sample.personId == 0L)
@@ -125,7 +125,7 @@ class LocalVoiceprintRepository(
             require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
             val ids = dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }
-            db.withTransaction { dropFile(line.segmentId, key); dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); invalidateRetained() }
+            db.writeTransaction { dropFile(line.segmentId, key); dao.removeSample(line.segmentId, key); dao.identity(ids, null, null, null, true); invalidateRetained() }
             revision++
         }
     }
@@ -245,7 +245,7 @@ class LocalVoiceprintRepository(
             gate.withLock {
                 // 转写若被替换，不能将旧向量写给新句子。
                 require(group.cacheKey == group(lineId).cacheKey)
-                db.withTransaction {
+                db.writeTransaction {
                     val existing = dao.allSamples().firstOrNull { it.segmentId == group.segment.id && it.groupKey == group.key }
                     require(personId == 0L || dao.people().any { it.id == personId })
                     // 自动样本经用户确认后晋升为手动样本，保留 id，永不自动淘汰。
@@ -271,7 +271,7 @@ class LocalVoiceprintRepository(
             val line = requireNotNull(dao.line(lineId))
             require(line.voiceInputJson == null) { "语音输入的身份固定为我，不参与声纹" }
             val key = VoiceprintAudio.groupKey(line)
-            db.withTransaction {
+            db.writeTransaction {
                 dropFile(line.segmentId, key)
                 dao.removeSample(line.segmentId, key)
                 dao.exclude(VoiceprintExclusionEntity(line.segmentId, key, now()))
@@ -284,7 +284,7 @@ class LocalVoiceprintRepository(
     override fun reset() = launchAudioAction {
         gate.withLock {
             cache.clear()
-            db.withTransaction {
+            db.writeTransaction {
                 dao.allSamples().filter { it.personId == 0L }.forEach { sampleAudioStore.delete("local-${it.id}") }
                 dao.clearSamples(); dao.clearExclusions(); dao.clearResults(); invalidateRetained()
             }
@@ -299,7 +299,7 @@ class LocalVoiceprintRepository(
                 require(speech.size >= VoiceprintAudio.MIN_SAMPLES)
                 val vector = engine { VoiceprintMath.unit(it.compute(speech)) }
                 gate.withLock {
-                    db.withTransaction {
+                    db.writeTransaction {
                         require(personId == 0L || dao.people().any { it.id == personId })
                         dao.saveSample(VoiceprintSampleEntity(source = "enroll", sourceLineId = null, segmentId = null, groupKey = null,
                             vector = VoiceprintMath.encode(vector), durationMillis = speech.size / 16L, createdAt = now(), personId = personId))
@@ -433,7 +433,7 @@ class LocalVoiceprintRepository(
                                     cache.write(cache.windowKey(segment, input.lines, window), feature)
                             }
                             if (revision != round.revision) return true
-                            db.withTransaction {
+                            db.writeTransaction {
                                 // 清理旧自动样本的离群/超长向量；用户手动样本绝不删除。
                                 val me = candidates.find { it.id == 0L }
                                 if (train && me != null) for (sample in dao.allSamples().filter { it.source == "auto" }) {

@@ -25,12 +25,18 @@ class LocalAsrFailure063Test {
     private val context get() = RuntimeEnvironment.getApplication() as Context
     private lateinit var db: CaptureDatabase
     private lateinit var directory: File
+    private lateinit var diagnosticScope: CoroutineScope
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
+        // 使用本用例的数据库，不继承其他测试留在 AppGraph 中的已关闭仓储。
+        diagnosticScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        app.resound.AppGraph.envSound = app.resound.envsound.LocalEnvSoundRepository(db,
+            context.getSharedPreferences("failure063-env", 0), diagnosticScope,
+            MutableStateFlow(app.resound.envsound.EnvModelState.NotDownloaded), {}, { error("禁止模型调用") }, {})
         directory = File(context.cacheDir, "failure063").apply { mkdirs() }
         context.getSharedPreferences("pipeline-times", 0).edit().clear().commit()
     }
-    @After fun close() { db.close(); directory.deleteRecursively() }
+    @After fun close() = runBlocking { diagnosticScope.coroutineContext[Job]!!.cancelAndJoin(); db.close(); directory.deleteRecursively(); Unit }
     private fun failure(phase: String, error: Throwable) = Bundle().apply { LocalAsrFailure.write(this, phase, error) }
 
     @Test fun missingAudioIsSpecificAndDoesNotStopLaterSegmentsOrRetryForever() = runBlocking {

@@ -1,5 +1,6 @@
 package app.resound.search
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.ask.AskSource
@@ -20,10 +21,10 @@ import java.io.File
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class SearchTerms136Test {
     @Test fun multipleKeywordsMatchAnyAndMultiCharKeywordNeedsAllBigrams() {
-        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java)
+        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .addCallback(SearchIndex.callback).allowMainThreadQueries().build()
         try {
-            val sql = db.openHelper.writableDatabase
+            val sql = db.testSql
             sql.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,9000,'mic','test',1,'Done')")
             listOf("给老王发方案", "老王来了", "预算定了", "王来老").forEachIndexed { i, text ->
                 sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text) VALUES(?,1,?,?,?)", arrayOf<Any>(i + 1, 1000 + i, 1500 + i, text))

@@ -20,7 +20,7 @@ import java.time.LocalDate
 class InputPersistence045Test {
     @Test fun sourceMetadataSurvivesInSpoolAndNewLogDoesNotBreakStatistics() = runBlocking<Unit> {
         val context = RuntimeEnvironment.getApplication()
-        val db = Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val scope = CoroutineScope(SupervisorJob()+Dispatchers.IO)
         try {
             val files = SegmentFiles(context,db.capture(),scope)
@@ -45,7 +45,7 @@ class InputPersistence045Test {
 
     @Test fun matchingUsesEnoughSameInputManualSamplesOtherwiseAllAndEnrollmentIsPhone() = runBlocking<Unit> {
         val context = RuntimeEnvironment.getApplication()
-        val db = Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             val segment = SegmentEntity(id=10,startAt=1,endAt=40000,sourceId="Usb:DJI",path="/unused",sizeBytes=1)
             db.capture().segment(segment)

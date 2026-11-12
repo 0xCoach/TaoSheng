@@ -1,5 +1,6 @@
 package app.resound.devices
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -55,7 +56,7 @@ class DeviceSync120Test {
     }
     @Before fun setup() {
         val context = RuntimeEnvironment.getApplication()
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         root = File(context.filesDir, "test-device120").apply { deleteRecursively(); mkdirs() }
     }
     @After fun close() { db.close(); root.deleteRecursively() }
@@ -205,10 +206,10 @@ class DeviceSync120Test {
             repeat(queries.length()) { old.execSQL(queries.getString(it)) }
             old.execSQL("INSERT INTO battery VALUES (1,1000,80,0)"); old.version = 30
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals(80, migrated.capture().batteries(0, 2000).first().single().percent)
             val row = DeviceTransfer("key", "d", "f", "a", 4, 0, 1, "Pcm16", 0, 1, 0, 2)
             migrated.deviceSync().save(row); assertEquals(row, migrated.deviceSync().rows("d").single())

@@ -90,7 +90,7 @@ class AudioExport115Test {
     }
 
     @Test fun databaseLoadsEventTodosAndFiltersDeletedMergedIgnoredAndUnrelated() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             val row = source(1)
             db.capture().segment(row.row.segment); db.transcribe().insertLines(row.row.lines)

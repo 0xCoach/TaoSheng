@@ -5,7 +5,7 @@ import android.database.AbstractWindowedCursor
 import android.database.CursorWindow
 import android.database.sqlite.SQLiteBlobTooBigException
 import androidx.room.Room
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
 import kotlinx.coroutines.runBlocking
@@ -31,20 +31,23 @@ class EnvSoundCursorInvestigationTest {
     private fun probe(transaction: Boolean) = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val name = "env-cursor-${System.nanoTime()}.db"
-        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
+        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .allowMainThreadQueries().setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING).build()
         val writer = Executors.newSingleThreadExecutor()
         try {
-            db.withTransaction {
+            db.writeTransaction {
                 for (id in 1L..32L) {
                     db.capture().segment(SegmentEntity(id, id, id + 1, "mic", "/test/$id.ogg", 0, "Done"))
                     db.envSound().insert(EnvSoundRow(id, id, id + 1, "/test/$id.ogg", "Keep", null,
                         "[]", "[]", "x".repeat(600), false, false))
                 }
             }
-            val sqlDb = db.openHelper.writableDatabase
+            // 此诊断特意控制系统 CursorWindow；Room 产品入口仍使用新驱动。
+            val sqlDb = android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null,
+                android.database.sqlite.SQLiteDatabase.OPEN_READWRITE or android.database.sqlite.SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING)
+            sqlDb.setForeignKeyConstraintsEnabled(true)
             if (transaction) sqlDb.beginTransactionNonExclusive()
-            val cursor = sqlDb.query("SELECT * FROM env_sounds ORDER BY startAt") as AbstractWindowedCursor
+            val cursor = sqlDb.rawQuery("SELECT * FROM env_sounds ORDER BY startAt", null) as AbstractWindowedCursor
             try {
                 cursor.window = CursorWindow("env-delete-probe", 1024)
                 assertEquals(32, cursor.count)
@@ -73,12 +76,13 @@ class EnvSoundCursorInvestigationTest {
                     assertTrue(failure!!.message.orEmpty().contains("requiredPos=31, totalRows=26"))
                     println("Reproduced: ${failure.javaClass.simpleName}: ${failure.message}")
                 }
-                sqlDb.query("SELECT COUNT(*) FROM env_sounds").use {
+                sqlDb.rawQuery("SELECT COUNT(*) FROM env_sounds", null).use {
                     assertTrue(it.moveToFirst()); assertEquals(26, it.getInt(0))
                 }
             } finally {
                 cursor.close()
                 if (sqlDb.inTransaction()) sqlDb.endTransaction()
+                sqlDb.close()
             }
         } finally {
             writer.shutdownNow(); writer.awaitTermination(5, TimeUnit.SECONDS)

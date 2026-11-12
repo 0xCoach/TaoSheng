@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -17,7 +18,7 @@ import org.robolectric.annotation.Config
 class DigestAudit087Test {
     @Test fun sourceDeletedDuringRequestCannotReappearInPendingResponses() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val prefs = context.getSharedPreferences("digest-state", 0)
         prefs.edit().clear().commit()
         try {
@@ -68,7 +69,7 @@ class DigestAudit087Test {
             assertTrue(db.memory().undigestedLines().isEmpty())
             assertTrue(db.memory().pendingDigests().isEmpty())
             assertEquals(1, requests)
-            db.openHelper.readableDatabase.query("SELECT SUM(calls), SUM(promptTokens) FROM llm_usage_v2").use {
+            db.testSql.query("SELECT SUM(calls), SUM(promptTokens) FROM llm_usage_v2").use {
                 assertTrue(it.moveToFirst()); assertEquals(1, it.getInt(0)); assertEquals(100, it.getInt(1))
             }
         } finally { db.close(); file.delete(); prefs.edit().clear().commit() }
@@ -76,7 +77,7 @@ class DigestAudit087Test {
 
     @Test fun uncertainRequestStopsAutomaticResendAndDeletingSourceClearsReplay() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .addCallback(PendingDigestSchema.callback).allowMainThreadQueries().build()
         val prefs = context.getSharedPreferences("digest-state", 0)
         prefs.edit().clear().putString("inflight", "unknown-result").putString("inflight-lines", "1").commit()

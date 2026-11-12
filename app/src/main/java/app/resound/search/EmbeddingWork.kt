@@ -5,7 +5,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.work.*
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.ResoundApp
 import app.resound.data.CaptureDatabase
 import app.resound.scheduling.DemandWorkPolicy
@@ -115,7 +115,7 @@ class EmbeddingWork(context: Context, params: WorkerParameters) : CoroutineWorke
                 }
                 // 向量与灵感合并一起提交；去掉周期兜底后不能留下“向量已齐、合并未做”的崩溃窗口。
                 // 推理放在事务外，最多暂存 64 条向量；提交时仍由 save 校验内容快照。
-                db.withTransaction {
+                db.writeTransaction {
                     for ((document, vector) in computed) store.save(document, embedder.model, vector)
                     IdeaMerger(db).merge(embedder.model)
                 }

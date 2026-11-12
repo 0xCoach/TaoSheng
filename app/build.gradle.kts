@@ -83,6 +83,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("commons-io:commons-io:2.16.1")
+    implementation("androidx.sqlite:sqlite-framework:2.6.2")
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")

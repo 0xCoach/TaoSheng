@@ -1,7 +1,8 @@
 package app.resound.things
 
+import androidx.sqlite.execSQL
 import androidx.room.*
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
 import app.resound.data.TranscriptLineEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -64,7 +65,7 @@ internal interface ThingDao {
 }
 
 internal object ThingSchema {
-    fun create(db: SupportSQLiteDatabase) {
+    fun create(db: SQLiteConnection) {
         db.execSQL("CREATE TABLE IF NOT EXISTS things (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, aliasesJson TEXT NOT NULL, owner TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, deleted INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE IF NOT EXISTS thing_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, thingId INTEGER, name TEXT NOT NULL, action TEXT NOT NULL, place TEXT, who TEXT, owner TEXT NOT NULL, at INTEGER NOT NULL, sourceLineId INTEGER, sourceText TEXT, status TEXT NOT NULL, origin TEXT NOT NULL, explicit INTEGER NOT NULL, sameAsId INTEGER, createdAt INTEGER NOT NULL, acceptedAt INTEGER, aliasesJson TEXT NOT NULL)")
         listOf("thingId", "sourceLineId", "at", "status").forEach { db.execSQL("CREATE INDEX IF NOT EXISTS index_thing_records_$it ON thing_records($it)") }
@@ -72,9 +73,9 @@ internal object ThingSchema {
         install(db)
     }
     val callback = object : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) = install(db)
+        override fun onCreate(db: SQLiteConnection) = install(db)
     }
-    fun install(db: SupportSQLiteDatabase) {
+    fun install(db: SQLiteConnection) {
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS things_line_deleted BEFORE DELETE ON transcript_lines BEGIN
             DELETE FROM thing_records WHERE sourceLineId = OLD.id AND status = 'Pending';
             UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId = OLD.id;

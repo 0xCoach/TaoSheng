@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -71,7 +72,7 @@ class Hotword066Test {
         assertEquals("speaker", corrected.sentences.single().speakerTag)
         assertTrue(PipelineTimes.dump(context).contains("同音纠正 1 处"))
         assertFalse(PipelineTimes.dump(context).contains("承改"))
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val audio = File(context.cacheDir, "hotword066.wav").apply { writeBytes(byteArrayOf(1)) }
         try {
             db.capture().segment(SegmentEntity(id = 1, startAt = 1, endAt = 101, sourceId = "import", path = audio.path, sizeBytes = 1))
@@ -116,10 +117,10 @@ class Hotword066Test {
             old.execSQL("INSERT INTO transcript_lines (segmentId,startAt,endAt,text) VALUES (1,1,2,'承改')")
             old.version = 21
         }
-        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, db.testSql.version)
             assertEquals(123L, db.transcribe().segment(1).firstFailedAt)
             assertEquals("Quiet", db.transcribe().segment(1).status)
             val line = db.transcribe().day(0, 3).first().single().lines.single()

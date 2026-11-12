@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -13,7 +14,9 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.SQLiteMode
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.*
+import app.resound.data.writeTransaction
+import app.resound.data.writeSql
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -28,8 +31,8 @@ class BackupArchiveTest {
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("capture.db")
-        db = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").allowMainThreadQueries().build()
-        db.openHelper.writableDatabase
+        db = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
+        db.testSql.version
         root = File(context.cacheDir, "backup-test").apply { deleteRecursively(); mkdirs() }
         File(context.noBackupFilesDir, "backup-restore").deleteRecursively()
     }
@@ -59,10 +62,10 @@ class BackupArchiveTest {
         val zip = File(root,"previous.zip")
         BackupArchive.pack(stage,zip,12345,"0.1.6",8)
         val verified=File(root,"verified-previous")
-        BackupArchive.verify(zip,verified,db.openHelper.writableDatabase.version)
+        BackupArchive.verify(zip,verified,db.testSql.version)
         val restored=CaptureDatabase.open(context, File(verified,BackupArchive.DATABASE).path)
         try {
-            assertEquals(db.openHelper.writableDatabase.version,restored.openHelper.writableDatabase.version)
+            assertEquals(db.testSql.version,restored.testSql.version)
             kotlinx.coroutines.runBlocking { assertEquals(0L,restored.voiceprint().samples().single().personId) }
         } finally { restored.close() }
     }
@@ -85,7 +88,7 @@ class BackupArchiveTest {
             assertFalse(names.any { "secret" in it || "audio" in it || "unknown" in it })
         }
         val verified = File(root, "verified")
-        BackupArchive.verify(zip, verified, db.openHelper.writableDatabase.version)
+        BackupArchive.verify(zip, verified, db.testSql.version)
         db.close()
         BackupRestore.stage(context, verified)
         BackupRestore.applyPending(context)
@@ -105,12 +108,12 @@ class BackupArchiveTest {
             }
         } }
         val target = File(root, "verify-bad")
-        try { BackupArchive.verify(tampered, target, db.openHelper.writableDatabase.version); fail() } catch (e: BackupFailure) { assertFalse(target.exists()) }
+        try { BackupArchive.verify(tampered, target, db.testSql.version); fail() } catch (e: BackupFailure) { assertFalse(target.exists()) }
         val traversal = File(root, "traversal.zip")
         ZipOutputStream(traversal.outputStream()).use { it.putNextEntry(ZipEntry("../escape")); it.write(1); it.closeEntry() }
-        try { BackupArchive.verify(traversal, target, db.openHelper.writableDatabase.version); fail() } catch (_: BackupFailure) { assertFalse(File(root, "escape").exists()) }
-        try { BackupArchive.verify(original, target, db.openHelper.writableDatabase.version - 1); fail() } catch (_: BackupFailure) { assertFalse(target.exists()) }
-        assertTrue(db.isOpen)
+        try { BackupArchive.verify(traversal, target, db.testSql.version); fail() } catch (_: BackupFailure) { assertFalse(File(root, "escape").exists()) }
+        try { BackupArchive.verify(original, target, db.testSql.version - 1); fail() } catch (_: BackupFailure) { assertFalse(target.exists()) }
+        assertEquals(CaptureDatabase.VERSION, db.testSql.version)
     }
     @Test fun restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart() {
         val zip = archive()
@@ -126,28 +129,28 @@ class BackupArchiveTest {
             val get = server.takeRequest(); assertEquals("GET", get.method); assertTrue(get.path!!.endsWith("23-0310.zip"))
             BackupRestore.applyPending(context)
             assertFalse(File(context.noBackupFilesDir, "backup-restore").exists())
+            db = CaptureDatabase.open(context) // 模拟恢复后新进程；关闭的 Room 实例不可复用。
             server.enqueue(okhttp3.mockwebserver.MockResponse().setBody("corrupt zip"))
             calls.clear()
             try { BackupRestore.restore(context, client, names.last(), db, closeDatabase = { calls += "close" }, restartProcess = { calls += "restart" }); fail() }
             catch (_: BackupFailure) { assertTrue(calls.isEmpty()) }
         } finally { server.shutdown() }
     }
-    @Test fun snapshotRemainsConsistentDuringConcurrentTransactions() {
-        val sql = db.openHelper.writableDatabase
+    @Test fun snapshotRemainsConsistentDuringConcurrentTransactions() = runBlocking {
+        val sql = db.testSql
         sql.execSQL("CREATE TABLE backup_probe (id INTEGER PRIMARY KEY, value INTEGER NOT NULL)")
         sql.execSQL("INSERT INTO backup_probe VALUES (1,0),(2,0)")
         sql.execSQL("INSERT INTO lines_fts(rowid,text) VALUES(42,'resound')")
-        val running = AtomicBoolean(true)
-        val writer = Thread {
-            while (running.get()) {
-                sql.beginTransaction()
-                try { sql.execSQL("UPDATE backup_probe SET value=value+1 WHERE id=1")
-                    Thread.yield(); sql.execSQL("UPDATE backup_probe SET value=value+1 WHERE id=2"); sql.setTransactionSuccessful()
-                } finally { sql.endTransaction() }
-                Thread.sleep(1)
+        val writer = launch(Dispatchers.IO) {
+            while (isActive) {
+                db.writeTransaction {
+                    db.writeSql("UPDATE backup_probe SET value=value+1 WHERE id=1")
+                    yield()
+                    db.writeSql("UPDATE backup_probe SET value=value+1 WHERE id=2")
+                }
+                delay(1)
             }
         }
-        writer.start()
         try {
             repeat(3) { index ->
                 val copy = File(root, "snapshot-$index.db")
@@ -163,7 +166,7 @@ class BackupArchiveTest {
                     snapshot.rawQuery("PRAGMA integrity_check", null).use { assertTrue(it.moveToFirst()); assertEquals("ok", it.getString(0)) }
                 }
             }
-        } finally { running.set(false); writer.join(5000); assertFalse(writer.isAlive) }
+        } finally { writer.cancelAndJoin() }
     }
     @Test fun sampleAudioIsExcludedAndRestoreRetainsVectorsWithoutStalePlayback() = kotlinx.coroutines.runBlocking {
         val dir = app.resound.voiceprint.SampleAudioStore.directory(context)

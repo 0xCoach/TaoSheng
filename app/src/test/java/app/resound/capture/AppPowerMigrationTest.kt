@@ -1,5 +1,6 @@
 package app.resound.capture
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -39,10 +40,10 @@ class AppPowerMigrationTest {
             old.execSQL("INSERT INTO battery VALUES (1,1000,80,0)")
             old.version = 3
         }
-        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, db.testSql.version)
             assertEquals(80, db.capture().batteries(0, 2000).first().single().percent)
             val date = LocalDate.now()
             val start = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()

@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -85,7 +86,7 @@ class AudioExport068Test {
         exporter.cleanup(); assertFalse(old.exists()); assertTrue(fresh.exists())
     }
     @Test fun batchDeletionKeepsEventsTodosAndOtherSegmentsButRemovesSearchAndVectors() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java)
+        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .addCallback(SearchIndex.callback).allowMainThreadQueries().build()
         try {
             val selected = source(1); val kept = source(2)
@@ -98,7 +99,7 @@ class AudioExport068Test {
             assertEquals(2, LocalAudioExporter(root, db.transcribe()).estimate(ExportRequest(listOf(2, 1, 1), "数据库")).audioSegments)
             val todo = MemoryItemEntity(1, 1, "Todo", null, "保留待办", null, null, null, 1, "Pending", 0)
             db.memory().insertItems(listOf(todo))
-            val sql = db.openHelper.writableDatabase
+            val sql = db.testSql
             sql.execSQL("INSERT INTO embeddings VALUES ('line',1,'test',1,X'00000000',0)")
             val deleter = RoomPrivacyActions(db)
             assertEquals(1, deleter.deleteSegments(listOf(1, 1, 999)))

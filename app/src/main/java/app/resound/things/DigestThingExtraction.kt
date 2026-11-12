@@ -1,6 +1,6 @@
 package app.resound.things
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.EventEntity
 import app.resound.data.TranscriptLineEntity
@@ -39,9 +39,9 @@ class DigestThingExtraction internal constructor(
         val parsed = DigestThingRules.parse(normalizeThingJson(content), batch.lines.map { it.shared() }, batch.eligible, batch.known,
             events.filter { it.scene == "媒体" }.flatMap { it.lineIds }.toSet(), app.resound.platform.NowMillis(now))
         val rejected = parsed.rejected
-        val notices = db.withTransaction {
+        val notices = db.writeTransaction {
             // 在改写事件归属前核对原始资格及原话，防止删除/重转写后复活旧请求。
-            if (db.memory().refreshLines(batch.lines.map { it.id }).size != batch.lines.size) return@withTransaction emptyList<ThingRecordRow>()
+            if (db.memory().refreshLines(batch.lines.map { it.id }).size != batch.lines.size) return@writeTransaction emptyList<ThingRecordRow>()
             val current = db.things().state() ?: ThingWatchState()
             val live = db.things().eligible(batch.eligible.toList()).map { it.shared() }
             val valid = DigestThingRules.valid(parsed.proposals, current.shared(), batch.revision, live)

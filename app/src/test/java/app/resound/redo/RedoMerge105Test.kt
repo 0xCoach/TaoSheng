@@ -31,7 +31,7 @@ class RedoMerge105Test {
     }
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         root = File(context.cacheDir, "redo105-${System.nanoTime()}").apply { mkdirs() }
     }
     @After fun finish() { db.close(); root.deleteRecursively() }

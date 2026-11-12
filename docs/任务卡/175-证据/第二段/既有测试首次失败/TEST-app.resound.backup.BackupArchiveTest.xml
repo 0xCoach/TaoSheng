@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupArchiveTest" tests="6" skipped="0" failures="2" errors="0" timestamp="2026-11-12T16:46:28.852Z" hostname="CoachdeMacBook-Air.local" time="0.42">
+  <properties/>
+  <testcase name="tamperingAndTraversalAreRejectedBeforeReplacement" classname="app.resound.backup.BackupArchiveTest" time="0.067">
+    <failure message="java.lang.AssertionError" type="java.lang.AssertionError">java.lang.AssertionError
+	at org.junit.Assert.fail(Assert.java:87)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at org.junit.Assert.assertTrue(Assert.java:53)
+	at app.resound.backup.BackupArchiveTest.tamperingAndTraversalAreRejectedBeforeReplacement(BackupArchiveTest.kt:116)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.robolectric.RobolectricTestRunner$HelperTestRunner$1.evaluate(RobolectricTestRunner.java:524)
+	at org.robolectric.internal.SandboxTestRunner.executeInSandbox(SandboxTestRunner.java:494)
+	at org.robolectric.internal.SandboxTestRunner.access$900(SandboxTestRunner.java:67)
+	at org.robolectric.internal.SandboxTestRunner$7.evaluate(SandboxTestRunner.java:442)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.robolectric.internal.SandboxTestRunner.access$600(SandboxTestRunner.java:67)
+	at org.robolectric.internal.SandboxTestRunner$6.evaluate(SandboxTestRunner.java:333)
+	at org.robolectric.internal.SandboxTestRunner$3.evaluate(SandboxTestRunner.java:233)
+	at org.robolectric.internal.SandboxTestRunner$5.lambda$evaluate$0(SandboxTestRunner.java:317)
+	at org.robolectric.internal.bytecode.Sandbox.lambda$runOnMainThread$0(Sandbox.java:101)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+</failure>
+  </testcase>
+  <testcase name="snapshotRemainsConsistentDuringConcurrentTransactions" classname="app.resound.backup.BackupArchiveTest" time="0.051"/>
+  <testcase name="archiveExcludesAllSecretsAudioAndUnknownSettingsAndRestoresVerifiedContent" classname="app.resound.backup.BackupArchiveTest" time="0.076"/>
+  <testcase name="restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart" classname="app.resound.backup.BackupArchiveTest" time="0.104">
+    <failure message="kotlinx.coroutines.JobCancellationException: Job was cancelled; job=null" type="kotlinx.coroutines.JobCancellationException">kotlinx.coroutines.JobCancellationException: Job was cancelled; job=null
+	at kotlinx.coroutines.JobSupport.cancel(JobSupport.kt:1685)
+	at kotlinx.coroutines.CoroutineScopeKt.cancel(CoroutineScope.kt:284)
+	at kotlinx.coroutines.CoroutineScopeKt.cancel$default(CoroutineScope.kt:282)
+	at androidx.room.RoomDatabase.onClosed(RoomDatabase.android.kt:577)
+	at androidx.room.RoomDatabase.access$onClosed(RoomDatabase.android.kt:95)
+	at androidx.room.RoomDatabase$closeBarrier$1.invoke(RoomDatabase.android.kt:163)
+	at androidx.room.RoomDatabase$closeBarrier$1.invoke(RoomDatabase.android.kt:163)
+	at androidx.room.concurrent.CloseBarrier.close$room_runtime(CloseBarrier.kt:91)
+	at androidx.room.RoomDatabase.close(RoomDatabase.android.kt:573)
+	at app.resound.backup.BackupArchiveTest.restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart$lambda$0(BackupArchiveTest.kt:127)
+	at app.resound.backup.BackupRestore.restoreFile(BackupRestore.kt:62)
+	at app.resound.backup.BackupRestore.restore(BackupRestore.kt:27)
+	at app.resound.backup.BackupRestore.restore$default(BackupRestore.kt:18)
+	at app.resound.backup.BackupArchiveTest.restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart(BackupArchiveTest.kt:127)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.robolectric.RobolectricTestRunner$HelperTestRunner$1.evaluate(RobolectricTestRunner.java:524)
+	at org.robolectric.internal.SandboxTestRunner.executeInSandbox(SandboxTestRunner.java:494)
+	at org.robolectric.internal.SandboxTestRunner.access$900(SandboxTestRunner.java:67)
+	at org.robolectric.internal.SandboxTestRunner$7.evaluate(SandboxTestRunner.java:442)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.robolectric.internal.SandboxTestRunner.access$600(SandboxTestRunner.java:67)
+	at org.robolectric.internal.SandboxTestRunner$6.evaluate(SandboxTestRunner.java:333)
+	at org.robolectric.internal.SandboxTestRunner$3.evaluate(SandboxTestRunner.java:233)
+	at org.robolectric.internal.SandboxTestRunner$5.lambda$evaluate$0(SandboxTestRunner.java:317)
+	at org.robolectric.internal.bytecode.Sandbox.lambda$runOnMainThread$0(Sandbox.java:101)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+</failure>
+  </testcase>
+  <testcase name="previousVersionArchiveVerifiesAndMigratesWithoutLosingVoiceprints" classname="app.resound.backup.BackupArchiveTest" time="0.068"/>
+  <testcase name="sampleAudioIsExcludedAndRestoreRetainsVectorsWithoutStalePlayback" classname="app.resound.backup.BackupArchiveTest" time="0.054"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

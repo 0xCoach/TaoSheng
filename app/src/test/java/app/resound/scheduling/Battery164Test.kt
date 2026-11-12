@@ -78,7 +78,7 @@ class Battery164Test {
         shown.cancel(); runCurrent(); advanceTimeBy(3_600_000); assertEquals(2, ticks)
     }
     @Test fun redoOptionsStopWhenHiddenAndHistoryExpiresAtDeadline() = runTest {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .allowMainThreadQueries().setQueryCoroutineContext(StandardTestDispatcher(testScheduler)).build()
         val owner = CoroutineScope(SupervisorJob(coroutineContext[Job]) + StandardTestDispatcher(testScheduler))
         try {
@@ -106,7 +106,7 @@ class Battery164Test {
     }
 
     @Test fun voiceCountClockIsInactiveUntilObservedAndStopsOnExit() = runTest {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .allowMainThreadQueries().setQueryCoroutineContext(StandardTestDispatcher(testScheduler)).build()
         val owner = CoroutineScope(SupervisorJob(coroutineContext[Job]) + StandardTestDispatcher(testScheduler))
         try {

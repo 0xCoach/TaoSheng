@@ -1,5 +1,6 @@
 package app.resound.ask
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.CaptureDatabase
@@ -19,8 +20,8 @@ import org.robolectric.annotation.Config
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class AskFollowUp097Test {
     private val context get() = RuntimeEnvironment.getApplication()
-    private fun database(): CaptureDatabase = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build().also { db ->
-        val sql = db.openHelper.writableDatabase
+    private fun database(): CaptureDatabase = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build().also { db ->
+        val sql = db.testSql
         sql.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,2000,'mic','/synthetic',1,'Done')")
         sql.execSQL("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(9,1000,2000,'会议','样例评审','先试运行','[]','[]',0,0,2000,'fake')")
         sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(42,1,1000,2000,'最终决定先试运行两周，再复盘。',9,'我')")
@@ -74,11 +75,11 @@ class AskFollowUp097Test {
             assertEquals(3, fresh.sources.size)
             assertTrue(fresh.sources.all { it.quote.contains("最终决定先试运行") })
             assertFalse(fresh.text.contains("旧原话不应发送")); assertFalse(fresh.text.contains("旧标题不应发送"))
-            db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET text='现已取消试运行。' WHERE id=42")
+            db.testSql.execSQL("UPDATE transcript_lines SET text='现已取消试运行。' WHERE id=42")
             assertTrue(reader.followUp(listOf(previous))!!.sources.all { it.quote == "现已取消试运行。" })
             val anchor = AskMessage(2, AskRole.User, "就这个问问", listOf(source("event", 9)), 0, false)
             assertTrue(reader.followUp(listOf(anchor))!!.text.contains("现已取消试运行"))
-            db.openHelper.writableDatabase.execSQL("UPDATE memory_events SET deleted=1 WHERE id=9")
+            db.testSql.execSQL("UPDATE memory_events SET deleted=1 WHERE id=9")
             val deleted = reader.followUp(listOf(previous))!!
             assertTrue(deleted.sources.isEmpty()); assertFalse(deleted.text.contains("现已取消"))
             var sent = ""
@@ -86,7 +87,7 @@ class AskFollowUp097Test {
                 JSONArray(), { _, _, _ -> error("不用工具") }, { _, _ -> })
                 .answer("", listOf(previous), "最后结论是啥", deleted) { assertNull(it.error) }
             assertFalse(sent.contains("已删除前的结论"))
-            val sql = db.openHelper.writableDatabase
+            val sql = db.testSql
             for (id in 100..120) sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text) VALUES(?,1,1000,2000,?)", arrayOf(id, "长原话".repeat(500)))
             val many = previous.copy(sources = (100L..120L).map { source("line", it) })
             val bounded = reader.followUp(listOf(many))!!

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupReadStatusTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-12T16:54:18.483Z" hostname="CoachdeMacBook-Air.local" time="2.95">
+  <properties/>
+  <testcase name="localReadsDoNotFlashRunningOrReplaceSuccessfulBackupAfterFailure" classname="app.resound.backup.BackupReadStatusTest" time="2.729"/>
+  <testcase name="cloudReadsPreserveStatusOnSuccessFailureAndReload" classname="app.resound.backup.BackupReadStatusTest" time="0.171"/>
+  <testcase name="changingFolderDoesNotClaimOldFoldersBackupAsNewFoldersSuccess" classname="app.resound.backup.BackupReadStatusTest" time="0.046"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

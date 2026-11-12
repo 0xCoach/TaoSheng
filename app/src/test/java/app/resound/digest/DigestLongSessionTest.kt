@@ -39,7 +39,7 @@ class DigestLongSessionTest {
     }
 
     @Test fun nonStopTalkingDigestsTheSettledPartUpToTheLongestPause() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             seed(db, minutes = 70)
             val calls = mutableListOf<Int>()
@@ -53,7 +53,7 @@ class DigestLongSessionTest {
     }
 
     @Test fun shortOngoingTalkOrUntranscribedAudioInsideStillWaits() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             seed(db, minutes = 70, pendingAt = 10 * minute)
             val calls = mutableListOf<Int>()
@@ -61,7 +61,7 @@ class DigestLongSessionTest {
             assertTrue(calls.isEmpty())
             assertEquals(67, db.memory().undigestedLines().size)
         } finally { db.close() }
-        val short = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val short = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             seed(short, minutes = 35)
             val calls = mutableListOf<Int>()
@@ -71,7 +71,7 @@ class DigestLongSessionTest {
     }
 
     @Test fun longerMaxWaitFromSettingsKeepsWaiting() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             seed(db, minutes = 70)
             val calls = mutableListOf<Int>()

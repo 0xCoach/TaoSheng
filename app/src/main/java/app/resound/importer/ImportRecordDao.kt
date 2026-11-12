@@ -1,7 +1,8 @@
 package app.resound.importer
 
+import androidx.sqlite.execSQL
 import androidx.room.*
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
 import kotlinx.coroutines.flow.Flow
@@ -62,7 +63,7 @@ abstract class ImportRecordDao {
 
 /** 覆盖失败段删除、隐私删除等所有 SQL 删段入口；同事务撤销包含已删原话的纪要。 */
 object ImportRecordSchema {
-    fun install(db: SupportSQLiteDatabase) {
+    fun install(db: SQLiteConnection) {
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS import_segment_deleted AFTER DELETE ON segments
             WHEN OLD.importRecordId IS NOT NULL BEGIN
             DELETE FROM skill_cards WHERE id = (SELECT cardId FROM import_records WHERE id = OLD.importRecordId);
@@ -73,6 +74,6 @@ object ImportRecordSchema {
             END""")
     }
     val callback = object : RoomDatabase.Callback() {
-        override fun onOpen(db: SupportSQLiteDatabase) = install(db)
+        override fun onOpen(db: SQLiteConnection) = install(db)
     }
 }

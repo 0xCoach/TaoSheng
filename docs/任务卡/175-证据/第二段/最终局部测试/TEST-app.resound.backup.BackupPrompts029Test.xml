@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupPrompts029Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-12T16:59:59.237Z" hostname="CoachdeMacBook-Air.local" time="3.141">
+  <properties/>
+  <testcase name="restoreSnapshotsCurrentDataBeforeReplacingAndMigratesOlderDatabase" classname="app.resound.backup.BackupPrompts029Test" time="3.141"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

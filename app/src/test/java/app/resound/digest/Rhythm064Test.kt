@@ -26,7 +26,7 @@ class Rhythm064Test {
     private fun event(id: Long, start: Long, scene: String = "会议", people: String = "[]") =
         MemoryEventEntity(id, start, start + 60000, scene, "事件", "摘要", "[]", people, null, null, null, false, false, start, "test")
     private suspend fun fixture(block: suspend (CaptureDatabase, RoomRhythmStats) -> Unit) {
-        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         try {
             db.capture().segment(SegmentEntity(1, at(8), at(0), "mic", "/unused", 0, "Done"))
             block(db, RoomRhythmStats(db, zone))

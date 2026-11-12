@@ -16,7 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class DigestProgressTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
-    private fun db() = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+    private fun db() = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
     private suspend fun seed(db: CaptureDatabase) {
         db.capture().segment(SegmentEntity(id = 1, startAt = 0, endAt = (DigestRunner.MAX_LINES + 1) * 1000L, sourceId = "test", path = "/synthetic", sizeBytes = 0, status = "Done"))
         db.transcribe().insertLines((1L..DigestRunner.MAX_LINES + 1).map { TranscriptLineEntity(id = it, segmentId = 1, startAt = it * 1000, endAt = it * 1000 + 900, text = "合成测试", speakerTag = null) })

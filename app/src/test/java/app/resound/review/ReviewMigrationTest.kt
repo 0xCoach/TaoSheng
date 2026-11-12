@@ -1,5 +1,6 @@
 package app.resound.review
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -41,11 +42,11 @@ class ReviewMigrationTest {
                 if (version == 7) old.execSQL("INSERT INTO llm_usage VALUES('2026-10-23',10,5,1)")
                 old.version = version
             }
-            fun open() = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+            fun open() = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
                 .addMigrations(*CaptureDatabase.MIGRATIONS).build()
             var db = open()
             try {
-                assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 校验所有表、索引、外键。
+                assertEquals(CaptureDatabase.VERSION, db.testSql.version) // Room 校验所有表、索引、外键。
                 assertEquals("/old", db.transcribe().segment(1).path)
                 assertEquals(0L, db.transcribe().segment(1).playbackMillis)
                 if (version == 7) assertEquals(10L, db.memory().observeUsage().first().single().promptTokens)

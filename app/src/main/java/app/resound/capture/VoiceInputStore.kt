@@ -1,25 +1,25 @@
 package app.resound.capture
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.transcribe.VoiceInputMetadata
 
 /** 和原话共用同一事务/搜索索引/备份链路。无音频路径只用作幂等键，永不创建文件。 */
 internal class VoiceInputStore(private val db: CaptureDatabase) {
-    suspend fun save(record: InputRecord): Long? = db.withTransaction {
+    suspend fun save(record: InputRecord): Long? = db.writeTransaction {
         val dao = db.voiceInput()
         val path = "voice-input:${record.token}"
-        dao.byToken(path)?.let { return@withTransaction it.id }
+        dao.byToken(path)?.let { return@writeTransaction it.id }
         // 回响自己也录到这句时照样存：语音输入这条原文准、带上下文，不能被录音转写顶掉
         val recent = dao.recent(record.at).mapNotNull { row ->
             VoiceInputMetadata.read(row.voiceInputJson)?.let { row to it }
         }.filter { it.second.packageName == record.meta.packageName }
         // 原话只比较同应用上一条；上下文累计比较同聊天的已存上下文。
         if (recent.firstOrNull()?.first?.text?.let { VoiceInputDedup.key(it) == VoiceInputDedup.key(record.text) } == true)
-            return@withTransaction null
+            return@writeTransaction null
         // 中间停顿被拆成两次语音输入时，后一次是“前一句 + 接着说的”：更新上一条，不另存
         recent.firstOrNull()?.first?.takeIf { record.at - it.startAt <= 120_000 && VoiceInputDedup.continues(it.text, record.text) }?.let { prev ->
-            if (dao.extend(prev.id, record.text) > 0) { dropHeard(prev.startAt, record.text); return@withTransaction prev.id }
+            if (dao.extend(prev.id, record.text) > 0) { dropHeard(prev.startAt, record.text); return@writeTransaction prev.id }
         }
         val sameChat = recent.filter { VoiceInputDedup.title(it.second.title) == VoiceInputDedup.title(record.meta.title) }
         // 只用此前保存的上下文去重；单独采集的语音原话不能充当“已存上下文”。
@@ -52,9 +52,9 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
             .filter { VoiceInputDedup.heardByMic(at, text, it.startAt, it.text, it.speakerName) }
         if (heard.isNotEmpty()) { dao.deleteLines(heard.map { it.id }); dbg("录音里重复的 ${heard.size} 句不再单独记") }
     }
-    suspend fun finish(token: String, after: String?) = db.withTransaction {
-        val row = db.voiceInput().byToken("voice-input:$token") ?: return@withTransaction
-        val meta = VoiceInputMetadata.read(row.voiceInputJson) ?: return@withTransaction
+    suspend fun finish(token: String, after: String?) = db.writeTransaction {
+        val row = db.voiceInput().byToken("voice-input:$token") ?: return@writeTransaction
+        val meta = VoiceInputMetadata.read(row.voiceInputJson) ?: return@writeTransaction
         db.voiceInput().finish(row.id, VoiceInputMetadata.json(meta.copy(after = after)).toString())
     }
 }

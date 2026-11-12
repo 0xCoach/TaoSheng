@@ -1,5 +1,6 @@
 package app.resound.location
 
+import androidx.sqlite.execSQL
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -57,7 +58,7 @@ interface LocationDao {
 }
 
 object LocationSchema {
-    fun create(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+    fun create(db: androidx.sqlite.SQLiteConnection) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `location_points` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `lat` REAL NOT NULL, `lng` REAL NOT NULL, `accuracy` REAL NOT NULL, `provider` TEXT NOT NULL)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_location_points_at` ON `location_points` (`at`)")
     }

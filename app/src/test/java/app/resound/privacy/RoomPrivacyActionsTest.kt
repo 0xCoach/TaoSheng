@@ -1,5 +1,6 @@
 package app.resound.privacy
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -25,7 +26,7 @@ class RoomPrivacyActionsTest {
     private var discarded = 0
     @Before fun setup() {
         val context = RuntimeEnvironment.getApplication()
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         directory = File(context.cacheDir, "privacy-${System.nanoTime()}").apply { mkdirs() }
         privacy = RoomPrivacyActions(db, discardRecording = { discarded++ }, now = { now })
     }
@@ -40,7 +41,7 @@ class RoomPrivacyActionsTest {
         db.transcribe().insertLines(listOf(TranscriptLineEntity(id, segment, now, now + 1, "原话", "0", eventId = event)))
     }
     private fun item(id: Long, event: Long, line: Long?) = MemoryItemEntity(id, event, "Memo", null, "条目", null, null, null, line, "Pending", now)
-    private fun count(table: String): Int = db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); it.getInt(0) }
+    private fun count(table: String): Int = db.testSql.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); it.getInt(0) }
 
     @Test fun fileRemovalFailureIsPersistedAndRetriedAfterRecreation() = runBlocking {
         val path = File(directory, "blocked.ogg").apply { mkdirs() }

@@ -1,7 +1,6 @@
 package app.resound.ask
 
-import androidx.sqlite.db.SimpleSQLiteQuery
-import app.resound.data.CaptureDatabase
+import app.resound.data.*
 import org.json.JSONObject
 
 class AskContextReader(private val db: CaptureDatabase) : app.resound.ask.core.AskContextStore {
@@ -21,11 +20,11 @@ class AskContextReader(private val db: CaptureDatabase) : app.resound.ask.core.A
                 WHERE i.id=? AND i.deleted=0 AND i.mergedInto IS NULL AND (e.id IS NULL OR e.deleted=0)"""
             else -> return null
         }
-        return db.query(SimpleSQLiteQuery(sql, arrayOf(source.id))).use { c ->
-            if (!c.moveToFirst()) null else JSONObject().apply {
+        return db.readSqlBlocking(sql, arrayOf(source.id)) { c ->
+            if (!c.step()) null else JSONObject().apply {
                 put("kind", source.kind)
                 c.columnNames.forEachIndexed { i, name ->
-                    put(name, if (name in setOf("id", "at")) c.getLong(i) else if (c.isNull(i)) "" else c.getString(i).take(if (name == "title") 100 else 900))
+                    put(name, if (name in setOf("id", "at")) c.getLong(i) else if (c.isNull(i)) "" else c.getText(i).take(if (name == "title") 100 else 900))
                 }
             }?.toString()
         }
@@ -38,20 +37,20 @@ class AskContextReader(private val db: CaptureDatabase) : app.resound.ask.core.A
         val sql = if (item) """SELECT e.id,COALESCE(e.title,i.category),COALESCE(e.summary,i.sourceText,''),COALESCE(e.startAt,i.createdAt),i.content,i.category FROM memory_items i
             LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)"""
             else "SELECT id,title,summary,startAt FROM memory_events WHERE id=? AND deleted=0"
-        return db.query(SimpleSQLiteQuery(sql, arrayOf(source.id))).use { c ->
-            require(c.moveToFirst()) { "这条记录已不存在" }
-            app.resound.ask.core.AskContextRecord(if (c.isNull(0)) null else c.getLong(0), c.getLong(3), c.getString(1), c.getString(2),
-                if (item) c.getString(4) else null, if (item) c.getString(5) else null)
+        return db.readSqlBlocking(sql, arrayOf(source.id)) { c ->
+            require(c.step()) { "这条记录已不存在" }
+            app.resound.ask.core.AskContextRecord(if (c.isNull(0)) null else c.getLong(0), c.getLong(3), c.getText(1), c.getText(2),
+                if (item) c.getText(4) else null, if (item) c.getText(5) else null)
         }
     }
     override fun lines(eventId: Long?): List<app.resound.ask.core.AskContextLine> =
-        db.query(SimpleSQLiteQuery("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(eventId))).use { c ->
+        db.readSqlBlocking("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(eventId)) { c ->
             buildList {
-                while (c.moveToNext()) {
-                    val meta = if (c.isNull(4)) null else app.resound.transcribe.VoiceInputMetadata.read(c.getString(4))?.let {
+                while (c.step()) {
+                    val meta = if (c.isNull(4)) null else app.resound.transcribe.VoiceInputMetadata.read(c.getText(4))?.let {
                         app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(500), after = it.after?.take(500))).toString()
                     }
-                    add(app.resound.ask.core.AskContextLine(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), meta))
+                    add(app.resound.ask.core.AskContextLine(c.getLong(0), c.getLong(1), c.getText(2), c.getText(3), meta))
                 }
             }
         }

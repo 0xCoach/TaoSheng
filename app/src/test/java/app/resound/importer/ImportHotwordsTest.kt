@@ -33,7 +33,7 @@ class ImportHotwordsTest {
         context.getSharedPreferences("imports", 0).edit().clear().commit()
         context.getSharedPreferences("transcribe", 0).edit().clear().commit()
         File(context.cacheDir, "import").deleteRecursively()
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
     @After fun close() { scope.cancel(); db.close(); File(context.cacheDir, "import").deleteRecursively() }

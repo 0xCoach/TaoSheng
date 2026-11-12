@@ -1,0 +1,73 @@
+{
+  "totalSeconds": 392,
+  "runs": [
+    {
+      "name": "baseline-build",
+      "seconds": 114
+    },
+    {
+      "name": "stage1",
+      "seconds": 21
+    },
+    {
+      "name": "stage1-replay",
+      "seconds": 17
+    },
+    {
+      "name": "stage2",
+      "seconds": 10
+    },
+    {
+      "name": "stage2-replay",
+      "seconds": 6
+    },
+    {
+      "name": "stage3",
+      "seconds": 13
+    },
+    {
+      "name": "stage3-replay",
+      "seconds": 13
+    },
+    {
+      "name": "stage4",
+      "seconds": 9
+    },
+    {
+      "name": "stage5",
+      "seconds": 3
+    },
+    {
+      "name": "stage5-replay",
+      "seconds": 11
+    },
+    {
+      "name": "existing-compile",
+      "seconds": 8
+    },
+    {
+      "name": "existing-tests",
+      "seconds": 48
+    },
+    {
+      "name": "baseline-failures",
+      "seconds": 37
+    },
+    {
+      "name": "restore-diagnosis",
+      "seconds": 24
+    },
+    {
+      "name": "existing-retry",
+      "seconds": 11
+    },
+    {
+      "name": "final-build",
+      "seconds": 34
+    },
+    {
+      "name": "final-migration-assert",
+      "seconds": 13
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 package app.resound.update
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -24,10 +25,10 @@ class UpdateAndroidTest {
     @Test fun checkpointSnapshotIncludesWalAndPreferencesAndKeepsLatestThreeCopies() {
         val context = RuntimeEnvironment.getApplication() as Context
         context.deleteDatabase("capture.db")
-        val database = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").allowMainThreadQueries().build()
+        val database = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val target = File(context.filesDir, "pre-update")
         try {
-            val sql = database.openHelper.writableDatabase
+            val sql = database.testSql
             sql.execSQL("CREATE TABLE update_backup_probe(value TEXT)")
             sql.execSQL("INSERT INTO update_backup_probe VALUES('before')")
             context.getSharedPreferences("voice-input", 0).edit().putBoolean("enabled", true).putString("probe", "涛声<&").commit()

@@ -1,9 +1,10 @@
 package app.resound.things
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.ask.*
 import app.resound.backup.*
 import app.resound.data.*
@@ -35,7 +36,7 @@ class Things079Test {
     private val dao get() = db.things()
     private var clock = 1_800_000_000_000L
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).addCallback(ThingSchema.callback).build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         repo = RoomThingRepository(db, scope, { error("offline") }, { clock }, { error(it) })
@@ -70,10 +71,10 @@ class Things079Test {
             old.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1,2,'mic','old',0,'Done')")
             old.version = version
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals("old", migrated.transcribe().segment(1).path)
             val r = migrated.things().insertRecord(row())
             assertEquals("Pending", migrated.things().record(r)!!.status)
@@ -107,7 +108,7 @@ class Things079Test {
     }
     @Test fun duplicatesUseCurrentLocationAndUpdatePendingWithinTwoHours() = runBlocking {
         val thing = confirmed()
-        db.withTransaction {
+        db.writeTransaction {
             assertNull(repo.propose(ThingProposal(row(thing = thing),true)))
             val a = repo.propose(ThingProposal(row(place = "书柜",at = clock+1),true))!!
             val b = repo.propose(ThingProposal(row(place = "餐桌",at = clock+2),true))!!
@@ -117,7 +118,7 @@ class Things079Test {
             assertNotNull(repo.propose(ThingProposal(row(action = "TakenAway", place = null,thing = thing),true)))
         }
         repo.accept(repo.pending().first().first { it.action==ThingAction.TakenAway }.id); repo.flush()
-        assertNotNull(db.withTransaction { repo.propose(ThingProposal(row(at = clock+3,thing = thing),true)) })
+        assertNotNull(db.writeTransaction { repo.propose(ThingProposal(row(at = clock+3,thing = thing),true)) })
     }
     @Test fun failureWatermarkSurvivesRestartAndSkipsOnlyAfterThirdFailure() = runBlocking {
         line(1)
@@ -169,7 +170,7 @@ class Things079Test {
         db.transcribe().completeRedo(db.transcribe().segment(2),listOf(TranscriptLineEntity(segmentId=2,startAt=clock+2,endAt=clock+3,text="重转写",speakerTag=null)),clock)
         assertTrue(repo.pending().first().isEmpty())
         db.memory().insertEvent(MemoryEventEntity(1,clock,clock+3,"独白","事件","","[]","[]",null,null,null,false,createdAt=clock,model="test"))
-        db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET eventId=1 WHERE id=2")
+        db.testSql.execSQL("UPDATE transcript_lines SET eventId=1 WHERE id=2")
         val r=dao.insertRecord(row(source=2));repo.accept(r);repo.flush();dao.insertRecord(row("帽子",source=2))
         db.memory().deleteEvent(1)
         assertNull(dao.record(r)!!.sourceLineId);assertTrue(repo.pending().first().isEmpty())

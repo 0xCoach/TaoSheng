@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import app.resound.data.testSql
 import android.content.Context
 import androidx.room.Room
 import app.resound.backup.BackupSettings
@@ -178,7 +179,7 @@ class LlmFailover103Test {
     }
     @Test fun digestFallbackReplayAndInflightNeverRepeatRequestOrUsage() = runBlocking {
         backup(); val client = LlmClient(); val settings = AndroidDigestSettings(context, client, providers)
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val state = context.getSharedPreferences("digest-state", 0)
         try {
             db.capture().segment(SegmentEntity(1, 0, 1000, "mic", "/fixture", 0, "Done"))
@@ -194,13 +195,13 @@ class LlmFailover103Test {
             state.edit().putString("inflight", pending.id).putString("inflight-lines", "1").commit()
             failSave = false; assertFalse(live.run(force = true)); assertFalse(runner().run(force = true))
             assertEquals(2, calls); assertTrue(db.memory().pendingDigests().isEmpty())
-            db.openHelper.readableDatabase.query("SELECT model FROM memory_events").use { assertTrue(it.moveToFirst()); assertEquals("backup", it.getString(0)); assertFalse(it.moveToNext()) }
-            db.openHelper.readableDatabase.query("SELECT SUM(calls), SUM(promptTokens) FROM llm_usage_v2").use { assertTrue(it.moveToFirst()); assertEquals(2, it.getInt(0)); assertEquals(27, it.getInt(1)) }
+            db.testSql.query("SELECT model FROM memory_events").use { assertTrue(it.moveToFirst()); assertEquals("backup", it.getString(0)); assertFalse(it.moveToNext()) }
+            db.testSql.query("SELECT SUM(calls), SUM(promptTokens) FROM llm_usage_v2").use { assertTrue(it.moveToFirst()); assertEquals(2, it.getInt(0)); assertEquals(27, it.getInt(1)) }
         } finally { db.close() }
     }
     @Test fun legacyPendingAndNewProcessRecoveryUsePrimaryWithoutRebilling() = runBlocking {
         val client = LlmClient(); val settings = AndroidDigestSettings(context, client, providers)
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             db.capture().segment(SegmentEntity(1, 0, 1000, "mic", "/fixture", 0, "Done"))
             val line = TranscriptLineEntity(1, 1, 0, 1000, "合成", null); db.transcribe().insertLines(listOf(line))
@@ -209,8 +210,8 @@ class LlmFailover103Test {
             context.getSharedPreferences("digest-state", 0).edit().putString("inflight", old).putString("inflight-lines", "1").commit()
             val runner = DigestRunner(context, db.memory(), client, settings, { "s" }, { false }, now = { 3_600_000 }, request = { _, _, _, _ -> error("must not call") })
             assertFalse(runner.run(force = true)); assertTrue(db.memory().undigestedLines().isEmpty())
-            db.openHelper.readableDatabase.query("SELECT model FROM memory_events").use { assertTrue(it.moveToFirst()); assertEquals("primary", it.getString(0)) }
-            db.openHelper.readableDatabase.query("SELECT SUM(calls) FROM llm_usage_v2").use { assertTrue(it.moveToFirst()); assertEquals(1, it.getInt(0)) }
+            db.testSql.query("SELECT model FROM memory_events").use { assertTrue(it.moveToFirst()); assertEquals("primary", it.getString(0)) }
+            db.testSql.query("SELECT SUM(calls) FROM llm_usage_v2").use { assertTrue(it.moveToFirst()); assertEquals(1, it.getInt(0)) }
         } finally { db.close() }
     }
 }

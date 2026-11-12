@@ -71,7 +71,7 @@ class RoomReviewRepository(
 
     fun hasMaterial(date: LocalDate): Flow<Boolean> =
         combine(state.map { it.dailyAtMinutes }.distinctUntilChanged(),
-            dao.materialChanges(androidx.sqlite.db.SimpleSQLiteQuery("SELECT 1"))) { minutes, _ ->
+            dao.materialChanges(androidx.room.RoomRawQuery("SELECT 1"))) { minutes, _ ->
             material(date, minutes, zone()).second != null
         }.distinctUntilChanged().flowOn(Dispatchers.IO)
 

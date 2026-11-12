@@ -136,7 +136,7 @@ class PushLocal067Test {
         }
     }
     @Test fun editAndRestoreNormalizeOldBrokenPoints() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             val dao = db.memory()
             dao.insertEvent(event().copy(pointsJson = "null", originalPointsJson = "", editedAt = at, originalTitle = "原始", originalSummary = "原摘要"))

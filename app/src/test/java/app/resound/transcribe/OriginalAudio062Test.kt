@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -27,7 +28,7 @@ class OriginalAudio062Test {
     private val day = 86_400_000L
     private val now = 20 * day
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).build()
         directory = File(context.cacheDir, "original062").apply { mkdirs() }
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
@@ -110,7 +111,7 @@ class OriginalAudio062Test {
         db.memory().editEvent(1, "新标题", "新摘要", "[\"新要点\"]", now)
         assertEquals("旧标题", db.memory().event(1)!!.originalTitle)
         assertEquals("新标题\n新摘要\n[\"新要点\"]", store.pending("fake").single().text)
-        db.openHelper.readableDatabase.query("SELECT rowid FROM events_fts WHERE events_fts MATCH '新标'").use {
+        db.testSql.query("SELECT rowid FROM events_fts WHERE events_fts MATCH '新标'").use {
             assertTrue(it.moveToFirst()); assertEquals(1L, it.getLong(0))
         }
         db.memory().editEvent(1, "再次修改", "摘要二", "[]", now + 1)
@@ -139,10 +140,10 @@ class OriginalAudio062Test {
             old.execSQL("INSERT INTO memory_events (id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,createdAt,model) VALUES (1,1,2,'会议','旧标题','旧摘要','[]','[]',0,1,'test')")
             old.version = 19
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             val row = migrated.memory().event(1)!!
             assertEquals("旧标题", row.title); assertNull(row.editedAt); assertNull(row.originalTitle)
             migrated.memory().editEvent(1, "新标题", "新摘要", "[]", now)

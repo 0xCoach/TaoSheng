@@ -14,6 +14,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import app.resound.data.checkpoint
 import java.io.FileOutputStream
 
 internal class PreUpdateBackup(
@@ -70,9 +71,7 @@ internal class PreUpdateBackup(
         }
         check(stage.deleteRecursively()); check(stage.mkdirs())
         try {
-            database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use {
-                check(it.moveToFirst() && it.getInt(0) == 0) { "checkpoint_busy" }
-            }
+            kotlinx.coroutines.runBlocking { database.checkpoint("FULL") }
             val db = File(stage, "databases/capture.db").apply { check(parentFile!!.mkdirs()) }
             // 复用已有的事务内主库 + WAL 复制及副本检查点，防止检查点之后的新写入造成不一致。
             BackupArchive.snapshot(database, db)

@@ -1,5 +1,8 @@
 package app.resound.backup
 
+import app.resound.data.testSql
+import app.resound.data.writeTransaction
+import app.resound.data.writeSql
 import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -29,20 +32,18 @@ class IncrementalBackupTest {
     private lateinit var db: CaptureDatabase
     private lateinit var root: File
     private var serial = 0
-    private val version get() = db.openHelper.writableDatabase.version
+    private val version get() = db.testSql.version
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().build())
         context.getSharedPreferences("backup", 0).edit().clear().commit()
         context.deleteDatabase("capture.db")
         db = CaptureDatabase.open(context)
-        val sql = db.openHelper.writableDatabase
+        val sql = db.testSql
         sql.execSQL("CREATE TABLE backup_probe(id INTEGER PRIMARY KEY, payload BLOB)")
-        sql.beginTransaction()
-        try {
-            repeat(120) { sql.execSQL("INSERT INTO backup_probe VALUES(?,randomblob(2000))", arrayOf(it)) }
-            sql.setTransactionSuccessful()
-        } finally { sql.endTransaction() }
+        kotlinx.coroutines.runBlocking { db.writeTransaction {
+            repeat(120) { db.writeSql("INSERT INTO backup_probe VALUES(?,randomblob(2000))", arrayOf(it)) }
+        } }
         root = File(context.cacheDir, "incremental-test").apply { deleteRecursively(); mkdirs() }
         File(context.filesDir, "backup-base").deleteRecursively()
         listOf("backup-restore", "before-restore").forEach { File(context.noBackupFilesDir, it).deleteRecursively() }
@@ -61,7 +62,7 @@ class IncrementalBackupTest {
             fetchBase = { name, file -> assertEquals(base!!.name, name); base.file.copyTo(file) }, expectedName = backup.name)
         return target
     }
-    private fun change(id: Int = 0) = db.openHelper.writableDatabase.execSQL("UPDATE backup_probe SET payload=randomblob(2000) WHERE id=?", arrayOf(id))
+    private fun change(id: Int = 0) = db.testSql.execSQL("UPDATE backup_probe SET payload=randomblob(2000) WHERE id=?", arrayOf(id))
 
     @Test fun fewChangedPagesAreCumulativeAndReconstructExactSnapshot() {
         val base = snapshot()
@@ -82,10 +83,10 @@ class IncrementalBackupTest {
 
     @Test fun growingAndShrinkingDatabaseRestoreExactLengthAndHash() {
         val base = snapshot()
-        db.openHelper.writableDatabase.execSQL("INSERT INTO backup_probe VALUES(999,randomblob(100000))")
+        db.testSql.execSQL("INSERT INTO backup_probe VALUES(999,randomblob(100000))")
         val longer = snapshot()
-        db.openHelper.writableDatabase.execSQL("DELETE FROM backup_probe WHERE id > 10")
-        db.openHelper.writableDatabase.execSQL("VACUUM")
+        db.testSql.execSQL("DELETE FROM backup_probe WHERE id > 10")
+        db.testSql.execSQL("VACUUM")
         val shorter = snapshot()
         assertTrue(longer.length() > base.length()); assertTrue(shorter.length() < base.length())
         for (today in listOf(longer, shorter)) {
@@ -110,10 +111,10 @@ class IncrementalBackupTest {
         full = base(); File(cache, "${full.name}.db").appendBytes(byteArrayOf(1))
         assertTrue(BackupNames.metadata(generated(listOf(full)).name)!!.full)
         full = base()
-        db.openHelper.writableDatabase.execSQL("PRAGMA user_version=${version + 1}")
+        db.testSql.execSQL("PRAGMA user_version=${version + 1}")
         assertTrue(BackupNames.metadata(generated(listOf(full)).name)!!.full)
         full = base()
-        db.openHelper.writableDatabase.execSQL("UPDATE backup_probe SET payload=randomblob(2000)")
+        db.testSql.execSQL("UPDATE backup_probe SET payload=randomblob(2000)")
         assertTrue(BackupNames.metadata(generated(listOf(full)).name)!!.full)
     }
 
@@ -153,7 +154,7 @@ class IncrementalBackupTest {
             IncrementalBackup.verify(delta.file, target, work, version, null, null, { _, file -> wrong.file.copyTo(file) })
             fail()
         } catch (e: BackupFailure) { assertEquals(IncrementalBackup.MISSING_BASE, e.human) }
-        assertFalse(target.exists()); assertTrue(db.isOpen)
+        assertFalse(target.exists()); assertEquals(CaptureDatabase.VERSION, db.testSql.version)
         try {
             IncrementalBackup.verify(delta.file, target, next("work").apply { mkdirs() }, version, null, null)
             fail()
@@ -192,7 +193,7 @@ class IncrementalBackupTest {
         try { verify(delta.copy(file = corrupt), full); fail() } catch (e: BackupFailure) {
             assertEquals("备份校验失败，未恢复数据", e.human)
         }
-        assertFalse(File(context.noBackupFilesDir, "backup-restore").exists()); assertTrue(db.isOpen)
+        assertFalse(File(context.noBackupFilesDir, "backup-restore").exists()); assertEquals(CaptureDatabase.VERSION, db.testSql.version)
     }
 
     @Test fun localRepositoryWritesRetainsAndAutomaticallyRestoresIncrementalPair() = runBlocking {

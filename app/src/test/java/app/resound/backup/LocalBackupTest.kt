@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -44,7 +45,7 @@ class LocalBackupTest {
         context.getSharedPreferences("backup", 0).edit().clear().commit()
         context.deleteDatabase("capture.db")
         db = CaptureDatabase.open(context)
-        db.openHelper.writableDatabase
+        db.testSql.version
         root = File(context.cacheDir, "local-test").apply { deleteRecursively(); mkdirs() }
         folder = File(root, "Resound").apply { mkdirs() }
         listOf("backup-restore", "before-restore").forEach { File(context.noBackupFilesDir, it).deleteRecursively() }
@@ -105,7 +106,7 @@ class LocalBackupTest {
         assertTrue(DayVolumes.isBundle(export)) // 单文件外层 ZIP，内部各分卷独立加密
         repository.setEncryption(null)
         assertEquals("这份备份加了密，请输入口令", repository.restoreFrom(Uri.fromFile(export)).exceptionOrNull()!!.message)
-        assertTrue(db.isOpen); assertFalse(restarted)
+        assertEquals(CaptureDatabase.VERSION, db.testSql.version); assertFalse(restarted)
         assertFalse(File(context.noBackupFilesDir, "before-restore").exists())
         assertTrue(repository.restoreFrom(Uri.fromFile(export), "test-passphrase").isSuccess)
         assertTrue(restarted)

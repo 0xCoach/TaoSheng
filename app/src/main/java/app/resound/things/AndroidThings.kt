@@ -6,7 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.MainActivity
 import app.resound.data.CaptureDatabase
 import app.resound.data.TranscriptLineEntity
@@ -57,7 +57,7 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
     val firstStartCutoff = System.currentTimeMillis() - 30 * 60_000L
     val extraction = DigestThingExtraction(db, repository, template, initialize = {
         if (!prefs.getBoolean("historySkipped", false)) {
-            db.withTransaction {
+            db.writeTransaction {
                 val state = db.things().state() ?: ThingWatchState()
                 val cut = db.things().maxLineIdBefore(firstStartCutoff)
                 db.things().state(state.copy(watermark = maxOf(state.watermark, cut), failures = 0, failedEnd = null))

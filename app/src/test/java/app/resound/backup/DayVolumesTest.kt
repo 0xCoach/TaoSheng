@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import app.resound.data.CaptureDatabase
@@ -38,7 +39,7 @@ class DayVolumesTest {
         context = RuntimeEnvironment.getApplication()
         root = File(context.cacheDir, "day-tests").apply { deleteRecursively(); mkdirs() }
         remote = File(root, "remote").apply { mkdirs() }; disk = DirectoryVolumeStore(remote)
-        context.deleteDatabase("capture.db"); db = CaptureDatabase.open(context); db.openHelper.writableDatabase
+        context.deleteDatabase("capture.db"); db = CaptureDatabase.open(context); db.testSql
         (BackupSettings.prefs + BackupSettings.stores.keys + "backup-encryption-secrets").forEach { context.getSharedPreferences(it, 0).edit().clear().commit() }
         File(context.applicationInfo.dataDir, BackupArchive.FEATURES).deleteRecursively()
         File(context.noBackupFilesDir, "backup-restore").deleteRecursively()
@@ -51,14 +52,14 @@ class DayVolumesTest {
     }
     @After fun cleanup() { db.close(); root.deleteRecursively() }
     private fun add(id: Long, day: String, title: String = "hello") {
-        db.openHelper.writableDatabase.execSQL("INSERT INTO ask_conversations(id,createdAt,title) VALUES(?,?,?)", arrayOf(id, at(day), title))
+        db.testSql.execSQL("INSERT INTO ask_conversations(id,createdAt,title) VALUES(?,?,?)", arrayOf(id, at(day), title))
     }
     private fun sync(time: Long = now, pass: String? = null) = DayVolumes.sync(context, db, store, work(), pass, time)
     private fun state(pass: String? = null) = DayVolumes.readState(store, work(), pass)!!
     private fun restore(pass: String? = null): File = File(root, "verified-${UUID.randomUUID()}").also {
         DayVolumes.restore(context, store, work(), it, pass, null)
     }
-    private fun update(id: Long) = db.openHelper.writableDatabase.execSQL("UPDATE ask_conversations SET title=title||' changed' WHERE id=?", arrayOf(id))
+    private fun update(id: Long) = db.testSql.execSQL("UPDATE ask_conversations SET title=title||' changed' WHERE id=?", arrayOf(id))
 
     @Test fun stableRowsAndBeijingBoundary() {
         add(2, "2026-10-24"); add(1, "2026-10-21")
@@ -98,7 +99,7 @@ class DayVolumesTest {
         assertArrayEquals(previous, File(remote, "resound-state.zip").readBytes())
         assertTrue(runCatching { sync() }.isFailure) // 连续两次中断不能覆盖第一次留下的旧内容
         val restored = CaptureDatabase.open(context, File(restore(), BackupArchive.DATABASE).path)
-        try { restored.openHelper.writableDatabase.query("SELECT title FROM ask_conversations WHERE id=1").use { assertTrue(it.moveToFirst()); assertEquals("before", it.getString(0)) } }
+        try { restored.testSql.query("SELECT title FROM ask_conversations WHERE id=1").use { assertTrue(it.moveToFirst()); assertEquals("before", it.getString(0)) } }
         finally { restored.close() }
         fail = null; sync(); assertFalse(File(remote, "days").listFiles()!!.any { it.name.startsWith(".previous-") })
     }
@@ -113,7 +114,7 @@ class DayVolumesTest {
         assertEquals("自定义要求", File(saved, "files/skills/mine/my_meeting/prompt.md").readText()); skill.delete()
         val room = CaptureDatabase.open(context, File(saved, BackupArchive.DATABASE).path)
         try {
-            val sql = room.openHelper.writableDatabase
+            val sql = room.testSql
             sql.query("SELECT text FROM transcript_lines").use { assertTrue(it.moveToFirst()); assertEquals("hello world", it.getString(0)) }
             sql.query("SELECT rowid FROM lines_fts WHERE lines_fts MATCH 'hello'").use { assertTrue(it.moveToFirst()) }
             sql.query("SELECT COUNT(*) FROM embeddings").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
@@ -131,11 +132,11 @@ class DayVolumesTest {
         DayVolumeRows.rebuild(context, target, 1, state, listOf(rows))
         val room = CaptureDatabase.open(context, target.path)
         try {
-            room.openHelper.writableDatabase.query("SELECT starred,starredAt,important FROM memory_events").use {
+            room.testSql.query("SELECT starred,starredAt,important FROM memory_events").use {
                 assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)); assertTrue(it.isNull(1)); assertEquals(1, it.getInt(2))
             }
-            room.openHelper.writableDatabase.query("SELECT attempts,playbackMillis FROM segments").use { it.moveToFirst(); assertEquals(0, it.getInt(0)); assertEquals(0, it.getInt(1)) }
-            room.openHelper.writableDatabase.query("SELECT content,mergedInto,noMerge FROM memory_items").use {
+            room.testSql.query("SELECT attempts,playbackMillis FROM segments").use { it.moveToFirst(); assertEquals(0, it.getInt(0)); assertEquals(0, it.getInt(1)) }
+            room.testSql.query("SELECT content,mergedInto,noMerge FROM memory_items").use {
                 assertTrue(it.moveToFirst()); assertEquals("旧灵感", it.getString(0)); assertTrue(it.isNull(1)); assertEquals(0, it.getInt(2))
             }
         }
@@ -162,7 +163,7 @@ class DayVolumesTest {
     @Test fun unencryptedSummaryIncludesSecretsAndDeletingDayRemovesRemote() {
         add(1, "2026-10-21"); add(2, "2026-10-24"); val summary = sync()
         assertTrue(summary.includesSecrets); assertFalse(summary.encrypted)
-        db.openHelper.writableDatabase.execSQL("DELETE FROM ask_conversations WHERE id=1")
+        db.testSql.execSQL("DELETE FROM ask_conversations WHERE id=1")
         store = object : VolumeStore by disk {
             override fun delete(path: String) { if (path == "days/resound-day-2026-10-21.zip") throw BackupFailure("模拟删除失败"); disk.delete(path) }
         }
@@ -180,7 +181,7 @@ class DayVolumesTest {
         assertTrue(restarted); assertTrue(File(context.noBackupFilesDir, "before-restore").listFiles()!!.isNotEmpty())
         BackupRestore.applyPending(context)
         val restored = CaptureDatabase.open(context)
-        try { restored.openHelper.writableDatabase.query("SELECT COUNT(*) FROM ask_conversations").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) } }
+        try { restored.testSql.query("SELECT COUNT(*) FROM ask_conversations").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) } }
         finally { restored.close() }
     }
     @Test fun cleanupWaitsSevenDaysOfSuccessfulFormatAndKeepsUnrelatedFiles() {
@@ -197,7 +198,7 @@ class DayVolumesTest {
         assertTrue(runCatching { restore("wrong") }.isFailure)
         File(remote, "days/resound-day-2026-10-24.zip.enc").appendText("bad")
         assertTrue(runCatching { restore("test-only") }.isFailure)
-        assertTrue(db.isOpen); assertFalse(File(context.noBackupFilesDir, "backup-restore").exists())
+        assertEquals(CaptureDatabase.VERSION, db.testSql.version); assertFalse(File(context.noBackupFilesDir, "backup-restore").exists())
     }
     @Test fun newPhoneCanSelectEncryptedFolderBeforeSupplyingPassphrase() = runBlocking {
         add(1, "2026-10-24"); sync(pass = "test-only")

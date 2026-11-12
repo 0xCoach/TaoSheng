@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 class LevelFlow172Test {
     private fun controller(): AndroidCaptureController {
         val context = RuntimeEnvironment.getApplication()
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         return AndroidCaptureController(context, CaptureStore(context, db.capture()))
     }
 

@@ -46,7 +46,7 @@ class SkillGate146Test {
         root = File(context.cacheDir, "skills146").apply { deleteRecursively(); mkdirs() }
         official = SkillJson.parse(File("src/main/assets/skills/meeting/skill.json").readText(), SkillOrigin.Builtin)
         files = SkillFiles(root) { listOf(official to "按现场讨论整理") }
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         reply = output(card("valid", "10:00", "10:15"))
     }

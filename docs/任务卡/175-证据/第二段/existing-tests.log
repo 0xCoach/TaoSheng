@@ -1,0 +1,178 @@
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata UP-TO-DATE
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResources UP-TO-DATE
+> Task :devices:packageDebugResources UP-TO-DATE
+> Task :shared:generateDebugResValues UP-TO-DATE
+> Task :shared:generateDebugResources UP-TO-DATE
+> Task :shared:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:processDebugManifest UP-TO-DATE
+> Task :shared:extractDeepLinksDebug UP-TO-DATE
+> Task :shared:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :devices:compileDebugLibraryResources UP-TO-DATE
+> Task :devices:parseDebugLocalResources UP-TO-DATE
+> Task :devices:generateDebugRFile UP-TO-DATE
+> Task :shared:compileDebugLibraryResources UP-TO-DATE
+> Task :shared:parseDebugLocalResources UP-TO-DATE
+> Task :shared:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :devices:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :devices:compileDebugKotlinAndroid UP-TO-DATE
+> Task :devices:javaPreCompileDebug UP-TO-DATE
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :shared:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :shared:compileDebugKotlinAndroid UP-TO-DATE
+> Task :shared:javaPreCompileDebug UP-TO-DATE
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugShaders UP-TO-DATE
+> Task :devices:compileDebugShaders NO-SOURCE
+> Task :devices:debugAssetsCopyForAGP NO-SOURCE
+> Task :devices:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugShaders UP-TO-DATE
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:packageDebugUnitTestForUnitTest UP-TO-DATE
+> Task :app:generateDebugUnitTestConfig UP-TO-DATE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :devices:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :devices:processDebugJavaRes UP-TO-DATE
+> Task :shared:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :shared:processDebugJavaRes UP-TO-DATE
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:kspDebugUnitTestKotlin
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ask/AskFollowUp097Test.kt:91:135 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ask/AskPlace131Test.kt:64:70 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/ask/AskPlace131Test.kt:68:39 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>?' & 'Serializable?']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/BackupHistoryTest.kt:57:75 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/BackupHistoryTest.kt:178:35 The corresponding parameter in the supertype 'Dispatcher' is named 'request'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/DayVolumesTest.kt:55:95 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/DayVolumesTest.kt:223:35 The corresponding parameter in the supertype 'Dispatcher' is named 'request'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/backup/DownloadsBackup123Test.kt:251:77 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:39 The corresponding parameter in the supertype 'WorkerFactory' is named 'appContext'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:57 The corresponding parameter in the supertype 'WorkerFactory' is named 'workerClassName'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:71 The corresponding parameter in the supertype 'WorkerFactory' is named 'workerParameters'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:38:81 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:39:134 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:40:141 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:206:147 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+
+> Task :app:testDebugUnitTest
+
+BackupArchiveTest > tamperingAndTraversalAreRejectedBeforeReplacement FAILED
+    java.lang.AssertionError at BackupArchiveTest.kt:116
+
+BackupArchiveTest > restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart FAILED
+    kotlinx.coroutines.JobCancellationException at BackupArchiveTest.kt:127
+
+BackupHistoryTest > encryptedVersionsSurvivePassphraseChangeAndCorruptionNeverStagesRestore FAILED
+    java.lang.AssertionError at BackupHistoryTest.kt:124
+
+BackupHistoryTest > safRepositoryListsAndRestoresSelectedVersionWithDefaultSeven FAILED
+    org.junit.ComparisonFailure at BackupHistoryTest.kt:155
+
+BackupPrompts029Test > newerVersionIsRejectedBeforeSnapshotOrReplacement FAILED
+    java.lang.AssertionError at BackupPrompts029Test.kt:141
+
+BackupPrompts029Test > restoreSnapshotsCurrentDataBeforeReplacingAndMigratesOlderDatabase FAILED
+    java.lang.AssertionError at BackupPrompts029Test.kt:126
+
+BackupPrompts029Test > disablingEncryptionChangesNextUploadAndKeepsDiaryAndSnapshotCleanup FAILED
+    java.lang.AssertionError at BackupPrompts029Test.kt:160
+
+BackupPrompts029Test > templatesReadDefaultsAndPersistOverridesInBackup FAILED
+    java.lang.AssertionError at BackupPrompts029Test.kt:209
+
+DayVolumesTest > wrongPassphraseAndTamperedVolumeNeverStageReplacement FAILED
+    java.lang.AssertionError at DayVolumesTest.kt:201
+
+DiaryBackupTest > failedDiaryUploadKeepsSuccessfulBackupAndRetriesBothDaysNextNight FAILED
+    java.lang.AssertionError at DiaryBackupTest.kt:33
+
+DownloadsBackup123Test > downloadsBackupListsAndRestoresSelectedPointWithSettings FAILED
+    org.junit.ComparisonFailure at DownloadsBackup123Test.kt:74
+
+IncrementalBackupTest > tamperedPageFailsResultHashAndNeverStagesRestore FAILED
+    java.lang.AssertionError at IncrementalBackupTest.kt:196
+
+IncrementalBackupTest > wrongOrMissingBaseRejectedBeforeAnyLiveDatabaseReplacement FAILED
+    java.lang.AssertionError at IncrementalBackupTest.kt:157
+
+LocalBackupTest > exportEncryptedFileDetectsContentWithoutSuffixAndRequestsPassphrase FAILED
+    java.lang.AssertionError at LocalBackupTest.kt:102
+
+11-13 00:46:52.661 81241 17086513 E SQLiteConnection: startPos 31 > actual rows 26
+
+> Task :app:testDebugUnitTest
+
+LocalAsrFailure063Test > exportedProblemReportContainsExceptionClassButNoMessageOrPath FAILED
+    kotlinx.coroutines.JobCancellationException at CoroutineDebugging.kt:42
+        Caused by: kotlinx.coroutines.JobCancellationException at JobSupport.kt:1685
+
+LocalAsrFailure063Test > missingAudioIsSpecificAndDoesNotStopLaterSegmentsOrRetryForever FAILED
+    java.lang.AssertionError at LocalAsrFailure063Test.kt:36
+
+VoiceprintRepositoryTest > persistentFeatureCacheSurvivesDatabaseReopenWithoutAudioOrEngine FAILED
+    java.util.NoSuchElementException at VoiceprintRepositoryTest.kt:387
+
+664 tests completed, 17 failed, 3 skipped
+
+> Task :app:testDebugUnitTest FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///Users/coach/Developer/TaoSheng-175/app/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 48s
+67 actionable tasks: 7 executed, 60 up-to-date

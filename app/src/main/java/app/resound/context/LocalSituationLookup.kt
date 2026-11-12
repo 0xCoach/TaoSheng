@@ -1,7 +1,10 @@
 package app.resound.context
 
-import androidx.room.InvalidationTracker
-import app.resound.data.CaptureDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+import app.resound.data.*
 import app.resound.envsound.EnvSoundRow
 import app.resound.envsound.EnvTag
 import app.resound.envsound.SpecialSound
@@ -120,20 +123,20 @@ class LocalSituationLookup internal constructor(
     }
 
     companion object {
-        fun create(database: CaptureDatabase, location: LocationRepository): LocalSituationLookup {
+        fun create(database: CaptureDatabase, location: LocationRepository, scope: CoroutineScope): LocalSituationLookup {
             val places = AtomicLong()
             val sounds = AtomicLong()
-            database.invalidationTracker.addObserver(object : InvalidationTracker.Observer("location_points", "location_places", "env_sounds") {
-                override fun onInvalidated(tables: Set<String>) {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                database.invalidationTracker.createFlow("location_points", "location_places", "env_sounds").collect { tables ->
                     if (tables.any { it == "location_points" || it == "location_places" }) places.incrementAndGet()
                     if ("env_sounds" in tables) sounds.incrementAndGet()
                 }
-            })
+            }
             return LocalSituationLookup(location.settings::wanted, database.location()::betweenNow,
                 location.places::cached, database.envSound()::between, places::get, sounds::get,
                 pointBounds = {
-                    database.query("SELECT MIN(at), MAX(at) FROM location_points", emptyArray()).use {
-                        if (!it.moveToFirst() || it.isNull(0)) null else it.getLong(0) to it.getLong(1)
+                    database.readSql("SELECT MIN(at), MAX(at) FROM location_points") {
+                        if (!it.step() || it.isNull(0)) null else it.getLong(0) to it.getLong(1)
                     }
                 })
         }

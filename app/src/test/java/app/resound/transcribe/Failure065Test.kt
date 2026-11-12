@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -25,7 +26,7 @@ class Failure065Test {
     private val day = 86_400_000L
     private var clock = 10 * day
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         directory = File(context.cacheDir, "failure065").apply { mkdirs() }
     }
     @After fun close() { db.close(); directory.deleteRecursively() }
@@ -164,10 +165,10 @@ class Failure065Test {
             old.execSQL("INSERT INTO asr_attempts (segmentId,at,result,errorType,elapsedMillis,sentMillis) VALUES (1,100,'Failed','Network',1,1)")
             old.version = 20
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals(100L, migrated.transcribe().segment(1).firstFailedAt)
             migrated.transcribe().refreshFailures(clock)
             assertEquals("Quiet", migrated.transcribe().segment(1).status)

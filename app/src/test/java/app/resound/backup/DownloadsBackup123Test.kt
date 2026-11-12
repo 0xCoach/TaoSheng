@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.ContentProvider
 import android.content.ContentUris
@@ -56,7 +57,7 @@ class DownloadsBackup123Test {
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().build())
         context.deleteDatabase("capture.db")
         db = CaptureDatabase.open(context)
-        db.openHelper.writableDatabase.execSQL("INSERT INTO ask_conversations(id,createdAt,title) VALUES(1,1792800000000,'before')")
+        db.testSql.execSQL("INSERT INTO ask_conversations(id,createdAt,title) VALUES(1,1792800000000,'before')")
         provider = DownloadsProvider123(File(root, "provider").apply { mkdirs() })
         provider.attachInfo(context, ProviderInfo().apply { authority = "media" })
         ShadowContentResolver.registerProviderInternal("media", provider)
@@ -66,7 +67,7 @@ class DownloadsBackup123Test {
     @After fun cleanup() { db.close(); provider.shutdown(); root.deleteRecursively(); BackupScheduler(context).cancel() }
     private fun title(verified: File): String {
         val restored = CaptureDatabase.open(context, File(verified, BackupArchive.DATABASE).path)
-        return try { restored.openHelper.writableDatabase.query("SELECT title FROM ask_conversations WHERE id=1").use {
+        return try { restored.testSql.query("SELECT title FROM ask_conversations WHERE id=1").use {
             assertTrue(it.moveToFirst()); it.getString(0)
         } } finally { restored.close() }
     }
@@ -80,14 +81,14 @@ class DownloadsBackup123Test {
         repo.runLocalBackup(true)
         assertNull(repo.local.value.lastError)
         val point = repo.localBackups().getOrThrow().single()
-        db.openHelper.writableDatabase.execSQL("UPDATE ask_conversations SET title='after'")
+        db.testSql.execSQL("UPDATE ask_conversations SET title='after'")
         assertTrue(repo.restoreLocal(point.name).isSuccess)
         assertTrue(restarted)
         // 走完整应用恢复入口；恢复前先改变当前选择，确认备份里的选择确实生效。
         context.getSharedPreferences("backup", 0).edit().putBoolean("localDownloads", false).commit()
         BackupRestore.applyPending(context)
         db = CaptureDatabase.open(context)
-        db.openHelper.writableDatabase.query("SELECT title FROM ask_conversations WHERE id=1").use {
+        db.testSql.query("SELECT title FROM ask_conversations WHERE id=1").use {
             assertTrue(it.moveToFirst()); assertEquals("before", it.getString(0))
         }
         assertEquals("下载/备份", repository().local.value.folder)
@@ -108,7 +109,7 @@ class DownloadsBackup123Test {
         val repo = repository().apply { useDownloadsFolder() }
         DayVolumes.sync(context, db, store, work(), null)
         assertTrue(store.exists("days/resound-day-2026-10-24.zip"))
-        db.openHelper.writableDatabase.execSQL("UPDATE ask_conversations SET title='changed'")
+        db.testSql.execSQL("UPDATE ask_conversations SET title='changed'")
         DayVolumes.sync(context, db, store, work(), null)
         val target = File(work(), "verified")
         DayVolumes.restore(context, store, work(), target, null, null)

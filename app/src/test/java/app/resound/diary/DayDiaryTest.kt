@@ -1,5 +1,6 @@
 package app.resound.diary
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -39,7 +40,7 @@ class DayDiaryTest {
     @Before fun setup() {
         originalZone = TimeZone.getDefault()
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"))
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
         val settings = AndroidDigestSettings(context, llm)
@@ -106,10 +107,10 @@ class DayDiaryTest {
             }
             old.version = version
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals("/old", migrated.transcribe().segment(1).path)
             if (version == 9) {
                 val rows = migrated.memory().itemsByCategory(listOf("待办", "备忘")).first().associateBy { it.id }
@@ -259,7 +260,7 @@ class DayDiaryTest {
         assertFalse(multi.contains("10月24日"))
         val meta = app.resound.transcribe.VoiceInputMetadata.json(app.resound.transcribe.VoiceInputMeta(
             "合成聊天", "synthetic.chat", "老王", "合成之前上下文", "合成之后回复")).toString()
-        db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET voiceInputJson=? WHERE id=2", arrayOf(meta))
+        db.testSql.execSQL("UPDATE transcript_lines SET voiceInputJson=? WHERE id=2", arrayOf(meta))
         val full = diary.markdownWithContext(date, date, true, true)
         assertTrue(full.contains("**2026-10-23 14:05 我**：先确认需求"))
         assertTrue(full.contains("> 合成之前上下文")); assertTrue(full.contains("> 合成之后回复"))

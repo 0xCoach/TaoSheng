@@ -21,7 +21,7 @@ import org.robolectric.annotation.SQLiteMode
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class OnboardingQueries132Test {
     @Test fun databaseSignalsIgnoreBlankUncertainAndCrossSegmentTagsButAcceptKnownOtherPerson() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         try {
             withTimeout(15_000) {
                 val dao = db.transcribe()

@@ -1,6 +1,6 @@
 package app.resound.importer
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.voiceprint.*
 import kotlinx.coroutines.CancellationException
@@ -46,7 +46,7 @@ internal class ImportSpeakers(
         val dao = db.imports()
         val lines = dao.lines(record.id)
         if (record.byChannel) {
-            db.withTransaction { if (dao.get(record.id)?.revision == record.revision)
+            db.writeTransaction { if (dao.get(record.id)?.revision == record.revision)
                 ImportSpeakerGroups.channelNames(lines).forEach { dao.line(it) } }
             return null
         }
@@ -76,7 +76,7 @@ internal class ImportSpeakers(
                 }
             }
             val assignment = ImportSpeakerGroups.two(groups.map { vectors.getValue(it.first().segmentId to VoiceprintAudio.groupKey(it.first())) })
-            db.withTransaction {
+            db.writeTransaction {
                 if (dao.get(record.id)?.revision == record.revision) groups.forEachIndexed { index, group ->
                     group.forEach { dao.line(it.copy(speakerTag = "call:${assignment[index]}")) }
                 }

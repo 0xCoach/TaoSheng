@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -40,7 +41,7 @@ class ManualTodo054Test {
     private val dao get() = db.memory()
     private val preset = LlmPreset("test", "test", "https://example.invalid", "test")
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).build()
         root = File(context.cacheDir, "manual054-${UUID.randomUUID()}").apply { mkdirs() }
     }
@@ -70,10 +71,10 @@ class ManualTodo054Test {
             old.execSQL("INSERT INTO memory_items(id,eventId,category,kind,content,status,createdAt,doneAt,statusChangedAt,sortOrder,mergedInto,noMerge,deleted,editedAt,doneHintLineId,doneHintAt,dismissedDoneLinesJson,reminderVersion) VALUES(1,1,'待办','我要做','旧内容','Accepted',1,2,3,-4,NULL,1,0,5,6,7,'[8]',9)")
             old.version = 17
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             val old = migrated.memory().itemIncludingDeleted(1)!!
             assertEquals("digest", old.origin); assertNull(old.sourceText)
             assertEquals(1L, old.eventId); assertEquals("旧内容", old.content)
@@ -81,12 +82,12 @@ class ManualTodo054Test {
             assertEquals("[8]", old.dismissedDoneLinesJson); assertTrue(old.noMerge)
             migrated.memory().insertItems(listOf(item(2)))
             migrated.memory().updateItem(2, "修改方案", null, false, null)
-            migrated.openHelper.writableDatabase.query("SELECT content FROM items_fts WHERE rowid=2").use { c ->
+            migrated.testSql.query("SELECT content FROM items_fts WHERE rowid=2").use { c ->
                 assertTrue(c.moveToFirst()); assertTrue(c.getString(0).contains("修改"))
             }
-            migrated.openHelper.writableDatabase.execSQL("DELETE FROM memory_events WHERE id=1")
+            migrated.testSql.execSQL("DELETE FROM memory_events WHERE id=1")
             assertNull(migrated.memory().itemIncludingDeleted(1)); assertNotNull(migrated.memory().itemIncludingDeleted(2))
-            migrated.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
+            migrated.testSql.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
         } finally { migrated.close() }
     }
 
@@ -253,7 +254,7 @@ class ManualTodo054Test {
         assertTrue(reminders.isNotEmpty())
         assertTrue(MemoryFolder(date, zone).generate(selected, PushSubscription.ForAgents).values.any { it.contains("给客户发方案") && it.contains("手动添加") })
         val sql = JSONObject(context.assets.open("prompts/ask-sql.json").bufferedReader().use { it.readText() }).getJSONObject("list_items")
-        db.openHelper.writableDatabase.query("SELECT ${sql.getString("select")} FROM ${sql.getString("table")} WHERE ${sql.getString("where")}").use { c ->
+        db.testSql.query("SELECT ${sql.getString("select")} FROM ${sql.getString("table")} WHERE ${sql.getString("where")}").use { c ->
             assertTrue(c.moveToFirst()); assertEquals(1L, c.getLong(0)); assertEquals(at, c.getLong(1)); assertEquals("提醒我给客户发方案", c.getString(c.getColumnIndexOrThrow("quote")))
         }
         assertTrue(AskContextReader(db).read(AskSource("item", 1, at, "待办", "")).text.contains("提醒我给客户发方案"))

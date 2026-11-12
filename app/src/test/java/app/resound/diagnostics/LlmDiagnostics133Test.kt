@@ -119,7 +119,7 @@ class LlmDiagnostics133Test {
     }
 
     @Test fun reportAggregatesOnlyThreeDaysAndOmitsCredentialsHeadersAndOriginal() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             val end = LocalDate.of(2026, 11, 10)
             db.memory().addUsage("2026-11-08", 10, 2, UsagePurpose.Digest)

@@ -1,7 +1,6 @@
 package app.resound.ask
 
-import androidx.room.withTransaction
-import androidx.sqlite.db.SimpleSQLiteQuery
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
@@ -24,19 +23,19 @@ data class ProposedChange(val action: AskAction, val operation: String, val args
 class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = System::currentTimeMillis,
     private val onChanged: () -> Unit = {}) {
 
-    private fun item(id: Long): app.resound.ask.core.AskChangeTarget? = db.query(SimpleSQLiteQuery("""SELECT i.content,i.status,i.dueAt
-        FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)""", arrayOf(id))).use { c ->
-        if (c.moveToFirst()) app.resound.ask.core.AskChangeTarget(c.getString(0), c.getString(1), if (c.isNull(2)) null else c.getLong(2)) else null
+    private suspend fun item(id: Long): app.resound.ask.core.AskChangeTarget? = db.readSql("""SELECT i.content,i.status,i.dueAt
+        FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)""", arrayOf(id)) { c ->
+        if (c.step()) app.resound.ask.core.AskChangeTarget(c.getText(0), c.getText(1), if (c.isNull(2)) null else c.getLong(2)) else null
     }
-    private fun event(id: Long): app.resound.ask.core.AskChangeTarget? = db.query(SimpleSQLiteQuery("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id))).use { c ->
-        if (c.moveToFirst()) app.resound.ask.core.AskChangeTarget(c.getString(0), c.getInt(1).toString(), null) else null
+    private suspend fun event(id: Long): app.resound.ask.core.AskChangeTarget? = db.readSql("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id)) { c ->
+        if (c.step()) app.resound.ask.core.AskChangeTarget(c.getText(0), c.getLong(1).toInt().toString(), null) else null
     }
     private fun due(args: JSONObject): Long? = if (!args.has("due") || args.isNull("due")) null
         else AskTools.timestamp(args.getString("due"), false, ZoneId.systemDefault())
     fun propose(input: JSONObject, sources: List<AskSource>): ProposedChange {
         val core = app.resound.ask.core.AskChangesCore(object : app.resound.ask.core.AskChangeStore {
-            override fun item(id: Long) = this@AskChanges.item(id)
-            override fun event(id: Long) = this@AskChanges.event(id)
+            override fun item(id: Long) = kotlinx.coroutines.runBlocking { this@AskChanges.item(id) }
+            override fun event(id: Long) = kotlinx.coroutines.runBlocking { this@AskChanges.event(id) }
         }, kotlinx.datetime.TimeZone.of(ZoneId.systemDefault().id))
         val proposal = core.propose(input.toString(), sources)
         return ProposedChange(proposal.action, proposal.operation, JSONObject(proposal.args), proposal.expected)
@@ -44,18 +43,18 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
 
     suspend fun resolve(messageId: Long, confirm: Boolean) {
         try {
-            db.withTransaction {
-                val row = db.ask().message(messageId) ?: return@withTransaction
-                val proposal = ProposedChange.decode(row.actionJson) ?: return@withTransaction
-                if (row.role != AskRole.Assistant.name || proposal.action.state != AskActionState.Pending) return@withTransaction
+            db.writeTransaction {
+                val row = db.ask().message(messageId) ?: return@writeTransaction
+                val proposal = ProposedChange.decode(row.actionJson) ?: return@writeTransaction
+                if (row.role != AskRole.Assistant.name || proposal.action.state != AskActionState.Pending) return@writeTransaction
                 if (confirm) apply(proposal)
                 db.ask().setAction(messageId, proposal.copy(action = proposal.action.copy(
                     state = if (confirm) AskActionState.Done else AskActionState.Cancelled)).encode())
             }
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            db.withTransaction {
-                val proposal = ProposedChange.decode(db.ask().message(messageId)?.actionJson) ?: return@withTransaction
+            db.writeTransaction {
+                val proposal = ProposedChange.decode(db.ask().message(messageId)?.actionJson) ?: return@writeTransaction
                 if (proposal.action.state == AskActionState.Pending) db.ask().setAction(messageId,
                     proposal.copy(action = proposal.action.copy(state = AskActionState.Failed,
                         detail = if (e is StaleChange) "记录已变化或被删除，请重新查询后再修改。" else "修改未成功，数据未更改，请重新提问后重试。")).encode())

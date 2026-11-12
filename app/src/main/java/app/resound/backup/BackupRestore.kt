@@ -7,6 +7,8 @@ import android.content.Intent
 import android.os.Process
 import android.util.AtomicFile
 import java.io.File
+import app.resound.data.*
+import kotlinx.coroutines.runBlocking
 
 /** 恢复在下次进程启动、任何 Room/设置仓库初始化之前提交。
  * 修改前保存本机回滚副本；失败或中断时还原，不能打开混合版本数据。
@@ -45,17 +47,15 @@ internal object BackupRestore {
         val workspace = File(context.cacheDir, "resound-restore-$id").apply { check(mkdirs()) }
         val verified = File(context.noBackupFilesDir, "resound-restore-$id")
         try {
-            IncrementalBackup.verify(source, verified, workspace, database.openHelper.writableDatabase.version,
+            IncrementalBackup.verify(source, verified, workspace, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() },
                 storedPassphrase, suppliedPassphrase, fetchBase, expectedName)
             // 先在隔离副本上走同一套 Room 迁移和 schema 校验，失败不替换本机数据。
             try {
                 val migrated = app.resound.data.CaptureDatabase.open(context, File(verified, BackupArchive.DATABASE).absolutePath)
                 try {
-                    migrated.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor ->
-                        check(cursor.moveToFirst() && cursor.getInt(0) == 0)
-                    }
+                    runBlocking { migrated.checkpoint("TRUNCATE") }
                 } finally { migrated.close() }
-                listOf("-wal", "-shm", "-journal").forEach { File(File(verified, BackupArchive.DATABASE).path + it).delete() }
+                listOf("-wal", "-shm", "-journal", ".lck").forEach { File(File(verified, BackupArchive.DATABASE).path + it).delete() }
             } catch (_: Exception) { throw BackupFailure("备份数据库迁移或校验失败，未恢复数据") }
             snapshot(context, database)
             stage(context, verified)

@@ -329,7 +329,7 @@ class Subscription042Test {
         }
     }
     @Test fun roomSnapshotHonorsMergePrivacyAndDeletedCards() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         try {
             db.memory().insertEvent(event()); db.memory().insertEvent(event(2).copy(scene = "媒体"))
             db.memory().insertItems(listOf(item(), item(2).copy(mergedInto = 1)))

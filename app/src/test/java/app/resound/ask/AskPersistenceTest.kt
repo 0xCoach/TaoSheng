@@ -1,5 +1,6 @@
 package app.resound.ask
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -51,11 +52,11 @@ class AskPersistenceTest {
                 }
                 old.version = version
             }
-            fun open() = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+            fun open() = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
                 .addMigrations(*CaptureDatabase.MIGRATIONS).build()
             var db = open()
             try {
-                assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 验证全部表、列、索引和外键。
+                assertEquals(CaptureDatabase.VERSION, db.testSql.version) // Room 验证全部表、列、索引和外键。
                 assertEquals(if (version == 1) "Pending" else "Done", db.transcribe().segment(1).status)
                 if (version == 5) {
                     assertEquals("旧原话", db.voiceprint().line(7)!!.text)
@@ -75,7 +76,7 @@ class AskPersistenceTest {
     }
 
     @Test fun stopPersistsOnlyFinalPartialAndRestartAndNewConversationStayIsolated() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val key = AtomicBoolean(true); val calls = AtomicInteger()
         val started = CompletableDeferred<Unit>()
@@ -118,7 +119,7 @@ class AskPersistenceTest {
     }
 
     @Test fun historySearchPagingSelectionRenameAndDelete() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val prefs = context.getSharedPreferences("history-test", Context.MODE_PRIVATE)
         var selection: Long? = null

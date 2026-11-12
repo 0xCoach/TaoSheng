@@ -49,7 +49,7 @@ class ManualReview058Test {
         }, {}, now = { at + 22 * 3600000 }, zone = { zone }, beforeReview = { prepare() }, work = work)
 
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         prefs.edit().clear().commit()
     }

@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -39,8 +40,8 @@ class BackupPrompts029Test {
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("capture.db")
-        db = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").allowMainThreadQueries().build()
-        db.openHelper.writableDatabase
+        db = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
+        db.testSql.version
         root = File(context.cacheDir, "029-test").apply { deleteRecursively(); mkdirs() }
         listOf("before-restore", "backup-restore", "backup-restore-done").forEach { File(context.noBackupFilesDir, it).deleteRecursively() }
         File(context.filesDir, "prompts").deleteRecursively()
@@ -124,20 +125,20 @@ class BackupPrompts029Test {
         BackupRestore.applyPending(context)
         assertFalse(File(context.filesDir, "prompts/digest.md").exists())
         val restored = CaptureDatabase.open(context)
-        try { assertEquals(androidx.room.Room.databaseBuilder(context, CaptureDatabase::class.java, "version-probe.db").build().let { probe -> try { probe.openHelper.writableDatabase.version } finally { probe.close() } }, restored.openHelper.writableDatabase.version) } finally { restored.close() }
+        try { assertEquals(CaptureDatabase.VERSION, restored.testSql.version) } finally { restored.close() }
         assertTrue(File(context.noBackupFilesDir, "before-restore").listFiles()!!.single().isFile)
     }
     @Test fun newerVersionIsRejectedBeforeSnapshotOrReplacement() {
         val stage = File(root, "future").apply { mkdirs() }
         BackupArchive.snapshot(db, File(stage, BackupArchive.DATABASE).apply { parentFile!!.mkdirs() })
         val zip = File(root, "future.zip")
-        BackupArchive.pack(stage, zip, 123, "future", db.openHelper.writableDatabase.version + 1)
+        BackupArchive.pack(stage, zip, 123, "future", db.testSql.version + 1)
         server.enqueue(MockResponse().setBody(okio.Buffer().write(zip.readBytes())))
         assertEquals("备份数据库版本比 App 新，请先升级 App", failure {
             BackupRestore.restore(context, client, "回响-2026-10-24-0310.zip", db,
                 closeDatabase = { fail("不应关闭") }, restartProcess = { fail("不应重启") })
         })
-        assertTrue(db.isOpen)
+        assertEquals(CaptureDatabase.VERSION, db.testSql.version)
         assertFalse(File(context.noBackupFilesDir, "before-restore").exists())
         assertFalse(File(context.noBackupFilesDir, "backup-restore").exists())
     }

@@ -2,7 +2,7 @@ package app.resound.digest
 
 import android.util.Log
 import androidx.room.Room
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.resound.data.*
@@ -24,40 +24,34 @@ class DeleteLatency099DeviceTest {
         check(context.packageName == "app.resound.validation")
         val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
             .addCallback(app.resound.things.ThingSchema.callback)
-            .addCallback(PendingDigestSchema.callback).build()
+            .addCallback(PendingDigestSchema.callback).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val zone = ZoneId.of("Asia/Shanghai")
         val date = LocalDate.parse("2026-11-03")
         val until = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val from = date.minusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
         try {
-            db.withTransaction {
-                val sql = db.openHelper.writableDatabase
+            db.writeTransaction {
                 val text = "synthetic words ".repeat(140)
-                val segment = sql.compileStatement("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(?,?,?,'mic',?,0,'Done')")
-                val event = sql.compileStatement("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(?,?,?,?,'合成事件','合成摘要','[]','[]',0,0,?,'synthetic')")
-                val line = sql.compileStatement("INSERT INTO transcript_lines(segmentId,startAt,endAt,text,eventId) VALUES(?,?,?,?,?)")
-                try {
-                    for (id in 1L..2820L) {
-                        val at = if (id <= 2800) from + ((id - 1) / 400) * 86_400_000L + ((id - 1) % 400) * 150_000L
-                            else until + (id - 2801) * 150_000L
-                        segment.bindLong(1, id); segment.bindLong(2, at); segment.bindLong(3, at + 150_000)
-                        segment.bindString(4, "/synthetic-099/$id.ogg"); segment.executeInsert()
-                        event.bindLong(1, id); event.bindLong(2, at); event.bindLong(3, at + 150_000)
-                        event.bindString(4, if (id <= 2800 && id % 10 == 0L) "媒体" else "会议")
-                        event.bindLong(5, at); event.executeInsert()
-                        repeat(5) { n ->
-                            line.bindLong(1, id); line.bindLong(2, at + n * 30_000)
-                            line.bindLong(3, at + n * 30_000 + 20_000)
-                            line.bindString(4, text); line.bindLong(5, id); line.executeInsert()
-                        }
+                for (id in 1L..2820L) {
+                    val at = if (id <= 2800) from + ((id - 1) / 400) * 86_400_000L + ((id - 1) % 400) * 150_000L
+                        else until + (id - 2801) * 150_000L
+                    db.writeSql("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(?,?,?,'mic',?,0,'Done')",
+                        arrayOf(id, at, at + 150_000, "/synthetic-099/$id.ogg"))
+                    db.writeSql("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(?,?,?,?,'合成事件','合成摘要','[]','[]',0,0,?,'synthetic')",
+                        arrayOf(id, at, at + 150_000, if (id <= 2800 && id % 10 == 0L) "媒体" else "会议", at))
+                    repeat(5) { n ->
+                        db.writeSql("INSERT INTO transcript_lines(segmentId,startAt,endAt,text,eventId) VALUES(?,?,?,?,?)",
+                            arrayOf(id, at + n * 30_000, at + n * 30_000 + 20_000, text, id))
                     }
-                } finally { line.close(); event.close(); segment.close() }
+                }
                 // 批量构造已有历史数据，预先分词避免把建夹具时间花在逐句 SQL 分词上。
                 // 测量前安装生产触发器并填充真实索引；统计与删除都走原有数据库路径。
-                app.resound.search.SearchIndex.install(sql, backfill = false)
+                val statements = mutableListOf<String>()
+                app.resound.search.SearchIndex.install({ statements += it }, backfill = false)
+                statements.forEach { db.writeSql(it) }
                 fun tokens(value: String) = app.resound.search.SearchTokens.split(value).joinToString(" ")
-                sql.execSQL("INSERT INTO lines_fts(rowid,text) SELECT id,? FROM transcript_lines", arrayOf(tokens(text)))
-                sql.execSQL("INSERT INTO events_fts(rowid,title,summary,points) SELECT id,?,?,' ' FROM memory_events",
+                db.writeSql("INSERT INTO lines_fts(rowid,text) SELECT id,? FROM transcript_lines", arrayOf(tokens(text)))
+                db.writeSql("INSERT INTO events_fts(rowid,title,summary,points) SELECT id,?,?,' ' FROM memory_events",
                     arrayOf(tokens("合成事件"), tokens("合成摘要")))
             }
             Log.i("DeleteLatency099", "synthetic_fixture_ready")
@@ -66,14 +60,14 @@ class DeleteLatency099DeviceTest {
             val enteredOld = CompletableDeferred<Unit>()
             val old = async(Dispatchers.IO) {
                 measureTimeMillis {
-                    db.withTransaction {
+                    db.writeTransaction {
                         enteredOld.complete(Unit)
-                        db.openHelper.readableDatabase.query("""SELECT l.* FROM transcript_lines l
+                        db.readSql("""SELECT l.* FROM transcript_lines l
                             LEFT JOIN memory_events e ON e.id=l.eventId WHERE l.startAt >= $from AND l.startAt < $until
                             AND (e.id IS NULL OR e.deleted=0) AND NOT EXISTS (SELECT 1 FROM memory_events m WHERE m.deleted=0
-                            AND m.scene='媒体' AND l.startAt<m.endAt AND l.endAt>m.startAt) ORDER BY l.startAt,l.id""").use { cursor ->
-                            val start = cursor.getColumnIndexOrThrow("startAt"); val end = cursor.getColumnIndexOrThrow("endAt")
-                            while (cursor.moveToNext()) oldSpans += RhythmSpan(cursor.getLong(start), cursor.getLong(end))
+                            AND m.scene='媒体' AND l.startAt<m.endAt AND l.endAt>m.startAt) ORDER BY l.startAt,l.id""") { cursor ->
+                            val start = cursor.columnNames.indexOf("startAt"); val end = cursor.columnNames.indexOf("endAt")
+                            while (cursor.step()) oldSpans += RhythmSpan(cursor.getLong(start), cursor.getLong(end))
                         }
                     }
                 }
@@ -85,7 +79,7 @@ class DeleteLatency099DeviceTest {
             var snapshot: RhythmSnapshot? = null
             val fresh = async(Dispatchers.IO) {
                 measureTimeMillis {
-                    db.withTransaction {
+                    db.writeTransaction {
                         enteredNew.complete(Unit)
                         snapshot = db.memory().rhythmSnapshot(from, until)
                     }

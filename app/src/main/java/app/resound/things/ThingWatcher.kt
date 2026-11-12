@@ -1,6 +1,6 @@
 package app.resound.things
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.EventEntity
@@ -15,7 +15,7 @@ internal class ThingWatcher(private val db: CaptureDatabase, repository: RoomThi
     private fun remember(rows: List<TranscriptLineEntity>) = rows.map { originals[it.id] = it; it.shared() }
     private val engine = ThingWatcherRules(object : ThingWatchStore {
         private val dao = db.things()
-        override suspend fun <T> transaction(block: suspend () -> T): T = db.withTransaction { block() }
+        override suspend fun <T> transaction(block: suspend () -> T): T = db.writeTransaction { block() }
         override suspend fun state() = dao.state()?.shared()
         override suspend fun state(value: ThingWatchData) = dao.state(value.room())
         override suspend fun maxLineIdBefore(before: Long) = dao.maxLineIdBefore(before)

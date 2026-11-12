@@ -226,7 +226,7 @@ class VoiceInput049Test {
     }
     private fun record(at: Long, text: String, before: String?, title: String? = "老王", pkg: String = "chat") =
         InputRecord("$at-$text", at, text, VoiceInputMeta("聊天", pkg, title, before, "不应存的回复"), 999999L)
-    private fun database() = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java)
+    private fun database() = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
         .allowMainThreadQueries().build()
     @Test fun threeDictationsDedupOnlyPreviouslyStoredContext() = runBlocking {
         val db = database()

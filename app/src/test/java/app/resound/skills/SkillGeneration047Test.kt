@@ -1,5 +1,6 @@
 package app.resound.skills
 
+import app.resound.data.testSql
 import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.app.Notification
@@ -67,9 +68,9 @@ class SkillGeneration047Test {
         files.skills.value.filter { it.origin != SkillOrigin.Core }.forEach { s -> files.change(s.id) {
             it.put("push", false); it.put("enabled", s.id == "evening_note")
         } }
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         db.capture().segment(SegmentEntity(1, start, start + 1000, "mic", "/unused", 0, "Done"))
-        db.openHelper.writableDatabase.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,speakerName,digestedAt,speakerManual) VALUES(1,1,?,?, '推进项目','我',?,0)",
+        db.testSql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,speakerName,digestedAt,speakerManual) VALUES(1,1,?,?, '推进项目','我',?,0)",
             arrayOf(start + 36_000_000L, start + 36_002_000L, start + 37_000_000L))
     }
     @After fun close() = runBlocking {

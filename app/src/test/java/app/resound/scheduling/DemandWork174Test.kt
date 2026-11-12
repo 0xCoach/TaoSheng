@@ -45,7 +45,7 @@ class DemandWork174Test {
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder()
             .setExecutor(SynchronousExecutor()).setWorkerFactory(factory).build())
         work = WorkManager.getInstance(context)
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         files = File(context.cacheDir, "demand174").apply { mkdirs() }

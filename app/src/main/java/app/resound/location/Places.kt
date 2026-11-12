@@ -1,5 +1,6 @@
 package app.resound.location
 
+import androidx.sqlite.execSQL
 import android.content.Context
 import android.location.Geocoder
 import androidx.room.Dao
@@ -56,10 +57,10 @@ interface PlaceDao {
 
 object PlaceSchema {
     /** 地名缓存表；addManual 再加坐标和“家”。 */
-    fun create(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+    fun create(db: androidx.sqlite.SQLiteConnection) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `location_places` (`cell` TEXT NOT NULL, `name` TEXT NOT NULL, `address` TEXT NOT NULL, `source` TEXT NOT NULL, `at` INTEGER NOT NULL, PRIMARY KEY(`cell`))")
     }
-    fun addManual(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+    fun addManual(db: androidx.sqlite.SQLiteConnection) {
         db.execSQL("ALTER TABLE location_places ADD COLUMN lat REAL")
         db.execSQL("ALTER TABLE location_places ADD COLUMN lng REAL")
         db.execSQL("ALTER TABLE location_places ADD COLUMN home INTEGER NOT NULL DEFAULT 0")

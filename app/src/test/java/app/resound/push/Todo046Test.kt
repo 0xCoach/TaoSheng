@@ -1,8 +1,10 @@
 package app.resound.push
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
+import androidx.room.useWriterConnection
 import app.resound.ask.*
 import app.resound.backup.*
 import app.resound.data.*
@@ -40,7 +42,7 @@ class Todo046Test {
     private fun item(id: Long = 1, category: String = "待办", status: String = "Accepted") = MemoryItemEntity(id, 1, category, null, "合成条目$id", null, null, null, null, status, at)
     private fun prefs() = context.getSharedPreferences(UUID.randomUUID().toString(), 0)
     @Before fun setup() = runBlocking {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().addCallback(SearchIndex.callback).build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().addCallback(SearchIndex.callback).build()
         root = File(context.cacheDir, "todo046-${UUID.randomUUID()}").apply { mkdirs() }
         context.getSharedPreferences("digest", 0).edit().clear().commit()
         dao.insertEvent(event()); Unit
@@ -71,14 +73,14 @@ class Todo046Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertFalse(migrated.memory().itemIncludingDeleted(1)!!.deleted)
             assertEquals("[]", migrated.memory().itemIncludingDeleted(1)!!.dismissedDoneLinesJson)
         } finally { migrated.close() }
         val rows = File(root, "old.jsonl").apply { writeText("""{"table":"memory_events","values":{"id":2,"startAt":0,"endAt":1,"scene":"独白","title":"旧事件","summary":"摘要","pointsJson":"[]","peopleJson":"[]","important":0,"createdAt":0,"model":"test"}}
 {"table":"memory_items","values":{"id":2,"eventId":2,"category":"待办","content":"旧条目","status":"Accepted","createdAt":0}}
 """) }
-        DayVolumeRows.insert(db.openHelper.writableDatabase, rows, false)
+        db.useWriterConnection { DayVolumeRows.insert(it, rows, false) }
         assertNull(dao.itemIncludingDeleted(2)!!.editedAt)
         assertEquals(0L, dao.itemIncludingDeleted(2)!!.reminderVersion)
         val settings = AndroidAppointmentSettings(context)
@@ -159,10 +161,10 @@ class Todo046Test {
     @Test fun batchIsAtomicAndDoneHintsValidateIdsAndDismissal() = runBlocking {
         val source = line()
         dao.insertItems(listOf(item(1, status = "Pending"), item(2, status = "Pending"), item(3, status = "Done")))
-        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER fail_batch BEFORE UPDATE OF status ON memory_items WHEN new.id=2 BEGIN SELECT RAISE(ABORT, 'test'); END")
+        db.testSql.execSQL("CREATE TRIGGER fail_batch BEFORE UPDATE OF status ON memory_items WHEN new.id=2 BEGIN SELECT RAISE(ABORT, 'test'); END")
         assertTrue(runCatching { dao.setItemsStatus(listOf(1, 2), "Accepted", at + 1) }.isFailure)
         assertEquals("Pending", dao.itemIncludingDeleted(1)!!.status)
-        db.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_batch")
+        db.testSql.execSQL("DROP TRIGGER fail_batch")
         dao.setItemsStatus(listOf(1, 2), "Accepted", at + 1)
         val reply = """{"events":[],"done_hints":[{"item_id":1,"line_id":1},{"item_id":3,"line_id":1},{"item_id":999,"line_id":1},{"item_id":2,"line_id":9}]}"""
         val parsed = DigestPrompt.doneHints(reply, listOf(source), setOf(1, 2, 3))

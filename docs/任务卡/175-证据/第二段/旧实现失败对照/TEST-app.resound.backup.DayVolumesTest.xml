@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.DayVolumesTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-12T16:49:01.540Z" hostname="CoachdeMacBook-Air.local" time="0.162">
+  <properties/>
+  <testcase name="wrongPassphraseAndTamperedVolumeNeverStageReplacement" classname="app.resound.backup.DayVolumesTest" time="0.162"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

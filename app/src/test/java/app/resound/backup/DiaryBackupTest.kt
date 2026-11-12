@@ -35,7 +35,7 @@ class DiaryBackupTest {
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().build())
         val name = "diary-backup.db"
         context.deleteDatabase(name)
-        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).build()
+        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val requests = Collections.synchronizedList(mutableListOf<RecordedRequest>())
         val dates = mutableListOf<LocalDate>()
         val diary = object : DiaryRepository {

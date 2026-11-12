@@ -1,7 +1,8 @@
 package app.resound.search
 
 import androidx.room.*
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.execSQL
 import java.util.Locale
 
 @Fts4 @Entity(tableName = "lines_fts")
@@ -60,10 +61,10 @@ object SearchTokens {
 
 object SearchIndex {
     val callback = object : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) { install(db, backfill = false) }
+        override fun onCreate(db: SQLiteConnection) { install(db::execSQL, backfill = false) }
         // Room 会在迁移前移除 room_fts_content_sync_ 前缀触发器；本项目触发器使用独立前缀。
     }
-    fun install(db: SupportSQLiteDatabase, backfill: Boolean) {
+    fun install(execute: (String) -> Unit, backfill: Boolean) {
         data class Index(val table: String, val fts: String, val columns: Map<String, String>, val kind: String)
         val indices = listOf(
             Index("transcript_lines", "lines_fts", mapOf("text" to "text"), "line"),
@@ -71,16 +72,16 @@ object SearchIndex {
             Index("memory_items", "items_fts", mapOf("content" to "content"), "item"))
         for (index in indices) {
             val (table, fts, columns, kind) = index
-            db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS $fts USING FTS4(${columns.keys.joinToString { "`$it` TEXT NOT NULL" }})")
+            execute("CREATE VIRTUAL TABLE IF NOT EXISTS $fts USING FTS4(${columns.keys.joinToString { "`$it` TEXT NOT NULL" }})")
             fun insert(prefix: String) = "INSERT INTO $fts(rowid,${columns.keys.joinToString()}) SELECT ${prefix}id,${columns.values.joinToString { SearchTokens.sql(prefix + it) }}"
             val invalidate = if (kind == "line") "" else "DELETE FROM embeddings WHERE kind='$kind' AND refId=old.id;"
-            db.execSQL("CREATE TRIGGER IF NOT EXISTS search_${kind}_insert AFTER INSERT ON $table BEGIN ${insert("new.")}; END")
+            execute("CREATE TRIGGER IF NOT EXISTS search_${kind}_insert AFTER INSERT ON $table BEGIN ${insert("new.")}; END")
             val watched = columns.values.toMutableList().apply { if (kind == "item") add("category") }.joinToString()
-            db.execSQL("CREATE TRIGGER IF NOT EXISTS search_${kind}_update AFTER UPDATE OF $watched ON $table BEGIN DELETE FROM $fts WHERE rowid=old.id; ${insert("new.")}; $invalidate END")
-            db.execSQL("CREATE TRIGGER IF NOT EXISTS search_${kind}_delete AFTER DELETE ON $table BEGIN DELETE FROM $fts WHERE rowid=old.id; $invalidate END")
-            if (backfill) db.execSQL("${insert("")} FROM $table")
+            execute("CREATE TRIGGER IF NOT EXISTS search_${kind}_update AFTER UPDATE OF $watched ON $table BEGIN DELETE FROM $fts WHERE rowid=old.id; ${insert("new.")}; $invalidate END")
+            execute("CREATE TRIGGER IF NOT EXISTS search_${kind}_delete AFTER DELETE ON $table BEGIN DELETE FROM $fts WHERE rowid=old.id; $invalidate END")
+            if (backfill) execute("${insert("")} FROM $table")
         }
-        db.execSQL("""CREATE TRIGGER IF NOT EXISTS search_event_hidden AFTER UPDATE OF deleted ON memory_events
+        execute("""CREATE TRIGGER IF NOT EXISTS search_event_hidden AFTER UPDATE OF deleted ON memory_events
             WHEN new.deleted=1 BEGIN DELETE FROM embeddings WHERE (kind='event' AND refId=new.id)
             OR (kind='item' AND refId IN (SELECT id FROM memory_items WHERE eventId=new.id)); END""")
     }

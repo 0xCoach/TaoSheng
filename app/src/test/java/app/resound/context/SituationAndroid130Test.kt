@@ -3,7 +3,7 @@ package app.resound.context
 import android.Manifest
 import android.app.Application
 import androidx.room.Room
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.backup.BackupSettings
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
@@ -48,13 +48,13 @@ class SituationAndroid130Test {
     @Test fun roomLookupUsesOnlyCacheUpdatesAfterEditsAndMeasuresEventCardQueries() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         shadowOf(context).grantPermissions(Manifest.permission.ACCESS_FINE_LOCATION)
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val day = LocalDate.of(2026, 11, 9).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val minute = 60_000L
         val lat = 30.0; val lng = 120.0
         try {
-            db.withTransaction {
+            db.writeTransaction {
                 repeat(288) { i ->
                     val start = day + i * 5 * minute
                     db.location().insert(LocationPoint(at = start, lat = lat, lng = lng, accuracy = 10f, provider = "test"))
@@ -65,7 +65,7 @@ class SituationAndroid130Test {
             }
             val repository = LocationRepository.create(context, db, scope)
             repository.settings.setEnabled(true)
-            val lookup = LocalSituationLookup.create(db, repository)
+            val lookup = LocalSituationLookup.create(db, repository, scope)
             val from = day + 60 * minute
             val to = from + 10 * minute
             val coldStart = System.nanoTime()

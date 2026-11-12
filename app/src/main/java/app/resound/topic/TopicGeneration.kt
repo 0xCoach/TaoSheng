@@ -1,6 +1,6 @@
 package app.resound.topic
 
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.digest.*
 import app.resound.importer.*
@@ -180,7 +180,7 @@ internal class TopicEngine(
                 val source = topicSource(g, lines)
                 session = TopicProcessingSession(g.row.id, source, checkpoints, ::topicHash, ::topicFailure, ::delay)
                 session.begin()
-                val claimed = db.withTransaction {
+                val claimed = db.writeTransaction {
                     val latest = dao.get(g.row.id)?.row
                     if (latest?.revision != revision || latest.status !in setOf("Ended", "Summarizing")) false
                     else { dao.update(latest.copy(status = "Summarizing")); true }
@@ -190,11 +190,11 @@ internal class TopicEngine(
                 val unfinished = (db.memory().unfinishedForDigest() + retained.filter { it.status !in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), session)
-                val saved = db.withTransaction {
-                    val latest = dao.get(g.row.id) ?: return@withTransaction false
-                    if (latest.row.revision != revision || latest.row.status != "Summarizing") return@withTransaction false
+                val saved = db.writeTransaction {
+                    val latest = dao.get(g.row.id) ?: return@writeTransaction false
+                    if (latest.row.revision != revision || latest.row.status != "Summarizing") return@writeTransaction false
                     if (dao.lines(g.row.id) != lines || waiting(latest)) {
-                        dao.update(latest.row.copy(status = "Ended")); pending = true; return@withTransaction false
+                        dao.update(latest.row.copy(status = "Ended")); pending = true; return@writeTransaction false
                     }
                     val previousEvent = latest.row.eventId?.let { db.memory().event(it) }
                     val replacement = repository.releaseGenerated(latest)
@@ -218,7 +218,7 @@ internal class TopicEngine(
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 runCatching { session?.fail(e) }
-                db.withTransaction {
+                db.writeTransaction {
                     val row = dao.get(g.row.id)?.row
                     if (row?.revision == revision && row.status in setOf("Ended", "Summarizing"))
                         dao.update(row.copy(status = "Failed", error = if (session != null || e is LlmException || e is TopicException) topicFailure(e).message else TopicPolicy.GENERATION_ERROR))

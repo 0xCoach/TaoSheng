@@ -1,5 +1,6 @@
 package app.resound.ask
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.CaptureDatabase
@@ -17,9 +18,9 @@ import java.time.ZoneId
 @Config(sdk=[29],manifest=Config.NONE,application=Application::class)
 class AskToolsTest {
     @Test fun allToolsFilterOrEscapingTimeSpeakerDeletedAndCap() {
-        val db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).addCallback(app.resound.search.SearchIndex.callback).allowMainThreadQueries().build()
+        val db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addCallback(app.resound.search.SearchIndex.callback).allowMainThreadQueries().build()
         try {
-            val sqlite=db.openHelper.writableDatabase
+            val sqlite=db.testSql
             val at=AskTools.timestamp("2026-10-23 15:00",false,ZoneId.of("Asia/Shanghai"))
             sqlite.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,?,?, 'mic','/test',1,'Done')",arrayOf<Any>(at,at+1000))
             for (id in 1..3) sqlite.execSQL("INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model) VALUES(?,?,?,'会议',?,?,'[\"投屏\"]','[\"老王\"]',0,?,?, 'fake')",arrayOf<Any>(id,at,at+1000,"会议$id","会议室方案",if(id==3) 1 else 0,at))

@@ -37,7 +37,7 @@ class ReviewPreparation053Test {
             "[]", "[]", null, null, null, false, false, at, "test"))
     }
     @Test fun timeoutWhileWaitingForPipelineStillGeneratesDailyReview() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val lock = Mutex(locked = true)
         val logs = mutableListOf<String>()
@@ -58,7 +58,7 @@ class ReviewPreparation053Test {
     }
 
     @Test fun successfulPreparationSuppliesFreshEventsToWeeklyReview() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val root = File(context.cacheDir, "weekly053")
         root.deleteRecursively()

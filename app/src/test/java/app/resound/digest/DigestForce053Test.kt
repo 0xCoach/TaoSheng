@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 class DigestForce053Test {
     @Test fun forceClosesOngoingConversationButOnlyManualBypassesSkillGap() = runBlocking {
         val context: Context = RuntimeEnvironment.getApplication()
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             val calls = mutableListOf<Boolean>()
             val client = LlmClient()

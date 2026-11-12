@@ -1,5 +1,6 @@
 package app.resound.topic
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -36,7 +37,7 @@ class Topic135Test {
     private lateinit var repo: RoomTopicRepository
     private var time = 10_000_000L
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         repo = RoomTopicRepository(db, scope, { time }, { ZoneId.of("Asia/Shanghai") }, quiet = { _, _ -> true }, recordingEnabled = { false })
     }
@@ -93,9 +94,9 @@ class Topic135Test {
         }
         val work = File(context.cacheDir, "topic135-backup").apply { deleteRecursively(); mkdirs() }
         val legacy = File(work, "legacy.db"); context.getDatabasePath(name).copyTo(legacy)
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).addMigrations(*CaptureDatabase.MIGRATIONS).build()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertEquals("old.ogg", migrated.transcribe().segment(1).path)
             val id = migrated.topics().insert(TopicRow(kind = "Training", name = "培训", status = "Ended", createdAt = time, repeatRule = 5, quietOverride = true, revision = 3))
             migrated.topics().span(TopicSpanRow(topicId = id, startAt = 1000, endAt = 2000))
@@ -109,7 +110,7 @@ class Topic135Test {
             val restored = CaptureDatabase.open(context, target.path)
             try { assertEquals(migrated.topics().get(id), restored.topics().get(id)) } finally { restored.close() }
             val oldBackup = CaptureDatabase.open(context, legacy.path)
-            try { assertEquals(CaptureDatabase.VERSION, oldBackup.openHelper.writableDatabase.version); assertTrue(oldBackup.topics().all().isEmpty()) }
+            try { assertEquals(CaptureDatabase.VERSION, oldBackup.testSql.version); assertTrue(oldBackup.topics().all().isEmpty()) }
             finally { oldBackup.close() }
             // 老分卷不含三张新表，恢复到最新 schema 仍合法。
             val oldState = File(work, "old-state.jsonl").apply { writeText("") }
@@ -278,7 +279,7 @@ class Topic135Test {
         val event = db.memory().event(topic.row.eventId!!)!!
         assertEquals("项目例会", event.title); assertEquals(topic.spans.minOf { it.startAt }, event.startAt)
         assertEquals(time, event.endAt)
-        assertEquals(1, db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM memory_events").use { it.moveToFirst(); it.getInt(0) })
+        assertEquals(1, db.testSql.query("SELECT COUNT(*) FROM memory_events").use { it.moveToFirst(); it.getInt(0) })
         assertTrue(calls.count { !it.first.contains("必须恰好输出一张") } >= 2)
         assertTrue(calls.filter { it.first.contains("必须恰好输出一张") }.all { it.second.contains("用户标记的重点时刻") && it.second.contains("★ 重点") && it.second.contains("项目例会") })
         assertEquals("import_meeting", db.skills().card(topic.row.cardId!!).first()!!.skillId)

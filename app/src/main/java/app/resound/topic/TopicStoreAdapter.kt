@@ -1,6 +1,6 @@
 package app.resound.topic
 import app.resound.digest.snapshot
-import androidx.room.withTransaction
+import app.resound.data.writeTransaction
 import kotlinx.coroutines.flow.map
 internal fun TopicRow.snapshot() = app.resound.topic.core.TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
 internal fun app.resound.topic.core.TopicRow.android() = TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
@@ -35,5 +35,5 @@ internal class RoomTopicStore(private val db: app.resound.data.CaptureDatabase) 
  override suspend fun prioritize(ids: List<Long>) = dao.prioritize(ids)
  override suspend fun event(id: Long) = db.memory().event(id)?.snapshot()
  override suspend fun repairMergedItems() = db.memory().repairMergedItems()
- override suspend fun <T> transaction(block: suspend () -> T): T = db.withTransaction { block() }
+ override suspend fun <T> transaction(block: suspend () -> T): T = db.writeTransaction { block() }
 }

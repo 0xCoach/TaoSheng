@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupArchiveTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-12T16:48:57.207Z" hostname="CoachdeMacBook-Air.local" time="2.728">
+  <properties/>
+  <testcase name="tamperingAndTraversalAreRejectedBeforeReplacement" classname="app.resound.backup.BackupArchiveTest" time="2.501"/>
+  <testcase name="restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart" classname="app.resound.backup.BackupArchiveTest" time="0.227"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

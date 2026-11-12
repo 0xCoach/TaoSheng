@@ -1,5 +1,6 @@
 package app.resound.voiceprint
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
@@ -39,7 +40,7 @@ class VoiceprintMigrationTest {
             old.execSQL("INSERT INTO voiceprint_exclusions VALUES(1,'tag:1',1000)")
             old.version = 8
         }
-        val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).addMigrations(*CaptureDatabase.MIGRATIONS).build()
+        val db = Room.databaseBuilder(context,CaptureDatabase::class.java,name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
             assertEquals(0L,db.voiceprint().samples().single().personId)
             assertEquals(0L,db.voiceprint().line(2)!!.speakerPersonId)
@@ -69,10 +70,10 @@ class VoiceprintMigrationTest {
             old.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,speakerTag,speakerName,digestedAt) VALUES(2,1,1000,2000,'保留原话','0','我',3000)")
             old.version = 3
         }
-        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).allowMainThreadQueries()
+        val db = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, db.openHelper.writableDatabase.version) // Room 校验所有表/列/索引/外键。
+            assertEquals(CaptureDatabase.VERSION, db.testSql.version) // Room 校验所有表/列/索引/外键。
             val line = db.voiceprint().line(2)!!
             assertEquals("保留原话", line.text); assertEquals("我", line.speakerName)
             assertEquals(3000L, line.digestedAt); assertNull(line.speakerScore)
@@ -105,9 +106,9 @@ class VoiceprintMigrationTest {
             old.execSQL("INSERT INTO voiceprint_samples(source,vector,durationMillis,createdAt,personId) VALUES('enroll',?,10000,1,5)", arrayOf(VoiceprintMath.encode(FloatArray(192) { if (it == 0) 1f else 0f })))
             old.version=29
         }
-        val db=Room.databaseBuilder(context,CaptureDatabase::class.java,name).addMigrations(*CaptureDatabase.MIGRATIONS).build()
+        val db=Room.databaseBuilder(context,CaptureDatabase::class.java,name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION,db.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION,db.testSql.version)
             assertEquals("保留原话",db.voiceprint().line(1)!!.text);assertEquals("朋友",db.voiceprint().people().single().name)
             val sample = db.voiceprint().allSamples().single()
             assertEquals(5L, sample.personId)

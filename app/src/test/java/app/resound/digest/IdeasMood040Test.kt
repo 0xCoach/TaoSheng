@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -40,7 +41,7 @@ class IdeasMood040Test {
     @Before fun setup() {
         originalZone = TimeZone.getDefault()
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"))
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
@@ -63,7 +64,7 @@ class IdeasMood040Test {
         db.memory().insertItems(listOf(MemoryItemEntity(id, id, category, null, "想法$id", null, null, null,
             id * 10, "Pending", created)))
     }
-    private fun vector(id: Long, cosine: Float = 1f, model: String = "test") {
+    private suspend fun vector(id: Long, cosine: Float = 1f, model: String = "test") {
         EmbeddingStore(db).save(EmbeddingStore.Document("item", id, "灵感\n想法$id"), model,
             floatArrayOf(cosine, sqrt(1f - cosine * cosine)))
     }
@@ -171,7 +172,7 @@ class IdeasMood040Test {
         }
         val migrated = CaptureDatabase.open(context, name)
         try {
-            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(app.resound.data.CaptureDatabase.VERSION, migrated.testSql.version)
             val item = migrated.memory().itemsByCategory(listOf("灵感")).first().single()
             assertEquals("旧灵感", item.content); assertNull(item.mergedInto); assertFalse(item.noMerge)
         } finally { migrated.close() }

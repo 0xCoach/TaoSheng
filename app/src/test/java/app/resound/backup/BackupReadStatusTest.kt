@@ -1,5 +1,6 @@
 package app.resound.backup
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -37,7 +38,7 @@ class BackupReadStatusTest {
         context.getSharedPreferences("backup",0).edit().clear().commit()
         context.deleteDatabase("capture.db")
         db = CaptureDatabase.open(context)
-        db.openHelper.writableDatabase
+        db.testSql.version
         folder = File(context.cacheDir,"backup-status-test").apply { deleteRecursively(); mkdirs() }
     }
     @After fun cleanup() { db.close(); folder.deleteRecursively(); BackupScheduler(context).cancel() }

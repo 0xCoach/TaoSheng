@@ -1,5 +1,6 @@
 package app.resound.envsound
 
+import app.resound.data.testSql
 import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import android.content.Context
@@ -36,7 +37,7 @@ class EnvSound070Test {
     private fun score(vararg pairs: Pair<String,Float>): Map<String,Float> =
         (EnvSoundRules.speech + EnvSoundRules.human + EnvSoundRules.tags.values.flatMap { it.second } + EnvSoundRules.sounds.values.flatMap { it.second }).associateWith { 0f } + pairs
     @Before fun setup() {
-        db=Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).allowMainThreadQueries().build()
+        db=Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
         dir=File(context.cacheDir,"env070").apply { mkdirs() }
         val prefs=context.getSharedPreferences("env070",0);prefs.edit().clear().commit()
@@ -174,12 +175,12 @@ class EnvSound070Test {
             old.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1,2,'mic','/old',1,'Pending')")
             old.version=22
         }
-        val migrated=Room.databaseBuilder(context,CaptureDatabase::class.java,name).allowMainThreadQueries().addMigrations(*CaptureDatabase.MIGRATIONS).build()
+        val migrated=Room.databaseBuilder(context,CaptureDatabase::class.java,name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION,migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION,migrated.testSql.version)
             assertEquals("Pending",migrated.transcribe().segment(1).status)
             migrated.envSound().insert(EnvSoundRow(1,1,2,"/old","Keep",null,"","","{}",false,false))
-            migrated.openHelper.writableDatabase.execSQL("DELETE FROM segments WHERE id=1")
+            migrated.testSql.execSQL("DELETE FROM segments WHERE id=1")
             assertNull(migrated.envSound().get(1))
         } finally { migrated.close();context.deleteDatabase(name) }
     }

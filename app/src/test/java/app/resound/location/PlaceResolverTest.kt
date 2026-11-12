@@ -40,7 +40,7 @@ class PlaceResolverTest {
 
     @Test fun secondLookupOfSamePlaceUsesCache() = runBlocking {
         val context = RuntimeEnvironment.getApplication() as Context
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val server = MockWebServer().apply { enqueue(MockResponse().setBody(amapOk)); start() }
         try {
             val settings = LocationSettings(context)
@@ -56,7 +56,7 @@ class PlaceResolverTest {
 
     @Test fun manualNameWinsNearbyAndSurvivesCacheClear() = runBlocking {
         val context = RuntimeEnvironment.getApplication() as Context
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries().build()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         try {
             val resolver = PlaceResolver(context, db.places(), LocationSettings(context), amapKey = { "" })
             db.places().put(PlaceRow(Places.cell(30.2409, 119.9199), "自动名", "自动地址", "系统", 1))

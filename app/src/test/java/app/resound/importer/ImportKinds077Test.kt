@@ -1,5 +1,6 @@
 package app.resound.importer
 
+import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -34,7 +35,7 @@ class ImportKinds077Test {
     private lateinit var db: CaptureDatabase
     private lateinit var scope: CoroutineScope
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).allowMainThreadQueries()
+        db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(ImportRecordSchema.callback).build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         context.getSharedPreferences("imports", 0).edit().clear().commit()
@@ -214,11 +215,11 @@ class ImportKinds077Test {
             old.execSQL("INSERT INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,2000,'import','old.ogg',10,'Done')")
             old.version = 25
         }
-        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).addMigrations(*CaptureDatabase.MIGRATIONS).build()
+        val migrated = Room.databaseBuilder(context, CaptureDatabase::class.java, name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try {
-            assertEquals(CaptureDatabase.VERSION, migrated.openHelper.writableDatabase.version)
+            assertEquals(CaptureDatabase.VERSION, migrated.testSql.version)
             assertNull(migrated.transcribe().segment(1).importRecordId); assertTrue(migrated.imports().ids().isEmpty())
-            assertTrue(migrated.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { !it.moveToFirst() })
+            assertTrue(migrated.testSql.query("PRAGMA foreign_key_check").use { !it.moveToFirst() })
         } finally { migrated.close(); context.deleteDatabase(name) }
     }
 
@@ -229,7 +230,7 @@ class ImportKinds077Test {
         db.memory().insertItems(listOf(db.imports().todos(row.id).single().copy(id = 0, content = "我提交报告")))
         ImportTodoMerge.all(db)
         assertEquals(1, db.imports().todos(row.id).count { it.mergedInto == null })
-        db.openHelper.writableDatabase.execSQL("UPDATE memory_items SET deleted = 1 WHERE mergedInto IS NULL")
+        db.testSql.execSQL("UPDATE memory_items SET deleted = 1 WHERE mergedInto IS NULL")
         engine.regenerate(row.id); engine.run()
         assertEquals(2, db.imports().todos(row.id).size)
         assertTrue(db.imports().todos(row.id).filter { it.mergedInto == null }.all { it.deleted })

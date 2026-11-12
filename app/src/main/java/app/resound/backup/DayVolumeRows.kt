@@ -1,10 +1,13 @@
 package app.resound.backup
 
 import android.content.Context
-import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
-import app.resound.data.CaptureDatabase
+import androidx.sqlite.*
+import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.room.PooledConnection
+import androidx.room.useWriterConnection
+import androidx.room.immediateTransaction
+import kotlinx.coroutines.runBlocking
+import app.resound.data.*
 import org.json.JSONObject
 import java.io.File
 import java.time.Instant
@@ -39,25 +42,25 @@ internal object DayVolumeRows {
         check(directory.mkdirs())
         val files = sortedMapOf<String, File>()
         val writers = java.util.LinkedHashMap<String, java.io.BufferedWriter>(16, 0.75f, true)
-        try { SQLiteDatabase.openDatabase(source.path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+        try { AndroidSQLiteDriver().open(source.path).use { db ->
             (dated.keys + global).sorted().forEach { table ->
                 val keys = mutableListOf<Pair<Int, String>>()
-                db.rawQuery("PRAGMA table_info(`$table`)", null).use { c ->
-                    while (c.moveToNext()) if (c.getInt(5) > 0) keys += c.getInt(5) to c.getString(1)
+                db.prepare("PRAGMA table_info(`$table`)").use { c ->
+                    while (c.step()) if (c.getLong(5).toInt() > 0) keys += c.getLong(5).toInt() to c.getText(1)
                 }
                 require(keys.isNotEmpty())
                 val order = keys.sortedBy { it.first }.joinToString { "`${it.second}`" }
-                db.rawQuery("SELECT * FROM `$table` ORDER BY $order", null).use { c ->
+                db.prepare("SELECT * FROM `$table` ORDER BY $order").use { c ->
                     val columns = c.columnNames.sorted()
-                    while (c.moveToNext()) {
+                    while (c.step()) {
                         val values = JSONObject()
                         for (column in columns) {
-                            val i = c.getColumnIndexOrThrow(column)
-                            val v: Any = when (c.getType(i)) {
-                                Cursor.FIELD_TYPE_NULL -> JSONObject.NULL
-                                Cursor.FIELD_TYPE_INTEGER -> c.getLong(i)
-                                Cursor.FIELD_TYPE_FLOAT -> c.getDouble(i)
-                                Cursor.FIELD_TYPE_STRING -> c.getString(i)
+                            val i = c.columnNames.indexOf(column).also { require(it >= 0) }
+                            val v: Any = when (c.getColumnType(i)) {
+                                SQLITE_DATA_NULL -> JSONObject.NULL
+                                SQLITE_DATA_INTEGER -> c.getLong(i)
+                                SQLITE_DATA_FLOAT -> c.getDouble(i)
+                                SQLITE_DATA_TEXT -> c.getText(i)
                                 else -> JSONObject().put("blob", android.util.Base64.encodeToString(c.getBlob(i), android.util.Base64.NO_WRAP))
                             }
                             values.put(column, v)
@@ -75,10 +78,10 @@ internal object DayVolumeRows {
                 }
             }
             files.getOrPut("state") { File(directory, "state.jsonl").apply { writeText("") } }
-            return db.version to files
+            return db.userVersion to files
         } } finally { writers.values.forEach { it.close() } }
     }
-    fun insert(db: SupportSQLiteDatabase, rows: File, state: Boolean) {
+    suspend fun insert(db: PooledConnection, rows: File, state: Boolean) {
         rows.bufferedReader().useLines { lines -> lines.forEach { line ->
             val row = JSONObject(line)
             val originalTable = row.getString("table")
@@ -88,9 +91,9 @@ internal object DayVolumeRows {
             if (originalTable == "llm_usage") values.put("purpose", "Other")
             val columns = mutableListOf<String>()
             val args = mutableListOf<Any?>()
-            db.query("PRAGMA table_info(`$table`)").use { c ->
-                while (c.moveToNext()) {
-                    val name = c.getString(1)
+            db.usePrepared("PRAGMA table_info(`$table`)") { c ->
+                while (c.step()) {
+                    val name = c.getText(1)
                     if (values.has(name)) {
                         columns += name
                         val value = values.get(name)
@@ -99,38 +102,42 @@ internal object DayVolumeRows {
                             is JSONObject -> android.util.Base64.decode(value.getString("blob"), android.util.Base64.NO_WRAP)
                             else -> value
                         }
-                    } else if (c.getInt(3) != 0 && c.isNull(4)) {
+                    } else if (c.getLong(3).toInt() != 0 && c.isNull(4)) {
                         // 老分卷没有的新必填列：Room 未声明 SQL 默认值时使用类型零值。
                         columns += name
-                        args += if (c.getString(2).contains("INT", true) || c.getString(2).contains("REAL", true)) 0 else ""
+                        args += if (c.getText(2).contains("INT", true) || c.getText(2).contains("REAL", true)) 0 else ""
                     }
                 }
             }
             require(values.keys().asSequence().all { key -> key in columns })
-            db.execSQL("INSERT INTO `$table` (${columns.joinToString { "`$it`" }}) VALUES (${columns.joinToString { "?" }})", args.toTypedArray())
+            db.executeSql("INSERT INTO `$table` (${columns.joinToString { "`$it`" }}) VALUES (${columns.joinToString { "?" }})", args.toTypedArray())
         } }
     }
     fun rebuild(context: Context, destination: File, version: Int, state: File, days: List<File>) {
         destination.parentFile!!.mkdirs()
         val room = CaptureDatabase.open(context, destination.absolutePath)
         try {
-            val db = room.openHelper.writableDatabase
-            if (version > db.version) throw BackupFailure("备份数据库版本比 App 新，请先升级 App")
-            require(version > 0)
-            // 跨天父子记录先全部插入，最后检查外键；此连接始终可写。
-            db.execSQL("PRAGMA foreign_keys=OFF")
-            db.beginTransaction()
-            try {
-                insert(db, state, true)
-                days.forEach { insert(db, it, false) }
-                listOf("lines_fts", "events_fts", "items_fts").forEach { db.execSQL("DELETE FROM $it") }
-                app.resound.search.SearchIndex.install(db, backfill = true)
-                db.query("PRAGMA foreign_key_check").use { require(!it.moveToFirst()) }
-                db.query("PRAGMA integrity_check").use { require(it.moveToFirst() && it.getString(0) == "ok" && !it.moveToNext()) }
-                db.setTransactionSuccessful()
-            } finally { db.endTransaction() }
-            db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { require(it.moveToFirst() && it.getInt(0) == 0) }
+            runBlocking { room.useWriterConnection { db ->
+                val current = db.usePrepared("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() }
+                if (version > current) throw BackupFailure("备份数据库版本比 App 新，请先升级 App")
+                require(version > 0)
+                // 跨天父子记录先全部插入，最后检查外键；开关与事务始终使用同一 writer。
+                db.executeSql("PRAGMA foreign_keys=OFF")
+                try {
+                    db.immediateTransaction {
+                        insert(this, state, true)
+                        days.forEach { insert(this, it, false) }
+                        listOf("lines_fts", "events_fts", "items_fts").forEach { executeSql("DELETE FROM $it") }
+                        val statements = mutableListOf<String>()
+                        app.resound.search.SearchIndex.install({ statements += it }, backfill = true)
+                        statements.forEach { executeSql(it) }
+                        usePrepared("PRAGMA foreign_key_check") { require(!it.step()) }
+                        usePrepared("PRAGMA integrity_check") { require(it.step() && it.getText(0) == "ok" && !it.step()) }
+                    }
+                } finally { db.executeSql("PRAGMA foreign_keys=ON") }
+                db.usePrepared("PRAGMA wal_checkpoint(TRUNCATE)") { require(it.step() && it.getLong(0) == 0L) }
+            } }
         } finally { room.close() }
-        listOf("-wal", "-shm", "-journal").forEach { File(destination.path + it).delete() }
+        listOf("-wal", "-shm", "-journal", ".lck").forEach { File(destination.path + it).delete() }
     }
 }

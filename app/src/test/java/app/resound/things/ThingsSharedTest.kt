@@ -1,5 +1,6 @@
 package app.resound.things
 
+import app.resound.data.testSql
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -30,7 +31,7 @@ class ThingsSharedTest {
     private val item = """{"name":"钥匙","aliases":[],"action":"Placed","place":"鞋柜","who":null,"owner":"Mine","lineId":1,"explicit":true,"knownId":null,"confident":true}"""
     private fun response(things: String = "[$item]", scene: String = "其他") = """{"events":[{"from":1,"to":1,"scene":"$scene","title":"收好钥匙","summary":"钥匙在鞋柜"}],"items":[],"things":$things}"""
     @Before fun setup() {
-        db=Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).allowMainThreadQueries()
+        db=Room.inMemoryDatabaseBuilder(context,CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries()
             .addCallback(SearchIndex.callback).addCallback(ThingSchema.callback).build()
         scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
         repo=RoomThingRepository(db,scope,{ error("no manual request") },now={now})
@@ -72,8 +73,8 @@ class ThingsSharedTest {
         seed("import")
         runner { system,_->assertFalse(system.contains("附加任务"));response() }.run(force=true)
         assertTrue(db.things().allRecords().isEmpty())
-        db.openHelper.writableDatabase.execSQL("UPDATE segments SET sourceId='mic' WHERE id=7")
-        db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET digestedAt=NULL WHERE id=42")
+        db.testSql.execSQL("UPDATE segments SET sourceId='mic' WHERE id=7")
+        db.testSql.execSQL("UPDATE transcript_lines SET digestedAt=NULL WHERE id=42")
         runner { _,_->response(scene="媒体") }.run(force=true)
         assertTrue(db.things().allRecords().isEmpty())
     }
@@ -97,7 +98,7 @@ class ThingsSharedTest {
     @Test fun reprocessingDoesNotRecreateIgnoredFact()=runBlocking {
         seed();runner{_,_->response()}.run(force=true)
         repo.ignore(db.things().allRecords().single().id);repo.flush()
-        db.openHelper.writableDatabase.execSQL("UPDATE transcript_lines SET digestedAt=NULL WHERE id=42")
+        db.testSql.execSQL("UPDATE transcript_lines SET digestedAt=NULL WHERE id=42")
         runner{_,_->response()}.run(force=true)
         assertEquals("Ignored",db.things().allRecords().single().status)
     }

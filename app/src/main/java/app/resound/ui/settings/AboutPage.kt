@@ -187,7 +187,7 @@ private const val DEV_UNLOCKED = "devOptionsUnlocked"
 fun displayVersion(version: String): String =
     Regex("""^(.+)-preview\.(\d+)$""").matchEntire(version)?.let { "${it.groupValues[1]} 预览版 ${it.groupValues[2]}" } ?: version
 
-/** 开发者选项：接收预览版 */
+/** 开发者选项：接收预览版、使用旧网络实现 */
 @Composable
 private fun PreviewCard() {
     val c = Rs.colors
@@ -207,6 +207,26 @@ private fun PreviewCard() {
         if (updater.isPreviewBuild) {
             Spacer(Modifier.height(8.dp))
             Text("当前装的是预览版", style = RsType.caption, color = c.accent)
+        }
+        // 0.3.0 网络层换成跨平台实现；预览期留一个退回旧实现的开关，排查问题用（0.3.1 删除）
+        if (AppGraph.isPlatformReady) {
+            val store = AppGraph.platform.keyValueStore
+            var legacy by remember { mutableStateOf(store.getBoolean("net.legacy_okhttp", false)) }
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("使用旧网络实现", style = RsType.body, color = c.text)
+                    Spacer(Modifier.height(2.dp))
+                    Text("整理、问问、转写连不上或出错时打开试试，并把问题告诉开发者。",
+                        style = RsType.caption, color = c.textSecondary)
+                }
+                Spacer(Modifier.width(12.dp))
+                app.resound.ui.skills.Toggle(legacy) { legacy = it; store.putBoolean("net.legacy_okhttp", it) }
+            }
+            if (legacy != AppGraph.legacyNetwork) {
+                Spacer(Modifier.height(8.dp))
+                Text("重启涛声后生效", style = RsType.caption, color = c.accent)
+            }
         }
     }
 }

@@ -41,6 +41,8 @@ import app.resound.ui.verify.RsSheet
 import app.resound.ui.verify.SheetInput
 import app.resound.ui.verify.springClick
 import java.time.LocalDate
+import kotlinx.datetime.toKotlinLocalDate
+import kotlinx.datetime.toJavaLocalDate
 
 /** 1.2 万 / 3456 这样的简写 */
 internal fun tokensText(n: Long): String = when {
@@ -75,12 +77,12 @@ private fun purposeColor(p: UsagePurpose): Color = when (p) {
 fun LlmUsageCard(repo: UsageRepository) {
     val c = Rs.colors
     val today = remember { LocalDate.now() }
-    val rows by remember { repo.llm(today.minusDays(29), today) }.collectAsState(initial = emptyList())
+    val rows by remember { repo.llm(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
     val price by repo.price.collectAsState()
     var range by remember { mutableStateOf(0) } // 0 今天 1 本周 2 本月(30 天)
     var editing by remember { mutableStateOf(false) }
     val from = when (range) { 0 -> today; 1 -> today.minusDays((today.dayOfWeek.value - 1).toLong()); else -> today.minusDays(29) }
-    val picked = rows.filter { !it.date.isBefore(from) }
+    val picked = rows.filter { !it.date.toJavaLocalDate().isBefore(from) }
     val prompt = picked.sumOf { it.promptTokens }
     val completion = picked.sumOf { it.completionTokens }
 
@@ -124,7 +126,7 @@ fun LlmUsageCard(repo: UsageRepository) {
         // 近 30 天每天一根柱子，今天用主色
         Spacer(Modifier.height(14.dp))
         Text("近 30 天", style = RsType.caption, color = c.textTertiary)
-        val perDay = (0..29).map { d -> today.minusDays(29L - d) }.map { day -> rows.filter { it.date == day }.sumOf { it.promptTokens + it.completionTokens } }
+        val perDay = (0..29).map { d -> today.minusDays(29L - d) }.map { day -> rows.filter { it.date.toJavaLocalDate() == day }.sumOf { it.promptTokens + it.completionTokens } }
         val max = perDay.maxOrNull()?.coerceAtLeast(1) ?: 1
         Row(Modifier.fillMaxWidth().height(48.dp).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
             perDay.forEachIndexed { i, v ->
@@ -141,11 +143,11 @@ fun LlmUsageCard(repo: UsageRepository) {
 @Composable
 fun AsrUsageRow(repo: UsageRepository) {
     val today = remember { LocalDate.now() }
-    val rows by remember { repo.asr(today.minusDays(29), today) }.collectAsState(initial = emptyList())
+    val rows by remember { repo.asr(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
     val price by repo.price.collectAsState()
     var open by remember { mutableStateOf(false) }
     fun minutes(ms: Long) = (ms + 59_999) / 60_000
-    val todayMs = rows.filter { it.date == today }.sumOf { it.cloudMillis }
+    val todayMs = rows.filter { it.date.toJavaLocalDate() == today }.sumOf { it.cloudMillis }
     val monthMs = rows.sumOf { it.cloudMillis }
     if (monthMs <= 0) return
     // money() 自带“约”；一行放得下：分钟写成“分”
@@ -159,11 +161,11 @@ fun AsrUsageRow(repo: UsageRepository) {
 fun AsrUsageCard(repo: UsageRepository) {
     val c = Rs.colors
     val today = remember { LocalDate.now() }
-    val rows by remember { repo.asr(today.minusDays(29), today) }.collectAsState(initial = emptyList())
+    val rows by remember { repo.asr(today.minusDays(29).toKotlinLocalDate(), today.toKotlinLocalDate()) }.collectAsState(initial = emptyList())
     val price by repo.price.collectAsState()
     var editing by remember { mutableStateOf(false) }
     fun minutes(ms: Long) = (ms + 59_999) / 60_000
-    val todayMs = rows.filter { it.date == today }.sumOf { it.cloudMillis }
+    val todayMs = rows.filter { it.date.toJavaLocalDate() == today }.sumOf { it.cloudMillis }
     val monthMs = rows.sumOf { it.cloudMillis }
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
         Text("云端转写用量", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)

@@ -2,7 +2,7 @@ package app.resound.usage
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /*
  * 用量（卡 043）与界面之间的约定。界面（Claude）只依赖这里；底层（Codex）实现。改签名需双方确认。

@@ -4,6 +4,8 @@ import androidx.room.*
 import app.resound.data.*
 import app.resound.skills.SkillCardRow
 import java.time.*
+import kotlinx.datetime.toKotlinLocalDate
+import kotlinx.datetime.toJavaLocalDate
 
 internal data class PushSnapshot(
     val events: List<MemoryEventEntity> = emptyList(), val items: List<MemoryItemEntity> = emptyList(),
@@ -13,9 +15,9 @@ internal data class PushSnapshot(
     val lineOrigins: Map<Long, Long?> = emptyMap(),
 ) {
     fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot {
-        val lower = listOfNotNull(since, s.rangeDays?.let { today.minusDays(it.toLong() - 1) }).maxOrNull()
+        val lower = PushRecordRules.lower(s, since?.toKotlinLocalDate(), today.toKotlinLocalDate())?.toJavaLocalDate()
         fun included(at: Long) = lower == null || day(at, zone) >= lower
-        val allowed = events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体")) }
+        val allowed = events.filter { PushRecordRules.event(it.deleted, it.scene, s.excludeMedia) }
         val origins = if (lineOrigins.isNotEmpty()) lineOrigins else lines.associate { it.id to it.eventId }
         val ids = allowed.map { it.id }.toSet()
         val visible = allowed.filter { included(it.startAt) }.filter { e -> localRecord("event", e.id) {
@@ -23,11 +25,8 @@ internal data class PushSnapshot(
         } == true }
         val starredIds = visible.filter { it.starred && RecordKind.Starred in s.records }.map { it.id }.toSet()
         val selectedItems = items.filter { !it.deleted && (it.eventId == null || it.eventId in ids) && it.mergedInto == null && it.status != "Ignored" && included(it.createdAt) }.filter {
-            it.eventId in starredIds || when (it.category) {
-                "待办", "约定", "备忘" -> RecordKind.Todos in s.records && (it.status != "Done" || it.doneAt?.let { at -> day(at, zone) >= today.minusDays(29) } == true)
-                "灵感" -> RecordKind.Ideas in s.records
-                else -> RecordKind.Decisions in s.records
-            }
+            PushRecordRules.item(s, it.category, it.status, it.eventId in starredIds,
+                it.doneAt?.let { at -> day(at, zone).toKotlinLocalDate() }, today.toKotlinLocalDate())
         }
         // 保留可见事件作来源/场景元数据，渲染与 delta 时再按 Timeline/Starred 选择。
         return PushSnapshot(visible, selectedItems,
@@ -41,7 +40,7 @@ internal data class PushSnapshot(
             } == true } else emptyList(),
             if (s.lines == LinesMode.Off) emptyList() else lines.filter {
                 included(it.startAt) && (it.eventId == null || it.eventId in ids) &&
-                    (s.lines != LinesMode.MeOnly || it.speakerName == "我") && it.text.isNotBlank()
+                    PushRecordRules.line(s.lines, it.speakerName, it.text)
             }, repeats, lower, origins)
     }
 }

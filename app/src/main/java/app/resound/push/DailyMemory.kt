@@ -16,9 +16,8 @@ import java.time.ZoneId
 
 /** 对外 JSON 与内部数据读取分离，字段名和空值在此集中定义。时间均为 Unix 毫秒。 */
 internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput,
-    cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = true): JSONObject = JSONObject()
-    .put("type", "daily_memory").put("version", 1).put("app", "resound").put("date", date.toString())
-    .put("generatedAt", generatedAt).put("markdown", markdown).put("data", JSONObject()
+    cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = true): JSONObject {
+    val data = JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
         .put("events", JSONArray(input.events.mapNotNull { e -> localRecord("event", e.id) { JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
             .put("title", e.title).put("summary", app.resound.envsound.EnvSoundPresentation.append(e.summary, e.id)).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) } }))
@@ -28,7 +27,13 @@ internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: Strin
         .put("cards", JSONArray(cards.map { c -> JSONObject().put("skill", c.skillName).put("title", c.title).put("summary", c.summary)
             .put("at", c.at).put("values", SkillJson.values(c.values)) }))
         .apply { if (lines != null) put("lines", JSONArray(lines.map { l -> JSONObject().put("id", l.id).put("at", l.startAt)
-            .put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, lineContext)) } } })) })
+            .put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, lineContext)) } } })) }
+    fun element(key: String) = app.resound.platform.SharedJson.parseToJsonElement(data.get(key).toString())
+    return JSONObject(PushBodyRules.dailyMemory(date.toString(), generatedAt, markdown, element("review"),
+        element("events") as kotlinx.serialization.json.JsonArray, element("items") as kotlinx.serialization.json.JsonArray,
+        element("cards") as kotlinx.serialization.json.JsonArray,
+        if (lines == null) null else element("lines") as kotlinx.serialization.json.JsonArray).toString())
+}
 
 internal class DailyMemorySource(context: Context, memory: MemoryRepository, private val reviews: ReviewRepository,
     private val dao: MemoryDao, private val reviewDao: ReviewDao, private val skills: SkillDao) {

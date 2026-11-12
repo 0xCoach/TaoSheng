@@ -1,6 +1,7 @@
 package app.resound.push
 
 import android.content.SharedPreferences
+import app.resound.platform.NowMillis
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,46 +72,22 @@ internal class SubscriptionRuntime(
         File(directory, "$id.json").delete()
         change(id) { it.remove("batchAt"); it.remove("changeAt"); it.remove("lastPushAt") }
     }
-    private fun hasRecords(s: PushSubscription) = s.records.isNotEmpty() || s.lines != LinesMode.Off
+    private fun hasRecords(s: PushSubscription) = SubscriptionPlan.hasRecords(s)
+    private fun JSONObject.times() = (SubscriptionPlan.deadlines + "lastRecordsAt").filter { has(it) }.associateWith { optLong(it) }
+    private fun JSONObject.applyTimes(edits: Map<String, Long?>) {
+        edits.forEach { (key, value) -> if (value == null) remove(key) else put(key, value) }
+    }
     fun configure(channel: PushChannel, fresh: Boolean) {
         if (fresh) queued.remove(channel.id)
-        val s = channel.subscription
-        val trigger = s.trigger
-        val fullCheckAt = s.fullCheckAt
-        change(channel.id) { j ->
-            if (fresh || !j.has("scheduleAt")) {
-                j.remove("scheduleAt")
-                if (hasRecords(s) && trigger is RecordTrigger.Schedule) j.put("scheduleAt", Subscriptions.nextSchedule(trigger, Instant.ofEpochMilli(now()).atZone(zone())))
-            }
-            if (fresh || !j.has("fullAt")) {
-                j.remove("fullAt")
-                if (hasRecords(s) && s.incremental && fullCheckAt != null && trigger != RecordTrigger.Manual)
-                    j.put("fullAt", Subscriptions.nextSchedule(RecordTrigger.Schedule(listOf(fullCheckAt)), Instant.ofEpochMilli(now()).atZone(zone())))
-            }
-            if (fresh) {
-                j.remove("changeAt"); j.remove("summaryAt")
-                if (s.reminders) j.put("reminderAt", now()) else j.remove("reminderAt")
-                // 首次补齐服从触发方式；Manual 不安排任何自动任务。
-                if (hasRecords(s)) Subscriptions.changeAt(trigger, j.optLong("lastRecordsAt").takeIf { it > 0 }, now())?.let { j.put("changeAt", it) }
-            }
-        }
+        change(channel.id) { j -> j.applyTimes(SubscriptionPlan.configure(channel.subscription, fresh, j.times(), NowMillis(now)) { zone().id }) }
         plan(channel.id)
     }
     fun changed(channel: PushChannel, summary: Boolean = false) {
         if (!channel.enabled) return
-        change(channel.id) { j ->
-            if (summary && channel.subscription.summaries) j.put("summaryAt", now())
-            else if (hasRecords(channel.subscription)) Subscriptions.changeAt(channel.subscription.trigger,
-                j.optLong("lastRecordsAt").takeIf { it > 0 }, now())?.let { at ->
-                if (status(channel.id).value.running || !j.has("changeAt")) j.put("changeAt", if (status(channel.id).value.running) maxOf(now() + 1, at) else at)
-            }
-        }
+        change(channel.id) { j -> j.applyTimes(SubscriptionPlan.changed(channel.subscription, summary, j.times(), { status(channel.id).value.running }, NowMillis(now))) }
         plan(channel.id)
     }
-    private fun deadline(id: Long): Long? {
-        val j = meta(id)
-        return listOf("scheduleAt", "fullAt", "changeAt", "summaryAt", "batchAt", "reminderAt").mapNotNull { key -> j.optLong(key).takeIf { it > 0 } }.minOrNull()
-    }
+    private fun deadline(id: Long): Long? = SubscriptionPlan.deadline(meta(id).times())
     private fun plan(id: Long, continuation: Boolean = false) {
         if (channelById(id)?.enabled != true || status(id).value.running) return
         deadline(id)?.let { at ->
@@ -203,17 +180,8 @@ internal class SubscriptionRuntime(
                     else -> throw PushFailure("这个通道只支持摘要和提醒")
                 }
                 change(id) { j ->
-                    // 仅清除启动时见到的触发，保留运行期间新来的变更。
-                    listOf("changeAt", "summaryAt", "batchAt").forEach { key -> if (j.optLong(key) == due.optLong(key)) j.remove(key) }
-                    if (more) j.put("batchAt", now() + 30_000).put("summaryBatch", summaryOnly) else j.remove("summaryBatch")
-                    if (!summaryOnly && !reminderOnly) {
-                        j.put("lastRecordsAt", started)
-                        if (j.has("changeAt") && trigger is RecordTrigger.OnChange) j.put("changeAt", maxOf(j.getLong("changeAt"), started + trigger.minGapMinutes * 60_000L))
-                    }
-                    if (due.optLong("scheduleAt").let { it > 0 && it <= started } && trigger is RecordTrigger.Schedule)
-                        j.put("scheduleAt", Subscriptions.nextSchedule(trigger, Instant.ofEpochMilli(now()).atZone(zone())))
-                    if (due.optLong("fullAt").let { it > 0 && it <= started } && fullCheckAt != null)
-                        j.put("fullAt", Subscriptions.nextSchedule(RecordTrigger.Schedule(listOf(fullCheckAt)), Instant.ofEpochMilli(now()).atZone(zone())))
+                    j.applyTimes(SubscriptionPlan.completed(s, j.times(), due.times(), started, more, summaryOnly, reminderOnly, NowMillis(now)) { zone().id })
+                    if (more) j.put("summaryBatch", summaryOnly) else j.remove("summaryBatch")
                 }
                 val summaryCounts = state.json.optJSONObject("summaryCounts") ?: JSONObject()
                 data.cards.map { LocalDate.ofEpochDay(it.date) }.plus(data.reviews.filter { it.type == "daily" }.map { LocalDate.parse(it.startDate) }).distinct().forEach { date ->
@@ -261,24 +229,10 @@ internal class SubscriptionRuntime(
     }
     private fun summaryFiles(data: PushSnapshot, s: PushSubscription, state: PushSyncState, generator: MemoryFolder): Map<String, String> {
         val fresh = generator.generate(data.copy(events = emptyList(), items = emptyList(), lines = emptyList()), s.copy(records = emptySet(), lines = LinesMode.Off))
-        val result = state.templates.keys().asSequence().associateWith { state.templates.getString(it) }.toMutableMap()
-        fun section(text: String, name: String): String = text.substringAfter("<!-- resound:$name:start -->", "").substringBefore("<!-- resound:$name:end -->")
-        fresh.filterKeys { it.startsWith("daily/") || it.startsWith("weekly/") }.forEach { (path, content) ->
-            var merged = result[path]
-            if (merged != null && path.startsWith("daily/")) {
-                for (name in listOf("reviews", "cards")) {
-                    val start = "<!-- resound:$name:start -->"; val end = "<!-- resound:$name:end -->"
-                    merged = merged!!.substringBefore(start) + start + section(content, name) + end + merged.substringAfter(end, "")
-                }
-                val date = path.substringAfterLast('/').take(10)
-                val count = Regex("(?m)^条数: ([0-9]+)$").find(merged!!)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                val oldSummaryCount = state.json.optJSONObject("summaryCounts")?.optInt(path) ?: 0
-                val summaryCount = data.cards.count { LocalDate.ofEpochDay(it.date).toString() == date } + data.reviews.count { it.type == "daily" && it.startDate == date }
-                result[path] = merged.replace(Regex("(?m)^条数: [0-9]+$"), "条数: ${(count - oldSummaryCount + summaryCount).coerceAtLeast(0)}")
-            } else result[path] = content
-        }
-        if ("README.md" !in result) result["README.md"] = fresh.getValue("README.md")
-        return result
+        val old = state.json.optJSONObject("summaryCounts") ?: JSONObject()
+        val dates = data.cards.map { LocalDate.ofEpochDay(it.date).toString() } + data.reviews.filter { it.type == "daily" }.map { it.startDate }
+        return SummaryTemplates.merge(fresh, state.templates.keys().asSequence().associateWith { state.templates.getString(it) },
+            old.keys().asSequence().associateWith { old.optInt(it) }, dates.groupingBy { it }.eachCount())
     }
     private suspend fun sendDocuments(channel: PushChannel, values: Map<String, String>, data: PushSnapshot, s: PushSubscription,
         files: Map<String, String>, state: PushSyncState, incremental: Boolean, at: Long): String {

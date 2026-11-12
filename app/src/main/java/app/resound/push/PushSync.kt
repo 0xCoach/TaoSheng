@@ -150,13 +150,10 @@ internal object RecordDelta {
         data.lines.forEach { l -> put("line:${l.id}", JSONObject().put("id", l.id).put("at", l.startAt).put("end", l.endAt)
             .put("eventId", l.eventId ?: JSONObject.NULL).put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, s.lineContext)) } }) }
     }
-    fun changes(current: Map<String, JSONObject>, old: JSONObject): JSONObject {
-        val changes = JSONArray()
-        fun entry(op: String, key: String, data: JSONObject) = JSONObject().put("op", op).put("kind", key.substringBefore(':')).put("id", key.substringAfter(':').toLong()).put("data", data)
-        current.toSortedMap().forEach { (key, data) -> if (old.optString(key) != sha256(canonical(data))) changes.put(entry("upsert", key, data)) }
-        old.keys().asSequence().toList().sorted().filter { it !in current && it !in PushTrace.current()?.skipped.orEmpty() }.forEach { changes.put(entry("delete", it, JSONObject())) }
-        return JSONObject().put("type", "records_delta").put("version", 1).put("changes", changes)
-    }
+    fun changes(current: Map<String, JSONObject>, old: JSONObject): JSONObject = JSONObject(RecordDeltaRules.changes(
+        current.mapValues { app.resound.platform.SharedJson.parseToJsonElement(it.value.toString()) as kotlinx.serialization.json.JsonObject },
+        old.keys().asSequence().associateWith { old.optString(it) }, PushTrace.current()?.skipped.orEmpty(),
+        { key -> sha256(canonical(current.getValue(key))) }).toString())
     fun acknowledge(current: Map<String, JSONObject>, state: PushSyncState) {
         state.records.keys().asSequence().toList().filter { it !in PushTrace.current()?.skipped.orEmpty() }.forEach { state.records.remove(it) }
         current.forEach { (key, data) -> state.records.put(key, sha256(canonical(data))) }; state.save()

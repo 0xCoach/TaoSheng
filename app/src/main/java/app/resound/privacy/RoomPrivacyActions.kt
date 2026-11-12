@@ -36,16 +36,16 @@ class RoomPrivacyActions(
         require(minutes > 0)
         return withContext(Dispatchers.IO + NonCancellable) { gate.withLock {
             val until = now()
-            val from = until - minutes.toLong() * 60_000
+            val from = PrivacyRules.recentStart(minutes, until)
             discardRecording()
             recentFiles(from, until) { erase { dao.recent(from, until) } }
         } }
     }
 
     override suspend fun deleteRange(fromMillis: Long, untilMillis: Long): ForgetResult {
-        require(fromMillis <= untilMillis)
+        PrivacyRules.validateRange(fromMillis, untilMillis)
         return withContext(Dispatchers.IO + NonCancellable) { gate.withLock {
-            if (untilMillis >= now()) discardRecording()
+            if (PrivacyRules.discardRecording(untilMillis, now())) discardRecording()
             recentFiles(fromMillis, untilMillis) { erase { dao.recent(fromMillis, untilMillis) } }
         } }
     }
@@ -113,13 +113,13 @@ class RoomPrivacyActions(
                 for (segment in segments) {
                     val source = db.voiceprint().lines(segment.id)
                     files += segment to source
-                    if (segment.path.isNotBlank() && segment.sourceId != "voice-input")
+                    if (PrivacyRules.cleanupFile(segment.path, segment.sourceId))
                         dao.queueCleanup(app.resound.data.PrivacyFileCleanup(segment.path))
                     val target = if (explicitEvent == null) source else source.filter { it.eventId == explicitEvent }
                     events += target.mapNotNull { it.eventId }
                     dao.deleteSamples(segment.id)
                     dao.deleteExclusions(segment.id)
-                    if (target.size == source.size) {
+                    if (PrivacyRules.deleteWholeSegment(source.size, target.size)) {
                         if (!keepEvents) items += dao.deleteLineItems(segment.id)
                         dao.deleteLineVectors(segment.id)
                         lines += dao.deleteLines(segment.id)

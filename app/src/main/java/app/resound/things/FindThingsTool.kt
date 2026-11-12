@@ -17,8 +17,6 @@ internal class FindThingsTool(private val db: CaptureDatabase, private val zone:
         val query = arg("query"); val place = arg("place")
         val (ts, rs) = runBlocking { db.withTransaction { db.things().allThings() to db.things().allRecords() } }
         val names = ts.associate { it.id to it.name }
-        val known = things(ts, rs)
-        fun matches(value: String?, filter: String) = filter.isEmpty() || value?.contains(filter, ignoreCase = true) == true
         fun recordJson(row: ThingRecordRow): JSONObject {
             val r = row.model(names)
             val j = JSONObject().put("id", r.id).put("action", r.action.title).put("place", r.place ?: JSONObject.NULL)
@@ -33,28 +31,23 @@ internal class FindThingsTool(private val db: CaptureDatabase, private val zone:
             return j
         }
         val results = JSONArray()
-        val attached = mutableSetOf<Long>()
-        var truncated = false
-        for (t in known) {
-            val pending = rs.filter { it.status == "Pending" && (it.thingId == t.id || it.sameAsId == t.id) }
-            if (!(listOf(t.name, t.latest.place, t.lastPlace, t.latest.who).plus(t.aliases).plus(pending.flatMap { listOf(it.name, it.place, it.who) }).any { matches(it, query) } &&
-                    (listOf(t.latest.place, t.lastPlace) + pending.map { it.place }).any { matches(it, place) })) continue
-            if (results.length() >= 40) { truncated = true; break }
-            attached.addAll(pending.map { it.id })
-            val history = rs.filter { it.thingId == t.id && it.status == "Accepted" }.take(5)
-            results.put(JSONObject().put("id", t.id).put("name", t.name).put("aliases", JSONArray(t.aliases))
-                .put("current", recordJson(history.first())).put("lastPlace", t.lastPlace ?: JSONObject.NULL)
-                .put("lastPlaceAt", t.lastPlaceAt ?: JSONObject.NULL).put("records", JSONArray(history.map(::recordJson)))
-                .put("pending", JSONArray(pending.take(40).map { recordJson(it).put("sameAsUncertain", it.sameAsId != null) }))
-                .put("pendingTruncated", pending.size > 40))
+        val selection = FindThingRules.select(ts.map { it.shared() }, rs.map { it.shared() }, query, place)
+        for (match in selection.matches) {
+            val t = match.thing
+            if (t != null) {
+                val history = match.history.map { it.room() }
+                val pending = match.pending.map { it.room() }
+                results.put(JSONObject().put("id", t.id).put("name", t.name).put("aliases", JSONArray(t.aliases))
+                    .put("current", recordJson(history.first())).put("lastPlace", t.lastPlace ?: JSONObject.NULL)
+                    .put("lastPlaceAt", t.lastPlaceAt ?: JSONObject.NULL).put("records", JSONArray(history.map(::recordJson)))
+                    .put("pending", JSONArray(pending.take(40).map { recordJson(it).put("sameAsUncertain", it.sameAsId != null) }))
+                    .put("pendingTruncated", pending.size > 40))
+            } else {
+                val r = match.history.single().room()
+                results.put(JSONObject().put("id", r.thingId ?: JSONObject.NULL).put("name", r.name).put("status", "未确认")
+                    .put("current", JSONObject.NULL).put("sameAsUncertain", r.sameAsId != null).put("records", JSONArray().put(recordJson(r))))
+            }
         }
-        // 没有已确认物品的新发现也必须能查；不把它的 Pending 位置当作 current。
-        for (r in rs.filter { it.status == "Pending" && it.id !in attached }) {
-            if (!listOf(r.name, r.place, r.who).any { matches(it, query) } || !matches(r.place, place)) continue
-            if (results.length() >= 40) { truncated = true; break }
-            results.put(JSONObject().put("id", r.thingId ?: JSONObject.NULL).put("name", r.name).put("status", "未确认")
-                .put("current", JSONObject.NULL).put("sameAsUncertain", r.sameAsId != null).put("records", JSONArray().put(recordJson(r))))
-        }
-        return JSONObject().put("results", results).put("truncated", truncated)
+        return JSONObject().put("results", results).put("truncated", selection.truncated)
     }
 }

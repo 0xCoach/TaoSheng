@@ -5,6 +5,7 @@ import app.resound.skills.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.*
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.IsoFields
 import java.time.temporal.TemporalAdjusters
@@ -18,16 +19,11 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         /** 说明卡里的“更新”时间：北京时间，如 2026-10-24 22:00 */
         fun updatedText(at: Long): String = Instant.ofEpochMilli(at).atZone(ZoneId.of("Asia/Shanghai"))
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-        fun dailyPath(date: LocalDate) = "daily/${date.toString().take(7)}/${date}-${date.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH))}_daily-record.md"
-        fun transcriptPath(date: LocalDate) = dailyPath(date).replace("daily/", "transcripts/").replace("_daily-record", "_transcript")
-        fun weekPath(date: LocalDate): String {
-            val monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            val sunday = monday.plusDays(6)
-            val md = DateTimeFormatter.ofPattern("MMdd", Locale.ROOT)
-            return "weekly/${monday.get(IsoFields.WEEK_BASED_YEAR)}-W${monday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR).toString().padStart(2, '0')}_${monday.format(md)}-${sunday.format(md)}_weekly-review.md"
-        }
-        fun card(type: String, date: String, content: String, title: String, count: Int, body: String): String =
-            "---\n类型: ${JSONObject.quote(type)}\n日期: ${JSONObject.quote(date)}\n内容: ${JSONObject.quote(content)}\n更新: \"$UPDATED\"\n来源: 自动生成，请勿手动修改（改了会被覆盖）\n条数: $count\n---\n# $title\n\n${body.trim()}\n"
+        fun dailyPath(date: LocalDate) = MemoryPaths.daily(date.toKotlinLocalDate())
+        fun transcriptPath(date: LocalDate) = MemoryPaths.transcript(date.toKotlinLocalDate())
+        fun weekPath(date: LocalDate) = MemoryPaths.week(date.toKotlinLocalDate())
+        fun card(type: String, date: String, content: String, title: String, count: Int, body: String) =
+            PushBodyRules.card(type, date, content, title, count, body)
     }
     /** 给人看的状态：英文枚举名换成中文 */
     private fun statusText(status: Any): String = when (status.toString()) {

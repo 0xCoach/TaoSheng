@@ -7,24 +7,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import org.json.JSONArray
 
-internal fun aliases(json: String): List<String> = runCatching { JSONArray(json).let { a ->
-    (0 until a.length()).map { a.getString(it) }
-} }.getOrDefault(emptyList())
-internal fun ThingRecordRow.model(names: Map<Long, String>) = ThingRecord(id, thingId, name,
-    ThingAction.valueOf(action), place, who, ThingOwner.valueOf(owner), at, sourceLineId, sourceText,
-    RecordStatus.valueOf(status), ThingOrigin.valueOf(origin), explicit,
-    sameAsId?.let { id -> names[id]?.let { SameAsQuestion(id, it) } })
-
-internal fun things(rows: List<ThingRow>, records: List<ThingRecordRow>): List<Thing> {
-    val names = rows.associate { it.id to it.name }
-    return rows.mapNotNull { t ->
-        val history = records.filter { it.thingId == t.id && it.status == "Accepted" }.sortedWith(compareByDescending<ThingRecordRow> { it.at }.thenByDescending { it.id })
-        val latest = history.firstOrNull() ?: return@mapNotNull null
-        val lastPlace = history.firstOrNull { it.action == "Placed" && it.place != null }
-        Thing(t.id, t.name, aliases(t.aliasesJson), ThingOwner.valueOf(t.owner), latest.model(names), lastPlace?.place,
-            lastPlace?.at, history.size, records.any { it.status == "Pending" && (it.thingId == t.id || it.sameAsId == t.id) })
-    }.sortedWith(compareByDescending<Thing> { it.latest.at }.thenByDescending { it.latest.id })
-}
+internal fun aliases(json: String) = thingAliases(json)
+internal fun ThingRecordRow.model(names: Map<Long, String>) = shared().model(names)
+internal fun things(rows: List<ThingRow>, records: List<ThingRecordRow>) = thingCatalog(rows.map { it.shared() }, records.map { it.shared() })
 
 internal class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope,
     private val parseDraft: suspend (String) -> ThingDrafts,

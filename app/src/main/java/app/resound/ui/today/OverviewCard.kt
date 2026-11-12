@@ -125,9 +125,14 @@ internal fun OverviewCard(
             center = Offset(0f, 0f), radius = 900f))
         .border(0.5.dp, c.hairline, shape)
     else Modifier
-        .shadow(12.dp, shape, ambientColor = Color(0xFFD9531F), spotColor = Color(0xFFD9531F))
+        .shadow(14.dp, shape, ambientColor = Color(0xFFE2632A), spotColor = Color(0xFFE2632A))
         .clip(shape)
-        .background(Brush.linearGradient(listOf(Color(0xFFF2873F), Color(0xFFE2632A), Color(0xFFCF4A1E))))
+        // 底色保持偏深，保证白字清楚；质感靠三层：左上角柔光、右下角微暗、顶边一圈细亮边（玻璃反光）
+        .background(Brush.linearGradient(listOf(Color(0xFFF59048), Color(0xFFE5672C), Color(0xFFCF4A1E))))
+        .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.08f), Color.Transparent),
+            center = Offset(0f, 0f), radius = 760f))
+        .background(Brush.radialGradient(listOf(Color.Transparent, Color(0x1A7A1E00)), center = Offset(260f, 60f), radius = 1400f))
+        .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.05f))), shape)
 
     Column(Modifier.fillMaxWidth().then(background).padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 12.dp).animateContentSize()) {
         if (pastDate != null) {

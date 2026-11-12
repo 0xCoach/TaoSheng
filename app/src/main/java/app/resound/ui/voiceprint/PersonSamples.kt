@@ -1,6 +1,7 @@
 package app.resound.ui.voiceprint
 
 import androidx.compose.animation.*
+import app.resound.ui.theme.fade
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -126,7 +127,7 @@ private fun PlayButton(sample: VoiceprintSample, tint: Color, onClick: () -> Uni
     val bg by animateColorAsState(if (playing) tint else tint.copy(alpha = 0.14f), label = "bg")
     Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
         if (!sample.playable) {
-            Box(Modifier.size(34.dp).clip(CircleShape).background(c.separator.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(34.dp).clip(CircleShape).background(c.separator.fade(0.5f)), contentAlignment = Alignment.Center) {
                 Text("—", style = RsType.subhead, color = c.textTertiary)
             }
         } else {

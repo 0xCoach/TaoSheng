@@ -37,6 +37,10 @@ data class RsColors(
     val elevated: Color,
     /** 按钮、输入框、小胶囊的填充色（放在卡片或面板上）；日间同页面底色，夜间是半透明白，在任何深色层上都稍亮一点 */
     val fill: Color,
+    /** 分段切换器的底条；日间是浅灰，夜间是半透明白（不能用分隔线色改透明度，夜间分隔线本身就是半透明的） */
+    val track: Color,
+    /** 分段切换器选中的那一格；日间白色，夜间比底条亮一级 */
+    val trackThumb: Color,
     /** 卡片描边；日间透明（靠阴影），夜间是极细的白边 */
     val hairline: Color,
     val isDark: Boolean,
@@ -58,6 +62,8 @@ val LightRs = RsColors(
     shadow = Color(0x14583A1C),
     elevated = Color(0xFFFFFFFF),
     fill = Color(0xFFF4F2EF),
+    track = Color(0xB3ECE8E3),
+    trackThumb = Color(0xFFFFFFFF),
     hairline = Color(0x00000000),
     isDark = false,
 )
@@ -78,6 +84,8 @@ val DarkRs = RsColors(
     shadow = Color(0x00000000),
     elevated = Color(0xFF2C2C2E),
     fill = Color(0x1FFFFFFF),          // 白 12%
+    track = Color(0x1FFFFFFF),
+    trackThumb = Color(0xFF48484A),
     hairline = Color(0x12FFFFFF),      // 白 7%
     isDark = true,
 )
@@ -120,3 +128,9 @@ fun ResoundTheme(mode: ThemeMode = ThemeMode.System, content: @Composable () -> 
         MaterialTheme(colorScheme = material, content = content)
     }
 }
+
+/**
+ * 在颜色原有透明度上再按比例变淡。主题里夜间的文字、分隔线等本身就是半透明的，
+ * 直接 copy(alpha = x) 会把它们变回不透明（例如分隔线变成纯白），所以一律用 fade。
+ */
+fun Color.fade(fraction: Float): Color = copy(alpha = alpha * fraction)

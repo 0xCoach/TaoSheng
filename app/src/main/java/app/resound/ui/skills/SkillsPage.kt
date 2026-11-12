@@ -266,10 +266,10 @@ internal fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 @Composable
 internal fun Segments(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val c = Rs.colors
-    Row(Modifier.clip(CircleShape).background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
+    Row(Modifier.clip(CircleShape).background(c.track).padding(3.dp)) {
         options.forEachIndexed { i, label ->
             val on = i == selected
-            val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), label = "seg")
+            val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), label = "seg")
             Box(Modifier.clip(CircleShape).background(bg).springClick { onSelect(i) }.padding(horizontal = 14.dp, vertical = 7.dp)) {
                 Text(label, style = RsType.subhead, color = if (on) c.text else c.textSecondary)
             }

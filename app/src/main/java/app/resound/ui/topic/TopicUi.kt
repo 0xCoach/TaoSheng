@@ -135,10 +135,10 @@ private suspend fun guarded(context: android.content.Context, block: suspend () 
 
 /** 聆听面板里的“专题录音”一节：没开始时选类型开始；进行中时直接操作 */
 @Composable
-fun TopicSection(onDismiss: () -> Unit, initialKind: TopicKind = TopicKind.Meeting) {
+fun TopicSection(onDismiss: () -> Unit, initialKind: TopicKind = TopicKind.Meeting, showLabel: Boolean = true) {
     if (!AppGraph.isTopicsReady) return
     val current by AppGraph.topics.current.collectAsState()
-    Label("专题录音")
+    if (showLabel) Label("专题录音")
     current?.let { TopicRunningPanel(it); return }
     TopicStartPanel(initialKind, onStarted = onDismiss)
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -248,8 +248,9 @@ fun TopicHost() {
     if (TopicUi.creatingRange) TopicCreateSheet(null) { TopicUi.creatingRange = false }
     TopicUi.starting?.let { k ->
         val current by AppGraph.topics.current.collectAsState()
-        RsSheet("开始专题", onDismiss = { TopicUi.starting = null }) {
-            current?.let { TopicRunningPanel(it) } ?: TopicStartPanel(k) { TopicUi.starting = null }
+        // 与聆听面板里的“专题录音”一节相同：开始、预约、忘了点开始时事后选一段时间；进行中则直接操作
+        RsSheet(if (current != null) "专题录音" else "开始专题", onDismiss = { TopicUi.starting = null }) {
+            TopicSection({ TopicUi.starting = null }, k, showLabel = false)
         }
     }
 }
@@ -384,7 +385,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
             }
             // ⑥ 操作：一排按钮直接放出来；剪掉一段在原地展开，取消点两次
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!live) ActionPill(if (cutting) "收起" else "剪掉一段", Modifier.weight(1f)) { cutting = !cutting }
+                ActionPill(if (cutting) "收起" else "剪掉一段", Modifier.weight(1f)) { cutting = !cutting }
                 if (t.status == TopicStatus.Done || t.status == TopicStatus.Failed) ActionPill("重新生成", Modifier.weight(1f), enabled = !busy) {
                     scope.launch { if (guarded(context) { AppGraph.topics.regenerate(t.id) }) Toast.makeText(context, "正在重新生成", Toast.LENGTH_SHORT).show() }
                 }
@@ -515,6 +516,8 @@ private fun TimelineCard(tl: app.resound.topic.TopicTimelineLayout, live: Boolea
                     modifier = Modifier.weight(1f))
             }
         }
+        if (tl.marks.isNotEmpty()) Text("★ 重点：" + tl.marks.joinToString("、") { formatClock(it.second) },
+            style = RsType.subhead.copy(fontFeatureSettings = "tnum"), color = c.accent, modifier = Modifier.padding(top = 8.dp))
         if (tl.bars.any { !it.included } || tl.marks.isNotEmpty()) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             LegendDot(c.accent, "算进专题")
             if (tl.bars.any { !it.included }) LegendDot(gray, "暂停或剪掉")

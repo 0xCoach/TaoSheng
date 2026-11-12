@@ -46,10 +46,10 @@ fun ReviewSettingsPage(repo: ReviewRepository, bottomPadding: Dp) {
         RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
             Text("每天几点生成", style = RsType.body, color = c.text)
             Spacer(Modifier.height(10.dp))
-            Row(Modifier.clip(CircleShape).background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
+            Row(Modifier.clip(CircleShape).background(c.track).padding(3.dp)) {
                 listOf(21 * 60, 22 * 60, 23 * 60).forEach { m ->
                     val on = s.dailyAtMinutes == m
-                    val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), label = "t")
+                    val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), label = "t")
                     Box(Modifier.clip(CircleShape).background(bg).springClick { repo.setDailyAt(m) }.padding(horizontal = 16.dp, vertical = 7.dp)) {
                         Text("${m / 60}:00", style = RsType.subhead, color = if (on) c.text else c.textSecondary)
                     }
@@ -74,10 +74,10 @@ fun ReviewSettingsPage(repo: ReviewRepository, bottomPadding: Dp) {
             Text("手动生成", style = RsType.body, color = c.text)
             Text("覆盖这天已有的回顾，不推送通知", style = RsType.caption, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
-            Row(Modifier.clip(CircleShape).background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
+            Row(Modifier.clip(CircleShape).background(c.track).padding(3.dp)) {
                 listOf(0L to "今天", 1L to "昨天", 2L to "前天").forEach { (d, label) ->
                     val on = day == d
-                    val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), label = "d")
+                    val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), label = "d")
                     Box(Modifier.clip(CircleShape).background(bg).springClick { day = d }.padding(horizontal = 16.dp, vertical = 7.dp)) {
                         Text(label, style = RsType.subhead, color = if (on) c.text else c.textSecondary)
                     }

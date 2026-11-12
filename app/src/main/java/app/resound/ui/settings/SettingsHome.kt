@@ -421,10 +421,10 @@ private fun SRow(glyph: SettingsGlyph, tint: Color, title: String, value: String
 @Composable
 private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     val c = Rs.colors
-    Row(Modifier.clip(RoundedCornerShape(9.dp)).background(c.fill).padding(2.dp)) {
+    Row(Modifier.clip(RoundedCornerShape(9.dp)).background(c.track).padding(2.dp)) {
         options.forEach { (v, label) ->
             val on = v == selected
-            val bg by animateColorAsState(if (on) (if (c.isDark) Color(0xFF48484A) else Color.White) else Color.Transparent, label = "seg")
+            val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), label = "seg")
             Text(label, style = RsType.subhead.copy(fontWeight = if (on) FontWeight.Medium else FontWeight.Normal),
                 color = if (on) c.text else c.textSecondary,
                 modifier = Modifier.clip(RoundedCornerShape(7.dp)).background(bg).springClick { onSelect(v) }.padding(horizontal = 11.dp, vertical = 5.dp))

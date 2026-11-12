@@ -1,6 +1,7 @@
 package app.resound.ui.transcript
 
 import kotlinx.coroutines.flow.map
+import app.resound.ui.theme.fade
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import android.widget.Toast
@@ -579,10 +580,10 @@ private fun <T> Choice(options: List<T>, selected: T, label: (T) -> String, fill
     val c = Rs.colors
     // fill：选项多时平分整行、文字放不下自动缩小，不会挤出屏幕或折成竖排
     Row(Modifier.then(if (fill) Modifier.fillMaxWidth() else Modifier).clip(CircleShape)
-        .background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
+        .background(c.track).padding(3.dp)) {
         options.forEach { option ->
             val on = option == selected
-            val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
+            val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
             Box(Modifier.then(if (fill) Modifier.weight(1f) else Modifier).clip(CircleShape).background(bg).springClick { onSelect(option) }
                 .padding(horizontal = if (fill) 4.dp else 16.dp, vertical = 7.dp), contentAlignment = Alignment.Center) {
                 if (fill) Text(label(option), style = RsType.subhead, color = if (on) c.text else c.textSecondary, maxLines = 1, softWrap = false,
@@ -1000,7 +1001,7 @@ private fun Placeholder() {
     val a by t.animateFloat(0.35f, 0.8f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "a")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(1f, 0.62f).forEach { w ->
-            Box(Modifier.fillMaxWidth(w).height(12.dp).clip(CircleShape).background(c.separator.copy(alpha = a)))
+            Box(Modifier.fillMaxWidth(w).height(12.dp).clip(CircleShape).background(c.separator.fade(a)))
         }
     }
 }

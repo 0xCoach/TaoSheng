@@ -1,6 +1,7 @@
 package app.resound.ui.transcript
 
 import androidx.compose.animation.AnimatedVisibility
+import app.resound.ui.theme.fade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -197,7 +198,7 @@ private fun Bar(inline: Boolean = false) {
 @Composable
 private fun SegmentPill(label: String, back: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
-    val tint = if (enabled) c.accent else c.textTertiary.copy(alpha = 0.6f)
+    val tint = if (enabled) c.accent else c.textTertiary.fade(0.6f)
     Row(modifier.height(30.dp).clip(CircleShape).background(if (enabled) c.accentSoft else c.fill)
         .then(if (enabled) Modifier.springClick(onClick) else Modifier).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
         if (back) { NextIcon(tint, Modifier.graphicsLayer { scaleX = -1f }); Spacer(Modifier.width(4.dp)) }

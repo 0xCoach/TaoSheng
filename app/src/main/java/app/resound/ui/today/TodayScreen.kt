@@ -1,6 +1,7 @@
 package app.resound.ui.today
 
 import androidx.compose.foundation.gestures.detectTapGestures
+import app.resound.ui.theme.fade
 import app.resound.ui.ScrollTopButton
 import app.resound.ui.swipeTabs
 import app.resound.ui.things.recent
@@ -502,10 +503,10 @@ fun ModelCard(settings: DigestSettings, onSaved: () -> Unit) {
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Text("整理用的大模型", style = RsType.body, color = c.text)
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.clip(CircleShape).background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp)) {
+        Row(Modifier.clip(CircleShape).background(c.track).padding(3.dp)) {
             settings.presets.forEach { p ->
                 val on = p.id == presetId
-                val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "preset")
+                val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "preset")
                 Box(Modifier.clip(CircleShape).background(bg).springClick { settings.setPreset(p.id); result = null }.padding(horizontal = 14.dp, vertical = 7.dp)) {
                     Text(p.name, style = RsType.subhead, color = if (on) c.text else c.textSecondary)
                 }
@@ -1266,7 +1267,7 @@ object UndoBar {
             androidx.compose.animation.AnimatedVisibility(item != null, enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
                 exit = androidx.compose.animation.fadeOut()) {
                 val shown = item ?: return@AnimatedVisibility
-                Row(Modifier.clip(CircleShape).background(c.text.copy(alpha = 0.88f)).padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                Row(Modifier.clip(CircleShape).background(c.text.fade(0.88f)).padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(shown.first, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.background)
                     Spacer(Modifier.width(10.dp))

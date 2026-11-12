@@ -1,6 +1,7 @@
 package app.resound.ui.today
 
 import androidx.compose.ui.unit.sp
+import app.resound.ui.theme.fade
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -187,7 +188,7 @@ private fun Stat(label: String, count: Int, unit: String, delta: String?, modifi
     Column(modifier.springClick(onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(androidx.compose.ui.text.buildAnnotatedString {
             // 为 0 时格式不变（同样大小的数字 + 单位），只把数字调成浅灰，四格看起来是同一套
-            withStyle(androidx.compose.ui.text.SpanStyle(color = if (count == 0) c.textTertiary.copy(alpha = 0.6f) else c.text, fontWeight = FontWeight.SemiBold)) { append("$count") }
+            withStyle(androidx.compose.ui.text.SpanStyle(color = if (count == 0) c.textTertiary.fade(0.6f) else c.text, fontWeight = FontWeight.SemiBold)) { append("$count") }
             withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, fontWeight = FontWeight.Normal)) { append(" $unit") }
         }, style = RsType.title, maxLines = 1, modifier = Modifier.height(30.dp).wrapContentHeight(Alignment.Bottom))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,12 +245,12 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 val speech = r.speechByHour[h]; val mediaS = r.mediaByHour[h]; val total = speech + mediaS
                 val fade by androidx.compose.animation.core.animateFloatAsState(if (lit?.let { h !in it.from..it.to } == true) 0.3f else 1f, label = "lit")
                 Box(Modifier.weight(1f).fillMaxHeight().graphicsLayer { alpha = fade }.clip(RoundedCornerShape(3.dp))
-                    .background(if (h in quiet) c.separator.copy(alpha = 0.35f) else androidx.compose.ui.graphics.Color.Transparent),
+                    .background(if (h in quiet) c.separator.fade(0.35f) else androidx.compose.ui.graphics.Color.Transparent),
                     contentAlignment = Alignment.BottomCenter) {
                     val barH = if (total == 0) barArea * 0.06f else barArea * (total / max.toFloat()).coerceIn(0.12f, 1f)
                     if (total == 0) Box(Modifier.fillMaxWidth().height(barH).clip(RoundedCornerShape(2.dp)).background(c.separator))
                     else Column(Modifier.fillMaxWidth().height(barH)) {
-                        if (mediaS > 0) Box(Modifier.fillMaxWidth().weight(mediaS.toFloat()).clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)).background(c.textTertiary.copy(alpha = 0.45f)))
+                        if (mediaS > 0) Box(Modifier.fillMaxWidth().weight(mediaS.toFloat()).clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)).background(c.textTertiary.fade(0.45f)))
                         if (speech > 0) Box(Modifier.fillMaxWidth().weight(speech.toFloat()).clip(RoundedCornerShape(2.dp))
                             .background(if (h == peak || h == hover || lit != null) c.accent else c.accent.copy(alpha = 0.35f)))
                     }

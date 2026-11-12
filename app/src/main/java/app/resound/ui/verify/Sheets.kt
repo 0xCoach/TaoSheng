@@ -1,6 +1,7 @@
 package app.resound.ui.verify
 
 import androidx.compose.foundation.background
+import app.resound.ui.theme.fade
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,7 +82,7 @@ fun RsSheet(title: String, subtitle: String? = null, onDismiss: () -> Unit,
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = c.elevated,
-        dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(if (c.isDark) c.textTertiary.copy(alpha = 0.35f) else c.separator)) },
+        dragHandle = { Box(Modifier.padding(vertical = 10.dp).size(width = 36.dp, height = 5.dp).clip(CircleShape).background(if (c.isDark) c.textTertiary.fade(0.35f) else c.separator)) },
     ) {
         Column(
             Modifier.then(if (fixedHeight) Modifier.fillMaxHeight(0.92f) else Modifier)

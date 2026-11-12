@@ -348,11 +348,11 @@ private fun stateDetail(state: CaptureState, elapsed: Long, pausedUntil: Long?, 
 fun DaySwitcher(selected: Int, compact: Boolean = false, onSelect: (Int) -> Unit) {
     val c = Rs.colors
     Row(
-        Modifier.clip(CircleShape).background(c.separator.copy(alpha = if (c.isDark) 1f else 0.7f)).padding(3.dp),
+        Modifier.clip(CircleShape).background(c.track).padding(3.dp),
     ) {
         listOf("今天", "昨天", "前天").forEachIndexed { i, label ->
             val on = i == selected
-            val bg by animateColorAsState(if (on) c.card else c.card.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "seg")
+            val bg by animateColorAsState(if (on) c.trackThumb else c.trackThumb.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "seg")
             Box(
                 Modifier.clip(CircleShape).background(bg).springClick { onSelect(i) }.padding(horizontal = if (compact) 12.dp else 18.dp, vertical = if (compact) 4.dp else 7.dp),
             ) {

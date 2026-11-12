@@ -45,7 +45,7 @@ class LlmDiagnostics(context: Context) {
 
     internal fun dumpResponses(): String = rows().joinToString("\n") { row ->
         listOf("at", "purpose", "provider", "model", "elapsedMs", "http", "finish_reason", "truncated",
-            "chars", "json", "events", "items", "empty", "filtered", "error").joinToString(" ") { key ->
+            "chars", "json", "topic", "phase", "block", "blocks", "events", "items", "empty", "filtered", "error").joinToString(" ") { key ->
             "$key=${if (key == "at") stamp(row.optLong(key)) else if (row.isNull(key)) "暂无" else row.opt(key)}"
         }
     }.ifBlank { "暂无" }
@@ -67,6 +67,9 @@ class LlmResponseTrace internal constructor(
         .put("purpose", feature.take(40)).put("provider", scrubProblemReport(preset.name).take(120))
         .put("model", scrubProblemReport(preset.model).take(120))
 
+    internal fun topic(id: Long, phase: String, block: Int, total: Int) = update {
+        put("topic", id); put("phase", phase); put("block", block); put("blocks", total)
+    }
     internal fun http(code: Int) = update { put("http", code) }
     internal fun finishReason(reason: String?) = update {
         // 服务端任意字符串不得原样落盘。

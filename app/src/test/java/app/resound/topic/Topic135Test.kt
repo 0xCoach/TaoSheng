@@ -354,11 +354,63 @@ class Topic135Test {
         assertEquals(done.eventId, db.topics().get(id)!!.row.eventId)
     }
 
+    @Test fun twoHourMeetingContinuesAfterRestartWithoutRepeatingCompletedBlocks() = runBlocking {
+        val checkpoints = TopicCheckpointFiles(context)
+        checkpoints.remove(1)
+        val start = time
+        val id = repo.start(TopicKind.Meeting, "两小时会议", null).topicId!!
+        repeat(32) { n -> line(n + 1L, start + n * 225_000L, "第${n}段讨论。" + "会议内容".repeat(if (n == 0) 800 else 80)) }
+        time += 2 * 3600_000L; repo.end()
+        var fail = true; var firstNoteCalls = 0
+        val gen = generator { system, user ->
+            if (system.contains("必须恰好输出一张")) {
+                if (user.contains("第 1/")) firstNoteCalls++
+                if (fail && user.contains("第 2/")) throw LlmException(LlmError.Network)
+                cardReply()
+            } else digestReply(user)
+        }
+        TopicEngine(db, repo, gen, now = { time }, checkpoints = checkpoints).run()
+        assertEquals("Failed", db.topics().get(id)!!.row.status)
+        assertTrue(checkpoints.read(id)!!.progress.notes.isNotEmpty())
+        fail = false; repo.regenerate(id)
+        val restoredStore = TopicCheckpointFiles(context)
+        TopicEngine(db, repo, gen, now = { time }, checkpoints = restoredStore).run()
+        assertEquals("Done", db.topics().get(id)!!.row.status)
+        assertEquals(1, firstNoteCalls)
+        assertEquals(32, db.memory().eventLines(db.topics().get(id)!!.row.eventId!!).first().size)
+        checkpoints.remove(id)
+    }
+
+    @Test fun failedRegenerationKeepsPreviousFinishedEvent() = runBlocking {
+        line(1, time - 1000); val id = ended()
+        engine().run(); val old = db.topics().get(id)!!.row.eventId!!
+        db.memory().setStarred(old, true, time)
+        repo.regenerate(id)
+        assertNotNull(db.memory().event(old))
+        engine(generator { _, _ -> throw LlmException(LlmError.Auth) }).run()
+        assertEquals(old, db.topics().get(id)!!.row.eventId)
+        assertNotNull(db.memory().event(old))
+        repo.regenerate(id); engine().run()
+        assertTrue(db.memory().event(db.topics().get(id)!!.row.eventId!!)!!.starred)
+    }
+
+    @Test fun checkpointCannotExposeResultsAfterSourceChangedOrDeleted() = runBlocking {
+        var source: String? = "original"
+        val files = TopicCheckpointFiles(context) { source }
+        files.write(999, TopicCheckpoint("original", progress = TopicProgress(notes = mapOf("one" to "分段内容"))))
+        source = "edited"
+        assertNull(files.read(999))
+        files.write(999, TopicCheckpoint("edited"))
+        source = null
+        assertNull(files.read(999))
+        try { files.write(999, TopicCheckpoint("edited")); fail("已删除来源不能写回") } catch (_: TopicException) { }
+    }
+
     @Test fun failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult() = runBlocking {
         line(1, time - 1000); val id = ended()
         engine(generator { _, _ -> throw IllegalStateException("不能写进错误的原话和名字") }).run()
         assertEquals("Failed", db.topics().get(id)!!.row.status)
-        assertEquals(TopicPolicy.GENERATION_ERROR, db.topics().get(id)!!.row.error)
+        assertEquals("本地处理未完成，请重试", db.topics().get(id)!!.row.error)
         repo.regenerate(id)
         engine(generator { _, user -> repo.cancel(id); digestReply(user) }).run()
         assertEquals("Cancelled", db.topics().get(id)!!.row.status)
@@ -367,7 +419,7 @@ class Topic135Test {
         assertEquals("Done", db.topics().get(id2)!!.row.status)
     }
 
-    @Test fun rejectedContentIsSplitAfterOneConfigurationProbeAndRemainingSpeechIsKept() = runBlocking {
+    @Test fun rejectedContentStaysIncompleteAndAllOriginalSpeechIsKept() = runBlocking {
         val start = time; val id = repo.start(TopicKind.Normal, null, 15).topicId!!
         repeat(16) { i -> line(i + 1L, start + i * 1000, if (i == 0) "拒收标记" else "正常原话") }
         time += 20_000; repo.end(); var probes = 0
@@ -376,9 +428,9 @@ class Topic135Test {
             user.contains("拒收标记") -> throw LlmException(LlmError.Server, 400)
             else -> digestReply(user)
         } }).run()
-        assertEquals(1, probes); val topic = db.topics().get(id)!!; assertEquals("Done", topic.row.status)
-        assertTrue(db.memory().event(topic.row.eventId!!)!!.summary.contains("部分原话被模型拒收"))
-        assertEquals(16, db.memory().eventLines(topic.row.eventId).first().size)
+        assertEquals(0, probes); val topic = db.topics().get(id)!!; assertEquals("Failed", topic.row.status)
+        assertNull(topic.row.eventId)
+        assertEquals(16, db.topics().lines(id).size)
     }
 
     @Test fun truncatedLargeResponseSplitsWithoutCreatingSeveralEvents() = runBlocking {

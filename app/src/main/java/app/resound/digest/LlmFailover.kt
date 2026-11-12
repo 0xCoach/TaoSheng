@@ -101,6 +101,7 @@ class LlmFailover(
         }) { candidate ->
             val p = candidate.preset
             val trace = runCatching { diagnostics.start(feature, p) }.getOrNull()
+            kotlin.coroutines.coroutineContext[app.resound.topic.core.TopicRequestContext]?.let { t -> trace?.topic(t.id, t.phase, t.block, t.total) }
             if (trace == null) call(p, candidate.key) else {
                 // 保持取消异常原对象，不让 withContext 复制异常。
                 var thrown: Throwable? = null

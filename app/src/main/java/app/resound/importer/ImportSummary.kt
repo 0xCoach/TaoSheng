@@ -6,6 +6,7 @@ import app.resound.skills.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
+import app.resound.topic.core.*
 
 internal data class ImportTodo(val content: String, val lineId: Long)
 internal data class ImportSummaryResult(val card: SkillCardRow, val todos: List<ImportTodo>)
@@ -32,6 +33,7 @@ internal class ImportSummary(
     private val template: (ImportKind) -> Pair<Skill, String>,
     private val request: suspend (String, String) -> LlmReply,
     private val now: () -> Long = System::currentTimeMillis,
+    private val session: TopicProcessingSession? = null,
 ) {
     suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<app.resound.data.MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
@@ -59,16 +61,42 @@ internal class ImportSummary(
                 ?: throw LlmException(LlmError.Format)
             return json
         }
-        suspend fun ask(data: String): JSONObject = parse(request(system, SkillInputs.user(SkillInput("$extraContext\n已有待办（资料）：$existingData\n$data", indexed), emptyList())).content)
-        val chunks = ImportChunks.split(lines)
+        fun preview(text: String): String {
+            val card = SkillOutput.parse(parse(text).toString(), skill, date, input, now(), true).rows.single()
+            val values = SkillJson.values(JSONObject(card.valuesJson))
+            return buildString {
+                appendLine(card.summary)
+                skill.fields.forEach { field -> values[field.key]?.let { v ->
+                    val body = listOfNotNull(v.text) + v.items + v.quotes.map { it.text }
+                    if (body.isNotEmpty()) { appendLine(field.label); body.forEach { appendLine(it) } }
+                } }
+            }.trim()
+        }
+        suspend fun ask(data: String): JSONObject {
+            val user = SkillInputs.user(SkillInput("$extraContext\n已有待办（资料）：$existingData\n$data", indexed), emptyList())
+            var reply: LlmReply? = null
+            val validate: (String) -> Unit = { text ->
+                try { parse(text); reply?.diagnostics?.parsed(empty = false) }
+                catch (e: LlmException) { reply?.diagnostics?.parsed(empty = text.isBlank(), error = e.type); throw e }
+            }
+            val call: suspend (String, String) -> String = { a, b -> request(a, b).also { reply = it }.content }
+            val content = session?.request(system, user, call, validate, ::preview) ?: call(system, user)
+            return parse(content)
+        }
+        val chunks = if (session != null) TopicProcessingRules.chunks(lines, { line, text -> line.copy(text = text) }) { it.text } else ImportChunks.split(lines)
+        session?.phase("整理纪要", chunks.size)
         for ((i, chunk) in chunks.withIndex()) {
             val previous = chunks.getOrNull(i - 1)?.lastOrNull()
-            val text = buildString {
-                appendLine("文件：${record.fileName}；第 ${i + 1}/${chunks.size} 块；范围 ${SkillInputs.time(chunk.first().startAt)}～${SkillInputs.time(chunk.maxOf { it.endAt })}")
-                previous?.let { appendLine("上一块末句（仅供衔接，不重复行动）：[L${it.id}] ${SkillInputs.speaker(it)}：${it.text}") }
-                chunk.forEach { appendLine("[L${it.id}] ${SkillInputs.time(it.startAt)} ${SkillInputs.speaker(it)}：${it.text}") }
+            val read: suspend (List<TranscriptLineEntity>) -> JSONObject = { part ->
+                val text = buildString {
+                    appendLine("文件：${record.fileName}；第 ${i + 1}/${chunks.size} 块；范围 ${SkillInputs.time(part.first().startAt)}～${SkillInputs.time(part.maxOf { it.endAt })}")
+                    previous?.let { appendLine("上一块末句（仅供衔接，不重复行动）：[L${it.id}] ${SkillInputs.speaker(it)}：${it.text}") }
+                    part.forEach { appendLine("[L${it.id}] ${SkillInputs.time(it.startAt)} ${SkillInputs.speaker(it)}：${it.text}") }
+                }
+                ask(text)
             }
-            leaves += ask(text)
+            leaves += session?.splitRead(chunk, read) ?: listOf(read(chunk))
+            session?.advance()
         }
         // 没有可转写原话仍保存一份明确说明的纪要，不伪造会议内容。
         if (leaves.isEmpty()) leaves += JSONObject().put("cards", JSONArray().put(JSONObject()
@@ -79,13 +107,19 @@ internal class ImportSummary(
         var level = leaves.toList()
         // 多级合成限制单次上下文；结论/行动另在下方合并，汇总模型不能把它们删掉。
         while (level.size > 1) {
-            val groups = mutableListOf<MutableList<JSONObject>>()
+            val groups: List<List<JSONObject>> = if (session != null) TopicProcessingRules.summaryGroups(level) else buildList<MutableList<JSONObject>> {
             for (part in level) {
-                if (groups.isEmpty() || groups.last().size >= 4 ||
-                    (groups.last().size >= 2 && groups.last().sumOf { it.toString().length } + part.toString().length > ImportChunks.CHARS)) groups += mutableListOf<JSONObject>()
-                groups.last() += part
+                if (isEmpty() || last().size >= 4 ||
+                    (last().size >= 2 && last().sumOf { it.toString().length } + part.toString().length > ImportChunks.CHARS)) add(mutableListOf())
+                last() += part
             }
-            level = groups.map { group -> if (group.size == 1) group.single() else ask("按时间合成同一份录音的总纪要，全部块结论与行动必须保留，重复的可合并：\n" + JSONArray(group).toString()) }
+            }
+            session?.phase("汇总纪要", groups.size)
+            level = groups.map { group ->
+                val result = if (group.size == 1) group.single() else ask("按时间合成同一份录音的总纪要。结论变化时说明先后关系，后续更改必须有依据，不擅自选择矛盾项。全部块结论与行动必须保留，重复的可合并：\n" + JSONArray(group).toString())
+                session?.advance()
+                result
+            }
         }
         val parsed = SkillOutput.parse(level.single().toString(), skill, date, input, now(), true).rows.single()
         val values = SkillJson.values(JSONObject(parsed.valuesJson)).toMutableMap()
@@ -100,6 +134,11 @@ internal class ImportSummary(
                 val items = (current.items + parts.flatMap { it.items }).distinct()
                 current.copy(items = items, checked = if (field.type == FieldType.Checklist) items.map { false } else emptyList())
             }
+        }
+        if (session != null) {
+            val leafValues = leaves.map { SkillOutput.parse(it.toString(), skill, date, input, now(), true).rows.single() }
+                .map { SkillJson.values(JSONObject(it.valuesJson)) }
+            values.putAll(TopicFactMerge.values(skill.fields, values, leafValues))
         }
         return ImportSummaryResult(parsed.copy(entity = "import:${record.id}", at = record.startAt, endAt = record.endAt,
             valuesJson = SkillJson.values(values).toString()), todos.values.toList())

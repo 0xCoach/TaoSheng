@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import app.resound.scheduling.refreshWhileNeeded
 import android.content.Context
 import androidx.work.*
 import java.io.File
@@ -55,7 +56,9 @@ internal class AndroidExportJobs(
         // KEEP 防止与系统正在恢复的同一 Work 重复；也补上持久化后、enqueue 前的进程退出。
         entries.values.filter { it.job.state is ExportJobState.Running }.forEach { enqueue(it.job.id) }
         scope.launch {
-            while (isActive) { delay(60_000); synchronized(this@AndroidExportJobs) { prune(); publish() } }
+            mutableJobs.map { it.isNotEmpty() }.refreshWhileNeeded(60_000) {
+                synchronized(this@AndroidExportJobs) { prune(); publish() }
+            }
         }
     }
 

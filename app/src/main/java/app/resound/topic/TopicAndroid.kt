@@ -1,5 +1,7 @@
 package app.resound.topic
 
+import app.resound.scheduling.BackgroundRefreshPolicy
+import app.resound.scheduling.refreshWhileNeeded
 import android.app.*
 import android.content.*
 import android.content.pm.ServiceInfo
@@ -63,11 +65,11 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             app.scope.launch {
                 repository.tick()
                 TopicWork.enqueue(app)
-                while (isActive) {
-                    delay(60_000)
-                    repository.tick()
-                    if (db.topics().all().any { it.row.status == "Ended" }) TopicWork.enqueue(app)
-                }
+                repository.current.map { BackgroundRefreshPolicy.topicNeedsTick(it?.status) }
+                    .refreshWhileNeeded(60_000) {
+                        repository.tick()
+                        if (db.topics().all().any { it.row.status == "Ended" }) TopicWork.enqueue(app)
+                    }
             }
             app.scope.launch {
                 db.transcribe().observeSegments().map { rows -> rows.map { Triple(it.id, it.status, it.voiceprintProcessedAt) } }

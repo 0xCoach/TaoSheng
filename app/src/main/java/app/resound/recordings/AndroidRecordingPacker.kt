@@ -1,5 +1,6 @@
 package app.resound.recordings
 
+import app.resound.scheduling.refreshWhileNeeded
 import android.content.*
 import android.net.Uri
 import android.provider.MediaStore
@@ -20,6 +21,7 @@ internal class AndroidRecordingPacker(
         OneTimeWorkRequestBuilder<RecordingPackWorker>().setInputData(workDataOf("id" to id)).build()); Unit },
     private val stop: (String) -> Unit = { WorkManager.getInstance(context).cancelUniqueWork("recording-pack-$it"); Unit },
     private val metadata: suspend (Boolean) -> List<RecordingSource> = { load() },
+    private val refreshDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : RecordingPacker {
     private val prefs = context.getSharedPreferences("recording-pack", Context.MODE_PRIVATE)
     private var entry = prefs.getString("job", null)?.let { JSONObject(it) }
@@ -31,7 +33,7 @@ internal class AndroidRecordingPacker(
     init {
         publish()
         entry?.takeIf { it.optString("state") == "running" }?.let { enqueue(it.getString("id")) }
-        scope.launch(Dispatchers.IO) { while (isActive) { refreshDays(); delay(30_000) } }
+        scope.launch(refreshDispatcher) { days.subscriptionCount.map { it > 0 }.refreshWhileNeeded(30_000) { refreshDays() } }
     }
     private suspend fun refreshDays() { days.value = metadata(false).filter { it.file.isFile }.map { it.day }.distinct().sortedDescending() }
     override suspend fun estimate(range: RecordingRange, options: RecordingPackOptions) = withContext(Dispatchers.IO) {

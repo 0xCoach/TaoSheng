@@ -16,7 +16,8 @@ interface NetworkAsrMetrics { suspend fun <T> measure(part: String, block: suspe
 
 /** 音频已由平台准备；chunks 顺序输出原始音频字节，last 表示结束包。 */
 class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig,
-    private val gunzip: (ByteArray, Int) -> ByteArray, private val metrics: NetworkAsrMetrics, private val socket: NetworkSocketControl) {
+    private val gunzip: (ByteArray, Int) -> ByteArray, private val metrics: NetworkAsrMetrics, private val socket: NetworkSocketControl,
+    private val configureSocketRequest: HttpRequestBuilder.() -> Unit = {}) {
     suspend fun recognize(duration: Long, format: String, separateSpeakers: Boolean, words: List<String>, key: String,
         connectId: String, headers: List<HeaderEntry>, beforeAudio: suspend () -> Unit,
         chunks: suspend (suspend (ByteArray, Boolean) -> Unit) -> Unit): AsrResult = coroutineScope {
@@ -32,6 +33,7 @@ class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig
                     metrics.measure("Connect") { client.webSocketSession {
                         url(config.url)
                         wireHeaders(networkHeaders("", listOf(HeaderEntry("X-Api-Key",key), HeaderEntry("X-Api-Resource-Id",config.resourceId), HeaderEntry("X-Api-Connect-Id",connectId)) + headers))
+                        configureSocketRequest()
                         attributes.put(HandshakeObserver, { response ->
                             handshakeStatus = response.status.value
                             handshakeCode = response.headers["X-Api-Status-Code"]?.toLongOrNull()

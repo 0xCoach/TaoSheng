@@ -7,6 +7,7 @@ import okio.ByteString
 
 /** Ktor 3.3 的引擎忽略非 401 握手响应，并把取消变成慢关闭；在平台边界补齐。 */
 class AndroidSocketControl(private val client: OkHttpClient) : WebSocket.Factory, NetworkSocketControl {
+    private val cancelled = MutableStateFlow(false)
     private val current = MutableStateFlow<WebSocket?>(null)
     override fun newWebSocket(request: Request, listener: WebSocketListener): WebSocket {
         val socket = client.newWebSocket(request, object : WebSocketListener() {
@@ -23,6 +24,7 @@ class AndroidSocketControl(private val client: OkHttpClient) : WebSocket.Factory
             }
         })
         current.value = socket
+        if (cancelled.value) { socket.cancel(); current.value = null }
         return object : WebSocket by socket {
             override fun close(code: Int, reason: String?): Boolean { socket.cancel(); return true }
         }
@@ -30,5 +32,5 @@ class AndroidSocketControl(private val client: OkHttpClient) : WebSocket.Factory
     override suspend fun drain(maxQueuedBytes: Long, stop: () -> Boolean) {
         while ((current.value?.queueSize() ?: 0) > maxQueuedBytes && !stop()) delay(10)
     }
-    override fun cancel() { current.value?.cancel(); current.value = null }
+    override fun cancel() { cancelled.value = true; current.value?.cancel(); current.value = null }
 }

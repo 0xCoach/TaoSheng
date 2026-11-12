@@ -8,6 +8,7 @@ import app.resound.backup.BackupSettings
 import app.resound.capture.CaptureNotifications
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,7 +33,9 @@ class Onboarding132Test {
         val clock = MutableStateFlow(at)
         private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         var subject = create()
-        private fun create() = LocalOnboarding(prefs, backup, earliest, multiple, needsSpeakers, clock, scope) { at }
+        private fun create() = LocalOnboarding(prefs, backup, earliest, multiple, needsSpeakers, clock, scope) { at }.also { value ->
+            scope.launch { value.tips.collect() } // 本组断言模拟提示正在显示。
+        }
         fun restart() { scope.cancel(); scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined); subject = create() }
         fun tick(value: Long) { at = value; clock.value = value }
         override fun close() { scope.cancel() }

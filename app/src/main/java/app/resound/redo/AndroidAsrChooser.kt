@@ -1,5 +1,6 @@
 package app.resound.redo
 
+import app.resound.scheduling.refreshWhileNeeded
 import app.resound.digest.allowsEmptyKey
 import android.content.Context
 import app.resound.transcribe.*
@@ -22,7 +23,13 @@ internal class AndroidAsrChooser(context: Context, private val settings: Android
         }
         mutableChoice.value = choice()
     }
-    init { refresh(); scope.launch { while (isActive) { delay(1000); refresh() } } }
+    init {
+        refresh()
+        scope.launch {
+            combine(mutableOptions.subscriptionCount, mutableChoice.subscriptionCount) { a, b -> a + b > 0 }
+                .refreshWhileNeeded(1000) { refresh() }
+        }
+    }
     override fun remember(source: TranscribeSource) {
         check(prefs.edit().putString("asr", source.name).commit())
         mutableChoice.value = source

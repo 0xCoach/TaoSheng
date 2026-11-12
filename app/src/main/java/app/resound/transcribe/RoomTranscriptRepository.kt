@@ -1,6 +1,8 @@
 package app.resound.transcribe
 
+import app.resound.scheduling.BackgroundRefreshPolicy
 import android.content.Context
+import app.resound.scheduling.refreshAtDeadline
 import androidx.work.WorkInfo
 import app.resound.data.TranscribeDao
 import kotlinx.coroutines.*
@@ -18,10 +20,22 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
     private val effectiveLast = combine(last, settings.ready) { state, hasKey ->
         state.first to if (hasKey) state.second else "转写未就绪，请检查密钥或下载本地模型"
     }
-    // 每分钟刷新自然日用量和文件存在状态，避免跨午夜或清理后界面停在旧快照。
-    internal val clock = flow { while (true) { val at = System.currentTimeMillis(); dao.refreshFailures(at); emit(at); delay(60_000) } }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
+    // 只有原话页/引导提示的订阅者需要分钟文件校对，常驻队列不用这个时钟。
+    internal val clock = flow { while (true) { emit(System.currentTimeMillis()); delay(60_000) } }
+        .shareIn(scope, SharingStarted.WhileSubscribed(0, replayExpirationMillis = 0), replay = 1)
+    private val calendar = calendarChanges(context).shareIn(scope, SharingStarted.Eagerly, replay = 1)
+    init {
+        scope.launch {
+            combine(dao.observeSegments().map { rows -> rows.filter { it.status == "Failed" } }.distinctUntilChanged(), calendar) { rows, _ -> rows }
+                .collectLatest { rows ->
+                    if (rows.isEmpty()) return@collectLatest
+                    val deadline = BackgroundRefreshPolicy.failureDeadline(rows.map { it.firstFailedAt })
+                    flowOf(deadline).refreshAtDeadline(System::currentTimeMillis) { dao.refreshFailures(System.currentTimeMillis()) }
+                }
+        }
+    }
     private val initial = TranscribeQueueState(0, 0, false, last.value.first, null, if (settings.ready.value) last.value.second else "转写未就绪，请检查密钥或下载本地模型", 0, 0)
-    override val queue: StateFlow<TranscribeQueueState> = combine(dao.observeSegments(), dao.observeUsage(), effectiveLast, scheduler.observe(), clock) { segments, usage, state, work, _ ->
+    override val queue: StateFlow<TranscribeQueueState> = combine(dao.observeSegments(), dao.observeUsage(), effectiveLast, scheduler.observe(), calendar) { segments, usage, state, work, _ ->
         val next = work.filter { it.state == WorkInfo.State.ENQUEUED }.map { it.nextScheduleTimeMillis }
             .filter { it > 0 && it != Long.MAX_VALUE }.minOrNull()
             ?: state.first?.plus(settings.intervalMinutes.value * 60_000L)

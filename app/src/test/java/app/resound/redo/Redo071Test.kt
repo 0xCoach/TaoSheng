@@ -191,10 +191,10 @@ class Redo071Test {
     }
     @Test fun queuedJobsAreSerialAndRestartUsesPersistedRequests() = runBlocking {
         seed()
-        val service = AndroidRedoService(context, db, chooser, engine(), scope, { listOf(LlmOption("x", "x", true)) }, { "x" }, enqueue = {})
+        val service = AndroidRedoService(context, db, chooser, engine(), scope, { listOf(LlmOption("x", "x", true)) }, { "x" }, enqueue = {}, now = { 100 })
         val a = service.start(RedoRequest(segmentIds = listOf(1), scope = RedoScope.TranscribeOnly))
         val b = service.start(RedoRequest(segmentIds = listOf(1), scope = RedoScope.TranscribeOnly))
-        val restored = AndroidRedoService(context, db, chooser, engine(), scope, { listOf(LlmOption("x", "x", true)) }, { "x" }, enqueue = {})
+        val restored = AndroidRedoService(context, db, chooser, engine(), scope, { listOf(LlmOption("x", "x", true)) }, { "x" }, enqueue = {}, now = { 100 })
         assertEquals(listOf(a, b), restored.jobs.value.map { it.id })
         restored.drain { }
         assertTrue(restored.jobs.value.all { it.state is RedoJobState.Done })

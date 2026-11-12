@@ -13,6 +13,8 @@ class AndroidCaptureController(private val context: Context, private val store: 
     override val status = current.asStateFlow()
     private val currentLevel = MutableStateFlow(0f)
     override val level = currentLevel.asStateFlow()
+    /** 卡 173：有没有界面在看声波；没人看时录音改成批量读。 */
+    internal val levelObserved: Boolean get() = currentLevel.subscriptionCount.value > 0
     internal fun update(state: CaptureState, pausedUntil: Long? = null, busyDetail: String? = null, quietName: String? = null) {
         val old = current.value
         current.value = old.copy(state = state, since = if (old.state == state) old.since else System.currentTimeMillis(), pausedUntil = pausedUntil,

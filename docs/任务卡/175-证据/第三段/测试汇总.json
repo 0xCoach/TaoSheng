@@ -1,0 +1,50 @@
+{
+  "94类": {
+    "total": 664,
+    "passed": 661,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 3,
+    "junitSeconds": 27.154
+  },
+  "卡180四项_已包含于94类": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junitSeconds": 0.358
+  },
+  "卡181十一项_其中四项包含于94类": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junitSeconds": 0.838
+  },
+  "数据库用例去重": {
+    "total": 671,
+    "passed": 668,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 3,
+    "junitSeconds": 27.856
+  },
+  "卡175夹具": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junitSeconds": 1.806
+  },
+  "全部去重": {
+    "total": 680,
+    "passed": 677,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 3,
+    "junitSeconds": 29.662
+  }
+}

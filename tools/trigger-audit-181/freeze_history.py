@@ -44,6 +44,13 @@ def tokens(ref):
     return "object SearchTokens {\n" + start + text.split(start, 1)[1].split("\nobject SearchIndex", 1)[0]
 
 
+def adapt_callback(text):
+    # 卡 175：历史库直接由系统 SQLite 建立。仅机械替换类型/回调基类，
+    # 全文比较仍覆盖每个 SQL 字符、注释与其余逻辑，不忽略或规范化 SQL。
+    return text.replace("db: SupportSQLiteDatabase", "db: SQLiteDatabase").replace(
+        "object : RoomDatabase.Callback()", "object : HistoricalCallback()")
+
+
 def write_or_check(path, value):
     target = ROOT / path
     if "--check" in sys.argv:
@@ -56,16 +63,15 @@ def write_or_check(path, value):
 def main():
     frozen = {name: block(ref, path, start) for name, (_, ref, path, start) in CALLBACKS.items()}
     header = """// 卡 181 历史夹具，由 tools/trigger-audit-181/freeze_history.py 从 git 原文提取。
-// 仅改 package / imports；SearchTokens 仅保留 SQL 生成函数。不要跟随产品代码更新。
+// 仅改 package / imports 和历史建库类型/回调基类；SQL 原文不变，不跟随产品代码更新。
 package app.resound.data.history181
 
-import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
+import android.database.sqlite.SQLiteDatabase
 
 """
     kotlin = header + "// a577273:search/SearchIndex.kt\n" + tokens("a577273")
     for name, (_, ref, path, _) in CALLBACKS.items():
-        kotlin += f"\n// {ref}:{path}\n" + frozen[name]
+        kotlin += f"\n// {ref}:{path}\n" + adapt_callback(frozen[name])
 
     manifest = []
     for version, ref in SNAPSHOTS.items():

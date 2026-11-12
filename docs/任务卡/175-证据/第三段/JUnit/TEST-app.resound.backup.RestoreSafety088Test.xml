@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.RestoreSafety088Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:09.092Z" hostname="CoachdeMacBook-Air.local" time="0.061">
+  <properties/>
+  <testcase name="ioFailureRollsBackFilesAndCachedSettings" classname="app.resound.backup.RestoreSafety088Test" time="0.033"/>
+  <testcase name="interruptedRestoreRollsBackOnNextStartup" classname="app.resound.backup.RestoreSafety088Test" time="0.028"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

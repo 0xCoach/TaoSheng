@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.TranscribeSchedulerTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:26.673Z" hostname="CoachdeMacBook-Air.local" time="0.101">
+  <properties/>
+  <testcase name="playbackSkippedStaysOutOfQueueAndManualOverrideRequeues" classname="app.resound.transcribe.TranscribeSchedulerTest" time="0.037"/>
+  <testcase name="repositoryPublishesAndResetsRealRoundProgress" classname="app.resound.transcribe.TranscribeSchedulerTest" time="0.011"/>
+  <testcase name="localScheduleDoesNotRequireNetwork" classname="app.resound.transcribe.TranscribeSchedulerTest" time="0.007"/>
+  <testcase name="diagnosticsContainOnlyAttemptMetadataAndQueueCounts" classname="app.resound.transcribe.TranscribeSchedulerTest" time="0.015"/>
+  <testcase name="periodicScheduleUsesIntervalAndUnmeteredAndUpdatesSameWork" classname="app.resound.transcribe.TranscribeSchedulerTest" time="0.007"/>
+  <testcase name="immediateWorkIsUniqueAndReconfiguresQueuedConstraints" classname="app.resound.transcribe.TranscribeSchedulerTest" time="0.024"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.S3Client114Test" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:09.158Z" hostname="CoachdeMacBook-Air.local" time="0.065">
+  <properties/>
+  <testcase name="timeAndCommonErrorsHaveSafeHumanMessages" classname="app.resound.backup.S3Client114Test" time="0.022"/>
+  <testcase name="brokenPaginationAndAccessDeniedNeverBecomeEmptyHistory" classname="app.resound.backup.S3Client114Test" time="0.009"/>
+  <testcase name="awsOfficialGetObjectSignature" classname="app.resound.backup.S3Client114Test" time="0.006"/>
+  <testcase name="pathsEncodeEachSegmentAndVirtualHostIncludesBucket" classname="app.resound.backup.S3Client114Test" time="0.006"/>
+  <testcase name="paginationDecodesKeysAndSignsOpaqueContinuationToken" classname="app.resound.backup.S3Client114Test" time="0.011"/>
+  <testcase name="volumePutIsSingleAtomicRequestAndMissingBucketIsAnError" classname="app.resound.backup.S3Client114Test" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.review.ManualReview058Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:21.807Z" hostname="CoachdeMacBook-Air.local" time="0.152">
+  <properties/>
+  <testcase name="malformedReplyHasSpecificSafeReason" classname="app.resound.review.ManualReview058Test" time="0.014"/>
+  <testcase name="successClearsOldErrorAndReportsIncompletePreparation" classname="app.resound.review.ManualReview058Test" time="0.03"/>
+  <testcase name="preparationFailureUsesExistingMaterialAndCancellationPropagates" classname="app.resound.review.ManualReview058Test" time="0.009"/>
+  <testcase name="expeditedWorkDeduplicatesAndCompletesThroughWorker" classname="app.resound.review.ManualReview058Test" time="0.023"/>
+  <testcase name="materialUsesSameWindowAndReactsToEventChanges" classname="app.resound.review.ManualReview058Test" time="0.011"/>
+  <testcase name="emptyManualExplainsWindowButScheduledStaysSilent" classname="app.resound.review.ManualReview058Test" time="0.008"/>
+  <testcase name="windowTextHandlesMidnight" classname="app.resound.review.ManualReview058Test" time="0.005"/>
+  <testcase name="missingKeyAndModelErrorsUseSafeDatedReasons" classname="app.resound.review.ManualReview058Test" time="0.052"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>

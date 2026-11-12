@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.DiaryBackupTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:06.899Z" hostname="CoachdeMacBook-Air.local" time="0.098">
+  <properties/>
+  <testcase name="failedDiaryUploadKeepsSuccessfulBackupAndRetriesBothDaysNextNight" classname="app.resound.backup.DiaryBackupTest" time="0.098"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

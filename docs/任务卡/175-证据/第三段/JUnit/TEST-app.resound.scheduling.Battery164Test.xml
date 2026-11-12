@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.scheduling.Battery164Test" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:22.267Z" hostname="CoachdeMacBook-Air.local" time="0.144">
+  <properties/>
+  <testcase name="redoOptionsStopWhenHiddenAndHistoryExpiresAtDeadline" classname="app.resound.scheduling.Battery164Test" time="0.032"/>
+  <testcase name="onboardingDoesNotKeepTranscriptClockAliveInBackground" classname="app.resound.scheduling.Battery164Test" time="0.011"/>
+  <testcase name="exportPrunesOnlyWhileThereAreJobsAndStopsWhenEmpty" classname="app.resound.scheduling.Battery164Test" time="0.055"/>
+  <testcase name="asrChooserRefreshesOnSubscriptionAndStopsAfterLeaving" classname="app.resound.scheduling.Battery164Test" time="0.011"/>
+  <testcase name="recordingDaysDoNotScanUntilSubscribedAndResumeImmediately" classname="app.resound.scheduling.Battery164Test" time="0.008"/>
+  <testcase name="voiceCountClockIsInactiveUntilObservedAndStopsOnExit" classname="app.resound.scheduling.Battery164Test" time="0.026"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

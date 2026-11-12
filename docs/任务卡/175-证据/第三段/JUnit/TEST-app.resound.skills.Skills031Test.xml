@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.Skills031Test" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:23.063Z" hostname="CoachdeMacBook-Air.local" time="0.184">
+  <properties/>
+  <testcase name="lateDigestedMeetingCardBelongsToMeetingDay" classname="app.resound.skills.Skills031Test" time="0.012"/>
+  <testcase name="quotesAreRefilledAndUnknownEvidenceAndEmptyRequiredAreDiscarded" classname="app.resound.skills.Skills031Test" time="0.005"/>
+  <testcase name="sameEntityKeepsIdSnapshotAndLimitAndDeletedStayDeleted" classname="app.resound.skills.Skills031Test" time="0.011"/>
+  <testcase name="trialRetriesFormatOnceAndAccountsTokensWithoutPersistingCards" classname="app.resound.skills.Skills031Test" time="0.01"/>
+  <testcase name="afterDigestGapAutoLimitManualExemptionAndUpdateDoesNotPushAgain" classname="app.resound.skills.Skills031Test" time="0.016"/>
+  <testcase name="coreSettingsAreNoopsAndMissingKeyDoesNotCallModel" classname="app.resound.skills.Skills031Test" time="0.007"/>
+  <testcase name="migrationElevenToTwelvePreservesExistingTablesAndRoomValidates" classname="app.resound.skills.Skills031Test" time="0.032"/>
+  <testcase name="dailyFailureDoesNotBlockOtherSkillAndNetworkRetriesOnce" classname="app.resound.skills.Skills031Test" time="0.015"/>
+  <testcase name="mineFieldChangesBumpVersionAndRenameDoesNot" classname="app.resound.skills.Skills031Test" time="0.011"/>
+  <testcase name="parsesOfficialAndRejectsInvalidKeyTypeAndBounds" classname="app.resound.skills.Skills031Test" time="0.006"/>
+  <testcase name="overlappingMeetingsExpandAndRememberDeletedAliases" classname="app.resound.skills.Skills031Test" time="0.008"/>
+  <testcase name="overridesPromptsResetAndUpstreamVersionSurviveReload" classname="app.resound.skills.Skills031Test" time="0.011"/>
+  <testcase name="exportsBoundedProbeRequestsUsingProductionPromptAndLocalCopyWhenProvided" classname="app.resound.skills.Skills031Test" time="0.005"/>
+  <testcase name="scopeFiltersMeWeekAndIncrementalAndBoundsUntrustedData" classname="app.resound.skills.Skills031Test" time="0.008"/>
+  <testcase name="mineKeepsDefaultPromptAfterEditsAndCanReset" classname="app.resound.skills.Skills031Test" time="0.013"/>
+  <testcase name="scheduleDailySundayAndTodayOnlyCatchupAndRetryOnce" classname="app.resound.skills.Skills031Test" time="0.004"/>
+  <testcase name="skillPathsRejectTraversal" classname="app.resound.skills.Skills031Test" time="0.003"/>
+  <testcase name="manualDigestSkipsMinGap" classname="app.resound.skills.Skills031Test" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

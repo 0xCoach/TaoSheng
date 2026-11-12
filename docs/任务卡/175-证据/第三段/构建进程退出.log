@@ -1,0 +1,109 @@
+ps -p 76730 -o pid=,comm=：退出码 1，输出为空，本次进程已不存在。
+BUILD SUCCESSFUL in 2m 2s
+67 actionable tasks: 67 executed
+2026-11-13T05:37:29.919+0800 [DEBUG] [org.gradle.launcher.daemon.server.exec.ExecuteBuild] The daemon has finished executing the build.
+2026-11-13T05:37:29.932+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon stop has been requested. Sleeping until state changes.
+2026-11-13T05:37:29.933+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Command execution: finished waiting for DaemonCommandExecution[command = Build{id=e3e50ae4-7582-4230-958e-fed339027d83, currentDir=/Users/coach/Developer/TaoSheng-175}, connection = DefaultDaemonConnection: socket connection from /127.0.0.1:59383 to /127.0.0.1:59384]. Result org.gradle.launcher.daemon.server.DaemonStateCoordinator@6e98bce3 with state StopRequested
+2026-11-13T05:37:29.933+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Command execution: completed DaemonCommandExecution[command = Build{id=e3e50ae4-7582-4230-958e-fed339027d83, currentDir=/Users/coach/Developer/TaoSheng-175}, connection = DefaultDaemonConnection: socket connection from /127.0.0.1:59383 to /127.0.0.1:59384]
+2026-11-13T05:37:29.933+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] resetting idle timer
+2026-11-13T05:37:29.933+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] Marking daemon stopped due to command completed and stop requested. The daemon is not running a build
+2026-11-13T05:37:29.933+0800 [DEBUG] [org.gradle.launcher.daemon.server.exec.ReturnResult] Daemon is dispatching the build result: Success[value=org.gradle.launcher.exec.BuildActionResult@5a9f778d]
+2026-11-13T05:37:29.933+0800 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 31: dispatching Success[value=org.gradle.launcher.exec.BuildActionResult@5a9f778d]
+2026-11-13T05:37:29.934+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonStateCoordinator] daemon has stopped.
+2026-11-13T05:37:29.934+0800 [DEBUG] [org.gradle.launcher.daemon.server.Daemon] stop() called on daemon
+2026-11-13T05:37:29.934+0800 [INFO] [org.gradle.launcher.daemon.server.Daemon] Stop requested. Daemon is removing its presence from the registry...
+2026-11-13T05:37:29.934+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonRegistryUpdater] Removing our presence to clients, eg. removing this address from the registry: [bdfb994a-1071-4fda-85ef-c18617803201 port:59383, addresses:[localhost/127.0.0.1]]
+2026-11-13T05:37:29.934+0800 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Removing daemon address: [bdfb994a-1071-4fda-85ef-c18617803201 port:59383, addresses:[localhost/127.0.0.1]]
+2026-11-13T05:37:29.935+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire exclusive lock on daemon addresses registry.
+2026-11-13T05:37:29.935+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-13T05:37:29.935+0800 [DEBUG] [org.gradle.launcher.daemon.server.exec.CleanUpVirtualFileSystemAfterBuild] Cleaning virtual file system after build finished
+2026-11-13T05:37:29.935+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-13T05:37:29.935+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonRegistryUpdater] Address removed from registry.
+2026-11-13T05:37:29.936+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultIncomingConnectionHandler] Finishing executing command: Build{id=e3e50ae4-7582-4230-958e-fed339027d83, currentDir=/Users/coach/Developer/TaoSheng-175}
+2026-11-13T05:37:29.937+0800 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 32: received class org.gradle.launcher.daemon.protocol.CloseInput
+2026-11-13T05:37:29.939+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultDaemonConnection] thread 32: Received IO message from client: org.gradle.launcher.daemon.protocol.CloseInput@2e236a1f
+2026-11-13T05:37:29.939+0800 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 32: received class org.gradle.launcher.daemon.protocol.Finished
+2026-11-13T05:37:29.939+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultDaemonConnection] thread 32: Received non-IO message from client: org.gradle.launcher.daemon.protocol.Finished@1e0b5e54
+2026-11-13T05:37:29.941+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultIncomingConnectionHandler] Received finished message: org.gradle.launcher.daemon.protocol.Finished@1e0b5e54
+2026-11-13T05:37:29.941+0800 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 31: stopping connection
+2026-11-13T05:37:29.944+0800 [DEBUG] [org.gradle.internal.remote.internal.inet.SocketConnection] Discarding EOFException: java.io.EOFException
+2026-11-13T05:37:29.944+0800 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 32: received null
+2026-11-13T05:37:29.944+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultDaemonConnection] thread 32: Received end-of-input from client.
+2026-11-13T05:37:29.944+0800 [DEBUG] [org.gradle.launcher.daemon.server.SynchronizedDispatchConnection] thread 31: stopping connection
+2026-11-13T05:37:29.947+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] jars (/Users/coach/.gradle/caches/jars-9) has last been fully cleaned up 14 hours ago
+2026-11-13T05:37:29.947+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] Skipping cleanup for jars (/Users/coach/.gradle/caches/jars-9) as it is not yet due
+2026-11-13T05:37:29.947+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCoordinator] Cache jars (/Users/coach/.gradle/caches/jars-9) was closed 0 times.
+2026-11-13T05:37:29.948+0800 [DEBUG] [org.gradle.cache.internal.LockOnDemandCrossProcessCacheAccess] Releasing file lock for file content cache (/Users/coach/.gradle/caches/8.14.2/fileContent)
+2026-11-13T05:37:29.948+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on file content cache (/Users/coach/.gradle/caches/8.14.2/fileContent).
+2026-11-13T05:37:29.948+0800 [DEBUG] [org.gradle.internal.watch.vfs.impl.WatchingVirtualFileSystem] Closing VFS, dropping state
+2026-11-13T05:37:29.951+0800 [DEBUG] [org.gradle.cache.internal.LockOnDemandCrossProcessCacheAccess] Releasing file lock for Generated Gradle JARs cache (/Users/coach/.gradle/caches/8.14.2/generated-gradle-jars)
+2026-11-13T05:37:29.951+0800 [DEBUG] [org.gradle.internal.watch.registry.impl.DefaultFileWatcherRegistry] Finished listening to file system change events
+2026-11-13T05:37:29.951+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on Generated Gradle JARs cache (/Users/coach/.gradle/caches/8.14.2/generated-gradle-jars).
+2026-11-13T05:37:29.951+0800 [DEBUG] [org.gradle.cache.internal.LockOnDemandCrossProcessCacheAccess] Releasing file lock for artifact cache (/Users/coach/.gradle/caches/modules-2)
+2026-11-13T05:37:29.951+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache module-artifact.bin (/Users/coach/.gradle/caches/modules-2/metadata-2.107/module-artifact.bin)
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache module-metadata.bin (/Users/coach/.gradle/caches/modules-2/metadata-2.107/module-metadata.bin)
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on artifact cache (/Users/coach/.gradle/caches/modules-2).
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] artifact cache (/Users/coach/.gradle/caches/modules-2) has last been fully cleaned up 14 hours ago
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] Skipping cleanup for artifact cache (/Users/coach/.gradle/caches/modules-2) as it is not yet due
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] groovy-dsl (/Users/coach/.gradle/caches/8.14.2/groovy-dsl) has last been fully cleaned up 14 hours ago
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] Skipping cleanup for groovy-dsl (/Users/coach/.gradle/caches/8.14.2/groovy-dsl) as it is not yet due
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCoordinator] Cache groovy-dsl (/Users/coach/.gradle/caches/8.14.2/groovy-dsl) was closed 0 times.
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] kotlin-dsl (/Users/coach/.gradle/caches/8.14.2/kotlin-dsl) has last been fully cleaned up 14 hours ago
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] Skipping cleanup for kotlin-dsl (/Users/coach/.gradle/caches/8.14.2/kotlin-dsl) as it is not yet due
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCoordinator] Cache kotlin-dsl (/Users/coach/.gradle/caches/8.14.2/kotlin-dsl) was closed 0 times.
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] Artifact transforms cache (/Users/coach/.gradle/caches/8.14.2/transforms) has last been fully cleaned up 14 hours ago
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCleanupExecutor] Skipping cleanup for Artifact transforms cache (/Users/coach/.gradle/caches/8.14.2/transforms) as it is not yet due
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.DefaultCacheCoordinator] Cache Artifact transforms cache (/Users/coach/.gradle/caches/8.14.2/transforms) was closed 0 times.
+2026-11-13T05:37:29.952+0800 [DEBUG] [org.gradle.cache.internal.LockOnDemandCrossProcessCacheAccess] Releasing file lock for journal cache (/Users/coach/.gradle/caches/journal-1)
+2026-11-13T05:37:29.953+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache file-access.bin (/Users/coach/.gradle/caches/journal-1/file-access.bin)
+2026-11-13T05:37:29.953+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on journal cache (/Users/coach/.gradle/caches/journal-1).
+2026-11-13T05:37:29.953+0800 [DEBUG] [org.gradle.cache.internal.LockOnDemandCrossProcessCacheAccess] Releasing file lock for file hash cache (/Users/coach/.gradle/caches/8.14.2/fileHashes)
+2026-11-13T05:37:29.953+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache fileHashes.bin (/Users/coach/.gradle/caches/8.14.2/fileHashes/fileHashes.bin)
+2026-11-13T05:37:29.954+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache resourceHashesCache.bin (/Users/coach/.gradle/caches/8.14.2/fileHashes/resourceHashesCache.bin)
+2026-11-13T05:37:29.954+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on file hash cache (/Users/coach/.gradle/caches/8.14.2/fileHashes).
+2026-11-13T05:37:29.954+0800 [DEBUG] [org.gradle.cache.internal.LockOnDemandCrossProcessCacheAccess] Releasing file lock for Java compile cache (/Users/coach/.gradle/caches/8.14.2/javaCompile)
+2026-11-13T05:37:29.954+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache jarAnalysis.bin (/Users/coach/.gradle/caches/8.14.2/javaCompile/jarAnalysis.bin)
+2026-11-13T05:37:29.954+0800 [DEBUG] [org.gradle.cache.internal.btree.BTreePersistentIndexedCache] Closing cache classAnalysis.bin (/Users/coach/.gradle/caches/8.14.2/javaCompile/classAnalysis.bin)
+2026-11-13T05:37:29.955+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on Java compile cache (/Users/coach/.gradle/caches/8.14.2/javaCompile).
+2026-11-13T05:37:29.955+0800 [DEBUG] [org.gradle.internal.operations.DefaultBuildOperationRunner] Build operation 'Deleting unused version-specific caches in /Users/coach/.gradle/caches' started
+2026-11-13T05:37:29.955+0800 [DEBUG] [org.gradle.internal.operations.DefaultBuildOperationRunner] Completing Build operation 'Deleting unused version-specific caches in /Users/coach/.gradle/caches'
+2026-11-13T05:37:29.955+0800 [DEBUG] [org.gradle.internal.operations.DefaultBuildOperationRunner] Build operation 'Deleting unused version-specific caches in /Users/coach/.gradle/caches' completed
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.launcher.daemon.server.Daemon] stop() called on daemon
+2026-11-13T05:37:29.956+0800 [INFO] [org.gradle.launcher.daemon.server.Daemon] Stop requested. Daemon is removing its presence from the registry...
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonRegistryUpdater] Removing our presence to clients, eg. removing this address from the registry: [bdfb994a-1071-4fda-85ef-c18617803201 port:59383, addresses:[localhost/127.0.0.1]]
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Removing daemon address: [bdfb994a-1071-4fda-85ef-c18617803201 port:59383, addresses:[localhost/127.0.0.1]]
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Waiting to acquire exclusive lock on daemon addresses registry.
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Lock acquired on daemon addresses registry.
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.cache.internal.DefaultFileLockManager] Releasing lock on daemon addresses registry.
+2026-11-13T05:37:29.956+0800 [DEBUG] [org.gradle.launcher.daemon.server.DaemonRegistryUpdater] Address removed from registry.
+2026-11-13T05:37:29.957+0800 [DEBUG] [org.gradle.cache.internal.locklistener.DefaultFileLockContentionHandler] File lock listener thread completed.
+2026-11-13T05:37:29.959+0800 [DEBUG] [java.lang.Runtime] Runtime.exit() called with status: 0
+java.lang.Throwable: Runtime.exit(0)
+	at java.base/java.lang.Shutdown.logRuntimeExit(Shutdown.java:179)
+	at java.base/java.lang.Shutdown.exit(Shutdown.java:160)
+	at java.base/java.lang.Runtime.exit(Runtime.java:188)
+	at java.base/java.lang.System.exit(System.java:1921)
+	at org.gradle.launcher.bootstrap.ProcessCompleter.complete(ProcessCompleter.java:21)
+	at org.gradle.launcher.bootstrap.EntryPoint.run(EntryPoint.java:61)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.gradle.launcher.bootstrap.ProcessBootstrap.runNoExit(ProcessBootstrap.java:72)
+	at org.gradle.launcher.bootstrap.ProcessBootstrap.run(ProcessBootstrap.java:39)
+	at org.gradle.launcher.daemon.bootstrap.GradleDaemon.main(GradleDaemon.java:22)
+Daemon vm is shutting down... The daemon has exited normally or was terminated in response to a user interrupt.
+2026-11-13T05:37:29.959+0800 [DEBUG] [org.gradle.launcher.daemon.registry.PersistentDaemonRegistry] Removing daemon address: [bdfb994a-1071-4fda-85ef-c18617803201 port:59383, addresses:[localhost/127.0.0.1]]
+2026-11-13T05:37:29.960+0800 [DEBUG] [org.gradle.launcher.daemon.server.Daemon] VM shutdown hook was unable to remove the daemon address from the registry. It will be cleaned up later.
+java.lang.IllegalStateException: Cannot start managing file contention because this handler has been closed.
+	at org.gradle.cache.internal.locklistener.DefaultFileLockContentionHandler.assertNotStopped(DefaultFileLockContentionHandler.java:248)
+	at org.gradle.cache.internal.locklistener.DefaultFileLockContentionHandler.reservePort(DefaultFileLockContentionHandler.java:286)
+	at org.gradle.cache.internal.DefaultFileLockManager.lock(DefaultFileLockManager.java:124)
+	at org.gradle.cache.internal.DefaultFileLockManager.lock(DefaultFileLockManager.java:106)
+	at org.gradle.cache.internal.DefaultFileLockManager.lock(DefaultFileLockManager.java:101)
+	at org.gradle.cache.internal.OnDemandFileAccess.updateFile(OnDemandFileAccess.java:51)
+	at org.gradle.cache.internal.FileBackedObjectHolder.update(FileBackedObjectHolder.java:77)
+	at org.gradle.cache.internal.FileIntegrityViolationSuppressingObjectHolderDecorator.lambda$update$0(FileIntegrityViolationSuppressingObjectHolderDecorator.java:48)
+	at org.gradle.cache.internal.FileIntegrityViolationSuppressingObjectHolderDecorator.doUpdate(FileIntegrityViolationSuppressingObjectHolderDecorator.java:58)
+	at org.gradle.cache.internal.FileIntegrityViolationSuppressingObjectHolderDecorator.update(FileIntegrityViolationSuppressingObjectHolderDecorator.java:48)
+	at org.gradle.launcher.daemon.registry.PersistentDaemonRegistry.remove(PersistentDaemonRegistry.java:133)
+	at org.gradle.launcher.daemon.server.Daemon$1.run(Daemon.java:133)
+	at java.base/java.lang.Thread.run(Thread.java:1583)

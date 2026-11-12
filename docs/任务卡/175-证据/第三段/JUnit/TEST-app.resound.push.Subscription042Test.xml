@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.Subscription042Test" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:20.614Z" hostname="CoachdeMacBook-Air.local" time="0.377">
+  <properties/>
+  <testcase name="summaryDoesNotBypassManualRecordsAndRebuildBackfills" classname="app.resound.push.Subscription042Test" time="0.076"/>
+  <testcase name="roomSnapshotHonorsMergePrivacyAndDeletedCards" classname="app.resound.push.Subscription042Test" time="0.009"/>
+  <testcase name="capabilitiesTightenAndValidateRoundTrip" classname="app.resound.push.Subscription042Test" time="0.007"/>
+  <testcase name="schedulingCombinesMinimumGapMultipleTimesWeekdaysAndManual" classname="app.resound.push.Subscription042Test" time="0.034"/>
+  <testcase name="throttlingStopsImmediatelyAndResumesWithoutAdvancingFingerprint" classname="app.resound.push.Subscription042Test" time="0.01"/>
+  <testcase name="webhookDeltaSignsUpsertsDeletesAndTracksFailureStatus" classname="app.resound.push.Subscription042Test" time="0.017"/>
+  <testcase name="atomicMoveDeletesExistingTargetAndRebuildBatchesTwenty" classname="app.resound.push.Subscription042Test" time="0.112"/>
+  <testcase name="folderDiffDeletionAndUnknownFilesAreProtected" classname="app.resound.push.Subscription042Test" time="0.036"/>
+  <testcase name="linkedCredentialsAreLiveNotCopiedAndFolderConflictRejected" classname="app.resound.push.Subscription042Test" time="0.027"/>
+  <testcase name="selectionFrontMatterTypedCardsAndMeOnlyNeverLeakMedia" classname="app.resound.push.Subscription042Test" time="0.004"/>
+  <testcase name="yearlyArchiveByDayAndSampleOutput" classname="app.resound.push.Subscription042Test" time="0.006"/>
+  <testcase name="fullWebhookAndTelegramUseDailyMemoryWithMarkdownAttachment" classname="app.resound.push.Subscription042Test" time="0.011"/>
+  <testcase name="migrationPersistsThreeLegacyCases" classname="app.resound.push.Subscription042Test" time="0.007"/>
+  <testcase name="notionOnlyUpdatesChangedDayAndArchivesDeletedDay" classname="app.resound.push.Subscription042Test" time="0.02"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

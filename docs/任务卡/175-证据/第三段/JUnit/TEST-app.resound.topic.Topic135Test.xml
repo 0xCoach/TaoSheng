@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.topic.Topic135Test" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:23.842Z" hostname="CoachdeMacBook-Air.local" time="1.959">
+  <properties/>
+  <testcase name="startBackfillsTwoMinutesAndClampsToPreviousTopicAndDigestedSpeech" classname="app.resound.topic.Topic135Test" time="0.02"/>
+  <testcase name="pauseReturnsSpeechToOrdinaryDigestAndOldInFlightResultCannotClaimTopic" classname="app.resound.topic.Topic135Test" time="0.011"/>
+  <testcase name="migration32AndBothBackupFormsKeepTopicsAndOldBackupCompatibility" classname="app.resound.topic.Topic135Test" time="0.056"/>
+  <testcase name="scriptContainsTwoFullVersionsAndLocalWordCountAndReadingTime" classname="app.resound.topic.Topic135Test" time="0.019"/>
+  <testcase name="twoHourMeetingContinuesAfterRestartWithoutRepeatingCompletedBlocks" classname="app.resound.topic.Topic135Test" time="1.588"/>
+  <testcase name="unmarkRemovesOnlyThatMarkAndRejectsCancelledTopic" classname="app.resound.topic.Topic135Test" time="0.014"/>
+  <testcase name="cutSplitsSpanReleasesOnlyCutSpeechAndCancelDeletesGeneratedArtifacts" classname="app.resound.topic.Topic135Test" time="0.023"/>
+  <testcase name="failedHistoryWithoutEventCanRetryExistingSpeechExactlyOnce" classname="app.resound.topic.Topic135Test" time="0.012"/>
+  <testcase name="retrospectiveRangeSnapsOutwardReplacesEventsPreservesChangedTodosAndStar" classname="app.resound.topic.Topic135Test" time="0.011"/>
+  <testcase name="multipleBatchesBecomeOneEventAndMarksReachReusedSummaryTemplate" classname="app.resound.topic.Topic135Test" time="0.099"/>
+  <testcase name="failedRegenerationKeepsPreviousFinishedEvent" classname="app.resound.topic.Topic135Test" time="0.015"/>
+  <testcase name="truncatedLargeResponseSplitsWithoutCreatingSeveralEvents" classname="app.resound.topic.Topic135Test" time="0.011"/>
+  <testcase name="pausedDeadlineDoesNotMoveAndUnboundedTopicEndsAtFourHours" classname="app.resound.topic.Topic135Test" time="0.008"/>
+  <testcase name="failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult" classname="app.resound.topic.Topic135Test" time="0.012"/>
+  <testcase name="checkpointCannotExposeResultsAfterSourceChangedOrDeleted" classname="app.resound.topic.Topic135Test" time="0.006"/>
+  <testcase name="rejectedContentStaysIncompleteAndAllOriginalSpeechIsKept" classname="app.resound.topic.Topic135Test" time="0.01"/>
+  <testcase name="trainingUsesHistoricalSpansAndTopicSegmentsLeadTranscriptionCandidates" classname="app.resound.topic.Topic135Test" time="0.013"/>
+  <testcase name="overlappingLiveRetroactiveAndFutureWeeklyReservationsAreRejected" classname="app.resound.topic.Topic135Test" time="0.01"/>
+  <testcase name="quietOnlyRemindsOncePerSilenceAndEndingReminderCanExtendThirtyMinutes" classname="app.resound.topic.Topic135Test" time="0.011"/>
+  <testcase name="weeklyScheduleStartsOnceCreatesNextAndRemindsWithoutTurningRecordingOn" classname="app.resound.topic.Topic135Test" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

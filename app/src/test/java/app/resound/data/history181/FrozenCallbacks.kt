@@ -1,9 +1,8 @@
 // 卡 181 历史夹具，由 tools/trigger-audit-181/freeze_history.py 从 git 原文提取。
-// 仅改 package / imports；SearchTokens 仅保留 SQL 生成函数。不要跟随产品代码更新。
+// 仅改 package / imports 和历史建库类型/回调基类；SQL 原文不变，不跟随产品代码更新。
 package app.resound.data.history181
 
-import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
+import android.database.sqlite.SQLiteDatabase
 
 // a577273:search/SearchIndex.kt
 object SearchTokens {
@@ -23,11 +22,11 @@ object SearchTokens {
 
 // a577273:search/SearchIndex.kt
 object SearchIndex {
-    val callback = object : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) { install(db, backfill = false) }
+    val callback = object : HistoricalCallback() {
+        override fun onCreate(db: SQLiteDatabase) { install(db, backfill = false) }
         // Room 会在迁移前移除 room_fts_content_sync_ 前缀触发器；本项目触发器使用独立前缀。
     }
-    fun install(db: SupportSQLiteDatabase, backfill: Boolean) {
+    fun install(db: SQLiteDatabase, backfill: Boolean) {
         data class Index(val table: String, val fts: String, val columns: Map<String, String>, val kind: String)
         val indices = listOf(
             Index("transcript_lines", "lines_fts", mapOf("text" to "text"), "line"),
@@ -52,7 +51,7 @@ object SearchIndex {
 
 // 52b9103:importer/ImportRecordDao.kt
 object ImportRecordSchema {
-    fun install(db: SupportSQLiteDatabase) {
+    fun install(db: SQLiteDatabase) {
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS import_segment_deleted AFTER DELETE ON segments
             WHEN OLD.importRecordId IS NOT NULL BEGIN
             DELETE FROM skill_cards WHERE id = (SELECT cardId FROM import_records WHERE id = OLD.importRecordId);
@@ -62,24 +61,24 @@ object ImportRecordSchema {
                 AND NOT EXISTS (SELECT 1 FROM segments WHERE importRecordId = OLD.importRecordId);
             END""")
     }
-    val callback = object : RoomDatabase.Callback() {
-        override fun onOpen(db: SupportSQLiteDatabase) = install(db)
+    val callback = object : HistoricalCallback() {
+        override fun onOpen(db: SQLiteDatabase) = install(db)
     }
 }
 
 // 0bbc36e:things/ThingData.kt
 internal object ThingSchema {
-    fun create(db: SupportSQLiteDatabase) {
+    fun create(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS things (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, aliasesJson TEXT NOT NULL, owner TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, deleted INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE IF NOT EXISTS thing_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, thingId INTEGER, name TEXT NOT NULL, action TEXT NOT NULL, place TEXT, who TEXT, owner TEXT NOT NULL, at INTEGER NOT NULL, sourceLineId INTEGER, sourceText TEXT, status TEXT NOT NULL, origin TEXT NOT NULL, explicit INTEGER NOT NULL, sameAsId INTEGER, createdAt INTEGER NOT NULL, acceptedAt INTEGER, aliasesJson TEXT NOT NULL)")
         listOf("thingId", "sourceLineId", "at", "status").forEach { db.execSQL("CREATE INDEX IF NOT EXISTS index_thing_records_$it ON thing_records($it)") }
         db.execSQL("CREATE TABLE IF NOT EXISTS thing_watch_state (slot INTEGER NOT NULL PRIMARY KEY, watermark INTEGER NOT NULL, enabled INTEGER NOT NULL, revision INTEGER NOT NULL, failedEnd INTEGER, failures INTEGER NOT NULL)")
         install(db)
     }
-    val callback = object : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) = install(db)
+    val callback = object : HistoricalCallback() {
+        override fun onCreate(db: SQLiteDatabase) = install(db)
     }
-    fun install(db: SupportSQLiteDatabase) {
+    fun install(db: SQLiteDatabase) {
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS things_line_deleted BEFORE DELETE ON transcript_lines BEGIN
             DELETE FROM thing_records WHERE sourceLineId = OLD.id AND status = 'Pending';
             UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId = OLD.id;
@@ -98,16 +97,16 @@ internal object ThingSchema {
 
 // 774263c:data/PendingDigest.kt
 internal object PendingDigestSchema {
-    fun create(db: SupportSQLiteDatabase) {
+    fun create(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS digest_pending (id TEXT NOT NULL PRIMARY KEY, lineIds TEXT NOT NULL, content TEXT NOT NULL, day TEXT NOT NULL, promptTokens INTEGER NOT NULL, completionTokens INTEGER NOT NULL, thingRevision INTEGER)")
         install(db)
     }
-    private fun install(db: SupportSQLiteDatabase) {
+    private fun install(db: SQLiteDatabase) {
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS digest_pending_source_deleted AFTER DELETE ON transcript_lines BEGIN
             DELETE FROM digest_pending WHERE instr(',' || lineIds || ',', ',' || OLD.id || ',') > 0;
         END""")
     }
-    val callback = object : RoomDatabase.Callback() {
-        override fun onOpen(db: SupportSQLiteDatabase) = install(db)
+    val callback = object : HistoricalCallback() {
+        override fun onOpen(db: SQLiteDatabase) = install(db)
     }
 }

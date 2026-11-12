@@ -2,10 +2,8 @@ package app.resound.data
 
 import android.app.Application
 import android.content.Context
-import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteOpenHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import android.database.sqlite.SQLiteDatabase
+import app.resound.data.history181.HistoricalCallback
 import app.resound.data.history181.ImportRecordSchema as HistoricalImports
 import app.resound.data.history181.PendingDigestSchema as HistoricalPending
 import app.resound.data.history181.SearchIndex as HistoricalSearch
@@ -43,7 +41,7 @@ class TriggerHistory181Test {
         context.deleteDatabase(name)
         try {
             CaptureDatabase.open(context, name).use { db ->
-                triggers(db.openHelper.writableDatabase).also { assertEquals(allNames, it.keys) }
+                triggers(db.testSql).also { assertEquals(allNames, it.keys) }
             }
         } finally { context.deleteDatabase(name) }
     }
@@ -117,7 +115,7 @@ class TriggerHistory181Test {
             try {
                 createOld(name, version, faithful = false)
                 CaptureDatabase.open(context, name).use { db ->
-                    val sql = db.openHelper.writableDatabase
+                    val sql = db.testSql
                     assertEquals(CaptureDatabase.VERSION, sql.version)
                     val missing = searchNames + if (version == 27) thingNames else emptySet()
                     assertEquals(allNames - missing, triggers(sql).keys)
@@ -129,12 +127,12 @@ class TriggerHistory181Test {
         }
     }
 
-    private fun upgraded(version: Int, verify: (SupportSQLiteDatabase) -> Unit) {
+    private fun upgraded(version: Int, verify: (Driver175TestSql) -> Unit) {
         val name = "trigger-181-history-$version.db"
         try {
             val oldTriggers = createOld(name, version, faithful = true)
             CaptureDatabase.open(context, name).use { db ->
-                val sql = db.openHelper.writableDatabase
+                val sql = db.testSql
                 assertEquals(CaptureDatabase.VERSION, sql.version) // 生产迁移链同时完成 Room schema 验证。
                 report("historical", version, oldTriggers.size, sql)
                 assertEquals("v$version 缺失 ${allNames - triggers(sql).keys}", freshTriggers, triggers(sql))
@@ -143,7 +141,7 @@ class TriggerHistory181Test {
             }
             // 第二次打开只走 onOpen，检验已建触发器和索引没有重复或丢失。
             CaptureDatabase.open(context, name).use { db ->
-                val sql = db.openHelper.writableDatabase
+                val sql = db.testSql
                 assertEquals(freshTriggers, triggers(sql))
                 assertHistoricalRows(sql)
                 verify(sql)
@@ -158,29 +156,27 @@ class TriggerHistory181Test {
         assertEquals(entry.getString("schemaSha256"), MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
         val schema = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONObject("database")
         val callbacks = if (faithful) callbacks(entry.getJSONArray("callbacks")) else emptyList()
-        val helper = FrameworkSQLiteOpenHelperFactory().create(
-            SupportSQLiteOpenHelper.Configuration.builder(context).name(name)
-                .callback(object : SupportSQLiteOpenHelper.Callback(version) {
-                    override fun onConfigure(db: SupportSQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        val entities = schema.getJSONArray("entities")
-                        repeat(entities.length()) { i ->
-                            val entity = entities.getJSONObject(i)
-                            fun expand(sql: String) = sql.replace("\u0024{TABLE_NAME}", entity.getString("tableName"))
-                            db.execSQL(expand(entity.getString("createSql")))
-                            entity.optJSONArray("indices")?.let { indices -> repeat(indices.length()) { j ->
-                                db.execSQL(expand(indices.getJSONObject(j).getString("createSql")))
-                            } }
-                        }
-                        schema.getJSONArray("setupQueries").let { queries -> repeat(queries.length()) { db.execSQL(queries.getString(it)) } }
-                        callbacks.forEach { it.onCreate(db) }
-                    }
-                    override fun onOpen(db: SupportSQLiteDatabase) { callbacks.forEach { it.onOpen(db) } }
-                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = error("旧库只负责建库")
-                }).build(),
-        )
-        return helper.use {
-            val sql = it.writableDatabase
+        val file = context.getDatabasePath(name)
+        file.parentFile!!.mkdirs()
+        return SQLiteDatabase.openOrCreateDatabase(file, null).use { sql ->
+            sql.setForeignKeyConstraintsEnabled(true)
+            sql.beginTransaction()
+            try {
+                val entities = schema.getJSONArray("entities")
+                repeat(entities.length()) { i ->
+                    val entity = entities.getJSONObject(i)
+                    fun expand(sql: String) = sql.replace("\u0024{TABLE_NAME}", entity.getString("tableName"))
+                    sql.execSQL(expand(entity.getString("createSql")))
+                    entity.optJSONArray("indices")?.let { indices -> repeat(indices.length()) { j ->
+                        sql.execSQL(expand(indices.getJSONObject(j).getString("createSql")))
+                    } }
+                }
+                schema.getJSONArray("setupQueries").let { queries -> repeat(queries.length()) { sql.execSQL(queries.getString(it)) } }
+                callbacks.forEach { it.onCreate(sql) }
+                sql.version = version
+                sql.setTransactionSuccessful()
+            } finally { sql.endTransaction() }
+            callbacks.forEach { it.onOpen(sql) }
             val expected = if (!faithful) emptySet() else buildSet {
                 if (version >= 11) addAll(searchNames)
                 if (version >= 26) add("import_segment_deleted")
@@ -188,12 +184,12 @@ class TriggerHistory181Test {
                 if (version >= 29) add("digest_pending_source_deleted")
             }
             assertEquals("v$version 的历史触发器", expected, triggers(sql).keys)
-            seed(sql, 1)
+            seed(sql::execSQL, 1)
             triggers(sql)
         }
     }
 
-    private fun callbacks(names: JSONArray): List<RoomDatabase.Callback> = (0 until names.length()).map {
+    private fun callbacks(names: JSONArray): List<HistoricalCallback> = (0 until names.length()).map {
         when (val name = names.getString(it)) {
             "SearchIndex" -> HistoricalSearch.callback
             "ImportRecordSchema" -> HistoricalImports.callback
@@ -203,15 +199,17 @@ class TriggerHistory181Test {
         }
     }
 
-    private fun seed(sql: SupportSQLiteDatabase, id: Int) {
-        sql.execSQL("INSERT OR IGNORE INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,2000,'mic','synthetic',1,'Done')")
-        sql.execSQL("""INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model)
+    private fun seed(sql: Driver175TestSql, id: Int) = seed(sql::execSQL, id)
+
+    private fun seed(execute: (String, Array<out Any?>) -> Unit, id: Int) {
+        execute("INSERT OR IGNORE INTO segments(id,startAt,endAt,sourceId,path,sizeBytes,status) VALUES(1,1000,2000,'mic','synthetic',1,'Done')", emptyArray())
+        execute("""INSERT INTO memory_events(id,startAt,endAt,scene,title,summary,pointsJson,peopleJson,important,deleted,createdAt,model)
             VALUES(?,1000,2000,'其他','历史票据','合成摘要','[]','[]',0,0,1000,'test')""", arrayOf(id))
-        sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId) VALUES(?,1,1000,2000,'历史票据',?)", arrayOf(id, id))
-        sql.execSQL("INSERT INTO memory_items(id,eventId,category,content,status,createdAt) VALUES(?,?,'待办','历史票据','Pending',1000)", arrayOf(id, id))
+        execute("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId) VALUES(?,1,1000,2000,'历史票据',?)", arrayOf(id, id))
+        execute("INSERT INTO memory_items(id,eventId,category,content,status,createdAt) VALUES(?,?,'待办','历史票据','Pending',1000)", arrayOf(id, id))
     }
 
-    private fun assertHistoricalRows(sql: SupportSQLiteDatabase) {
+    private fun assertHistoricalRows(sql: Driver175TestSql) {
         for ((table, fts) in listOf("transcript_lines" to "lines_fts", "memory_events" to "events_fts", "memory_items" to "items_fts")) {
             assertEquals(1L, scalar(sql, "SELECT count(*) FROM $table WHERE id=1"))
             assertEquals(1L, scalar(sql, "SELECT count(*) FROM $fts"))
@@ -219,7 +217,7 @@ class TriggerHistory181Test {
         }
     }
 
-    private fun exerciseSearch(sql: SupportSQLiteDatabase) {
+    private fun exerciseSearch(sql: Driver175TestSql) {
         seed(sql, 2)
         for ((table, fts, column) in listOf(
             Triple("transcript_lines", "lines_fts", "text"), Triple("memory_events", "events_fts", "title"),
@@ -236,15 +234,20 @@ class TriggerHistory181Test {
         for (fts in listOf("lines_fts", "events_fts", "items_fts")) assertEquals(0L, scalar(sql, "SELECT count(*) FROM $fts WHERE rowid=2"))
     }
 
-    private fun triggers(sql: SupportSQLiteDatabase): Map<String, String> =
+    private fun triggers(sql: Driver175TestSql): Map<String, String> =
         sql.query("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name").use { cursor ->
             buildMap { while (cursor.moveToNext()) put(cursor.getString(0), cursor.getString(1)) }
         }
 
-    private fun scalar(sql: SupportSQLiteDatabase, query: String): Long =
+    private fun triggers(sql: SQLiteDatabase): Map<String, String> =
+        sql.rawQuery("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name", null).use { cursor ->
+            buildMap { while (cursor.moveToNext()) put(cursor.getString(0), cursor.getString(1)) }
+        }
+
+    private fun scalar(sql: Driver175TestSql, query: String): Long =
         sql.query(query).use { it.moveToFirst(); it.getLong(0) }
 
-    private fun report(kind: String, version: Int, before: Int, sql: SupportSQLiteDatabase) {
+    private fun report(kind: String, version: Int, before: Int, sql: Driver175TestSql) {
         val names = triggers(sql).keys
         println("TRIGGER_AUDIT_181\t$kind\t$version\t$before\t${names.size}\t${(allNames - names).sorted().joinToString(",").ifEmpty { "无" }}")
     }

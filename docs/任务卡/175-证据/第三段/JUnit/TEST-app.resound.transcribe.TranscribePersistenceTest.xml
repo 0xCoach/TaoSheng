@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.TranscribePersistenceTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-11-12T21:37:26.509Z" hostname="CoachdeMacBook-Air.local" time="0.161">
+  <properties/>
+  <testcase name="authStopsRoundWithoutConsumingOtherSegments" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.009"/>
+  <testcase name="cleanupDeletesOnlySuccessfulAudioAfterFullDayIncludingEmpty" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.01"/>
+  <testcase name="cancellationPreservesAudioAndAccountsAttemptWithoutPartialLines" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.008"/>
+  <testcase name="concurrentTriggersAreSkippedAndSegmentsUploadInTimeOrder" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.011"/>
+  <testcase name="progressCountsSuccessEmptyAndFailureFromFixedRoundSnapshot" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.012"/>
+  <testcase name="timeoutContinuesRoundAndYieldsToOtherSegmentsOnRetry" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.013"/>
+  <testcase name="migrationPreservesOldRowsAndRoomValidatesWholeSchema" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.044"/>
+  <testcase name="startupRecoversEvenFifthInterruptedAttemptWithoutUploadOrUsageLoss" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.01"/>
+  <testcase name="networkFailureEndsRoundWithoutConsumingAttempts" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.012"/>
+  <testcase name="finalResultsReplaceLinesAndPreserveLedgerAcrossManualRetry" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.01"/>
+  <testcase name="startupDoesNotResetLiveUploadAndCancellationClearsProgress" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.01"/>
+  <testcase name="timeoutBackoffStopsAfterFiveAndManualRetryResets" classname="app.resound.transcribe.TranscribePersistenceTest" time="0.012"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

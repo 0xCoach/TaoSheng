@@ -1,0 +1,18 @@
+{
+  "mergeCommit": "25a31daa821da55deafc473c098d0f2019bed326",
+  "previousHead": "538b4aaf1cc6418e3f0b8941b9404a5901891a53",
+  "mergedMain": "8ab38df88601b1228dfdb82ba42e54a28213f396",
+  "protectedPathsUnchanged": [
+    "app/src/main",
+    "app/schemas",
+    "shared",
+    "devices",
+    "app/build.gradle.kts",
+    "build.gradle.kts",
+    "gradle.properties",
+    "gradle"
+  ],
+  "frozenRestoredEqualsMain": true,
+  "originalFrozenSha256": "7ac7c8be3ba792f1096fd39c86674dc55da9c3ae7f8fecc664efd185b8f913da",
+  "restoredFrozenSha256": "7ac7c8be3ba792f1096fd39c86674dc55da9c3ae7f8fecc664efd185b8f913da"
+}

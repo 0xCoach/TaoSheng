@@ -746,19 +746,31 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
     }
 }
 
-/** 技能卡在时间线上只占一行：“18:00 · 收工打卡已生成 ›”，下面一行标题 */
+/**
+ * 技能卡在时间线上和事件同级：时间列、字号、行距与 [TimelineLine] 一致，文字左缘对齐；
+ * 区分只靠两处——标题旁技能色的「技能卡」小胶囊、右侧的技能图标（像列表缩略图）
+ */
 @Composable
 private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit) {
     val c = Rs.colors
-    Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.widthIn(min = 58.dp))
-        app.resound.ui.skills.SkillIcon(card.icon, 28.dp)
-        Spacer(Modifier.width(10.dp))
+    val ink = app.resound.ui.skills.skillInk(card.icon)
+    Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp)) {
+        Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"), color = c.textSecondary,
+            modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp))
         Column(Modifier.weight(1f)) {
-            Text("${card.skillName}已生成", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = app.resound.ui.skills.skillInk(card.icon))
-            Text(card.title, style = RsType.caption, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(card.skillName, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Spacer(Modifier.width(6.dp))
+                Box(Modifier.clip(CircleShape).background(ink.copy(alpha = if (c.isDark) 0.18f else 0.13f)).padding(horizontal = 7.dp, vertical = 1.dp)) {
+                    Text("技能卡", style = RsType.caption.copy(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium), color = ink, maxLines = 1)
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(card.title, style = RsType.caption.copy(lineHeight = 18.sp), color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Text("›", style = RsType.title, color = c.textTertiary)
+        Spacer(Modifier.width(12.dp))
+        Box(Modifier.align(Alignment.CenterVertically)) { app.resound.ui.skills.SkillIcon(card.icon, 34.dp) }
     }
 }
 
@@ -786,7 +798,8 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
         Text(
             formatClock(event.startAt),
             style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold),
-            color = if (quiet) c.textTertiary else c.accent,
+            // 时间只给标星的和刚发生的用橙色，其余灰色：颜色有意义，不满屏橙点
+            color = when { quiet -> c.textTertiary; app.resound.home.HomeRules.timeAccent(event.starred, event.endAt, System.currentTimeMillis()) -> c.accent; else -> c.textSecondary },
             modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp).alpha(dim),
         )
         Column(Modifier.weight(1f).alpha(dim)) {

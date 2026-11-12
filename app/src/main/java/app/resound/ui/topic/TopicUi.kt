@@ -185,7 +185,7 @@ internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStart
                     else -> "${kind.title}专题已开始，往前多算了 2 分钟"
                 }
                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                if (r?.topicId != null) onStarted()
+                if (r?.topicId != null) { if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.setLastTopicKind(kind); onStarted() }
             }
         }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
             Text("开始专题", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = Color.White)

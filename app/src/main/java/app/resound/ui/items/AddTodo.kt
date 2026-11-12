@@ -271,7 +271,7 @@ private fun StatusCard(phase: Phase, cancelArmed: Boolean, voice: TodoVoiceInput
 
 /** 打字添加：写一句话，交给模型拆成卡 */
 @Composable
-private fun TypeSheet(words: AddWords, onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
+internal fun TypeSheet(words: AddWords, onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
     val c = Rs.colors
     var text by remember { mutableStateOf("") }
     RsSheet(words.typeTitle, words.typeSubtitle, onDismiss = onDismiss) {

@@ -26,7 +26,7 @@ enum class ListenState { Listening, Paused, Stopped, Unavailable }
 enum class TopicState { None, Running, Paused }
 
 /** 一个快捷操作 */
-enum class QuickAction { Pause, Resume, StartListening, StartTopic, MarkTopic, EndTopic }
+enum class QuickAction { AddTodo, Pause, Resume, StartListening, StartTopic, MarkTopic, EndTopic }
 
 /** 一个快捷入口要显示的内容：动作 + 显示文字（如“开始培训专题”“暂停 30 分钟”） */
 data class QuickEntry(val action: QuickAction, val label: String)

@@ -417,6 +417,8 @@ private fun Header(date: LocalDate, themeMode: ThemeMode, onThemeMode: (ThemeMod
             Spacer(Modifier.height(2.dp))
             Text(date.format(DateTimeFormatter.ofPattern("M月d日")), style = RsType.largeTitle, color = c.text)
         }
+        // 日夜切换：太阳 / 月亮 / 半圆（跟随系统），点一下按顺序切换
+        ThemeModePill(themeMode, onThemeMode)
     }
 }
 
@@ -625,6 +627,15 @@ internal fun SmallPill(text: String, filled: Boolean, modifier: Modifier = Modif
     ) { Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (filled) Color.White else c.accent) }
 }
 
+/** 标题后面的小号分类标签：“待办 2”；颜色按分类取（数量不参与取色） */
+@Composable
+private fun TitleChip(category: String, count: Int) {
+    val color = categoryColor(category)
+    Text(if (count > 1) "$category $count" else category,
+        style = RsType.caption.copy(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium), color = color, maxLines = 1,
+        modifier = Modifier.clip(CircleShape).background(color.copy(alpha = 0.14f)).padding(horizontal = 6.dp, vertical = 1.dp))
+}
+
 /** 类别小标签；颜色按类别区分 */
 @Composable
 fun CategoryChip(category: String, kind: String? = null) {
@@ -759,6 +770,8 @@ private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit)
     Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp)) {
         Text(formatClock(card.at), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"), color = c.textSecondary,
             modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp))
+        // 技能图标放左边紧挨标题，和事件一眼区分开
+        Box(Modifier.padding(end = 10.dp)) { app.resound.ui.skills.SkillIcon(card.icon, 30.dp) }
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(card.skillName, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
@@ -771,8 +784,6 @@ private fun CardHintLine(card: app.resound.skills.SkillCard, onOpen: () -> Unit)
             Spacer(Modifier.height(2.dp))
             Text(card.title, style = RsType.caption.copy(lineHeight = 18.sp), color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Spacer(Modifier.width(12.dp))
-        Box(Modifier.align(Alignment.CenterVertically)) { app.resound.ui.skills.SkillIcon(card.icon, 34.dp) }
     }
 }
 
@@ -805,6 +816,7 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
             modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp).alpha(dim),
         )
         Column(Modifier.weight(1f).alpha(dim)) {
+            val counts = event.items.groupingBy { it.category }.eachCount()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(event.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
@@ -820,18 +832,16 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
                     Spacer(Modifier.width(6.dp))
                     Text("中间有插话", style = RsType.caption, color = c.textTertiary, maxLines = 1)
                 }
+                // 待办、灵感、约定等标签紧跟标题，一眼看出这件事里有什么；标题太长时先省略标题
+                if (counts.isNotEmpty()) {
+                    counts.entries.take(2).forEach { (cat, n) -> Spacer(Modifier.width(5.dp)); TitleChip(cat, n) }
+                    if (counts.size > 2) Text(" +${counts.size - 2}", style = RsType.caption, color = c.textTertiary, maxLines = 1)
+                }
             }
             Spacer(Modifier.height(2.dp))
             Text(event.summary, style = RsType.caption.copy(lineHeight = 18.sp), color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             app.resound.ui.context.EventPlaceLine(event, Modifier.padding(top = 3.dp))
             app.resound.ui.envsound.EventEnvLine(event, Modifier.padding(top = 3.dp))
-            val counts = event.items.groupingBy { it.category }.eachCount()
-            if (counts.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    counts.forEach { (cat, n) -> CategoryChip(if (n > 1) "$cat $n" else cat) }
-                }
-            }
         }
     }
 }

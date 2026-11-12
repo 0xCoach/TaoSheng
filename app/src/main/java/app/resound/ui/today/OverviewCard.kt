@@ -79,7 +79,7 @@ private fun cardInk(): CardInk {
     return if (c.isDark) CardInk(
         text = c.text, soft = c.textSecondary, faint = c.textTertiary,
         pill = c.elevated, pillText = c.text,
-        primary = c.accent, primaryText = Color(0xFF1A0F07),
+        primary = c.accent, primaryText = Color.White,
         wave = c.accent, dot = c.accent, divider = c.separator,
     ) else CardInk(
         text = Color.White, soft = Color.White.copy(alpha = 0.85f), faint = Color.White.copy(alpha = 0.7f),
@@ -211,7 +211,8 @@ private fun ColumnScope.LiveCard(
                 Text(" ›", style = RsType.headline, color = ink.faint)
             }
             // 声波只在状态文字和按钮之间的空档里，两头淡出，不压字和按钮；专题进行中不放（那一行按钮多）
-            if (topic == null && controls != HomeControls.None) BreathingWave(status.level, active, recording,
+            // 平时和专题进行中都显示声波；空档不够时自动变窄
+            if (controls != HomeControls.None) BreathingWave(status.level, active, recording,
                 Modifier.weight(1f).padding(horizontal = 8.dp).height(22.dp)
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
                     .drawWithContent {
@@ -239,7 +240,7 @@ private fun ColumnScope.LiveCard(
                     val paused = t.status == app.resound.topic.TopicStatus.Paused
                     var confirmEnd by remember(t.id) { mutableStateOf(false) }
                     LaunchedEffect(confirmEnd) { if (confirmEnd) { delay(4000); confirmEnd = false } }
-                    RoundKey(ink, filled = false, glyph = Glyph.Star, label = "记一下", accent = true) {
+                    RoundKey(ink, filled = false, glyph = Glyph.Star, label = "记一下", accent = true, badge = t.marks.size) {
                         buzz(); scope.launch { runCatching { AppGraph.topics.mark() }.onSuccess { Toast.makeText(context, "已记下这个时刻", Toast.LENGTH_SHORT).show() } }
                     }
                     Spacer(Modifier.width(8.dp))
@@ -259,7 +260,6 @@ private fun ColumnScope.LiveCard(
     }
     // 专题副行 / 麦克风被谁占
     val subLine = when {
-        topic != null -> app.resound.ui.topic.topicHomeSub(topic).ifEmpty { null }
         status.state == CaptureState.MicBusy && !inCall -> status.busyDetail
         else -> null
     }
@@ -414,7 +414,7 @@ private enum class Glyph { Pause, Play, Star }
 
 /** 圆形按键：画出来 34dp，可点区域按 44dp 留足 */
 @Composable
-private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String, accent: Boolean = false, onClick: () -> Unit) {
+private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String, accent: Boolean = false, badge: Int = 0, onClick: () -> Unit) {
     val c = Rs.colors
     val bg = when {
         filled -> ink.primary
@@ -451,6 +451,10 @@ private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String,
                 }
             }
         }
+        // 记下了几处重点：右上角小数字，不另占一行
+        if (badge > 0) Text(if (badge > 9) "9+" else "$badge", style = RsType.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold),
+            color = Color.White, modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 3.dp)
+                .clip(CircleShape).background(Rs.colors.accent).padding(horizontal = 4.dp, vertical = 1.dp))
     }
 }
 

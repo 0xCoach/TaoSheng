@@ -35,12 +35,14 @@ object QuickText {
         QuickAction.StartTopic -> "${topic(kind)}专题已开始"
         QuickAction.MarkTopic -> "已记下这一刻"
         QuickAction.EndTopic -> "专题已结束"
+        QuickAction.AddTodo -> "添加待办"
     }
 }
 
 class DefaultQuickActionsPolicy : QuickActionsPolicy {
+    /** “加待办”任何状态都排第一；其余按聆听 / 专题状态排 */
     override fun entries(listen: ListenState, topic: TopicState, lastPauseMinutes: Int, lastTopicKind: TopicKind): List<QuickEntry> =
-        when (topic) {
+        listOf(QuickEntry(QuickAction.AddTodo, "加待办")) + when (topic) {
             TopicState.Running -> listOf(QuickEntry(QuickAction.MarkTopic, "记一下"), QuickEntry(QuickAction.Pause, "暂停专题"), QuickEntry(QuickAction.EndTopic, "结束专题"))
             TopicState.Paused -> listOf(QuickEntry(QuickAction.Resume, "继续专题"), QuickEntry(QuickAction.EndTopic, "结束专题"))
             TopicState.None -> listOf(when (listen) {
@@ -64,6 +66,7 @@ object QuickExecutionRules {
         QuickAction.StartTopic -> QuickCommand.StartTopic
         QuickAction.MarkTopic -> QuickCommand.MarkTopic
         QuickAction.EndTopic -> QuickCommand.EndTopic
+        QuickAction.AddTodo -> QuickCommand.AddTodo
     }
 
     fun captureConfirmed(command: QuickCommand, listen: ListenState): Boolean = when (command) {
@@ -74,5 +77,5 @@ object QuickExecutionRules {
 }
 
 enum class QuickCommand(val needsMicrophone: Boolean = false) {
-    PauseListening(true), ResumeListening(true), StartListening(true), StartTopic, MarkTopic, PauseTopic, ResumeTopic, EndTopic,
+    PauseListening(true), ResumeListening(true), StartListening(true), StartTopic, MarkTopic, PauseTopic, ResumeTopic, EndTopic, AddTodo,
 }

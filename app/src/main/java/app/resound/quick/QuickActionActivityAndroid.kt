@@ -30,7 +30,7 @@ class QuickActionActivity : ComponentActivity() {
                 // Android 的麦克风前台服务要求入口真正可见后再启动。
                 lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.RESUMED) }
                 val message = execute()
-                Toast.makeText(this@QuickActionActivity, message, Toast.LENGTH_SHORT).show()
+                if (message.isNotEmpty()) Toast.makeText(this@QuickActionActivity, message, Toast.LENGTH_SHORT).show()
             } catch (e: CancellationException) { throw e }
             catch (e: TopicException) { Toast.makeText(this@QuickActionActivity, e.message ?: TopicQuickPolicy.FAILED, Toast.LENGTH_SHORT).show() }
             catch (_: Exception) { Toast.makeText(this@QuickActionActivity, QuickText.FAILED, Toast.LENGTH_SHORT).show() }
@@ -66,6 +66,8 @@ class QuickActionActivity : ComponentActivity() {
             QuickCommand.PauseListening -> capture.pause(minutes)
             QuickCommand.ResumeListening -> capture.resume()
             QuickCommand.StartListening -> capture.start()
+            QuickCommand.AddTodo -> { startActivity(android.content.Intent(this, app.resound.ui.items.QuickTodoActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)); return "" }
         }
         if (command.needsMicrophone) {
             withTimeoutOrNull(5000) {

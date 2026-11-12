@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面长按菜单图标：浅橙圆底 + 橙色图形（卡 163） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#FFF1E6" android:pathData="M24,0a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z"/>
+    <group android:translateX="12" android:translateY="12">
+        <path android:fillColor="#E5672C" android:pathData="M12,2.8l2.8,5.7l6.3,0.9l-4.55,4.45l1.07,6.27L12,17.1l-5.62,3.02l1.07,-6.27L2.9,9.4l6.3,-0.9z"/>
+    </group>
+</vector>

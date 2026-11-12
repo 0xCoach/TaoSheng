@@ -51,7 +51,7 @@ private data class Tint(val light: Color, val dark: Color, val ink: Color, val d
 
 private val TINTS = mapOf(
     "meeting" to Tint(Color(0xFFDCE6F2), Color(0xFF2E3A48), Color(0xFF4F6E92), Color(0xFFA9C4E4)),
-    "sunset" to Tint(Color(0xFFFCE3CF), Color(0xFF4A3426), Color(0xFFE0782E), Color(0xFFFFB27E)),
+    "sunset" to Tint(Color(0xFFFCE3CF), Color(0xFF4A3426), Color(0xFFE0782E), Color(0xFFE59E72)),
     "calendar_week" to Tint(Color(0xFFE6E1F3), Color(0xFF36314A), Color(0xFF6E5FA6), Color(0xFFC2B5F5)),
     "review" to Tint(Color(0xFFF8DCD3), Color(0xFF4A2F2A), Color(0xFFC8624A), Color(0xFFF2A08C)),
     "timeline" to Tint(Color(0xFFEDE5D6), Color(0xFF3C3529), Color(0xFF8C7652), Color(0xFFD6C29E)),

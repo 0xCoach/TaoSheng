@@ -28,10 +28,11 @@ object CaptureNotifications {
     private fun pauseMinutes() = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastPauseMinutes.value else QuickPrefsRules.DEFAULT_PAUSE
     private fun action(context: Context, action: String): PendingIntent = PendingIntent.getForegroundService(context, action.hashCode(),
         Intent(context, CaptureService::class.java).setAction(action).putExtra("route", "notification").putExtra("minutes", pauseMinutes()), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-    private fun deleteRequest(context: Context): PendingIntent = PendingIntent.getActivity(context, 24,
-        Intent(context, app.resound.MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra("open", "deleteRecent"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    /** 快速加待办：浮在当前界面上直接语音输入，不进入涛声主界面 */
+    private fun addTodo(context: Context): PendingIntent = PendingIntent.getActivity(context, 24,
+        Intent(context, app.resound.ui.items.QuickTodoActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(context, 25,
         Intent(context, app.resound.MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
@@ -66,9 +67,10 @@ object CaptureNotifications {
         .apply {
             if (topic != null) app.resound.topic.TopicNotifications.actions(this, context, topic)
             else {
+                // 顺序：加待办、开专题、暂停（暂停中为“恢复”）
+                addAction(0, CaptureNotificationPolicy.ADD_TODO, addTodo(context))
+                addAction(0, CaptureNotificationPolicy.START_TOPIC, app.resound.topic.TopicActionReceiver.intent(context, "start"))
                 addAction(0, notice.toggle, action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE))
-                addAction(0, CaptureNotificationPolicy.DELETE_RECENT, deleteRequest(context))
-                addAction(0, CaptureNotificationPolicy.startTopic(kind), app.resound.topic.TopicActionReceiver.intent(context, "start"))
             }
         }
         .build()

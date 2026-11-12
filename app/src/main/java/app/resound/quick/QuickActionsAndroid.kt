@@ -49,8 +49,12 @@ internal fun attachQuickActionsAndroid(context: Context, scope: CoroutineScope, 
                 ShortcutInfoCompat.Builder(context, "quick-${entry.action.name}")
                     .setActivity(ComponentName(context, MainActivity::class.java))
                     .setShortLabel(entry.label).setLongLabel(entry.label).setRank(index)
-                    .setIcon(IconCompat.createWithResource(context, R.drawable.ic_notify))
-                    .setIntent(Intent(context, QuickActionActivity::class.java).setAction(Intent.ACTION_VIEW)
+                    .setIcon(IconCompat.createWithResource(context, shortcutIcon(entry.action)))
+                    .setIntent(if (entry.action == QuickAction.AddTodo)
+                        // 加待办直接打开浮在当前界面上的语音面板
+                        Intent(context, app.resound.ui.items.QuickTodoActivity::class.java).setAction(Intent.ACTION_VIEW)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    else Intent(context, QuickActionActivity::class.java).setAction(Intent.ACTION_VIEW)
                         .setData(Uri.parse("resound://quick/${entry.action.name}/$topicId"))
                         .putExtra("quickAction", entry.action.name).putExtra("topicId", topicId)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
@@ -70,4 +74,15 @@ internal fun attachQuickActionsAndroid(context: Context, scope: CoroutineScope, 
             }
         }
     }
+}
+
+/** 每个快捷功能一个图标：浅橙圆底 + 橙色图形 */
+private fun shortcutIcon(action: QuickAction): Int = when (action) {
+    QuickAction.AddTodo -> R.drawable.ic_qa_todo
+    QuickAction.StartTopic -> R.drawable.ic_qa_topic
+    QuickAction.Pause -> R.drawable.ic_qa_pause
+    QuickAction.Resume -> R.drawable.ic_qa_play
+    QuickAction.MarkTopic -> R.drawable.ic_qa_mark
+    QuickAction.EndTopic -> R.drawable.ic_qa_end
+    QuickAction.StartListening -> R.drawable.ic_qa_mic
 }

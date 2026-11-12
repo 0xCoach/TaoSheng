@@ -125,6 +125,14 @@
             android:launchMode="singleTask"
             android:taskAffinity="app.resound.alarm"
             android:excludeFromRecents="true" />
+        <!-- 快速加待办：浮在当前界面上的语音面板（通知栏、桌面长按菜单打开） -->
+        <activity
+            android:name=".ui.items.QuickTodoActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Resound.QuickAction"
+            android:taskAffinity="${applicationId}.quicktodo"
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".quick.QuickActionActivity"
             android:exported="true"

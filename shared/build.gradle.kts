@@ -21,7 +21,7 @@ kotlin {
         commonMain.dependencies {
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+            api("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
             api("io.ktor:ktor-client-core:3.3.3")
             api("io.ktor:ktor-client-websockets:3.3.3")
         }

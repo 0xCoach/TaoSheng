@@ -1,17 +1,11 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.review
-
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
-import java.time.ZonedDateTime
-
-/** 日回顾按设置的本地时刻切日，窗口为（上一日截止时刻，当日截止时刻]。 */
+import java.time.*
+import kotlinx.datetime.toKotlinLocalDate
+import kotlinx.datetime.toJavaLocalDate
+import app.resound.digest.sharedZone
+import app.resound.digest.core.ReviewClock
 internal object ReviewTime {
-    fun cutoff(date: LocalDate, minutes: Int, zone: ZoneId): ZonedDateTime =
-        date.atTime(LocalTime.ofSecondOfDay(minutes.coerceIn(0, 1439) * 60L)).atZone(zone)
-
-    fun targetDate(now: ZonedDateTime, minutes: Int): LocalDate {
-        val today = now.toLocalDate()
-        return if (now.isBefore(cutoff(today, minutes, now.zone))) today.minusDays(1) else today
-    }
+    fun cutoff(date: LocalDate, minutes: Int, zone: ZoneId): ZonedDateTime = Instant.ofEpochMilli(ReviewClock.cutoff(date.toKotlinLocalDate(), minutes, zone.sharedZone()).toEpochMilliseconds()).atZone(zone)
+    fun targetDate(now: ZonedDateTime, minutes: Int): LocalDate = ReviewClock.targetDate(now.toInstant().toEpochMilli(), minutes, now.zone.sharedZone()).toJavaLocalDate()
 }

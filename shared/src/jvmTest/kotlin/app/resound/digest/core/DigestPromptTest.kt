@@ -1,17 +1,19 @@
-package app.resound.digest
+package app.resound.digest.core
 
-import app.resound.data.TranscriptLineEntity
+import app.resound.net.NetLlmError as LlmError
+import app.resound.net.NetLlmException as LlmException
+
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 
 class DigestPromptTest {
-    private val zone = ZoneId.of("Asia/Shanghai")
+    private val zone = TimeZone.of("Asia/Shanghai")
     private val base = Instant.parse("2026-10-23T01:00:00Z").toEpochMilli()
     private val lines = (1..8).map { n ->
-        TranscriptLineEntity(
+        TranscriptLineData(
             id = 100L + n * 7, segmentId = 1, startAt = base + (n - 1) * 1000,
             endAt = base + n * 1000, text = "第${n}句", speakerTag = null,
         )
@@ -20,7 +22,7 @@ class DigestPromptTest {
     private fun parse(json: String) = DigestPrompt.parse(json, lines, zone)
 
     @Test fun calendarLabelsAndInclusiveWindow() {
-        val rows = DigestPrompt.calendar(LocalDate.of(2026, 10, 23)).lines()
+        val rows = DigestPrompt.calendar(LocalDate(2026, 10, 23)).lines()
         assertEquals(22, rows.size)
         assertEquals("2026-10-28 周三（下周周三）", rows.single { it.startsWith("2026-10-28") })
         assertEquals("2026-10-24 周六（本周周六，明天）", rows.single { it.startsWith("2026-10-24") })

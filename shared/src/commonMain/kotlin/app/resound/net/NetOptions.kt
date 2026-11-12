@@ -53,3 +53,7 @@ internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = f
         }
     }
 }
+
+/** Android 旧网络门面的 JSON 文本适配入口，复用同一组选项规则。 */
+fun llmOptionsJson(preset: LlmPreset, body: String, thinking: Boolean = false): String =
+    Obj(body).also { applyNetOptions(preset, it, thinking) }.toString()

@@ -14,7 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import org.json.JSONArray
 import java.time.LocalDate
 
-internal class DigestBatchLimitException : IllegalArgumentException("单段转写内容过长，请拆分后再整理")
+
 
 /**
  * 把已转写的句子整理成事件。按“段落”处理：相邻两句间隔超过停顿时长（默认 [GAP_MS]，可在设置里调）就算另一段；
@@ -300,41 +300,12 @@ class DigestRunner(
 
     private fun gapMillis() = settings.pauseMinutes.value * 60_000L
 
-    internal suspend fun closed(session: List<TranscriptLineEntity>, force: Boolean): Boolean {
-        val gap = gapMillis()
-        if (voiceprintReady() && dao.voiceprintPending(session.map { it.segmentId }.distinct()) > 0) return false
-        val start = session.first().startAt
-        val end = session.maxOf { it.endAt }
-        val quietLongEnough = force || now() - end >= gap
-        return quietLongEnough && dao.unfinishedSegments(start - gap, if (force) end else end + gap) == 0
-    }
+    private val windows = DigestWindows(RoomDigestWindowStore(dao), app.resound.platform.NowMillis(now))
+    internal suspend fun closed(session: List<TranscriptLineEntity>, force: Boolean): Boolean =
+        windows.closed(session.map { it.snapshot() }, force, gapMillis(), voiceprintReady())
 
-
-    /**
-     * 段落还没结束但已经说了很久：只看已过去停顿时长的句子（后面不会再插进新句子），
-     * 前半截至少一个停顿时长那么长，在其中最长的停顿处切开，返回可以先整理的前半截；不满足返回空。
-     */
-    internal suspend fun settledPrefix(session: List<TranscriptLineEntity>): List<TranscriptLineEntity> {
-        val start = session.first().startAt
-        val gap = gapMillis()
-        val settled = now() - gap
-        if (settled - start < settings.maxWaitMinutes.value * 60_000L) return emptyList()
-        var cut = -1
-        var bestGap = -1L
-        var prefixEnd = Long.MIN_VALUE
-        for (i in 0 until session.size - 1) {
-            prefixEnd = maxOf(prefixEnd, session[i].endAt)
-            if (prefixEnd > settled) break
-            if (prefixEnd - start < gap) continue
-            val pause = session[i + 1].startAt - prefixEnd
-            if (pause >= bestGap) { bestGap = pause; cut = i }
-        }
-        if (cut < 0) return emptyList()
-        val prefix = session.subList(0, cut + 1)
-        if (voiceprintReady() && dao.voiceprintPending(prefix.map { it.segmentId }.distinct()) > 0) return emptyList()
-        val end = prefix.maxOf { it.endAt }
-        return if (dao.unfinishedSegments(start - gap, end) == 0) prefix else emptyList()
-    }
+    internal suspend fun settledPrefix(session: List<TranscriptLineEntity>): List<TranscriptLineEntity> =
+        session.take(windows.settledPrefixSize(session.map { it.snapshot() }, gapMillis(), settings.maxWaitMinutes.value * 60_000L, voiceprintReady()))
 
     private fun failed(firstLineId: Long): Int {
         val n = prefs.getInt("fail-$firstLineId", 0) + 1
@@ -364,29 +335,8 @@ class DigestRunner(
         /** 每句除正文外的编号、时间、说话人（如“[123] 12:34:56 说话人1：”）约 20 字，留点余量 */
         const val LINE_OVERHEAD_CHARS = 30
 
-        internal fun batches(lines: List<TranscriptLineEntity>): List<List<TranscriptLineEntity>> {
-            val chunks = mutableListOf<MutableList<TranscriptLineEntity>>()
-            var chars = 0
-            for (line in lines) {
-                val size = line.text.length + LINE_OVERHEAD_CHARS
-                if (size > MAX_BATCH_CHARS) throw DigestBatchLimitException()
-                if (chunks.isEmpty() || chunks.last().size >= MAX_LINES || chars + size > MAX_BATCH_CHARS) {
-                    chunks += mutableListOf<TranscriptLineEntity>(); chars = 0
-                }
-                chunks.last() += line; chars += size
-            }
-            return chunks
-        }
+        internal fun batches(lines: List<TranscriptLineEntity>) = DigestBatches.batches(lines) { it.text }
+        fun sessions(lines: List<TranscriptLineEntity>, gapMillis: Long = GAP_MS) = DigestBatches.sessions(lines, gapMillis, { it.startAt }, { it.endAt })
 
-        /** 按时间间隔分段 */
-        fun sessions(lines: List<TranscriptLineEntity>, gapMillis: Long = GAP_MS): List<List<TranscriptLineEntity>> {
-            val out = mutableListOf<MutableList<TranscriptLineEntity>>()
-            for (line in lines) {
-                val current = out.lastOrNull()
-                if (current != null && line.startAt - current.maxOf { it.endAt } <= gapMillis) current += line
-                else out += mutableListOf(line)
-            }
-            return out
-        }
     }
 }

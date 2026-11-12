@@ -10,9 +10,9 @@ if [ -z "$xcode" ]; then echo "没找到 Xcode，跳过 iOS 编译检查"; exit 
 export DEVELOPER_DIR="$xcode/Contents/Developer"
 export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}"
 # 单独登记后台进程，避免并行任务的 ./gradlew --stop 把本次编译停掉
-reg="${TMPDIR:-/tmp}/taosheng-ios-gradle"
+reg="${TAOSHENG_GRADLE_REGISTRY:-${TMPDIR:-/tmp}/taosheng-ios-gradle}"
 mkdir -p "$reg"
-./gradlew -Dorg.gradle.daemon.registry.base="$reg" -Ptaosheng.ios=true \
+./gradlew -Dorg.gradle.daemon.registry.base="$reg" -Ptaosheng.ios=true -PskipSigningSecrets=true \
   :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 \
   :devices:compileKotlinIosArm64 :devices:compileKotlinIosSimulatorArm64 -q
 code=$?

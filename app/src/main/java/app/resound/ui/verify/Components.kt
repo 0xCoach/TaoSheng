@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -98,7 +99,7 @@ fun Pill(text: String, filled: Boolean, modifier: Modifier = Modifier, onClick: 
             .padding(horizontal = 16.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = RsType.subhead, color = if (filled) Color.White else c.accent)
+        Text(text, style = RsType.subhead, color = if (filled) c.onAccent else c.accent)
     }
 }
 
@@ -188,5 +189,21 @@ fun Section(title: String, modifier: Modifier = Modifier, trailing: (@Composable
             trailing?.invoke()
         }
         content()
+    }
+}
+
+/**
+ * 全 App 统一的开关（原来 9 个页面各写一份）。打开：主题色底 + 主题色上的文字色滑块
+ * （日间橙底白滑块；夜间白底深色滑块）；关闭：浅底条 + 白滑块。
+ */
+@Composable
+fun RsToggle(on: Boolean, onChange: (Boolean) -> Unit) {
+    val c = Rs.colors
+    val track by androidx.compose.animation.animateColorAsState(if (on) c.accent else c.track, label = "toggleTrack")
+    val knob by androidx.compose.animation.animateColorAsState(if (on) c.onAccent else Color.White, label = "toggleKnob")
+    val x by androidx.compose.animation.core.animateDpAsState(if (on) 20.dp else 0.dp,
+        androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium), label = "toggleX")
+    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
+        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(knob))
     }
 }

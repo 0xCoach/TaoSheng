@@ -191,14 +191,7 @@ private fun Field(value: String, hint: String, type: KeyboardType, secret: Boole
 
 /** 苹果风格开关 */
 @Composable
-private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)
 
 private fun dateTime(at: Long): String =
     Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 HH:mm:ss"))

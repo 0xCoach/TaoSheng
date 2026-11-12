@@ -306,20 +306,13 @@ private fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     // 未选中用白底：放在浅色分块里也看得清
     val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "pushChoice")
-    val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "pushChoiceFg")
+    val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "pushChoiceFg")
     Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
         modifier = Modifier.springClick(onClick).clip(CircleShape).background(bg).padding(horizontal = 14.dp, vertical = 8.dp))
 }
 
 @Composable
-private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)
 
 private val KIND_GROUPS = listOf(
     "消息推送" to listOf(PushKind.PushPlus, PushKind.WeCom, PushKind.ServerChan, PushKind.Feishu, PushKind.DingTalk, PushKind.Telegram),
@@ -496,7 +489,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
                         val cur = t.weekdays.ifEmpty { (1..7).toSet() }
                         val next = if (d in cur) cur - d else cur + d
                         if (next.isNotEmpty()) onChange(sub.copy(trigger = t.copy(weekdays = if (next.size == 7) emptySet() else next)))
-                    }, contentAlignment = Alignment.Center) { Text(w, style = RsType.subhead, color = if (on) Color.White else c.textSecondary) }
+                    }, contentAlignment = Alignment.Center) { Text(w, style = RsType.subhead, color = if (on) c.onAccent else c.textSecondary) }
                 }
             }
         }

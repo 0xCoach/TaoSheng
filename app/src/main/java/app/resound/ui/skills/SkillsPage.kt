@@ -258,14 +258,7 @@ private fun shortTime(at: Long): String {
 }
 
 @Composable
-internal fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+internal fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)
 
 /** 分段胶囊：一排选项，选中的白底 */
 @Composable
@@ -345,7 +338,7 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                                     if (next.isNotEmpty()) repo.setSchedule(s.id, t.minutes, if (next.size == 7) emptySet() else next)
                                 },
                                 contentAlignment = Alignment.Center) {
-                                Text(WEEK[d - 1], style = RsType.subhead, color = if (on) Color.White else c.textSecondary)
+                                Text(WEEK[d - 1], style = RsType.subhead, color = if (on) c.onAccent else c.textSecondary)
                             }
                         }
                     }
@@ -376,7 +369,7 @@ private fun SkillDetail(s: Skill, st: SkillStatus?, repo: SkillRepository, prese
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     (listOf<LlmPreset?>(null) + presets).forEach { p ->
                         val on = s.presetId == p?.id
-                        Text(p?.name ?: "跟随整理模型", style = RsType.subhead, color = if (on) Color.White else c.text,
+                        Text(p?.name ?: "跟随整理模型", style = RsType.subhead, color = if (on) c.onAccent else c.text,
                             modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.fill).springClick { repo.setPreset(s.id, p?.id) }
                                 .padding(horizontal = 14.dp, vertical = 8.dp))
                     }

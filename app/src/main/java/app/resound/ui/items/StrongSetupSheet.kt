@@ -60,7 +60,7 @@ internal fun StrongSetupSheet(onDismiss: () -> Unit) {
                     Spacer(Modifier.width(10.dp))
                     when (item.ok) {
                         true -> Text("已开", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.good)
-                        false -> Text("去打开", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White,
+                        false -> Text("去打开", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent,
                             modifier = Modifier.clip(CircleShape).background(c.accent).springClick { item.open(context) }
                                 .padding(horizontal = 14.dp, vertical = 7.dp))
                         null -> Text("去看看", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
@@ -82,7 +82,7 @@ private fun StatusDot(ok: Boolean?) {
     val c = Rs.colors
     when (ok) {
         true -> Box(Modifier.size(22.dp).clip(CircleShape).background(c.good), contentAlignment = Alignment.Center) {
-            Text("✓", style = RsType.caption.copy(fontWeight = FontWeight.Bold), color = Color.White)
+            Text("✓", style = RsType.caption.copy(fontWeight = FontWeight.Bold), color = c.onAccent)
         }
         false -> Box(Modifier.size(22.dp).clip(CircleShape).border(2.dp, c.accent, CircleShape))
         null -> Box(Modifier.size(22.dp).clip(CircleShape).background(c.separator), contentAlignment = Alignment.Center) {

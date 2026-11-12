@@ -50,16 +50,16 @@ import java.time.format.DateTimeFormatter
 private data class Tint(val light: Color, val dark: Color, val ink: Color, val darkInk: Color)
 
 private val TINTS = mapOf(
-    "meeting" to Tint(Color(0xFFDCE6F2), Color(0xFF2E3A48), Color(0xFF4F6E92), Color(0xFFA9C4E4)),
-    "sunset" to Tint(Color(0xFFFCE3CF), Color(0xFF4A3426), Color(0xFFE0782E), Color(0xFFE59E72)),
-    "calendar_week" to Tint(Color(0xFFE6E1F3), Color(0xFF36314A), Color(0xFF6E5FA6), Color(0xFFC2B5F5)),
-    "review" to Tint(Color(0xFFF8DCD3), Color(0xFF4A2F2A), Color(0xFFC8624A), Color(0xFFF2A08C)),
-    "timeline" to Tint(Color(0xFFEDE5D6), Color(0xFF3C3529), Color(0xFF8C7652), Color(0xFFD6C29E)),
-    "mic" to Tint(Color(0xFFF7E6BF), Color(0xFF473C22), Color(0xFFB98A1C), Color(0xFFEACB7A)),
-    "heart" to Tint(Color(0xFFF6D9E1), Color(0xFF4A2B34), Color(0xFFC25A78), Color(0xFFEFA3B9)),
-    "bulb" to Tint(Color(0xFFD7EEE4), Color(0xFF243F35), Color(0xFF3F8F6F), Color(0xFF8FD6B8)),
-    "chat" to Tint(Color(0xFFE2ECD8), Color(0xFF313D28), Color(0xFF66864A), Color(0xFFB5D493)),
-    "star" to Tint(Color(0xFFFBE9C6), Color(0xFF4A3D22), Color(0xFFD08A16), Color(0xFFF4C66E)),
+    "meeting" to Tint(Color(0xFFDCE6F2), Color(0xFF2E3A48), Color(0xFF4F6E92), Color(0xFFADC0D7)),
+    "sunset" to Tint(Color(0xFFFCE3CF), Color(0xFF4A3426), Color(0xFFE0782E), Color(0xFFD09D7D)),
+    "calendar_week" to Tint(Color(0xFFE6E1F3), Color(0xFF36314A), Color(0xFF6E5FA6), Color(0xFFC1B8E6)),
+    "review" to Tint(Color(0xFFF8DCD3), Color(0xFF4A2F2A), Color(0xFFC8624A), Color(0xFFDDA293)),
+    "timeline" to Tint(Color(0xFFEDE5D6), Color(0xFF3C3529), Color(0xFF8C7652), Color(0xFFCBBCA2)),
+    "mic" to Tint(Color(0xFFF7E6BF), Color(0xFF473C22), Color(0xFFB98A1C), Color(0xFFD8C288)),
+    "heart" to Tint(Color(0xFFF6D9E1), Color(0xFF4A2B34), Color(0xFFC25A78), Color(0xFFDEA8B8)),
+    "bulb" to Tint(Color(0xFFD7EEE4), Color(0xFF243F35), Color(0xFF3F8F6F), Color(0xFF95C9B3)),
+    "chat" to Tint(Color(0xFFE2ECD8), Color(0xFF313D28), Color(0xFF66864A), Color(0xFFB1C798)),
+    "star" to Tint(Color(0xFFFBE9C6), Color(0xFF4A3D22), Color(0xFFD08A16), Color(0xFFDFBE7F)),
 )
 
 @Composable

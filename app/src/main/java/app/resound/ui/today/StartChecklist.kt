@@ -155,7 +155,7 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
                     else -> c.accentSoft
                 }), contentAlignment = Alignment.Center) {
                     Text(if (step.done) "✓" else "${i + 1}", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold),
-                        color = when { step.done -> c.good; i == next -> Color.White; else -> c.accent })
+                        color = when { step.done -> c.good; i == next -> c.onAccent; else -> c.accent })
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -185,7 +185,7 @@ internal fun downloadLine(settings: AndroidTranscribeSettings?, backend: LocalBa
 @Composable
 private fun SmallAction(text: String, filled: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
-    Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (filled) Color.White else c.accent, maxLines = 1,
+    Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (filled) c.onAccent else c.accent, maxLines = 1,
         modifier = Modifier.springClick(onClick).clip(CircleShape).background(if (filled) c.accent else c.accentSoft).padding(horizontal = 14.dp, vertical = 6.dp))
 }
 

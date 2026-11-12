@@ -57,7 +57,9 @@ fun GlyphIcon(glyph: SettingsGlyph, color: Color, size: Dp = 16.dp, strokeWidth:
 /** 设置行前的彩色圆角方块图标 */
 @Composable
 fun SettingsIcon(glyph: SettingsGlyph, tint: Color, size: Dp = 28.dp) {
-    Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.29f)).background(tint), contentAlignment = Alignment.Center) {
+    // 夜间只用黑白灰为主：图标底色保留（表示类型），但向深灰靠 30%，不抢眼
+    val bg = if (app.resound.ui.theme.Rs.colors.isDark) androidx.compose.ui.graphics.lerp(tint, Color(0xFF2C2C2E), 0.3f) else tint
+    Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.29f)).background(bg), contentAlignment = Alignment.Center) {
         GlyphIcon(glyph, Color.White, size * 0.57f)
     }
 }

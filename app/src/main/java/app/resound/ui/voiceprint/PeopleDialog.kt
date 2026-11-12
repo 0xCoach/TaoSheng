@@ -249,14 +249,7 @@ fun SpeakerSegmentationSettings() {
 }
 
 @Composable
-private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)
 
 /** 原话长按“这是谁”：选已有的人，或输入新名字 */
 @Composable
@@ -279,7 +272,7 @@ fun AssignPersonDialog(repo: VoiceprintRepository, lineId: Long, onDismiss: () -
                     ) {
                         Avatar(person, 28.dp)
                         Spacer(Modifier.width(6.dp))
-                        Text(person.name, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.text)
+                        Text(person.name, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.text)
                     }
                 }
             }

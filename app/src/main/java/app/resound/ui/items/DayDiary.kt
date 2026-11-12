@@ -171,7 +171,7 @@ private fun DayCell(d: LocalDate, weekday: String?, selected: Boolean, today: Bo
     val c = Rs.colors
     val bg by animateColorAsState(if (selected) c.accent else c.accent.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMediumLow), label = "dayBg")
     val fg = when {
-        selected -> Color.White
+        selected -> c.onAccent
         !enabled -> c.separator
         today -> c.accent
         else -> c.text
@@ -593,22 +593,14 @@ internal fun ExportSheet(diary: DiaryRepository, date: LocalDate, onClose: () ->
 private fun Choice(text: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
-    val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "choiceFg")
+    val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "choiceFg")
     Box(modifier.clip(CircleShape).background(bg).springClick(onClick).padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg)
     }
 }
 
 @Composable
-private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by androidx.compose.animation.core.animateDpAsState(if (on) 20.dp else 0.dp,
-        spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

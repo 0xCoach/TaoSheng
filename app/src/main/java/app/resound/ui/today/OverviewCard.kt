@@ -66,6 +66,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/** 夜间整个应用只用黑白灰，品牌橙只留在首页主卡：暖光、圆点、声波、“现在整理”、★ */
+private val BrandOrange = Color(0xFFD47A44)
+private val BrandOrangeSoft = Color(0xFF3A2618)
+
 /** 主卡用色：日间是暖橙渐变上的白字；夜间是深灰卡片 + 左上角一束淡淡暖光，橙色只做点缀 */
 private class CardInk(
     val text: Color, val soft: Color, val faint: Color,
@@ -80,8 +84,8 @@ private fun cardInk(): CardInk {
     return if (c.isDark) CardInk(
         text = c.text, soft = c.textSecondary, faint = c.textTertiary,
         pill = c.elevated, pillText = c.text,
-        primary = c.accent, primaryText = Color.White,
-        wave = c.accent, dot = c.accent, divider = c.separator,
+        primary = BrandOrange, primaryText = Color.White,
+        wave = BrandOrange, dot = BrandOrange, divider = c.separator,
     ) else CardInk(
         text = Color.White, soft = Color.White.copy(alpha = 0.85f), faint = Color.White.copy(alpha = 0.7f),
         pill = Color.White.copy(alpha = 0.2f), pillText = Color.White,
@@ -122,7 +126,7 @@ internal fun OverviewCard(
     val background = if (c.isDark) Modifier
         .clip(shape)
         .background(c.card)
-        .background(Brush.radialGradient(listOf(c.accent.copy(alpha = 0.22f), c.accent.copy(alpha = 0.06f), Color.Transparent),
+        .background(Brush.radialGradient(listOf(BrandOrange.copy(alpha = 0.22f), BrandOrange.copy(alpha = 0.06f), Color.Transparent),
             center = Offset(0f, 0f), radius = 900f))
         .border(0.5.dp, c.hairline, shape)
     else Modifier
@@ -424,12 +428,12 @@ private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String,
     val c = Rs.colors
     val bg = when {
         filled -> ink.primary
-        accent && c.isDark -> c.accentSoft
+        accent && c.isDark -> BrandOrangeSoft
         else -> ink.pill
     }
     val fg = when {
         filled -> ink.primaryText
-        accent && c.isDark -> c.accent
+        accent && c.isDark -> BrandOrange
         else -> ink.pillText
     }
     Box(Modifier.size(44.dp).springClick(onClick).semanticsLabel(label), contentAlignment = Alignment.Center) {
@@ -460,7 +464,7 @@ private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String,
         // 记下了几处重点：右上角小数字，不另占一行
         if (badge > 0) Text(if (badge > 9) "9+" else "$badge", style = RsType.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold),
             color = Color.White, modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 3.dp)
-                .clip(CircleShape).background(Rs.colors.accent).padding(horizontal = 4.dp, vertical = 1.dp))
+                .clip(CircleShape).background(if (Rs.colors.isDark) BrandOrange else Rs.colors.accent).padding(horizontal = 4.dp, vertical = 1.dp))
     }
 }
 

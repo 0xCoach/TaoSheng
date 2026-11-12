@@ -131,7 +131,7 @@ fun HourIndex(slots: List<HourSlot>, currentKey: Any?, modifier: Modifier, onJum
             Column(Modifier.fillMaxSize()) {
                 slots.forEachIndexed { s, slot ->
                     val on = s == activeSlot
-                    val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "hourFg")
+                    val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "hourFg")
                     val bg by animateColorAsState(if (on) c.accent else c.accent.copy(alpha = 0f), label = "hourBg")
                     Box(Modifier.height(with(density) { heights[s].toDp() }).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                         Text("${slot.hour}", style = RsType.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = fg,

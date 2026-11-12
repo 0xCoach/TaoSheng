@@ -103,7 +103,7 @@ private fun OriginalAudioSettings(audio: OriginalAudio) {
                 decorationBox = { inner -> Box { if (input.isEmpty()) Text("填天数", style = RsType.body, color = c.textTertiary); inner() } })
             Text(" 天", style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.width(10.dp))
-            Text("确定", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (valid) Color.White else c.textTertiary,
+            Text("确定", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (valid) c.onAccent else c.textTertiary,
                 modifier = Modifier.clip(CircleShape).background(if (valid) c.accent else c.fill)
                     .springClick { if (valid) { editing = false; choose(n!!) } }.padding(horizontal = 16.dp, vertical = 9.dp))
         }

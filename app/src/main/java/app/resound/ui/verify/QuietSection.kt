@@ -215,7 +215,7 @@ private fun DayDot(label: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by androidx.compose.animation.animateColorAsState(if (on) c.accent else c.card, label = "day")
     Box(Modifier.size(38.dp).clip(CircleShape).background(bg).springClick(onClick), contentAlignment = Alignment.Center) {
-        Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) androidx.compose.ui.graphics.Color.White else c.textSecondary)
+        Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary)
     }
 }
 

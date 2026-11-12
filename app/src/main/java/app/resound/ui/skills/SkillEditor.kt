@@ -157,7 +157,7 @@ fun SkillEditor(skill: Skill, prompt: String, repo: SkillRepository, isNew: Bool
                 // 对话：我的话靠右橙底，追问靠左白底
                 turns.forEach { t ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (t.fromUser) Arrangement.End else Arrangement.Start) {
-                        Text(t.text, style = RsType.subhead, color = if (t.fromUser) Color.White else c.text,
+                        Text(t.text, style = RsType.subhead, color = if (t.fromUser) c.onAccent else c.text,
                             modifier = Modifier.fillMaxWidth(0.82f).wrapContentWidth(if (t.fromUser) Alignment.End else Alignment.Start)
                                 .clip(RoundedCornerShape(14.dp)).background(if (t.fromUser) c.accent else c.card).padding(horizontal = 12.dp, vertical = 8.dp))
                     }
@@ -241,7 +241,7 @@ fun SkillEditor(skill: Skill, prompt: String, repo: SkillRepository, isNew: Bool
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     TYPES.forEach { (t, label) ->
                         val on = f.type == t
-                        Text(label, style = RsType.caption, color = if (on) Color.White else c.textSecondary,
+                        Text(label, style = RsType.caption, color = if (on) c.onAccent else c.textSecondary,
                             modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.card).springClick { f.type = t }
                                 .padding(horizontal = 10.dp, vertical = 5.dp))
                     }

@@ -339,7 +339,7 @@ fun TodayScreen(
     androidx.compose.animation.AnimatedVisibility(copyNote != null, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding + 24.dp),
         enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
         exit = androidx.compose.animation.fadeOut()) {
-        Text(copyNote ?: "", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = Color.White,
+        Text(copyNote ?: "", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.onAccent,
             modifier = Modifier.clip(CircleShape).background(c.accent).padding(horizontal = 18.dp, vertical = 10.dp))
     }
     ReachHereChip(reach, selection, boxTop,
@@ -599,12 +599,12 @@ internal fun ModelCheckList(items: List<app.resound.digest.ModelCheckItem>) {
 @Composable
 private fun PendingCard(item: MemoryItem, modifier: Modifier, onOpen: () -> Unit, onAccept: () -> Unit, onIgnore: () -> Unit) {
     val c = Rs.colors
-    // 浅橙底：表示“需要你处理”，和下面的记录区分开
-    RsCard(modifier.springClick(onOpen), padding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp), color = c.accentSoft) {
+    // 日间浅橙底表示“需要你处理”；夜间不铺色（已在“待确认”区里），和其他卡片一样深灰细边，颜色只留给要紧的日期和“接受”
+    RsCard(modifier.springClick(onOpen), padding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp), color = if (c.isDark) null else c.accentSoft) {
         // 放不下时日期换到下一行，不会被挤成一字一行
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, itemVerticalAlignment = Alignment.CenterVertically) {
             CategoryChip(item.category, item.kind)
-            item.dueAt?.let { Text(friendlyDue(it, item.dueText), style = RsType.caption, color = c.accent, maxLines = 1, softWrap = false) }
+            item.dueAt?.let { Text(friendlyDue(it, item.dueText), style = RsType.caption, color = dueColor(it), maxLines = 1, softWrap = false) }
         }
         Spacer(Modifier.height(8.dp))
         // 固定两行高度，并排的两张卡底部按钮对齐
@@ -617,14 +617,31 @@ private fun PendingCard(item: MemoryItem, modifier: Modifier, onOpen: () -> Unit
     }
 }
 
+/** 到期日期的颜色：已过期红、今天到期黄；以后的日间橙、夜间灰（夜间颜色只留给要紧的） */
+@Composable
+private fun dueColor(dueAt: Long): Color {
+    val c = Rs.colors
+    val due = Instant.ofEpochMilli(dueAt).atZone(ZoneId.systemDefault()).toLocalDate()
+    val today = LocalDate.now()
+    return when {
+        due.isBefore(today) -> c.critical
+        due == today -> c.warning
+        c.isDark -> c.textSecondary
+        else -> c.accent
+    }
+}
+
+/** 卡片上的小按钮：主要操作实心；次要操作日间白底橙字，夜间只留灰字（降到最低存在感） */
 @Composable
 internal fun SmallPill(text: String, filled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = Rs.colors
+    val bg = when { filled -> c.accent; c.isDark -> Color.Transparent; else -> c.card }
+    val fg = when { filled -> c.onAccent; c.isDark -> c.textSecondary; else -> c.accent }
     Box(
-        modifier.springClick(onClick).clip(CircleShape).background(if (filled) c.accent else c.card)
+        modifier.springClick(onClick).clip(CircleShape).background(bg)
             .padding(horizontal = 16.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (filled) Color.White else c.accent) }
+    ) { Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg) }
 }
 
 /** 标题后面的小号分类标签：“待办 2”；颜色按分类取（数量不参与取色） */
@@ -652,12 +669,12 @@ private fun categoryColor(category: String): Color {
     val dark = c.isDark
     return when (category) {
         "待办" -> c.accent
-        "约定" -> if (dark) Color(0xFF8EDDD5) else Color(0xFF2E9C93)
-        "备忘" -> if (dark) Color(0xFFA9C4E4) else Color(0xFF4F86C6)
-        "灵感" -> if (dark) Color(0xFFC2B5F5) else Color(0xFF7E68C2)
-        "关键信息" -> if (dark) Color(0xFFEFA3B9) else Color(0xFFCC5E82)
+        "约定" -> if (dark) Color(0xFF7FB8B1) else Color(0xFF2E9C93)
+        "备忘" -> if (dark) Color(0xFF93A9C4) else Color(0xFF4F86C6)
+        "灵感" -> if (dark) Color(0xFFA79CCF) else Color(0xFF7E68C2)
+        "关键信息" -> if (dark) Color(0xFFC9909F) else Color(0xFFCC5E82)
         "决定" -> c.good
-        else -> if (dark) Color(0xFFD6C29E) else Color(0xFFA9803C)
+        else -> if (dark) Color(0xFFB8A684) else Color(0xFFA9803C)
     }
 }
 
@@ -1414,7 +1431,7 @@ private enum class ChipTone { Accent, AccentSoft, Plain, Danger, DangerSoft }
 private fun ActionChip(text: String, tone: ChipTone, modifier: Modifier, onClick: () -> Unit) {
     val c = Rs.colors
     val (bg, fg) = when (tone) {
-        ChipTone.Accent -> c.accent to Color.White
+        ChipTone.Accent -> c.accent to c.onAccent
         ChipTone.AccentSoft -> c.accentSoft to c.accent
         ChipTone.Plain -> c.card to c.text
         ChipTone.Danger -> c.critical to Color.White

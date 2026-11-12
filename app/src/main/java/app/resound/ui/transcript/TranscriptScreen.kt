@@ -333,7 +333,7 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
                         ProgressRing(q.runDone, q.runTotal, c.accent, Modifier.size(14.dp))
                         Spacer(Modifier.width(7.dp))
                     }
-                    Text(if (q.running) runLabel(q.runDone, q.runTotal) else "现在转写", style = RsType.subhead, color = if (q.running) c.accent else Color.White)
+                    Text(if (q.running) runLabel(q.runDone, q.runTotal) else "现在转写", style = RsType.subhead, color = if (q.running) c.accent else c.onAccent)
                 }
                 if (q.failed > 0 && !q.running) {
                     Pill("重试没转成功的", filled = false) { repo.retryFailed() }
@@ -701,14 +701,7 @@ internal fun classModeLine(state: app.resound.transcribe.ClassModeState, now: Lo
 
 /** 苹果风格开关，暖橙底。 */
 @Composable
-private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)
 
 // ---------- 每段录音 ----------
 
@@ -1037,7 +1030,7 @@ private fun BoxScope.SegmentSelectBar(selection: app.resound.ui.today.TimelineSe
             }
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BarAction("▶ 播放", c.accentSoft, c.accent, n > 0, Modifier.weight(1f), onPlay)
-                BarAction("导出", c.accent, Color.White, n > 0, Modifier.weight(1f), onExport)
+                BarAction("导出", c.accent, c.onAccent, n > 0, Modifier.weight(1f), onExport)
                 BarAction("复制", c.fill, c.text, n > 0, Modifier.weight(1f), onCopy)
                 if (app.resound.AppGraph.isRedoReady) BarAction("重新转写", c.fill, c.text, n > 0, Modifier.weight(1.4f), onRetranscribe)
                 BarAction("删除", c.critical.copy(alpha = 0.1f), c.critical, n > 0, Modifier.weight(1f), onDelete)

@@ -79,7 +79,7 @@ internal fun ClassModePicker(state: ClassModeState, speed: AsrSpeedSettings, onS
             Box(Modifier.weight(1f).clip(CircleShape).background(c.accent)
                 .springClick { speed.startClassMode(if (unlimited) null else minutes); onStarted() }.padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center) {
-                Text("开始课堂模式", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = Color.White)
+                Text("开始课堂模式", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.onAccent)
             }
         }
     }

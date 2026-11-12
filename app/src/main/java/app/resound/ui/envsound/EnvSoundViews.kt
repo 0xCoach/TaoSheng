@@ -216,7 +216,7 @@ private fun FlaggedSheet(repo: EnvSoundRepository, list: List<SegmentSound>, onD
 @Composable
 private fun Pill(text: String, primary: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
-    Text(text, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = if (primary) Color.White else c.accent,
+    Text(text, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = if (primary) c.onAccent else c.accent,
         modifier = Modifier.clip(CircleShape).background(if (primary) c.accent else c.accentSoft).springClick(onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp))
 }
@@ -310,11 +310,7 @@ private fun SwitchRow(title: String, desc: String, on: Boolean, onChange: (Boole
             Text(desc, style = RsType.caption, color = c.textSecondary)
         }
         Spacer(Modifier.width(12.dp))
-        val track by animateColorAsState(if (on) c.accent else c.separator, label = "track")
-        val x by animateDpAsState(if (on) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-        Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-            Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-        }
+        app.resound.ui.verify.RsToggle(on, onChange)
     }
 }
 

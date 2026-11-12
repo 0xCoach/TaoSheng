@@ -87,7 +87,7 @@ fun ProvidersCard(providers: LlmProviders) {
             Row(Modifier.fillMaxWidth().springClick { if (!on) providers.activate(p.id) }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(20.dp).clip(CircleShape).then(if (on) Modifier.background(c.accent) else Modifier.border(1.5.dp, c.separator, CircleShape)),
                     contentAlignment = Alignment.Center) {
-                    if (on) Box(Modifier.size(8.dp).clip(CircleShape).background(Color.White))
+                    if (on) Box(Modifier.size(8.dp).clip(CircleShape).background(c.onAccent))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -253,11 +253,11 @@ private fun ProviderSheet(providers: LlmProviders, p: SavedProvider, isNew: Bool
         if (template != null) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             template.models.forEachIndexed { i, m ->
                 val on = !otherModel && m == model
-                Text(m + if (i == 0) " · 推荐" else "", style = RsType.subhead, color = if (on) Color.White else c.textSecondary,
+                Text(m + if (i == 0) " · 推荐" else "", style = RsType.subhead, color = if (on) c.onAccent else c.textSecondary,
                     modifier = Modifier.clip(CircleShape).background(if (on) c.accent else c.fill).springClick { model = m; otherModel = false; result = null }
                         .padding(horizontal = 12.dp, vertical = 8.dp))
             }
-            Text("其他", style = RsType.subhead, color = if (otherModel) Color.White else c.textSecondary,
+            Text("其他", style = RsType.subhead, color = if (otherModel) c.onAccent else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(if (otherModel) c.accent else c.fill).springClick { otherModel = true; model = ""; result = null }
                     .padding(horizontal = 12.dp, vertical = 8.dp))
         }
@@ -337,12 +337,4 @@ private fun SmallChip(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun FailoverToggle(on: Boolean, onChange: (Boolean) -> Unit) {
-    val c = Rs.colors
-    val track by androidx.compose.animation.animateColorAsState(if (on) c.accent else c.separator, label = "track")
-    val x by androidx.compose.animation.core.animateDpAsState(if (on) 20.dp else 0.dp,
-        androidx.compose.animation.core.spring(dampingRatio = 0.65f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium), label = "knob")
-    Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { onChange(!on) }.padding(2.dp)) {
-        Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-    }
-}
+private fun FailoverToggle(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.verify.RsToggle(on, onChange)

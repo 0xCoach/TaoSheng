@@ -375,7 +375,7 @@ private fun HealthCard(r: HealthReport, capture: CaptureController, onOpen: (Set
                         }
                         val primary = i == 0
                         Text(issue.fixLabel, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold),
-                            color = if (primary) Color.White else c.accent,
+                            color = if (primary) c.onAccent else c.accent,
                             modifier = Modifier.clip(CircleShape).background(if (primary) c.accent else c.accentSoft)
                                 .springClick { fix(issue) }.padding(horizontal = 12.dp, vertical = 6.dp))
                     }

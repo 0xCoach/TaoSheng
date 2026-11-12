@@ -218,7 +218,7 @@ internal fun KindChoice(selected: app.resound.importer.ImportKind?, onSelect: (a
         app.resound.importer.ImportKind.entries.forEach { k ->
             val on = k == selected
             val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "kind")
-            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
     }
@@ -257,7 +257,7 @@ private fun StartEditor(start: Long, onChange: (Long) -> Unit) {
                 val on = d == day
                 val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "importDay")
                 Text(listOf("今天", "昨天", "前天", d.format(DateTimeFormatter.ofPattern("M月d日")))[back.toInt()],
-                    style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+                    style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
                     modifier = Modifier.clip(CircleShape).background(bg).springClick { day = d; emit() }.padding(horizontal = 12.dp, vertical = 7.dp))
             }
         }

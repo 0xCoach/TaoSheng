@@ -163,7 +163,7 @@ private fun RecordingPackSheet(packer: RecordingPacker, onDismiss: () -> Unit) {
 private fun DayChip(label: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "packDay")
-    Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+    Text(label, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
         modifier = Modifier.clip(CircleShape).background(bg).springClick(onClick).padding(horizontal = 14.dp, vertical = 8.dp))
 }
 

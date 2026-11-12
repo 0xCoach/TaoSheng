@@ -601,7 +601,7 @@ private fun Capsules(names: List<String>, selected: Int, onSelect: (Int) -> Unit
         names.forEachIndexed { i, n ->
             val on = i == selected
             val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "cap")
-            val fg by animateColorAsState(if (on) Color.White else c.textSecondary, label = "capFg")
+            val fg by animateColorAsState(if (on) c.onAccent else c.textSecondary, label = "capFg")
             Text(n, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = fg,
                 modifier = Modifier.springClick { onSelect(i) }.clip(CircleShape).background(bg).padding(horizontal = 16.dp, vertical = 8.dp))
         }

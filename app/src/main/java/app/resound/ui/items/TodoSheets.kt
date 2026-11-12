@@ -56,7 +56,7 @@ import java.time.format.DateTimeFormatter
 internal fun Choice(text: String, on: Boolean, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by animateColorAsState(if (on) c.accent else c.card, spring(stiffness = Spring.StiffnessMediumLow), label = "choice")
-    Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+    Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
         modifier = Modifier.clip(CircleShape).background(bg).springClick(onClick).padding(horizontal = 14.dp, vertical = 8.dp))
 }
 

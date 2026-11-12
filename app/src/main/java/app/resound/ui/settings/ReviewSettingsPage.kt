@@ -62,11 +62,7 @@ fun ReviewSettingsPage(repo: ReviewRepository, bottomPadding: Dp) {
                     Text("推送通知", style = RsType.body, color = c.text)
                     Text("生成后发一条简洁版通知，点开看详细版", style = RsType.caption, color = c.textSecondary)
                 }
-                val track by animateColorAsState(if (s.pushEnabled) c.accent else c.separator, label = "track")
-                val x by animateDpAsState(if (s.pushEnabled) 20.dp else 0.dp, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium), label = "knob")
-                Box(Modifier.size(width = 50.dp, height = 30.dp).clip(CircleShape).background(track).springClick { repo.setPushEnabled(!s.pushEnabled) }.padding(2.dp)) {
-                    Box(Modifier.offset(x = x).size(26.dp).clip(CircleShape).background(Color.White))
-                }
+                app.resound.ui.verify.RsToggle(s.pushEnabled) { repo.setPushEnabled(it) }
             }
         }
         // 手动生成：选今天 / 昨天 / 前天；更早的日子去“记忆 → 按天”里选

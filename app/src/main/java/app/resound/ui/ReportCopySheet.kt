@@ -154,8 +154,8 @@ private fun CopyModuleCard(block: ReportCopyBlock, checked: Boolean, onChecked: 
             Box(Modifier.padding(start = 12.dp).size(22.dp), contentAlignment = Alignment.Center) {
                 androidx.compose.animation.AnimatedVisibility(checked, enter = fadeIn(tween(140)) + scaleIn(tween(180), initialScale = 0.8f), exit = fadeOut(tween(100))) {
                     Canvas(Modifier.size(22.dp).clip(CircleShape).background(c.accent).padding(6.dp)) {
-                        drawLine(Color.White, Offset(0f, size.height * 0.5f), Offset(size.width * 0.36f, size.height * 0.86f), 1.8.dp.toPx(), StrokeCap.Round)
-                        drawLine(Color.White, Offset(size.width * 0.36f, size.height * 0.86f), Offset(size.width, size.height * 0.13f), 1.8.dp.toPx(), StrokeCap.Round)
+                        drawLine(c.onAccent, Offset(0f, size.height * 0.5f), Offset(size.width * 0.36f, size.height * 0.86f), 1.8.dp.toPx(), StrokeCap.Round)
+                        drawLine(c.onAccent, Offset(size.width * 0.36f, size.height * 0.86f), Offset(size.width, size.height * 0.13f), 1.8.dp.toPx(), StrokeCap.Round)
                     }
                 }
             }

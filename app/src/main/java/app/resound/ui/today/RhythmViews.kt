@@ -268,7 +268,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
                 Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: "") +
                     envHint(h, spans, env).joinToString("") { " · $it" },
-                    style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White, maxLines = 1)
+                    style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent, maxLines = 1)
             }
         }
         // 按住环境图标：说这一段是什么、几点到几点、合计多久
@@ -278,7 +278,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
                 Text("${s.tag.title} · ${s.from}–${s.to + 1} 点 · 约 ${(s.ms + 59_999) / 60_000} 分钟",
-                    style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White, maxLines = 1)
+                    style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent, maxLines = 1)
             }
         }
         // 看今天时，现在的位置画一条细竖线：右边是还没到的时间，不是漏录

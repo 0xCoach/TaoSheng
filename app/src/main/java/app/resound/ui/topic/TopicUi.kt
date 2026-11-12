@@ -97,7 +97,7 @@ internal fun TopicKindChoice(selected: TopicKind, onSelect: (TopicKind) -> Unit)
         TopicKind.entries.forEach { k ->
             val on = k == selected
             val bg by animateColorAsState(if (on) c.accent else c.fill, spring(stiffness = Spring.StiffnessMediumLow), label = "topicKind")
-            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary,
+            Text(k.title, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary,
                 modifier = Modifier.clip(CircleShape).background(bg).springClick { onSelect(k) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
     }
@@ -238,7 +238,7 @@ private fun Pill(text: String, filled: Boolean, modifier: Modifier, danger: Bool
     val c = Rs.colors
     val bg = when { danger -> c.critical; filled -> c.accent; else -> c.card }
     Box(modifier.clip(CircleShape).background(bg).springClick(onClick).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (filled || danger) Color.White else c.text, maxLines = 1)
+        Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (danger) Color.White else if (filled) c.onAccent else c.text, maxLines = 1)
     }
 }
 
@@ -482,7 +482,7 @@ private fun LiveHero(t: Topic, includedMs: Long) {
 private fun HeroButton(text: String, primary: Boolean, modifier: Modifier, bg: Color? = null, fg: Color? = null, onClick: () -> Unit) {
     val c = Rs.colors
     val b = bg ?: if (c.isDark) c.accent else Color.White
-    val f = fg ?: if (c.isDark) Color.White else Color(0xFFD2511F)
+    val f = fg ?: if (c.isDark) c.onAccent else Color(0xFFD2511F)
     Box(modifier.clip(CircleShape).background(b).springClick(onClick).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = f, maxLines = 1)
     }
@@ -616,7 +616,7 @@ fun TopicScheduleSheet(onDismiss: () -> Unit) {
                 val bg by animateColorAsState(if (on) c.accent else c.fill, label = "repeatDay")
                 Box(Modifier.weight(1f).clip(CircleShape).background(bg).springClick { repeat = if (on) repeat - d else repeat + d }.padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center) {
-                    Text(weekName(d), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) Color.White else c.textSecondary)
+                    Text(weekName(d), style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = if (on) c.onAccent else c.textSecondary)
                 }
             }
         }
@@ -689,7 +689,7 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
                 Row(Modifier.fillMaxWidth().springClick { picked = if (on) picked - e.id else picked + e.id }.padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(20.dp).clip(CircleShape).background(if (on) c.accent else c.separator), contentAlignment = Alignment.Center) {
-                        if (on) Text("✓", style = RsType.caption, color = Color.White)
+                        if (on) Text("✓", style = RsType.caption, color = c.onAccent)
                     }
                     Spacer(Modifier.width(10.dp))
                     Text(formatClock(e.startAt), style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.widthIn(min = 46.dp))

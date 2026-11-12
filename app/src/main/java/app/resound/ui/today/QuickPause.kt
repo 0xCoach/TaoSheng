@@ -82,7 +82,7 @@ internal fun PauseLengthSheet(current: Int, onPick: (Int) -> Unit, onDismiss: ()
                 val bg by animateColorAsState(if (on) c.accent else c.fill, label = "pauseChoice")
                 Box(Modifier.weight(1f).springClick { onPick(m) }.clip(CircleShape).background(bg).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
                     Text(HomeRules.pauseLabel(m), style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
-                        color = if (on) Color.White else c.textSecondary, maxLines = 1)
+                        color = if (on) c.onAccent else c.textSecondary, maxLines = 1)
                 }
             }
         }

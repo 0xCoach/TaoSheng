@@ -543,7 +543,7 @@ fun ExportCapsule(bottomPadding: androidx.compose.ui.unit.Dp) {
         exit = androidx.compose.animation.fadeOut()) {
         androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(bottom = bottomPadding), contentAlignment = Alignment.BottomCenter) {
             Row(Modifier.clip(CircleShape).background(c.accent), verticalAlignment = Alignment.CenterVertically) {
-                Text(text ?: "", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White,
+                Text(text ?: "", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.onAccent,
                     modifier = Modifier.springClick { job?.let { ExportUi.openJob = it.id } }
                         .padding(start = 18.dp, end = if (job?.state is app.resound.transcribe.ExportJobState.Done) 6.dp else 18.dp, top = 10.dp, bottom = 10.dp))
                 // 完成后右边一个小 ×：这次导出不要了就点掉

@@ -147,7 +147,7 @@ private fun Welcome(suggestions: List<String>, onAsk: (String) -> Unit) {
 private fun UserBubble(text: String) {
     val c = Rs.colors
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-        Text(text, style = RsType.body, color = Color.White,
+        Text(text, style = RsType.body, color = c.onAccent,
             modifier = Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp)).background(c.accent).padding(horizontal = 16.dp, vertical = 11.dp))
     }
 }
@@ -207,7 +207,7 @@ private fun ActionCard(a: app.resound.ask.AskAction, onConfirm: () -> Unit, onCa
         if (a.state == app.resound.ask.AskActionState.Pending) {
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("确认", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = Color.White,
+                Text("确认", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent,
                     modifier = Modifier.clip(CircleShape).background(c.accent).springClick(onConfirm).padding(horizontal = 18.dp, vertical = 8.dp))
                 Text("算了", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.textSecondary,
                     modifier = Modifier.clip(CircleShape).background(c.card).springClick(onCancel).padding(horizontal = 18.dp, vertical = 8.dp))
@@ -311,8 +311,8 @@ private fun InputBar(streaming: Boolean, onSend: (String) -> Unit, onStop: () ->
                 .springClick { if (streaming) onStop() else send() },
             contentAlignment = Alignment.Center,
         ) {
-            if (streaming) Box(Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)).background(Color.White))
-            else Text("↑", style = RsType.title.copy(fontWeight = FontWeight.Bold), color = if (active) Color.White else c.accent)
+            if (streaming) Box(Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)).background(c.onAccent))
+            else Text("↑", style = RsType.title.copy(fontWeight = FontWeight.Bold), color = if (active) c.onAccent else c.accent)
         }
     }
 }

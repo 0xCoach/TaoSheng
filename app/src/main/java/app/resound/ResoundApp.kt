@@ -16,6 +16,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 
 class ResoundApp : Application() {
+    private lateinit var watchdogPreferences: android.content.SharedPreferences.OnSharedPreferenceChangeListener
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
     internal lateinit var cardDevices: app.resound.devices.android.DeviceInputs
@@ -303,6 +304,6 @@ class ResoundApp : Application() {
         AppGraph.folderImports = folderImports
         registerActivityLifecycleCallbacks(app.resound.importer.FolderImportForeground(folderImports))
         ImportAudioCleanupWork.schedule(this)
-        if (store.prefs.getBoolean("enabled", false)) CaptureWatchdog.schedule(this)
+        watchdogPreferences = CaptureWatchdog.observe(this, store.prefs)
     }
 }

@@ -5,7 +5,6 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-enum class TopicStatus { Scheduled, Running, Paused, Ended, Summarizing, Done, Failed, Cancelled }
 data class TopicSpan(val id: Long, val startAt: Long, val endAt: Long?)
 data class TopicMark(val id: Long, val at: Long)
 data class Topic(

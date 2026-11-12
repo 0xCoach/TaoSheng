@@ -3,6 +3,7 @@ package app.resound.quick
 import app.resound.capture.CaptureController
 import app.resound.capture.CaptureState
 import app.resound.capture.CaptureStatus
+import app.resound.capture.click
 import app.resound.capture.CaptureTilePolicy
 import app.resound.topic.TopicKind
 import kotlinx.coroutines.flow.MutableStateFlow

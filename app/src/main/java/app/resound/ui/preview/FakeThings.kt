@@ -88,9 +88,10 @@ object FakeThings : ThingRepository {
         records.value = records.value.map { r ->
             if (r.id != recordId) return@map r
             val e = edit ?: ThingEdit(r.name, r.action, r.place, r.who, r.owner)
+            val sameAs = r.sameAs
             val target = when {
-                r.sameAs != null && !asNew && edit == null -> r.sameAs.thingId
-                r.sameAs != null && asNew -> (nextId++).also { rows.value = rows.value + Row(it, e.name, emptyList(), e.owner) }
+                sameAs != null && !asNew && edit == null -> sameAs.thingId
+                sameAs != null && asNew -> (nextId++).also { rows.value = rows.value + Row(it, e.name, emptyList(), e.owner) }
                 r.thingId != null && edit == null -> r.thingId
                 else -> thingFor(e.name, e.owner)
             }

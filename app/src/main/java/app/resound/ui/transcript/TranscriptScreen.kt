@@ -678,11 +678,14 @@ private fun SpeakerOptions() {
     }
 }
 
-internal fun classModeLine(state: app.resound.transcribe.ClassModeState, now: Long): String = when {
-    !state.enabled -> "适合只有一个人主讲的上课、讲座：这段时间不区分说话人，转写更快，到点自动恢复。其他人插话可能漏转，多人讨论请别开"
-    state.endsAtMillis == null -> "课堂模式中 · 手动结束前不区分说话人"
-    else -> "课堂模式中 · " + java.time.Instant.ofEpochMilli(state.endsAtMillis).atZone(java.time.ZoneId.systemDefault())
-        .toLocalTime().let { "%d:%02d".format(it.hour, it.minute) } + " 自动结束"
+internal fun classModeLine(state: app.resound.transcribe.ClassModeState, now: Long): String {
+    val endsAtMillis = state.endsAtMillis
+    return when {
+        !state.enabled -> "适合只有一个人主讲的上课、讲座：这段时间不区分说话人，转写更快，到点自动恢复。其他人插话可能漏转，多人讨论请别开"
+        endsAtMillis == null -> "课堂模式中 · 手动结束前不区分说话人"
+        else -> "课堂模式中 · " + java.time.Instant.ofEpochMilli(endsAtMillis).atZone(java.time.ZoneId.systemDefault())
+            .toLocalTime().let { "%d:%02d".format(it.hour, it.minute) } + " 自动结束"
+    }
 }
 
 /** 苹果风格开关，暖橙底。 */

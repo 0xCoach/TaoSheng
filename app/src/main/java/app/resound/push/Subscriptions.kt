@@ -20,8 +20,10 @@ internal object Subscriptions {
         if (s.footprint) add(PushTopic.Footprint)
     }
     fun tighten(s: PushSubscription, c: PushCapabilities): PushSubscription {
-        require(s.rangeDays == null || s.rangeDays > 0) { "范围天数须大于 0" }
-        require(s.backfillDays == null || s.backfillDays >= 0) { "补齐天数不能为负数" }
+        val rangeDays = s.rangeDays
+        val backfillDays = s.backfillDays
+        require(rangeDays == null || rangeDays > 0) { "范围天数须大于 0" }
+        require(backfillDays == null || backfillDays >= 0) { "补齐天数不能为负数" }
         require(s.fullCheckAt == null || s.fullCheckAt in 0..1439) { "时刻须为 0～1439 分钟" }
         require(s.footprintAt in 0..1439) { "足迹推送时刻须为 0～1439 分钟" }
         when (val t = s.trigger) {

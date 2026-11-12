@@ -384,10 +384,11 @@ private fun subscriptionLine(s: PushSubscription): String = buildList {
 @Composable
 private fun StatusLine(s: PushChannelStatus) {
     val c = Rs.colors
+    val lastPushAt = s.lastPushAt
     val text = when {
         s.running -> "正在推送…"
         s.lastError != null -> "上次没推成功：${s.lastError}"
-        s.lastPushAt != null -> "上次 ${app.resound.ui.verify.formatStamp(s.lastPushAt)}" + (s.lastResult?.let { " · $it" } ?: "")
+        lastPushAt != null -> "上次 ${app.resound.ui.verify.formatStamp(lastPushAt)}" + (s.lastResult?.let { " · $it" } ?: "")
         else -> "还没推过"
     }
     Text(text, style = RsType.subhead, color = if (s.lastError != null && !s.running) c.critical else c.textSecondary)

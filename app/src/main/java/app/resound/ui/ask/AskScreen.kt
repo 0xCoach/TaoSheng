@@ -157,12 +157,14 @@ private fun AnswerCard(m: AskMessage, onConfirm: () -> Unit, onCancel: () -> Uni
     val c = Rs.colors
     var openSource by remember(m.id) { mutableStateOf<Int?>(null) }
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        val error = m.error
+        val progress = m.progress
         when {
-            m.error != null -> Text(m.error, style = RsType.body, color = c.critical)
-            m.text.isEmpty() && m.progress != null -> Progress(m.progress)
+            error != null -> Text(error, style = RsType.body, color = c.critical)
+            m.text.isEmpty() && progress != null -> Progress(progress)
             else -> {
                 AnswerText(m.text)
-                if (m.streaming && m.progress != null) { Spacer(Modifier.height(8.dp)); Progress(m.progress) }
+                if (m.streaming && progress != null) { Spacer(Modifier.height(8.dp)); Progress(progress) }
             }
         }
         m.action?.let { a ->

@@ -1,7 +1,7 @@
 package app.resound.envsound
 
 /** 16k PCM 的非人声段：先筛原长 ≥0.5秒，再两端各收0.1秒；收边后累计不足2秒不推理。 */
-internal object EnvSoundGaps {
+object EnvSoundGaps {
     const val MIN_SAMPLES = 2 * 16000
     private const val LIMIT = 30 * 16000
     data class Result(val pcm: ShortArray, val availableSamples: Int)

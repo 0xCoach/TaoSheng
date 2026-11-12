@@ -75,21 +75,23 @@ internal class SubscriptionRuntime(
     fun configure(channel: PushChannel, fresh: Boolean) {
         if (fresh) queued.remove(channel.id)
         val s = channel.subscription
+        val trigger = s.trigger
+        val fullCheckAt = s.fullCheckAt
         change(channel.id) { j ->
             if (fresh || !j.has("scheduleAt")) {
                 j.remove("scheduleAt")
-                if (hasRecords(s) && s.trigger is RecordTrigger.Schedule) j.put("scheduleAt", Subscriptions.nextSchedule(s.trigger, Instant.ofEpochMilli(now()).atZone(zone())))
+                if (hasRecords(s) && trigger is RecordTrigger.Schedule) j.put("scheduleAt", Subscriptions.nextSchedule(trigger, Instant.ofEpochMilli(now()).atZone(zone())))
             }
             if (fresh || !j.has("fullAt")) {
                 j.remove("fullAt")
-                if (hasRecords(s) && s.incremental && s.fullCheckAt != null && s.trigger != RecordTrigger.Manual)
-                    j.put("fullAt", Subscriptions.nextSchedule(RecordTrigger.Schedule(listOf(s.fullCheckAt)), Instant.ofEpochMilli(now()).atZone(zone())))
+                if (hasRecords(s) && s.incremental && fullCheckAt != null && trigger != RecordTrigger.Manual)
+                    j.put("fullAt", Subscriptions.nextSchedule(RecordTrigger.Schedule(listOf(fullCheckAt)), Instant.ofEpochMilli(now()).atZone(zone())))
             }
             if (fresh) {
                 j.remove("changeAt"); j.remove("summaryAt")
                 if (s.reminders) j.put("reminderAt", now()) else j.remove("reminderAt")
                 // 首次补齐服从触发方式；Manual 不安排任何自动任务。
-                if (hasRecords(s)) Subscriptions.changeAt(s.trigger, j.optLong("lastRecordsAt").takeIf { it > 0 }, now())?.let { j.put("changeAt", it) }
+                if (hasRecords(s)) Subscriptions.changeAt(trigger, j.optLong("lastRecordsAt").takeIf { it > 0 }, now())?.let { j.put("changeAt", it) }
             }
         }
         plan(channel.id)
@@ -137,6 +139,8 @@ internal class SubscriptionRuntime(
             val result = try {
                 val (_, values) = resolve(id) ?: throw PushFailure("通道不存在")
                 val s = channel.subscription
+                val trigger = s.trigger
+                val fullCheckAt = s.fullCheckAt
                 if (!hasRecords(s) && !s.summaries && !s.reminders) throw PushFailure("请先选择要推送的内容")
                 val state = PushSyncState(File(directory, "$id.json"))
                 val identity = sha256(channel.kind.name + canonical(JSONObject(values.filterKeys { it in setOf("account", "url", "folder", "databaseId", "chatId", "to", "cloudKind", "s3") })))
@@ -204,12 +208,12 @@ internal class SubscriptionRuntime(
                     if (more) j.put("batchAt", now() + 30_000).put("summaryBatch", summaryOnly) else j.remove("summaryBatch")
                     if (!summaryOnly && !reminderOnly) {
                         j.put("lastRecordsAt", started)
-                        if (j.has("changeAt") && s.trigger is RecordTrigger.OnChange) j.put("changeAt", maxOf(j.getLong("changeAt"), started + s.trigger.minGapMinutes * 60_000L))
+                        if (j.has("changeAt") && trigger is RecordTrigger.OnChange) j.put("changeAt", maxOf(j.getLong("changeAt"), started + trigger.minGapMinutes * 60_000L))
                     }
-                    if (due.optLong("scheduleAt").let { it > 0 && it <= started } && s.trigger is RecordTrigger.Schedule)
-                        j.put("scheduleAt", Subscriptions.nextSchedule(s.trigger, Instant.ofEpochMilli(now()).atZone(zone())))
-                    if (due.optLong("fullAt").let { it > 0 && it <= started } && s.fullCheckAt != null)
-                        j.put("fullAt", Subscriptions.nextSchedule(RecordTrigger.Schedule(listOf(s.fullCheckAt)), Instant.ofEpochMilli(now()).atZone(zone())))
+                    if (due.optLong("scheduleAt").let { it > 0 && it <= started } && trigger is RecordTrigger.Schedule)
+                        j.put("scheduleAt", Subscriptions.nextSchedule(trigger, Instant.ofEpochMilli(now()).atZone(zone())))
+                    if (due.optLong("fullAt").let { it > 0 && it <= started } && fullCheckAt != null)
+                        j.put("fullAt", Subscriptions.nextSchedule(RecordTrigger.Schedule(listOf(fullCheckAt)), Instant.ofEpochMilli(now()).atZone(zone())))
                 }
                 val summaryCounts = state.json.optJSONObject("summaryCounts") ?: JSONObject()
                 data.cards.map { LocalDate.ofEpochDay(it.date) }.plus(data.reviews.filter { it.type == "daily" }.map { LocalDate.parse(it.startDate) }).distinct().forEach { date ->

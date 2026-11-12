@@ -60,14 +60,14 @@ class VoiceprintRematchTest {
     @Test fun burstOfRequestsRunsVoiceprintOnceAndFallsBackOnlyWhenItKeepsFailing() = runBlocking {
         val runs = AtomicInteger()
         val fallbacks = AtomicInteger()
-        val ok = VoiceprintRerun(scope, { runs.incrementAndGet(); false }, { fallbacks.incrementAndGet() }, settleMillis = 100)
+        val ok = VoiceprintRerun(scope, { runs.incrementAndGet(); false }, { fallbacks.incrementAndGet() }, dispatchers = app.resound.platform.AndroidDispatchers, settleMillis = 100)
         repeat(5) { ok.request() }
         delay(600)
         assertEquals(1, runs.get())
         assertEquals(0, fallbacks.get())
 
         val failing = AtomicInteger()
-        val bad = VoiceprintRerun(scope, { failing.incrementAndGet(); true }, { fallbacks.incrementAndGet() }, settleMillis = 50)
+        val bad = VoiceprintRerun(scope, { failing.incrementAndGet(); true }, { fallbacks.incrementAndGet() }, dispatchers = app.resound.platform.AndroidDispatchers, settleMillis = 50)
         bad.request()
         delay(500)
         assertEquals(3, failing.get())

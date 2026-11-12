@@ -3,9 +3,9 @@ package app.resound.topic
 import app.resound.quick.QuickText
 import app.resound.quick.TopicState
 
-internal data class TopicButton(val action: String, val label: String)
+data class TopicButton(val action: String, val label: String)
 
-internal object TopicQuickPolicy {
+object TopicQuickPolicy {
     const val FAILED = "专题操作失败，请重试"
     const val QUIET_STARTED = "专题已开始，这段时间原本设为不录音"
     const val RECORDING_OFF = "专题已开始，录音没开"

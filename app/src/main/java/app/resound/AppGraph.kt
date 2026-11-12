@@ -13,6 +13,9 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var platform: app.resound.platform.PlatformServices
+    val isPlatformReady: Boolean get() = ::platform.isInitialized
+
     lateinit var quickPrefs: app.resound.quick.QuickPrefs
     val isQuickPrefsReady: Boolean get() = ::quickPrefs.isInitialized
     lateinit var health: app.resound.health.HealthCheck

@@ -310,6 +310,5 @@ internal class RoomTopicRepository(
     }
 }
 
-internal enum class TopicReminder { Ending, Quiet, RecordingOff, Ready }
 internal fun TopicRow.retainedIds(): List<Long> = JSONArray(retainedItemIds).let { a -> (0 until a.length()).map { a.getLong(it) } }
 private fun String?.clean() = this?.trim()?.takeIf { it.isNotEmpty() }

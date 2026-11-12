@@ -2,7 +2,7 @@ package app.resound.voiceprint
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import app.resound.platform.AppDispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -16,12 +16,13 @@ class VoiceprintRerun(
     scope: CoroutineScope,
     private val run: suspend () -> Boolean,
     private val fallback: () -> Unit,
+    dispatchers: AppDispatchers,
     private val settleMillis: Long = 3_000,
 ) {
     private val requests = Channel<Unit>(Channel.CONFLATED)
 
     init {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(dispatchers.io) {
             for (request in requests) {
                 delay(settleMillis)
                 requests.tryReceive()

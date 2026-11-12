@@ -1,7 +1,7 @@
 package app.resound.push
 
 /** 只在消息发送边界调用；通用正文、重试快照和文档存储不带通道专用换行。format 是实际发送格式。 */
-internal object PushBodyLayout {
+object PushBodyLayout {
     fun convert(kind: PushKind, format: PushFormat, body: String): String = when (kind) {
         // 官方明确区分 txt 的 \n 和 Markdown 的 <br/>，不能直接替换所有换行（会破坏列表）。
         // https://www.pushplus.plus/doc/help/line.html

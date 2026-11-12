@@ -3,7 +3,7 @@ package app.resound.importer
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-internal object ImportKindPolicy {
+object ImportKindPolicy {
     data class BatchFile(val id: String, val start: Long, val duration: Long, val recorded: Boolean)
     fun batch(files: List<BatchFile>, merge: Boolean): List<List<BatchFile>> {
         var previousEnd: Long? = null
@@ -35,7 +35,7 @@ internal object ImportKindPolicy {
 }
 
 /** 有效双声道的保守线索：两侧都有声音且绝对相关系数低；同内容的增益差/反相不算。 */
-internal class StereoEvidence {
+class StereoEvidence {
     private var count = 0L
     private var left = 0.0; private var right = 0.0; private var cross = 0.0
     fun accept(samples: ShortArray, channels: Int) {

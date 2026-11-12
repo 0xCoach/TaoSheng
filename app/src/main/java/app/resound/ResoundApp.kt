@@ -46,6 +46,14 @@ class ResoundApp : Application() {
         private set
     override fun onCreate() {
         super.onCreate()
+        AppGraph.platform = app.resound.platform.PlatformServices(
+            now = app.resound.platform.SystemNow,
+            zone = app.resound.platform.SystemZone,
+            logger = app.resound.platform.AndroidLogger,
+            keyValueStore = app.resound.platform.PrefsKeyValueStore(getSharedPreferences("platform", MODE_PRIVATE)),
+            files = app.resound.platform.LocalFileStore(app.resound.platform.AndroidDispatchers),
+            dispatchers = app.resound.platform.AndroidDispatchers,
+        )
         val crashes = app.resound.diagnostics.CrashRecords(this)
         crashes.installHandler()
         appDisplayName = appName
@@ -94,7 +102,7 @@ class ResoundApp : Application() {
         hotwords.topicWords = { if (AppGraph.isTopicsReady) app.resound.topic.TopicPolicy.words(AppGraph.topics.current.value?.takeIf { app.resound.topic.TopicPolicy.activeAt(it, System.currentTimeMillis()) }?.name) else emptyList() }
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope, fingerprints = database.folderImports())
         // 声纹标注后只重跑声纹；lateinit 的仓库在 run() 被调用时早已赋值
-        val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow)
+        val voiceprintRerun = app.resound.voiceprint.VoiceprintRerun(scope, { voiceprintRepository.run() }, scheduler::runNow, AppGraph.platform.dispatchers)
         val pcmReader = AsrAudioReader(cacheDir)
         val sharedPcm = SharedPcmFiles(cacheDir, pcmReader::decodeForExport)
         voiceprintRepository = LocalVoiceprintRepository(database, scope, { file -> sharedPcm.read(file, pcmReader::readPcm) },

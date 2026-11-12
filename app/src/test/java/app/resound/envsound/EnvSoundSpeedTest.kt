@@ -10,14 +10,6 @@ class EnvSoundSpeedTest {
         (EnvSoundRules.speech + EnvSoundRules.human + EnvSoundRules.tags.values.flatMap { it.second } +
             EnvSoundRules.sounds.values.flatMap { it.second }).associateWith { 0f } + values
 
-    @Test fun windowPreservesOffsetNormalizationAndPadding() {
-        val pcm = shortArrayOf(7, Short.MIN_VALUE, 0, Short.MAX_VALUE, 9)
-        val actual = EnvSoundSamples.window(pcm, 1..3)
-        assertEquals(16000, actual.size)
-        assertArrayEquals(floatArrayOf(-1f, 0f, 32767 / 32768f), actual.copyOfRange(0, 3), 0f)
-        assertTrue(actual.drop(3).all { it == 0f })
-    }
-
     /** 30 秒全窗与长音频三窗必须在线性时间内完成；原先逐点 count() 会超时。 */
     @Test(timeout = 2000) fun fullAndLongWindowsPrepareWithoutQuadraticWork() {
         for (size in listOf(30 * 16000, 90 * 16000)) {

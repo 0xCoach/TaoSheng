@@ -3,10 +3,10 @@ package app.resound.capture
 import app.resound.quick.QuickText
 import app.resound.topic.TopicKind
 
-internal enum class CaptureNoticeTarget { Resume, Topic, App }
-internal data class CaptureNotice(val title: String, val text: String, val target: CaptureNoticeTarget, val toggle: String)
+enum class CaptureNoticeTarget { Resume, Topic, App }
+data class CaptureNotice(val title: String, val text: String, val target: CaptureNoticeTarget, val toggle: String)
 
-internal object CaptureNotificationPolicy {
+object CaptureNotificationPolicy {
     fun ongoing(appName: String, paused: Boolean, quietName: String?, clock: String, topicLine: String?, minutes: Int): CaptureNotice = CaptureNotice(
         title = when { quietName != null -> "$appName · ${quietName}中"; paused -> "$appName · 已暂停"; else -> appName },
         text = topicLine ?: when { quietName != null -> "$clock 自动恢复，点此立即恢复"; paused -> "到点自动恢复，也可点此立即恢复"; else -> "后台运行中" },

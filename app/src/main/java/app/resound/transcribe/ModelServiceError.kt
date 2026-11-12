@@ -9,7 +9,7 @@ fun modelServiceError(endpoint: String, error: Throwable, fallback: String, stat
     val causes = generateSequence(error) { it.cause }.take(8).toList()
     return when {
         causes.any { it is UnknownHostException } -> "找不到这个地址，请检查拼写"
-        causes.any { it is SocketTimeoutException || it is InterruptedIOException } -> "等待超时：本地模型首次加载可能较慢，稍后再试"
+        causes.any { it is SocketTimeoutException || it is InterruptedIOException || it is io.ktor.client.plugins.HttpRequestTimeoutException || it is io.ktor.client.network.sockets.ConnectTimeoutException || it is io.ktor.client.network.sockets.SocketTimeoutException } -> "等待超时：本地模型首次加载可能较慢，稍后再试"
         causes.any { it is ConnectException || it is NoRouteToHostException } -> {
             val uri = runCatching { URI(endpoint.trim()) }.getOrNull()
             val host = uri?.host.orEmpty()

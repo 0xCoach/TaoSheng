@@ -25,27 +25,29 @@ object OpenAiEndpoint {
             else->EndpointKind.Invalid
         }
     }
-    private fun isLocalHost(host:String):Boolean {
-        if(host=="localhost" || host.endsWith(".local") || host.endsWith(".lan") || host=="::1")return true
-        if(':' in host)return host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe8") || host.startsWith("fe9") || host.startsWith("fea") || host.startsWith("feb")
-        val p=host.split('.').mapNotNull{it.toIntOrNull()}.takeIf{it.size==4} ?: return false
-        return p[0]==127 || p[0]==10 || (p[0]==172 && p[1] in 16..31) || (p[0]==192 && p[1]==168) || (p[0]==169 && p[1]==254) || (p[0]==100 && p[1] in 64..127)
-    }
+    private fun isLocalHost(host:String) = app.resound.net.EndpointRules.isLocalHost(host)
     /** 保留代理前缀和已有版本号，仅在没有版本号时依次尝试 /v1 与无版本路径。 */
     fun bases(input:String):List<String> {
         val value=input.trim().trimEnd('/');val uri=runCatching { URI(value) }.getOrNull()
         require(kind(value)!=EndpointKind.Invalid && uri!=null && uri.userInfo==null && uri.rawQuery==null && uri.rawFragment==null){"请输入 http:// 或 https:// 开头的服务地址，不要包含密钥或查询参数"}
-        val suffixes=listOf("/audio/transcriptions","/chat/completions","/models")
-        val suffix=suffixes.firstOrNull{value.endsWith(it)}
-        val base=if(suffix!=null)value.removeSuffix(suffix) else value
-        val path=URI(base).path.orEmpty()
-        return if(Regex("/v[0-9]+(?:beta[0-9]*)?$").containsMatchIn(path))listOf(base)
-        else if(suffix!=null)listOf(base,"$base/v1") else listOf("$base/v1",base)
+        return app.resound.net.EndpointRules.bases(value,uri.path.orEmpty())
     }
     fun transcriptions(input:String)=bases(input).map{"$it/audio/transcriptions"}
 }
 data class RemoteModels(val base:String,val ids:List<String>)
 suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){
+    if (app.resound.AppGraph.legacyNetwork) return@withContext legacyFetchRemoteModels(endpoint, key, client, headers)
+    val network = app.resound.net.androidNetwork(client)
+    try {
+        val r = app.resound.net.queryModels(network, OpenAiEndpoint.bases(endpoint), key, headers)
+        RemoteModels(r.base, r.ids)
+    } catch(e:kotlinx.coroutines.CancellationException){throw e}
+    catch(e:IllegalStateException){throw e}
+    catch(e:Exception){throw IllegalStateException(modelServiceError(endpoint,e,"拉取失败，请检查地址和网络；也可手动填写模型"))}
+    finally { network.close(); client.dispatcher.executorService.shutdown(); client.connectionPool.evictAll() }
+}
+
+internal suspend fun legacyFetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){
     try {
         for(base in OpenAiEndpoint.bases(endpoint)) {
             client.newCall(Request.Builder().url("$base/models").serviceHeaders(key, headers).build()).awaitResponse().use{response->

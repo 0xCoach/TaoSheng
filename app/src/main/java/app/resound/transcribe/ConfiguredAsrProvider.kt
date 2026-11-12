@@ -3,6 +3,7 @@ package app.resound.transcribe
 import android.content.Context
 import app.resound.digest.serviceHeaders
 import app.resound.transcribe.local.LocalAsrProvider
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -34,7 +35,7 @@ internal fun transcriptionText(json: JSONObject): String {
 }
 
 /** 自定义服务用 OpenAI 兼容的 audio/transcriptions multipart 协议；完整地址模式按填写的地址原样请求。 */
-class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
+internal class LegacyCustomAsrProvider(private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult=withContext(Dispatchers.IO){
         val endpoint=settings.customEndpoint;val model=settings.customModel
         val mode=settings.customEndpointMode
@@ -61,6 +62,33 @@ class CustomAsrProvider(private val settings:AndroidTranscribeSettings, private 
             throw AsrException(AsrError.Protocol)
         }catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:AsrException){throw e}catch(e:java.io.IOException){throw AsrException(AsrError.Network, detail = modelServiceError(endpoint,e,AsrError.Network.human))}
         finally{call?.cancel();client.dispatcher.executorService.shutdown();client.connectionPool.evictAll()}
+    }
+}
+class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }) : AsrProvider {
+    private val legacy = if (app.resound.AppGraph.legacyNetwork) LegacyCustomAsrProvider(settings, hotwords) else null
+    override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = withContext(Dispatchers.IO) {
+        legacy?.let { return@withContext it.recognize(audio,key,beforeAudio) }
+        val endpoint = settings.customEndpoint
+        val urls = runCatching { transcriptionEndpoints(endpoint, settings.customEndpointMode) }.getOrElse { throw AsrException(AsrError.Protocol) }
+        val http = OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES).callTimeout(8,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
+        val network = app.resound.net.androidNetwork(http)
+        try {
+            val upload = app.resound.net.AudioUpload(audio.file.name, audio.format, audio.file.length()) { consume ->
+                audio.file.inputStream().use { input ->
+                    val bytes = ByteArray(8192)
+                    while(true) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                        val n = input.read(bytes); if(n < 0) break
+                        consume(bytes.copyOf(n))
+                    }
+                }
+            }
+            val prompt = if(settings.customEndpointMode == CustomEndpointMode.Auto || settings.customPrompt.value) Hotwords.customPrompt(hotwords()) else null
+            app.resound.net.customRecognize(network,urls,key,settings.headers(TranscribeSource.Custom.name),upload,audio.durationMillis,settings.customModel,prompt,java.util.UUID.randomUUID().toString(),beforeAudio)
+        } catch(e:kotlinx.coroutines.CancellationException){throw e}
+        catch(e:AsrException){throw e}
+        catch(e:java.io.IOException){throw AsrException(AsrError.Network,detail=modelServiceError(endpoint,e,AsrError.Network.human))}
+        finally { network.close(); http.dispatcher.executorService.shutdown(); http.connectionPool.evictAll() }
     }
 }
 class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {

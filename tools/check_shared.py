@@ -4,7 +4,7 @@
 用法：仓库根目录运行 python3 tools/check_shared.py；违规返回 1，通过返回 0。
 检查 shared/src/commonMain 下 Kotlin 的 import 和正文，包括字符串模板表达式；
 忽略注释和普通字符串。禁止平台包、系统时钟、锁和线程；目前无 JVM 注解豁免。
-commonMain 依赖仅允许下面四种库，使用可审计的直接坐标，变量/别名拒绝。
+commonMain 依赖仅允许下面列出的库，使用可审计的直接坐标，变量/别名拒绝。
 文本门禁不能替代编译，提交前还须运行 ./gradlew :shared:check（含 metadata）。
 词法屏蔽和依赖块检查参照 check_devices.py；不修改设备门禁及其白名单。
 """
@@ -12,6 +12,11 @@ import re
 from pathlib import Path
 
 ALLOWED_LIBRARIES = {
+    "io.ktor:ktor-client-core",
+    "io.ktor:ktor-client-websockets",
+    "io.ktor:ktor-client-okhttp",
+    "io.ktor:ktor-client-darwin",
+    "io.ktor:ktor-client-mock",
     "org.jetbrains.kotlin:kotlin-stdlib",
     "org.jetbrains.kotlinx:kotlinx-coroutines-core",
     "org.jetbrains.kotlinx:kotlinx-serialization-json",
@@ -100,7 +105,7 @@ def dependency_errors(text):
             depth += (code[end] == "{") - (code[end] == "}")
             end += 1
         if source != "commonMain":
-            if source not in {"commonTest", "jvmMain", "jvmTest", "androidMain", "androidUnitTest", "androidInstrumentedTest"}:
+            if source not in {"iosMain", "commonTest", "jvmMain", "jvmTest", "androidMain", "androidUnitTest", "androidInstrumentedTest"}:
                 yield line_at(text, match.start()), "依赖块无法归属；请使用显式 sourceSet.dependencies"
             continue
         common_count += 1

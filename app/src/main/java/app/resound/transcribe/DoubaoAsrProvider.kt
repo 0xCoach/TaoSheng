@@ -11,7 +11,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 
-class DoubaoAsrProvider(
+internal class LegacyDoubaoAsrProvider(
     private val reader: AsrAudioReader,
     private val config: DoubaoConfig = DoubaoConfig(),
     private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)

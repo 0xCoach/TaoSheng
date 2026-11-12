@@ -228,7 +228,6 @@ interface MemoryRepository {
 }
 
 /** 整理用的大模型服务 */
-data class LlmPreset(val id: String, val name: String, val baseUrl: String, val model: String)
 
 interface DigestSettings {
     /** 卡 130：整理时把每段原话当时的地点和环境音一起交给大模型（位置会发给大模型服务商，默认关） */
@@ -259,7 +258,3 @@ interface DigestSettings {
 
 /** 定到了具体几点（dueText 为 "YYYY-MM-DD HH:mm"）；只有日期或没时间为 false。强提醒只对这种开放 */
 val MemoryItem.hasTime: Boolean get() = dueAt != null && (dueText?.length ?: 0) > 10
-
-data class HeaderEntry(val name: String, val value: String) {
-    override fun toString(): String = "HeaderEntry(name=$name)"
-}

@@ -22,8 +22,18 @@ kotlin {
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+            api("io.ktor:ktor-client-core:3.3.3")
+            api("io.ktor:ktor-client-websockets:3.3.3")
+        }
+        androidMain.dependencies {
+            api("io.ktor:ktor-client-okhttp:3.3.3")
+        }
+        if (providers.gradleProperty("taosheng.ios").orNull == "true") {
+            val iosMain by getting
+            iosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
         }
         jvmTest.dependencies {
+            implementation("io.ktor:ktor-client-mock:3.3.3")
             implementation("junit:junit:4.13.2")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
         }
@@ -47,3 +57,13 @@ gradle.projectsEvaluated {
 }
 tasks.matching { it.name in setOf("compileKotlinJvm", "compileDebugKotlinAndroid", "compileReleaseKotlinAndroid", "check") }
     .configureEach { dependsOn("compileCommonMainKotlinMetadata") }
+
+// 卡 151：Ktor 引擎兼容现有 OkHttp；禁止传递依赖升级范围外网络组件。
+configurations.configureEach {
+    resolutionStrategy.force(
+        "com.squareup.okhttp3:okhttp:4.12.0",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0",
+        "org.jetbrains.kotlin:kotlin-stdlib:2.2.20",
+    )
+}

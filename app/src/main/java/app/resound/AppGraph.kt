@@ -13,6 +13,13 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    /** 启动时从平台 KeyValueStore 读取一次；修改后重启生效。 */
+    internal var legacyNetwork: Boolean = false
+        private set
+    internal fun configureNetwork(store: app.resound.platform.KeyValueStore) {
+        legacyNetwork = store.getBoolean("net.legacy_okhttp", false)
+    }
+
     lateinit var platform: app.resound.platform.PlatformServices
     val isPlatformReady: Boolean get() = ::platform.isInitialized
 

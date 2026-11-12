@@ -52,9 +52,10 @@ object HomeRules {
         }
     }
 
-    /** 服务商名超过 [maxChars] 个字截断；没设模型时写“设置模型”并强调；上次整理因余额/密钥失败时加小红点 */
+    /** 服务商名超过 [maxChars] 个字截断；没填密钥时写“设置模型”并强调，读不到服务商名时写“整理模型”；上次整理因余额/密钥失败时加小红点 */
     fun modelButton(providerName: String?, hasKey: Boolean, lastRunFailed: Boolean, maxChars: Int = 8): ModelButton {
-        if (!hasKey || providerName.isNullOrBlank()) return ModelButton("设置模型", emphasize = true, alertDot = false)
+        if (!hasKey) return ModelButton("设置模型", emphasize = true, alertDot = false)
+        if (providerName.isNullOrBlank()) return ModelButton("整理模型", emphasize = false, alertDot = lastRunFailed)
         val name = providerName.trim().let { if (it.length > maxChars) it.take(maxChars - 1) + "…" else it }
         return ModelButton(name, emphasize = false, alertDot = lastRunFailed)
     }

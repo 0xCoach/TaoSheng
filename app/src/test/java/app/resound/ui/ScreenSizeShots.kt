@@ -40,8 +40,10 @@ class ScreenSizeShots {
     @Test @Config(qualifiers = "w320dp-h568dp-xhdpi") fun smallBigFont() = shoot("4-小屏大字体", 1.5f)
     @Test @Config(qualifiers = "w840dp-h900dp-xhdpi") fun unfolded() = shoot("5-折叠屏展开", 1f)
     @Test @Config(qualifiers = "w852dp-h393dp-xhdpi") fun landscape() = shoot("6-横屏", 1f)
+    @Test @Config(qualifiers = "w393dp-h852dp-xhdpi") fun normalDark() = shoot("7-暗色", 1f, ThemeMode.Dark)
+    @Test @Config(qualifiers = "w320dp-h568dp-xhdpi") fun smallDark() = shoot("8-小屏暗色", 1f, ThemeMode.Dark)
 
-    private fun shoot(name: String, fontScale: Float) {
+    private fun shoot(name: String, fontScale: Float, theme: ThemeMode = ThemeMode.Light) {
         val dir = File(System.getenv("SCREEN_SHOTS") ?: return).also { it.mkdirs() }
         val capture = FakeCaptureController()
         val memory = FakeMemoryRepository()
@@ -53,7 +55,7 @@ class ScreenSizeShots {
             "记忆" to { MemoryScreen(memory, null, transcripts, null, null, {}, ShellBottomPadding) },
             "待办" to { TodoScreen(memory, ShellBottomPadding) },
             "设置" to { SettingsScreen(capture, FakeTranscribeSettings(), digest, ThemeMode.Light, {}, ShellBottomPadding) { _, _ -> } },
-            "聆听" to { VerifyScreen(capture, FakeStatsRepository(), FakeSetupGuide(), ThemeMode.Light) {} },
+            "聆听" to { VerifyScreen(capture, FakeStatsRepository(), FakeSetupGuide(), ShellBottomPadding) },
         )
         var tab by androidx.compose.runtime.mutableIntStateOf(0)
         // 波形等动画一直在动，自动走时钟会永远等不到空闲；改成手动拨时钟
@@ -61,7 +63,7 @@ class ScreenSizeShots {
         compose.setContent {
             val d = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale)) {
-                ResoundTheme(ThemeMode.Light) {
+                ResoundTheme(theme) {
                     // 前五页放在底栏外壳里切换；“聆听”是设置里的子页，单独画
                     if (tab < 5) AppShell(tabs.take(5), tab to tab.toLong()) else tabs[tab].second()
                 }

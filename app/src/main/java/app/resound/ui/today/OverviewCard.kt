@@ -193,18 +193,8 @@ private fun ColumnScope.LiveCard(
             CaptureState.NoPermission -> "缺少权限"
         }
     }
-    val waveAlpha = if (Rs.colors.isDark) 0.55f else 0.7f
-    Box(Modifier.fillMaxWidth().height(36.dp)) {
-        // 专题进行中不放声波（那一行按钮多）；平时声波两头淡出，不压字和按钮
-        if (topic == null && controls != HomeControls.None) BreathingWave(status.level, active, recording,
-            Modifier.matchParentSize().padding(vertical = 7.dp)
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(Brush.horizontalGradient(0.30f to Color.Transparent, 0.48f to Color.Black, 0.58f to Color.Black, 0.72f to Color.Transparent),
-                        blendMode = BlendMode.DstIn)
-                }, tint = ink.wave)
-        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+    val waveAlpha = if (Rs.colors.isDark) 0.6f else 0.75f
+    Row(Modifier.fillMaxWidth().height(36.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f, fill = false).springClick {
                 if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else listenOpen = true
             }, verticalAlignment = Alignment.CenterVertically) {
@@ -215,7 +205,16 @@ private fun ColumnScope.LiveCard(
                     autoSize = TextAutoSize.StepBased(minFontSize = 13.sp, maxFontSize = RsType.headline.fontSize))
                 Text(" ›", style = RsType.headline, color = ink.faint)
             }
-            Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+            // 声波只在状态文字和按钮之间的空档里，两头淡出，不压字和按钮；专题进行中不放（那一行按钮多）
+            if (topic == null && controls != HomeControls.None) BreathingWave(status.level, active, recording,
+                Modifier.weight(1f).padding(horizontal = 8.dp).height(22.dp)
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(Brush.horizontalGradient(0f to Color.Transparent, 0.2f to Color.Black, 0.8f to Color.Black, 1f to Color.Transparent),
+                            blendMode = BlendMode.DstIn)
+                    }, tint = ink.wave)
+            else Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
             fun buzz() = haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             when (controls) {
                 HomeControls.TopicAndPause, HomeControls.TopicAndResume -> {
@@ -252,7 +251,6 @@ private fun ColumnScope.LiveCard(
                 }
                 HomeControls.None -> {}
             }
-        }
     }
     // 专题副行 / 麦克风被谁占
     val subLine = when {

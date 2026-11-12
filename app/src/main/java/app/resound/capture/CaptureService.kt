@@ -53,6 +53,7 @@ class CaptureService : Service() {
             }
         }
     }
+    private val threadCpuDiagnostics = ThreadCpuDiagnostics()
     private suspend fun samplePower() {
         val epoch = chargeEpoch.get()
         val (percent, charging) = store.battery()
@@ -65,6 +66,7 @@ class CaptureService : Service() {
             rxBytes = android.net.TrafficStats.getUidRxBytes(android.os.Process.myUid()),
             micMs = micClock.totalMillis(), charging = charging.takeIf { epoch == chargeEpoch.get() }, chargeEpoch = epoch,
             capacityMah = AppPowerModel.capacityMah(charge, percent)))
+        threadCpuDiagnostics.record(this, charging.takeIf { epoch == chargeEpoch.get() }, state.name)
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var playback: PlaybackMonitor

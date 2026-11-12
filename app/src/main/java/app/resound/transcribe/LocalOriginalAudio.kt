@@ -75,6 +75,11 @@ class LocalOriginalAudio(
         guard(action)
         return result
     }
+    /** 与清理使用同一待处理/收藏判断，包含尚未到期的文件。 */
+    internal suspend fun hasExpiringAudio(): Boolean {
+        val stars = if (keepStarred.value) dao.starredAudio().toSet() else emptySet()
+        return existing().any { !pending(it) && it.id !in stars }
+    }
     internal suspend fun cleanup(): AudioTrim = trim(retentionDays.value, !keepStarred.value, true)
     override suspend fun previewTrim(days: Int): AudioTrim {
         require(days in RETENTION_DAY_RANGE)

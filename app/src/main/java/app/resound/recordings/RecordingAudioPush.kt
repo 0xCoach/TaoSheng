@@ -32,6 +32,7 @@ internal class RecordingAudioPush(
         }.flowOn(Dispatchers.IO)
     suspend fun refresh() {
         val list = channels.channels.value
+        RecordingAudioSweepWorker.schedule(context, list)
         (configured.keys - list.map { it.id }.toSet()).forEach { id ->
             WorkManager.getInstance(context).cancelUniqueWork("recording-upload-$id"); configured.remove(id)
         }
@@ -129,10 +130,18 @@ internal fun attachRecordingArchive(context: Context, database: CaptureDatabase,
                 .refreshWhileNeeded(60_000) { send(Unit) } })
             .debounce(1000).collect { audio.refresh() }
     }
-    WorkManager.getInstance(context).enqueueUniquePeriodicWork("recording-audio-sweep", ExistingPeriodicWorkPolicy.KEEP,
-        PeriodicWorkRequestBuilder<RecordingAudioSweepWorker>(15, TimeUnit.MINUTES).build())
+    RecordingAudioSweepWorker.schedule(context, channels.channels.value)
 }
 class RecordingAudioSweepWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    companion object {
+        internal fun schedule(context: Context, channels: List<PushChannel>) {
+            val work = WorkManager.getInstance(context)
+            if (BackgroundRefreshPolicy.audioNeedsTick(channels))
+                work.enqueueUniquePeriodicWork("recording-audio-sweep", ExistingPeriodicWorkPolicy.KEEP,
+                    PeriodicWorkRequestBuilder<RecordingAudioSweepWorker>(15, TimeUnit.MINUTES).build())
+            else work.cancelUniqueWork("recording-audio-sweep")
+        }
+    }
     override suspend fun doWork(): Result {
         (AppGraph.push as? AndroidPushChannels)?.audioPush?.refresh() ?: return Result.retry()
         return Result.success()

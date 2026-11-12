@@ -131,6 +131,7 @@ class CaptureService : Service() {
                 samplePower()
                 store.event(WatchdogEventType.ServiceStopped, "用户正常停止")
             }
+            CaptureWatchdog.cancel(this)
             normalStop = true
             store.prefs.edit().putBoolean("enabled", false).putBoolean("unclean", false).putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
             transition(CaptureState.Stopped)

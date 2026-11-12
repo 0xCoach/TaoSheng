@@ -105,7 +105,7 @@ def dependency_errors(text):
             depth += (code[end] == "{") - (code[end] == "}")
             end += 1
         if source != "commonMain":
-            if source not in {"iosMain", "commonTest", "jvmMain", "jvmTest", "androidMain", "androidUnitTest", "androidInstrumentedTest"}:
+            if source not in {"iosMain", "iosArm64Main", "iosSimulatorArm64Main", "commonTest", "jvmMain", "jvmTest", "androidMain", "androidUnitTest", "androidInstrumentedTest"}:
                 yield line_at(text, match.start()), "依赖块无法归属；请使用显式 sourceSet.dependencies"
             continue
         common_count += 1

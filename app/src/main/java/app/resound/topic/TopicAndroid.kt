@@ -118,14 +118,14 @@ class TopicActionReceiver : BroadcastReceiver() {
                 val repository = app.topics.repository
                 val id = intent.getLongExtra("topicId", 0)
                 // 老通知不能作用于另一个后来开始的专题。
-                if (id != 0L && app.database.topics().get(id)?.row?.status !in setOf("Running", "Paused")) return@launch
+                if (id != 0L && !TopicQuickPolicy.active(app.database.topics().get(id)?.row?.status)) return@launch
                 when (intent.action) {
                     "start" -> {
-                        val result = repository.start(TopicKind.Meeting, null)
+                        val result = repository.start(AppGraph.quickPrefs.lastTopicKind.value, null)
                         when {
                             result.error != null -> TopicNotifications.error(context, result.error)
                             result.recordingDisabled -> TopicNotifications.show(context, result.topicId!!, TopicReminder.RecordingOff, scheduled = false)
-                            result.quietOverride -> TopicNotifications.error(context, "专题已开始，这段时间原本设为不录音")
+                            result.quietOverride -> TopicNotifications.error(context, TopicQuickPolicy.QUIET_STARTED)
                         }
                     }
                     "mark" -> repository.mark()
@@ -136,8 +136,8 @@ class TopicActionReceiver : BroadcastReceiver() {
                     "continue" -> NotificationManagerCompat.from(context).cancel(TopicNotifications.QUIET)
                 }
             } catch (e: CancellationException) { throw e }
-            catch (e: TopicException) { TopicNotifications.error(context, e.message ?: "专题操作失败，请重试") }
-            catch (_: Exception) { TopicNotifications.error(context, "专题操作失败，请重试") }
+            catch (e: TopicException) { TopicNotifications.error(context, e.message ?: TopicQuickPolicy.FAILED) }
+            catch (_: Exception) { TopicNotifications.error(context, TopicQuickPolicy.FAILED) }
             finally { pending.finish() }
         }
     }
@@ -159,36 +159,23 @@ internal object TopicNotifications {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun line(topic: Topic, now: Long = System.currentTimeMillis()): String {
-        val minutes = ((now - (topic.spans.minOfOrNull { it.startAt } ?: topic.createdAt)) / 60_000).coerceAtLeast(0)
-        val state = if (topic.status == TopicStatus.Paused) "已暂停" else "中"
-        val end = topic.plannedEndAt?.let { " · ${Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("H:mm"))} 结束" }.orEmpty()
-        return "${topic.name ?: topic.kind.title}$state · 已 $minutes 分钟$end"
+        val endClock = topic.plannedEndAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("H:mm")) }
+        return TopicQuickPolicy.line(topic.name, topic.kind, topic.status == TopicStatus.Paused,
+            topic.spans.minOfOrNull { it.startAt } ?: topic.createdAt, now, endClock)
     }
     fun actions(builder: NotificationCompat.Builder, context: Context, topic: Topic) {
-        builder.addAction(0, "记一下", TopicActionReceiver.intent(context, "mark", topic.id))
-            .addAction(0, if (topic.status == TopicStatus.Paused) "继续" else "暂停", TopicActionReceiver.intent(context,
-                if (topic.status == TopicStatus.Paused) "resume" else "pause", topic.id))
-            .addAction(0, "结束", TopicActionReceiver.intent(context, "end", topic.id))
+        TopicQuickPolicy.actions(topic.status == TopicStatus.Paused).forEach {
+            builder.addAction(0, it.label, TopicActionReceiver.intent(context, it.action, topic.id))
+        }
     }
     fun show(context: Context, id: Long, reminder: TopicReminder, kind: TopicKind = TopicKind.Meeting, scheduled: Boolean = true) {
-        val title = when (reminder) {
-            TopicReminder.Ending -> "还有 5 分钟结束"
-            TopicReminder.Quiet -> "15 分钟没人说话，要结束专题吗？"
-            TopicReminder.RecordingOff -> if (scheduled) "预约的专题开始了，录音没开" else "专题已开始，录音没开"
-            TopicReminder.Ready -> when (kind) {
-                TopicKind.Meeting -> "会议纪要好了"; TopicKind.Training -> "培训笔记好了"; TopicKind.Call -> "通话记录好了"
-                TopicKind.Script -> "口播稿好了"; TopicKind.Normal -> "专题整理好了"
-            }
-        }
-        val builder = base(context, title).setContentIntent(open(context, id))
-        when (reminder) {
-            TopicReminder.Ending -> builder.addAction(0, "延长 30 分钟", TopicActionReceiver.intent(context, "extend", id))
-            TopicReminder.Quiet -> builder.addAction(0, "结束", TopicActionReceiver.intent(context, "end", id))
-                .addAction(0, "继续录", TopicActionReceiver.intent(context, "continue", id))
-            TopicReminder.RecordingOff -> builder.addAction(0, "打开录音", PendingIntent.getForegroundService(context, 1353,
+        val builder = base(context, TopicQuickPolicy.reminderTitle(reminder, kind, scheduled)).setContentIntent(open(context, id))
+        TopicQuickPolicy.reminderActions(reminder).forEach { button ->
+            val action = if (button.action == "start-listening") PendingIntent.getForegroundService(context, 1353,
                 Intent(context, CaptureService::class.java).setAction(CaptureService.START).putExtra("route", "topic-notification"),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-            TopicReminder.Ready -> Unit
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            else TopicActionReceiver.intent(context, button.action, id)
+            builder.addAction(0, button.label, action)
         }
         send(context, when (reminder) { TopicReminder.Ending -> ENDING; TopicReminder.Quiet -> QUIET; TopicReminder.RecordingOff -> OFF; TopicReminder.Ready -> READY }, builder)
     }

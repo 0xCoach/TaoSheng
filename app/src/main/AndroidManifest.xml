@@ -126,6 +126,13 @@
             android:taskAffinity="app.resound.alarm"
             android:excludeFromRecents="true" />
         <activity
+            android:name=".quick.QuickActionActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Resound.QuickAction"
+            android:taskAffinity="${applicationId}.quick"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+        <activity
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">

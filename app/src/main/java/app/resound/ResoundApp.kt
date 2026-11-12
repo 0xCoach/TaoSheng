@@ -52,6 +52,7 @@ class ResoundApp : Application() {
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
+        AppGraph.quickPrefs = app.resound.quick.AndroidQuickPrefs(this)
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }
         AppGraph.asrSpeed = asrSpeed
         // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴
@@ -260,6 +261,10 @@ class ResoundApp : Application() {
         app.resound.search.EmbeddingScheduler.start(this)
         val backupRepository = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
         AppGraph.backup = backupRepository
+        AppGraph.health = app.resound.health.AndroidHealthCheck(this, controller, quietSchedule, settings, transcripts,
+            digestSettings, digestSettings.providers, AppGraph.llmBalance, backupRepository, database.capture(), scope)
+        app.resound.quick.attachQuickActionsAndroid(this, scope, controller, AppGraph.topics, AppGraph.quickPrefs,
+            app.resound.quick.DefaultQuickActionsPolicy())
         AppGraph.onboarding = app.resound.onboarding.LocalOnboarding(
             getSharedPreferences("onboarding", MODE_PRIVATE), getSharedPreferences("backup", MODE_PRIVATE),
             database.transcribe().onboardingFirstTranscript(),

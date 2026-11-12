@@ -13,6 +13,12 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var quickPrefs: app.resound.quick.QuickPrefs
+    val isQuickPrefsReady: Boolean get() = ::quickPrefs.isInitialized
+    lateinit var health: app.resound.health.HealthCheck
+    val isHealthReady: Boolean get() = ::health.isInitialized
+    val settingsSearch: app.resound.settingsearch.SettingsSearch = app.resound.settingsearch.DefaultSettingsSearch()
+
     internal lateinit var devicePlatform: app.resound.devices.android.AndroidDevicePlatform
     lateinit var devices: app.resound.devices.Devices
     lateinit var deviceScanError: kotlinx.coroutines.flow.StateFlow<String?>

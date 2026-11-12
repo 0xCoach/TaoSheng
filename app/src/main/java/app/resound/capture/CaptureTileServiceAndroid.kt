@@ -13,28 +13,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
-internal object CaptureTilePolicy {
-    enum class Action { Pause, Resume, Start }
-    fun action(state: CaptureState): Action = when (state) {
-        CaptureState.Listening, CaptureState.Recording, CaptureState.MicBusy -> Action.Pause
-        CaptureState.Paused -> Action.Resume
-        CaptureState.Stopped, CaptureState.NoPermission -> Action.Start
-    }
-    fun click(controller: CaptureController) = when (action(controller.status.value.state)) {
-        Action.Pause -> controller.pause(30)
-        Action.Resume -> controller.resume()
-        Action.Start -> controller.start()
-    }
-    fun subtitle(status: CaptureStatus): String = when (action(status.state)) {
-        Action.Pause -> "聆听中"
-        Action.Resume -> status.pausedUntil?.let {
-            "已暂停到 ${Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))}"
-        } ?: "已暂停"
-        Action.Start -> "已停止"
-    }
-}
 
 class CaptureTileService : TileService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -54,7 +32,7 @@ class CaptureTileService : TileService() {
             label = appName
             icon = Icon.createWithResource(this@CaptureTileService, R.drawable.ic_notify)
             state = if (CaptureTilePolicy.action(status.state) == CaptureTilePolicy.Action.Pause) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-            subtitle = CaptureTilePolicy.subtitle(status)
+            subtitle = CaptureTilePolicy.subtitle(status, ZoneId.systemDefault().rules.getOffset(Instant.ofEpochMilli(status.pausedUntil ?: 0)).totalSeconds)
             contentDescription = "$label，$subtitle"
             updateTile()
         }
@@ -62,7 +40,7 @@ class CaptureTileService : TileService() {
     override fun onClick() {
         super.onClick()
         unlockAndRun {
-            if (AppGraph.isReady) CaptureTilePolicy.click(AppGraph.capture)
+            if (AppGraph.isReady) CaptureTilePolicy.click(AppGraph.capture, AppGraph.quickPrefs.lastPauseMinutes.value)
         }
     }
     override fun onStopListening() { observer?.cancel(); observer = null; super.onStopListening() }

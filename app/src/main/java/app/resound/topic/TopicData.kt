@@ -46,6 +46,7 @@ internal interface TopicDao {
     @Update suspend fun update(row: TopicRow)
     @Insert suspend fun span(row: TopicSpanRow): Long
     @Insert suspend fun mark(row: TopicMarkRow): Long
+    @Query("DELETE FROM topic_marks WHERE id = :markId AND topicId = :topicId") suspend fun unmark(topicId: Long, markId: Long)
     @Query("UPDATE topic_spans SET endAt = MAX(startAt, :at) WHERE topicId = :id AND endAt IS NULL") suspend fun closeSpan(id: Long, at: Long)
     @Query("DELETE FROM topic_spans WHERE topicId = :id") suspend fun deleteSpans(id: Long)
     @Query("""SELECT EXISTS(SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId

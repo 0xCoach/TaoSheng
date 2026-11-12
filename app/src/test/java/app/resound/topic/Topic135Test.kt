@@ -244,6 +244,19 @@ class Topic135Test {
         assertTrue(TopicNotifications.line(db.topics().get(id)!!.topic(), time).contains("已暂停"))
     }
 
+    // 卡 169：标错的重点可以删；只删本专题的；已取消的专题不能删
+    @Test fun unmarkRemovesOnlyThatMarkAndRejectsCancelledTopic() = runBlocking {
+        val id = repo.start(TopicKind.Meeting, "周会", 60).topicId!!
+        time += 60_000; repo.mark(); time += 60_000; repo.mark()
+        val marks = repo.observe(id).first()!!.marks
+        assertEquals(2, marks.size)
+        repo.unmark(id, marks.first().id)
+        assertTrue(runCatching { repo.unmark(id + 999, marks.last().id) }.isFailure)   // 不存在的专题：报错，不误删
+        assertEquals(listOf(marks.last().id), repo.observe(id).first()!!.marks.map { it.id })
+        repo.cancel(id)
+        assertTrue(runCatching { repo.unmark(id, marks.last().id) }.isFailure)
+    }
+
     @Test fun multipleBatchesBecomeOneEventAndMarksReachReusedSummaryTemplate() = runBlocking {
         val start = time; val id = repo.start(TopicKind.Meeting, "项目例会", 60).topicId!!
         // 602 行减去暂停中的一句，跨过 DigestRunner 的 600 行批上限。

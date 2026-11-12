@@ -15,6 +15,7 @@ internal class MemoryTopicStore160 : TopicStore {
  override suspend fun update(row: TopicRow) { rows[row.id]=row }
  override suspend fun span(row: TopicSpanRow): Long { val id=spans.size+1L;spans+=row.copy(id=id);return id }
  override suspend fun mark(row: TopicMarkRow): Long { val id=marks.size+1L;marks+=row.copy(id=id);return id }
+ override suspend fun unmark(topicId: Long, markId: Long) { marks.removeAll { it.topicId==topicId && it.id==markId } }
  override suspend fun closeSpan(id: Long,at: Long) { for(i in spans.indices) if(spans[i].topicId==id && spans[i].endAt==null) spans[i]=spans[i].copy(endAt=maxOf(spans[i].startAt,at)) }
  override suspend fun deleteSpans(id: Long) { spans.removeAll { it.topicId==id } }
  override suspend fun digestedUntil(start: Long,end: Long): Long?=null

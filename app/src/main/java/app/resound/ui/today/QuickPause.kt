@@ -29,6 +29,7 @@ import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsSheet
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** 暂停可选的时长（分钟），与通知栏、快捷开关一致 */
 internal val PAUSE_CHOICES = listOf(15, 30, 60, 120)
@@ -85,6 +86,37 @@ internal fun PauseLengthSheet(current: Int, onPick: (Int) -> Unit, onDismiss: ()
                         color = if (on) c.onAccent else c.textSecondary, maxLines = 1)
                 }
             }
+        }
+    }
+}
+
+/** 首页底部的通用“撤销”提示（如“已记下 10:05 · 撤销”），5 秒后自动消失 */
+data class HomeSnack(val text: String, val action: String, val id: Long = System.nanoTime(), val onAction: suspend () -> Unit)
+
+object HomeSnacks {
+    var current by mutableStateOf<HomeSnack?>(null)
+}
+
+@Composable
+internal fun BoxScope.HomeSnackBar(bottomPadding: Dp) {
+    val c = Rs.colors
+    val snack = HomeSnacks.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    LaunchedEffect(snack?.id) { if (snack != null) { delay(5_000); if (HomeSnacks.current?.id == snack.id) HomeSnacks.current = null } }
+    AnimatedVisibility(snack != null, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
+        enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
+        val shown = snack ?: return@AnimatedVisibility
+        val shape = RoundedCornerShape(16.dp)
+        Row(Modifier.fillMaxWidth()
+            .shadow(if (c.isDark) 0.dp else 14.dp, shape, ambientColor = c.shadow, spotColor = Color(0x33000000))
+            .clip(shape).background(if (c.isDark) c.elevated else Color(0xFF2B2724))
+            .then(if (c.isDark) Modifier.border(0.5.dp, c.hairline, shape) else Modifier)
+            .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(shown.text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = Color.White.copy(alpha = 0.92f), modifier = Modifier.weight(1f))
+            Text(shown.action, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = if (c.isDark) c.text else Color(0xFFFFA86B),
+                modifier = Modifier.clip(CircleShape).springClick { HomeSnacks.current = null; scope.launch { shown.onAction() } }
+                    .padding(horizontal = 10.dp, vertical = 10.dp))
         }
     }
 }

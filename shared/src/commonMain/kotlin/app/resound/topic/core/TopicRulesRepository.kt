@@ -122,6 +122,12 @@ class TopicRulesRepository(
         dao.mark(TopicMarkRow(topicId = g.row.id, at = now()))
         dao.update(g.row.copy(revision = g.row.revision + 1))
     } }
+    override suspend fun unmark(topicId: Long, markId: Long) { edit {
+        val g = get(topicId)
+        requireTopic(g.row.status != "Cancelled", "专题已取消")
+        dao.unmark(topicId, markId)
+        dao.update(g.row.copy(revision = g.row.revision + 1))
+    } }
     override suspend fun update(topicId: Long, kind: TopicKind, name: String?) {
         val ended = edit {
             val g = get(topicId)

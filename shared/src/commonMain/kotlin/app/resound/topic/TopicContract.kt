@@ -34,6 +34,8 @@ interface TopicRepository {
     suspend fun end()
     suspend fun extend(minutes: Int)
     suspend fun mark()
+    /** 删除标错的重点（卡 169）；专题已取消时报错。删除后纪要不自动重写，界面提示可“重新生成” */
+    suspend fun unmark(topicId: Long, markId: Long)
     suspend fun update(topicId: Long, kind: TopicKind, name: String?)
     suspend fun schedule(kind: TopicKind, name: String?, startAt: Long, endAt: Long, repeatDays: Set<DayOfWeek> = emptySet()): Result<Long>
     suspend fun cancelSchedule(topicId: Long)

@@ -50,7 +50,7 @@ class DayDiaryTest {
         val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("review", 0), scope,
             { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "回响",
             object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) { error("禁止推送") } }, {}, now = app.resound.platform.SystemNow::now, zone = java.time.ZoneId::systemDefault, io = kotlinx.coroutines.Dispatchers.IO)
-        diary = LocalDiaryRepository(context, memory, reviews, db.memory())
+        diary = LocalDiaryRepository(context, memory, reviews, db.memory(), app.resound.platform.SystemZone, Dispatchers.IO)
     }
     @After fun close() = runBlocking {
         scope.coroutineContext[Job]!!.cancelAndJoin()
@@ -269,4 +269,22 @@ class DayDiaryTest {
         assertTrue(without.contains("⌨ 语音输入 · 合成聊天 · 老王"))
         assertFalse(without.contains("合成之前上下文")); assertFalse(without.contains("合成之后回复"))
     }
+    @Test fun repository177CardsSettingsAndErrorsMatchOldImplementation() = runBlocking {
+        val fields = app.resound.skills.FieldType.entries.map { type -> app.resound.skills.SkillField(type.name.lowercase(), type.name, type, "") }
+        val value = app.resound.skills.FieldValue(text = "内容\n第二行", items = listOf("甲", "乙"),
+            quotes = listOf(app.resound.skills.CardQuote(1, "同事", at(hour = 23), "第一行\n第二行")),
+            number = 3.5, unit = "小时", checked = listOf(true), rating = 4)
+        val card = app.resound.skills.SkillCard(1, "meeting", "技能名", "meeting", date.toKotlinLocalDate(), at(hour = 23),
+            at(date.plusDays(1), 1), "卡片标题", "摘要", fields, fields.associate { it.key to value }, listOf(1), at(), true)
+        val out = mutableListOf(cardsMarkdown(listOf(card), ZoneId.of("Asia/Shanghai")), cardsMarkdown(emptyList(), ZoneId.of("UTC")))
+        context.getSharedPreferences("diary", 0).edit().putBoolean("cloudSync", true).commit()
+        // 使用旧方法输出；既有完整样例覆盖真实查询与文件导出。
+        out += "invalid=" + runCatching { diary.markdown(date, date.minusDays(1), true) }.exceptionOrNull()?.message
+        diary.setCloudSync(false)
+        out += "sync=${diary.cloudSync.value}/${context.getSharedPreferences("diary", 0).getBoolean("cloudSync", true)}"
+        val text = out.joinToString("\n", postfix = "\n")
+        val target = File("src/test/resources/repo177/LocalDiaryRepository/cards-settings.txt")
+        assertEquals(target.readText(), text)
+    }
+
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.diary.DayDiaryTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:43:18.100Z" hostname="CoachdeMacBook-Air.local" time="4.061">
+  <properties/>
+  <testcase name="markdownMatchesFullSampleSkipsMediaAndExportsWithoutInvokingModels" classname="app.resound.diary.DayDiaryTest" time="3.952"/>
+  <testcase name="card059FolderTimelineAndExportLinesHaveDates" classname="app.resound.diary.DayDiaryTest" time="0.072"/>
+  <testcase name="repository177CardsSettingsAndErrorsMatchOldImplementation" classname="app.resound.diary.DayDiaryTest" time="0.037"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

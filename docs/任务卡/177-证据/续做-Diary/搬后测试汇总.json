@@ -1,0 +1,16 @@
+[
+  {
+    "name": "app.resound.diary.DayDiaryTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.push.PushMoreTest",
+    "tests": "10",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]

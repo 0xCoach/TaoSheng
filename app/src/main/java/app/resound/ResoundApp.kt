@@ -260,7 +260,7 @@ class ResoundApp : Application() {
         AppGraph.skills = skillRepository
         scope.launch { skillRepository.reschedule() }
         AppGraph.review = reviews
-        AppGraph.diary = app.resound.diary.LocalDiaryRepository(this, AppGraph.memory, reviews, database.memory(),
+        AppGraph.diary = app.resound.diary.LocalDiaryRepository(this, AppGraph.memory, reviews, database.memory(), AppGraph.platform.zone, AppGraph.platform.dispatchers.io,
             cards = { date -> skillRepository.cards(date).first() })
         val dailyMemory = app.resound.push.DailyMemorySource(this, AppGraph.memory, reviews, database.memory(), database.review(), database.skills())
         pushChannels.memoryDocument = dailyMemory::load

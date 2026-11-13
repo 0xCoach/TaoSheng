@@ -65,7 +65,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
     private val safeReviews = object : ReviewRepository by reviews {
         override fun daily(date: kotlinx.datetime.LocalDate) = flow { emit(localRecord("review", date.toEpochDays().toLong()) { reviews.daily(date).first() }) }
     }
-    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, ::cards) { date ->
+    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, app.resound.platform.SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards) { date ->
         window(date).let { (start, end) -> (start + 1) to (end + 1) }
     }
     suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {

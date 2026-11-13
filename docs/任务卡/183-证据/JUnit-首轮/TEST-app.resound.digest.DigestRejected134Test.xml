@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.DigestRejected134Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:37.055Z" hostname="CoachdeMacBook-Air.local" time="0.056">
+  <properties/>
+  <testcase name="rejectionReasonUsesFixedWords" classname="app.resound.digest.DigestRejected134Test" time="0.008"/>
+  <testcase name="contentRejectionSkipsOnlyTheRejectedFewLines" classname="app.resound.digest.DigestRejected134Test" time="0.027"/>
+  <testcase name="networkTroubleDuringProbeKeepsNormalRetry" classname="app.resound.digest.DigestRejected134Test" time="0.011"/>
+  <testcase name="configRejectionStopsWithoutDroppingAnything" classname="app.resound.digest.DigestRejected134Test" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

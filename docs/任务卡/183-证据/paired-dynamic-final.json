@@ -1,0 +1,150 @@
+{
+  "ask/dynamic#all": {
+    "before_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "after_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "before_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "after_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "before_ms": [
+      46.8345,
+      47.516375,
+      47.613291,
+      48.935625,
+      48.156833
+    ],
+    "after_ms": [
+      47.594208,
+      46.282791,
+      46.458792,
+      45.799042,
+      53.756083
+    ],
+    "before_median_ms": 47.613291,
+    "after_median_ms": 46.458792,
+    "same_rows": true,
+    "rows": 41,
+    "review": false
+  },
+  "ask/dynamic#range": {
+    "before_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND l.startAt>=:start AND l.startAt<:end ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "after_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND l.startAt>=:start AND l.startAt<:end ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "before_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "after_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "before_ms": [
+      26.690458,
+      22.328084,
+      25.159125,
+      29.213083,
+      25.608
+    ],
+    "after_ms": [
+      27.554583,
+      21.210042,
+      23.035042,
+      22.081708,
+      31.130084
+    ],
+    "before_median_ms": 25.608,
+    "after_median_ms": 23.035042,
+    "same_rows": true,
+    "rows": 41,
+    "review": false
+  },
+  "ask/dynamic#speaker": {
+    "before_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.speakerName=:speaker OR l.speakerTag=:speaker) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "after_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.speakerName=:speaker OR l.speakerTag=:speaker) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "before_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "after_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "before_ms": [
+      41.330583,
+      34.025291,
+      32.531125,
+      34.641042,
+      34.161416
+    ],
+    "after_ms": [
+      35.303459,
+      33.079583,
+      34.729708,
+      33.901958,
+      34.165083
+    ],
+    "before_median_ms": 34.161416,
+    "after_median_ms": 34.165083,
+    "same_rows": true,
+    "rows": 0,
+    "review": false
+  },
+  "ask/dynamic#place": {
+    "before_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND EXISTS (SELECT 1 FROM (VALUES (:start,:end)) WHERE l.startAt<column2 AND l.endAt>column1) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "after_sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND EXISTS (SELECT 1 FROM (VALUES (:start,:end)) WHERE l.startAt<column2 AND l.endAt>column1) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+    "before_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "CORRELATED SCALAR SUBQUERY 3",
+      "CO-ROUTINE (subquery-2)",
+      "SCAN CONSTANT ROW",
+      "SCAN (subquery-2)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "after_plan": [
+      "SCAN l",
+      "CORRELATED SCALAR SUBQUERY 1",
+      "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+      "CORRELATED SCALAR SUBQUERY 3",
+      "CO-ROUTINE (subquery-2)",
+      "SCAN CONSTANT ROW",
+      "SCAN (subquery-2)",
+      "USE TEMP B-TREE FOR ORDER BY"
+    ],
+    "before_ms": [
+      64.750084,
+      67.144291,
+      64.712875,
+      63.469417,
+      63.990625
+    ],
+    "after_ms": [
+      65.733042,
+      66.761958,
+      65.094958,
+      64.966,
+      64.517791
+    ],
+    "before_median_ms": 64.712875,
+    "after_median_ms": 65.094958,
+    "same_rows": true,
+    "rows": 41,
+    "review": false
+  }
+}

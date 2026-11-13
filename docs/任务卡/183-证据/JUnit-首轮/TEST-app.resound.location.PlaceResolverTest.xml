@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.location.PlaceResolverTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:41.085Z" hostname="CoachdeMacBook-Air.local" time="0.025">
+  <properties/>
+  <testcase name="parsesAmapPreferringAreaName" classname="app.resound.location.PlaceResolverTest" time="0.003"/>
+  <testcase name="wgsToGcjShiftsInChinaOnly" classname="app.resound.location.PlaceResolverTest" time="0.003"/>
+  <testcase name="manualNameWinsNearbyAndSurvivesCacheClear" classname="app.resound.location.PlaceResolverTest" time="0.008"/>
+  <testcase name="secondLookupOfSamePlaceUsesCache" classname="app.resound.location.PlaceResolverTest" time="0.011"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

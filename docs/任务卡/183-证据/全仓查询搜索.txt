@@ -1,0 +1,153 @@
+app/src/main/assets/prompts/ask-sql.json:17:    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at",
+app/src/main/assets/prompts/ask-sql.json:30:    "select": "e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at",
+app/src/main/assets/prompts/ask-sql.json:43:    "select": "i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote",
+app/src/main/java/app/resound/envsound/EnvSoundDao.kt:40:    @Query("UPDATE segments SET status = 'Pending', attempts = 0, completedAt = NULL, error = NULL, nextRetryAt = NULL, firstFailedAt = NULL WHERE id = :id AND status = 'SkippedEnv'") suspend fun requeue(id: Long): Int
+app/src/main/java/app/resound/envsound/EnvSoundDao.kt:41:    @Query("UPDATE segments SET status = 'Pending', attempts = 0, completedAt = NULL, error = NULL, nextRetryAt = NULL, firstFailedAt = NULL WHERE id = :id AND status IN ('SkippedEnv', 'Failed', 'Quiet', 'Abandoned')") suspend fun requeueCorrection(id: Long): Int
+app/src/main/java/app/resound/topic/TopicData.kt:51:        CROSS JOIN segments s INDEXED BY index_segments_startAt
+app/src/main/java/app/resound/topic/TopicData.kt:56:        SELECT 1 FROM topic_spans ts CROSS JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt
+app/src/main/java/app/resound/topic/TopicData.kt:57:        CROSS JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done'
+app/src/main/java/app/resound/topic/TopicData.kt:77:    @Query("SELECT MAX(endAt) FROM transcript_lines NOT INDEXED WHERE digestedAt IS NOT NULL AND startAt < :end AND endAt > :start")
+app/src/main/java/app/resound/topic/TopicData.kt:81:        CROSS JOIN transcript_lines l INDEXED BY index_transcript_lines_startAt
+app/src/main/java/app/resound/topic/TopicData.kt:82:        CROSS JOIN segments s ON s.id = l.segmentId
+app/src/main/java/app/resound/topic/TopicData.kt:85:    @Query("""SELECT s.* FROM segments s WHERE EXISTS (SELECT 1 FROM topic_spans ts
+app/src/main/java/app/resound/topic/TopicData.kt:95:    @Query("UPDATE transcript_lines SET eventId = NULL, digestedAt = NULL WHERE eventId IN (:ids)") suspend fun releaseEvents(ids: List<Long>)
+app/src/main/java/app/resound/topic/TopicData.kt:96:    @Query("UPDATE transcript_lines SET eventId = NULL, digestedAt = NULL WHERE startAt >= :start AND startAt < :end")
+app/src/main/java/app/resound/topic/TopicData.kt:100:    @Query("""SELECT MAX(endAt) FROM segments WHERE sourceId != 'voice-input' AND status NOT IN ('SkippedPlayback', 'SkippedEnv', 'Empty')
+app/src/main/java/app/resound/topic/TopicData.kt:102:    @Query("UPDATE segments SET nextRetryAt = 0 WHERE id IN (:ids) AND status = 'Failed' AND attempts < 5")
+app/src/main/java/app/resound/topic/TopicData.kt:104:    @Query("""SELECT COUNT(*) FROM segments s WHERE s.status = 'Pending' AND EXISTS
+app/src/main/java/app/resound/push/PushRecords.kt:53:    @Query("SELECT id, eventId FROM transcript_lines") abstract suspend fun lineOrigins(): List<PushLineOrigin>
+app/src/main/java/app/resound/push/PushRecords.kt:58:    @Query("SELECT l.* FROM transcript_lines l INDEXED BY index_transcript_lines_startAt CROSS JOIN segments s ON s.id = l.segmentId WHERE s.status = 'Done' AND l.startAt >= :start ORDER BY l.startAt, l.id") abstract suspend fun lines(start: Long): List<TranscriptLineEntity>
+app/src/main/java/app/resound/skills/SkillDao.kt:78:    @Query("SELECT l.* FROM transcript_lines l INDEXED BY index_transcript_lines_startAt CROSS JOIN segments s ON s.id = l.segmentId LEFT JOIN memory_events e ON e.id = l.eventId WHERE s.status = 'Done' AND l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id")
+app/src/main/java/app/resound/skills/SkillDao.kt:80:    @Query("SELECT * FROM transcript_lines WHERE eventId IN (:events) ORDER BY startAt, id")
+app/src/main/java/app/resound/data/PendingDigest.kt:29:        db.execSQL("""CREATE TRIGGER IF NOT EXISTS digest_pending_source_deleted AFTER DELETE ON transcript_lines BEGIN
+app/src/main/java/app/resound/redo/RedoEngine.kt:103:        val refs = "SELECT id FROM transcript_lines WHERE segmentId IN (${s.segments.map { it.segment.id }.sqlIds()})"
+app/src/main/java/app/resound/redo/RedoEngine.kt:311:            db.writeSql("UPDATE transcript_lines SET eventId = NULL WHERE eventId IN (${oldIds.sqlIds()})")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:31:    @Query("SELECT v.id AS sampleId, CASE WHEN v.source = 'enroll' THEN 'mic' ELSE s.sourceId END AS sourceId FROM voiceprint_samples v LEFT JOIN segments s ON s.id = v.segmentId")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:36:    @Query("UPDATE transcript_lines SET speakerName = :name WHERE speakerPersonId = :id AND voiceInputJson IS NULL") abstract suspend fun renameResults(id: Long, name: String)
+app/src/main/java/app/resound/data/VoiceprintDao.kt:37:    @Query("UPDATE transcript_lines SET speakerName = NULL, speakerScore = NULL, speakerPersonId = NULL, speakerManual = 0 WHERE speakerPersonId = :id AND voiceInputJson IS NULL") abstract suspend fun clearPersonResults(id: Long)
+app/src/main/java/app/resound/data/VoiceprintDao.kt:38:    @Query("UPDATE transcript_lines SET speakerName = :name, speakerScore = :score, speakerPersonId = :personId, speakerManual = :manual WHERE voiceInputJson IS NULL AND id IN (:ids) AND (:manual = 1 OR (speakerManual = 0 AND (speakerPersonId IS NOT NULL OR speakerName IS NULL OR speakerName = '我')))")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:56:    @Query("SELECT * FROM transcript_lines WHERE id = :id") abstract suspend fun line(id: Long): TranscriptLineEntity?
+app/src/main/java/app/resound/data/VoiceprintDao.kt:57:    @Query("SELECT v.*, l.text AS text, l.startAt AS lineStart, s.path AS segmentPath FROM voiceprint_samples v LEFT JOIN transcript_lines l ON l.id = v.sourceLineId LEFT JOIN segments s ON s.id = l.segmentId WHERE v.personId = :id ORDER BY v.createdAt DESC, v.id DESC")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:62:    @Query("SELECT * FROM transcript_lines NOT INDEXED WHERE speakerPersonId = :id AND voiceInputJson IS NULL ORDER BY startAt DESC, id DESC LIMIT 100")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:64:    @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:66:    @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done' AND (separateSpeakers IS NULL OR separateSpeakers = 1) AND voiceprintProcessedAt IS NULL ORDER BY startAt, id")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:68:    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName IS NULL OR speakerName = '我' THEN :name ELSE speakerName END, speakerScore = :score WHERE voiceInputJson IS NULL AND id IN (:ids)")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:70:    @Query("UPDATE segments SET voiceprintProcessedAt = :at WHERE id = :id")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:72:    @Query("UPDATE segments NOT INDEXED SET voiceprintProcessedAt = NULL WHERE sourceId != 'voice-input' AND status = 'Done'")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:74:    @Query("SELECT * FROM segments NOT INDEXED WHERE sourceId != 'voice-input' AND status = 'Done'")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:77:    @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE id IN (:ids)")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:80:    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerScore >= :sure THEN '我' ELSE NULL END WHERE voiceInputJson IS NULL AND speakerManual = 0 AND speakerScore IS NOT NULL AND (speakerName IS NULL OR speakerName = '我')")
+app/src/main/java/app/resound/data/VoiceprintDao.kt:82:    @Query("UPDATE transcript_lines SET speakerName = CASE WHEN speakerName = '我' THEN NULL ELSE speakerName END, speakerScore = NULL, speakerPersonId = NULL, speakerManual = 0 WHERE voiceInputJson IS NULL AND (speakerPersonId = 0 OR speakerName = '我' OR (speakerPersonId IS NULL AND speakerManual = 0))")
+app/src/main/java/app/resound/things/ThingData.kt:49:    @Query("SELECT COALESCE(MAX(id), 0) FROM transcript_lines") suspend fun maxLineId(): Long
+app/src/main/java/app/resound/things/ThingData.kt:50:    @Query("SELECT COALESCE(MAX(id), 0) FROM transcript_lines WHERE startAt < :before") suspend fun maxLineIdBefore(before: Long): Long
+app/src/main/java/app/resound/things/ThingData.kt:51:    @Query("SELECT * FROM transcript_lines WHERE id > :after AND id <= :until ORDER BY id LIMIT 80")
+app/src/main/java/app/resound/things/ThingData.kt:53:    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.id IN (:ids) AND " + THING_ELIGIBLE + " ORDER BY l.id")
+app/src/main/java/app/resound/things/ThingData.kt:55:    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.id <= :before AND " + THING_ELIGIBLE + " ORDER BY l.id DESC LIMIT 20")
+app/src/main/java/app/resound/things/ThingData.kt:79:        db.execSQL("""CREATE TRIGGER IF NOT EXISTS things_line_deleted BEFORE DELETE ON transcript_lines BEGIN
+app/src/main/java/app/resound/things/ThingData.kt:85:            DELETE FROM thing_records WHERE status = 'Pending' AND sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = NEW.id);
+app/src/main/java/app/resound/things/ThingData.kt:86:            UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = NEW.id);
+app/src/main/java/app/resound/things/ThingData.kt:89:            DELETE FROM thing_records WHERE status = 'Pending' AND sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = OLD.id);
+app/src/main/java/app/resound/things/ThingData.kt:90:            UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = OLD.id);
+app/src/main/java/app/resound/data/TranscribeDao.kt:35:    @Query("SELECT MIN(startAt) FROM transcript_lines WHERE LENGTH(TRIM(text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0")
+app/src/main/java/app/resound/data/TranscribeDao.kt:39:    @Query("""SELECT s.startAt FROM segments s WHERE s.startAt >= :since AND s.sourceId != 'voice-input'
+app/src/main/java/app/resound/data/TranscribeDao.kt:43:            FROM transcript_lines l WHERE l.segmentId = s.id
+app/src/main/java/app/resound/data/TranscribeDao.kt:49:    @Query("SELECT * FROM segments WHERE id IN (:ids) ORDER BY startAt, id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:53:        (SELECT eventId FROM transcript_lines WHERE segmentId = :segmentId))""")
+app/src/main/java/app/resound/data/TranscribeDao.kt:63:    @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
+app/src/main/java/app/resound/data/TranscribeDao.kt:64:    @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e
+app/src/main/java/app/resound/data/TranscribeDao.kt:68:    @Query("SELECT EXISTS(SELECT 1 FROM segments WHERE path IN (:ogg, :m4a))")
+app/src/main/java/app/resound/data/TranscribeDao.kt:70:    @Query("SELECT * FROM segments WHERE sourceId = 'import' AND status != 'Running'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:74:    @Query("SELECT * FROM segments WHERE startAt >= :start AND startAt < :end ORDER BY startAt DESC, id DESC")
+app/src/main/java/app/resound/data/TranscribeDao.kt:77:    @Query("SELECT * FROM segments") abstract fun observeSegments(): Flow<List<SegmentEntity>>
+app/src/main/java/app/resound/data/TranscribeDao.kt:81:        COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments WHERE status IN ('Pending', 'Failed', 'Running')""")
+app/src/main/java/app/resound/data/TranscribeDao.kt:84:        COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done'""")
+app/src/main/java/app/resound/data/TranscribeDao.kt:86:    @Query("SELECT * FROM segments WHERE status = 'Failed' ORDER BY id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:89:    @Query("SELECT * FROM segments INDEXED BY index_segments_startAt WHERE status = 'Done' AND startAt >= :since")
+app/src/main/java/app/resound/data/TranscribeDao.kt:91:    @Query("SELECT * FROM segments WHERE startAt < :end AND endAt > :start ORDER BY startAt, id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:100:    @Query("SELECT * FROM segments WHERE status = 'Pending' OR (status = 'Failed' AND attempts < 5 AND nextRetryAt <= :now) ORDER BY CASE WHEN EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId WHERE t.status IN ('Ended', 'Summarizing', 'Failed') AND segments.startAt < ts.endAt AND segments.endAt > ts.startAt) THEN 0 ELSE 1 END, CASE WHEN error = '转写超时，等待重试' THEN 1 ELSE 0 END, startAt, id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:108:    @Query("SELECT COALESCE(SUM(endAt - startAt), 0) FROM segments WHERE status = 'Pending'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:110:    @Query("SELECT MIN(nextRetryAt) FROM segments WHERE status = 'Failed' AND attempts < 5 AND nextRetryAt IS NOT NULL")
+app/src/main/java/app/resound/data/TranscribeDao.kt:113:    @Query("UPDATE segments SET status = 'Failed', error = '任务中断，等待重试', nextRetryAt = :now, firstFailedAt = COALESCE(firstFailedAt, :now), attempts = MAX(attempts - 1, 0) WHERE status = 'Running'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:115:    @Query("UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL WHERE status = 'Failed'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:122:    @Query("UPDATE segments SET status = 'Abandoned', completedAt = :now, nextRetryAt = NULL, error = CASE WHEN error = '录音文件已不存在' THEN error ELSE '录音损坏，无法转写' END WHERE status = 'Failed' AND nextRetryAt IS NULL AND (error IN ('录音文件不可读取或解码失败', '录音文件已不存在', '录音损坏，无法转写', '导入音频已满 3 天并删除，请重新分享') OR EXISTS (SELECT 1 FROM asr_attempts a WHERE a.id = (SELECT MAX(id) FROM asr_attempts WHERE segmentId = segments.id) AND a.errorType = 'Audio'))")
+app/src/main/java/app/resound/data/TranscribeDao.kt:124:    @Query("UPDATE segments SET firstFailedAt = :now WHERE status = 'Failed' AND firstFailedAt IS NULL")
+app/src/main/java/app/resound/data/TranscribeDao.kt:126:    @Query("UPDATE segments SET status = 'Quiet', completedAt = :now, nextRetryAt = NULL, error = '多次转写失败' WHERE status = 'Failed' AND firstFailedAt < :now - 259200000")
+app/src/main/java/app/resound/data/TranscribeDao.kt:134:    @Query("UPDATE segments SET status = 'Quiet', completedAt = :now, nextRetryAt = NULL WHERE status = 'Failed'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:141:    @Query("UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL, firstFailedAt = NULL WHERE id = :id AND status IN ('Failed', 'Quiet', 'Abandoned')")
+app/src/main/java/app/resound/data/TranscribeDao.kt:146:    @Query("DELETE FROM voiceprint_samples WHERE segmentId = :id OR sourceLineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
+app/src/main/java/app/resound/data/TranscribeDao.kt:150:    @Query("DELETE FROM memory_items WHERE lineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
+app/src/main/java/app/resound/data/TranscribeDao.kt:152:    @Query("DELETE FROM memory_events WHERE id IN (SELECT eventId FROM transcript_lines WHERE segmentId = :id) AND NOT EXISTS (SELECT 1 FROM transcript_lines l WHERE l.eventId = memory_events.id AND l.segmentId != :id)")
+app/src/main/java/app/resound/data/TranscribeDao.kt:154:    @Query("DELETE FROM segments WHERE id = :id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:170:    @Query("UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL WHERE id = :id AND status = 'SkippedPlayback'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:172:    @Query("SELECT COUNT(*) FROM segments WHERE status = 'SkippedPlayback'")
+app/src/main/java/app/resound/data/TranscribeDao.kt:174:    @Query("UPDATE segments SET status = 'SkippedEnv', completedAt = :at, nextRetryAt = NULL, error = NULL, voiceprintProcessedAt = :at WHERE id = :id AND status = 'Running' AND NOT EXISTS (SELECT 1 FROM env_sounds WHERE segmentId = :id AND (restored = 1 OR reportedWrong = 1))")
+app/src/main/java/app/resound/data/TranscribeDao.kt:176:    @Query("UPDATE segments SET separateSpeakers = :on WHERE id = :id AND separateSpeakers IS NULL")
+app/src/main/java/app/resound/data/TranscribeDao.kt:178:    @Query("UPDATE segments SET separateSpeakers = 0 WHERE id = :id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:180:    @Query("SELECT id FROM segments WHERE id IN (:ids) AND separateSpeakers = 0 AND (importChannel IS NULL OR speakerCount = 0)")
+app/src/main/java/app/resound/data/TranscribeDao.kt:183:    @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun findSegment(id: Long): SegmentEntity?
+app/src/main/java/app/resound/data/TranscribeDao.kt:184:    @Query("UPDATE segments SET status = 'Running', attempts = attempts + 1, nextRetryAt = NULL, error = NULL WHERE id = :id AND status IN ('Pending', 'Failed')")
+app/src/main/java/app/resound/data/TranscribeDao.kt:186:    @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun segment(id: Long): SegmentEntity
+app/src/main/java/app/resound/data/TranscribeDao.kt:187:    @Query("DELETE FROM transcript_lines WHERE segmentId = :id") abstract suspend fun deleteLines(id: Long)
+app/src/main/java/app/resound/data/TranscribeDao.kt:189:    @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
+app/src/main/java/app/resound/data/TranscribeDao.kt:213:    @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :from AND :to")
+app/src/main/java/app/resound/data/TranscribeDao.kt:225:    @Query("SELECT * FROM segments NOT INDEXED WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'SkippedEnv', 'Abandoned', 'Quiet') AND completedAt <= :before")
+app/src/main/java/app/resound/data/TranscribeDao.kt:230:    @Query("UPDATE segments SET sentMillis = sentMillis + :millis WHERE id = :id")
+app/src/main/java/app/resound/data/MemoryDao.kt:122:        """SELECT l.* FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId
+app/src/main/java/app/resound/data/MemoryDao.kt:128:        """SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId
+app/src/main/java/app/resound/data/MemoryDao.kt:133:    @Query("SELECT COUNT(*) FROM segments WHERE id IN (:ids) AND (separateSpeakers IS NULL OR separateSpeakers = 1 OR (importChannel IS NOT NULL AND (speakerCount IS NULL OR speakerCount != 0))) AND voiceprintProcessedAt IS NULL")
+app/src/main/java/app/resound/data/MemoryDao.kt:136:    @Query("SELECT * FROM transcript_lines WHERE id IN (:ids) ORDER BY startAt, id")
+app/src/main/java/app/resound/data/MemoryDao.kt:141:        """SELECT COUNT(*) FROM segments WHERE endAt > :start AND startAt < :end
+app/src/main/java/app/resound/data/MemoryDao.kt:146:    @Query("SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS")
+app/src/main/java/app/resound/data/MemoryDao.kt:161:    @Query("UPDATE transcript_lines SET eventId = :eventId WHERE id IN (:ids)")
+app/src/main/java/app/resound/data/MemoryDao.kt:164:    @Query("UPDATE transcript_lines SET digestedAt = :at WHERE id IN (:ids)")
+app/src/main/java/app/resound/data/MemoryDao.kt:167:    @Query("SELECT COUNT(*) FROM transcript_lines l WHERE l.id IN (:ids) AND NOT ($OUTSIDE_TOPICS)")
+app/src/main/java/app/resound/data/MemoryDao.kt:230:    @Query("SELECT l.* FROM transcript_lines l LEFT JOIN memory_events e ON e.id = l.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND l.id IN (SELECT doneHintLineId FROM memory_items WHERE deleted = 0)")
+app/src/main/java/app/resound/data/MemoryDao.kt:310:    @Query("""SELECT l.startAt, l.endAt FROM transcript_lines l
+app/src/main/java/app/resound/data/MemoryDao.kt:340:    @Query("SELECT id FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id LIMIT 1")
+app/src/main/java/app/resound/data/MemoryDao.kt:343:    @Query("SELECT * FROM transcript_lines WHERE segmentId = (SELECT segmentId FROM transcript_lines WHERE id = :lineId) ORDER BY startAt, id")
+app/src/main/java/app/resound/data/MemoryDao.kt:347:    @Query("SELECT * FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id")
+app/src/main/java/app/resound/data/MemoryDao.kt:412:    @Query("""SELECT l.* FROM transcript_lines l INDEXED BY index_transcript_lines_startAt CROSS JOIN segments s ON s.id = l.segmentId
+app/src/main/java/app/resound/data/MemoryDao.kt:419:        UNION ALL SELECT l.startAt AS at FROM transcript_lines l JOIN segments s NOT INDEXED ON s.id = l.segmentId
+app/src/main/java/app/resound/data/CaptureDatabase.kt:46:    @Query("SELECT * FROM segments WHERE startAt < :end AND endAt > :start ORDER BY startAt")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:99:                db.execSQL("UPDATE segments SET status = 'Pending' WHERE status = '待转写'")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:162:                db.execSQL("UPDATE transcript_lines SET speakerPersonId = 0 WHERE speakerName = '我'")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:163:                db.execSQL("UPDATE transcript_lines SET speakerManual = 1 WHERE speakerName IS NOT NULL AND speakerName != '我'")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:164:                db.execSQL("UPDATE transcript_lines SET speakerManual = 1 WHERE EXISTS (SELECT 1 FROM voiceprint_samples s WHERE s.source = 'line' AND s.segmentId = transcript_lines.segmentId AND s.groupKey = CASE WHEN transcript_lines.speakerTag IS NULL THEN 'line:' || transcript_lines.id ELSE 'tag:' || transcript_lines.speakerTag END)")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:165:                db.execSQL("UPDATE transcript_lines SET speakerManual = 1 WHERE EXISTS (SELECT 1 FROM voiceprint_exclusions e WHERE e.segmentId = transcript_lines.segmentId AND e.groupKey = CASE WHEN transcript_lines.speakerTag IS NULL THEN 'line:' || transcript_lines.id ELSE 'tag:' || transcript_lines.speakerTag END)")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:260:                db.execSQL("UPDATE segments SET firstFailedAt = (SELECT MIN(at) FROM asr_attempts WHERE segmentId = segments.id AND result = 'Failed') WHERE status = 'Failed'")
+app/src/main/java/app/resound/data/CaptureDatabase.kt:285:                db.execSQL("UPDATE segments SET separateSpeakers = 1 WHERE status IN ('Done', 'Empty')")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:10:    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.sourceId != 'voice-input' AND l.voiceInputJson IS NULL AND l.startAt BETWEEN :from AND :to")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:12:    @Query("DELETE FROM transcript_lines WHERE id IN (:ids) AND voiceInputJson IS NULL") abstract suspend fun deleteLines(ids: List<Long>)
+app/src/main/java/app/resound/data/VoiceInputDao.kt:13:    @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :at - 1800000 AND :at ORDER BY startAt DESC, id DESC")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:17:    @Query("SELECT * FROM transcript_lines NOT INDEXED WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:19:    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id=l.segmentId WHERE s.path=:token")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:21:    @Query("UPDATE transcript_lines SET voiceInputJson=:json, voiceInputPendingUntil=NULL WHERE id=:id AND voiceInputPendingUntil IS NOT NULL")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:23:    @Query("UPDATE transcript_lines SET voiceInputPendingUntil=:until WHERE segmentId IN (SELECT id FROM segments WHERE path=:token) AND voiceInputPendingUntil IS NOT NULL")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:26:    @Query("UPDATE transcript_lines SET text=:text WHERE id=:id AND digestedAt IS NULL")
+app/src/main/java/app/resound/data/VoiceInputDao.kt:28:    @Query("UPDATE transcript_lines SET voiceInputPendingUntil=NULL WHERE voiceInputPendingUntil IS NOT NULL")
+app/src/main/java/app/resound/redo/RedoData.kt:21:    @Query("SELECT * FROM segments WHERE startAt < :end AND endAt > :start ORDER BY startAt, id")
+app/src/main/java/app/resound/redo/RedoData.kt:24:    @Query("SELECT * FROM transcript_lines WHERE eventId IN (:ids) ORDER BY startAt, id") suspend fun eventLines(ids: List<Long>): List<TranscriptLineEntity>
+app/src/main/java/app/resound/redo/RedoData.kt:69:        // UPDATE segments 避免 REPLACE 级联删除原话；其余表由调用者先按 ID 清理。
+app/src/main/java/app/resound/redo/RedoData.kt:77:                    db.writeSql("UPDATE segments SET ${keys.joinToString { "$it = ?" }} WHERE id = ${row.getLong("id")}", values)
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:32:    @Query("UPDATE memory_items SET eventId = (SELECT eventId FROM transcript_lines WHERE id = memory_items.lineId) WHERE eventId IS NULL AND lineId IN (SELECT l.id FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.importRecordId = :id)")
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:35:    @Query("SELECT * FROM memory_items WHERE category = '待办' AND lineId IN (SELECT l.id FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.importRecordId = :id) ORDER BY id")
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:43:            (SELECT status FROM segments WHERE importRecordId = r.id ORDER BY id)), '') AS statuses FROM import_records r
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:45:        AND NOT EXISTS (SELECT 1 FROM segments s WHERE s.importRecordId = r.id
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:57:    @Query("SELECT * FROM segments WHERE importRecordId = :id ORDER BY startAt, importChannel, id")
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:59:    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.importRecordId = :id ORDER BY l.startAt, s.importChannel, l.id")
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:77:        db.execSQL("""CREATE TRIGGER IF NOT EXISTS import_segment_deleted AFTER DELETE ON segments
+app/src/main/java/app/resound/importer/ImportRecordDao.kt:83:                AND NOT EXISTS (SELECT 1 FROM segments WHERE importRecordId = OLD.importRecordId);
+app/src/main/java/app/resound/ask/AskContext.kt:12:        val eventQuote = "COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), '')"
+app/src/main/java/app/resound/ask/AskContext.kt:15:                FROM transcript_lines l WHERE l.id=? AND (l.eventId IS NULL OR EXISTS(SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0))"""
+app/src/main/java/app/resound/ask/AskContext.kt:18:                COALESCE((SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),NULLIF($eventQuote,''),i.sourceText,'') AS quote
+app/src/main/java/app/resound/ask/AskContext.kt:47:        db.readSqlBlocking("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(eventId)) { c ->
+app/src/main/java/app/resound/data/PrivacyDao.kt:14:    @Query("SELECT * FROM segments WHERE startAt >= :from AND startAt <= :until")
+app/src/main/java/app/resound/data/PrivacyDao.kt:16:    @Query("SELECT * FROM segments WHERE id = :id")
+app/src/main/java/app/resound/data/PrivacyDao.kt:18:    @Query("SELECT DISTINCT s.* FROM segments s JOIN transcript_lines l ON l.segmentId = s.id WHERE l.eventId = :id")
+app/src/main/java/app/resound/data/PrivacyDao.kt:20:    @Query("DELETE FROM memory_items WHERE lineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
+app/src/main/java/app/resound/data/PrivacyDao.kt:26:    @Query("DELETE FROM transcript_lines WHERE id = :id")
+app/src/main/java/app/resound/data/PrivacyDao.kt:28:    @Query("DELETE FROM embeddings WHERE kind = 'line' AND refId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
+app/src/main/java/app/resound/data/PrivacyDao.kt:30:    @Query("DELETE FROM transcript_lines WHERE segmentId = :id")
+app/src/main/java/app/resound/data/PrivacyDao.kt:32:    @Query("DELETE FROM voiceprint_samples WHERE segmentId = :id OR sourceLineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
+app/src/main/java/app/resound/data/PrivacyDao.kt:36:    @Query("DELETE FROM segments WHERE id = :id")
+app/src/main/java/app/resound/data/PrivacyDao.kt:38:    @Query("SELECT COUNT(*) FROM transcript_lines WHERE eventId = :id")

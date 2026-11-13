@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.SkillGeneration047Test" tests="8" skipped="0" failures="1" errors="0" timestamp="2026-11-13T05:16:43.839Z" hostname="CoachdeMacBook-Air.local" time="0.14">
+  <properties/>
+  <testcase name="deletedMeetingOverlapAndAliasesAreRestoredOnlyByManual" classname="app.resound.skills.SkillGeneration047Test" time="0.015"/>
+  <testcase name="stoppedWorkerPropagatesCancellationAndRetryCanStillProduceResult" classname="app.resound.skills.SkillGeneration047Test" time="0.023"/>
+  <testcase name="generateIsImmediateDeduplicatedClearsOldResultAndPublishesCompletion" classname="app.resound.skills.SkillGeneration047Test" time="0.02"/>
+  <testcase name="deletedDayManualRestoresAndAutomaticUpdatesWhileDeletedAutomaticHasOwnReason" classname="app.resound.skills.SkillGeneration047Test" time="0.015">
+    <failure message="kotlinx.coroutines.JobCancellationException: Job was cancelled; job=null" type="kotlinx.coroutines.JobCancellationException">kotlinx.coroutines.JobCancellationException: Job was cancelled; job=null
+	at _COROUTINE._BOUNDARY._(CoroutineDebugging.kt:42)
+	at kotlinx.coroutines.flow.internal.CombineKt$combineInternal$2$1.invokeSuspend(Combine.kt:28)
+	at kotlinx.coroutines.flow.internal.ChannelFlow$collectToFun$1.invokeSuspend(ChannelFlow.kt:56)
+	at kotlinx.coroutines.flow.FlowKt__ChannelsKt.emitAllImpl$FlowKt__ChannelsKt(Channels.kt:32)
+	at kotlinx.coroutines.flow.internal.ChannelFlow$collect$2.invokeSuspend(ChannelFlow.kt:119)
+	at kotlinx.coroutines.flow.FlowKt__ReduceKt.first(Reduce.kt:179)
+	at app.resound.skills.SkillGeneration047Test$deletedDayManualRestoresAndAutomaticUpdatesWhileDeletedAutomaticHasOwnReason$1.invokeSuspend(SkillGeneration047Test.kt:100)
+	Suppressed: org.robolectric.android.internal.AndroidTestEnvironment$UnExecutedRunnablesException: Main looper has queued unexecuted runnables. This might be the cause of the test failure. You might need a shadowOf(Looper.getMainLooper()).idle() call.
+Caused by: kotlinx.coroutines.JobCancellationException: Job was cancelled; job=null
+	at kotlinx.coroutines.JobSupport.cancel(JobSupport.kt:1685)
+	at kotlinx.coroutines.CoroutineScopeKt.cancel(CoroutineScope.kt:284)
+	at kotlinx.coroutines.CoroutineScopeKt.cancel$default(CoroutineScope.kt:282)
+	at androidx.room.RoomDatabase.onClosed(RoomDatabase.android.kt:577)
+	at androidx.room.RoomDatabase.access$onClosed(RoomDatabase.android.kt:95)
+	at androidx.room.RoomDatabase$closeBarrier$1.invoke(RoomDatabase.android.kt:163)
+	at androidx.room.RoomDatabase$closeBarrier$1.invoke(RoomDatabase.android.kt:163)
+	at androidx.room.concurrent.CloseBarrier.close$room_runtime(CloseBarrier.kt:91)
+	at androidx.room.RoomDatabase.close(RoomDatabase.android.kt:573)
+	at app.resound.envsound.EnvSound070Test.close(EnvSound070Test.kt:46)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.RunAfters.invokeMethod(RunAfters.java:46)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:33)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.robolectric.RobolectricTestRunner$HelperTestRunner$1.evaluate(RobolectricTestRunner.java:524)
+	at org.robolectric.internal.SandboxTestRunner.executeInSandbox(SandboxTestRunner.java:494)
+	at org.robolectric.internal.SandboxTestRunner.access$900(SandboxTestRunner.java:67)
+	at org.robolectric.internal.SandboxTestRunner$7.evaluate(SandboxTestRunner.java:442)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.robolectric.internal.SandboxTestRunner.access$600(SandboxTestRunner.java:67)
+	at org.robolectric.internal.SandboxTestRunner$6.evaluate(SandboxTestRunner.java:333)
+	at org.robolectric.internal.SandboxTestRunner$3.evaluate(SandboxTestRunner.java:233)
+	at org.robolectric.internal.SandboxTestRunner$5.lambda$evaluate$0(SandboxTestRunner.java:317)
+	at org.robolectric.internal.bytecode.Sandbox.lambda$runOnMainThread$0(Sandbox.java:101)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+</failure>
+  </testcase>
+  <testcase name="networkAndServerRetryAtMostTwiceWithoutEarlyNotice" classname="app.resound.skills.SkillGeneration047Test" time="0.015"/>
+  <testcase name="restoresPendingWorkAfterRepositoryRestartAndKeepsExistingRequest" classname="app.resound.skills.SkillGeneration047Test" time="0.018"/>
+  <testcase name="fullDayReportsActualCountInsteadOfDeletedReason" classname="app.resound.skills.SkillGeneration047Test" time="0.017"/>
+  <testcase name="noticesHaveThreeOutcomesAndMultipleCardDayLinkEvenWithPushOff" classname="app.resound.skills.SkillGeneration047Test" time="0.017"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

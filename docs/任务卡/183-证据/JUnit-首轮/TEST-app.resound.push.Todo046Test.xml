@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.Todo046Test" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:41.918Z" hostname="CoachdeMacBook-Air.local" time="0.327">
+  <properties/>
+  <testcase name="strongReminderGoesToStrongChannelOthersStayNormal" classname="app.resound.push.Todo046Test" time="0.015"/>
+  <testcase name="deleteRegeneratesFolderAndWebhookDelta" classname="app.resound.push.Todo046Test" time="0.013"/>
+  <testcase name="strongReminderPostsWithButtonsAfterEdit" classname="app.resound.push.Todo046Test" time="0.093"/>
+  <testcase name="eveningGroupsDateOnlyAndLeadIsSingleAndSentOnce" classname="app.resound.push.Todo046Test" time="0.01"/>
+  <testcase name="digestContextLimitsAndIgnoredWindow" classname="app.resound.push.Todo046Test" time="0.014"/>
+  <testcase name="ongoingAndUnlimitedCompletedRange" classname="app.resound.push.Todo046Test" time="0.03"/>
+  <testcase name="migration15AndOldVolumeAndSettingsRestore" classname="app.resound.push.Todo046Test" time="0.047"/>
+  <testcase name="editNormalizesDateAndRevisesReminderIdentity" classname="app.resound.push.Todo046Test" time="0.015"/>
+  <testcase name="deletedIsAbsentFromAllConsumers" classname="app.resound.push.Todo046Test" time="0.016"/>
+  <testcase name="batchIsAtomicAndDoneHintsValidateIdsAndDismissal" classname="app.resound.push.Todo046Test" time="0.014"/>
+  <testcase name="redigestAndMergeNeverReviveDeletedOrOverwriteEdits" classname="app.resound.push.Todo046Test" time="0.013"/>
+  <testcase name="subscriptionSendsIndividualLeadsAndRetrySkipsSuccessfulOne" classname="app.resound.push.Todo046Test" time="0.017"/>
+  <testcase name="localPhoneSendsOnceAndReschedulesEditedTime" classname="app.resound.push.Todo046Test" time="0.012"/>
+  <testcase name="runnerSuppliesContextAndPersistsHintWithoutCompleting" classname="app.resound.push.Todo046Test" time="0.018"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

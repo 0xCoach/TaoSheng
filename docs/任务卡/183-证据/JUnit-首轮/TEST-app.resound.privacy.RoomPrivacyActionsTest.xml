@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.privacy.RoomPrivacyActionsTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:41.126Z" hostname="CoachdeMacBook-Air.local" time="0.083">
+  <properties/>
+  <testcase name="forgetEventRemovesAudioSamplesExclusionsAndFeaturesButKeepsEnrollment" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.01"/>
+  <testcase name="deletedQueuedAndInflightSegmentsCannotBeTranscribedOrRecreatedByOldResults" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.009"/>
+  <testcase name="recentDeletesWholeEventAndItsUnlinkedItems" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.008"/>
+  <testcase name="forgetSegmentRemovesEmptyEventsAndPreservesOtherEventLines" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.007"/>
+  <testcase name="rangeDeletesOnlyInsideAndKeepsRecordingWhenRangeIsPast" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.008"/>
+  <testcase name="fileRemovalFailureIsPersistedAndRetriedAfterRecreation" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.01"/>
+  <testcase name="recentKeepsCrossingEventAndDeletesSourceItemsAndPendingAudio" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.009"/>
+  <testcase name="sequentialBatchDeletionWorksBeyondFiveEvents" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.022"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

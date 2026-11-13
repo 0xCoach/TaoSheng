@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.importer.FolderImports117Test" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:40.506Z" hostname="CoachdeMacBook-Air.local" time="0.156">
+  <properties/>
+  <testcase name="fingerprintUsesSizeHeadAndTailAndSettingsAreBackedUp" classname="app.resound.importer.FolderImports117Test" time="0.026"/>
+  <testcase name="permissionLossStopsScanningUntilReselectedAndRestoredSettingsRequireGrant" classname="app.resound.importer.FolderImports117Test" time="0.016"/>
+  <testcase name="changingSizeAndRecentModificationWaitForTwoStableScans" classname="app.resound.importer.FolderImports117Test" time="0.013"/>
+  <testcase name="baselineReadFailureDoesNotTreatLaterFilesAsOld" classname="app.resound.importer.FolderImports117Test" time="0.011"/>
+  <testcase name="copyThatChangesAfterHashIsRejectedWithoutPendingOrQueue" classname="app.resound.importer.FolderImports117Test" time="0.009"/>
+  <testcase name="migrationFrom29PreservesDataAndAddsPersistentFingerprintTables" classname="app.resound.importer.FolderImports117Test" time="0.017"/>
+  <testcase name="sharedQueuedAndFinishedAudioIsNotImportedAgainAndMetadataWins" classname="app.resound.importer.FolderImports117Test" time="0.026"/>
+  <testcase name="oldFilesIncludingEmptyGrowingFileAreIgnoredButNewFileImports" classname="app.resound.importer.FolderImports117Test" time="0.024"/>
+  <testcase name="stableFileImportsOnceEvenAfterRenameAndRepositoryRestart" classname="app.resound.importer.FolderImports117Test" time="0.014"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

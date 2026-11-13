@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.diagnostics.ProblemReportsTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:36.393Z" hostname="CoachdeMacBook-Air.local" time="0.079">
+  <properties/>
+  <testcase name="crashesOmitMessagesRetainTenAndDelegateToOriginalHandler" classname="app.resound.diagnostics.ProblemReportsTest" time="0.013"/>
+  <testcase name="exportIncludesDiagnosticsScrubsKeysAndCrashNoticeStaysDismissedAfterRestart" classname="app.resound.diagnostics.ProblemReportsTest" time="0.066"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

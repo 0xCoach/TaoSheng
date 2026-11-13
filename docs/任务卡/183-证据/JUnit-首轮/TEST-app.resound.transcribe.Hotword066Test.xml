@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.Hotword066Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:47.116Z" hostname="CoachdeMacBook-Air.local" time="0.147">
+  <properties/>
+  <testcase name="ignoresSingleCharacterAndNonChineseHotwords" classname="app.resound.transcribe.Hotword066Test" time="0.025"/>
+  <testcase name="configuredCloudDoesNotCorrectHomophones" classname="app.resound.transcribe.Hotword066Test" time="0.02"/>
+  <testcase name="commonWordIsProtected" classname="app.resound.transcribe.Hotword066Test" time="0.007"/>
+  <testcase name="punctuationIsNotCrossedAndOriginalIsSavedForLocalImport" classname="app.resound.transcribe.Hotword066Test" time="0.012"/>
+  <testcase name="acceptsAnyPronunciationOnEitherSide" classname="app.resound.transcribe.Hotword066Test" time="0.004"/>
+  <testcase name="longestWinsTiesRemainAndHotwordChangesRefreshCache" classname="app.resound.transcribe.Hotword066Test" time="0.003"/>
+  <testcase name="version21MigrationPreserves065DataAndOriginalDefaultsToNull" classname="app.resound.transcribe.Hotword066Test" time="0.016"/>
+  <testcase name="correctsAndKeepsExactWordWithMeasuredCachedPerformance" classname="app.resound.transcribe.Hotword066Test" time="0.06"/>
+  <system-out><![CDATA[066 performance instance_first_call_ms=0.059084 chars=400 hotwords=200 median_ms=0.344125 p95_ms=0.917583
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

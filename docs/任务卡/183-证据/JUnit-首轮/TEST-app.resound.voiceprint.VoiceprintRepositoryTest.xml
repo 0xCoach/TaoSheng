@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.voiceprint.VoiceprintRepositoryTest" tests="23" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:49.359Z" hostname="CoachdeMacBook-Air.local" time="0.425">
+  <properties/>
+  <testcase name="insufficientOrSilentEnrollmentDoesNotPersistAndCancellationIsPropagated" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.008"/>
+  <testcase name="expiredAudioStillAllowsManualIdentityWithoutInventingSample" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.009"/>
+  <testcase name="enteringNameCreatesPersonAndReusesItForNextRecording" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.019"/>
+  <testcase name="persistentFeatureCacheSurvivesDatabaseReopenWithoutAudioOrEngine" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.035"/>
+  <testcase name="differentSpeakerGetsScoreButNoNameAndShortGroupIsSkipped" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.013"/>
+  <testcase name="autoLimitEvictsOldestByTimeThenIdAndNeverManualSamples" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.03"/>
+  <testcase name="markMeIsGroupScopedDeduplicatedAndNotMeRemovesPoisonedSamplePermanently" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.023"/>
+  <testcase name="resetClearsSamplesNamesScoresExclusionsAndReadiness" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.012"/>
+  <testcase name="clearAudioKeepsVectorsAndRecognitionAndDisablesFallbackAcrossRestart" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.019"/>
+  <testcase name="concurrentRoundsShareOneGateAndDigestHoldsStableResults" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.05"/>
+  <testcase name="failedProcessingRetainsAudioThenRetriesBeforeCleanupAndMissingFilesDoNotBlockForever" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.014"/>
+  <testcase name="multiplePeopleKeepCorrectionsRenameAndDeleteWithoutLosingAudio" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.03"/>
+  <testcase name="autoSamplesRequireScoreAndEffectiveSpeechAndRespectExclusionsAndDeduplicate" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.019"/>
+  <testcase name="correctionsCompleteWithinTwoSecondsWhileBackgroundEngineIsBlockedAndOldResultsCannotOverwrite" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.016"/>
+  <testcase name="deletingPersonAndResetRemoveOnlyTheirAudio" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.012"/>
+  <testcase name="digestWaitsForWholeSessionOnlyWhenReadyIncludingForceRun" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.014"/>
+  <testcase name="resetDuringBackgroundDecodeDoesNotRestoreSamplesResultsOrFeatures" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.014"/>
+  <testcase name="legacySampleCanPlayFromOriginalWithoutChangingDatabase" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.01"/>
+  <testcase name="deletingSampleRemovesAudioAndPreventsAutomaticRelearning" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.013"/>
+  <testcase name="cleanupDoesNotDeleteAudioBeingReadByCorrectionBeforeSamplesAreReady" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.01"/>
+  <testcase name="rescoringUsesCachedVectorsAndCurrentThresholdAndPreservesOtherNames" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.019"/>
+  <testcase name="confirmingAutoSamplePromotesItWithoutDecodingAndProtectsItFromEviction" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.022"/>
+  <testcase name="notReadySkipsModelThenScoresEachGroupOnceAndSurvivesColdStart" classname="app.resound.voiceprint.VoiceprintRepositoryTest" time="0.013"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.WebDavClientTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:23.130Z" hostname="CoachdeMacBook-Air.local" time="0.071">
+  <properties/>
+  <testcase name="failedUploadNeverDeletesFormalBackups" classname="app.resound.backup.WebDavClientTest" time="0.006"/>
+  <testcase name="onlyOldestExcessBackupsAreDeleted" classname="app.resound.backup.WebDavClientTest" time="0.009"/>
+  <testcase name="writeProbeCreatesAndRemovesTemporaryFile" classname="app.resound.backup.WebDavClientTest" time="0.007"/>
+  <testcase name="uploadPublishesOnlyAfterPutAndCleansOwnPart" classname="app.resound.backup.WebDavClientTest" time="0.006"/>
+  <testcase name="combinesBothFoldersButRetentionDeletesOnlyEnglishBackups" classname="app.resound.backup.WebDavClientTest" time="0.007"/>
+  <testcase name="legacyFolderIsReadOnlyAndRecognitionIgnoresDisplayName" classname="app.resound.backup.WebDavClientTest" time="0.005"/>
+  <testcase name="parsesEncodedNamesAndIgnoresTemporaryFiles" classname="app.resound.backup.WebDavClientTest" time="0.006"/>
+  <testcase name="missingDirectoryIsCreated" classname="app.resound.backup.WebDavClientTest" time="0.007"/>
+  <testcase name="fixedErrorsNeverExposeServerText" classname="app.resound.backup.WebDavClientTest" time="0.01"/>
+  <testcase name="acceptsHrefVariantsFromServers" classname="app.resound.backup.WebDavClientTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[System.logW: A resource was acquired at attached stack trace but never released. See java.io.Closeable for information on avoiding resource leaks.
+java.lang.Throwable: Explicit termination method 'close' not called
+	at dalvik.system.CloseGuard.$$robo$$dalvik_system_CloseGuard$open(CloseGuard.java:237)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.robolectric.shadows.ShadowCloseGuard$CloseGuardReflector$$Reflector16.open(Unknown Source)
+	at org.robolectric.shadows.ShadowCloseGuard.open(ShadowCloseGuard.java:38)
+	at dalvik.system.CloseGuard.open(CloseGuard.java)
+	at android.os.ParcelFileDescriptor.$$robo$$android_os_ParcelFileDescriptor$__constructor__(ParcelFileDescriptor.java:201)
+	at android.os.ParcelFileDescriptor.<init>(ParcelFileDescriptor.java:188)
+	at android.os.ParcelFileDescriptor.<init>(ParcelFileDescriptor.java:184)
+	at org.robolectric.shadows.ShadowParcelFileDescriptor.newParcelFileDescriptor(ShadowParcelFileDescriptor.java:118)
+	at org.robolectric.shadows.ShadowParcelFileDescriptor.open(ShadowParcelFileDescriptor.java:123)
+	at android.os.ParcelFileDescriptor.open(ParcelFileDescriptor.java)
+	at android.content.ContentResolver.$$robo$$android_content_ContentResolver$openAssetFileDescriptor(ContentResolver.java:1498)
+	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java)
+	at android.content.ContentResolver.$$robo$$android_content_ContentResolver$openOutputStream(ContentResolver.java:1227)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.robolectric.shadows.ShadowContentResolver$ContentResolverReflector$$Reflector46.openOutputStream(Unknown Source)
+	at org.robolectric.shadows.ShadowContentResolver.openOutputStream(ShadowContentResolver.java:239)
+	at android.content.ContentResolver.openOutputStream(ContentResolver.java)
+	at app.resound.backup.LocalBackupFiles._init_$lambda$3(BackupFiles.kt:83)
+	at app.resound.backup.LocalBackupFiles.output(BackupFiles.kt:142)
+	at app.resound.backup.LocalBackupFiles.export(BackupFiles.kt:155)
+	at app.resound.backup.AndroidBackupRepository.exportTo_gIAlu_s$lambda$0$0(AndroidBackupRepository.kt:252)
+	at app.resound.backup.AndroidBackupRepository.withWorkspace(AndroidBackupRepository.kt:260)
+	at app.resound.backup.AndroidBackupRepository.exportTo_gIAlu_s$lambda$0(AndroidBackupRepository.kt:249)
+	at app.resound.backup.AndroidBackupRepository$localOperation$2.invokeSuspend(AndroidBackupRepository.kt:307)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:113)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:589)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:823)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:720)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:707)
+
+]]></system-err>
+</testsuite>

@@ -1,0 +1,26 @@
+[
+  {
+    "size": "small",
+    "segments": 50000,
+    "transcript_lines": 500000,
+    "room_open_ms": 147.541458,
+    "index_step_ms": {
+      "CREATE INDEX IF NOT EXISTS `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)": 14.721458,
+      "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)": 109.619542
+    },
+    "before_bytes": 70246400,
+    "after_bytes": 78745600
+  },
+  {
+    "size": "large",
+    "segments": 200000,
+    "transcript_lines": 2000000,
+    "room_open_ms": 575.641,
+    "index_step_ms": {
+      "CREATE INDEX IF NOT EXISTS `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)": 68.801541,
+      "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)": 435.965209
+    },
+    "before_bytes": 280285184,
+    "after_bytes": 314417152
+  }
+]

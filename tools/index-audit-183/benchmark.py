@@ -62,6 +62,9 @@ def catalogue(baseline=False):
   if line.startswith('SQL '):
    sql=line[4:];number+=1
    if 'transcript_lines' in sql and 'startAt' in sql:
+    if not baseline and case.startswith('fts.search_lines.'):
+     table=json.loads((ROOT/'app/src/main/assets/prompts/ask-sql.json').read_text())['search_lines']['table']
+     sql=sql.replace('FROM transcript_lines l WHERE',f'FROM {table} WHERE')
     queries[f'ask/dynamic175#{case}/{number}']={'sql':sql,'source':'app/src/test/resources/driver175/queries.txt','line':None}
  return queries
 

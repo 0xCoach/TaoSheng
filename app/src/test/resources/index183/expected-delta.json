@@ -1,0 +1,125 @@
+{
+  "snapshots": [
+    "backup-before.txt",
+    "backup-restored.txt",
+    "fresh-install.txt",
+    "migrations/from-01.txt",
+    "migrations/from-02.txt",
+    "migrations/from-03.txt",
+    "migrations/from-04.txt",
+    "migrations/from-05.txt",
+    "migrations/from-06.txt",
+    "migrations/from-07.txt",
+    "migrations/from-08.txt",
+    "migrations/from-09.txt",
+    "migrations/from-10.txt",
+    "migrations/from-11.txt",
+    "migrations/from-12.txt",
+    "migrations/from-13.txt",
+    "migrations/from-14.txt",
+    "migrations/from-15.txt",
+    "migrations/from-16.txt",
+    "migrations/from-17.txt",
+    "migrations/from-18.txt",
+    "migrations/from-19.txt",
+    "migrations/from-20.txt",
+    "migrations/from-21.txt",
+    "migrations/from-22.txt",
+    "migrations/from-23.txt",
+    "migrations/from-24.txt",
+    "migrations/from-25.txt",
+    "migrations/from-26.txt",
+    "migrations/from-27.txt",
+    "migrations/from-28.txt",
+    "migrations/from-29.txt",
+    "migrations/from-30.txt",
+    "migrations/from-31.txt",
+    "migrations/from-32.txt",
+    "queries-seed.txt"
+  ],
+  "version": {
+    "oldLine": "user_version=33",
+    "newLine": "user_version=34",
+    "occurrences": 1
+  },
+  "identity": {
+    "table": "room_master_table",
+    "columns": "columns=[\"id\",\"identity_hash\"]",
+    "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"c8d36ea3efb4c4fce886d4a66543d917\"}]",
+    "occurrences": 1
+  },
+  "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
+  "newIdentityHash": "c8d36ea3efb4c4fce886d4a66543d917",
+  "oldSetupQueries": [
+    "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
+  ],
+  "newSetupQueries": [
+    "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8d36ea3efb4c4fce886d4a66543d917')"
+  ],
+  "indices": [
+    {
+      "name": "index_segments_status_voiceprintProcessedAt",
+      "table": "segments",
+      "row": "[\"index\",\"index_segments_status_voiceprintProcessedAt\",\"segments\",\"CREATE INDEX `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)\"]",
+      "occurrences": 1,
+      "schemaIndex": {
+        "name": "index_segments_status_voiceprintProcessedAt",
+        "unique": false,
+        "columnNames": [
+          "status",
+          "voiceprintProcessedAt"
+        ],
+        "orders": [],
+        "createSql": "CREATE INDEX IF NOT EXISTS `index_segments_status_voiceprintProcessedAt` ON `${TABLE_NAME}` (`status`, `voiceprintProcessedAt`)"
+      }
+    },
+    {
+      "name": "index_transcript_lines_startAt",
+      "table": "transcript_lines",
+      "row": "[\"index\",\"index_transcript_lines_startAt\",\"transcript_lines\",\"CREATE INDEX `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)\"]",
+      "occurrences": 1,
+      "schemaIndex": {
+        "name": "index_transcript_lines_startAt",
+        "unique": false,
+        "columnNames": [
+          "startAt"
+        ],
+        "orders": [],
+        "createSql": "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `${TABLE_NAME}` (`startAt`)"
+      }
+    }
+  ],
+  "querySql": [
+    {
+      "snapshot": "queries.txt",
+      "case": "fts.search_lines.chinese",
+      "oldLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "newLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "occurrences": 1
+    },
+    {
+      "snapshot": "queries.txt",
+      "case": "fts.search_lines.multi",
+      "oldLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?) OR l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "newLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?) OR l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "occurrences": 1
+    },
+    {
+      "snapshot": "queries.txt",
+      "case": "fts.search_lines.punctuation",
+      "oldLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "newLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "occurrences": 1
+    },
+    {
+      "snapshot": "queries.txt",
+      "case": "fts.search_lines.none",
+      "oldLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "newLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "occurrences": 1
+    }
+  ]
+}

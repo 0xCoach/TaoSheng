@@ -1,0 +1,17 @@
+SQLite 3.53.4 queries 93
+final A+B1 queue 0.152 1
+final A+B1 voiceprint 1.988 1
+final A+B1 failed 0.648 250
+final A+B1 late 15.745 0
+final A+B1 imports 0.365 20
+cycle final A+B1 0
+cycle final A+B1 5
+cycle final A+B1 10
+cycle final A+B1 15
+cycle final A+B1 20
+cycle final A+B1 25
+cycle final A+B1 30
+cycle final A+B1 35
+cycle final A+B1 40
+cycle final A+B1 45
+FINISH A+B1 {'queue': 14.726538000000001, 'voiceprint': 316.5379149999999, 'failed': 77.975249, 'late': 2172.110374999999, 'imports': 41.54291499999999} {'insert': 4.309209, 'env': 2.786794000000001, 'complete': 15.865669} 78639104

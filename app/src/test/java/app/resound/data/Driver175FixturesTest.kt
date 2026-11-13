@@ -45,7 +45,7 @@ class Driver175FixturesTest {
     private fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
     private fun quote(name: String) = "\"${name.replace("\"", "\"\"")}\""
 
-    private fun golden(name: String, actual: String) {
+    internal fun golden(name: String, actual: String) {
         val file = File(fixtures, name)
         val replay = File("build/driver175-replay", name)
         replay.parentFile!!.mkdirs()
@@ -62,7 +62,7 @@ class Driver175FixturesTest {
             assertEquals("$name 手写触发器集合", expected, observed)
         }
         assertTrue("缺少旧夹具 $name；第二段禁止重录标准答案", file.isFile)
-        assertEquals(name, file.readText(), actual)
+        Index183FixtureDelta.assertSame(name, file.readText(), actual)
     }
 
     /** 对象键排序、数组保序；文本不截断，整数不转 double，BLOB 使用十六进制。 */
@@ -96,8 +96,9 @@ class Driver175FixturesTest {
         return "columns=" + canonical(JSONArray(columns)) + "\n" + (if (sort) values.sorted() else values).joinToString("\n") + "\n"
     }
 
-    private suspend fun snapshot(db: PooledConnection): String = buildString {
+    internal suspend fun snapshot(db: PooledConnection): String = buildString {
         val version = db.usePrepared("PRAGMA user_version") { check(it.step()); it.getLong(0) }
+        assertEquals(CaptureDatabase.VERSION.toLong(), version)
         append("user_version=$version\n")
         val tables = mutableListOf<Pair<String, String?>>()
         db.usePrepared("SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name") { stmt ->
@@ -168,7 +169,8 @@ class Driver175FixturesTest {
     @Test fun migrationsFromEveryHistoricalSchema() = runBlocking(Dispatchers.IO) {
         val versions = File("schemas/app.resound.data.CaptureDatabase").listFiles()!!.mapNotNull { it.nameWithoutExtension.toIntOrNull() }.sorted()
         assertEquals((1..CaptureDatabase.VERSION).toList(), versions)
-        for (version in versions.filter { it < CaptureDatabase.VERSION }) {
+        // 只重放原有32条路径；33→34由Index183MigrationTest单独覆盖，不新录旧夹具。
+        for (version in 1..32) {
             val name = "driver175-v$version.db"
             context.deleteDatabase(name)
             val definition = schema(version)

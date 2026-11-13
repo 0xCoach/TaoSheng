@@ -69,7 +69,7 @@ def main():
     versioned = [item["name"] for item in checked if item["name"].endswith(".txt") and (FIXTURES / item["name"]).read_text().startswith("user_version=33\n")]
     report = {
         "baseline": BASE,
-        "scope": "合成内存库前置核查；未测性能、未执行产品迁移、未导出34.json",
+        "scope": "历史前置规则复现；此脚本不执行产品迁移或导出schema",
         "fixture_count": len(checked),
         "version_33_snapshots": versioned,
         "fixture_verification": checked,
@@ -79,7 +79,7 @@ def main():
     }
     (OUT / "前置核查.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     print(f"旧夹具 {len(checked)} 份 SHA-256/大小一致；schema 1～33 与基线一致；{len(versioned)} 份快照固定 user_version=33。")
-    print("BLOCKED：版本升到34与只移除新索引行后逐字相同不能同时成立。")
+    print("历史结论：只移除索引行不足以跨版本比对；183审核意见已批准精确版本元数据差异，当前验收用verify.py。")
 
 
 if __name__ == "__main__":

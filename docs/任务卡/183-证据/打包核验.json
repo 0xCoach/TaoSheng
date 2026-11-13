@@ -1,0 +1,9 @@
+{
+  "task": ":app:assembleRelease",
+  "skipSigningSecrets": true,
+  "bytes": 105535596,
+  "sha256": "76c267b0de784579284243c6f2a60870bd9f1d76769d5bbcff725f100b8dc642",
+  "published": false,
+  "cleanup": "按任务卡结束时删除构建产物",
+  "ask_sql_asset_matches_source": true
+}

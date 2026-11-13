@@ -62,7 +62,7 @@ class SkillGate146Test {
         { _, _, _, user -> calls++; input = user; LlmReply(reply, 10, 2) }, { emptyList() },
         object : Notifier {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) { pushes++ }
-        }, { _, _ -> }, { start + 12 * 3_600_000L })
+        }, { _, _ -> }, { start + 12 * 3_600_000L }, io = kotlinx.coroutines.Dispatchers.IO)
 
     private fun card(entity: String, at: String, end: String?) =
         """{"entity":"$entity","title":"方案评审","summary":"先试点","at":"$at","end":${end?.let { "\"$it\"" } ?: "null"},"values":{"topic":"流程优化","conclusion":"先试点再评估"},"evidence":["L1"]}"""

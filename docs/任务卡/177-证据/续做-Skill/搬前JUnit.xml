@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.SkillRepository177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:25:52.362Z" hostname="CoachdeMacBook-Air.local" time="2.193">
+  <properties/>
+  <testcase name="queryStatusAndSettingsMatchOldRepository" classname="app.resound.skills.SkillRepository177Test" time="2.193"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

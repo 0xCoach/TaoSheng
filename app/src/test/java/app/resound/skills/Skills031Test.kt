@@ -58,7 +58,7 @@ class Skills031Test {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
                 assertEquals(PushTopic.SkillCard, topic); assertTrue(deepLink!!.startsWith("resound://card?open=card&id=")); sent += title
             }
-        }, { _, _ -> }, { clock })
+        }, { _, _ -> }, { clock }, io = kotlinx.coroutines.Dispatchers.IO)
     private fun skill(id: String = "meeting") = files.skills.value.first { it.id == id }
     private fun line(id: Long, who: String?, text: String = "我来推进项目", at: Long = start + 36_000_000) =
         TranscriptLineEntity(id, 1, at, at + 2000, text, null, who, 1, start + 38_000_000)

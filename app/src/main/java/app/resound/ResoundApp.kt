@@ -256,7 +256,7 @@ class ResoundApp : Application() {
             generation = app.resound.skills.SkillGeneration(androidx.work.WorkManager.getInstance(this), database.skills(), scope),
             beforeWeeklyReview = { app.resound.review.ReviewPreparation.run(this) },
             hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) },
-            draftRequest = digestSettings.failover.request("技能生成", database.memory(), app.resound.usage.UsagePurpose.Draft, llm::chatJson))
+            draftRequest = digestSettings.failover.request("技能生成", database.memory(), app.resound.usage.UsagePurpose.Draft, llm::chatJson), now = app.resound.AppGraph.platform.now::now, io = app.resound.AppGraph.platform.dispatchers.io)
         AppGraph.skills = skillRepository
         scope.launch { skillRepository.reschedule() }
         AppGraph.review = reviews

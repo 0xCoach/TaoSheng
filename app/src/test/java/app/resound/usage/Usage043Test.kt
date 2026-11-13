@@ -164,7 +164,7 @@ class Usage043Test {
         val skills = LocalSkillRepository(files, db.skills(), db.memory(), scope, { preset to "test" }, { _, _, _, _ ->
             if (draft) LlmReply("""{"ask":"希望几点提醒？","options":["早上","晚上"]}""", 40, 4)
             else LlmReply("""{"cards":[],"nothing_reason":"没有会议"}""", 30, 3)
-        }, { emptyList() }, notifier, { _, _ -> }, { at + 23 * 3600000 })
+        }, { emptyList() }, notifier, { _, _ -> }, { at + 23 * 3600000 }, io = kotlinx.coroutines.Dispatchers.IO)
         // 卡 146：会议需两人、20 句、跨度至少 10 分钟；让真实门槛通过后验证用量。
         db.transcribe().insertLines((2L..21L).map { id ->
             val start = at + 1000 + (id - 1) * 40_000

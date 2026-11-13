@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.SkillGeneration047Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:29:42.850Z" hostname="CoachdeMacBook-Air.local" time="0.945">
+  <properties/>
+  <testcase name="deletedMeetingOverlapAndAliasesAreRestoredOnlyByManual" classname="app.resound.skills.SkillGeneration047Test" time="0.154"/>
+  <testcase name="stoppedWorkerPropagatesCancellationAndRetryCanStillProduceResult" classname="app.resound.skills.SkillGeneration047Test" time="0.273"/>
+  <testcase name="generateIsImmediateDeduplicatedClearsOldResultAndPublishesCompletion" classname="app.resound.skills.SkillGeneration047Test" time="0.202"/>
+  <testcase name="deletedDayManualRestoresAndAutomaticUpdatesWhileDeletedAutomaticHasOwnReason" classname="app.resound.skills.SkillGeneration047Test" time="0.063"/>
+  <testcase name="networkAndServerRetryAtMostTwiceWithoutEarlyNotice" classname="app.resound.skills.SkillGeneration047Test" time="0.065"/>
+  <testcase name="restoresPendingWorkAfterRepositoryRestartAndKeepsExistingRequest" classname="app.resound.skills.SkillGeneration047Test" time="0.078"/>
+  <testcase name="fullDayReportsActualCountInsteadOfDeletedReason" classname="app.resound.skills.SkillGeneration047Test" time="0.045"/>
+  <testcase name="noticesHaveThreeOutcomesAndMultipleCardDayLinkEvenWithPushOff" classname="app.resound.skills.SkillGeneration047Test" time="0.065"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

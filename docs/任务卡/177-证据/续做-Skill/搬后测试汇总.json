@@ -1,0 +1,44 @@
+[
+  {
+    "name": "app.resound.skills.SkillGate146Test",
+    "tests": "15",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.skills.Skills031Test",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.skills.SkillRepository177Test",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.usage.Usage043Test",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.review.ReviewPreparation053Test",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.skills.SkillGeneration047Test",
+    "tests": "8",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]

@@ -72,7 +72,7 @@ class ReviewPreparation053Test {
                     assertTrue(prepared); assertTrue(input.contains("讨论方案")); generated = true
                     LlmReply("""{"cards":[{"title":"本周回顾","summary":"讨论方案","values":{"one_line":"推进方案"}}]}""", 1, 1)
                 }, { emptyList() }, notifier, { _, _ -> }, now = { at + 1000 },
-                beforeWeeklyReview = { ReviewPreparation.prepare(record = {}) { seed(db); prepared = true; "完成" } })
+                beforeWeeklyReview = { ReviewPreparation.prepare(record = {}) { seed(db); prepared = true; "完成" } }, io = kotlinx.coroutines.Dispatchers.IO)
             assertTrue(repo.runNow("weekly", day) is SkillRunResult.Cards)
             assertTrue(generated)
         } finally { scope.coroutineContext[Job]!!.cancelAndJoin(); db.close(); root.deleteRecursively() }

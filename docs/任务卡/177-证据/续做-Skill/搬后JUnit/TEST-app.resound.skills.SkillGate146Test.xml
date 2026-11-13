@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.SkillGate146Test" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:29:42.054Z" hostname="CoachdeMacBook-Air.local" time="0.786">
+  <properties/>
+  <testcase name="singleCardGateKeepsActualTimeAndReadsWeekWithoutLinesInPrompt" classname="app.resound.skills.SkillGate146Test" time="0.077"/>
+  <testcase name="uncertainLabelsDoNotAddPeople" classname="app.resound.skills.SkillGate146Test" time="0.055"/>
+  <testcase name="cardRecheckDoesNotBorrowVoiceInputOrOtherSpeakersOutsideItsTime" classname="app.resound.skills.SkillGate146Test" time="0.076"/>
+  <testcase name="copiedAndLegacyMineInheritCurrentOfficialEvenAfterUnrelatedSave" classname="app.resound.skills.SkillGate146Test" time="0.114"/>
+  <testcase name="enoughTimeAndPeopleStillRequiresEnoughLines" classname="app.resound.skills.SkillGate146Test" time="0.033"/>
+  <testcase name="gateJsonRoundTripsAndRejectsInvalidValues" classname="app.resound.skills.SkillGate146Test" time="0.033"/>
+  <testcase name="twoLineSmallTalkDoesNotCallModel" classname="app.resound.skills.SkillGate146Test" time="0.036"/>
+  <testcase name="voiceInputIsExcludedFromAllStatsUnlessExplicitlyCounted" classname="app.resound.skills.SkillGate146Test" time="0.054"/>
+  <testcase name="realMeetingUsesCompleteLinesBeforeCharacterTrimming" classname="app.resound.skills.SkillGate146Test" time="0.052"/>
+  <testcase name="explicitNullAndCustomGateSurviveOfficialChangesAndReload" classname="app.resound.skills.SkillGate146Test" time="0.053"/>
+  <testcase name="shortCardInsideLongWindowIsDiscardedBeforeSavingAndPush" classname="app.resound.skills.SkillGate146Test" time="0.063"/>
+  <testcase name="longMonologueDoesNotBecomeDiscussion" classname="app.resound.skills.SkillGate146Test" time="0.036"/>
+  <testcase name="drafterAcceptsReasonableGateAndRejectsOutOfRangeInsteadOfDisabling" classname="app.resound.skills.SkillGate146Test" time="0.019"/>
+  <testcase name="previewKeepsPassingCardAndRejectsCardWithoutEnd" classname="app.resound.skills.SkillGate146Test" time="0.045"/>
+  <testcase name="legacyFileWithoutGateStillCallsModel" classname="app.resound.skills.SkillGate146Test" time="0.039"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -52,7 +52,7 @@ class SkillGeneration047Test {
         { _, _, _, _ -> calls.incrementAndGet(); response() }, { emptyList() },
         object : Notifier {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) { pushes.incrementAndGet() }
-        }, { _, _ -> }, { start + 22 * 3_600_000L }, generation)
+        }, { _, _ -> }, { start + 22 * 3_600_000L }, generation, io = kotlinx.coroutines.Dispatchers.IO)
 
     @Before fun setup() = runBlocking {
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().setExecutor(SynchronousExecutor()).build())

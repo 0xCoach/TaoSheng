@@ -1,0 +1,10 @@
+{
+  "baseline": "1355f5f9ac43f0df1c8e28d2368bc8ac93a89e97",
+  "ui_MainActivity_AudioSource_changed": [],
+  "contracts_changed": [
+    "shared/src/commonMain/kotlin/app/resound/transcribe/AsrSpeedContract.kt"
+  ],
+  "product_runBlocking_occurrences_before": 17,
+  "product_runBlocking_occurrences_after": 17,
+  "app_old_generated_database_class_present": false
+}

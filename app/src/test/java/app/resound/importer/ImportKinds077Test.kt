@@ -202,7 +202,7 @@ class ImportKinds077Test {
 
     @Test fun migration25PreservesRowsAndValidatesCurrentSchema() = runBlocking {
         val name = "imports-v25.db"; context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/25.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/25.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, 0, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

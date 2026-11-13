@@ -1,0 +1,4910 @@
+{
+  "total": 697,
+  "passed": 694,
+  "failed": 0,
+  "skipped": [
+    {
+      "class": "app.resound.things.ThingsSharedLiveTest",
+      "test": "liveExtractionAndTokenComparison",
+      "result": "skipped",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedLiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "test": "linkedS3PushPersistsOnlyFlagAndUploadsIntoSeparateFolder",
+      "result": "skipped",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "test": "minioCrudPaginationVolumesAndDiary",
+      "result": "skipped",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    }
+  ],
+  "note": "首次完整限定运行697项；修复测试全局引用后仅定向复测；FTS显式默认值后再复测175与181共16项。按类和方法合并实际结果，未再次全量运行。",
+  "tests": [
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "forgetEventRemovesAudioSamplesExclusionsAndFeaturesButKeepsEnrollment",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "deletedQueuedAndInflightSegmentsCannotBeTranscribedOrRecreatedByOldResults",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "recentDeletesWholeEventAndItsUnlinkedItems",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "forgetSegmentRemovesEmptyEventsAndPreservesOtherEventLines",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "rangeDeletesOnlyInsideAndKeepsRecordingWhenRangeIsPast",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "fileRemovalFailureIsPersistedAndRetriedAfterRecreation",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "recentKeepsCrossingEventAndDeletesSourceItemsAndPendingAudio",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.privacy.RoomPrivacyActionsTest",
+      "test": "sequentialBatchDeletionWorksBeyondFiveEvents",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "backupArchiveAndRestore",
+      "result": "passed",
+      "seconds": 9.486,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "androidDriverReadsExistingSyntheticWalAndFts",
+      "result": "passed",
+      "seconds": 0.211,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "dynamicQueriesAndFullTextSearch",
+      "result": "passed",
+      "seconds": 0.322,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "writerNotifiesActiveTableFlow",
+      "result": "passed",
+      "seconds": 0.09,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "backupDuringRecordingWritesKeepsParentsAndSearchConsistent",
+      "result": "passed",
+      "seconds": 0.063,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "writerTransactionCommitsNestedSeed",
+      "result": "passed",
+      "seconds": 0.076,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "freshInstallIncludesAllCallbacks",
+      "result": "passed",
+      "seconds": 0.083,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "cancelledWriterRollsBackSeed",
+      "result": "passed",
+      "seconds": 0.077,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.data.Driver175FixturesTest",
+      "test": "migrationsFromEveryHistoricalSchema",
+      "result": "passed",
+      "seconds": 3.08,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "markdownMatchesFullSampleSkipsMediaAndExportsWithoutInvokingModels",
+      "result": "passed",
+      "seconds": 0.098,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "card059FolderTimelineAndExportLinesHaveDates",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "reorderPersistsRequestedSequenceAndLeavesOtherRowsAlone",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "nineToTenBackfillsOnlyDoneAndPreservesOldFields",
+      "result": "passed",
+      "seconds": 0.049,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "oneToTenRunsWholeChainAndValidatesRoomSchema",
+      "result": "passed",
+      "seconds": 0.047,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "activeDaysCombinesEventStartsAndItemCreationWithinMonth",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "appointmentsSortDatesFirstAndUndatedNewestFirst",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "dayGroupsUseLocalMidnightsAcrossDstAndAllowRepeatedMembership",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.diary.DayDiaryTest",
+      "test": "statusWritesTimesAndAcceptingOrUndoingDoneMovesToFront",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupSecrets078Test",
+      "test": "unreadableCredentialAbortsCaptureInsteadOfSilentlyOmittingIt",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupSecrets078Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupSecrets078Test",
+      "test": "allCredentialStoresRoundTripAlongsideProviderAndNewSettings",
+      "result": "passed",
+      "seconds": 0.077,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupSecrets078Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupReadStatusTest",
+      "test": "localReadsDoNotFlashRunningOrReplaceSuccessfulBackupAfterFailure",
+      "result": "passed",
+      "seconds": 0.055,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupReadStatusTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupReadStatusTest",
+      "test": "cloudReadsPreserveStatusOnSuccessFailureAndReload",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupReadStatusTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupReadStatusTest",
+      "test": "changingFolderDoesNotClaimOldFoldersBackupAsNewFoldersSuccess",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupReadStatusTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewInputLimit101Test",
+      "test": "capacitiesParseFromAssetsAndOldFormatDefaults",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewInputLimit101Test",
+      "test": "protectedOverflowShowsChineseWithoutSending",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewInputLimit101Test",
+      "test": "deepseekSends150kIntactThroughRepositoryAndClient",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewInputLimit101Test",
+      "test": "fallbackAndMissingWorkerShowChinese",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewInputLimit101Test",
+      "test": "unknownAndCustomDefaultAndCompressionPreservesProtectedMaterial",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewInputLimit101Test",
+      "test": "pointsRemovedBeforeAnySummaryIsShortened",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "changedDayIsIncrementalAndEachPointRestoresItsOwnDataAndSettings",
+      "result": "passed",
+      "seconds": 0.14,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "retentionPrunesPointsAndUnreferencedOldObjectsButKeepsSharedData",
+      "result": "passed",
+      "seconds": 0.23,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "webDavImmutableObjectsAndCheckpointListingRestoreBothVersions",
+      "result": "passed",
+      "seconds": 0.157,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "interruptedObjectsAndCheckpointNeverChangeCommittedHistoryAndRetryWorks",
+      "result": "passed",
+      "seconds": 0.209,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "migratesCurrentVolumesAndDeletesOnlyRecognizedLegacyAfterCommit",
+      "result": "passed",
+      "seconds": 0.115,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "encryptedVersionsSurvivePassphraseChangeAndCorruptionNeverStagesRestore",
+      "result": "passed",
+      "seconds": 0.738,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "cleanupFailureLeavesBothPublishedPointsRestorableUntilNextRetry",
+      "result": "passed",
+      "seconds": 0.137,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupHistoryTest",
+      "test": "safRepositoryListsAndRestoresSelectedVersionWithDefaultSeven",
+      "result": "passed",
+      "seconds": 0.217,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestForce053Test",
+      "test": "forceClosesOngoingConversationButOnlyManualBypassesSkillGap",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestForce053Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "disabledIsPersistentAndNeverSwitches",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "inputLimitOnlyTriesLargerCapacity",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "moveAndSwitchSettingSurviveBackupRestore",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "streamNeverSwitchesAfterTextIncludingLaterToolRound",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "serverFailureUsesFirstBackupAndCountsReturnedFailureUsage",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "digestFallbackReplayAndInflightNeverRepeatRequestOrUsage",
+      "result": "passed",
+      "seconds": 0.048,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "quotaAndAuthSwitchButFormatAndCancellationDoNot",
+      "result": "passed",
+      "seconds": 0.027,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "successfulManualTestClearsCooldown",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "legacyPendingAndNewProcessRecoveryUsePrimaryWithoutRebilling",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "rejectionTriesBackupButDoesNotCoolPrimary134",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "streamSwitchesBeforeFirstTextAndAccountsEachAttempt",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "onlyThreeAttemptsAndPrimaryErrorSurvivesCooldownOrder",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.digest.LlmFailover103Test",
+      "test": "cooldownExpiresAndKeyEditClearsImmediately",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.ImportAudioCleanup078Test",
+      "test": "startupAbandonsExpiredFailuresWithOrWithoutRetryAndKeepsTheirReasons",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.ImportAudioCleanup078Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.ImportAudioCleanup078Test",
+      "test": "freshRetryAndActiveReadersAndCompletedImportsAreProtected",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.ImportAudioCleanup078Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "insufficientOrSilentEnrollmentDoesNotPersistAndCancellationIsPropagated",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "expiredAudioStillAllowsManualIdentityWithoutInventingSample",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "enteringNameCreatesPersonAndReusesItForNextRecording",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "persistentFeatureCacheSurvivesDatabaseReopenWithoutAudioOrEngine",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "differentSpeakerGetsScoreButNoNameAndShortGroupIsSkipped",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "autoLimitEvictsOldestByTimeThenIdAndNeverManualSamples",
+      "result": "passed",
+      "seconds": 0.029,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "markMeIsGroupScopedDeduplicatedAndNotMeRemovesPoisonedSamplePermanently",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "resetClearsSamplesNamesScoresExclusionsAndReadiness",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "clearAudioKeepsVectorsAndRecognitionAndDisablesFallbackAcrossRestart",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "concurrentRoundsShareOneGateAndDigestHoldsStableResults",
+      "result": "passed",
+      "seconds": 0.051,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "failedProcessingRetainsAudioThenRetriesBeforeCleanupAndMissingFilesDoNotBlockForever",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "multiplePeopleKeepCorrectionsRenameAndDeleteWithoutLosingAudio",
+      "result": "passed",
+      "seconds": 0.028,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "autoSamplesRequireScoreAndEffectiveSpeechAndRespectExclusionsAndDeduplicate",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "correctionsCompleteWithinTwoSecondsWhileBackgroundEngineIsBlockedAndOldResultsCannotOverwrite",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "deletingPersonAndResetRemoveOnlyTheirAudio",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "digestWaitsForWholeSessionOnlyWhenReadyIncludingForceRun",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "resetDuringBackgroundDecodeDoesNotRestoreSamplesResultsOrFeatures",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "legacySampleCanPlayFromOriginalWithoutChangingDatabase",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "deletingSampleRemovesAudioAndPreventsAutomaticRelearning",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "cleanupDoesNotDeleteAudioBeingReadByCorrectionBeforeSamplesAreReady",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "rescoringUsesCachedVectorsAndCurrentThresholdAndPreservesOtherNames",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "confirmingAutoSamplePromotesItWithoutDecodingAndProtectsItFromEviction",
+      "result": "passed",
+      "seconds": 0.036,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "test": "notReadySkipsModelThenScoresEachGroupOnceAndSurvivesColdStart",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "emptyReportHasAllSectionsAndNoInventedHistory",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "digestCountsDistinguishSuccessEmptyAndAllFiltered",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "brokenDiagnosticStorageCannotFailSuccessfulRequest",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "reportAggregatesOnlyThreeDaysAndOmitsCredentialsHeadersAndOriginal",
+      "result": "passed",
+      "seconds": 0.027,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "failoverPersistsSwitchAndReportsCurrentCooldown",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "ringKeepsTwentyAcrossInstancesAndNeverStoresBodyOrBacksUp",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "streamTruncationAndAskEmptyAnswerAreRecorded",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+      "test": "requestRecordsTruncationNonJsonAndHttpErrorWithoutChangingResult",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "diagnosticsPreserveReasonButHideUrisAndPaths",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "lostPersistedGrantAndSecurityExceptionRequireAuthorization",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "unsupportedWtFallsBackToWAndVerifiesExport",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "permissionErrorDoesNotTryOtherModes",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "writtenButUnreadableHasDifferentErrorAndDoesNotClaimSuccess",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "inaccurateCanWriteDoesNotRejectWorkingFolderAndPickerRequestsFlags",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "temporaryGrantWorksButNewProcessRequiresAuthorization",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupAccess102Test",
+      "test": "unwritableLocationAndExhaustedModesAreUnsupported",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "singleCardGateKeepsActualTimeAndReadsWeekWithoutLinesInPrompt",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "uncertainLabelsDoNotAddPeople",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "cardRecheckDoesNotBorrowVoiceInputOrOtherSpeakersOutsideItsTime",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "copiedAndLegacyMineInheritCurrentOfficialEvenAfterUnrelatedSave",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "enoughTimeAndPeopleStillRequiresEnoughLines",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "gateJsonRoundTripsAndRejectsInvalidValues",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "twoLineSmallTalkDoesNotCallModel",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "voiceInputIsExcludedFromAllStatsUnlessExplicitlyCounted",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "realMeetingUsesCompleteLinesBeforeCharacterTrimming",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "explicitNullAndCustomGateSurviveOfficialChangesAndReload",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "shortCardInsideLongWindowIsDiscardedBeforeSavingAndPush",
+      "result": "passed",
+      "seconds": 0.073,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "longMonologueDoesNotBecomeDiscussion",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "drafterAcceptsReasonableGateAndRejectsOutOfRangeInsteadOfDisabling",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "previewKeepsPassingCardAndRejectsCardWithoutEnd",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGate146Test",
+      "test": "legacyFileWithoutGateStillCallsModel",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupTest",
+      "test": "localArchiveCanBeDownloadedAndRestoredThroughCloudFlow",
+      "result": "passed",
+      "seconds": 0.052,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupTest",
+      "test": "writesHistoryRemovesRecognizedLegacyFilesAndRestoresLocal",
+      "result": "passed",
+      "seconds": 0.08,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupTest",
+      "test": "exportEncryptedFileDetectsContentWithoutSuffixAndRequestsPassphrase",
+      "result": "passed",
+      "seconds": 0.108,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupTest",
+      "test": "cloudArchiveCanBeImportedAndCloudFailureDoesNotBlockLocal",
+      "result": "passed",
+      "seconds": 0.108,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupTest",
+      "test": "lostFolderPermissionHasStableErrorAndKeepsPreviousBackups",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.LocalBackupTest",
+      "test": "failedWriteNeverPrunesOrClearsRestoreSnapshot",
+      "result": "passed",
+      "seconds": 0.034,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "skillReplacementProtectsManualAndUndoRestoresCards",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "queuedJobsAreSerialAndRestartUsesPersistedRequests",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "largeSnapshotIsReadBackInPartsUnchanged",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "transcribeOnlyAndUndoRestoreOriginalLinesWithoutChangingEvents",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "llmFailureKeepsEventsAndLaterEditsBlockUnsafeUndo",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "adjacentRangesMergeButGapsRemainAndExpiredEditedCountsAreHonest",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "importChoicePersistsAcrossRestartAndIsStoredOnlyOnItsSegments",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "digestReplacesAndInheritsStarAndPreservesCompletedTodo",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "explicitChoicesDoNotChangeSettingsAndReadyRejectsMissingConfiguration",
+      "result": "passed",
+      "seconds": 0.029,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "cancellationDuringDigestKeepsEventsAndNewTranscript",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "undoRestoresEventsItemsAndSecondRunInvalidatesFirst",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "migration23PreservesDataAndAddsScopedOverrideAndSnapshot",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "retranscribeSkipsExpiredAndEstimates",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "nearbySelectedEventsAreDigestedTogetherButNotAcrossUnselected",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.redo.Redo071Test",
+      "test": "formatFailureSplitsBatchAndCombinesEventsAndItemsInOrder",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.Redo071Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "ignoresSingleCharacterAndNonChineseHotwords",
+      "result": "passed",
+      "seconds": 0.042,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "configuredCloudDoesNotCorrectHomophones",
+      "result": "passed",
+      "seconds": 0.053,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "commonWordIsProtected",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "punctuationIsNotCrossedAndOriginalIsSavedForLocalImport",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "acceptsAnyPronunciationOnEitherSide",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "longestWinsTiesRemainAndHotwordChangesRefreshCache",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "version21MigrationPreserves065DataAndOriginalDefaultsToNull",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Hotword066Test",
+      "test": "correctsAndKeepsExactWordWithMeasuredCachedPerformance",
+      "result": "passed",
+      "seconds": 0.053,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "malformedReplyHasSpecificSafeReason",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "successClearsOldErrorAndReportsIncompletePreparation",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "preparationFailureUsesExistingMaterialAndCancellationPropagates",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "expeditedWorkDeduplicatesAndCompletesThroughWorker",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "materialUsesSameWindowAndReactsToEventChanges",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "emptyManualExplainsWindowButScheduledStaysSilent",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "windowTextHandlesMidnight",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.review.ManualReview058Test",
+      "test": "missingKeyAndModelErrorsUseSafeDatedReasons",
+      "result": "passed",
+      "seconds": 0.05,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "eighteenAndPreImportInstallationsKeepSearchAndGainImportCleanup",
+      "result": "passed",
+      "seconds": 0.308,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "schemaOnlyControlsReproduceTheFixtureShortfallWithoutHistoricalCallbacks",
+      "result": "passed",
+      "seconds": 0.061,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "beforeSearchIntroductionBackfillsAllThreeIndicesAndKeepsThemLive",
+      "result": "passed",
+      "seconds": 0.163,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "historicalSearchSurvivesTheSeventeenToEighteenItemTableRebuild",
+      "result": "passed",
+      "seconds": 0.309,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "laterHistoricalInstallsAndRepeatedOpensKeepAllDefinitionsAndIndexRows",
+      "result": "passed",
+      "seconds": 0.421,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "prePendingInstallationGainsExactSourceDeletionCleanup",
+      "result": "passed",
+      "seconds": 0.194,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.data.TriggerHistory181Test",
+      "test": "preThingsInstallationGainsAllThreeEvidenceCleanupTriggers",
+      "result": "passed",
+      "seconds": 0.155,
+      "source": "FTS最终复测JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+    },
+    {
+      "class": "app.resound.digest.RhythmDeletion099Test",
+      "test": "lightweightSnapshotMatchesOriginalSqlIncludingCrossDayAndDeletedSources",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.RhythmDeletion099Test.xml"
+    },
+    {
+      "class": "app.resound.digest.RhythmDeletion099Test",
+      "test": "duplicateDeletionSharesOneOperationAndReportsWaitingThenClearsState",
+      "result": "passed",
+      "seconds": 0.06,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.RhythmDeletion099Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "highSimilarityChoosesClosestEarlierRootAndKeepsOriginal",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "userUnmergePersistsAndDoesNotBecomeAutomaticTarget",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "migrationTwelveToThirteenPreservesRowsAndRoomValidatesSchema",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "moodDiaryAssetSchedulesAndUsesOnlyOwnEvidenceWithThreeQuoteCap",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "deletingMainEventPromotesEarliestSurvivor",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "similarityPointEightAndOtherCategoriesStayIndependent",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "listsOnlyExposeRootsWithCrossDayRepeatsAndChildSources",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "privacyDeletionPromotesSurvivingIdeaWithoutDanglingParent",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "importantEventsAreCrossDayNewestFirstWithItemsAndLimit",
+      "result": "passed",
+      "seconds": 0.064,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.digest.IdeasMood040Test",
+      "test": "absentOrOldModelVectorsWaitAndLateEarlierVectorReparentsGroup",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "digestInputAddsScopedCorrectionWithoutChangingOriginalLines",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "receiveCopiesBeforeReturningPersistsAndUsesDateBeforeModifiedTime",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "resamplerKeepsPhaseAcrossBuffersAndAveragesStereo",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "badAudioReturnsHumanReasonAndRemovesCopy",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "queueUsesConfirmationOrderAndCancellationDoesNotDropFollowingFiles",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "cloudRequestsIncludePrioritizedHotwordsAndBoundCustomPrompt",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "importedSegmentsKeepOffsetsAndFiveMinuteOverlap",
+      "result": "passed",
+      "seconds": 0.112,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "hotwordsPersistNormalizeAndTrackPeopleRenamesAndDeletes",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportHotwordsTest",
+      "test": "transcribedImportsFollowRetentionButFailuresWaitAtMostThreeDays",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupSchedulerTest",
+      "test": "localOnlyNeedsNoNetworkAndCloudCancellationLeavesLocalScheduled",
+      "result": "passed",
+      "seconds": 0.028,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupSchedulerTest",
+      "test": "periodicAndImmediateHaveDifferentConstraintsAndAreDeduplicated",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.onboarding.OnboardingQueries132Test",
+      "test": "databaseSignalsIgnoreBlankUncertainAndCrossSegmentTagsButAcceptKnownOtherPerson",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.onboarding.OnboardingQueries132Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "authStopsRoundWithoutConsumingOtherSegments",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "cleanupDeletesOnlySuccessfulAudioAfterFullDayIncludingEmpty",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "cancellationPreservesAudioAndAccountsAttemptWithoutPartialLines",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "concurrentTriggersAreSkippedAndSegmentsUploadInTimeOrder",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "progressCountsSuccessEmptyAndFailureFromFixedRoundSnapshot",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "timeoutContinuesRoundAndYieldsToOtherSegmentsOnRetry",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "migrationPreservesOldRowsAndRoomValidatesWholeSchema",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "startupRecoversEvenFifthInterruptedAttemptWithoutUploadOrUsageLoss",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "networkFailureEndsRoundWithoutConsumingAttempts",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "finalResultsReplaceLinesAndPreserveLedgerAcrossManualRetry",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "startupDoesNotResetLiveUploadAndCancellationClearsProgress",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribePersistenceTest",
+      "test": "timeoutBackoffStopsAfterFiveAndManualRetryResets",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "lateDigestedMeetingCardBelongsToMeetingDay",
+      "result": "passed",
+      "seconds": 0.037,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "quotesAreRefilledAndUnknownEvidenceAndEmptyRequiredAreDiscarded",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "sameEntityKeepsIdSnapshotAndLimitAndDeletedStayDeleted",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "trialRetriesFormatOnceAndAccountsTokensWithoutPersistingCards",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "afterDigestGapAutoLimitManualExemptionAndUpdateDoesNotPushAgain",
+      "result": "passed",
+      "seconds": 0.066,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "coreSettingsAreNoopsAndMissingKeyDoesNotCallModel",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "migrationElevenToTwelvePreservesExistingTablesAndRoomValidates",
+      "result": "passed",
+      "seconds": 0.033,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "dailyFailureDoesNotBlockOtherSkillAndNetworkRetriesOnce",
+      "result": "passed",
+      "seconds": 0.081,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "mineFieldChangesBumpVersionAndRenameDoesNot",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "parsesOfficialAndRejectsInvalidKeyTypeAndBounds",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "overlappingMeetingsExpandAndRememberDeletedAliases",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "overridesPromptsResetAndUpstreamVersionSurviveReload",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "exportsBoundedProbeRequestsUsingProductionPromptAndLocalCopyWhenProvided",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "scopeFiltersMeWeekAndIncrementalAndBoundsUntrustedData",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "mineKeepsDefaultPromptAfterEditsAndCanReset",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "scheduleDailySundayAndTodayOnlyCatchupAndRetryOnce",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "skillPathsRejectTraversal",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.skills.Skills031Test",
+      "test": "manualDigestSkipsMinGap",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "strongReminderGoesToStrongChannelOthersStayNormal",
+      "result": "passed",
+      "seconds": 0.031,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "deleteRegeneratesFolderAndWebhookDelta",
+      "result": "passed",
+      "seconds": 0.027,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "strongReminderPostsWithButtonsAfterEdit",
+      "result": "passed",
+      "seconds": 0.101,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "eveningGroupsDateOnlyAndLeadIsSingleAndSentOnce",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "digestContextLimitsAndIgnoredWindow",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "ongoingAndUnlimitedCompletedRange",
+      "result": "passed",
+      "seconds": 0.033,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "migration15AndOldVolumeAndSettingsRestore",
+      "result": "passed",
+      "seconds": 0.045,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "editNormalizesDateAndRevisesReminderIdentity",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "deletedIsAbsentFromAllConsumers",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "batchIsAtomicAndDoneHintsValidateIdsAndDismissal",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "redigestAndMergeNeverReviveDeletedOrOverwriteEdits",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "subscriptionSendsIndividualLeadsAndRetrySkipsSuccessfulOne",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "localPhoneSendsOnceAndReschedulesEditedTime",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.push.Todo046Test",
+      "test": "runnerSuppliesContextAndPersistsHintWithoutCompleting",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "failedPublishKeepsOldVolumeAndCleansPendingFile",
+      "result": "passed",
+      "seconds": 0.05,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "choosingTreeAgainAndRestoringOldTreeSettingsKeepOriginalBehavior",
+      "result": "passed",
+      "seconds": 0.037,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "treeProviderErrorsKeepTheActualOperationStep",
+      "result": "passed",
+      "seconds": 0.037,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "dailyVolumesWriteReadReplaceAndRestoreAll",
+      "result": "passed",
+      "seconds": 0.099,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "newInstallationSeesEmptyListWithoutError",
+      "result": "passed",
+      "seconds": 0.071,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "downloadsBackupListsAndRestoresSelectedPointWithSettings",
+      "result": "passed",
+      "seconds": 0.1,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "retentionDeletesOnlyOwnedRecognizedFiles",
+      "result": "passed",
+      "seconds": 0.104,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DownloadsBackup123Test",
+      "test": "diagnosticKeepsStepAndReasonButRedactsAddressesAndCredentials",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "pendingAcceptIgnoreAndBulkRemainSeparate",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "duplicatesUseCurrentLocationAndUpdatePendingWithinTwoHours",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "sameAsSupportsBothChoicesAndRenamedPendingMergesAlias",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "dayVolumesRoundTripThingsRecordsAndWatermark",
+      "result": "passed",
+      "seconds": 0.042,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "completedRoundRequestsDetectionOnlyWhenNewLinesExist",
+      "result": "passed",
+      "seconds": 0.035,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "autoOffAdvancesAndToggleDuringRequestCannotInsertOldResults",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "askToolIncludesUnconfirmedAndReferencesRealLineIds",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "promptParsesUncertainKnownAndRejectsContextOnlyEvidence",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "firstStartSkipsOldHistoryButKeepsRecentLines",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "migration1ToLatestUsesWholeRegisteredChain",
+      "result": "passed",
+      "seconds": 0.051,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "batchesHave80Lines20ContextExcludeImportMediaAndNotifyOnlyExplicit",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "deleteLineRedoAndEventDeletionRemovePendingButKeepAcceptedSnapshot",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "failureWatermarkSurvivesRestartAndSkipsOnlyAfterThirdFailure",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "searchMatchesAliasesLastPlaceAndBorrowerWithLiteralLikeEscaping",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "migration26ToLatestPreservesRowsAndInstallsCleanup",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.things.Things079Test",
+      "test": "manualFallbackAddReturnEditAndDeletionRespectContract",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.ProblemReportsTest",
+      "test": "crashesOmitMessagesRetainTenAndDelegateToOriginalHandler",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.ProblemReportsTest.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.ProblemReportsTest",
+      "test": "exportIncludesDiagnosticsScrubsKeysAndCrashNoticeStaysDismissedAfterRestart",
+      "result": "passed",
+      "seconds": 0.056,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.ProblemReportsTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "emptySelectionFailsWithExplanationAndNoFiles",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "databaseLoadsEventTodosAndFiltersDeletedMergedIgnoredAndUnrelated",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "selectedSectionsOnlyAndMarkdownContentEscaped",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "textOnlyWritesOneBomTxtWithoutAudioPositionsOrSubtitleAndZeroEstimate",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "allMarkdownPartsAreOrderedAndEventsAndTodosDeduplicated",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "newJobJsonRestoresEveryOptionAndResumesTextOnly",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "oldJobJsonRestoresAudioAndOptionalLinesWithOldFlags",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport115Test",
+      "test": "audioOnlyCanStillProduceSubtitlesWithoutText",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.AskCompatibility136Test",
+      "test": "markedBackupSkipsToolsBeforeNetworkAndDoesNotInventFailureOrUsage",
+      "result": "passed",
+      "seconds": 0.155,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.AskCompatibility136Test",
+      "test": "fallbackSurvivesRestartAppearsInDiagnosticsAndClearsOnEditOrToolCheckPass",
+      "result": "passed",
+      "seconds": 0.033,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+    },
+    {
+      "class": "app.resound.diagnostics.AskCompatibility136Test",
+      "test": "realPrefetchFiltersTimeAndPersistsModeAndReferencesWithoutSchemaChange",
+      "result": "passed",
+      "seconds": 1.007,
+      "source": "首次全清单JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+    },
+    {
+      "class": "app.resound.location.LocationTrackTest",
+      "test": "duplicateFromSecondProviderSkipped",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+    },
+    {
+      "class": "app.resound.location.LocationTrackTest",
+      "test": "staysSplitByMoveAndIgnoreShortStops",
+      "result": "passed",
+      "seconds": 0.002,
+      "source": "首次全清单JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+    },
+    {
+      "class": "app.resound.location.LocationTrackTest",
+      "test": "migratesFrom32AndStoresPointsAndPlaces",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+    },
+    {
+      "class": "app.resound.location.LocationTrackTest",
+      "test": "inaccuratePointsDroppedAndJitterNotCountedAsDistance",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "summaryDoesNotBypassManualRecordsAndRebuildBackfills",
+      "result": "passed",
+      "seconds": 0.064,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "roomSnapshotHonorsMergePrivacyAndDeletedCards",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "capabilitiesTightenAndValidateRoundTrip",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "schedulingCombinesMinimumGapMultipleTimesWeekdaysAndManual",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "throttlingStopsImmediatelyAndResumesWithoutAdvancingFingerprint",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "webhookDeltaSignsUpsertsDeletesAndTracksFailureStatus",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "atomicMoveDeletesExistingTargetAndRebuildBatchesTwenty",
+      "result": "passed",
+      "seconds": 0.121,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "folderDiffDeletionAndUnknownFilesAreProtected",
+      "result": "passed",
+      "seconds": 0.039,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "linkedCredentialsAreLiveNotCopiedAndFolderConflictRejected",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "selectionFrontMatterTypedCardsAndMeOnlyNeverLeakMedia",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "yearlyArchiveByDayAndSampleOutput",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "fullWebhookAndTelegramUseDailyMemoryWithMarkdownAttachment",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "migrationPersistsThreeLegacyCases",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.push.Subscription042Test",
+      "test": "notionOnlyUpdatesChangedDayAndArchivesDeletedDay",
+      "result": "passed",
+      "seconds": 0.036,
+      "source": "首次全清单JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "dailyMemoryCarriesBooleanAndTimelineStarWithoutMarkingImportantOnly",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "隔离修复JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "staleRequiresThreeDaysUnfinishedAndNoDoneOrSimilarLaterEvent",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "weeklyIncludesOldEventsStarredThisWeekAndItemProgress",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "reviewInputAndOutputKeepFourStarsAndHistoricalReminder",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "starAcceptsPendingTasksAtFrontAndUnstarPreservesItemsAndRepeats",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "askEventStarWaitsForConfirmationThenUsesTransactionalStar",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "migrationThirteenToFourteenPreservesImportantAndClearsUserStars",
+      "result": "passed",
+      "seconds": 0.042,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "emptyDayStillFollowsStaleStarsWithoutCallingCloud",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "隔离修复JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.starred.Starred041Test",
+      "test": "askStarFilterAppliesToKeywordSemanticAndDayResults",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "batchGroupingAndPersistentQueueRespectMergeSwitchAndUnknownTimes",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "incrementalRowsRoundTripImportsAndTemplatesStayHidden",
+      "result": "passed",
+      "seconds": 0.057,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "waitsForEntireFileAndSpeakerCompletionAndRegeneratesFailure",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "typeChangeDeletesOldCardAndRequeuesOnlyWhenSpeakerModeNeedsAudio",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "suggestionsPreferCallCluesThenLastThenMeeting",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "longRecordingSummarizesEveryChunkAndPreservesBoundaryActions",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "speakerMergeUsesSimilarityAndChannelsOrderWithMeAndOther",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "trainingDisablesSpeakersAndCallPassesFixedTwoToAsr",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "deletionInvalidatesSummaryAndInFlightResponseCannotResurrectIt",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "summaryTodosStayPendingAndMergeWithDigestWithoutRevivingDeletedItems",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "migration25PreservesRowsAndValidatesCurrentSchema",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.importer.ImportKinds077Test",
+      "test": "channelDecoderKeepsSidesAcrossOddBufferBoundariesAndIgnoresDuplicateStereo",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+    },
+    {
+      "class": "app.resound.update.UpdateAndroidTest",
+      "test": "validatesPackageVersionAndCurrentSigningCertificates",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.update.UpdateAndroidTest.xml"
+    },
+    {
+      "class": "app.resound.update.UpdateAndroidTest",
+      "test": "checkpointSnapshotIncludesWalAndPreferencesAndKeepsLatestThreeCopies",
+      "result": "passed",
+      "seconds": 0.037,
+      "source": "首次全清单JUnit/TEST-app.resound.update.UpdateAndroidTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "smtpLocalAuthDataTlsModesAndMimeAttachment",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "telegramEscapesThenTruncatesAndUploadsDailyDocumentThroughProxy",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "webdavAppendsCreatesDirectoriesAndDailyOverwriteUsesSeparatePath",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "notionDiscoversTitleArchivesPreviousDayAndBatchesBlocksWithCache",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "dailyJsonHasCompleteFieldsAndOptionalLinesSurviveRetrySnapshot",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "feishuKnownSignatureAndInteractiveJsonFallback",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "dingTalkKnownSignatureIsUrlEncodedAndUsesMarkdown",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "validationRejectsUnsafeInputsButAllowsPrivateWebhookRanges",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "webhookEnvelopeTypesAndIndependentSignatureCoverExactWireBytes",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.push.PushMoreTest",
+      "test": "diaryAndDailySourceIncludeTypedCardsAndUseReviewCutoffWindow",
+      "result": "passed",
+      "seconds": 2.318,
+      "source": "隔离修复JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintMigrationTest",
+      "test": "version29OpensWithoutSchemaChangeAndKeepsSamples",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintMigrationTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintMigrationTest",
+      "test": "versionThreePreservesTranscriptDigestAndAcceptsNewBlobAndExclusion",
+      "result": "passed",
+      "seconds": 0.042,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintMigrationTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintMigrationTest",
+      "test": "versionEightKeepsSamplesAndManualCorrections",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintMigrationTest.xml"
+    },
+    {
+      "class": "app.resound.ask.AskFollowUp097Test",
+      "test": "eventConversationCanResumeAndAnswerTwoFollowUpsWithoutExtraSearch",
+      "result": "passed",
+      "seconds": 2.458,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskFollowUp097Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskFollowUp097Test",
+      "test": "refreshUsesCurrentRecordsBoundsContextAndDoesNotResendDeletedEvidence",
+      "result": "passed",
+      "seconds": 0.046,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskFollowUp097Test.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "ageSchemaLostCorruptBaseAndLargeDeltaStartNewFullSet",
+      "result": "passed",
+      "seconds": 0.183,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "encryptedFullAndEncryptedDeltaRestoreTogether",
+      "result": "passed",
+      "seconds": 0.169,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "namesAndRetentionKeepDependenciesAndTreatLegacyAsFull",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "featureAddModifyDeleteAndCumulativeDaysRestoreWithoutIntermediate",
+      "result": "passed",
+      "seconds": 0.087,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "growingAndShrinkingDatabaseRestoreExactLengthAndHash",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "fewChangedPagesAreCumulativeAndReconstructExactSnapshot",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "tamperedPageFailsResultHashAndNeverStagesRestore",
+      "result": "passed",
+      "seconds": 0.08,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "cloudRepositoryUsesSameGenerationRetentionAndPairRestore",
+      "result": "passed",
+      "seconds": 0.087,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "wrongOrMissingBaseRejectedBeforeAnyLiveDatabaseReplacement",
+      "result": "passed",
+      "seconds": 0.074,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "destinationMustContainItsOwnCommittedFullAndFailedGenerationDoesNotReplaceIt",
+      "result": "passed",
+      "seconds": 0.11,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.IncrementalBackupTest",
+      "test": "localRepositoryWritesRetainsAndAutomaticallyRestoresIncrementalPair",
+      "result": "passed",
+      "seconds": 0.095,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+    },
+    {
+      "class": "app.resound.backup.CloudSettings114Test",
+      "test": "addressPolicyAndSecretReuseRejectUnsafeConfiguration",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.CloudSettings114Test",
+      "test": "restoringOldSettingsSelectsNutstoreAndKeepsMissingFields",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.CloudSettings114Test",
+      "test": "legacyMigratesWithoutWritingAndSwitchesKeepEachCredential",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.CloudSettings114Test",
+      "test": "backupRestoresSelectionAddressesAndAllSecrets",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupArchiveTest",
+      "test": "tamperingAndTraversalAreRejectedBeforeReplacement",
+      "result": "passed",
+      "seconds": 0.063,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupArchiveTest",
+      "test": "snapshotRemainsConsistentDuringConcurrentTransactions",
+      "result": "passed",
+      "seconds": 0.054,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupArchiveTest",
+      "test": "archiveExcludesAllSecretsAudioAndUnknownSettingsAndRestoresVerifiedContent",
+      "result": "passed",
+      "seconds": 0.074,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupArchiveTest",
+      "test": "restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart",
+      "result": "passed",
+      "seconds": 0.118,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupArchiveTest",
+      "test": "previousVersionArchiveVerifiesAndMigratesWithoutLosingVoiceprints",
+      "result": "passed",
+      "seconds": 0.069,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupArchiveTest",
+      "test": "sampleAudioIsExcludedAndRestoreRetainsVectorsWithoutStalePlayback",
+      "result": "passed",
+      "seconds": 0.056,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "topicProgressStartsOnlyForPendingAndCompletionWakesImmediately",
+      "result": "passed",
+      "seconds": 0.222,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "doneTopicStillWakesForLateTranscriptButNotAlreadyAssignedLines",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "environmentRepositoryDoesNotReadAnyHistoryWithoutConsumers",
+      "result": "passed",
+      "seconds": 0.113,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "voiceInputHistoryIsColdAndKeepsNewestAppAndTodayCount",
+      "result": "passed",
+      "seconds": 0.119,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "importReadinessMatchesOldFilterAndIgnoresNonImportWrites",
+      "result": "passed",
+      "seconds": 0.12,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "environmentEventIncludesItsWholeSpanAndSynchronousAudioDoesNotNeedCache",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "checkpointRefreshReadsOnlyTheObservedTopics",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "rangeAndRecentDoneKeepCrossBoundarySegmentsAndOrdering",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "segmentCountsMatchFullTableIncludingEmptyAndAllStatuses",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "failureRowsPreserveNullDeadlineAndAudioErrorChanges",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "usageTotalsKeepTodayTotalAndEmptyDaySemantics",
+      "result": "passed",
+      "seconds": 0.112,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "currentTopicQueryMatchesOldSelectionAndPendingPolicy",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "unrelatedSegmentEditsDoNotRecomputeQueueVoiceprintOrFailureConsumers",
+      "result": "passed",
+      "seconds": 0.533,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.data.TableObservers182Test",
+      "test": "environmentDayAndHourlyMatchFullHistoryWithMidnightCrossing",
+      "result": "passed",
+      "seconds": 0.131,
+      "source": "首次全清单JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DiaryBackupTest",
+      "test": "failedDiaryUploadKeepsSuccessfulBackupAndRetriesBothDaysNextNight",
+      "result": "passed",
+      "seconds": 0.096,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DiaryBackupTest.xml"
+    },
+    {
+      "class": "app.resound.scheduling.Battery164Test",
+      "test": "redoOptionsStopWhenHiddenAndHistoryExpiresAtDeadline",
+      "result": "passed",
+      "seconds": 0.037,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.Battery164Test",
+      "test": "onboardingDoesNotKeepTranscriptClockAliveInBackground",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.Battery164Test",
+      "test": "exportPrunesOnlyWhileThereAreJobsAndStopsWhenEmpty",
+      "result": "passed",
+      "seconds": 0.052,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.Battery164Test",
+      "test": "asrChooserRefreshesOnSubscriptionAndStopsAfterLeaving",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.Battery164Test",
+      "test": "recordingDaysDoNotScanUntilSubscribedAndResumeImmediately",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.Battery164Test",
+      "test": "voiceCountClockIsInactiveUntilObservedAndStopsOnExit",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSoundCursorInvestigationTest",
+      "test": "transactionKeepsWindowReadsConsistentDuringSameDeletion",
+      "result": "passed",
+      "seconds": 2.149,
+      "source": "首次全清单JUnit/TEST-app.resound.envsound.EnvSoundCursorInvestigationTest.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSoundCursorInvestigationTest",
+      "test": "deletingSixRowsDuringWindowRefillInvalidatesCursorPosition",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.envsound.EnvSoundCursorInvestigationTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewTimingTest",
+      "test": "scheduledDateUsesLatestReachedCutoffEvenAfterMidnight",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewTimingTest",
+      "test": "scheduledRetryReusesReviewAtOrAfterCutoffWithoutModelUsage",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewTimingTest",
+      "test": "adjacentWindowsUseOpenStartAndClosedEndForEventsAndItems",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewTimingTest",
+      "test": "scheduledRunReplacesReviewGeneratedBeforeCutoff",
+      "result": "passed",
+      "seconds": 0.029,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewTimingTest",
+      "test": "manualRunUsesConfiguredWindowAndAlwaysRegeneratesWithoutPush",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+    },
+    {
+      "class": "app.resound.backup.RestoreSafety088Test",
+      "test": "ioFailureRollsBackFilesAndCachedSettings",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.RestoreSafety088Test.xml"
+    },
+    {
+      "class": "app.resound.backup.RestoreSafety088Test",
+      "test": "interruptedRestoreRollsBackOnNextStartup",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.RestoreSafety088Test.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedTest",
+      "test": "oneRequestStoresBothAndAskFindsRealSourceWithoutDoubleUsage",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedTest",
+      "test": "reprocessingDoesNotRecreateIgnoredFact",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedTest",
+      "test": "disabledDuringRequestDiscardsThingButKeepsTimeline",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedTest",
+      "test": "badThingDoesNotRetryTimelineAndValidSiblingStillSaves",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedTest",
+      "test": "importDoesNotAddInstructionsAndMediaDoesNotCreateThings",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedTest",
+      "test": "deletedSourceAndFailedTransactionCannotLeaveOrphanThing",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    {
+      "class": "app.resound.things.ThingsSharedLiveTest",
+      "test": "liveExtractionAndTokenComparison",
+      "result": "skipped",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.things.ThingsSharedLiveTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "previewAndClearAgreeAndKeepStarredAndPending",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "version19MigratesKeepingExistingEvents",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "playbackTimeoutReleasesCapture",
+      "result": "passed",
+      "seconds": 0.037,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "shorteningCleansImmediatelyAndLengtheningDoesNot",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "clearRangeOnlyRemovesAudioInsideRange",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "usageLocateAndTrimSupportImportedAudioWithoutChangingItsRetention",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "editsPreserveFirstOriginalRestoreAndRefreshSearchAndEmbedding",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "retentionProtectsRecentStarredAndPending",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.OriginalAudio062Test",
+      "test": "playbackIsIdempotentAndScopeCancellationReleases",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "markOnlyStillTranscribesAndDoesNotInferAgain",
+      "result": "passed",
+      "seconds": 0.057,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "skipRestoresAndSavedMinutesDisappear",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "pureMusicAndSpeechAndHumanProtection",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "wrongSkipBecomesKeepAndExpiredRestoreFails",
+      "result": "passed",
+      "seconds": 0.039,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "skippedAudioHasOneDayFloorAndClearKeepsDecision",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "longAudioUsesThreeTenSecondWindows",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "meProtectsMediaAndSkipAndMediaSuppressesSpecialSounds",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "migration22PreservesSegmentAndCascadesJudgment",
+      "result": "passed",
+      "seconds": 0.044,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "disabledUnreadyOldAndFailureAllPassThrough",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "mediaSkipAndWrongRequeuesKeepingScores",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "aggregationSplitsHoursAndMergesEvents",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.envsound.EnvSound070Test",
+      "test": "reviewAndWeeklyPresentationObeyToggleWithoutChangingStoredSummary",
+      "result": "passed",
+      "seconds": 0.031,
+      "source": "隔离修复JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestRejected134Test",
+      "test": "rejectionReasonUsesFixedWords",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestRejected134Test",
+      "test": "contentRejectionSkipsOnlyTheRejectedFewLines",
+      "result": "passed",
+      "seconds": 0.027,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestRejected134Test",
+      "test": "networkTroubleDuringProbeKeepsNormalRetry",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestRejected134Test",
+      "test": "configRejectionStopsWithoutDroppingAnything",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPresentationTest",
+      "test": "successStaysPrimaryAfterFailureForBothDestinations",
+      "result": "passed",
+      "seconds": 0.001,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPresentationTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPresentationTest",
+      "test": "newerSuccessIsNotHiddenByCachedSummaryAndBytesStayPaired",
+      "result": "passed",
+      "seconds": 0.0,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPresentationTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPresentationTest",
+      "test": "repeatedEntryKeepsGoodCacheButDifferentAccountAndFolderCannotReuseIt",
+      "result": "passed",
+      "seconds": 0.0,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPresentationTest.xml"
+    },
+    {
+      "class": "app.resound.usage.Usage043Test",
+      "test": "migrates14To15PreservingTotalsAsOther",
+      "result": "passed",
+      "seconds": 0.042,
+      "source": "首次全清单JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    },
+    {
+      "class": "app.resound.usage.Usage043Test",
+      "test": "llmGroupsPurposesIncludesBothBoundsAndEmitsUpdates",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    },
+    {
+      "class": "app.resound.usage.Usage043Test",
+      "test": "pricesPersistValidateAndRoundTripThroughBackupIncludingNull",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    },
+    {
+      "class": "app.resound.usage.Usage043Test",
+      "test": "askConversationAndSuggestionsBothRecordAsk",
+      "result": "passed",
+      "seconds": 0.034,
+      "source": "首次全清单JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    },
+    {
+      "class": "app.resound.usage.Usage043Test",
+      "test": "digestReviewSkillAndDraftUseTheirOwnPurpose",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    },
+    {
+      "class": "app.resound.usage.Usage043Test",
+      "test": "asrCountsOnlyUploadCallbacksAndFiltersDates",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewRepositoryTest",
+      "test": "disabledPushGeneratesAndScheduledReuseDoesNotSpendAgain",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewRepositoryTest",
+      "test": "bystanderIncludedWhileMediaAndDeletedExcluded",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewRepositoryTest",
+      "test": "manualRegeneratesWithoutPushAndMissingKeyIsSafe",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+      "test": "recognitionAndSpeakerErrorsKeepTheirOriginalMapping",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "隔离修复JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+      "test": "invalidAudioDecodeMapsToAudioAndFailedRecordingIsKept",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "隔离修复JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+      "test": "exportedProblemReportContainsExceptionClassButNoMessageOrPath",
+      "result": "passed",
+      "seconds": 0.069,
+      "source": "隔离修复JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+      "test": "missingAudioIsSpecificAndDoesNotStopLaterSegmentsOrRetryForever",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "隔离修复JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "digestAndAskCarryContextAsSourceMaterial",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "micTranscriptArrivingLaterSkipsDictatedLinesButKeepsLongerOrOthers",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "windowWaitsThreeSecondsAndSeparatesConsecutiveDictations",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "repliesAreNeverAppendedAndContextIsBounded",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "folderWebhookAndSubscriptionHonorContextSwitch",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "finalizationSurvivesMappingAndNeverEntersVoiceprint",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "insertedTextSupportsMiddleAndAppendButNotDeletionOrReplacement",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "disabledContextOrRepliesNeverCollectsReplies",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "privacyGatesAndPauseDiscardWindow",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "sentClearUsesLastTextButDeletedDraftIsNotSaved",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "persistenceIsIdempotentAndKeepsDictationHeardByMic",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "settingsBackupAndTodayCountAndRecentApps",
+      "result": "passed",
+      "seconds": 0.044,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput048Test",
+      "test": "migration16PreservesOldLinesAndDefaultsToNoMetadata",
+      "result": "passed",
+      "seconds": 0.031,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "deletionRestrictsStatesAndRemovesDerivedRowsWithoutRefundingUsage",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "retentionStartsAtJudgmentButExpiredImportsStopWaiting",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "agingUsesFirstFailureAcrossBulkRetryAndStopsAfterThreeDays",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "startupConvertsOldAudioFailuresOnceAndKeepsRecoverableFailures",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "version20MigratesAndRecoversFirstFailureFromLedger",
+      "result": "passed",
+      "seconds": 0.052,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "ignoreThenIndividualRetryResetsAndMissingAudioBecomesAbandoned",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "audioFailureIsAbandonedAndMissingFileHasReadableReason",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Failure065Test",
+      "test": "bulkRetryOnlyRequeuesFailuresStillNeedingAttention",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "failedUploadNeverDeletesFormalBackups",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "onlyOldestExcessBackupsAreDeleted",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "writeProbeCreatesAndRemovesTemporaryFile",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "uploadPublishesOnlyAfterPutAndCleansOwnPart",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "combinesBothFoldersButRetentionDeletesOnlyEnglishBackups",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "legacyFolderIsReadOnlyAndRecognitionIgnoresDisplayName",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "parsesEncodedNamesAndIgnoresTemporaryFiles",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "missingDirectoryIsCreated",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "fixedErrorsNeverExposeServerText",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.backup.WebDavClientTest",
+      "test": "acceptsHrefVariantsFromServers",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewPreparation053Test",
+      "test": "failureFallsThroughButParentCancellationPropagates",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewPreparation053Test",
+      "test": "successfulPreparationSuppliesFreshEventsToWeeklyReview",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewPreparation053Test",
+      "test": "timeoutWhileWaitingForPipelineStillGeneratesDailyReview",
+      "result": "passed",
+      "seconds": 0.053,
+      "source": "隔离修复JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+    },
+    {
+      "class": "app.resound.review.ReviewMigrationTest",
+      "test": "sevenToEightAndOneToEightPreserveDataAndOverwriteDaily",
+      "result": "passed",
+      "seconds": 0.091,
+      "source": "首次全清单JUnit/TEST-app.resound.review.ReviewMigrationTest.xml"
+    },
+    {
+      "class": "app.resound.location.PlaceResolverTest",
+      "test": "parsesAmapPreferringAreaName",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+    },
+    {
+      "class": "app.resound.location.PlaceResolverTest",
+      "test": "wgsToGcjShiftsInChinaOnly",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+    },
+    {
+      "class": "app.resound.location.PlaceResolverTest",
+      "test": "manualNameWinsNearbyAndSurvivesCacheClear",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+    },
+    {
+      "class": "app.resound.location.PlaceResolverTest",
+      "test": "secondLookupOfSamePlaceUsesCache",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestLongSessionTest",
+      "test": "shortOngoingTalkOrUntranscribedAudioInsideStillWaits",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestLongSessionTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestLongSessionTest",
+      "test": "longerMaxWaitFromSettingsKeepsWaiting",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestLongSessionTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestLongSessionTest",
+      "test": "nonStopTalkingDigestsTheSettledPartUpToTheLongestPause",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestLongSessionTest.xml"
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "test": "embeddingPowerRecoveryAndEditsAppendBehindRunningWork",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "test": "audioSweepFollowsEnabledFolderAudioAndCancelsLegacyWork",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "test": "privacyStartupRecoversQueueAndNewRowsAreNotLostBehindRunningWork",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "test": "emptyPrivacyQueueDoesNotScheduleAndDeletionFailureKeepsDurableRetry",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "test": "embeddingStartupCancelsLegacyAndOnlyDownloadsWhenContentAppears",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "test": "watchdogCancelsEvenWhenStoppedWithoutRunningServiceAndReschedules",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "fingerprintUsesSizeHeadAndTailAndSettingsAreBackedUp",
+      "result": "passed",
+      "seconds": 0.035,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "permissionLossStopsScanningUntilReselectedAndRestoredSettingsRequireGrant",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "changingSizeAndRecentModificationWaitForTwoStableScans",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "baselineReadFailureDoesNotTreatLaterFilesAsOld",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "copyThatChangesAfterHashIsRejectedWithoutPendingOrQueue",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "migrationFrom29PreservesDataAndAddsPersistentFingerprintTables",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "sharedQueuedAndFinishedAudioIsNotImportedAgainAndMetadataWins",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "oldFilesIncludingEmptyGrowingFileAreIgnoredButNewFileImports",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.importer.FolderImports117Test",
+      "test": "stableFileImportsOnceEvenAfterRenameAndRepositoryRestart",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "firstAllThenTodayThenOldEditAndTodayWithoutLocalBaseline",
+      "result": "passed",
+      "seconds": 0.075,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "unencryptedSummaryIncludesSecretsAndDeletingDayRemovesRemote",
+      "result": "passed",
+      "seconds": 0.057,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "mockWebDavUsesAtomicMoveAndServerSideRecoveryCopy",
+      "result": "passed",
+      "seconds": 0.078,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "exportBundleRestoresWithoutFilenameOrLocalBaseline",
+      "result": "passed",
+      "seconds": 0.18,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "cleanupWaitsSevenDaysOfSuccessfulFormatAndKeepsUnrelatedFiles",
+      "result": "passed",
+      "seconds": 0.054,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "stableRowsAndBeijingBoundary",
+      "result": "passed",
+      "seconds": 0.044,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "missingManifestRetransmitsAllDays",
+      "result": "passed",
+      "seconds": 0.05,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "oldUsageVolumeRestoresAsOtherAlongsideNewPurpose",
+      "result": "passed",
+      "seconds": 0.029,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "restoresRowsFtsFeaturesAndOmitsEmbeddings",
+      "result": "passed",
+      "seconds": 0.077,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "usageV2BelongsToDayAndRestoresBothPurposes",
+      "result": "passed",
+      "seconds": 0.058,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "newPhoneCanSelectEncryptedFolderBeforeSupplyingPassphrase",
+      "result": "passed",
+      "seconds": 0.164,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "secretsAndTypedSettingsMergePreserveMissingKeysAndExcludePassphrase",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "oldMissingColumnDefaultsAndFutureVersionRefused",
+      "result": "passed",
+      "seconds": 0.054,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "wrongPassphraseAndTamperedVolumeNeverStageReplacement",
+      "result": "passed",
+      "seconds": 0.131,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.backup.DayVolumesTest",
+      "test": "interruptionAfterOverwriteKeepsOldManifestRestorableAndRetryCommits",
+      "result": "passed",
+      "seconds": 0.092,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestAudit087Test",
+      "test": "sourceDeletedDuringRequestCannotReappearInPendingResponses",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestAudit087Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestAudit087Test",
+      "test": "uncertainRequestStopsAutomaticResendAndDeletingSourceClearsReplay",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestAudit087Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestAudit087Test",
+      "test": "localFailureReplaysPersistedReplyWithoutAnotherRequestOrUsage",
+      "result": "passed",
+      "seconds": 0.054,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestAudit087Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRematchTest",
+      "test": "burstOfRequestsRunsVoiceprintOnceAndFallsBackOnlyWhenItKeepsFailing",
+      "result": "passed",
+      "seconds": 1.117,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRematchTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.VoiceprintRematchTest",
+      "test": "markMeOnlyRequeuesSegmentsWhoseAudioIsStillKept",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.VoiceprintRematchTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "reciprocalRankingDeduplicatesAndCapsAtTen",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "mixedSearchUsesSemanticFiltersAndFallsBackWhenModelUnavailable",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "ftsTracksInsertUpdateDeleteAndRetainsSpeakerTimeAndHiddenFilters",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "embeddingBatchCapsNormalizesAndRejectsStaleSnapshot",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "askAboutStartsFreshAndIncludesOnlySelectedContextWithFortyLineLimit",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "modelTokenizerAndResumableVerifiedDownloadProtocol",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "tenToElevenAndOneToElevenBackfillAndPreserveData",
+      "result": "passed",
+      "seconds": 0.075,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "proposalsPersistOnePerAnswerAndRepositoryConfirmsOrCancelsExactlyOnce",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "bigramsMatchSqlTokenizerAndNeverInjectMatchSyntax",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchUpgradeTest",
+      "test": "fourChangeKindsAndStaleTargetsAreAtomic",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "legacyRepliesDisabledAndScreenOcrPersists",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "terminalTakesPromptLineNotStatusOrKeyRow",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "readableTextWithSparseContextTakesOneContextScreenshot",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "wechatUsesContactNameInContext",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "hotwordsFixNearMissesOnly",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "sameTextFromDifferentSpeakersIsNotDuplicateContext",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "dedupRespectsTimeChatAppNullTitleAndExactEquality",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "sidesByEdgeDistanceAndStrictTerminal",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "leavingAppCancelsBeforeScreenshotAndKeepsWhatWasRead",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "titleNeedsRealText",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "severalPiecesThenOneSendBecomeOneMessage",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "sendEndsMessageAndContextComesFromAfterSend",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "wrappedInputLinesJoinIntoOneSentence",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "ownEarlierUtteranceCanEnterContextOnce",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "readableNodesOrDisabledOcrNeverScreenshot",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "anyAppEmptyBoxAfterSendIsSeen",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "keyRowsAreNeverTheUtterance",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "boxWithUnrelatedNewTextMeansEarlierWasSent",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "chatContextIsSidedAndOwnSentBubbleWins",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "boxThatClosesAfterSendCountsAsSent",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "switchedChatInSameAppIsNotUsedAsContext",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "filtersSystemBarsKeyboardTimestampsAndChrome",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "terminalUsesLowestParagraphAndMissingImeUsesBottomFortyPercent",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "chatMergesMultilineInputAndExtractsTitleAndContext",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "disabledOcrNeverScreenshots",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "contextSwitchOffKeepsTextButNoContextOrName",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "failedOrBlackScreenshotSkipsWithoutRetryAndPauseInvalidatesResult",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "quickSendsOneAfterAnotherEachGetContext",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "threeDictationsDedupOnlyPreviouslyStoredContext",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.capture.VoiceInput049Test",
+      "test": "pausedDictationExtendsPreviousLineInsteadOfAddingOne",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPersistenceTest",
+      "test": "historySearchPagingSelectionRenameAndDelete",
+      "result": "passed",
+      "seconds": 0.068,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPersistenceTest",
+      "test": "migrationsFromOneAndFivePreserveDataAndPersistCitedExchange",
+      "result": "passed",
+      "seconds": 0.172,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPersistenceTest",
+      "test": "suggestionsCacheBoundsAndDailyReservationsSurviveRestartAndFailure",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPersistenceTest",
+      "test": "stopPersistsOnlyFinalPartialAndRestartAndNewConversationStayIsolated",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+    },
+    {
+      "class": "app.resound.ask.AskToolsTest",
+      "test": "allToolsFilterOrEscapingTimeSpeakerDeletedAndCap",
+      "result": "passed",
+      "seconds": 0.616,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskToolsTest.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.InputPersistence045Test",
+      "test": "matchingUsesEnoughSameInputManualSamplesOtherwiseAllAndEnrollmentIsPhone",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.InputPersistence045Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.InputPersistence045Test",
+      "test": "sourceMetadataSurvivesInSpoolAndNewLogDoesNotBreakStatistics",
+      "result": "passed",
+      "seconds": 0.045,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.InputPersistence045Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "newerVersionIsRejectedBeforeSnapshotOrReplacement",
+      "result": "passed",
+      "seconds": 0.028,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "restoreSnapshotsCurrentDataBeforeReplacingAndMigratesOlderDatabase",
+      "result": "passed",
+      "seconds": 0.185,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "disablingEncryptionChangesNextUploadAndKeepsDiaryAndSnapshotCleanup",
+      "result": "passed",
+      "seconds": 0.223,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "retainsNewestThirtyAcrossPlainAndEncryptedWithoutTouchingDiary",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "missingPlaceholderAndBlankTemplateDoNotOverwriteSavedText",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "templatesReadDefaultsAndPersistOverridesInBackup",
+      "result": "passed",
+      "seconds": 0.036,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "encryptionRoundTripUsesRandomSaltAndRejectsWrongPasswordAndTampering",
+      "result": "passed",
+      "seconds": 0.16,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "parsesTimesSizesEncryptionAndRejectsInvalidNames",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupPrompts029Test",
+      "test": "resetRemovesOverrideAndReturnsDefault",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport068Test",
+      "test": "voiceAndExpiredRemainTextOnly",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport068Test",
+      "test": "cancellationRemovesPartialsAndCleanupOnlyRemovesExpiredExports",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport068Test",
+      "test": "twoHourPcmUsesBoundedChunks",
+      "result": "passed",
+      "seconds": 0.082,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport068Test",
+      "test": "badSegmentSkippedAndActualPcmTimelineMatchesSubtitles",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport068Test",
+      "test": "skipMediaExcludesAudioTextAndMetadata",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AudioExport068Test",
+      "test": "batchDeletionKeepsEventsTodosAndOtherSegmentsButRemovesSearchAndVectors",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "startBackfillsTwoMinutesAndClampsToPreviousTopicAndDigestedSpeech",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "pauseReturnsSpeechToOrdinaryDigestAndOldInFlightResultCannotClaimTopic",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "migration32AndBothBackupFormsKeepTopicsAndOldBackupCompatibility",
+      "result": "passed",
+      "seconds": 0.058,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "scriptContainsTwoFullVersionsAndLocalWordCountAndReadingTime",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "twoHourMeetingContinuesAfterRestartWithoutRepeatingCompletedBlocks",
+      "result": "passed",
+      "seconds": 1.565,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "unmarkRemovesOnlyThatMarkAndRejectsCancelledTopic",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "cutSplitsSpanReleasesOnlyCutSpeechAndCancelDeletesGeneratedArtifacts",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "failedHistoryWithoutEventCanRetryExistingSpeechExactlyOnce",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "retrospectiveRangeSnapsOutwardReplacesEventsPreservesChangedTodosAndStar",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "multipleBatchesBecomeOneEventAndMarksReachReusedSummaryTemplate",
+      "result": "passed",
+      "seconds": 0.216,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "failedRegenerationKeepsPreviousFinishedEvent",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "truncatedLargeResponseSplitsWithoutCreatingSeveralEvents",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "pausedDeadlineDoesNotMoveAndUnboundedTopicEndsAtFourHours",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "checkpointCannotExposeResultsAfterSourceChangedOrDeleted",
+      "result": "passed",
+      "seconds": 0.022,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "rejectedContentStaysIncompleteAndAllOriginalSpeechIsKept",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "trainingUsesHistoricalSpansAndTopicSegmentsLeadTranscriptionCandidates",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "overlappingLiveRetroactiveAndFutureWeeklyReservationsAreRejected",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "quietOnlyRemindsOncePerSilenceAndEndingReminderCanExtendThirtyMinutes",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.topic.Topic135Test",
+      "test": "weeklyScheduleStartsOnceCreatesNextAndRemindsWithoutTurningRecordingOn",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.topic.Topic135Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "allBrokenIsLocalFailureAndNoRequest",
+      "result": "passed",
+      "seconds": 0.03,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "responseOnlyJsonErrorsAreRemote",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "editAndRestoreNormalizeOldBrokenPoints",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "corruptRetryIsDiscardedImmediately",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "diagnosticsHaveChannelsAndThirtyLogsWithoutSecretsOrContents",
+      "result": "passed",
+      "seconds": 0.036,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "multipleBrokenFieldsCountOnceAndDoNotBecomeDeltaDeletes",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "brokenCardIsSkippedAndHealthyRecordDelivered",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.push.PushLocal067Test",
+      "test": "corruptStateResetsAndContinues",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeDoesNotRetranscribeSoExpiredAudioStillMerges",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeInheritsStarAndKeepsDoneTodo",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeOnlyTakesTheSelectedEventsOwnLines",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeHandlesManyLinesAndKeepsAllOldItems",
+      "result": "passed",
+      "seconds": 0.076,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "undoRestoresBothEventsItemsAndLineOwnership",
+      "result": "passed",
+      "seconds": 0.011,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeRefusesEventsFarApartAndKeepsEverything",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeEstimateReportsLinesGapAndNoAudioCost",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeFailsWhenModelReturnsSeveralEventsAndKeepsOldData",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeNeedsTwoEventsAndKeepsThemWhenRejected",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.redo.RedoMerge105Test",
+      "test": "mergeReplacesTwoEventsWithOneAndPointsEveryLineAtIt",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "deletedMeetingOverlapAndAliasesAreRestoredOnlyByManual",
+      "result": "passed",
+      "seconds": 0.023,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "stoppedWorkerPropagatesCancellationAndRetryCanStillProduceResult",
+      "result": "passed",
+      "seconds": 0.033,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "generateIsImmediateDeduplicatedClearsOldResultAndPublishesCompletion",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "deletedDayManualRestoresAndAutomaticUpdatesWhileDeletedAutomaticHasOwnReason",
+      "result": "passed",
+      "seconds": 0.138,
+      "source": "隔离修复JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "networkAndServerRetryAtMostTwiceWithoutEarlyNotice",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "restoresPendingWorkAfterRepositoryRestartAndKeepsExistingRequest",
+      "result": "passed",
+      "seconds": 0.033,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "fullDayReportsActualCountInsteadOfDeletedReason",
+      "result": "passed",
+      "seconds": 0.029,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.skills.SkillGeneration047Test",
+      "test": "noticesHaveThreeOutcomesAndMultipleCardDayLinkEvenWithPushOff",
+      "result": "passed",
+      "seconds": 0.027,
+      "source": "首次全清单JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestSplitRetryTest",
+      "test": "onlyUnsplittableHalfCountsTowardThreeFailuresBeforeMovingOn",
+      "result": "passed",
+      "seconds": 0.035,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestSplitRetryTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestSplitRetryTest",
+      "test": "malformedBatchRetriesBothHalvesWithSeparateIdentitiesInSameRun",
+      "result": "passed",
+      "seconds": 0.019,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestSplitRetryTest.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupAudit087Test",
+      "test": "dayVolumeRoundTripPreservesEnvironmentCorrections",
+      "result": "passed",
+      "seconds": 0.058,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupAudit087Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupAudit087Test",
+      "test": "everySchemaTableHasAnExplicitBackupPolicy",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupAudit087Test.xml"
+    },
+    {
+      "class": "app.resound.backup.BackupAudit087Test",
+      "test": "restoredSettingsAreReadBeforeConstructingRuntimeState",
+      "result": "passed",
+      "seconds": 0.021,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.BackupAudit087Test.xml"
+    },
+    {
+      "class": "app.resound.capture.AppPowerMigrationTest",
+      "test": "versionThreeMigratesAndRepositoryExportsRawCounters",
+      "result": "passed",
+      "seconds": 0.077,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.AppPowerMigrationTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestProgressTest",
+      "test": "cancellationClearsRunningWithoutFakeProgress",
+      "result": "passed",
+      "seconds": 0.031,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestProgressTest",
+      "test": "failedBatchDoesNotAdvanceOrEraseUnprocessedLines",
+      "result": "passed",
+      "seconds": 0.035,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestProgressTest",
+      "test": "countsOnlySavedBatchesAndFinishesAtTotal",
+      "result": "passed",
+      "seconds": 0.032,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+    },
+    {
+      "class": "app.resound.digest.DigestProgressTest",
+      "test": "elapsedShowsHundredthsAndFreezesAtCompletion",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Training176Test",
+      "test": "trainingIsQueriedEvenWhenSeparationIsOffAndErrorsAreNotHidden",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Training176Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Training176Test",
+      "test": "waitingForTrainingDoesNotLockSettingsAndKeepsTheEarlierSnapshot",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Training176Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.Training176Test",
+      "test": "cancellingTheCallerCancelsTheTrainingQuery",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.Training176Test.xml"
+    },
+    {
+      "class": "app.resound.push.ReviewPushTest",
+      "test": "formatsAndJsonKeepFullReviewAndRetryPayload",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+    },
+    {
+      "class": "app.resound.push.ReviewPushTest",
+      "test": "testWithoutReviewKeepsExistingMessage",
+      "result": "passed",
+      "seconds": 0.066,
+      "source": "隔离修复JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+    },
+    {
+      "class": "app.resound.push.ReviewPushTest",
+      "test": "testUsesLatestReviewDespiteSwitchesAndKeepsItOnRetry",
+      "result": "passed",
+      "seconds": 0.044,
+      "source": "隔离修复JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+    },
+    {
+      "class": "app.resound.push.ReviewPushTest",
+      "test": "scheduledReviewUsesBriefLocallyAndFullBodyPerChannel",
+      "result": "passed",
+      "seconds": 0.024,
+      "source": "首次全清单JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+    },
+    {
+      "class": "app.resound.search.SearchTerms136Test",
+      "test": "multipleKeywordsMatchAnyAndMultiCharKeywordNeedsAllBigrams",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.search.SearchTerms136Test.xml"
+    },
+    {
+      "class": "app.resound.backup.S3Client114Test",
+      "test": "timeAndCommonErrorsHaveSafeHumanMessages",
+      "result": "passed",
+      "seconds": 0.017,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.S3Client114Test",
+      "test": "brokenPaginationAndAccessDeniedNeverBecomeEmptyHistory",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.S3Client114Test",
+      "test": "awsOfficialGetObjectSignature",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.S3Client114Test",
+      "test": "pathsEncodeEachSegmentAndVirtualHostIncludesBucket",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.S3Client114Test",
+      "test": "paginationDecodesKeysAndSignsOpaqueContinuationToken",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.S3Client114Test",
+      "test": "volumePutIsSingleAtomicRequestAndMissingBucketIsAnError",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "autoEnrollmentRequiresCoherentWindowsAndTwoSecondsOfSpeech",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "manualClickRejectsMixedWindowsAndQuarantinesOldSampleWithoutDeletingIt",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "playbackAndExclusionPreventAutoSamplesAndPruningNeverDeletesManual",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "recomputeRejectsInvalidRangeAndIgnoresOlderRecordings",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "topThreeDoesNotAcceptSingleAccidentalMatchAndKeepsMultiPersonMargin",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "resetDuringRecomputeCannotResurrectResultsOrFeatures",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "sameSegmentReferenceCannotRecognizeItselfAndUnknownCacheDoesNotUseLegacyFeature",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "recomputeSplitsGroupCachesWindowsAndPreservesExpiredAndManualResults",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "automaticSamplesNeverMoveReferenceAndManualOutlierIsPreserved",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "missingAndShortWindowsCannotTurnTinyPositiveIntoWholeSentence",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "windowsKeepRealTimeGapsOverlapAndShortTail",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.voiceprint.Voiceprint044Test",
+      "test": "mixedGroupMapsEachSentenceByOverlapAndRejectsMixedLongSentence",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribeSchedulerTest",
+      "test": "playbackSkippedStaysOutOfQueueAndManualOverrideRequeues",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribeSchedulerTest",
+      "test": "repositoryPublishesAndResetsRealRoundProgress",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribeSchedulerTest",
+      "test": "localScheduleDoesNotRequireNetwork",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribeSchedulerTest",
+      "test": "diagnosticsContainOnlyAttemptMetadataAndQueueCounts",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribeSchedulerTest",
+      "test": "periodicScheduleUsesIntervalAndUnmeteredAndUpdatesSameWork",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.transcribe.TranscribeSchedulerTest",
+      "test": "immediateWorkIsUniqueAndReconfiguresQueuedConstraints",
+      "result": "passed",
+      "seconds": 0.02,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+    },
+    {
+      "class": "app.resound.capture.LevelFlow172Test",
+      "test": "levelResetsWhenNotListening",
+      "result": "passed",
+      "seconds": 0.974,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.LevelFlow172Test.xml"
+    },
+    {
+      "class": "app.resound.capture.LevelFlow172Test",
+      "test": "levelChangesDoNotWakeStatusSubscribers",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.capture.LevelFlow172Test.xml"
+    },
+    {
+      "class": "app.resound.digest.Rhythm064Test",
+      "test": "overlappingMediaExcludedAndFlowUpdatesOnEventsAndLines",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+    },
+    {
+      "class": "app.resound.digest.Rhythm064Test",
+      "test": "fewerThanThreeRecordedDaysIsNullAndWindowExcludesTodayAndEighthDay",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+    },
+    {
+      "class": "app.resound.digest.Rhythm064Test",
+      "test": "pushAndRemindersKeepBystanderAndExcludeMedia",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+    },
+    {
+      "class": "app.resound.digest.Rhythm064Test",
+      "test": "mediansIgnoreExtremeValueAndRoundEvenDays",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "cancelDuringPreparationRestoresCaptureAndDoesNotRecognize",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "addAcceptedAtFrontPreservesOrderAndSourceAcrossLists",
+      "result": "passed",
+      "seconds": 0.014,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "savedFromEventKeepsFirstLineAndSurvivesEventDelete",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "voiceFailureRestoresCaptureAndDeletesWavWithoutDiarization",
+      "result": "passed",
+      "seconds": 0.173,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "dayItemsAndCalendarUseStandaloneCreatedAt",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "migration17PreservesRowsAndNullableForeignKeyAndSearchTriggers",
+      "result": "passed",
+      "seconds": 0.038,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "deletingEventKeepsStandaloneAndDoneHintCanBeWritten",
+      "result": "passed",
+      "seconds": 0.012,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "dayVolumeExportRebuildRetainsStandaloneAndAllNewFields",
+      "result": "passed",
+      "seconds": 0.034,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "remindersPushFolderAndAskIncludeStandalone",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "draftSplitsTwoCardsUsesCalendarAndAccountsUsage",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "noKeyDoesNotRequestModel",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "reviewIncludesStandaloneWithSafeNullEventReferenceAndWeeklyInput",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.digest.ManualTodo054Test",
+      "test": "malformedAndTimeoutFallBackToOriginalText",
+      "result": "passed",
+      "seconds": 0.031,
+      "source": "首次全清单JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "streamAcceptsCoalescedAndRepeatedFramesButRejectsCorruption",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "liveCoverageIsRecordedAndOnlyUncoveredIntervalsAreImported",
+      "result": "passed",
+      "seconds": 0.013,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "unsupportedResumeRestartsWholeFile",
+      "result": "passed",
+      "seconds": 0.01,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "adjacentGapsDoNotReimportPadding",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "resumeSurvivesNewInstanceAndOldGapIsRestored",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "successfulImportPrecedesDeleteAndDoesNotRepeat",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "migrationFrom30PreservesDataAndPersistsTransfers",
+      "result": "passed",
+      "seconds": 0.015,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "sharedFingerprintSkipsWithoutUnsafeDelete",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "crashRecoveryUsesPersistedSegmentsAndSpoolWithoutAssumingClockOffset",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "pcmIsCroppedAndWrappedAsStandardWav",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "threeBadDownloadsNeverImportOrDelete",
+      "result": "passed",
+      "seconds": 0.009,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "missingClockUsesModificationAndClampsPadding",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "protocolMatchesRealDownloadFrameAndReassembles",
+      "result": "passed",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "overlapUsesPhoneOffsetAndPadding",
+      "result": "passed",
+      "seconds": 0.003,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "checksumMismatchRetriesEvenWhenSizeMatches",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "firstPairDoesNotListButMissingPluginIsRecorded",
+      "result": "passed",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.devices.DeviceSync120Test",
+      "test": "importFailureRetainsSource",
+      "result": "passed",
+      "seconds": 0.007,
+      "source": "首次全清单JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AsrSpeed073Test",
+      "test": "manualStopAndPermanentSwitchDoNotRewriteEarlierSegments",
+      "result": "passed",
+      "seconds": 0.008,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AsrSpeed073Test",
+      "test": "cancelBothCloudRequestsRecordsEachAttemptAndKeepsAudio",
+      "result": "passed",
+      "seconds": 0.016,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AsrSpeed073Test",
+      "test": "expiryAndRestartKeepTheRecordingStartDecision",
+      "result": "passed",
+      "seconds": 0.005,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AsrSpeed073Test",
+      "test": "migration24KeepsDataAndHistoricalSpeakerState",
+      "result": "passed",
+      "seconds": 0.018,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+    },
+    {
+      "class": "app.resound.transcribe.AsrSpeed073Test",
+      "test": "concurrentResultsStayWithTheirSegmentsAndOffClearsIdentity",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "首次全清单JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "test": "linkedS3PushPersistsOnlyFlagAndUploadsIntoSeparateFolder",
+      "result": "skipped",
+      "seconds": 0.006,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "test": "minioCrudPaginationVolumesAndDiary",
+      "result": "skipped",
+      "seconds": 0.004,
+      "source": "首次全清单JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "narrowWindowUsesFullStayAndCachedNamesWithoutGeocoding",
+      "result": "passed",
+      "seconds": 0.123,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "linesKeepSpeakerKeywordsAndReferencesWithOverlap",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "eventsOverlapStaysAndKeepTimeKeywordStarAndDeletionFilters",
+      "result": "passed",
+      "seconds": 0.035,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "semanticCandidatesAreFilteredBeforeRankingAndStayFilteredOnReadback",
+      "result": "passed",
+      "seconds": 0.041,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "omittedPlaceDoesNotReadFootprintOrChangeToolSchemaRequirements",
+      "result": "passed",
+      "seconds": 0.025,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "disabledFootprintKeepsOriginalResultsAndOnlyExplainsExplicitPlace",
+      "result": "passed",
+      "seconds": 0.026,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "missingPlaceReturnsAtMostTenDistinctNamesInRequestedRange",
+      "result": "passed",
+      "seconds": 0.034,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    {
+      "class": "app.resound.ask.AskPlace131Test",
+      "test": "homeUsesHomeFlagAndManualNameInsteadOfTextContainingHome",
+      "result": "passed",
+      "seconds": 0.027,
+      "source": "首次全清单JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    }
+  ]
+}

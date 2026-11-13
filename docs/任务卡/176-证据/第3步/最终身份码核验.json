@@ -1,0 +1,47 @@
+{
+  "schema_version": 33,
+  "identityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
+  "schema_sha256": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292",
+  "generated": [
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "sha256": "713c8befee62120d257ef3102a9b3206f7a3f3d60015d273a0af3447b355a42e",
+      "identity_lines": [
+        "    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(33, \"c8e25a89cb4bb9cf5903037158d9d8d3\", \"3412bb4df8e5c7643980766122b9273d\") {",
+        "        connection.execSQL(\"INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')\")"
+      ]
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "sha256": "713c8befee62120d257ef3102a9b3206f7a3f3d60015d273a0af3447b355a42e",
+      "identity_lines": [
+        "    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(33, \"c8e25a89cb4bb9cf5903037158d9d8d3\", \"3412bb4df8e5c7643980766122b9273d\") {",
+        "        connection.execSQL(\"INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')\")"
+      ]
+    },
+    {
+      "path": "shared/build/generated/ksp/iosArm64/iosArm64Main/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "sha256": "39a16254e79cd5c468c6e58865aa00f9018210ad4766700d62131cb5abc1bb61",
+      "identity_lines": [
+        "    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(33, \"c8e25a89cb4bb9cf5903037158d9d8d3\", \"3412bb4df8e5c7643980766122b9273d\") {",
+        "        connection.execSQL(\"INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')\")"
+      ]
+    },
+    {
+      "path": "shared/build/generated/ksp/iosSimulatorArm64/iosSimulatorArm64Main/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "sha256": "39a16254e79cd5c468c6e58865aa00f9018210ad4766700d62131cb5abc1bb61",
+      "identity_lines": [
+        "    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(33, \"c8e25a89cb4bb9cf5903037158d9d8d3\", \"3412bb4df8e5c7643980766122b9273d\") {",
+        "        connection.execSQL(\"INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')\")"
+      ]
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "sha256": "dec874c009fe6c1d382f88ad5e864bba65810a68d7e6a171dfd71dd0614839b6",
+      "identity_lines": [
+        "    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(33, \"c8e25a89cb4bb9cf5903037158d9d8d3\", \"3412bb4df8e5c7643980766122b9273d\") {",
+        "        connection.execSQL(\"INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')\")"
+      ]
+    }
+  ]
+}

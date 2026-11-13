@@ -1,0 +1,211 @@
+{
+  "total": 170,
+  "skipped": 0,
+  "seconds": 1.809,
+  "classes": [
+    {
+      "class": "app.resound.home.HomeRules148Test",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.004
+    },
+    {
+      "class": "app.resound.topic.TopicProcessingTest",
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.012
+    },
+    {
+      "class": "app.resound.topic.TopicObservation182Test",
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.01
+    },
+    {
+      "class": "app.resound.skills.core.Parity160Test",
+      "tests": 20,
+      "skipped": 0,
+      "seconds": 0.064
+    },
+    {
+      "class": "app.resound.digest.core.MergePrompt105Test",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.011
+    },
+    {
+      "class": "app.resound.push.PushBodyLayoutSharedTest",
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.002
+    },
+    {
+      "class": "app.resound.rules.Rules154Test",
+      "tests": 13,
+      "skipped": 0,
+      "seconds": 0.184
+    },
+    {
+      "class": "app.resound.audio.CaptureRead173Test",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.004
+    },
+    {
+      "class": "app.resound.envsound.EnvSoundSamplesSharedTest",
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.002
+    },
+    {
+      "class": "app.resound.audio.StreamingVad173Test",
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.073
+    },
+    {
+      "class": "app.resound.ask.AskParity153Test",
+      "tests": 13,
+      "skipped": 0,
+      "seconds": 0.124
+    },
+    {
+      "class": "app.resound.health.Health147Test",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.01
+    },
+    {
+      "class": "app.resound.home.WidgetRules167Test",
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.003
+    },
+    {
+      "class": "app.resound.ask.AskEngine136Test",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.039
+    },
+    {
+      "class": "app.resound.ask.AskCitationRepair097Test",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.206
+    },
+    {
+      "class": "app.resound.scheduling.DemandWork174Test",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.0
+    },
+    {
+      "class": "app.resound.ask.AskEngineTest",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.02
+    },
+    {
+      "class": "app.resound.net.KtorMock151Test",
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.137
+    },
+    {
+      "class": "app.resound.digest.core.ReviewPromptTest",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.004
+    },
+    {
+      "class": "app.resound.digest.core.DigestPromptTest",
+      "tests": 15,
+      "skipped": 0,
+      "seconds": 0.098
+    },
+    {
+      "class": "app.resound.digest.core.PromptParity152Test",
+      "tests": 14,
+      "skipped": 0,
+      "seconds": 0.033
+    },
+    {
+      "class": "app.resound.envsound.EnvSoundGaps075SharedTest",
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.086
+    },
+    {
+      "class": "app.resound.digest.DigestSplitTest",
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.002
+    },
+    {
+      "class": "app.resound.scheduling.DemandRefresh164Test",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.079
+    },
+    {
+      "class": "app.resound.digest.RulesParity152Test",
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.012
+    },
+    {
+      "class": "app.resound.rules.MemoryPaths154Test",
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.001
+    },
+    {
+      "class": "app.resound.skills.core.SkillCardPushTest",
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.002
+    },
+    {
+      "class": "app.resound.audio.MicSensitivity089Test",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.013
+    },
+    {
+      "class": "app.resound.topic.TopicDelete179Test",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.007
+    },
+    {
+      "class": "app.resound.settingsearch.SettingsSearch147Test",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.009
+    },
+    {
+      "class": "app.resound.capture.SpeechSegmenterTest",
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.53
+    },
+    {
+      "class": "app.resound.capture.ThreadCpuRules171Test",
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.004
+    },
+    {
+      "class": "app.resound.skills.core.SkillDrafterTest",
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.003
+    },
+    {
+      "class": "app.resound.rules.ThingWatcher154Test",
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.021
+    }
+  ]
+}

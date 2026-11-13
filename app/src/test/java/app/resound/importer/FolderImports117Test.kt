@@ -179,7 +179,7 @@ class FolderImports117Test {
     @Test fun migrationFrom29PreservesDataAndAddsPersistentFingerprintTables() = runBlocking {
         val name = "folder117-migration.db"
         context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/29.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/29.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

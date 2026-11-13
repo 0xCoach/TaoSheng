@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.review.ReviewTimingTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:31:24.289Z" hostname="CoachdeMacBook-Air.local" time="0.075">
+  <properties/>
+  <testcase name="scheduledRetryReusesReviewAtOrAfterCutoffWithoutModelUsage" classname="app.resound.review.ReviewTimingTest" time="0.023"/>
+  <testcase name="scheduledRunReplacesReviewGeneratedBeforeCutoff" classname="app.resound.review.ReviewTimingTest" time="0.029"/>
+  <testcase name="manualRunUsesConfiguredWindowAndAlwaysRegeneratesWithoutPush" classname="app.resound.review.ReviewTimingTest" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

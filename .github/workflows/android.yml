@@ -31,7 +31,7 @@ jobs:
         run: python3 tools/check_devices.py
       # 在完整编译之前单跑 KSP，持续覆盖卡 166 报告的独立入口。
       - name: 单独检查 KSP
-        run: ./gradlew -Dorg.gradle.daemon.registry.base=/tmp/taosheng-166-gradle -PskipSigningSecrets=true :app:kspDebugKotlin
+        run: ./gradlew -Dorg.gradle.daemon.registry.base=/tmp/taosheng-166-gradle -PskipSigningSecrets=true :shared:kspDebugKotlinAndroid
       # 不设置 TAOSHENG_LIVE_THINGS 等真实服务开关，相应测试按条件跳过。
       - name: 编译与单测
         run: ./gradlew -Dorg.gradle.daemon.registry.base=/tmp/taosheng-166-gradle -PskipSigningSecrets=true :shared:check :shared:jvmTest :devices:check :app:compileDebugKotlin :app:testDebugUnitTest

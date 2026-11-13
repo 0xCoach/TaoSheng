@@ -232,7 +232,7 @@ class Redo071Test {
     }
     @Test fun migration23PreservesDataAndAddsScopedOverrideAndSnapshot() = runBlocking {
         val name = "redo071-migration.db"; context.deleteDatabase(name)
-        val schema = org.json.JSONObject(File("schemas/app.resound.data.CaptureDatabase/23.json").readText()).getJSONObject("database")
+        val schema = org.json.JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/23.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {

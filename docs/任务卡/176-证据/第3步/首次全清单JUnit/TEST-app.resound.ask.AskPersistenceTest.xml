@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskPersistenceTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:27:45.452Z" hostname="CoachdeMacBook-Air.local" time="0.313">
+  <properties/>
+  <testcase name="historySearchPagingSelectionRenameAndDelete" classname="app.resound.ask.AskPersistenceTest" time="0.068"/>
+  <testcase name="migrationsFromOneAndFivePreserveDataAndPersistCitedExchange" classname="app.resound.ask.AskPersistenceTest" time="0.172"/>
+  <testcase name="suggestionsCacheBoundsAndDailyReservationsSurviveRestartAndFailure" classname="app.resound.ask.AskPersistenceTest" time="0.041"/>
+  <testcase name="stopPersistsOnlyFinalPartialAndRestartAndNewConversationStayIsolated" classname="app.resound.ask.AskPersistenceTest" time="0.032"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

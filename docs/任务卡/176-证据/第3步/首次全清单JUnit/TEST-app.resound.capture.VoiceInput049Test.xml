@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.capture.VoiceInput049Test" tests="30" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:27:55.102Z" hostname="CoachdeMacBook-Air.local" time="0.162">
+  <properties/>
+  <testcase name="legacyRepliesDisabledAndScreenOcrPersists" classname="app.resound.capture.VoiceInput049Test" time="0.009"/>
+  <testcase name="terminalTakesPromptLineNotStatusOrKeyRow" classname="app.resound.capture.VoiceInput049Test" time="0.006"/>
+  <testcase name="readableTextWithSparseContextTakesOneContextScreenshot" classname="app.resound.capture.VoiceInput049Test" time="0.006"/>
+  <testcase name="wechatUsesContactNameInContext" classname="app.resound.capture.VoiceInput049Test" time="0.008"/>
+  <testcase name="hotwordsFixNearMissesOnly" classname="app.resound.capture.VoiceInput049Test" time="0.005"/>
+  <testcase name="sameTextFromDifferentSpeakersIsNotDuplicateContext" classname="app.resound.capture.VoiceInput049Test" time="0.01"/>
+  <testcase name="dedupRespectsTimeChatAppNullTitleAndExactEquality" classname="app.resound.capture.VoiceInput049Test" time="0.011"/>
+  <testcase name="sidesByEdgeDistanceAndStrictTerminal" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="leavingAppCancelsBeforeScreenshotAndKeepsWhatWasRead" classname="app.resound.capture.VoiceInput049Test" time="0.006"/>
+  <testcase name="titleNeedsRealText" classname="app.resound.capture.VoiceInput049Test" time="0.005"/>
+  <testcase name="severalPiecesThenOneSendBecomeOneMessage" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="sendEndsMessageAndContextComesFromAfterSend" classname="app.resound.capture.VoiceInput049Test" time="0.003"/>
+  <testcase name="wrappedInputLinesJoinIntoOneSentence" classname="app.resound.capture.VoiceInput049Test" time="0.003"/>
+  <testcase name="ownEarlierUtteranceCanEnterContextOnce" classname="app.resound.capture.VoiceInput049Test" time="0.009"/>
+  <testcase name="readableNodesOrDisabledOcrNeverScreenshot" classname="app.resound.capture.VoiceInput049Test" time="0.005"/>
+  <testcase name="anyAppEmptyBoxAfterSendIsSeen" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="keyRowsAreNeverTheUtterance" classname="app.resound.capture.VoiceInput049Test" time="0.003"/>
+  <testcase name="boxWithUnrelatedNewTextMeansEarlierWasSent" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="chatContextIsSidedAndOwnSentBubbleWins" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="boxThatClosesAfterSendCountsAsSent" classname="app.resound.capture.VoiceInput049Test" time="0.003"/>
+  <testcase name="switchedChatInSameAppIsNotUsedAsContext" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="filtersSystemBarsKeyboardTimestampsAndChrome" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="terminalUsesLowestParagraphAndMissingImeUsesBottomFortyPercent" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="chatMergesMultilineInputAndExtractsTitleAndContext" classname="app.resound.capture.VoiceInput049Test" time="0.003"/>
+  <testcase name="disabledOcrNeverScreenshots" classname="app.resound.capture.VoiceInput049Test" time="0.003"/>
+  <testcase name="contextSwitchOffKeepsTextButNoContextOrName" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="failedOrBlackScreenshotSkipsWithoutRetryAndPauseInvalidatesResult" classname="app.resound.capture.VoiceInput049Test" time="0.005"/>
+  <testcase name="quickSendsOneAfterAnotherEachGetContext" classname="app.resound.capture.VoiceInput049Test" time="0.004"/>
+  <testcase name="threeDictationsDedupOnlyPreviouslyStoredContext" classname="app.resound.capture.VoiceInput049Test" time="0.009"/>
+  <testcase name="pausedDictationExtendsPreviousLineInsteadOfAddingOne" classname="app.resound.capture.VoiceInput049Test" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

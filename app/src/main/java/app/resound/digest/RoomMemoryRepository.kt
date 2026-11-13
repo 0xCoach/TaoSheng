@@ -176,12 +176,17 @@ class RoomMemoryRepository(
 
     override fun runNow() = runNowAction()
 
-    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryEvent(
+    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, app.resound.data.TranscriptLineEntity>): MemoryEvent {
+        val originalTitle = this.originalTitle
+        val originalSummary = this.originalSummary
+        val originalPointsJson = this.originalPointsJson
+        return MemoryEvent(
         id, startAt, endAt, scene, title, summary, pointsJson.strings(), peopleJson.strings(), place, emotion, intensity, important,
         items.map { it.toModel(repeats[it.id] ?: 1, lines) }, starred, starredAt, editedAt,
         if (originalTitle != null && originalSummary != null && originalPointsJson != null)
             EventOriginal(originalTitle, originalSummary, originalPointsJson.strings()) else null,
     )
+    }
 
     private fun MemoryItemEntity.toModel(repeats: Int = 1, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryItem(
         id, eventId, category, kind, content, dueText, dueAt, who,

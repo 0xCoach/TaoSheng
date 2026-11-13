@@ -61,7 +61,7 @@ class Usage043Test {
     @Test fun migrates14To15PreservingTotalsAsOther() = runBlocking {
         val name = "usage-migration.db"
         context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/14.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/14.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, 0, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

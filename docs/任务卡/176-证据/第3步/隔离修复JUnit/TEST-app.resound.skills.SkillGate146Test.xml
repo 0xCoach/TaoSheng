@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.SkillGate146Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:31:24.378Z" hostname="CoachdeMacBook-Air.local" time="0.095">
+  <properties/>
+  <testcase name="shortCardInsideLongWindowIsDiscardedBeforeSavingAndPush" classname="app.resound.skills.SkillGate146Test" time="0.073"/>
+  <testcase name="previewKeepsPassingCardAndRejectsCardWithoutEnd" classname="app.resound.skills.SkillGate146Test" time="0.022"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

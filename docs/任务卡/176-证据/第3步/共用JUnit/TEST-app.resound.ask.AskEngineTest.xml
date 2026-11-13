@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskEngineTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:38:51.063Z" hostname="CoachdeMacBook-Air.local" time="0.02">
+  <properties/>
+  <testcase name="fakeServiceCallsToolThenStreamsCitedAnswerAndCountsUsage[jvm]" classname="app.resound.ask.AskEngineTest" time="0.005"/>
+  <testcase name="answerWithoutAnyLookupPrefetchesButStillRejectsUncitedConclusion[jvm]" classname="app.resound.ask.AskEngineTest" time="0.006"/>
+  <testcase name="referencesAreDenseStableAndRejectOutOfBounds[jvm]" classname="app.resound.ask.AskEngineTest" time="0.002"/>
+  <testcase name="parallelToolCallsCannotExceedSixAndFinalRequestDisablesTools[jvm]" classname="app.resound.ask.AskEngineTest" time="0.004"/>
+  <testcase name="malformedToolArgumentsAreRecoverableAndUncitedConclusionGetsError[jvm]" classname="app.resound.ask.AskEngineTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

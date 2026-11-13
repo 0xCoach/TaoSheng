@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.local.LocalAsrFailure063Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:12.290Z" hostname="CoachdeMacBook-Air.local" time="0.049">
+  <properties/>
+  <testcase name="recognitionAndSpeakerErrorsKeepTheirOriginalMapping" classname="app.resound.transcribe.local.LocalAsrFailure063Test" time="0.006"/>
+  <testcase name="invalidAudioDecodeMapsToAudioAndFailedRecordingIsKept" classname="app.resound.transcribe.local.LocalAsrFailure063Test" time="0.011"/>
+  <testcase name="exportedProblemReportContainsExceptionClassButNoMessageOrPath" classname="app.resound.transcribe.local.LocalAsrFailure063Test" time="0.021"/>
+  <testcase name="missingAudioIsSpecificAndDoesNotStopLaterSegmentsOrRetryForever" classname="app.resound.transcribe.local.LocalAsrFailure063Test" time="0.011"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

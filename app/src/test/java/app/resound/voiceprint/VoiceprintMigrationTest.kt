@@ -22,7 +22,7 @@ class VoiceprintMigrationTest {
         val context: Context = RuntimeEnvironment.getApplication()
         val name = "identity-v8.db"
         context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/8.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/8.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {
@@ -55,7 +55,7 @@ class VoiceprintMigrationTest {
         val context: Context = RuntimeEnvironment.getApplication()
         val name = "migration-006.db"
         context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/3.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/3.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {
@@ -90,7 +90,7 @@ class VoiceprintMigrationTest {
     }
     @Test fun version29OpensWithoutSchemaChangeAndKeepsSamples() = runBlocking {
         val context:Context=RuntimeEnvironment.getApplication();val name="samples-upgrade.db";context.deleteDatabase(name)
-        val schema=JSONObject(File("schemas/app.resound.data.CaptureDatabase/29.json").readText()).getJSONObject("database")
+        val schema=JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/29.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name,Context.MODE_PRIVATE,null).use { old ->
             val entities=schema.getJSONArray("entities")
             for(i in 0 until entities.length()) {

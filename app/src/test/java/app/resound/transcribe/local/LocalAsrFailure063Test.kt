@@ -22,6 +22,7 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class LocalAsrFailure063Test {
+    @get:Rule val envSoundScope = app.resound.envsound.AppGraphEnvSoundRule()
     private val context get() = RuntimeEnvironment.getApplication() as Context
     private lateinit var db: CaptureDatabase
     private lateinit var directory: File

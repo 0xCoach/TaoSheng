@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[3]
-schema = json.loads((root / 'app/schemas/app.resound.data.CaptureDatabase/33.json').read_text())['database']
+schema = json.loads((root / 'shared/schemas/app.resound.data.CaptureDatabase/33.json').read_text())['database']
 connection = sqlite3.connect(':memory:')
 for entity in schema['entities']:
     name = entity['tableName']

@@ -57,7 +57,7 @@ class Things079Test {
     }
     private suspend fun migration(version: Int) {
         val name = File(root, "from$version.db").path
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
         android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(name, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

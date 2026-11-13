@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.data.open
+
 import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
@@ -44,7 +46,7 @@ class BackupArchiveTest {
     @Test fun previousVersionArchiveVerifiesAndMigratesWithoutLosingVoiceprints() {
         val stage = File(root,"previous").apply { mkdirs() }
         val file = File(stage,BackupArchive.DATABASE).apply { parentFile!!.mkdirs() }
-        val schema = org.json.JSONObject(File("schemas/app.resound.data.CaptureDatabase/8.json").readText()).getJSONObject("database")
+        val schema = org.json.JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/8.json").readText()).getJSONObject("database")
         SQLiteDatabase.openOrCreateDatabase(file,null).use { old ->
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {

@@ -22,6 +22,7 @@ import java.time.*
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[29], manifest=Config.NONE, application=Application::class)
 class EnvSound070Test {
+    @get:Rule val envSoundScope = app.resound.envsound.AppGraphEnvSoundRule()
     private val context get() = RuntimeEnvironment.getApplication() as Context
     private lateinit var db: CaptureDatabase
     private lateinit var scope: CoroutineScope
@@ -161,7 +162,7 @@ class EnvSound070Test {
     }
     @Test fun migration22PreservesSegmentAndCascadesJudgment() = runBlocking {
         val name="migration070.db";context.deleteDatabase(name)
-        val schema=JSONObject(File("schemas/app.resound.data.CaptureDatabase/22.json").readText()).getJSONObject("database")
+        val schema=JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/22.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name,0,null).use { old ->
             val entities=schema.getJSONArray("entities")
             for(i in 0 until entities.length()) {

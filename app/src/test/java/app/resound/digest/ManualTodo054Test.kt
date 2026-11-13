@@ -55,7 +55,7 @@ class ManualTodo054Test {
 
     @Test fun migration17PreservesRowsAndNullableForeignKeyAndSearchTriggers() = runBlocking {
         val name = File(root, "old.db").path
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/17.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/17.json").readText()).getJSONObject("database")
         android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(name, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

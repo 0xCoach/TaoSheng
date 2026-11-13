@@ -179,7 +179,7 @@ class Skills031Test {
     }
     @Test fun migrationElevenToTwelvePreservesExistingTablesAndRoomValidates() = runBlocking {
         val name = "skills-migration.db"; context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/11.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/11.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
             schema.getJSONArray("entities").elements().forEach { raw ->
                 val e = raw as JSONObject

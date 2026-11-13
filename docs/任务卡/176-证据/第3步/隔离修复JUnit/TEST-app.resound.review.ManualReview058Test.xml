@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.review.ManualReview058Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:31:24.082Z" hostname="CoachdeMacBook-Air.local" time="0.071">
+  <properties/>
+  <testcase name="malformedReplyHasSpecificSafeReason" classname="app.resound.review.ManualReview058Test" time="0.03"/>
+  <testcase name="successClearsOldErrorAndReportsIncompletePreparation" classname="app.resound.review.ManualReview058Test" time="0.041"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

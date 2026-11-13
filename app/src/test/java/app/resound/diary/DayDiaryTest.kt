@@ -88,7 +88,7 @@ class DayDiaryTest {
     private suspend fun migrate(version: Int) {
         val name = "diary-migration-$version.db"
         context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, 0, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { index ->

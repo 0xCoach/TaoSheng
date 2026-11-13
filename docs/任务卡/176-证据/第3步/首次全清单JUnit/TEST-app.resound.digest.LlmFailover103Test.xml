@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.LlmFailover103Test" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:01.423Z" hostname="CoachdeMacBook-Air.local" time="0.273">
+  <properties/>
+  <testcase name="disabledIsPersistentAndNeverSwitches" classname="app.resound.digest.LlmFailover103Test" time="0.014"/>
+  <testcase name="inputLimitOnlyTriesLargerCapacity" classname="app.resound.digest.LlmFailover103Test" time="0.02"/>
+  <testcase name="moveAndSwitchSettingSurviveBackupRestore" classname="app.resound.digest.LlmFailover103Test" time="0.025"/>
+  <testcase name="streamNeverSwitchesAfterTextIncludingLaterToolRound" classname="app.resound.digest.LlmFailover103Test" time="0.018"/>
+  <testcase name="serverFailureUsesFirstBackupAndCountsReturnedFailureUsage" classname="app.resound.digest.LlmFailover103Test" time="0.017"/>
+  <testcase name="digestFallbackReplayAndInflightNeverRepeatRequestOrUsage" classname="app.resound.digest.LlmFailover103Test" time="0.048"/>
+  <testcase name="quotaAndAuthSwitchButFormatAndCancellationDoNot" classname="app.resound.digest.LlmFailover103Test" time="0.027"/>
+  <testcase name="successfulManualTestClearsCooldown" classname="app.resound.digest.LlmFailover103Test" time="0.015"/>
+  <testcase name="legacyPendingAndNewProcessRecoveryUsePrimaryWithoutRebilling" classname="app.resound.digest.LlmFailover103Test" time="0.025"/>
+  <testcase name="rejectionTriesBackupButDoesNotCoolPrimary134" classname="app.resound.digest.LlmFailover103Test" time="0.019"/>
+  <testcase name="streamSwitchesBeforeFirstTextAndAccountsEachAttempt" classname="app.resound.digest.LlmFailover103Test" time="0.017"/>
+  <testcase name="onlyThreeAttemptsAndPrimaryErrorSurvivesCooldownOrder" classname="app.resound.digest.LlmFailover103Test" time="0.014"/>
+  <testcase name="cooldownExpiresAndKeyEditClearsImmediately" classname="app.resound.digest.LlmFailover103Test" time="0.014"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

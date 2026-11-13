@@ -1,0 +1,10 @@
+{
+  "baseline": "1355f5f9ac43f0df1c8e28d2368bc8ac93a89e97",
+  "before_bytes": 105534492,
+  "after_path": "app/build/outputs/apk/release/app-release.apk",
+  "after_bytes": 105530652,
+  "after_sha256": "246943b77862b2fdb7d38f8235b2abaf440639b1735bd6c7b7d8adece4854fa4",
+  "delta_bytes": -3840,
+  "delta_percent": -0.003638620821712014,
+  "signingSecrets": false
+}

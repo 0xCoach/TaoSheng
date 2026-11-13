@@ -125,7 +125,7 @@ class OriginalAudio062Test {
     }
     @Test fun version19MigratesKeepingExistingEvents() = runBlocking {
         val name = "migration062.db"; context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/19.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/19.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, 0, null).use { old ->
             val entities = schema.getJSONArray("entities")
             for (i in 0 until entities.length()) {

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.capture.VoiceInput048Test" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:27:54.884Z" hostname="CoachdeMacBook-Air.local" time="0.206">
+  <properties/>
+  <testcase name="digestAndAskCarryContextAsSourceMaterial" classname="app.resound.capture.VoiceInput048Test" time="0.021"/>
+  <testcase name="micTranscriptArrivingLaterSkipsDictatedLinesButKeepsLongerOrOthers" classname="app.resound.capture.VoiceInput048Test" time="0.013"/>
+  <testcase name="windowWaitsThreeSecondsAndSeparatesConsecutiveDictations" classname="app.resound.capture.VoiceInput048Test" time="0.008"/>
+  <testcase name="repliesAreNeverAppendedAndContextIsBounded" classname="app.resound.capture.VoiceInput048Test" time="0.005"/>
+  <testcase name="folderWebhookAndSubscriptionHonorContextSwitch" classname="app.resound.capture.VoiceInput048Test" time="0.026"/>
+  <testcase name="finalizationSurvivesMappingAndNeverEntersVoiceprint" classname="app.resound.capture.VoiceInput048Test" time="0.02"/>
+  <testcase name="insertedTextSupportsMiddleAndAppendButNotDeletionOrReplacement" classname="app.resound.capture.VoiceInput048Test" time="0.005"/>
+  <testcase name="disabledContextOrRepliesNeverCollectsReplies" classname="app.resound.capture.VoiceInput048Test" time="0.004"/>
+  <testcase name="privacyGatesAndPauseDiscardWindow" classname="app.resound.capture.VoiceInput048Test" time="0.009"/>
+  <testcase name="sentClearUsesLastTextButDeletedDraftIsNotSaved" classname="app.resound.capture.VoiceInput048Test" time="0.006"/>
+  <testcase name="persistenceIsIdempotentAndKeepsDictationHeardByMic" classname="app.resound.capture.VoiceInput048Test" time="0.013"/>
+  <testcase name="settingsBackupAndTodayCountAndRecentApps" classname="app.resound.capture.VoiceInput048Test" time="0.044"/>
+  <testcase name="migration16PreservesOldLinesAndDefaultsToNoMetadata" classname="app.resound.capture.VoiceInput048Test" time="0.031"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

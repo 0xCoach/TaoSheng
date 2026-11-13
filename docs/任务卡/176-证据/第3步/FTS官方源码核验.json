@@ -1,0 +1,13 @@
+{
+  "room-compiler": {
+    "version": "2.8.4",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/room/room-compiler/2.8.4/room-compiler-2.8.4-sources.jar",
+    "sha256": "9dcbec5cd6fc0e9c5eabce414efdd1140159d7306b4df8e1a1c1f336bce0dc62"
+  },
+  "room-common": {
+    "version": "2.8.4",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/room/room-common/2.8.4/room-common-2.8.4-sources.jar",
+    "sha256": "de473409be2342cf6c75436a2eca66cba97ce81dba7b22a432641d74503ff0b8"
+  },
+  "finding": "Fts4.kt:116 的 contentEntity 默认值为 Any::class；FtsTableEntityProcessor.kt:200-224 检查解析后的类型，无法解析时报告本次同文错误。显式写相同默认值，未指定内容表。"
+}

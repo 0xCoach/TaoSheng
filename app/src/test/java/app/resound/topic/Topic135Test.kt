@@ -79,7 +79,7 @@ class Topic135Test {
 
     @Test fun migration32AndBothBackupFormsKeepTopicsAndOldBackupCompatibility() = runBlocking {
         val name = "topic135-v32.db"; context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/32.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/32.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, 0, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->
@@ -329,11 +329,12 @@ class Topic135Test {
         assertEquals(listOf(2L), db.memory().undigestedLines().map { it.id })
         assertNull(db.memory().event(old.eventId!!)); assertNull(db.skills().card(old.cardId!!).first())
         engine().run(); val new = db.topics().get(id)!!.row
-        assertEquals(listOf(1L, 3L), db.memory().eventLines(new.eventId!!).first().map { it.id })
+        val newEventId = new.eventId
+        assertEquals(listOf(1L, 3L), db.memory().eventLines(newEventId!!).first().map { it.id })
         repo.cancel(id)
         assertEquals("Cancelled", db.topics().get(id)!!.row.status)
         assertEquals(listOf(1L, 2L, 3L), db.memory().undigestedLines().map { it.id })
-        assertNull(db.memory().event(new.eventId)); assertNull(db.skills().card(new.cardId!!).first())
+        assertNull(db.memory().event(newEventId)); assertNull(db.skills().card(new.cardId!!).first())
     }
 
     @Test fun failedHistoryWithoutEventCanRetryExistingSpeechExactlyOnce() = runBlocking {

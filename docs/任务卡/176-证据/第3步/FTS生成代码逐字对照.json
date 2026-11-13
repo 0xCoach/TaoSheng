@@ -1,0 +1,384 @@
+{
+  "count": 63,
+  "changed": 0,
+  "files": [
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/AskDao_Impl.kt",
+      "before_sha256": "745aa8c566a25685281be42e473e8f0aa979ea599a84616c8fa09c5d45af103a",
+      "after_sha256": "745aa8c566a25685281be42e473e8f0aa979ea599a84616c8fa09c5d45af103a",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/CaptureDao_Impl.kt",
+      "before_sha256": "5dfc6ab3f823f1d55a8e80d77d7b2e340fa5f3d6301a2d8fe85b0bbb1ada8974",
+      "after_sha256": "5dfc6ab3f823f1d55a8e80d77d7b2e340fa5f3d6301a2d8fe85b0bbb1ada8974",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/CaptureDatabaseConstructor.kt",
+      "before_sha256": "f6ff887b2c9c0f9a01e144963810aaae046b1cfa11ac8ecf71fc3b1a25a3947d",
+      "after_sha256": "f6ff887b2c9c0f9a01e144963810aaae046b1cfa11ac8ecf71fc3b1a25a3947d",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "before_sha256": "713c8befee62120d257ef3102a9b3206f7a3f3d60015d273a0af3447b355a42e",
+      "after_sha256": "713c8befee62120d257ef3102a9b3206f7a3f3d60015d273a0af3447b355a42e",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/MemoryDao_Impl.kt",
+      "before_sha256": "af70fbde067641c1c822e22fba3924255efb652c929a53927111a9fc5b598f43",
+      "after_sha256": "af70fbde067641c1c822e22fba3924255efb652c929a53927111a9fc5b598f43",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/PrivacyDao_Impl.kt",
+      "before_sha256": "b8fdde6242e07ccf74fbdec112d7b1bb4b4aba987aa77d2fcf40ca77d0819977",
+      "after_sha256": "b8fdde6242e07ccf74fbdec112d7b1bb4b4aba987aa77d2fcf40ca77d0819977",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/ReviewDao_Impl.kt",
+      "before_sha256": "e4419ea9309f2c533b7cadb10e6e0f8a6a45cc039ad58bd61d7d631caa6df951",
+      "after_sha256": "e4419ea9309f2c533b7cadb10e6e0f8a6a45cc039ad58bd61d7d631caa6df951",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/TranscribeDao_Impl.kt",
+      "before_sha256": "cd679a6e576952ce76026bfa5bf7a1988f49cbcbb6ac377cc07a6c8dc344716e",
+      "after_sha256": "cd679a6e576952ce76026bfa5bf7a1988f49cbcbb6ac377cc07a6c8dc344716e",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/VoiceInputDao_Impl.kt",
+      "before_sha256": "385eef9b035bad21791400ff24d5dd755d51ab3576aec61c53e6967a7bcb2a82",
+      "after_sha256": "385eef9b035bad21791400ff24d5dd755d51ab3576aec61c53e6967a7bcb2a82",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/VoiceprintDao_Impl.kt",
+      "before_sha256": "73218d9eeb81e732eaccb3165b11ec435a697128ba599fc955267901329f42ce",
+      "after_sha256": "73218d9eeb81e732eaccb3165b11ec435a697128ba599fc955267901329f42ce",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/devices/DeviceSyncStore_Impl.kt",
+      "before_sha256": "5d55007557a880d824ffae388e00af60fa38712d210932b2869a56b60b4ce707",
+      "after_sha256": "5d55007557a880d824ffae388e00af60fa38712d210932b2869a56b60b4ce707",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/envsound/EnvSoundDao_Impl.kt",
+      "before_sha256": "7f5f7fdac3c7209f763aeaf86d041e8b8cddbd07fa3edb96d347fa14eeb163a8",
+      "after_sha256": "7f5f7fdac3c7209f763aeaf86d041e8b8cddbd07fa3edb96d347fa14eeb163a8",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/importer/FolderImportDao_Impl.kt",
+      "before_sha256": "dc036a7027c35008dd26a474be92a160dcc294e54c4d611e50862b49dc17193b",
+      "after_sha256": "dc036a7027c35008dd26a474be92a160dcc294e54c4d611e50862b49dc17193b",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/importer/ImportRecordDao_Impl.kt",
+      "before_sha256": "eac8fc575fdce57b4915775a7eda639485518cc994b891890833c53f1341921d",
+      "after_sha256": "eac8fc575fdce57b4915775a7eda639485518cc994b891890833c53f1341921d",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/location/LocationDao_Impl.kt",
+      "before_sha256": "3ebfc95f8df3ca6f502e2db4083317a7f11dd53fa1a6e78d4255f68e2d6435db",
+      "after_sha256": "3ebfc95f8df3ca6f502e2db4083317a7f11dd53fa1a6e78d4255f68e2d6435db",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/location/PlaceDao_Impl.kt",
+      "before_sha256": "4406830216b3c4f701e682a707e57a69f7e26db732c49d47b1aaea810307d1e8",
+      "after_sha256": "4406830216b3c4f701e682a707e57a69f7e26db732c49d47b1aaea810307d1e8",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/push/PushDao_Impl.kt",
+      "before_sha256": "5b5e79bc132192854036346c63d5c9c389c255201ac5695b21a10eb5e1fdc8ba",
+      "after_sha256": "5b5e79bc132192854036346c63d5c9c389c255201ac5695b21a10eb5e1fdc8ba",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/redo/RedoDao_Impl.kt",
+      "before_sha256": "21dc0e05285542daf4330569a3e9646ccd5d4b236be7c783ed6cad59ef099c68",
+      "after_sha256": "21dc0e05285542daf4330569a3e9646ccd5d4b236be7c783ed6cad59ef099c68",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/skills/SkillDao_Impl.kt",
+      "before_sha256": "13f54bb7ac4d21badc4fdd8ae1b3e1938c4f7e6d9bcd4a8b9221cbecd0a68d38",
+      "after_sha256": "13f54bb7ac4d21badc4fdd8ae1b3e1938c4f7e6d9bcd4a8b9221cbecd0a68d38",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/things/ThingDao_Impl.kt",
+      "before_sha256": "be32fb5750fe33c5b421659b7c6b2ae893c21c958f57d5e18ec5f601500e18a9",
+      "after_sha256": "be32fb5750fe33c5b421659b7c6b2ae893c21c958f57d5e18ec5f601500e18a9",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/topic/TopicDao_Impl.kt",
+      "before_sha256": "8ffc18c934032ff6d8f18d434a78f1f51d6fa8efa76bef60af64fe42a357ea3b",
+      "after_sha256": "8ffc18c934032ff6d8f18d434a78f1f51d6fa8efa76bef60af64fe42a357ea3b",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/AskDao_Impl.kt",
+      "before_sha256": "745aa8c566a25685281be42e473e8f0aa979ea599a84616c8fa09c5d45af103a",
+      "after_sha256": "745aa8c566a25685281be42e473e8f0aa979ea599a84616c8fa09c5d45af103a",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/CaptureDao_Impl.kt",
+      "before_sha256": "5dfc6ab3f823f1d55a8e80d77d7b2e340fa5f3d6301a2d8fe85b0bbb1ada8974",
+      "after_sha256": "5dfc6ab3f823f1d55a8e80d77d7b2e340fa5f3d6301a2d8fe85b0bbb1ada8974",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/CaptureDatabaseConstructor.kt",
+      "before_sha256": "f6ff887b2c9c0f9a01e144963810aaae046b1cfa11ac8ecf71fc3b1a25a3947d",
+      "after_sha256": "f6ff887b2c9c0f9a01e144963810aaae046b1cfa11ac8ecf71fc3b1a25a3947d",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "before_sha256": "713c8befee62120d257ef3102a9b3206f7a3f3d60015d273a0af3447b355a42e",
+      "after_sha256": "713c8befee62120d257ef3102a9b3206f7a3f3d60015d273a0af3447b355a42e",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/MemoryDao_Impl.kt",
+      "before_sha256": "af70fbde067641c1c822e22fba3924255efb652c929a53927111a9fc5b598f43",
+      "after_sha256": "af70fbde067641c1c822e22fba3924255efb652c929a53927111a9fc5b598f43",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/PrivacyDao_Impl.kt",
+      "before_sha256": "b8fdde6242e07ccf74fbdec112d7b1bb4b4aba987aa77d2fcf40ca77d0819977",
+      "after_sha256": "b8fdde6242e07ccf74fbdec112d7b1bb4b4aba987aa77d2fcf40ca77d0819977",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/ReviewDao_Impl.kt",
+      "before_sha256": "e4419ea9309f2c533b7cadb10e6e0f8a6a45cc039ad58bd61d7d631caa6df951",
+      "after_sha256": "e4419ea9309f2c533b7cadb10e6e0f8a6a45cc039ad58bd61d7d631caa6df951",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/TranscribeDao_Impl.kt",
+      "before_sha256": "cd679a6e576952ce76026bfa5bf7a1988f49cbcbb6ac377cc07a6c8dc344716e",
+      "after_sha256": "cd679a6e576952ce76026bfa5bf7a1988f49cbcbb6ac377cc07a6c8dc344716e",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/VoiceInputDao_Impl.kt",
+      "before_sha256": "385eef9b035bad21791400ff24d5dd755d51ab3576aec61c53e6967a7bcb2a82",
+      "after_sha256": "385eef9b035bad21791400ff24d5dd755d51ab3576aec61c53e6967a7bcb2a82",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/VoiceprintDao_Impl.kt",
+      "before_sha256": "73218d9eeb81e732eaccb3165b11ec435a697128ba599fc955267901329f42ce",
+      "after_sha256": "73218d9eeb81e732eaccb3165b11ec435a697128ba599fc955267901329f42ce",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/devices/DeviceSyncStore_Impl.kt",
+      "before_sha256": "5d55007557a880d824ffae388e00af60fa38712d210932b2869a56b60b4ce707",
+      "after_sha256": "5d55007557a880d824ffae388e00af60fa38712d210932b2869a56b60b4ce707",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/envsound/EnvSoundDao_Impl.kt",
+      "before_sha256": "7f5f7fdac3c7209f763aeaf86d041e8b8cddbd07fa3edb96d347fa14eeb163a8",
+      "after_sha256": "7f5f7fdac3c7209f763aeaf86d041e8b8cddbd07fa3edb96d347fa14eeb163a8",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/importer/FolderImportDao_Impl.kt",
+      "before_sha256": "dc036a7027c35008dd26a474be92a160dcc294e54c4d611e50862b49dc17193b",
+      "after_sha256": "dc036a7027c35008dd26a474be92a160dcc294e54c4d611e50862b49dc17193b",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/importer/ImportRecordDao_Impl.kt",
+      "before_sha256": "eac8fc575fdce57b4915775a7eda639485518cc994b891890833c53f1341921d",
+      "after_sha256": "eac8fc575fdce57b4915775a7eda639485518cc994b891890833c53f1341921d",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/location/LocationDao_Impl.kt",
+      "before_sha256": "3ebfc95f8df3ca6f502e2db4083317a7f11dd53fa1a6e78d4255f68e2d6435db",
+      "after_sha256": "3ebfc95f8df3ca6f502e2db4083317a7f11dd53fa1a6e78d4255f68e2d6435db",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/location/PlaceDao_Impl.kt",
+      "before_sha256": "4406830216b3c4f701e682a707e57a69f7e26db732c49d47b1aaea810307d1e8",
+      "after_sha256": "4406830216b3c4f701e682a707e57a69f7e26db732c49d47b1aaea810307d1e8",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/push/PushDao_Impl.kt",
+      "before_sha256": "5b5e79bc132192854036346c63d5c9c389c255201ac5695b21a10eb5e1fdc8ba",
+      "after_sha256": "5b5e79bc132192854036346c63d5c9c389c255201ac5695b21a10eb5e1fdc8ba",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/redo/RedoDao_Impl.kt",
+      "before_sha256": "21dc0e05285542daf4330569a3e9646ccd5d4b236be7c783ed6cad59ef099c68",
+      "after_sha256": "21dc0e05285542daf4330569a3e9646ccd5d4b236be7c783ed6cad59ef099c68",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/skills/SkillDao_Impl.kt",
+      "before_sha256": "13f54bb7ac4d21badc4fdd8ae1b3e1938c4f7e6d9bcd4a8b9221cbecd0a68d38",
+      "after_sha256": "13f54bb7ac4d21badc4fdd8ae1b3e1938c4f7e6d9bcd4a8b9221cbecd0a68d38",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/things/ThingDao_Impl.kt",
+      "before_sha256": "be32fb5750fe33c5b421659b7c6b2ae893c21c958f57d5e18ec5f601500e18a9",
+      "after_sha256": "be32fb5750fe33c5b421659b7c6b2ae893c21c958f57d5e18ec5f601500e18a9",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/topic/TopicDao_Impl.kt",
+      "before_sha256": "8ffc18c934032ff6d8f18d434a78f1f51d6fa8efa76bef60af64fe42a357ea3b",
+      "after_sha256": "8ffc18c934032ff6d8f18d434a78f1f51d6fa8efa76bef60af64fe42a357ea3b",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/AskDao_Impl.kt",
+      "before_sha256": "745aa8c566a25685281be42e473e8f0aa979ea599a84616c8fa09c5d45af103a",
+      "after_sha256": "745aa8c566a25685281be42e473e8f0aa979ea599a84616c8fa09c5d45af103a",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/CaptureDao_Impl.kt",
+      "before_sha256": "5dfc6ab3f823f1d55a8e80d77d7b2e340fa5f3d6301a2d8fe85b0bbb1ada8974",
+      "after_sha256": "5dfc6ab3f823f1d55a8e80d77d7b2e340fa5f3d6301a2d8fe85b0bbb1ada8974",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/CaptureDatabaseConstructor.kt",
+      "before_sha256": "f6ff887b2c9c0f9a01e144963810aaae046b1cfa11ac8ecf71fc3b1a25a3947d",
+      "after_sha256": "f6ff887b2c9c0f9a01e144963810aaae046b1cfa11ac8ecf71fc3b1a25a3947d",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+      "before_sha256": "dec874c009fe6c1d382f88ad5e864bba65810a68d7e6a171dfd71dd0614839b6",
+      "after_sha256": "dec874c009fe6c1d382f88ad5e864bba65810a68d7e6a171dfd71dd0614839b6",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/MemoryDao_Impl.kt",
+      "before_sha256": "af70fbde067641c1c822e22fba3924255efb652c929a53927111a9fc5b598f43",
+      "after_sha256": "af70fbde067641c1c822e22fba3924255efb652c929a53927111a9fc5b598f43",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/PrivacyDao_Impl.kt",
+      "before_sha256": "b8fdde6242e07ccf74fbdec112d7b1bb4b4aba987aa77d2fcf40ca77d0819977",
+      "after_sha256": "b8fdde6242e07ccf74fbdec112d7b1bb4b4aba987aa77d2fcf40ca77d0819977",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/ReviewDao_Impl.kt",
+      "before_sha256": "e4419ea9309f2c533b7cadb10e6e0f8a6a45cc039ad58bd61d7d631caa6df951",
+      "after_sha256": "e4419ea9309f2c533b7cadb10e6e0f8a6a45cc039ad58bd61d7d631caa6df951",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/TranscribeDao_Impl.kt",
+      "before_sha256": "cd679a6e576952ce76026bfa5bf7a1988f49cbcbb6ac377cc07a6c8dc344716e",
+      "after_sha256": "cd679a6e576952ce76026bfa5bf7a1988f49cbcbb6ac377cc07a6c8dc344716e",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/VoiceInputDao_Impl.kt",
+      "before_sha256": "385eef9b035bad21791400ff24d5dd755d51ab3576aec61c53e6967a7bcb2a82",
+      "after_sha256": "385eef9b035bad21791400ff24d5dd755d51ab3576aec61c53e6967a7bcb2a82",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/VoiceprintDao_Impl.kt",
+      "before_sha256": "73218d9eeb81e732eaccb3165b11ec435a697128ba599fc955267901329f42ce",
+      "after_sha256": "73218d9eeb81e732eaccb3165b11ec435a697128ba599fc955267901329f42ce",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/devices/DeviceSyncStore_Impl.kt",
+      "before_sha256": "5d55007557a880d824ffae388e00af60fa38712d210932b2869a56b60b4ce707",
+      "after_sha256": "5d55007557a880d824ffae388e00af60fa38712d210932b2869a56b60b4ce707",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/envsound/EnvSoundDao_Impl.kt",
+      "before_sha256": "7f5f7fdac3c7209f763aeaf86d041e8b8cddbd07fa3edb96d347fa14eeb163a8",
+      "after_sha256": "7f5f7fdac3c7209f763aeaf86d041e8b8cddbd07fa3edb96d347fa14eeb163a8",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/importer/FolderImportDao_Impl.kt",
+      "before_sha256": "dc036a7027c35008dd26a474be92a160dcc294e54c4d611e50862b49dc17193b",
+      "after_sha256": "dc036a7027c35008dd26a474be92a160dcc294e54c4d611e50862b49dc17193b",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/importer/ImportRecordDao_Impl.kt",
+      "before_sha256": "eac8fc575fdce57b4915775a7eda639485518cc994b891890833c53f1341921d",
+      "after_sha256": "eac8fc575fdce57b4915775a7eda639485518cc994b891890833c53f1341921d",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/location/LocationDao_Impl.kt",
+      "before_sha256": "3ebfc95f8df3ca6f502e2db4083317a7f11dd53fa1a6e78d4255f68e2d6435db",
+      "after_sha256": "3ebfc95f8df3ca6f502e2db4083317a7f11dd53fa1a6e78d4255f68e2d6435db",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/location/PlaceDao_Impl.kt",
+      "before_sha256": "4406830216b3c4f701e682a707e57a69f7e26db732c49d47b1aaea810307d1e8",
+      "after_sha256": "4406830216b3c4f701e682a707e57a69f7e26db732c49d47b1aaea810307d1e8",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/push/PushDao_Impl.kt",
+      "before_sha256": "5b5e79bc132192854036346c63d5c9c389c255201ac5695b21a10eb5e1fdc8ba",
+      "after_sha256": "5b5e79bc132192854036346c63d5c9c389c255201ac5695b21a10eb5e1fdc8ba",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/redo/RedoDao_Impl.kt",
+      "before_sha256": "21dc0e05285542daf4330569a3e9646ccd5d4b236be7c783ed6cad59ef099c68",
+      "after_sha256": "21dc0e05285542daf4330569a3e9646ccd5d4b236be7c783ed6cad59ef099c68",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/skills/SkillDao_Impl.kt",
+      "before_sha256": "13f54bb7ac4d21badc4fdd8ae1b3e1938c4f7e6d9bcd4a8b9221cbecd0a68d38",
+      "after_sha256": "13f54bb7ac4d21badc4fdd8ae1b3e1938c4f7e6d9bcd4a8b9221cbecd0a68d38",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/things/ThingDao_Impl.kt",
+      "before_sha256": "be32fb5750fe33c5b421659b7c6b2ae893c21c958f57d5e18ec5f601500e18a9",
+      "after_sha256": "be32fb5750fe33c5b421659b7c6b2ae893c21c958f57d5e18ec5f601500e18a9",
+      "identical": true
+    },
+    {
+      "path": "shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/topic/TopicDao_Impl.kt",
+      "before_sha256": "8ffc18c934032ff6d8f18d434a78f1f51d6fa8efa76bef60af64fe42a357ea3b",
+      "after_sha256": "8ffc18c934032ff6d8f18d434a78f1f51d6fa8efa76bef60af64fe42a357ea3b",
+      "identical": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "commit": "1355f5f9ac43f0df1c8e28d2368bc8ac93a89e97",
+  "apk": "app-release.apk",
+  "bytes": 105534492,
+  "sha256": "17356f3ae3ae9c777fd44be4c080cfbdb1989fc721697702053237b905f75936",
+  "task": ":app:assembleRelease",
+  "skipSigningSecrets": true
+}

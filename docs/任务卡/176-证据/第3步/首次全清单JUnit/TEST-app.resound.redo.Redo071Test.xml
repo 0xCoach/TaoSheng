@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.redo.Redo071Test" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:06.473Z" hostname="CoachdeMacBook-Air.local" time="0.28">
+  <properties/>
+  <testcase name="skillReplacementProtectsManualAndUndoRestoresCards" classname="app.resound.redo.Redo071Test" time="0.021"/>
+  <testcase name="queuedJobsAreSerialAndRestartUsesPersistedRequests" classname="app.resound.redo.Redo071Test" time="0.03"/>
+  <testcase name="largeSnapshotIsReadBackInPartsUnchanged" classname="app.resound.redo.Redo071Test" time="0.019"/>
+  <testcase name="transcribeOnlyAndUndoRestoreOriginalLinesWithoutChangingEvents" classname="app.resound.redo.Redo071Test" time="0.014"/>
+  <testcase name="llmFailureKeepsEventsAndLaterEditsBlockUnsafeUndo" classname="app.resound.redo.Redo071Test" time="0.018"/>
+  <testcase name="adjacentRangesMergeButGapsRemainAndExpiredEditedCountsAreHonest" classname="app.resound.redo.Redo071Test" time="0.015"/>
+  <testcase name="importChoicePersistsAcrossRestartAndIsStoredOnlyOnItsSegments" classname="app.resound.redo.Redo071Test" time="0.019"/>
+  <testcase name="digestReplacesAndInheritsStarAndPreservesCompletedTodo" classname="app.resound.redo.Redo071Test" time="0.013"/>
+  <testcase name="explicitChoicesDoNotChangeSettingsAndReadyRejectsMissingConfiguration" classname="app.resound.redo.Redo071Test" time="0.029"/>
+  <testcase name="cancellationDuringDigestKeepsEventsAndNewTranscript" classname="app.resound.redo.Redo071Test" time="0.014"/>
+  <testcase name="undoRestoresEventsItemsAndSecondRunInvalidatesFirst" classname="app.resound.redo.Redo071Test" time="0.014"/>
+  <testcase name="migration23PreservesDataAndAddsScopedOverrideAndSnapshot" classname="app.resound.redo.Redo071Test" time="0.02"/>
+  <testcase name="retranscribeSkipsExpiredAndEstimates" classname="app.resound.redo.Redo071Test" time="0.018"/>
+  <testcase name="nearbySelectedEventsAreDigestedTogetherButNotAcrossUnselected" classname="app.resound.redo.Redo071Test" time="0.014"/>
+  <testcase name="formatFailureSplitsBatchAndCombinesEventsAndItemsInOrder" classname="app.resound.redo.Redo071Test" time="0.021"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

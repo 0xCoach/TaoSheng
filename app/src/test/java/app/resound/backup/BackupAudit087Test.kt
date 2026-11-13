@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.data.open
+
 import android.app.Application
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
@@ -22,7 +24,7 @@ import java.util.UUID
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class BackupAudit087Test {
     @Test fun everySchemaTableHasAnExplicitBackupPolicy() {
-        val entities = org.json.JSONObject(File("schemas/app.resound.data.CaptureDatabase/${CaptureDatabase.VERSION}.json").readText())
+        val entities = org.json.JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/${CaptureDatabase.VERSION}.json").readText())
             .getJSONObject("database").getJSONArray("entities")
         val actual = (0 until entities.length()).map { entities.getJSONObject(it).getString("tableName") }.toSet()
         val rebuildableOrLocalOnly = setOf("lines_fts", "events_fts", "items_fts", "embeddings",

@@ -57,7 +57,7 @@ class Todo046Test {
 
     @Test fun migration15AndOldVolumeAndSettingsRestore() = runBlocking {
         val name = File(root, "v15.db").path
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/15.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/15.json").readText()).getJSONObject("database")
         android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(name, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

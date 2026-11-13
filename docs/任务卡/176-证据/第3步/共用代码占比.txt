@@ -1,0 +1,35 @@
+口径：shared/devices 的 src/commonMain 与 app/src/main 下 .kt/.java 物理行数，含注释和空行；不含测试、资源、生成代码、vendor 和原生源码。
+shared 共用：10,577 行；devices 共用：3,611 行；共用合计：14,188 行
+app/src/main：56,902 行；总计：71,090 行；共用占比：19.96%
+按 app.resound 一级包汇总共用行数（两模块合计，含子包）：
+  Elapsed.kt：3 行
+  ask：1,147 行
+  audio：256 行
+  capture：292 行
+  context：31 行
+  data：1,400 行
+  devices：3,593 行
+  digest：1,331 行
+  envsound：122 行
+  health：185 行
+  home：108 行
+  importer：171 行
+  location：80 行
+  net：867 行
+  onboarding：37 行
+  platform：72 行
+  privacy：43 行
+  prompts：31 行
+  push：637 行
+  quick：118 行
+  redo：25 行
+  review：123 行
+  scheduling：61 行
+  search：130 行
+  settingsearch：162 行
+  skills：1,282 行
+  things：532 行
+  topic：1,067 行
+  transcribe：82 行
+  usage：56 行
+  voiceprint：144 行

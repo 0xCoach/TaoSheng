@@ -4,7 +4,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
 }
 
 android {
@@ -86,7 +85,6 @@ dependencies {
     implementation("androidx.sqlite:sqlite-framework:2.6.2")
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.25.1")
@@ -115,7 +113,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
 }
 
-ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 // 卡 151：Ktor 引擎兼容现有 OkHttp；禁止传递依赖升级范围外网络组件。
 configurations.configureEach {

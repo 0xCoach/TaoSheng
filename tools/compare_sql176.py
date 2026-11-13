@@ -12,7 +12,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 BASE = '1355f5f9ac43f0df1c8e28d2368bc8ac93a89e97'
 ORIGINAL = '''data/AskDao.kt data/PendingDigest.kt data/PrivacyDao.kt data/ReviewDao.kt data/VoiceInputDao.kt data/VoiceprintDao.kt envsound/EnvSoundDao.kt importer/ImportRecordDao.kt things/ThingData.kt topic/TopicData.kt data/MemoryDao.kt data/TranscribeDao.kt devices/DeviceSyncStore.kt data/CaptureDatabase.kt push/PushRecords.kt search/SearchIndex.kt redo/RedoData.kt search/EmbeddingStore.kt skills/SkillDao.kt importer/ImportFingerprint.kt location/Location.kt location/Places.kt data/DatabaseSql.kt'''.split()
-SPLIT = '''location/LocationData.kt location/PlaceData.kt importer/FolderImportData.kt devices/DeviceFileDetails.kt redo/RedoTables.kt search/EmbeddingEntity.kt search/Vectors.kt skills/SkillCardPresentation.kt skills/SkillRowMappings.kt data/AndroidMemoryActions.kt data/AndroidTranscribeActions.kt push/PushDao.kt data/AndroidDatabaseSql.kt data/AndroidCaptureDatabase.kt'''.split()
+SPLIT = '''location/LocationData.kt location/PlaceData.kt importer/FolderImportData.kt devices/DeviceFileDetails.kt redo/RedoTables.kt search/EmbeddingEntity.kt search/Vectors.kt skills/SkillCardPresentation.kt skills/SkillRowMappings.kt data/AndroidMemoryActions.kt data/AndroidTranscribeActions.kt push/PushDao.kt data/AndroidDatabaseSql.kt data/AndroidCaptureDatabase.kt importer/ImportRecordPresentation.kt'''.split()
 SQL = re.compile(r'\b(?:CREATE|ALTER|INSERT|UPDATE|DELETE|DROP|SELECT)\b', re.I)
 
 def literals(text):

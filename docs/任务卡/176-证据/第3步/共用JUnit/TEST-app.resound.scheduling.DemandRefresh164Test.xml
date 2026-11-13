@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.scheduling.DemandRefresh164Test" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:38:52.490Z" hostname="CoachdeMacBook-Air.local" time="0.079">
+  <properties/>
+  <testcase name="failureExpiryWaitsForDeadlineAndDataChangeCancelsOldDeadline[jvm]" classname="app.resound.scheduling.DemandRefresh164Test" time="0.05"/>
+  <testcase name="audioMinuteSweepOnlyRunsWithEnabledAudioChannel[jvm]" classname="app.resound.scheduling.DemandRefresh164Test" time="0.01"/>
+  <testcase name="topicDemandStopsWithoutActiveTopicAndResumesForRunningOrPaused[jvm]" classname="app.resound.scheduling.DemandRefresh164Test" time="0.004"/>
+  <testcase name="demandDisappearanceCancelsInFlightRefresh[jvm]" classname="app.resound.scheduling.DemandRefresh164Test" time="0.003"/>
+  <testcase name="healthSubscribersStartImmediatelyAndLastSubscriberStopsMinuteTicks[jvm]" classname="app.resound.scheduling.DemandRefresh164Test" time="0.012"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

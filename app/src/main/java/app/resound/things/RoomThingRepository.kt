@@ -65,10 +65,11 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
     private suspend fun acceptRow(recordId: Long, edit: ThingEdit?, asNew: Boolean) {
         val old = dao.record(recordId)?.takeIf { it.status == "Pending" } ?: return
         val row = if (edit == null) old.edited(clean(ThingEdit(old.name, ThingAction.valueOf(old.action), old.place, old.who, ThingOwner.valueOf(old.owner)))) else old.edited(edit)
+        val sameAsId = old.sameAsId; val thingId = old.thingId
         val target = when {
             row.name != old.name -> findName(row.name)
-            old.sameAsId != null -> if (asNew) null else dao.thing(old.sameAsId)
-            old.thingId != null -> dao.thing(old.thingId)
+            sameAsId != null -> if (asNew) null else dao.thing(sameAsId)
+            thingId != null -> dao.thing(thingId)
             else -> null
         }
         val id = attach(row, target)

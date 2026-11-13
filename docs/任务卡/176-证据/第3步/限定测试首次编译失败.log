@@ -1,0 +1,139 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata UP-TO-DATE
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResources UP-TO-DATE
+> Task :devices:packageDebugResources UP-TO-DATE
+> Task :shared:generateDebugResValues UP-TO-DATE
+> Task :shared:generateDebugResources UP-TO-DATE
+> Task :shared:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:processDebugManifest UP-TO-DATE
+> Task :shared:extractDeepLinksDebug UP-TO-DATE
+> Task :shared:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :devices:compileDebugLibraryResources UP-TO-DATE
+> Task :devices:parseDebugLocalResources UP-TO-DATE
+> Task :devices:generateDebugRFile UP-TO-DATE
+> Task :shared:compileDebugLibraryResources UP-TO-DATE
+> Task :shared:parseDebugLocalResources UP-TO-DATE
+> Task :shared:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :devices:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :devices:compileDebugKotlinAndroid UP-TO-DATE
+> Task :devices:javaPreCompileDebug UP-TO-DATE
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :shared:kspCommonMainKotlinMetadata SKIPPED
+> Task :shared:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :shared:kspDebugKotlinAndroid UP-TO-DATE
+> Task :shared:compileDebugKotlinAndroid UP-TO-DATE
+> Task :shared:javaPreCompileDebug UP-TO-DATE
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:copyRoomSchemas NO-SOURCE
+> Task :shared:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugShaders UP-TO-DATE
+> Task :devices:compileDebugShaders NO-SOURCE
+> Task :devices:debugAssetsCopyForAGP NO-SOURCE
+> Task :app:javaPreCompileDebug
+> Task :devices:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugShaders UP-TO-DATE
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:packageDebugUnitTestForUnitTest UP-TO-DATE
+> Task :app:generateDebugUnitTestConfig UP-TO-DATE
+> Task :devices:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :devices:processDebugJavaRes UP-TO-DATE
+> Task :shared:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :shared:processDebugJavaRes UP-TO-DATE
+> Task :app:compileDebugKotlin
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/audio/OggGuard.kt:45:68 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/capture/MicHolderGuess.kt:23:20 'fun unsafeCheckOpNoThrow(p0: String, p1: Int, p2: String): Int' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/capture/VoiceInputService.kt:160:41 'static fun obtain(p0: AccessibilityNodeInfo!): AccessibilityNodeInfo!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:77:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:78:78 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:84:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:85:63 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/devices/android/DeviceInputs.kt:321:27 'val onLock: SelectClause2<Any?, Mutex>' is deprecated. Mutex.onLock deprecated without replacement. For additional details please refer to #2794.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/diagnostics/CrashRecords.kt:31:67 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/LlmFailover.kt:78:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/envsound/EnvSoundModel.kt:50:41 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/push/AlarmPlayer.kt:61:28 'fun vibrate(p0: VibrationEffect!, p1: AudioAttributes!): Unit' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:55 'val monthNumber: Int' is deprecated. Use the 'month' property instead.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:75 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/transcribe/local/LocalModels.kt:112:35 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ui/settings/AboutPage.kt:163:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ui/settings/PushPage.kt:188:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ui/settings/PushPage.kt:191:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ui/settings/PushPage.kt:192:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:826:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+
+> Task :app:compileDebugJavaWithJavac
+注: /Users/coach/Developer/TaoSheng-176/app/vendor/tinypinyin/java/com/github/promeg/pinyinhelper/Pinyin.java使用了未经检查或不安全的操作。
+注: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
+
+> Task :app:compileDebugUnitTestKotlin FAILED
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/test/java/app/resound/topic/Topic135Test.kt:336:38 Smart cast to 'Long' is impossible, because 'eventId' is a public API property declared in different module.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/test/java/app/resound/transcribe/TranscribeSchedulerTest.kt:131:17 Unresolved reference 'complete'.
+
+[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-176/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugUnitTestKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 2s
+64 actionable tasks: 9 executed, 55 up-to-date

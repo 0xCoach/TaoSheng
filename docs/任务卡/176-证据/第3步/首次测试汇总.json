@@ -1,0 +1,982 @@
+[
+  {
+    "name": "app.resound.ask.AskFollowUp097Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:42.944Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "2.504"
+  },
+  {
+    "name": "app.resound.ask.AskPersistenceTest",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:45.452Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.313"
+  },
+  {
+    "name": "app.resound.ask.AskPlace131Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:45.777Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.338"
+  },
+  {
+    "name": "app.resound.ask.AskToolsTest",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:46.118Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.616"
+  },
+  {
+    "name": "app.resound.backup.BackupArchiveTest",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:46.740Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.434"
+  },
+  {
+    "name": "app.resound.backup.BackupAudit087Test",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:47.178Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.087"
+  },
+  {
+    "name": "app.resound.backup.BackupHistoryTest",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:47.271Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "1.943"
+  },
+  {
+    "name": "app.resound.backup.BackupPresentationTest",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:49.216Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.001"
+  },
+  {
+    "name": "app.resound.backup.BackupPrompts029Test",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:49.223Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.705"
+  },
+  {
+    "name": "app.resound.backup.BackupReadStatusTest",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:49.931Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.11"
+  },
+  {
+    "name": "app.resound.backup.BackupSchedulerTest",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:50.045Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.041"
+  },
+  {
+    "name": "app.resound.backup.BackupSecrets078Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:50.089Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.093"
+  },
+  {
+    "name": "app.resound.backup.CloudSettings114Test",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:50.187Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.072"
+  },
+  {
+    "name": "app.resound.backup.DayVolumesTest",
+    "tests": "15",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:50.266Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "1.167"
+  },
+  {
+    "name": "app.resound.backup.DiaryBackupTest",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:51.434Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.096"
+  },
+  {
+    "name": "app.resound.backup.DownloadsBackup123Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:51.537Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.539"
+  },
+  {
+    "name": "app.resound.backup.IncrementalBackupTest",
+    "tests": "11",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:52.082Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.977"
+  },
+  {
+    "name": "app.resound.backup.LocalBackupAccess102Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.064Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.084"
+  },
+  {
+    "name": "app.resound.backup.LocalBackupTest",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.151Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.423"
+  },
+  {
+    "name": "app.resound.backup.Minio114Test",
+    "tests": "2",
+    "skipped": "2",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.578Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.01"
+  },
+  {
+    "name": "app.resound.backup.RestoreSafety088Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.590Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.047"
+  },
+  {
+    "name": "app.resound.backup.S3Client114Test",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.642Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.054"
+  },
+  {
+    "name": "app.resound.backup.WebDavClientTest",
+    "tests": "10",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.701Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.08"
+  },
+  {
+    "name": "app.resound.capture.AppPowerMigrationTest",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.782Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.077"
+  },
+  {
+    "name": "app.resound.capture.LevelFlow172Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:53.888Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.988"
+  },
+  {
+    "name": "app.resound.capture.VoiceInput048Test",
+    "tests": "13",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:54.884Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.206"
+  },
+  {
+    "name": "app.resound.capture.VoiceInput049Test",
+    "tests": "30",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:55.102Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.162"
+  },
+  {
+    "name": "app.resound.data.Driver175FixturesTest",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:55.271Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "1.645"
+  },
+  {
+    "name": "app.resound.data.TableObservers182Test",
+    "tests": "14",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:56.923Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "1.434"
+  },
+  {
+    "name": "app.resound.data.TriggerHistory181Test",
+    "tests": "7",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:58.363Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.594"
+  },
+  {
+    "name": "app.resound.devices.DeviceSync120Test",
+    "tests": "17",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:58.966Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.139"
+  },
+  {
+    "name": "app.resound.diagnostics.AskCompatibility136Test",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:27:59.107Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "1.195"
+  },
+  {
+    "name": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.306Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.135"
+  },
+  {
+    "name": "app.resound.diagnostics.ProblemReportsTest",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.443Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.068"
+  },
+  {
+    "name": "app.resound.diary.DayDiaryTest",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.520Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.277"
+  },
+  {
+    "name": "app.resound.digest.DigestAudit087Test",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.800Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.089"
+  },
+  {
+    "name": "app.resound.digest.DigestForce053Test",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.890Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.015"
+  },
+  {
+    "name": "app.resound.digest.DigestLongSessionTest",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.908Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.044"
+  },
+  {
+    "name": "app.resound.digest.DigestProgressTest",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:00.954Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.104"
+  },
+  {
+    "name": "app.resound.digest.DigestRejected134Test",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:01.062Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.062"
+  },
+  {
+    "name": "app.resound.digest.DigestSplitRetryTest",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:01.126Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.054"
+  },
+  {
+    "name": "app.resound.digest.IdeasMood040Test",
+    "tests": "10",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:01.187Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.231"
+  },
+  {
+    "name": "app.resound.digest.LlmFailover103Test",
+    "tests": "13",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:01.423Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.273"
+  },
+  {
+    "name": "app.resound.digest.ManualTodo054Test",
+    "tests": "13",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:01.702Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.382"
+  },
+  {
+    "name": "app.resound.digest.Rhythm064Test",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:02.088Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.036"
+  },
+  {
+    "name": "app.resound.digest.RhythmDeletion099Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:02.126Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.072"
+  },
+  {
+    "name": "app.resound.envsound.EnvSound070Test",
+    "tests": "12",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:02.207Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.143"
+  },
+  {
+    "name": "app.resound.envsound.EnvSoundCursorInvestigationTest",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:02.382Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "2.174"
+  },
+  {
+    "name": "app.resound.importer.FolderImports117Test",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:04.563Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.146"
+  },
+  {
+    "name": "app.resound.importer.ImportHotwordsTest",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:04.713Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.228"
+  },
+  {
+    "name": "app.resound.importer.ImportKinds077Test",
+    "tests": "12",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:04.947Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.23"
+  },
+  {
+    "name": "app.resound.location.LocationTrackTest",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.180Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.025"
+  },
+  {
+    "name": "app.resound.location.PlaceResolverTest",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.206Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.024"
+  },
+  {
+    "name": "app.resound.onboarding.OnboardingQueries132Test",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.233Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.016"
+  },
+  {
+    "name": "app.resound.privacy.RoomPrivacyActionsTest",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.253Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.118"
+  },
+  {
+    "name": "app.resound.push.PushLocal067Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.377Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.122"
+  },
+  {
+    "name": "app.resound.push.PushMoreTest",
+    "tests": "10",
+    "skipped": "0",
+    "failures": "1",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.505Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.094"
+  },
+  {
+    "name": "app.resound.push.ReviewPushTest",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "2",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.603Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.06"
+  },
+  {
+    "name": "app.resound.push.Subscription042Test",
+    "tests": "14",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:05.672Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.403"
+  },
+  {
+    "name": "app.resound.push.Todo046Test",
+    "tests": "14",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:06.085Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.378"
+  },
+  {
+    "name": "app.resound.redo.Redo071Test",
+    "tests": "15",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:06.473Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.28"
+  },
+  {
+    "name": "app.resound.redo.RedoMerge105Test",
+    "tests": "10",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:06.758Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.165"
+  },
+  {
+    "name": "app.resound.review.ManualReview058Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "2",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:06.927Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.144"
+  },
+  {
+    "name": "app.resound.review.ReviewInputLimit101Test",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.073Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.088"
+  },
+  {
+    "name": "app.resound.review.ReviewMigrationTest",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.165Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.091"
+  },
+  {
+    "name": "app.resound.review.ReviewPreparation053Test",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "1",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.259Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.06"
+  },
+  {
+    "name": "app.resound.review.ReviewRepositoryTest",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "3",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.323Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.036"
+  },
+  {
+    "name": "app.resound.review.ReviewTimingTest",
+    "tests": "5",
+    "skipped": "0",
+    "failures": "3",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.362Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.05"
+  },
+  {
+    "name": "app.resound.scheduling.Battery164Test",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.416Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.152"
+  },
+  {
+    "name": "app.resound.scheduling.DemandWork174Test",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.573Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.117"
+  },
+  {
+    "name": "app.resound.search.SearchTerms136Test",
+    "tests": "1",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.693Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.009"
+  },
+  {
+    "name": "app.resound.search.SearchUpgradeTest",
+    "tests": "10",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.705Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.179"
+  },
+  {
+    "name": "app.resound.skills.SkillGate146Test",
+    "tests": "15",
+    "skipped": "0",
+    "failures": "2",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:07.891Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.164"
+  },
+  {
+    "name": "app.resound.skills.SkillGeneration047Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "1",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:08.060Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.222"
+  },
+  {
+    "name": "app.resound.skills.Skills031Test",
+    "tests": "18",
+    "skipped": "0",
+    "failures": "4",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:08.290Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.207"
+  },
+  {
+    "name": "app.resound.starred.Starred041Test",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "2",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:08.502Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.163"
+  },
+  {
+    "name": "app.resound.things.Things079Test",
+    "tests": "16",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:08.673Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.317"
+  },
+  {
+    "name": "app.resound.things.ThingsSharedLiveTest",
+    "tests": "1",
+    "skipped": "1",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:08.991Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.007"
+  },
+  {
+    "name": "app.resound.things.ThingsSharedTest",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:09.002Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.102"
+  },
+  {
+    "name": "app.resound.topic.Topic135Test",
+    "tests": "20",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:09.113Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "2.082"
+  },
+  {
+    "name": "app.resound.transcribe.AsrSpeed073Test",
+    "tests": "5",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.198Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.073"
+  },
+  {
+    "name": "app.resound.transcribe.AudioExport068Test",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.276Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.138"
+  },
+  {
+    "name": "app.resound.transcribe.AudioExport115Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.419Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.06"
+  },
+  {
+    "name": "app.resound.transcribe.Failure065Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.484Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.149"
+  },
+  {
+    "name": "app.resound.transcribe.Hotword066Test",
+    "tests": "8",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.637Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.204"
+  },
+  {
+    "name": "app.resound.transcribe.ImportAudioCleanup078Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.843Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.02"
+  },
+  {
+    "name": "app.resound.transcribe.OriginalAudio062Test",
+    "tests": "9",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:11.869Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.133"
+  },
+  {
+    "name": "app.resound.transcribe.Training176Test",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.004Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.017"
+  },
+  {
+    "name": "app.resound.transcribe.TranscribePersistenceTest",
+    "tests": "12",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.025Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.159"
+  },
+  {
+    "name": "app.resound.transcribe.TranscribeSchedulerTest",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.187Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.098"
+  },
+  {
+    "name": "app.resound.transcribe.local.LocalAsrFailure063Test",
+    "tests": "4",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.290Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.049"
+  },
+  {
+    "name": "app.resound.update.UpdateAndroidTest",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.342Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.042"
+  },
+  {
+    "name": "app.resound.usage.Usage043Test",
+    "tests": "6",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.387Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.159"
+  },
+  {
+    "name": "app.resound.voiceprint.InputPersistence045Test",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.549Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.063"
+  },
+  {
+    "name": "app.resound.voiceprint.Voiceprint044Test",
+    "tests": "12",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.617Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.117"
+  },
+  {
+    "name": "app.resound.voiceprint.VoiceprintMigrationTest",
+    "tests": "3",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.735Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.098"
+  },
+  {
+    "name": "app.resound.voiceprint.VoiceprintRematchTest",
+    "tests": "2",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:12.836Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "1.139"
+  },
+  {
+    "name": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "tests": "23",
+    "skipped": "0",
+    "failures": "0",
+    "errors": "0",
+    "timestamp": "2026-11-13T01:28:13.981Z",
+    "hostname": "CoachdeMacBook-Air.local",
+    "time": "0.464"
+  }
+]

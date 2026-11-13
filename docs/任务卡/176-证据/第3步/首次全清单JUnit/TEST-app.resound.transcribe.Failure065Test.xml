@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.Failure065Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:11.484Z" hostname="CoachdeMacBook-Air.local" time="0.149">
+  <properties/>
+  <testcase name="deletionRestrictsStatesAndRemovesDerivedRowsWithoutRefundingUsage" classname="app.resound.transcribe.Failure065Test" time="0.015"/>
+  <testcase name="retentionStartsAtJudgmentButExpiredImportsStopWaiting" classname="app.resound.transcribe.Failure065Test" time="0.03"/>
+  <testcase name="agingUsesFirstFailureAcrossBulkRetryAndStopsAfterThreeDays" classname="app.resound.transcribe.Failure065Test" time="0.011"/>
+  <testcase name="startupConvertsOldAudioFailuresOnceAndKeepsRecoverableFailures" classname="app.resound.transcribe.Failure065Test" time="0.009"/>
+  <testcase name="version20MigratesAndRecoversFirstFailureFromLedger" classname="app.resound.transcribe.Failure065Test" time="0.052"/>
+  <testcase name="ignoreThenIndividualRetryResetsAndMissingAudioBecomesAbandoned" classname="app.resound.transcribe.Failure065Test" time="0.011"/>
+  <testcase name="audioFailureIsAbandonedAndMissingFileHasReadableReason" classname="app.resound.transcribe.Failure065Test" time="0.013"/>
+  <testcase name="bulkRetryOnlyRequeuesFailuresStillNeedingAttention" classname="app.resound.transcribe.Failure065Test" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

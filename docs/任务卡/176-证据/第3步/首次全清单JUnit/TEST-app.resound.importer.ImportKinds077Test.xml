@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.importer.ImportKinds077Test" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:04.947Z" hostname="CoachdeMacBook-Air.local" time="0.23">
+  <properties/>
+  <testcase name="batchGroupingAndPersistentQueueRespectMergeSwitchAndUnknownTimes" classname="app.resound.importer.ImportKinds077Test" time="0.014"/>
+  <testcase name="incrementalRowsRoundTripImportsAndTemplatesStayHidden" classname="app.resound.importer.ImportKinds077Test" time="0.057"/>
+  <testcase name="waitsForEntireFileAndSpeakerCompletionAndRegeneratesFailure" classname="app.resound.importer.ImportKinds077Test" time="0.013"/>
+  <testcase name="typeChangeDeletesOldCardAndRequeuesOnlyWhenSpeakerModeNeedsAudio" classname="app.resound.importer.ImportKinds077Test" time="0.021"/>
+  <testcase name="suggestionsPreferCallCluesThenLastThenMeeting" classname="app.resound.importer.ImportKinds077Test" time="0.006"/>
+  <testcase name="longRecordingSummarizesEveryChunkAndPreservesBoundaryActions" classname="app.resound.importer.ImportKinds077Test" time="0.011"/>
+  <testcase name="speakerMergeUsesSimilarityAndChannelsOrderWithMeAndOther" classname="app.resound.importer.ImportKinds077Test" time="0.006"/>
+  <testcase name="trainingDisablesSpeakersAndCallPassesFixedTwoToAsr" classname="app.resound.importer.ImportKinds077Test" time="0.015"/>
+  <testcase name="deletionInvalidatesSummaryAndInFlightResponseCannotResurrectIt" classname="app.resound.importer.ImportKinds077Test" time="0.022"/>
+  <testcase name="summaryTodosStayPendingAndMergeWithDigestWithoutRevivingDeletedItems" classname="app.resound.importer.ImportKinds077Test" time="0.015"/>
+  <testcase name="migration25PreservesRowsAndValidatesCurrentSchema" classname="app.resound.importer.ImportKinds077Test" time="0.018"/>
+  <testcase name="channelDecoderKeepsSidesAcrossOddBufferBoundariesAndIgnoresDuplicateStereo" classname="app.resound.importer.ImportKinds077Test" time="0.032"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

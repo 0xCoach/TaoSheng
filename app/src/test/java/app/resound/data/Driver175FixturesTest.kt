@@ -41,7 +41,7 @@ class Driver175FixturesTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val fixtures = File("src/test/resources/driver175")
     private val at = 1794448800000L
-    private fun schema(version: Int) = JSONObject(File("schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
+    private fun schema(version: Int) = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
     private fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
     private fun quote(name: String) = "\"${name.replace("\"", "\"\"")}\""
 
@@ -166,7 +166,7 @@ class Driver175FixturesTest {
     }
 
     @Test fun migrationsFromEveryHistoricalSchema() = runBlocking(Dispatchers.IO) {
-        val versions = File("schemas/app.resound.data.CaptureDatabase").listFiles()!!.mapNotNull { it.nameWithoutExtension.toIntOrNull() }.sorted()
+        val versions = File("../shared/schemas/app.resound.data.CaptureDatabase").listFiles()!!.mapNotNull { it.nameWithoutExtension.toIntOrNull() }.sorted()
         assertEquals((1..CaptureDatabase.VERSION).toList(), versions)
         for (version in versions.filter { it < CaptureDatabase.VERSION }) {
             val name = "driver175-v$version.db"

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.core.PromptParity152Test" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:38:51.978Z" hostname="CoachdeMacBook-Air.local" time="0.033">
+  <properties/>
+  <testcase name="todoContextNull[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.003"/>
+  <testcase name="manualMidnight[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.003"/>
+  <testcase name="manualNoon[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.001"/>
+  <testcase name="reviewSystem[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.005"/>
+  <testcase name="mergeInput[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.001"/>
+  <testcase name="reviewSections[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.003"/>
+  <testcase name="transcriptVoice[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.002"/>
+  <testcase name="mergeSystem[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.001"/>
+  <testcase name="digestSystem[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.001"/>
+  <testcase name="reviewDst[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.002"/>
+  <testcase name="digestYearBoundary[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.001"/>
+  <testcase name="transcriptUnknownSpeaker[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.001"/>
+  <testcase name="reviewInput[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.005"/>
+  <testcase name="todoContextEscapes[jvm]" classname="app.resound.digest.core.PromptParity152Test" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

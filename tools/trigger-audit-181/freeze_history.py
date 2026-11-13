@@ -80,7 +80,7 @@ import android.database.sqlite.SQLiteDatabase
         assert f"VERSION = {version}" in database or f"version = {version}," in database
         schema_path = f"app/schemas/app.resound.data.CaptureDatabase/{version}.json"
         schema = git("show", f"{revision}:{schema_path}")
-        assert schema == (ROOT / schema_path).read_text(), f"v{version} 的 schema 与历史不一致"
+        assert schema == (ROOT / schema_path.replace("app/schemas/", "shared/schemas/", 1)).read_text(), f"v{version} 的 schema 与历史不一致"
         names = []
         for name, (introduced, _, path, start) in CALLBACKS.items():
             if version >= introduced:

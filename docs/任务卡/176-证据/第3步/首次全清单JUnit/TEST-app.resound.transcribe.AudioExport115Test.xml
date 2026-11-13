@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.AudioExport115Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:11.419Z" hostname="CoachdeMacBook-Air.local" time="0.06">
+  <properties/>
+  <testcase name="emptySelectionFailsWithExplanationAndNoFiles" classname="app.resound.transcribe.AudioExport115Test" time="0.006"/>
+  <testcase name="databaseLoadsEventTodosAndFiltersDeletedMergedIgnoredAndUnrelated" classname="app.resound.transcribe.AudioExport115Test" time="0.011"/>
+  <testcase name="selectedSectionsOnlyAndMarkdownContentEscaped" classname="app.resound.transcribe.AudioExport115Test" time="0.007"/>
+  <testcase name="textOnlyWritesOneBomTxtWithoutAudioPositionsOrSubtitleAndZeroEstimate" classname="app.resound.transcribe.AudioExport115Test" time="0.006"/>
+  <testcase name="allMarkdownPartsAreOrderedAndEventsAndTodosDeduplicated" classname="app.resound.transcribe.AudioExport115Test" time="0.006"/>
+  <testcase name="newJobJsonRestoresEveryOptionAndResumesTextOnly" classname="app.resound.transcribe.AudioExport115Test" time="0.01"/>
+  <testcase name="oldJobJsonRestoresAudioAndOptionalLinesWithOldFlags" classname="app.resound.transcribe.AudioExport115Test" time="0.007"/>
+  <testcase name="audioOnlyCanStillProduceSubtitlesWithoutText" classname="app.resound.transcribe.AudioExport115Test" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

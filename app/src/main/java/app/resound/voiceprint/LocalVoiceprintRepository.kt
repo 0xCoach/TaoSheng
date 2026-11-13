@@ -111,8 +111,9 @@ class LocalVoiceprintRepository(
                 val sample = dao.sample(id) ?: return@writeTransaction
                 dao.deleteSample(id); sampleAudioStore.delete("local-$id")
                 // 删掉原话来源的样本后，不让自动学习立刻把同一段声音补回来。
-                if (sample.segmentId != null && sample.groupKey != null && sample.personId == 0L)
-                    dao.exclude(VoiceprintExclusionEntity(sample.segmentId, sample.groupKey, now()))
+                val segmentId = sample.segmentId; val groupKey = sample.groupKey
+                if (segmentId != null && groupKey != null && sample.personId == 0L)
+                    dao.exclude(VoiceprintExclusionEntity(segmentId, groupKey, now()))
                 invalidateRetained()
             }
             revision++

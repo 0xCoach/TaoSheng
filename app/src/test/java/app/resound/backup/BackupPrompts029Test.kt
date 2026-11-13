@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.data.open
+
 import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
@@ -88,7 +90,7 @@ class BackupPrompts029Test {
         context.getSharedPreferences("capture", 0).edit().putString("probe", "local-before").commit()
         val stage = File(root, "old").apply { mkdirs() }
         val file = File(stage, BackupArchive.DATABASE).apply { parentFile!!.mkdirs() }
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/10.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/10.json").readText()).getJSONObject("database")
         SQLiteDatabase.openOrCreateDatabase(file, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

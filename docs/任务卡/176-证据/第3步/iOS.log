@@ -1,0 +1,39 @@
+e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:8: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:10: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:12: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:8: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:10: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:12: Cannot find external content entity class.
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':shared:kspKotlinIosSimulatorArm64'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':shared:kspKotlinIosArm64'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 16s
+iOS 编译检查失败

@@ -1,0 +1,127 @@
+[
+  {
+    "from": "app/src/main/java/app/resound/data/AskDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/AskDao.kt",
+    "lines": 75
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/CaptureDatabase.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt",
+    "lines": 341
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/DatabaseSql.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/DatabaseSql.kt",
+    "lines": 63
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/MemoryDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/MemoryDao.kt",
+    "lines": 444
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/PendingDigest.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/PendingDigest.kt",
+    "lines": 36
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/PrivacyDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/PrivacyDao.kt",
+    "lines": 42
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/ReviewDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/ReviewDao.kt",
+    "lines": 84
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/TranscribeDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt",
+    "lines": 203
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/VoiceInputDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/VoiceInputDao.kt",
+    "lines": 29
+  },
+  {
+    "from": "app/src/main/java/app/resound/data/VoiceprintDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/data/VoiceprintDao.kt",
+    "lines": 83
+  },
+  {
+    "from": "app/src/main/java/app/resound/devices/DeviceSyncStore.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/devices/DeviceSyncStore.kt",
+    "lines": 18
+  },
+  {
+    "from": "app/src/main/java/app/resound/envsound/EnvSoundDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/envsound/EnvSoundDao.kt",
+    "lines": 43
+  },
+  {
+    "from": "app/src/main/java/app/resound/importer/FolderImportData.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/importer/FolderImportData.kt",
+    "lines": 21
+  },
+  {
+    "from": "app/src/main/java/app/resound/importer/ImportRecordDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt",
+    "lines": 85
+  },
+  {
+    "from": "app/src/main/java/app/resound/location/LocationData.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/location/LocationData.kt",
+    "lines": 38
+  },
+  {
+    "from": "app/src/main/java/app/resound/location/PlaceData.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/location/PlaceData.kt",
+    "lines": 42
+  },
+  {
+    "from": "app/src/main/java/app/resound/push/PushDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/push/PushDao.kt",
+    "lines": 19
+  },
+  {
+    "from": "app/src/main/java/app/resound/redo/RedoTables.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/redo/RedoTables.kt",
+    "lines": 25
+  },
+  {
+    "from": "app/src/main/java/app/resound/search/EmbeddingEntity.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/search/EmbeddingEntity.kt",
+    "lines": 6
+  },
+  {
+    "from": "app/src/main/java/app/resound/search/SearchIndex.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt",
+    "lines": 88
+  },
+  {
+    "from": "app/src/main/java/app/resound/search/Vectors.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/search/Vectors.kt",
+    "lines": 36
+  },
+  {
+    "from": "app/src/main/java/app/resound/skills/SkillDao.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/skills/SkillDao.kt",
+    "lines": 94
+  },
+  {
+    "from": "app/src/main/java/app/resound/skills/SkillRowMappings.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/skills/SkillRowMappings.kt",
+    "lines": 8
+  },
+  {
+    "from": "app/src/main/java/app/resound/things/ThingData.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/things/ThingData.kt",
+    "lines": 93
+  },
+  {
+    "from": "app/src/main/java/app/resound/topic/TopicData.kt",
+    "to": "shared/src/commonMain/kotlin/app/resound/topic/TopicData.kt",
+    "lines": 127
+  }
+]

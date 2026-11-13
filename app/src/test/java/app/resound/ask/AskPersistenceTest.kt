@@ -33,7 +33,7 @@ class AskPersistenceTest {
         for (version in listOf(1, 5)) {
             val name = "ask-migration-$version.db"
             context.deleteDatabase(name)
-            val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
+            val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/$version.json").readText()).getJSONObject("database")
             context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
                 val entities = schema.getJSONArray("entities")
                 for (i in 0 until entities.length()) {

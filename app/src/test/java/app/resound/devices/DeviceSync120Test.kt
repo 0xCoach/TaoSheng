@@ -192,7 +192,7 @@ class DeviceSync120Test {
     @Test fun migrationFrom30PreservesDataAndPersistsTransfers() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val name = "device120-migration.db"; context.deleteDatabase(name)
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/30.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/30.json").readText()).getJSONObject("database")
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

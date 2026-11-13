@@ -179,7 +179,7 @@ class VoiceInput048Test {
     }
     @Test fun migration16PreservesOldLinesAndDefaultsToNoMetadata() {
         val path = File(context.cacheDir, "048-${UUID.randomUUID()}.db")
-        val schema = JSONObject(File("schemas/app.resound.data.CaptureDatabase/16.json").readText()).getJSONObject("database")
+        val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/16.json").readText()).getJSONObject("database")
         SQLiteDatabase.openOrCreateDatabase(path, null).use { old ->
             val entities = schema.getJSONArray("entities")
             repeat(entities.length()) { i ->

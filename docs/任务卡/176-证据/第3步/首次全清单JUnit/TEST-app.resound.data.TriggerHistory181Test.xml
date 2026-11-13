@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.data.TriggerHistory181Test" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:27:58.363Z" hostname="CoachdeMacBook-Air.local" time="0.594">
+  <properties/>
+  <testcase name="eighteenAndPreImportInstallationsKeepSearchAndGainImportCleanup" classname="app.resound.data.TriggerHistory181Test" time="0.096"/>
+  <testcase name="schemaOnlyControlsReproduceTheFixtureShortfallWithoutHistoricalCallbacks" classname="app.resound.data.TriggerHistory181Test" time="0.027"/>
+  <testcase name="beforeSearchIntroductionBackfillsAllThreeIndicesAndKeepsThemLive" classname="app.resound.data.TriggerHistory181Test" time="0.062"/>
+  <testcase name="historicalSearchSurvivesTheSeventeenToEighteenItemTableRebuild" classname="app.resound.data.TriggerHistory181Test" time="0.128"/>
+  <testcase name="laterHistoricalInstallsAndRepeatedOpensKeepAllDefinitionsAndIndexRows" classname="app.resound.data.TriggerHistory181Test" time="0.16"/>
+  <testcase name="prePendingInstallationGainsExactSourceDeletionCleanup" classname="app.resound.data.TriggerHistory181Test" time="0.063"/>
+  <testcase name="preThingsInstallationGainsAllThreeEvidenceCleanupTriggers" classname="app.resound.data.TriggerHistory181Test" time="0.058"/>
+  <system-out><![CDATA[TRIGGER_AUDIT_181	historical	18	10	15	无
+TRIGGER_AUDIT_181	historical	25	10	15	无
+TRIGGER_AUDIT_181	schema-only	18	0	5	search_event_delete,search_event_hidden,search_event_insert,search_event_update,search_item_delete,search_item_insert,search_item_update,search_line_delete,search_line_insert,search_line_update
+TRIGGER_AUDIT_181	schema-only	27	0	2	search_event_delete,search_event_hidden,search_event_insert,search_event_update,search_item_delete,search_item_insert,search_item_update,search_line_delete,search_line_insert,search_line_update,things_event_deleted,things_event_hidden,things_line_deleted
+TRIGGER_AUDIT_181	historical	10	0	15	无
+TRIGGER_AUDIT_181	historical	11	10	15	无
+TRIGGER_AUDIT_181	historical	17	10	15	无
+TRIGGER_AUDIT_181	historical	27	14	15	无
+TRIGGER_AUDIT_181	historical	29	15	15	无
+TRIGGER_AUDIT_181	historical	32	15	15	无
+TRIGGER_AUDIT_181	historical	28	14	15	无
+TRIGGER_AUDIT_181	historical	26	11	15	无
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

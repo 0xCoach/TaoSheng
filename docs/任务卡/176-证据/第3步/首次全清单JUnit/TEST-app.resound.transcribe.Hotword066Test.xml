@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.Hotword066Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:28:11.637Z" hostname="CoachdeMacBook-Air.local" time="0.204">
+  <properties/>
+  <testcase name="ignoresSingleCharacterAndNonChineseHotwords" classname="app.resound.transcribe.Hotword066Test" time="0.042"/>
+  <testcase name="configuredCloudDoesNotCorrectHomophones" classname="app.resound.transcribe.Hotword066Test" time="0.053"/>
+  <testcase name="commonWordIsProtected" classname="app.resound.transcribe.Hotword066Test" time="0.005"/>
+  <testcase name="punctuationIsNotCrossedAndOriginalIsSavedForLocalImport" classname="app.resound.transcribe.Hotword066Test" time="0.011"/>
+  <testcase name="acceptsAnyPronunciationOnEitherSide" classname="app.resound.transcribe.Hotword066Test" time="0.003"/>
+  <testcase name="longestWinsTiesRemainAndHotwordChangesRefreshCache" classname="app.resound.transcribe.Hotword066Test" time="0.005"/>
+  <testcase name="version21MigrationPreserves065DataAndOriginalDefaultsToNull" classname="app.resound.transcribe.Hotword066Test" time="0.032"/>
+  <testcase name="correctsAndKeepsExactWordWithMeasuredCachedPerformance" classname="app.resound.transcribe.Hotword066Test" time="0.053"/>
+  <system-out><![CDATA[066 performance instance_first_call_ms=0.068792 chars=400 hotwords=200 median_ms=0.282125 p95_ms=0.829833
+]]></system-out>
+  <system-err><![CDATA[System.logW: A resource was acquired at attached stack trace but never released. See java.io.Closeable for information on avoiding resource leaks.
+java.lang.Throwable: Explicit termination method 'close' not called
+	at dalvik.system.CloseGuard.$$robo$$dalvik_system_CloseGuard$open(CloseGuard.java:237)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.robolectric.shadows.ShadowCloseGuard$CloseGuardReflector$$Reflector16.open(Unknown Source)
+	at org.robolectric.shadows.ShadowCloseGuard.open(ShadowCloseGuard.java:38)
+	at dalvik.system.CloseGuard.open(CloseGuard.java)
+	at android.database.sqlite.SQLiteConnection.$$robo$$android_database_sqlite_SQLiteConnection$__constructor__(SQLiteConnection.java:174)
+	at android.database.sqlite.SQLiteConnection.<init>(SQLiteConnection.java:165)
+	at android.database.sqlite.SQLiteConnection.$$robo$$android_database_sqlite_SQLiteConnection$open(SQLiteConnection.java:194)
+	at android.database.sqlite.SQLiteConnection.open(SQLiteConnection.java)
+	at android.database.sqlite.SQLiteConnectionPool.$$robo$$android_database_sqlite_SQLiteConnectionPool$openConnectionLocked(SQLiteConnectionPool.java:505)
+	at android.database.sqlite.SQLiteConnectionPool.openConnectionLocked(SQLiteConnectionPool.java)
+	at android.database.sqlite.SQLiteConnectionPool.$$robo$$android_database_sqlite_SQLiteConnectionPool$open(SQLiteConnectionPool.java:206)
+	at android.database.sqlite.SQLiteConnectionPool.open(SQLiteConnectionPool.java)
+	at android.database.sqlite.SQLiteConnectionPool.$$robo$$android_database_sqlite_SQLiteConnectionPool$open(SQLiteConnectionPool.java:198)
+	at android.database.sqlite.SQLiteConnectionPool.open(SQLiteConnectionPool.java)
+	at android.database.sqlite.SQLiteDatabase.$$robo$$android_database_sqlite_SQLiteDatabase$openInner(SQLiteDatabase.java:915)
+	at android.database.sqlite.SQLiteDatabase.openInner(SQLiteDatabase.java)
+	at android.database.sqlite.SQLiteDatabase.$$robo$$android_database_sqlite_SQLiteDatabase$open(SQLiteDatabase.java:895)
+	at android.database.sqlite.SQLiteDatabase.open(SQLiteDatabase.java)
+	at android.database.sqlite.SQLiteDatabase.$$robo$$android_database_sqlite_SQLiteDatabase$openDatabase(SQLiteDatabase.java:786)
+	at android.database.sqlite.SQLiteDatabase.openDatabase(SQLiteDatabase.java)
+	at android.database.sqlite.SQLiteDatabase.$$robo$$android_database_sqlite_SQLiteDatabase$openOrCreateDatabase(SQLiteDatabase.java:803)
+	at android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(SQLiteDatabase.java)
+	at androidx.sqlite.driver.AndroidSQLiteDriver.open(AndroidSQLiteDriver.android.kt:38)
+	at androidx.room.BaseRoomConnectionManager$DriverWrapper.openLocked$lambda$1(RoomConnectionManager.kt:75)
+	at androidx.room.concurrent.ExclusiveLock.withLock(ExclusiveLock.kt:50)
+	at androidx.room.BaseRoomConnectionManager$DriverWrapper.openLocked(RoomConnectionManager.kt:68)
+	at androidx.room.BaseRoomConnectionManager$DriverWrapper.open(RoomConnectionManager.kt:60)
+	at androidx.room.coroutines.PassthroughConnectionPool.connection$lambda$0(PassthroughConnectionPool.kt:47)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at androidx.room.coroutines.PassthroughConnectionPool.useConnection(PassthroughConnectionPool.kt:58)
+	at androidx.room.RoomConnectionManager.useConnection(RoomConnectionManager.android.kt:138)
+	at androidx.room.RoomDatabase.useConnection(RoomDatabase.android.kt:619)
+	at androidx.room.TriggerBasedInvalidationTracker.syncTriggers$room_runtime(InvalidationTracker.kt:306)
+	at androidx.room.TriggerBasedInvalidationTracker$createFlow$1$1.invokeSuspend(InvalidationTracker.kt:239)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+]]></system-err>
+</testsuite>

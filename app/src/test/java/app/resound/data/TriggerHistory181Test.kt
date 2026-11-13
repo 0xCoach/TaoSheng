@@ -152,7 +152,7 @@ class TriggerHistory181Test {
     private fun createOld(name: String, version: Int, faithful: Boolean): Map<String, String> {
         context.deleteDatabase(name)
         val entry = (0 until history.length()).map(history::getJSONObject).single { it.getInt("version") == version }
-        val bytes = File("schemas/app.resound.data.CaptureDatabase/$version.json").readBytes()
+        val bytes = File("../shared/schemas/app.resound.data.CaptureDatabase/$version.json").readBytes()
         assertEquals(entry.getString("schemaSha256"), MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
         val schema = JSONObject(bytes.toString(Charsets.UTF_8)).getJSONObject("database")
         val callbacks = if (faithful) callbacks(entry.getJSONArray("callbacks")) else emptyList()

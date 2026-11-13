@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.skills.Skills031Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:31:24.625Z" hostname="CoachdeMacBook-Air.local" time="0.206">
+  <properties/>
+  <testcase name="lateDigestedMeetingCardBelongsToMeetingDay" classname="app.resound.skills.Skills031Test" time="0.037"/>
+  <testcase name="trialRetriesFormatOnceAndAccountsTokensWithoutPersistingCards" classname="app.resound.skills.Skills031Test" time="0.022"/>
+  <testcase name="afterDigestGapAutoLimitManualExemptionAndUpdateDoesNotPushAgain" classname="app.resound.skills.Skills031Test" time="0.066"/>
+  <testcase name="dailyFailureDoesNotBlockOtherSkillAndNetworkRetriesOnce" classname="app.resound.skills.Skills031Test" time="0.081"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Exception in thread "DefaultDispatcher-worker-19 @coroutine#339" java.lang.IllegalStateException: Cannot perform this operation because the connection pool has been closed.
+	at android.database.sqlite.SQLiteConnectionPool.throwIfClosedLocked(SQLiteConnectionPool.java:1071)
+	at android.database.sqlite.SQLiteConnectionPool.waitForConnection(SQLiteConnectionPool.java:685)
+	at android.database.sqlite.SQLiteConnectionPool.acquireConnection(SQLiteConnectionPool.java:380)
+	at android.database.sqlite.SQLiteSession.acquireConnection(SQLiteSession.java:896)
+	at android.database.sqlite.SQLiteSession.executeForCursorWindow(SQLiteSession.java:836)
+	at android.database.sqlite.SQLiteQuery.fillWindow(SQLiteQuery.java:62)
+	at android.database.sqlite.SQLiteCursor.fillWindow(SQLiteCursor.java:153)
+	at android.database.sqlite.SQLiteCursor.getCount(SQLiteCursor.java:140)
+	at android.database.AbstractCursor.moveToPosition(AbstractCursor.java:232)
+	at android.database.AbstractCursor.moveToNext(AbstractCursor.java:281)
+	at androidx.sqlite.driver.SupportSQLiteStatement$RowSQLiteStatement.step(SupportSQLiteStatement.android.kt:405)
+	at app.resound.skills.SkillDao_Impl.runs$lambda$0(SkillDao_Impl.kt:510)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$lambda$1$$inlined$internalPerform$1.invokeSuspend(DBUtil.kt:173)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$lambda$1$$inlined$internalPerform$1.invoke(DBUtil.kt)
+	at androidx.room.coroutines.PassthroughConnectionPool$useConnection$2.invokeSuspend(PassthroughConnectionPool.kt:59)
+	at androidx.room.coroutines.PassthroughConnectionPool$useConnection$2.invoke(PassthroughConnectionPool.kt)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(Undispatched.kt:42)
+	at kotlinx.coroutines.BuildersKt__Builders_commonKt.withContext(Builders.common.kt:164)
+	at kotlinx.coroutines.BuildersKt.withContext(Unknown Source)
+	at androidx.room.coroutines.PassthroughConnectionPool.useConnection(PassthroughConnectionPool.kt:59)
+	at androidx.room.RoomConnectionManager.useConnection(RoomConnectionManager.android.kt:138)
+	at androidx.room.RoomDatabase.useConnection(RoomDatabase.android.kt:619)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$$inlined$compatCoroutineExecute$DBUtil__DBUtil_androidKt$1.invokeSuspend(DBUtil.android.kt:261)
+	at _COROUTINE._BOUNDARY._(CoroutineDebugging.kt:42)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$$inlined$compatCoroutineExecute$DBUtil__DBUtil_androidKt$1.invokeSuspend(DBUtil.android.kt:261)
+	at androidx.room.util.DBUtil__DBUtil_androidKt.performSuspending(DBUtil.android.kt:264)
+	at androidx.room.coroutines.FlowUtil$createFlow$$inlined$map$1$2.emit(FlowBuilder.kt:220)
+	at kotlinx.coroutines.flow.FlowKt__ChannelsKt.emitAllImpl$FlowKt__ChannelsKt(Channels.kt:33)
+	at kotlinx.coroutines.flow.internal.ChannelFlow$collect$2.invokeSuspend(ChannelFlow.kt:119)
+	at kotlinx.coroutines.flow.internal.CombineKt$combineInternal$2$1.invokeSuspend(Combine.kt:28)
+	at app.resound.skills.LocalSkillRepository$4.invokeSuspend(LocalSkillRepository.kt:56)
+	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [CoroutineId(339), "coroutine#339":StandaloneCoroutine{Cancelling}@35939ea4, Dispatchers.IO]
+Caused by: java.lang.IllegalStateException: Cannot perform this operation because the connection pool has been closed.
+	at android.database.sqlite.SQLiteConnectionPool.throwIfClosedLocked(SQLiteConnectionPool.java:1071)
+	at android.database.sqlite.SQLiteConnectionPool.waitForConnection(SQLiteConnectionPool.java:685)
+	at android.database.sqlite.SQLiteConnectionPool.acquireConnection(SQLiteConnectionPool.java:380)
+	at android.database.sqlite.SQLiteSession.acquireConnection(SQLiteSession.java:896)
+	at android.database.sqlite.SQLiteSession.executeForCursorWindow(SQLiteSession.java:836)
+	at android.database.sqlite.SQLiteQuery.fillWindow(SQLiteQuery.java:62)
+	at android.database.sqlite.SQLiteCursor.fillWindow(SQLiteCursor.java:153)
+	at android.database.sqlite.SQLiteCursor.getCount(SQLiteCursor.java:140)
+	at android.database.AbstractCursor.moveToPosition(AbstractCursor.java:232)
+	at android.database.AbstractCursor.moveToNext(AbstractCursor.java:281)
+	at androidx.sqlite.driver.SupportSQLiteStatement$RowSQLiteStatement.step(SupportSQLiteStatement.android.kt:405)
+	at app.resound.skills.SkillDao_Impl.runs$lambda$0(SkillDao_Impl.kt:510)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$lambda$1$$inlined$internalPerform$1.invokeSuspend(DBUtil.kt:173)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$lambda$1$$inlined$internalPerform$1.invoke(DBUtil.kt)
+	at androidx.room.coroutines.PassthroughConnectionPool$useConnection$2.invokeSuspend(PassthroughConnectionPool.kt:59)
+	at androidx.room.coroutines.PassthroughConnectionPool$useConnection$2.invoke(PassthroughConnectionPool.kt)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(Undispatched.kt:42)
+	at kotlinx.coroutines.BuildersKt__Builders_commonKt.withContext(Builders.common.kt:164)
+	at kotlinx.coroutines.BuildersKt.withContext(Unknown Source)
+	at androidx.room.coroutines.PassthroughConnectionPool.useConnection(PassthroughConnectionPool.kt:59)
+	at androidx.room.RoomConnectionManager.useConnection(RoomConnectionManager.android.kt:138)
+	at androidx.room.RoomDatabase.useConnection(RoomDatabase.android.kt:619)
+	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$$inlined$compatCoroutineExecute$DBUtil__DBUtil_androidKt$1.invokeSuspend(DBUtil.android.kt:261)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+]]></system-err>
+</testsuite>

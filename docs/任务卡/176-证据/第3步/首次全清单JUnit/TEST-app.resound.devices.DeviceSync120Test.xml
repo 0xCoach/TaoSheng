@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.devices.DeviceSync120Test" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:27:58.966Z" hostname="CoachdeMacBook-Air.local" time="0.139">
+  <properties/>
+  <testcase name="streamAcceptsCoalescedAndRepeatedFramesButRejectsCorruption" classname="app.resound.devices.DeviceSync120Test" time="0.01"/>
+  <testcase name="liveCoverageIsRecordedAndOnlyUncoveredIntervalsAreImported" classname="app.resound.devices.DeviceSync120Test" time="0.013"/>
+  <testcase name="unsupportedResumeRestartsWholeFile" classname="app.resound.devices.DeviceSync120Test" time="0.01"/>
+  <testcase name="adjacentGapsDoNotReimportPadding" classname="app.resound.devices.DeviceSync120Test" time="0.008"/>
+  <testcase name="resumeSurvivesNewInstanceAndOldGapIsRestored" classname="app.resound.devices.DeviceSync120Test" time="0.008"/>
+  <testcase name="successfulImportPrecedesDeleteAndDoesNotRepeat" classname="app.resound.devices.DeviceSync120Test" time="0.009"/>
+  <testcase name="migrationFrom30PreservesDataAndPersistsTransfers" classname="app.resound.devices.DeviceSync120Test" time="0.015"/>
+  <testcase name="sharedFingerprintSkipsWithoutUnsafeDelete" classname="app.resound.devices.DeviceSync120Test" time="0.009"/>
+  <testcase name="crashRecoveryUsesPersistedSegmentsAndSpoolWithoutAssumingClockOffset" classname="app.resound.devices.DeviceSync120Test" time="0.008"/>
+  <testcase name="pcmIsCroppedAndWrappedAsStandardWav" classname="app.resound.devices.DeviceSync120Test" time="0.008"/>
+  <testcase name="threeBadDownloadsNeverImportOrDelete" classname="app.resound.devices.DeviceSync120Test" time="0.009"/>
+  <testcase name="missingClockUsesModificationAndClampsPadding" classname="app.resound.devices.DeviceSync120Test" time="0.004"/>
+  <testcase name="protocolMatchesRealDownloadFrameAndReassembles" classname="app.resound.devices.DeviceSync120Test" time="0.004"/>
+  <testcase name="overlapUsesPhoneOffsetAndPadding" classname="app.resound.devices.DeviceSync120Test" time="0.003"/>
+  <testcase name="checksumMismatchRetriesEvenWhenSizeMatches" classname="app.resound.devices.DeviceSync120Test" time="0.007"/>
+  <testcase name="firstPairDoesNotListButMissingPluginIsRecorded" classname="app.resound.devices.DeviceSync120Test" time="0.006"/>
+  <testcase name="importFailureRetainsSource" classname="app.resound.devices.DeviceSync120Test" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

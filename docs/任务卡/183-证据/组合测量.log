@@ -1,0 +1,33 @@
+SQLite 3.53.4 queries 93
+measure-all B1 queue 5.774 1
+measure-all B1 voiceprint 3.651 1
+measure-all B1 failed 2.964 250
+measure-all B1 late 13.928 0
+measure-all B1 imports 0.31 20
+cycle measure-all B1 0
+cycle measure-all B1 5
+cycle measure-all B1 10
+cycle measure-all B1 15
+cycle measure-all B1 20
+cycle measure-all B1 25
+cycle measure-all B1 30
+cycle measure-all B1 35
+cycle measure-all B1 40
+cycle measure-all B1 45
+FINISH B1 {'queue': 656.6470409999998, 'voiceprint': 423.95674999999983, 'failed': 343.8812140000001, 'late': 1586.772622, 'imports': 32.72091600000001} {'insert': 5.438128999999999, 'env': 3.1838710000000003, 'complete': 14.762707} 77664256
+measure-all A+B1 queue 0.148 1
+measure-all A+B1 voiceprint 1.942 1
+measure-all A+B1 failed 0.536 250
+measure-all A+B1 late 14.93 0
+measure-all A+B1 imports 0.35 20
+cycle measure-all A+B1 0
+cycle measure-all A+B1 5
+cycle measure-all A+B1 10
+cycle measure-all A+B1 15
+cycle measure-all A+B1 20
+cycle measure-all A+B1 25
+cycle measure-all A+B1 30
+cycle measure-all A+B1 35
+cycle measure-all A+B1 40
+cycle measure-all A+B1 45
+FINISH A+B1 {'queue': 23.216456, 'voiceprint': 301.10883199999984, 'failed': 71.35817000000003, 'late': 2435.825006000002, 'imports': 50.60533100000001} {'insert': 3.811079, 'env': 2.682291, 'complete': 62.396668} 78639104

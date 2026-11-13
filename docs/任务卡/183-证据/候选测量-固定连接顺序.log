@@ -1,0 +1,67 @@
+SQLite 3.53.4 queries 90
+measure none queue 4.758 1
+measure none voiceprint 2.838 1
+measure none failed 2.234 250
+measure none late 7158.542 0
+measure none imports 0.317 20
+cycle measure none 0
+cycle measure none 5
+cycle measure none 10
+cycle measure none 15
+cycle measure none 20
+cycle measure none 25
+cycle measure none 30
+cycle measure none 35
+cycle measure none 40
+cycle measure none 45
+FINISH none {'queue': 847.4997850000002, 'voiceprint': 342.456289, 'failed': 251.442619, 'late': 826718.777258, 'imports': 63.36821} {'insert': 7.843334, 'env': 6.7192940000000005, 'complete': 26.453830000000004} 70189056
+measure A queue 0.126 1
+measure A voiceprint 1.645 1
+measure A failed 0.496 250
+cycle measure A 0
+cycle measure A 5
+cycle measure A 10
+cycle measure A 15
+cycle measure A 20
+cycle measure A 25
+cycle measure A 30
+cycle measure A 35
+cycle measure A 40
+cycle measure A 45
+FINISH A {'queue': 13.625624000000002, 'voiceprint': 215.42619900000005, 'failed': 53.586498000000034, 'late': 0.0, 'imports': 0.0} {'insert': 1.903046, 'env': 1.0523730000000004, 'complete': 7.242584} 71131136
+measure B1 late 16.526 0
+cycle measure B1 0
+cycle measure B1 5
+cycle measure B1 10
+cycle measure B1 15
+cycle measure B1 20
+cycle measure B1 25
+cycle measure B1 30
+cycle measure B1 35
+cycle measure B1 40
+cycle measure B1 45
+FINISH B1 {'queue': 0.0, 'voiceprint': 0.0, 'failed': 0.0, 'late': 1113.094291, 'imports': 0.0} {'insert': 5.101335000000001, 'env': 1.326585, 'complete': 4.831998999999999} 77664256
+measure B late 11.346 0
+cycle measure B 0
+cycle measure B 5
+cycle measure B 10
+cycle measure B 15
+cycle measure B 20
+cycle measure B 25
+cycle measure B 30
+cycle measure B 35
+cycle measure B 40
+cycle measure B 45
+FINISH B {'queue': 0.0, 'voiceprint': 0.0, 'failed': 0.0, 'late': 1142.724378, 'imports': 0.0} {'insert': 3.563746, 'env': 1.5512460000000003, 'complete': 5.307627000000001} 79339520
+measure C imports 0.108 20
+cycle measure C 0
+cycle measure C 5
+cycle measure C 10
+cycle measure C 15
+cycle measure C 20
+cycle measure C 25
+cycle measure C 30
+cycle measure C 35
+cycle measure C 40
+cycle measure C 45
+FINISH C {'queue': 0.0, 'voiceprint': 0.0, 'failed': 0.0, 'late': 0.0, 'imports': 4.056087} {'insert': 0.9911670000000001, 'env': 0.49474900000000005, 'complete': 3.119788000000001} 70193152

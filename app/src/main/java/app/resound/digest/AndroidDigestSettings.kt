@@ -17,44 +17,26 @@ class AndroidDigestSettings internal constructor(
     fun setFailoverEnabled(enabled: Boolean) = failover.setEnabled(enabled)
     val timing = AndroidDigestTiming(context)
     private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
-    private val _includeSituation = MutableStateFlow(prefs.getBoolean("includeSituation", false))
-    override val includeSituation = _includeSituation.asStateFlow()
-    override fun setIncludeSituation(on: Boolean) {
-        check(prefs.edit().putBoolean("includeSituation", on).commit())
-        _includeSituation.value = on
-    }
-    /** 两句话之间停多久算这段对话结束（分钟）；结束后才整理，避免一件事被切成两半 */
-    private val _pauseMinutes = MutableStateFlow(prefs.getInt("pauseMinutes", DEFAULT_PAUSE).coerceIn(PAUSE_RANGE))
-    val pauseMinutes = _pauseMinutes.asStateFlow()
-    /** 一直在说、对话迟迟不结束时，最多等多久先整理前面已稳定的部分（分钟） */
-    private val _maxWaitMinutes = MutableStateFlow(prefs.getInt("maxWaitMinutes", DEFAULT_MAX_WAIT).coerceIn(MAX_WAIT_RANGE))
-    val maxWaitMinutes = _maxWaitMinutes.asStateFlow()
-    /** 多久整理一次（分钟）；第一次沿用原来“多久转写一次”的设置（以前两者是同一个定时任务） */
-    private val _intervalMinutes = MutableStateFlow(prefs.getInt("interval",
-        context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).getInt("interval", 30))
-        .coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL))
-    val intervalMinutes = _intervalMinutes.asStateFlow()
-    /** 间隔改了要重排整理任务；由 ResoundApp 装配 */
-    var onIntervalChanged: () -> Unit = {}
-    fun setIntervalMinutes(value: Int) {
-        val v = value.coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL)
-        check(prefs.edit().putInt("interval", v).commit()); _intervalMinutes.value = v; onIntervalChanged()
-    }
-    /** 整理前先让模型思考：分条更准，但费用约为原来的 3～5 倍；默认关 */
-    private val _deepThinking = MutableStateFlow(prefs.getBoolean("deepThinking", false))
-    val deepThinking = _deepThinking.asStateFlow()
-    fun setDeepThinking(on: Boolean) { check(prefs.edit().putBoolean("deepThinking", on).commit()); _deepThinking.value = on }
+    private val preferences = DigestPreferenceStore(prefs::getBoolean, prefs::getInt,
+        { context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).getInt("interval", 30) },
+        { key, value -> prefs.edit().putBoolean(key, value).commit() },
+        { key, value -> prefs.edit().putInt(key, value).commit() })
+    override val includeSituation get() = preferences.includeSituation
+    override fun setIncludeSituation(on: Boolean) = preferences.setIncludeSituation(on)
+    val pauseMinutes get() = preferences.pauseMinutes
+    val maxWaitMinutes get() = preferences.maxWaitMinutes
+    val intervalMinutes get() = preferences.intervalMinutes
+    val deepThinking get() = preferences.deepThinking
+    var onIntervalChanged: () -> Unit
+        get() = preferences.onIntervalChanged
+        set(value) { preferences.onIntervalChanged = value }
+    fun setIntervalMinutes(value: Int) = preferences.setIntervalMinutes(value)
+    fun setDeepThinking(on: Boolean) = preferences.setDeepThinking(on)
+    fun setPauseMinutes(value: Int) = preferences.setPauseMinutes(value)
+    fun setMaxWaitMinutes(value: Int) = preferences.setMaxWaitMinutes(value)
     /** 整理和重新整理用的请求：按开关决定模型要不要先思考 */
     fun digestRequest(client: LlmClient): suspend (LlmPreset, String, String, String) -> LlmReply =
-        { p, key, system, user -> client.chatJson(p, key, system, user, thinking = _deepThinking.value) }
-    fun setPauseMinutes(value: Int) {
-        val v = value.coerceIn(PAUSE_RANGE)
-        check(prefs.edit().putInt("pauseMinutes", v).commit()); _pauseMinutes.value = v
-    }
-    fun setMaxWaitMinutes(value: Int) {
-        val v = value.coerceIn(MAX_WAIT_RANGE)
-        check(prefs.edit().putInt("maxWaitMinutes", v).commit()); _maxWaitMinutes.value = v
-    }
+        { p, key, system, user -> client.chatJson(p, key, system, user, thinking = preferences.deepThinking.value) }
     val customEndpoint get() = providers.saved.value.firstOrNull { it.id == "custom" }?.baseUrl.orEmpty()
     val customModel get() = providers.saved.value.firstOrNull { it.id == "custom" }?.model.orEmpty()
     override val presets get() = providers.saved.value.map { it.preset() }
@@ -135,9 +117,9 @@ class AndroidDigestSettings internal constructor(
     }
 
     companion object {
-        const val DEFAULT_PAUSE = 10
-        const val DEFAULT_MAX_WAIT = 30
-        val PAUSE_RANGE = 3..60
-        val MAX_WAIT_RANGE = 15..240
+        const val DEFAULT_PAUSE = DigestPreferenceStore.DEFAULT_PAUSE
+        const val DEFAULT_MAX_WAIT = DigestPreferenceStore.DEFAULT_MAX_WAIT
+        val PAUSE_RANGE = DigestPreferenceStore.PAUSE_RANGE
+        val MAX_WAIT_RANGE = DigestPreferenceStore.MAX_WAIT_RANGE
     }
 }

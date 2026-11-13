@@ -1,0 +1,5 @@
+initial=true/60/15/77/true
+new=false/3/240/720/false/commits=5/changed=1/stored={includeSituation=Boolean:false, pauseMinutes=Int:3, maxWaitMinutes=Int:240, interval=Int:720, deepThinking=Boolean:false}
+reload=false/3/240/720/false
+failure=true
+kept=false/3/240/720/false/changed=1/stored={includeSituation=Boolean:false, pauseMinutes=Int:3, maxWaitMinutes=Int:240, interval=Int:720, deepThinking=Boolean:false}

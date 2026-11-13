@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.DigestSettings177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:45:33.262Z" hostname="CoachdeMacBook-Air.local" time="1.146">
+  <properties/>
+  <testcase name="oldPreferencesClampingWritesAndFailedCommitMatch" classname="app.resound.digest.DigestSettings177Test" time="1.146"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

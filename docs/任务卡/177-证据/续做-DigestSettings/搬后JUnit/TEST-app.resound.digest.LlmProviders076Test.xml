@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.LlmProviders076Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:47:19.223Z" hostname="CoachdeMacBook-Air.local" time="1.02">
+  <properties/>
+  <testcase name="deepThinkingSwitchControlsDeepseekIncludingRelays" classname="app.resound.digest.LlmProviders076Test" time="1.02"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

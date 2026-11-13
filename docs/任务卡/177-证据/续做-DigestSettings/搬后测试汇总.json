@@ -1,0 +1,30 @@
+[
+  {
+    "name": "app.resound.context.SituationAndroid130Test",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.digest.DigestLongSessionTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.digest.LlmProviders076Test",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.digest.DigestSettings177Test",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]

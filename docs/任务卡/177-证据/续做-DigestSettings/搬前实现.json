@@ -1,0 +1,6 @@
+{
+  "HEAD": "5e83c4c57f16cf5e6993fd4586f10eed5129f51b",
+  "sha256": {
+    "app/src/main/java/app/resound/digest/AndroidDigestSettings.kt": "fa408aa83f284d31b959dabdfa9e08c99105fcfa0902a14a81893517ce15bfa5"
+  }
+}

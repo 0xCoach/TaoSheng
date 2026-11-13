@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupSchedulerTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:45.372Z" hostname="CoachdeMacBook-Air.local" time="0.067">
+  <properties/>
+  <testcase name="localOnlyNeedsNoNetworkAndCloudCancellationLeavesLocalScheduled" classname="app.resound.backup.BackupSchedulerTest" time="0.049"/>
+  <testcase name="periodicAndImmediateHaveDifferentConstraintsAndAreDeduplicated" classname="app.resound.backup.BackupSchedulerTest" time="0.018"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.OriginalAudio062Test" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:13:09.623Z" hostname="CoachdeMacBook-Air.local" time="0.151">
+  <properties/>
+  <testcase name="previewAndClearAgreeAndKeepStarredAndPending" classname="app.resound.transcribe.OriginalAudio062Test" time="0.012"/>
+  <testcase name="version19MigratesKeepingExistingEvents" classname="app.resound.transcribe.OriginalAudio062Test" time="0.021"/>
+  <testcase name="playbackTimeoutReleasesCapture" classname="app.resound.transcribe.OriginalAudio062Test" time="0.04"/>
+  <testcase name="shorteningCleansImmediatelyAndLengtheningDoesNot" classname="app.resound.transcribe.OriginalAudio062Test" time="0.015"/>
+  <testcase name="clearRangeOnlyRemovesAudioInsideRange" classname="app.resound.transcribe.OriginalAudio062Test" time="0.014"/>
+  <testcase name="usageLocateAndTrimSupportImportedAudioWithoutChangingItsRetention" classname="app.resound.transcribe.OriginalAudio062Test" time="0.015"/>
+  <testcase name="editsPreserveFirstOriginalRestoreAndRefreshSearchAndEmbedding" classname="app.resound.transcribe.OriginalAudio062Test" time="0.014"/>
+  <testcase name="retentionProtectsRecentStarredAndPending" classname="app.resound.transcribe.OriginalAudio062Test" time="0.013"/>
+  <testcase name="playbackIsIdempotentAndScopeCancellationReleases" classname="app.resound.transcribe.OriginalAudio062Test" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,194 @@
+[
+  {
+    "image": "screen/2-常见-今天.png",
+    "different_pixels": 642,
+    "bbox": [
+      296,
+      1626,
+      725,
+      1645
+    ],
+    "before_sha256": "2bab7d26fd9cce12e3c445630bd6ffc54823298395c5b3e59134b558cfccca73",
+    "after_sha256": "0f3f4a57d2a74899a80db9dae51d8d12159761c2fa1a98aa19a2d9fa05216817"
+  },
+  {
+    "image": "screen/2-常见-原话.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "cd4f6e8279c5cee35506d777b93128bedfcc900ff9c0406a0fd49e00a32b9b4a",
+    "after_sha256": "cd4f6e8279c5cee35506d777b93128bedfcc900ff9c0406a0fd49e00a32b9b4a"
+  },
+  {
+    "image": "screen/2-常见-待办.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "8fc45c4d30d10d08340af1fd4704f3df9d6e8f3cd5606e6b9d2209d6b75a7edd",
+    "after_sha256": "8fc45c4d30d10d08340af1fd4704f3df9d6e8f3cd5606e6b9d2209d6b75a7edd"
+  },
+  {
+    "image": "screen/2-常见-聆听.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "2b100a2adac1983b369c418065eb3074175f01b0432333e1e6f09a439665aae5",
+    "after_sha256": "2b100a2adac1983b369c418065eb3074175f01b0432333e1e6f09a439665aae5"
+  },
+  {
+    "image": "screen/2-常见-记忆.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "30de247c0e51a87302599beb024ee420fade9b547e9736564dd4dd1dd7caefdd",
+    "after_sha256": "30de247c0e51a87302599beb024ee420fade9b547e9736564dd4dd1dd7caefdd"
+  },
+  {
+    "image": "screen/2-常见-设置.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "fed5462961baad64ea06df245dbd98f13951026d3a8cceec43231960e217c4b7",
+    "after_sha256": "fed5462961baad64ea06df245dbd98f13951026d3a8cceec43231960e217c4b7"
+  },
+  {
+    "image": "screen/2-常见-问问.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "590140217231ae4611fc8dfea21b4098e66b3bb80bc7b151b0b510b5394b4448",
+    "after_sha256": "590140217231ae4611fc8dfea21b4098e66b3bb80bc7b151b0b510b5394b4448"
+  },
+  {
+    "image": "screen/2-常见-高级.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "c14339a33f733226d57ef09c6b3653d2a8befb32578437e172b590c2fa05c9da",
+    "after_sha256": "c14339a33f733226d57ef09c6b3653d2a8befb32578437e172b590c2fa05c9da"
+  },
+  {
+    "image": "screen/7-暗色-今天.png",
+    "different_pixels": 287,
+    "bbox": [
+      701,
+      1626,
+      725,
+      1645
+    ],
+    "before_sha256": "7fc11687235f0edf27ef98f9bee8a1f286a2425df936d634e34eba49fc0eecc4",
+    "after_sha256": "26fe384d4faf853553b39b29bc154286801f3c30ad9413f6643cff41398d4ab1"
+  },
+  {
+    "image": "screen/7-暗色-原话.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "900ab9f82f2a10148214f5cf9bb096277e9547f7e1b01cfe02d5bc7632d0bfde",
+    "after_sha256": "900ab9f82f2a10148214f5cf9bb096277e9547f7e1b01cfe02d5bc7632d0bfde"
+  },
+  {
+    "image": "screen/7-暗色-待办.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "c5afbb86b0a210aef139f5b90aa940030d79efaf9ed9520b30cda8a5e28936aa",
+    "after_sha256": "c5afbb86b0a210aef139f5b90aa940030d79efaf9ed9520b30cda8a5e28936aa"
+  },
+  {
+    "image": "screen/7-暗色-聆听.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "62948bc3f1ab538e8e8837d73eb14cb412864aa62268ec42ef99494bf2394aa3",
+    "after_sha256": "62948bc3f1ab538e8e8837d73eb14cb412864aa62268ec42ef99494bf2394aa3"
+  },
+  {
+    "image": "screen/7-暗色-记忆.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "bc494582b19052393e56b93edfbd4effbc2f9135e0f55870cd85e4e071629924",
+    "after_sha256": "bc494582b19052393e56b93edfbd4effbc2f9135e0f55870cd85e4e071629924"
+  },
+  {
+    "image": "screen/7-暗色-设置.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "ac1fa0f78bcc9c65b80ee13555ed449074de187c4e084ecbd8d31958133881a7",
+    "after_sha256": "ac1fa0f78bcc9c65b80ee13555ed449074de187c4e084ecbd8d31958133881a7"
+  },
+  {
+    "image": "screen/7-暗色-问问.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "83ae28831f0298e9415c012491744561056a55b581c58c420d413d9d8981b174",
+    "after_sha256": "83ae28831f0298e9415c012491744561056a55b581c58c420d413d9d8981b174"
+  },
+  {
+    "image": "screen/7-暗色-高级.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "7cf7e1318f70763fd37221d7276a1024eec8f98941e00a667b729f52c3d4af96",
+    "after_sha256": "7cf7e1318f70763fd37221d7276a1024eec8f98941e00a667b729f52c3d4af96"
+  },
+  {
+    "image": "topic/Dark-专题记录.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "d1927d96b14c4d2de7e373fbdd4bbc8c98cd6599d7dba8a4c9a01ba3258ab070",
+    "after_sha256": "d1927d96b14c4d2de7e373fbdd4bbc8c98cd6599d7dba8a4c9a01ba3258ab070"
+  },
+  {
+    "image": "topic/Dark-会议纪要.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "97a31a500474f2b5f27d35a48bf7a6c98a02dfaf60009db94e69b73277ac2950",
+    "after_sha256": "97a31a500474f2b5f27d35a48bf7a6c98a02dfaf60009db94e69b73277ac2950"
+  },
+  {
+    "image": "topic/Dark-开始专题.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "2bb0538813ff82c37acb875af811c3b419763d5e21672525137c6e644ddd45a7",
+    "after_sha256": "2bb0538813ff82c37acb875af811c3b419763d5e21672525137c6e644ddd45a7"
+  },
+  {
+    "image": "topic/Dark-管理记录.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "c9542022313ee9835197a47d6869ede13bdcc2aac1fc7ec54a479bb3d035d44d",
+    "after_sha256": "c9542022313ee9835197a47d6869ede13bdcc2aac1fc7ec54a479bb3d035d44d"
+  },
+  {
+    "image": "topic/Dark-部分完成.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "171a05511db1be6fc86747decfbe9fd1d6501242c4e95f073d8d6abcd7abf1a6",
+    "after_sha256": "171a05511db1be6fc86747decfbe9fd1d6501242c4e95f073d8d6abcd7abf1a6"
+  },
+  {
+    "image": "topic/Light-专题记录.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "8fec31dfef80c484e510e23a1445b88c3343459299866a41b37b792ef16b2802",
+    "after_sha256": "8fec31dfef80c484e510e23a1445b88c3343459299866a41b37b792ef16b2802"
+  },
+  {
+    "image": "topic/Light-会议纪要.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "1770cee3d32300839feab2a5900fc0c0cfaa33920809c21d77a859598dc956c4",
+    "after_sha256": "1770cee3d32300839feab2a5900fc0c0cfaa33920809c21d77a859598dc956c4"
+  },
+  {
+    "image": "topic/Light-开始专题.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "d54654dc57a41d4417377fc9276e1b0af5544d72f29d5696d62d48147be7932c",
+    "after_sha256": "d54654dc57a41d4417377fc9276e1b0af5544d72f29d5696d62d48147be7932c"
+  },
+  {
+    "image": "topic/Light-管理记录.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "cc9a87f86bbda27aa4f70b585d33a98ffe1f90f6d711ed33aa967330953c3dbb",
+    "after_sha256": "cc9a87f86bbda27aa4f70b585d33a98ffe1f90f6d711ed33aa967330953c3dbb"
+  },
+  {
+    "image": "topic/Light-部分完成.png",
+    "different_pixels": 0,
+    "bbox": null,
+    "before_sha256": "a265fd27293fa749042ad83dd031281f1ae90d441d0cb065bdd6f746203c9811",
+    "after_sha256": "a265fd27293fa749042ad83dd031281f1ae90d441d0cb065bdd6f746203c9811"
+  }
+]

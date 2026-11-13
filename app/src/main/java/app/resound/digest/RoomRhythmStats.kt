@@ -21,7 +21,7 @@ import org.json.JSONArray
 
 class RoomRhythmStats(
     private val db: CaptureDatabase,
-    private val zone: ZoneId = ZoneId.systemDefault(),
+    private val zone: ZoneId,
 ) : RhythmStats {
     override fun baseline(date: LocalDate): Flow<RhythmBaseline?> {
         val timeZone = zone.toKotlinTimeZone()

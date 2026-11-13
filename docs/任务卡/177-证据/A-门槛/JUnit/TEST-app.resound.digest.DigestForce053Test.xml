@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.DigestForce053Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:55.884Z" hostname="CoachdeMacBook-Air.local" time="0.015">
+  <properties/>
+  <testcase name="forceClosesOngoingConversationButOnlyManualBypassesSkillGap" classname="app.resound.digest.DigestForce053Test" time="0.015"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

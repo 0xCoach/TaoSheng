@@ -212,7 +212,7 @@ class ResoundApp : Application() {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
         }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) })
-        AppGraph.rhythm = RoomRhythmStats(database)
+        AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers
         AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), digestSettings.providers, { b, line ->

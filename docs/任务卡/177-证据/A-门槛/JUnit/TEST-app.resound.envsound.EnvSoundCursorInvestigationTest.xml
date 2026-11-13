@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.envsound.EnvSoundCursorInvestigationTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:57.126Z" hostname="CoachdeMacBook-Air.local" time="2.203">
+  <properties/>
+  <testcase name="transactionKeepsWindowReadsConsistentDuringSameDeletion" classname="app.resound.envsound.EnvSoundCursorInvestigationTest" time="2.171"/>
+  <testcase name="deletingSixRowsDuringWindowRefillInvalidatesCursorPosition" classname="app.resound.envsound.EnvSoundCursorInvestigationTest" time="0.032"/>
+  <system-out><![CDATA[Reproduced: SQLiteBlobTooBigException: Row too big to fit into CursorWindow requiredPos=31, totalRows=26
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

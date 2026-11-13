@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.LocalBackupAccess102Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:49.240Z" hostname="CoachdeMacBook-Air.local" time="0.14">
+  <properties/>
+  <testcase name="diagnosticsPreserveReasonButHideUrisAndPaths" classname="app.resound.backup.LocalBackupAccess102Test" time="0.016"/>
+  <testcase name="lostPersistedGrantAndSecurityExceptionRequireAuthorization" classname="app.resound.backup.LocalBackupAccess102Test" time="0.05"/>
+  <testcase name="unsupportedWtFallsBackToWAndVerifiesExport" classname="app.resound.backup.LocalBackupAccess102Test" time="0.01"/>
+  <testcase name="permissionErrorDoesNotTryOtherModes" classname="app.resound.backup.LocalBackupAccess102Test" time="0.01"/>
+  <testcase name="writtenButUnreadableHasDifferentErrorAndDoesNotClaimSuccess" classname="app.resound.backup.LocalBackupAccess102Test" time="0.011"/>
+  <testcase name="inaccurateCanWriteDoesNotRejectWorkingFolderAndPickerRequestsFlags" classname="app.resound.backup.LocalBackupAccess102Test" time="0.013"/>
+  <testcase name="temporaryGrantWorksButNewProcessRequiresAuthorization" classname="app.resound.backup.LocalBackupAccess102Test" time="0.014"/>
+  <testcase name="unwritableLocationAndExhaustedModesAreUnsupported" classname="app.resound.backup.LocalBackupAccess102Test" time="0.015"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

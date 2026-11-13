@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupArchiveTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:39.786Z" hostname="CoachdeMacBook-Air.local" time="0.737">
+  <properties/>
+  <testcase name="tamperingAndTraversalAreRejectedBeforeReplacement" classname="app.resound.backup.BackupArchiveTest" time="0.136"/>
+  <testcase name="snapshotRemainsConsistentDuringConcurrentTransactions" classname="app.resound.backup.BackupArchiveTest" time="0.08"/>
+  <testcase name="archiveExcludesAllSecretsAudioAndUnknownSettingsAndRestoresVerifiedContent" classname="app.resound.backup.BackupArchiveTest" time="0.101"/>
+  <testcase name="restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart" classname="app.resound.backup.BackupArchiveTest" time="0.239"/>
+  <testcase name="previousVersionArchiveVerifiesAndMigratesWithoutLosingVoiceprints" classname="app.resound.backup.BackupArchiveTest" time="0.085"/>
+  <testcase name="sampleAudioIsExcludedAndRestoreRetainsVectorsWithoutStalePlayback" classname="app.resound.backup.BackupArchiveTest" time="0.096"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

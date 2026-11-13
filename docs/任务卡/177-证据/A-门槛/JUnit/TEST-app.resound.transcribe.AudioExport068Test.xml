@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.AudioExport068Test" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:13:09.121Z" hostname="CoachdeMacBook-Air.local" time="0.131">
+  <properties/>
+  <testcase name="voiceAndExpiredRemainTextOnly" classname="app.resound.transcribe.AudioExport068Test" time="0.014"/>
+  <testcase name="cancellationRemovesPartialsAndCleanupOnlyRemovesExpiredExports" classname="app.resound.transcribe.AudioExport068Test" time="0.006"/>
+  <testcase name="twoHourPcmUsesBoundedChunks" classname="app.resound.transcribe.AudioExport068Test" time="0.081"/>
+  <testcase name="badSegmentSkippedAndActualPcmTimelineMatchesSubtitles" classname="app.resound.transcribe.AudioExport068Test" time="0.007"/>
+  <testcase name="skipMediaExcludesAudioTextAndMetadata" classname="app.resound.transcribe.AudioExport068Test" time="0.006"/>
+  <testcase name="batchDeletionKeepsEventsTodosAndOtherSegmentsButRemovesSearchAndVectors" classname="app.resound.transcribe.AudioExport068Test" time="0.017"/>
+  <system-out><![CDATA[068 synthetic PCM: 7200s, elapsedMs=76, heapDeltaBytes=73080336, maxPcmOnDisk=0, inputBlock=32000, readBlock=8192; codec excluded
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

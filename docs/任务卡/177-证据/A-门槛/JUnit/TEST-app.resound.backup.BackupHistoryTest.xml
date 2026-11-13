@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupHistoryTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:40.678Z" hostname="CoachdeMacBook-Air.local" time="3.256">
+  <properties/>
+  <testcase name="changedDayIsIncrementalAndEachPointRestoresItsOwnDataAndSettings" classname="app.resound.backup.BackupHistoryTest" time="0.271"/>
+  <testcase name="retentionPrunesPointsAndUnreferencedOldObjectsButKeepsSharedData" classname="app.resound.backup.BackupHistoryTest" time="0.527"/>
+  <testcase name="webDavImmutableObjectsAndCheckpointListingRestoreBothVersions" classname="app.resound.backup.BackupHistoryTest" time="0.309"/>
+  <testcase name="interruptedObjectsAndCheckpointNeverChangeCommittedHistoryAndRetryWorks" classname="app.resound.backup.BackupHistoryTest" time="0.334"/>
+  <testcase name="migratesCurrentVolumesAndDeletesOnlyRecognizedLegacyAfterCommit" classname="app.resound.backup.BackupHistoryTest" time="0.206"/>
+  <testcase name="encryptedVersionsSurvivePassphraseChangeAndCorruptionNeverStagesRestore" classname="app.resound.backup.BackupHistoryTest" time="1.016"/>
+  <testcase name="cleanupFailureLeavesBothPublishedPointsRestorableUntilNextRetry" classname="app.resound.backup.BackupHistoryTest" time="0.24"/>
+  <testcase name="safRepositoryListsAndRestoresSelectedVersionWithDefaultSeven" classname="app.resound.backup.BackupHistoryTest" time="0.353"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

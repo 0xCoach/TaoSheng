@@ -1,0 +1,30 @@
+{
+  "required_classes": 98,
+  "missing_classes": [],
+  "required_results": {
+    "passed": 694,
+    "failed": 0,
+    "skipped": 3
+  },
+  "skipped": [
+    {
+      "class": "app.resound.things.ThingsSharedLiveTest",
+      "method": "liveExtractionAndTokenComparison",
+      "result": "skipped",
+      "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.things.ThingsSharedLiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "method": "linkedS3PushPersistsOnlyFlagAndUploadsIntoSeparateFolder",
+      "result": "skipped",
+      "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "method": "minioCrudPaginationVolumesAndDiary",
+      "result": "skipped",
+      "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    }
+  ],
+  "failures": []
+}

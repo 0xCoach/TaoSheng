@@ -1,0 +1,11 @@
+[
+  "app.resound.capture.QuietSchedule056Test",
+  "app.resound.data.TableObservers182Test",
+  "app.resound.digest.Rhythm064Test",
+  "app.resound.digest.RhythmDeletion099Test",
+  "app.resound.envsound.EnvMergeConsistencyTest",
+  "app.resound.envsound.EnvSound070Test",
+  "app.resound.importer.ImportKinds077Test",
+  "app.resound.transcribe.TranscribePersistenceTest",
+  "app.resound.transcribe.TranscribeSchedulerTest"
+]

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.importer.ImportHotwordsTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:59.498Z" hostname="CoachdeMacBook-Air.local" time="0.238">
+  <properties/>
+  <testcase name="digestInputAddsScopedCorrectionWithoutChangingOriginalLines" classname="app.resound.importer.ImportHotwordsTest" time="0.005"/>
+  <testcase name="receiveCopiesBeforeReturningPersistsAndUsesDateBeforeModifiedTime" classname="app.resound.importer.ImportHotwordsTest" time="0.01"/>
+  <testcase name="resamplerKeepsPhaseAcrossBuffersAndAveragesStereo" classname="app.resound.importer.ImportHotwordsTest" time="0.024"/>
+  <testcase name="badAudioReturnsHumanReasonAndRemovesCopy" classname="app.resound.importer.ImportHotwordsTest" time="0.007"/>
+  <testcase name="queueUsesConfirmationOrderAndCancellationDoesNotDropFollowingFiles" classname="app.resound.importer.ImportHotwordsTest" time="0.012"/>
+  <testcase name="cloudRequestsIncludePrioritizedHotwordsAndBoundCustomPrompt" classname="app.resound.importer.ImportHotwordsTest" time="0.011"/>
+  <testcase name="importedSegmentsKeepOffsetsAndFiveMinuteOverlap" classname="app.resound.importer.ImportHotwordsTest" time="0.112"/>
+  <testcase name="hotwordsPersistNormalizeAndTrackPeopleRenamesAndDeletes" classname="app.resound.importer.ImportHotwordsTest" time="0.017"/>
+  <testcase name="transcribedImportsFollowRetentionButFailuresWaitAtMostThreeDays" classname="app.resound.importer.ImportHotwordsTest" time="0.04"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupPresentationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:43.936Z" hostname="CoachdeMacBook-Air.local" time="0.001">
+  <properties/>
+  <testcase name="successStaysPrimaryAfterFailureForBothDestinations" classname="app.resound.backup.BackupPresentationTest" time="0.0"/>
+  <testcase name="newerSuccessIsNotHiddenByCachedSummaryAndBytesStayPaired" classname="app.resound.backup.BackupPresentationTest" time="0.001"/>
+  <testcase name="repeatedEntryKeepsGoodCacheButDifferentAccountAndFolderCannotReuseIt" classname="app.resound.backup.BackupPresentationTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

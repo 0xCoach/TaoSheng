@@ -1,0 +1,10 @@
+{
+  "schema_sha256": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292",
+  "apk": [
+    {
+      "path": "app/build/outputs/apk/release/app-release.apk",
+      "bytes": 105530468,
+      "sha256": "f023e0c1d5a65f8278305ee538c1f578a3d12eeae89661e394b50b94fdd75d3d"
+    }
+  ]
+}

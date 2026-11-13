@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.backup.BackupAudit087Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:12:40.533Z" hostname="CoachdeMacBook-Air.local" time="0.136">
+  <properties/>
+  <testcase name="dayVolumeRoundTripPreservesEnvironmentCorrections" classname="app.resound.backup.BackupAudit087Test" time="0.085"/>
+  <testcase name="everySchemaTableHasAnExplicitBackupPolicy" classname="app.resound.backup.BackupAudit087Test" time="0.008"/>
+  <testcase name="restoredSettingsAreReadBeforeConstructingRuntimeState" classname="app.resound.backup.BackupAudit087Test" time="0.043"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

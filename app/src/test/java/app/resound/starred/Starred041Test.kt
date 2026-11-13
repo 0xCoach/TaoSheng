@@ -69,7 +69,7 @@ class Starred041Test {
     }
     private fun reviews() = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("041-review", 0), scope,
         { error("禁止云端请求") }, { _, _, _, _ -> error("禁止云端请求") }, { "" }, "回响", quiet, {},
-        { at + 22 * 3_600_000 }, { zone })
+        { at + 22 * 3_600_000 }, { zone }, io = kotlinx.coroutines.Dispatchers.IO)
 
     @Test fun migrationThirteenToFourteenPreservesImportantAndClearsUserStars() = runBlocking {
         val name = "041-migration.db"; context.deleteDatabase(name)

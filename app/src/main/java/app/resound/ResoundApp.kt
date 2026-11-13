@@ -245,7 +245,7 @@ class ResoundApp : Application() {
             app.resound.push.ChannelNotifier(app.resound.push.LocalNotifier(this), pushChannels), { reviewScheduler.schedule(it, changed = true) },
             dailyMemory = pushChannels::dispatchDailyMemory,
             beforeReview = { app.resound.review.ReviewPreparation.run(this) },
-            work = androidx.work.WorkManager.getInstance(this), hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) })
+            work = androidx.work.WorkManager.getInstance(this), hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) }, now = AppGraph.platform.now::now, zone = { java.time.ZoneId.of(AppGraph.platform.zone.zoneId()) }, io = AppGraph.platform.dispatchers.io)
         val skillFiles = app.resound.skills.SkillFiles(this)
         digestSettings.providers.beforeDelete = { id -> skillFiles.resetProviders(setOf(id)) }
         skillFiles.resetProviders(skillFiles.skills.value.mapNotNull { it.presetId }.toSet() - digestSettings.presets.map { it.id }.toSet())

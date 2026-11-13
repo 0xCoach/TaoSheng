@@ -1,0 +1,16 @@
+initial=ReviewState(generating=false, lastError=生成失败，请稍后重试, dailyAtMinutes=1320, pushEnabled=true, stage=null, lastErrorDate=null)
+empty=null
+material.empty=false
+settings=ReviewState(generating=false, lastError=生成失败，请稍后重试, dailyAtMinutes=1439, pushEnabled=false, stage=null, lastErrorDate=null)
+window=10月31日 23:59 – 11月1日 23:59
+prefs={dailyAtMinutes=1439, lastError=生成失败：旧内部文本, lastErrorDate=bad, pushEnabled=false}
+manual.noScheduler=ReviewState(generating=false, lastError=生成失败，请稍后重试, dailyAtMinutes=1439, pushEnabled=false, stage=null, lastErrorDate=2026-11-01)
+material=true
+manual.retry=false
+daily=null
+recent=[]
+state=ReviewState(generating=false, lastError=模型返回的格式不对，换个模型或稍后再试, dailyAtMinutes=1439, pushEnabled=false, stage=null, lastErrorDate=2026-11-01)
+scheduled.retry=false
+calls=[reschedule=1439, chat, chat]
+usage=[LlmUsageEntity(day=2026-11-02, promptTokens=20, completionTokens=6, calls=2)]
+prefs.final={dailyAtMinutes=1439, lastError=模型返回的格式不对，换个模型或稍后再试, lastErrorDate=2026-11-01, pushEnabled=true}

@@ -49,7 +49,7 @@ class DayDiaryTest {
         memory = RoomMemoryRepository(db.memory(), runner, { error("禁止触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
         val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("review", 0), scope,
             { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "回响",
-            object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) { error("禁止推送") } }, {})
+            object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) { error("禁止推送") } }, {}, now = app.resound.platform.SystemNow::now, zone = java.time.ZoneId::systemDefault, io = kotlinx.coroutines.Dispatchers.IO)
         diary = LocalDiaryRepository(context, memory, reviews, db.memory())
     }
     @After fun close() = runBlocking {

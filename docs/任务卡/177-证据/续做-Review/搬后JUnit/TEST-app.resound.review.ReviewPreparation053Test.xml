@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.review.ReviewPreparation053Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:20:33.120Z" hostname="CoachdeMacBook-Air.local" time="0.155">
+  <properties/>
+  <testcase name="failureFallsThroughButParentCancellationPropagates" classname="app.resound.review.ReviewPreparation053Test" time="0.011"/>
+  <testcase name="successfulPreparationSuppliesFreshEventsToWeeklyReview" classname="app.resound.review.ReviewPreparation053Test" time="0.076"/>
+  <testcase name="timeoutWhileWaitingForPipelineStillGeneratesDailyReview" classname="app.resound.review.ReviewPreparation053Test" time="0.068"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

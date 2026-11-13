@@ -78,7 +78,7 @@ class ReviewPushTest {
         }, channels)
         reviews = RoomReviewRepository(db.review(), db.memory(), prefs("review-030"), scope,
             { error("不应调用大模型") }, { _, _, _, _ -> error("不应调用大模型") }, { "" }, "回响", notifier, {},
-            { review.generatedAt }, { zone })
+            { review.generatedAt }, { zone }, io = kotlinx.coroutines.Dispatchers.IO)
         try { block(db, reviews, channels, fake, local) } finally { scope.cancel(); db.close() }
     }
 

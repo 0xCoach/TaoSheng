@@ -153,7 +153,7 @@ class Usage043Test {
         val preset = LlmPreset("test", "test", "https://example.invalid", "test")
         val review = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("review", 0), scope,
             { preset to "test" }, { _, _, _, _ -> LlmReply("""{"brief":"今天讨论项目","sections":[]}""", 20, 2) }, { "测试" }, "回响", notifier, {},
-            now = { at + 23 * 3600000 }, zone = { zone })
+            now = { at + 23 * 3600000 }, zone = { zone }, io = kotlinx.coroutines.Dispatchers.IO)
         review.run(day, false)
         val files = SkillFiles(File(root, "skills")) {
             File("src/main/assets/skills").listFiles()!!.map { dir ->

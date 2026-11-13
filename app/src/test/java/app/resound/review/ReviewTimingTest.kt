@@ -53,7 +53,7 @@ class ReviewTimingTest {
                     assertEquals("resound://review?open=review&date=$date", deepLink)
                     calls.pushes += body
                 }
-            }, {}, { at(date, "23:00") }, { zone })
+            }, {}, { at(date, "23:00") }, { zone }, io = kotlinx.coroutines.Dispatchers.IO)
         try { block(db, repo, calls) } finally { scope.cancel(); db.close() }
     }
 

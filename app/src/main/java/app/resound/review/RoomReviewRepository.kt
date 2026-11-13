@@ -1,179 +1,58 @@
 package app.resound.review
 
-import app.resound.digest.allowsEmptyKey
-import app.resound.usage.UsagePurpose
-
 import android.content.SharedPreferences
-import app.resound.data.MemoryDao
-import app.resound.data.ReviewDao
-import app.resound.data.ReviewEntity
-import app.resound.data.ReviewInput
-import app.resound.digest.LlmException
-import app.resound.digest.LlmPreset
-import app.resound.digest.LlmReply
-import app.resound.push.Notifier
-import app.resound.push.ChannelNotifier
-import app.resound.push.PushTopic
+import app.resound.data.*
+import app.resound.digest.*
+import app.resound.push.*
+import app.resound.platform.ZoneProvider
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
-import kotlinx.datetime.toJavaLocalDate
-import kotlinx.datetime.toKotlinLocalDate
 import java.time.ZoneId
+import kotlinx.datetime.toKotlinLocalDate
+import kotlinx.datetime.toJavaLocalDate
 
+/** 安卓系统任务、模型、通知、偏好与旧日期调用的适配。 */
 class RoomReviewRepository(
-    private val dao: ReviewDao,
-    private val memory: MemoryDao,
-    private val prefs: SharedPreferences,
-    private val scope: CoroutineScope,
-    private val credentials: () -> Pair<LlmPreset, String>,
-    private val chat: suspend (LlmPreset, String, String, String) -> LlmReply,
-    private val template: () -> String,
-    private val appName: String,
-    private val notifier: Notifier,
-    private val reschedule: (Int) -> Unit,
-    private val now: () -> Long = System::currentTimeMillis,
-    private val zone: () -> ZoneId = ZoneId::systemDefault,
-    private val dailyMemory: suspend (LocalDate) -> Unit = {},
-    private val beforeReview: suspend () -> Boolean = { true },
-    private val work: androidx.work.WorkManager? = null,
-    private val hasBackup: (LlmPreset) -> Boolean = { false },
+    dao: ReviewDao, memory: MemoryDao, prefs: SharedPreferences, scope: CoroutineScope,
+    credentials: () -> Pair<LlmPreset, String>, chat: suspend (LlmPreset, String, String, String) -> LlmReply,
+    template: () -> String, appName: String, private val notifier: Notifier, reschedule: (Int) -> Unit,
+    now: () -> Long, zone: () -> ZoneId,
+    dailyMemory: suspend (LocalDate) -> Unit = {}, beforeReview: suspend () -> Boolean = { true },
+    work: androidx.work.WorkManager? = null, hasBackup: (LlmPreset) -> Boolean = { false },
+    io: CoroutineDispatcher,
 ) : ReviewRepository {
-    override fun daily(date: kotlinx.datetime.LocalDate) = daily(date.toJavaLocalDate())
-    override fun generateNow(date: kotlinx.datetime.LocalDate) = generateNow(date.toJavaLocalDate())
-    override fun hasMaterial(date: kotlinx.datetime.LocalDate) = hasMaterial(date.toJavaLocalDate())
-    override fun windowText(date: kotlinx.datetime.LocalDate) = windowText(date.toJavaLocalDate())
-    private val gate = Mutex()
-    private val mutable = MutableStateFlow(ReviewState(false, prefs.getString("lastError", null)?.let { if (it.startsWith("生成失败：")) REVIEW_FAILURE else it },
-        prefs.getInt("dailyAtMinutes", 22 * 60).coerceIn(0, 1439), prefs.getBoolean("pushEnabled", true),
-        lastErrorDate = prefs.getString("lastErrorDate", null)?.let { runCatching { LocalDate.parse(it).toKotlinLocalDate() }.getOrNull() }))
-    override val state = mutable.asStateFlow()
-    fun daily(date: LocalDate): Flow<DailyReview?> = combine(dao.daily(date.toString()), app.resound.envsound.EnvSoundPresentation.changes()) { row, _ -> row?.toModel() }.flowOn(Dispatchers.IO)
-    override fun recent(): Flow<List<DailyReview>> = combine(dao.recent(), app.resound.envsound.EnvSoundPresentation.changes()) { rows, _ -> rows.map { it.toModel() } }.flowOn(Dispatchers.IO)
-    @Volatile private var running = false
-    private val generation = work?.let { manager ->
-        ManualReviewGeneration(manager, scope,
-            changed = { active ->
-                mutable.update { it.copy(generating = running || active,
-                    stage = if (running) it.stage else if (active) "排队中…" else null) }
-            },
-            failed = { date, message -> error(message, date) })
+    private var generation: ManualReviewGeneration? = null
+    private val store = ReviewStoreRepository(dao, memory,
+        ReviewStoredSettings(prefs.getString("lastError", null), prefs.getInt("dailyAtMinutes", 22 * 60),
+            prefs.getBoolean("pushEnabled", true), prefs.getString("lastErrorDate", null)),
+        credentials, { preset, key, system, input -> chat(preset, key, system, input).let { ReviewReply(it.content, it.promptTokens, it.completionTokens, it.actualModel) } },
+        template, appName, ::notify, reschedule, now, ZoneProvider { zone().id }, io,
+        { dailyMemory(it.toJavaLocalDate()) }, beforeReview, hasBackup, LlmPreset::allowsEmptyKey, LlmInputBudget::inputChars,
+        { (it as? LlmException)?.let { e -> ReviewFailure(e.detail, e.type.retryable) } },
+        if (work == null) null else { date -> generation!!.generate(date.toJavaLocalDate()) },
+        { generation?.isActive() == true }, app.resound.envsound.EnvSoundPresentation::changes,
+        app.resound.envsound.EnvSoundPresentation::decorate,
+        { prefs.edit().putInt("dailyAtMinutes", it).apply() }, { prefs.edit().putBoolean("pushEnabled", it).apply() },
+        { message, date -> prefs.edit().putString("lastError", message).putString("lastErrorDate", date).apply() })
+    init {
+        generation = work?.let { ManualReviewGeneration(it, scope, store::generationChanged,
+            { date, message -> store.generationFailed(date.toKotlinLocalDate(), message) }) }
     }
-    fun generateNow(date: LocalDate) {
-        if (generation == null) {
-            error(REVIEW_FAILURE, date)
-            return
-        }
-        generation.generate(date)
+    override val state get() = store.state
+    override fun daily(date: kotlinx.datetime.LocalDate) = store.daily(date)
+    fun daily(date: LocalDate) = store.daily(date.toKotlinLocalDate())
+    override fun recent() = store.recent()
+    override fun generateNow(date: kotlinx.datetime.LocalDate) = store.generateNow(date)
+    fun generateNow(date: LocalDate) = store.generateNow(date.toKotlinLocalDate())
+    override fun hasMaterial(date: kotlinx.datetime.LocalDate) = store.hasMaterial(date)
+    fun hasMaterial(date: LocalDate) = store.hasMaterial(date.toKotlinLocalDate())
+    override fun windowText(date: kotlinx.datetime.LocalDate) = store.windowText(date)
+    fun windowText(date: LocalDate) = store.windowText(date.toKotlinLocalDate())
+    override fun setDailyAt(minutes: Int) = store.setDailyAt(minutes)
+    override fun setPushEnabled(enabled: Boolean) = store.setPushEnabled(enabled)
+    internal suspend fun run(date: LocalDate, scheduled: Boolean) = store.run(date.toKotlinLocalDate(), scheduled)
+    private suspend fun notify(title: String, body: String, link: String, row: ReviewEntity) {
+        if (notifier is ChannelNotifier) notifier.send(title, body, link, PushTopic.DailyReview, remoteReview = store.review(row))
+        else notifier.send(title, body, link, PushTopic.DailyReview)
     }
-
-    fun hasMaterial(date: LocalDate): Flow<Boolean> =
-        combine(state.map { it.dailyAtMinutes }.distinctUntilChanged(),
-            dao.materialChanges(androidx.room.RoomRawQuery("SELECT 1"))) { minutes, _ ->
-            material(date, minutes, zone()).second != null
-        }.distinctUntilChanged().flowOn(Dispatchers.IO)
-
-    fun windowText(date: LocalDate): String {
-        val minutes = state.value.dailyAtMinutes
-        fun label(day: LocalDate) = "${day.monthValue}月${day.dayOfMonth}日 ${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}"
-        return "${label(date.minusDays(1))} – ${label(date)}"
-    }
-
-    /** 空值即无材料；窗口和三类材料的规则供观察与生成共用。 */
-    private suspend fun material(date: LocalDate, minutes: Int, timezone: ZoneId): Pair<Long, ReviewInput?> {
-        val start = ReviewTime.cutoff(date.minusDays(1), minutes, timezone).toInstant().toEpochMilli()
-        val end = ReviewTime.cutoff(date, minutes, timezone).toInstant().toEpochMilli()
-        val source = dao.reviewInput(start, end)
-        return end to source.takeIf { it.events.isNotEmpty() || it.items.isNotEmpty() || it.starredStale.isNotEmpty() }
-    }
-    override fun setDailyAt(minutes: Int) {
-        val value = minutes.coerceIn(0, 1439)
-        prefs.edit().putInt("dailyAtMinutes", value).apply()
-        mutable.update { it.copy(dailyAtMinutes = value) }
-        reschedule(value)
-    }
-    override fun setPushEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("pushEnabled", enabled).apply()
-        mutable.update { it.copy(pushEnabled = enabled) }
-    }
-
-    /** 手动强制重生成且不推送；定时只复用截止时刻后生成的回顾，避免重试重复扣用量。返回是否需要重试。 */
-    internal suspend fun run(date: LocalDate, scheduled: Boolean): Boolean = gate.withLock {
-        running = true
-        mutable.update { it.copy(generating = true, stage = "正在转写和整理还没处理的录音…") }
-        try {
-            val prepared = try {
-                withTimeoutOrNull(10 * 60_000L) { beforeReview() } ?: false
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { false }
-            mutable.update { it.copy(stage = "正在写回顾…") }
-            val timezone = zone()
-            val minutes = state.value.dailyAtMinutes
-            val (end, source) = material(date, minutes, timezone)
-            if (source == null) {
-                error(if (scheduled) null else "${windowText(date)} 没有可写进回顾的事", date)
-                return@withLock false
-            }
-            var row = if (scheduled) dao.daily(date.toString()).first()?.takeIf { it.generatedAt >= end } else null
-            if (row == null) {
-                val model: String
-                val result = if (source.events.isEmpty() && source.items.isEmpty()) {
-                    model = "local-starred-followup"
-                    ReviewPrompt.staleOnly(source, timezone)
-                } else {
-                    val (preset, key) = credentials()
-                    if (key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset)) { error("还没填写整理模型的密钥", date); return@withLock false }
-                    val system = ReviewPrompt.system(template(), appName)
-                    val rawInput = ReviewPrompt.input(date, source, timezone, minutes)
-                    val input = try { ReviewInputBudget.fit(rawInput, system, preset) }
-                    catch (e: app.resound.digest.LlmInputLimitException) { if (hasBackup(preset)) rawInput else throw e }
-                    val reply = chat(preset, key, system, input)
-                    // 格式错误的成功调用也实际消耗了 token。
-                    memory.addUsage(java.time.Instant.ofEpochMilli(now()).atZone(timezone).toLocalDate().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)
-                    model = reply.actualModel ?: preset.model
-                    try { ReviewPrompt.parse(reply.content, source, timezone) }
-                    catch (e: CancellationException) { throw e }
-                    catch (_: Exception) {
-                        error("模型返回的格式不对，换个模型或稍后再试", date)
-                        return@withLock false
-                    }
-                }
-                val (brief, sections) = result
-                row = ReviewEntity(startDate = date.toString(), endDate = date.toString(), brief = brief,
-                    sectionsJson = ReviewPrompt.encode(sections), generatedAt = now(), model = model)
-                dao.save(row)
-            }
-            if (scheduled) dailyMemory(date)
-            if (scheduled && state.value.pushEnabled) {
-                try {
-                    val deepLink = "resound://review?open=review&date=$date"
-                    if (notifier is ChannelNotifier) {
-                        notifier.send("今日回顾", row.brief, deepLink, PushTopic.DailyReview, remoteReview = row.toModel())
-                    } else {
-                        notifier.send("今日回顾", row.brief, deepLink, PushTopic.DailyReview)
-                    }
-                } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { error("回顾已生成，通知发送失败，请检查通知权限", date); return@withLock false }
-            }
-            error(if (prepared) null else "已用现有内容生成；还有录音没整理完", date)
-            false
-        } catch (e: CancellationException) { throw e }
-        catch (e: app.resound.digest.LlmInputLimitException) { error(e.message, date); false }
-        catch (e: LlmException) { error(e.detail, date); e.type.retryable }
-        catch (e: Exception) { error(REVIEW_FAILURE, date); false }
-        finally {
-            running = false
-            val active = generation?.isActive() == true
-            mutable.update { it.copy(generating = active, stage = if (active) "排队中…" else null) }
-        }
-    }
-
-    private fun error(message: String?, date: LocalDate) {
-        val errorDate = date.takeIf { message != null }
-        prefs.edit().putString("lastError", message).putString("lastErrorDate", errorDate?.toString()).apply()
-        mutable.update { it.copy(lastError = message, lastErrorDate = errorDate?.toKotlinLocalDate()) }
-    }
-    private suspend fun ReviewEntity.toModel() = app.resound.envsound.EnvSoundPresentation.decorate(DailyReview(LocalDate.parse(startDate).toKotlinLocalDate(), brief, ReviewPrompt.decode(sectionsJson), generatedAt))
 }

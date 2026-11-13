@@ -46,7 +46,7 @@ class ManualReview058Test {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
                 error("手动不得推送")
             }
-        }, {}, now = { at + 22 * 3600000 }, zone = { zone }, beforeReview = { prepare() }, work = work)
+        }, {}, now = { at + 22 * 3600000 }, zone = { zone }, beforeReview = { prepare() }, work = work, io = kotlinx.coroutines.Dispatchers.IO)
 
     @Before fun setup() {
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()

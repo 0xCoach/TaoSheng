@@ -49,7 +49,7 @@ class ReviewInputLimit101Test {
         val repo = RoomReviewRepository(db.review(), db.memory(), prefs, scope, { preset to "test" }, chat,
             { "只输出 JSON" }, "涛声", object : Notifier {
                 override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) = Unit
-            }, {}, now = { at + 22 * 3600000 }, zone = { zone })
+            }, {}, now = { at + 22 * 3600000 }, zone = { zone }, io = kotlinx.coroutines.Dispatchers.IO)
         try { db.memory().insertEvent(e); check(repo) }
         finally { scope.cancel(); db.close() }
     }

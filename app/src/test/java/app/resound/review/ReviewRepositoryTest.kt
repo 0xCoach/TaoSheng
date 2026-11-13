@@ -43,7 +43,7 @@ class ReviewRepositoryTest {
                     assertEquals("resound://review?open=review&date=2026-10-23", deepLink)
                     actions += "push"
                 }
-            }, {}, { at + 22 * 3600000 }, { zone })
+            }, {}, { at + 22 * 3600000 }, { zone }, io = kotlinx.coroutines.Dispatchers.IO)
         try { block(db, repo, actions) } finally { scope.cancel(); db.close() }
     }
     private suspend fun seed(db: CaptureDatabase, scene: String = "会议", deleted: Boolean = false, id: Long = 1) {

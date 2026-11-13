@@ -39,7 +39,7 @@ class Topic135Test {
     @Before fun setup() {
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        repo = RoomTopicRepository(db, scope, { time }, { ZoneId.of("Asia/Shanghai") }, quiet = { _, _ -> true }, recordingEnabled = { false })
+        repo = RoomTopicRepository(db, scope, { time }, { "Asia/Shanghai" }, quiet = { _, _ -> true }, recordingEnabled = { false })
     }
     @After fun close() { runBlocking { scope.coroutineContext[Job]!!.cancelAndJoin() }; db.close() }
     private suspend fun line(id: Long, at: Long, text: String = "我会提交报告", status: String = "Done", digested: Long? = null, event: Long? = null) {

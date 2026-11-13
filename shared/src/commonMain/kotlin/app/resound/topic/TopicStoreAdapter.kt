@@ -2,14 +2,14 @@ package app.resound.topic
 import app.resound.digest.snapshot
 import app.resound.data.writeTransaction
 import kotlinx.coroutines.flow.map
-internal fun TopicRow.snapshot() = app.resound.topic.core.TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
-internal fun app.resound.topic.core.TopicRow.android() = TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
-internal fun TopicSpanRow.snapshot() = app.resound.topic.core.TopicSpanRow(id = id, topicId = topicId, startAt = startAt, endAt = endAt)
-internal fun app.resound.topic.core.TopicSpanRow.android() = TopicSpanRow(id = id, topicId = topicId, startAt = startAt, endAt = endAt)
-internal fun TopicMarkRow.snapshot() = app.resound.topic.core.TopicMarkRow(id = id, topicId = topicId, at = at)
-internal fun app.resound.topic.core.TopicMarkRow.android() = TopicMarkRow(id = id, topicId = topicId, at = at)
-internal fun TopicGroup.snapshot() = app.resound.topic.core.TopicGroup(row.snapshot(),spans.map { it.snapshot() },marks.map { it.snapshot() })
-internal class RoomTopicStore(private val db: app.resound.data.CaptureDatabase) : app.resound.topic.core.TopicStore {
+fun TopicRow.snapshot() = app.resound.topic.core.TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
+fun app.resound.topic.core.TopicRow.android() = TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
+fun TopicSpanRow.snapshot() = app.resound.topic.core.TopicSpanRow(id = id, topicId = topicId, startAt = startAt, endAt = endAt)
+fun app.resound.topic.core.TopicSpanRow.android() = TopicSpanRow(id = id, topicId = topicId, startAt = startAt, endAt = endAt)
+fun TopicMarkRow.snapshot() = app.resound.topic.core.TopicMarkRow(id = id, topicId = topicId, at = at)
+fun app.resound.topic.core.TopicMarkRow.android() = TopicMarkRow(id = id, topicId = topicId, at = at)
+fun TopicGroup.snapshot() = app.resound.topic.core.TopicGroup(row.snapshot(),spans.map { it.snapshot() },marks.map { it.snapshot() })
+class RoomTopicStore(private val db: app.resound.data.CaptureDatabase) : app.resound.topic.core.TopicStore {
  private val dao = db.topics()
  override fun observeCurrent() = dao.observeCurrent().map { it?.snapshot() }
  override fun observeAll() = dao.observeAll().map { rows -> rows.map { it.snapshot() } }

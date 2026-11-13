@@ -35,7 +35,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             val checkpoints = TopicCheckpointFiles(app) { id ->
                 db.topics().get(id)?.takeIf { it.row.status != "Cancelled" }?.let { topicSource(it, db.topics().lines(id)) }
             }
-            val repository = RoomTopicRepository(db, app.scope, quiet = { start, end ->
+            val repository = RoomTopicRepository(db, app.scope, AppGraph.platform.now, AppGraph.platform.zone, quiet = { start, end ->
                 val rules = app.quietSchedule.rules.value
                 QuietRules.windowAt(rules, start, ZoneId.systemDefault()) != null ||
                     QuietRules.nextChange(rules, start, ZoneId.systemDefault())?.let { it < end } == true

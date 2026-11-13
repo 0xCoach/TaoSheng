@@ -1,0 +1,27 @@
+current.empty=null
+all.empty=[]
+insert=1
+span=1
+mark=1
+current=TopicGroup(row=TopicRow(id=1, kind=Meeting, name=合成, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=null, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[TopicSpanRow(id=1, topicId=1, startAt=1794532740000, endAt=null)], marks=[TopicMarkRow(id=1, topicId=1, at=1794532800000)])
+all=[TopicGroup(row=TopicRow(id=1, kind=Meeting, name=合成, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=null, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[TopicSpanRow(id=1, topicId=1, startAt=1794532740000, endAt=null)], marks=[TopicMarkRow(id=1, topicId=1, at=1794532800000)])]
+get.updated=TopicGroup(row=TopicRow(id=1, kind=Meeting, name=改名, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=合成错误, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[TopicSpanRow(id=1, topicId=1, startAt=1794532740000, endAt=null)], marks=[TopicMarkRow(id=1, topicId=1, at=1794532800000)])
+closed.unmarked=TopicGroup(row=TopicRow(id=1, kind=Meeting, name=改名, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=合成错误, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[TopicSpanRow(id=1, topicId=1, startAt=1794532740000, endAt=1794532800001)], marks=[])
+digestedUntil=1794532751000
+segments=[1]
+ordinary=[MemoryEventData(id=30, startAt=1794532740000, endAt=1794532770000, scene=会议, title=合成专题30, summary=同输入, pointsJson=["要点"], peopleJson=[], place=null, emotion=null, intensity=null, important=false, deleted=false, createdAt=1794532800000, model=test, starred=false, starredAt=null, editedAt=null, originalTitle=null, originalSummary=null, originalPointsJson=null)]
+items=[MemoryItemData(id=5, eventId=30, category=待办, kind=null, content=合成条目, dueText=null, dueAt=null, who=我, lineId=null, status=Accepted, createdAt=1794532800000, doneAt=null, statusChangedAt=null, sortOrder=null, mergedInto=null, noMerge=false, deleted=false, editedAt=null, doneHintLineId=null, doneHintAt=null, dismissedDoneLinesJson=[], reminderVersion=0, origin=digest, sourceText=null, strongReminder=false)]
+event=MemoryEventData(id=30, startAt=1794532740000, endAt=1794532770000, scene=会议, title=合成专题30, summary=同输入, pointsJson=["要点"], peopleJson=[], place=null, emotion=null, intensity=null, important=false, deleted=false, createdAt=1794532800000, model=test, starred=false, starredAt=null, editedAt=null, originalTitle=null, originalSummary=null, originalPointsJson=null)
+attached=[MemoryItemData(id=5, eventId=31, category=待办, kind=null, content=合成条目, dueText=null, dueAt=null, who=我, lineId=null, status=Accepted, createdAt=1794532800000, doneAt=null, statusChangedAt=null, sortOrder=null, mergedInto=null, noMerge=false, deleted=false, editedAt=null, doneHintLineId=null, doneHintAt=null, dismissedDoneLinesJson=[], reminderVersion=0, origin=digest, sourceText=null, strongReminder=false)]
+released.events=[]
+released.range=[]
+lastRecording=1794532751000
+priority=0
+repair=[MemoryItemData(id=5, eventId=31, category=待办, kind=null, content=合成条目, dueText=null, dueAt=null, who=我, lineId=null, status=Accepted, createdAt=1794532800000, doneAt=null, statusChangedAt=null, sortOrder=null, mergedInto=null, noMerge=false, deleted=false, editedAt=null, doneHintLineId=null, doneHintAt=null, dismissedDoneLinesJson=[], reminderVersion=0, origin=digest, sourceText=null, strongReminder=false)]
+card.deleted=[]
+events.deleted=null
+transaction.commit=TopicGroup(row=TopicRow(id=1, kind=Meeting, name=事务提交, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=合成错误, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[TopicSpanRow(id=1, topicId=1, startAt=1794532740000, endAt=1794532800001)], marks=[])
+transaction.rollback=TopicGroup(row=TopicRow(id=1, kind=Meeting, name=事务提交, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=合成错误, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[TopicSpanRow(id=1, topicId=1, startAt=1794532740000, endAt=1794532800001)], marks=[])
+spans.deleted=TopicGroup(row=TopicRow(id=1, kind=Meeting, name=事务提交, status=Running, createdAt=1794532800000, plannedStartAt=1794532740000, plannedEndAt=1794532860000, repeatRule=5, eventId=null, cardId=null, error=合成错误, revision=3, quietOverride=true, retainedItemIds=[5], starred=true, quietNotifiedAfter=1794532799999, endingNotifiedAt=1794532799998), spans=[], marks=[])
+topic.deleted=null
+all.deleted=[]

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.topic.TopicRepository177Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:40:43.770Z" hostname="CoachdeMacBook-Air.local" time="2.452">
+  <properties/>
+  <testcase name="repositoryMethodsMissingFromTopic135MatchRecordedBytes" classname="app.resound.topic.TopicRepository177Test" time="2.392"/>
+  <testcase name="storeEveryMethodAndFlowMatchRecordedBytes" classname="app.resound.topic.TopicRepository177Test" time="0.059"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

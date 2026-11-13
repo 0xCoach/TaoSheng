@@ -1,0 +1,10 @@
+current.empty=null
+current.started=Topic(id=1, kind=Normal, name=原名, status=Running, createdAt=1794532800000, plannedStartAt=null, plannedEndAt=1794533700000, repeat=[], spans=[TopicSpan(id=1, startAt=1794532680000, endAt=null)], marks=[], eventId=null, cardId=null, error=null, revision=0, quietOverride=false)
+progress=TopicProgress(phase=, completed=0, total=0, notes={}, error=null, finished=false, draft=null)
+day=[Topic(id=1, kind=Normal, name=原名, status=Running, createdAt=1794532800000, plannedStartAt=null, plannedEndAt=1794533700000, repeat=[], spans=[TopicSpan(id=1, startAt=1794532680000, endAt=null)], marks=[], eventId=null, cardId=null, error=null, revision=0, quietOverride=false)]
+updated=Topic(id=1, kind=Meeting, name=新名, status=Running, createdAt=1794532800000, plannedStartAt=null, plannedEndAt=1794533700000, repeat=[], spans=[TopicSpan(id=1, startAt=1794532680000, endAt=null)], marks=[], eventId=null, cardId=null, error=null, revision=1, quietOverride=false)
+deleted=null
+deleted.history=[]
+preview.range=TopicReplacePreview(startAt=1794532680000, endAt=1794532710000, events=[TopicReplacedEvent(id=30, title=合成专题30, startAt=1794532680000, endAt=1794532710000, starred=false)], changedTodoCount=0, starredEventCount=0, conflict=false, error=null)
+created.events=Topic(id=2, kind=Normal, name=回收, status=Ended, createdAt=1794532801000, plannedStartAt=null, plannedEndAt=null, repeat=[], spans=[TopicSpan(id=2, startAt=1794532680000, endAt=1794532710000)], marks=[], eventId=null, cardId=null, error=null, revision=0, quietOverride=false)
+created.current=null

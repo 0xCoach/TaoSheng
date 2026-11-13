@@ -1,0 +1,17 @@
+{
+  "head": "5c6d91df9c281f826096a716b87ff64e0e594e1e",
+  "files": [
+    {
+      "path": "app/src/main/java/app/resound/topic/RoomTopicRepository.kt",
+      "sha256": "85cdf57d955b8ed3f5a0e4b7fe715e7c19006cb612c4f1db056b2aa8d2fef324"
+    },
+    {
+      "path": "app/src/main/java/app/resound/topic/TopicStoreAdapter.kt",
+      "sha256": "dee32e33a6717e2a1ff894d985ef81fa4e9f19cba2df1afebc849fea4a951b59"
+    },
+    {
+      "path": "app/src/main/java/app/resound/digest/PromptSnapshots.kt",
+      "sha256": "fd9c61bf4355bf612834eac255ab11a1fe3b630a6eb6937cdede655618d35c92"
+    }
+  ]
+}

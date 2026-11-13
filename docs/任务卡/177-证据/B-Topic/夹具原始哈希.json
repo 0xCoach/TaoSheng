@@ -1,0 +1,12 @@
+[
+  {
+    "path": "app/src/test/resources/repo177/RoomTopicRepository/outputs.txt",
+    "bytes": 1607,
+    "sha256": "4ea8d54cd425739c9bb4a7d0015079711ff0cc406ed0c280a3ac0bab05c35c9c"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomTopicStore/outputs.txt",
+    "bytes": 5574,
+    "sha256": "4cf61819603453d360297f89b3c65d08fceb937f8cdd2920dead7ceedd0ac297"
+  }
+]

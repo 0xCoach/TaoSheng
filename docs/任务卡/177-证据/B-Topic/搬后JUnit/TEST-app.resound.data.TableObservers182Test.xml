@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.data.TableObservers182Test" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:42:24.403Z" hostname="CoachdeMacBook-Air.local" time="5.744">
+  <properties/>
+  <testcase name="topicProgressStartsOnlyForPendingAndCompletionWakesImmediately" classname="app.resound.data.TableObservers182Test" time="4.036"/>
+  <testcase name="doneTopicStillWakesForLateTranscriptButNotAlreadyAssignedLines" classname="app.resound.data.TableObservers182Test" time="0.093"/>
+  <testcase name="environmentRepositoryDoesNotReadAnyHistoryWithoutConsumers" classname="app.resound.data.TableObservers182Test" time="0.195"/>
+  <testcase name="voiceInputHistoryIsColdAndKeepsNewestAppAndTodayCount" classname="app.resound.data.TableObservers182Test" time="0.202"/>
+  <testcase name="importReadinessMatchesOldFilterAndIgnoresNonImportWrites" classname="app.resound.data.TableObservers182Test" time="0.175"/>
+  <testcase name="environmentEventIncludesItsWholeSpanAndSynchronousAudioDoesNotNeedCache" classname="app.resound.data.TableObservers182Test" time="0.059"/>
+  <testcase name="checkpointRefreshReadsOnlyTheObservedTopics" classname="app.resound.data.TableObservers182Test" time="0.038"/>
+  <testcase name="rangeAndRecentDoneKeepCrossBoundarySegmentsAndOrdering" classname="app.resound.data.TableObservers182Test" time="0.033"/>
+  <testcase name="segmentCountsMatchFullTableIncludingEmptyAndAllStatuses" classname="app.resound.data.TableObservers182Test" time="0.025"/>
+  <testcase name="failureRowsPreserveNullDeadlineAndAudioErrorChanges" classname="app.resound.data.TableObservers182Test" time="0.034"/>
+  <testcase name="usageTotalsKeepTodayTotalAndEmptyDaySemantics" classname="app.resound.data.TableObservers182Test" time="0.14"/>
+  <testcase name="currentTopicQueryMatchesOldSelectionAndPendingPolicy" classname="app.resound.data.TableObservers182Test" time="0.025"/>
+  <testcase name="unrelatedSegmentEditsDoNotRecomputeQueueVoiceprintOrFailureConsumers" classname="app.resound.data.TableObservers182Test" time="0.539"/>
+  <testcase name="environmentDayAndHourlyMatchFullHistoryWithMidnightCrossing" classname="app.resound.data.TableObservers182Test" time="0.149"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -18,7 +18,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-enum class TranscribeSource(val title: String) { Doubao("豆包"), Local("本地"), Custom("自定义") }
 
 class AndroidTranscribeSettings internal constructor(private val context: Context, private val headerStore: app.resound.digest.ServiceHeaders) : TranscribeSettings {
     constructor(context: Context) : this(context, app.resound.digest.ServiceHeaders(context, transcription = true))

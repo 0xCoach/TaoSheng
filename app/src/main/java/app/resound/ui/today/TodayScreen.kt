@@ -187,7 +187,7 @@ fun TodayScreen(
     val shownCards = if (events == null) emptyList() else
         when (filter) { TimelineFilter.All -> cards; TimelineFilter.Meeting -> cards.filter { it.skillId == "meeting" }; else -> emptyList() }
     // 导入的录音在时间线上只占一张卡：这段时间整理出的事和它的纪要收进卡里（只在“全部”时合并）
-    val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date) }.collectAsStateWithLifecycle(initialValue = emptyList()).value else emptyList()
+    val records = if (app.resound.AppGraph.isImportKindsReady) remember(date) { app.resound.AppGraph.importKinds.records(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList()).value else emptyList()
     val folded = if (filter == TimelineFilter.All) records else emptyList()
     val inImport: (MemoryEvent) -> app.resound.importer.ImportRecord? = { e -> folded.firstOrNull { e.startAt >= it.startAt && e.startAt < it.endAt } }
     val dayTopics = if (app.resound.AppGraph.isTopicsReady) remember(date) { app.resound.AppGraph.topics.observeDay(date.toKotlinLocalDate()) }

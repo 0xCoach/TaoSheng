@@ -14,6 +14,7 @@ import app.resound.transcribe.TranscribeSource
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.LocalDate
+import kotlinx.datetime.toJavaLocalDate
 import java.util.concurrent.TimeUnit
 
 class AndroidImportKinds internal constructor(
@@ -56,8 +57,8 @@ class AndroidImportKinds internal constructor(
         check(prefs.edit().putString("last", kind.name).commit()); last.value = kind
         importer.startBatch(ImportKindPolicy.batch(files, merge), asr, kind)
     }
-    override fun records(date: LocalDate): Flow<List<ImportRecord>> = db.imports().day(
-        date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli(), date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+    override fun records(date: kotlinx.datetime.LocalDate): Flow<List<ImportRecord>> = db.imports().day(
+        date.toJavaLocalDate().atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli(), date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
     ).map { rows -> rows.map { it.record() } }
     override fun record(id: Long): Flow<ImportRecord?> = db.imports().observe(id).map { it?.record() }
     override fun changeKind(recordId: Long, kind: ImportKind) {

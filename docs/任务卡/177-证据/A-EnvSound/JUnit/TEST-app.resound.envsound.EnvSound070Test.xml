@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.envsound.EnvSound070Test" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:09:31.995Z" hostname="CoachdeMacBook-Air.local" time="0.39">
+  <properties/>
+  <testcase name="markOnlyStillTranscribesAndDoesNotInferAgain" classname="app.resound.envsound.EnvSound070Test" time="0.066"/>
+  <testcase name="skipRestoresAndSavedMinutesDisappear" classname="app.resound.envsound.EnvSound070Test" time="0.032"/>
+  <testcase name="pureMusicAndSpeechAndHumanProtection" classname="app.resound.envsound.EnvSound070Test" time="0.007"/>
+  <testcase name="wrongSkipBecomesKeepAndExpiredRestoreFails" classname="app.resound.envsound.EnvSound070Test" time="0.036"/>
+  <testcase name="skippedAudioHasOneDayFloorAndClearKeepsDecision" classname="app.resound.envsound.EnvSound070Test" time="0.029"/>
+  <testcase name="longAudioUsesThreeTenSecondWindows" classname="app.resound.envsound.EnvSound070Test" time="0.009"/>
+  <testcase name="meProtectsMediaAndSkipAndMediaSuppressesSpecialSounds" classname="app.resound.envsound.EnvSound070Test" time="0.009"/>
+  <testcase name="migration22PreservesSegmentAndCascadesJudgment" classname="app.resound.envsound.EnvSound070Test" time="0.062"/>
+  <testcase name="disabledUnreadyOldAndFailureAllPassThrough" classname="app.resound.envsound.EnvSound070Test" time="0.046"/>
+  <testcase name="mediaSkipAndWrongRequeuesKeepingScores" classname="app.resound.envsound.EnvSound070Test" time="0.028"/>
+  <testcase name="aggregationSplitsHoursAndMergesEvents" classname="app.resound.envsound.EnvSound070Test" time="0.034"/>
+  <testcase name="reviewAndWeeklyPresentationObeyToggleWithoutChangingStoredSummary" classname="app.resound.envsound.EnvSound070Test" time="0.029"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

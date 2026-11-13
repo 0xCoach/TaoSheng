@@ -1,5 +1,6 @@
 package app.resound.data
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import androidx.room.Room
 import androidx.sqlite.*
@@ -55,7 +56,7 @@ class TableObservers182Test {
     private fun env(s: SegmentEntity, verdict: String = "Keep") = EnvSoundRow(s.id,s.startAt,s.endAt,s.path,verdict,null,"Rain","Knock","{}",verdict=="Skipped",false)
     private fun event(start: Long, end: Long) = MemoryEventEntity(startAt=start,endAt=end,scene="其他",title="合成事件",summary="",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=0,model="test")
     private fun repository() = LocalEnvSoundRepository(db,RuntimeEnvironment.getApplication().getSharedPreferences("182",0),scope,
-        MutableStateFlow(EnvModelState.Ready),{}, { error("不运行识别") },{},now={10_000L})
+        MutableStateFlow(EnvModelState.Ready),{}, { error("不运行识别") },{},now={10_000L},zoneProvider=app.resound.platform.SystemZone)
     private inner class Probe<T>(source: Flow<T>) {
         val reads = Channel<Unit>(Channel.UNLIMITED)
         val values = Channel<T>(Channel.UNLIMITED)
@@ -112,8 +113,8 @@ class TableObservers182Test {
         val clips=listOf(segment(1,start=start-60_000,end=start+60_000),segment(2,start=start+60_000,end=start+180_000),segment(3,start=end,end=end+60_000))
         clips.forEach { db.envSound().insert(env(it,"Skipped")) }
         val all=db.envSound().observe().first();val repo=repository()
-        assertEquals(all.filter { it.startAt<end && it.endAt>start }.map { it.view() },repo.flagged(date).first())
-        assertEquals(hourlySounds(date,db.transcribe().observeSegments().first(),all,ZoneId.systemDefault()),repo.hourly(date).first())
+        assertEquals(all.filter { it.startAt<end && it.endAt>start }.map { it.view() },repo.flagged(date.toKotlinLocalDate()).first())
+        assertEquals(hourlySounds(date,db.transcribe().observeSegments().first(),all,ZoneId.systemDefault()),repo.hourly(date.toKotlinLocalDate()).first())
         val probe=Probe(db.envSound().observeBetween(start,end));probe.next();db.envSound().wrong(3);probe.unchanged()
     }
     @Test fun environmentEventIncludesItsWholeSpanAndSynchronousAudioDoesNotNeedCache() = runBlocking {
@@ -121,11 +122,11 @@ class TableObservers182Test {
         val s=segment(1,start=start-120_000,end=start-60_000);db.envSound().insert(env(s))
         val id=db.memory().insertEvent(event(start-180_000,start+60_000));val repo=repository()
         val old=mergeSounds(db.envSound().events().first(),db.envSound().observe().first())
-        assertEquals(old,repo.eventSounds(date).first());assertEquals(old[id],repo.eventSound(id))
+        assertEquals(old,repo.eventSounds(date.toKotlinLocalDate()).first());assertEquals(old[id],repo.eventSound(id))
         val f=File.createTempFile("env182", ".ogg", RuntimeEnvironment.getApplication().cacheDir)
         try {
             db.writeSql("UPDATE env_sounds SET path=? WHERE segmentId=1",arrayOf(f.path))
-            assertEquals(f,repo.audio(1));f.delete();assertNull(repo.audio(1))
+            assertEquals(app.resound.platform.FileRef(f.path),repo.audio(1));f.delete();assertNull(repo.audio(1))
         } finally { f.delete() }
     }
     @Test fun environmentRepositoryDoesNotReadAnyHistoryWithoutConsumers() = runBlocking {

@@ -9,6 +9,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.File
 import java.time.*
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinLocalDate
+import app.resound.platform.FileRef
+import app.resound.platform.ZoneProvider
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocalEnvSoundRepository(
@@ -21,6 +25,7 @@ class LocalEnvSoundRepository(
     private val schedule: () -> Unit,
     private val log: (String) -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
+    private val zoneProvider: ZoneProvider,
 ) : EnvSoundRepository {
     var beginBatch: () -> Unit = {}
     var endBatch: () -> Unit = {}
@@ -80,13 +85,14 @@ class LocalEnvSoundRepository(
         catch(_: Exception) { log("环境音 ${(now()-start).coerceAtLeast(0)}ms 判断失败，照常转写"); return false }
         catch(_: LinkageError) { log("环境音 JNI 不可用，照常转写"); return false }
     }
-    private fun bounds(date: LocalDate): Pair<Long,Long> = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() to date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-    override fun flagged(date: LocalDate): Flow<List<SegmentSound>> {
-        val (from,to) = bounds(date)
+    private fun bounds(date: kotlinx.datetime.LocalDate, zone: ZoneId): Pair<Long,Long> =
+        date.toJavaLocalDate().atStartOfDay(zone).toInstant().toEpochMilli() to date.toJavaLocalDate().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    override fun flagged(date: kotlinx.datetime.LocalDate): Flow<List<SegmentSound>> {
+        val (from,to) = bounds(date, ZoneId.of(zoneProvider.zoneId()))
         return combine(dao.observeBetween(from, to).distinctUntilChanged(), tick()) { rows, _ -> rows.filter { it.verdict != "Keep" }.map { it.view() } }.flowOn(Dispatchers.IO)
     }
-    override fun eventSounds(date: LocalDate): Flow<Map<Long, EventSounds>> {
-        val (from,to) = bounds(date)
+    override fun eventSounds(date: kotlinx.datetime.LocalDate): Flow<Map<Long, EventSounds>> {
+        val (from,to) = bounds(date, ZoneId.of(zoneProvider.zoneId()))
         return dao.eventsBetween(from, to).distinctUntilChanged().flatMapLatest { events ->
             if (events.isEmpty()) flowOf(emptyMap())
             else dao.observeBetween(events.minOf { it.startAt }, events.maxOf { it.endAt })
@@ -97,17 +103,18 @@ class LocalEnvSoundRepository(
         val merged = mergeSounds(events,rows)
         events.filter { e -> merged[e.id]?.let { (tag == null || tag in it.tags) && (sound == null || sound in it.sounds) } == true }.map { it.id }
     }
-    override fun hourly(date: LocalDate): Flow<List<HourSound>> {
-        val (from, to) = bounds(date)
+    override fun hourly(date: kotlinx.datetime.LocalDate): Flow<List<HourSound>> {
+        val zone = ZoneId.of(zoneProvider.zoneId())
+        val (from, to) = bounds(date, zone)
         return combine(db.transcribe().observeOverlapping(from, to).distinctUntilChanged(),
             dao.observeBetween(from, to).distinctUntilChanged()) { segments, rows ->
-            hourlySounds(date, segments, rows, ZoneId.systemDefault())
+            hourlySounds(date.toJavaLocalDate(), segments, rows, zone)
         }.distinctUntilChanged().flowOn(Dispatchers.IO)
     }
     override fun stats(days: Int): Flow<EnvStats> {
         val n = days.coerceAtLeast(1)
         // 保留原来五秒检查文件/时钟的可见时机，跨午夜后切换查询范围。
-        val start = tick().map { bounds(LocalDate.now().minusDays(n - 1L)).first }.distinctUntilChanged()
+        val start = tick().map { ZoneId.of(zoneProvider.zoneId()).let { zone -> bounds(LocalDate.now(zone).minusDays(n - 1L).toKotlinLocalDate(), zone).first } }.distinctUntilChanged()
         return start.flatMapLatest { from ->
             combine(dao.observeSince(from).distinctUntilChanged(), tick()) { rows, _ ->
                 val selected = rows.filter { it.startAt <= now() }
@@ -142,7 +149,7 @@ class LocalEnvSoundRepository(
             schedule()
         }
     }
-    override fun audio(segmentId: Long): File? = runBlocking(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile) } }
+    override fun audio(segmentId: Long): FileRef? = runBlocking(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile)?.let { file -> FileRef(file.path) } } }
     suspend fun diagnostics(): String {
         val recent = dao.since(now()-7*86_400_000L)
         return "设置=${settings.value}\n模型=${model.value}\n最近7天=${recent.groupingBy { it.verdict }.eachCount()}\n平均耗时=${recent.map { it.elapsedMs }.average().takeIf { it.isFinite() } ?: 0.0}ms"
@@ -150,7 +157,7 @@ class LocalEnvSoundRepository(
     private fun tick() = flow { while(currentCoroutineContext().isActive) { emit(Unit); delay(5000) } }
     companion object {
         private inline fun <reified T: Enum<T>> enumValue(value: String?, fallback: T) = enumValues<T>().firstOrNull { it.name == value } ?: fallback
-        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null): LocalEnvSoundRepository {
+        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null, zoneProvider: ZoneProvider): LocalEnvSoundRepository {
             val model = EnvSoundModel(context)
             val gaps = EnvSoundGapExtractor(context)
             val reader = AsrAudioReader(context.cacheDir)
@@ -165,7 +172,7 @@ class LocalEnvSoundRepository(
             }, me,
                 phase = { app.resound.PipelineProgress.detail(it) }, log = record, extractGaps = gaps::extract)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
-                { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record).also { repo ->
+                { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record,zoneProvider = zoneProvider).also { repo ->
                 repo.beginBatch = { model.beginBatch(); gaps.beginBatch() }
                 repo.endBatch = { try { gaps.endBatch() } finally { model.endBatch() } }
                 scope.launch { model.checkReady(); if(repo.settings.value.enabled) repo.downloadModel() }

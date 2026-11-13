@@ -1,7 +1,7 @@
 package app.resound.envsound
 
-import java.io.File
-import java.time.LocalDate
+import app.resound.platform.FileRef
+import kotlinx.datetime.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -114,5 +114,5 @@ interface EnvSoundRepository {
     fun reportWrong(segmentId: Long)
 
     /** 试听用：录音文件还在就返回，过期为 null */
-    fun audio(segmentId: Long): File?
+    fun audio(segmentId: Long): FileRef?
 }

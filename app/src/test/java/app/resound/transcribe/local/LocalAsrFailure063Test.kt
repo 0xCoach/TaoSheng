@@ -33,7 +33,7 @@ class LocalAsrFailure063Test {
         diagnosticScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         app.resound.AppGraph.envSound = app.resound.envsound.LocalEnvSoundRepository(db,
             context.getSharedPreferences("failure063-env", 0), diagnosticScope,
-            MutableStateFlow(app.resound.envsound.EnvModelState.NotDownloaded), {}, { error("禁止模型调用") }, {})
+            MutableStateFlow(app.resound.envsound.EnvModelState.NotDownloaded), {}, { error("禁止模型调用") }, {}, zoneProvider=app.resound.platform.SystemZone)
         directory = File(context.cacheDir, "failure063").apply { mkdirs() }
         context.getSharedPreferences("pipeline-times", 0).edit().clear().commit()
     }

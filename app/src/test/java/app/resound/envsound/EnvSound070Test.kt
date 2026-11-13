@@ -1,5 +1,6 @@
 package app.resound.envsound
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.data.testSql
 import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
@@ -42,7 +43,7 @@ class EnvSound070Test {
         scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
         dir=File(context.cacheDir,"env070").apply { mkdirs() }
         val prefs=context.getSharedPreferences("env070",0);prefs.edit().clear().commit()
-        repo=LocalEnvSoundRepository(db,prefs,scope,state,{}, { calls++;EnvSoundEvidence(scores, scores, 32000, 32000) to false }, { queued++ },now={clock})
+        repo=LocalEnvSoundRepository(db,prefs,scope,state,{}, { calls++;EnvSoundEvidence(scores, scores, 32000, 32000) to false }, { queued++ },now={clock},zoneProvider=app.resound.platform.SystemZone)
     }
     @After fun close() { scope.cancel();db.close();dir.deleteRecursively() }
     private suspend fun segment(id: Long, start: Long=clock, duration: Long=60000): SegmentEntity {
@@ -112,7 +113,7 @@ class EnvSound070Test {
         repo.update(enabled);state.value=EnvModelState.NotDownloaded;segment(2);runner().run();assertEquals(0,calls)
         state.value=EnvModelState.Ready;segment(3,clock-1);runner().run();assertEquals(0,calls)
         assertEquals(3,asr)
-        val failure=LocalEnvSoundRepository(db,context.getSharedPreferences("env070",0),scope,state,{}, { error("decode") },{})
+        val failure=LocalEnvSoundRepository(db,context.getSharedPreferences("env070",0),scope,state,{}, { error("decode") },{},zoneProvider=app.resound.platform.SystemZone)
         segment(4);assertFalse(failure.beforeTranscribe(db.transcribe().segment(4)))
     }
     @Test fun aggregationSplitsHoursAndMergesEvents(): Unit = runBlocking {
@@ -120,13 +121,13 @@ class EnvSound070Test {
         clock=start;repo.update(enabled);scores=score("Speech" to .9f,"Rain" to .4f,"Knock" to .4f)
         segment(1,start,120000);runner().run()
         val id=db.memory().insertEvent(MemoryEventEntity(startAt=start,endAt=start+120000,scene="其他",title="事",summary="",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=start,model="test"))
-        val merged=withTimeout(5000) { repo.eventSounds(date).first { id in it } }.getValue(id)
+        val merged=withTimeout(5000) { repo.eventSounds(date.toKotlinLocalDate()).first { id in it } }.getValue(id)
         assertEquals(setOf(EnvTag.Rain),merged.tags);assertEquals(setOf(SpecialSound.Knock),merged.sounds)
         assertEquals(listOf(id),repo.eventsWith(EnvTag.Rain,SpecialSound.Knock).first())
-        val hours=repo.hourly(date).first();assertEquals(listOf(10,11),hours.map { it.hour });assertEquals(listOf(1,1),hours.map { it.speechMinutes })
+        val hours=repo.hourly(date.toKotlinLocalDate()).first();assertEquals(listOf(10,11),hours.map { it.hour });assertEquals(listOf(1,1),hours.map { it.speechMinutes })
         db.privacy().deleteSegment(1)
-        withTimeout(5000) { repo.eventSounds(date).first { it.isEmpty() } }
-        withTimeout(5000) { repo.hourly(date).first { it.isEmpty() } }
+        withTimeout(5000) { repo.eventSounds(date.toKotlinLocalDate()).first { it.isEmpty() } }
+        withTimeout(5000) { repo.hourly(date.toKotlinLocalDate()).first { it.isEmpty() } }
     }
     @Test fun skippedAudioHasOneDayFloorAndClearKeepsDecision() = runBlocking {
         repo.update(enabled.copy(skip=SkipMode.On));segment(1);runner().run()
@@ -141,7 +142,7 @@ class EnvSound070Test {
         repo.update(enabled);scores=score("Speech" to .9f,"Rain" to .4f,"Knock" to .4f)
         segment(1);runner().run()
         val id=db.memory().insertEvent(MemoryEventEntity(startAt=clock,endAt=clock+60000,scene="其他",title="事情",summary="原摘要",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=clock,model="test"))
-        withTimeout(3000) { repo.eventSounds(date).first { id in it } }
+        withTimeout(3000) { repo.eventSounds(date.toKotlinLocalDate()).first { id in it } }
         app.resound.AppGraph.envSound=repo
         val review=app.resound.review.DailyReview(date.toKotlinLocalDate(),"摘要",listOf(app.resound.review.ReviewSection("发生了什么",listOf("事情"),listOf(id))),clock)
         assertTrue(EnvSoundPresentation.decorate(review).sections[0].lines[0].contains("期间有敲门声"))

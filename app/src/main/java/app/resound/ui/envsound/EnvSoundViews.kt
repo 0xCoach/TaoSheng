@@ -1,5 +1,6 @@
 package app.resound.ui.envsound
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -69,7 +70,7 @@ private object EnvCache {
     private val scope = MainScope()
     private val days = HashMap<LocalDate, StateFlow<Map<Long, EventSounds>>>()
     fun eventSounds(repo: EnvSoundRepository, date: LocalDate) = days.getOrPut(date) {
-        repo.eventSounds(date).stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+        repo.eventSounds(date.toKotlinLocalDate()).stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
     }
 }
 
@@ -130,7 +131,7 @@ fun EnvFlaggedRow(date: LocalDate) {
     val repo = AppGraph.envSound
     val s by repo.settings.collectAsStateWithLifecycle()
     if (!s.enabled) return
-    val list by remember(date) { repo.flagged(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val list by remember(date) { repo.flagged(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     if (list.isEmpty()) return
     val c = Rs.colors
     var open by remember { mutableStateOf(false) }
@@ -188,7 +189,7 @@ private fun FlaggedSheet(repo: EnvSoundRepository, list: List<SegmentSound>, onD
                             repo.audio(seg.segmentId)?.let { f ->
                                 runCatching {
                                     player[0] = android.media.MediaPlayer().apply {
-                                        setDataSource(f.path); setOnCompletionListener { stopPlay() }; prepare(); start()
+                                        setDataSource(f.id); setOnCompletionListener { stopPlay() }; prepare(); start()
                                     }
                                     playing = seg.segmentId
                                 }
@@ -334,7 +335,7 @@ fun rememberHourSounds(date: LocalDate): Map<Int, app.resound.envsound.HourSound
     if (!AppGraph.isEnvSoundReady) return emptyMap()
     val repo = AppGraph.envSound
     val s by repo.settings.collectAsStateWithLifecycle()
-    val list by remember(date) { repo.hourly(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val list by remember(date) { repo.hourly(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     if (!s.enabled || !s.showInSummaries) return emptyMap()
     return remember(list) { list.associateBy { it.hour } }
 }

@@ -1,0 +1,47 @@
+mode=after; segments=20000; env_sounds=30000; writes=50 insert+50 env+50 complete; wall_ms=644
+observer,calls,returned_rows,delivery_latency_ms
+asr-usage,51,51,280.97329
+digest-pending,101,101,416.861377
+env-events,0,0,0.0
+env-rows,0,0,0.0
+failure,101,0,404.92859
+health-log,0,0,0.0
+imports,101,0,527.020339
+llm-change,1,1,33.066292
+llm-usage,1,1,30.826875
+onboarding-speakers,101,0,272.296795
+people-hotwords,1,0,35.255
+people-voice,1,0,34.73775
+queue,101,101,503.780749
+samples-all,1,0,29.761625
+samples-self,1,0,37.83175
+skills,1,0,35.259334
+thing-state,1,0,36.360709
+topic-checkpoints,1,0,23.791167
+topic-current,1,0,28.891417
+topic-gate,1,0,33.762959
+topic-late,101,0,479.85008
+topic-progress,0,0,0.0
+voice-input,0,0,0.0
+voiceprint,101,101,567.23788
+SQL,calls,returned_rows,step_to_close_ms
+SELECT * FROM segments WHERE id = ?,50,50,4.952417
+SELECT * FROM segments WHERE status = 'Failed',101,0,148.36408
+SELECT * FROM skill_runs ORDER BY at, id,1,0,0.298917
+SELECT * FROM thing_watch_state WHERE slot = 1,1,0,0.757917
+SELECT * FROM topics WHERE status IN ('Running', 'Paused') ORDER BY createdAt, id LIMIT 1,1,0,0.322125
+SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN ? AND ?,50,0,1.63204
+SELECT * FROM voiceprint_people ORDER BY id,2,0,1.594875
+SELECT * FROM voiceprint_samples ORDER BY id,1,0,0.6095
+SELECT * FROM voiceprint_samples WHERE personId = 0 ORDER BY id,1,0,1.4985
+SELECT COALESCE(SUM(CASE WHEN day = ? THEN sentMillis ELSE 0 END), 0) AS todayMillis, COALESCE(SUM(sentMillis), 0) AS totalMillis FROM asr_usage,51,51,104.462959
+SELECT COALESCE(SUM(promptTokens + completionTokens), 0) FROM llm_usage_v2 WHERE day = ?,1,1,1.862542
+SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND NOT EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt, (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id))),101,101,236.47646
+SELECT COUNT(CASE WHEN status = 'Pending' THEN 1 END) AS pending, COUNT(CASE WHEN status = 'Failed' THEN 1 END) AS failed, COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments,101,101,310.923831
+SELECT COUNT(voiceprintProcessedAt) AS processed, COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done',101,101,296.151869
+SELECT EXISTS(SELECT 1 FROM llm_usage_v2),1,1,2.458208
+SELECT changes(),50,50,2.135542
+SELECT id FROM topics WHERE status IN ('Ended', 'Summarizing') ORDER BY id,1,0,2.793375
+SELECT r.id, r.revision, COALESCE((SELECT GROUP_CONCAT(status, ',') FROM (SELECT status FROM segments WHERE importRecordId = r.id ORDER BY id)), '') AS statuses FROM import_records r WHERE r.ingestComplete = 1 AND r.summaryRequested = 1 AND r.status != 'Summarizing' AND NOT EXISTS (SELECT 1 FROM segments s WHERE s.importRecordId = r.id AND (s.status IN ('Pending', 'Running') OR (s.status = 'Done' AND s.voiceprintProcessedAt IS NULL))) ORDER BY r.startAt, r.id,101,0,230.856247
+SELECT s.startAt FROM segments s WHERE s.startAt >= ? AND s.sourceId != 'voice-input' AND (SELECT COUNT(DISTINCT CASE WHEN l.speakerTag NOT LIKE 'uncertain:%' AND TRIM(l.speakerTag) != '' THEN l.speakerTag END) >= 2 OR MAX(CASE WHEN l.speakerPersonId > 0 THEN 1 ELSE 0 END) = 1 FROM transcript_lines l WHERE l.segmentId = s.id AND LENGTH(TRIM(l.text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0) ORDER BY s.startAt DESC LIMIT 1,101,0,114.974541
+SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS ( SELECT 1 FROM topic_spans ts JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND (l.eventId IS NOT t.eventId OR l.digestedAt IS NULL)) ORDER BY t.id,101,0,221.012002

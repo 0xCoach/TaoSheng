@@ -299,6 +299,11 @@ abstract class MemoryDao {
     @Query("SELECT day, SUM(promptTokens) AS promptTokens, SUM(completionTokens) AS completionTokens, SUM(calls) AS calls FROM llm_usage_v2 GROUP BY day ORDER BY day")
     abstract fun observeUsage(): Flow<List<LlmUsageEntity>>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM llm_usage_v2)")
+    abstract fun observeUsageChanges(): Flow<Boolean>
+    @Query("SELECT COALESCE(SUM(promptTokens + completionTokens), 0) FROM llm_usage_v2 WHERE day = :day")
+    abstract fun observeTokens(day: String): Flow<Long>
+
     @Query("SELECT * FROM llm_usage_v2 WHERE day >= :from AND day <= :to ORDER BY day, purpose")
     abstract fun usageByPurpose(from: String, to: String): Flow<List<LlmUsageV2Entity>>
 

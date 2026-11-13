@@ -21,6 +21,20 @@ interface EnvSoundDao {
     @Query("SELECT * FROM env_sounds ORDER BY startAt") fun observe(): Flow<List<EnvSoundRow>>
     @Transaction
     @Query("SELECT * FROM memory_events WHERE deleted = 0 ORDER BY startAt DESC") fun events(): Flow<List<MemoryEventEntity>>
+    @Query("SELECT * FROM env_sounds WHERE startAt < :end AND endAt > :start ORDER BY startAt")
+    fun observeBetween(start: Long, end: Long): Flow<List<EnvSoundRow>>
+    @Query("SELECT * FROM env_sounds WHERE startAt < :end AND endAt > :start ORDER BY startAt")
+    suspend fun presentationRows(start: Long, end: Long): List<EnvSoundRow>
+    @Query("SELECT * FROM env_sounds WHERE startAt >= :start ORDER BY startAt")
+    fun observeSince(start: Long): Flow<List<EnvSoundRow>>
+    @Query("SELECT * FROM env_sounds WHERE startAt >= :start ORDER BY startAt")
+    suspend fun since(start: Long): List<EnvSoundRow>
+    @Query("SELECT * FROM memory_events WHERE deleted = 0 AND startAt < :end AND endAt > :start ORDER BY startAt DESC")
+    fun eventsBetween(start: Long, end: Long): Flow<List<MemoryEventEntity>>
+    @Query("SELECT * FROM memory_events WHERE deleted = 0 AND startAt < :end AND endAt > :start ORDER BY startAt DESC")
+    suspend fun presentationEvents(start: Long, end: Long): List<MemoryEventEntity>
+    @Query("SELECT * FROM memory_events WHERE deleted = 0 AND id = :id")
+    suspend fun presentationEvent(id: Long): MemoryEventEntity?
     @Query("UPDATE env_sounds SET restored = 1 WHERE segmentId = :id") suspend fun restored(id: Long)
     @Query("UPDATE env_sounds SET reportedWrong = 1, reason = CASE WHEN verdict IN ('Skipped','Skippable') THEN NULL ELSE reason END, verdict = CASE WHEN verdict IN ('Skipped','Skippable') THEN 'Keep' ELSE verdict END WHERE segmentId = :id") suspend fun wrong(id: Long)
     @Query("UPDATE segments SET status = 'Pending', attempts = 0, completedAt = NULL, error = NULL, nextRetryAt = NULL, firstFailedAt = NULL WHERE id = :id AND status = 'SkippedEnv'") suspend fun requeue(id: Long): Int

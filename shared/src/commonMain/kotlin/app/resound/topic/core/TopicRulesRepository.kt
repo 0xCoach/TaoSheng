@@ -29,7 +29,7 @@ class TopicRulesRepository(
     var onChanged: suspend () -> Unit = {}
     var onEnded: suspend (Long) -> Unit = {}
     var onReminder: (Long, TopicReminder) -> Unit = { _, _ -> }
-    init { scope.launch { dao.observeAll().collect { gate.withLock { publish(dao.all()) } } } }
+    init { scope.launch { dao.observeCurrent().distinctUntilChanged().collect { row -> gate.withLock { active.value = row?.topic() } } } }
     private fun publish(rows: List<TopicGroup>) {
         active.value = rows.firstOrNull { it.row.status in setOf("Running", "Paused") }?.topic()
     }

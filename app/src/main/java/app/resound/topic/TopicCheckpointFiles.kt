@@ -42,6 +42,13 @@ internal class TopicCheckpointFiles(context: Context, private val currentSource:
         changes.value = changes.value + 1
     } }
     override suspend fun remove(id: Long) = withContext(Dispatchers.IO) { mutex.withLock { AtomicFile(file(id)).delete(); changes.value = changes.value + 1 } }
+    /** 只校验磁盘上已有的检查点；currentSource 会检查删除、取消及原话变化。 */
+    suspend fun refresh(ids: Set<Long>? = null) = withContext(Dispatchers.IO) {
+        val selected = ids ?: dir.listFiles()?.filter { it.extension == "json" }
+            ?.mapNotNull { it.nameWithoutExtension.toLongOrNull() }.orEmpty().toSet()
+        selected.forEach { read(it) }
+        changes.value = changes.value + 1
+    }
     suspend fun retain(ids: Set<Long>) = withContext(Dispatchers.IO) {
         dir.listFiles()?.filter { it.extension == "json" }?.forEach {
             it.nameWithoutExtension.toLongOrNull()?.let { id -> if (id !in ids) remove(id) else read(id) }

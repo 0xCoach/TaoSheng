@@ -140,7 +140,7 @@ class EnvSound070Test {
         repo.update(enabled);scores=score("Speech" to .9f,"Rain" to .4f,"Knock" to .4f)
         segment(1);runner().run()
         val id=db.memory().insertEvent(MemoryEventEntity(startAt=clock,endAt=clock+60000,scene="其他",title="事情",summary="原摘要",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=clock,model="test"))
-        withTimeout(3000) { repo.presentation.first { id in it };repo.eventMetadata.first { it.any { e -> e.id == id } } }
+        withTimeout(3000) { repo.eventSounds(date).first { id in it } }
         app.resound.AppGraph.envSound=repo
         val review=app.resound.review.DailyReview(date.toKotlinLocalDate(),"摘要",listOf(app.resound.review.ReviewSection("发生了什么",listOf("事情"),listOf(id))),clock)
         assertTrue(EnvSoundPresentation.decorate(review).sections[0].lines[0].contains("期间有敲门声"))

@@ -1,0 +1,342 @@
+{
+  "app": [
+    {
+      "name": "app.resound.data.Driver175FixturesTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "4.918"
+    },
+    {
+      "name": "app.resound.voiceprint.VoiceprintRepositoryTest",
+      "tests": "23",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.607"
+    },
+    {
+      "name": "app.resound.transcribe.TranscribePersistenceTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.189"
+    },
+    {
+      "name": "app.resound.importer.ImportKinds077Test",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.273"
+    },
+    {
+      "name": "app.resound.envsound.EnvMergeConsistencyTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.004"
+    },
+    {
+      "name": "app.resound.data.TableObservers182Test",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "1.364"
+    },
+    {
+      "name": "app.resound.envsound.EnvSound070Test",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.236"
+    },
+    {
+      "name": "app.resound.voiceprint.VoiceprintRematchTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "1.169"
+    },
+    {
+      "name": "app.resound.topic.Topic135Test",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.135"
+    }
+  ],
+  "shared": [
+    {
+      "name": "app.resound.home.HomeRules148Test",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.004"
+    },
+    {
+      "name": "app.resound.topic.TopicProcessingTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.01"
+    },
+    {
+      "name": "app.resound.skills.core.Parity160Test",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.034"
+    },
+    {
+      "name": "app.resound.digest.core.MergePrompt105Test",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.005"
+    },
+    {
+      "name": "app.resound.push.PushBodyLayoutSharedTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.001"
+    },
+    {
+      "name": "app.resound.rules.Rules154Test",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.022"
+    },
+    {
+      "name": "app.resound.audio.CaptureRead173Test",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.003"
+    },
+    {
+      "name": "app.resound.envsound.EnvSoundSamplesSharedTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.002"
+    },
+    {
+      "name": "app.resound.audio.StreamingVad173Test",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.062"
+    },
+    {
+      "name": "app.resound.ask.AskParity153Test",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.08"
+    },
+    {
+      "name": "app.resound.health.Health147Test",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.006"
+    },
+    {
+      "name": "app.resound.home.WidgetRules167Test",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.001"
+    },
+    {
+      "name": "app.resound.ask.AskEngine136Test",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.047"
+    },
+    {
+      "name": "app.resound.ask.AskCitationRepair097Test",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.12"
+    },
+    {
+      "name": "app.resound.scheduling.DemandWork174Test",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.001"
+    },
+    {
+      "name": "app.resound.ask.AskEngineTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.016"
+    },
+    {
+      "name": "app.resound.net.KtorMock151Test",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.087"
+    },
+    {
+      "name": "app.resound.digest.core.ReviewPromptTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.001"
+    },
+    {
+      "name": "app.resound.digest.core.DigestPromptTest",
+      "tests": "15",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.019"
+    },
+    {
+      "name": "app.resound.digest.core.PromptParity152Test",
+      "tests": "14",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.014"
+    },
+    {
+      "name": "app.resound.envsound.EnvSoundGaps075SharedTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.025"
+    },
+    {
+      "name": "app.resound.digest.DigestSplitTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.004"
+    },
+    {
+      "name": "app.resound.scheduling.DemandRefresh164Test",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.045"
+    },
+    {
+      "name": "app.resound.digest.RulesParity152Test",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.016"
+    },
+    {
+      "name": "app.resound.rules.MemoryPaths154Test",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.001"
+    },
+    {
+      "name": "app.resound.skills.core.SkillCardPushTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.003"
+    },
+    {
+      "name": "app.resound.audio.MicSensitivity089Test",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.016"
+    },
+    {
+      "name": "app.resound.topic.TopicDelete179Test",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.005"
+    },
+    {
+      "name": "app.resound.settingsearch.SettingsSearch147Test",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.007"
+    },
+    {
+      "name": "app.resound.capture.SpeechSegmenterTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.339"
+    },
+    {
+      "name": "app.resound.capture.ThreadCpuRules171Test",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.002"
+    },
+    {
+      "name": "app.resound.skills.core.SkillDrafterTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.002"
+    },
+    {
+      "name": "app.resound.rules.ThingWatcher154Test",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.006"
+    }
+  ]
+}

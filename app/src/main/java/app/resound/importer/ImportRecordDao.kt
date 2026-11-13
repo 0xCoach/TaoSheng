@@ -25,6 +25,8 @@ data class ImportRecordWithSegments(@Embedded val row: ImportRecordRow,
         segments.sortedWith(compareBy({ it.startAt }, { it.importChannel }, { it.id })).map { it.id }, row.byChannel)
 }
 
+data class ImportSummaryReady(val id: Long, val revision: Long, val statuses: String)
+
 @Dao
 abstract class ImportRecordDao {
     @Query("UPDATE memory_items SET eventId = (SELECT eventId FROM transcript_lines WHERE id = memory_items.lineId) WHERE eventId IS NULL AND lineId IN (SELECT l.id FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.importRecordId = :id)")
@@ -36,6 +38,14 @@ abstract class ImportRecordDao {
     @Update abstract suspend fun update(row: ImportRecordRow)
     @Query("SELECT * FROM import_records WHERE id = :id") abstract suspend fun get(id: Long): ImportRecordRow?
     @Query("SELECT * FROM import_records WHERE pendingId = :id") abstract suspend fun byPending(id: String): ImportRecordRow?
+    @Query("""SELECT r.id, r.revision,
+        COALESCE((SELECT GROUP_CONCAT(status, ',') FROM
+            (SELECT status FROM segments WHERE importRecordId = r.id ORDER BY id)), '') AS statuses FROM import_records r
+        WHERE r.ingestComplete = 1 AND r.summaryRequested = 1 AND r.status != 'Summarizing'
+        AND NOT EXISTS (SELECT 1 FROM segments s WHERE s.importRecordId = r.id
+            AND (s.status IN ('Pending', 'Running') OR (s.status = 'Done' AND s.voiceprintProcessedAt IS NULL)))
+        ORDER BY r.startAt, r.id""")
+    abstract fun observeSummaryReady(): Flow<List<ImportSummaryReady>>
     @Transaction @Query("SELECT * FROM import_records ORDER BY startAt, id")
     abstract fun observe(): Flow<List<ImportRecordWithSegments>>
     @Transaction @Query("SELECT * FROM import_records WHERE id = :id")

@@ -38,8 +38,25 @@ internal const val OUTSIDE_TOPICS = """NOT EXISTS (SELECT 1 FROM topic_spans ts 
     WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt,
         (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id)))"""
 
+internal data class TopicSegmentProgress(val id: Long, val status: String, val voiceprintProcessedAt: Long?)
+
 @Dao
 internal interface TopicDao {
+    @Transaction @Query("SELECT * FROM topics WHERE status IN ('Running', 'Paused') ORDER BY createdAt, id LIMIT 1")
+    fun observeCurrent(): Flow<TopicGroup?>
+    @Query("SELECT id FROM topics WHERE status IN ('Ended', 'Summarizing') ORDER BY id")
+    fun observePendingIds(): Flow<List<Long>>
+    // 先取相关时段，再走已有时间索引，避免 ORDER BY id 诱导扫描全部 segments。
+    @Query("""SELECT DISTINCT s.id, s.status, s.voiceprintProcessedAt FROM topic_spans ts
+        CROSS JOIN segments s INDEXED BY index_segments_startAt
+        WHERE ts.topicId IN (:ids) AND s.startAt < ts.endAt AND s.endAt > ts.startAt ORDER BY s.id""")
+    fun observeProgress(ids: List<Long>): Flow<List<TopicSegmentProgress>>
+    /** 与 TopicEngine 的 Done 补整理判断一致；保留补落盘、恢复转写和新原话的唤醒。 */
+    @Query("""SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS (
+        SELECT 1 FROM topic_spans ts JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt
+        JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done'
+        AND l.voiceInputPendingUntil IS NULL AND (l.eventId IS NOT t.eventId OR l.digestedAt IS NULL)) ORDER BY t.id""")
+    fun observeLateTranscriptIds(): Flow<List<Long>>
     @Transaction @Query("SELECT * FROM topics ORDER BY createdAt, id") fun observeAll(): Flow<List<TopicGroup>>
     @Transaction @Query("SELECT * FROM topics ORDER BY createdAt, id") suspend fun all(): List<TopicGroup>
     @Transaction @Query("SELECT * FROM topics WHERE id = :id") suspend fun get(id: Long): TopicGroup?

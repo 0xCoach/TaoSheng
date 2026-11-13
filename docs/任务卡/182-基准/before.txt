@@ -1,0 +1,43 @@
+mode=before; segments=20000; env_sounds=30000; writes=50 insert+50 env+50 complete; wall_ms=17004
+observer,calls,returned_rows,delivery_latency_ms
+asr-usage,51,5100,4913.742167
+digest-pending,101,101,8314.423708
+env-events,1,0,258.781708
+env-rows,51,1531275,2715.54492
+failure,101,2022550,8232.080713
+health-log,1,0,313.467542
+imports,101,0,10629.725538
+llm-usage,1,0,311.630458
+onboarding-speakers,101,0,9993.86217
+people-hotwords,1,0,264.062125
+people-voice,1,0,258.249875
+queue,101,2022550,8294.06238
+samples-all,1,0,264.382125
+samples-self,1,0,264.059333
+skills,1,0,313.547917
+thing-state,1,0,311.661958
+topic-checkpoints,1,0,312.337625
+topic-current,1,0,312.7045
+topic-progress,101,2022550,9837.167457
+voice-input,51,0,5777.045209
+voiceprint,101,2022550,10638.774173
+SQL,calls,returned_rows,step_to_close_ms
+SELECT * FROM asr_usage,51,5100,1835.390038
+SELECT * FROM env_sounds ORDER BY startAt,51,1531275,2507.179712
+SELECT * FROM import_records ORDER BY startAt, id,101,0,13.772958
+SELECT * FROM memory_events WHERE deleted = 0 ORDER BY startAt DESC,1,0,0.362334
+SELECT * FROM segments,404,8090200,13829.271096
+SELECT * FROM segments WHERE id = ?,50,50,4.449084
+SELECT * FROM skill_runs ORDER BY at, id,1,0,0.109792
+SELECT * FROM thing_watch_state WHERE slot = 1,1,0,44.746
+SELECT * FROM topics ORDER BY createdAt, id,2,0,0.353792
+SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN ? AND ?,50,0,1.602412
+SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC,51,0,2.771751
+SELECT * FROM voiceprint_people ORDER BY id,2,0,96.8975
+SELECT * FROM voiceprint_samples ORDER BY id,1,0,3.724833
+SELECT * FROM voiceprint_samples WHERE personId = 0 ORDER BY id,1,0,2.445333
+SELECT * FROM watchdog WHERE (at >= ? AND at < ?) OR (gapStart < ? AND gapEnd > ?) ORDER BY at,1,0,0.169958
+SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND NOT EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt, (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id))),101,101,5749.172081
+SELECT changes(),50,50,1.631542
+SELECT day, SUM(promptTokens) AS promptTokens, SUM(completionTokens) AS completionTokens, SUM(calls) AS calls FROM llm_usage_v2 GROUP BY day ORDER BY day,1,0,47.27525
+SELECT s.startAt FROM segments s WHERE s.startAt >= ? AND s.sourceId != 'voice-input' AND (SELECT COUNT(DISTINCT CASE WHEN l.speakerTag NOT LIKE 'uncertain:%' AND TRIM(l.speakerTag) != '' THEN l.speakerTag END) >= 2 OR MAX(CASE WHEN l.speakerPersonId > 0 THEN 1 ELSE 0 END) = 1 FROM transcript_lines l WHERE l.segmentId = s.id AND LENGTH(TRIM(l.text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0) ORDER BY s.startAt DESC LIMIT 1,101,0,7064.046662

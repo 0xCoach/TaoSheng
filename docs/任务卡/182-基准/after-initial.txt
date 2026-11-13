@@ -1,0 +1,31 @@
+mode=after; segments=20000; env_sounds=30000; writes=50 insert+50 env+50 complete; wall_ms=481
+observer,calls,returned_rows,delivery_latency_ms
+asr-usage,51,51,211.020209
+env-events,0,0,0.0
+env-rows,0,0,0.0
+failure,101,0,299.723332
+imports,101,0,349.499493
+llm-usage,1,1,23.43025
+queue,101,101,407.381246
+skills,1,0,21.420792
+topic-checkpoints,1,0,17.291208
+topic-current,1,0,25.156208
+topic-gate,1,0,25.412833
+topic-late,101,0,325.257743
+topic-progress,0,0,0.0
+voice-input,0,0,0.0
+voiceprint,101,101,367.531621
+SQL,calls,returned_rows,step_to_close_ms
+SELECT * FROM segments WHERE id = ?,50,50,4.819835
+SELECT * FROM segments WHERE status = 'Failed',101,0,110.186459
+SELECT * FROM skill_runs ORDER BY at, id,1,0,0.076458
+SELECT * FROM topics WHERE status IN ('Running', 'Paused') ORDER BY createdAt, id LIMIT 1,1,0,0.360833
+SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN ? AND ?,50,0,1.835877
+SELECT COALESCE(SUM(CASE WHEN day = ? THEN sentMillis ELSE 0 END), 0) AS todayMillis, COALESCE(SUM(sentMillis), 0) AS totalMillis FROM asr_usage,51,51,94.424711
+SELECT COALESCE(SUM(promptTokens + completionTokens), 0) FROM llm_usage_v2 WHERE day = ?,1,1,1.719875
+SELECT COUNT(CASE WHEN status = 'Pending' THEN 1 END) AS pending, COUNT(CASE WHEN status = 'Failed' THEN 1 END) AS failed, COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments,101,101,267.212079
+SELECT COUNT(voiceprintProcessedAt) AS processed, COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done',101,101,228.105831
+SELECT changes(),50,50,2.199417
+SELECT id FROM topics WHERE status IN ('Ended', 'Summarizing') ORDER BY id,1,0,3.298667
+SELECT r.id, r.revision, COALESCE((SELECT GROUP_CONCAT(status, ',') FROM (SELECT status FROM segments WHERE importRecordId = r.id ORDER BY id)), '') AS statuses FROM import_records r WHERE r.ingestComplete = 1 AND r.summaryRequested = 1 AND r.status != 'Summarizing' AND NOT EXISTS (SELECT 1 FROM segments s WHERE s.importRecordId = r.id AND (s.status IN ('Pending', 'Running') OR (s.status = 'Done' AND s.voiceprintProcessedAt IS NULL))) ORDER BY r.startAt, r.id,101,0,185.070378
+SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS ( SELECT 1 FROM topic_spans ts JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND (l.eventId IS NOT t.eventId OR l.digestedAt IS NULL)) ORDER BY t.id,101,0,171.939624

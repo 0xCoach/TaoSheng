@@ -11,6 +11,7 @@ internal fun app.resound.topic.core.TopicMarkRow.android() = TopicMarkRow(id = i
 internal fun TopicGroup.snapshot() = app.resound.topic.core.TopicGroup(row.snapshot(),spans.map { it.snapshot() },marks.map { it.snapshot() })
 internal class RoomTopicStore(private val db: app.resound.data.CaptureDatabase) : app.resound.topic.core.TopicStore {
  private val dao = db.topics()
+ override fun observeCurrent() = dao.observeCurrent().map { it?.snapshot() }
  override fun observeAll() = dao.observeAll().map { rows -> rows.map { it.snapshot() } }
  override suspend fun all() = dao.all().map { it.snapshot() }
  override suspend fun get(id: Long) = dao.get(id)?.snapshot()

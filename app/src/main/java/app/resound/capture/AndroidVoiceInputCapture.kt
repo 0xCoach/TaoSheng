@@ -37,14 +37,14 @@ class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) { service.value = enabled() }
     }
-    private val rows = db.voiceInput().observed().shareIn(scope, SharingStarted.Eagerly, 1)
+    private val rows = db.voiceInput().observed().shareIn(scope, SharingStarted.WhileSubscribed(0, replayExpirationMillis = 0), 1)
     private val clock = flow { while (true) { emit(today()); delay(60000) } }
     override val todayCount = combine(rows, clock) { lines, today ->
         lines.count { Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate() == today }
     }.stateIn(scope, SharingStarted.WhileSubscribed(0), 0)
     override val seenApps = rows.map { lines -> lines.mapNotNull { VoiceInputMetadata.read(it.voiceInputJson) }
         .distinctBy { it.packageName }.map { InputApp(it.packageName, it.app) }
-    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
+    }.stateIn(scope, SharingStarted.WhileSubscribed(0, replayExpirationMillis = 0), emptyList())
     private val changes = Channel<InputChange>(Channel.UNLIMITED)
     internal fun accept(change: InputChange) { changes.trySend(change) }
     init {

@@ -31,11 +31,7 @@ class AndroidImportKinds internal constructor(
         scope.launch(Dispatchers.IO) {
             // 查询关系表会同时观察转写/认人状态；进程重启也恢复 Summarizing。
             enqueue(context)
-            db.imports().observe().map { rows -> rows.filter { group ->
-                val row = group.row
-                row.ingestComplete && row.summaryRequested && row.status != "Summarizing" &&
-                    group.segments.none { it.status in setOf("Pending", "Running") || (it.status == "Done" && it.voiceprintProcessedAt == null) }
-            }.map { group -> Triple(group.row.id, group.row.revision, group.segments.map { it.status }) } }
+            db.imports().observeSummaryReady()
                 .distinctUntilChanged().collect { if (it.isNotEmpty()) enqueue(context) }
         }
     }

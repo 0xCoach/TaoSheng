@@ -39,10 +39,9 @@ class LocalVoiceprintRepository(
             ?.let { File("$it.voiceprint-features") })
     }
     private val error = MutableStateFlow<String?>(null)
-    override val state: StateFlow<VoiceprintState> = combine(dao.observeSamples(), db.transcribe().observeSegments(), error) { samples, segments, lastError ->
+    override val state: StateFlow<VoiceprintState> = combine(dao.observeSamples(), db.transcribe().observeVoiceprintCounts().distinctUntilChanged(), error) { samples, counts, lastError ->
         VoiceprintState(samples.size, (samples.sumOf { it.durationMillis } / 1000).toInt(), ready(samples),
-            segments.count { it.status == "Done" && it.voiceprintProcessedAt != null },
-            segments.count { it.status == "Done" && it.voiceprintProcessedAt == null }, lastError)
+            counts.processed, counts.pending, lastError)
     }.stateIn(scope, SharingStarted.Eagerly, VoiceprintState(0, 0, false, 0, 0, null))
 
     override val people = combine(dao.observePeople(), dao.observeAllSamples()) { people, samples ->
@@ -349,9 +348,7 @@ class LocalVoiceprintRepository(
         require(days in 1..30)
         rounds.withLock {
             val since = now() - days * 86_400_000L
-            val retained = db.transcribe().observeSegments().first().filter {
-                it.status == "Done" && it.startAt >= since && File(it.path).isFile
-            }
+            val retained = db.transcribe().recentDone(since).filter { File(it.path).isFile }
             process(retained)
         }
     }

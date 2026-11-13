@@ -11,6 +11,7 @@ import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
     private val settings: TranscribeSettings, private val scheduler: TranscribeScheduler, private val scope: CoroutineScope) : TranscriptRepository {
     private val prefs = context.getSharedPreferences("transcribe-queue", Context.MODE_PRIVATE)
@@ -26,7 +27,7 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
     private val calendar = calendarChanges(context).shareIn(scope, SharingStarted.Eagerly, replay = 1)
     init {
         scope.launch {
-            combine(dao.observeSegments().map { rows -> rows.filter { it.status == "Failed" } }.distinctUntilChanged(), calendar) { rows, _ -> rows }
+            combine(dao.observeFailedSegments().distinctUntilChanged(), calendar) { rows, _ -> rows }
                 .collectLatest { rows ->
                     if (rows.isEmpty()) return@collectLatest
                     val deadline = BackgroundRefreshPolicy.failureDeadline(rows.map { it.firstFailedAt })
@@ -34,15 +35,15 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
                 }
         }
     }
+    private val usage = calendar.map { LocalDate.now().toString() }.distinctUntilChanged()
+        .flatMapLatest { dao.observeUsageTotals(it).distinctUntilChanged() }
     private val initial = TranscribeQueueState(0, 0, false, last.value.first, null, if (settings.ready.value) last.value.second else "转写未就绪，请检查密钥或下载本地模型", 0, 0)
-    override val queue: StateFlow<TranscribeQueueState> = combine(dao.observeSegments(), dao.observeUsage(), effectiveLast, scheduler.observe(), calendar) { segments, usage, state, work, _ ->
+    override val queue: StateFlow<TranscribeQueueState> = combine(dao.observeQueueCounts().distinctUntilChanged(), usage, effectiveLast, scheduler.observe(), calendar) { counts, usage, state, work, _ ->
         val next = work.filter { it.state == WorkInfo.State.ENQUEUED }.map { it.nextScheduleTimeMillis }
             .filter { it > 0 && it != Long.MAX_VALUE }.minOrNull()
             ?: state.first?.plus(settings.intervalMinutes.value * 60_000L)
-        TranscribeQueueState(segments.count { it.status == "Pending" }, segments.count { it.status == "Failed" },
-            segments.any { it.status == "Running" }, state.first, next, state.second,
-            usage.firstOrNull { it.day == LocalDate.now().toString() }?.sentMillis?.div(1000) ?: 0,
-            usage.sumOf { it.sentMillis } / 1000)
+        TranscribeQueueState(counts.pending, counts.failed, counts.running, state.first, next, state.second,
+            usage.todayMillis / 1000, usage.totalMillis / 1000)
     }.combine(progress) { state, (total, done) ->
         state.copy(runTotal = total, runDone = done)
     }.stateIn(scope, SharingStarted.Eagerly, initial)

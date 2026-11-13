@@ -1,0 +1,28 @@
+mode=before; segments=20000; env_sounds=30000; writes=50 insert+50 env+50 complete; wall_ms=18574
+observer,calls,returned_rows,delivery_latency_ms
+asr-usage,51,5100,4264.502004
+env-events,1,0,394.522042
+env-rows,51,1531275,3016.972168
+failure,101,2022550,9529.847212
+imports,101,0,8547.55813
+llm-usage,1,0,445.140125
+queue,101,2022550,12686.907208
+skills,1,0,397.169625
+topic-checkpoints,1,0,339.471708
+topic-current,1,0,339.890583
+topic-progress,101,2022550,10639.950625
+voice-input,51,0,4678.113796
+voiceprint,101,2022550,8253.292751
+SQL,calls,returned_rows,step_to_close_ms
+SELECT * FROM asr_usage,51,5100,1694.778458
+SELECT * FROM env_sounds ORDER BY startAt,51,1531275,2875.653961
+SELECT * FROM import_records ORDER BY startAt, id,101,0,18.028457
+SELECT * FROM memory_events WHERE deleted = 0 ORDER BY startAt DESC,1,0,0.277167
+SELECT * FROM segments,404,8090200,15332.823834
+SELECT * FROM segments WHERE id = ?,50,50,5.341787
+SELECT * FROM skill_runs ORDER BY at, id,1,0,1.597375
+SELECT * FROM topics ORDER BY createdAt, id,2,0,0.422166
+SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN ? AND ?,50,0,1.609626
+SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC,51,0,4.869957
+SELECT changes(),50,50,1.95837
+SELECT day, SUM(promptTokens) AS promptTokens, SUM(completionTokens) AS completionTokens, SUM(calls) AS calls FROM llm_usage_v2 GROUP BY day ORDER BY day,1,0,50.642083

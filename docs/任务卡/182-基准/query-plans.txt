@@ -1,0 +1,98 @@
+SQLite 3.53.4; committed schema 33; synthetic in-memory database; not Android/device EXPLAIN
+
+data/TranscribeDao.kt#observeQueueCounts
+SELECT COUNT(CASE WHEN status = 'Pending' THEN 1 END) AS pending, COUNT(CASE WHEN status = 'Failed' THEN 1 END) AS failed, COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments
+  SCAN segments
+
+data/TranscribeDao.kt#observeVoiceprintCounts
+SELECT COUNT(voiceprintProcessedAt) AS processed, COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done'
+  SCAN segments
+
+data/TranscribeDao.kt#observeFailedSegments
+SELECT * FROM segments WHERE status = 'Failed'
+  SCAN segments
+
+data/TranscribeDao.kt#recentDone
+SELECT * FROM segments WHERE status = 'Done' AND startAt >= :since
+  SEARCH segments USING INDEX index_segments_startAt (startAt>?)
+
+data/TranscribeDao.kt#observeOverlapping
+SELECT * FROM segments WHERE startAt < :end AND endAt > :start ORDER BY startAt, id
+  SEARCH segments USING INDEX index_segments_startAt (startAt<?)
+
+data/TranscribeDao.kt#observeUsageTotals
+SELECT COALESCE(SUM(CASE WHEN day = :today THEN sentMillis ELSE 0 END), 0) AS todayMillis, COALESCE(SUM(sentMillis), 0) AS totalMillis FROM asr_usage
+  SCAN asr_usage
+
+data/MemoryDao.kt#observeUsageChanges
+SELECT EXISTS(SELECT 1 FROM llm_usage_v2)
+  SCAN CONSTANT ROW
+  SCALAR SUBQUERY 1
+  SCAN llm_usage_v2 USING COVERING INDEX sqlite_autoindex_llm_usage_v2_1
+
+data/MemoryDao.kt#observeTokens
+SELECT COALESCE(SUM(promptTokens + completionTokens), 0) FROM llm_usage_v2 WHERE day = :day
+  SEARCH llm_usage_v2 USING INDEX sqlite_autoindex_llm_usage_v2_1 (day=?)
+
+topic/TopicData.kt#observeCurrent
+SELECT * FROM topics WHERE status IN ('Running', 'Paused') ORDER BY createdAt, id LIMIT 1
+  SEARCH topics USING INDEX index_topics_status (status=?)
+  USE TEMP B-TREE FOR ORDER BY
+
+topic/TopicData.kt#observePendingIds
+SELECT id FROM topics WHERE status IN ('Ended', 'Summarizing') ORDER BY id
+  SEARCH topics USING COVERING INDEX index_topics_status (status=?)
+  USE TEMP B-TREE FOR ORDER BY
+
+topic/TopicData.kt#observeProgress
+SELECT DISTINCT s.id, s.status, s.voiceprintProcessedAt FROM topic_spans ts CROSS JOIN segments s INDEXED BY index_segments_startAt WHERE ts.topicId IN (:ids) AND s.startAt < ts.endAt AND s.endAt > ts.startAt ORDER BY s.id
+  SEARCH ts USING INDEX index_topic_spans_topicId (topicId=?)
+  SEARCH s USING INDEX index_segments_startAt (startAt<?)
+  USE TEMP B-TREE FOR DISTINCT
+  USE TEMP B-TREE FOR ORDER BY
+
+topic/TopicData.kt#observeLateTranscriptIds
+SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS ( SELECT 1 FROM topic_spans ts JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND (l.eventId IS NOT t.eventId OR l.digestedAt IS NULL)) ORDER BY t.id
+  SEARCH t USING INDEX index_topics_status (status=?)
+  CORRELATED SCALAR SUBQUERY 1
+  SEARCH ts USING INDEX index_topic_spans_topicId (topicId=?)
+  SEARCH s USING AUTOMATIC PARTIAL COVERING INDEX (status=?)
+  SEARCH l USING INDEX index_transcript_lines_segmentId (segmentId=?)
+
+importer/ImportRecordDao.kt#observeSummaryReady
+SELECT r.id, r.revision, COALESCE((SELECT GROUP_CONCAT(status, ',') FROM (SELECT status FROM segments WHERE importRecordId = r.id ORDER BY id)), '') AS statuses FROM import_records r WHERE r.ingestComplete = 1 AND r.summaryRequested = 1 AND r.status != 'Summarizing' AND NOT EXISTS (SELECT 1 FROM segments s WHERE s.importRecordId = r.id AND (s.status IN ('Pending', 'Running') OR (s.status = 'Done' AND s.voiceprintProcessedAt IS NULL))) ORDER BY r.startAt, r.id
+  SCAN r USING INDEX index_import_records_startAt
+  CORRELATED SCALAR SUBQUERY 3
+  SEARCH s USING INDEX index_segments_importRecordId (importRecordId=?)
+  CORRELATED SCALAR SUBQUERY 2
+  CO-ROUTINE (subquery-1)
+  SEARCH segments USING INDEX index_segments_importRecordId (importRecordId=?)
+  SCAN (subquery-1)
+
+envsound/EnvSoundDao.kt#observeBetween
+SELECT * FROM env_sounds WHERE startAt < :end AND endAt > :start ORDER BY startAt
+  SEARCH env_sounds USING INDEX index_env_sounds_startAt (startAt<?)
+
+envsound/EnvSoundDao.kt#presentationRows
+SELECT * FROM env_sounds WHERE startAt < :end AND endAt > :start ORDER BY startAt
+  SEARCH env_sounds USING INDEX index_env_sounds_startAt (startAt<?)
+
+envsound/EnvSoundDao.kt#observeSince
+SELECT * FROM env_sounds WHERE startAt >= :start ORDER BY startAt
+  SEARCH env_sounds USING INDEX index_env_sounds_startAt (startAt>?)
+
+envsound/EnvSoundDao.kt#since
+SELECT * FROM env_sounds WHERE startAt >= :start ORDER BY startAt
+  SEARCH env_sounds USING INDEX index_env_sounds_startAt (startAt>?)
+
+envsound/EnvSoundDao.kt#eventsBetween
+SELECT * FROM memory_events WHERE deleted = 0 AND startAt < :end AND endAt > :start ORDER BY startAt DESC
+  SEARCH memory_events USING INDEX index_memory_events_startAt (startAt<?)
+
+envsound/EnvSoundDao.kt#presentationEvents
+SELECT * FROM memory_events WHERE deleted = 0 AND startAt < :end AND endAt > :start ORDER BY startAt DESC
+  SEARCH memory_events USING INDEX index_memory_events_startAt (startAt<?)
+
+envsound/EnvSoundDao.kt#presentationEvent
+SELECT * FROM memory_events WHERE deleted = 0 AND id = :id
+  SEARCH memory_events USING INTEGER PRIMARY KEY (rowid=?)

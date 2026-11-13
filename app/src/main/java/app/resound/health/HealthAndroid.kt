@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -91,11 +92,14 @@ class AndroidHealthCheck(
         watch(transcribe.ready); watch(transcripts.queue.map { it.failed }.distinctUntilChanged())
         watch(digest.hasKey); watch(providers.saved); watch(providers.activeId)
         watch(balance.state); watch(balance.threshold); watch(backup.state); watch(backup.local)
-        // 使用已有只读查询，不加表、不改数据库版本；保留完整历史用于找最近一次异常。
+        // 只有设置页展示报告时才读取日志；历史用于异常去重，不能随意截断。
         owner.launch {
-            dao.events(0, Long.MAX_VALUE).collect { rows ->
-                events = rows.map { HealthWatchdogEvent(it.at, it.type, it.detail) }
-                refresh()
+            current.subscriptionCount.map { it > 0 }.distinctUntilChanged().collectLatest { visible ->
+                if (visible) dao.events(0, Long.MAX_VALUE).distinctUntilChanged().collect { rows ->
+                    events = rows.map { HealthWatchdogEvent(it.at, it.type, it.detail) }
+                    refresh()
+                }
+                else events = null
             }
         }
         owner.launch { current.subscriptionCount.map { it > 0 }.refreshWhileNeeded(60_000) { refresh() } }

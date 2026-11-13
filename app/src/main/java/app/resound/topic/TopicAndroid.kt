@@ -68,7 +68,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             repository.onEnded = { app.runTranscriptionNow(); TopicWork.enqueue(app) }
             repository.onReminder = { id, type -> TopicNotifications.show(app, id, type) }
             app.scope.launch {
-                db.topics().observeAll().collect { rows -> checkpoints.retain(rows.filter { it.row.status != "Cancelled" }.map { it.row.id }.toSet()) }
+                db.invalidationTracker.createFlow("topics", "topic_spans", "topic_marks").collect { checkpoints.refresh() }
             }
             app.scope.launch {
                 repository.tick()
@@ -80,11 +80,17 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                     }
             }
             app.scope.launch {
-                db.transcribe().observeSegments().map { rows -> rows.map { Triple(it.id, it.status, it.voiceprintProcessedAt) } }
-                    .distinctUntilChanged().collect {
-                        checkpoints.retain(db.topics().all().filter { it.row.status != "Cancelled" }.map { it.row.id }.toSet())
-                        if (db.topics().all().any { it.row.status in setOf("Ended", "Summarizing", "Done") }) TopicWork.enqueue(app)
-                    }
+                db.topics().observePendingIds().whileTopicsPending { ids ->
+                    db.topics().observeProgress(ids).map { ids to it }
+                }.collect { (ids, _) ->
+                    checkpoints.refresh(ids.toSet())
+                    TopicWork.enqueue(app)
+                }
+            }
+            app.scope.launch {
+                db.topics().observeLateTranscriptIds().distinctUntilChanged().collect { ids ->
+                    if (ids.isNotEmpty()) { checkpoints.refresh(ids.toSet()); TopicWork.enqueue(app) }
+                }
             }
             return TopicFeature(repository, engine)
         }

@@ -1,9 +1,12 @@
 package app.resound.topic.core
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import app.resound.digest.core.*
 /** 事务包括读取、冲突复核、修改和恢复凭据；调用者不依赖平台。 */
 interface TopicStore {
 fun observeAll(): Flow<List<TopicGroup>>
+/** 旧内存实现保留默认行为；Room 用带状态条件的查询覆盖。 */
+fun observeCurrent(): Flow<TopicGroup?> = observeAll().map { rows -> rows.firstOrNull { it.row.status in setOf("Running", "Paused") } }
 suspend fun all(): List<TopicGroup>
 suspend fun get(id: Long): TopicGroup?
 suspend fun insert(row: TopicRow): Long

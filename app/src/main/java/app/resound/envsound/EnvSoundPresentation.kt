@@ -11,7 +11,7 @@ import java.time.DayOfWeek
 object EnvSoundPresentation {
     internal fun changes(): Flow<Unit> {
         val repo = if(AppGraph.isEnvSoundReady) AppGraph.envSound as? LocalEnvSoundRepository else null
-        return if(repo == null) flowOf(Unit) else combine(repo.settings, repo.presentation, repo.eventMetadata) { _, _, _ -> Unit }
+        return if(repo == null) flowOf(Unit) else combine(repo.settings, repo.presentationChanges()) { _, _ -> Unit }
     }
     private val weeklyEnvironmentKeys = setOf("env_sound_overview", "env_sound_observations", "env_sound_impression")
     private fun withoutWeeklyEnvironment(card: SkillCard) = card.copy(
@@ -25,10 +25,10 @@ object EnvSoundPresentation {
         if(!repo.settings.value.showInSummaries) return card
         val start = if(card.skillId == "weekly") card.date.toJavaLocalDate().with(DayOfWeek.MONDAY).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.at
         val end = if(card.skillId == "weekly") card.date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.endAt ?: return card
-        val events = repo.eventMetadata.value.filter { it.startAt < end && it.endAt > start && it.createdAt <= card.generatedAt }
-            .sortedBy { it.startAt }
-        if (card.skillId == "weekly") return weekly(card, events.mapNotNull { repo.presentation.value[it.id] })
-        val notes = events.mapNotNull { e -> line(e.id).takeIf { it.isNotBlank() }?.let { "${e.title}：$it" } }
+        val (metadata, sounds) = repo.presentationSnapshot(start, end)
+        val events = metadata.filter { it.createdAt <= card.generatedAt }.sortedBy { it.startAt }
+        if (card.skillId == "weekly") return weekly(card, events.mapNotNull { sounds[it.id] })
+        val notes = events.mapNotNull { e -> sounds[e.id]?.let(::line)?.takeIf { it.isNotBlank() }?.let { "${e.title}：$it" } }
         if(notes.isEmpty()) return card
         val key = "env_sound_observations"
         val detail = SkillField(key,"各件事的环境",FieldType.Bullets,"")
@@ -50,10 +50,10 @@ object EnvSoundPresentation {
         if(eventId == null || !AppGraph.isEnvSoundReady) return ""
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return ""
         if(!repo.settings.value.showInSummaries) return ""
-        val value = repo.presentation.value[eventId] ?: return ""
-        return listOfNotNull(value.tags.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="环境：") { it.title },
-            value.sounds.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="期间有") { if(it == SpecialSound.Knock) "敲门声" else it.title }).joinToString("；")
+        return repo.eventSound(eventId)?.let(::line).orEmpty()
     }
+    private fun line(value: EventSounds): String = listOfNotNull(value.tags.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="环境：") { it.title },
+            value.sounds.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="期间有") { if(it == SpecialSound.Knock) "敲门声" else it.title }).joinToString("；")
     fun decorate(review: DailyReview): DailyReview = review.copy(sections = review.sections.map { section ->
         section.copy(lines = section.lines.mapIndexed { i, text -> append(text, section.eventIds.getOrNull(i)) })
     })

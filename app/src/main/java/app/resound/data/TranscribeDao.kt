@@ -25,6 +25,10 @@ data class AsrAttemptEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, v
 data class SegmentWithLines(@Embedded val segment: SegmentEntity,
     @Relation(parentColumn = "id", entityColumn = "segmentId") val lines: List<TranscriptLineEntity>)
 
+data class QueueCounts(val pending: Int, val failed: Int, val running: Boolean)
+data class VoiceprintCounts(val processed: Int, val pending: Int)
+data class AsrUsageTotals(val todayMillis: Long, val totalMillis: Long)
+
 @Dao
 abstract class TranscribeDao {
     /** 只读时间元数据；空白句子不算首次转写。 */
@@ -71,6 +75,23 @@ abstract class TranscribeDao {
     abstract fun day(start: Long, end: Long): Flow<List<SegmentWithLines>>
     @Transaction
     @Query("SELECT * FROM segments") abstract fun observeSegments(): Flow<List<SegmentEntity>>
+    // 现有表没有 status 索引：聚合仍扫描，但只向上返回一行，不再构建历史段对象。
+    @Query("""SELECT COUNT(CASE WHEN status = 'Pending' THEN 1 END) AS pending,
+        COUNT(CASE WHEN status = 'Failed' THEN 1 END) AS failed,
+        COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments""")
+    abstract fun observeQueueCounts(): Flow<QueueCounts>
+    @Query("""SELECT COUNT(voiceprintProcessedAt) AS processed,
+        COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done'""")
+    abstract fun observeVoiceprintCounts(): Flow<VoiceprintCounts>
+    @Query("SELECT * FROM segments WHERE status = 'Failed'")
+    abstract fun observeFailedSegments(): Flow<List<SegmentEntity>>
+    @Query("SELECT * FROM segments WHERE status = 'Done' AND startAt >= :since")
+    abstract suspend fun recentDone(since: Long): List<SegmentEntity>
+    @Query("SELECT * FROM segments WHERE startAt < :end AND endAt > :start ORDER BY startAt, id")
+    abstract fun observeOverlapping(start: Long, end: Long): Flow<List<SegmentEntity>>
+    @Query("""SELECT COALESCE(SUM(CASE WHEN day = :today THEN sentMillis ELSE 0 END), 0) AS todayMillis,
+        COALESCE(SUM(sentMillis), 0) AS totalMillis FROM asr_usage""")
+    abstract fun observeUsageTotals(today: String): Flow<AsrUsageTotals>
     @Query("SELECT * FROM asr_usage WHERE day >= :from AND day <= :to ORDER BY day")
     abstract fun usageBetween(from: String, to: String): Flow<List<AsrUsageEntity>>
     @Query("SELECT * FROM asr_usage") abstract fun observeUsage(): Flow<List<AsrUsageEntity>>

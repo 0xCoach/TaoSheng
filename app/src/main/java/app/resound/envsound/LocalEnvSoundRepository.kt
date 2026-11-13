@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.*
 import java.io.File
 import java.time.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class LocalEnvSoundRepository(
     private val db: CaptureDatabase,
     private val prefs: SharedPreferences,
@@ -28,11 +29,20 @@ class LocalEnvSoundRepository(
         enumValue(prefs.getString("skip", null), SkipMode.MarkOnly), enumValue(prefs.getString("media", null), MediaMode.Keep),
         prefs.getBoolean("tags",true), prefs.getBoolean("specialSounds",true), prefs.getBoolean("showInSummaries",true)))
     override val model = modelState
-    private val rowUpdates = dao.observe().shareIn(scope, SharingStarted.Eagerly, replay = 1)
-    private val rows = rowUpdates.stateIn(scope, SharingStarted.Eagerly, emptyList())
-    private val eventUpdates = dao.events().shareIn(scope, SharingStarted.Eagerly, replay = 1)
-    internal val eventMetadata = eventUpdates.stateIn(scope, SharingStarted.Eagerly, emptyList())
-    internal val presentation = combine(eventUpdates, rowUpdates) { events, rows -> mergeSounds(events, rows) }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+    // 冷流：仅展示/导出订阅时监听失效；不保留整张环境音、事件表的快照。
+    internal fun presentationChanges(): Flow<Unit> = db.invalidationTracker
+        .createFlow("memory_events", "env_sounds").map { Unit }
+
+    /** 现有同步展示/导出入口的 IO 适配；调用处都在数据库事务之外。 */
+    internal fun presentationSnapshot(start: Long, end: Long): Pair<List<MemoryEventEntity>, Map<Long, EventSounds>> = runBlocking(Dispatchers.IO) {
+        val events = dao.presentationEvents(start, end)
+        events to if (events.isEmpty()) emptyMap() else mergeSounds(events,
+            dao.presentationRows(events.minOf { it.startAt }, events.maxOf { it.endAt }))
+    }
+    internal fun eventSound(id: Long): EventSounds? = runBlocking(Dispatchers.IO) {
+        val event = dao.presentationEvent(id) ?: return@runBlocking null
+        mergeSounds(listOf(event), dao.presentationRows(event.startAt, event.endAt))[id]
+    }
     @Synchronized override fun update(settings: EnvSoundSettings) {
         val edit = prefs.edit()
         if(settings.enabled && !this.settings.value.enabled) edit.putLong("enabledAt", now())
@@ -73,22 +83,38 @@ class LocalEnvSoundRepository(
     private fun bounds(date: LocalDate): Pair<Long,Long> = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() to date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     override fun flagged(date: LocalDate): Flow<List<SegmentSound>> {
         val (from,to) = bounds(date)
-        return combine(rowUpdates, tick()) { rows, _ -> rows.filter { it.startAt < to && it.endAt > from && it.verdict != "Keep" }.map { it.view() } }.flowOn(Dispatchers.IO)
+        return combine(dao.observeBetween(from, to).distinctUntilChanged(), tick()) { rows, _ -> rows.filter { it.verdict != "Keep" }.map { it.view() } }.flowOn(Dispatchers.IO)
     }
     override fun eventSounds(date: LocalDate): Flow<Map<Long, EventSounds>> {
         val (from,to) = bounds(date)
-        return combine(eventUpdates, rowUpdates) { events, rows -> mergeSounds(events.filter { it.startAt < to && it.endAt > from }, rows) }
+        return dao.eventsBetween(from, to).distinctUntilChanged().flatMapLatest { events ->
+            if (events.isEmpty()) flowOf(emptyMap())
+            else dao.observeBetween(events.minOf { it.startAt }, events.maxOf { it.endAt })
+                .distinctUntilChanged().map { rows -> mergeSounds(events, rows) }
+        }.distinctUntilChanged().flowOn(Dispatchers.IO)
     }
-    override fun eventsWith(tag: EnvTag?, sound: SpecialSound?): Flow<List<Long>> = combine(eventUpdates, rowUpdates) { events, rows ->
+    override fun eventsWith(tag: EnvTag?, sound: SpecialSound?): Flow<List<Long>> = combine(dao.events().distinctUntilChanged(), dao.observe().distinctUntilChanged()) { events, rows ->
         val merged = mergeSounds(events,rows)
         events.filter { e -> merged[e.id]?.let { (tag == null || tag in it.tags) && (sound == null || sound in it.sounds) } == true }.map { it.id }
     }
-    override fun hourly(date: LocalDate): Flow<List<HourSound>> = combine(db.transcribe().observeSegments(), rowUpdates) { segments, rows -> hourlySounds(date,segments,rows,ZoneId.systemDefault()) }
-    override fun stats(days: Int): Flow<EnvStats> = combine(rowUpdates, tick()) { rows, _ ->
-        val n = days.coerceAtLeast(1); val from = bounds(LocalDate.now().minusDays(n-1L)).first
-        val selected = rows.filter { it.startAt >= from && it.startAt <= now() }
-        EnvStats(n, selected.count { it.verdict != "Keep" || it.reportedWrong }, selected.count { it.restored }, selected.count { it.reportedWrong },
-            (selected.filter { it.skipped && !it.restored && !it.reportedWrong }.sumOf { (it.endAt-it.startAt).coerceAtLeast(0) }/60000).toInt())
+    override fun hourly(date: LocalDate): Flow<List<HourSound>> {
+        val (from, to) = bounds(date)
+        return combine(db.transcribe().observeOverlapping(from, to).distinctUntilChanged(),
+            dao.observeBetween(from, to).distinctUntilChanged()) { segments, rows ->
+            hourlySounds(date, segments, rows, ZoneId.systemDefault())
+        }.distinctUntilChanged().flowOn(Dispatchers.IO)
+    }
+    override fun stats(days: Int): Flow<EnvStats> {
+        val n = days.coerceAtLeast(1)
+        // 保留原来五秒检查文件/时钟的可见时机，跨午夜后切换查询范围。
+        val start = tick().map { bounds(LocalDate.now().minusDays(n - 1L)).first }.distinctUntilChanged()
+        return start.flatMapLatest { from ->
+            combine(dao.observeSince(from).distinctUntilChanged(), tick()) { rows, _ ->
+                val selected = rows.filter { it.startAt <= now() }
+                EnvStats(n, selected.count { it.verdict != "Keep" || it.reportedWrong }, selected.count { it.restored }, selected.count { it.reportedWrong },
+                    (selected.filter { it.skipped && !it.restored && !it.reportedWrong }.sumOf { (it.endAt-it.startAt).coerceAtLeast(0) }/60000).toInt())
+            }
+        }.distinctUntilChanged().flowOn(Dispatchers.IO)
     }
     override suspend fun restore(segmentId: Long): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -116,9 +142,9 @@ class LocalEnvSoundRepository(
             schedule()
         }
     }
-    override fun audio(segmentId: Long): File? = rows.value.firstOrNull { it.segmentId == segmentId }?.let { File(it.path).takeIf(File::isFile) }
+    override fun audio(segmentId: Long): File? = runBlocking(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile) } }
     suspend fun diagnostics(): String {
-        val recent = dao.observe().first().filter { it.startAt >= now()-7*86_400_000L }
+        val recent = dao.since(now()-7*86_400_000L)
         return "设置=${settings.value}\n模型=${model.value}\n最近7天=${recent.groupingBy { it.verdict }.eachCount()}\n平均耗时=${recent.map { it.elapsedMs }.average().takeIf { it.isFinite() } ?: 0.0}ms"
     }
     private fun tick() = flow { while(currentCoroutineContext().isActive) { emit(Unit); delay(5000) } }

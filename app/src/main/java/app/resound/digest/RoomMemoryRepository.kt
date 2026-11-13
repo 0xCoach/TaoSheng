@@ -8,12 +8,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.time.Instant
@@ -153,11 +156,14 @@ class RoomMemoryRepository(
 
     override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
 
+    private val pendingCount = dao.observeUndigestedCount().shareIn(scope, SharingStarted.Eagerly, replay = 1)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val todayUsage = combine(dao.observeUsageChanges(), pendingCount, runner.running, runner.last) { _, _, _, _ -> LocalDate.now().toString() }
+        .distinctUntilChanged().flatMapLatest { dao.observeTokens(it).distinctUntilChanged() }
     override val state: StateFlow<DigestState> = combine(
-        dao.observeUndigestedCount(), runner.running, runner.last, dao.observeUsage(),
+        pendingCount, runner.running, runner.last, todayUsage,
     ) { pending, running, last, usage ->
-        val today = usage.firstOrNull { it.day == LocalDate.now().toString() }
-        DigestState(pending, running, last.first, last.second, (today?.promptTokens ?: 0) + (today?.completionTokens ?: 0))
+        DigestState(pending, running, last.first, last.second, usage)
     }.stateIn(scope, SharingStarted.Eagerly, DigestState(0, false, null, null, 0))
 
     override fun runNow() = runNowAction()

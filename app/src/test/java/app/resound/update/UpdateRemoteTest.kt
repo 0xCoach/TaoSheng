@@ -77,10 +77,39 @@ class UpdateRemoteTest {
             assertEquals(2, second.requestCount)
         } }
     }
+
+    @Test fun oversizedPartialFileIsDeletedWithoutCheckingForUpdates() {
+        MockWebServer().use { server ->
+            server.start()
+            val bytes = fixture("new.bin").readBytes()
+            server.enqueue(MockResponse().setBody(Buffer().write(bytes)))
+            val file = File(temporary.root, "oversized.apk").apply { writeBytes(bytes + byteArrayOf(0)) }
+            remote(server).download(fixtureManifest().apk, "0.2.11", file, false) {}
+            assertArrayEquals(bytes, file.readBytes())
+            assertEquals(1, server.requestCount)
+            val request = server.takeRequest()
+            assertEquals("/v0.2.11/TaoSheng-v0.2.11-arm64.apk", request.path)
+            assertNull(request.getHeader("Range"))
+        }
+    }
+
+    @Test fun deviceCardFetchReadsOnlyTableAndSignature() {
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse().setBody("table"))
+            server.enqueue(MockResponse().setBody("signature"))
+            var accepted = false
+            remote(server).deviceCards({ accepted = true; true }, listOf(server.url("/cards.json").toString()))
+            assertTrue(accepted)
+            assertEquals(2, server.requestCount)
+            assertEquals("/cards.json", server.takeRequest().path)
+            assertEquals("/cards.json.sig", server.takeRequest().path)
+        }
+    }
 }
 
 internal fun source(server: MockWebServer, name: String = "test") = UpdateSource(name, server.url("/update.json").toString()) {
     version, file -> server.url("/v$version/$file").toString()
 }
 internal fun remote(server: MockWebServer) = UpdateRemote(listOf(source(server)), log = { println(it) }, client = OkHttpClient.Builder()
-    .readTimeout(3, TimeUnit.SECONDS).build())
+    .readTimeout(3, TimeUnit.SECONDS).build(), previewSources = emptyList())

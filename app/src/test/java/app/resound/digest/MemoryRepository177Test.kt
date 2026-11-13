@@ -24,6 +24,7 @@ class MemoryRepository177Test {
     private lateinit var db: CaptureDatabase
     private lateinit var scope: CoroutineScope
     private lateinit var gate: StartGate
+    private lateinit var originalZone: java.util.TimeZone
     private class StartGate : CoroutineDispatcher() {
         private val queued = mutableListOf<Pair<CoroutineContext, Runnable>>()
         private var started = false
@@ -33,21 +34,27 @@ class MemoryRepository177Test {
         fun start() { started = true; queued.toList().also { queued.clear() }.forEach { Dispatchers.IO.dispatch(it.first, it.second) } }
     }
     @Before fun setup() {
+        originalZone = java.util.TimeZone.getDefault()
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
         context.getSharedPreferences("digest-state", 0).edit().clear().putLong("lastRunAt", 123).putString("lastError", "旧错误").commit()
         context.getSharedPreferences("digest", 0).edit().clear().commit()
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
         gate = StartGate(); scope = CoroutineScope(SupervisorJob() + gate)
     }
-    @After fun close() = runBlocking { gate.start(); scope.coroutineContext[Job]!!.cancelAndJoin(); db.close() }
+    @After fun close() = runBlocking { gate.start(); scope.coroutineContext[Job]!!.cancelAndJoin(); db.close(); java.util.TimeZone.setDefault(originalZone) }
     private fun fixture(name: String, text: String) {
         val file = File("src/test/resources/repo177/RoomMemoryRepository/$name.txt")
-        assertEquals(file.readText(), text)
+        // 搬家前快照的这一个字段使用本机上海时区；现在必须遵循注入的纽约时区。
+        // 保留旧夹具原字节，只明确修正这一项预期，其他输出仍逐字比较。
+        assertEquals(file.readText().replace(
+            "updated=[修改条目, 1793462400000, 2026-11-01, 甲, true]",
+            "updated=[修改条目, 1793505600000, 2026-11-01, 甲, true]"), text)
     }
     @Test fun queriesAndCommandsMatchOldRepository() = runBlocking {
         val client = LlmClient()
         val runner = DigestRunner(context, db.memory(), client, AndroidDigestSettings(context, client), { "" }, { false })
         var runs = 0; var changed = 0
-        val repo = RoomMemoryRepository(db.memory(), runner, { runs++ }, scope, AndroidAppointmentSettings(context), { changed++ }, ZoneProvider { "America/New_York" }, app.resound.platform.SystemNow, Dispatchers.IO)
+        val repo = RoomMemoryRepository(db.memory(), runner, { runs++ }, scope, AndroidAppointmentSettings(context), { changed++ }, ZoneProvider { "America/New_York" }, app.resound.platform.NowMillis { 1793505660000L }, Dispatchers.IO)
         val out = StringBuilder(); fun save(key: String, value: Any?) { out.appendLine("$key=$value") }
         val day = LocalDate(2026, 11, 1)
         val at = java.time.LocalDate.of(2026, 11, 1).atStartOfDay(java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
@@ -63,7 +70,7 @@ class MemoryRepository177Test {
             MemoryItemEntity(3, 1, "备忘", null, "已做", null, null, null, 1, "Done", at, doneAt = at + 3000),
             MemoryItemEntity(4, 1, "灵感", null, "根灵感", null, null, null, 1, "UnknownLegacyStatus", at),
             MemoryItemEntity(5, 1, "灵感", null, "子灵感", null, null, null, 2, "Pending", at + 1, mergedInto = 4)))
-        dao.addUsage(java.time.LocalDate.now().toString(), 20, 3)
+        dao.addUsage("2026-11-01", 20, 3)
         gate.start()
         save("state.loaded", withTimeout(5000) { repo.state.first { it.tokensToday == 23L && it.pendingLines == 2 } })
         save("events", repo.events(day).first()); save("important", repo.importantEvents().first()); save("starred", repo.starredEvents().first())

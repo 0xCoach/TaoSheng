@@ -69,7 +69,7 @@ internal class UpdateRemote(
 
     private fun readLimited(url: String, limit: Int): ByteArray =
         checks.newCall(Request.Builder().url(url).build()).execute().use { response ->
-            check(response.isSuccessful)
+            kotlin.check(response.isSuccessful)
             val body = requireNotNull(response.body)
             body.byteStream().use { input ->
                 val output = java.io.ByteArrayOutputStream()
@@ -85,7 +85,7 @@ internal class UpdateRemote(
 
     fun download(asset: UpdateAsset, version: String, target: File, incremental: Boolean, previewSource: Boolean = "-preview." in version, progress: (Long) -> Unit) {
         val downloadSources = if (previewSource) previewSources else sources
-        if (target.length() > asset.size) check(target.delete())
+        if (target.length() > asset.size) kotlin.check(target.delete())
         repeat(2) { integrityAttempt ->
             try {
                 if (target.length() != asset.size) transfer(asset, version, target, incremental,
@@ -98,7 +98,7 @@ internal class UpdateRemote(
             } catch (e: UpdateFailure) {
                 if (e.reason != "size_mismatch") throw e
             }
-            check(!target.exists() || target.delete())
+            kotlin.check(!target.exists() || target.delete())
             log("verify incremental=$incremental attempt=$integrityAttempt failure=sha256_or_size")
         }
         throw UpdateFailure(UPDATE_INTEGRITY_ERROR, "sha256_mismatch")

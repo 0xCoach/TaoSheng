@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import org.json.JSONArray
 import org.json.JSONException
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -20,8 +19,8 @@ class RoomMemoryRepository(
     zoneProvider: ZoneProvider, now: NowMillis, io: CoroutineDispatcher,
 ) : MemoryRepository by MemoryStoreRepository(dao, runner.running, runner.last, runNowAction, scope,
     reminderSettings?.state, reminderSettings?.let { it::set }, eventChanged, zoneProvider, now, io,
-    { LocalDate.now().toString() }, AndroidMemoryLegacyCodec, { at ->
-        val date = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
+    { Instant.ofEpochMilli(now.now()).atZone(ZoneId.of(zoneProvider.zoneId())).toLocalDate().toString() }, AndroidMemoryLegacyCodec, { at ->
+        val date = Instant.ofEpochMilli(at).atZone(ZoneId.of(zoneProvider.zoneId()))
         MemoryDueDate(date.toLocalDate().atStartOfDay(date.zone).toInstant().toEpochMilli(),
             date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
             date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))

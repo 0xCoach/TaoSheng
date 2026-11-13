@@ -1,1 +1,1 @@
-IN_PROGRESS：A/B/C测量完成并记录；采用A与B单列startAt，不加B复合和C；正在处理查询退化并实施33→34迁移及精确夹具对照。
+DONE

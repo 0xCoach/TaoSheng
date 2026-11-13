@@ -1,0 +1,4658 @@
+[
+  {
+    "class": "app.resound.digest.RhythmDeletion099Test",
+    "method": "lightweightSnapshotMatchesOriginalSqlIncludingCrossDayAndDeletedSources",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Rhythm/app/TEST-app.resound.digest.RhythmDeletion099Test.xml"
+  },
+  {
+    "class": "app.resound.digest.RhythmDeletion099Test",
+    "method": "duplicateDeletionSharesOneOperationAndReportsWaitingThenClearsState",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Rhythm/app/TEST-app.resound.digest.RhythmDeletion099Test.xml"
+  },
+  {
+    "class": "app.resound.digest.Rhythm064Test",
+    "method": "overlappingMediaExcludedAndFlowUpdatesOnEventsAndLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+  },
+  {
+    "class": "app.resound.digest.Rhythm064Test",
+    "method": "fewerThanThreeRecordedDaysIsNullAndWindowExcludesTodayAndEighthDay",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+  },
+  {
+    "class": "app.resound.digest.Rhythm064Test",
+    "method": "pushAndRemindersKeepBystanderAndExcludeMedia",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+  },
+  {
+    "class": "app.resound.digest.Rhythm064Test",
+    "method": "mediansIgnoreExtremeValueAndRoundEvenDays",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "disablingActiveRuleImmediatelyResumesExistingService",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "touchingAndOverlappingWindowsMergeWithFirstName",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "upgradeSeedsDisabledSleepOnceAndKeepsManualPause",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "stoppedServiceIsUntouchedAndStartInsideWindowPauses",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "repeatDayBelongsToStartDate",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "manualPauseAndQuietChooseLaterEndAndCorrectName",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "resumeSkipsOnlyCurrentMergedWindowAndSurvivesReload",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "midnightWindowEndsAtSevenAndNextBoundaryMatches",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.capture.QuietSchedule056Test",
+    "method": "killedGapsExcludeQuietAndManualPause",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Quiet/JUnit/TEST-app.resound.capture.QuietSchedule056Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSchedulerTest",
+    "method": "playbackSkippedStaysOutOfQueueAndManualOverrideRequeues",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSchedulerTest",
+    "method": "repositoryPublishesAndResetsRealRoundProgress",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSchedulerTest",
+    "method": "localScheduleDoesNotRequireNetwork",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSchedulerTest",
+    "method": "diagnosticsContainOnlyAttemptMetadataAndQueueCounts",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSchedulerTest",
+    "method": "periodicScheduleUsesIntervalAndUnmeteredAndUpdatesSameWork",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSchedulerTest",
+    "method": "immediateWorkIsUniqueAndReconfiguresQueuedConstraints",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscribeSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "authStopsRoundWithoutConsumingOtherSegments",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "cleanupDeletesOnlySuccessfulAudioAfterFullDayIncludingEmpty",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "cancellationPreservesAudioAndAccountsAttemptWithoutPartialLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "concurrentTriggersAreSkippedAndSegmentsUploadInTimeOrder",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "progressCountsSuccessEmptyAndFailureFromFixedRoundSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "timeoutContinuesRoundAndYieldsToOtherSegmentsOnRetry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "migrationPreservesOldRowsAndRoomValidatesWholeSchema",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "startupRecoversEvenFifthInterruptedAttemptWithoutUploadOrUsageLoss",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "networkFailureEndsRoundWithoutConsumingAttempts",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "finalResultsReplaceLinesAndPreserveLedgerAcrossManualRetry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "startupDoesNotResetLiveUploadAndCancellationClearsProgress",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribePersistenceTest",
+    "method": "timeoutBackoffStopsAfterFiveAndManualRetryResets",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Transcribe/JUnit/TEST-app.resound.transcribe.TranscribePersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "batchGroupingAndPersistentQueueRespectMergeSwitchAndUnknownTimes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "incrementalRowsRoundTripImportsAndTemplatesStayHidden",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "waitsForEntireFileAndSpeakerCompletionAndRegeneratesFailure",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "typeChangeDeletesOldCardAndRequeuesOnlyWhenSpeakerModeNeedsAudio",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "suggestionsPreferCallCluesThenLastThenMeeting",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "longRecordingSummarizesEveryChunkAndPreservesBoundaryActions",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "speakerMergeUsesSimilarityAndChannelsOrderWithMeAndOther",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "trainingDisablesSpeakersAndCallPassesFixedTwoToAsr",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "deletionInvalidatesSummaryAndInFlightResponseCannotResurrectIt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "summaryTodosStayPendingAndMergeWithDigestWithoutRevivingDeletedItems",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "migration25PreservesRowsAndValidatesCurrentSchema",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportKinds077Test",
+    "method": "channelDecoderKeepsSidesAcrossOddBufferBoundariesAndIgnoresDuplicateStereo",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Import/JUnit/TEST-app.resound.importer.ImportKinds077Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvMergeConsistencyTest",
+    "method": "longEventDoesNotLeakFutureSoundsIntoNestedShortEvent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvMergeConsistencyTest.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "markOnlyStillTranscribesAndDoesNotInferAgain",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "skipRestoresAndSavedMinutesDisappear",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "pureMusicAndSpeechAndHumanProtection",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "wrongSkipBecomesKeepAndExpiredRestoreFails",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "skippedAudioHasOneDayFloorAndClearKeepsDecision",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "longAudioUsesThreeTenSecondWindows",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "meProtectsMediaAndSkipAndMediaSuppressesSpecialSounds",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "migration22PreservesSegmentAndCascadesJudgment",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "disabledUnreadyOldAndFailureAllPassThrough",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "mediaSkipAndWrongRequeuesKeepingScores",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "aggregationSplitsHoursAndMergesEvents",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSound070Test",
+    "method": "reviewAndWeeklyPresentationObeyToggleWithoutChangingStoredSummary",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "topicProgressStartsOnlyForPendingAndCompletionWakesImmediately",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "doneTopicStillWakesForLateTranscriptButNotAlreadyAssignedLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "environmentRepositoryDoesNotReadAnyHistoryWithoutConsumers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "voiceInputHistoryIsColdAndKeepsNewestAppAndTodayCount",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "importReadinessMatchesOldFilterAndIgnoresNonImportWrites",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "environmentEventIncludesItsWholeSpanAndSynchronousAudioDoesNotNeedCache",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "checkpointRefreshReadsOnlyTheObservedTopics",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "rangeAndRecentDoneKeepCrossBoundarySegmentsAndOrdering",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "segmentCountsMatchFullTableIncludingEmptyAndAllStatuses",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "failureRowsPreserveNullDeadlineAndAudioErrorChanges",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "usageTotalsKeepTodayTotalAndEmptyDaySemantics",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "currentTopicQueryMatchesOldSelectionAndPendingPolicy",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "unrelatedSegmentEditsDoNotRecomputeQueueVoiceprintOrFailureConsumers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "method": "environmentDayAndHourlyMatchFullHistoryWithMidnightCrossing",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewTimingTest",
+    "method": "scheduledDateUsesLatestReachedCutoffEvenAfterMidnight",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewTimingTest",
+    "method": "scheduledRetryReusesReviewAtOrAfterCutoffWithoutModelUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewTimingTest",
+    "method": "adjacentWindowsUseOpenStartAndClosedEndForEventsAndItems",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewTimingTest",
+    "method": "scheduledRunReplacesReviewGeneratedBeforeCutoff",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewTimingTest",
+    "method": "manualRunUsesConfiguredWindowAndAlwaysRegeneratesWithoutPush",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "previewAndClearAgreeAndKeepStarredAndPending",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "version19MigratesKeepingExistingEvents",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "playbackTimeoutReleasesCapture",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "shorteningCleansImmediatelyAndLengtheningDoesNot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "clearRangeOnlyRemovesAudioInsideRange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "usageLocateAndTrimSupportImportedAudioWithoutChangingItsRetention",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "editsPreserveFirstOriginalRestoreAndRefreshSearchAndEmbedding",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "retentionProtectsRecentStarredAndPending",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.OriginalAudio062Test",
+    "method": "playbackIsIdempotentAndScopeCancellationReleases",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.OriginalAudio062Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupSecrets078Test",
+    "method": "unreadableCredentialAbortsCaptureInsteadOfSilentlyOmittingIt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupSecrets078Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupSecrets078Test",
+    "method": "allCredentialStoresRoundTripAlongsideProviderAndNewSettings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupSecrets078Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.DemandWork174Test",
+    "method": "embeddingPowerRecoveryAndEditsAppendBehindRunningWork",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.DemandWork174Test",
+    "method": "audioSweepFollowsEnabledFolderAudioAndCancelsLegacyWork",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.DemandWork174Test",
+    "method": "privacyStartupRecoversQueueAndNewRowsAreNotLostBehindRunningWork",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.DemandWork174Test",
+    "method": "emptyPrivacyQueueDoesNotScheduleAndDeletionFailureKeepsDurableRetry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.DemandWork174Test",
+    "method": "embeddingStartupCancelsLegacyAndOnlyDownloadsWhenContentAppears",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.DemandWork174Test",
+    "method": "watchdogCancelsEvenWhenStoppedWithoutRunningServiceAndReschedules",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.DemandWork174Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "digestAndAskCarryContextAsSourceMaterial",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "micTranscriptArrivingLaterSkipsDictatedLinesButKeepsLongerOrOthers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "windowWaitsThreeSecondsAndSeparatesConsecutiveDictations",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "repliesAreNeverAppendedAndContextIsBounded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "folderWebhookAndSubscriptionHonorContextSwitch",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "finalizationSurvivesMappingAndNeverEntersVoiceprint",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "insertedTextSupportsMiddleAndAppendButNotDeletionOrReplacement",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "disabledContextOrRepliesNeverCollectsReplies",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "privacyGatesAndPauseDiscardWindow",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "sentClearUsesLastTextButDeletedDraftIsNotSaved",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "persistenceIsIdempotentAndKeepsDictationHeardByMic",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "settingsBackupAndTodayCountAndRecentApps",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput048Test",
+    "method": "migration16PreservesOldLinesAndDefaultsToNoMetadata",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.Battery164Test",
+    "method": "redoOptionsStopWhenHiddenAndHistoryExpiresAtDeadline",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.Battery164Test",
+    "method": "onboardingDoesNotKeepTranscriptClockAliveInBackground",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.Battery164Test",
+    "method": "exportPrunesOnlyWhileThereAreJobsAndStopsWhenEmpty",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.Battery164Test",
+    "method": "asrChooserRefreshesOnSubscriptionAndStopsAfterLeaving",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.Battery164Test",
+    "method": "recordingDaysDoNotScanUntilSubscribedAndResumeImmediately",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+  },
+  {
+    "class": "app.resound.scheduling.Battery164Test",
+    "method": "voiceCountClockIsInactiveUntilObservedAndStopsOnExit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.scheduling.Battery164Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "legacyRepliesDisabledAndScreenOcrPersists",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "terminalTakesPromptLineNotStatusOrKeyRow",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "readableTextWithSparseContextTakesOneContextScreenshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "wechatUsesContactNameInContext",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "hotwordsFixNearMissesOnly",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "sameTextFromDifferentSpeakersIsNotDuplicateContext",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "dedupRespectsTimeChatAppNullTitleAndExactEquality",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "sidesByEdgeDistanceAndStrictTerminal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "leavingAppCancelsBeforeScreenshotAndKeepsWhatWasRead",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "titleNeedsRealText",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "severalPiecesThenOneSendBecomeOneMessage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "sendEndsMessageAndContextComesFromAfterSend",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "wrappedInputLinesJoinIntoOneSentence",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "ownEarlierUtteranceCanEnterContextOnce",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "readableNodesOrDisabledOcrNeverScreenshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "anyAppEmptyBoxAfterSendIsSeen",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "keyRowsAreNeverTheUtterance",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "boxWithUnrelatedNewTextMeansEarlierWasSent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "chatContextIsSidedAndOwnSentBubbleWins",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "boxThatClosesAfterSendCountsAsSent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "switchedChatInSameAppIsNotUsedAsContext",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "filtersSystemBarsKeyboardTimestampsAndChrome",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "terminalUsesLowestParagraphAndMissingImeUsesBottomFortyPercent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "chatMergesMultilineInputAndExtractsTitleAndContext",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "disabledOcrNeverScreenshots",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "contextSwitchOffKeepsTextButNoContextOrName",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "failedOrBlackScreenshotSkipsWithoutRetryAndPauseInvalidatesResult",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "quickSendsOneAfterAnotherEachGetContext",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "threeDictationsDedupOnlyPreviouslyStoredContext",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.capture.VoiceInput049Test",
+    "method": "pausedDictationExtendsPreviousLineInsteadOfAddingOne",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.VoiceInput049Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "ignoresSingleCharacterAndNonChineseHotwords",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "configuredCloudDoesNotCorrectHomophones",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "commonWordIsProtected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "punctuationIsNotCrossedAndOriginalIsSavedForLocalImport",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "acceptsAnyPronunciationOnEitherSide",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "longestWinsTiesRemainAndHotwordChangesRefreshCache",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "version21MigrationPreserves065DataAndOriginalDefaultsToNull",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Hotword066Test",
+    "method": "correctsAndKeepsExactWordWithMeasuredCachedPerformance",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Hotword066Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewRepositoryTest",
+    "method": "disabledPushGeneratesAndScheduledReuseDoesNotSpendAgain",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewRepositoryTest",
+    "method": "bystanderIncludedWhileMediaAndDeletedExcluded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewRepositoryTest",
+    "method": "manualRegeneratesWithoutPushAndMissingKeyIsSafe",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestAudit087Test",
+    "method": "sourceDeletedDuringRequestCannotReappearInPendingResponses",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestAudit087Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestAudit087Test",
+    "method": "uncertainRequestStopsAutomaticResendAndDeletingSourceClearsReplay",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestAudit087Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestAudit087Test",
+    "method": "localFailureReplaysPersistedReplyWithoutAnotherRequestOrUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestAudit087Test.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "forgetEventRemovesAudioSamplesExclusionsAndFeaturesButKeepsEnrollment",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "deletedQueuedAndInflightSegmentsCannotBeTranscribedOrRecreatedByOldResults",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "recentDeletesWholeEventAndItsUnlinkedItems",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "forgetSegmentRemovesEmptyEventsAndPreservesOtherEventLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "rangeDeletesOnlyInsideAndKeepsRecordingWhenRangeIsPast",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "fileRemovalFailureIsPersistedAndRetriedAfterRecreation",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "recentKeepsCrossingEventAndDeletesSourceItemsAndPendingAudio",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.privacy.RoomPrivacyActionsTest",
+    "method": "sequentialBatchDeletionWorksBeyondFiveEvents",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.privacy.RoomPrivacyActionsTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "emptySelectionFailsWithExplanationAndNoFiles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "databaseLoadsEventTodosAndFiltersDeletedMergedIgnoredAndUnrelated",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "selectedSectionsOnlyAndMarkdownContentEscaped",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "textOnlyWritesOneBomTxtWithoutAudioPositionsOrSubtitleAndZeroEstimate",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "allMarkdownPartsAreOrderedAndEventsAndTodosDeduplicated",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "newJobJsonRestoresEveryOptionAndResumesTextOnly",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "oldJobJsonRestoresAudioAndOptionalLinesWithOldFlags",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport115Test",
+    "method": "audioOnlyCanStillProduceSubtitlesWithoutText",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport115Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "pendingAcceptIgnoreAndBulkRemainSeparate",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "duplicatesUseCurrentLocationAndUpdatePendingWithinTwoHours",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "sameAsSupportsBothChoicesAndRenamedPendingMergesAlias",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "dayVolumesRoundTripThingsRecordsAndWatermark",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "completedRoundRequestsDetectionOnlyWhenNewLinesExist",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "autoOffAdvancesAndToggleDuringRequestCannotInsertOldResults",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "askToolIncludesUnconfirmedAndReferencesRealLineIds",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "promptParsesUncertainKnownAndRejectsContextOnlyEvidence",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "firstStartSkipsOldHistoryButKeepsRecentLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "migration1ToLatestUsesWholeRegisteredChain",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "batchesHave80Lines20ContextExcludeImportMediaAndNotifyOnlyExplicit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "deleteLineRedoAndEventDeletionRemovePendingButKeepAcceptedSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "failureWatermarkSurvivesRestartAndSkipsOnlyAfterThirdFailure",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "searchMatchesAliasesLastPlaceAndBorrowerWithLiteralLikeEscaping",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "migration26ToLatestPreservesRowsAndInstallsCleanup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.things.Things079Test",
+    "method": "manualFallbackAddReturnEditAndDeletionRespectContract",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.Things079Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "fingerprintUsesSizeHeadAndTailAndSettingsAreBackedUp",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "permissionLossStopsScanningUntilReselectedAndRestoredSettingsRequireGrant",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "changingSizeAndRecentModificationWaitForTwoStableScans",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "baselineReadFailureDoesNotTreatLaterFilesAsOld",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "copyThatChangesAfterHashIsRejectedWithoutPendingOrQueue",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "migrationFrom29PreservesDataAndAddsPersistentFingerprintTables",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "sharedQueuedAndFinishedAudioIsNotImportedAgainAndMetadataWins",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "oldFilesIncludingEmptyGrowingFileAreIgnoredButNewFileImports",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.importer.FolderImports117Test",
+    "method": "stableFileImportsOnceEvenAfterRenameAndRepositoryRestart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.FolderImports117Test.xml"
+  },
+  {
+    "class": "app.resound.backup.RestoreSafety088Test",
+    "method": "ioFailureRollsBackFilesAndCachedSettings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.RestoreSafety088Test.xml"
+  },
+  {
+    "class": "app.resound.backup.RestoreSafety088Test",
+    "method": "interruptedRestoreRollsBackOnNextStartup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.RestoreSafety088Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestProgressTest",
+    "method": "cancellationClearsRunningWithoutFakeProgress",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestProgressTest",
+    "method": "failedBatchDoesNotAdvanceOrEraseUnprocessedLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestProgressTest",
+    "method": "countsOnlySavedBatchesAndFinishesAtTotal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestProgressTest",
+    "method": "elapsedShowsHundredthsAndFreezesAtCompletion",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestProgressTest.xml"
+  },
+  {
+    "class": "app.resound.location.LocationTrackTest",
+    "method": "duplicateFromSecondProviderSkipped",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+  },
+  {
+    "class": "app.resound.location.LocationTrackTest",
+    "method": "staysSplitByMoveAndIgnoreShortStops",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+  },
+  {
+    "class": "app.resound.location.LocationTrackTest",
+    "method": "migratesFrom32AndStoresPointsAndPlaces",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+  },
+  {
+    "class": "app.resound.location.LocationTrackTest",
+    "method": "inaccuratePointsDroppedAndJitterNotCountedAsDistance",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.LocationTrackTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestForce053Test",
+    "method": "forceClosesOngoingConversationButOnlyManualBypassesSkillGap",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestForce053Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.ProblemReportsTest",
+    "method": "crashesOmitMessagesRetainTenAndDelegateToOriginalHandler",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.diagnostics.ProblemReportsTest.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.ProblemReportsTest",
+    "method": "exportIncludesDiagnosticsScrubsKeysAndCrashNoticeStaysDismissedAfterRestart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.diagnostics.ProblemReportsTest.xml"
+  },
+  {
+    "class": "app.resound.onboarding.OnboardingQueries132Test",
+    "method": "databaseSignalsIgnoreBlankUncertainAndCrossSegmentTagsButAcceptKnownOtherPerson",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.onboarding.OnboardingQueries132Test.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "digestInputAddsScopedCorrectionWithoutChangingOriginalLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "receiveCopiesBeforeReturningPersistsAndUsesDateBeforeModifiedTime",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "resamplerKeepsPhaseAcrossBuffersAndAveragesStereo",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "badAudioReturnsHumanReasonAndRemovesCopy",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "queueUsesConfirmationOrderAndCancellationDoesNotDropFollowingFiles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "cloudRequestsIncludePrioritizedHotwordsAndBoundCustomPrompt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "importedSegmentsKeepOffsetsAndFiveMinuteOverlap",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "hotwordsPersistNormalizeAndTrackPeopleRenamesAndDeletes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.importer.ImportHotwordsTest",
+    "method": "transcribedImportsFollowRetentionButFailuresWaitAtMostThreeDays",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.importer.ImportHotwordsTest.xml"
+  },
+  {
+    "class": "app.resound.location.PlaceResolverTest",
+    "method": "parsesAmapPreferringAreaName",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+  },
+  {
+    "class": "app.resound.location.PlaceResolverTest",
+    "method": "wgsToGcjShiftsInChinaOnly",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+  },
+  {
+    "class": "app.resound.location.PlaceResolverTest",
+    "method": "manualNameWinsNearbyAndSurvivesCacheClear",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+  },
+  {
+    "class": "app.resound.location.PlaceResolverTest",
+    "method": "secondLookupOfSamePlaceUsesCache",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.location.PlaceResolverTest.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "skillReplacementProtectsManualAndUndoRestoresCards",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "queuedJobsAreSerialAndRestartUsesPersistedRequests",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "largeSnapshotIsReadBackInPartsUnchanged",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "transcribeOnlyAndUndoRestoreOriginalLinesWithoutChangingEvents",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "llmFailureKeepsEventsAndLaterEditsBlockUnsafeUndo",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "adjacentRangesMergeButGapsRemainAndExpiredEditedCountsAreHonest",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "importChoicePersistsAcrossRestartAndIsStoredOnlyOnItsSegments",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "digestReplacesAndInheritsStarAndPreservesCompletedTodo",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "explicitChoicesDoNotChangeSettingsAndReadyRejectsMissingConfiguration",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "cancellationDuringDigestKeepsEventsAndNewTranscript",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "undoRestoresEventsItemsAndSecondRunInvalidatesFirst",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "migration23PreservesDataAndAddsScopedOverrideAndSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "retranscribeSkipsExpiredAndEstimates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "nearbySelectedEventsAreDigestedTogetherButNotAcrossUnselected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.redo.Redo071Test",
+    "method": "formatFailureSplitsBatchAndCombinesEventsAndItemsInOrder",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.Redo071Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport068Test",
+    "method": "voiceAndExpiredRemainTextOnly",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport068Test",
+    "method": "cancellationRemovesPartialsAndCleanupOnlyRemovesExpiredExports",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport068Test",
+    "method": "twoHourPcmUsesBoundedChunks",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport068Test",
+    "method": "badSegmentSkippedAndActualPcmTimelineMatchesSubtitles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport068Test",
+    "method": "skipMediaExcludesAudioTextAndMetadata",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AudioExport068Test",
+    "method": "batchDeletionKeepsEventsTodosAndOtherSegmentsButRemovesSearchAndVectors",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AudioExport068Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "newerVersionIsRejectedBeforeSnapshotOrReplacement",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "restoreSnapshotsCurrentDataBeforeReplacingAndMigratesOlderDatabase",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "disablingEncryptionChangesNextUploadAndKeepsDiaryAndSnapshotCleanup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "retainsNewestThirtyAcrossPlainAndEncryptedWithoutTouchingDiary",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "missingPlaceholderAndBlankTemplateDoNotOverwriteSavedText",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "templatesReadDefaultsAndPersistOverridesInBackup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "encryptionRoundTripUsesRandomSaltAndRejectsWrongPasswordAndTampering",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "parsesTimesSizesEncryptionAndRejectsInvalidNames",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPrompts029Test",
+    "method": "resetRemovesOverrideAndReturnsDefault",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPrompts029Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Training176Test",
+    "method": "trainingIsQueriedEvenWhenSeparationIsOffAndErrorsAreNotHidden",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Training176Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Training176Test",
+    "method": "waitingForTrainingDoesNotLockSettingsAndKeepsTheEarlierSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Training176Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Training176Test",
+    "method": "cancellingTheCallerCancelsTheTrainingQuery",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Training176Test.xml"
+  },
+  {
+    "class": "app.resound.push.JsonParity154Test",
+    "method": "modelReplyKeepsLegacyNumericAndLenientSyntax",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.push.JsonParity154Test.xml"
+  },
+  {
+    "class": "app.resound.push.JsonParity154Test",
+    "method": "folderFrontMatterMatchesOriginalQuoting",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.push.JsonParity154Test.xml"
+  },
+  {
+    "class": "app.resound.push.JsonParity154Test",
+    "method": "thingPromptMatchesOriginalBytesForEscapesContextAndNull",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.push.JsonParity154Test.xml"
+  },
+  {
+    "class": "app.resound.push.JsonParity154Test",
+    "method": "subscriptionJsonMatchesOriginalBytesIncludingOrderAndNull",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.push.JsonParity154Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestLongSessionTest",
+    "method": "shortOngoingTalkOrUntranscribedAudioInsideStillWaits",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.digest.DigestLongSessionTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestLongSessionTest",
+    "method": "longerMaxWaitFromSettingsKeepsWaiting",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.digest.DigestLongSessionTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestLongSessionTest",
+    "method": "nonStopTalkingDigestsTheSettledPartUpToTheLongestPause",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.digest.DigestLongSessionTest.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "startBackfillsTwoMinutesAndClampsToPreviousTopicAndDigestedSpeech",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "pauseReturnsSpeechToOrdinaryDigestAndOldInFlightResultCannotClaimTopic",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "migration32AndBothBackupFormsKeepTopicsAndOldBackupCompatibility",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "scriptContainsTwoFullVersionsAndLocalWordCountAndReadingTime",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "twoHourMeetingContinuesAfterRestartWithoutRepeatingCompletedBlocks",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "unmarkRemovesOnlyThatMarkAndRejectsCancelledTopic",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "cutSplitsSpanReleasesOnlyCutSpeechAndCancelDeletesGeneratedArtifacts",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "failedHistoryWithoutEventCanRetryExistingSpeechExactlyOnce",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "retrospectiveRangeSnapsOutwardReplacesEventsPreservesChangedTodosAndStar",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "multipleBatchesBecomeOneEventAndMarksReachReusedSummaryTemplate",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "failedRegenerationKeepsPreviousFinishedEvent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "truncatedLargeResponseSplitsWithoutCreatingSeveralEvents",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "pausedDeadlineDoesNotMoveAndUnboundedTopicEndsAtFourHours",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "checkpointCannotExposeResultsAfterSourceChangedOrDeleted",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "rejectedContentStaysIncompleteAndAllOriginalSpeechIsKept",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "trainingUsesHistoricalSpansAndTopicSegmentsLeadTranscriptionCandidates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "overlappingLiveRetroactiveAndFutureWeeklyReservationsAreRejected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "quietOnlyRemindsOncePerSilenceAndEndingReminderCanExtendThirtyMinutes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.topic.Topic135Test",
+    "method": "weeklyScheduleStartsOnceCreatesNextAndRemindsWithoutTurningRecordingOn",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.Topic135Test.xml"
+  },
+  {
+    "class": "app.resound.usage.Usage043Test",
+    "method": "migrates14To15PreservingTotalsAsOther",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Usage/搬后JUnit/TEST-app.resound.usage.Usage043Test.xml"
+  },
+  {
+    "class": "app.resound.usage.Usage043Test",
+    "method": "llmGroupsPurposesIncludesBothBoundsAndEmitsUpdates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Usage/搬后JUnit/TEST-app.resound.usage.Usage043Test.xml"
+  },
+  {
+    "class": "app.resound.usage.Usage043Test",
+    "method": "pricesPersistValidateAndRoundTripThroughBackupIncludingNull",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Usage/搬后JUnit/TEST-app.resound.usage.Usage043Test.xml"
+  },
+  {
+    "class": "app.resound.usage.Usage043Test",
+    "method": "askConversationAndSuggestionsBothRecordAsk",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/工厂JUnit.xml"
+  },
+  {
+    "class": "app.resound.usage.Usage043Test",
+    "method": "digestReviewSkillAndDraftUseTheirOwnPurpose",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/名称读取时机-JUnit.xml"
+  },
+  {
+    "class": "app.resound.usage.Usage043Test",
+    "method": "asrCountsOnlyUploadCallbacksAndFiltersDates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Usage/搬后JUnit/TEST-app.resound.usage.Usage043Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "cancelDuringPreparationRestoresCaptureAndDoesNotRecognize",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "addAcceptedAtFrontPreservesOrderAndSourceAcrossLists",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "savedFromEventKeepsFirstLineAndSurvivesEventDelete",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "voiceFailureRestoresCaptureAndDeletesWavWithoutDiarization",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "dayItemsAndCalendarUseStandaloneCreatedAt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "migration17PreservesRowsAndNullableForeignKeyAndSearchTriggers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "deletingEventKeepsStandaloneAndDoneHintCanBeWritten",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "dayVolumeExportRebuildRetainsStandaloneAndAllNewFields",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "remindersPushFolderAndAskIncludeStandalone",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "draftSplitsTwoCardsUsesCalendarAndAccountsUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "noKeyDoesNotRequestModel",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "reviewIncludesStandaloneWithSafeNullEventReferenceAndWeeklyInput",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.digest.ManualTodo054Test",
+    "method": "malformedAndTimeoutFallBackToOriginalText",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+  },
+  {
+    "class": "app.resound.update.UpdateAndroidTest",
+    "method": "validatesPackageVersionAndCurrentSigningCertificates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.update.UpdateAndroidTest.xml"
+  },
+  {
+    "class": "app.resound.update.UpdateAndroidTest",
+    "method": "checkpointSnapshotIncludesWalAndPreferencesAndKeepsLatestThreeCopies",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.update.UpdateAndroidTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupSchedulerTest",
+    "method": "localOnlyNeedsNoNetworkAndCloudCancellationLeavesLocalScheduled",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupSchedulerTest",
+    "method": "periodicAndImmediateHaveDifferentConstraintsAndAreDeduplicated",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupSchedulerTest.xml"
+  },
+  {
+    "class": "app.resound.push.ReviewPushTest",
+    "method": "formatsAndJsonKeepFullReviewAndRetryPayload",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+  },
+  {
+    "class": "app.resound.push.ReviewPushTest",
+    "method": "testWithoutReviewKeepsExistingMessage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+  },
+  {
+    "class": "app.resound.push.ReviewPushTest",
+    "method": "testUsesLatestReviewDespiteSwitchesAndKeepsItOnRetry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+  },
+  {
+    "class": "app.resound.push.ReviewPushTest",
+    "method": "scheduledReviewUsesBriefLocallyAndFullBodyPerChannel",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupArchiveTest",
+    "method": "tamperingAndTraversalAreRejectedBeforeReplacement",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupArchiveTest",
+    "method": "snapshotRemainsConsistentDuringConcurrentTransactions",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupArchiveTest",
+    "method": "archiveExcludesAllSecretsAudioAndUnknownSettingsAndRestoresVerifiedContent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupArchiveTest",
+    "method": "restoreDownloadsSelectedVerifiesThenClosesAndRequestsRestart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupArchiveTest",
+    "method": "previousVersionArchiveVerifiesAndMigratesWithoutLosingVoiceprints",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupArchiveTest",
+    "method": "sampleAudioIsExcludedAndRestoreRetainsVectorsWithoutStalePlayback",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupArchiveTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestSplitRetryTest",
+    "method": "onlyUnsplittableHalfCountsTowardThreeFailuresBeforeMovingOn",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestSplitRetryTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestSplitRetryTest",
+    "method": "malformedBatchRetriesBothHalvesWithSeparateIdentitiesInSameRun",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestSplitRetryTest.xml"
+  },
+  {
+    "class": "app.resound.ui.ScreenSizeShots",
+    "method": "normalDark",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Usage/搬后JUnit/TEST-app.resound.ui.ScreenSizeShots.xml"
+  },
+  {
+    "class": "app.resound.ui.ScreenSizeShots",
+    "method": "normal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Usage/搬后JUnit/TEST-app.resound.ui.ScreenSizeShots.xml"
+  },
+  {
+    "class": "app.resound.ask.AskToolsTest",
+    "method": "allToolsFilterOrEscapingTimeSpeakerDeletedAndCap",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.ask.AskToolsTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedLiveTest",
+    "method": "liveExtractionAndTokenComparison",
+    "result": "skipped",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedLiveTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "changedDayIsIncrementalAndEachPointRestoresItsOwnDataAndSettings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "retentionPrunesPointsAndUnreferencedOldObjectsButKeepsSharedData",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "webDavImmutableObjectsAndCheckpointListingRestoreBothVersions",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "interruptedObjectsAndCheckpointNeverChangeCommittedHistoryAndRetryWorks",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "migratesCurrentVolumesAndDeletesOnlyRecognizedLegacyAfterCommit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "encryptedVersionsSurvivePassphraseChangeAndCorruptionNeverStagesRestore",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "cleanupFailureLeavesBothPublishedPointsRestorableUntilNextRetry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupHistoryTest",
+    "method": "safRepositoryListsAndRestoresSelectedVersionWithDefaultSeven",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupHistoryTest.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeDoesNotRetranscribeSoExpiredAudioStillMerges",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeInheritsStarAndKeepsDoneTodo",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeOnlyTakesTheSelectedEventsOwnLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeHandlesManyLinesAndKeepsAllOldItems",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "undoRestoresBothEventsItemsAndLineOwnership",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeRefusesEventsFarApartAndKeepsEverything",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeEstimateReportsLinesGapAndNoAudioCost",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeFailsWhenModelReturnsSeveralEventsAndKeepsOldData",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeNeedsTwoEventsAndKeepsThemWhenRejected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.redo.RedoMerge105Test",
+    "method": "mergeReplacesTwoEventsWithOneAndPointsEveryLineAtIt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.redo.RedoMerge105Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintMigrationTest",
+    "method": "version29OpensWithoutSchemaChangeAndKeepsSamples",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintMigrationTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintMigrationTest",
+    "method": "versionThreePreservesTranscriptDigestAndAcceptsNewBlobAndExclusion",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintMigrationTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintMigrationTest",
+    "method": "versionEightKeepsSamplesAndManualCorrections",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintMigrationTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewInputLimit101Test",
+    "method": "capacitiesParseFromAssetsAndOldFormatDefaults",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewInputLimit101Test",
+    "method": "protectedOverflowShowsChineseWithoutSending",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewInputLimit101Test",
+    "method": "deepseekSends150kIntactThroughRepositoryAndClient",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewInputLimit101Test",
+    "method": "fallbackAndMissingWorkerShowChinese",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewInputLimit101Test",
+    "method": "unknownAndCustomDefaultAndCompressionPreservesProtectedMaterial",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewInputLimit101Test",
+    "method": "pointsRemovedBeforeAnySummaryIsShortened",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+  },
+  {
+    "class": "app.resound.backup.Minio114Test",
+    "method": "linkedS3PushPersistsOnlyFlagAndUploadsIntoSeparateFolder",
+    "result": "skipped",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.Minio114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.Minio114Test",
+    "method": "minioCrudPaginationVolumesAndDiary",
+    "result": "skipped",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.Minio114Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSoundCursorInvestigationTest",
+    "method": "transactionKeepsWindowReadsConsistentDuringSameDeletion",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.envsound.EnvSoundCursorInvestigationTest.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSoundCursorInvestigationTest",
+    "method": "deletingSixRowsDuringWindowRefillInvalidatesCursorPosition",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.envsound.EnvSoundCursorInvestigationTest.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "eighteenAndPreImportInstallationsKeepSearchAndGainImportCleanup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "schemaOnlyControlsReproduceTheFixtureShortfallWithoutHistoricalCallbacks",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "beforeSearchIntroductionBackfillsAllThreeIndicesAndKeepsThemLive",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "historicalSearchSurvivesTheSeventeenToEighteenItemTableRebuild",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "laterHistoricalInstallsAndRepeatedOpensKeepAllDefinitionsAndIndexRows",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "prePendingInstallationGainsExactSourceDeletionCleanup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "method": "preThingsInstallationGainsAllThreeEvidenceCleanupTriggers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.data.TriggerHistory181Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestRejected134Test",
+    "method": "rejectionReasonUsesFixedWords",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestRejected134Test",
+    "method": "contentRejectionSkipsOnlyTheRejectedFewLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestRejected134Test",
+    "method": "networkTroubleDuringProbeKeepsNormalRetry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestRejected134Test",
+    "method": "configRejectionStopsWithoutDroppingAnything",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.DigestRejected134Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.InputPersistence045Test",
+    "method": "matchingUsesEnoughSameInputManualSamplesOtherwiseAllAndEnrollmentIsPhone",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.voiceprint.InputPersistence045Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.InputPersistence045Test",
+    "method": "sourceMetadataSurvivesInSpoolAndNewLogDoesNotBreakStatistics",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.voiceprint.InputPersistence045Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "deletedMeetingOverlapAndAliasesAreRestoredOnlyByManual",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "stoppedWorkerPropagatesCancellationAndRetryCanStillProduceResult",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "generateIsImmediateDeduplicatedClearsOldResultAndPublishesCompletion",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "deletedDayManualRestoresAndAutomaticUpdatesWhileDeletedAutomaticHasOwnReason",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "networkAndServerRetryAtMostTwiceWithoutEarlyNotice",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "restoresPendingWorkAfterRepositoryRestartAndKeepsExistingRequest",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "fullDayReportsActualCountInsteadOfDeletedReason",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGeneration047Test",
+    "method": "noticesHaveThreeOutcomesAndMultipleCardDayLinkEvenWithPushOff",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskFollowUp097Test",
+    "method": "eventConversationCanResumeAndAnswerTwoFollowUpsWithoutExtraSearch",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskFollowUp097Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskFollowUp097Test",
+    "method": "refreshUsesCurrentRecordsBoundsContextAndDoesNotResendDeletedEvidence",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskFollowUp097Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewPreparation053Test",
+    "method": "failureFallsThroughButParentCancellationPropagates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewPreparation053Test",
+    "method": "successfulPreparationSuppliesFreshEventsToWeeklyReview",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewPreparation053Test",
+    "method": "timeoutWhileWaitingForPipelineStillGeneratesDailyReview",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "markdownMatchesFullSampleSkipsMediaAndExportsWithoutInvokingModels",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "card059FolderTimelineAndExportLinesHaveDates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "reorderPersistsRequestedSequenceAndLeavesOtherRowsAlone",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "nineToTenBackfillsOnlyDoneAndPreservesOldFields",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "oneToTenRunsWholeChainAndValidatesRoomSchema",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "activeDaysCombinesEventStartsAndItemCreationWithinMonth",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "appointmentsSortDatesFirstAndUndatedNewestFirst",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "dayGroupsUseLocalMidnightsAcrossDstAndAllowRepeatedMembership",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "statusWritesTimesAndAcceptingOrUndoingDoneMovesToFront",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "insufficientOrSilentEnrollmentDoesNotPersistAndCancellationIsPropagated",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "expiredAudioStillAllowsManualIdentityWithoutInventingSample",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "enteringNameCreatesPersonAndReusesItForNextRecording",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "persistentFeatureCacheSurvivesDatabaseReopenWithoutAudioOrEngine",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "differentSpeakerGetsScoreButNoNameAndShortGroupIsSkipped",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "autoLimitEvictsOldestByTimeThenIdAndNeverManualSamples",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "markMeIsGroupScopedDeduplicatedAndNotMeRemovesPoisonedSamplePermanently",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "resetClearsSamplesNamesScoresExclusionsAndReadiness",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "clearAudioKeepsVectorsAndRecognitionAndDisablesFallbackAcrossRestart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "concurrentRoundsShareOneGateAndDigestHoldsStableResults",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "failedProcessingRetainsAudioThenRetriesBeforeCleanupAndMissingFilesDoNotBlockForever",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "multiplePeopleKeepCorrectionsRenameAndDeleteWithoutLosingAudio",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "autoSamplesRequireScoreAndEffectiveSpeechAndRespectExclusionsAndDeduplicate",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "correctionsCompleteWithinTwoSecondsWhileBackgroundEngineIsBlockedAndOldResultsCannotOverwrite",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "deletingPersonAndResetRemoveOnlyTheirAudio",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "digestWaitsForWholeSessionOnlyWhenReadyIncludingForceRun",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "resetDuringBackgroundDecodeDoesNotRestoreSamplesResultsOrFeatures",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "legacySampleCanPlayFromOriginalWithoutChangingDatabase",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "deletingSampleRemovesAudioAndPreventsAutomaticRelearning",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "cleanupDoesNotDeleteAudioBeingReadByCorrectionBeforeSamplesAreReady",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "rescoringUsesCachedVectorsAndCurrentThresholdAndPreservesOtherNames",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "confirmingAutoSamplePromotesItWithoutDecodingAndProtectsItFromEviction",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRepositoryTest",
+    "method": "notReadySkipsModelThenScoresEachGroupOnceAndSurvivesColdStart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRepositoryTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.ImportAudioCleanup078Test",
+    "method": "startupAbandonsExpiredFailuresWithOrWithoutRetryAndKeepsTheirReasons",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.ImportAudioCleanup078Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.ImportAudioCleanup078Test",
+    "method": "freshRetryAndActiveReadersAndCompletedImportsAreProtected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.ImportAudioCleanup078Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "emptyReportHasAllSectionsAndNoInventedHistory",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "digestCountsDistinguishSuccessEmptyAndAllFiltered",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "brokenDiagnosticStorageCannotFailSuccessfulRequest",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "reportAggregatesOnlyThreeDaysAndOmitsCredentialsHeadersAndOriginal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "failoverPersistsSwitchAndReportsCurrentCooldown",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "ringKeepsTwentyAcrossInstancesAndNeverStoresBodyOrBacksUp",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "streamTruncationAndAskEmptyAnswerAreRecorded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.LlmDiagnostics133Test",
+    "method": "requestRecordsTruncationNonJsonAndHttpErrorWithoutChangingResult",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.diagnostics.LlmDiagnostics133Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "malformedReplyHasSpecificSafeReason",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "successClearsOldErrorAndReportsIncompletePreparation",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "preparationFailureUsesExistingMaterialAndCancellationPropagates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "expeditedWorkDeduplicatesAndCompletesThroughWorker",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "materialUsesSameWindowAndReactsToEventChanges",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "emptyManualExplainsWindowButScheduledStaysSilent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "windowTextHandlesMidnight",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.review.ManualReview058Test",
+    "method": "missingKeyAndModelErrorsUseSafeDatedReasons",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "deletionRestrictsStatesAndRemovesDerivedRowsWithoutRefundingUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "retentionStartsAtJudgmentButExpiredImportsStopWaiting",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "agingUsesFirstFailureAcrossBulkRetryAndStopsAfterThreeDays",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "startupConvertsOldAudioFailuresOnceAndKeepsRecoverableFailures",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "version20MigratesAndRecoversFirstFailureFromLedger",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "ignoreThenIndividualRetryResetsAndMissingAudioBecomesAbandoned",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "audioFailureIsAbandonedAndMissingFileHasReadableReason",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.Failure065Test",
+    "method": "bulkRetryOnlyRequeuesFailuresStillNeedingAttention",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.Failure065Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "autoEnrollmentRequiresCoherentWindowsAndTwoSecondsOfSpeech",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "manualClickRejectsMixedWindowsAndQuarantinesOldSampleWithoutDeletingIt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "playbackAndExclusionPreventAutoSamplesAndPruningNeverDeletesManual",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "recomputeRejectsInvalidRangeAndIgnoresOlderRecordings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "topThreeDoesNotAcceptSingleAccidentalMatchAndKeepsMultiPersonMargin",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "resetDuringRecomputeCannotResurrectResultsOrFeatures",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "sameSegmentReferenceCannotRecognizeItselfAndUnknownCacheDoesNotUseLegacyFeature",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "recomputeSplitsGroupCachesWindowsAndPreservesExpiredAndManualResults",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "automaticSamplesNeverMoveReferenceAndManualOutlierIsPreserved",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "missingAndShortWindowsCannotTurnTinyPositiveIntoWholeSentence",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "windowsKeepRealTimeGapsOverlapAndShortTail",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.Voiceprint044Test",
+    "method": "mixedGroupMapsEachSentenceByOverlapAndRejectsMixedLongSentence",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.Voiceprint044Test.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerMigrationTest",
+    "method": "versionThreeMigratesAndRepositoryExportsRawCounters",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerMigrationTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRematchTest",
+    "method": "burstOfRequestsRunsVoiceprintOnceAndFallsBackOnlyWhenItKeepsFailing",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRematchTest.xml"
+  },
+  {
+    "class": "app.resound.voiceprint.VoiceprintRematchTest",
+    "method": "markMeOnlyRequeuesSegmentsWhoseAudioIsStillKept",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.voiceprint.VoiceprintRematchTest.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.AskCompatibility136Test",
+    "method": "markedBackupSkipsToolsBeforeNetworkAndDoesNotInventFailureOrUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.AskCompatibility136Test",
+    "method": "fallbackSurvivesRestartAppearsInDiagnosticsAndClearsOnEditOrToolCheckPass",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+  },
+  {
+    "class": "app.resound.diagnostics.AskCompatibility136Test",
+    "method": "realPrefetchFiltersTimeAndPersistsModeAndReferencesWithoutSchemaChange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "summaryDoesNotBypassManualRecordsAndRebuildBackfills",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "roomSnapshotHonorsMergePrivacyAndDeletedCards",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "capabilitiesTightenAndValidateRoundTrip",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "schedulingCombinesMinimumGapMultipleTimesWeekdaysAndManual",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "throttlingStopsImmediatelyAndResumesWithoutAdvancingFingerprint",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "webhookDeltaSignsUpsertsDeletesAndTracksFailureStatus",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "atomicMoveDeletesExistingTargetAndRebuildBatchesTwenty",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "folderDiffDeletionAndUnknownFilesAreProtected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "linkedCredentialsAreLiveNotCopiedAndFolderConflictRejected",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "selectionFrontMatterTypedCardsAndMeOnlyNeverLeakMedia",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "yearlyArchiveByDayAndSampleOutput",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "fullWebhookAndTelegramUseDailyMemoryWithMarkdownAttachment",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "migrationPersistsThreeLegacyCases",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.push.Subscription042Test",
+    "method": "notionOnlyUpdatesChangedDayAndArchivesDeletedDay",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.Subscription042Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "lateDigestedMeetingCardBelongsToMeetingDay",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "quotesAreRefilledAndUnknownEvidenceAndEmptyRequiredAreDiscarded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "sameEntityKeepsIdSnapshotAndLimitAndDeletedStayDeleted",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "trialRetriesFormatOnceAndAccountsTokensWithoutPersistingCards",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "afterDigestGapAutoLimitManualExemptionAndUpdateDoesNotPushAgain",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "coreSettingsAreNoopsAndMissingKeyDoesNotCallModel",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "migrationElevenToTwelvePreservesExistingTablesAndRoomValidates",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "dailyFailureDoesNotBlockOtherSkillAndNetworkRetriesOnce",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "mineFieldChangesBumpVersionAndRenameDoesNot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "parsesOfficialAndRejectsInvalidKeyTypeAndBounds",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "overlappingMeetingsExpandAndRememberDeletedAliases",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "overridesPromptsResetAndUpstreamVersionSurviveReload",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "exportsBoundedProbeRequestsUsingProductionPromptAndLocalCopyWhenProvided",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "scopeFiltersMeWeekAndIncrementalAndBoundsUntrustedData",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "mineKeepsDefaultPromptAfterEditsAndCanReset",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "scheduleDailySundayAndTodayOnlyCatchupAndRetryOnce",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "skillPathsRejectTraversal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.skills.Skills031Test",
+    "method": "manualDigestSkipsMinGap",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.Skills031Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupReadStatusTest",
+    "method": "localReadsDoNotFlashRunningOrReplaceSuccessfulBackupAfterFailure",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupReadStatusTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupReadStatusTest",
+    "method": "cloudReadsPreserveStatusOnSuccessFailureAndReload",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupReadStatusTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupReadStatusTest",
+    "method": "changingFolderDoesNotClaimOldFoldersBackupAsNewFoldersSuccess",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupReadStatusTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "smtpLocalAuthDataTlsModesAndMimeAttachment",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "telegramEscapesThenTruncatesAndUploadsDailyDocumentThroughProxy",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "webdavAppendsCreatesDirectoriesAndDailyOverwriteUsesSeparatePath",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "notionDiscoversTitleArchivesPreviousDayAndBatchesBlocksWithCache",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "dailyJsonHasCompleteFieldsAndOptionalLinesSurviveRetrySnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "feishuKnownSignatureAndInteractiveJsonFallback",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "dingTalkKnownSignatureIsUrlEncodedAndUsesMarkdown",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "validationRejectsUnsafeInputsButAllowsPrivateWebhookRanges",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "webhookEnvelopeTypesAndIndependentSignatureCoverExactWireBytes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushMoreTest",
+    "method": "diaryAndDailySourceIncludeTypedCardsAndUseReviewCutoffWindow",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.push.PushMoreTest.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewMigrationTest",
+    "method": "sevenToEightAndOneToEightPreserveDataAndOverwriteDaily",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.review.ReviewMigrationTest.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "diagnosticsPreserveReasonButHideUrisAndPaths",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "lostPersistedGrantAndSecurityExceptionRequireAuthorization",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "unsupportedWtFallsBackToWAndVerifiesExport",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "permissionErrorDoesNotTryOtherModes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "writtenButUnreadableHasDifferentErrorAndDoesNotClaimSuccess",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "inaccurateCanWriteDoesNotRejectWorkingFolderAndPickerRequestsFlags",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "temporaryGrantWorksButNewProcessRequiresAuthorization",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupAccess102Test",
+    "method": "unwritableLocationAndExhaustedModesAreUnsupported",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupAccess102Test.xml"
+  },
+  {
+    "class": "app.resound.search.SearchTerms136Test",
+    "method": "multipleKeywordsMatchAnyAndMultiCharKeywordNeedsAllBigrams",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.search.SearchTerms136Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "highSimilarityChoosesClosestEarlierRootAndKeepsOriginal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "userUnmergePersistsAndDoesNotBecomeAutomaticTarget",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "migrationTwelveToThirteenPreservesRowsAndRoomValidatesSchema",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "moodDiaryAssetSchedulesAndUsesOnlyOwnEvidenceWithThreeQuoteCap",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "deletingMainEventPromotesEarliestSurvivor",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "similarityPointEightAndOtherCategoriesStayIndependent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "listsOnlyExposeRootsWithCrossDayRepeatsAndChildSources",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "privacyDeletionPromotesSurvivingIdeaWithoutDanglingParent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "importantEventsAreCrossDayNewestFirstWithItemsAndLimit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.digest.IdeasMood040Test",
+    "method": "absentOrOldModelVectorsWaitAndLateEarlierVectorReparentsGroup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.IdeasMood040Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupAudit087Test",
+    "method": "dayVolumeRoundTripPreservesEnvironmentCorrections",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupAudit087Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupAudit087Test",
+    "method": "everySchemaTableHasAnExplicitBackupPolicy",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupAudit087Test.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupAudit087Test",
+    "method": "restoredSettingsAreReadBeforeConstructingRuntimeState",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupAudit087Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "streamAcceptsCoalescedAndRepeatedFramesButRejectsCorruption",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "liveCoverageIsRecordedAndOnlyUncoveredIntervalsAreImported",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "unsupportedResumeRestartsWholeFile",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "adjacentGapsDoNotReimportPadding",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "resumeSurvivesNewInstanceAndOldGapIsRestored",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "successfulImportPrecedesDeleteAndDoesNotRepeat",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "migrationFrom30PreservesDataAndPersistsTransfers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "sharedFingerprintSkipsWithoutUnsafeDelete",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "crashRecoveryUsesPersistedSegmentsAndSpoolWithoutAssumingClockOffset",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "pcmIsCroppedAndWrappedAsStandardWav",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "threeBadDownloadsNeverImportOrDelete",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "missingClockUsesModificationAndClampsPadding",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "protocolMatchesRealDownloadFrameAndReassembles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "overlapUsesPhoneOffsetAndPadding",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "checksumMismatchRetriesEvenWhenSizeMatches",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "firstPairDoesNotListButMissingPluginIsRecorded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.devices.DeviceSync120Test",
+    "method": "importFailureRetainsSource",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.devices.DeviceSync120Test.xml"
+  },
+  {
+    "class": "app.resound.backup.S3Client114Test",
+    "method": "timeAndCommonErrorsHaveSafeHumanMessages",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.S3Client114Test",
+    "method": "brokenPaginationAndAccessDeniedNeverBecomeEmptyHistory",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.S3Client114Test",
+    "method": "awsOfficialGetObjectSignature",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.S3Client114Test",
+    "method": "pathsEncodeEachSegmentAndVirtualHostIncludesBucket",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.S3Client114Test",
+    "method": "paginationDecodesKeysAndSignsOpaqueContinuationToken",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.S3Client114Test",
+    "method": "volumePutIsSingleAtomicRequestAndMissingBucketIsAnError",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.S3Client114Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "strongReminderGoesToStrongChannelOthersStayNormal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "deleteRegeneratesFolderAndWebhookDelta",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "strongReminderPostsWithButtonsAfterEdit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "eveningGroupsDateOnlyAndLeadIsSingleAndSentOnce",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "digestContextLimitsAndIgnoredWindow",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "ongoingAndUnlimitedCompletedRange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "migration15AndOldVolumeAndSettingsRestore",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "editNormalizesDateAndRevisesReminderIdentity",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "deletedIsAbsentFromAllConsumers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "batchIsAtomicAndDoneHintsValidateIdsAndDismissal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "redigestAndMergeNeverReviveDeletedOrOverwriteEdits",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "subscriptionSendsIndividualLeadsAndRetrySkipsSuccessfulOne",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "localPhoneSendsOnceAndReschedulesEditedTime",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.push.Todo046Test",
+    "method": "runnerSuppliesContextAndPersistsHintWithoutCompleting",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.push.Todo046Test.xml"
+  },
+  {
+    "class": "app.resound.topic.TopicDesignShotsTest",
+    "method": "layoutsAndRetryEntry",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Usage/搬后JUnit/TEST-app.resound.topic.TopicDesignShotsTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPresentationTest",
+    "method": "successStaysPrimaryAfterFailureForBothDestinations",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPresentationTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPresentationTest",
+    "method": "newerSuccessIsNotHiddenByCachedSummaryAndBytesStayPaired",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPresentationTest.xml"
+  },
+  {
+    "class": "app.resound.backup.BackupPresentationTest",
+    "method": "repeatedEntryKeepsGoodCacheButDifferentAccountAndFolderCannotReuseIt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.BackupPresentationTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "reciprocalRankingDeduplicatesAndCapsAtTen",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "mixedSearchUsesSemanticFiltersAndFallsBackWhenModelUnavailable",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "ftsTracksInsertUpdateDeleteAndRetainsSpeakerTimeAndHiddenFilters",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "embeddingBatchCapsNormalizesAndRejectsStaleSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "askAboutStartsFreshAndIncludesOnlySelectedContextWithFortyLineLimit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "modelTokenizerAndResumableVerifiedDownloadProtocol",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "tenToElevenAndOneToElevenBackfillAndPreserveData",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "proposalsPersistOnePerAnswerAndRepositoryConfirmsOrCancelsExactlyOnce",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "bigramsMatchSqlTokenizerAndNeverInjectMatchSyntax",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.search.SearchUpgradeTest",
+    "method": "fourChangeKindsAndStaleTargetsAreAtomic",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AsrSpeed073Test",
+    "method": "manualStopAndPermanentSwitchDoNotRewriteEarlierSegments",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AsrSpeed073Test",
+    "method": "cancelBothCloudRequestsRecordsEachAttemptAndKeepsAudio",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AsrSpeed073Test",
+    "method": "expiryAndRestartKeepTheRecordingStartDecision",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AsrSpeed073Test",
+    "method": "migration24KeepsDataAndHistoricalSpeakerState",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.AsrSpeed073Test",
+    "method": "concurrentResultsStayWithTheirSegmentsAndOffClearsIdentity",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.transcribe.AsrSpeed073Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "disabledIsPersistentAndNeverSwitches",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "inputLimitOnlyTriesLargerCapacity",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "moveAndSwitchSettingSurviveBackupRestore",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "streamNeverSwitchesAfterTextIncludingLaterToolRound",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "serverFailureUsesFirstBackupAndCountsReturnedFailureUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "digestFallbackReplayAndInflightNeverRepeatRequestOrUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "quotaAndAuthSwitchButFormatAndCancellationDoNot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "successfulManualTestClearsCooldown",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "legacyPendingAndNewProcessRecoveryUsePrimaryWithoutRebilling",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "rejectionTriesBackupButDoesNotCoolPrimary134",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "streamSwitchesBeforeFirstTextAndAccountsEachAttempt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "onlyThreeAttemptsAndPrimaryErrorSurvivesCooldownOrder",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmFailover103Test",
+    "method": "cooldownExpiresAndKeyEditClearsImmediately",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.digest.LlmFailover103Test.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "backupArchiveAndRestore",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "androidDriverReadsExistingSyntheticWalAndFts",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "dynamicQueriesAndFullTextSearch",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "writerNotifiesActiveTableFlow",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "backupDuringRecordingWritesKeepsParentsAndSearchConsistent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "writerTransactionCommitsNestedSeed",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "freshInstallIncludesAllCallbacks",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "cancelledWriterRollsBackSeed",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "method": "migrationsFromEveryHistoricalSchema",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.CloudSettings114Test",
+    "method": "addressPolicyAndSecretReuseRejectUnsafeConfiguration",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.CloudSettings114Test",
+    "method": "restoringOldSettingsSelectsNutstoreAndKeepsMissingFields",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.CloudSettings114Test",
+    "method": "legacyMigratesWithoutWritingAndSwitchesKeepEachCredential",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.CloudSettings114Test",
+    "method": "backupRestoresSelectionAddressesAndAllSecrets",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.CloudSettings114Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "failedPublishKeepsOldVolumeAndCleansPendingFile",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "choosingTreeAgainAndRestoringOldTreeSettingsKeepOriginalBehavior",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "treeProviderErrorsKeepTheActualOperationStep",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "dailyVolumesWriteReadReplaceAndRestoreAll",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "newInstallationSeesEmptyListWithoutError",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "downloadsBackupListsAndRestoresSelectedPointWithSettings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "retentionDeletesOnlyOwnedRecognizedFiles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DownloadsBackup123Test",
+    "method": "diagnosticKeepsStepAndReasonButRedactsAddressesAndCredentials",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DownloadsBackup123Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "narrowWindowUsesFullStayAndCachedNamesWithoutGeocoding",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "linesKeepSpeakerKeywordsAndReferencesWithOverlap",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "eventsOverlapStaysAndKeepTimeKeywordStarAndDeletionFilters",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "semanticCandidatesAreFilteredBeforeRankingAndStayFilteredOnReadback",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "omittedPlaceDoesNotReadFootprintOrChangeToolSchemaRequirements",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "disabledFootprintKeepsOriginalResultsAndOnlyExplainsExplicitPlace",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "missingPlaceReturnsAtMostTenDistinctNamesInRequestedRange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPlace131Test",
+    "method": "homeUsesHomeFlagAndManualNameInsteadOfTextContainingHome",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "failedUploadNeverDeletesFormalBackups",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "onlyOldestExcessBackupsAreDeleted",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "writeProbeCreatesAndRemovesTemporaryFile",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "uploadPublishesOnlyAfterPutAndCleansOwnPart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "combinesBothFoldersButRetentionDeletesOnlyEnglishBackups",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "legacyFolderIsReadOnlyAndRecognitionIgnoresDisplayName",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "parsesEncodedNamesAndIgnoresTemporaryFiles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "missingDirectoryIsCreated",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "fixedErrorsNeverExposeServerText",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.backup.WebDavClientTest",
+    "method": "acceptsHrefVariantsFromServers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.WebDavClientTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+    "method": "recognitionAndSpeakerErrorsKeepTheirOriginalMapping",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+    "method": "invalidAudioDecodeMapsToAudioAndFailedRecordingIsKept",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+    "method": "exportedProblemReportContainsExceptionClassButNoMessageOrPath",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.local.LocalAsrFailure063Test",
+    "method": "missingAudioIsSpecificAndDoesNotStopLaterSegmentsOrRetryForever",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.transcribe.local.LocalAsrFailure063Test.xml"
+  },
+  {
+    "class": "app.resound.backup.DiaryBackupTest",
+    "method": "failedDiaryUploadKeepsSuccessfulBackupAndRetriesBothDaysNextNight",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.backup.DiaryBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "firstAllThenTodayThenOldEditAndTodayWithoutLocalBaseline",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "unencryptedSummaryIncludesSecretsAndDeletingDayRemovesRemote",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "mockWebDavUsesAtomicMoveAndServerSideRecoveryCopy",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "exportBundleRestoresWithoutFilenameOrLocalBaseline",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "cleanupWaitsSevenDaysOfSuccessfulFormatAndKeepsUnrelatedFiles",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "stableRowsAndBeijingBoundary",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "missingManifestRetransmitsAllDays",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "oldUsageVolumeRestoresAsOtherAlongsideNewPurpose",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "restoresRowsFtsFeaturesAndOmitsEmbeddings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "usageV2BelongsToDayAndRestoresBothPurposes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "newPhoneCanSelectEncryptedFolderBeforeSupplyingPassphrase",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "secretsAndTypedSettingsMergePreserveMissingKeysAndExcludePassphrase",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "oldMissingColumnDefaultsAndFutureVersionRefused",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "wrongPassphraseAndTamperedVolumeNeverStageReplacement",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.backup.DayVolumesTest",
+    "method": "interruptionAfterOverwriteKeepsOldManifestRestorableAndRetryCommits",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.DayVolumesTest.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPersistenceTest",
+    "method": "historySearchPagingSelectionRenameAndDelete",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPersistenceTest",
+    "method": "migrationsFromOneAndFivePreserveDataAndPersistCitedExchange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPersistenceTest",
+    "method": "suggestionsCacheBoundsAndDailyReservationsSurviveRestartAndFailure",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.ask.AskPersistenceTest",
+    "method": "stopPersistsOnlyFinalPartialAndRestartAndNewConversationStayIsolated",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedTest",
+    "method": "oneRequestStoresBothAndAskFindsRealSourceWithoutDoubleUsage",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedTest",
+    "method": "reprocessingDoesNotRecreateIgnoredFact",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedTest",
+    "method": "disabledDuringRequestDiscardsThingButKeepsTimeline",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedTest",
+    "method": "badThingDoesNotRetryTimelineAndValidSiblingStillSaves",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedTest",
+    "method": "importDoesNotAddInstructionsAndMediaDoesNotCreateThings",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+  },
+  {
+    "class": "app.resound.things.ThingsSharedTest",
+    "method": "deletedSourceAndFailedTransactionCannotLeaveOrphanThing",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "allBrokenIsLocalFailureAndNoRequest",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "responseOnlyJsonErrorsAreRemote",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "editAndRestoreNormalizeOldBrokenPoints",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "corruptRetryIsDiscardedImmediately",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "diagnosticsHaveChannelsAndThirtyLogsWithoutSecretsOrContents",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "multipleBrokenFieldsCountOnceAndDoNotBecomeDeltaDeletes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "brokenCardIsSkippedAndHealthyRecordDelivered",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.push.PushLocal067Test",
+    "method": "corruptStateResetsAndContinues",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-Memory/JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "singleCardGateKeepsActualTimeAndReadsWeekWithoutLinesInPrompt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "uncertainLabelsDoNotAddPeople",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "cardRecheckDoesNotBorrowVoiceInputOrOtherSpeakersOutsideItsTime",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "copiedAndLegacyMineInheritCurrentOfficialEvenAfterUnrelatedSave",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "enoughTimeAndPeopleStillRequiresEnoughLines",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "gateJsonRoundTripsAndRejectsInvalidValues",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "twoLineSmallTalkDoesNotCallModel",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "voiceInputIsExcludedFromAllStatsUnlessExplicitlyCounted",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "realMeetingUsesCompleteLinesBeforeCharacterTrimming",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "explicitNullAndCustomGateSurviveOfficialChangesAndReload",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "shortCardInsideLongWindowIsDiscardedBeforeSavingAndPush",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "longMonologueDoesNotBecomeDiscussion",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "drafterAcceptsReasonableGateAndRejectsOutOfRangeInsteadOfDisabling",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "previewKeepsPassingCardAndRejectsCardWithoutEnd",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillGate146Test",
+    "method": "legacyFileWithoutGateStillCallsModel",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "dailyMemoryCarriesBooleanAndTimelineStarWithoutMarkingImportantOnly",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "staleRequiresThreeDaysUnfinishedAndNoDoneOrSimilarLaterEvent",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "weeklyIncludesOldEventsStarredThisWeekAndItemProgress",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "reviewInputAndOutputKeepFourStarsAndHistoricalReminder",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "starAcceptsPendingTasksAtFrontAndUnstarPreservesItemsAndRepeats",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "askEventStarWaitsForConfirmationThenUsesTransactionalStar",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "migrationThirteenToFourteenPreservesImportantAndClearsUserStars",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "emptyDayStillFollowsStaleStarsWithoutCallingCloud",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.starred.Starred041Test",
+    "method": "askStarFilterAppliesToKeywordSemanticAndDayResults",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.starred.Starred041Test.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupTest",
+    "method": "localArchiveCanBeDownloadedAndRestoredThroughCloudFlow",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupTest",
+    "method": "writesHistoryRemovesRecognizedLegacyFilesAndRestoresLocal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupTest",
+    "method": "exportEncryptedFileDetectsContentWithoutSuffixAndRequestsPassphrase",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupTest",
+    "method": "cloudArchiveCanBeImportedAndCloudFailureDoesNotBlockLocal",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupTest",
+    "method": "lostFolderPermissionHasStableErrorAndKeepsPreviousBackups",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.LocalBackupTest",
+    "method": "failedWriteNeverPrunesOrClearsRestoreSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.LocalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.capture.LevelFlow172Test",
+    "method": "levelResetsWhenNotListening",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.LevelFlow172Test.xml"
+  },
+  {
+    "class": "app.resound.capture.LevelFlow172Test",
+    "method": "levelChangesDoNotWakeStatusSubscribers",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.capture.LevelFlow172Test.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "ageSchemaLostCorruptBaseAndLargeDeltaStartNewFullSet",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "encryptedFullAndEncryptedDeltaRestoreTogether",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "namesAndRetentionKeepDependenciesAndTreatLegacyAsFull",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "featureAddModifyDeleteAndCumulativeDaysRestoreWithoutIntermediate",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "growingAndShrinkingDatabaseRestoreExactLengthAndHash",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "fewChangedPagesAreCumulativeAndReconstructExactSnapshot",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "tamperedPageFailsResultHashAndNeverStagesRestore",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "cloudRepositoryUsesSameGenerationRetentionAndPairRestore",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "wrongOrMissingBaseRejectedBeforeAnyLiveDatabaseReplacement",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "destinationMustContainItsOwnCommittedFullAndFailedGenerationDoesNotReplaceIt",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.backup.IncrementalBackupTest",
+    "method": "localRepositoryWritesRetainsAndAutomaticallyRestoresIncrementalPair",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.IncrementalBackupTest.xml"
+  },
+  {
+    "class": "app.resound.ask.AskSuspension177Test",
+    "method": "toolsAndContextReuseWriterTransactionInsteadOfBlockingForAnotherConnection",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ask.AskSuspension177Test.xml"
+  },
+  {
+    "class": "app.resound.topic.TopicRepository177Test",
+    "method": "repositoryMethodsMissingFromTopic135MatchRecordedBytes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.TopicRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.topic.TopicRepository177Test",
+    "method": "storeEveryMethodAndFlowMatchRecordedBytes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Topic/搬后JUnit/TEST-app.resound.topic.TopicRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.things.ThingRepository177Test",
+    "method": "everyMethodAndFlowMatchesRecordedBytes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.usage.UsageRepository177Test",
+    "method": "bothQueryFlowsMatchRecordedBytes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Usage/搬后JUnit/TEST-app.resound.usage.UsageRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscriptRepository177Test",
+    "method": "failedAtomicSaveDoesNotPublishNewState",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscriptRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscriptRepository177Test",
+    "method": "queryQueueAndSubscriptionMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscriptRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscriptRepository177Test",
+    "method": "commandsPreserveQueueTransitionsAndFileFailure",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Transcript/搬后JUnit/TEST-app.resound.transcribe.TranscriptRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.digest.MemoryRepository177Test",
+    "method": "queriesAndCommandsMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Memory/搬后JUnit/TEST-app.resound.digest.MemoryRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskRepository177Test",
+    "method": "commandsAndSerializedMessagesMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskRepository177Test",
+    "method": "failedExchangeRollsBackBothMessages",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.ask.AskRepository177Test",
+    "method": "stopRejectsLateCallbackAndKeepsSavedPartial",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Ask/搬后JUnit/TEST-app.resound.ask.AskRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.usage.UsageRepository177Test",
+    "method": "priceReadsAtomicWritesAndFailureMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Usage/搬后JUnit/TEST-app.resound.usage.UsageRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "midnightClipsEnergyAndDurationTogether",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "chargingUnknownAndBriefPlugInAreExcluded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "unsupportedTrafficLongGapsAndClockChangesAreExcluded",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "formulaAndThirtyMinuteThreshold",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "capacityUsesRemainingChargeAndFallsBackForInvalidValues",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "resetOfAnyCounterDiscardsInterval",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.AppPowerEstimatorTest",
+    "method": "micCountsOnlyActualOpenAndIncludesSilencedButOpenTime",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.AppPowerEstimatorTest.xml"
+  },
+  {
+    "class": "app.resound.capture.CaptureStats177Test",
+    "method": "allReadFlowsMatchOldRepositoryAcrossDstBoundary",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-CaptureStats/搬后JUnit/TEST-app.resound.capture.CaptureStats177Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "emptyDisabledOrRevokedPermissionReturnsNothingEvenAfterCacheHit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "homeMatchesAndUnboundedRangeIsClampedToRecordedDays",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "mostlyOnRoadReturnsNullButExactlyOneThirdQualifies",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "environmentUsesClippedDurationExcludesWrongAndLimitsAcrossMidnight",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "staysMatchCaseInsensitivelyInTimeOrderWithDayBoundedReadsAndInvalidation",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "choosesLongestOverlapRatherThanLongestFullStay",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.Situation130Test",
+    "method": "wholeIntervalUsesStayAndHome",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.Situation130Test.xml"
+  },
+  {
+    "class": "app.resound.context.SituationAndroid130Test",
+    "method": "roomLookupUsesOnlyCacheUpdatesAfterEditsAndMeasuresEventCardQueries",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.context.SituationAndroid130Test.xml"
+  },
+  {
+    "class": "app.resound.context.SituationAndroid130Test",
+    "method": "settingDefaultsOffPersistsAndTravelsWithBackup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.context.SituationAndroid130Test.xml"
+  },
+  {
+    "class": "app.resound.context.SituationRepository177Test",
+    "method": "dayClippingAndCacheInvalidationMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Situation/搬后JUnit/TEST-app.resound.context.SituationRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.review.ReviewRepository177Test",
+    "method": "queriesSettingsAndGenerationMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Review/搬后JUnit/TEST-app.resound.review.ReviewRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.skills.SkillRepository177Test",
+    "method": "queryStatusAndSettingsMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Skill/搬后JUnit/TEST-app.resound.skills.SkillRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSoundRepository177Test",
+    "method": "queriesAtomicSettingsAndCorrectionsMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSoundRepository177Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSpan081Test",
+    "method": "longestEnvironmentWinsNotMostSegments",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSpan081Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSpan081Test",
+    "method": "needsEnoughSpeechAndShare",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSpan081Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSpan081Test",
+    "method": "clipAcrossHoursCountsOnlyItsPartInEachHour",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSpan081Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSpan081Test",
+    "method": "consecutiveSameHoursMergeOthersSplit",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSpan081Test.xml"
+  },
+  {
+    "class": "app.resound.envsound.EnvSpan081Test",
+    "method": "oneMinuteOfTypingDoesNotMarkTheHour",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-EnvSound/搬后JUnit/TEST-app.resound.envsound.EnvSpan081Test.xml"
+  },
+  {
+    "class": "app.resound.diary.DayDiaryTest",
+    "method": "repository177CardsSettingsAndErrorsMatchOldImplementation",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-Diary/搬后JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+  },
+  {
+    "class": "app.resound.digest.DigestSettings177Test",
+    "method": "oldPreferencesClampingWritesAndFailedCommitMatch",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.digest.DigestSettings177Test.xml"
+  },
+  {
+    "class": "app.resound.digest.LlmProviders076Test",
+    "method": "deepThinkingSwitchControlsDeepseekIncludingRelays",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-DigestSettings/搬后JUnit/TEST-app.resound.digest.LlmProviders076Test.xml"
+  },
+  {
+    "class": "app.resound.digest.CustomHeaders116Test",
+    "method": "transcriptionUsesHeadersInAutoAndFullAddressModes",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.digest.CustomHeaders116Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "minimaxStyleResponseIsRead",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "fullModeSkipsHotwordPromptUnlessEnabled",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "modeSurvivesRestartAndMarksReady",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "autoModeStillAppendsOpenAiPath",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "fullEndpointRejectsUnsafeUrl",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "fullEndpointIsRequestedAsIs",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.CustomFullEndpointTest",
+    "method": "serviceErrorCodeBecomesFixedHint",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.CustomFullEndpointTest.xml"
+  },
+  {
+    "class": "app.resound.transcribe.LocalLanguage093Test",
+    "method": "unknownStoredLanguageFallsBackAndDoesNotAffectCloudIdentity",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.LocalLanguage093Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.LocalLanguage093Test",
+    "method": "bothBackendsReceiveSelectedLanguageAndInvalidateModelCacheOnChange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.LocalLanguage093Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.LocalLanguage093Test",
+    "method": "selectionPersistsChangesLocalIdentityAndSurvivesBackup",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.LocalLanguage093Test.xml"
+  },
+  {
+    "class": "app.resound.transcribe.TranscribeSettings177Test",
+    "method": "preferencesDefaultsAtomicCustomAndFailureMatchOldImplementation",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后JUnit/TEST-app.resound.transcribe.TranscribeSettings177Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "customTimeRangeFiltersBySegmentStart",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "speechFilteringAndFirstEnableRange",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "acknowledgementSurvivesRestartDeletionAndTextRedo",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "allPushesBeforeTranscriptAndLaterAddsText",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "cancellationDeletesMediaStorePartialAndPersistsCancelled",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "twoDaysZipStoresOriginalsAndTextWithCollisionNames",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingArchive072Test",
+    "method": "estimateAndSkipMediaOnlyCountExistingOriginals",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingArchive072Test.xml"
+  },
+  {
+    "class": "app.resound.recordings.RecordingSources177Test",
+    "method": "loadMetadataNamesSelectionAndEstimateMatchOldRepository",
+    "result": "passed",
+    "source": "docs/任务卡/177-证据/续做-RecordingSources/搬后JUnit/TEST-app.resound.recordings.RecordingSources177Test.xml"
+  }
+]

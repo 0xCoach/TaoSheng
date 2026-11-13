@@ -10,4 +10,3 @@ enum class LocalAsrLanguage(val code: String, val title: String) {
         fun fromCode(code: String?) = entries.firstOrNull { it.code == code } ?: Auto
     }
 }
-

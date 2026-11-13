@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.home.WidgetRules167Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:59:12.549Z" hostname="CoachdeMacBook-Air.local" time="0.001">
+  <properties/>
+  <testcase name="noPermissionOpensApp[jvm]" classname="app.resound.home.WidgetRules167Test" time="0.0"/>
+  <testcase name="listeningShowsPauseAndStartTopic[jvm]" classname="app.resound.home.WidgetRules167Test" time="0.0"/>
+  <testcase name="pausedShowsResumeTimeAndQuietName[jvm]" classname="app.resound.home.WidgetRules167Test" time="0.001"/>
+  <testcase name="topicTurnsMiddleButtonIntoMarkAndToggleControlsTopic[jvm]" classname="app.resound.home.WidgetRules167Test" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

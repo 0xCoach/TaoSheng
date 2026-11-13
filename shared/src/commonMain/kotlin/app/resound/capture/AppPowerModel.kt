@@ -41,4 +41,3 @@ object AppPowerModel {
         return if (duration < 30 * 60_000L) null else (percent / (duration / 3_600_000.0)).toFloat()
     }
 }
-

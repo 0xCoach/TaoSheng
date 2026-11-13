@@ -10,4 +10,3 @@ enum class CustomEndpointMode(val title: String, val hint: String) {
     Auto("自动匹配路径", "填根地址或带 /v1 的地址，自动补 /audio/transcriptions；OpenAI 兼容的服务用它。"),
     Full("完整请求地址", "按填写的地址原样请求，一个路径都不补；非 OpenAI 兼容的服务用它。"),
 }
-

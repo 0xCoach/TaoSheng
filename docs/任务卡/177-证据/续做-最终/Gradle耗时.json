@@ -1,0 +1,281 @@
+{
+  "timed_calls": 54,
+  "total_seconds": 1933.08,
+  "max_seconds": 128.23,
+  "calls": [
+    {
+      "log": "docs/任务卡/177-证据/续做-Ask/iOS.log",
+      "seconds": 27.61,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Ask/工厂时钟注入.log",
+      "seconds": 19.71,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Ask/搬前录制.log",
+      "seconds": 16.86,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Ask/搬后重放.log",
+      "seconds": 60.44,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Ask/补齐装配后重放.log",
+      "seconds": 41.99,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-CaptureStats/iOS.log",
+      "seconds": 27.2,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-CaptureStats/搬前录制.log",
+      "seconds": 16.14,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-CaptureStats/搬后重放.log",
+      "seconds": 57.14,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Diary/iOS.log",
+      "seconds": 27.81,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Diary/搬前录制.log",
+      "seconds": 10.14,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Diary/搬后重放.log",
+      "seconds": 58.4,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-DigestSettings/iOS.log",
+      "seconds": 27.54,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-DigestSettings/搬前录制.log",
+      "seconds": 12.47,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-DigestSettings/搬后重放.log",
+      "seconds": 62.25,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-EnvSound/iOS.log",
+      "seconds": 28.38,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-EnvSound/搬前录制.log",
+      "seconds": 14.18,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-EnvSound/搬后重放.log",
+      "seconds": 14.14,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-EnvSound/文件门面拆名后重放.log",
+      "seconds": 74.35,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-EnvSound/时间API声明补齐后重放.log",
+      "seconds": 58.81,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Memory/iOS.log",
+      "seconds": 33.71,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Memory/搬前录制.log",
+      "seconds": 16.8,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Memory/搬后重放.log",
+      "seconds": 74.3,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-RecordingSources/iOS.log",
+      "seconds": 26.76,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-RecordingSources/搬前录制.log",
+      "seconds": 13.06,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-RecordingSources/搬后重放.log",
+      "seconds": 60.18,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Review/iOS.log",
+      "seconds": 28.91,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Review/搬前录制.log",
+      "seconds": 16.81,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Review/搬后重放.log",
+      "seconds": 14.69,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Review/日期机械适配修正后重放.log",
+      "seconds": 60.43,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Situation/iOS.log",
+      "seconds": 52.09,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Situation/搬前录制.log",
+      "seconds": 13.27,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Situation/搬后重放.log",
+      "seconds": 34.35,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Situation/补齐共用依赖后重放.log",
+      "seconds": 91.49,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Skill/iOS.log",
+      "seconds": 26.59,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Skill/名称读取时机-iOS.log",
+      "seconds": 26.27,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Skill/名称读取时机复核.log",
+      "seconds": 56.55,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Skill/搬前录制.log",
+      "seconds": 13.85,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Skill/搬后重放.log",
+      "seconds": 13.8,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Skill/格式端口补齐后重放.log",
+      "seconds": 59.95,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-TranscribeSettings/iOS.log",
+      "seconds": 27.05,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-TranscribeSettings/字符串适配修正后重放.log",
+      "seconds": 69.27,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-TranscribeSettings/搬前录制.log",
+      "seconds": 12.55,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-TranscribeSettings/搬后重放.log",
+      "seconds": 14.14,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/iOS.log",
+      "seconds": 31.38,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/基线诊断.log",
+      "seconds": 19.59,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/搬前命令基线.log",
+      "seconds": 16.91,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/搬前完整基线.log",
+      "seconds": 21.01,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/搬前录制.log",
+      "seconds": 0.07,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/搬前录制提权.log",
+      "seconds": 25.59,
+      "result": "failed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Transcript/搬后重放.log",
+      "seconds": 75.75,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Usage/iOS.log",
+      "seconds": 27.51,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Usage/搬前录制.log",
+      "seconds": 16.82,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-Usage/搬后重放.log",
+      "seconds": 57.79,
+      "result": "passed"
+    },
+    {
+      "log": "docs/任务卡/177-证据/续做-最终/发布包构建.log",
+      "seconds": 128.23,
+      "result": "passed"
+    }
+  ],
+  "notes": [
+    "Skill 首次未引号的通配符被 zsh 拦截，Gradle 未启动；不是审批拒绝",
+    "所有 Gradle 使用 JDK21、177 专用 registry 与 skipSigningSecrets；没有 --stop 或全局缓存清理"
+  ]
+}

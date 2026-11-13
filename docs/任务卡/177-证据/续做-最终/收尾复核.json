@@ -1,0 +1,10 @@
+{
+  "status": "PARTIAL：A已迁6份日期约定，C完成；B已完成专题、寻物及本次13项仓储/设置独立业务迁移，21份夹具逐字一致，已迁范围9项门槛通过；仅Capture、Diary、RecordingArchive混合文件约定与日期边界拆分待审核，具体方案见交付；保留0126588试听修复。",
+  "fixture_files": 21,
+  "xml_verified_methods": 776,
+  "passed": 773,
+  "skipped": 3,
+  "source_scope": "从 0126588 起无 UI/Contract 改动，试听修复完整保留；完整范围核对另见范围与结构.json",
+  "cleanup_verified": true,
+  "gradle_not_rerun_after_whitespace_only_cleanup": true
+}

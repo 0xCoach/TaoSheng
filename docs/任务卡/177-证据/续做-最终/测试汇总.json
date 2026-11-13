@@ -1,0 +1,32 @@
+{
+  "old_unique_methods": 719,
+  "final_unique_methods": 776,
+  "final_results": {
+    "passed": 773,
+    "skipped": 3
+  },
+  "resume_executed_method_results": 299,
+  "resume_unique_methods": 248,
+  "added_methods": 57,
+  "skipped": [
+    {
+      "class": "app.resound.things.ThingsSharedLiveTest",
+      "method": "liveExtractionAndTokenComparison",
+      "result": "skipped",
+      "source": "docs/任务卡/177-证据/B-Things/搬后JUnit/TEST-app.resound.things.ThingsSharedLiveTest.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "method": "linkedS3PushPersistsOnlyFlagAndUploadsIntoSeparateFolder",
+      "result": "skipped",
+      "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    },
+    {
+      "class": "app.resound.backup.Minio114Test",
+      "method": "minioCrudPaginationVolumesAndDiary",
+      "result": "skipped",
+      "source": "docs/任务卡/177-证据/A-门槛/JUnit/TEST-app.resound.backup.Minio114Test.xml"
+    }
+  ],
+  "note": "跨阶段逐项合并并反查 XML；并非一次全量测试。未受影响的方法沿用原有效证据。"
+}

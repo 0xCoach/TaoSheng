@@ -1,0 +1,9 @@
+{
+  "built_source_commit": "78295db90fd205ece464e4a3d2ab33428b7cd8b9",
+  "after_build_changes": {
+    "shared/src/commonMain/kotlin/app/resound/capture/AppPowerModel.kt": "只删末尾一个空行，字节内容 rstrip 后相同",
+    "shared/src/commonMain/kotlin/app/resound/transcribe/CustomEndpointMode.kt": "只删末尾一个空行，字节内容 rstrip 后相同",
+    "shared/src/commonMain/kotlin/app/resound/transcribe/local/LocalAsrChoices.kt": "只删末尾一个空行，字节内容 rstrip 后相同"
+  },
+  "reason": "只改末尾空行，编译和行为不受影响；没有重跑 Gradle"
+}

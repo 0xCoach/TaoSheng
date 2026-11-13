@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.capture.SpeechSegmenterTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:59:12.190Z" hostname="CoachdeMacBook-Air.local" time="0.254">
+  <properties/>
+  <testcase name="discardsCoughDespitePreRollAndTrailingSilence[jvm]" classname="app.resound.capture.SpeechSegmenterTest" time="0.007"/>
+  <testcase name="nextUtteranceKeepsPreRollImmediatelyAfterPreviousSilenceEnd[jvm]" classname="app.resound.capture.SpeechSegmenterTest" time="0.007"/>
+  <testcase name="endsAtTwoSecondsOfConsecutiveSilence[jvm]" classname="app.resound.capture.SpeechSegmenterTest" time="0.002"/>
+  <testcase name="finishDropsShortTailAndSilenceAloneCreatesNoFile[jvm]" classname="app.resound.capture.SpeechSegmenterTest" time="0.002"/>
+  <testcase name="retainsExactlyOneSecondBeforeSpeech[jvm]" classname="app.resound.capture.SpeechSegmenterTest" time="0.003"/>
+  <testcase name="splitsAtFiveMinutesWithOneSecondOverlap[jvm]" classname="app.resound.capture.SpeechSegmenterTest" time="0.233"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

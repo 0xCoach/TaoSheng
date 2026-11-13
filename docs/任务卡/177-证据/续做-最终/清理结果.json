@@ -1,0 +1,53 @@
+[
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/app/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/shared/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/devices/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/taosheng-177-shots",
+    "existed": false,
+    "removed": true
+  },
+  {
+    "path": "/tmp/taosheng-177-gradle",
+    "existed": true,
+    "removed": true,
+    "note": "首轮删除后出现 registry 文件；按次提权只读核对无 GradleDaemon 后再删除，未执行 --stop 或结束任何其他进程。"
+  },
+  {
+    "path": "/tmp/177-memory-crops.png",
+    "existed": false,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-memory-time.png",
+    "existed": false,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-final-time.png",
+    "existed": false,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-c-time.png",
+    "existed": false,
+    "removed": true
+  }
+]

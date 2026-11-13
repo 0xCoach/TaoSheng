@@ -1,0 +1,9 @@
+{
+  "path": "app/build/outputs/apk/release/app-release.apk",
+  "bytes": 105724788,
+  "sha256": "839e85baa8622b4d65acc6d8040a9079d40b226bed1670d40f8a92ad1540eb05",
+  "command": "JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew -Dorg.gradle.daemon.registry.base=/tmp/taosheng-177-gradle -PskipSigningSecrets=true --no-daemon :app:assembleRelease",
+  "seconds": 128.23,
+  "published": false,
+  "note": "打包后只保存文件元数据；按任务卡删除本工作树 build 产物。"
+}

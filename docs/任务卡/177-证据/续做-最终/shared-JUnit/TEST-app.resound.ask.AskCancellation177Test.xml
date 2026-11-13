@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskCancellation177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:59:11.993Z" hostname="CoachdeMacBook-Air.local" time="0.055">
+  <properties/>
+  <testcase name="suspendedProposalCanBeCancelledAndReleasesTheRead[jvm]" classname="app.resound.ask.AskCancellation177Test" time="0.055"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

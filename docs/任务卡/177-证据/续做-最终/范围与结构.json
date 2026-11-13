@@ -1,0 +1,21 @@
+{
+  "base": "24198117d9001fa1c450b87d667b3ac5cc207b8a",
+  "resume": "0126588",
+  "HEAD": "78295db90fd205ece464e4a3d2ab33428b7cd8b9",
+  "schema33_sha256": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292",
+  "immutable_files": 74,
+  "database_annotated_files": 22,
+  "changed_database_files": [],
+  "changed_contracts_since_resume": [],
+  "changed_ui_since_resume": [],
+  "preview_fix_preserved": [
+    "app/src/main/java/app/resound/ui/envsound/EnvSoundViews.kt",
+    "shared/src/commonMain/kotlin/app/resound/envsound/AudioPreviewRequests.kt",
+    "shared/src/jvmTest/kotlin/app/resound/envsound/AudioPreview177Test.kt"
+  ],
+  "forbidden_paths_changed": [],
+  "notes": [
+    "LocalModels.kt 和 LocalAsrLanguage.kt 仅移出纯枚举，推理、下载和网络实现未改",
+    "EnvSound beforeTranscribe 原执行方法逐字保留；同期 183 未合入"
+  ]
+}

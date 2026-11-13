@@ -1,0 +1,128 @@
+[
+  {
+    "path": "app/src/test/resources/repo177/RoomTopicRepository/outputs.txt",
+    "baseline_sha256": "4ea8d54cd425739c9bb4a7d0015079711ff0cc406ed0c280a3ac0bab05c35c9c",
+    "actual_sha256": "4ea8d54cd425739c9bb4a7d0015079711ff0cc406ed0c280a3ac0bab05c35c9c",
+    "baseline_source": "最终/仓储夹具校验.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomTopicStore/outputs.txt",
+    "baseline_sha256": "4cf61819603453d360297f89b3c65d08fceb937f8cdd2920dead7ceedd0ac297",
+    "actual_sha256": "4cf61819603453d360297f89b3c65d08fceb937f8cdd2920dead7ceedd0ac297",
+    "baseline_source": "最终/仓储夹具校验.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomThingRepository/outputs.txt",
+    "baseline_sha256": "870092b4382666372f3ff79c470d360ee2c3ab7ce0ebcf685fd93a808c315875",
+    "actual_sha256": "870092b4382666372f3ff79c470d360ee2c3ab7ce0ebcf685fd93a808c315875",
+    "baseline_source": "最终/仓储夹具校验.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomUsageRepository/outputs.txt",
+    "baseline_sha256": "c37b3a873153ab90d5036a7e19dbc48dc06b969897eae055644c4fed1743b86e",
+    "actual_sha256": "c37b3a873153ab90d5036a7e19dbc48dc06b969897eae055644c4fed1743b86e",
+    "baseline_source": "最终/仓储夹具校验.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomAskRepository/save-failure.txt",
+    "baseline_sha256": "8f5d59ba553203cbf141046bc395c3480f218069ac56be162caffdc6f1ba8aee",
+    "actual_sha256": "8f5d59ba553203cbf141046bc395c3480f218069ac56be162caffdc6f1ba8aee",
+    "baseline_source": "docs/任务卡/177-证据/续做-Ask/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomAskRepository/stop.txt",
+    "baseline_sha256": "c396475cd1524fd9401d581de983136e62f97972f75b0978bf03893fc683d434",
+    "actual_sha256": "c396475cd1524fd9401d581de983136e62f97972f75b0978bf03893fc683d434",
+    "baseline_source": "docs/任务卡/177-证据/续做-Ask/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomAskRepository/commands.txt",
+    "baseline_sha256": "160ef48157e52db74598d11986978cc3c59b34748515836cf8eb5438e3cf9212",
+    "actual_sha256": "160ef48157e52db74598d11986978cc3c59b34748515836cf8eb5438e3cf9212",
+    "baseline_source": "docs/任务卡/177-证据/续做-Ask/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomCaptureStatsRepository/queries.txt",
+    "baseline_sha256": "f2c5e6677caa67727d5f8424224d45129febe554889fa173c8b0968e6759f9dd",
+    "actual_sha256": "f2c5e6677caa67727d5f8424224d45129febe554889fa173c8b0968e6759f9dd",
+    "baseline_source": "docs/任务卡/177-证据/续做-CaptureStats/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/LocalDiaryRepository/cards-settings.txt",
+    "baseline_sha256": "8b5c438007f77df488bd3c1592e1549606a66d650e86aa7f347ede96326e25bb",
+    "actual_sha256": "8b5c438007f77df488bd3c1592e1549606a66d650e86aa7f347ede96326e25bb",
+    "baseline_source": "docs/任务卡/177-证据/续做-Diary/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/AndroidDigestSettings/preferences.txt",
+    "baseline_sha256": "ef3bf5dd09bb3ba8e1b8e2b75d4daa0b8ce8f17f4445bafbb96d8eb1073b8020",
+    "actual_sha256": "ef3bf5dd09bb3ba8e1b8e2b75d4daa0b8ce8f17f4445bafbb96d8eb1073b8020",
+    "baseline_source": "docs/任务卡/177-证据/续做-DigestSettings/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/LocalEnvSoundRepository/all.txt",
+    "baseline_sha256": "b06e9f01fa46ea7ea04d8d203ec0580eccdaf46e9c1abe95b98bffd7bb09b872",
+    "actual_sha256": "b06e9f01fa46ea7ea04d8d203ec0580eccdaf46e9c1abe95b98bffd7bb09b872",
+    "baseline_source": "docs/任务卡/177-证据/续做-EnvSound/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomMemoryRepository/all.txt",
+    "baseline_sha256": "d7cf8d60ddef77cc4a9da7eb14546cd8ba4b768477d0d51ec4be45e8b7153128",
+    "actual_sha256": "d7cf8d60ddef77cc4a9da7eb14546cd8ba4b768477d0d51ec4be45e8b7153128",
+    "baseline_source": "docs/任务卡/177-证据/续做-Memory/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RecordingSources/all.txt",
+    "baseline_sha256": "71fa2639eebc077984f2d472f69794c64cb90f9294551ff19fb18c5429088533",
+    "actual_sha256": "71fa2639eebc077984f2d472f69794c64cb90f9294551ff19fb18c5429088533",
+    "baseline_source": "docs/任务卡/177-证据/续做-RecordingSources/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomReviewRepository/all.txt",
+    "baseline_sha256": "50c00b82ef23ddf176a49c950a8a1143c36140345b5a5e8031289140bc6c87c1",
+    "actual_sha256": "50c00b82ef23ddf176a49c950a8a1143c36140345b5a5e8031289140bc6c87c1",
+    "baseline_source": "docs/任务卡/177-证据/续做-Review/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/LocalSituationLookup/queries.txt",
+    "baseline_sha256": "0d3b45cf8ad1b3cba525eeefc2f92892a8894fa8c0b64d54a68bd2eb077c90ba",
+    "actual_sha256": "0d3b45cf8ad1b3cba525eeefc2f92892a8894fa8c0b64d54a68bd2eb077c90ba",
+    "baseline_source": "docs/任务卡/177-证据/续做-Situation/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/LocalSkillRepository/queries-settings.txt",
+    "baseline_sha256": "2857793000ac08074b4f7a100ff605c9e98a14a3ff1654a596afb1fea706106a",
+    "actual_sha256": "2857793000ac08074b4f7a100ff605c9e98a14a3ff1654a596afb1fea706106a",
+    "baseline_source": "docs/任务卡/177-证据/续做-Skill/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/AndroidTranscribeSettings/preferences.txt",
+    "baseline_sha256": "09f7336ca76fe47ea79118ecef93136aff6689a8a1b36add5922f9f306c1fcbe",
+    "actual_sha256": "09f7336ca76fe47ea79118ecef93136aff6689a8a1b36add5922f9f306c1fcbe",
+    "baseline_source": "docs/任务卡/177-证据/续做-TranscribeSettings/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomTranscriptRepository/queries.txt",
+    "baseline_sha256": "919345595c58cb923c1617e5fe932daf5c9bf92a1e3b2c0cfa603687c6954b20",
+    "actual_sha256": "919345595c58cb923c1617e5fe932daf5c9bf92a1e3b2c0cfa603687c6954b20",
+    "baseline_source": "docs/任务卡/177-证据/续做-Transcript/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomTranscriptRepository/save-failure.txt",
+    "baseline_sha256": "660917aaec604b4853f857c1ac616f8eb0f86374cf9032919ea33a5c49331fba",
+    "actual_sha256": "660917aaec604b4853f857c1ac616f8eb0f86374cf9032919ea33a5c49331fba",
+    "baseline_source": "docs/任务卡/177-证据/续做-Transcript/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomTranscriptRepository/commands.txt",
+    "baseline_sha256": "3bf2657f3b377b51123e7d4c0f4e4ef44070b1483d1ccea9e7f1be30b4c237ad",
+    "actual_sha256": "3bf2657f3b377b51123e7d4c0f4e4ef44070b1483d1ccea9e7f1be30b4c237ad",
+    "baseline_source": "docs/任务卡/177-证据/续做-Transcript/搬前夹具SHA.json"
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomUsageRepository/prices.txt",
+    "baseline_sha256": "e3d58f491b62b82f2a1955bfc2a668e613a22be2810db2152cea6064c0878688",
+    "actual_sha256": "e3d58f491b62b82f2a1955bfc2a668e613a22be2810db2152cea6064c0878688",
+    "baseline_source": "docs/任务卡/177-证据/续做-Usage/搬前夹具SHA.json"
+  }
+]

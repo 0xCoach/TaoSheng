@@ -1,0 +1,88 @@
+{
+  "Transcript": {
+    "lines": 98,
+    "files": [
+      "transcribe/TranscriptStoreRepository.kt"
+    ]
+  },
+  "Memory": {
+    "lines": 241,
+    "files": [
+      "digest/MemoryStoreRepository.kt"
+    ]
+  },
+  "Ask": {
+    "lines": 185,
+    "files": [
+      "ask/AskStoreRepository.kt"
+    ]
+  },
+  "Usage": {
+    "lines": 28,
+    "files": [
+      "usage/UsagePriceStore.kt"
+    ]
+  },
+  "CaptureStats": {
+    "lines": 87,
+    "files": [
+      "capture/CaptureStatsQueries.kt",
+      "capture/AppPowerModel.kt"
+    ]
+  },
+  "Situation": {
+    "lines": 281,
+    "files": [
+      "context/SituationStore.kt",
+      "location/TrackRules.kt",
+      "location/TimelineRules.kt",
+      "location/Place.kt",
+      "envsound/EnvSoundNames.kt"
+    ]
+  },
+  "Review": {
+    "lines": 171,
+    "files": [
+      "review/ReviewStoreRepository.kt"
+    ]
+  },
+  "Skill": {
+    "lines": 99,
+    "files": [
+      "skills/SkillStoreRepository.kt"
+    ]
+  },
+  "EnvSound": {
+    "lines": 191,
+    "files": [
+      "envsound/EnvSoundStoreRepository.kt",
+      "envsound/EnvSoundQueryRules.kt"
+    ]
+  },
+  "Diary": {
+    "lines": 134,
+    "files": [
+      "diary/DiaryContentStore.kt"
+    ]
+  },
+  "DigestSettings": {
+    "lines": 55,
+    "files": [
+      "digest/DigestPreferenceStore.kt"
+    ]
+  },
+  "TranscribeSettings": {
+    "lines": 117,
+    "files": [
+      "transcribe/TranscribePreferenceStore.kt",
+      "transcribe/CustomEndpointMode.kt",
+      "transcribe/local/LocalAsrChoices.kt"
+    ]
+  },
+  "RecordingSources": {
+    "lines": 58,
+    "files": [
+      "recordings/RecordingSourceQueries.kt"
+    ]
+  }
+}

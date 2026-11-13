@@ -1,0 +1,7 @@
+app/src/main/java/app/resound/update/PreUpdateBackup.kt:74: kotlinx.coroutines.runBlocking { database.checkpoint("FULL") }
+app/src/main/java/app/resound/backup/BackupArchive.kt:42: runBlocking {
+app/src/main/java/app/resound/backup/BackupArchive.kt:155: pack(staging, zip, at, version, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() })
+app/src/main/java/app/resound/backup/BackupRestore.kt:50: IncrementalBackup.verify(source, verified, workspace, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() },
+app/src/main/java/app/resound/backup/BackupRestore.kt:56: runBlocking { migrated.checkpoint("TRUNCATE") }
+app/src/main/java/app/resound/backup/DayVolumeRows.kt:120: runBlocking { room.useWriterConnection { db ->
+app/src/main/java/app/resound/data/AndroidDatabaseSql.kt:10: ): T = runBlocking { readSql(sql, arguments, read) }

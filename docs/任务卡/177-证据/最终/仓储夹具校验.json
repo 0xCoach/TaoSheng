@@ -1,0 +1,30 @@
+[
+  {
+    "path": "app/src/test/resources/repo177/RoomTopicRepository/outputs.txt",
+    "bytes": 1607,
+    "sha256": "4ea8d54cd425739c9bb4a7d0015079711ff0cc406ed0c280a3ac0bab05c35c9c",
+    "actual_sha256": "4ea8d54cd425739c9bb4a7d0015079711ff0cc406ed0c280a3ac0bab05c35c9c",
+    "equal": true
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomTopicStore/outputs.txt",
+    "bytes": 5574,
+    "sha256": "4cf61819603453d360297f89b3c65d08fceb937f8cdd2920dead7ceedd0ac297",
+    "actual_sha256": "4cf61819603453d360297f89b3c65d08fceb937f8cdd2920dead7ceedd0ac297",
+    "equal": true
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomThingRepository/outputs.txt",
+    "bytes": 7704,
+    "sha256": "870092b4382666372f3ff79c470d360ee2c3ab7ce0ebcf685fd93a808c315875",
+    "actual_sha256": "870092b4382666372f3ff79c470d360ee2c3ab7ce0ebcf685fd93a808c315875",
+    "equal": true
+  },
+  {
+    "path": "app/src/test/resources/repo177/RoomUsageRepository/outputs.txt",
+    "bytes": 490,
+    "sha256": "c37b3a873153ab90d5036a7e19dbc48dc06b969897eae055644c4fed1743b86e",
+    "actual_sha256": "c37b3a873153ab90d5036a7e19dbc48dc06b969897eae055644c4fed1743b86e",
+    "equal": true
+  }
+]

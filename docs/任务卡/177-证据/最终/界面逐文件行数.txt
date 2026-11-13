@@ -1,0 +1,13 @@
+7	6	app/src/main/java/app/resound/ui/envsound/EnvSoundViews.kt
+2	2	app/src/main/java/app/resound/ui/importer/ImportRecordViews.kt
+6	5	app/src/main/java/app/resound/ui/items/DayDiary.kt
+4	4	app/src/main/java/app/resound/ui/items/ItemsScreens.kt
+2	1	app/src/main/java/app/resound/ui/location/LocationPage.kt
+3	2	app/src/main/java/app/resound/ui/onboarding/OnboardingWizard.kt
+3	2	app/src/main/java/app/resound/ui/preview/FakeMemory.kt
+3	2	app/src/main/java/app/resound/ui/preview/FakeTranscripts.kt
+5	4	app/src/main/java/app/resound/ui/today/RhythmViews.kt
+3	3	app/src/main/java/app/resound/ui/today/TodayScreen.kt
+4	3	app/src/main/java/app/resound/ui/topic/TopicUi.kt
+9	4	app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt
+4	3	app/src/main/java/app/resound/ui/verify/QuietSection.kt

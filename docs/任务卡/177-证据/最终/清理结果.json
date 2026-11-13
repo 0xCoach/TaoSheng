@@ -1,0 +1,52 @@
+[
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/app/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/shared/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/Users/coach/Developer/TaoSheng-177/devices/build",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/taosheng-177-shots",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/taosheng-177-gradle",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-memory-crops.png",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-memory-time.png",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-final-time.png",
+    "existed": true,
+    "removed": true
+  },
+  {
+    "path": "/tmp/177-c-time.png",
+    "existed": true,
+    "removed": true
+  }
+]

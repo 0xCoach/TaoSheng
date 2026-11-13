@@ -16,7 +16,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.2.22-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.3.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -142,7 +142,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.2.22** (2026-11-11, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.22-arm64.apk) — Topic recording: start a meeting, training, call or voice-script session (pause, schedule, or mark it afterwards); it becomes one event with minutes when it ends. Ask now works with any model (Gemini tool-call compatibility, app-side lookup fallback). Digest no longer stalls when a batch is rejected. Database upgrade: direct downgrade is unsupported. [Detailed changelog (Chinese)](CHANGELOG.md#0222--2026-11-11).
+**v0.3.0** (2026-11-13, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk) — New interface, voice to-dos, home-screen widget, resumable long-meeting summaries and reduced background work. Back up before upgrading; legacy Sonicloud support removed. [Changelog (Chinese)](CHANGELOG.md#030--2026-11-13).
+
+**v0.2.22** (2026-11-11): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.22-arm64.apk) — Topic recording: start a meeting, training, call or voice-script session (pause, schedule, or mark it afterwards); it becomes one event with minutes when it ends. Ask now works with any model (Gemini tool-call compatibility, app-side lookup fallback). Digest no longer stalls when a batch is rejected. Database upgrade: direct downgrade is unsupported. [Detailed changelog (Chinese)](CHANGELOG.md#0222--2026-11-11).
 
 **v0.2.21** (2026-11-10): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.21-arm64.apk) — Footprint, linked with sound and ambience (events show where you were; Ask by place); dedicated recorders (beta); a three-minute first-run wizard; lower background battery use for on-device ASR; pre-update backup moved before install; LLM diagnostics in problem reports. Database upgrade: direct downgrade is unsupported. [Detailed changelog (Chinese)](CHANGELOG.md#0221--2026-11-10).
 
@@ -164,7 +166,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/SHA256SUMS).
+arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/SHA256SUMS).
 
 ### Build from source
 

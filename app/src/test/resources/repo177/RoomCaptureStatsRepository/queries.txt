@@ -1,0 +1,4 @@
+empty=DayStats(date=2026-11-01, segmentCount=0, speechMillis=0, runningMillis=0, killedCount=0, recoveredCount=0, gapMillis=0, dischargePerHour=null, storageBytes=0, appPowerPerHour=null)
+segments=[SegmentInfo(id=1, startAt=1793505599000, endAt=1793505601000, sourceId=mic, file=/synthetic/1, sizeBytes=10), SegmentInfo(id=2, startAt=1793595599000, endAt=1793595601000, sourceId=mic, file=/synthetic/2, sizeBytes=20)]
+events=[WatchdogEvent(at=1793505600100, type=Killed, detail=合成原因, batteryPercent=80, charging=false), WatchdogEvent(at=1793505600200, type=Recovered, detail=system-sticky, batteryPercent=null, charging=null)]
+stats=DayStats(date=2026-11-01, segmentCount=1, speechMillis=2000, runningMillis=1000, killedCount=1, recoveredCount=1, gapMillis=600, dischargePerHour=6.0, storageBytes=20, appPowerPerHour=0.26065573)

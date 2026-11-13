@@ -114,7 +114,7 @@ class LocalAsrFailure063Test {
             override fun setAutoCheck(enabled: Boolean) {}
             override fun canInstall() = false
         }
-        val report = LocalProblemReports(context, CrashRecords(context), RoomCaptureStatsRepository(context, db.capture()), updater).export()
+        val report = LocalProblemReports(context, CrashRecords(context), RoomCaptureStatsRepository(context, db.capture(), app.resound.platform.SystemZone), updater).export()
         try {
             val text = report.readText()
             assertTrue(text.contains("phase=audio errorType=Audio exceptionClass=java.lang.IllegalArgumentException"))

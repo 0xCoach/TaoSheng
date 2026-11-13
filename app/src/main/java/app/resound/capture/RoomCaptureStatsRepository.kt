@@ -8,47 +8,27 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
-import java.time.ZoneId
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.Instant
 
-class RoomCaptureStatsRepository(private val context: Context, private val dao: CaptureDao,
+class RoomCaptureStatsRepository(private val context: Context, private val dao: CaptureDao, zoneProvider: app.resound.platform.ZoneProvider,
     private val transcribeDiagnostics: suspend () -> String = { "" }) : CaptureStatsRepository {
-    private fun bounds(date: LocalDate): Pair<Long, Long> {
-        val zone = ZoneId.systemDefault()
-        return date.atStartOfDay(zone).toInstant().toEpochMilli() to date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    }
+    private val queries = CaptureStatsQueries(dao, zoneProvider)
+    private fun bounds(date: LocalDate) = queries.bounds(date.toKotlinLocalDate())
     override fun segments(date: LocalDate): Flow<List<SegmentInfo>> {
         val (a, b) = bounds(date)
-        return dao.segments(a, b).map { rows -> rows.map { SegmentInfo(it.id, it.startAt, it.endAt, it.sourceId, File(it.path), it.sizeBytes) } }
+        return queries.segments(a, b).map { rows -> rows.map { SegmentInfo(it.id, it.startAt, it.endAt, it.sourceId, File(it.path), it.sizeBytes) } }
     }
     override fun watchdogEvents(date: LocalDate): Flow<List<WatchdogEvent>> {
         val (a, b) = bounds(date)
-        return dao.events(a, b).map { rows -> rows.filter { it.at in a until b }.mapNotNull { row ->
-            // 新后端日志可先落库，待约定/UI 扩展后自动展示；未知类型不使统计页崩溃。
-            WatchdogEventType.entries.find { it.name == row.type }?.let { type ->
-                WatchdogEvent(row.at, type, row.detail, row.batteryPercent, row.charging)
-            }
-        } }
+        return queries.watchdogEvents(a, b, WatchdogEventType.entries.mapTo(mutableSetOf()) { it.name }).map { rows ->
+            rows.map { row -> WatchdogEvent(row.at, WatchdogEventType.valueOf(row.type), row.detail, row.batteryPercent, row.charging) }
+        }
     }
     override fun dayStats(date: LocalDate): Flow<DayStats> {
         val (a, b) = bounds(date)
-        fun overlap(start: Long, end: Long) = (minOf(b, end) - maxOf(a, start)).coerceAtLeast(0)
-        return combine(dao.segments(a, b), dao.events(a, b), dao.heartbeats(a, b), dao.batteries(a, b), dao.appPowerSamples(a, b)) { segments, events, heartbeats, batteries, power ->
-            val discharge = batteries.zipWithNext().filter { (x, y) ->
-                val xPercent = x.percent; val yPercent = y.percent
-                x.charging == false && y.charging == false && xPercent != null && yPercent != null &&
-                    yPercent <= xPercent && y.at > x.at && y.at - x.at <= CaptureTuning.BATTERY_MS * 2
-            }
-            val hours = discharge.sumOf { (x, y) -> y.at - x.at } / 3_600_000.0
-            DayStats(date, segments.count { it.startAt in a until b }, segments.sumOf { overlap(it.startAt, it.endAt) },
-                heartbeats.filter { it.running }.sumOf { overlap(it.intervalStart, it.at) },
-                events.count { it.type == "Killed" && it.at in a until b },
-                events.count { it.type == "Recovered" && it.detail?.contains("system-sticky") == true && it.at in a until b },
-                events.filter { it.type == "Killed" }.sumOf { overlap(it.gapStart ?: it.at, it.gapEnd ?: it.at) },
-                if (hours > 0) (discharge.sumOf { (x, y) -> x.percent!! - y.percent!! } / hours).toFloat() else null,
-                appPowerPerHour = AppPowerModel.perHour(power, a, b),
-                storageBytes = segments.filter { it.startAt in a until b }.sumOf { it.sizeBytes })
-        }
+        return queries.dayStats(a, b).map { DayStats(date, it.segmentCount, it.speechMillis, it.runningMillis,
+            it.killedCount, it.recoveredCount, it.gapMillis, it.dischargePerHour, it.storageBytes, it.appPowerPerHour) }
     }
     override suspend fun exportDiagnostics(): File = withContext(Dispatchers.IO) {
         val file = File(context.cacheDir, "resound-diagnostics-${System.currentTimeMillis()}.txt")

@@ -1,0 +1,7 @@
+{
+  "HEAD": "dd6f55a5d3e88d37537bdac4a415f0f2bccca9c6",
+  "sha256": {
+    "app/src/main/java/app/resound/capture/RoomCaptureStatsRepository.kt": "2cca6281eb33257bd906bac6db0128f41a91a8763f28255eb2ccbd3c1445e8e1",
+    "app/src/main/java/app/resound/capture/AppPowerEstimator.kt": "4a2c1e2e4a337c7a16e12c2151b08f1f86472d6804d3721eec415124558dfe0b"
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.capture.AppPowerMigrationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:06:25.477Z" hostname="CoachdeMacBook-Air.local" time="3.576">
+  <properties/>
+  <testcase name="versionThreeMigratesAndRepositoryExportsRawCounters" classname="app.resound.capture.AppPowerMigrationTest" time="3.576"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

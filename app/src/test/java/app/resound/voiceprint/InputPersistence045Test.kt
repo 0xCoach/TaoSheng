@@ -34,7 +34,7 @@ class InputPersistence045Test {
             sink.end(16000,false)
             assertFalse(File(recording.parentFile,recording.nameWithoutExtension+".source").exists())
             CaptureStore(context,db.capture()).inputSwitched("手机麦克风 → DJI；用户选择")
-            val stats = RoomCaptureStatsRepository(context,db.capture())
+            val stats = RoomCaptureStatsRepository(context,db.capture(), app.resound.platform.SystemZone)
             val event = stats.watchdogEvents(LocalDate.now()).first().single()
             assertEquals(WatchdogEventType.InputSwitched, event.type)
             assertEquals("手机麦克风 → DJI；用户选择", event.detail)

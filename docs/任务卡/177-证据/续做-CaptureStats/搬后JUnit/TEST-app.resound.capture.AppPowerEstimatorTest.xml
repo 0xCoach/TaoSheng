@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.capture.AppPowerEstimatorTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:06:24.934Z" hostname="CoachdeMacBook-Air.local" time="0.014">
+  <properties/>
+  <testcase name="midnightClipsEnergyAndDurationTogether" classname="app.resound.capture.AppPowerEstimatorTest" time="0.006"/>
+  <testcase name="chargingUnknownAndBriefPlugInAreExcluded" classname="app.resound.capture.AppPowerEstimatorTest" time="0.0"/>
+  <testcase name="unsupportedTrafficLongGapsAndClockChangesAreExcluded" classname="app.resound.capture.AppPowerEstimatorTest" time="0.005"/>
+  <testcase name="formulaAndThirtyMinuteThreshold" classname="app.resound.capture.AppPowerEstimatorTest" time="0.0"/>
+  <testcase name="capacityUsesRemainingChargeAndFallsBackForInvalidValues" classname="app.resound.capture.AppPowerEstimatorTest" time="0.001"/>
+  <testcase name="resetOfAnyCounterDiscardsInterval" classname="app.resound.capture.AppPowerEstimatorTest" time="0.0"/>
+  <testcase name="micCountsOnlyActualOpenAndIncludesSilencedButOpenTime" classname="app.resound.capture.AppPowerEstimatorTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

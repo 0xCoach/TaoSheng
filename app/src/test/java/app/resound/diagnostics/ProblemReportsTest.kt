@@ -63,7 +63,7 @@ class ProblemReportsTest {
         try {
             val key = "sk-" + "secret".repeat(10)
             val hex = "abcdef12".repeat(4)
-            val stats = RoomCaptureStatsRepository(context, database.capture()) { "步骤=12 $key $hex" }
+            val stats = RoomCaptureStatsRepository(context, database.capture(), app.resound.platform.SystemZone) { "步骤=12 $key $hex" }
             val reports = LocalProblemReports(context, crashes, stats, updater, database.memory())
             context.getSharedPreferences("onboarding", 0).edit()
                 .putLong("count_wizard_shown", 2)

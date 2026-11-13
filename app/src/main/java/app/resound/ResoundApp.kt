@@ -268,7 +268,7 @@ class ResoundApp : Application() {
         AppGraph.ask = app.resound.ask.createAskRepository(this, database, llm, digestSettings, scope, AppGraph.platform.now)
         AppGraph.transcripts = transcripts
         AppGraph.transcribeSettings = settings
-        AppGraph.stats = RoomCaptureStatsRepository(this, database.capture(), transcripts::diagnostics)
+        AppGraph.stats = RoomCaptureStatsRepository(this, database.capture(), AppGraph.platform.zone, transcripts::diagnostics)
         AppGraph.setup = AndroidSetupGuide(this)
         segmentFiles // 启动串行编码队列，重试完整暂存片段。
         scheduler.schedule()

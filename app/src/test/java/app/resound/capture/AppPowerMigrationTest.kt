@@ -50,7 +50,7 @@ class AppPowerMigrationTest {
             for (i in 0..3) db.capture().appPower(AppPowerEntity(at = start + i * 600_000L,
                 elapsedMs = i * 600_000L, session = "s", cpuMs = i * 1000L, txBytes = i * 1_000_000L,
                 rxBytes = i * 1_000_000L, micMs = i * 600_000L, charging = false, chargeEpoch = 0, capacityMah = 4880.0))
-            val repo = RoomCaptureStatsRepository(context, db.capture())
+            val repo = RoomCaptureStatsRepository(context, db.capture(), app.resound.platform.SystemZone)
             assertNotNull(repo.dayStats(date).first().appPowerPerHour)
             val export = repo.exportDiagnostics()
             try {

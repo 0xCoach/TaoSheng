@@ -1,0 +1,390 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata
+> Task :shared:kspCommonMainKotlinMetadata SKIPPED
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:generateDebugResValues
+> Task :shared:generateDebugResources
+> Task :shared:packageDebugResources
+> Task :shared:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:preReleaseBuild UP-TO-DATE
+> Task :shared:javaPreCompileDebug
+> Task :shared:javaPreCompileDebugUnitTest
+> Task :shared:generateReleaseResValues
+> Task :shared:generateReleaseResources
+> Task :shared:packageReleaseResources
+> Task :shared:preReleaseUnitTestBuild UP-TO-DATE
+> Task :shared:javaPreCompileRelease
+> Task :shared:parseDebugLocalResources
+> Task :shared:parseReleaseLocalResources
+> Task :shared:javaPreCompileReleaseUnitTest
+> Task :shared:mergeDebugJniLibFolders
+> Task :shared:mergeDebugNativeLibs NO-SOURCE
+> Task :shared:stripDebugDebugSymbols NO-SOURCE
+> Task :shared:copyDebugJniLibsProjectAndLocalJars
+> Task :shared:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :shared:mergeDebugShaders
+> Task :shared:generateReleaseRFile
+> Task :shared:generateDebugRFile
+> Task :shared:generateDebugUnitTestStubRFile
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:generateReleaseUnitTestStubRFile
+> Task :shared:mergeDebugAssets
+> Task :shared:prepareDebugArtProfile UP-TO-DATE
+> Task :shared:prepareLintJarForPublish UP-TO-DATE
+> Task :shared:preDebugAndroidTestBuild UP-TO-DATE
+> Task :shared:generateDebugAndroidTestResValues
+> Task :shared:writeDebugAarMetadata
+> Task :shared:writeDebugLintModelMetadata
+> Task :shared:extractProguardFiles
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata
+> Task :app:generateDebugResValues
+> Task :shared:processDebugManifest
+> Task :devices:generateDebugResValues
+> Task :devices:generateDebugResources
+> Task :devices:packageDebugResources
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :devices:extractDeepLinksDebug
+> Task :shared:extractDeepLinksDebug
+> Task :devices:processDebugManifest
+> Task :devices:compileDebugLibraryResources
+> Task :app:parseDebugLocalResources
+> Task :app:mergeDebugResources
+
+> Task :app:processDebugMainManifest
+/Users/coach/Developer/TaoSheng-177/app/src/main/AndroidManifest.xml:55:9-41 Warning:
+	android:extractNativeLibs should not be specified in this source AndroidManifest.xml file. See https://d.android.com/guide/topics/manifest/application-element#extractNativeLibs for more information.
+The AGP Upgrade Assistant can remove the attribute from the AndroidManifest.xml file and update the build file accordingly. See https://d.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :app:processDebugManifest
+> Task :devices:parseDebugLocalResources
+> Task :shared:compileDebugLibraryResources
+> Task :app:processDebugManifestForPackage
+> Task :devices:generateDebugRFile
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata
+> Task :devices:javaPreCompileDebug
+> Task :app:javaPreCompileDebug
+> Task :app:processDebugResources
+> Task :devices:compileCommonMainKotlinMetadata
+
+> Task :shared:compileCommonMainKotlinMetadata
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:91:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:107:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:121:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:128:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:137:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:144:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:150:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:155:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:169:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:178:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:185:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:194:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:200:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:206:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:213:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:223:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:229:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:243:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:248:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:256:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:263:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:268:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:275:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:282:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:288:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:301:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:304:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:309:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:312:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:318:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:324:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:331:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:339:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/PendingDigest.kt:34:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:83:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:64:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/things/ThingData.kt:76:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:kspDebugKotlinAndroid
+> Task :shared:kspKotlinJvm
+> Task :shared:kspReleaseKotlinAndroid
+> Task :shared:jvmProcessResources NO-SOURCE
+> Task :shared:processJvmMainResources SKIPPED
+> Task :devices:compileDebugKotlinAndroid
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug
+
+> Task :shared:compileKotlinJvm
+w: file:///Users/coach/Developer/TaoSheng-177/shared/build/generated/ksp/jvm/jvmMain/kotlin/app/resound/data/CaptureDatabaseConstructor.kt:5:8 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:91:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:107:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:121:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:128:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:137:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:144:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:150:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:155:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:169:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:178:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:185:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:194:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:200:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:206:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:213:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:223:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:229:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:243:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:248:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:256:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:263:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:268:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:275:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:282:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:288:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:301:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:304:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:309:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:312:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:318:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:324:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:331:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:339:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/PendingDigest.kt:34:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:83:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:64:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/things/ThingData.kt:76:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileDebugKotlinAndroid
+w: file:///Users/coach/Developer/TaoSheng-177/shared/build/generated/ksp/android/androidDebug/kotlin/app/resound/data/CaptureDatabaseConstructor.kt:5:8 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:91:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:107:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:121:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:128:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:137:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:144:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:150:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:155:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:169:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:178:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:185:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:194:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:200:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:206:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:213:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:223:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:229:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:243:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:248:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:256:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:263:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:268:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:275:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:282:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:288:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:301:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:304:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:309:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:312:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:318:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:324:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:331:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:339:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/PendingDigest.kt:34:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:83:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:64:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/things/ThingData.kt:76:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileReleaseKotlinAndroid
+w: file:///Users/coach/Developer/TaoSheng-177/shared/build/generated/ksp/android/androidRelease/kotlin/app/resound/data/CaptureDatabaseConstructor.kt:5:8 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:91:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:107:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:121:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:128:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:137:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:144:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:150:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:155:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:169:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:178:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:185:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:194:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:200:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:206:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:213:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:223:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:229:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:243:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:248:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:256:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:263:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:268:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:275:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:282:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:288:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:301:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:304:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:309:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:312:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:318:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:324:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:331:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/CaptureDatabase.kt:339:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. Consider using the '-Xexpect-actual-classes' flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/data/PendingDigest.kt:34:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:83:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:64:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/things/ThingData.kt:76:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:compileReleaseJavaWithJavac NO-SOURCE
+> Task :shared:compileJvmMainJava NO-SOURCE
+> Task :shared:jvmMainClasses
+> Task :shared:kspTestKotlinJvm SKIPPED
+> Task :shared:bundleLibCompileToJarDebug
+> Task :shared:bundleLibCompileToJarRelease
+> Task :shared:jvmJar
+> Task :shared:kspDebugUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileDebugUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:kspReleaseUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileReleaseUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:copyRoomSchemas NO-SOURCE
+> Task :shared:jvmTestProcessResources
+> Task :shared:processJvmTestResources SKIPPED
+> Task :shared:processDebugJavaRes
+> Task :shared:processDebugUnitTestJavaRes NO-SOURCE
+> Task :shared:bundleLibRuntimeToJarDebug
+> Task :shared:processReleaseJavaRes
+> Task :shared:testDebugUnitTest NO-SOURCE
+> Task :shared:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :shared:bundleLibRuntimeToJarRelease
+> Task :shared:extractDebugAnnotations
+> Task :shared:testReleaseUnitTest NO-SOURCE
+> Task :shared:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :shared:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :shared:createFullJarDebug
+> Task :shared:mergeDebugJavaResource
+> Task :shared:generateDebugLintReportModel
+> Task :shared:syncDebugLibJars
+> Task :shared:bundleDebugLocalLintAar
+> Task :shared:test UP-TO-DATE
+> Task :shared:generateDebugAndroidTestLintModel
+> Task :shared:generateDebugUnitTestLintModel
+
+> Task :shared:compileTestKotlinJvm
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/shared/src/jvmTest/kotlin/app/resound/digest/RulesParity152Test.kt:22:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileJvmTestJava NO-SOURCE
+> Task :shared:jvmTestClasses
+> Task :shared:jvmTest
+> Task :shared:allTests
+> Task :shared:lintAnalyzeDebugAndroidTest
+> Task :shared:lintAnalyzeDebugUnitTest
+> Task :shared:lintAnalyzeDebug
+> Task :app:compileDebugKotlin
+
+> Task :shared:lintReportDebug
+Wrote HTML report to file:///Users/coach/Developer/TaoSheng-177/shared/build/reports/lint-results-debug.html
+
+> Task :shared:lintDebug
+> Task :shared:lint
+> Task :shared:check
+
+> Task :app:compileDebugKotlin
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/audio/OggGuard.kt:45:68 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/capture/MicHolderGuess.kt:23:20 'fun unsafeCheckOpNoThrow(p0: String, p1: Int, p2: String): Int' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/capture/VoiceInputService.kt:160:41 'static fun obtain(p0: AccessibilityNodeInfo!): AccessibilityNodeInfo!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:77:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:78:78 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:84:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:85:63 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/android/DeviceInputs.kt:321:27 'val onLock: SelectClause2<Any?, Mutex>' is deprecated. Mutex.onLock deprecated without replacement. For additional details please refer to #2794.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/diagnostics/CrashRecords.kt:31:67 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/digest/LlmFailover.kt:78:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/envsound/EnvSoundModel.kt:50:41 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/AlarmPlayer.kt:61:28 'fun vibrate(p0: VibrationEffect!, p1: AudioAttributes!): Unit' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:55 'val monthNumber: Int' is deprecated. Use the 'month' property instead.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:75 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/transcribe/local/LocalModels.kt:112:35 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/AboutPage.kt:163:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/PushPage.kt:188:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/PushPage.kt:191:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/PushPage.kt:192:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:831:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+
+> Task :app:compileDebugJavaWithJavac
+注: /Users/coach/Developer/TaoSheng-177/app/vendor/tinypinyin/java/com/github/promeg/pinyinhelper/Pinyin.java使用了未经检查或不安全的操作。
+注: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+
+> Task :app:bundleDebugClassesToCompileJar
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ask/AskFollowUp097Test.kt:91:135 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ask/AskPlace131Test.kt:64:70 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ask/AskPlace131Test.kt:68:39 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>?' & 'Serializable?']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/backup/BackupHistoryTest.kt:59:75 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/backup/BackupHistoryTest.kt:180:35 The corresponding parameter in the supertype 'Dispatcher' is named 'request'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/backup/DayVolumesTest.kt:57:95 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/backup/DayVolumesTest.kt:225:35 The corresponding parameter in the supertype 'Dispatcher' is named 'request'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/backup/DownloadsBackup123Test.kt:253:77 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/data/TriggerHistory181Test.kt:86:25 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/digest/DigestTiming053Test.kt:68:29 'field operation: PendingIntent?' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/importer/FolderDocuments117Test.kt:31:98 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/net/KtorParity151Test.kt:190:40 The corresponding parameter in the supertype 'WebSocketListener' is named 'webSocket'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/net/KtorParity151Test.kt:190:53 The corresponding parameter in the supertype 'WebSocketListener' is named 'bytes'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/PushNewline113Test.kt:47:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/recordings/RecordingArchive072Test.kt:29:34 'fun createTempDir(prefix: String = ..., suffix: String? = ..., directory: File? = ...): File' is deprecated. Avoid creating temporary directories in the default temp location with this function due to too wide permissions on the newly created directory. Use kotlin.io.path.createTempDirectory instead.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:39 The corresponding parameter in the supertype 'WorkerFactory' is named 'appContext'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:57 The corresponding parameter in the supertype 'WorkerFactory' is named 'workerClassName'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/scheduling/DemandWork174Test.kt:40:71 The corresponding parameter in the supertype 'WorkerFactory' is named 'workerParameters'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:38:81 Type argument for reified type parameter 'T' was inferred to the intersection of ['Comparable<*>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:39:134 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:40:141 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:206:147 Type argument for reified type parameter 'T' was inferred to the intersection of ['Number' & 'Comparable<*>']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/topic/TopicDesignShotsTest.kt:29:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/transcribe/ScreenOffBatch126Test.kt:38:70 'fun setIsInteractive(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/BatchDeleteInvestigationTest.kt:30:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/LocalLanguageChoice093Test.kt:19:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/ReportCopy090Test.kt:25:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/ReportModules095Test.kt:18:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/ReportPresentationTest.kt:29:27 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/ReportSelection092Test.kt:23:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/ScreenSizeShots.kt:35:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/SwipeDelete094Test.kt:26:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/verify/DeviceUiShots.kt:32:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+
+[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-177/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 2m 14s
+98 actionable tasks: 93 executed, 5 up-to-date

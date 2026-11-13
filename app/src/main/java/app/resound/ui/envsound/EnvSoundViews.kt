@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.resound.AppGraph
 import app.resound.digest.MemoryEvent
+import app.resound.envsound.AudioPreviewRequests
 import app.resound.envsound.EnvModelState
 import app.resound.envsound.EnvSoundRepository
 import app.resound.envsound.EnvSoundSettings
@@ -160,8 +161,28 @@ private fun FlaggedSheet(repo: EnvSoundRepository, list: List<SegmentSound>, onD
     val context = androidx.compose.ui.platform.LocalContext.current
     var playing by remember { mutableStateOf<Long?>(null) }
     val player = remember { arrayOfNulls<android.media.MediaPlayer>(1) }
-    fun stopPlay() { player[0]?.runCatching { stop(); release() }; player[0] = null; playing = null }
-    DisposableEffect(Unit) { onDispose { stopPlay() } }
+    val preview = remember(repo, scope) {
+        AudioPreviewRequests(scope, repo::audio,
+            onReady = { id, file, completed ->
+                var next: android.media.MediaPlayer? = null
+                runCatching {
+                    val created = android.media.MediaPlayer().also { next = it }
+                    created.setDataSource(file.id)
+                    created.setOnCompletionListener { completed() }
+                    created.prepare(); created.start()
+                    player[0] = created
+                    playing = id
+                }.onFailure { next?.runCatching { release() } }
+            },
+            onStop = {
+                val old = player[0]
+                player[0] = null; playing = null
+                old?.runCatching { stop() }
+                old?.runCatching { release() }
+            },
+        )
+    }
+    DisposableEffect(preview) { onDispose { preview.stop() } }
     RsSheet("没有转写或被标记的录音", "判断错了可以找回；已跳过的录音至少保留 1 天", onDismiss = onDismiss) {
         list.sortedByDescending { it.startAt }.forEach { seg ->
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(14.dp)) {
@@ -184,17 +205,7 @@ private fun FlaggedSheet(repo: EnvSoundRepository, list: List<SegmentSound>, onD
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (seg.audioAvailable) Pill(if (playing == seg.segmentId) "停止" else "试听", false) {
-                        if (playing == seg.segmentId) stopPlay() else {
-                            stopPlay()
-                            scope.launch { repo.audio(seg.segmentId)?.let { f ->
-                                runCatching {
-                                    player[0] = android.media.MediaPlayer().apply {
-                                        setDataSource(f.id); setOnCompletionListener { stopPlay() }; prepare(); start()
-                                    }
-                                    playing = seg.segmentId
-                                }
-                            } }
-                        }
+                        if (playing == seg.segmentId) preview.stop() else preview.play(seg.segmentId)
                     }
                     val untranscribed = seg.verdict == SegmentVerdict.Skipped || seg.verdict == SegmentVerdict.Media
                     if (untranscribed && !seg.restored) Pill("转写这段", true) {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.usage.Usage043Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:02:27.663Z" hostname="CoachdeMacBook-Air.local" time="2.352">
+  <properties/>
+  <testcase name="pricesPersistValidateAndRoundTripThroughBackupIncludingNull" classname="app.resound.usage.Usage043Test" time="2.352"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

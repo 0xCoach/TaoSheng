@@ -3,8 +3,6 @@ package app.resound.usage
 import android.content.SharedPreferences
 import app.resound.data.MemoryDao
 import app.resound.data.TranscribeDao
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.LocalDate
 
 class RoomUsageRepository(
@@ -12,15 +10,12 @@ class RoomUsageRepository(
     private val transcribe: TranscribeDao,
     private val prefs: SharedPreferences,
 ) : UsageRepository {
-    /** 从没设过用默认价；设过（含主动清空成空字符串）按设的来。 */
-    private fun read(key: String, default: Double): Double? = UsageRules.price(prefs.contains(key), prefs.getString(key, null), default)
-
-    private val currentPrice = MutableStateFlow(UsagePrice(
-        read("promptPerMillion", DEFAULT.promptPerMillion!!),
-        read("completionPerMillion", DEFAULT.completionPerMillion!!),
-        read("asrPerHour", DEFAULT.asrPerHour!!),
-    ))
-    override val price = currentPrice.asStateFlow()
+    private val prices = UsagePriceStore(prefs::contains, { prefs.getString(it, null) }) { values ->
+        val edit = prefs.edit()
+        values.forEach { (key, value) -> edit.putString(key, value) }
+        edit.commit()
+    }
+    override val price = prices.state
 
     private val queries = RoomUsageQueries(memory, transcribe)
     override fun llm(from: LocalDate, to: LocalDate) = queries.llm(from, to)
@@ -28,14 +23,7 @@ class RoomUsageRepository(
 
     @Synchronized
     override fun setPrice(price: UsagePrice) {
-        UsageRules.validate(price)
-        // 空字符串表示主动清空，备份恢复时也能覆盖目的端已有单价。
-        check(prefs.edit()
-            .putString("promptPerMillion", price.promptPerMillion?.toString().orEmpty())
-            .putString("completionPerMillion", price.completionPerMillion?.toString().orEmpty())
-            .putString("asrPerHour", price.asrPerHour?.toString().orEmpty())
-            .commit()) { "单价保存失败" }
-        currentPrice.value = price
+        prices.set(price)
     }
 
     companion object {

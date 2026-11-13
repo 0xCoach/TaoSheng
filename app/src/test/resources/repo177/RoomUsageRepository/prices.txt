@@ -1,0 +1,9 @@
+old.read=UsagePrice(promptPerMillion=null, completionPerMillion=2.5, asrPerHour=0.9)
+new.read=UsagePrice(promptPerMillion=1.23456789, completionPerMillion=0.0, asrPerHour=null)
+old.format={asrPerHour=, completionPerMillion=0.0, promptPerMillion=1.23456789}
+commits=1
+reopened=UsagePrice(promptPerMillion=1.23456789, completionPerMillion=0.0, asrPerHour=null)
+error=(IllegalStateException, 单价保存失败)
+failed.state=UsagePrice(promptPerMillion=1.23456789, completionPerMillion=0.0, asrPerHour=null)
+failed.prefs={asrPerHour=, completionPerMillion=0.0, promptPerMillion=1.23456789}
+failed.commits=2

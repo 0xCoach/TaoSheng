@@ -52,7 +52,7 @@ class BackupAudit087Test {
         } finally { original.close(); root.deleteRecursively() }
     }
 
-    @Test fun restoredSettingsAreReadBeforeConstructingRuntimeState() {
+    @Test fun restoredSettingsAreReadBeforeConstructingRuntimeState() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val root = File(context.cacheDir, "audit087-settings-${UUID.randomUUID()}").apply { mkdirs() }

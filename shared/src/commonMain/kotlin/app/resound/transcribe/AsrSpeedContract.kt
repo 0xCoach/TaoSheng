@@ -28,5 +28,5 @@ interface AsrSpeedSettings {
      * 课堂模式区间为 [开启时刻, 结束时刻)，结束后再转写也不改变历史判定。
      * 返回 false 时不区分说话人、不认人，原话 speakerTag/name/score 均为空。
      */
-    fun effectiveSeparateSpeakers(segmentStartMillis: Long): Boolean
+    suspend fun effectiveSeparateSpeakers(segmentStartMillis: Long): Boolean
 }

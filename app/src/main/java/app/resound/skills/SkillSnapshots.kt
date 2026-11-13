@@ -1,10 +1,6 @@
 package app.resound.skills
 import app.resound.skills.core.*
 import app.resound.digest.snapshot
-internal fun SkillCardRow.snapshot() = SkillCardData(id = id, skillId = skillId, skillVersion = skillVersion, skillName = skillName, icon = icon, date = date, entity = entity, at = at, endAt = endAt, title = title, summary = summary, fieldsJson = fieldsJson, valuesJson = valuesJson, evidenceJson = evidenceJson, generatedAt = generatedAt, manual = manual, deletedAt = deletedAt, aliasesJson = aliasesJson)
-internal fun SkillCardData.android() = SkillCardRow(id = id, skillId = skillId, skillVersion = skillVersion, skillName = skillName, icon = icon, date = date, entity = entity, at = at, endAt = endAt, title = title, summary = summary, fieldsJson = fieldsJson, valuesJson = valuesJson, evidenceJson = evidenceJson, generatedAt = generatedAt, manual = manual, deletedAt = deletedAt, aliasesJson = aliasesJson)
-internal fun SkillRunRow.snapshot() = SkillRunData(id = id, skillId = skillId, date = date, at = at, ok = ok, result = result, tokens = tokens, kind = kind, retryable = retryable, purpose = purpose)
-internal fun SkillRunData.android() = SkillRunRow(id = id, skillId = skillId, date = date, at = at, ok = ok, result = result, tokens = tokens, kind = kind, retryable = retryable, purpose = purpose)
 internal open class RoomSkillInputStore(private val dao: SkillDao) : SkillInputStore {
  override suspend fun events(start: Long, end: Long, since: Long, until: Long) = dao.events(start,end,since,until).map { it.snapshot() }
  override suspend fun lines(start: Long, end: Long) = dao.lines(start,end).map { it.skillSnapshot() }

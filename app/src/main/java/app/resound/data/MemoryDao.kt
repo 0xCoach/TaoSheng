@@ -81,6 +81,7 @@ data class LlmUsageV2Entity(val day: String, val purpose: String, val promptToke
 
 @Dao
 abstract class MemoryDao {
+    @Transaction open suspend fun <T> transaction(block: suspend () -> T): T = block()
     @Query("SELECT * FROM memory_events WHERE id = :id AND deleted = 0")
     abstract suspend fun event(id: Long): MemoryEventEntity?
 
@@ -90,31 +91,22 @@ abstract class MemoryDao {
         originalPointsJson = CASE WHEN editedAt IS NULL THEN pointsJson ELSE originalPointsJson END,
         title = :title, summary = :summary, pointsJson = :points, editedAt = :at
         WHERE id = :id AND deleted = 0""")
-    protected abstract suspend fun editEventRaw(id: Long, title: String, summary: String, points: String, at: Long)
+    abstract suspend fun editEventRaw(id: Long, title: String, summary: String, points: String, at: Long)
 
     @Query("UPDATE memory_events SET pointsJson = :points, originalPointsJson = :original WHERE id = :id")
-    protected abstract suspend fun normalizeEventPoints(id: Long, points: String, original: String?)
+    abstract suspend fun normalizeEventPoints(id: Long, points: String, original: String?)
 
-    private fun validPoints(text: String): String = try { org.json.JSONArray(text).toString() } catch (_: org.json.JSONException) { "[]" }
 
-    @Transaction open suspend fun editEvent(id: Long, title: String, summary: String, points: String, at: Long) {
-        val row = event(id) ?: return
-        normalizeEventPoints(id, validPoints(row.pointsJson), row.originalPointsJson?.let(::validPoints))
-        editEventRaw(id, title, summary, validPoints(points), at)
-    }
+
 
     @Query("""UPDATE memory_events SET title = originalTitle, summary = originalSummary,
         pointsJson = originalPointsJson, editedAt = NULL, originalTitle = NULL,
         originalSummary = NULL, originalPointsJson = NULL
         WHERE id = :id AND deleted = 0 AND editedAt IS NOT NULL
         AND originalTitle IS NOT NULL AND originalSummary IS NOT NULL AND originalPointsJson IS NOT NULL""")
-    protected abstract suspend fun restoreEventRaw(id: Long)
+    abstract suspend fun restoreEventRaw(id: Long)
 
-    @Transaction open suspend fun restoreEvent(id: Long) {
-        val row = event(id) ?: return
-        normalizeEventPoints(id, validPoints(row.pointsJson), row.originalPointsJson?.let(::validPoints))
-        restoreEventRaw(id)
-    }
+
 
     // ---------- 整理 ----------
     /** 已转写、还没整理过的句子（按时间） */
@@ -168,42 +160,7 @@ abstract class MemoryDao {
     abstract suspend fun topicLineCount(ids: List<Long>): Int
 
     /** 一次整理的结果原子写入：事件、提取项、句子归属、整理标记 */
-    @Transaction
-    open suspend fun saveDigest(
-        events: List<Pair<MemoryEventEntity, List<Long>>>,
-        items: (eventIds: List<Long>) -> List<MemoryItemEntity>,
-        allLineIds: List<Long>,
-        at: Long,
-        doneHints: List<Pair<Long, Long>> = emptyList(),
-        hintCandidates: Set<Long> = emptySet(),
-    ) {
-        // 云端请求期间原话可能被隐私操作删除；整批旧结果作废，不复活事件和条目。
-        if (refreshLines(allLineIds).size != allLineIds.distinct().size || topicLineCount(allLineIds) > 0) return
-        // 必须在事务内重读：云端请求期间用户可能删除或编辑。
-        val protected = protectedItems()
-        val sourceEvents = refreshLines(allLineIds).associate { it.id to it.eventId }
-        val oldEvents = sourceEvents.values.filterNotNull().toSet()
-        val ids = events.map { (event, lineIds) ->
-            insertEvent(event).also { id -> if (lineIds.isNotEmpty()) assignLines(lineIds, id) }
-        }
-        val rows = items(ids).filterNot { row -> protected.any { old ->
-            (old.category == row.category || old.category in setOf("待办", "约定", "备忘") && row.category in setOf("待办", "约定", "备忘")) && (
-                (row.lineId != null && row.lineId == old.lineId) ||
-                old.content.trim() == row.content.trim() ||
-                // 同一旧事件内换行或换措辞时保守保护；缺失行号则按本批旧事件保护。
-                (old.eventId != null && sourceEvents[row.lineId] == old.eventId) || (row.lineId == null && old.eventId in oldEvents)
-            )
-        } }
-        if (rows.isNotEmpty()) insertItems(rows)
-        doneHints.filter { it.first in hintCandidates && it.second in allLineIds }.forEach { (id, line) ->
-            val row = itemIncludingDeleted(id) ?: return@forEach
-            val source = refreshLines(listOf(line)).singleOrNull() ?: return@forEach
-            val dismissed = org.json.JSONArray(row.dismissedDoneLinesJson)
-            if ((0 until dismissed.length()).none { dismissed.optLong(it) == line } && source.startAt > row.createdAt)
-                writeDoneHint(id, line, source.startAt)
-        }
-        markDigested(allLineIds, at)
-    }
+
 
     // 内部保护/修改读取有意包含墓碑，不能作为展示或模型输入。
     @Query("SELECT * FROM memory_items WHERE deleted = 1 OR editedAt IS NOT NULL OR mergedInto IN (SELECT id FROM memory_items WHERE deleted = 1)")
@@ -225,19 +182,13 @@ abstract class MemoryDao {
         WHERE id = :id AND deleted = 0 AND mergedInto IS NULL AND status IN ('Pending', 'Accepted')
         AND category IN ('待办', '约定') AND doneHintLineId IS NULL
         AND (eventId IS NULL OR eventId IN (SELECT id FROM memory_events WHERE deleted = 0))""")
-    protected abstract suspend fun writeDoneHint(id: Long, line: Long, at: Long)
+    abstract suspend fun writeDoneHint(id: Long, line: Long, at: Long)
     @Transaction
     @Query("SELECT l.* FROM transcript_lines l LEFT JOIN memory_events e ON e.id = l.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND l.id IN (SELECT doneHintLineId FROM memory_items WHERE deleted = 0)")
     abstract fun doneHintLines(): Flow<List<TranscriptLineEntity>>
     @Query("UPDATE memory_items SET doneHintLineId = NULL, doneHintAt = NULL, dismissedDoneLinesJson = :lines WHERE id = :id")
-    protected abstract suspend fun clearDoneHint(id: Long, lines: String)
-    @Transaction
-    open suspend fun dismissDoneHint(id: Long) {
-        val row = itemIncludingDeleted(id) ?: return
-        val line = row.doneHintLineId ?: return
-        val dismissed = org.json.JSONArray(row.dismissedDoneLinesJson).put(line)
-        clearDoneHint(id, dismissed.toString())
-    }
+    abstract suspend fun clearDoneHint(id: Long, lines: String)
+
 
     @Query("UPDATE memory_items SET strongReminder = :on WHERE id = :id")
     abstract suspend fun setStrongReminder(id: Long, on: Boolean)
@@ -249,16 +200,10 @@ abstract class MemoryDao {
     @Query("""UPDATE memory_items SET content = :content, dueAt = :dueAt, dueText = :dueText, who = :who,
         editedAt = :at, reminderVersion = reminderVersion + CASE WHEN dueAt IS NOT :dueAt OR dueText IS NOT :dueText THEN 1 ELSE 0 END
         WHERE id = :id AND deleted = 0""")
-    protected abstract suspend fun updateItemRow(id: Long, content: String, dueAt: Long?, dueText: String?, who: String?, at: Long)
-    open suspend fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?, at: Long = System.currentTimeMillis()) {
-        require(content.isNotBlank())
-        val date = dueAt?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()) }
-        val normalized = if (hasTime) dueAt else date?.toLocalDate()?.atStartOfDay(date.zone)?.toInstant()?.toEpochMilli()
-        val text = date?.format(java.time.format.DateTimeFormatter.ofPattern(if (hasTime) "yyyy-MM-dd HH:mm" else "yyyy-MM-dd"))
-        updateItemRow(id, content.trim(), normalized, text, who?.trim()?.takeIf { it.isNotEmpty() }, at)
-    }
+    abstract suspend fun updateItemRow(id: Long, content: String, dueAt: Long?, dueText: String?, who: String?, at: Long)
+
     @Transaction
-    open suspend fun setItemsStatus(ids: List<Long>, status: String, at: Long = System.currentTimeMillis()) {
+    open suspend fun setItemsStatus(ids: List<Long>, status: String, at: Long) {
         ids.distinct().forEach { setItemStatus(it, status, at) }
     }
 
@@ -279,7 +224,8 @@ abstract class MemoryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertPendingDigest(row: PendingDigest): Long
     @Query("DELETE FROM digest_pending WHERE id = :id") abstract suspend fun removePendingDigest(id: String)
     /** 响应和用量同事务；重放本地提交不会再次累计付费用量。 */
-    @Transaction open suspend fun rememberDigest(row: PendingDigest): Boolean {
+    @Transaction
+    open suspend fun rememberDigest(row: PendingDigest): Boolean {
         // 请求进行中来源可能已被删除；记实际用量，但不能重新保存已删除内容的响应。
         if (refreshLines(row.ids()).size != row.ids().size) {
             addUsage(row.day, row.promptTokens, row.completionTokens, UsagePurpose.Digest)
@@ -384,7 +330,7 @@ abstract class MemoryDao {
              LEFT JOIN memory_events e ON e.id = i.eventId
              WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.status = 'Accepted' AND i.category IN ('待办', '约定', '备忘'))
             ELSE sortOrder END WHERE id = :id AND deleted = 0""")
-    abstract suspend fun setItemStatus(id: Long, status: String, at: Long = System.currentTimeMillis())
+    abstract suspend fun setItemStatus(id: Long, status: String, at: Long)
 
     @Query("UPDATE memory_items SET sortOrder = :order WHERE id = :id")
     abstract suspend fun setSortOrder(id: Long, order: Long)
@@ -430,7 +376,7 @@ abstract class MemoryDao {
     protected abstract suspend fun pendingStarredItems(id: Long): List<Long>
 
     @Transaction
-    open suspend fun setStarred(id: Long, starred: Boolean, at: Long = System.currentTimeMillis()) {
+    open suspend fun setStarred(id: Long, starred: Boolean, at: Long) {
         updateStarred(id, starred, if (starred) at else null)
         if (starred) pendingStarredItems(id).forEach { setItemStatus(it, "Accepted", at) }
     }

@@ -28,14 +28,14 @@ class TranscribeRunner(
     private val sourceKey: (TranscribeSource) -> String = { key() },
     private val sourceNetwork: (TranscribeSource) -> Boolean = { networkAllowed() },
     private val recordTiming: (String) -> Unit = {},
-    private val separateSpeakers: (Long) -> Boolean = { true },
+    private val separateSpeakers: suspend (Long) -> Boolean = { true },
     private val defaultSource: () -> TranscribeSource? = { null },
     private val beginBatch: () -> Unit = {},
     private val endBatch: () -> Unit = {},
     private val sharedPcm: SharedPcmFiles? = null,
     private val afterSegment: suspend (SegmentEntity) -> Unit = {},
     private val recordSpeed: (TranscribeSource?, Long, Long) -> Unit = { _, _, _ -> },
-    private val topicTraining: (Long) -> Boolean = { false },
+    private val topicTraining: suspend (Long) -> Boolean = { false },
 ) {
     suspend fun withIdleAudio(block: suspend () -> Unit) = gate.withLock { block() }
 

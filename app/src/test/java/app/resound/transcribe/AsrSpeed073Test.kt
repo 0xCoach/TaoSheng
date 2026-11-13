@@ -25,7 +25,7 @@ class AsrSpeed073Test {
     @Before fun prepare() { prefs.edit().clear().commit() }
     @After fun close() { scope.cancel() }
 
-    @Test fun expiryAndRestartKeepTheRecordingStartDecision() {
+    @Test fun expiryAndRestartKeepTheRecordingStartDecision() = runBlocking {
         var time = 1000L
         val settings = AndroidAsrSpeedSettings(prefs, scope) { time }
         assertTrue(settings.separateSpeakers.value)
@@ -40,7 +40,7 @@ class AsrSpeed073Test {
         assertTrue(restored.effectiveSeparateSpeakers(end))
     }
 
-    @Test fun manualStopAndPermanentSwitchDoNotRewriteEarlierSegments() {
+    @Test fun manualStopAndPermanentSwitchDoNotRewriteEarlierSegments() = runBlocking {
         var time = 1000L
         val settings = AndroidAsrSpeedSettings(prefs, scope) { time }
         settings.startClassMode(null)

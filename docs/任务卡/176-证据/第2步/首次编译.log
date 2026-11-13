@@ -1,0 +1,195 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:writeDebugAarMetadata
+> Task :devices:writeDebugAarMetadata
+> Task :app:generateDebugResValues
+> Task :devices:generateDebugResValues
+> Task :devices:generateDebugResources
+> Task :app:checkDebugAarMetadata
+> Task :devices:packageDebugResources
+> Task :shared:generateDebugResValues
+> Task :shared:generateDebugResources
+> Task :shared:packageDebugResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :devices:extractDeepLinksDebug
+> Task :shared:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :devices:compileDebugLibraryResources
+> Task :devices:parseDebugLocalResources
+> Task :shared:compileDebugLibraryResources
+> Task :shared:processDebugManifest
+> Task :shared:parseDebugLocalResources
+> Task :devices:processDebugManifest
+> Task :app:mergeDebugResources
+> Task :devices:generateDebugRFile
+
+> Task :app:processDebugMainManifest
+/Users/coach/Developer/TaoSheng-176/app/src/main/AndroidManifest.xml:55:9-41 Warning:
+	android:extractNativeLibs should not be specified in this source AndroidManifest.xml file. See https://d.android.com/guide/topics/manifest/application-element#extractNativeLibs for more information.
+The AGP Upgrade Assistant can remove the attribute from the AndroidManifest.xml file and update the build file accordingly. See https://d.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :shared:generateDebugRFile
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata
+> Task :devices:javaPreCompileDebug
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:processDebugResources
+> Task :shared:transformCommonMainDependenciesMetadata
+> Task :shared:kspCommonMainKotlinMetadata SKIPPED
+> Task :shared:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:javaPreCompileDebug
+> Task :shared:preReleaseBuild UP-TO-DATE
+> Task :shared:generateDebugUnitTestStubRFile
+> Task :shared:generateReleaseResValues
+> Task :shared:javaPreCompileDebugUnitTest
+> Task :shared:generateReleaseResources
+> Task :shared:packageReleaseResources
+> Task :shared:preReleaseUnitTestBuild UP-TO-DATE
+> Task :shared:parseReleaseLocalResources
+> Task :shared:javaPreCompileRelease
+> Task :shared:javaPreCompileReleaseUnitTest
+> Task :shared:generateReleaseRFile
+> Task :shared:generateReleaseUnitTestStubRFile
+> Task :shared:mergeDebugJniLibFolders
+> Task :shared:mergeDebugNativeLibs NO-SOURCE
+> Task :shared:stripDebugDebugSymbols NO-SOURCE
+> Task :shared:copyDebugJniLibsProjectAndLocalJars
+> Task :shared:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :shared:mergeDebugShaders
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugAssets
+> Task :shared:prepareDebugArtProfile UP-TO-DATE
+> Task :shared:prepareLintJarForPublish UP-TO-DATE
+> Task :shared:preDebugAndroidTestBuild UP-TO-DATE
+> Task :shared:generateDebugAndroidTestResValues
+> Task :shared:writeDebugLintModelMetadata
+> Task :shared:extractProguardFiles
+> Task :shared:kspKotlinJvm
+> Task :shared:jvmProcessResources NO-SOURCE
+> Task :shared:processJvmMainResources SKIPPED
+> Task :shared:kspReleaseKotlinAndroid
+> Task :shared:kspDebugKotlinAndroid
+> Task :devices:compileCommonMainKotlinMetadata
+> Task :shared:compileCommonMainKotlinMetadata
+> Task :devices:compileDebugKotlinAndroid
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug
+> Task :shared:compileKotlinJvm
+> Task :shared:compileJvmMainJava NO-SOURCE
+> Task :shared:jvmMainClasses
+> Task :shared:compileDebugKotlinAndroid
+> Task :shared:compileReleaseKotlinAndroid
+> Task :shared:kspTestKotlinJvm SKIPPED
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:compileReleaseJavaWithJavac NO-SOURCE
+> Task :shared:bundleLibCompileToJarDebug
+> Task :shared:bundleLibCompileToJarRelease
+> Task :shared:jvmJar
+> Task :shared:kspDebugUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileDebugUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:kspReleaseUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileReleaseUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:copyRoomSchemas NO-SOURCE
+> Task :shared:jvmTestProcessResources
+> Task :shared:processJvmTestResources SKIPPED
+> Task :shared:processDebugJavaRes
+> Task :shared:processDebugUnitTestJavaRes NO-SOURCE
+> Task :shared:bundleLibRuntimeToJarDebug
+> Task :shared:processReleaseJavaRes
+> Task :shared:testDebugUnitTest NO-SOURCE
+> Task :shared:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :shared:bundleLibRuntimeToJarRelease
+> Task :shared:extractDebugAnnotations
+> Task :shared:testReleaseUnitTest NO-SOURCE
+> Task :shared:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :shared:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :shared:createFullJarDebug
+> Task :shared:mergeDebugJavaResource
+> Task :shared:generateDebugLintReportModel
+> Task :shared:syncDebugLibJars
+> Task :shared:bundleDebugLocalLintAar
+> Task :shared:test UP-TO-DATE
+> Task :shared:generateDebugAndroidTestLintModel
+> Task :shared:generateDebugUnitTestLintModel
+
+> Task :shared:compileTestKotlinJvm
+w: file:///Users/coach/Developer/TaoSheng-176/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-176/shared/src/jvmTest/kotlin/app/resound/digest/RulesParity152Test.kt:22:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileJvmTestJava NO-SOURCE
+> Task :shared:jvmTestClasses
+> Task :shared:jvmTest
+> Task :shared:allTests
+> Task :shared:lintAnalyzeDebugAndroidTest
+> Task :shared:lintAnalyzeDebugUnitTest
+> Task :app:kspDebugKotlin
+> Task :shared:lintAnalyzeDebug
+
+> Task :shared:lintReportDebug
+Wrote HTML report to file:///Users/coach/Developer/TaoSheng-176/shared/build/reports/lint-results-debug.html
+
+> Task :shared:lintDebug
+> Task :shared:lint
+> Task :shared:check
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/ResoundApp.kt:209:61 No value passed for parameter 'now'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/DigestRunner.kt:203:50 Unresolved reference 'saveDigest'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/DigestRunner.kt:212:27 Cannot infer type for value parameter 'ids'. Specify it explicitly.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:75:28 Unresolved reference 'editEvent'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:78:28 Unresolved reference 'restoreEvent'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:81:103 No value passed for parameter 'at'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:110:28 Unresolved reference 'updateItem'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:117:53 No value passed for parameter 'at'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:119:65 Unresolved reference 'dismissDoneHint'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/digest/RoomMemoryRepository.kt:153:101 No value passed for parameter 'at'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/push/PushRecords.kt:35:201 Unresolved reference 'card'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/push/PushRecords.kt:58:63 Unresolved reference 'card'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/transcribe/RoomTranscriptRepository.kt:69:64 No value passed for parameter 'now'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/transcribe/RoomTranscriptRepository.kt:70:66 No value passed for parameter 'now'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/transcribe/RoomTranscriptRepository.kt:74:69 Unresolved reference 'deleteFailed'.
+e: file:///Users/coach/Developer/TaoSheng-176/app/src/main/java/app/resound/transcribe/TranscribeWork.kt:120:101 No value passed for parameter 'now'.
+
+[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-176/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 1m 2s
+95 actionable tasks: 90 executed, 5 up-to-date

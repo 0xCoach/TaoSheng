@@ -31,6 +31,7 @@ data class AsrUsageTotals(val todayMillis: Long, val totalMillis: Long)
 
 @Dao
 abstract class TranscribeDao {
+    @Transaction open suspend fun <T> transaction(block: suspend () -> T): T = block()
     /** 只读时间元数据；空白句子不算首次转写。 */
     @Query("SELECT MIN(startAt) FROM transcript_lines WHERE LENGTH(TRIM(text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0")
     abstract fun onboardingFirstTranscript(): Flow<Long?>
@@ -114,7 +115,7 @@ abstract class TranscribeDao {
     @Query("UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL WHERE status = 'Failed'")
     protected abstract suspend fun resetFailed()
     @Transaction
-    open suspend fun retryFailed(now: Long = System.currentTimeMillis()) {
+    open suspend fun retryFailed(now: Long) {
         refreshFailures(now)
         resetFailed()
     }
@@ -133,7 +134,7 @@ abstract class TranscribeDao {
     @Query("UPDATE segments SET status = 'Quiet', completedAt = :now, nextRetryAt = NULL WHERE status = 'Failed'")
     protected abstract suspend fun quietFailed(now: Long)
     @Transaction
-    open suspend fun ignoreFailed(now: Long = System.currentTimeMillis()) {
+    open suspend fun ignoreFailed(now: Long) {
         refreshFailures(now)
         quietFailed(now)
     }
@@ -141,31 +142,18 @@ abstract class TranscribeDao {
     abstract suspend fun retrySegment(id: Long): Int
 
     @Query("DELETE FROM asr_attempts WHERE segmentId = :id")
-    protected abstract suspend fun deleteAttempts(id: Long)
+    abstract suspend fun deleteAttempts(id: Long)
     @Query("DELETE FROM voiceprint_samples WHERE segmentId = :id OR sourceLineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
-    protected abstract suspend fun deleteSamples(id: Long)
+    abstract suspend fun deleteSamples(id: Long)
     @Query("DELETE FROM voiceprint_exclusions WHERE segmentId = :id")
-    protected abstract suspend fun deleteExclusions(id: Long)
+    abstract suspend fun deleteExclusions(id: Long)
     @Query("DELETE FROM memory_items WHERE lineId IN (SELECT id FROM transcript_lines WHERE segmentId = :id)")
-    protected abstract suspend fun deleteLineItems(id: Long)
+    abstract suspend fun deleteLineItems(id: Long)
     @Query("DELETE FROM memory_events WHERE id IN (SELECT eventId FROM transcript_lines WHERE segmentId = :id) AND NOT EXISTS (SELECT 1 FROM transcript_lines l WHERE l.eventId = memory_events.id AND l.segmentId != :id)")
-    protected abstract suspend fun deleteExclusiveEvents(id: Long)
+    abstract suspend fun deleteExclusiveEvents(id: Long)
     @Query("DELETE FROM segments WHERE id = :id")
-    protected abstract suspend fun deleteSegmentRow(id: Long)
-    @Transaction
-    open suspend fun deleteFailed(id: Long): Boolean {
-        val row = findSegment(id) ?: return false
-        if (row.status !in setOf("Failed", "Quiet", "Abandoned")) return false
-        val file = java.io.File(row.path)
-        if (file.exists() && !file.delete()) return false
-        deleteSamples(id)
-        deleteExclusions(id)
-        deleteAttempts(id)
-        deleteLineItems(id)
-        deleteExclusiveEvents(id)
-        deleteSegmentRow(id) // 原话由外键级联删除；累计用量不回退。
-        return true
-    }
+    abstract suspend fun deleteSegmentRow(id: Long)
+
     @Query("UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL WHERE id = :id AND status = 'SkippedPlayback'")
     abstract suspend fun transcribeAnyway(id: Long): Int
     @Query("SELECT COUNT(*) FROM segments WHERE status = 'SkippedPlayback'")

@@ -13,7 +13,7 @@ class AndroidAsrSpeedSettings(
     private val scope: CoroutineScope,
     private val now: () -> Long = System::currentTimeMillis,
 ) : AsrSpeedSettings {
-    internal var topicTraining: (Long) -> Boolean = { false }
+    internal var topicTraining: suspend (Long) -> Boolean = { false }
     private data class Entry(val at: Long, val separate: Boolean, val classroom: Boolean, val until: Long?)
     private var history = JSONArray(prefs.getString("history", "[]")).let { rows ->
         (0 until rows.length()).map { i -> rows.getJSONObject(i).let {
@@ -59,11 +59,13 @@ class AndroidAsrSpeedSettings(
     }
     @Synchronized override fun stopClassMode() { save(latest().copy(at = now(), classroom = false, until = null)) }
     @Synchronized override fun setSeparateSpeakers(on: Boolean) { save(latest().copy(at = now(), separate = on)) }
-    @Synchronized override fun effectiveSeparateSpeakers(segmentStartMillis: Long): Boolean {
+    @Synchronized private fun entryAt(segmentStartMillis: Long): Entry {
         // 回拨系统时间后以最后一次写入的同时间设置为准；不丢掉较早录音所依赖的记录。
-        val entry = history.withIndex().filter { it.value.at <= segmentStartMillis }
+        return history.withIndex().filter { it.value.at <= segmentStartMillis }
             .maxWithOrNull(compareBy<IndexedValue<Entry>> { it.value.at }.thenBy { it.index })?.value
             ?: Entry(Long.MIN_VALUE, true, false, null)
-        return !topicTraining(segmentStartMillis) && entry.separate && !state(entry, segmentStartMillis).enabled
+    }
+    override suspend fun effectiveSeparateSpeakers(segmentStartMillis: Long): Boolean = entryAt(segmentStartMillis).let { entry ->
+        !topicTraining(segmentStartMillis) && entry.separate && !state(entry, segmentStartMillis).enabled
     }
 }

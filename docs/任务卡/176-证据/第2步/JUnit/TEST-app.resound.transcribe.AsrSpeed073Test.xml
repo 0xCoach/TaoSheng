@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.AsrSpeed073Test" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:16:20.268Z" hostname="CoachdeMacBook-Air.local" time="0.087">
+  <properties/>
+  <testcase name="manualStopAndPermanentSwitchDoNotRewriteEarlierSegments" classname="app.resound.transcribe.AsrSpeed073Test" time="0.01"/>
+  <testcase name="cancelBothCloudRequestsRecordsEachAttemptAndKeepsAudio" classname="app.resound.transcribe.AsrSpeed073Test" time="0.017"/>
+  <testcase name="expiryAndRestartKeepTheRecordingStartDecision" classname="app.resound.transcribe.AsrSpeed073Test" time="0.008"/>
+  <testcase name="migration24KeepsDataAndHistoricalSpeakerState" classname="app.resound.transcribe.AsrSpeed073Test" time="0.02"/>
+  <testcase name="concurrentResultsStayWithTheirSegmentsAndOffClearsIdentity" classname="app.resound.transcribe.AsrSpeed073Test" time="0.031"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

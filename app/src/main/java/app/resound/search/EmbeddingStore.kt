@@ -6,40 +6,10 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.sqrt
 
-@Entity(tableName = "embeddings", primaryKeys = ["kind", "refId"])
-data class EmbeddingEntity(val kind: String, val refId: Long, val model: String, val dim: Int, val vector: ByteArray, val updatedAt: Long)
-
 interface Embedder {
     val model: String
     fun ready(): Boolean
     fun embed(text: String, query: Boolean = false): FloatArray
-}
-
-object Vectors {
-    fun normalize(values: FloatArray): FloatArray {
-        require(values.isNotEmpty() && values.all { it.isFinite() })
-        val norm = sqrt(values.sumOf { it.toDouble() * it })
-        require(norm > 0)
-        return FloatArray(values.size) { (values[it] / norm).toFloat() }
-    }
-    fun encode(values: FloatArray): ByteArray = ByteBuffer.allocate(values.size * 4).order(ByteOrder.LITTLE_ENDIAN).apply {
-        values.forEach { putFloat(it) }
-    }.array()
-    fun decode(bytes: ByteArray, dim: Int): FloatArray {
-        require(dim > 0 && bytes.size == dim * 4)
-        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-        return FloatArray(dim) { buffer.float }
-    }
-    fun cosine(a: FloatArray, b: FloatArray): Double = if (a.size != b.size) Double.NEGATIVE_INFINITY
-        else a.indices.sumOf { a[it].toDouble() * b[it] }
-    /** 两路等权 RRF，稳定去重；仅接收各路前 20 条。 */
-    fun <T> merge(keyword: List<T>, semantic: List<T>): List<T> {
-        val scores = linkedMapOf<T, Double>()
-        for (list in listOf(keyword, semantic)) list.distinct().take(20).forEachIndexed { i, id ->
-            scores[id] = (scores[id] ?: 0.0) + 1.0 / (60 + i + 1)
-        }
-        return scores.keys.sortedByDescending { scores[it] }.take(10)
-    }
 }
 
 class EmbeddingStore(private val db: CaptureDatabase) {

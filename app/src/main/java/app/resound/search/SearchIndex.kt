@@ -3,7 +3,6 @@ package app.resound.search
 import androidx.room.*
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
-import java.util.Locale
 
 @Fts4 @Entity(tableName = "lines_fts")
 data class LineFts(@PrimaryKey @ColumnInfo(name = "rowid") val id: Long, val text: String)
@@ -28,7 +27,7 @@ object SearchTokens {
                 }
                 text[i] in 'a'..'z' || text[i] in 'A'..'Z' || text[i] in '0'..'9' -> {
                     while (i < text.length && text[i].let { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) i++
-                    result += text.substring(start, i).lowercase(Locale.ROOT)
+                    result += text.substring(start, i).lowercase()
                 }
                 else -> i++
             }

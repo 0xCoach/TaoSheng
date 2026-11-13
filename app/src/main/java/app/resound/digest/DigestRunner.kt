@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.data.saveDigest
+
 import android.content.Context
 import app.resound.appName
 import app.resound.data.MemoryDao

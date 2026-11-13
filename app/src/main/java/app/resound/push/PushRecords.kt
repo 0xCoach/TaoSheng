@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.skills.card
+
 import androidx.room.*
 import app.resound.data.*
 import app.resound.skills.SkillCardRow
@@ -46,22 +48,11 @@ internal data class PushSnapshot(
 }
 internal fun day(at: Long, zone: ZoneId) = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
 
-internal data class PushLineOrigin(val id: Long, val eventId: Long?)
-
-@Dao
-internal abstract class PushDao {
-    @Query("SELECT id, eventId FROM transcript_lines") abstract suspend fun lineOrigins(): List<PushLineOrigin>
-    @Query("SELECT * FROM memory_events ORDER BY startAt, id") abstract suspend fun events(): List<MemoryEventEntity>
-    @Query("SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 ORDER BY i.createdAt, i.id") abstract suspend fun items(): List<MemoryItemEntity>
-    @Query("SELECT * FROM skill_cards WHERE deletedAt IS NULL ORDER BY at, id") abstract suspend fun cards(): List<SkillCardRow>
-    @Query("SELECT * FROM reviews ORDER BY startDate, id") abstract suspend fun reviews(): List<ReviewEntity>
-    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.status = 'Done' AND l.startAt >= :start ORDER BY l.startAt, l.id") abstract suspend fun lines(start: Long): List<TranscriptLineEntity>
-    @Transaction open suspend fun snapshot(start: Long, withLines: Boolean): PushSnapshot {
+internal suspend fun PushDao.snapshot(start: Long, withLines: Boolean): PushSnapshot = transaction {
         val rows = items()
         val repeats = rows.groupingBy { it.mergedInto ?: it.id }.eachCount()
-        return PushSnapshot(events(), rows, cards(), reviews(), if (withLines) lines(start) else emptyList(), repeats, lineOrigins = lineOrigins().associate { it.id to it.eventId })
+        PushSnapshot(events(), rows, cards(), reviews(), if (withLines) lines(start) else emptyList(), repeats, lineOrigins = lineOrigins().associate { it.id to it.eventId })
     }
-}
 
 /** 非订阅调用也逐条验证；重复生成文档时由 trace 的记录键去重计数。 */
 internal fun PushSnapshot.validated(): PushSnapshot = copy(

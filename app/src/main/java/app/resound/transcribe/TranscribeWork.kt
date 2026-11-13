@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.data.retryFailed
+
 import android.os.SystemClock
 import android.os.PowerManager
 import android.os.BatteryManager

@@ -6,9 +6,6 @@ import app.resound.data.MemoryItemEntity
 import app.resound.data.ReviewEntity
 import app.resound.data.TranscriptLineEntity
 import kotlinx.coroutines.flow.Flow
-import org.json.JSONArray
-import org.json.JSONObject
-import java.time.LocalDate
 
 @Entity(tableName = "skill_cards", indices = [Index("date"), Index(value = ["skillId", "date"])])
 data class SkillCardRow(
@@ -19,12 +16,7 @@ data class SkillCardRow(
     val generatedAt: Long, val manual: Boolean, val deletedAt: Long? = null,
     /** 合并后的旧 entity 也要保留，避免换 entity 后软删除失效。 */
     val aliasesJson: String = "[]",
-) {
-    fun card() = app.resound.envsound.EnvSoundPresentation.decorate(SkillCard(id, skillId, skillName, icon, kotlinx.datetime.LocalDate.fromEpochDays(date.toInt()), at, endAt, title, summary,
-        SkillJson.fields(JSONArray(fieldsJson)), SkillJson.values(JSONObject(valuesJson)),
-        JSONArray(evidenceJson).elements().map { (it as Number).toLong() }, generatedAt, manual))
-    fun entities() = JSONArray(aliasesJson).elements().map { it.toString() }.toSet() + entity
-}
+)
 
 @Entity(tableName = "skill_runs", indices = [Index(value = ["skillId", "date"])])
 data class SkillRunRow(

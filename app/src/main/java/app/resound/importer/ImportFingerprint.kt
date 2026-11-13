@@ -5,24 +5,6 @@ import java.io.File
 import java.io.InputStream
 import java.security.MessageDigest
 
-@Entity(tableName = "import_fingerprints")
-internal data class ImportFingerprint(@PrimaryKey val fingerprint: String, val seenAt: Long)
-
-@Entity(tableName = "folder_observations", primaryKeys = ["folderId", "documentId"])
-internal data class FolderObservation(val folderId: String, val documentId: String, val size: Long,
-    val modified: Long, val ignored: Boolean, val fingerprint: String? = null)
-
-@Dao
-internal interface FolderImportDao {
-    @Query("SELECT EXISTS(SELECT 1 FROM import_fingerprints WHERE fingerprint = :key)")
-    suspend fun contains(key: String): Boolean
-    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun remember(row: ImportFingerprint)
-    @Query("SELECT * FROM folder_observations WHERE folderId = :id")
-    suspend fun observations(id: String): List<FolderObservation>
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun observe(rows: List<FolderObservation>)
-    @Query("DELETE FROM folder_observations WHERE folderId = :id") suspend fun clearObservations(id: String)
-}
-
 /** 流式保留首尾各 64 KiB；兼容不能 seek 的 SAF provider，内存不随录音长度增长。 */
 internal fun audioFingerprint(input: InputStream): String {
     val window = 64 * 1024

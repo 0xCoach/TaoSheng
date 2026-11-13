@@ -4,6 +4,7 @@ import androidx.sqlite.execSQL
 import androidx.room.*
 import androidx.sqlite.SQLiteConnection
 import app.resound.data.*
+import app.resound.topic.core.TopicPolicy as CoreTopicPolicy
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "topics", indices = [Index("status"), Index("createdAt")])
@@ -27,10 +28,10 @@ internal data class TopicGroup(@Embedded val row: TopicRow,
     @Relation(parentColumn = "id", entityColumn = "topicId") val spans: List<TopicSpanRow>,
     @Relation(parentColumn = "id", entityColumn = "topicId") val marks: List<TopicMarkRow>) {
     fun topic() = Topic(row.id, TopicKind.valueOf(row.kind), row.name, TopicStatus.valueOf(row.status), row.createdAt,
-        row.plannedStartAt, row.plannedEndAt, TopicPolicy.days(row.repeatRule),
+        row.plannedStartAt, row.plannedEndAt, CoreTopicPolicy.days(row.repeatRule),
         spans.sortedBy { it.startAt }.map { TopicSpan(it.id, it.startAt, it.endAt) },
         marks.sortedBy { it.at }.map { TopicMark(it.id, it.at) }, row.eventId, row.cardId, row.error, row.revision, row.quietOverride)
-    fun deadline(): Long = row.plannedEndAt ?: ((spans.minOfOrNull { it.startAt } ?: row.createdAt) + TopicPolicy.MAX_DURATION)
+    fun deadline(): Long = row.plannedEndAt ?: ((spans.minOfOrNull { it.startAt } ?: row.createdAt) + CoreTopicPolicy.MAX_DURATION)
 }
 
 /** 所有归属查询按原话的开始时刻；相邻专题共享边界时一句只归一个专题。 */
@@ -72,7 +73,7 @@ internal interface TopicDao {
     @Query("""SELECT EXISTS(SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId
         WHERE t.kind = 'Training' AND t.status NOT IN ('Cancelled', 'Scheduled') AND :at >= ts.startAt
         AND :at < COALESCE(ts.endAt, t.plannedEndAt, (SELECT MIN(s.startAt) + 14400000 FROM topic_spans s WHERE s.topicId = t.id)))""")
-    fun trainingAt(at: Long): Boolean
+    suspend fun trainingAt(at: Long): Boolean
     @Query("SELECT MAX(endAt) FROM transcript_lines WHERE digestedAt IS NOT NULL AND startAt < :end AND endAt > :start")
     suspend fun digestedUntil(start: Long, end: Long): Long?
     @Query("""SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId

@@ -1,0 +1,15 @@
+{
+  "reviewed_at": "2026-11-13T14:21:28.506911+08:00",
+  "head": "c5b6f94c59dca0fb0d2644bc4662992e050f5189",
+  "xml_testcases_verified": 776,
+  "results": {
+    "passed": 773,
+    "skipped": 3
+  },
+  "fixture_files_current_bytes_verified": 21,
+  "schema_and_old_fixture_files_unchanged": 74,
+  "ui_and_preview_fix_unchanged_since_0126588": true,
+  "contracts_unchanged_since_0126588": true,
+  "new_gradle_runs": 0,
+  "review_scope": "续做证据独立核验、共用仓储关键路径及平台适配审读、三类剩余接口边界判断；整合验证尚未执行"
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.LocalLanguage093Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:54:11.001Z" hostname="CoachdeMacBook-Air.local" time="0.062">
+  <properties/>
+  <testcase name="unknownStoredLanguageFallsBackAndDoesNotAffectCloudIdentity" classname="app.resound.transcribe.LocalLanguage093Test" time="0.012"/>
+  <testcase name="bothBackendsReceiveSelectedLanguageAndInvalidateModelCacheOnChange" classname="app.resound.transcribe.LocalLanguage093Test" time="0.014"/>
+  <testcase name="selectionPersistsChangesLocalIdentityAndSurvivesBackup" classname="app.resound.transcribe.LocalLanguage093Test" time="0.036"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

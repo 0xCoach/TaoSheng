@@ -23,7 +23,6 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 
-enum class LocalBackend(val title: String) { Npu("NPU 识别"), Cpu("CPU 识别") }
 data class ModelSpec(val id: String, val url: String, val archiveBytes: Long, val archiveHash: String,
     val modelName: String, val modelBytes: Long, val modelHash: String, val needsTokens: Boolean = true,
     val fallbackUrls: List<String> = emptyList())

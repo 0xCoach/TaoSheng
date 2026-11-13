@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.CustomFullEndpointTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:54:10.858Z" hostname="CoachdeMacBook-Air.local" time="0.138">
+  <properties/>
+  <testcase name="minimaxStyleResponseIsRead" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.024"/>
+  <testcase name="fullModeSkipsHotwordPromptUnlessEnabled" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.027"/>
+  <testcase name="modeSurvivesRestartAndMarksReady" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.016"/>
+  <testcase name="autoModeStillAppendsOpenAiPath" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.023"/>
+  <testcase name="fullEndpointRejectsUnsafeUrl" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.012"/>
+  <testcase name="fullEndpointIsRequestedAsIs" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.017"/>
+  <testcase name="serviceErrorCodeBecomesFixedHint" classname="app.resound.transcribe.CustomFullEndpointTest" time="0.019"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

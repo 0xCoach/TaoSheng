@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.TranscribeSettings177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:50:27.553Z" hostname="CoachdeMacBook-Air.local" time="1.05">
+  <properties/>
+  <testcase name="preferencesDefaultsAtomicCustomAndFailureMatchOldImplementation" classname="app.resound.transcribe.TranscribeSettings177Test" time="1.05"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

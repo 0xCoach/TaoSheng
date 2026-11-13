@@ -1,0 +1,12 @@
+initial=Doubao/Npu/Auto/Auto/false/30/false/true/旧状态/false/false/npu=true/null
+localDefault=true/local-model
+cloudDefault=false
+explicit=false
+local=Local/Cpu/Chinese/Auto/false/30/false/true/已选择 CPU 识别/false/false/npu=null/revisionChanged=true
+npuRecorded=false/fail:new
+custom=Custom/Cpu/Chinese/Full/true/60/false/false/合成状态/true/true/endpoint=https://example.invalid/asr?group=1/model=synthetic-model/commits=1
+stored={backend=Cpu, customPrompt=true, endpoint=https://example.invalid/asr?group=1, endpointMode=Full, interval=60, localLanguage=zh, model=synthetic-model, realtime=false, source=Custom, wifi=false}
+invalid=间隔需在 15～720 分钟之间
+wifiFailure=true/false/unchanged=true
+customFailedCommit=Auto/https://example.invalid/asr?group=1/synthetic-model
+reload=Custom/Cpu/Chinese/Full/true/60/false/false

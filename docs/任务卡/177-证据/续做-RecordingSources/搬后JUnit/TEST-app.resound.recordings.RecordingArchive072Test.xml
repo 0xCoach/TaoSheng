@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.recordings.RecordingArchive072Test" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:59:22.755Z" hostname="CoachdeMacBook-Air.local" time="1.991">
+  <properties/>
+  <testcase name="customTimeRangeFiltersBySegmentStart" classname="app.resound.recordings.RecordingArchive072Test" time="1.64"/>
+  <testcase name="speechFilteringAndFirstEnableRange" classname="app.resound.recordings.RecordingArchive072Test" time="0.052"/>
+  <testcase name="acknowledgementSurvivesRestartDeletionAndTextRedo" classname="app.resound.recordings.RecordingArchive072Test" time="0.037"/>
+  <testcase name="allPushesBeforeTranscriptAndLaterAddsText" classname="app.resound.recordings.RecordingArchive072Test" time="0.025"/>
+  <testcase name="cancellationDeletesMediaStorePartialAndPersistsCancelled" classname="app.resound.recordings.RecordingArchive072Test" time="0.197"/>
+  <testcase name="twoDaysZipStoresOriginalsAndTextWithCollisionNames" classname="app.resound.recordings.RecordingArchive072Test" time="0.028"/>
+  <testcase name="estimateAndSkipMediaOnlyCountExistingOriginals" classname="app.resound.recordings.RecordingArchive072Test" time="0.012"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "app.resound.recordings.RecordingSources177Test",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "app.resound.recordings.RecordingArchive072Test",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]

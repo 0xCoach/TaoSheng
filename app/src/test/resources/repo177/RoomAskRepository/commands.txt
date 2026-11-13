@@ -1,0 +1,13 @@
+suggestions=[今天做了什么？, 最近有哪些待办？]
+answer=[AskMessage(id=1, role=User, text=合成查询, sources=[], at=1000, streaming=false, progress=null, error=null, action=null, mode=Tools), AskMessage(id=2, role=Assistant, text=, sources=[], at=1000, streaming=false, progress=null, error=还没填写大模型密钥, action=null, mode=Tools)]
+selected=1
+rows=[AskMessageEntity(id=1, conversationId=1, role=User, text=合成查询, sourcesJson={"sources":[],"mode":"Tools"}, at=1000, error=null, actionJson=null), AskMessageEntity(id=2, conversationId=1, role=Assistant, text=, sourcesJson={"sources":[],"mode":"Tools"}, at=1000, error=还没填写大模型密钥, actionJson=null)]
+history=[AskConversation(id=1, title=合成查询, preview=还没填写大模型密钥, updatedAt=1000)]
+renamed=[AskConversation(id=1, title=改名, preview=还没填写大模型密钥, updatedAt=1000)]
+new=null
+about=[AskMessage(id=3, role=User, text=关于它, sources=[AskSource(kind=event, id=9, at=2000, title=来源标题, quote=)], at=1000, streaming=false, progress=null, error=null, action=null, mode=Tools), AskMessage(id=4, role=Assistant, text=, sources=[], at=1000, streaming=false, progress=null, error=还没填写大模型密钥, action=null, mode=Tools)]
+about.rows=[AskMessageEntity(id=3, conversationId=2, role=User, text=关于它, sourcesJson={"sources":[{"kind":"event","id":9,"at":2000,"title":"来源标题","quote":""}],"mode":"Tools"}, at=1000, error=null, actionJson=null), AskMessageEntity(id=4, conversationId=2, role=Assistant, text=, sourcesJson={"sources":[],"mode":"Tools"}, at=1000, error=还没填写大模型密钥, actionJson=null)]
+delete.other=2
+after.noop=[AskMessage(id=3, role=User, text=关于它, sources=[AskSource(kind=event, id=9, at=2000, title=来源标题, quote=)], at=1000, streaming=false, progress=null, error=null, action=null, mode=Tools), AskMessage(id=4, role=Assistant, text=, sources=[], at=1000, streaming=false, progress=null, error=还没填写大模型密钥, action=null, mode=Tools)]
+deleted=[]
+selection.cleared=0

@@ -194,7 +194,7 @@ class Usage043Test {
                 .body(body.toResponseBody("application/json".toMediaType())).build()
         }.build())
         AppGraph.prompts = app.resound.prompts.LocalPromptTemplates(context)
-        val ask = createAskRepository(context, db, client, AndroidDigestSettings(context, client), scope, readKey = { "test" })
+        val ask = createAskRepository(context, db, client, AndroidDigestSettings(context, client), scope, app.resound.platform.SystemNow, readKey = { "test" })
         withTimeout(5000) { repo().llm(today.toKotlinLocalDate(), today.toKotlinLocalDate()).first { it.sumOf { r -> r.calls } == 1 } }
         ask.ask("今天做了什么？")
         val row = withTimeout(5000) { repo().llm(today.toKotlinLocalDate(), today.toKotlinLocalDate()).first { it.sumOf { r -> r.calls } == 2 } }.single()

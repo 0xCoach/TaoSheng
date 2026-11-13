@@ -25,7 +25,7 @@ import java.time.LocalDate
 /** 只负责 Android 资源与现有服务装配；界面只依赖 AskRepository。 */
 fun createAskRepository(
     context: Context, database: CaptureDatabase, client: LlmClient,
-    settings: AndroidDigestSettings, scope: CoroutineScope,
+    settings: AndroidDigestSettings, scope: CoroutineScope, now: app.resound.platform.NowMillis,
     readKey: () -> String = settings::readKey,
 ): RoomAskRepository {
     fun asset(name: String) = context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
@@ -96,7 +96,7 @@ fun createAskRepository(
     }, system = {
         val today = LocalDate.now()
         DigestPrompt.system(app.resound.AppGraph.prompts.text("ask"), today, context.appName).replace("{{TODAY}}", today.toString())
-    }, recommended = suggestions,
+    }, recommended = suggestions, now = now::now,
         readSelected = { if (selection.contains("id")) selection.getLong("id", 0) else null },
         saveSelected = { selection.edit().putLong("id", it).apply() },
         changes = changes, contextReader = AskContextReader(database))

@@ -43,7 +43,7 @@ class AskFollowUp097Test {
                 LlmStreamReply("先试运行两周，再复盘。[^${if (calls == 1) 2 else 1}]", emptyList())
             }, JSONArray(), { _, _, _ -> error("不应重复搜索") }, { _, _ -> })
         }, system = { "根据原话回答" }, recommended = AskSuggestions(context.getSharedPreferences("follow-up097", 0), { false }, { "" }, { emptyList() }),
-            contextReader = AskContextReader(db))
+            contextReader = AskContextReader(db), now = System::currentTimeMillis)
         try {
             var repo = repository()
             repo.askAbout(source("event", 9), "会议决定了什么")

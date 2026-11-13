@@ -265,7 +265,7 @@ class ResoundApp : Application() {
         val dailyMemory = app.resound.push.DailyMemorySource(this, AppGraph.memory, reviews, database.memory(), database.review(), database.skills())
         pushChannels.memoryDocument = dailyMemory::load
         reviewScheduler.schedule(reviews.state.value.dailyAtMinutes)
-        AppGraph.ask = app.resound.ask.createAskRepository(this, database, llm, digestSettings, scope)
+        AppGraph.ask = app.resound.ask.createAskRepository(this, database, llm, digestSettings, scope, AppGraph.platform.now)
         AppGraph.transcripts = transcripts
         AppGraph.transcribeSettings = settings
         AppGraph.stats = RoomCaptureStatsRepository(this, database.capture(), transcripts::diagnostics)

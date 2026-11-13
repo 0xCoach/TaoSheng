@@ -1,0 +1,3 @@
+final=[AskMessage(id=1, role=User, text=问题, sources=[], at=1000, streaming=false, progress=null, error=null, action=null, mode=Tools), AskMessage(id=2, role=Assistant, text=半句, sources=[], at=1000, streaming=false, progress=null, error=null, action=null, mode=Prefetch)]
+saved=[AskMessageEntity(id=1, conversationId=1, role=User, text=问题, sourcesJson={"sources":[],"mode":"Tools"}, at=1000, error=null, actionJson=null), AskMessageEntity(id=2, conversationId=1, role=Assistant, text=半句, sourcesJson={"sources":[],"mode":"Prefetch"}, at=1000, error=null, actionJson=null)]
+afterNew=[]

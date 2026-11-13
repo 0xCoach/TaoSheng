@@ -90,7 +90,7 @@ class AskPersistenceTest {
                     else { delta("半句[^1]"); started.complete(Unit); awaitCancellation() }
                 }, JSONArray().put(JSONObject()), { _,_,sources -> sources += source; JSONObject().put("ref",1) },
                     { p,c -> db.memory().addUsage("2026-10-23",p,c) })
-            }, system={"提示词"}, recommended=recommended)
+            }, system={"提示词"}, recommended=recommended, now=System::currentTimeMillis)
         }
         try {
             val repo = repository(); repo.ask("问一问")
@@ -126,7 +126,7 @@ class AskPersistenceTest {
         fun repository() = RoomAskRepository(db.ask(), scope, { false },
             engine = { error("No network expected") }, system = { "" },
             recommended = AskSuggestions(prefs, { false }, { "" }, { emptyList() }),
-            readSelected = { selection }, saveSelected = { selection = it })
+            now = System::currentTimeMillis, readSelected = { selection }, saveSelected = { selection = it })
         try {
             val ids = (1..32).map { n ->
                 val id = db.ask().insertConversation(AskConversationEntity(createdAt = n.toLong(), title = "标题$n"))

@@ -160,7 +160,7 @@ class SearchUpgradeTest {
                     }
                 }
             },JSONArray(),tools(db)::execute,{_,_->},changes::propose)
-        },system={"test"},recommended=AskSuggestions(prefs,{false},{""},{emptyList()}),changes=changes)
+        },system={"test"},recommended=AskSuggestions(prefs,{false},{""},{emptyList()}),changes=changes,now=System::currentTimeMillis)
         try {
             var repo = repo(); repo.ask("完成交通票据")
             val result = withTimeout(5000) { repo.messages.first { it.size==2 && !it.last().streaming } }.last()
@@ -209,7 +209,7 @@ class SearchUpgradeTest {
                 assertEquals(2,messages.length()); userText = messages.getJSONObject(1).getString("content")
                 LlmStreamReply(if (userText == "旧会话") "没找到" else "需要把发票交财务[^2]",emptyList())
             },JSONArray(),{_,_,_->error("不需要额外检索")},{_,_->}) },system={"test"},
-                recommended=AskSuggestions(context.getSharedPreferences("search-about",0),{false},{""},{emptyList()}),contextReader=AskContextReader(db))
+                recommended=AskSuggestions(context.getSharedPreferences("search-about",0),{false},{""},{emptyList()}),contextReader=AskContextReader(db),now=System::currentTimeMillis)
             repo.ask("旧会话")
             withTimeout(5000) { repo.messages.first { it.size==2 && !it.last().streaming } }
             val old = repo.currentConversation.value

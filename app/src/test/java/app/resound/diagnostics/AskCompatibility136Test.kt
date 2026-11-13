@@ -138,7 +138,7 @@ class AskCompatibility136Test {
                     assertEquals(0, definitions.length()); assertTrue(messages.toString().contains("给老王发方案"))
                     LlmStreamReply("给老王发方案[^1]", emptyList())
                 }, JSONArray(), { _, _, _ -> error("模型不能再查") }, { _, _ -> }, mode = { AskMode.Prefetch }, prefetch = prefetch::read)
-            }, system = { "" }, recommended = AskSuggestions(prefs, { false }, { "" }, { emptyList() }))
+            }, system = { "" }, recommended = AskSuggestions(prefs, { false }, { "" }, { emptyList() }), now = System::currentTimeMillis)
             val repo = repository(); repo.ask("今天上午方案")
             val result = withTimeout(5000) { repo.messages.first { it.size == 2 && !it.last().streaming } }.last()
             assertNull(result.error); assertEquals(AskMode.Prefetch, result.mode)

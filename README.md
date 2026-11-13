@@ -94,6 +94,12 @@
 31. **📡 专用录音设备（试用）**：支持通过设备说明卡或插件接入 Omi、ADeus 开源吊坠、安克／飞书录音豆 D3200 等设备。配对后可选择录音输入；实时收音、离线补传和控制功能以设备及驱动能力为准。D3200 官方构建的真机验收仍待完成。0.3.0 已移除原内置声云适配，声云用户请暂缓升级。
 32. **🧭 声音、位置、环境音联动**：事件上显示当时在哪（“📍 在公司”）；问问能按地点问——“上周在公司聊了什么”“昨天在家提到过哪些待办”；可选让整理参考当时的地点和环境音，分场景更准（默认关）。
 33. **🚀 三分钟上手**：第一次打开有开箱向导——先说明再要权限、后台自动准备本机转写、一键去 DeepSeek 获取密钥（回来自动识别剪贴板）、现场说一句话看到转写和整理结果；其余设置按需提示，不打扰。
+34. **📱 桌面小组件「涛声快捷」**：在手机桌面的“小组件 / 添加小部件”里找到涛声，即可查看聆听和专题状态，一点添加待办、开始专题、暂停或恢复；专题进行中，“开始专题”会变成“记一下”，随手标记重点。
+35. **🎤 随口加待办，不用先找页面**：从通知栏、长按桌面图标或桌面小组件点“加待办”，直接打开语音面板；说完生成待办卡，确认后收起。
+36. **🎙️ 专题模式，一场对话整理成一件事**：会议、培训、通话·访谈、口播稿、普通五种类型；支持定时、预约、暂停继续和事后补选时段，结束后按类型生成纪要。0.3.0 重做专题面板和记录列表，支持搜索、筛选、删除；“记一下”标出的重点可撤销、删除，点时间即可回到原话。
+37. **📝 长会议分段整理，中断后继续**：显示整理进度，继续时复用已完成的分段结果；失败专题可用已有原话重试，无需重新转写；重新生成期间保留原纪要，成功后再替换。
+38. **🔎 设置能搜索，问题有入口**：在设置里搜“耗电”“不录”等常用说法，点结果即可定位并高亮对应选项；设置首页的体检提示集中展示需要处理的问题。
+39. **🌗 首页与夜间模式焕新**：聆听、暂停、专题操作更集中，进行中的专题显示计时和重点操作；夜间采用纯黑背景、分层文字和橙色点缀，并改善大字体显示。
 
 <table>
 <tr>
@@ -151,7 +157,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.3.0**（最新） | 2026-11-13 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) · [魔搭](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk) | 首页与夜间模式焕新；语音待办与桌面小组件；长会议分段续做；减少后台开销。升级前备份，旧声云适配已移除。 |
+| **v0.3.0**（最新） | 2026-11-13 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk) | 首页与夜间模式焕新；语音待办与桌面小组件；专题记录管理、长会议分段续做；设置搜索与体检；减少后台开销。升级前备份，旧声云适配已移除。[详细更新日志](CHANGELOG.md#030--2026-11-13) |
 | **v0.2.22** | 2026-11-11 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.22-arm64.apk) | 新增专题录音（会议、培训、通话、口播稿，结束后合成一件事出纪要，可暂停、预约、事后补）；问问换模型也能用（Gemini 兼容、程序先查兜底）；整理被拒收不再卡住。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0222--2026-11-11) |
 | **v0.2.21** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.21-arm64.apk) | 新增足迹，并和声音、环境音联动（事件显示当时在哪、问问按地点问）；专用录音设备接入（试用）；开箱向导三分钟上手；锁屏本地转写更省电；更新前备份提前；问题记录含大模型诊断。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0221--2026-11-10) |
 | **v0.2.20** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/TaoSheng-v0.2.20-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.20-arm64.apk) | 修复麦克风“假运行”丢录音；蓝牙录音让出话筒给输入法；备份可选 WebDAV、S3；导出可只要文字、可选 Markdown；文件夹自动导入；推送换行；自定义请求头与 OpenCode Go。[详细更新日志](CHANGELOG.md#0220--2026-11-10) |

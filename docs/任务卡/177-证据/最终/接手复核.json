@@ -1,0 +1,13 @@
+{
+  "reviewed_commit": "441d89e0d8b91ea2f7c024e2a0e267c1ecb97113",
+  "baseline": "24198117d9001fa1c450b87d667b3ac5cc207b8a",
+  "raw_xml_verified": {
+    "passed": 716,
+    "skipped": 3
+  },
+  "unique_test_ids": 719,
+  "unchanged_schema_and_driver_fixture_files": 74,
+  "repository_fixture_hashes_verified": 4,
+  "product_files_modified_by_review": 0,
+  "note": "复核原始证据与静态代码；没有重跑Gradle或做真机测试。试听并发问题另见最终审核意见。"
+}

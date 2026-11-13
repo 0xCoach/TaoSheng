@@ -5,23 +5,23 @@ import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
-import org.json.JSONArray
+import app.resound.net.Arr as JSONArray
 
-internal fun aliases(json: String) = thingAliases(json)
-internal fun ThingRecordRow.model(names: Map<Long, String>) = shared().model(names)
-internal fun things(rows: List<ThingRow>, records: List<ThingRecordRow>) = thingCatalog(rows.map { it.shared() }, records.map { it.shared() })
+fun aliases(json: String) = thingAliases(json)
+fun ThingRecordRow.model(names: Map<Long, String>) = shared().model(names)
+fun things(rows: List<ThingRow>, records: List<ThingRecordRow>) = thingCatalog(rows.map { it.shared() }, records.map { it.shared() })
 
-internal class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope,
+class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope,
     private val parseDraft: suspend (String) -> ThingDrafts,
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: app.resound.platform.NowMillis,
     private val problem: (String) -> Unit = {},
 ) : ThingRepository {
-    internal val dao = db.things()
+    val dao = db.things()
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     init { scope.launch { for (command in commands) try { command() }
         catch (e: CancellationException) { throw e } catch (_: Exception) { problem("寻物保存失败，请重试") } } }
     private fun change(block: suspend () -> Unit) { check(commands.trySend { db.writeTransaction { block() } }.isSuccess) }
-    internal suspend fun flush() { val done = CompletableDeferred<Unit>(); commands.send { done.complete(Unit) }; done.await() }
+    suspend fun flush() { val done = CompletableDeferred<Unit>(); commands.send { done.complete(Unit) }; done.await() }
     override val autoDetect = dao.observeState().map { it?.enabled ?: true }.stateIn(scope, SharingStarted.Eagerly, true)
     override fun setAutoDetect(on: Boolean) = change {
         val state = dao.state() ?: ThingWatchState()
@@ -58,8 +58,8 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
     private suspend fun attach(row: ThingRecordRow, target: ThingRow?): Long {
         val names = (target?.let { aliases(it.aliasesJson) + it.name }.orEmpty() + aliases(row.aliasesJson) + row.name).distinct()
         if (target == null) return dao.insert(ThingRow(name = row.name, aliasesJson = JSONArray(names.filter { it != row.name }).toString(),
-            owner = row.owner, createdAt = now(), updatedAt = now()))
-        dao.update(target.copy(aliasesJson = JSONArray(names.filter { it != target.name }).toString(), owner = row.owner, updatedAt = now()))
+            owner = row.owner, createdAt = now.now(), updatedAt = now.now()))
+        dao.update(target.copy(aliasesJson = JSONArray(names.filter { it != target.name }).toString(), owner = row.owner, updatedAt = now.now()))
         return target.id
     }
     private suspend fun acceptRow(recordId: Long, edit: ThingEdit?, asNew: Boolean) {
@@ -73,7 +73,7 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
             else -> null
         }
         val id = attach(row, target)
-        dao.updateRecord(row.copy(thingId = id, sameAsId = null, status = "Accepted", acceptedAt = now()))
+        dao.updateRecord(row.copy(thingId = id, sameAsId = null, status = "Accepted", acceptedAt = now.now()))
     }
     override fun accept(recordId: Long, edit: ThingEdit?, asNew: Boolean) {
         val checked = edit?.let(::clean); change { acceptRow(recordId, checked, asNew) }
@@ -94,7 +94,7 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
     override fun add(drafts: List<ThingDraft>, origin: ThingOrigin, sourceText: String) {
         require(origin != ThingOrigin.Live && drafts.isNotEmpty())
         val checked = drafts.map { it to clean(ThingEdit(it.name, it.action, it.place, it.who, it.owner)) }
-        val at = now()
+        val at = now.now()
         change { checked.forEach { (d, e) ->
             val row = ThingRecordRow(name = e.name, action = e.action.name, place = e.place, who = e.who, owner = e.owner.name,
                 at = at, sourceLineId = null, sourceText = sourceText, status = "Accepted", origin = origin.name, createdAt = at, acceptedAt = at)
@@ -107,14 +107,14 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
         val latest = dao.allRecords().firstOrNull { it.thingId == thingId && it.status == "Accepted" }
         if (latest?.action != "Lent") return@change
         dao.insertRecord(ThingRecordRow(thingId = thingId, name = thing.name, action = "Returned", place = place?.trim()?.takeIf { it.isNotEmpty() }, who = null,
-            owner = thing.owner, at = now(), sourceLineId = null, sourceText = null, status = "Accepted", origin = "Typed", createdAt = now(), acceptedAt = now()))
-        dao.update(thing.copy(updatedAt = now()))
+            owner = thing.owner, at = now.now(), sourceLineId = null, sourceText = null, status = "Accepted", origin = "Typed", createdAt = now.now(), acceptedAt = now.now()))
+        dao.update(thing.copy(updatedAt = now.now()))
     }
     override fun rename(thingId: Long, name: String) {
         require(name.isNotBlank()); change { dao.thing(thingId)?.let { t -> dao.update(t.copy(name = name.trim(),
-            aliasesJson = JSONArray((aliases(t.aliasesJson) + t.name).distinct().filter { it != name.trim() }).toString(), updatedAt = now())) } }
+            aliasesJson = JSONArray((aliases(t.aliasesJson) + t.name).distinct().filter { it != name.trim() }).toString(), updatedAt = now.now())) } }
     }
-    override fun setOwner(thingId: Long, owner: ThingOwner) = change { dao.thing(thingId)?.let { dao.update(it.copy(owner = owner.name, updatedAt = now())) } }
+    override fun setOwner(thingId: Long, owner: ThingOwner) = change { dao.thing(thingId)?.let { dao.update(it.copy(owner = owner.name, updatedAt = now.now())) } }
     override fun editRecord(recordId: Long, edit: ThingEdit) {
         val checked = clean(edit)
         change {
@@ -130,7 +130,7 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
     }
     private suspend fun removeThing(id: Long) {
         dao.deleteRecords(id); dao.clearSameAs(id)
-        dao.thing(id)?.let { dao.update(it.copy(deleted = true, updatedAt = now())) }
+        dao.thing(id)?.let { dao.update(it.copy(deleted = true, updatedAt = now.now())) }
     }
     override fun deleteRecord(recordId: Long) = change {
         val old = dao.record(recordId) ?: return@change
@@ -139,7 +139,7 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
     override fun deleteThing(thingId: Long) = change { removeThing(thingId) }
 
     /** 调用者持有 Room 事务。通知只对实际新增/更新且显式请求的记录发出。 */
-    internal suspend fun propose(proposal: ThingProposal): ThingRecordRow? {
+    suspend fun propose(proposal: ThingProposal): ThingRecordRow? {
         val row = proposal.row
         val ts = dao.allThings(); val rs = dao.allRecords()
         val known = things(ts, rs)
@@ -153,7 +153,7 @@ internal class RoomThingRepository(private val db: CaptureDatabase, scope: Corou
         // 延迟到达的旧原话不反向覆盖已有较新的待确认事实。
         if (duplicate != null && duplicate.at > row.at) return null
         val fresh = row.copy(id = duplicate?.id ?: 0, thingId = row.thingId?.takeIf { it in validIds },
-            sameAsId = row.sameAsId?.takeIf { it in validIds }, createdAt = duplicate?.createdAt ?: now())
+            sameAsId = row.sameAsId?.takeIf { it in validIds }, createdAt = duplicate?.createdAt ?: now.now())
         return if (duplicate == null) fresh.copy(id = dao.insertRecord(fresh)) else fresh.also { dao.updateRecord(it) }
     }
 }

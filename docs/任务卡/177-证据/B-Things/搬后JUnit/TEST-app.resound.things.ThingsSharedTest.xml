@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.things.ThingsSharedTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:46:27.581Z" hostname="CoachdeMacBook-Air.local" time="0.342">
+  <properties/>
+  <testcase name="oneRequestStoresBothAndAskFindsRealSourceWithoutDoubleUsage" classname="app.resound.things.ThingsSharedTest" time="0.158"/>
+  <testcase name="reprocessingDoesNotRecreateIgnoredFact" classname="app.resound.things.ThingsSharedTest" time="0.051"/>
+  <testcase name="disabledDuringRequestDiscardsThingButKeepsTimeline" classname="app.resound.things.ThingsSharedTest" time="0.036"/>
+  <testcase name="badThingDoesNotRetryTimelineAndValidSiblingStillSaves" classname="app.resound.things.ThingsSharedTest" time="0.033"/>
+  <testcase name="importDoesNotAddInstructionsAndMediaDoesNotCreateThings" classname="app.resound.things.ThingsSharedTest" time="0.045"/>
+  <testcase name="deletedSourceAndFailedTransactionCannotLeaveOrphanThing" classname="app.resound.things.ThingsSharedTest" time="0.019"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

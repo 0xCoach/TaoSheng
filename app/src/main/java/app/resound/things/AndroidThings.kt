@@ -50,7 +50,7 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
         ThingDrafts(detect(listOf(line), known).map { p -> p.row.let {
             ThingDraft(it.name, ThingAction.valueOf(it.action), it.place, it.who, ThingOwner.valueOf(it.owner), it.thingId)
         } }, true)
-    }, problem = { message -> scope.launch { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
+    }, now = app.resound.AppGraph.platform.now, problem = { message -> scope.launch { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
         type = "ThingsStorage", detail = message, batteryPercent = null, charging = null)) } })
     val notifications = ThingNotifications(context)
     val prefs = context.getSharedPreferences("things", Context.MODE_PRIVATE)

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.things.ThingRepository177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:46:26.350Z" hostname="CoachdeMacBook-Air.local" time="0.201">
+  <properties/>
+  <testcase name="everyMethodAndFlowMatchesRecordedBytes" classname="app.resound.things.ThingRepository177Test" time="0.201"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.search.SearchUpgradeTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:46:24.798Z" hostname="CoachdeMacBook-Air.local" time="1.548">
+  <properties/>
+  <testcase name="reciprocalRankingDeduplicatesAndCapsAtTen" classname="app.resound.search.SearchUpgradeTest" time="0.021"/>
+  <testcase name="mixedSearchUsesSemanticFiltersAndFallsBackWhenModelUnavailable" classname="app.resound.search.SearchUpgradeTest" time="0.142"/>
+  <testcase name="ftsTracksInsertUpdateDeleteAndRetainsSpeakerTimeAndHiddenFilters" classname="app.resound.search.SearchUpgradeTest" time="0.061"/>
+  <testcase name="embeddingBatchCapsNormalizesAndRejectsStaleSnapshot" classname="app.resound.search.SearchUpgradeTest" time="0.201"/>
+  <testcase name="askAboutStartsFreshAndIncludesOnlySelectedContextWithFortyLineLimit" classname="app.resound.search.SearchUpgradeTest" time="0.427"/>
+  <testcase name="modelTokenizerAndResumableVerifiedDownloadProtocol" classname="app.resound.search.SearchUpgradeTest" time="0.285"/>
+  <testcase name="tenToElevenAndOneToElevenBackfillAndPreserveData" classname="app.resound.search.SearchUpgradeTest" time="0.212"/>
+  <testcase name="proposalsPersistOnePerAnswerAndRepositoryConfirmsOrCancelsExactlyOnce" classname="app.resound.search.SearchUpgradeTest" time="0.078"/>
+  <testcase name="bigramsMatchSqlTokenizerAndNeverInjectMatchSyntax" classname="app.resound.search.SearchUpgradeTest" time="0.033"/>
+  <testcase name="fourChangeKindsAndStaleTargetsAreAtomic" classname="app.resound.search.SearchUpgradeTest" time="0.088"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.JsonParity154Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:46:24.625Z" hostname="CoachdeMacBook-Air.local" time="0.098">
+  <properties/>
+  <testcase name="modelReplyKeepsLegacyNumericAndLenientSyntax" classname="app.resound.push.JsonParity154Test" time="0.027"/>
+  <testcase name="folderFrontMatterMatchesOriginalQuoting" classname="app.resound.push.JsonParity154Test" time="0.021"/>
+  <testcase name="thingPromptMatchesOriginalBytesForEscapesContextAndNull" classname="app.resound.push.JsonParity154Test" time="0.023"/>
+  <testcase name="subscriptionJsonMatchesOriginalBytesIncludingOrderAndNull" classname="app.resound.push.JsonParity154Test" time="0.025"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

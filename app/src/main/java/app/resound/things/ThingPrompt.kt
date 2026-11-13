@@ -3,8 +3,6 @@ package app.resound.things
 import app.resound.data.TranscriptLineEntity
 import java.time.LocalDate
 
-internal data class ThingProposal(val row: ThingRecordRow, val confident: Boolean)
-
 internal object ThingPrompt {
     fun system(template: String, today: LocalDate = LocalDate.now()) = ThingPromptRules.system(template, today.toString())
     fun context(lines: List<TranscriptLineEntity>, previous: List<TranscriptLineEntity>): List<TranscriptLineEntity> {

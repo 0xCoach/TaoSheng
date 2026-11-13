@@ -24,43 +24,37 @@ class LocalEnvSoundRepository(
     private val analyze: suspend (File) -> Pair<EnvSoundEvidence, Boolean>,
     private val schedule: () -> Unit,
     private val log: (String) -> Unit = {},
-    private val now: () -> Long = System::currentTimeMillis,
+    private val now: () -> Long,
     private val zoneProvider: ZoneProvider,
+    io: CoroutineDispatcher,
 ) : EnvSoundRepository {
     var beginBatch: () -> Unit = {}
     var endBatch: () -> Unit = {}
     private val dao = db.envSound()
-    override val settings = MutableStateFlow(EnvSoundSettings(prefs.getBoolean("enabled", false),
-        enumValue(prefs.getString("skip", null), SkipMode.MarkOnly), enumValue(prefs.getString("media", null), MediaMode.Keep),
-        prefs.getBoolean("tags",true), prefs.getBoolean("specialSounds",true), prefs.getBoolean("showInSummaries",true)))
-    override val model = modelState
-    // 冷流：仅展示/导出订阅时监听失效；不保留整张环境音、事件表的快照。
-    internal fun presentationChanges(): Flow<Unit> = db.invalidationTracker
-        .createFlow("memory_events", "env_sounds").map { Unit }
-
-    /** 展示/导出按需挂起查询；不占线程等待数据库。 */
-    internal suspend fun presentationSnapshot(start: Long, end: Long): Pair<List<MemoryEventEntity>, Map<Long, EventSounds>> = withContext(Dispatchers.IO) {
-        val events = dao.presentationEvents(start, end)
-        events to if (events.isEmpty()) emptyMap() else mergeSounds(events,
-            dao.presentationRows(events.minOf { it.startAt }, events.maxOf { it.endAt }))
-    }
-    internal suspend fun eventSound(id: Long): EventSounds? = withContext(Dispatchers.IO) {
-        val event = dao.presentationEvent(id) ?: return@withContext null
-        mergeSounds(listOf(event), dao.presentationRows(event.startAt, event.endAt))[id]
-    }
-    @Synchronized override fun update(settings: EnvSoundSettings) {
-        val edit = prefs.edit()
-        if(settings.enabled && !this.settings.value.enabled) edit.putLong("enabledAt", now())
-        check(edit.putBoolean("enabled",settings.enabled).putString("skip",settings.skip.name).putString("media",settings.media.name)
-            .putBoolean("tags",settings.tags).putBoolean("specialSounds",settings.specialSounds).putBoolean("showInSummaries",settings.showInSummaries).commit())
-        this.settings.value = settings
-        if(settings.enabled) downloadModel()
-    }
-    private var downloading: Job? = null
-    @Synchronized override fun downloadModel() {
-        if(!settings.value.enabled || downloading?.isActive == true) return
-        downloading = scope.launch { download() }
-    }
+    private val store = EnvSoundStoreRepository(db, scope, modelState, download, schedule, now, zoneProvider,
+        { LocalDate.now(ZoneId.of(it)).toKotlinLocalDate() }, { File(it.id).isFile }, { path -> File(path).takeIf(File::isFile)?.let { FileRef(it.path) } }, io,
+        prefs::getBoolean, { prefs.getString(it, null) }, { settings, enabledAt ->
+            val edit = prefs.edit()
+            if (enabledAt != null) edit.putLong("enabledAt", enabledAt)
+            edit.putBoolean("enabled", settings.enabled).putString("skip", settings.skip.name).putString("media", settings.media.name)
+                .putBoolean("tags", settings.tags).putBoolean("specialSounds", settings.specialSounds).putBoolean("showInSummaries", settings.showInSummaries).commit()
+        })
+    override val settings get() = store.settings
+    override val model get() = store.model
+    internal fun presentationChanges() = store.presentationChanges()
+    internal suspend fun presentationSnapshot(start: Long, end: Long) = store.presentationSnapshot(start, end)
+    internal suspend fun eventSound(id: Long) = store.eventSound(id)
+    @Synchronized override fun update(settings: EnvSoundSettings) = store.update(settings)
+    @Synchronized override fun downloadModel() = store.downloadModel()
+    override fun flagged(date: kotlinx.datetime.LocalDate) = store.flagged(date)
+    override fun eventSounds(date: kotlinx.datetime.LocalDate) = store.eventSounds(date)
+    override fun eventsWith(tag: EnvTag?, sound: SpecialSound?) = store.eventsWith(tag, sound)
+    override fun hourly(date: kotlinx.datetime.LocalDate) = store.hourly(date)
+    override fun stats(days: Int) = store.stats(days)
+    override suspend fun restore(segmentId: Long) = store.restore(segmentId)
+    override fun reportWrong(segmentId: Long) = store.reportWrong(segmentId)
+    override suspend fun audio(segmentId: Long) = store.audio(segmentId)
+    suspend fun diagnostics() = store.diagnostics()
     /** 在 TranscribeRunner 的串行锁内执行，结果落库后才允许改变转写状态。 */
     suspend fun beforeTranscribe(segment: SegmentEntity): Boolean {
         val existing = dao.get(segment.id)
@@ -85,79 +79,8 @@ class LocalEnvSoundRepository(
         catch(_: Exception) { log("环境音 ${(now()-start).coerceAtLeast(0)}ms 判断失败，照常转写"); return false }
         catch(_: LinkageError) { log("环境音 JNI 不可用，照常转写"); return false }
     }
-    private fun bounds(date: kotlinx.datetime.LocalDate, zone: ZoneId): Pair<Long,Long> =
-        date.toJavaLocalDate().atStartOfDay(zone).toInstant().toEpochMilli() to date.toJavaLocalDate().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    override fun flagged(date: kotlinx.datetime.LocalDate): Flow<List<SegmentSound>> {
-        val (from,to) = bounds(date, ZoneId.of(zoneProvider.zoneId()))
-        return combine(dao.observeBetween(from, to).distinctUntilChanged(), tick()) { rows, _ -> rows.filter { it.verdict != "Keep" }.map { it.view() } }.flowOn(Dispatchers.IO)
-    }
-    override fun eventSounds(date: kotlinx.datetime.LocalDate): Flow<Map<Long, EventSounds>> {
-        val (from,to) = bounds(date, ZoneId.of(zoneProvider.zoneId()))
-        return dao.eventsBetween(from, to).distinctUntilChanged().flatMapLatest { events ->
-            if (events.isEmpty()) flowOf(emptyMap())
-            else dao.observeBetween(events.minOf { it.startAt }, events.maxOf { it.endAt })
-                .distinctUntilChanged().map { rows -> mergeSounds(events, rows) }
-        }.distinctUntilChanged().flowOn(Dispatchers.IO)
-    }
-    override fun eventsWith(tag: EnvTag?, sound: SpecialSound?): Flow<List<Long>> = combine(dao.events().distinctUntilChanged(), dao.observe().distinctUntilChanged()) { events, rows ->
-        val merged = mergeSounds(events,rows)
-        events.filter { e -> merged[e.id]?.let { (tag == null || tag in it.tags) && (sound == null || sound in it.sounds) } == true }.map { it.id }
-    }
-    override fun hourly(date: kotlinx.datetime.LocalDate): Flow<List<HourSound>> {
-        val zone = ZoneId.of(zoneProvider.zoneId())
-        val (from, to) = bounds(date, zone)
-        return combine(db.transcribe().observeOverlapping(from, to).distinctUntilChanged(),
-            dao.observeBetween(from, to).distinctUntilChanged()) { segments, rows ->
-            hourlySounds(date.toJavaLocalDate(), segments, rows, zone)
-        }.distinctUntilChanged().flowOn(Dispatchers.IO)
-    }
-    override fun stats(days: Int): Flow<EnvStats> {
-        val n = days.coerceAtLeast(1)
-        // 保留原来五秒检查文件/时钟的可见时机，跨午夜后切换查询范围。
-        val start = tick().map { ZoneId.of(zoneProvider.zoneId()).let { zone -> bounds(LocalDate.now(zone).minusDays(n - 1L).toKotlinLocalDate(), zone).first } }.distinctUntilChanged()
-        return start.flatMapLatest { from ->
-            combine(dao.observeSince(from).distinctUntilChanged(), tick()) { rows, _ ->
-                val selected = rows.filter { it.startAt <= now() }
-                EnvStats(n, selected.count { it.verdict != "Keep" || it.reportedWrong }, selected.count { it.restored }, selected.count { it.reportedWrong },
-                    (selected.filter { it.skipped && !it.restored && !it.reportedWrong }.sumOf { (it.endAt-it.startAt).coerceAtLeast(0) }/60000).toInt())
-            }
-        }.distinctUntilChanged().flowOn(Dispatchers.IO)
-    }
-    override suspend fun restore(segmentId: Long): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            db.writeTransaction {
-                val row = requireNotNull(dao.get(segmentId)) { "未找到这段录音" }
-                check(File(row.path).isFile) { "这段录音已过保留期" }
-                if(row.skipped && !row.restored) {
-                    check(dao.requeue(segmentId) > 0) { "这段录音尚未跳过，请稍后重试" }
-                    dao.restored(segmentId)
-                }
-            }
-            schedule(); Result.success(Unit)
-        } catch(e: CancellationException) { throw e }
-        catch(e: Exception) { Result.failure(e) }
-    }
-    override fun reportWrong(segmentId: Long) {
-        scope.launch {
-            db.writeTransaction {
-                val row = dao.get(segmentId) ?: return@writeTransaction
-                dao.wrong(segmentId)
-                if((row.skipped || row.verdict == "Skippable") && File(row.path).isFile) {
-                    if(dao.requeueCorrection(segmentId) > 0 && row.skipped) dao.restored(segmentId)
-                }
-            }
-            schedule()
-        }
-    }
-    override suspend fun audio(segmentId: Long): FileRef? = withContext(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile)?.let { file -> FileRef(file.path) } } }
-    suspend fun diagnostics(): String {
-        val recent = dao.since(now()-7*86_400_000L)
-        return "设置=${settings.value}\n模型=${model.value}\n最近7天=${recent.groupingBy { it.verdict }.eachCount()}\n平均耗时=${recent.map { it.elapsedMs }.average().takeIf { it.isFinite() } ?: 0.0}ms"
-    }
-    private fun tick() = flow { while(currentCoroutineContext().isActive) { emit(Unit); delay(5000) } }
     companion object {
-        private inline fun <reified T: Enum<T>> enumValue(value: String?, fallback: T) = enumValues<T>().firstOrNull { it.name == value } ?: fallback
-        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null, zoneProvider: ZoneProvider): LocalEnvSoundRepository {
+        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null, zoneProvider: ZoneProvider, now: () -> Long, io: CoroutineDispatcher): LocalEnvSoundRepository {
             val model = EnvSoundModel(context)
             val gaps = EnvSoundGapExtractor(context)
             val reader = AsrAudioReader(context.cacheDir)
@@ -172,7 +95,7 @@ class LocalEnvSoundRepository(
             }, me,
                 phase = { app.resound.PipelineProgress.detail(it) }, log = record, extractGaps = gaps::extract)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
-                { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record,zoneProvider = zoneProvider).also { repo ->
+                { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record,zoneProvider = zoneProvider, now = now, io = io).also { repo ->
                 repo.beginBatch = { model.beginBatch(); gaps.beginBatch() }
                 repo.endBatch = { try { gaps.endBatch() } finally { model.endBatch() } }
                 scope.launch { model.checkReady(); if(repo.settings.value.enabled) repo.downloadModel() }

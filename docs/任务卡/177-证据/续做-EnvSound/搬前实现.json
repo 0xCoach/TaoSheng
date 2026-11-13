@@ -1,0 +1,7 @@
+{
+  "HEAD": "e48c1ad8d86d5117c8d7df1f15fe0c4fad4b301c",
+  "sha256": {
+    "app/src/main/java/app/resound/envsound/LocalEnvSoundRepository.kt": "96011da3f97bf48d59bbed72bff10852af558fa285d55c023bcce0e272ec7d1e",
+    "app/src/main/java/app/resound/envsound/EnvSoundAggregation.kt": "88ac8ffe7e5832eab4a1a915f36fa2c0859594740eb4ffed47c182ea9a02c59e"
+  }
+}

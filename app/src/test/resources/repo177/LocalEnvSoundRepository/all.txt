@@ -1,0 +1,18 @@
+initial=EnvSoundSettings(enabled=false, skip=MarkOnly, media=Keep, tags=false, specialSounds=true, showInSummaries=true)/Ready
+disabledDownload=0
+stored={enabled=true, enabledAt=1793595600000, media=MarkMedia, showInSummaries=true, skip=On, specialSounds=true, tags=true}/commits=1/state=EnvSoundSettings(enabled=true, skip=On, media=MarkMedia, tags=true, specialSounds=true, showInSummaries=true)
+failure=true
+afterFailure={enabled=true, enabledAt=1793595600000, media=MarkMedia, showInSummaries=true, skip=On, specialSounds=true, tags=true}/state=EnvSoundSettings(enabled=true, skip=On, media=MarkMedia, tags=true, specialSounds=true, showInSummaries=true)
+flagged=[SegmentSound(segmentId=1, startAt=1793509190000, endAt=1793512810000, verdict=Skippable, reason=合成原因, tags=[Rain], sounds=[Knock], restored=false, reportedWrong=false, audioAvailable=true)]
+events={1=EventSounds(eventId=1, tags=[Rain], sounds=[Knock], media=false)}/filter=[1]
+hourly=[HourSound(hour=0, tag=Rain, sounds=[Knock], speechMinutes=0, tagMs={Rain=10000}), HourSound(hour=1, tag=Rain, sounds=[Knock], speechMinutes=0, tagMs={Rain=3600000}), HourSound(hour=1, tag=Rain, sounds=[Knock], speechMinutes=0, tagMs={Rain=10000})]/stats=EnvStats(days=3650, marked=1, restored=0, reportedWrong=0, savedMinutes=60)
+presentation=([MemoryEventEntity(id=1, startAt=1793509190000, endAt=1793512810000, scene=其他, title=合成, summary=摘要, pointsJson=[], peopleJson=[], place=null, emotion=null, intensity=null, important=false, deleted=false, createdAt=1793505600000, model=fake, starred=false, starredAt=null, editedAt=null, originalTitle=null, originalSummary=null, originalPointsJson=null)], {1=EventSounds(eventId=1, tags=[Rain], sounds=[Knock], media=false)})/one=EventSounds(eventId=1, tags=[Rain], sounds=[Knock], media=false)/absent=null
+audio=true/null
+restore=true/status=Pending/queued=1
+correction=[]/stats=EnvStats(days=3650, marked=1, restored=1, reportedWrong=1, savedMinutes=0)
+missing=未找到这段录音
+expired=这段录音已过保留期/audio=null
+diagnostics=设置=EnvSoundSettings(enabled=true, skip=On, media=MarkMedia, tags=true, specialSounds=true, showInSummaries=true)
+模型=Ready
+最近7天={Keep=1}
+平均耗时=7.0ms

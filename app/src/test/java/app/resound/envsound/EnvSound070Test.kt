@@ -43,7 +43,7 @@ class EnvSound070Test {
         scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
         dir=File(context.cacheDir,"env070").apply { mkdirs() }
         val prefs=context.getSharedPreferences("env070",0);prefs.edit().clear().commit()
-        repo=LocalEnvSoundRepository(db,prefs,scope,state,{}, { calls++;EnvSoundEvidence(scores, scores, 32000, 32000) to false }, { queued++ },now={clock},zoneProvider=app.resound.platform.SystemZone)
+        repo=LocalEnvSoundRepository(db,prefs,scope,state,{}, { calls++;EnvSoundEvidence(scores, scores, 32000, 32000) to false }, { queued++ },now={clock},zoneProvider=app.resound.platform.SystemZone, io = kotlinx.coroutines.Dispatchers.IO)
     }
     @After fun close() { scope.cancel();db.close();dir.deleteRecursively() }
     private suspend fun segment(id: Long, start: Long=clock, duration: Long=60000): SegmentEntity {
@@ -113,7 +113,7 @@ class EnvSound070Test {
         repo.update(enabled);state.value=EnvModelState.NotDownloaded;segment(2);runner().run();assertEquals(0,calls)
         state.value=EnvModelState.Ready;segment(3,clock-1);runner().run();assertEquals(0,calls)
         assertEquals(3,asr)
-        val failure=LocalEnvSoundRepository(db,context.getSharedPreferences("env070",0),scope,state,{}, { error("decode") },{},zoneProvider=app.resound.platform.SystemZone)
+        val failure=LocalEnvSoundRepository(db,context.getSharedPreferences("env070",0),scope,state,{}, { error("decode") },{},zoneProvider=app.resound.platform.SystemZone, now = app.resound.platform.SystemNow::now, io = kotlinx.coroutines.Dispatchers.IO)
         segment(4);assertFalse(failure.beforeTranscribe(db.transcribe().segment(4)))
     }
     @Test fun aggregationSplitsHoursAndMergesEvents(): Unit = runBlocking {

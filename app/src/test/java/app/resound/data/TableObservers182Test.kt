@@ -56,7 +56,7 @@ class TableObservers182Test {
     private fun env(s: SegmentEntity, verdict: String = "Keep") = EnvSoundRow(s.id,s.startAt,s.endAt,s.path,verdict,null,"Rain","Knock","{}",verdict=="Skipped",false)
     private fun event(start: Long, end: Long) = MemoryEventEntity(startAt=start,endAt=end,scene="其他",title="合成事件",summary="",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=0,model="test")
     private fun repository() = LocalEnvSoundRepository(db,RuntimeEnvironment.getApplication().getSharedPreferences("182",0),scope,
-        MutableStateFlow(EnvModelState.Ready),{}, { error("不运行识别") },{},now={10_000L},zoneProvider=app.resound.platform.SystemZone)
+        MutableStateFlow(EnvModelState.Ready),{}, { error("不运行识别") },{},now={10_000L},zoneProvider=app.resound.platform.SystemZone, io = kotlinx.coroutines.Dispatchers.IO)
     private inner class Probe<T>(source: Flow<T>) {
         val reads = Channel<Unit>(Channel.UNLIMITED)
         val values = Channel<T>(Channel.UNLIMITED)

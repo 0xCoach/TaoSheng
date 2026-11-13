@@ -6,7 +6,7 @@ import androidx.room.*
 import androidx.room.migration.Migration
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "segments", indices = [Index("startAt"), Index(value = ["path"], unique = true), Index("importRecordId")], foreignKeys = [ForeignKey(entity = app.resound.importer.ImportRecordRow::class, parentColumns = ["id"], childColumns = ["importRecordId"], onDelete = ForeignKey.SET_NULL)])
+@Entity(tableName = "segments", indices = [Index("startAt"), Index(value = ["path"], unique = true), Index("importRecordId"), Index(value = ["status", "voiceprintProcessedAt"])], foreignKeys = [ForeignKey(entity = app.resound.importer.ImportRecordRow::class, parentColumns = ["id"], childColumns = ["importRecordId"], onDelete = ForeignKey.SET_NULL)])
 data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val startAt: Long, val endAt: Long,
     val sourceId: String, val path: String, val sizeBytes: Long, val status: String = "Pending",
     @ColumnInfo(defaultValue = "0") val attempts: Int = 0,
@@ -86,7 +86,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun places(): app.resound.location.PlaceDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 33
+        const val VERSION = 34
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -331,7 +331,14 @@ abstract class CaptureDatabase : RoomDatabase() {
         val MIGRATION_32_33 = object : Migration(32, 33) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) = app.resound.topic.TopicSchema.create(db)
         }
-        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33)
+        /** 卡 183：只建测量通过的两个索引；Room 的升级事务负责中断回滚。 */
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)")
+            }
+        }
+        val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
         fun open(context: Context, name: String = "capture.db") = Room.databaseBuilder(context, CaptureDatabase::class.java, name)
             .setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .addMigrations(*MIGRATIONS)

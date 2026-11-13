@@ -55,7 +55,7 @@ internal abstract class PushDao {
     @Query("SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 ORDER BY i.createdAt, i.id") abstract suspend fun items(): List<MemoryItemEntity>
     @Query("SELECT * FROM skill_cards WHERE deletedAt IS NULL ORDER BY at, id") abstract suspend fun cards(): List<SkillCardRow>
     @Query("SELECT * FROM reviews ORDER BY startDate, id") abstract suspend fun reviews(): List<ReviewEntity>
-    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.status = 'Done' AND l.startAt >= :start ORDER BY l.startAt, l.id") abstract suspend fun lines(start: Long): List<TranscriptLineEntity>
+    @Query("SELECT l.* FROM transcript_lines l INDEXED BY index_transcript_lines_startAt CROSS JOIN segments s ON s.id = l.segmentId WHERE s.status = 'Done' AND l.startAt >= :start ORDER BY l.startAt, l.id") abstract suspend fun lines(start: Long): List<TranscriptLineEntity>
     @Transaction open suspend fun snapshot(start: Long, withLines: Boolean): PushSnapshot {
         val rows = items()
         val repeats = rows.groupingBy { it.mergedInto ?: it.id }.eachCount()

@@ -1,7 +1,7 @@
 {
   "search_lines": {
     "select": "l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote",
-    "table": "transcript_lines l",
+    "table": "transcript_lines l NOT INDEXED",
     "where": "(l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0))",
     "time": "l.startAt",
     "keywords": [

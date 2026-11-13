@@ -3,7 +3,7 @@ package app.resound.data
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "transcript_lines", indices = [Index("segmentId"), Index("eventId")], foreignKeys = [ForeignKey(
+@Entity(tableName = "transcript_lines", indices = [Index("segmentId"), Index("eventId"), Index("startAt")], foreignKeys = [ForeignKey(
     entity = SegmentEntity::class, parentColumns = ["id"], childColumns = ["segmentId"], onDelete = ForeignKey.CASCADE)])
 data class TranscriptLineEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val segmentId: Long,
     val startAt: Long, val endAt: Long, val text: String, val speakerTag: String?, val speakerName: String? = null,
@@ -75,17 +75,18 @@ abstract class TranscribeDao {
     abstract fun day(start: Long, end: Long): Flow<List<SegmentWithLines>>
     @Transaction
     @Query("SELECT * FROM segments") abstract fun observeSegments(): Flow<List<SegmentEntity>>
-    // 现有表没有 status 索引：聚合仍扫描，但只向上返回一行，不再构建历史段对象。
+    // 只扫描队列状态的覆盖索引；无匹配行时三个聚合仍返回 0/false。
     @Query("""SELECT COUNT(CASE WHEN status = 'Pending' THEN 1 END) AS pending,
         COUNT(CASE WHEN status = 'Failed' THEN 1 END) AS failed,
-        COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments""")
+        COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments WHERE status IN ('Pending', 'Failed', 'Running')""")
     abstract fun observeQueueCounts(): Flow<QueueCounts>
     @Query("""SELECT COUNT(voiceprintProcessedAt) AS processed,
         COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done'""")
     abstract fun observeVoiceprintCounts(): Flow<VoiceprintCounts>
-    @Query("SELECT * FROM segments WHERE status = 'Failed'")
+    @Query("SELECT * FROM segments WHERE status = 'Failed' ORDER BY id")
     abstract fun observeFailedSegments(): Flow<List<SegmentEntity>>
-    @Query("SELECT * FROM segments WHERE status = 'Done' AND startAt >= :since")
+    // Done占绝大多数，近期查询仍按时间范围查，不能改走状态索引。
+    @Query("SELECT * FROM segments INDEXED BY index_segments_startAt WHERE status = 'Done' AND startAt >= :since")
     abstract suspend fun recentDone(since: Long): List<SegmentEntity>
     @Query("SELECT * FROM segments WHERE startAt < :end AND endAt > :start ORDER BY startAt, id")
     abstract fun observeOverlapping(start: Long, end: Long): Flow<List<SegmentEntity>>
@@ -221,7 +222,7 @@ abstract class TranscribeDao {
         insertLines(lines.filter { line -> voice.none { app.resound.capture.VoiceInputDedup.heardByMic(it.startAt, it.text, line.startAt, line.text, line.speakerName) } })
         update(row)
     }
-    @Query("SELECT * FROM segments WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'SkippedEnv', 'Abandoned', 'Quiet') AND completedAt <= :before")
+    @Query("SELECT * FROM segments NOT INDEXED WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'SkippedEnv', 'Abandoned', 'Quiet') AND completedAt <= :before")
     abstract suspend fun expired(before: Long): List<SegmentEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: AsrUsageEntity)
     @Query("UPDATE asr_usage SET sentMillis = sentMillis + :millis WHERE day = :day")

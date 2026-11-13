@@ -12,8 +12,9 @@ abstract class VoiceInputDao {
     @Query("DELETE FROM transcript_lines WHERE id IN (:ids) AND voiceInputJson IS NULL") abstract suspend fun deleteLines(ids: List<Long>)
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :at - 1800000 AND :at ORDER BY startAt DESC, id DESC")
     abstract suspend fun recent(at: Long): List<TranscriptLineEntity>
+    // 语音输入在原话中很稀疏；保留先过滤再排序，避免为了排序全表回查时间索引。
     @Transaction
-    @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC")
+    @Query("SELECT * FROM transcript_lines NOT INDEXED WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC")
     abstract fun observed(): Flow<List<TranscriptLineEntity>>
     @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id=l.segmentId WHERE s.path=:token")
     abstract suspend fun byToken(token: String): TranscriptLineEntity?

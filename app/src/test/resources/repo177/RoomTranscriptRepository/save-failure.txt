@@ -1,0 +1,2 @@
+state=TranscribeQueueState(pending=0, failed=0, running=false, lastRunAt=12, nextRunAt=null, lastError=转写未就绪，请检查密钥或下载本地模型, usedSecondsToday=0, usedSecondsTotal=0, runTotal=0, runDone=0)
+prefs=(12, 旧值)

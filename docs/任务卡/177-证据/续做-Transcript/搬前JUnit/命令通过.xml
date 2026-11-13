@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.TranscriptRepository177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T04:40:37.450Z" hostname="CoachdeMacBook-Air.local" time="2.6">
+  <properties/>
+  <testcase name="commandsPreserveQueueTransitionsAndFileFailure" classname="app.resound.transcribe.TranscriptRepository177Test" time="2.6"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

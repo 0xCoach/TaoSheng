@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskCitationRepair097Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T04:45:35.764Z" hostname="CoachdeMacBook-Air.local" time="0.046">
+  <properties/>
+  <testcase name="repeatedBadCitationsAndUnexpectedToolCallsStopWithoutLoopingOrChangingData[jvm]" classname="app.resound.ask.AskCitationRepair097Test" time="0.029"/>
+  <testcase name="wrongDatabaseIdAndMissingReferenceAreRepairedOnceAndUsageIsCounted[jvm]" classname="app.resound.ask.AskCitationRepair097Test" time="0.006"/>
+  <testcase name="repairStillFitsAfterSixToolRoundsAndCannotExpandToolBudget[jvm]" classname="app.resound.ask.AskCitationRepair097Test" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

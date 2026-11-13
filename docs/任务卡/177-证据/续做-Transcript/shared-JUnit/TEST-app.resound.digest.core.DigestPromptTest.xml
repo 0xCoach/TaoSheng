@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.core.DigestPromptTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-11-13T04:45:36.389Z" hostname="CoachdeMacBook-Air.local" time="0.035">
+  <properties/>
+  <testcase name="itemsUseContainingOrNearestEventAndNonTodoKindIsNull[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.004"/>
+  <testcase name="sortsRangesTrimsOverlapAndDropsFullyCoveredEvent[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.0"/>
+  <testcase name="keepsBystanderItemsAndDropsMediaItems[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <testcase name="transcriptNumbersOnlySentencesAndPreservesIndexMapping[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.018"/>
+  <testcase name="normalJsonMapsIdsAndUsesFirstStartAndMaximumEnd[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <testcase name="calendarLabelsAndInclusiveWindow[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.003"/>
+  <testcase name="speakerUsesNameThenTagThenFallback[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <testcase name="clampsEventWhoseFromIsBelowOne[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.0"/>
+  <testcase name="invalidJsonAndMissingEventsThrowFormat[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <testcase name="parseDueUsesShanghaiTimeAndDateStartsAtMidnight[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <testcase name="acceptsJsonCodeFence[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.0"/>
+  <testcase name="dropsUnknownCategoriesAndBlankContent[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <testcase name="intensityAcceptsOnlyOneThroughFive[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.003"/>
+  <testcase name="rejectsWhollyOutOfBoundsAndReversedRanges[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.0"/>
+  <testcase name="clampsEventWhoseToExceedsLineCount[jvm]" classname="app.resound.digest.core.DigestPromptTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

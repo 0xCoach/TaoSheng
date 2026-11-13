@@ -1,0 +1,7 @@
+ignored=[(1, Quiet), (2, Quiet)]
+retry.one=Pending
+retry.all=[(1, Pending), (2, Quiet), (3, Pending)]
+delete.denied=(Quiet, true)
+delete.ok=true
+anyway=Pending
+scheduled=true

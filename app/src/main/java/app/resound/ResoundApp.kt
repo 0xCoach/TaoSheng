@@ -138,7 +138,7 @@ class ResoundApp : Application() {
             ExportSpeeds(getSharedPreferences("export-speeds", MODE_PRIVATE))) { PipelineTimes.record(this, it) }
         AppGraph.audioExporter.cleanup()
         AppGraph.exportJobs = AndroidExportJobs(this, AppGraph.audioExporter, scope)
-        val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope, AppGraph.platform.zone)
+        val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
         val asrChooser = app.resound.redo.AndroidAsrChooser(this, settings, scope) { AppGraph.usage.price.value.asrPerHour }
         val sourceNetwork: (TranscribeSource) -> Boolean = { source ->
             if (source == TranscribeSource.Local) true else {

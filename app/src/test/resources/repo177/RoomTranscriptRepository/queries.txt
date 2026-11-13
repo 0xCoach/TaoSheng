@@ -1,0 +1,10 @@
+initial=TranscribeQueueState(pending=0, failed=0, running=false, lastRunAt=1000, nextRunAt=null, lastError=转写未就绪，请检查密钥或下载本地模型, usedSecondsToday=0, usedSecondsTotal=0, runTotal=0, runDone=0)
+clock.noSubscriber=true
+queue.loaded=TranscribeQueueState(pending=1, failed=1, running=true, lastRunAt=1000, nextRunAt=1801000, lastError=转写未就绪，请检查密钥或下载本地模型, usedSecondsToday=2, usedSecondsTotal=2, runTotal=0, runDone=0)
+ready=TranscribeQueueState(pending=1, failed=1, running=true, lastRunAt=1000, nextRunAt=1801000, lastError=合成旧错误, usedSecondsToday=2, usedSecondsTotal=2, runTotal=0, runDone=0)
+progress=TranscribeQueueState(pending=1, failed=1, running=true, lastRunAt=5000, nextRunAt=1805000, lastError=新错误, usedSecondsToday=2, usedSecondsTotal=2, runTotal=4, runDone=2)
+persisted=(5000, 新错误)
+day=[SegmentTranscript(segmentId=6, startAt=1793505650000, endAt=1793505651000, status=SkippedPlayback, lines=[], error=null, audioAvailable=false), SegmentTranscript(segmentId=4, startAt=1793505630000, endAt=1793505631000, status=Failed, lines=[], error=null, audioAvailable=false), SegmentTranscript(segmentId=3, startAt=1793505620000, endAt=1793505621000, status=Running, lines=[], error=null, audioAvailable=false), SegmentTranscript(segmentId=2, startAt=1793505610000, endAt=1793505611000, status=Pending, lines=[], error=null, audioAvailable=false), SegmentTranscript(segmentId=1, startAt=1793505600000, endAt=1793505601000, status=Done, lines=[TranscriptLine(id=1, startAt=1793505600100, endAt=1793505600200, text=先一句, speakerTag=0, speakerName=null, speakerScore=null, segmentId=1, voiceInput=VoiceInputMeta(app=合成应用, packageName=synthetic, title=null, before=null, after=后文)), TranscriptLine(id=2, startAt=1793505600200, endAt=1793505600300, text=后一句, speakerTag=1, speakerName=null, speakerScore=null, segmentId=1, voiceInput=null)], error=null, audioAvailable=true)]
+clock.afterCancel=true
+day.fileGone=[(6, false), (4, false), (3, false), (2, false), (1, false)]
+scheduled.deltaFromInput=0

@@ -1,0 +1,154 @@
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :shared:kspCommonMainKotlinMetadata SKIPPED
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:generateDebugResValues UP-TO-DATE
+> Task :shared:generateDebugResources UP-TO-DATE
+> Task :shared:packageDebugResources UP-TO-DATE
+> Task :shared:parseDebugLocalResources UP-TO-DATE
+> Task :shared:generateDebugRFile UP-TO-DATE
+> Task :shared:javaPreCompileDebug UP-TO-DATE
+> Task :shared:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:preReleaseBuild UP-TO-DATE
+> Task :shared:generateReleaseResValues
+> Task :shared:generateReleaseResources
+> Task :shared:javaPreCompileDebugUnitTest
+> Task :shared:packageReleaseResources
+> Task :shared:generateDebugUnitTestStubRFile
+> Task :shared:preReleaseUnitTestBuild UP-TO-DATE
+> Task :shared:javaPreCompileRelease
+> Task :shared:javaPreCompileReleaseUnitTest
+> Task :shared:mergeDebugJniLibFolders UP-TO-DATE
+> Task :shared:parseReleaseLocalResources
+> Task :shared:mergeDebugNativeLibs NO-SOURCE
+> Task :shared:stripDebugDebugSymbols NO-SOURCE
+> Task :shared:extractDeepLinksForAarDebug
+> Task :shared:copyDebugJniLibsProjectAndLocalJars
+> Task :shared:mergeDebugShaders UP-TO-DATE
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:generateReleaseRFile
+> Task :shared:mergeDebugAssets UP-TO-DATE
+> Task :shared:prepareDebugArtProfile
+> Task :shared:generateReleaseUnitTestStubRFile
+> Task :shared:prepareLintJarForPublish
+> Task :shared:processDebugManifest UP-TO-DATE
+> Task :shared:writeDebugAarMetadata UP-TO-DATE
+> Task :shared:preDebugAndroidTestBuild UP-TO-DATE
+> Task :shared:generateDebugAndroidTestResValues
+> Task :shared:writeDebugLintModelMetadata
+> Task :shared:extractProguardFiles
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResources UP-TO-DATE
+> Task :devices:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:processDebugManifest UP-TO-DATE
+> Task :shared:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :devices:compileDebugLibraryResources UP-TO-DATE
+> Task :devices:parseDebugLocalResources UP-TO-DATE
+> Task :devices:generateDebugRFile UP-TO-DATE
+> Task :shared:compileDebugLibraryResources UP-TO-DATE
+> Task :shared:kspKotlinJvm
+> Task :app:processDebugResources UP-TO-DATE
+> Task :shared:jvmProcessResources NO-SOURCE
+> Task :shared:processJvmMainResources SKIPPED
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:kspDebugKotlinAndroid
+> Task :devices:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :devices:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :devices:compileDebugKotlinAndroid UP-TO-DATE
+> Task :devices:javaPreCompileDebug UP-TO-DATE
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shared:kspReleaseKotlinAndroid
+> Task :shared:compileCommonMainKotlinMetadata
+> Task :shared:compileDebugKotlinAndroid
+> Task :shared:compileKotlinJvm
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:compileJvmMainJava NO-SOURCE
+> Task :shared:jvmMainClasses
+> Task :shared:kspTestKotlinJvm SKIPPED
+> Task :shared:bundleLibCompileToJarDebug
+> Task :shared:jvmJar
+> Task :shared:kspDebugUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileDebugUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:jvmTestProcessResources
+> Task :shared:processJvmTestResources SKIPPED
+> Task :shared:processDebugJavaRes UP-TO-DATE
+> Task :shared:processDebugUnitTestJavaRes NO-SOURCE
+> Task :shared:bundleLibRuntimeToJarDebug
+> Task :shared:extractDebugAnnotations
+> Task :shared:testDebugUnitTest NO-SOURCE
+> Task :shared:mergeDebugGeneratedProguardFiles
+> Task :shared:mergeDebugConsumerProguardFiles
+> Task :shared:createFullJarDebug
+> Task :shared:mergeDebugJavaResource
+> Task :shared:compileTestKotlinJvm
+> Task :shared:generateDebugLintReportModel
+> Task :shared:compileJvmTestJava NO-SOURCE
+> Task :shared:jvmTestClasses
+> Task :shared:jvmTest
+> Task :shared:syncDebugLibJars
+> Task :shared:bundleDebugLocalLintAar
+> Task :shared:generateDebugAndroidTestLintModel
+> Task :shared:generateDebugUnitTestLintModel
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+> Task :shared:lintAnalyzeDebugAndroidTest
+> Task :shared:lintAnalyzeDebugUnitTest
+> Task :shared:compileReleaseKotlinAndroid
+> Task :shared:compileReleaseJavaWithJavac NO-SOURCE
+> Task :shared:processReleaseJavaRes
+> Task :shared:bundleLibRuntimeToJarRelease
+> Task :shared:bundleLibCompileToJarRelease
+> Task :shared:kspReleaseUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileReleaseUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:copyRoomSchemas
+> Task :shared:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :shared:testReleaseUnitTest NO-SOURCE
+> Task :shared:allTests
+> Task :shared:test UP-TO-DATE
+> Task :shared:lintAnalyzeDebug
+
+> Task :shared:lintReportDebug
+Wrote HTML report to file:///Users/coach/Developer/TaoSheng-176/shared/build/reports/lint-results-debug.html
+
+> Task :shared:lintDebug
+> Task :shared:lint
+> Task :shared:check
+
+[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-176/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 30s
+96 actionable tasks: 54 executed, 42 up-to-date

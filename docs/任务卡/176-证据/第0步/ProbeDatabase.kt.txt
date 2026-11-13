@@ -1,0 +1,32 @@
+package app.resound.probe176
+
+import androidx.room.ConstructedBy
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
+
+// 卡 176 第 0 步临时探针；通过后连同生成的结构文件删除。
+@Entity
+data class ProbeRow(@PrimaryKey val id: Long, val text: String)
+
+@Dao
+interface ProbeDao {
+    @Insert suspend fun insert(row: ProbeRow)
+    @Query("SELECT * FROM ProbeRow WHERE id = :id") suspend fun find(id: Long): ProbeRow?
+}
+
+@Database(entities = [ProbeRow::class], version = 1)
+@ConstructedBy(ProbeDatabaseConstructor::class)
+abstract class ProbeDatabase : RoomDatabase() {
+    abstract fun dao(): ProbeDao
+}
+
+@Suppress("KotlinNoActualForExpect")
+expect object ProbeDatabaseConstructor : RoomDatabaseConstructor<ProbeDatabase> {
+    override fun initialize(): ProbeDatabase
+}

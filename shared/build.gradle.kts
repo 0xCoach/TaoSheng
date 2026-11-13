@@ -2,6 +2,8 @@ plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.android.library")
+    id("com.google.devtools.ksp")
+    id("androidx.room")
 }
 
 kotlin {
@@ -19,6 +21,8 @@ kotlin {
     }
     sourceSets {
         commonMain.dependencies {
+            api("androidx.room:room-runtime:2.8.4")
+            api("androidx.sqlite:sqlite:2.6.2")
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
             api("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
@@ -42,6 +46,17 @@ kotlin {
         }
     }
 }
+
+dependencies {
+    add("kspAndroid", "androidx.room:room-compiler:2.8.4")
+    add("kspJvm", "androidx.room:room-compiler:2.8.4")
+    if (providers.gradleProperty("taosheng.ios").orNull == "true") {
+        add("kspIosArm64", "androidx.room:room-compiler:2.8.4")
+        add("kspIosSimulatorArm64", "androidx.room:room-compiler:2.8.4")
+    }
+}
+
+room { schemaDirectory("$projectDir/schemas") }
 
 android {
     namespace = "app.resound.shared"

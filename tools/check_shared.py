@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 
 ALLOWED_LIBRARIES = {
+    "androidx.room:room-runtime",
+    "androidx.sqlite:sqlite",
     "io.ktor:ktor-client-core",
     "io.ktor:ktor-client-websockets",
     "io.ktor:ktor-client-okhttp",
@@ -105,6 +107,13 @@ def dependency_errors(text):
             depth += (code[end] == "{") - (code[end] == "}")
             end += 1
         if source != "commonMain":
+            # 根依赖块仅供逐目标 KSP 处理器使用，不能往 commonMain 偷加依赖。
+            if source is None and re.fullmatch(
+                r'\s*(?:add\("ksp(?:Android|Jvm|IosArm64|IosSimulatorArm64)",\s*"androidx\.room:room-compiler:2\.8\.4"\)\s*'
+                r'|if\s*\(providers\.gradleProperty\("taosheng\.ios"\)\.orNull\s*==\s*"true"\)\s*\{\s*'
+                r'|\}\s*)*', literal_code[match.end():end - 1],
+            ):
+                continue
             if source not in {"iosMain", "iosArm64Main", "iosSimulatorArm64Main", "commonTest", "jvmMain", "jvmTest", "androidMain", "androidUnitTest", "androidInstrumentedTest"}:
                 yield line_at(text, match.start()), "依赖块无法归属；请使用显式 sourceSet.dependencies"
             continue
@@ -142,7 +151,9 @@ def check(root):
     if not files:
         errors.append("shared/src/commonMain:1: 缺少共用 Kotlin 源码")
     forbidden = re.compile(
-        r"\b(?:android\s*\.|androidx\s*\.|java\s*\.|javax\s*\.|"
+        r"\b(?:android\s*\.|androidx\s*\.(?!\s*(?:room|sqlite)\s*\.)|java\s*\.|javax\s*\.|"
+        r"androidx\s*\.\s*sqlite\s*\.\s*db\b|SupportSQLite\w*\b|SimpleSQLiteQuery\b|openHelper\b|"
+        r"androidx\s*\.\s*room\s*\.\s*withTransaction\b|"
         r"org\s*\.\s*json\b|okhttp3\b|kotlin\s*\.\s*jvm\s*\.|"
         r"System\s*\.\s*currentTimeMillis\b|synchronized\b|Thread\b|Synchronized\b)"
     )

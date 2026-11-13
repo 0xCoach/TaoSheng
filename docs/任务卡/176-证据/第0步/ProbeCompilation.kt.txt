@@ -1,0 +1,4 @@
+package app.resound.probe176
+
+// 只用于证明 JVM 测试源码能访问 KSP 生成的实现；不创建数据库。
+internal fun probeCompilation(): ProbeDatabase = ProbeDatabaseConstructor.initialize()

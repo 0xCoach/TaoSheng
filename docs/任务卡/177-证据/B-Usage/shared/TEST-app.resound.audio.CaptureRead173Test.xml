@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.audio.CaptureRead173Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:50:17.498Z" hostname="CoachdeMacBook-Air.local" time="0.002">
+  <properties/>
+  <testcase name="observersSelectTwentyOtherwiseTwoHundredMilliseconds[jvm]" classname="app.resound.audio.CaptureRead173Test" time="0.0"/>
+  <testcase name="clockResetsForRouteAndIgnoresLaterWallClockJumps[jvm]" classname="app.resound.audio.CaptureRead173Test" time="0.0"/>
+  <testcase name="firstFrameIncludesConverterRemainderAndIsIndependentOfReadSize[jvm]" classname="app.resound.audio.CaptureRead173Test" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ui.ScreenSizeShots" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:50:43.397Z" hostname="CoachdeMacBook-Air.local" time="7.793">
+  <properties/>
+  <testcase name="normalDark" classname="app.resound.ui.ScreenSizeShots" time="4.848"/>
+  <testcase name="normal" classname="app.resound.ui.ScreenSizeShots" time="2.945"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

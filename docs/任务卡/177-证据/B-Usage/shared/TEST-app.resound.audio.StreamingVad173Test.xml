@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.audio.StreamingVad173Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:50:17.512Z" hostname="CoachdeMacBook-Air.local" time="0.045">
+  <properties/>
+  <testcase name="resetAndPaddedFinishAreBitExact[jvm]" classname="app.resound.audio.StreamingVad173Test" time="0.028"/>
+  <testcase name="externalGainAndClippingAreBitExact[jvm]" classname="app.resound.audio.StreamingVad173Test" time="0.011"/>
+  <testcase name="defaultInputStateProbabilityLevelAndPcmAreBitExact[jvm]" classname="app.resound.audio.StreamingVad173Test" time="0.004"/>
+  <testcase name="fullFramesReuseBuffersAndTailHasItsActualLength[jvm]" classname="app.resound.audio.StreamingVad173Test" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

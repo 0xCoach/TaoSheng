@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.usage.UsageRepository177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:50:57.562Z" hostname="CoachdeMacBook-Air.local" time="0.062">
+  <properties/>
+  <testcase name="bothQueryFlowsMatchRecordedBytes" classname="app.resound.usage.UsageRepository177Test" time="0.062"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

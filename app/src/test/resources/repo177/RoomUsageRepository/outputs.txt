@@ -1,0 +1,6 @@
+llm.empty=[]
+asr.empty=[]
+llm.changed=[LlmUsageRow(date=2026-11-01, purpose=Ask, promptTokens=10, completionTokens=2, calls=1)]
+asr.changed=[AsrUsageRow(date=2026-11-01, cloudMillis=1234)]
+llm.bounds=[LlmUsageRow(date=2026-11-01, purpose=Ask, promptTokens=10, completionTokens=2, calls=1), LlmUsageRow(date=2026-11-02, purpose=Digest, promptTokens=30, completionTokens=6, calls=1)]
+asr.bounds=[AsrUsageRow(date=2026-11-01, cloudMillis=1234), AsrUsageRow(date=2026-11-02, cloudMillis=2345)]

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.usage.Usage043Test" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:50:51.284Z" hostname="CoachdeMacBook-Air.local" time="6.271">
+  <properties/>
+  <testcase name="migrates14To15PreservingTotalsAsOther" classname="app.resound.usage.Usage043Test" time="4.434"/>
+  <testcase name="llmGroupsPurposesIncludesBothBoundsAndEmitsUpdates" classname="app.resound.usage.Usage043Test" time="0.4"/>
+  <testcase name="pricesPersistValidateAndRoundTripThroughBackupIncludingNull" classname="app.resound.usage.Usage043Test" time="0.111"/>
+  <testcase name="askConversationAndSuggestionsBothRecordAsk" classname="app.resound.usage.Usage043Test" time="0.83"/>
+  <testcase name="digestReviewSkillAndDraftUseTheirOwnPurpose" classname="app.resound.usage.Usage043Test" time="0.304"/>
+  <testcase name="asrCountsOnlyUploadCallbacksAndFiltersDates" classname="app.resound.usage.Usage043Test" time="0.184"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>

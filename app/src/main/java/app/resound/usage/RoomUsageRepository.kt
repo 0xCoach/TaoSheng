@@ -5,7 +5,6 @@ import app.resound.data.MemoryDao
 import app.resound.data.TranscribeDao
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 
 class RoomUsageRepository(
@@ -23,13 +22,9 @@ class RoomUsageRepository(
     ))
     override val price = currentPrice.asStateFlow()
 
-    override fun llm(from: LocalDate, to: LocalDate) = memory.usageByPurpose(from.toString(), to.toString()).map { rows ->
-        rows.map { LlmUsageRow(LocalDate.parse(it.day), UsagePurpose.valueOf(it.purpose), it.promptTokens, it.completionTokens, it.calls) }
-    }
-
-    override fun asr(from: LocalDate, to: LocalDate) = transcribe.usageBetween(from.toString(), to.toString()).map { rows ->
-        rows.map { AsrUsageRow(LocalDate.parse(it.day), it.sentMillis) }
-    }
+    private val queries = RoomUsageQueries(memory, transcribe)
+    override fun llm(from: LocalDate, to: LocalDate) = queries.llm(from, to)
+    override fun asr(from: LocalDate, to: LocalDate) = queries.asr(from, to)
 
     @Synchronized
     override fun setPrice(price: UsagePrice) {

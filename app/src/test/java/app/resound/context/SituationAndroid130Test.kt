@@ -65,7 +65,7 @@ class SituationAndroid130Test {
             }
             val repository = LocationRepository.create(context, db, scope)
             repository.settings.setEnabled(true)
-            val lookup = LocalSituationLookup.create(db, repository, scope)
+            val lookup = LocalSituationLookup.create(db, repository, scope, app.resound.platform.SystemZone, Dispatchers.IO)
             val from = day + 60 * minute
             val to = from + 10 * minute
             val coldStart = System.nanoTime()

@@ -1,0 +1,9 @@
+stay=PlaceAt(name=旧书房, home=true, start=1793505600000, end=1793509200000)
+cached=PlaceAt(name=旧书房, home=true, start=1793505600000, end=1793509200000)
+reads=1
+home=[PlaceAt(name=旧书房, home=true, start=1793505600000, end=1793509200000), PlaceAt(name=旧书房, home=true, start=1793595600000, end=1793599200000)]
+sound=[键盘声]
+changed=[PlaceAt(name=新书房, home=true, start=1793505600000, end=1793509200000), PlaceAt(name=新书房, home=true, start=1793595600000, end=1793596200000)]
+reads.afterChange=4
+empty=null
+zeroLimit=[]

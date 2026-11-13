@@ -1,0 +1,123 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+package app.resound.context
+
+import app.resound.envsound.*
+import app.resound.location.*
+import kotlinx.datetime.*
+import kotlin.time.Instant
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/** 按当地自然日读取；缓存最近 4 天，表更新后失效。查询和聚类均在 IO 线程。 */
+class SituationStore(
+    private val available: () -> Boolean,
+    private val points: suspend (Long, Long) -> List<LocationPoint>,
+    private val cachedPlace: suspend (Double, Double) -> Place?,
+    private val sounds: suspend (Long, Long) -> List<EnvSoundRow>,
+    private val placeRevision: () -> Long = { 0 },
+    private val soundRevision: () -> Long = { 0 },
+    private val zone: app.resound.platform.ZoneProvider,
+    private val io: kotlinx.coroutines.CoroutineDispatcher,
+    private val permissionDenied: (Exception) -> Boolean,
+    radians: (Double) -> Double,
+    /** 定位记录的最早、最晚时间；没有记录为 null。用来收窄“不限日期”的查询，避免逐日遍历无限范围 */
+    private val pointBounds: suspend () -> Pair<Long, Long>? = { null },
+) : SituationLookup {
+    private val trackRules = TrackRules(radians)
+    private val timeline = TimelineRules(trackRules::meters)
+    private val places = DayCache<List<PlaceAt>>()
+    private val environments = DayCache<List<EnvSoundRow>>()
+
+    override suspend fun placeDuring(start: Long, end: Long): PlaceAt? = withContext(io) {
+        if (end <= start) return@withContext null
+        try {
+            if (!available()) return@withContext null
+            var best: PlaceAt? = null
+            var longest = 0L
+            for (day in days(start, end)) for (stay in dayPlaces(day)) {
+                val duration = overlap(stay.start, stay.end, start, end)
+                if (duration > longest) { best = stay; longest = duration }
+            }
+            // 用浮点比较避免毫秒取整把不足 1/3 的停留误收进来。
+            best.takeIf { longest.toDouble() >= (end - start).toDouble() / 3 }
+        } catch (e: Exception) { if (permissionDenied(e)) null else throw e }
+    }
+
+    override suspend fun staysAt(placeName: String, from: Long, to: Long): List<PlaceAt> = withContext(io) {
+        if (to <= from || placeName.isBlank()) return@withContext emptyList()
+        try {
+            if (!available()) return@withContext emptyList()
+            // 问问不限日期时会传很宽的范围：收窄到有定位记录的那些天
+            val (lo, hi) = pointBounds()?.let { (a, b) -> maxOf(from, a) to minOf(to, b + 1) } ?: (from to to)
+            if (hi <= lo) return@withContext emptyList()
+            val q = placeName.trim()
+            buildList {
+                for (day in days(lo, hi)) for (stay in dayPlaces(day)) {
+                    // “家”对应被认作家的地方；其余按名字包含
+                    val match = if (q == "家") stay.home else stay.name.contains(q, ignoreCase = true)
+                    if (match && overlap(stay.start, stay.end, from, to) > 0)
+                        add(stay.copy(start = maxOf(from, stay.start), end = minOf(to, stay.end)))
+                }
+            }.sortedBy { it.start }
+        } catch (e: Exception) { if (permissionDenied(e)) emptyList() else throw e }
+    }
+
+    override suspend fun envDuring(start: Long, end: Long, limit: Int): List<String> = withContext(io) {
+        if (end <= start || limit <= 0) return@withContext emptyList()
+        val durations = linkedMapOf<String, Long>()
+        for (day in days(start, end)) {
+            val rows = environments.get(day, soundRevision()) { sounds(day.start, day.end) }
+            for (row in rows) {
+                if (row.reportedWrong) continue
+                // 跨午夜的录音每天只累计本日的交集，不重复计时。
+                val duration = overlap(row.startAt, row.endAt, maxOf(start, day.start), minOf(end, day.end))
+                if (duration <= 0) continue
+                val labels = names<EnvTag>(row.tags).map { it.title } + names<SpecialSound>(row.sounds).map { it.title }
+                for (label in labels.distinct()) durations[label] = (durations[label] ?: 0L) + duration
+            }
+        }
+        durations.entries.sortedByDescending { it.value }.take(limit).map { it.key }
+    }
+
+    private suspend fun dayPlaces(day: Day): List<PlaceAt> = places.get(day, placeRevision()) {
+        val track = trackRules.day(points(day.start, day.end))
+        val groups = timeline.groups(track.stays, day.start)
+        // 用现有 resolver 的手动名优先规则；绝不调用 resolve（会联网）。
+        val names = groups.associate { (it.lat to it.lng) to cachedPlace(it.lat, it.lng) }
+        timeline.groups(track.stays, day.start) { lat, lng -> names[lat to lng]?.home == true }
+            .flatMap { group ->
+                val place = names[group.lat to group.lng]
+                val name = place?.name?.takeIf { it.isNotBlank() }
+                    ?: place?.address?.takeIf { it.isNotBlank() } ?: "某地"
+                group.stays.map { PlaceAt(name, group.home, it.start, it.end) }
+            }.sortedBy { it.start }
+    }
+
+    private data class Day(val date: LocalDate, val zone: TimeZone) {
+        val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
+        val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
+    }
+
+    private fun days(start: Long, end: Long): Sequence<Day> {
+        val timezone = TimeZone.of(zone.zoneId())
+        val first = Instant.fromEpochMilliseconds(start).toLocalDateTime(timezone).date
+        return generateSequence(Day(first, timezone)) { Day(it.date.plus(1, DateTimeUnit.DAY), timezone) }.takeWhile { it.start < end }
+    }
+
+    private class DayCache<T> {
+        private val lock = Mutex()
+        private val entries = LinkedHashMap<Day, Pair<Long, T>>()
+        suspend fun get(day: Day, revision: Long, read: suspend () -> T): T = lock.withLock {
+            // 与原 access-order 映射相同：命中（即使版本已变）也先移到队尾。
+            val cached = entries.remove(day)?.also { entries[day] = it }
+            cached?.takeIf { it.first == revision }?.let { return@withLock it.second }
+            read().also {
+                entries[day] = revision to it
+                if (entries.size > 4) entries.remove(entries.keys.first())
+            }
+        }
+    }
+
+    private fun overlap(a: Long, b: Long, c: Long, d: Long) = maxOf(0L, minOf(b, d) - maxOf(a, c))
+}

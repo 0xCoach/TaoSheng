@@ -29,12 +29,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import app.resound.location.Places.toPlace
 
-data class Place(val name: String, val address: String, val source: String, val home: Boolean = false) {
-    val manual: Boolean get() = source == Places.MANUAL
-}
-
 object Places {
-    const val MANUAL = "手动"
+    const val MANUAL = MANUAL_PLACE_SOURCE
 
     /** 离这个坐标最近、且在停留半径内的手动地点。 */
     fun nearestManual(rows: List<PlaceRow>, lat: Double, lng: Double): PlaceRow? = rows

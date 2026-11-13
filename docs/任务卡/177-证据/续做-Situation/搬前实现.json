@@ -1,0 +1,9 @@
+{
+  "HEAD": "0ca35067cac467ebf4f5745f14bd44ed0720a3eb",
+  "sha256": {
+    "app/src/main/java/app/resound/context/LocalSituationLookup.kt": "a76c2cfe5ee701f130eef745efd00830667d5ccc1ece19e40174b8f63359903d",
+    "app/src/main/java/app/resound/location/Location.kt": "af638aeb5e00f614b1c71ae901660bd842263d273087799e32e071dc45eba0c4",
+    "app/src/main/java/app/resound/location/DayTimeline.kt": "92af13870c6a89adab4664a096889420c8c61d6919055fdd372c451e7c730f5a",
+    "app/src/main/java/app/resound/location/Places.kt": "ebd57b0e6de615f190e5e1f99967e135b177a447114764dd51d767616243da9d"
+  }
+}

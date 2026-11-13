@@ -4,7 +4,6 @@ import app.resound.data.MemoryEventEntity
 import app.resound.data.SegmentEntity
 import java.time.*
 
-internal inline fun <reified T: Enum<T>> names(value: String): Set<T> = value.split(',').mapNotNull { name -> enumValues<T>().firstOrNull { it.name == name } }.toSet()
 internal fun Iterable<Enum<*>>.encoded() = joinToString(",") { it.name }
 internal fun EnvSoundRow.view() = SegmentSound(segmentId, startAt, endAt, SegmentVerdict.valueOf(verdict), reason,
     names(tags), names(sounds), restored, reportedWrong, java.io.File(path).isFile)

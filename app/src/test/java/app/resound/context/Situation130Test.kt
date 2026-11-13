@@ -15,7 +15,7 @@ class Situation130Test {
     private fun lookup(points: List<LocationPoint> = emptyList(), rows: List<EnvSoundRow> = emptyList(), enabled: () -> Boolean = { true }) =
         LocalSituationLookup(enabled, { a, b -> points.filter { it.at in a until b } },
             { lat, _ -> Place(if (lat < 30.01) "Home书房" else "公司", "地址", "手动", lat < 30.01) },
-            { a, b -> rows.filter { it.startAt < b && it.endAt > a } }, zone = { ZoneId.of("UTC") })
+            { a, b -> rows.filter { it.startAt < b && it.endAt > a } }, zone = { ZoneId.of("UTC") }, io = kotlinx.coroutines.Dispatchers.IO)
 
     @Test fun wholeIntervalUsesStayAndHome() = runBlocking {
         val source = lookup(listOf(point(0), point(60 * minute)))
@@ -68,7 +68,7 @@ class Situation130Test {
             reads++
             listOf(point(a), point(a + 60 * minute))
         }, { _, _ -> Place(name, "", "手动") }, { _, _ -> emptyList() },
-            placeRevision = { revision }, zone = { ZoneId.of("UTC") })
+            placeRevision = { revision }, zone = { ZoneId.of("UTC") }, io = kotlinx.coroutines.Dispatchers.IO)
         val matches = source.staysAt("home", 10 * minute, day + 30 * minute)
         assertEquals(listOf(10 * minute, day), matches.map { it.start })
         assertEquals(day + 30 * minute, matches.last().end)
@@ -85,7 +85,7 @@ class Situation130Test {
         val points = listOf(point(0), point(60 * minute), point(61 * minute, 30.02), point(90 * minute, 30.02))
         val source = LocalSituationLookup({ true }, { a, b -> points.filter { it.at in a until b } },
             { lat, _ -> Place(if (lat < 30.01) "书房" else "公司", "地址", "手动", lat < 30.01) },
-            { _, _ -> emptyList() }, zone = { ZoneId.of("UTC") }, pointBounds = { 0L to 90 * minute })
+            { _, _ -> emptyList() }, zone = { ZoneId.of("UTC") }, io = kotlinx.coroutines.Dispatchers.IO, pointBounds = { 0L to 90 * minute })
         assertEquals(listOf("书房"), source.staysAt("家", Long.MIN_VALUE / 2, Long.MAX_VALUE / 2).map { it.name })
         assertEquals(listOf("公司"), source.staysAt("公司", Long.MIN_VALUE / 2, Long.MAX_VALUE / 2).map { it.name })
     }

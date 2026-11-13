@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.context.SituationAndroid130Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:12:58.855Z" hostname="CoachdeMacBook-Air.local" time="0.593">
+  <properties/>
+  <testcase name="roomLookupUsesOnlyCacheUpdatesAfterEditsAndMeasuresEventCardQueries" classname="app.resound.context.SituationAndroid130Test" time="0.442"/>
+  <testcase name="settingDefaultsOffPersistsAndTravelsWithBackup" classname="app.resound.context.SituationAndroid130Test" time="0.151"/>
+  <system-out><![CDATA[130 performance: 288 points + 288 sounds, cold pair=27.034834ms, warm pair median=0.287375ms p95=0.512333ms max=1.257792ms
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

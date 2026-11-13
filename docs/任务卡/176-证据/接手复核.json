@@ -1,0 +1,16 @@
+{
+  "reviewed_commit": "24198117d9001fa1c450b87d667b3ac5cc207b8a",
+  "baseline": "1355f5f9ac43f0df1c8e28d2368bc8ac93a89e97",
+  "schemas_byte_identical": 33,
+  "schema33_sha256": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292",
+  "fixtures_byte_identical": 39,
+  "manifest_byte_identical": true,
+  "test_results_verified_against_source_xml": {
+    "passed": 694,
+    "skipped": 3
+  },
+  "initial_test_ids_equal_final_test_ids": true,
+  "xml_files_verified": 107,
+  "ui_mainactivity_audio_source_changes": 0,
+  "checks": "SQL multiset, common boundary, trigger history all passed; no Gradle rerun in this review"
+}

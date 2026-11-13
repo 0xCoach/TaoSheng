@@ -1,207 +1,35 @@
-@file:OptIn(kotlin.time.ExperimentalTime::class)
-
 package app.resound.digest
 
-import app.resound.data.editEvent
-import app.resound.data.restoreEvent
-import app.resound.data.updateItem
-import app.resound.data.setItemStatus
-import app.resound.data.setItemsStatus
-import app.resound.data.setStarred
-import app.resound.data.dismissDoneHint
-
 import app.resound.data.MemoryDao
-import app.resound.data.MemoryEventEntity
-import app.resound.data.MemoryItemEntity
-import app.resound.transcribe.TranscriptLine
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.launch
-import org.json.JSONArray
-import kotlinx.datetime.*
-import kotlin.time.Instant
+import app.resound.platform.NowMillis
 import app.resound.platform.ZoneProvider
+import app.resound.transcribe.VoiceInputMetadata
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import org.json.JSONArray
+import org.json.JSONException
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
+/** 安卓接入执行器、偏好、旧 JSON 和系统日期表示；仓储规则在共用层。 */
 class RoomMemoryRepository(
-    private val dao: MemoryDao,
-    private val runner: DigestRunner,
-    private val runNowAction: () -> Unit,
-    private val scope: CoroutineScope,
-    private val reminderSettings: AndroidAppointmentSettings? = null,
-    private val eventChanged: () -> Unit = {},
-    private val zoneProvider: ZoneProvider,
-) : MemoryRepository {
+    dao: MemoryDao, runner: DigestRunner, runNowAction: () -> Unit, scope: CoroutineScope,
+    reminderSettings: AndroidAppointmentSettings? = null, eventChanged: () -> Unit = {},
+    zoneProvider: ZoneProvider, now: NowMillis, io: CoroutineDispatcher,
+) : MemoryRepository by MemoryStoreRepository(dao, runner.running, runner.last, runNowAction, scope,
+    reminderSettings?.state, reminderSettings?.let { it::set }, eventChanged, zoneProvider, now, io,
+    { LocalDate.now().toString() }, AndroidMemoryLegacyCodec, { at ->
+        val date = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
+        MemoryDueDate(date.toLocalDate().atStartOfDay(date.zone).toInstant().toEpochMilli(),
+            date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+            date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
+    }, VoiceInputMetadata::read)
 
-    override fun events(date: LocalDate): Flow<List<MemoryEvent>> = events(date, TimeZone.of(zoneProvider.zoneId()))
-
-    private fun events(date: LocalDate, zone: TimeZone): Flow<List<MemoryEvent>> {
-        val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
-        val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
-        return combine(dao.events(start, end), dao.itemsBetween(start, end), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
-            val repeats = counts.associate { it.id to it.repeats }
-            val byEvent = items.groupBy { it.eventId }
-            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
-        }.flowOn(Dispatchers.IO)
-    }
-
-    private fun listed(source: Flow<List<MemoryItemEntity>>): Flow<List<MemoryItem>> =
-        combine(source, dao.repeatCounts(), dao.doneHintLines()) { rows, counts, lines ->
-            val repeats = counts.associate { it.id to it.repeats }
-            rows.map { it.toModel(repeats[it.id] ?: 1, lines.associateBy { line -> line.id }) }
-        }.flowOn(Dispatchers.IO)
-
-    override fun importantEvents(): Flow<List<MemoryEvent>> =
-        combine(dao.importantEvents(), dao.importantItems(), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
-            val byEvent = items.groupBy { it.eventId }
-            val repeats = counts.associate { it.id to it.repeats }
-            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
-        }.flowOn(Dispatchers.IO)
-
-    override fun starredEvents(): Flow<List<MemoryEvent>> =
-        combine(dao.starredEvents(), dao.starredItems(), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
-            val byEvent = items.groupBy { it.eventId }
-            val repeats = counts.associate { it.id to it.repeats }
-            events.map { it.toModel(byEvent[it.id].orEmpty(), repeats, lines.associateBy { line -> line.id }) }
-        }.flowOn(Dispatchers.IO)
-
-    override suspend fun eventById(eventId: Long): MemoryEvent? {
-        val row = dao.event(eventId)?.takeIf { !it.deleted } ?: return null
-        val zone = TimeZone.of(zoneProvider.zoneId())
-        val day = Instant.fromEpochMilliseconds(row.startAt).toLocalDateTime(zone).date
-        return events(day, zone).first().firstOrNull { it.id == eventId }
-    }
-
-    override fun editEvent(eventId: Long, title: String, summary: String, points: List<String>) {
-        val json = JSONArray(points.toList()).toString()
-        scope.launch { dao.editEvent(eventId, title, summary, json, System.currentTimeMillis()); eventChanged() }
-    }
-    override fun restoreEvent(eventId: Long) {
-        scope.launch { dao.restoreEvent(eventId); eventChanged() }
-    }
-
-    override fun setStarred(eventId: Long, starred: Boolean) { scope.launch { dao.setStarred(eventId, starred) } }
-
-    override fun mergedItems(itemId: Long): Flow<List<MemoryItem>> = listed(dao.mergedItems(itemId))
-
-    override fun unmerge(itemId: Long) { scope.launch { dao.unmerge(itemId) } }
-
-    override suspend fun sourceLines(lineId: Long): List<TranscriptLine> = kotlinx.coroutines.withContext(Dispatchers.IO) {
-        dao.segmentLinesOf(lineId).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, app.resound.transcribe.VoiceInputMetadata.read(it.voiceInputJson)) }
-    }
-    override fun eventLines(eventId: Long): Flow<List<TranscriptLine>> = dao.eventLines(eventId).map { rows ->
-        rows.map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, app.resound.transcribe.VoiceInputMetadata.read(it.voiceInputJson)) }
-    }.flowOn(Dispatchers.IO)
-
-    override fun pendingItems(): Flow<List<MemoryItem>> = listed(dao.pendingItems())
-
-    override fun items(categories: Set<String>, statuses: Set<ItemStatus>?): Flow<List<MemoryItem>> =
-        listed(dao.itemsByCategory(categories.toList())).map { rows ->
-            rows.filter { statuses == null || it.status in statuses }
-        }.flowOn(Dispatchers.IO)
-
-    override fun inProgress(): Flow<List<MemoryItem>> = listed(dao.inProgress())
-
-    override fun appointments(): Flow<List<MemoryItem>> = listed(dao.appointments())
-
-    override fun ongoing(): Flow<List<MemoryItem>> = listed(dao.ongoing())
-    override fun doneItems(from: LocalDate): Flow<List<MemoryItem>> =
-        listed(dao.doneItems(from.atStartOfDayIn(TimeZone.of(zoneProvider.zoneId())).toEpochMilliseconds()))
-    override fun deleteItem(id: Long) { scope.launch { dao.deleteItem(id) } }
-    override fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {
-        scope.launch { dao.updateItem(id, content, dueAt, hasTime, who) }
-    }
-    override fun setStrongReminder(id: Long, on: Boolean) {
-        scope.launch { dao.setStrongReminder(id, on) }
-    }
-    override fun setItemsStatus(ids: List<Long>, status: ItemStatus) {
-        val snapshot = ids.toList()
-        scope.launch { dao.setItemsStatus(snapshot, status.name) }
-    }
-    override fun dismissDoneHint(id: Long) { scope.launch { dao.dismissDoneHint(id) } }
-    override val appointmentReminders: StateFlow<AppointmentReminders> =
-        reminderSettings?.state ?: kotlinx.coroutines.flow.MutableStateFlow(AppointmentReminders())
-    override fun setAppointmentReminders(value: AppointmentReminders) { reminderSettings?.set(value) }
-
-    override fun reorder(ids: List<Long>) {
-        val snapshot = ids.toList()
-        scope.launch { dao.reorder(snapshot) }
-    }
-
-    override fun dayItems(date: LocalDate): Flow<DayItems> {
-        val zone = TimeZone.of(zoneProvider.zoneId())
-        val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
-        val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
-        return listed(dao.dayItems(start, end)).map { items ->
-            val tasks = items.filter { it.category in setOf("待办", "约定", "备忘") }
-            DayItems(
-                mentioned = tasks.filter { it.at >= start && it.at < end },
-                due = tasks.filter { it.dueAt?.let { at -> at >= start && at < end } == true }.sortedBy { it.dueAt },
-                done = items.filter { it.doneAt?.let { at -> at >= start && at < end } == true }.sortedBy { it.doneAt },
-                notes = items.filter { it.category in setOf("灵感", "关键信息", "决定", "知识") && it.at >= start && it.at < end },
-            )
-        }.flowOn(Dispatchers.IO)
-    }
-
-    override fun activeDays(month: YearMonth): Flow<Set<LocalDate>> {
-        val zone = TimeZone.of(zoneProvider.zoneId())
-        val start = month.firstDay.atStartOfDayIn(zone).toEpochMilliseconds()
-        val end = month.plus(1, DateTimeUnit.MONTH).firstDay.atStartOfDayIn(zone).toEpochMilliseconds()
-        return combine(dao.activeEventTimes(start, end), dao.activeItemTimes(start, end)) { events, items ->
-            (events + items).mapTo(mutableSetOf()) { Instant.fromEpochMilliseconds(it).toLocalDateTime(zone).date }
-        }.flowOn(Dispatchers.IO)
-    }
-
-    override fun setItemStatus(id: Long, status: ItemStatus) { scope.launch { dao.setItemStatus(id, status.name) } }
-
-    override fun setImportant(eventId: Long, important: Boolean) = setStarred(eventId, important)
-
-    override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
-
-    private val pendingCount = dao.observeUndigestedCount().shareIn(scope, SharingStarted.Eagerly, replay = 1)
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private val todayUsage = combine(dao.observeUsageChanges(), pendingCount, runner.running, runner.last) { _, _, _, _ -> java.time.LocalDate.now().toString() }
-        .distinctUntilChanged().flatMapLatest { dao.observeTokens(it).distinctUntilChanged() }
-    override val state: StateFlow<DigestState> = combine(
-        pendingCount, runner.running, runner.last, todayUsage,
-    ) { pending, running, last, usage ->
-        DigestState(pending, running, last.first, last.second, usage)
-    }.stateIn(scope, SharingStarted.Eagerly, DigestState(0, false, null, null, 0))
-
-    override fun runNow() = runNowAction()
-
-    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, app.resound.data.TranscriptLineEntity>): MemoryEvent {
-        val originalTitle = this.originalTitle
-        val originalSummary = this.originalSummary
-        val originalPointsJson = this.originalPointsJson
-        return MemoryEvent(
-        id, startAt, endAt, scene, title, summary, pointsJson.strings(), peopleJson.strings(), place, emotion, intensity, important,
-        items.map { it.toModel(repeats[it.id] ?: 1, lines) }, starred, starredAt, editedAt,
-        if (originalTitle != null && originalSummary != null && originalPointsJson != null)
-            EventOriginal(originalTitle, originalSummary, originalPointsJson.strings()) else null,
-    )
-    }
-
-    private fun MemoryItemEntity.toModel(repeats: Int = 1, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryItem(
-        id, eventId, category, kind, content, dueText, dueAt, who,
-        runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto, editedAt,
-        lines[doneHintLineId]?.let { DoneHint(it.id, it.text, doneHintAt ?: it.startAt) },
-        ItemOrigin.entries.firstOrNull { it.name.equals(origin, ignoreCase = true) } ?: ItemOrigin.Digest, sourceText,
-        strongReminder,
-    )
-
-    private fun String.strings(): List<String> = runCatching {
-        val a = JSONArray(this)
-        (0 until a.length()).map { a.getString(it) }
-    }.getOrDefault(emptyList())
+private object AndroidMemoryLegacyCodec : MemoryLegacyCodec {
+    override fun strings(text: String): List<String> = JSONArray(text).let { a -> (0 until a.length()).map { a.getString(it) } }
+    override fun encodeStrings(values: List<String>): String = JSONArray(values).toString()
+    override fun canonicalArray(text: String): String = try { JSONArray(text).toString() } catch (_: JSONException) { "[]" }
+    override fun appendLong(text: String, value: Long): String = JSONArray(text).put(value).toString()
 }

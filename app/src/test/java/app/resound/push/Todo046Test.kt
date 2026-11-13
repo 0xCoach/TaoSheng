@@ -304,7 +304,7 @@ class Todo046Test {
         assertEquals(source.id, dao.itemIncludingDeleted(1)!!.doneHintLineId)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val repository = RoomMemoryRepository(dao, runner, {}, scope, AndroidAppointmentSettings(context), zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
+            val repository = RoomMemoryRepository(dao, runner, {}, scope, AndroidAppointmentSettings(context), zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
             assertEquals(source.text, repository.ongoing().first().single().doneHint!!.text)
             assertEquals(ItemStatus.Accepted, repository.ongoing().first().single().status)
         } finally { scope.cancel() }

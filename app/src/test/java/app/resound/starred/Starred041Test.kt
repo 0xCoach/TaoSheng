@@ -48,7 +48,7 @@ class Starred041Test {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
         memory = RoomMemoryRepository(db.memory(), DigestRunner(context, db.memory(), llm,
-            AndroidDigestSettings(context, llm), { "" }, { false }), { error("禁止云端请求") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
+            AndroidDigestSettings(context, llm), { "" }, { false }), { error("禁止云端请求") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
     }
     @After fun close() = runBlocking {
         scope.coroutineContext[Job]!!.cancelAndJoin(); db.close(); TimeZone.setDefault(oldZone)

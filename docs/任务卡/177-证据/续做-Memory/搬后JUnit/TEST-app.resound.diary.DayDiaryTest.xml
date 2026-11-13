@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.diary.DayDiaryTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T04:51:01.705Z" hostname="CoachdeMacBook-Air.local" time="5.125">
+  <properties/>
+  <testcase name="markdownMatchesFullSampleSkipsMediaAndExportsWithoutInvokingModels" classname="app.resound.diary.DayDiaryTest" time="4.346"/>
+  <testcase name="card059FolderTimelineAndExportLinesHaveDates" classname="app.resound.diary.DayDiaryTest" time="0.104"/>
+  <testcase name="reorderPersistsRequestedSequenceAndLeavesOtherRowsAlone" classname="app.resound.diary.DayDiaryTest" time="0.113"/>
+  <testcase name="nineToTenBackfillsOnlyDoneAndPreservesOldFields" classname="app.resound.diary.DayDiaryTest" time="0.239"/>
+  <testcase name="oneToTenRunsWholeChainAndValidatesRoomSchema" classname="app.resound.diary.DayDiaryTest" time="0.115"/>
+  <testcase name="activeDaysCombinesEventStartsAndItemCreationWithinMonth" classname="app.resound.diary.DayDiaryTest" time="0.054"/>
+  <testcase name="appointmentsSortDatesFirstAndUndatedNewestFirst" classname="app.resound.diary.DayDiaryTest" time="0.049"/>
+  <testcase name="dayGroupsUseLocalMidnightsAcrossDstAndAllowRepeatedMembership" classname="app.resound.diary.DayDiaryTest" time="0.045"/>
+  <testcase name="statusWritesTimesAndAcceptingOrUndoingDoneMovesToFront" classname="app.resound.diary.DayDiaryTest" time="0.06"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

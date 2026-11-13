@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.IdeasMood040Test" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-13T04:51:06.840Z" hostname="CoachdeMacBook-Air.local" time="1.043">
+  <properties/>
+  <testcase name="highSimilarityChoosesClosestEarlierRootAndKeepsOriginal" classname="app.resound.digest.IdeasMood040Test" time="0.066"/>
+  <testcase name="userUnmergePersistsAndDoesNotBecomeAutomaticTarget" classname="app.resound.digest.IdeasMood040Test" time="0.061"/>
+  <testcase name="migrationTwelveToThirteenPreservesRowsAndRoomValidatesSchema" classname="app.resound.digest.IdeasMood040Test" time="0.089"/>
+  <testcase name="moodDiaryAssetSchedulesAndUsesOnlyOwnEvidenceWithThreeQuoteCap" classname="app.resound.digest.IdeasMood040Test" time="0.04"/>
+  <testcase name="deletingMainEventPromotesEarliestSurvivor" classname="app.resound.digest.IdeasMood040Test" time="0.091"/>
+  <testcase name="similarityPointEightAndOtherCategoriesStayIndependent" classname="app.resound.digest.IdeasMood040Test" time="0.05"/>
+  <testcase name="listsOnlyExposeRootsWithCrossDayRepeatsAndChildSources" classname="app.resound.digest.IdeasMood040Test" time="0.064"/>
+  <testcase name="privacyDeletionPromotesSurvivingIdeaWithoutDanglingParent" classname="app.resound.digest.IdeasMood040Test" time="0.066"/>
+  <testcase name="importantEventsAreCrossDayNewestFirstWithItemsAndLimit" classname="app.resound.digest.IdeasMood040Test" time="0.463"/>
+  <testcase name="absentOrOldModelVectorsWaitAndLateEarlierVectorReparentsGroup" classname="app.resound.digest.IdeasMood040Test" time="0.052"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

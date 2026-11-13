@@ -47,7 +47,7 @@ class IdeasMood040Test {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
         val runner = DigestRunner(context, db.memory(), llm, AndroidDigestSettings(context, llm), { "" }, { false })
-        memory = RoomMemoryRepository(db.memory(), runner, { error("禁止请求云端") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
+        memory = RoomMemoryRepository(db.memory(), runner, { error("禁止请求云端") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
     }
     @After fun close() = runBlocking {
         scope.coroutineContext[Job]!!.cancelAndJoin()

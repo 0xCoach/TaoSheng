@@ -269,7 +269,7 @@ class PushMoreTest {
             db.skills().save(SkillCardRow(skillId = c.skillId, skillVersion = 1, skillName = c.skillName, icon = c.icon, date = date.toEpochDay(), entity = "day", at = c.at, endAt = null, title = c.title, summary = c.summary,
                 fieldsJson = SkillJson.fields(c.fields).toString(), valuesJson = SkillJson.values(c.values).toString(), evidenceJson = "[]", generatedAt = cutoff, manual = false))
             val llm = LlmClient(); val settings = AndroidDigestSettings(context, llm)
-            val memory = RoomMemoryRepository(db.memory(), DigestRunner(context, db.memory(), llm, settings, { "" }, { false }), { error("不能触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
+            val memory = RoomMemoryRepository(db.memory(), DigestRunner(context, db.memory(), llm, settings, { "" }, { false }), { error("不能触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
             val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("diary-review", 0), scope,
                 { error("不能调用模型") }, { _, _, _, _ -> error("不能调用模型") }, { "" }, "回响", quietNotifier, {})
             val diary = LocalDiaryRepository(context, memory, reviews, db.memory(), cards = { d -> db.skills().cards(d.toEpochDay()).first().map { it.card() } })

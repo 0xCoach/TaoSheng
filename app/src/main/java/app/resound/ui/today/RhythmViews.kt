@@ -1,5 +1,6 @@
 package app.resound.ui.today
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.unit.sp
 import app.resound.ui.theme.fade
@@ -137,7 +138,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
                         onEnv: (app.resound.envsound.EnvSpan) -> Unit = {}) {
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
-    val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date) else kotlinx.coroutines.flow.flowOf(null) }
+    val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date.toKotlinLocalDate()) else kotlinx.coroutines.flow.flowOf(null) }
         .collectAsStateWithLifecycle(initialValue = null)
     val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsStateWithLifecycle().value else emptyList()
     // 待转写的段数上面录音卡已经写了，这里不再重复

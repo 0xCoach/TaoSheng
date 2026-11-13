@@ -1,9 +1,15 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package app.resound.digest
 
 import app.resound.data.CaptureDatabase
 import app.resound.data.RhythmSnapshot
 import java.time.Instant
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.minus
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toKotlinTimeZone
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -18,8 +24,9 @@ class RoomRhythmStats(
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) : RhythmStats {
     override fun baseline(date: LocalDate): Flow<RhythmBaseline?> {
-        val start = date.minusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = date.atStartOfDay(zone).toInstant().toEpochMilli()
+        val timeZone = zone.toKotlinTimeZone()
+        val start = date.minus(7, DateTimeUnit.DAY).atStartOfDayIn(timeZone).toEpochMilliseconds()
+        val end = date.atStartOfDayIn(timeZone).toEpochMilliseconds()
         return db.invalidationTracker.createFlow("transcript_lines", "memory_events")
             .conflate()
             .map { db.memory().rhythmSnapshot(start, end) }

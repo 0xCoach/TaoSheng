@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -40,7 +41,7 @@ class Rhythm064Test {
     @Test fun fewerThanThreeRecordedDaysIsNullAndWindowExcludesTodayAndEighthDay() = runBlocking { fixture { db, stats ->
         listOf(0L, 1L, 2L, 8L).forEach { line(db, it) }
         db.memory().insertEvent(event(1, at(3))) // 只有事件不算有记录。
-        assertNull(stats.baseline(date).first())
+        assertNull(stats.baseline(date.toKotlinLocalDate()).first())
     } }
 
     @Test fun mediansIgnoreExtremeValueAndRoundEvenDays() = runBlocking { fixture { db, stats ->
@@ -51,10 +52,10 @@ class Rhythm064Test {
             }
         }
         db.memory().insertEvent(event(100, at(1)).copy(deleted = true))
-        assertEquals(RhythmBaseline(4, 3, 3, 2, 3), stats.baseline(date).first())
+        assertEquals(RhythmBaseline(4, 3, 3, 2, 3), stats.baseline(date.toKotlinLocalDate()).first())
         db.transcribe().deleteLines(1)
         listOf(1L, 2L, 3L).forEachIndexed { index, day -> line(db, day, listOf(60000L, 120000L, 60000000L)[index]) }
-        assertEquals(RhythmBaseline(3, 2, 2, 2, 2), stats.baseline(date).first())
+        assertEquals(RhythmBaseline(3, 2, 2, 2, 2), stats.baseline(date.toKotlinLocalDate()).first())
     } }
 
     @Test fun overlappingMediaExcludedAndFlowUpdatesOnEventsAndLines() = runBlocking { fixture { db, stats ->
@@ -63,7 +64,7 @@ class Rhythm064Test {
         db.memory().insertEvent(event(1, at(3) - 1000, "媒体").copy(endAt = at(3) + 1))
         coroutineScope {
             val values = Channel<RhythmBaseline?>(Channel.UNLIMITED)
-            val job = launch { stats.baseline(date).collect { values.send(it) } }
+            val job = launch { stats.baseline(date.toKotlinLocalDate()).collect { values.send(it) } }
             try {
                 assertNull(withTimeout(5000) { values.receive() })
                 db.memory().deleteEvent(1)

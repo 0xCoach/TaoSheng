@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.util.Log
 import androidx.room.Room
 import app.resound.data.writeTransaction
@@ -97,7 +98,7 @@ class DeleteLatency099DeviceTest {
             assertTrue("Lightweight snapshot must beat old full-text query", newMs < oldMs)
             assertTrue("Deletion should not wait multiple seconds behind statistics", newDeleteMs < 2000)
             val ready = CompletableDeferred<Unit>()
-            val collector = launch(Dispatchers.Default) { stats.baseline(date).collect { ready.complete(Unit) } }
+            val collector = launch(Dispatchers.Default) { stats.baseline(date.toKotlinLocalDate()).collect { ready.complete(Unit) } }
             val batchMs: Long
             try {
                 withTimeout(10_000) { ready.await() }

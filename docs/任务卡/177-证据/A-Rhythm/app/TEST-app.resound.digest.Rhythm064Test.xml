@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.Rhythm064Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:53:41.998Z" hostname="CoachdeMacBook-Air.local" time="3.414">
+  <properties/>
+  <testcase name="overlappingMediaExcludedAndFlowUpdatesOnEventsAndLines" classname="app.resound.digest.Rhythm064Test" time="3.228"/>
+  <testcase name="fewerThanThreeRecordedDaysIsNullAndWindowExcludesTodayAndEighthDay" classname="app.resound.digest.Rhythm064Test" time="0.057"/>
+  <testcase name="pushAndRemindersKeepBystanderAndExcludeMedia" classname="app.resound.digest.Rhythm064Test" time="0.047"/>
+  <testcase name="mediansIgnoreExtremeValueAndRoundEvenDays" classname="app.resound.digest.Rhythm064Test" time="0.082"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

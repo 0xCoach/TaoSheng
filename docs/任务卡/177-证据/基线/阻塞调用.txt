@@ -1,0 +1,25 @@
+app/src/main/java/app/resound/data/AndroidDatabaseSql.kt:5:import kotlinx.coroutines.runBlocking
+app/src/main/java/app/resound/data/AndroidDatabaseSql.kt:8:internal fun <T> RoomDatabase.readSqlBlocking(
+app/src/main/java/app/resound/data/AndroidDatabaseSql.kt:10:): T = runBlocking { readSql(sql, arguments, read) }
+app/src/main/java/app/resound/envsound/LocalEnvSoundRepository.kt:37:    internal fun presentationSnapshot(start: Long, end: Long): Pair<List<MemoryEventEntity>, Map<Long, EventSounds>> = runBlocking(Dispatchers.IO) {
+app/src/main/java/app/resound/envsound/LocalEnvSoundRepository.kt:42:    internal fun eventSound(id: Long): EventSounds? = runBlocking(Dispatchers.IO) {
+app/src/main/java/app/resound/envsound/LocalEnvSoundRepository.kt:43:        val event = dao.presentationEvent(id) ?: return@runBlocking null
+app/src/main/java/app/resound/envsound/LocalEnvSoundRepository.kt:145:    override fun audio(segmentId: Long): File? = runBlocking(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile) } }
+app/src/main/java/app/resound/backup/BackupArchive.kt:6:import kotlinx.coroutines.runBlocking
+app/src/main/java/app/resound/backup/BackupArchive.kt:42:        runBlocking {
+app/src/main/java/app/resound/backup/BackupArchive.kt:155:        pack(staging, zip, at, version, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() })
+app/src/main/java/app/resound/ask/AskChanges.kt:37:            override fun item(id: Long) = kotlinx.coroutines.runBlocking { this@AskChanges.item(id) }
+app/src/main/java/app/resound/ask/AskChanges.kt:38:            override fun event(id: Long) = kotlinx.coroutines.runBlocking { this@AskChanges.event(id) }
+app/src/main/java/app/resound/ask/AskTools.kt:27:    private fun read(q: Query): List<JSONObject> = db.readSqlBlocking(q.sql, q.args.toTypedArray()) { cursor ->
+app/src/main/java/app/resound/ask/AskTools.kt:55:        return db.readSqlBlocking(sql, (base.args + listOf(kind, model)).toTypedArray()) { c ->
+app/src/main/java/app/resound/ask/AskContext.kt:23:        return db.readSqlBlocking(sql, arrayOf(source.id)) { c ->
+app/src/main/java/app/resound/ask/AskContext.kt:40:        return db.readSqlBlocking(sql, arrayOf(source.id)) { c ->
+app/src/main/java/app/resound/ask/AskContext.kt:47:        db.readSqlBlocking("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(eventId)) { c ->
+app/src/main/java/app/resound/backup/DayVolumeRows.kt:9:import kotlinx.coroutines.runBlocking
+app/src/main/java/app/resound/backup/DayVolumeRows.kt:120:            runBlocking { room.useWriterConnection { db ->
+app/src/main/java/app/resound/backup/BackupRestore.kt:11:import kotlinx.coroutines.runBlocking
+app/src/main/java/app/resound/backup/BackupRestore.kt:50:            IncrementalBackup.verify(source, verified, workspace, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() },
+app/src/main/java/app/resound/backup/BackupRestore.kt:56:                    runBlocking { migrated.checkpoint("TRUNCATE") }
+app/src/main/java/app/resound/things/FindThingsTool.kt:5:import kotlinx.coroutines.runBlocking
+app/src/main/java/app/resound/things/FindThingsTool.kt:18:        val (ts, rs) = runBlocking { db.writeTransaction { db.things().allThings() to db.things().allRecords() } }
+app/src/main/java/app/resound/update/PreUpdateBackup.kt:74:            kotlinx.coroutines.runBlocking { database.checkpoint("FULL") }

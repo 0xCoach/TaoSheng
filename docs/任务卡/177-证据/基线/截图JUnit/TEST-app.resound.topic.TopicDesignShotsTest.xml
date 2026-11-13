@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.topic.TopicDesignShotsTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:51:42.773Z" hostname="CoachdeMacBook-Air.local" time="5.196">
+  <properties/>
+  <testcase name="layoutsAndRetryEntry" classname="app.resound.topic.TopicDesignShotsTest" time="5.196"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

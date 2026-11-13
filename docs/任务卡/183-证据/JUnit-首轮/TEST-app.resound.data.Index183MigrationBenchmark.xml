@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.data.Index183MigrationBenchmark" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:26.347Z" hostname="CoachdeMacBook-Air.local" time="6.433">
+  <properties/>
+  <testcase name="twoSizeRoomMigrations" classname="app.resound.data.Index183MigrationBenchmark" time="6.433"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

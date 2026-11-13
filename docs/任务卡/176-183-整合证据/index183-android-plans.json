@@ -1,0 +1,19 @@
+{
+  "data\/TranscribeDao.kt#observeQueueCounts": [
+    "SEARCH TABLE segments USING COVERING INDEX index_segments_status_voiceprintProcessedAt (status=?)"
+  ],
+  "data\/TranscribeDao.kt#observeVoiceprintCounts": [
+    "SEARCH TABLE segments USING COVERING INDEX index_segments_status_voiceprintProcessedAt (status=?)"
+  ],
+  "data\/TranscribeDao.kt#observeFailedSegments": [
+    "SEARCH TABLE segments USING INDEX index_segments_status_voiceprintProcessedAt (status=?)",
+    "USE TEMP B-TREE FOR ORDER BY"
+  ],
+  "topic\/TopicData.kt#observeLateTranscriptIds": [
+    "SEARCH TABLE topics AS t USING INDEX index_topics_status (status=?)",
+    "CORRELATED SCALAR SUBQUERY 1",
+    "SEARCH TABLE topic_spans AS ts USING INDEX index_topic_spans_topicId (topicId=?)",
+    "SEARCH TABLE transcript_lines AS l USING INDEX index_transcript_lines_startAt (startAt>? AND startAt<?)",
+    "SEARCH TABLE segments AS s USING INTEGER PRIMARY KEY (rowid=?)"
+  ]
+}

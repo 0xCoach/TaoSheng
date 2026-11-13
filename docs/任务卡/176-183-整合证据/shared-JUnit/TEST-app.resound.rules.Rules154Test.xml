@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.rules.Rules154Test" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:38:20.233Z" hostname="CoachdeMacBook-Air.local" time="0.027">
+  <properties/>
+  <testcase name="contextUsesLastTwentyAndTenMinuteBoundary[jvm]" classname="app.resound.rules.Rules154Test" time="0.001"/>
+  <testcase name="extractionRechecksRevisionAndLiveText[jvm]" classname="app.resound.rules.Rules154Test" time="0.003"/>
+  <testcase name="reviewBodyMatchesRecordedTextAndJson[jvm]" classname="app.resound.rules.Rules154Test" time="0.004"/>
+  <testcase name="summaryMergePreservesUnsentTimelineAndCounts[jvm]" classname="app.resound.rules.Rules154Test" time="0.003"/>
+  <testcase name="completionPreservesChangesArrivingDuringSend[jvm]" classname="app.resound.rules.Rules154Test" time="0.003"/>
+  <testcase name="extractionRejectsMediaAndUnknownSourceWithoutLosingValidSibling[jvm]" classname="app.resound.rules.Rules154Test" time="0.0"/>
+  <testcase name="manualAndChangeKeepOriginalThrottle[jvm]" classname="app.resound.rules.Rules154Test" time="0.001"/>
+  <testcase name="scheduleMatchesOldCalendarAcrossWeekAndDst[jvm]" classname="app.resound.rules.Rules154Test" time="0.004"/>
+  <testcase name="dailyEnvelopeKeepsExplicitNullAndOptionalLines[jvm]" classname="app.resound.rules.Rules154Test" time="0.0"/>
+  <testcase name="priceDistinguishesNeverConfiguredFromCleared[jvm]" classname="app.resound.rules.Rules154Test" time="0.0"/>
+  <testcase name="deltaOrdersUpsertsThenDeletesAndProtectsSkipped[jvm]" classname="app.resound.rules.Rules154Test" time="0.001"/>
+  <testcase name="privacyRangeAndAudioOwnershipAreUnchanged[jvm]" classname="app.resound.rules.Rules154Test" time="0.0"/>
+  <testcase name="findKeepsPendingSeparateAndCapsResults[jvm]" classname="app.resound.rules.Rules154Test" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

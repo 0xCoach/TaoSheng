@@ -1,0 +1,1772 @@
+{
+  "mode": "C",
+  "timing_scope": "same CROSS JOIN late-query on both sides; original JOIN single cost separately recorded",
+  "bytes": 70193152,
+  "plans": {
+    "data/MemoryDao.kt#undigestedLines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId\n           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND NOT EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId\n    WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt,\n        (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id))) AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN l",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH ts USING INDEX index_topic_spans_startAt (startAt<?)",
+        "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH initial_span USING INDEX index_topic_spans_topicId (topicId=?)",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/MemoryDao.kt#undigestedCount": {
+      "sql": "SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId\n           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND NOT EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId\n    WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt,\n        (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id))) AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN s",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH r USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH l USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH ts USING INDEX index_topic_spans_startAt (startAt<?)",
+        "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH initial_span USING INDEX index_topic_spans_topicId (topicId=?)"
+      ]
+    },
+    "data/MemoryDao.kt#refreshLines": {
+      "sql": "SELECT * FROM transcript_lines WHERE id IN (:ids) ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/MemoryDao.kt#unfinishedSegments": {
+      "sql": "SELECT COUNT(*) FROM segments WHERE endAt > :start AND startAt < :end\n           AND (status IN ('Pending', 'Running') OR (status = 'Failed' AND attempts < 5))",
+      "details": [
+        "SEARCH segments USING INDEX index_segments_startAt (startAt<?)"
+      ]
+    },
+    "data/MemoryDao.kt#observeUndigestedCount": {
+      "sql": "SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND NOT EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId\n    WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt,\n        (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id)))",
+      "details": [
+        "SCAN s",
+        "SEARCH l USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH ts USING INDEX index_topic_spans_startAt (startAt<?)",
+        "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH initial_span USING INDEX index_topic_spans_topicId (topicId=?)"
+      ]
+    },
+    "data/MemoryDao.kt#topicLineCount": {
+      "sql": "SELECT COUNT(*) FROM transcript_lines l WHERE l.id IN (:ids) AND NOT (NOT EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId\n    WHERE t.status != 'Cancelled' AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, t.plannedEndAt,\n        (SELECT MIN(initial_span.startAt) + 14400000 FROM topic_spans initial_span WHERE initial_span.topicId = t.id))))",
+      "details": [
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH ts USING INDEX index_topic_spans_startAt (startAt<?)",
+        "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH initial_span USING INDEX index_topic_spans_topicId (topicId=?)"
+      ]
+    },
+    "data/MemoryDao.kt#rhythmSpans": {
+      "sql": "SELECT l.startAt, l.endAt FROM transcript_lines l\n        LEFT JOIN memory_events e ON e.id = l.eventId\n        WHERE l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0)\n        ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN l",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/MemoryDao.kt#firstEventLineId": {
+      "sql": "SELECT id FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id LIMIT 1",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/MemoryDao.kt#segmentLinesOf": {
+      "sql": "SELECT * FROM transcript_lines WHERE segmentId = (SELECT segmentId FROM transcript_lines WHERE id = :lineId) ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "SCALAR SUBQUERY 1",
+        "SEARCH transcript_lines USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/MemoryDao.kt#eventLines": {
+      "sql": "SELECT * FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/MemoryDao.kt#diaryLines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId\n        LEFT JOIN memory_events e ON e.id = l.eventId\n        WHERE s.status = 'Done' AND l.startAt >= :start AND l.startAt < :end\n        AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN l USING INDEX index_transcript_lines_eventId",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/MemoryDao.kt#latestDiaryAt": {
+      "sql": "SELECT MAX(at) FROM (\n        SELECT startAt AS at FROM memory_events WHERE deleted = 0 AND (scene != '媒体' OR starred = 1)\n        UNION ALL SELECT l.startAt AS at FROM transcript_lines l JOIN segments s ON s.id = l.segmentId\n        LEFT JOIN memory_events e ON e.id = l.eventId WHERE :includeLines AND s.status = 'Done' AND l.text != '' AND (e.id IS NULL OR e.deleted = 0)\n    )",
+      "details": [
+        "CO-ROUTINE (subquery-2)",
+        "COMPOUND QUERY",
+        "LEFT-MOST SUBQUERY",
+        "SCAN memory_events",
+        "UNION ALL",
+        "SCAN s",
+        "SEARCH l USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "SEARCH (subquery-2)"
+      ]
+    },
+    "data/TranscribeDao.kt#onboardingFirstTranscript": {
+      "sql": "SELECT MIN(startAt) FROM transcript_lines WHERE LENGTH(TRIM(text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0",
+      "details": [
+        "SEARCH transcript_lines"
+      ]
+    },
+    "data/TranscribeDao.kt#onboardingMultipleSpeakers": {
+      "sql": "SELECT s.startAt FROM segments s WHERE s.startAt >= :since AND s.sourceId != 'voice-input'\n        AND (SELECT COUNT(DISTINCT CASE WHEN l.speakerTag NOT LIKE 'uncertain:%'\n                AND TRIM(l.speakerTag) != '' THEN l.speakerTag END) >= 2\n            OR MAX(CASE WHEN l.speakerPersonId > 0 THEN 1 ELSE 0 END) = 1\n            FROM transcript_lines l WHERE l.segmentId = s.id\n                AND LENGTH(TRIM(l.text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0)\n        ORDER BY s.startAt DESC LIMIT 1",
+      "details": [
+        "SEARCH s USING INDEX index_segments_startAt (startAt>?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "USE TEMP B-TREE FOR count(DISTINCT)",
+        "SEARCH l USING INDEX index_transcript_lines_segmentId (segmentId=?)"
+      ]
+    },
+    "data/TranscribeDao.kt#exportEvents": {
+      "sql": "SELECT * FROM memory_events WHERE deleted = 0 AND\n        ((startAt < :until AND endAt > :from) OR id IN\n        (SELECT eventId FROM transcript_lines WHERE segmentId = :segmentId))",
+      "details": [
+        "MULTI-INDEX OR",
+        "INDEX 1",
+        "SEARCH memory_events USING INDEX index_memory_events_startAt (startAt<?)",
+        "INDEX 2",
+        "LIST SUBQUERY 1",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "SEARCH memory_events USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/TranscribeDao.kt#importedAudio": {
+      "sql": "SELECT * FROM segments WHERE sourceId = 'import' AND status != 'Running'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#observeQueueCounts": {
+      "sql": "SELECT COUNT(CASE WHEN status = 'Pending' THEN 1 END) AS pending,\n        COUNT(CASE WHEN status = 'Failed' THEN 1 END) AS failed,\n        COUNT(CASE WHEN status = 'Running' THEN 1 END) > 0 AS running FROM segments",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#observeVoiceprintCounts": {
+      "sql": "SELECT COUNT(voiceprintProcessedAt) AS processed,\n        COUNT(*) - COUNT(voiceprintProcessedAt) AS pending FROM segments WHERE status = 'Done'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#observeFailedSegments": {
+      "sql": "SELECT * FROM segments WHERE status = 'Failed'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#recentDone": {
+      "sql": "SELECT * FROM segments WHERE status = 'Done' AND startAt >= :since",
+      "details": [
+        "SEARCH segments USING INDEX index_segments_startAt (startAt>?)"
+      ]
+    },
+    "data/TranscribeDao.kt#candidateRows": {
+      "sql": "SELECT * FROM segments WHERE status = 'Pending' OR (status = 'Failed' AND attempts < 5 AND nextRetryAt <= :now) ORDER BY CASE WHEN EXISTS (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId WHERE t.status IN ('Ended', 'Summarizing', 'Failed') AND segments.startAt < ts.endAt AND segments.endAt > ts.startAt) THEN 0 ELSE 1 END, CASE WHEN error = '转写超时，等待重试' THEN 1 ELSE 0 END, startAt, id",
+      "details": [
+        "SCAN segments",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH t USING COVERING INDEX index_topics_status (status=?)",
+        "SEARCH ts USING INDEX index_topic_spans_topicId (topicId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/TranscribeDao.kt#pendingMillis": {
+      "sql": "SELECT COALESCE(SUM(endAt - startAt), 0) FROM segments WHERE status = 'Pending'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#earliestRetry": {
+      "sql": "SELECT MIN(nextRetryAt) FROM segments WHERE status = 'Failed' AND attempts < 5 AND nextRetryAt IS NOT NULL",
+      "details": [
+        "SEARCH segments"
+      ]
+    },
+    "data/TranscribeDao.kt#recoverInterrupted": {
+      "sql": "UPDATE segments SET status = 'Failed', error = '任务中断，等待重试', nextRetryAt = :now, firstFailedAt = COALESCE(firstFailedAt, :now), attempts = MAX(attempts - 1, 0) WHERE status = 'Running'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#resetFailed": {
+      "sql": "UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL WHERE status = 'Failed'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#abandonOldAudio": {
+      "sql": "UPDATE segments SET status = 'Abandoned', completedAt = :now, nextRetryAt = NULL, error = CASE WHEN error = '录音文件已不存在' THEN error ELSE '录音损坏，无法转写' END WHERE status = 'Failed' AND nextRetryAt IS NULL AND (error IN ('录音文件不可读取或解码失败', '录音文件已不存在', '录音损坏，无法转写', '导入音频已满 3 天并删除，请重新分享') OR EXISTS (SELECT 1 FROM asr_attempts a WHERE a.id = (SELECT MAX(id) FROM asr_attempts WHERE segmentId = segments.id) AND a.errorType = 'Audio'))",
+      "details": [
+        "SCAN segments",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH a USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH asr_attempts"
+      ]
+    },
+    "data/TranscribeDao.kt#initializeFailureTime": {
+      "sql": "UPDATE segments SET firstFailedAt = :now WHERE status = 'Failed' AND firstFailedAt IS NULL",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#quietExpired": {
+      "sql": "UPDATE segments SET status = 'Quiet', completedAt = :now, nextRetryAt = NULL, error = '多次转写失败' WHERE status = 'Failed' AND firstFailedAt < :now - 259200000",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#quietFailed": {
+      "sql": "UPDATE segments SET status = 'Quiet', completedAt = :now, nextRetryAt = NULL WHERE status = 'Failed'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#retrySegment": {
+      "sql": "UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL, firstFailedAt = NULL WHERE id = :id AND status IN ('Failed', 'Quiet', 'Abandoned')",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/TranscribeDao.kt#transcribeAnyway": {
+      "sql": "UPDATE segments SET status = 'Pending', attempts = 0, nextRetryAt = NULL, error = NULL, completedAt = NULL WHERE id = :id AND status = 'SkippedPlayback'",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/TranscribeDao.kt#skippedPlaybackCount": {
+      "sql": "SELECT COUNT(*) FROM segments WHERE status = 'SkippedPlayback'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/TranscribeDao.kt#finishEnvSkip": {
+      "sql": "UPDATE segments SET status = 'SkippedEnv', completedAt = :at, nextRetryAt = NULL, error = NULL, voiceprintProcessedAt = :at WHERE id = :id AND status = 'Running' AND NOT EXISTS (SELECT 1 FROM env_sounds WHERE segmentId = :id AND (restored = 1 OR reportedWrong = 1))",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)",
+        "SCALAR SUBQUERY 1",
+        "SEARCH env_sounds USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/TranscribeDao.kt#claim": {
+      "sql": "UPDATE segments SET status = 'Running', attempts = attempts + 1, nextRetryAt = NULL, error = NULL WHERE id = :id AND status IN ('Pending', 'Failed')",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/TranscribeDao.kt#linesForRedo": {
+      "sql": "SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/TranscribeDao.kt#voiceInputs": {
+      "sql": "SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :from AND :to",
+      "details": [
+        "SCAN transcript_lines"
+      ]
+    },
+    "data/TranscribeDao.kt#expired": {
+      "sql": "SELECT * FROM segments WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'SkippedEnv', 'Abandoned', 'Quiet') AND completedAt <= :before",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/VoiceInputDao.kt#micLines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.sourceId != 'voice-input' AND l.voiceInputJson IS NULL AND l.startAt BETWEEN :from AND :to",
+      "details": [
+        "SCAN l",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "data/VoiceInputDao.kt#recent": {
+      "sql": "SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :at - 1800000 AND :at ORDER BY startAt DESC, id DESC",
+      "details": [
+        "SCAN transcript_lines",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/VoiceInputDao.kt#observed": {
+      "sql": "SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL ORDER BY startAt DESC, id DESC",
+      "details": [
+        "SCAN transcript_lines",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/VoiceprintDao.kt#observePersonSamples": {
+      "sql": "SELECT v.*, l.text AS text, l.startAt AS lineStart, s.path AS segmentPath FROM voiceprint_samples v LEFT JOIN transcript_lines l ON l.id = v.sourceLineId LEFT JOIN segments s ON s.id = l.segmentId WHERE v.personId = :id ORDER BY v.createdAt DESC, v.id DESC",
+      "details": [
+        "SCAN v",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/VoiceprintDao.kt#observePersonLines": {
+      "sql": "SELECT * FROM transcript_lines WHERE speakerPersonId = :id AND voiceInputJson IS NULL ORDER BY startAt DESC, id DESC LIMIT 100",
+      "details": [
+        "SCAN transcript_lines",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/VoiceprintDao.kt#lines": {
+      "sql": "SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "data/VoiceprintDao.kt#pending": {
+      "sql": "SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done' AND (separateSpeakers IS NULL OR separateSpeakers = 1) AND voiceprintProcessedAt IS NULL ORDER BY startAt, id",
+      "details": [
+        "SCAN segments USING INDEX index_segments_startAt"
+      ]
+    },
+    "data/VoiceprintDao.kt#invalidate": {
+      "sql": "UPDATE segments SET voiceprintProcessedAt = NULL WHERE sourceId != 'voice-input' AND status = 'Done'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "data/VoiceprintDao.kt#doneSegments": {
+      "sql": "SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done'",
+      "details": [
+        "SCAN segments"
+      ]
+    },
+    "envsound/EnvSoundDao.kt#requeue": {
+      "sql": "UPDATE segments SET status = 'Pending', attempts = 0, completedAt = NULL, error = NULL, nextRetryAt = NULL, firstFailedAt = NULL WHERE id = :id AND status = 'SkippedEnv'",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "envsound/EnvSoundDao.kt#requeueCorrection": {
+      "sql": "UPDATE segments SET status = 'Pending', attempts = 0, completedAt = NULL, error = NULL, nextRetryAt = NULL, firstFailedAt = NULL WHERE id = :id AND status IN ('SkippedEnv', 'Failed', 'Quiet', 'Abandoned')",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "importer/ImportRecordDao.kt#observeSummaryReady": {
+      "sql": "SELECT r.id, r.revision,\n        COALESCE((SELECT GROUP_CONCAT(status, ',') FROM\n            (SELECT status FROM segments WHERE importRecordId = r.id ORDER BY id)), '') AS statuses FROM import_records r\n        WHERE r.ingestComplete = 1 AND r.summaryRequested = 1 AND r.status != 'Summarizing'\n        AND NOT EXISTS (SELECT 1 FROM segments s WHERE s.importRecordId = r.id\n            AND (s.status IN ('Pending', 'Running') OR (s.status = 'Done' AND s.voiceprintProcessedAt IS NULL)))\n        ORDER BY r.startAt, r.id",
+      "details": [
+        "SEARCH r USING INDEX index_import_records_ingestComplete_summaryRequested_startAt (ingestComplete=? AND summaryRequested=?)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH s USING INDEX index_segments_importRecordId (importRecordId=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH segments USING INDEX index_segments_importRecordId (importRecordId=?)",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "importer/ImportRecordDao.kt#lines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.importRecordId = :id ORDER BY l.startAt, s.importChannel, l.id",
+      "details": [
+        "SEARCH s USING INDEX index_segments_importRecordId (importRecordId=?)",
+        "SEARCH l USING INDEX index_transcript_lines_segmentId (segmentId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "push/PushRecords.kt#lines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.status = 'Done' AND l.startAt >= :start ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN l USING INDEX index_transcript_lines_eventId",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "redo/RedoData.kt#eventLines": {
+      "sql": "SELECT * FROM transcript_lines WHERE eventId IN (:ids) ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "skills/SkillDao.kt#lines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId LEFT JOIN memory_events e ON e.id = l.eventId WHERE s.status = 'Done' AND l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN l USING INDEX index_transcript_lines_eventId",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "skills/SkillDao.kt#eventLines": {
+      "sql": "SELECT * FROM transcript_lines WHERE eventId IN (:events) ORDER BY startAt, id",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "things/ThingData.kt#maxLineIdBefore": {
+      "sql": "SELECT COALESCE(MAX(id), 0) FROM transcript_lines WHERE startAt < :before",
+      "details": [
+        "SEARCH transcript_lines"
+      ]
+    },
+    "topic/TopicData.kt#observeProgress": {
+      "sql": "SELECT DISTINCT s.id, s.status, s.voiceprintProcessedAt FROM topic_spans ts\n        CROSS JOIN segments s INDEXED BY index_segments_startAt\n        WHERE ts.topicId IN (:ids) AND s.startAt < ts.endAt AND s.endAt > ts.startAt ORDER BY s.id",
+      "details": [
+        "SEARCH ts USING INDEX index_topic_spans_topicId (topicId=?)",
+        "SEARCH s USING INDEX index_segments_startAt (startAt<?)",
+        "USE TEMP B-TREE FOR DISTINCT",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "topic/TopicData.kt#observeLateTranscriptIds": {
+      "sql": "SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS (\n        SELECT 1 FROM topic_spans ts CROSS JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt\n        CROSS JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done'\n        AND l.voiceInputPendingUntil IS NULL AND (l.eventId IS NOT t.eventId OR l.digestedAt IS NULL)) ORDER BY t.id",
+      "details": [
+        "SEARCH t USING INDEX index_topics_status (status=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH ts USING INDEX index_topic_spans_topicId (topicId=?)",
+        "SCAN l",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "topic/TopicData.kt#digestedUntil": {
+      "sql": "SELECT MAX(endAt) FROM transcript_lines WHERE digestedAt IS NOT NULL AND startAt < :end AND endAt > :start",
+      "details": [
+        "SEARCH transcript_lines"
+      ]
+    },
+    "topic/TopicData.kt#lines": {
+      "sql": "SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId\n        WHERE s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND EXISTS\n        (SELECT 1 FROM topic_spans ts WHERE ts.topicId = :id AND l.startAt >= ts.startAt AND l.startAt < ts.endAt)\n        ORDER BY l.startAt, l.id",
+      "details": [
+        "SCAN l USING INDEX index_transcript_lines_eventId",
+        "SEARCH ts EXISTS USING INDEX index_topic_spans_topicId (topicId=?)",
+        "SEARCH s USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "topic/TopicData.kt#releaseRange": {
+      "sql": "UPDATE transcript_lines SET eventId = NULL, digestedAt = NULL WHERE startAt >= :start AND startAt < :end",
+      "details": [
+        "SCAN transcript_lines"
+      ]
+    },
+    "topic/TopicData.kt#lastRecording": {
+      "sql": "SELECT MAX(endAt) FROM segments WHERE sourceId != 'voice-input' AND status NOT IN ('SkippedPlayback', 'SkippedEnv', 'Empty')\n        AND startAt >= :start AND startAt < :end",
+      "details": [
+        "SEARCH segments USING INDEX index_segments_startAt (startAt>? AND startAt<?)"
+      ]
+    },
+    "topic/TopicData.kt#prioritize": {
+      "sql": "UPDATE segments SET nextRetryAt = 0 WHERE id IN (:ids) AND status = 'Failed' AND attempts < 5",
+      "details": [
+        "SEARCH segments USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "topic/TopicData.kt#pendingAudio": {
+      "sql": "SELECT COUNT(*) FROM segments s WHERE s.status = 'Pending' AND EXISTS\n        (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId\n        WHERE t.status IN ('Ended', 'Summarizing', 'Done') AND s.startAt < ts.endAt AND s.endAt > ts.startAt)",
+      "details": [
+        "SCAN s",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH t USING COVERING INDEX index_topics_status (status=?)",
+        "SEARCH ts USING INDEX index_topic_spans_topicId (topicId=?)"
+      ]
+    },
+    "ask/dynamic175#context.refresh.line/1": {
+      "sql": "SELECT l.id,l.startAt AS at,COALESCE(l.speakerName,l.speakerTag,'某人') AS title,l.text AS quote FROM transcript_lines l WHERE l.id=? AND (l.eventId IS NULL OR EXISTS(SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0))",
+      "details": [
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)"
+      ]
+    },
+    "ask/dynamic175#context.refresh.event/1": {
+      "sql": "SELECT e.id,e.startAt AS at,e.title,e.summary,COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), '') AS quote FROM memory_events e WHERE e.id=? AND e.deleted=0",
+      "details": [
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "ask/dynamic175#context.refresh.item/1": {
+      "sql": "SELECT i.id,COALESCE(e.startAt,i.createdAt) AS at,i.category AS title,i.content AS summary,i.status, COALESCE((SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),NULLIF(COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), ''),''),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND i.mergedInto IS NULL AND (e.id IS NULL OR e.deleted=0)",
+      "details": [
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "CO-ROUTINE (subquery-2)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-2)"
+      ]
+    },
+    "ask/dynamic175#context.refresh.hidden/1": {
+      "sql": "SELECT e.id,e.startAt AS at,e.title,e.summary,COALESCE((SELECT group_concat(text,char(10)) FROM (SELECT substr(text,1,900) AS text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id LIMIT 8)), '') AS quote FROM memory_events e WHERE e.id=? AND e.deleted=0",
+      "details": [
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "ask/dynamic175#context.lines/1": {
+      "sql": "SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40",
+      "details": [
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_lines.chinese/1": {
+      "sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "details": [
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 2",
+        "SCAN lines_fts VIRTUAL TABLE INDEX 3:",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_lines.multi/1": {
+      "sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?) OR l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "details": [
+        "MULTI-INDEX OR",
+        "INDEX 1",
+        "LIST SUBQUERY 2",
+        "SCAN lines_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "INDEX 2",
+        "LIST SUBQUERY 3",
+        "SCAN lines_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_lines.punctuation/1": {
+      "sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "details": [
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 2",
+        "SCAN lines_fts VIRTUAL TABLE INDEX 3:",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_lines.none/1": {
+      "sql": "SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
+      "details": [
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 2",
+        "SCAN lines_fts VIRTUAL TABLE INDEX 3:",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.chinese/1": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 3",
+        "SCAN events_fts VIRTUAL TABLE INDEX 5:",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.chinese/2": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SCAN e USING INDEX index_memory_events_startAt",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.multi/1": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?) OR e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "MULTI-INDEX OR",
+        "INDEX 1",
+        "LIST SUBQUERY 3",
+        "SCAN events_fts VIRTUAL TABLE INDEX 5:",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "INDEX 2",
+        "LIST SUBQUERY 4",
+        "SCAN events_fts VIRTUAL TABLE INDEX 5:",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.multi/2": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SCAN e USING INDEX index_memory_events_startAt",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.punctuation/1": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 3",
+        "SCAN events_fts VIRTUAL TABLE INDEX 5:",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.punctuation/2": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SCAN e USING INDEX index_memory_events_startAt",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.none/1": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND (e.id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)) ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 3",
+        "SCAN events_fts VIRTUAL TABLE INDEX 5:",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.search_events.none/2": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND 0 ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SCAN e USING INDEX index_memory_events_startAt",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.chinese/1": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 4",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.chinese/2": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SCAN i USING INDEX index_memory_items_eventId",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.multi/1": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?) OR i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "MULTI-INDEX OR",
+        "INDEX 1",
+        "LIST SUBQUERY 4",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "INDEX 2",
+        "LIST SUBQUERY 5",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 4",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "CREATE BLOOM FILTER",
+        "LIST SUBQUERY 5",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "CREATE BLOOM FILTER",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.multi/2": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SCAN i USING INDEX index_memory_items_eventId",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.punctuation/1": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 4",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.punctuation/2": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SCAN i USING INDEX index_memory_items_eventId",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.none/1": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (i.id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "LIST SUBQUERY 4",
+        "SCAN items_fts VIRTUAL TABLE INDEX 3:",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#fts.list_items.none/2": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND 0 ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SCAN i USING INDEX index_memory_items_eventId",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#tools.semanticIds/3": {
+      "sql": "SELECT e.id, e.startAt AS at, e.title, e.summary, e.pointsJson AS points, e.peopleJson AS people, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=e.id ORDER BY startAt,id)),'') AS quote, e.starred, e.starredAt AS starred_at FROM memory_events e WHERE e.deleted=0 AND e.id IN (?, ?) ORDER BY e.startAt DESC, e.id DESC LIMIT 41",
+      "details": [
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    },
+    "ask/dynamic175#tools.semanticIds/4": {
+      "sql": "SELECT i.id, COALESCE(e.startAt,i.createdAt) AS at, i.category AS title, i.content AS summary, i.status, i.dueText, COALESCE((SELECT group_concat(text, char(10)) FROM (SELECT text FROM transcript_lines WHERE eventId=i.eventId ORDER BY startAt,id)), (SELECT l.text FROM transcript_lines l WHERE l.id=i.lineId),i.sourceText,'') AS quote FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE (e.id IS NULL OR e.deleted=0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.id IN (?, ?) ORDER BY COALESCE(e.startAt,i.createdAt) DESC, i.id DESC LIMIT 41",
+      "details": [
+        "SEARCH i USING INTEGER PRIMARY KEY (rowid=?)",
+        "SEARCH e USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "CO-ROUTINE (subquery-1)",
+        "SEARCH transcript_lines USING INDEX index_transcript_lines_eventId (eventId=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-1)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    }
+  },
+  "single": {
+    "imports": {
+      "ms": 0.108375,
+      "rows": 20
+    }
+  },
+  "audit": {
+    "data/MemoryDao.kt#undigestedLines": {
+      "ms": [
+        19.03925,
+        18.708583,
+        19.942541
+      ],
+      "median_ms": 19.03925,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/MemoryDao.kt#undigestedCount": {
+      "ms": [
+        107.579167,
+        110.267,
+        108.418375
+      ],
+      "median_ms": 108.418375,
+      "rows": 1,
+      "sha256": "78fce9491f4b0e3b895728f3c6efe71e16e4ae77f5f6db9148e6e0584bc5fd42"
+    },
+    "data/MemoryDao.kt#refreshLines": {
+      "ms": [
+        0.042208,
+        0.006375,
+        0.005792
+      ],
+      "median_ms": 0.006375,
+      "rows": 1,
+      "sha256": "c39bab58c98d6825c6759fd7221961fc692ea5c82b1d53ba00db83dc4ee58fde"
+    },
+    "data/MemoryDao.kt#unfinishedSegments": {
+      "ms": [
+        2.868959,
+        2.686375,
+        2.674166
+      ],
+      "median_ms": 2.686375,
+      "rows": 1,
+      "sha256": "61b8294031409847a833fb5ac5d7f394168d0cc8d412046d06b468f24bf40fdf"
+    },
+    "data/MemoryDao.kt#observeUndigestedCount": {
+      "ms": [
+        105.079458,
+        106.195458,
+        109.524625
+      ],
+      "median_ms": 106.195458,
+      "rows": 1,
+      "sha256": "78fce9491f4b0e3b895728f3c6efe71e16e4ae77f5f6db9148e6e0584bc5fd42"
+    },
+    "data/MemoryDao.kt#topicLineCount": {
+      "ms": [
+        0.056292,
+        0.008417,
+        0.0075
+      ],
+      "median_ms": 0.008417,
+      "rows": 1,
+      "sha256": "78fce9491f4b0e3b895728f3c6efe71e16e4ae77f5f6db9148e6e0584bc5fd42"
+    },
+    "data/MemoryDao.kt#rhythmSpans": {
+      "ms": [
+        22.498292,
+        22.465875,
+        22.18375
+      ],
+      "median_ms": 22.465875,
+      "rows": 14210,
+      "sha256": "19c688a12b21c27059056ebeac504c311caa66d0acac87494a3fd573213e0a6d"
+    },
+    "data/MemoryDao.kt#firstEventLineId": {
+      "ms": [
+        0.081084,
+        0.023667,
+        0.021667
+      ],
+      "median_ms": 0.023667,
+      "rows": 1,
+      "sha256": "1ded6fe2f32150a2d6faf11681e5d47048f02cd9b049419734c80eaa78db5b80"
+    },
+    "data/MemoryDao.kt#segmentLinesOf": {
+      "ms": [
+        0.061875,
+        0.024958,
+        0.022792
+      ],
+      "median_ms": 0.024958,
+      "rows": 11,
+      "sha256": "822d7d58c52e0db7a7e63c55c06312bde7bf53224efcfed50c6431f38b37d20b"
+    },
+    "data/MemoryDao.kt#eventLines": {
+      "ms": [
+        0.280667,
+        0.264458,
+        0.256417
+      ],
+      "median_ms": 0.264458,
+      "rows": 200,
+      "sha256": "e9665304eccc10107238ee73909d41e124b0fd3fd2bacf8c2b4f0ed504a3b3a6"
+    },
+    "data/MemoryDao.kt#diaryLines": {
+      "ms": [
+        48.356,
+        48.490208,
+        48.247083
+      ],
+      "median_ms": 48.356,
+      "rows": 14210,
+      "sha256": "09648f28caa7b17cc40b6da58011f32281b2c04d9e44318c2791f8ee34f22cd2"
+    },
+    "data/MemoryDao.kt#latestDiaryAt": {
+      "ms": [
+        148.464208,
+        147.267583,
+        150.509417
+      ],
+      "median_ms": 148.464208,
+      "rows": 1,
+      "sha256": "0320ccf41427ba39e32a74b75d3971d9d6d5397843fdeff93f70771c8ef7323b"
+    },
+    "data/TranscribeDao.kt#onboardingFirstTranscript": {
+      "ms": [
+        105.591958,
+        105.346458,
+        101.758042
+      ],
+      "median_ms": 105.346458,
+      "rows": 1,
+      "sha256": "4da752b51d8b213a8b614a1a638fe1eb330a086178468c6cb189bc1274848b78"
+    },
+    "data/TranscribeDao.kt#onboardingMultipleSpeakers": {
+      "ms": [
+        0.418417,
+        0.326041,
+        0.324625
+      ],
+      "median_ms": 0.326041,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#exportEvents": {
+      "ms": [
+        0.058708,
+        0.024791,
+        0.023416
+      ],
+      "median_ms": 0.024791,
+      "rows": 5,
+      "sha256": "64a42fce8463c7443eb0abcb9d27ed50cc0ea755ae41d3d2491647a0affdebb1"
+    },
+    "data/TranscribeDao.kt#importedAudio": {
+      "ms": [
+        4.995,
+        4.670708,
+        4.891042
+      ],
+      "median_ms": 4.891042,
+      "rows": 1994,
+      "sha256": "92b2fcf74f7d9b9025b9340d808929ceee781f5a04d4de0879baeed87ee4e681"
+    },
+    "data/TranscribeDao.kt#observeQueueCounts": {
+      "ms": [
+        4.726792,
+        4.663709,
+        4.496834
+      ],
+      "median_ms": 4.663709,
+      "rows": 1,
+      "sha256": "139e3645da2632c6f22ef1b61641668f726694068719bf57499c2a8ba711476d"
+    },
+    "data/TranscribeDao.kt#observeVoiceprintCounts": {
+      "ms": [
+        2.859292,
+        2.904459,
+        2.825167
+      ],
+      "median_ms": 2.859292,
+      "rows": 1,
+      "sha256": "6d31b7c0cfdbcde547812614ed67246f07038f86a43ef2431aa6bd57ccd92c12"
+    },
+    "data/TranscribeDao.kt#observeFailedSegments": {
+      "ms": [
+        2.263875,
+        2.2435,
+        2.248708
+      ],
+      "median_ms": 2.248708,
+      "rows": 250,
+      "sha256": "c99950cb84c284397b35b296efe044f6253d9384d24cd50ab66bad3a9cbded23"
+    },
+    "data/TranscribeDao.kt#recentDone": {
+      "ms": [
+        0.111166,
+        0.093042,
+        0.093625
+      ],
+      "median_ms": 0.093625,
+      "rows": 61,
+      "sha256": "8e4e80cd80034a0e2800a1417ea1bc64ee4411a442dfe4ebc4e35275e15ae2ef"
+    },
+    "data/TranscribeDao.kt#candidateRows": {
+      "ms": [
+        4.305,
+        4.442333,
+        4.342375
+      ],
+      "median_ms": 4.342375,
+      "rows": 750,
+      "sha256": "1bca822c0f216c85f8d2572882fdefb8df5d2db7e9845c9af00fa548bf70b360"
+    },
+    "data/TranscribeDao.kt#pendingMillis": {
+      "ms": [
+        2.325584,
+        2.210417,
+        2.243333
+      ],
+      "median_ms": 2.243333,
+      "rows": 1,
+      "sha256": "1d8f9fbce52660870dd29f2574a228c44dd1db7f28bd2db5d9714e2232341d52"
+    },
+    "data/TranscribeDao.kt#earliestRetry": {
+      "ms": [
+        1.978083,
+        1.981208,
+        2.013875
+      ],
+      "median_ms": 1.981208,
+      "rows": 1,
+      "sha256": "fee42a41d774d211d21c3f6402c49c8b2ce771c71bd3b3d13b266c69800d3907"
+    },
+    "data/TranscribeDao.kt#recoverInterrupted": {
+      "ms": [
+        3.497375,
+        3.08475,
+        2.926833
+      ],
+      "median_ms": 3.08475,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#resetFailed": {
+      "ms": [
+        2.553541,
+        2.40325,
+        2.454333
+      ],
+      "median_ms": 2.454333,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#abandonOldAudio": {
+      "ms": [
+        1.9995,
+        1.891958,
+        1.882917
+      ],
+      "median_ms": 1.891958,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#initializeFailureTime": {
+      "ms": [
+        1.992167,
+        2.022959,
+        1.992833
+      ],
+      "median_ms": 1.992833,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#quietExpired": {
+      "ms": [
+        1.898916,
+        1.860083,
+        1.86
+      ],
+      "median_ms": 1.860083,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#quietFailed": {
+      "ms": [
+        2.352291,
+        2.379916,
+        2.333167
+      ],
+      "median_ms": 2.352291,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#retrySegment": {
+      "ms": [
+        0.025125,
+        0.008,
+        0.007416
+      ],
+      "median_ms": 0.008,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#transcribeAnyway": {
+      "ms": [
+        0.010667,
+        0.005125,
+        0.004916
+      ],
+      "median_ms": 0.005125,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#skippedPlaybackCount": {
+      "ms": [
+        1.86025,
+        1.879083,
+        1.968416
+      ],
+      "median_ms": 1.879083,
+      "rows": 1,
+      "sha256": "78fce9491f4b0e3b895728f3c6efe71e16e4ae77f5f6db9148e6e0584bc5fd42"
+    },
+    "data/TranscribeDao.kt#finishEnvSkip": {
+      "ms": [
+        0.025458,
+        0.006875,
+        0.006167
+      ],
+      "median_ms": 0.006875,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#claim": {
+      "ms": [
+        0.011917,
+        0.004917,
+        0.004667
+      ],
+      "median_ms": 0.004917,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/TranscribeDao.kt#linesForRedo": {
+      "ms": [
+        0.072042,
+        0.024208,
+        0.02175
+      ],
+      "median_ms": 0.024208,
+      "rows": 11,
+      "sha256": "18114886065775fed43ad1bf363b9af60ed05b5862581eef149451db5e536ee0"
+    },
+    "data/TranscribeDao.kt#voiceInputs": {
+      "ms": [
+        19.847292,
+        19.470416,
+        19.400167
+      ],
+      "median_ms": 19.470416,
+      "rows": 20,
+      "sha256": "0e635d6957cfae193523eaa4f1c0a8e716ff86ae883af1b5533e84a1fefb801d"
+    },
+    "data/TranscribeDao.kt#expired": {
+      "ms": [
+        81.43675,
+        81.235667,
+        81.268583
+      ],
+      "median_ms": 81.268583,
+      "rows": 48939,
+      "sha256": "acfc1d5e16c8d6bbce4b2b87f5368889858fda62b5899f2dc561094fafdf2e39"
+    },
+    "data/VoiceInputDao.kt#micLines": {
+      "ms": [
+        39.073375,
+        39.236417,
+        41.014666
+      ],
+      "median_ms": 39.236417,
+      "rows": 14190,
+      "sha256": "20c424500e99784193ff2f8937a3b072a90db9669a311c751aece306f5bd8e1c"
+    },
+    "data/VoiceInputDao.kt#recent": {
+      "ms": [
+        20.754583,
+        20.5875,
+        20.479375
+      ],
+      "median_ms": 20.5875,
+      "rows": 1,
+      "sha256": "aaf1e74f091d3e51a1a036aabd49121c51debd03c456c6813eaf726de32218fa"
+    },
+    "data/VoiceInputDao.kt#observed": {
+      "ms": [
+        21.769208,
+        22.040792,
+        21.62225
+      ],
+      "median_ms": 21.769208,
+      "rows": 500,
+      "sha256": "0d9e483232d13c86e650abb61f2c44ef37b234ecacccc0350c0495af16f07648"
+    },
+    "data/VoiceprintDao.kt#observePersonSamples": {
+      "ms": [
+        0.055416,
+        0.006959,
+        0.006125
+      ],
+      "median_ms": 0.006959,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/VoiceprintDao.kt#observePersonLines": {
+      "ms": [
+        20.149209,
+        20.117459,
+        19.569125
+      ],
+      "median_ms": 20.117459,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/VoiceprintDao.kt#lines": {
+      "ms": [
+        0.05525,
+        0.023791,
+        0.02125
+      ],
+      "median_ms": 0.023791,
+      "rows": 11,
+      "sha256": "18114886065775fed43ad1bf363b9af60ed05b5862581eef149451db5e536ee0"
+    },
+    "data/VoiceprintDao.kt#pending": {
+      "ms": [
+        6.542666,
+        6.256166,
+        6.186708
+      ],
+      "median_ms": 6.256166,
+      "rows": 500,
+      "sha256": "6362a92b047bbf62555dbba7fb932c00c6016db43a6959a0af9ff4ab22082a61"
+    },
+    "data/VoiceprintDao.kt#invalidate": {
+      "ms": [
+        21.1455,
+        20.452917,
+        20.255917
+      ],
+      "median_ms": 20.452917,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "data/VoiceprintDao.kt#doneSegments": {
+      "ms": [
+        78.529958,
+        81.976208,
+        78.680917
+      ],
+      "median_ms": 78.680917,
+      "rows": 49000,
+      "sha256": "392fd09b3d746ef07baa2be13c53305c789ab5c744c3935456596ebd20ee560e"
+    },
+    "envsound/EnvSoundDao.kt#requeue": {
+      "ms": [
+        0.070583,
+        0.0075,
+        0.005291
+      ],
+      "median_ms": 0.0075,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "envsound/EnvSoundDao.kt#requeueCorrection": {
+      "ms": [
+        0.026459,
+        0.008208,
+        0.007208
+      ],
+      "median_ms": 0.008208,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "importer/ImportRecordDao.kt#observeSummaryReady": {
+      "ms": [
+        0.113959,
+        0.041959,
+        0.039208
+      ],
+      "median_ms": 0.041959,
+      "rows": 20,
+      "sha256": "0a447c903b92f5068bbea10b24306fa86420767d76af1ce59c326bffb35a83a0"
+    },
+    "importer/ImportRecordDao.kt#lines": {
+      "ms": [
+        0.095708,
+        0.024,
+        0.022083
+      ],
+      "median_ms": 0.024,
+      "rows": 11,
+      "sha256": "18114886065775fed43ad1bf363b9af60ed05b5862581eef149451db5e536ee0"
+    },
+    "push/PushRecords.kt#lines": {
+      "ms": [
+        46.382041,
+        47.514084,
+        47.975834
+      ],
+      "median_ms": 47.514084,
+      "rows": 14210,
+      "sha256": "09648f28caa7b17cc40b6da58011f32281b2c04d9e44318c2791f8ee34f22cd2"
+    },
+    "redo/RedoData.kt#eventLines": {
+      "ms": [
+        0.372625,
+        0.283792,
+        0.281833
+      ],
+      "median_ms": 0.283792,
+      "rows": 200,
+      "sha256": "e9665304eccc10107238ee73909d41e124b0fd3fd2bacf8c2b4f0ed504a3b3a6"
+    },
+    "skills/SkillDao.kt#lines": {
+      "ms": [
+        48.760542,
+        48.233958,
+        48.215417
+      ],
+      "median_ms": 48.233958,
+      "rows": 14210,
+      "sha256": "09648f28caa7b17cc40b6da58011f32281b2c04d9e44318c2791f8ee34f22cd2"
+    },
+    "skills/SkillDao.kt#eventLines": {
+      "ms": [
+        0.370417,
+        0.299708,
+        0.297291
+      ],
+      "median_ms": 0.299708,
+      "rows": 220,
+      "sha256": "3b4c7957b8d95c8fc5fbd3f0b960d28c046d614e7eff04e11c328d09fc22bd18"
+    },
+    "things/ThingData.kt#maxLineIdBefore": {
+      "ms": [
+        0.0225,
+        0.004625,
+        0.004166
+      ],
+      "median_ms": 0.004625,
+      "rows": 1,
+      "sha256": "a1b5b10d23af578e199274c750f99e91fe40941a90309ccda06dbdc74d833667"
+    },
+    "topic/TopicData.kt#observeProgress": {
+      "ms": [
+        1.774708,
+        1.442875,
+        1.453083
+      ],
+      "median_ms": 1.453083,
+      "rows": 20,
+      "sha256": "5352c15bdc594f9bcf690bfac314a0e7df27ce4aa348f5497a3c793742c2fe0e"
+    },
+    "topic/TopicData.kt#digestedUntil": {
+      "ms": [
+        26.394167,
+        26.345542,
+        26.184542
+      ],
+      "median_ms": 26.345542,
+      "rows": 1,
+      "sha256": "6906237334717f83cfade55cf5533dda3f42f2e7620f6200d6df5e6cea4a28ba"
+    },
+    "topic/TopicData.kt#lines": {
+      "ms": [
+        80.249,
+        80.061542,
+        80.145375
+      ],
+      "median_ms": 80.145375,
+      "rows": 200,
+      "sha256": "e9665304eccc10107238ee73909d41e124b0fd3fd2bacf8c2b4f0ed504a3b3a6"
+    },
+    "topic/TopicData.kt#releaseRange": {
+      "ms": [
+        26.821791,
+        26.773,
+        27.232959
+      ],
+      "median_ms": 26.821791,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "topic/TopicData.kt#lastRecording": {
+      "ms": [
+        0.295583,
+        0.208291,
+        0.204166
+      ],
+      "median_ms": 0.208291,
+      "rows": 1,
+      "sha256": "d15ebe3ed597f68542174b7a90ae1b774e417a3799ebb3606f3c700c3ea1f349"
+    },
+    "topic/TopicData.kt#prioritize": {
+      "ms": [
+        0.020042,
+        0.0045,
+        0.004292
+      ],
+      "median_ms": 0.0045,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "topic/TopicData.kt#pendingAudio": {
+      "ms": [
+        15.778208,
+        15.420834,
+        15.364084
+      ],
+      "median_ms": 15.420834,
+      "rows": 1,
+      "sha256": "78fce9491f4b0e3b895728f3c6efe71e16e4ae77f5f6db9148e6e0584bc5fd42"
+    },
+    "ask/dynamic175#context.refresh.line/1": {
+      "ms": [
+        0.040333,
+        0.004042,
+        0.003417
+      ],
+      "median_ms": 0.004042,
+      "rows": 1,
+      "sha256": "d8039d7cfb269756872fbf98c62cbc5e43143f94b9b25dfcfd6ed775ed9699fa"
+    },
+    "ask/dynamic175#context.refresh.event/1": {
+      "ms": [
+        0.088709,
+        0.028792,
+        0.026791
+      ],
+      "median_ms": 0.028792,
+      "rows": 1,
+      "sha256": "2c350b8f31a3e62e8cf99812702c964c3708df8528ad7651ed49d1db96f98483"
+    },
+    "ask/dynamic175#context.refresh.item/1": {
+      "ms": [
+        0.039583,
+        0.003292,
+        0.003
+      ],
+      "median_ms": 0.003292,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#context.refresh.hidden/1": {
+      "ms": [
+        0.028125,
+        0.026125,
+        0.026
+      ],
+      "median_ms": 0.026125,
+      "rows": 1,
+      "sha256": "2c350b8f31a3e62e8cf99812702c964c3708df8528ad7651ed49d1db96f98483"
+    },
+    "ask/dynamic175#context.lines/1": {
+      "ms": [
+        0.073208,
+        0.05825,
+        0.057125
+      ],
+      "median_ms": 0.05825,
+      "rows": 40,
+      "sha256": "e80061ba9d28ade16385f6ffc1c31adb1adb83d64a45fd53eb13f73b7339f41e"
+    },
+    "ask/dynamic175#fts.search_lines.chinese/1": {
+      "ms": [
+        0.047875,
+        0.007666,
+        0.006625
+      ],
+      "median_ms": 0.007666,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_lines.multi/1": {
+      "ms": [
+        0.034709,
+        0.0105,
+        0.008833
+      ],
+      "median_ms": 0.0105,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_lines.punctuation/1": {
+      "ms": [
+        0.007042,
+        0.006416,
+        0.006292
+      ],
+      "median_ms": 0.006416,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_lines.none/1": {
+      "ms": [
+        0.006583,
+        0.006125,
+        0.006
+      ],
+      "median_ms": 0.006125,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.chinese/1": {
+      "ms": [
+        0.044208,
+        0.007083,
+        0.006458
+      ],
+      "median_ms": 0.007083,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.chinese/2": {
+      "ms": [
+        0.027,
+        0.006209,
+        0.005916
+      ],
+      "median_ms": 0.006209,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.multi/1": {
+      "ms": [
+        0.040125,
+        0.009208,
+        0.008625
+      ],
+      "median_ms": 0.009208,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.multi/2": {
+      "ms": [
+        0.006333,
+        0.005916,
+        0.005875
+      ],
+      "median_ms": 0.005916,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.punctuation/1": {
+      "ms": [
+        0.006958,
+        0.006666,
+        0.006541
+      ],
+      "median_ms": 0.006666,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.punctuation/2": {
+      "ms": [
+        0.006208,
+        0.005959,
+        0.005833
+      ],
+      "median_ms": 0.005959,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.none/1": {
+      "ms": [
+        0.006708,
+        0.006375,
+        0.006291
+      ],
+      "median_ms": 0.006375,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.search_events.none/2": {
+      "ms": [
+        0.006041,
+        0.005875,
+        0.005792
+      ],
+      "median_ms": 0.005875,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.chinese/1": {
+      "ms": [
+        0.047541,
+        0.007083,
+        0.006625
+      ],
+      "median_ms": 0.007083,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.chinese/2": {
+      "ms": [
+        0.032792,
+        0.00925,
+        0.008792
+      ],
+      "median_ms": 0.00925,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.multi/1": {
+      "ms": [
+        0.050667,
+        0.00975,
+        0.009625
+      ],
+      "median_ms": 0.00975,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.multi/2": {
+      "ms": [
+        0.00925,
+        0.00875,
+        0.008708
+      ],
+      "median_ms": 0.00875,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.punctuation/1": {
+      "ms": [
+        0.007125,
+        0.00675,
+        0.006375
+      ],
+      "median_ms": 0.00675,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.punctuation/2": {
+      "ms": [
+        0.009,
+        0.008916,
+        0.008625
+      ],
+      "median_ms": 0.008916,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.none/1": {
+      "ms": [
+        0.006708,
+        0.0065,
+        0.006292
+      ],
+      "median_ms": 0.0065,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#fts.list_items.none/2": {
+      "ms": [
+        0.008875,
+        0.008708,
+        0.008584
+      ],
+      "median_ms": 0.008708,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ask/dynamic175#tools.semanticIds/3": {
+      "ms": [
+        0.099,
+        0.075875,
+        0.074542
+      ],
+      "median_ms": 0.075875,
+      "rows": 1,
+      "sha256": "9659a5b481db9bfc55df68ce714957dbf07139f1f55d75676aa80c2d6dff5ff0"
+    },
+    "ask/dynamic175#tools.semanticIds/4": {
+      "ms": [
+        0.03175,
+        0.005958,
+        0.005792
+      ],
+      "median_ms": 0.005958,
+      "rows": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "resident_ms": {
+    "queue": 0.0,
+    "voiceprint": 0.0,
+    "failed": 0.0,
+    "late": 0.0,
+    "imports": 4.056087
+  },
+  "write_ms": {
+    "insert": 0.9911670000000001,
+    "env": 0.49474900000000005,
+    "complete": 3.119788000000001
+  },
+  "bytes_after": 70197248
+}

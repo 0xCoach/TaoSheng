@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskEngine136Test" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:38:18.990Z" hostname="CoachdeMacBook-Air.local" time="0.021">
+  <properties/>
+  <testcase name="oneOffNoLookupUsesPrefetchOnceWithoutPermanentMark[jvm]" classname="app.resound.ask.AskEngine136Test" time="0.008"/>
+  <testcase name="localDateRulesCoverRequestedWordsAndLengthNeverTriggersFallback[jvm]" classname="app.resound.ask.AskEngine136Test" time="0.007"/>
+  <testcase name="casualMarkerIsHiddenInBothModesButUncitedPersonalAnswerStillFails[jvm]" classname="app.resound.ask.AskEngine136Test" time="0.002"/>
+  <testcase name="secondRound400RetriesWithoutToolHistoryAndDoesNotRepeatProposal[jvm]" classname="app.resound.ask.AskEngine136Test" time="0.002"/>
+  <testcase name="malformedToolRequestRetriesOnceWithPrefetchedReferencesAndCountsBothCalls[jvm]" classname="app.resound.ask.AskEngine136Test" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

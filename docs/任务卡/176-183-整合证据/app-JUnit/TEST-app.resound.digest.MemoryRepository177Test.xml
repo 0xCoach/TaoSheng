@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.MemoryRepository177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:40:43.011Z" hostname="CoachdeMacBook-Air.local" time="0.106">
+  <properties/>
+  <testcase name="queriesAndCommandsMatchOldRepository" classname="app.resound.digest.MemoryRepository177Test" time="0.106"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

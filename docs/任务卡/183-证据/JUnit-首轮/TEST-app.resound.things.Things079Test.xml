@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.things.Things079Test" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:44.358Z" hostname="CoachdeMacBook-Air.local" time="0.323">
+  <properties/>
+  <testcase name="pendingAcceptIgnoreAndBulkRemainSeparate" classname="app.resound.things.Things079Test" time="0.017"/>
+  <testcase name="duplicatesUseCurrentLocationAndUpdatePendingWithinTwoHours" classname="app.resound.things.Things079Test" time="0.011"/>
+  <testcase name="sameAsSupportsBothChoicesAndRenamedPendingMergesAlias" classname="app.resound.things.Things079Test" time="0.011"/>
+  <testcase name="dayVolumesRoundTripThingsRecordsAndWatermark" classname="app.resound.things.Things079Test" time="0.051"/>
+  <testcase name="completedRoundRequestsDetectionOnlyWhenNewLinesExist" classname="app.resound.things.Things079Test" time="0.047"/>
+  <testcase name="autoOffAdvancesAndToggleDuringRequestCannotInsertOldResults" classname="app.resound.things.Things079Test" time="0.013"/>
+  <testcase name="askToolIncludesUnconfirmedAndReferencesRealLineIds" classname="app.resound.things.Things079Test" time="0.02"/>
+  <testcase name="promptParsesUncertainKnownAndRejectsContextOnlyEvidence" classname="app.resound.things.Things079Test" time="0.008"/>
+  <testcase name="firstStartSkipsOldHistoryButKeepsRecentLines" classname="app.resound.things.Things079Test" time="0.01"/>
+  <testcase name="migration1ToLatestUsesWholeRegisteredChain" classname="app.resound.things.Things079Test" time="0.044"/>
+  <testcase name="batchesHave80Lines20ContextExcludeImportMediaAndNotifyOnlyExplicit" classname="app.resound.things.Things079Test" time="0.025"/>
+  <testcase name="deleteLineRedoAndEventDeletionRemovePendingButKeepAcceptedSnapshot" classname="app.resound.things.Things079Test" time="0.014"/>
+  <testcase name="failureWatermarkSurvivesRestartAndSkipsOnlyAfterThirdFailure" classname="app.resound.things.Things079Test" time="0.011"/>
+  <testcase name="searchMatchesAliasesLastPlaceAndBorrowerWithLiteralLikeEscaping" classname="app.resound.things.Things079Test" time="0.011"/>
+  <testcase name="migration26ToLatestPreservesRowsAndInstallsCleanup" classname="app.resound.things.Things079Test" time="0.018"/>
+  <testcase name="manualFallbackAddReturnEditAndDeletionRespectContract" classname="app.resound.things.Things079Test" time="0.011"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

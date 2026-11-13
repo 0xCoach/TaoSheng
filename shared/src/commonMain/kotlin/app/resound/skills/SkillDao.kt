@@ -67,7 +67,7 @@ abstract class SkillDao {
     abstract suspend fun items(events: List<Long>): List<MemoryItemEntity>
     @Query("SELECT * FROM memory_items WHERE eventId IS NULL AND deleted = 0 AND mergedInto IS NULL AND status != 'Ignored' AND createdAt >= :start AND createdAt < :end ORDER BY createdAt, id")
     abstract suspend fun standaloneItems(start: Long, end: Long): List<MemoryItemEntity>
-    @Query("SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId LEFT JOIN memory_events e ON e.id = l.eventId WHERE s.status = 'Done' AND l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id")
+    @Query("SELECT l.* FROM transcript_lines l INDEXED BY index_transcript_lines_startAt CROSS JOIN segments s ON s.id = l.segmentId LEFT JOIN memory_events e ON e.id = l.eventId WHERE s.status = 'Done' AND l.startAt >= :start AND l.startAt < :end AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id")
     abstract suspend fun lines(start: Long, end: Long): List<TranscriptLineEntity>
     @Query("SELECT * FROM transcript_lines WHERE eventId IN (:events) ORDER BY startAt, id")
     abstract suspend fun eventLines(events: List<Long>): List<TranscriptLineEntity>

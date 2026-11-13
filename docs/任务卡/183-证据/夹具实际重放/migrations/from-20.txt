@@ -1,0 +1,361 @@
+user_version=34
+["index","index_app_power_at","app_power","CREATE INDEX `index_app_power_at` ON `app_power` (`at`)"]
+["index","index_ask_messages_conversationId","ask_messages","CREATE INDEX `index_ask_messages_conversationId` ON `ask_messages` (`conversationId`)"]
+["index","index_battery_at","battery","CREATE INDEX `index_battery_at` ON `battery` (`at`)"]
+["index","index_env_sounds_startAt","env_sounds","CREATE INDEX index_env_sounds_startAt ON env_sounds(startAt)"]
+["index","index_heartbeats_at","heartbeats","CREATE INDEX `index_heartbeats_at` ON `heartbeats` (`at`)"]
+["index","index_import_records_pendingId","import_records","CREATE UNIQUE INDEX index_import_records_pendingId ON import_records(pendingId)"]
+["index","index_import_records_startAt","import_records","CREATE INDEX index_import_records_startAt ON import_records(startAt)"]
+["index","index_location_points_at","location_points","CREATE INDEX `index_location_points_at` ON `location_points` (`at`)"]
+["index","index_memory_events_startAt","memory_events","CREATE INDEX `index_memory_events_startAt` ON `memory_events` (`startAt`)"]
+["index","index_memory_items_dueAt","memory_items","CREATE INDEX `index_memory_items_dueAt` ON `memory_items` (`dueAt`)"]
+["index","index_memory_items_eventId","memory_items","CREATE INDEX `index_memory_items_eventId` ON `memory_items` (`eventId`)"]
+["index","index_memory_items_status","memory_items","CREATE INDEX `index_memory_items_status` ON `memory_items` (`status`)"]
+["index","index_reviews_type_startDate_endDate","reviews","CREATE UNIQUE INDEX `index_reviews_type_startDate_endDate` ON `reviews` (`type`, `startDate`, `endDate`)"]
+["index","index_segments_importRecordId","segments","CREATE INDEX index_segments_importRecordId ON segments(importRecordId)"]
+["index","index_segments_path","segments","CREATE UNIQUE INDEX `index_segments_path` ON `segments` (`path`)"]
+["index","index_segments_startAt","segments","CREATE INDEX `index_segments_startAt` ON `segments` (`startAt`)"]
+["index","index_segments_status_voiceprintProcessedAt","segments","CREATE INDEX `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)"]
+["index","index_skill_cards_date","skill_cards","CREATE INDEX `index_skill_cards_date` ON `skill_cards` (`date`)"]
+["index","index_skill_cards_skillId_date","skill_cards","CREATE INDEX `index_skill_cards_skillId_date` ON `skill_cards` (`skillId`, `date`)"]
+["index","index_skill_runs_skillId_date","skill_runs","CREATE INDEX `index_skill_runs_skillId_date` ON `skill_runs` (`skillId`, `date`)"]
+["index","index_thing_records_at","thing_records","CREATE INDEX index_thing_records_at ON thing_records(at)"]
+["index","index_thing_records_sourceLineId","thing_records","CREATE INDEX index_thing_records_sourceLineId ON thing_records(sourceLineId)"]
+["index","index_thing_records_status","thing_records","CREATE INDEX index_thing_records_status ON thing_records(status)"]
+["index","index_thing_records_thingId","thing_records","CREATE INDEX index_thing_records_thingId ON thing_records(thingId)"]
+["index","index_topic_marks_topicId","topic_marks","CREATE INDEX index_topic_marks_topicId ON topic_marks(topicId)"]
+["index","index_topic_spans_startAt","topic_spans","CREATE INDEX index_topic_spans_startAt ON topic_spans(startAt)"]
+["index","index_topic_spans_topicId","topic_spans","CREATE INDEX index_topic_spans_topicId ON topic_spans(topicId)"]
+["index","index_topics_createdAt","topics","CREATE INDEX index_topics_createdAt ON topics(createdAt)"]
+["index","index_topics_status","topics","CREATE INDEX index_topics_status ON topics(status)"]
+["index","index_transcript_lines_eventId","transcript_lines","CREATE INDEX `index_transcript_lines_eventId` ON `transcript_lines` (`eventId`)"]
+["index","index_transcript_lines_segmentId","transcript_lines","CREATE INDEX `index_transcript_lines_segmentId` ON `transcript_lines` (`segmentId`)"]
+["index","index_transcript_lines_startAt","transcript_lines","CREATE INDEX `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)"]
+["index","index_voiceprint_people_name","voiceprint_people","CREATE UNIQUE INDEX `index_voiceprint_people_name` ON `voiceprint_people` (`name`)"]
+["index","index_voiceprint_samples_segmentId_groupKey","voiceprint_samples","CREATE UNIQUE INDEX `index_voiceprint_samples_segmentId_groupKey` ON `voiceprint_samples` (`segmentId`, `groupKey`)"]
+["index","index_watchdog_at","watchdog","CREATE INDEX `index_watchdog_at` ON `watchdog` (`at`)"]
+["index","sqlite_autoindex_asr_usage_1","asr_usage",null]
+["index","sqlite_autoindex_device_transfers_1","device_transfers",null]
+["index","sqlite_autoindex_digest_pending_1","digest_pending",null]
+["index","sqlite_autoindex_embeddings_1","embeddings",null]
+["index","sqlite_autoindex_events_fts_segdir_1","events_fts_segdir",null]
+["index","sqlite_autoindex_folder_observations_1","folder_observations",null]
+["index","sqlite_autoindex_import_fingerprints_1","import_fingerprints",null]
+["index","sqlite_autoindex_items_fts_segdir_1","items_fts_segdir",null]
+["index","sqlite_autoindex_lines_fts_segdir_1","lines_fts_segdir",null]
+["index","sqlite_autoindex_llm_usage_v2_1","llm_usage_v2",null]
+["index","sqlite_autoindex_location_places_1","location_places",null]
+["index","sqlite_autoindex_privacy_file_cleanup_1","privacy_file_cleanup",null]
+["index","sqlite_autoindex_voiceprint_exclusions_1","voiceprint_exclusions",null]
+["table","android_metadata","android_metadata","CREATE TABLE android_metadata (locale TEXT)"]
+["table","app_power","app_power","CREATE TABLE `app_power` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `elapsedMs` INTEGER NOT NULL, `session` TEXT NOT NULL, `cpuMs` INTEGER NOT NULL, `txBytes` INTEGER NOT NULL, `rxBytes` INTEGER NOT NULL, `micMs` INTEGER NOT NULL, `charging` INTEGER, `chargeEpoch` INTEGER NOT NULL, `capacityMah` REAL NOT NULL)"]
+["table","ask_conversations","ask_conversations","CREATE TABLE `ask_conversations` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createdAt` INTEGER NOT NULL, `title` TEXT NOT NULL)"]
+["table","ask_messages","ask_messages","CREATE TABLE `ask_messages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `conversationId` INTEGER NOT NULL, `role` TEXT NOT NULL, `text` TEXT NOT NULL, `sourcesJson` TEXT NOT NULL, `at` INTEGER NOT NULL, `error` TEXT, `actionJson` TEXT, FOREIGN KEY(`conversationId`) REFERENCES `ask_conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"]
+["table","asr_attempts","asr_attempts","CREATE TABLE `asr_attempts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `segmentId` INTEGER, `at` INTEGER NOT NULL, `result` TEXT NOT NULL, `errorType` TEXT, `elapsedMillis` INTEGER NOT NULL, `sentMillis` INTEGER NOT NULL, `logId` TEXT)"]
+["table","asr_usage","asr_usage","CREATE TABLE `asr_usage` (`day` TEXT NOT NULL, `sentMillis` INTEGER NOT NULL, PRIMARY KEY(`day`))"]
+["table","battery","battery","CREATE TABLE `battery` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `percent` INTEGER, `charging` INTEGER)"]
+["table","device_transfers","device_transfers","CREATE TABLE device_transfers (`key` TEXT NOT NULL PRIMARY KEY, device TEXT NOT NULL, fileId TEXT NOT NULL, name TEXT NOT NULL, size INTEGER, startedAt INTEGER, duration INTEGER, format TEXT NOT NULL, fromMillis INTEGER NOT NULL, toMillis INTEGER NOT NULL, phoneStart INTEGER NOT NULL, received INTEGER NOT NULL, imported INTEGER NOT NULL, deleted INTEGER NOT NULL)"]
+["table","digest_pending","digest_pending","CREATE TABLE digest_pending (id TEXT NOT NULL PRIMARY KEY, lineIds TEXT NOT NULL, content TEXT NOT NULL, day TEXT NOT NULL, promptTokens INTEGER NOT NULL, completionTokens INTEGER NOT NULL, thingRevision INTEGER)"]
+["table","embeddings","embeddings","CREATE TABLE `embeddings` (`kind` TEXT NOT NULL, `refId` INTEGER NOT NULL, `model` TEXT NOT NULL, `dim` INTEGER NOT NULL, `vector` BLOB NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`kind`, `refId`))"]
+["table","env_sounds","env_sounds","CREATE TABLE env_sounds (segmentId INTEGER NOT NULL PRIMARY KEY, startAt INTEGER NOT NULL, endAt INTEGER NOT NULL, path TEXT NOT NULL, verdict TEXT NOT NULL, reason TEXT, tags TEXT NOT NULL, sounds TEXT NOT NULL, scores TEXT NOT NULL, skipped INTEGER NOT NULL, markMedia INTEGER NOT NULL, restored INTEGER NOT NULL, reportedWrong INTEGER NOT NULL, elapsedMs INTEGER NOT NULL, FOREIGN KEY(segmentId) REFERENCES segments(id) ON UPDATE NO ACTION ON DELETE CASCADE)"]
+["table","events_fts","events_fts","CREATE VIRTUAL TABLE `events_fts` USING FTS4(`title` TEXT NOT NULL, `summary` TEXT NOT NULL, `points` TEXT NOT NULL)"]
+["table","events_fts_content","events_fts_content","CREATE TABLE 'events_fts_content'(docid INTEGER PRIMARY KEY, 'c0title', 'c1summary', 'c2points')"]
+["table","events_fts_docsize","events_fts_docsize","CREATE TABLE 'events_fts_docsize'(docid INTEGER PRIMARY KEY, size BLOB)"]
+["table","events_fts_segdir","events_fts_segdir","CREATE TABLE 'events_fts_segdir'(level INTEGER,idx INTEGER,start_block INTEGER,leaves_end_block INTEGER,end_block INTEGER,root BLOB,PRIMARY KEY(level, idx))"]
+["table","events_fts_segments","events_fts_segments","CREATE TABLE 'events_fts_segments'(blockid INTEGER PRIMARY KEY, block BLOB)"]
+["table","events_fts_stat","events_fts_stat","CREATE TABLE 'events_fts_stat'(id INTEGER PRIMARY KEY, value BLOB)"]
+["table","folder_observations","folder_observations","CREATE TABLE folder_observations (folderId TEXT NOT NULL, documentId TEXT NOT NULL, size INTEGER NOT NULL, modified INTEGER NOT NULL, ignored INTEGER NOT NULL, fingerprint TEXT, PRIMARY KEY(folderId, documentId))"]
+["table","heartbeats","heartbeats","CREATE TABLE `heartbeats` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `intervalStart` INTEGER NOT NULL, `running` INTEGER NOT NULL, `session` TEXT NOT NULL)"]
+["table","import_fingerprints","import_fingerprints","CREATE TABLE import_fingerprints (fingerprint TEXT NOT NULL PRIMARY KEY, seenAt INTEGER NOT NULL)"]
+["table","import_records","import_records","CREATE TABLE import_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, pendingId TEXT NOT NULL, fileName TEXT NOT NULL, kind TEXT NOT NULL, startAt INTEGER NOT NULL, endAt INTEGER NOT NULL, byChannel INTEGER NOT NULL, status TEXT NOT NULL, error TEXT, cardId INTEGER, ingestComplete INTEGER NOT NULL, revision INTEGER NOT NULL, summaryRequested INTEGER NOT NULL, speakersReady INTEGER NOT NULL)"]
+["table","items_fts","items_fts","CREATE VIRTUAL TABLE `items_fts` USING FTS4(`content` TEXT NOT NULL)"]
+["table","items_fts_content","items_fts_content","CREATE TABLE 'items_fts_content'(docid INTEGER PRIMARY KEY, 'c0content')"]
+["table","items_fts_docsize","items_fts_docsize","CREATE TABLE 'items_fts_docsize'(docid INTEGER PRIMARY KEY, size BLOB)"]
+["table","items_fts_segdir","items_fts_segdir","CREATE TABLE 'items_fts_segdir'(level INTEGER,idx INTEGER,start_block INTEGER,leaves_end_block INTEGER,end_block INTEGER,root BLOB,PRIMARY KEY(level, idx))"]
+["table","items_fts_segments","items_fts_segments","CREATE TABLE 'items_fts_segments'(blockid INTEGER PRIMARY KEY, block BLOB)"]
+["table","items_fts_stat","items_fts_stat","CREATE TABLE 'items_fts_stat'(id INTEGER PRIMARY KEY, value BLOB)"]
+["table","lines_fts","lines_fts","CREATE VIRTUAL TABLE `lines_fts` USING FTS4(`text` TEXT NOT NULL)"]
+["table","lines_fts_content","lines_fts_content","CREATE TABLE 'lines_fts_content'(docid INTEGER PRIMARY KEY, 'c0text')"]
+["table","lines_fts_docsize","lines_fts_docsize","CREATE TABLE 'lines_fts_docsize'(docid INTEGER PRIMARY KEY, size BLOB)"]
+["table","lines_fts_segdir","lines_fts_segdir","CREATE TABLE 'lines_fts_segdir'(level INTEGER,idx INTEGER,start_block INTEGER,leaves_end_block INTEGER,end_block INTEGER,root BLOB,PRIMARY KEY(level, idx))"]
+["table","lines_fts_segments","lines_fts_segments","CREATE TABLE 'lines_fts_segments'(blockid INTEGER PRIMARY KEY, block BLOB)"]
+["table","lines_fts_stat","lines_fts_stat","CREATE TABLE 'lines_fts_stat'(id INTEGER PRIMARY KEY, value BLOB)"]
+["table","llm_usage_v2","llm_usage_v2","CREATE TABLE `llm_usage_v2` (`day` TEXT NOT NULL, `purpose` TEXT NOT NULL, `promptTokens` INTEGER NOT NULL, `completionTokens` INTEGER NOT NULL, `calls` INTEGER NOT NULL, PRIMARY KEY(`day`, `purpose`))"]
+["table","location_places","location_places","CREATE TABLE `location_places` (`cell` TEXT NOT NULL, `name` TEXT NOT NULL, `address` TEXT NOT NULL, `source` TEXT NOT NULL, `at` INTEGER NOT NULL, lat REAL, lng REAL, home INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`cell`))"]
+["table","location_points","location_points","CREATE TABLE `location_points` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `lat` REAL NOT NULL, `lng` REAL NOT NULL, `accuracy` REAL NOT NULL, `provider` TEXT NOT NULL)"]
+["table","memory_events","memory_events","CREATE TABLE `memory_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `scene` TEXT NOT NULL, `title` TEXT NOT NULL, `summary` TEXT NOT NULL, `pointsJson` TEXT NOT NULL, `peopleJson` TEXT NOT NULL, `place` TEXT, `emotion` TEXT, `intensity` INTEGER, `important` INTEGER NOT NULL, `deleted` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL, `model` TEXT NOT NULL, `starred` INTEGER NOT NULL DEFAULT 0, `starredAt` INTEGER, `editedAt` INTEGER, `originalTitle` TEXT, `originalSummary` TEXT, `originalPointsJson` TEXT)"]
+["table","memory_items","memory_items","CREATE TABLE `memory_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `eventId` INTEGER, `category` TEXT NOT NULL, `kind` TEXT, `content` TEXT NOT NULL, `dueText` TEXT, `dueAt` INTEGER, `who` TEXT, `lineId` INTEGER, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `doneAt` INTEGER, `statusChangedAt` INTEGER, `sortOrder` INTEGER, `mergedInto` INTEGER, `noMerge` INTEGER NOT NULL DEFAULT 0, `deleted` INTEGER NOT NULL DEFAULT 0, `editedAt` INTEGER, `doneHintLineId` INTEGER, `doneHintAt` INTEGER, `dismissedDoneLinesJson` TEXT NOT NULL DEFAULT '[]', `reminderVersion` INTEGER NOT NULL DEFAULT 0, `origin` TEXT NOT NULL DEFAULT 'digest', `sourceText` TEXT, `strongReminder` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`eventId`) REFERENCES `memory_events`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"]
+["table","privacy_file_cleanup","privacy_file_cleanup","CREATE TABLE privacy_file_cleanup (path TEXT NOT NULL PRIMARY KEY)"]
+["table","redo_snapshot","redo_snapshot","CREATE TABLE redo_snapshot (slot INTEGER NOT NULL PRIMARY KEY, jobId TEXT NOT NULL, at INTEGER NOT NULL, payload TEXT NOT NULL, applied INTEGER NOT NULL)"]
+["table","reviews","reviews","CREATE TABLE `reviews` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `startDate` TEXT NOT NULL, `endDate` TEXT NOT NULL, `brief` TEXT NOT NULL, `sectionsJson` TEXT NOT NULL, `generatedAt` INTEGER NOT NULL, `model` TEXT NOT NULL)"]
+["table","room_master_table","room_master_table","CREATE TABLE room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)"]
+["table","segments","segments","CREATE TABLE `segments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `sourceId` TEXT NOT NULL, `path` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL DEFAULT 0, `nextRetryAt` INTEGER, `error` TEXT, `completedAt` INTEGER, `logId` TEXT, `sentMillis` INTEGER NOT NULL DEFAULT 0, `voiceprintProcessedAt` INTEGER, `playbackMillis` INTEGER NOT NULL DEFAULT 0, firstFailedAt INTEGER, asrSource TEXT, redoPending INTEGER NOT NULL DEFAULT 0, separateSpeakers INTEGER, importRecordId INTEGER REFERENCES import_records(id) ON DELETE SET NULL, importChannel INTEGER, speakerCount INTEGER)"]
+["table","skill_cards","skill_cards","CREATE TABLE `skill_cards` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `skillId` TEXT NOT NULL, `skillVersion` INTEGER NOT NULL, `skillName` TEXT NOT NULL, `icon` TEXT NOT NULL, `date` INTEGER NOT NULL, `entity` TEXT NOT NULL, `at` INTEGER NOT NULL, `endAt` INTEGER, `title` TEXT NOT NULL, `summary` TEXT NOT NULL, `fieldsJson` TEXT NOT NULL, `valuesJson` TEXT NOT NULL, `evidenceJson` TEXT NOT NULL, `generatedAt` INTEGER NOT NULL, `manual` INTEGER NOT NULL, `deletedAt` INTEGER, `aliasesJson` TEXT NOT NULL)"]
+["table","skill_runs","skill_runs","CREATE TABLE `skill_runs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `skillId` TEXT NOT NULL, `date` INTEGER NOT NULL, `at` INTEGER NOT NULL, `ok` INTEGER NOT NULL, `result` TEXT NOT NULL, `tokens` INTEGER NOT NULL, `kind` TEXT NOT NULL, `retryable` INTEGER NOT NULL, `purpose` TEXT NOT NULL)"]
+["table","sqlite_sequence","sqlite_sequence","CREATE TABLE sqlite_sequence(name,seq)"]
+["table","thing_records","thing_records","CREATE TABLE thing_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, thingId INTEGER, name TEXT NOT NULL, action TEXT NOT NULL, place TEXT, who TEXT, owner TEXT NOT NULL, at INTEGER NOT NULL, sourceLineId INTEGER, sourceText TEXT, status TEXT NOT NULL, origin TEXT NOT NULL, explicit INTEGER NOT NULL, sameAsId INTEGER, createdAt INTEGER NOT NULL, acceptedAt INTEGER, aliasesJson TEXT NOT NULL)"]
+["table","thing_watch_state","thing_watch_state","CREATE TABLE thing_watch_state (slot INTEGER NOT NULL PRIMARY KEY, watermark INTEGER NOT NULL, enabled INTEGER NOT NULL, revision INTEGER NOT NULL, failedEnd INTEGER, failures INTEGER NOT NULL)"]
+["table","things","things","CREATE TABLE things (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, aliasesJson TEXT NOT NULL, owner TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, deleted INTEGER NOT NULL)"]
+["table","topic_marks","topic_marks","CREATE TABLE topic_marks (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, topicId INTEGER NOT NULL, at INTEGER NOT NULL, FOREIGN KEY(topicId) REFERENCES topics(id) ON UPDATE NO ACTION ON DELETE CASCADE)"]
+["table","topic_spans","topic_spans","CREATE TABLE topic_spans (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, topicId INTEGER NOT NULL, startAt INTEGER NOT NULL, endAt INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id) ON UPDATE NO ACTION ON DELETE CASCADE)"]
+["table","topics","topics","CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, kind TEXT NOT NULL, name TEXT, status TEXT NOT NULL, createdAt INTEGER NOT NULL, plannedStartAt INTEGER, plannedEndAt INTEGER, repeatRule INTEGER, eventId INTEGER, cardId INTEGER, error TEXT, revision INTEGER NOT NULL, quietOverride INTEGER NOT NULL, retainedItemIds TEXT NOT NULL, starred INTEGER NOT NULL, quietNotifiedAfter INTEGER, endingNotifiedAt INTEGER)"]
+["table","transcript_lines","transcript_lines","CREATE TABLE `transcript_lines` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `segmentId` INTEGER NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `text` TEXT NOT NULL, `speakerTag` TEXT, `speakerName` TEXT, `eventId` INTEGER, `digestedAt` INTEGER, `speakerScore` REAL, `speakerPersonId` INTEGER, `speakerManual` INTEGER NOT NULL DEFAULT 0, `voiceInputJson` TEXT, `voiceInputPendingUntil` INTEGER, originalText TEXT, FOREIGN KEY(`segmentId`) REFERENCES `segments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"]
+["table","voiceprint_exclusions","voiceprint_exclusions","CREATE TABLE `voiceprint_exclusions` (`segmentId` INTEGER NOT NULL, `groupKey` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`segmentId`, `groupKey`))"]
+["table","voiceprint_people","voiceprint_people","CREATE TABLE `voiceprint_people` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)"]
+["table","voiceprint_samples","voiceprint_samples","CREATE TABLE `voiceprint_samples` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `sourceLineId` INTEGER, `segmentId` INTEGER, `groupKey` TEXT, `vector` BLOB NOT NULL, `durationMillis` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `personId` INTEGER NOT NULL DEFAULT 0)"]
+["table","watchdog","watchdog","CREATE TABLE `watchdog` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `type` TEXT NOT NULL, `detail` TEXT, `batteryPercent` INTEGER, `charging` INTEGER, `gapStart` INTEGER, `gapEnd` INTEGER)"]
+["trigger","digest_pending_source_deleted","transcript_lines","CREATE TRIGGER digest_pending_source_deleted AFTER DELETE ON transcript_lines BEGIN DELETE FROM digest_pending WHERE instr(',' || lineIds || ',', ',' || OLD.id || ',') > 0; END"]
+["trigger","import_segment_deleted","segments","CREATE TRIGGER import_segment_deleted AFTER DELETE ON segments WHEN OLD.importRecordId IS NOT NULL BEGIN DELETE FROM skill_cards WHERE id = (SELECT cardId FROM import_records WHERE id = OLD.importRecordId); UPDATE import_records SET cardId = NULL, revision = revision + 1, status = 'Transcribing', error = NULL, summaryRequested = 1 WHERE id = OLD.importRecordId; DELETE FROM import_records WHERE id = OLD.importRecordId AND ingestComplete = 1 AND NOT EXISTS (SELECT 1 FROM segments WHERE importRecordId = OLD.importRecordId); END"]
+["trigger","things_event_deleted","memory_events","CREATE TRIGGER things_event_deleted BEFORE DELETE ON memory_events BEGIN DELETE FROM thing_records WHERE status = 'Pending' AND sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = OLD.id); UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = OLD.id); END"]
+["trigger","things_event_hidden","memory_events","CREATE TRIGGER things_event_hidden AFTER UPDATE OF deleted ON memory_events WHEN NEW.deleted = 1 BEGIN DELETE FROM thing_records WHERE status = 'Pending' AND sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = NEW.id); UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId IN (SELECT id FROM transcript_lines WHERE eventId = NEW.id); END"]
+["trigger","things_line_deleted","transcript_lines","CREATE TRIGGER things_line_deleted BEFORE DELETE ON transcript_lines BEGIN DELETE FROM thing_records WHERE sourceLineId = OLD.id AND status = 'Pending'; UPDATE thing_records SET sourceLineId = NULL WHERE sourceLineId = OLD.id; END"]
+TABLE android_metadata
+columns=["locale"]
+[{"text":"en_US"}]
+TABLE app_power
+columns=["id","at","elapsedMs","session","cpuMs","txBytes","rxBytes","micMs","charging","chargeEpoch","capacityMah"]
+[{"integer":1},{"integer":1794448801000},{"integer":1},{"text":"合成-app_power-session-1"},{"integer":1},{"integer":1},{"integer":1},{"integer":1},null,{"integer":1},{"real":1.125}]
+[{"integer":2},{"integer":1794448802000},{"integer":2},{"text":"合成-app_power-session-2"},{"integer":2},{"integer":2},{"integer":2},{"integer":2},{"integer":2},{"integer":2},{"real":2.125}]
+[{"integer":3},{"integer":1794448803000},{"integer":3},{"text":"合成-app_power-session-3"},{"integer":3},{"integer":3},{"integer":3},{"integer":3},{"integer":3},{"integer":3},{"real":3.125}]
+TABLE ask_conversations
+columns=["id","createdAt","title"]
+[{"integer":1},{"integer":1794448801000},{"text":"合成-ask_conversations-title-1"}]
+[{"integer":2},{"integer":1794448802000},{"text":"合成-ask_conversations-title-2"}]
+[{"integer":3},{"integer":1794448803000},{"text":"合成-ask_conversations-title-3"}]
+TABLE ask_messages
+columns=["id","conversationId","role","text","sourcesJson","at","error","actionJson"]
+[{"integer":1},{"integer":1},{"text":"合成-ask_messages-role-1"},{"text":"合成-ask_messages-text-1"},{"text":"[]"},{"integer":1794448801000},null,null]
+[{"integer":2},{"integer":2},{"text":"合成-ask_messages-role-2"},{"text":"合成-ask_messages-text-2"},{"text":"[]"},{"integer":1794448802000},{"text":"合成-ask_messages-error-2"},{"text":"[]"}]
+[{"integer":3},{"integer":3},{"text":"合成-ask_messages-role-3"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"[]"},{"integer":1794448803000},{"text":"合成-ask_messages-error-3"},{"text":"[]"}]
+TABLE asr_attempts
+columns=["id","segmentId","at","result","errorType","elapsedMillis","sentMillis","logId"]
+[{"integer":1},null,{"integer":1794448801000},{"text":"Failed"},null,{"integer":1},{"integer":1},null]
+[{"integer":2},{"integer":2},{"integer":1794448802000},{"text":"Failed"},{"text":"合成-asr_attempts-errorType-2"},{"integer":2},{"integer":2},{"text":"合成-asr_attempts-logId-2"}]
+[{"integer":3},{"integer":3},{"integer":1794448803000},{"text":"Failed"},{"text":"合成-asr_attempts-errorType-3"},{"integer":3},{"integer":3},{"text":"合成-asr_attempts-logId-3"}]
+TABLE asr_usage
+columns=["day","sentMillis"]
+[{"text":"2026-11-11"},{"integer":1}]
+[{"text":"2026-11-12"},{"integer":2}]
+[{"text":"2026-11-13"},{"integer":3}]
+TABLE battery
+columns=["id","at","percent","charging"]
+[{"integer":1},{"integer":1794448801000},null,null]
+[{"integer":2},{"integer":1794448802000},{"integer":2},{"integer":2}]
+[{"integer":3},{"integer":1794448803000},{"integer":3},{"integer":3}]
+TABLE device_transfers
+columns=["key","device","fileId","name","size","startedAt","duration","format","fromMillis","toMillis","phoneStart","received","imported","deleted"]
+
+TABLE digest_pending
+columns=["id","lineIds","content","day","promptTokens","completionTokens","thingRevision"]
+
+TABLE embeddings
+columns=["kind","refId","model","dim","vector","updatedAt"]
+[{"text":"合成-embeddings-kind-1"},{"integer":1},{"text":"合成-embeddings-model-1"},{"integer":1},{"blob":"0001ff2a"},{"integer":1794448801000}]
+[{"text":"合成-embeddings-kind-2"},{"integer":2},{"text":"合成-embeddings-model-2"},{"integer":2},{"blob":"0002ff2a"},{"integer":1794448802000}]
+[{"text":"合成-embeddings-kind-3"},{"integer":3},{"text":"合成-embeddings-model-3"},{"integer":3},{"blob":"0003ff2a"},{"integer":1794448803000}]
+TABLE env_sounds
+columns=["segmentId","startAt","endAt","path","verdict","reason","tags","sounds","scores","skipped","markMedia","restored","reportedWrong","elapsedMs"]
+
+TABLE events_fts
+columns=["rowid","title","summary","points"]
+[{"integer":1},{"text":"合成-events_fts-title-1"},{"text":"合成-events_fts-summary-1"},{"text":"合成-events_fts-points-1"}]
+[{"integer":2},{"text":"合成-events_fts-title-2"},{"text":"合成-events_fts-summary-2"},{"text":"合成-events_fts-points-2"}]
+[{"integer":3},{"text":"合成-events_fts-title-3"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"合成-events_fts-points-3"}]
+TABLE events_fts_content
+columns=["docid","c0title","c1summary","c2points"]
+[{"integer":1},{"text":"合成-events_fts-title-1"},{"text":"合成-events_fts-summary-1"},{"text":"合成-events_fts-points-1"}]
+[{"integer":2},{"text":"合成-events_fts-title-2"},{"text":"合成-events_fts-summary-2"},{"text":"合成-events_fts-points-2"}]
+[{"integer":3},{"text":"合成-events_fts-title-3"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"合成-events_fts-points-3"}]
+TABLE events_fts_docsize
+columns=["docid","size"]
+[{"integer":1},{"blob":"050505"}]
+[{"integer":2},{"blob":"050505"}]
+[{"integer":3},{"blob":"05810105"}]
+TABLE events_fts_segdir
+columns=["level","idx","start_block","leaves_end_block","end_block","root"]
+[{"integer":0},{"integer":0},{"integer":0},{"integer":0},{"text":"0 104"},{"blob":"0001310901060101060102060000066576656e7473090103010103010203000003667473090104010104010204000006706f696e7473050101020500000773756d6d61727905010101050000057469746c65030105000006e59088e6889009010201010201020200"}]
+[{"integer":0},{"integer":1},{"integer":0},{"integer":0},{"text":"0 104"},{"blob":"0001320902060101060102060000066576656e7473090203010103010203000003667473090204010104010204000006706f696e7473050201020500000773756d6d61727905020101050000057469746c65030205000006e59088e6889009020201010201020200"}]
+[{"integer":0},{"integer":2},{"integer":0},{"integer":0},{"text":"0 277"},{"blob":"0001330603060102060000066576656e74730603030102030000036674730603040102040000016e060301018201000112e995bfe4b8ade69687efbc8ce6a087e782b943030101040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404000006706f696e747305030102050000057469746c65030305000006e59088e68890060302010202000105bc95e58fb74403010103040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404000012e995bfe4b8ade69687efbc8ce6a087e782b9050301010200"}]
+TABLE events_fts_segments
+columns=["blockid","block"]
+
+TABLE events_fts_stat
+columns=["id","value"]
+[{"integer":0},{"blob":"030f8b010f8f10"}]
+TABLE folder_observations
+columns=["folderId","documentId","size","modified","ignored","fingerprint"]
+
+TABLE heartbeats
+columns=["id","at","intervalStart","running","session"]
+[{"integer":1},{"integer":1794448801000},{"integer":1},{"integer":1},{"text":"合成-heartbeats-session-1"}]
+[{"integer":2},{"integer":1794448802000},{"integer":2},{"integer":2},{"text":"合成-heartbeats-session-2"}]
+[{"integer":3},{"integer":1794448803000},{"integer":3},{"integer":3},{"text":"合成-heartbeats-session-3"}]
+TABLE import_fingerprints
+columns=["fingerprint","seenAt"]
+
+TABLE import_records
+columns=["id","pendingId","fileName","kind","startAt","endAt","byChannel","status","error","cardId","ingestComplete","revision","summaryRequested","speakersReady"]
+
+TABLE items_fts
+columns=["rowid","content"]
+[{"integer":1},{"text":"合成-items_fts-content-1"}]
+[{"integer":2},{"text":"合成-items_fts-content-2"}]
+[{"integer":3},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"}]
+TABLE items_fts_content
+columns=["docid","c0content"]
+[{"integer":1},{"text":"合成-items_fts-content-1"}]
+[{"integer":2},{"text":"合成-items_fts-content-2"}]
+[{"integer":3},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"}]
+TABLE items_fts_docsize
+columns=["docid","size"]
+[{"integer":1},{"blob":"05"}]
+[{"integer":2},{"blob":"05"}]
+[{"integer":3},{"blob":"8101"}]
+TABLE items_fts_segdir
+columns=["level","idx","start_block","leaves_end_block","end_block","root"]
+[{"integer":0},{"integer":0},{"integer":0},{"integer":0},{"text":"0 52"},{"blob":"000131030106000007636f6e74656e740301050000036674730301040000056974656d73030103000006e59088e6889003010200"}]
+[{"integer":0},{"integer":1},{"integer":0},{"integer":0},{"text":"0 52"},{"blob":"000132030206000007636f6e74656e740302050000036674730302040000056974656d73030203000006e59088e6889003020200"}]
+[{"integer":0},{"integer":2},{"integer":0},{"integer":0},{"text":"0 193"},{"blob":"00016e04038201000112e995bfe4b8ade69687efbc8ce6a087e782b94103040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404000006e5bc95e58fb7420303040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404000012e995bfe4b8ade69687efbc8ce6a087e782b903030200"}]
+TABLE items_fts_segments
+columns=["blockid","block"]
+
+TABLE items_fts_stat
+columns=["id","value"]
+[{"integer":0},{"blob":"038b01f40e"}]
+TABLE lines_fts
+columns=["rowid","text"]
+[{"integer":1},{"text":"合成-lines_fts-text-1"}]
+[{"integer":2},{"text":"合成-lines_fts-text-2"}]
+[{"integer":3},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"}]
+TABLE lines_fts_content
+columns=["docid","c0text"]
+[{"integer":1},{"text":"合成-lines_fts-text-1"}]
+[{"integer":2},{"text":"合成-lines_fts-text-2"}]
+[{"integer":3},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"}]
+TABLE lines_fts_docsize
+columns=["docid","size"]
+[{"integer":1},{"blob":"05"}]
+[{"integer":2},{"blob":"05"}]
+[{"integer":3},{"blob":"8101"}]
+TABLE lines_fts_segdir
+columns=["level","idx","start_block","leaves_end_block","end_block","root"]
+[{"integer":0},{"integer":0},{"integer":0},{"integer":0},{"text":"0 49"},{"blob":"0001310301060000036674730301040000056c696e657303010300000474657874030105000006e59088e6889003010200"}]
+[{"integer":0},{"integer":1},{"integer":0},{"integer":0},{"text":"0 49"},{"blob":"0001320302060000036674730302040000056c696e657303020300000474657874030205000006e59088e6889003020200"}]
+[{"integer":0},{"integer":2},{"integer":0},{"integer":0},{"text":"0 193"},{"blob":"00016e04038201000112e995bfe4b8ade69687efbc8ce6a087e782b94103040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404000006e5bc95e58fb7420303040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404000012e995bfe4b8ade69687efbc8ce6a087e782b903030200"}]
+TABLE lines_fts_segments
+columns=["blockid","block"]
+
+TABLE lines_fts_stat
+columns=["id","value"]
+[{"integer":0},{"blob":"038b01ee0e"}]
+TABLE llm_usage_v2
+columns=["day","purpose","promptTokens","completionTokens","calls"]
+[{"text":"2026-11-11"},{"text":"合成-llm_usage_v2-purpose-1"},{"integer":1},{"integer":1},{"integer":1}]
+[{"text":"2026-11-12"},{"text":"合成-llm_usage_v2-purpose-2"},{"integer":2},{"integer":2},{"integer":2}]
+[{"text":"2026-11-13"},{"text":"合成-llm_usage_v2-purpose-3"},{"integer":3},{"integer":3},{"integer":3}]
+TABLE location_places
+columns=["cell","name","address","source","at","lat","lng","home"]
+
+TABLE location_points
+columns=["id","at","lat","lng","accuracy","provider"]
+
+TABLE memory_events
+columns=["id","startAt","endAt","scene","title","summary","pointsJson","peopleJson","place","emotion","intensity","important","deleted","createdAt","model","starred","starredAt","editedAt","originalTitle","originalSummary","originalPointsJson"]
+[{"integer":1},{"integer":1794448801000},{"integer":1794448801000},{"text":"合成-memory_events-scene-1"},{"text":"合成-memory_events-title-1"},{"text":"合成-memory_events-summary-1"},{"text":"[]"},{"text":"[]"},null,null,null,{"integer":1},{"integer":0},{"integer":1794448801000},{"text":"合成-memory_events-model-1"},{"integer":1},null,null,null,null,null]
+[{"integer":2},{"integer":1794448802000},{"integer":1794448802000},{"text":"合成-memory_events-scene-2"},{"text":"合成-memory_events-title-2"},{"text":"合成-memory_events-summary-2"},{"text":"[]"},{"text":"[]"},{"text":"合成-memory_events-place-2"},{"text":"合成-memory_events-emotion-2"},{"integer":2},{"integer":2},{"integer":0},{"integer":1794448802000},{"text":"合成-memory_events-model-2"},{"integer":2},{"integer":1794448802000},{"integer":1794448802000},{"text":"合成-memory_events-originalTitle-2"},{"text":"合成-memory_events-originalSummary-2"},{"text":"[]"}]
+[{"integer":3},{"integer":1794448803000},{"integer":1794448803000},{"text":"合成-memory_events-scene-3"},{"text":"合成-memory_events-title-3"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"[]"},{"text":"[]"},{"text":"合成-memory_events-place-3"},{"text":"合成-memory_events-emotion-3"},{"integer":3},{"integer":3},{"integer":0},{"integer":1794448803000},{"text":"合成-memory_events-model-3"},{"integer":3},{"integer":1794448803000},{"integer":1794448803000},{"text":"合成-memory_events-originalTitle-3"},{"text":"合成-memory_events-originalSummary-3"},{"text":"[]"}]
+TABLE memory_items
+columns=["id","eventId","category","kind","content","dueText","dueAt","who","lineId","status","createdAt","doneAt","statusChangedAt","sortOrder","mergedInto","noMerge","deleted","editedAt","doneHintLineId","doneHintAt","dismissedDoneLinesJson","reminderVersion","origin","sourceText","strongReminder"]
+[{"integer":1},null,{"text":"合成-memory_items-category-1"},null,{"text":"合成-memory_items-content-1"},null,null,null,null,{"text":"Pending"},{"integer":1794448801000},null,null,null,null,{"integer":0},{"integer":0},null,null,null,{"text":"[]"},{"integer":1},{"text":"合成-memory_items-origin-1"},null,{"integer":1}]
+[{"integer":2},{"integer":2},{"text":"合成-memory_items-category-2"},{"text":"合成-memory_items-kind-2"},{"text":"合成-memory_items-content-2"},{"text":"合成-memory_items-dueText-2"},{"integer":1794448802000},{"text":"合成-memory_items-who-2"},{"integer":2},{"text":"Done"},{"integer":1794448802000},{"integer":1794448802000},{"integer":1794448802000},{"integer":2},{"integer":2},{"integer":0},{"integer":0},{"integer":1794448802000},{"integer":2},{"integer":1794448802000},{"text":"[]"},{"integer":2},{"text":"合成-memory_items-origin-2"},{"text":"合成-memory_items-sourceText-2"},{"integer":2}]
+[{"integer":3},{"integer":3},{"text":"合成-memory_items-category-3"},{"text":"合成-memory_items-kind-3"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"合成-memory_items-dueText-3"},{"integer":1794448803000},{"text":"合成-memory_items-who-3"},{"integer":3},{"text":"Ignored"},{"integer":1794448803000},{"integer":1794448803000},{"integer":1794448803000},{"integer":3},{"integer":3},{"integer":0},{"integer":0},{"integer":1794448803000},{"integer":3},{"integer":1794448803000},{"text":"[]"},{"integer":3},{"text":"合成-memory_items-origin-3"},{"text":"合成-memory_items-sourceText-3"},{"integer":3}]
+TABLE privacy_file_cleanup
+columns=["path"]
+
+TABLE redo_snapshot
+columns=["slot","jobId","at","payload","applied"]
+
+TABLE reviews
+columns=["id","type","startDate","endDate","brief","sectionsJson","generatedAt","model"]
+[{"integer":1},{"text":"合成-reviews-type-1"},{"text":"2026-11-11"},{"text":"2026-11-11"},{"text":"合成-reviews-brief-1"},{"text":"[]"},{"integer":1794448801000},{"text":"合成-reviews-model-1"}]
+[{"integer":2},{"text":"合成-reviews-type-2"},{"text":"2026-11-12"},{"text":"2026-11-12"},{"text":"合成-reviews-brief-2"},{"text":"[]"},{"integer":1794448802000},{"text":"合成-reviews-model-2"}]
+[{"integer":3},{"text":"合成-reviews-type-3"},{"text":"2026-11-13"},{"text":"2026-11-13"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"[]"},{"integer":1794448803000},{"text":"合成-reviews-model-3"}]
+TABLE room_master_table
+columns=["id","identity_hash"]
+[{"integer":42},{"text":"c8d36ea3efb4c4fce886d4a66543d917"}]
+TABLE segments
+columns=["id","startAt","endAt","sourceId","path","sizeBytes","status","attempts","nextRetryAt","error","completedAt","logId","sentMillis","voiceprintProcessedAt","playbackMillis","firstFailedAt","asrSource","redoPending","separateSpeakers","importRecordId","importChannel","speakerCount"]
+[{"integer":1},{"integer":1794448801000},{"integer":1794448801000},{"text":"合成-segments-sourceId-1"},{"text":"合成-segments-path-1"},{"integer":1},{"text":"待转写"},{"integer":1},null,null,null,null,{"integer":1},null,{"integer":1},null,null,{"integer":0},null,null,null,null]
+[{"integer":2},{"integer":1794448802000},{"integer":1794448802000},{"text":"合成-segments-sourceId-2"},{"text":"合成-segments-path-2"},{"integer":2},{"text":"Failed"},{"integer":2},{"integer":1794448802000},{"text":"合成-segments-error-2"},{"integer":1794448802000},{"text":"合成-segments-logId-2"},{"integer":2},{"integer":1794448802000},{"integer":2},{"integer":1794448802000},null,{"integer":0},null,null,null,null]
+[{"integer":3},{"integer":1794448803000},{"integer":1794448803000},{"text":"合成-segments-sourceId-3"},{"text":"合成-segments-path-3"},{"integer":3},{"text":"Done"},{"integer":3},{"integer":1794448803000},{"text":"合成-segments-error-3"},{"integer":1794448803000},{"text":"合成-segments-logId-3"},{"integer":3},{"integer":1794448803000},{"integer":3},null,null,{"integer":0},{"integer":1},null,null,null]
+TABLE skill_cards
+columns=["id","skillId","skillVersion","skillName","icon","date","entity","at","endAt","title","summary","fieldsJson","valuesJson","evidenceJson","generatedAt","manual","deletedAt","aliasesJson"]
+[{"integer":1},{"text":"合成-skill_cards-skillId-1"},{"integer":1},{"text":"合成-skill_cards-skillName-1"},{"text":"合成-skill_cards-icon-1"},{"integer":1},{"text":"合成-skill_cards-entity-1"},{"integer":1794448801000},null,{"text":"合成-skill_cards-title-1"},{"text":"合成-skill_cards-summary-1"},{"text":"[]"},{"text":"[]"},{"text":"[]"},{"integer":1794448801000},{"integer":1},null,{"text":"[]"}]
+[{"integer":2},{"text":"合成-skill_cards-skillId-2"},{"integer":2},{"text":"合成-skill_cards-skillName-2"},{"text":"合成-skill_cards-icon-2"},{"integer":2},{"text":"合成-skill_cards-entity-2"},{"integer":1794448802000},{"integer":1794448802000},{"text":"合成-skill_cards-title-2"},{"text":"合成-skill_cards-summary-2"},{"text":"[]"},{"text":"[]"},{"text":"[]"},{"integer":1794448802000},{"integer":2},{"integer":1794448802000},{"text":"[]"}]
+[{"integer":3},{"text":"合成-skill_cards-skillId-3"},{"integer":3},{"text":"合成-skill_cards-skillName-3"},{"text":"合成-skill_cards-icon-3"},{"integer":3},{"text":"合成-skill_cards-entity-3"},{"integer":1794448803000},{"integer":1794448803000},{"text":"合成-skill_cards-title-3"},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"[]"},{"text":"[]"},{"text":"[]"},{"integer":1794448803000},{"integer":3},{"integer":1794448803000},{"text":"[]"}]
+TABLE skill_runs
+columns=["id","skillId","date","at","ok","result","tokens","kind","retryable","purpose"]
+[{"integer":1},{"text":"合成-skill_runs-skillId-1"},{"integer":1},{"integer":1794448801000},{"integer":1},{"text":"合成-skill_runs-result-1"},{"integer":1},{"text":"合成-skill_runs-kind-1"},{"integer":1},{"text":"合成-skill_runs-purpose-1"}]
+[{"integer":2},{"text":"合成-skill_runs-skillId-2"},{"integer":2},{"integer":1794448802000},{"integer":2},{"text":"合成-skill_runs-result-2"},{"integer":2},{"text":"合成-skill_runs-kind-2"},{"integer":2},{"text":"合成-skill_runs-purpose-2"}]
+[{"integer":3},{"text":"合成-skill_runs-skillId-3"},{"integer":3},{"integer":1794448803000},{"integer":3},{"text":"合成-skill_runs-result-3"},{"integer":3},{"text":"合成-skill_runs-kind-3"},{"integer":3},{"text":"合成-skill_runs-purpose-3"}]
+TABLE sqlite_sequence
+columns=["name","seq"]
+[{"text":"app_power"},{"integer":3}]
+[{"text":"ask_conversations"},{"integer":3}]
+[{"text":"ask_messages"},{"integer":3}]
+[{"text":"asr_attempts"},{"integer":3}]
+[{"text":"battery"},{"integer":3}]
+[{"text":"heartbeats"},{"integer":3}]
+[{"text":"memory_events"},{"integer":3}]
+[{"text":"memory_items"},{"integer":3}]
+[{"text":"reviews"},{"integer":3}]
+[{"text":"segments"},{"integer":3}]
+[{"text":"skill_cards"},{"integer":3}]
+[{"text":"skill_runs"},{"integer":3}]
+[{"text":"transcript_lines"},{"integer":3}]
+[{"text":"voiceprint_people"},{"integer":3}]
+[{"text":"voiceprint_samples"},{"integer":3}]
+[{"text":"watchdog"},{"integer":3}]
+TABLE thing_records
+columns=["id","thingId","name","action","place","who","owner","at","sourceLineId","sourceText","status","origin","explicit","sameAsId","createdAt","acceptedAt","aliasesJson"]
+
+TABLE thing_watch_state
+columns=["slot","watermark","enabled","revision","failedEnd","failures"]
+
+TABLE things
+columns=["id","name","aliasesJson","owner","createdAt","updatedAt","deleted"]
+
+TABLE topic_marks
+columns=["id","topicId","at"]
+
+TABLE topic_spans
+columns=["id","topicId","startAt","endAt"]
+
+TABLE topics
+columns=["id","kind","name","status","createdAt","plannedStartAt","plannedEndAt","repeatRule","eventId","cardId","error","revision","quietOverride","retainedItemIds","starred","quietNotifiedAfter","endingNotifiedAt"]
+
+TABLE transcript_lines
+columns=["id","segmentId","startAt","endAt","text","speakerTag","speakerName","eventId","digestedAt","speakerScore","speakerPersonId","speakerManual","voiceInputJson","voiceInputPendingUntil","originalText"]
+[{"integer":1},{"integer":1},{"integer":1794448801000},{"integer":1794448801000},{"text":"合成-transcript_lines-text-1"},null,null,null,null,null,null,{"integer":1},null,null,null]
+[{"integer":2},{"integer":2},{"integer":1794448802000},{"integer":1794448802000},{"text":"合成-transcript_lines-text-2"},{"text":"合成-transcript_lines-speakerTag-2"},{"text":"我"},{"integer":2},{"integer":1794448802000},{"real":2.125},{"integer":2},{"integer":2},{"text":"[]"},{"integer":2},null]
+[{"integer":3},{"integer":3},{"integer":1794448803000},{"integer":1794448803000},{"text":"长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n长中文，标点 ' 引号\\n"},{"text":"合成-transcript_lines-speakerTag-3"},{"text":"合成人物"},{"integer":3},{"integer":1794448803000},{"real":3.125},{"integer":3},{"integer":3},{"text":"[]"},{"integer":3},null]
+TABLE voiceprint_exclusions
+columns=["segmentId","groupKey","createdAt"]
+[{"integer":1},{"text":"line:1"},{"integer":1794448801000}]
+[{"integer":2},{"text":"line:2"},{"integer":1794448802000}]
+[{"integer":3},{"text":"line:3"},{"integer":1794448803000}]
+TABLE voiceprint_people
+columns=["id","name","createdAt"]
+[{"integer":1},{"text":"合成-voiceprint_people-name-1"},{"integer":1794448801000}]
+[{"integer":2},{"text":"合成-voiceprint_people-name-2"},{"integer":1794448802000}]
+[{"integer":3},{"text":"合成-voiceprint_people-name-3"},{"integer":1794448803000}]
+TABLE voiceprint_samples
+columns=["id","source","sourceLineId","segmentId","groupKey","vector","durationMillis","createdAt","personId"]
+[{"integer":1},{"text":"line"},null,null,null,{"blob":"0001ff2a"},{"integer":1},{"integer":1794448801000},{"integer":1}]
+[{"integer":2},{"text":"line"},{"integer":2},{"integer":2},{"text":"line:2"},{"blob":"0002ff2a"},{"integer":2},{"integer":1794448802000},{"integer":2}]
+[{"integer":3},{"text":"line"},{"integer":3},{"integer":3},{"text":"line:3"},{"blob":"0003ff2a"},{"integer":3},{"integer":1794448803000},{"integer":3}]
+TABLE watchdog
+columns=["id","at","type","detail","batteryPercent","charging","gapStart","gapEnd"]
+[{"integer":1},{"integer":1794448801000},{"text":"合成-watchdog-type-1"},null,null,null,null,null]
+[{"integer":2},{"integer":1794448802000},{"text":"合成-watchdog-type-2"},{"text":"合成-watchdog-detail-2"},{"integer":2},{"integer":2},{"integer":2},{"integer":2}]
+[{"integer":3},{"integer":1794448803000},{"text":"合成-watchdog-type-3"},{"text":"合成-watchdog-detail-3"},{"integer":3},{"integer":3},{"integer":3},{"integer":3}]

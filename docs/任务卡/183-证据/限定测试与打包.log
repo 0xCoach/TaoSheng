@@ -1,0 +1,395 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata UP-TO-DATE
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResources UP-TO-DATE
+> Task :devices:packageDebugResources UP-TO-DATE
+> Task :shared:generateDebugResValues UP-TO-DATE
+> Task :shared:generateDebugResources UP-TO-DATE
+> Task :shared:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:processDebugManifest UP-TO-DATE
+> Task :shared:extractDeepLinksDebug UP-TO-DATE
+> Task :shared:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :devices:compileDebugLibraryResources UP-TO-DATE
+> Task :devices:parseDebugLocalResources UP-TO-DATE
+> Task :devices:generateDebugRFile UP-TO-DATE
+> Task :shared:compileDebugLibraryResources UP-TO-DATE
+> Task :shared:parseDebugLocalResources UP-TO-DATE
+> Task :shared:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :devices:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :devices:compileDebugKotlinAndroid UP-TO-DATE
+> Task :devices:javaPreCompileDebug UP-TO-DATE
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :shared:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :shared:compileDebugKotlinAndroid UP-TO-DATE
+> Task :shared:javaPreCompileDebug UP-TO-DATE
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebug
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugShaders
+> Task :devices:compileDebugShaders NO-SOURCE
+> Task :devices:debugAssetsCopyForAGP NO-SOURCE
+> Task :devices:generateDebugAssets UP-TO-DATE
+> Task :devices:mergeDebugAssets
+> Task :shared:mergeDebugShaders
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugAssets
+> Task :app:mergeDebugAssets
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:generateDebugUnitTestConfig
+> Task :devices:processDebugJavaRes
+> Task :shared:processDebugJavaRes
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :devices:bundleLibRuntimeToJarDebug
+> Task :shared:bundleLibRuntimeToJarDebug
+> Task :app:mergeReleaseJniLibFolders
+> Task :devices:preReleaseBuild UP-TO-DATE
+> Task :devices:mergeReleaseJniLibFolders
+> Task :devices:mergeReleaseNativeLibs NO-SOURCE
+> Task :shared:preReleaseBuild UP-TO-DATE
+> Task :devices:copyReleaseJniLibsProjectOnly
+> Task :shared:mergeReleaseJniLibFolders
+> Task :shared:mergeReleaseNativeLibs NO-SOURCE
+> Task :shared:copyReleaseJniLibsProjectOnly
+> Task :devices:generateReleaseResValues
+> Task :devices:generateReleaseResources
+> Task :devices:packageReleaseResources
+> Task :shared:generateReleaseResValues
+> Task :devices:javaPreCompileRelease
+> Task :shared:generateReleaseResources
+> Task :shared:packageReleaseResources
+> Task :shared:javaPreCompileRelease
+> Task :shared:parseReleaseLocalResources
+> Task :devices:parseReleaseLocalResources
+> Task :app:buildKotlinToolingMetadata
+> Task :shared:writeReleaseAarMetadata
+> Task :app:generateReleaseResValues
+> Task :devices:writeReleaseAarMetadata
+> Task :devices:generateReleaseRFile
+> Task :shared:generateReleaseRFile
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:mergeReleaseNativeLibs
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResources
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libQnnHtp.so, libQnnHtpV75Skel.so, libQnnHtpV75Stub.so, libQnnSystem.so, libandroidx.graphics.path.so, libmlkit_google_ocr_pipeline.so, libonnxruntime.so, libonnxruntime4j_jni.so, libresound_asr_ort.so, libsherpa-onnx-jni.so. Run with --info option to learn more.
+
+> Task :app:packageReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :devices:extractDeepLinksRelease
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :shared:extractDeepLinksRelease
+> Task :app:parseReleaseLocalResources
+> Task :devices:compileReleaseLibraryResources
+> Task :shared:compileReleaseLibraryResources
+> Task :app:javaPreCompileRelease
+> Task :app:desugarReleaseFileDependencies
+> Task :app:mergeReleaseStartupProfile
+> Task :devices:processReleaseManifest
+> Task :shared:processReleaseManifest
+> Task :app:mergeReleaseResources
+
+> Task :app:processReleaseMainManifest
+/Users/coach/Developer/TaoSheng-183/app/src/main/AndroidManifest.xml:55:9-41 Warning:
+	android:extractNativeLibs should not be specified in this source AndroidManifest.xml file. See https://d.android.com/guide/topics/manifest/application-element#extractNativeLibs for more information.
+The AGP Upgrade Assistant can remove the attribute from the AndroidManifest.xml file and update the build file accordingly. See https://d.android.com/studio/build/agp-upgrade-assistant for more information.
+
+> Task :app:processReleaseManifest
+> Task :devices:prepareReleaseArtProfile
+> Task :shared:prepareReleaseArtProfile
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :devices:mergeReleaseShaders
+> Task :app:mergeReleaseArtProfile
+> Task :devices:compileReleaseShaders NO-SOURCE
+> Task :devices:generateReleaseAssets UP-TO-DATE
+> Task :devices:releaseAssetsCopyForAGP NO-SOURCE
+> Task :devices:mergeReleaseAssets
+> Task :shared:mergeReleaseShaders
+> Task :shared:compileReleaseShaders NO-SOURCE
+> Task :shared:generateReleaseAssets UP-TO-DATE
+> Task :shared:releaseAssetsCopyForAGP NO-SOURCE
+> Task :shared:mergeReleaseAssets
+> Task :app:mergeReleaseAssets
+> Task :app:processReleaseManifestForPackage
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:extractProguardFiles
+> Task :devices:extractProguardFiles
+> Task :shared:extractProguardFiles
+> Task :shared:prepareLintJarForPublish UP-TO-DATE
+> Task :devices:stripReleaseDebugSymbols NO-SOURCE
+> Task :devices:copyReleaseJniLibsProjectAndLocalJars
+> Task :devices:prepareLintJarForPublish
+> Task :devices:extractDeepLinksForAarRelease
+> Task :shared:stripReleaseDebugSymbols NO-SOURCE
+> Task :shared:copyReleaseJniLibsProjectAndLocalJars
+> Task :shared:extractDeepLinksForAarRelease
+> Task :devices:writeReleaseLintModelMetadata
+> Task :shared:writeReleaseLintModelMetadata
+> Task :app:processReleaseResources
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:optimizeReleaseResources
+> Task :shared:jvmProcessResources NO-SOURCE
+> Task :shared:processJvmMainResources SKIPPED
+> Task :shared:jvmTestProcessResources
+> Task :shared:processJvmTestResources SKIPPED
+> Task :shared:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:javaPreCompileDebugUnitTest
+> Task :shared:generateDebugUnitTestStubRFile
+> Task :app:compressReleaseAssets
+> Task :shared:compileDebugUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:processDebugUnitTestJavaRes NO-SOURCE
+> Task :shared:testDebugUnitTest NO-SOURCE
+> Task :shared:preReleaseUnitTestBuild UP-TO-DATE
+> Task :shared:generateReleaseUnitTestStubRFile
+> Task :shared:javaPreCompileReleaseUnitTest
+> Task :shared:mergeDebugJniLibFolders
+> Task :shared:mergeDebugNativeLibs NO-SOURCE
+> Task :shared:stripDebugDebugSymbols NO-SOURCE
+> Task :shared:copyDebugJniLibsProjectAndLocalJars
+> Task :shared:extractDebugAnnotations
+> Task :shared:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :shared:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :shared:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :shared:prepareDebugArtProfile UP-TO-DATE
+> Task :shared:createFullJarDebug
+> Task :shared:preDebugAndroidTestBuild UP-TO-DATE
+> Task :shared:generateDebugAndroidTestResValues
+> Task :shared:writeDebugLintModelMetadata
+> Task :shared:mergeDebugJavaResource
+> Task :shared:generateDebugLintReportModel
+> Task :shared:syncDebugLibJars
+> Task :shared:bundleDebugLocalLintAar
+> Task :shared:generateDebugAndroidTestLintModel
+> Task :shared:generateDebugUnitTestLintModel
+> Task :shared:lintAnalyzeDebugAndroidTest
+> Task :shared:lintAnalyzeDebugUnitTest
+> Task :app:mergeExtDexRelease
+> Task :app:kspDebugKotlin
+> Task :devices:compileReleaseKotlinAndroid
+> Task :devices:compileReleaseJavaWithJavac NO-SOURCE
+> Task :devices:processReleaseJavaRes
+> Task :devices:bundleLibCompileToJarRelease
+> Task :devices:bundleLibRuntimeToJarRelease
+> Task :devices:generateReleaseLintModel
+> Task :devices:createFullJarRelease
+> Task :devices:bundleLibRuntimeToDirRelease
+> Task :devices:extractReleaseAnnotations
+> Task :devices:mergeReleaseGeneratedProguardFiles
+> Task :devices:mergeReleaseConsumerProguardFiles
+> Task :devices:mergeReleaseJavaResource
+> Task :devices:syncReleaseLibJars
+> Task :devices:bundleReleaseLocalLintAar
+> Task :devices:generateReleaseLintVitalModel
+> Task :shared:compileReleaseKotlinAndroid
+> Task :devices:lintVitalAnalyzeRelease
+> Task :app:compileDebugKotlin
+> Task :shared:lintAnalyzeDebug
+
+> Task :app:compileDebugJavaWithJavac
+注: /Users/coach/Developer/TaoSheng-183/app/vendor/tinypinyin/java/com/github/promeg/pinyinhelper/Pinyin.java使用了未经检查或不安全的操作。
+注: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+
+> Task :shared:compileKotlinJvm
+> Task :app:processDebugJavaRes
+
+> Task :shared:lintReportDebug
+Wrote HTML report to file:///Users/coach/Developer/TaoSheng-183/shared/build/reports/lint-results-debug.html
+
+> Task :shared:lintDebug
+> Task :shared:lint
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :shared:compileJvmMainJava NO-SOURCE
+> Task :shared:jvmMainClasses
+> Task :shared:jvmJar
+> Task :shared:compileReleaseJavaWithJavac NO-SOURCE
+> Task :shared:processReleaseJavaRes
+> Task :shared:bundleLibRuntimeToJarRelease
+> Task :shared:bundleLibCompileToJarRelease
+> Task :shared:generateReleaseLintModel
+> Task :shared:createFullJarRelease
+> Task :shared:extractReleaseAnnotations
+> Task :shared:mergeReleaseGeneratedProguardFiles
+> Task :shared:mergeReleaseConsumerProguardFiles
+> Task :shared:mergeReleaseJavaResource
+> Task :shared:bundleLibRuntimeToDirRelease
+> Task :shared:syncReleaseLibJars
+> Task :shared:bundleReleaseLocalLintAar
+> Task :shared:generateReleaseLintVitalModel
+> Task :shared:compileReleaseUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :shared:testReleaseUnitTest NO-SOURCE
+> Task :shared:test UP-TO-DATE
+> Task :app:kspDebugUnitTestKotlin
+
+> Task :shared:compileTestKotlinJvm
+w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/resound/digest/RulesParity152Test.kt:22:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileJvmTestJava NO-SOURCE
+> Task :shared:jvmTestClasses
+> Task :shared:lintVitalAnalyzeRelease
+> Task :shared:jvmTest
+> Task :shared:allTests
+> Task :shared:check
+> Task :app:kspReleaseKotlin
+
+> Task :app:compileDebugUnitTestKotlin FAILED
+e: file:///Users/coach/Developer/TaoSheng-183/app/src/test/java/app/resound/data/Index183MigrationBenchmark.kt:29:56 No type arguments expected for static fun getApplication(): Application!.
+e: file:///Users/coach/Developer/TaoSheng-183/app/src/test/java/app/resound/data/Index183MigrationTest.kt:27:66 No type arguments expected for static fun getApplication(): Application!.
+
+> Task :app:compileReleaseKotlin
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/audio/OggGuard.kt:45:68 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/capture/MicHolderGuess.kt:23:20 'fun unsafeCheckOpNoThrow(p0: String, p1: Int, p2: String): Int' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/capture/VoiceInputService.kt:160:41 'static fun obtain(p0: AccessibilityNodeInfo!): AccessibilityNodeInfo!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:92:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:108:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:122:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:129:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:138:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:145:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:151:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:156:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:170:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:179:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:186:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:195:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:201:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:207:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:214:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:224:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:230:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:244:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:249:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:257:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:264:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:269:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:276:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:283:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:289:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:302:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:305:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:310:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:313:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:319:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:325:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:332:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/CaptureDatabase.kt:336:34 The corresponding parameter in the supertype 'Migration' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/data/PendingDigest.kt:34:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:77:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:78:78 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:84:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:85:63 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/devices/android/DeviceInputs.kt:321:27 'val onLock: SelectClause2<Any?, Mutex>' is deprecated. Mutex.onLock deprecated without replacement. For additional details please refer to #2794.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/diagnostics/CrashRecords.kt:31:67 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/digest/LlmFailover.kt:78:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/envsound/EnvSoundModel.kt:50:41 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/importer/ImportRecordDao.kt:87:29 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/push/AlarmPlayer.kt:61:28 'fun vibrate(p0: VibrationEffect!, p1: AudioAttributes!): Unit' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:55 'val monthNumber: Int' is deprecated. Use the 'month' property instead.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:75 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/search/SearchIndex.kt:64:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/things/ThingData.kt:76:31 The corresponding parameter in the supertype 'Callback' is named 'connection'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/transcribe/local/LocalModels.kt:112:35 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/ui/settings/AboutPage.kt:163:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/ui/settings/PushPage.kt:188:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/ui/settings/PushPage.kt:191:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/ui/settings/PushPage.kt:192:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-183/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:826:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+
+> Task :app:compileReleaseJavaWithJavac
+注: /Users/coach/Developer/TaoSheng-183/app/vendor/tinypinyin/java/com/github/promeg/pinyinhelper/Pinyin.java使用了未经检查或不安全的操作。
+注: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:processReleaseJavaRes
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeDexRelease
+> Task :app:compileReleaseArtProfile
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+
+[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-183/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugUnitTestKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 4m 7s
+216 actionable tasks: 170 executed, 46 up-to-date
+docs/任务卡/183-证据/验证命令.sh:3: command not found: igrationBenchmark

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.TranscriptRepository177Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:40:43.455Z" hostname="CoachdeMacBook-Air.local" time="0.171">
+  <properties/>
+  <testcase name="failedAtomicSaveDoesNotPublishNewState" classname="app.resound.transcribe.TranscriptRepository177Test" time="0.081"/>
+  <testcase name="queryQueueAndSubscriptionMatchOldRepository" classname="app.resound.transcribe.TranscriptRepository177Test" time="0.054"/>
+  <testcase name="commandsPreserveQueueTransitionsAndFileFailure" classname="app.resound.transcribe.TranscriptRepository177Test" time="0.036"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

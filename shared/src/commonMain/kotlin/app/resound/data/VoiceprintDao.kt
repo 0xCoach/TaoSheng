@@ -58,7 +58,8 @@ abstract class VoiceprintDao {
     abstract fun observePersonSamples(id: Long): Flow<List<VoiceprintSampleRow>>
     @Query("SELECT * FROM voiceprint_samples WHERE id = :id") abstract suspend fun sample(id: Long): VoiceprintSampleEntity?
     @Query("DELETE FROM voiceprint_samples WHERE id = :id") abstract suspend fun deleteSample(id: Long)
-    @Query("SELECT * FROM transcript_lines WHERE speakerPersonId = :id AND voiceInputJson IS NULL ORDER BY startAt DESC, id DESC LIMIT 100")
+    // 人物筛选可能没有匹配行，按时间索引扫描并逐行回表反而更慢。
+    @Query("SELECT * FROM transcript_lines NOT INDEXED WHERE speakerPersonId = :id AND voiceInputJson IS NULL ORDER BY startAt DESC, id DESC LIMIT 100")
     abstract fun observePersonLines(id: Long): Flow<List<TranscriptLineEntity>>
     @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
     abstract suspend fun lines(id: Long): List<TranscriptLineEntity>
@@ -68,9 +69,9 @@ abstract class VoiceprintDao {
     abstract suspend fun result(ids: List<Long>, name: String?, score: Float?)
     @Query("UPDATE segments SET voiceprintProcessedAt = :at WHERE id = :id")
     abstract suspend fun processed(id: Long, at: Long)
-    @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE sourceId != 'voice-input' AND status = 'Done'")
+    @Query("UPDATE segments NOT INDEXED SET voiceprintProcessedAt = NULL WHERE sourceId != 'voice-input' AND status = 'Done'")
     abstract suspend fun invalidate()
-    @Query("SELECT * FROM segments WHERE sourceId != 'voice-input' AND status = 'Done'")
+    @Query("SELECT * FROM segments NOT INDEXED WHERE sourceId != 'voice-input' AND status = 'Done'")
     abstract suspend fun doneSegments(): List<SegmentEntity>
     /** 只让指定的段重新匹配（录音还在的那些；录音已删的段重跑也只是原样标记完成） */
     @Query("UPDATE segments SET voiceprintProcessedAt = NULL WHERE id IN (:ids)")

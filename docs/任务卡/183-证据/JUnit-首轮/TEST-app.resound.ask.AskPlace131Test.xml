@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskPlace131Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:15.058Z" hostname="CoachdeMacBook-Air.local" time="0.441">
+  <properties/>
+  <testcase name="narrowWindowUsesFullStayAndCachedNamesWithoutGeocoding" classname="app.resound.ask.AskPlace131Test" time="0.142"/>
+  <testcase name="linesKeepSpeakerKeywordsAndReferencesWithOverlap" classname="app.resound.ask.AskPlace131Test" time="0.049"/>
+  <testcase name="eventsOverlapStaysAndKeepTimeKeywordStarAndDeletionFilters" classname="app.resound.ask.AskPlace131Test" time="0.052"/>
+  <testcase name="semanticCandidatesAreFilteredBeforeRankingAndStayFilteredOnReadback" classname="app.resound.ask.AskPlace131Test" time="0.063"/>
+  <testcase name="omittedPlaceDoesNotReadFootprintOrChangeToolSchemaRequirements" classname="app.resound.ask.AskPlace131Test" time="0.023"/>
+  <testcase name="disabledFootprintKeepsOriginalResultsAndOnlyExplainsExplicitPlace" classname="app.resound.ask.AskPlace131Test" time="0.029"/>
+  <testcase name="missingPlaceReturnsAtMostTenDistinctNamesInRequestedRange" classname="app.resound.ask.AskPlace131Test" time="0.05"/>
+  <testcase name="homeUsesHomeFlagAndManualNameInsteadOfTextContainingHome" classname="app.resound.ask.AskPlace131Test" time="0.033"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

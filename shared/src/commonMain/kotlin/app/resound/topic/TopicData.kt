@@ -54,8 +54,8 @@ interface TopicDao {
     fun observeProgress(ids: List<Long>): Flow<List<TopicSegmentProgress>>
     /** 与 TopicEngine 的 Done 补整理判断一致；保留补落盘、恢复转写和新原话的唤醒。 */
     @Query("""SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS (
-        SELECT 1 FROM topic_spans ts JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt
-        JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done'
+        SELECT 1 FROM topic_spans ts CROSS JOIN transcript_lines l ON l.startAt >= ts.startAt AND l.startAt < ts.endAt
+        CROSS JOIN segments s ON s.id = l.segmentId WHERE ts.topicId = t.id AND s.status = 'Done'
         AND l.voiceInputPendingUntil IS NULL AND (l.eventId IS NOT t.eventId OR l.digestedAt IS NULL)) ORDER BY t.id""")
     fun observeLateTranscriptIds(): Flow<List<Long>>
     @Transaction @Query("SELECT * FROM topics ORDER BY createdAt, id") fun observeAll(): Flow<List<TopicGroup>>
@@ -74,12 +74,15 @@ interface TopicDao {
         WHERE t.kind = 'Training' AND t.status NOT IN ('Cancelled', 'Scheduled') AND :at >= ts.startAt
         AND :at < COALESCE(ts.endAt, t.plannedEndAt, (SELECT MIN(s.startAt) + 14400000 FROM topic_spans s WHERE s.topicId = t.id)))""")
     suspend fun trainingAt(at: Long): Boolean
-    @Query("SELECT MAX(endAt) FROM transcript_lines WHERE digestedAt IS NOT NULL AND startAt < :end AND endAt > :start")
+    // 只有起点上界，不能补起点下界漏掉跨区间原话；表扫描比大范围索引回表更省。
+    @Query("SELECT MAX(endAt) FROM transcript_lines NOT INDEXED WHERE digestedAt IS NOT NULL AND startAt < :end AND endAt > :start")
     suspend fun digestedUntil(start: Long, end: Long): Long?
-    @Query("""SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
-        WHERE s.status = 'Done' AND l.voiceInputPendingUntil IS NULL AND EXISTS
-        (SELECT 1 FROM topic_spans ts WHERE ts.topicId = :id AND l.startAt >= ts.startAt AND l.startAt < ts.endAt)
-        ORDER BY l.startAt, l.id""") suspend fun lines(id: Long): List<TranscriptLineEntity>
+    // 重叠时段仍只返回一份原话（原EXISTS语义），先按小区间定位时间索引。
+    @Query("""SELECT DISTINCT l.* FROM topic_spans ts
+        CROSS JOIN transcript_lines l INDEXED BY index_transcript_lines_startAt
+        CROSS JOIN segments s ON s.id = l.segmentId
+        WHERE ts.topicId = :id AND l.startAt >= ts.startAt AND l.startAt < ts.endAt
+        AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL ORDER BY l.startAt, l.id""") suspend fun lines(id: Long): List<TranscriptLineEntity>
     @Query("""SELECT s.* FROM segments s WHERE EXISTS (SELECT 1 FROM topic_spans ts
         WHERE ts.topicId = :id AND s.startAt < COALESCE(ts.endAt, :now) AND s.endAt > ts.startAt) ORDER BY s.startAt, s.id""")
     suspend fun segments(id: Long, now: Long): List<SegmentEntity>

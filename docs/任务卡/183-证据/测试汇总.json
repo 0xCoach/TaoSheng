@@ -1,0 +1,28 @@
+{
+  "first_run": {
+    "classes": 101,
+    "tests": 705,
+    "failures": 21,
+    "skipped": 3,
+    "test_seconds_sum": 37.988
+  },
+  "isolated_recheck": {
+    "tests": 21,
+    "failures": 0,
+    "skipped": 0,
+    "test_seconds_sum": 3.1119999999999997
+  },
+  "final_unique": {
+    "classes": 101,
+    "tests": 705,
+    "passed": 702,
+    "failures": 0,
+    "skipped": 3
+  },
+  "original_175_classes": 96,
+  "skipped_cases": [
+    "app.resound.things.ThingsSharedLiveTest.liveExtractionAndTokenComparison",
+    "app.resound.backup.Minio114Test.linkedS3PushPersistsOnlyFlagAndUploadsIntoSeparateFolder",
+    "app.resound.backup.Minio114Test.minioCrudPaginationVolumesAndDiary"
+  ]
+}

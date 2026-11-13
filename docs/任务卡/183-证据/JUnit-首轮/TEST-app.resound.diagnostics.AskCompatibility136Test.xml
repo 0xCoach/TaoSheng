@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.diagnostics.AskCompatibility136Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:35.153Z" hostname="CoachdeMacBook-Air.local" time="1.107">
+  <properties/>
+  <testcase name="markedBackupSkipsToolsBeforeNetworkAndDoesNotInventFailureOrUsage" classname="app.resound.diagnostics.AskCompatibility136Test" time="0.134"/>
+  <testcase name="fallbackSurvivesRestartAppearsInDiagnosticsAndClearsOnEditOrToolCheckPass" classname="app.resound.diagnostics.AskCompatibility136Test" time="0.03"/>
+  <testcase name="realPrefetchFiltersTimeAndPersistsModeAndReferencesWithoutSchemaChange" classname="app.resound.diagnostics.AskCompatibility136Test" time="0.943"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>

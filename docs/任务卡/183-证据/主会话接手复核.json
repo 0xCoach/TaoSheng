@@ -1,0 +1,31 @@
+{
+  "reviewed_at": "2026-11-13T14:17:49.674042+08:00",
+  "head": "ac10e4841579f18a1e16c157d2375478e593e763",
+  "original_files_byte_identical": 74,
+  "schema34_only_approved_changes": true,
+  "saved_database_snapshots_exactly_verified": 36,
+  "test_runs": [
+    {
+      "folder": "JUnit-首轮",
+      "count": 705,
+      "results": {
+        "passed": 681,
+        "failed": 21,
+        "skipped": 3
+      }
+    },
+    {
+      "folder": "JUnit-隔离复核",
+      "count": 21,
+      "results": {
+        "passed": 21
+      }
+    }
+  ],
+  "final_unique_tests": {
+    "passed": 702,
+    "skipped": 3
+  },
+  "new_tests_rerun": false,
+  "review_type": "产品SQL与迁移、差异比较器静态复核，加原始字节和XML独立核对；未重复Gradle"
+}

@@ -109,15 +109,15 @@ abstract class MemoryDao {
 
 
     // ---------- 整理 ----------
-    /** 已转写、还没整理过的句子（按时间） */
+    /** 已转写、还没整理过的句子（按时间）。稀疏筛选先扫原话，避免时间排序索引全量回表。 */
     @Query(
-        """SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
+        """SELECT l.* FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId
            WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedLines(): List<TranscriptLineEntity>
 
     @Query(
-        """SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
+        """SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId
            WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedCount(): Int
@@ -135,7 +135,7 @@ abstract class MemoryDao {
     )
     abstract suspend fun unfinishedSegments(start: Long, end: Long): Int
 
-    @Query("SELECT COUNT(*) FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS")
+    @Query("SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS")
     abstract fun observeUndigestedCount(): Flow<Int>
 
     @Insert abstract suspend fun insertEvent(row: MemoryEventEntity): Long
@@ -355,14 +355,14 @@ abstract class MemoryDao {
         WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.createdAt >= :start AND i.createdAt < :end""")
     abstract fun activeItemTimes(start: Long, end: Long): Flow<List<Long>>
 
-    @Query("""SELECT l.* FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
+    @Query("""SELECT l.* FROM transcript_lines l INDEXED BY index_transcript_lines_startAt CROSS JOIN segments s ON s.id = l.segmentId
         LEFT JOIN memory_events e ON e.id = l.eventId
         WHERE s.status = 'Done' AND l.startAt >= :start AND l.startAt < :end
         AND (e.id IS NULL OR e.deleted = 0) ORDER BY l.startAt, l.id""")
     abstract suspend fun diaryLines(start: Long, end: Long): List<TranscriptLineEntity>
     @Query("""SELECT MAX(at) FROM (
         SELECT startAt AS at FROM memory_events WHERE deleted = 0 AND (scene != '媒体' OR starred = 1)
-        UNION ALL SELECT l.startAt AS at FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
+        UNION ALL SELECT l.startAt AS at FROM transcript_lines l JOIN segments s NOT INDEXED ON s.id = l.segmentId
         LEFT JOIN memory_events e ON e.id = l.eventId WHERE :includeLines AND s.status = 'Done' AND l.text != '' AND (e.id IS NULL OR e.deleted = 0)
     )""")
     abstract suspend fun latestDiaryAt(includeLines: Boolean): Long?

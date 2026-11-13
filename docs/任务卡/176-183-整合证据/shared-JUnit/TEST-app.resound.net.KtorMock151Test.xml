@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.net.KtorMock151Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:38:20.056Z" hostname="CoachdeMacBook-Air.local" time="0.153">
+  <properties/>
+  <testcase name="injectedMockEngineUsesSharedRequestsAndCloses[jvm]" classname="app.resound.net.KtorMock151Test" time="0.153"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>

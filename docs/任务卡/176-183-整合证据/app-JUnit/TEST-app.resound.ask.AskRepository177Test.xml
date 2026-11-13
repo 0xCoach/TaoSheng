@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskRepository177Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:40:30.008Z" hostname="CoachdeMacBook-Air.local" time="2.177">
+  <properties/>
+  <testcase name="commandsAndSerializedMessagesMatchOldRepository" classname="app.resound.ask.AskRepository177Test" time="2.119"/>
+  <testcase name="failedExchangeRollsBackBothMessages" classname="app.resound.ask.AskRepository177Test" time="0.026"/>
+  <testcase name="stopRejectsLateCallbackAndKeepsSavedPartial" classname="app.resound.ask.AskRepository177Test" time="0.032"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,10 @@
+{
+  "existing_queries": 93,
+  "integrated_queries": 93,
+  "changed_sql": [],
+  "extra_sql": [],
+  "key_aliases": {
+    "push/PushDao.kt": "push/PushRecords.kt",
+    "redo/RedoTables.kt": "redo/RedoData.kt"
+  }
+}

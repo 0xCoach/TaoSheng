@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.voiceprint.VoiceprintRematchTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T05:16:48.199Z" hostname="CoachdeMacBook-Air.local" time="1.149">
+  <properties/>
+  <testcase name="burstOfRequestsRunsVoiceprintOnceAndFallsBackOnlyWhenItKeepsFailing" classname="app.resound.voiceprint.VoiceprintRematchTest" time="1.121"/>
+  <testcase name="markMeOnlyRequeuesSegmentsWhoseAudioIsStillKept" classname="app.resound.voiceprint.VoiceprintRematchTest" time="0.028"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

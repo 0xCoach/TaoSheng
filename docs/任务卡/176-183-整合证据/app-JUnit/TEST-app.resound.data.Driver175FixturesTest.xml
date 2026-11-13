@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.data.Driver175FixturesTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T06:40:32.341Z" hostname="CoachdeMacBook-Air.local" time="1.962">
+  <properties/>
+  <testcase name="backupArchiveAndRestore" classname="app.resound.data.Driver175FixturesTest" time="0.229"/>
+  <testcase name="androidDriverReadsExistingSyntheticWalAndFts" classname="app.resound.data.Driver175FixturesTest" time="0.072"/>
+  <testcase name="dynamicQueriesAndFullTextSearch" classname="app.resound.data.Driver175FixturesTest" time="0.106"/>
+  <testcase name="writerNotifiesActiveTableFlow" classname="app.resound.data.Driver175FixturesTest" time="0.042"/>
+  <testcase name="backupDuringRecordingWritesKeepsParentsAndSearchConsistent" classname="app.resound.data.Driver175FixturesTest" time="0.039"/>
+  <testcase name="writerTransactionCommitsNestedSeed" classname="app.resound.data.Driver175FixturesTest" time="0.037"/>
+  <testcase name="freshInstallIncludesAllCallbacks" classname="app.resound.data.Driver175FixturesTest" time="0.039"/>
+  <testcase name="cancelledWriterRollsBackSeed" classname="app.resound.data.Driver175FixturesTest" time="0.035"/>
+  <testcase name="migrationsFromEveryHistoricalSchema" classname="app.resound.data.Driver175FixturesTest" time="1.361"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,23 @@
+SQLite 3.53.4 queries 90
+measure none queue 5.545 1
+measure none voiceprint 2.882 1
+measure none failed 2.281 250
+measure none late 25549.896 0
+measure none imports 1.548 20
+Traceback (most recent call last):
+  File "/Users/coach/Developer/TaoSheng-183/tools/index-audit-183/benchmark.py", line 188, in <module>
+    if __name__=='__main__':main()
+                            ~~~~^^
+  File "/Users/coach/Developer/TaoSheng-183/tools/index-audit-183/benchmark.py", line 186, in main
+    for mode in args.modes.split(','):run(mode,baseline,queries,args.phase)
+                                      ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/coach/Developer/TaoSheng-183/tools/index-audit-183/benchmark.py", line 153, in run
+    read()
+    ~~~~^^
+  File "/Users/coach/Developer/TaoSheng-183/tools/index-audit-183/benchmark.py", line 152, in read
+    ms,_=elapsed(db,sqls[key]['sql']);report['resident_ms'][label]+=ms
+         ~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/coach/Developer/TaoSheng-183/tools/index-audit-183/benchmark.py", line 113, in elapsed
+    result=db.execute(sql,params(sql) if args is None else args).fetchall()
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

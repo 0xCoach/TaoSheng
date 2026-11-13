@@ -1,0 +1,97 @@
+{
+  "old_schema_sha256": {
+    "1.json": "bffe03bfde72a1ef05da40af8d6dd0f6e00e42973782990005b1ed01de9944ec",
+    "10.json": "9793aa0e0dbd14df327efcec7449d0dfd47f033bae7b421d1b5c46538418b997",
+    "11.json": "32d716e3a518be93319025e85d8353d3e6c509085ff70adaa431bc25971baf9c",
+    "12.json": "3a9377878b650fe5b908c4e36bb3430e542a4ba36788d5073e5cf0f028815589",
+    "13.json": "a70be7bae4707933a0400f3bbbe5dbf0e84cc61ca540d45a5d1372f9669a2c73",
+    "14.json": "b9e68587dbb508207934e2ddd846663f52589e05ef5e441028c0f4a6c82e960c",
+    "15.json": "a29b22f0e8815f7e578e6672bd04e47713d525165f3b34bc59da266073a6bbb5",
+    "16.json": "6eb7bbc8271d133ff6da748f95a971795e5e8a9646f3074cf090cbd67e79f172",
+    "17.json": "91680bf94e1d07d4d974b30f132d6563f43b21f07bf12fe6c12ae9c65e1b9c80",
+    "18.json": "dad88a015a26710b36a750690bb4e98a298ccbe93446d28a76fca00258bb35c2",
+    "19.json": "16404eb403df088ed261289e1623dcb8e059cd25d9c56c4c126e6d09b768aa60",
+    "2.json": "3d59e43cf117516473cda7d67bc88542e3b9ba6b19f5ad43462efe1386246ab3",
+    "20.json": "613c8683aad515d1ecd2adc6f812167e582dea97c6542db5a7659f448640aaee",
+    "21.json": "859a9e0fdcb284eb5f267d3c84de98187ce8979c1698cb216205ce0cd066bca1",
+    "22.json": "2794df345a2a8230d815add2b5b3bb15ef2c689abd447d8448d3b63cc9d2c27a",
+    "23.json": "da924005d89fbf85db6c90e9c116ed0ecc9cf156f78a4088b12e1c6e6bf98813",
+    "24.json": "23b0343713e1302485545c1058076d4747e7ed99f2e8b17e97d84cba53cf01f4",
+    "25.json": "744c8d571380978e0d18a8d7c727786977e951d8f5b4afc6e60716a80f4cb7cf",
+    "26.json": "174a22fce9bdadd7943f93d987711dc16c106884047440529412e63a28242d93",
+    "27.json": "5e3ff4cf3b4c989d2f3f7376c09fa5d331f77512052ad7d00717e2407ac73d78",
+    "28.json": "2aba73d7f63f19f7dd33998601d25cacca2225d5c6f35fb2c449eb96b7686efa",
+    "29.json": "ec1047d1dd8d8a2a42ee886dae0a4d51784c0696c3530f12a432f0a6871a9812",
+    "3.json": "d7f74e064221830f787eb58cd22e933164b065230e3c6baefbf142b6d0c7ec9d",
+    "30.json": "04a798b4dd9d34a6dd85e9c921df301fba2f42b20ced2d7474af4c16a0a4996c",
+    "31.json": "961ddb3d26b779cc4ae1f069a6184c542393d7df4be7cbefd3e0964deb0b3b99",
+    "32.json": "f906c50ccbf45ea4a4013feaf502ef7998deb60ced8afa41e9b31c5094102f73",
+    "33.json": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292",
+    "4.json": "c1ce59eb0d03ca72b88afff8b83fa32455b84f81230be35f81014750f68699d9",
+    "5.json": "59b0a68714f68151ae113be607957ab1f967abcda9d6c0a79dbc33d7d3035946",
+    "6.json": "f59b72a82eb1273572937b0328ae51aa210e5ac9f4e7e19074047e8e4335c86e",
+    "7.json": "e74cdc8f027598494ae00d98486943c8ecbcc9fcab1db1778e987568c788afce",
+    "8.json": "07494317a6a90cbc2476d3d8034eaa29eca8f7ec0772ad3bbd322576d2de9ddd",
+    "9.json": "e531f4b2cf974d5d76cf29880c5e2103630f700d9b61072b5889e7ed519fb21d"
+  },
+  "old_fixture_manifest_sha256": "f8c90c8f132ce430798fb26f4371b9618bfb8e813f923f3da254d73d387d081b",
+  "old_fixture_count": 39,
+  "allowed_schema_differences": {
+    "version": [
+      33,
+      34
+    ],
+    "identityHash": [
+      "c8e25a89cb4bb9cf5903037158d9d8d3",
+      "c8d36ea3efb4c4fce886d4a66543d917"
+    ],
+    "setupQueries": [
+      [
+        "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+        "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
+      ],
+      [
+        "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+        "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8d36ea3efb4c4fce886d4a66543d917')"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "index_segments_status_voiceprintProcessedAt",
+        "table": "segments",
+        "row": "[\"index\",\"index_segments_status_voiceprintProcessedAt\",\"segments\",\"CREATE INDEX `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)\"]",
+        "occurrences": 1,
+        "schemaIndex": {
+          "name": "index_segments_status_voiceprintProcessedAt",
+          "unique": false,
+          "columnNames": [
+            "status",
+            "voiceprintProcessedAt"
+          ],
+          "orders": [],
+          "createSql": "CREATE INDEX IF NOT EXISTS `index_segments_status_voiceprintProcessedAt` ON `${TABLE_NAME}` (`status`, `voiceprintProcessedAt`)"
+        }
+      },
+      {
+        "name": "index_transcript_lines_startAt",
+        "table": "transcript_lines",
+        "row": "[\"index\",\"index_transcript_lines_startAt\",\"transcript_lines\",\"CREATE INDEX `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)\"]",
+        "occurrences": 1,
+        "schemaIndex": {
+          "name": "index_transcript_lines_startAt",
+          "unique": false,
+          "columnNames": [
+            "startAt"
+          ],
+          "orders": [],
+          "createSql": "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `${TABLE_NAME}` (`startAt`)"
+        }
+      }
+    ]
+  },
+  "everything_else_equal": true,
+  "migration_sql": [
+    "CREATE INDEX IF NOT EXISTS `index_segments_status_voiceprintProcessedAt` ON `segments` (`status`, `voiceprintProcessedAt`)",
+    "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)"
+  ]
+}

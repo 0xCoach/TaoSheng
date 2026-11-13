@@ -1,5 +1,6 @@
 package app.resound.diary
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
@@ -45,7 +46,7 @@ class DayDiaryTest {
         val llm = LlmClient()
         val settings = AndroidDigestSettings(context, llm)
         val runner = DigestRunner(context, db.memory(), llm, settings, { "" }, { false })
-        memory = RoomMemoryRepository(db.memory(), runner, { error("禁止触发整理") }, scope)
+        memory = RoomMemoryRepository(db.memory(), runner, { error("禁止触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
         val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("review", 0), scope,
             { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "回响",
             object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) { error("禁止推送") } }, {})
@@ -175,7 +176,7 @@ class DayDiaryTest {
             item(4, "知识", created = start), item(5, created = end, due = end),
             item(6, status = "Ignored", created = start, due = start), item(7, created = start, event = 2),
             item(8, "备忘", created = start + 1)))
-        val groups = memory.dayItems(day).first()
+        val groups = memory.dayItems(day.toKotlinLocalDate()).first()
         assertEquals(listOf(1L, 8L), groups.mentioned.map { it.id })
         assertEquals(listOf(2L, 1L), groups.due.map { it.id })
         assertEquals(listOf(1L), groups.done.map { it.id })
@@ -188,7 +189,7 @@ class DayDiaryTest {
         event(3, at(LocalDate.parse("2026-11-01")))
         db.memory().insertItems(listOf(item(1, created = at(), due = at(date.plusDays(4))),
             item(2, created = at(date.plusDays(2)), event = 2), item(3, created = at(LocalDate.parse("2026-11-01")))))
-        assertEquals(setOf(date.minusDays(1), date), memory.activeDays(YearMonth.from(date)).first())
+        assertEquals(setOf(date.minusDays(1).toKotlinLocalDate(), date.toKotlinLocalDate()), memory.activeDays(kotlinx.datetime.YearMonth(date.year, date.monthValue)).first())
     }
 
     @Test fun markdownMatchesFullSampleSkipsMediaAndExportsWithoutInvokingModels() = runBlocking {

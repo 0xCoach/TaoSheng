@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.PushMoreTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:36:39.827Z" hostname="CoachdeMacBook-Air.local" time="0.166">
+  <properties/>
+  <testcase name="smtpLocalAuthDataTlsModesAndMimeAttachment" classname="app.resound.push.PushMoreTest" time="0.016"/>
+  <testcase name="telegramEscapesThenTruncatesAndUploadsDailyDocumentThroughProxy" classname="app.resound.push.PushMoreTest" time="0.017"/>
+  <testcase name="webdavAppendsCreatesDirectoriesAndDailyOverwriteUsesSeparatePath" classname="app.resound.push.PushMoreTest" time="0.016"/>
+  <testcase name="notionDiscoversTitleArchivesPreviousDayAndBatchesBlocksWithCache" classname="app.resound.push.PushMoreTest" time="0.016"/>
+  <testcase name="dailyJsonHasCompleteFieldsAndOptionalLinesSurviveRetrySnapshot" classname="app.resound.push.PushMoreTest" time="0.009"/>
+  <testcase name="feishuKnownSignatureAndInteractiveJsonFallback" classname="app.resound.push.PushMoreTest" time="0.009"/>
+  <testcase name="dingTalkKnownSignatureIsUrlEncodedAndUsesMarkdown" classname="app.resound.push.PushMoreTest" time="0.014"/>
+  <testcase name="validationRejectsUnsafeInputsButAllowsPrivateWebhookRanges" classname="app.resound.push.PushMoreTest" time="0.007"/>
+  <testcase name="webhookEnvelopeTypesAndIndependentSignatureCoverExactWireBytes" classname="app.resound.push.PushMoreTest" time="0.013"/>
+  <testcase name="diaryAndDailySourceIncludeTypedCardsAndUseReviewCutoffWindow" classname="app.resound.push.PushMoreTest" time="0.048"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

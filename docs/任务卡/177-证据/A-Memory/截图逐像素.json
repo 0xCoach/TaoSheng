@@ -1,0 +1,152 @@
+[
+  {
+    "name": "screen/2-常见-今天.png",
+    "changed": 851,
+    "bbox": [
+      296,
+      1626,
+      726,
+      1645
+    ]
+  },
+  {
+    "name": "screen/2-常见-原话.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/2-常见-待办.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/2-常见-聆听.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/2-常见-记忆.png",
+    "changed": 635,
+    "bbox": [
+      70,
+      1228,
+      134,
+      1248
+    ]
+  },
+  {
+    "name": "screen/2-常见-设置.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/2-常见-问问.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/2-常见-高级.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/7-暗色-今天.png",
+    "changed": 335,
+    "bbox": [
+      688,
+      1626,
+      726,
+      1645
+    ]
+  },
+  {
+    "name": "screen/7-暗色-原话.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/7-暗色-待办.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/7-暗色-聆听.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/7-暗色-记忆.png",
+    "changed": 635,
+    "bbox": [
+      70,
+      1228,
+      134,
+      1248
+    ]
+  },
+  {
+    "name": "screen/7-暗色-设置.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/7-暗色-问问.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "screen/7-暗色-高级.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Dark-专题记录.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Dark-会议纪要.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Dark-开始专题.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Dark-管理记录.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Dark-部分完成.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Light-专题记录.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Light-会议纪要.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Light-开始专题.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Light-管理记录.png",
+    "changed": 0,
+    "bbox": null
+  },
+  {
+    "name": "topic/Light-部分完成.png",
+    "changed": 0,
+    "bbox": null
+  }
+]

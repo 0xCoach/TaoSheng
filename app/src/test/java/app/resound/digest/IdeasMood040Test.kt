@@ -1,5 +1,6 @@
 package app.resound.digest
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
@@ -46,7 +47,7 @@ class IdeasMood040Test {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
         val runner = DigestRunner(context, db.memory(), llm, AndroidDigestSettings(context, llm), { "" }, { false })
-        memory = RoomMemoryRepository(db.memory(), runner, { error("禁止请求云端") }, scope)
+        memory = RoomMemoryRepository(db.memory(), runner, { error("禁止请求云端") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
     }
     @After fun close() = runBlocking {
         scope.coroutineContext[Job]!!.cancelAndJoin()
@@ -130,10 +131,10 @@ class IdeasMood040Test {
         idea(1, at(day.minusDays(1))); idea(2); idea(3)
         for (id in 1L..3L) vector(id)
         merge()
-        assertTrue(memory.dayItems(day).first().notes.isEmpty())
-        assertEquals(3, memory.dayItems(day.minusDays(1)).first().notes.single().repeats)
-        assertTrue(memory.events(day).first().all { it.items.isEmpty() })
-        assertEquals(3, memory.events(day.minusDays(1)).first().single().items.single().repeats)
+        assertTrue(memory.dayItems(day.toKotlinLocalDate()).first().notes.isEmpty())
+        assertEquals(3, memory.dayItems(day.minusDays(1).toKotlinLocalDate()).first().notes.single().repeats)
+        assertTrue(memory.events(day.toKotlinLocalDate()).first().all { it.items.isEmpty() })
+        assertEquals(3, memory.events(day.minusDays(1).toKotlinLocalDate()).first().single().items.single().repeats)
         assertEquals(listOf(20L, 30L), memory.mergedItems(1).first().map { it.sourceLineId })
         assertEquals(listOf(at() + 2000, at() + 3000), memory.mergedItems(1).first().map { it.at })
     }

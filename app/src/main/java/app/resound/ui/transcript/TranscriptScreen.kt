@@ -174,7 +174,7 @@ fun TranscriptScreen(
         selection.reachTarget(order, viewport.top, minOf(viewport.bottom, bottomEdge)) else null
     val context = LocalContext.current
     val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
-    val dayEvents by remember(date, memory) { memory?.events(date) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val dayEvents by remember(date, memory) { memory?.events(date.toKotlinLocalDate()) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     var exporting by remember { mutableStateOf<Pair<List<Long>, String>?>(null) }
     var deleting by remember { mutableStateOf<List<Long>?>(null) }
     var retranscribing by remember { mutableStateOf<List<Long>?>(null) }

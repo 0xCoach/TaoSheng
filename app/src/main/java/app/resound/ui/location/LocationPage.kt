@@ -1,5 +1,6 @@
 package app.resound.ui.location
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.content.Intent
@@ -112,7 +113,7 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
     val latest by remember { repo.latest() }.collectAsStateWithLifecycle(null)
     // 0.2.21：停留点下挂这段时间里的事；当天事件取一次
     val memory = if (app.resound.AppGraph.isMemoryReady) app.resound.AppGraph.memory else null
-    val dayEvents by remember(date, memory) { memory?.events(day) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(emptyList())
+    val dayEvents by remember(date, memory) { memory?.events(day.toKotlinLocalDate()) ?: kotlinx.coroutines.flow.flowOf(emptyList()) }.collectAsStateWithLifecycle(emptyList())
     var openEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
     // 地名按约 100 米格子取；先读缓存，再逐个去查
     val places = remember { androidx.compose.runtime.mutableStateMapOf<String, Place?>() }

@@ -211,7 +211,7 @@ class ResoundApp : Application() {
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
-        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) })
+        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone)
         AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers

@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package app.resound.digest
 
 import app.resound.data.editEvent
@@ -27,10 +29,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
-import java.time.Instant
-import java.time.YearMonth
-import java.time.LocalDate
-import java.time.ZoneId
+import kotlinx.datetime.*
+import kotlin.time.Instant
+import app.resound.platform.ZoneProvider
 
 class RoomMemoryRepository(
     private val dao: MemoryDao,
@@ -39,12 +40,14 @@ class RoomMemoryRepository(
     private val scope: CoroutineScope,
     private val reminderSettings: AndroidAppointmentSettings? = null,
     private val eventChanged: () -> Unit = {},
+    private val zoneProvider: ZoneProvider,
 ) : MemoryRepository {
 
-    override fun events(date: LocalDate): Flow<List<MemoryEvent>> {
-        val zone = ZoneId.systemDefault()
-        val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    override fun events(date: LocalDate): Flow<List<MemoryEvent>> = events(date, TimeZone.of(zoneProvider.zoneId()))
+
+    private fun events(date: LocalDate, zone: TimeZone): Flow<List<MemoryEvent>> {
+        val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
+        val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
         return combine(dao.events(start, end), dao.itemsBetween(start, end), dao.repeatCounts(), dao.doneHintLines()) { events, items, counts, lines ->
             val repeats = counts.associate { it.id to it.repeats }
             val byEvent = items.groupBy { it.eventId }
@@ -74,8 +77,9 @@ class RoomMemoryRepository(
 
     override suspend fun eventById(eventId: Long): MemoryEvent? {
         val row = dao.event(eventId)?.takeIf { !it.deleted } ?: return null
-        val day = java.time.Instant.ofEpochMilli(row.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-        return events(day).first().firstOrNull { it.id == eventId }
+        val zone = TimeZone.of(zoneProvider.zoneId())
+        val day = Instant.fromEpochMilliseconds(row.startAt).toLocalDateTime(zone).date
+        return events(day, zone).first().firstOrNull { it.id == eventId }
     }
 
     override fun editEvent(eventId: Long, title: String, summary: String, points: List<String>) {
@@ -112,7 +116,7 @@ class RoomMemoryRepository(
 
     override fun ongoing(): Flow<List<MemoryItem>> = listed(dao.ongoing())
     override fun doneItems(from: LocalDate): Flow<List<MemoryItem>> =
-        listed(dao.doneItems(from.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()))
+        listed(dao.doneItems(from.atStartOfDayIn(TimeZone.of(zoneProvider.zoneId())).toEpochMilliseconds()))
     override fun deleteItem(id: Long) { scope.launch { dao.deleteItem(id) } }
     override fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {
         scope.launch { dao.updateItem(id, content, dueAt, hasTime, who) }
@@ -135,9 +139,9 @@ class RoomMemoryRepository(
     }
 
     override fun dayItems(date: LocalDate): Flow<DayItems> {
-        val zone = ZoneId.systemDefault()
-        val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val zone = TimeZone.of(zoneProvider.zoneId())
+        val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
+        val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
         return listed(dao.dayItems(start, end)).map { items ->
             val tasks = items.filter { it.category in setOf("待办", "约定", "备忘") }
             DayItems(
@@ -150,11 +154,11 @@ class RoomMemoryRepository(
     }
 
     override fun activeDays(month: YearMonth): Flow<Set<LocalDate>> {
-        val zone = ZoneId.systemDefault()
-        val start = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val zone = TimeZone.of(zoneProvider.zoneId())
+        val start = month.firstDay.atStartOfDayIn(zone).toEpochMilliseconds()
+        val end = month.plus(1, DateTimeUnit.MONTH).firstDay.atStartOfDayIn(zone).toEpochMilliseconds()
         return combine(dao.activeEventTimes(start, end), dao.activeItemTimes(start, end)) { events, items ->
-            (events + items).mapTo(mutableSetOf()) { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+            (events + items).mapTo(mutableSetOf()) { Instant.fromEpochMilliseconds(it).toLocalDateTime(zone).date }
         }.flowOn(Dispatchers.IO)
     }
 
@@ -166,7 +170,7 @@ class RoomMemoryRepository(
 
     private val pendingCount = dao.observeUndigestedCount().shareIn(scope, SharingStarted.Eagerly, replay = 1)
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private val todayUsage = combine(dao.observeUsageChanges(), pendingCount, runner.running, runner.last) { _, _, _, _ -> LocalDate.now().toString() }
+    private val todayUsage = combine(dao.observeUsageChanges(), pendingCount, runner.running, runner.last) { _, _, _, _ -> java.time.LocalDate.now().toString() }
         .distinctUntilChanged().flatMapLatest { dao.observeTokens(it).distinctUntilChanged() }
     override val state: StateFlow<DigestState> = combine(
         pendingCount, runner.running, runner.last, todayUsage,

@@ -1,5 +1,6 @@
 package app.resound.starred
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.data.testSql
 import android.app.Application
 import android.content.Context
@@ -47,7 +48,7 @@ class Starred041Test {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val llm = LlmClient()
         memory = RoomMemoryRepository(db.memory(), DigestRunner(context, db.memory(), llm,
-            AndroidDigestSettings(context, llm), { "" }, { false }), { error("禁止云端请求") }, scope)
+            AndroidDigestSettings(context, llm), { "" }, { false }), { error("禁止云端请求") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id })
     }
     @After fun close() = runBlocking {
         scope.coroutineContext[Job]!!.cancelAndJoin(); db.close(); TimeZone.setDefault(oldZone)
@@ -116,14 +117,14 @@ class Starred041Test {
         db.memory().setStarred(2, false, at + 40)
         assertEquals(before, db.memory().inProgress().first())
         assertEquals(listOf(1L), memory.starredEvents().first().map { it.id })
-        val unstarred = memory.events(day).first().single { it.id == 2L }
+        val unstarred = memory.events(day.toKotlinLocalDate()).first().single { it.id == 2L }
         assertFalse(unstarred.starred); assertNull(unstarred.starredAt)
         // 中途条目 UPDATE 失败时，星标和先接受的条目一起回滚。
         item(41, 4); item(42, 4, category = "备忘")
         db.testSql.execSQL("""CREATE TRIGGER fail_star BEFORE UPDATE OF status ON memory_items
             WHEN NEW.id = 42 BEGIN SELECT RAISE(ABORT, 'test rollback'); END""")
         assertTrue(runCatching { db.memory().setStarred(4, true, at) }.isFailure)
-        assertFalse(memory.events(day).first().single { it.id == 4L }.starred)
+        assertFalse(memory.events(day.toKotlinLocalDate()).first().single { it.id == 4L }.starred)
         assertEquals("Pending", db.memory().itemsBetween(at, at + days).first().single { it.id == 41L }.status)
     }
 

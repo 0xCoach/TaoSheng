@@ -1,5 +1,6 @@
 package app.resound.ui.items
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.widget.Toast
@@ -94,9 +95,9 @@ internal fun DatePickerStrip(memory: MemoryRepository, date: LocalDate, onPick: 
     var shownMonth by remember(date) { mutableStateOf(YearMonth.from(date)) }
     val weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     // 一周可能跨两个月，两个月的打点都要
-    val active1 by remember(YearMonth.from(weekStart)) { memory.activeDays(YearMonth.from(weekStart)) }.collectAsStateWithLifecycle(initialValue = emptySet())
-    val active2 by remember(YearMonth.from(weekStart.plusDays(6))) { memory.activeDays(YearMonth.from(weekStart.plusDays(6))) }.collectAsStateWithLifecycle(initialValue = emptySet())
-    val monthActive by remember(shownMonth) { memory.activeDays(shownMonth) }.collectAsStateWithLifecycle(initialValue = emptySet())
+    val active1 by remember(YearMonth.from(weekStart)) { memory.activeDays(kotlinx.datetime.YearMonth(weekStart.year, weekStart.monthValue)) }.collectAsStateWithLifecycle(initialValue = emptySet())
+    val active2 by remember(YearMonth.from(weekStart.plusDays(6))) { memory.activeDays(weekStart.plusDays(6).let { kotlinx.datetime.YearMonth(it.year, it.monthValue) }) }.collectAsStateWithLifecycle(initialValue = emptySet())
+    val monthActive by remember(shownMonth) { memory.activeDays(kotlinx.datetime.YearMonth(shownMonth.year, shownMonth.monthValue)) }.collectAsStateWithLifecycle(initialValue = emptySet())
 
     RsCard(padding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -124,7 +125,7 @@ internal fun DatePickerStrip(memory: MemoryRepository, date: LocalDate, onPick: 
             Row(Modifier.fillMaxWidth()) {
                 for (i in 0..6) {
                     val d = weekStart.plusDays(i.toLong())
-                    DayCell(d, WEEKDAYS[i], d == date, d == today, d in active1 || d in active2, enabled = d <= today, Modifier.weight(1f)) {
+                    DayCell(d, WEEKDAYS[i], d == date, d == today, d.toKotlinLocalDate() in active1 || d.toKotlinLocalDate() in active2, enabled = d <= today, Modifier.weight(1f)) {
                         onPick(d)
                     }
                 }
@@ -146,7 +147,7 @@ internal fun DatePickerStrip(memory: MemoryRepository, date: LocalDate, onPick: 
                             if (n < 1 || n > shownMonth.lengthOfMonth()) Spacer(Modifier.weight(1f))
                             else {
                                 val d = shownMonth.atDay(n)
-                                DayCell(d, null, d == date, d == today, d in monthActive, enabled = d <= today, Modifier.weight(1f)) {
+                                DayCell(d, null, d == date, d == today, d.toKotlinLocalDate() in monthActive, enabled = d <= today, Modifier.weight(1f)) {
                                     monthOpen = false; onPick(d)
                                 }
                             }

@@ -793,7 +793,7 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     // 按事件
     val day = from?.let { Instant.ofEpochMilli(it.startAt).atZone(zone).toLocalDate() } ?: LocalDate.now()
-    val dayEvents = if (from != null && AppGraph.isMemoryReady) remember(day) { AppGraph.memory.events(day) }.collectAsStateWithLifecycle(initialValue = null).value.orEmpty() else emptyList()
+    val dayEvents = if (from != null && AppGraph.isMemoryReady) remember(day) { AppGraph.memory.events(day.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = null).value.orEmpty() else emptyList()
     val nearby = dayEvents.filter { from != null && it.endAt > from.startAt - 3 * 3600_000L && it.startAt < from.endAt + 3 * 3600_000L }.sortedBy { it.startAt }
     var picked by remember(from?.id) { mutableStateOf(setOfNotNull(from?.id)) }
     // 按时间段

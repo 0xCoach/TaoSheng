@@ -4,7 +4,7 @@ import app.resound.transcribe.TranscriptLine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /*
  * “今天”页与大模型整理之间的约定。
@@ -41,7 +41,7 @@ interface MemoryRepository {
     fun dayItems(date: LocalDate): Flow<DayItems> = kotlinx.coroutines.flow.flowOf(DayItems(emptyList(), emptyList(), emptyList(), emptyList()))
 
     /** 某月里有内容（事件或条目）的日子，给月历打点 */
-    fun activeDays(month: java.time.YearMonth): Flow<Set<LocalDate>> = kotlinx.coroutines.flow.flowOf(emptySet())
+    fun activeDays(month: kotlinx.datetime.YearMonth): Flow<Set<LocalDate>> = kotlinx.coroutines.flow.flowOf(emptySet())
 
     fun setImportant(eventId: Long, important: Boolean)
 
@@ -111,31 +111,3 @@ interface MemoryRepository {
     fun runNow()
 }
 
-/** 整理用的大模型服务 */
-
-interface DigestSettings {
-    /** 卡 130：整理时把每段原话当时的地点和环境音一起交给大模型（位置会发给大模型服务商，默认关） */
-    val includeSituation: kotlinx.coroutines.flow.StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(false)
-    fun setIncludeSituation(on: Boolean) {}
-    fun headers(presetId: String): List<HeaderEntry> = emptyList()
-    fun saveHeaders(presetId: String, headers: List<HeaderEntry>) {}
-    val presets: List<LlmPreset>
-
-    /** 当前选中的服务 id */
-    val presetId: StateFlow<String>
-
-    fun setPreset(id: String)
-
-    /** 当前服务是否已填密钥 */
-    val hasKey: StateFlow<Boolean>
-
-    fun saveKey(key: String)
-
-    fun clearKey()
-
-    /** 发一句很短的话确认能用 */
-    suspend fun test(): Result<String>
-
-    /** 按功能逐项检测当前模型（连接、按格式回答、问问的流式回答/工具调用/标注出处）；没法开始检测（没填密钥等）给 failure */
-    suspend fun check(): Result<List<ModelCheckItem>> = test().map { listOf(ModelCheckItem(ModelCheck.CONNECT, true, it)) }
-}

@@ -1,5 +1,6 @@
 package app.resound.ui
 
+import kotlinx.datetime.toKotlinLocalDate
 import android.app.Application
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
@@ -33,7 +34,7 @@ class BatchDeleteInvestigationTest {
     @Test fun failedDeletionStaysVisibleAndRetriesOnlyFailedRecord() = deleteFromHome(6, false, 3L)
 
     private fun deleteFromHome(count: Int, acrossGroups: Boolean, failedId: Long? = null) {
-        val base = kotlinx.coroutines.runBlocking { FakeMemoryRepository().events(LocalDate.now()).first().first() }
+        val base = kotlinx.coroutines.runBlocking { FakeMemoryRepository().events(LocalDate.now().toKotlinLocalDate()).first().first() }
         val beginning = if (acrossGroups) LocalDate.now().atTime(2, 0)
             .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() else base.startAt
         val step = if (acrossGroups) 3_600_000L else 60_000L
@@ -42,7 +43,7 @@ class BatchDeleteInvestigationTest {
                 endAt = beginning + id * step + 20_000, items = emptyList())
         })
         val memory = object : MemoryRepository by FakeMemoryRepository() {
-            override fun events(date: LocalDate): Flow<List<MemoryEvent>> = rows
+            override fun events(date: kotlinx.datetime.LocalDate): Flow<List<MemoryEvent>> = rows
             override fun pendingItems(): Flow<List<MemoryItem>> = flowOf(emptyList())
         }
         val deleted = mutableListOf<Long>()

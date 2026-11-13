@@ -149,7 +149,7 @@ fun TodayScreen(
     val c = Rs.colors
     var dayOffset by remember { mutableIntStateOf(0) }
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
-    val events by remember(date) { memory.events(date) }.collectAsStateWithLifecycle(initialValue = null)
+    val events by remember(date) { memory.events(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = null)
     val pending by remember { memory.pendingItems() }.collectAsStateWithLifecycle(initialValue = emptyList())
     // 卡 079：寻物的待确认和待办的放在一起；3 天前的只在寻物页
     val things = remember { app.resound.ui.things.thingRepo() }

@@ -124,7 +124,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     var doneDays by rememberSaveable { mutableStateOf(7) }
     val pendingItems by remember { memory.items(TASKS, setOf(ItemStatus.Pending)) }.collectAsStateWithLifecycle(initialValue = null)
     val ongoingItems by remember { memory.ongoing() }.collectAsStateWithLifecycle(initialValue = null)
-    val doneItems by remember(doneDays) { memory.doneItems(today.minusDays(doneDays - 1L)) }.collectAsStateWithLifecycle(initialValue = null)
+    val doneItems by remember(doneDays) { memory.doneItems(today.minusDays(doneDays - 1L).toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = null)
     // 进入页面时停在第一个有内容的栏（待确认 → 进行中 → 已完成），都没有就停在进行中；之后不再自动跳
     var decided by rememberSaveable { mutableStateOf(false) }
     var tabIndex by rememberSaveable { mutableStateOf(1) }
@@ -319,8 +319,8 @@ fun MemoryScreen(
 
     // 按天要的数据
     val review by remember(date, reviews) { reviews?.daily(date.toKotlinLocalDate()) ?: flowOf(null) }.collectAsStateWithLifecycle(initialValue = null)
-    val events by remember(date) { memory.events(date) }.collectAsStateWithLifecycle(initialValue = null)
-    val day by remember(date) { memory.dayItems(date) }.collectAsStateWithLifecycle(initialValue = null)
+    val events by remember(date) { memory.events(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = null)
+    val day by remember(date) { memory.dayItems(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = null)
     val segments by remember(date, transcripts) { transcripts?.day(date.toKotlinLocalDate()) ?: flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val lines = remember(segments) { dayLines(segments) }
     val skills = remember { app.resound.ui.skills.skillRepo() }

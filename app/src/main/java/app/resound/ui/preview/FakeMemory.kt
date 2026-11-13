@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.toJavaLocalDate
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -58,8 +59,8 @@ class FakeMemoryRepository : MemoryRepository {
             listOf("先看回响测试报告", "下午跟老王过一遍", "体检报告发李医生"), listOf("老王", "李医生"), null, "平静", 2, true, emptyList()),
     )
 
-    override fun events(date: LocalDate): Flow<List<MemoryEvent>> = items.map { all ->
-        if (date != today) emptyList() else baseEvents(date).map { e -> e.copy(items = all.filter { it.eventId == e.id }) }
+    override fun events(date: kotlinx.datetime.LocalDate): Flow<List<MemoryEvent>> = items.map { all ->
+        if (date.toJavaLocalDate() != today) emptyList() else baseEvents(date.toJavaLocalDate()).map { e -> e.copy(items = all.filter { it.eventId == e.id }) }
     }
 
     override fun eventLines(eventId: Long): Flow<List<TranscriptLine>> = flowOf(

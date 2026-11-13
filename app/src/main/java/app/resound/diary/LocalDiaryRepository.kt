@@ -58,7 +58,7 @@ class LocalDiaryRepository(
                 if (content.isNotBlank()) sections += "## 回顾\n$content"
             }
             cardsMarkdown(cards(date), zone).takeIf { it.isNotBlank() }?.let { sections += it }
-            val events = memory.events(date).first().filter { it.scene != "媒体" || it.starred }.sortedBy { it.startAt }
+            val events = memory.events(date.toKotlinLocalDate()).first().filter { it.scene != "媒体" || it.starred }.sortedBy { it.startAt }
             if (events.isNotEmpty()) sections += "## 时间线\n" + events.map { event ->
                 buildList {
                     add("### ${app.resound.OutputTime(zone).event(event.startAt, event.endAt)} ${if (event.starred) "★ " else ""}${event.title}（${event.scene}）")
@@ -72,7 +72,7 @@ class LocalDiaryRepository(
                     if (detail.isNotBlank()) add(detail)
                 }.joinToString("\n")
             }.joinToString("\n\n")
-            val items = memory.dayItems(date).first()
+            val items = memory.dayItems(date.toKotlinLocalDate()).first()
             val tasks = listOf("当天提到" to items.mentioned, "当天到期" to items.due, "当天完成" to items.done)
                 .filter { it.second.isNotEmpty() }.joinToString("\n") { (title, rows) ->
                     "**$title**\n" + rows.joinToString("\n") { task(it, zone) }

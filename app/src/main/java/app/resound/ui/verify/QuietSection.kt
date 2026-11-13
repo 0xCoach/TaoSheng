@@ -39,7 +39,8 @@ import app.resound.ui.items.Label
 import app.resound.ui.skills.Toggle
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
-import java.time.DayOfWeek
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.isoDayNumber
 
 /** 录音与后台页的“停录时段”：每条一行（名字、时间、重复、开关），点开编辑；底部添加 */
 @Composable
@@ -148,7 +149,7 @@ private fun QuietRuleSheet(rule: QuietRule?, isNew: Boolean, onSave: (QuietRule)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            DayOfWeek.entries.forEach { d -> DayDot(DAY_NAMES[d.value - 1], d in days) { days = if (d in days) days - d else days + d } }
+            DayOfWeek.entries.forEach { d -> DayDot(DAY_NAMES[d.isoDayNumber - 1], d in days) { days = if (d in days) days - d else days + d } }
         }
         if (end <= start && days != DayOfWeek.entries.toSet()) Text("跨到第二天的时段，按开始那天算重复。", style = RsType.caption, color = c.textTertiary)
         Spacer(Modifier.height(4.dp))
@@ -185,7 +186,7 @@ internal fun daysText(days: Set<DayOfWeek>): String = when (days) {
     DayOfWeek.entries.toSet() -> "每天"
     WORKDAYS -> "工作日"
     WEEKEND -> "周末"
-    else -> "周" + days.sortedBy { it.value }.joinToString("、") { DAY_NAMES[it.value - 1] }
+    else -> "周" + days.sortedBy { it.isoDayNumber }.joinToString("、") { DAY_NAMES[it.isoDayNumber - 1] }
 }
 
 /** 一张时间卡：上面小字“开始/结束”，下面大号时刻；选中时浅橙底、细描边 */

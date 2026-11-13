@@ -120,9 +120,9 @@ private fun compare(today: Int, usual: Int?): String? {
 private fun quietHours(rules: List<QuietRule>, date: LocalDate): Map<Int, String> = buildMap {
     rules.filter { it.enabled }.forEach { r ->
         val spans = if (r.endMinute <= r.startMinute) listOf(
-            (r.startMinute / 60..23).takeIf { date.dayOfWeek in r.days },
-            (0 until (r.endMinute + 59) / 60).takeIf { date.minusDays(1).dayOfWeek in r.days })
-        else listOf((r.startMinute / 60 until (r.endMinute + 59) / 60).takeIf { date.dayOfWeek in r.days })
+            (r.startMinute / 60..23).takeIf { kotlinx.datetime.DayOfWeek.valueOf(date.dayOfWeek.name) in r.days },
+            (0 until (r.endMinute + 59) / 60).takeIf { kotlinx.datetime.DayOfWeek.valueOf(date.minusDays(1).dayOfWeek.name) in r.days })
+        else listOf((r.startMinute / 60 until (r.endMinute + 59) / 60).takeIf { kotlinx.datetime.DayOfWeek.valueOf(date.dayOfWeek.name) in r.days })
         spans.filterNotNull().forEach { span -> span.forEach { putIfAbsent(it, r.name) } }
     }
 }

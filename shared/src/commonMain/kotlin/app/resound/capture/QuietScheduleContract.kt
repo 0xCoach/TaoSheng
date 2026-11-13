@@ -1,6 +1,6 @@
 package app.resound.capture
 
-import java.time.DayOfWeek
+import kotlinx.datetime.DayOfWeek
 import kotlinx.coroutines.flow.StateFlow
 
 /*

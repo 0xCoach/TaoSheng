@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.capture.QuietSchedule056Test" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T01:57:59.145Z" hostname="CoachdeMacBook-Air.local" time="1.371">
+  <properties/>
+  <testcase name="disablingActiveRuleImmediatelyResumesExistingService" classname="app.resound.capture.QuietSchedule056Test" time="1.28"/>
+  <testcase name="touchingAndOverlappingWindowsMergeWithFirstName" classname="app.resound.capture.QuietSchedule056Test" time="0.014"/>
+  <testcase name="upgradeSeedsDisabledSleepOnceAndKeepsManualPause" classname="app.resound.capture.QuietSchedule056Test" time="0.014"/>
+  <testcase name="stoppedServiceIsUntouchedAndStartInsideWindowPauses" classname="app.resound.capture.QuietSchedule056Test" time="0.016"/>
+  <testcase name="repeatDayBelongsToStartDate" classname="app.resound.capture.QuietSchedule056Test" time="0.01"/>
+  <testcase name="manualPauseAndQuietChooseLaterEndAndCorrectName" classname="app.resound.capture.QuietSchedule056Test" time="0.009"/>
+  <testcase name="resumeSkipsOnlyCurrentMergedWindowAndSurvivesReload" classname="app.resound.capture.QuietSchedule056Test" time="0.011"/>
+  <testcase name="midnightWindowEndsAtSevenAndNextBoundaryMatches" classname="app.resound.capture.QuietSchedule056Test" time="0.008"/>
+  <testcase name="killedGapsExcludeQuietAndManualPause" classname="app.resound.capture.QuietSchedule056Test" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

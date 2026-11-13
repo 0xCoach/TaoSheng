@@ -9,7 +9,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import java.time.DayOfWeek
+import kotlinx.datetime.DayOfWeek
 import java.time.LocalDateTime
 import java.time.ZoneId
 

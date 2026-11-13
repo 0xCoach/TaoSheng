@@ -12,7 +12,7 @@ object QuietRules {
         var date = first
         while (!date.isAfter(last)) {
             for (rule in rules) {
-                if (!rule.enabled || date.dayOfWeek !in rule.days) continue
+                if (!rule.enabled || kotlinx.datetime.DayOfWeek.valueOf(date.dayOfWeek.name) !in rule.days) continue
                 val start = date.atStartOfDay().plusMinutes(rule.startMinute.toLong()).atZone(zone).toInstant().toEpochMilli()
                 val endDate = if (rule.endMinute <= rule.startMinute) date.plusDays(1) else date
                 val end = endDate.atStartOfDay().plusMinutes(rule.endMinute.toLong()).atZone(zone).toInstant().toEpochMilli()

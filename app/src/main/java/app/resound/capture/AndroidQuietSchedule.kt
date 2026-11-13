@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.DayOfWeek
+import kotlinx.datetime.isoDayNumber
 import java.time.ZoneId
 
 class AndroidQuietSchedule(
@@ -65,14 +66,14 @@ class AndroidQuietSchedule(
         private fun encode(rules: List<QuietRule>) = JSONArray().apply {
             rules.forEach { rule -> put(JSONObject().put("id", rule.id).put("name", rule.name)
                 .put("startMinute", rule.startMinute).put("endMinute", rule.endMinute).put("enabled", rule.enabled)
-                .put("days", JSONArray(rule.days.sortedBy { it.value }.map { it.value }))) }
+                .put("days", JSONArray(rule.days.sortedBy { it.isoDayNumber }.map { it.isoDayNumber }))) }
         }.toString()
         private fun decode(json: String): List<QuietRule> = runCatching {
             val rows = JSONArray(json)
             (0 until rows.length()).map { i ->
                 val row = rows.getJSONObject(i); val days = row.getJSONArray("days")
                 QuietRule(row.getString("id"), row.getString("name"), row.getInt("startMinute"), row.getInt("endMinute"),
-                    (0 until days.length()).map { DayOfWeek.of(days.getInt(it)) }.toSet(), row.getBoolean("enabled"))
+                    (0 until days.length()).map { kotlinx.datetime.DayOfWeek.valueOf(DayOfWeek.of(days.getInt(it)).name) }.toSet(), row.getBoolean("enabled"))
             }.filter { it.startMinute in 0..1439 && it.endMinute in 0..1439 }
         }.getOrDefault(emptyList())
 

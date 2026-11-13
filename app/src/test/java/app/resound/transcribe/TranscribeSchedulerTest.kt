@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import kotlinx.datetime.toKotlinLocalDate
 import app.resound.data.complete
 import android.app.Application
 import android.content.Context
@@ -49,7 +50,7 @@ class TranscribeSchedulerTest {
             assertEquals(1, db.transcribe().expired(10_001).size)
             assertTrue(TranscribePolicy.canDelete("SkippedPlayback", 10_001, 10_001 + TranscribePolicy.RETENTION_MILLIS))
             val settings = Settings()
-            val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope)
+            val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope, app.resound.platform.SystemZone)
             repository.transcribeAnyway(1)
             withTimeout(3000) { db.transcribe().observeSegments().first { it.single().status == "Pending" } }
             assertEquals(1, db.transcribe().candidates(Long.MAX_VALUE).size)
@@ -66,7 +67,7 @@ class TranscribeSchedulerTest {
         val scope = CoroutineScope(job + Dispatchers.IO)
         try {
             val settings = Settings()
-            val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope)
+            val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope, app.resound.platform.SystemZone)
             repository.updateProgress(3, 1)
             withTimeout(3000) { repository.queue.first { it.runTotal == 3 && it.runDone == 1 } }
             repository.updateState(1000, "测试错误")
@@ -134,7 +135,7 @@ class TranscribeSchedulerTest {
             repeat(25) { dao.attempt(app.resound.data.AsrAttemptEntity(segmentId = row.id, at = it.toLong(),
                 result = "Done", errorType = null, elapsedMillis = 300, sentMillis = 3000, logId = "safe-log")) }
             dao.reserveAudio(java.time.LocalDate.now().toString(), 3000, row.id)
-            val repository = RoomTranscriptRepository(context, dao, settings, scheduler, scope)
+            val repository = RoomTranscriptRepository(context, dao, settings, scheduler, scope, app.resound.platform.SystemZone)
             withTimeout(3000) { repository.queue.first { it.usedSecondsToday == 3L } }
             val output = repository.diagnostics()
             assertEquals(20, output.lines().count { it.startsWith("转写元数据") })
@@ -142,8 +143,8 @@ class TranscribeSchedulerTest {
             assertTrue(output.contains("elapsedMillis=300"))
             assertFalse(output.contains("不应导出的原话"))
             assertFalse(output.contains("synthetic-key"))
-            assertEquals("不应导出的原话", repository.day(java.time.Instant.ofEpochMilli(1).atZone(java.time.ZoneId.systemDefault()).toLocalDate()).first().single().lines.single().text)
-            assertFalse(repository.day(java.time.Instant.ofEpochMilli(1).atZone(java.time.ZoneId.systemDefault()).toLocalDate()).first().single().audioAvailable)
+            assertEquals("不应导出的原话", repository.day(java.time.Instant.ofEpochMilli(1).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toKotlinLocalDate()).first().single().lines.single().text)
+            assertFalse(repository.day(java.time.Instant.ofEpochMilli(1).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toKotlinLocalDate()).first().single().audioAvailable)
         } finally { job.cancelAndJoin(); db.close() }
     }
 

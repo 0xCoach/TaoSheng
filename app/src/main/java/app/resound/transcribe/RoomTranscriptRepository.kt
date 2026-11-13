@@ -13,11 +13,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.File
 import java.time.LocalDate
-import java.time.ZoneId
+import kotlinx.datetime.*
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, kotlin.time.ExperimentalTime::class)
 class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
-    private val settings: TranscribeSettings, private val scheduler: TranscribeScheduler, private val scope: CoroutineScope) : TranscriptRepository {
+    private val settings: TranscribeSettings, private val scheduler: TranscribeScheduler, private val scope: CoroutineScope, private val zoneProvider: app.resound.platform.ZoneProvider) : TranscriptRepository {
     private val prefs = context.getSharedPreferences("transcribe-queue", Context.MODE_PRIVATE)
     private val last = MutableStateFlow(prefs.getLong("lastRunAt", 0).takeIf { it > 0 } to prefs.getString("lastError", null))
     // 仅存本进程当前轮次，进程重启不能恢复旧进度。
@@ -56,10 +56,10 @@ class RoomTranscriptRepository(context: Context, private val dao: TranscribeDao,
         check(prefs.edit().putLong("lastRunAt", at ?: 0).putString("lastError", error).commit())
         last.value = at to error
     }
-    override fun day(date: LocalDate): Flow<List<SegmentTranscript>> {
-        val zone = ZoneId.systemDefault()
-        val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    override fun day(date: kotlinx.datetime.LocalDate): Flow<List<SegmentTranscript>> {
+        val zone = TimeZone.of(zoneProvider.zoneId())
+        val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
+        val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
         return combine(dao.day(start, end), clock) { rows, _ -> rows.filter { it.segment.status != "SkippedEnv" }.map { (segment, lines) ->
             SegmentTranscript(segment.id, segment.startAt, segment.endAt, TranscriptStatus.valueOf(segment.status),
                 lines.sortedWith(compareBy({ it.startAt }, { it.id })).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, app.resound.transcribe.VoiceInputMetadata.read(it.voiceInputJson)) },

@@ -1,5 +1,6 @@
 package app.resound.ui.topic
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
@@ -434,7 +435,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
                 // 点 ★：找到这一刻所在的录音段，打开原话页并滚到那里；找不到就打开合成的那件事
                 scope.launch {
                     val atDay = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
-                    val seg = if (AppGraph.isTranscribeReady) runCatching { AppGraph.transcripts.day(atDay).first() }.getOrNull()
+                    val seg = if (AppGraph.isTranscribeReady) runCatching { AppGraph.transcripts.day(atDay.toKotlinLocalDate()).first() }.getOrNull()
                         ?.filter { it.startAt <= at }?.maxByOrNull { it.startAt } else null
                     if (seg != null) {
                         app.resound.ui.transcript.PlayerNav.transcriptFocus = atDay to seg.segmentId
@@ -450,7 +451,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
             event?.let { e -> add(Triple("合成的这件事", e.title) { app.resound.ui.transcript.PlayerNav.openEvent = e }) }
             if (t.status != TopicStatus.Scheduled) add(Triple("这段时间的原话", day.format(java.time.format.DateTimeFormatter.ofPattern("M月d日"))) {
                 scope.launch {
-                    val segment = if (AppGraph.isTranscribeReady) AppGraph.transcripts.day(day).first()
+                    val segment = if (AppGraph.isTranscribeReady) AppGraph.transcripts.day(day.toKotlinLocalDate()).first()
                         .firstOrNull { it.startAt >= start && it.startAt <= end } else null
                     segment?.let { app.resound.ui.transcript.PlayerNav.transcriptFocus = day to it.segmentId }
                     onDismiss(); app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)

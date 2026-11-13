@@ -321,7 +321,7 @@ fun MemoryScreen(
     val review by remember(date, reviews) { reviews?.daily(date.toKotlinLocalDate()) ?: flowOf(null) }.collectAsStateWithLifecycle(initialValue = null)
     val events by remember(date) { memory.events(date) }.collectAsStateWithLifecycle(initialValue = null)
     val day by remember(date) { memory.dayItems(date) }.collectAsStateWithLifecycle(initialValue = null)
-    val segments by remember(date, transcripts) { transcripts?.day(date) ?: flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val segments by remember(date, transcripts) { transcripts?.day(date.toKotlinLocalDate()) ?: flowOf(emptyList()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val lines = remember(segments) { dayLines(segments) }
     val skills = remember { app.resound.ui.skills.skillRepo() }
     val dayCards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())

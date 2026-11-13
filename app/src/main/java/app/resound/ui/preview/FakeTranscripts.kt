@@ -1,5 +1,6 @@
 package app.resound.ui.preview
 
+import kotlinx.datetime.toJavaLocalDate
 import app.resound.transcribe.SegmentTranscript
 import app.resound.transcribe.TranscribeQueueState
 import app.resound.transcribe.TranscribeSettings
@@ -37,8 +38,8 @@ class FakeTranscriptRepository : TranscriptRepository {
     )
     override val queue: StateFlow<TranscribeQueueState> = _queue
 
-    override fun day(date: LocalDate): Flow<List<SegmentTranscript>> =
-        segments.map { all -> if (date == today) all else sample(date).filter { it.status == TranscriptStatus.Done } }
+    override fun day(date: kotlinx.datetime.LocalDate): Flow<List<SegmentTranscript>> =
+        segments.map { all -> if (date.toJavaLocalDate() == today) all else sample(date.toJavaLocalDate()).filter { it.status == TranscriptStatus.Done } }
 
     override fun runNow() {
         if (_queue.value.running) return

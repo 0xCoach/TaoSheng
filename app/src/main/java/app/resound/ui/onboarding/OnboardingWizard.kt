@@ -1,5 +1,6 @@
 package app.resound.ui.onboarding
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.content.ClipboardManager
@@ -369,7 +370,7 @@ private fun ColumnScope.TryIt(capture: CaptureController, transcripts: Transcrip
     val status by capture.status.collectAsStateWithLifecycle()
     val micLevel by capture.level.collectAsStateWithLifecycle(0f)
     val today = remember { LocalDate.now() }
-    val segments by remember { transcripts.day(today) }.collectAsStateWithLifecycle(emptyList())
+    val segments by remember { transcripts.day(today.toKotlinLocalDate()) }.collectAsStateWithLifecycle(emptyList())
     val line = segments.flatMap { it.lines }.filter { it.startAt >= since && it.text.isNotBlank() }.maxByOrNull { it.startAt }
     val events by remember { memory.events(today) }.collectAsStateWithLifecycle(emptyList())
     val event = events.filter { it.startAt >= since - 60_000 }.maxByOrNull { it.startAt }

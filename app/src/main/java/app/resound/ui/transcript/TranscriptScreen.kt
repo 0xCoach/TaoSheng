@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.map
 import app.resound.ui.theme.fade
@@ -131,7 +132,7 @@ fun TranscriptScreen(
     var dayOffset by remember { mutableIntStateOf(0) }
     val date = remember(dayOffset) { LocalDate.now().minusDays(dayOffset.toLong()) }
     // 话都已记在语音输入那条里的录音段不显示
-    val segments by remember(date) { repo.day(date).map { day -> day.filterNot { it.status == TranscriptStatus.Done && it.lines.isEmpty() } } }
+    val segments by remember(date) { repo.day(date.toKotlinLocalDate()).map { day -> day.filterNot { it.status == TranscriptStatus.Done && it.lines.isEmpty() } } }
         .collectAsStateWithLifecycle(initialValue = null)
     val hasKey by settings.ready.collectAsStateWithLifecycle()
     val realtime = (settings as? AndroidTranscribeSettings)?.realtime?.collectAsStateWithLifecycle()?.value == true
@@ -348,10 +349,12 @@ private fun QueueCard(repo: TranscriptRepository, hasKey: Boolean, realtime: Boo
     }
 }
 
-private fun queueDetail(q: TranscribeQueueState, hasKey: Boolean, realtime: Boolean, now: Long): String = when {
+private fun queueDetail(q: TranscribeQueueState, hasKey: Boolean, realtime: Boolean, now: Long): String {
+    val lastError = q.lastError
+    return when {
     !hasKey -> "请配置云端服务，或下载本地模型后开始转写"
     q.running -> "逐段识别中，可以离开这个页面"
-    q.lastError != null -> q.lastError
+    lastError != null -> lastError
     else -> buildString {
         // 实时转写没有“下一轮”：录完就转
         if (realtime) append("录完就转")
@@ -363,6 +366,8 @@ private fun queueDetail(q: TranscribeQueueState, hasKey: Boolean, realtime: Bool
         }
         if (isEmpty()) append("还没有转写过")
     }
+}
+
 }
 
 private fun usage(seconds: Long) = if (seconds in 0..59) "${seconds}秒" else formatDuration(seconds * 1000)

@@ -90,7 +90,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
     val date = remember(r.startAt) { java.time.Instant.ofEpochMilli(r.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
     val skills = remember { app.resound.ui.skills.skillRepo() }
     val cards by remember(date) { skills.cards(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
-    val segments by remember(date) { AppGraph.transcripts.day(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val segments by remember(date) { AppGraph.transcripts.day(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val events = remember(date) { AppGraph.memory.events(date) }.collectAsStateWithLifecycle(initialValue = null).value.orEmpty()
     var openedCard by remember { mutableStateOf<SkillCard?>(null) }
     val onOpenCard: (SkillCard) -> Unit = { openedCard = it }

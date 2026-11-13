@@ -167,7 +167,7 @@ fun TodayScreen(
     var openedImport by remember { mutableStateOf<Long?>(null) }
     var deleting by remember { mutableStateOf<MemoryEvent?>(null) }
     val deleteNow = rememberDeleteEvent(memory)
-    val segments by remember(date) { transcripts.day(date) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val segments by remember(date) { transcripts.day(date.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val dayLines = remember(segments) { segments.flatMap { it.lines }.sortedBy { it.startAt } }
     val importing = if (app.resound.AppGraph.isImporterReady)
         app.resound.AppGraph.importer.progress.collectAsStateWithLifecycle().value.let { it.running || it.error != null } else false

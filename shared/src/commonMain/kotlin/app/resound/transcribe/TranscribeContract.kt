@@ -2,7 +2,7 @@ package app.resound.transcribe
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /*
  * 转写功能的界面约定。界面（Claude）只依赖这里的类型；底层（Codex）负责实现。

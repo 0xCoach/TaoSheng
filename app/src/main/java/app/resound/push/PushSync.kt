@@ -134,7 +134,7 @@ internal class FolderSync(private val remote: FolderStorage, private val state: 
 }
 
 internal object RecordDelta {
-    fun records(input: PushSnapshot, s: PushSubscription): Map<String, JSONObject> = buildMap {
+    suspend fun records(input: PushSnapshot, s: PushSubscription): Map<String, JSONObject> = buildMap {
         val data = input.validated()
         data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }.forEach { e ->
             put("event:${e.id}", JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt).put("title", e.title).put("summary", e.summary)

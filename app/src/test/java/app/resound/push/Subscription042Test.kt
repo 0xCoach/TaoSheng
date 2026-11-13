@@ -157,7 +157,7 @@ class Subscription042Test {
             assertTrue(r.pushNow(id).isFailure); assertNotNull(r.status(id).first().lastError)
         }
     }
-    @Test fun selectionFrontMatterTypedCardsAndMeOnlyNeverLeakMedia() {
+    @Test fun selectionFrontMatterTypedCardsAndMeOnlyNeverLeakMedia() = kotlinx.coroutines.runBlocking {
         val media = event(2).copy(scene = "媒体", starred = true)
         val data = fixture().copy(events = listOf(event(), media), cards = listOf(card().copy(evidenceJson = "[10]")), lines = listOf(line(1, "我"), line(2, "别人"), line(3, "我", 2), line(10, "别人", 1)))
         val s = subscription.copy(lines = LinesMode.MeOnly)
@@ -171,7 +171,7 @@ class Subscription042Test {
         assertFalse(daily.contains("虚构测试原话")); assertTrue(daily.contains("[[transcripts/"))
         assertFalse(selected.select(s.copy(rangeDays = 1), date.plusDays(1), date.plusDays(1), zone).events.isNotEmpty())
     }
-    @Test fun yearlyArchiveByDayAndSampleOutput() {
+    @Test fun yearlyArchiveByDayAndSampleOutput() = kotlinx.coroutines.runBlocking<Unit> {
         val oldAt = date.minusYears(2).atTime(10, 0).atZone(zone).toInstant().toEpochMilli()
         val data = fixture().copy(items = fixture().items + item(3, timestamp = oldAt) + item(4, "知识", oldAt),
             reviews = fixture().reviews + ReviewEntity(2, "weekly", "2026-10-19", "2026-10-25", "虚构周回顾", "[]", at, "test"))
@@ -186,7 +186,7 @@ class Subscription042Test {
         files.forEach { (path, text) -> File(output, path).apply { parentFile!!.mkdirs(); writeText(text.replace(MemoryFolder.UPDATED, "2026-10-24 10:00")) } }
         File(output, "inbox").mkdirs()
     }
-    @Test fun folderDiffDeletionAndUnknownFilesAreProtected() {
+    @Test fun folderDiffDeletionAndUnknownFilesAreProtected() = kotlinx.coroutines.runBlocking {
         Server().use { f ->
             val state = PushSyncState(File(temp.newFolder(), "1.json"))
             val sync = FolderSync(FolderRemote(folder, PushHttp(f.client)), state)

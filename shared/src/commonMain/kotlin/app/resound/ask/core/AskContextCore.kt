@@ -6,13 +6,13 @@ import app.resound.net.Obj as JSONObject
 data class AskContextRecord(val eventId: Long?, val at: Long, val title: String, val summary: String, val content: String?, val category: String?)
 data class AskContextLine(val id: Long, val at: Long, val text: String, val speaker: String, val voiceInput: String?)
 interface AskContextStore {
-    fun refresh(source: AskSource): String?
-    fun record(source: AskSource): AskContextRecord
-    fun lines(eventId: Long?): List<AskContextLine>
+    suspend fun refresh(source: AskSource): String?
+    suspend fun record(source: AskSource): AskContextRecord
+    suspend fun lines(eventId: Long?): List<AskContextLine>
 }
 class AskContextCore(private val store: AskContextStore) {
     /** 追问只刷新最近回答引用的少量记录；不重发旧来源快照，不额外调用模型。 */
-    fun followUp(history: List<AskMessage>): AskContext? {
+    suspend fun followUp(history: List<AskMessage>): AskContext? {
         val recent = history.takeLast(12)
         val previous = recent.lastOrNull { it.role == AskRole.Assistant }?.sources.orEmpty()
         val candidates = previous.ifEmpty { recent.lastOrNull { it.role == AskRole.User && it.sources.isNotEmpty() }?.sources.orEmpty() }
@@ -30,7 +30,7 @@ class AskContextCore(private val store: AskContextStore) {
             "未返回的旧出处可能已删除，不得拿历史回答当作证据）：\n" + JSONObject().put("results", results), sources)
     }
 
-    fun read(source: AskSource): AskContext {
+    suspend fun read(source: AskSource): AskContext {
         require(source.kind in setOf("event", "item"))
         val item = source.kind == "item"
         val record = store.record(source)

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.ManualTodo054Test" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:24:24.775Z" hostname="CoachdeMacBook-Air.local" time="0.555">
+  <properties/>
+  <testcase name="cancelDuringPreparationRestoresCaptureAndDoesNotRecognize" classname="app.resound.digest.ManualTodo054Test" time="0.021"/>
+  <testcase name="addAcceptedAtFrontPreservesOrderAndSourceAcrossLists" classname="app.resound.digest.ManualTodo054Test" time="0.033"/>
+  <testcase name="savedFromEventKeepsFirstLineAndSurvivesEventDelete" classname="app.resound.digest.ManualTodo054Test" time="0.026"/>
+  <testcase name="voiceFailureRestoresCaptureAndDeletesWavWithoutDiarization" classname="app.resound.digest.ManualTodo054Test" time="0.217"/>
+  <testcase name="dayItemsAndCalendarUseStandaloneCreatedAt" classname="app.resound.digest.ManualTodo054Test" time="0.015"/>
+  <testcase name="migration17PreservesRowsAndNullableForeignKeyAndSearchTriggers" classname="app.resound.digest.ManualTodo054Test" time="0.05"/>
+  <testcase name="deletingEventKeepsStandaloneAndDoneHintCanBeWritten" classname="app.resound.digest.ManualTodo054Test" time="0.02"/>
+  <testcase name="dayVolumeExportRebuildRetainsStandaloneAndAllNewFields" classname="app.resound.digest.ManualTodo054Test" time="0.063"/>
+  <testcase name="remindersPushFolderAndAskIncludeStandalone" classname="app.resound.digest.ManualTodo054Test" time="0.024"/>
+  <testcase name="draftSplitsTwoCardsUsesCalendarAndAccountsUsage" classname="app.resound.digest.ManualTodo054Test" time="0.011"/>
+  <testcase name="noKeyDoesNotRequestModel" classname="app.resound.digest.ManualTodo054Test" time="0.008"/>
+  <testcase name="reviewIncludesStandaloneWithSafeNullEventReferenceAndWeeklyInput" classname="app.resound.digest.ManualTodo054Test" time="0.034"/>
+  <testcase name="malformedAndTimeoutFallBackToOriginalText" classname="app.resound.digest.ManualTodo054Test" time="0.031"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

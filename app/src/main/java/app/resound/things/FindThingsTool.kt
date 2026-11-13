@@ -2,20 +2,19 @@ package app.resound.things
 
 import app.resound.ask.AskSource
 import app.resound.data.CaptureDatabase
-import kotlinx.coroutines.runBlocking
 import app.resound.data.writeTransaction
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.*
 import java.time.format.DateTimeFormatter
 
-/** AskTools 本来就是同步的本地查询边界，在其 IO 调用线程读取一个一致的快照。 */
+/** 问问工具通过挂起事务读取物品的一致快照。 */
 internal class FindThingsTool(private val db: CaptureDatabase, private val zone: ZoneId) {
-    fun execute(args: JSONObject, sources: MutableList<AskSource>): JSONObject {
+    suspend fun execute(args: JSONObject, sources: MutableList<AskSource>): JSONObject {
         require(args.keys().asSequence().all { it in setOf("query", "place") })
         fun arg(key: String) = if (!args.has(key) || args.isNull(key)) "" else args.getString(key).trim().also { require(it.length <= 100) }
         val query = arg("query"); val place = arg("place")
-        val (ts, rs) = runBlocking { db.writeTransaction { db.things().allThings() to db.things().allRecords() } }
+        val (ts, rs) = db.writeTransaction { db.things().allThings() to db.things().allRecords() }
         val names = ts.associate { it.id to it.name }
         fun recordJson(row: ThingRecordRow): JSONObject {
             val r = row.model(names)

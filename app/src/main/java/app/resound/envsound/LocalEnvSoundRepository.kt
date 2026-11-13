@@ -38,14 +38,14 @@ class LocalEnvSoundRepository(
     internal fun presentationChanges(): Flow<Unit> = db.invalidationTracker
         .createFlow("memory_events", "env_sounds").map { Unit }
 
-    /** 现有同步展示/导出入口的 IO 适配；调用处都在数据库事务之外。 */
-    internal fun presentationSnapshot(start: Long, end: Long): Pair<List<MemoryEventEntity>, Map<Long, EventSounds>> = runBlocking(Dispatchers.IO) {
+    /** 展示/导出按需挂起查询；不占线程等待数据库。 */
+    internal suspend fun presentationSnapshot(start: Long, end: Long): Pair<List<MemoryEventEntity>, Map<Long, EventSounds>> = withContext(Dispatchers.IO) {
         val events = dao.presentationEvents(start, end)
         events to if (events.isEmpty()) emptyMap() else mergeSounds(events,
             dao.presentationRows(events.minOf { it.startAt }, events.maxOf { it.endAt }))
     }
-    internal fun eventSound(id: Long): EventSounds? = runBlocking(Dispatchers.IO) {
-        val event = dao.presentationEvent(id) ?: return@runBlocking null
+    internal suspend fun eventSound(id: Long): EventSounds? = withContext(Dispatchers.IO) {
+        val event = dao.presentationEvent(id) ?: return@withContext null
         mergeSounds(listOf(event), dao.presentationRows(event.startAt, event.endAt))[id]
     }
     @Synchronized override fun update(settings: EnvSoundSettings) {
@@ -149,7 +149,7 @@ class LocalEnvSoundRepository(
             schedule()
         }
     }
-    override fun audio(segmentId: Long): FileRef? = runBlocking(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile)?.let { file -> FileRef(file.path) } } }
+    override suspend fun audio(segmentId: Long): FileRef? = withContext(Dispatchers.IO) { dao.get(segmentId)?.let { File(it.path).takeIf(File::isFile)?.let { file -> FileRef(file.path) } } }
     suspend fun diagnostics(): String {
         val recent = dao.since(now()-7*86_400_000L)
         return "设置=${settings.value}\n模型=${model.value}\n最近7天=${recent.groupingBy { it.verdict }.eachCount()}\n平均耗时=${recent.map { it.elapsedMs }.average().takeIf { it.isFinite() } ?: 0.0}ms"

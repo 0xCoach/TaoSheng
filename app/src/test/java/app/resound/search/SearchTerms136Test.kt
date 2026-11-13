@@ -20,7 +20,7 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class SearchTerms136Test {
-    @Test fun multipleKeywordsMatchAnyAndMultiCharKeywordNeedsAllBigrams() {
+    @Test fun multipleKeywordsMatchAnyAndMultiCharKeywordNeedsAllBigrams() = kotlinx.coroutines.runBlocking {
         val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver())
             .addCallback(SearchIndex.callback).allowMainThreadQueries().build()
         try {
@@ -30,7 +30,7 @@ class SearchTerms136Test {
                 sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text) VALUES(?,1,?,?,?)", arrayOf<Any>(i + 1, 1000 + i, 1500 + i, text))
             }
             val tools = AskTools(db, JSONObject(File("src/main/assets/prompts/ask-sql.json").readText()))
-            fun ids(vararg words: String) = mutableListOf<AskSource>().also {
+            suspend fun ids(vararg words: String) = mutableListOf<AskSource>().also {
                 tools.execute("search_lines", JSONObject().put("keywords", JSONArray(words.toList())), it)
             }.map { it.id }.sorted()
             assertEquals(listOf(1L, 2L, 3L), ids("老王", "预算"))

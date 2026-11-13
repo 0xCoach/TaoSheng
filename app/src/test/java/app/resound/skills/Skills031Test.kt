@@ -143,7 +143,7 @@ class Skills031Test {
         db.skills().delete(joined.id, clock)
         assertNull(db.skills().merge(card("second", "16:00", "16:30"), 8))
     }
-    @Test fun quotesAreRefilledAndUnknownEvidenceAndEmptyRequiredAreDiscarded() {
+    @Test fun quotesAreRefilledAndUnknownEvidenceAndEmptyRequiredAreDiscarded() = kotlinx.coroutines.runBlocking {
         val input = SkillInput("", mapOf("L1" to line(42, "小王", "我负责预算")))
         val content = """{"cards":[{"entity":"a","title":"讨论","summary":"预算","at":"10:00","end":null,"values":{"topic":"项目","conclusion":"小王负责预算","quotes":["L1","L999",{"text":"伪造原文","lineId":42}]},"evidence":["L1","L999",42]},{"entity":"b","title":"空","at":"10:00","values":{"topic":"   "}}]}"""
         val rows = SkillOutput.parse(content, skill(), day, input, clock, true).rows

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.usage.Usage043Test" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:24:36.287Z" hostname="CoachdeMacBook-Air.local" time="0.223">
+  <properties/>
+  <testcase name="migrates14To15PreservingTotalsAsOther" classname="app.resound.usage.Usage043Test" time="0.055"/>
+  <testcase name="llmGroupsPurposesIncludesBothBoundsAndEmitsUpdates" classname="app.resound.usage.Usage043Test" time="0.039"/>
+  <testcase name="pricesPersistValidateAndRoundTripThroughBackupIncludingNull" classname="app.resound.usage.Usage043Test" time="0.025"/>
+  <testcase name="askConversationAndSuggestionsBothRecordAsk" classname="app.resound.usage.Usage043Test" time="0.05"/>
+  <testcase name="digestReviewSkillAndDraftUseTheirOwnPurpose" classname="app.resound.usage.Usage043Test" time="0.031"/>
+  <testcase name="asrCountsOnlyUploadCallbacksAndFiltersDates" classname="app.resound.usage.Usage043Test" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

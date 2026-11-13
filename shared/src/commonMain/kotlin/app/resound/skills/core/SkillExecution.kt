@@ -16,7 +16,7 @@ class SkillExecution(
  private val appName: () -> String,
  private val usage: suspend (String,Long,Long) -> Unit,
  private val push: suspend (SkillCard) -> Unit,
- private val decorate: (SkillCard) -> SkillCard,
+ private val decorate: suspend (SkillCard) -> SkillCard,
  private val beforeWeeklyReview: suspend () -> Unit,
  private val running: (String,Boolean) -> Unit,
 ) {

@@ -175,5 +175,5 @@ class RoomReviewRepository(
         prefs.edit().putString("lastError", message).putString("lastErrorDate", errorDate?.toString()).apply()
         mutable.update { it.copy(lastError = message, lastErrorDate = errorDate?.toKotlinLocalDate()) }
     }
-    private fun ReviewEntity.toModel() = app.resound.envsound.EnvSoundPresentation.decorate(DailyReview(LocalDate.parse(startDate).toKotlinLocalDate(), brief, ReviewPrompt.decode(sectionsJson), generatedAt))
+    private suspend fun ReviewEntity.toModel() = app.resound.envsound.EnvSoundPresentation.decorate(DailyReview(LocalDate.parse(startDate).toKotlinLocalDate(), brief, ReviewPrompt.decode(sectionsJson), generatedAt))
 }

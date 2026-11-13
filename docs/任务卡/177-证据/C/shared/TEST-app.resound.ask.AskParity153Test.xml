@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.ask.AskParity153Test" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:22:49.565Z" hostname="CoachdeMacBook-Air.local" time="0.06">
+  <properties/>
+  <testcase name="suggestionFailureConsumesReservationAndRestartHonorsCooldown[jvm]" classname="app.resound.ask.AskParity153Test" time="0.008"/>
+  <testcase name="definitionsMatchRecordedBytes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.003"/>
+  <testcase name="toolsSystemMatchesRecordedBytes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.002"/>
+  <testcase name="strictDatesAndDstMinuteAdditionPreserveLocalTimeSemantics[jvm]" classname="app.resound.ask.AskParity153Test" time="0.019"/>
+  <testcase name="contextRefreshDropsDeletedReferencesAndBoundsQuotes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.004"/>
+  <testcase name="fullSystemPromptMatchesRecordedBytes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.006"/>
+  <testcase name="resultMatchesRecordedBytes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.004"/>
+  <testcase name="prefetchBudgetRollsBackUnsentReferences[jvm]" classname="app.resound.ask.AskParity153Test" time="0.001"/>
+  <testcase name="fallbackSystemMatchesRecordedBytes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.002"/>
+  <testcase name="completeMultiRoundPreservesToolOrderAndDenseReferences[jvm]" classname="app.resound.ask.AskParity153Test" time="0.005"/>
+  <testcase name="citationEnvelopeMatchesRecordedBytes[jvm]" classname="app.resound.ask.AskParity153Test" time="0.001"/>
+  <testcase name="sqlMatchesRecordedBytesAndRejectsUnknownArguments[jvm]" classname="app.resound.ask.AskParity153Test" time="0.001"/>
+  <testcase name="proposalRequiresRetrievedIdAndKeepsSnapshot[jvm]" classname="app.resound.ask.AskParity153Test" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

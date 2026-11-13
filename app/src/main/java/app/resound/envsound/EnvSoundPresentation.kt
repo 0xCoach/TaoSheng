@@ -18,8 +18,8 @@ object EnvSoundPresentation {
         fields = card.fields.filter { it.key !in weeklyEnvironmentKeys }, values = card.values - weeklyEnvironmentKeys)
 
     /** 周报仅在页尾显示声音标签；旧逐事件环境字段也在读取时移除，不改存档。 */
-    fun decorate(card: SkillCard): SkillCard = decorateCurrent(if (card.skillId == "weekly") withoutWeeklyEnvironment(card) else card)
-    private fun decorateCurrent(card: SkillCard): SkillCard {
+    suspend fun decorate(card: SkillCard): SkillCard = decorateCurrent(if (card.skillId == "weekly") withoutWeeklyEnvironment(card) else card)
+    private suspend fun decorateCurrent(card: SkillCard): SkillCard {
         if(!AppGraph.isEnvSoundReady) return card
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return card
         if(!repo.settings.value.showInSummaries) return card
@@ -46,7 +46,7 @@ object EnvSoundPresentation {
         return clean.copy(fields = clean.fields + SkillField(key, "本周声音印象", FieldType.Tags, ""),
             values = clean.values + (key to FieldValue(items=impression)))
     }
-    fun line(eventId: Long?): String {
+    suspend fun line(eventId: Long?): String {
         if(eventId == null || !AppGraph.isEnvSoundReady) return ""
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return ""
         if(!repo.settings.value.showInSummaries) return ""
@@ -54,8 +54,8 @@ object EnvSoundPresentation {
     }
     private fun line(value: EventSounds): String = listOfNotNull(value.tags.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="环境：") { it.title },
             value.sounds.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="期间有") { if(it == SpecialSound.Knock) "敲门声" else it.title }).joinToString("；")
-    fun decorate(review: DailyReview): DailyReview = review.copy(sections = review.sections.map { section ->
+    suspend fun decorate(review: DailyReview): DailyReview = review.copy(sections = review.sections.map { section ->
         section.copy(lines = section.lines.mapIndexed { i, text -> append(text, section.eventIds.getOrNull(i)) })
     })
-    fun append(text: String, eventId: Long?): String = line(eventId).let { if(it.isBlank() || text.endsWith(it)) text else "$text\n$it" }
+    suspend fun append(text: String, eventId: Long?): String = line(eventId).let { if(it.isBlank() || text.endsWith(it)) text else "$text\n$it" }
 }

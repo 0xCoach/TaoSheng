@@ -75,7 +75,7 @@ class Rhythm064Test {
         }
     } }
 
-    @Test fun pushAndRemindersKeepBystanderAndExcludeMedia() {
+    @Test fun pushAndRemindersKeepBystanderAndExcludeMedia() = kotlinx.coroutines.runBlocking {
         val events = listOf(event(1, at(1), "旁人"), event(2, at(1), "媒体"))
         val items = events.map { MemoryItemEntity(it.id, it.id, "待办", "行动", "办理", "2026-10-29 10:00",
             at(0) + 36000000, null, null, "Accepted", at(1)) }

@@ -1,0 +1,237 @@
+{
+  "classes": {
+    "app.resound.ask.AskFollowUp097Test": {
+      "tests": 2,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ask.AskFollowUp097Test.xml"
+    },
+    "app.resound.ask.AskPersistenceTest": {
+      "tests": 4,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ask.AskPersistenceTest.xml"
+    },
+    "app.resound.ask.AskPlace131Test": {
+      "tests": 8,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ask.AskPlace131Test.xml"
+    },
+    "app.resound.ask.AskSuspension177Test": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ask.AskSuspension177Test.xml"
+    },
+    "app.resound.ask.AskToolsTest": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ask.AskToolsTest.xml"
+    },
+    "app.resound.backup.DiaryBackupTest": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.backup.DiaryBackupTest.xml"
+    },
+    "app.resound.capture.VoiceInput048Test": {
+      "tests": 13,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.capture.VoiceInput048Test.xml"
+    },
+    "app.resound.data.Driver175FixturesTest": {
+      "tests": 9,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.Driver175FixturesTest.xml"
+    },
+    "app.resound.data.TableObservers182Test": {
+      "tests": 14,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.data.TableObservers182Test.xml"
+    },
+    "app.resound.diagnostics.AskCompatibility136Test": {
+      "tests": 3,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.diagnostics.AskCompatibility136Test.xml"
+    },
+    "app.resound.diary.DayDiaryTest": {
+      "tests": 9,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.diary.DayDiaryTest.xml"
+    },
+    "app.resound.digest.ManualTodo054Test": {
+      "tests": 13,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.ManualTodo054Test.xml"
+    },
+    "app.resound.digest.Rhythm064Test": {
+      "tests": 4,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.digest.Rhythm064Test.xml"
+    },
+    "app.resound.envsound.EnvMergeConsistencyTest": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.envsound.EnvMergeConsistencyTest.xml"
+    },
+    "app.resound.envsound.EnvSound070Test": {
+      "tests": 12,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.envsound.EnvSound070Test.xml"
+    },
+    "app.resound.push.JsonParity154Test": {
+      "tests": 4,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.push.JsonParity154Test.xml"
+    },
+    "app.resound.push.PushLocal067Test": {
+      "tests": 8,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.push.PushLocal067Test.xml"
+    },
+    "app.resound.push.PushMoreTest": {
+      "tests": 10,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.push.PushMoreTest.xml"
+    },
+    "app.resound.push.ReviewPushTest": {
+      "tests": 4,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.push.ReviewPushTest.xml"
+    },
+    "app.resound.push.Subscription042Test": {
+      "tests": 14,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/订阅复测JUnit/TEST-app.resound.push.Subscription042Test.xml"
+    },
+    "app.resound.push.Todo046Test": {
+      "tests": 14,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.push.Todo046Test.xml"
+    },
+    "app.resound.review.ManualReview058Test": {
+      "tests": 8,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.review.ManualReview058Test.xml"
+    },
+    "app.resound.review.ReviewInputLimit101Test": {
+      "tests": 6,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.review.ReviewInputLimit101Test.xml"
+    },
+    "app.resound.review.ReviewPreparation053Test": {
+      "tests": 3,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.review.ReviewPreparation053Test.xml"
+    },
+    "app.resound.review.ReviewRepositoryTest": {
+      "tests": 3,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.review.ReviewRepositoryTest.xml"
+    },
+    "app.resound.review.ReviewTimingTest": {
+      "tests": 5,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.review.ReviewTimingTest.xml"
+    },
+    "app.resound.search.SearchTerms136Test": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.search.SearchTerms136Test.xml"
+    },
+    "app.resound.search.SearchUpgradeTest": {
+      "tests": 10,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.search.SearchUpgradeTest.xml"
+    },
+    "app.resound.skills.SkillGate146Test": {
+      "tests": 15,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.SkillGate146Test.xml"
+    },
+    "app.resound.skills.SkillGeneration047Test": {
+      "tests": 8,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.SkillGeneration047Test.xml"
+    },
+    "app.resound.skills.Skills031Test": {
+      "tests": 18,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.skills.Skills031Test.xml"
+    },
+    "app.resound.starred.Starred041Test": {
+      "tests": 9,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.starred.Starred041Test.xml"
+    },
+    "app.resound.things.Things079Test": {
+      "tests": 16,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.things.Things079Test.xml"
+    },
+    "app.resound.things.ThingsSharedLiveTest": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 1,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.things.ThingsSharedLiveTest.xml"
+    },
+    "app.resound.things.ThingsSharedTest": {
+      "tests": 6,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.things.ThingsSharedTest.xml"
+    },
+    "app.resound.topic.TopicDesignShotsTest": {
+      "tests": 1,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.topic.TopicDesignShotsTest.xml"
+    },
+    "app.resound.ui.ScreenSizeShots": {
+      "tests": 2,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.ui.ScreenSizeShots.xml"
+    },
+    "app.resound.usage.Usage043Test": {
+      "tests": 6,
+      "failures": 0,
+      "skipped": 0,
+      "xml": "docs/任务卡/177-证据/C/首次JUnit/TEST-app.resound.usage.Usage043Test.xml"
+    }
+  },
+  "total": {
+    "tests": 267,
+    "failures": 0,
+    "skipped": 1
+  }
+}

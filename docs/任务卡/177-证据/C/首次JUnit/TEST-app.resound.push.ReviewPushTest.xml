@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.ReviewPushTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:24:26.289Z" hostname="CoachdeMacBook-Air.local" time="0.1">
+  <properties/>
+  <testcase name="formatsAndJsonKeepFullReviewAndRetryPayload" classname="app.resound.push.ReviewPushTest" time="0.009"/>
+  <testcase name="testWithoutReviewKeepsExistingMessage" classname="app.resound.push.ReviewPushTest" time="0.021"/>
+  <testcase name="testUsesLatestReviewDespiteSwitchesAndKeepsItOnRetry" classname="app.resound.push.ReviewPushTest" time="0.041"/>
+  <testcase name="scheduledReviewUsesBriefLocallyAndFullBodyPerChannel" classname="app.resound.push.ReviewPushTest" time="0.028"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

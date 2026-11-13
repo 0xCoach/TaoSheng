@@ -40,7 +40,7 @@ class SearchUpgradeTest {
         sql.execSQL("INSERT INTO transcript_lines(id,segmentId,startAt,endAt,text,eventId,speakerName) VALUES(?,1,?,?,'明天把车费发票交给财务',?,'我')",arrayOf(id,at,at+1000,id))
     }
     private fun scalar(db: CaptureDatabase, sql: String): Long = db.testSql.query(sql, null).use { it.moveToFirst(); it.getLong(0) }
-    private fun found(db: CaptureDatabase, name: String, args: String, embedder: Embedder? = null) =
+    private suspend fun found(db: CaptureDatabase, name: String, args: String, embedder: Embedder? = null) =
         tools(db, embedder).execute(name, JSONObject(args), mutableListOf()).getJSONArray("results")
     private fun source(kind: String = "item", id: Long = 1) = AskSource(kind, id, at, "记录", "原话")
     private suspend fun save(db: CaptureDatabase, proposal: ProposedChange): Long {
@@ -100,7 +100,7 @@ class SearchUpgradeTest {
         }
     }
 
-    @Test fun ftsTracksInsertUpdateDeleteAndRetainsSpeakerTimeAndHiddenFilters() {
+    @Test fun ftsTracksInsertUpdateDeleteAndRetainsSpeakerTimeAndHiddenFilters() = kotlinx.coroutines.runBlocking {
         database().use { db ->
             seed(db); seed(db,2,deleted=1)
             assertEquals(1,found(db,"search_lines","""{"keywords":["发票"],"speaker":"我","from":"2026-10-23","to":"2026-10-23"}""").length())

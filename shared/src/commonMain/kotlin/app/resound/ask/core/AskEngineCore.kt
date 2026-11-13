@@ -12,7 +12,7 @@ class AskEngineCore(
     private val definitions: String,
     private val search: suspend (String, String, MutableList<AskSource>) -> String,
     private val usage: suspend (Long, Long) -> Unit,
-    private val propose: ((String, List<AskSource>) -> ChangeProposal)? = null,
+    private val propose: (suspend (String, List<AskSource>) -> ChangeProposal)? = null,
     private val mode: () -> AskMode = { AskMode.Tools },
     private val markFallback: (AskFailure, Boolean) -> Unit = { _, _ -> },
     private val recordFailure: (AskFailure) -> Unit = {},

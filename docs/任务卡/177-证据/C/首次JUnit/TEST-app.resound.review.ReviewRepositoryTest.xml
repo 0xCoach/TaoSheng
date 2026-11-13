@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.review.ReviewRepositoryTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:24:27.699Z" hostname="CoachdeMacBook-Air.local" time="0.073">
+  <properties/>
+  <testcase name="disabledPushGeneratesAndScheduledReuseDoesNotSpendAgain" classname="app.resound.review.ReviewRepositoryTest" time="0.025"/>
+  <testcase name="bystanderIncludedWhileMediaAndDeletedExcluded" classname="app.resound.review.ReviewRepositoryTest" time="0.018"/>
+  <testcase name="manualRegeneratesWithoutPushAndMissingKeyIsSafe" classname="app.resound.review.ReviewRepositoryTest" time="0.03"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

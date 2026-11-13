@@ -17,7 +17,7 @@ import java.time.ZoneId
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[29],manifest=Config.NONE,application=Application::class)
 class AskToolsTest {
-    @Test fun allToolsFilterOrEscapingTimeSpeakerDeletedAndCap() {
+    @Test fun allToolsFilterOrEscapingTimeSpeakerDeletedAndCap() = kotlinx.coroutines.runBlocking {
         val db=Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(),CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addCallback(app.resound.search.SearchIndex.callback).allowMainThreadQueries().build()
         try {
             val sqlite=db.testSql
@@ -31,7 +31,7 @@ class AskToolsTest {
             sqlite.execSQL("INSERT INTO memory_items(id,eventId,category,content,status,createdAt) VALUES(2,3,'灵感','被删除的','Pending',?)",arrayOf<Any>(at))
             val tools=AskTools(db,JSONObject(File("src/main/assets/prompts/ask-sql.json").readText()),ZoneId.of("Asia/Shanghai"))
             val sources=mutableListOf<AskSource>()
-            fun find(name:String,args:String)=tools.execute(name,JSONObject(args),sources).getJSONArray("results")
+            suspend fun find(name:String,args:String)=tools.execute(name,JSONObject(args),sources).getJSONArray("results")
             assertEquals(2,find("search_lines","""{"keywords":["100%_","老王"]}""").length())
             // FTS 忽略标点；纯标点不匹配，带数字的词仍验证说话人和时间过滤。
             assertEquals(0,find("search_lines","""{"keywords":["%_"]}""").length())

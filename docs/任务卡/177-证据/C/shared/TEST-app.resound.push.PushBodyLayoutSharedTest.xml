@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.PushBodyLayoutSharedTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:22:50.028Z" hostname="CoachdeMacBook-Air.local" time="0.003">
+  <properties/>
+  <testcase name="markdownBlocksAndExistingHardBreaksAreNotDamaged[jvm]" classname="app.resound.push.PushBodyLayoutSharedTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

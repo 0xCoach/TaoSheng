@@ -7,17 +7,17 @@ data class AskChangeTarget(val content: String, val status: String, val dueAt: L
     fun snapshot() = Obj().put("content", content).put("status", status).put("dueAt", dueAt).toString()
 }
 interface AskChangeStore {
-    fun item(id: Long): AskChangeTarget?
-    fun event(id: Long): AskChangeTarget?
+    suspend fun item(id: Long): AskChangeTarget?
+    suspend fun event(id: Long): AskChangeTarget?
 }
 class AskChangesCore(private val store: AskChangeStore, private val zone: TimeZone) {
-    fun propose(input: String, sources: List<AskSource>): ChangeProposal = proposeJson(Obj(input), sources)
+    suspend fun propose(input: String, sources: List<AskSource>): ChangeProposal = proposeJson(Obj(input), sources)
     private fun due(args: Obj): Long? = if (!args.has("due") || args.isNull("due")) null
         else AskTime.timestamp(args.getString("due"), false, zone)
     private fun date(value: Long?) = value?.let { AskTime.format(it, zone) } ?: "无截止时间"
     private fun status(value: String) = mapOf("Done" to "完成", "Accepted" to "接受", "Ignored" to "忽略", "Pending" to "待确认").getValue(value)
 
-    private fun proposeJson(input: Obj, sources: List<AskSource>): ChangeProposal {
+    private suspend fun proposeJson(input: Obj, sources: List<AskSource>): ChangeProposal {
         val args = Obj(input.toString())
         val op = args.getString("operation")
         val allowed = when (op) {

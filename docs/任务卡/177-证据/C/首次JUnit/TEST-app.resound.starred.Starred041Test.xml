@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.starred.Starred041Test" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:24:29.360Z" hostname="CoachdeMacBook-Air.local" time="0.217">
+  <properties/>
+  <testcase name="dailyMemoryCarriesBooleanAndTimelineStarWithoutMarkingImportantOnly" classname="app.resound.starred.Starred041Test" time="0.024"/>
+  <testcase name="staleRequiresThreeDaysUnfinishedAndNoDoneOrSimilarLaterEvent" classname="app.resound.starred.Starred041Test" time="0.018"/>
+  <testcase name="weeklyIncludesOldEventsStarredThisWeekAndItemProgress" classname="app.resound.starred.Starred041Test" time="0.016"/>
+  <testcase name="reviewInputAndOutputKeepFourStarsAndHistoricalReminder" classname="app.resound.starred.Starred041Test" time="0.015"/>
+  <testcase name="starAcceptsPendingTasksAtFrontAndUnstarPreservesItemsAndRepeats" classname="app.resound.starred.Starred041Test" time="0.025"/>
+  <testcase name="askEventStarWaitsForConfirmationThenUsesTransactionalStar" classname="app.resound.starred.Starred041Test" time="0.027"/>
+  <testcase name="migrationThirteenToFourteenPreservesImportantAndClearsUserStars" classname="app.resound.starred.Starred041Test" time="0.055"/>
+  <testcase name="emptyDayStillFollowsStaleStarsWithoutCallingCloud" classname="app.resound.starred.Starred041Test" time="0.018"/>
+  <testcase name="askStarFilterAppliesToKeywordSemanticAndDayResults" classname="app.resound.starred.Starred041Test" time="0.018"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

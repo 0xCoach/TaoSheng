@@ -14,17 +14,17 @@ class AskTools(
 ) {
     data class Query(val sql: String, val args: List<Any>, val kind: String)
     internal val core = app.resound.ask.core.AskToolsCore(object : app.resound.ask.core.AskToolStore {
-        override fun read(query: app.resound.ask.core.AskToolsCore.Query) = read(Query(query.sql, query.args, query.kind)).map { it.toString() }
+        override suspend fun read(query: app.resound.ask.core.AskToolsCore.Query) = read(Query(query.sql, query.args, query.kind)).map { it.toString() }
         override fun terms(words: List<String>) = app.resound.search.SearchTokens.terms(words)
-        override fun semantic(names: List<String>, args: String, text: String, stays: List<PlaceAt>?) = semantic(names, JSONObject(args), text, stays)
+        override suspend fun semantic(names: List<String>, args: String, text: String, stays: List<PlaceAt>?) = semantic(names, JSONObject(args), text, stays)
         override fun merge(keyword: List<Long>, semantic: List<Long>) = app.resound.search.Vectors.merge(keyword, semantic)
-        override fun findThings(args: String, sources: MutableList<AskSource>) = app.resound.things.FindThingsTool(db, zone).execute(JSONObject(args), sources).toString()
+        override suspend fun findThings(args: String, sources: MutableList<AskSource>) = app.resound.things.FindThingsTool(db, zone).execute(JSONObject(args), sources).toString()
     }, spec.toString(), kotlinx.datetime.TimeZone.of(zone.id))
     fun query(name: String, input: JSONObject, ids: List<Long>? = null, stays: List<PlaceAt>? = null): Query = dateResult {
         core.query(name, input.toString(), ids, stays).let { Query(it.sql, it.args, it.kind) }
     }
 
-    private fun read(q: Query): List<JSONObject> = db.readSqlBlocking(q.sql, q.args.toTypedArray()) { cursor ->
+    private suspend fun read(q: Query): List<JSONObject> = db.readSql(q.sql, q.args.toTypedArray()) { cursor ->
         buildList {
             while (cursor.step()) {
                 val row = JSONObject()
@@ -44,7 +44,7 @@ class AskTools(
 
     private fun withoutKeywords(args: JSONObject) = JSONObject(args.toString()).apply { remove("keywords") }
 
-    private fun semanticIds(name: String, args: JSONObject, vector: FloatArray, model: String, stays: List<PlaceAt>?): List<Pair<Long, Double>> {
+    private suspend fun semanticIds(name: String, args: JSONObject, vector: FloatArray, model: String, stays: List<PlaceAt>?): List<Pair<Long, Double>> {
         val base = query(name, withoutKeywords(args), stays = stays)
         val kind = base.kind
         val prefix = if (kind == "item") "i" else "e"
@@ -52,7 +52,7 @@ class AskTools(
         val from = table + " WHERE " + base.sql.substringAfterLast(" FROM $table WHERE ").substringBeforeLast(" ORDER BY ")
         // 使用与关键词完全相同的时间/类别/状态/删除过滤；向量不进入云端。
         val sql = "SELECT v.refId,v.dim,v.vector FROM embeddings v JOIN $from AND v.kind=? AND v.refId=$prefix.id AND v.model=?"
-        return db.readSqlBlocking(sql, (base.args + listOf(kind, model)).toTypedArray()) { c ->
+        return db.readSql(sql, (base.args + listOf(kind, model)).toTypedArray()) { c ->
             buildList {
                 while (c.step()) {
                     val values = runCatching { app.resound.search.Vectors.decode(c.getBlob(2), c.getLong(1).toInt()) }.getOrNull() ?: continue
@@ -63,7 +63,7 @@ class AskTools(
         }
     }
 
-    private fun semantic(names: List<String>, args: JSONObject, text: String, stays: List<PlaceAt>? = null): Map<String, List<Pair<Long, Double>>> {
+    private suspend fun semantic(names: List<String>, args: JSONObject, text: String, stays: List<PlaceAt>? = null): Map<String, List<Pair<Long, Double>>> {
         val local = embedder() ?: return emptyMap()
         return try {
             if (!local.ready()) emptyMap() else {
@@ -75,8 +75,8 @@ class AskTools(
         finally { if (local is AutoCloseable) local.close() }
     }
 
-    fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject = execute(name, args, sources, null)
-    internal fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>, stays: List<PlaceAt>?): JSONObject = dateResult {
+    suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject = execute(name, args, sources, null)
+    internal suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>, stays: List<PlaceAt>?): JSONObject = dateResult {
         JSONObject(core.execute(name, args.toString(), sources, stays))
     }
     companion object {

@@ -114,5 +114,5 @@ interface EnvSoundRepository {
     fun reportWrong(segmentId: Long)
 
     /** 试听用：录音文件还在就返回，过期为 null */
-    fun audio(segmentId: Long): FileRef?
+    suspend fun audio(segmentId: Long): FileRef?
 }

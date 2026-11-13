@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.home.HomeRules148Test" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:22:49.947Z" hostname="CoachdeMacBook-Air.local" time="0.003">
+  <properties/>
+  <testcase name="modelButtonNameTruncateAndEmphasize[jvm]" classname="app.resound.home.HomeRules148Test" time="0.001"/>
+  <testcase name="speechSplitsNumberAndUnit[jvm]" classname="app.resound.home.HomeRules148Test" time="0.0"/>
+  <testcase name="timeAccentOnlyStarredOrRecent[jvm]" classname="app.resound.home.HomeRules148Test" time="0.0"/>
+  <testcase name="controlsFollowState[jvm]" classname="app.resound.home.HomeRules148Test" time="0.0"/>
+  <testcase name="timelineMarksPauseGapAndNow[jvm]" classname="app.resound.home.HomeRules148Test" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

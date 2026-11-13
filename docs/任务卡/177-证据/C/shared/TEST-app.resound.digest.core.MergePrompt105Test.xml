@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.digest.core.MergePrompt105Test" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T02:22:49.901Z" hostname="CoachdeMacBook-Air.local" time="0.004">
+  <properties/>
+  <testcase name="parsesOneMergedEventCoveringEveryLine[jvm]" classname="app.resound.digest.core.MergePrompt105Test" time="0.003"/>
+  <testcase name="failsWhenMergedIsMissing[jvm]" classname="app.resound.digest.core.MergePrompt105Test" time="0.001"/>
+  <testcase name="failsWhenContentIsNotJson[jvm]" classname="app.resound.digest.core.MergePrompt105Test" time="0.0"/>
+  <testcase name="keepsItemsOutOfMediaSceneAndDropsUnknownCategories[jvm]" classname="app.resound.digest.core.MergePrompt105Test" time="0.0"/>
+  <testcase name="itemLineOutOfRangeKeepsItemWithoutSource[jvm]" classname="app.resound.digest.core.MergePrompt105Test" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -16,7 +16,7 @@ internal data class PushSnapshot(
     val startDate: LocalDate? = null,
     val lineOrigins: Map<Long, Long?> = emptyMap(),
 ) {
-    fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot {
+    suspend fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot {
         val lower = PushRecordRules.lower(s, since?.toKotlinLocalDate(), today.toKotlinLocalDate())?.toJavaLocalDate()
         fun included(at: Long) = lower == null || day(at, zone) >= lower
         val allowed = events.filter { PushRecordRules.event(it.deleted, it.scene, s.excludeMedia) }
@@ -55,7 +55,7 @@ internal suspend fun PushDao.snapshot(start: Long, withLines: Boolean): PushSnap
     }
 
 /** 非订阅调用也逐条验证；重复生成文档时由 trace 的记录键去重计数。 */
-internal fun PushSnapshot.validated(): PushSnapshot = copy(
+internal suspend fun PushSnapshot.validated(): PushSnapshot = copy(
     events = events.filter { e -> localRecord("event", e.id) { org.json.JSONArray(e.pointsJson).strings(); org.json.JSONArray(e.peopleJson).strings(); true } == true },
     cards = cards.filter { c -> localRecord("card", c.id) { c.card(); true } == true },
     reviews = reviews.filter { r -> localRecord("review", r.id) { LocalDate.parse(r.startDate); LocalDate.parse(r.endDate); org.json.JSONArray(r.sectionsJson).objects(); true } == true },

@@ -1,0 +1,209 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :shared:kspCommonMainKotlinMetadata SKIPPED
+> Task :shared:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :shared:kspKotlinJvm UP-TO-DATE
+> Task :shared:compileKotlinJvm UP-TO-DATE
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:generateDebugResValues UP-TO-DATE
+> Task :shared:generateDebugResources UP-TO-DATE
+> Task :shared:packageDebugResources UP-TO-DATE
+> Task :shared:parseDebugLocalResources UP-TO-DATE
+> Task :shared:generateDebugRFile UP-TO-DATE
+> Task :shared:kspDebugKotlinAndroid UP-TO-DATE
+> Task :shared:compileDebugKotlinAndroid UP-TO-DATE
+> Task :shared:javaPreCompileDebug UP-TO-DATE
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shared:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :shared:kspDebugUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileDebugUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :shared:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:preReleaseBuild UP-TO-DATE
+> Task :shared:generateReleaseResValues UP-TO-DATE
+> Task :shared:generateReleaseResources UP-TO-DATE
+> Task :shared:packageReleaseResources UP-TO-DATE
+> Task :shared:parseReleaseLocalResources UP-TO-DATE
+> Task :shared:generateReleaseRFile UP-TO-DATE
+> Task :shared:kspReleaseKotlinAndroid UP-TO-DATE
+> Task :shared:compileReleaseKotlinAndroid UP-TO-DATE
+> Task :shared:javaPreCompileRelease UP-TO-DATE
+> Task :shared:compileReleaseJavaWithJavac NO-SOURCE
+> Task :shared:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :shared:preReleaseUnitTestBuild UP-TO-DATE
+> Task :shared:generateReleaseUnitTestStubRFile UP-TO-DATE
+> Task :shared:kspReleaseUnitTestKotlinAndroid SKIPPED
+> Task :shared:compileReleaseUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:javaPreCompileReleaseUnitTest UP-TO-DATE
+> Task :shared:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:compileJvmMainJava NO-SOURCE
+> Task :shared:jvmProcessResources NO-SOURCE
+> Task :shared:processJvmMainResources SKIPPED
+> Task :shared:jvmMainClasses UP-TO-DATE
+> Task :shared:kspTestKotlinJvm SKIPPED
+> Task :shared:copyRoomSchemas NO-SOURCE
+> Task :shared:jvmJar UP-TO-DATE
+> Task :shared:compileTestKotlinJvm UP-TO-DATE
+> Task :shared:compileJvmTestJava NO-SOURCE
+> Task :shared:jvmTestProcessResources UP-TO-DATE
+> Task :shared:processJvmTestResources SKIPPED
+> Task :shared:jvmTestClasses UP-TO-DATE
+> Task :shared:jvmTest UP-TO-DATE
+> Task :shared:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :shared:processDebugJavaRes UP-TO-DATE
+> Task :shared:processDebugUnitTestJavaRes NO-SOURCE
+> Task :shared:testDebugUnitTest NO-SOURCE
+> Task :shared:bundleLibRuntimeToJarRelease UP-TO-DATE
+> Task :shared:processReleaseJavaRes UP-TO-DATE
+> Task :shared:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :shared:testReleaseUnitTest NO-SOURCE
+> Task :shared:allTests UP-TO-DATE
+> Task :shared:mergeDebugJniLibFolders UP-TO-DATE
+> Task :shared:mergeDebugNativeLibs NO-SOURCE
+> Task :shared:stripDebugDebugSymbols NO-SOURCE
+> Task :shared:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :shared:extractDebugAnnotations UP-TO-DATE
+> Task :shared:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :shared:mergeDebugShaders UP-TO-DATE
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugAssets UP-TO-DATE
+> Task :shared:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :shared:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :shared:prepareDebugArtProfile UP-TO-DATE
+> Task :shared:prepareLintJarForPublish UP-TO-DATE
+> Task :shared:processDebugManifest UP-TO-DATE
+> Task :shared:mergeDebugJavaResource UP-TO-DATE
+> Task :shared:syncDebugLibJars UP-TO-DATE
+> Task :shared:writeDebugAarMetadata UP-TO-DATE
+> Task :shared:bundleDebugLocalLintAar UP-TO-DATE
+> Task :shared:createFullJarDebug UP-TO-DATE
+> Task :shared:preDebugAndroidTestBuild UP-TO-DATE
+> Task :shared:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :shared:writeDebugLintModelMetadata UP-TO-DATE
+> Task :shared:extractProguardFiles UP-TO-DATE
+> Task :shared:generateDebugAndroidTestLintModel UP-TO-DATE
+> Task :shared:generateDebugLintReportModel UP-TO-DATE
+> Task :shared:generateDebugUnitTestLintModel UP-TO-DATE
+> Task :shared:lintAnalyzeDebug UP-TO-DATE
+> Task :shared:lintAnalyzeDebugAndroidTest UP-TO-DATE
+> Task :shared:lintAnalyzeDebugUnitTest UP-TO-DATE
+> Task :shared:lintReportDebug UP-TO-DATE
+> Task :shared:lintDebug
+> Task :shared:lint
+> Task :shared:test UP-TO-DATE
+> Task :shared:check
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :devices:preBuild UP-TO-DATE
+> Task :devices:preDebugBuild UP-TO-DATE
+> Task :devices:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResValues UP-TO-DATE
+> Task :devices:generateDebugResources UP-TO-DATE
+> Task :devices:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:extractDeepLinksDebug UP-TO-DATE
+> Task :devices:processDebugManifest UP-TO-DATE
+> Task :shared:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :devices:compileDebugLibraryResources UP-TO-DATE
+> Task :devices:parseDebugLocalResources UP-TO-DATE
+> Task :devices:generateDebugRFile UP-TO-DATE
+> Task :shared:compileDebugLibraryResources UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :devices:kmpPartiallyResolvedDependenciesChecker
+> Task :devices:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :devices:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :devices:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :devices:compileDebugKotlinAndroid UP-TO-DATE
+> Task :devices:javaPreCompileDebug UP-TO-DATE
+> Task :devices:compileDebugJavaWithJavac NO-SOURCE
+> Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugKotlin
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/audio/OggGuard.kt:45:68 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/capture/MicHolderGuess.kt:23:20 'fun unsafeCheckOpNoThrow(p0: String, p1: Int, p2: String): Int' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/capture/VoiceInputService.kt:160:41 'static fun obtain(p0: AccessibilityNodeInfo!): AccessibilityNodeInfo!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:77:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:78:78 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:84:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:85:63 'var value: ByteArray!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:124:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/AndroidDeviceLink.kt:148:24 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/devices/android/DeviceInputs.kt:321:27 'val onLock: SelectClause2<Any?, Mutex>' is deprecated. Mutex.onLock deprecated without replacement. For additional details please refer to #2794.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/diagnostics/CrashRecords.kt:31:67 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/digest/LlmFailover.kt:78:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/envsound/EnvSoundModel.kt:50:41 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/AlarmPlayer.kt:61:28 'fun vibrate(p0: VibrationEffect!, p1: AudioAttributes!): Unit' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:55 'val monthNumber: Int' is deprecated. Use the 'month' property instead.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/ReviewPushBody.kt:8:75 'val dayOfMonth: Int' is deprecated. Use the 'day' property instead.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/transcribe/local/LocalModels.kt:112:35 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/AboutPage.kt:163:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/PushPage.kt:188:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/PushPage.kt:191:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/settings/PushPage.kt:192:37 Condition is always 'true'.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:831:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar
+
+> Task :app:compileDebugUnitTestKotlin FAILED
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ask/AskToolsTest.kt:34:53 Suspend function 'suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ask/AskToolsTest.kt:49:30 Suspend function 'suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/digest/Rhythm064Test.kt:84:33 Suspend function 'suspend fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/PushMoreTest.kt:48:18 Suspend function 'suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput, cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = ...): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/PushMoreTest.kt:238:17 Suspend function 'suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput, cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = ...): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/PushMoreTest.kt:247:21 Suspend function 'suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput, cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = ...): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:164:29 Suspend function 'suspend fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:166:46 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:172:30 Suspend function 'suspend fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:179:46 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:179:60 Suspend function 'suspend fun select(s: PushSubscription, since: LocalDate?, today: LocalDate, zone: ZoneId): PushSnapshot' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:183:46 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:194:35 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:198:36 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/push/Subscription042Test.kt:201:35 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/search/SearchTerms136Test.kt:34:23 Suspend function 'suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:44:29 Suspend function 'suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/skills/Skills031Test.kt:151:31 Suspend function 'suspend fun SkillCardRow.card(): SkillCard' can only be called from a coroutine or another suspend function.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugUnitTestKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 53s
+98 actionable tasks: 6 executed, 92 up-to-date
+real 53.83
+user 1.02
+sys 0.10

@@ -16,7 +16,7 @@ class AskEngine(
     private val definitions: JSONArray,
     private val search: suspend (String, JSONObject, MutableList<AskSource>) -> JSONObject,
     private val usage: suspend (Long, Long) -> Unit,
-    private val propose: ((JSONObject, List<AskSource>) -> ProposedChange)? = null,
+    private val propose: (suspend (JSONObject, List<AskSource>) -> ProposedChange)? = null,
     private val mode: () -> AskMode = { AskMode.Tools },
     private val markFallback: (AskFailure, Boolean) -> Unit = { _, _ -> },
     private val recordFailure: (AskFailure) -> Unit = {},

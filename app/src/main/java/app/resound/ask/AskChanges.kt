@@ -32,10 +32,10 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
     }
     private fun due(args: JSONObject): Long? = if (!args.has("due") || args.isNull("due")) null
         else AskTools.timestamp(args.getString("due"), false, ZoneId.systemDefault())
-    fun propose(input: JSONObject, sources: List<AskSource>): ProposedChange {
+    suspend fun propose(input: JSONObject, sources: List<AskSource>): ProposedChange {
         val core = app.resound.ask.core.AskChangesCore(object : app.resound.ask.core.AskChangeStore {
-            override fun item(id: Long) = kotlinx.coroutines.runBlocking { this@AskChanges.item(id) }
-            override fun event(id: Long) = kotlinx.coroutines.runBlocking { this@AskChanges.event(id) }
+            override suspend fun item(id: Long) = this@AskChanges.item(id)
+            override suspend fun event(id: Long) = this@AskChanges.event(id)
         }, kotlinx.datetime.TimeZone.of(ZoneId.systemDefault().id))
         val proposal = core.propose(input.toString(), sources)
         return ProposedChange(proposal.action, proposal.operation, JSONObject(proposal.args), proposal.expected)

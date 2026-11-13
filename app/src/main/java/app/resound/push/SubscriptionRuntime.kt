@@ -227,7 +227,7 @@ internal class SubscriptionRuntime(
             transport.syncFolder(values, state, files, channel.subscription.layout == FolderLayout.ByCategory, at)
         } else sendDocuments(channel, values, PushSnapshot(), channel.subscription, files, state, true, at)
     }
-    private fun summaryFiles(data: PushSnapshot, s: PushSubscription, state: PushSyncState, generator: MemoryFolder): Map<String, String> {
+    private suspend fun summaryFiles(data: PushSnapshot, s: PushSubscription, state: PushSyncState, generator: MemoryFolder): Map<String, String> {
         val fresh = generator.generate(data.copy(events = emptyList(), items = emptyList(), lines = emptyList()), s.copy(records = emptySet(), lines = LinesMode.Off))
         val old = state.json.optJSONObject("summaryCounts") ?: JSONObject()
         val dates = data.cards.map { LocalDate.ofEpochDay(it.date).toString() } + data.reviews.filter { it.type == "daily" }.map { it.startDate }

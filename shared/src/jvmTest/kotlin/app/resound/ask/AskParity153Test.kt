@@ -15,11 +15,11 @@ class AskParity153Test {
     private val zone = TimeZone.of("Asia/Shanghai")
     private val source = AskSource("line", 42, 1000, "我", "方案/一\n第二行")
     private fun tools(rows: List<String> = emptyList()) = AskToolsCore(object : AskToolStore {
-        override fun read(query: AskToolsCore.Query) = rows
+        override suspend fun read(query: AskToolsCore.Query) = rows
         override fun terms(words: List<String>) = words.map { "\"$it\"" }
-        override fun semantic(names: List<String>, args: String, text: String, stays: List<app.resound.context.PlaceAt>?) = emptyMap<String,List<Pair<Long,Double>>>()
+        override suspend fun semantic(names: List<String>, args: String, text: String, stays: List<app.resound.context.PlaceAt>?) = emptyMap<String,List<Pair<Long,Double>>>()
         override fun merge(keyword: List<Long>, semantic: List<Long>) = (keyword + semantic).distinct().take(10)
-        override fun findThings(args: String, sources: MutableList<AskSource>) = error("不应调用寻物")
+        override suspend fun findThings(args: String, sources: MutableList<AskSource>) = error("不应调用寻物")
     },sample("spec.json"),zone)
 
     @Test fun definitionsMatchRecordedBytes() { assertEquals(sample("definitions.json"),AskDefinitions.json()) }
@@ -35,7 +35,7 @@ class AskParity153Test {
     @Test fun toolsSystemMatchesRecordedBytes() = system(AskMode.Tools)
     @Test fun fallbackSystemMatchesRecordedBytes() = system(AskMode.Prefetch)
     @Test fun citationEnvelopeMatchesRecordedBytes() { assertEquals(sample("citations.json"),AskCitations.encodeMessage(listOf(source),AskMode.Prefetch)) }
-    @Test fun resultMatchesRecordedBytes() {
+    @Test fun resultMatchesRecordedBytes() = runBlocking {
         val row=Obj(sample("result.json")).getJSONArray("results").getJSONObject(0).apply { remove("ref");remove("time") }
         val sources=mutableListOf<AskSource>()
         assertEquals(sample("result.json"),tools(listOf(row.toString())).execute("search_lines","{\"keywords\":[]}",sources))
@@ -92,12 +92,12 @@ class AskParity153Test {
         time+=6*60*60_000L;instance().refresh();time+=6*60*60_000L;instance().refresh()
         assertEquals(2,calls);assertEquals(2,count)
     }
-    @Test fun contextRefreshDropsDeletedReferencesAndBoundsQuotes() {
+    @Test fun contextRefreshDropsDeletedReferencesAndBoundsQuotes() = runBlocking {
         var deleted=false
         val store=object: AskContextStore {
-            override fun refresh(source: AskSource)=if(deleted) null else Obj().put("at",1000).put("title","我").put("quote","新原话").toString()
-            override fun record(source: AskSource)=AskContextRecord(9,1000,"会议","摘要",null,null)
-            override fun lines(eventId: Long?)=(1L..40L).map {AskContextLine(it,1000,"字".repeat(1000),"我",null)}
+            override suspend fun refresh(source: AskSource)=if(deleted) null else Obj().put("at",1000).put("title","我").put("quote","新原话").toString()
+            override suspend fun record(source: AskSource)=AskContextRecord(9,1000,"会议","摘要",null,null)
+            override suspend fun lines(eventId: Long?)=(1L..40L).map {AskContextLine(it,1000,"字".repeat(1000),"我",null)}
         }
         val core=AskContextCore(store)
         val history=listOf(AskMessage(1,AskRole.Assistant,"旧答案",listOf(source),0,false))
@@ -106,13 +106,13 @@ class AskParity153Test {
         val selected=core.read(source.copy(kind="event",id=9))
         assertTrue(selected.sources.size<40); assertTrue(selected.sources.drop(1).all {it.quote.length<=900})
     }
-    @Test fun proposalRequiresRetrievedIdAndKeepsSnapshot() {
+    @Test fun proposalRequiresRetrievedIdAndKeepsSnapshot() = runBlocking {
         val target=AskChangeTarget("方案","Pending",null)
         val core=AskChangesCore(object:AskChangeStore {
-            override fun item(id:Long)=target;override fun event(id:Long)=null
+            override suspend fun item(id:Long)=target;override suspend fun event(id:Long)=null
         },zone)
         val args="{\"operation\":\"item_status\",\"id\":42,\"status\":\"Done\"}"
-        assertThrows(IllegalArgumentException::class.java) {core.propose(args,emptyList())}
+        assertThrows(IllegalArgumentException::class.java) {runBlocking { core.propose(args,emptyList()) }}
         val change=core.propose(args,listOf(source.copy(kind="item")))
         assertEquals("{\"content\":\"方案\",\"status\":\"Pending\"}",change.expected)
         assertEquals(AskActionState.Pending,change.action.state)

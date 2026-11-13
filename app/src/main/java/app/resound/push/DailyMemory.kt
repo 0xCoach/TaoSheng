@@ -16,7 +16,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /** 对外 JSON 与内部数据读取分离，字段名和空值在此集中定义。时间均为 Unix 毫秒。 */
-internal fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput,
+internal suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdown: String, review: DailyReview?, input: ReviewInput,
     cards: List<SkillCard>, lines: List<TranscriptLineEntity>?, lineContext: Boolean = true): JSONObject {
     val data = JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)

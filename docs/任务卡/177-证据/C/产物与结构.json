@@ -1,0 +1,12 @@
+[
+  {
+    "path": "shared/schemas/app.resound.data.CaptureDatabase/33.json",
+    "bytes": 86465,
+    "sha256": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292"
+  },
+  {
+    "path": "app/build/outputs/apk/release/app-release.apk",
+    "bytes": 105583448,
+    "sha256": "144a84fb3b8bc3721fcabaa554d642edaaeda3d19c1c6aa376d00a0bc590ad0b"
+  }
+]

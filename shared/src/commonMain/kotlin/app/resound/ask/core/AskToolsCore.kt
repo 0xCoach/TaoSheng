@@ -7,17 +7,17 @@ import kotlinx.datetime.TimeZone
 
 /** 数据库、FTS 分词和本地向量推理由平台实现。JSON 行字段沿用旧 SQL 投影。 */
 interface AskToolStore {
-    fun read(query: AskToolsCore.Query): List<String>
+    suspend fun read(query: AskToolsCore.Query): List<String>
     fun terms(words: List<String>): List<String>
-    fun semantic(names: List<String>, args: String, text: String, stays: List<PlaceAt>?): Map<String, List<Pair<Long, Double>>>
+    suspend fun semantic(names: List<String>, args: String, text: String, stays: List<PlaceAt>?): Map<String, List<Pair<Long, Double>>>
     fun merge(keyword: List<Long>, semantic: List<Long>): List<Long>
-    fun findThings(args: String, sources: MutableList<AskSource>): String
+    suspend fun findThings(args: String, sources: MutableList<AskSource>): String
 }
 class AskToolsCore(private val store: AskToolStore, spec: String, private val zone: TimeZone) {
     private val spec = JSONObject(spec)
     fun query(name: String, input: String, ids: List<Long>? = null, stays: List<PlaceAt>? = null): Query = query(name, JSONObject(input), ids, stays)
-    fun execute(name: String, args: String, sources: MutableList<AskSource>, stays: List<PlaceAt>? = null): String = execute(name, JSONObject(args), sources, stays).toString()
-    private fun read(query: Query) = store.read(query).map(::JSONObject)
+    suspend fun execute(name: String, args: String, sources: MutableList<AskSource>, stays: List<PlaceAt>? = null): String = execute(name, JSONObject(args), sources, stays).toString()
+    private suspend fun read(query: Query) = store.read(query).map(::JSONObject)
     data class Query(val sql: String, val args: List<Any>, val kind: String)
     internal fun query(name: String, input: JSONObject, ids: List<Long>? = null, stays: List<PlaceAt>? = null): Query {
         require(name in setOf("search_lines", "search_events", "list_items", "get_day"))
@@ -86,13 +86,13 @@ class AskToolsCore(private val store: AskToolStore, spec: String, private val zo
 
     private fun withoutKeywords(args: JSONObject) = JSONObject(args.toString()).apply { remove("keywords") }
 
-    private fun semantic(names: List<String>, args: JSONObject, text: String, stays: List<PlaceAt>? = null) =
+    private suspend fun semantic(names: List<String>, args: JSONObject, text: String, stays: List<PlaceAt>? = null) =
         store.semantic(names, args.toString(), text, stays)
 
-    internal fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject =
+    internal suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject =
         execute(name, args, sources, null)
 
-    internal fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>, stays: List<PlaceAt>?): JSONObject {
+    internal suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>, stays: List<PlaceAt>?): JSONObject {
         if (name == "find_things") return JSONObject(store.findThings(args.toString(), sources))
         val rows: List<JSONObject>
         var truncated = false

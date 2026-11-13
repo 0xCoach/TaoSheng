@@ -186,14 +186,14 @@ private fun FlaggedSheet(repo: EnvSoundRepository, list: List<SegmentSound>, onD
                     if (seg.audioAvailable) Pill(if (playing == seg.segmentId) "停止" else "试听", false) {
                         if (playing == seg.segmentId) stopPlay() else {
                             stopPlay()
-                            repo.audio(seg.segmentId)?.let { f ->
+                            scope.launch { repo.audio(seg.segmentId)?.let { f ->
                                 runCatching {
                                     player[0] = android.media.MediaPlayer().apply {
                                         setDataSource(f.id); setOnCompletionListener { stopPlay() }; prepare(); start()
                                     }
                                     playing = seg.segmentId
                                 }
-                            }
+                            } }
                         }
                     }
                     val untranscribed = seg.verdict == SegmentVerdict.Skipped || seg.verdict == SegmentVerdict.Media

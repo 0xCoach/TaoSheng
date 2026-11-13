@@ -39,7 +39,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         return "- I${i.id} · ${i.category}${i.kind?.let { " / $it" }.orEmpty()} · ${i.content} · ${statusText(i.status)}" +
             (if (repeat > 1) " · 说过 $repeat 次" else "") + (i.who?.let { " · $it" } ?: "") + (i.dueAt?.let { " · 到期 ${time(it)}" } ?: i.dueText?.let { " · $it" }.orEmpty()) + " · $origin"
     }
-    private fun review(r: ReviewEntity): String = buildString {
+    private suspend fun review(r: ReviewEntity): String = buildString {
         appendLine(r.brief)
         JSONArray(r.sectionsJson).objects().forEach { section ->
             appendLine("### ${section.optString("title")}")
@@ -51,7 +51,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             } }
         }
     }
-    private fun skill(row: SkillCardRow): String = buildString {
+    private suspend fun skill(row: SkillCardRow): String = buildString {
         val c = row.card()
         appendLine("### ${c.skillName} · ${c.endAt?.let { outputTime.event(c.at, it) } ?: time(c.at)} · ${c.title}"); appendLine(c.summary)
         c.fields.forEach { field ->
@@ -68,7 +68,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             }
         }
     }
-    fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String> {
+    suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String> {
         val data = input.validated()
         val files = sortedMapOf<String, String>()
         val events = data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }
@@ -116,7 +116,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         data.reviews.filter { it.type != "daily" }.groupBy { weekPath(LocalDate.parse(it.startDate)) }.forEach { (path, rows) ->
             val monday = LocalDate.parse(rows.first().startDate).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)); val end = monday.plusDays(6)
             val title = "${monday.get(IsoFields.WEEK_BASED_YEAR)}年第${monday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)}周（${monday.monthValue}月${monday.dayOfMonth}日—${end.monthValue}月${end.dayOfMonth}日）"
-            files[path] = card("每周回顾", "$monday—$end", "每周回顾", title, rows.size, rows.joinToString("\n", transform = ::review))
+            files[path] = card("每周回顾", "$monday—$end", "每周回顾", title, rows.size, rows.map { review(it) }.joinToString("\n"))
         }
         if (s.layout == FolderLayout.ByCategory) {
             files["recent-days-index.md"] = card("索引", "最近30天", "每天一行", "最近 30 天", 30, (0L..29L).map { today.minusDays(it) }.joinToString("\n") { d ->

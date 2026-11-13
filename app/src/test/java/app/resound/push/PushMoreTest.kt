@@ -44,7 +44,7 @@ class PushMoreTest {
     private val hook = mapOf("url" to "http://100.64.1.2/hook")
     private val database = "0123456789abcdef0123456789abcdef"
     private val notion = mapOf("token" to "fake-notion-token", "databaseId" to database)
-    private fun document(markdown: String = "# 记忆\n- 要点\n> 原话") = message.copy(title = "每日记忆文档 · $date", body = "回顾简洁版", topic = PushTopic.DailyMemory,
+    private suspend fun document(markdown: String = "# 记忆\n- 要点\n> 原话") = message.copy(title = "每日记忆文档 · $date", body = "回顾简洁版", topic = PushTopic.DailyMemory,
         memory = dailyMemoryJson(date, at, markdown, null, ReviewInput(emptyList(), emptyList()), emptyList(), null))
 
     private class Fake : AutoCloseable {
@@ -108,7 +108,7 @@ class PushMoreTest {
             assertTrue(request.path!!.endsWith("sendDocument")); assertTrue(body.contains("记忆-$date.md")); assertTrue(body.contains("# 记忆")); assertTrue(body.contains("已截断"))
         }
     }
-    @Test fun smtpLocalAuthDataTlsModesAndMimeAttachment() {
+    @Test fun smtpLocalAuthDataTlsModesAndMimeAttachment() = kotlinx.coroutines.runBlocking {
         ServerSocket(0, 2, java.net.InetAddress.getLoopbackAddress()).use { server ->
             val executor = Executors.newSingleThreadExecutor()
             val received = executor.submit<List<String>> {
@@ -231,7 +231,7 @@ class PushMoreTest {
     private fun card() = SkillCard(1, "meeting", "会议纪要", "meeting", date.toKotlinLocalDate(), at, null, "方案会", "会议摘要",
         listOf(SkillField("points", "要点", FieldType.Bullets, ""), SkillField("todo", "清单", FieldType.Checklist, ""), SkillField("quotes", "原话", FieldType.Quotes, "")),
         mapOf("points" to FieldValue(items = listOf("报价")), "todo" to FieldValue(items = listOf("发送"), checked = listOf(true)), "quotes" to FieldValue(quotes = listOf(CardQuote(1, "我", at, "引用\n下一行")))), listOf(1), at, false)
-    @Test fun dailyJsonHasCompleteFieldsAndOptionalLinesSurviveRetrySnapshot() {
+    @Test fun dailyJsonHasCompleteFieldsAndOptionalLinesSurviveRetrySnapshot() = kotlinx.coroutines.runBlocking {
         val input = ReviewInput(listOf(event()), listOf(MemoryItemEntity(1, 1, "待办", "我要做", "发报价", null, at, "小王", 1, "Accepted", at)))
         val review = DailyReview(date.toKotlinLocalDate(), "简述", listOf(ReviewSection("一句话", listOf("内容"), listOf(1))), at)
         val lines = listOf(TranscriptLineEntity(1, 1, at, at + 1000, "原句", "speaker1", "我"))

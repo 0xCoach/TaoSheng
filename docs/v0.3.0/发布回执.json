@@ -1,0 +1,49 @@
+{
+  "versionName": "0.3.0",
+  "versionCode": 77,
+  "certificateSha256": "7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07",
+  "apkSha256": "19a91b315e3580409abf60a8df917e7cbfb6fe0d852f61ee9f1ac62fda09a623",
+  "apkSize": 105729972,
+  "sourceCommit": "32dd3f6ece2fe25c4684247e2e7e7349be7f8f0f",
+  "allPatchesReconstructed": true,
+  "patches": [
+    {
+      "fromSha256": "800e18c178f8622b3b095042e3c6aa653dcac5694b978c91d28de125abae5348",
+      "file": "TaoSheng-0.3.0-preview.11-to-0.3.0.patch",
+      "sha256": "db1ef30239d2800808cd72e158638775a386e7b62e6cdfc6c05965bdf5eee657",
+      "size": 7762
+    },
+    {
+      "fromSha256": "dee4e393e2f32d0cb59916f0511b300db2337b81b00d22652b1517a7f581ed01",
+      "file": "TaoSheng-0.3.0-preview.10-to-0.3.0.patch",
+      "sha256": "070d5238ea4b163a410b729615294aacb296808e8e60f0d11499276be76147e8",
+      "size": 3142144
+    },
+    {
+      "fromSha256": "ce7338c5d67f8c4a7813a777447ce7bfeeef8dc1a618780720314167f463a0ea",
+      "file": "TaoSheng-0.3.0-preview.9-to-0.3.0.patch",
+      "sha256": "ad786d8317aaa3bbec7ef8922363a5ab081ae352bdbba7f64e00a3d9a58668ab",
+      "size": 3297060
+    },
+    {
+      "fromSha256": "07f7523fb69d7dab818ac79c82bd586ee9c431364c829fb96432447f27f2eb86",
+      "file": "TaoSheng-0.3.0-preview.8-to-0.3.0.patch",
+      "sha256": "566adc67ab1098a521e4da9203b1e777fe54bae1d11e8aec54945fcec9e4c706",
+      "size": 4753402
+    },
+    {
+      "fromSha256": "e591b9c1ab270e2df6f9dd47fc79d6faf570d38c23b7b928c76fe0f9c06ae313",
+      "file": "TaoSheng-0.2.22-to-0.3.0.patch",
+      "sha256": "1d03deb1e5289bdd85642f8e0084998eddd81d95c2152521497dc5080844d9c5",
+      "size": 8450602
+    }
+  ],
+  "modelscopePublicVerified": true,
+  "githubPublicVerified": true,
+  "latestManifestVerified": true,
+  "allPublicPatchesReconstructed": true,
+  "previewManifestUnchanged": true,
+  "previousFilesRetained": true,
+  "githubRelease": "https://github.com/0xCoach/TaoSheng/releases/tag/v0.3.0",
+  "modelscopeApk": "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk"
+}

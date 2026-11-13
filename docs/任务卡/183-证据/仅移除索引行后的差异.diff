@@ -1,0 +1,8 @@
+--- synthetic-v33
++++ synthetic-v34-minus-index
+@@ -1,4 +1,4 @@
+-user_version=33
++user_version=34
+ ["index","index_app_power_at","app_power","CREATE INDEX `index_app_power_at` ON `app_power` (`at`)"]
+ ["index","index_ask_messages_conversationId","ask_messages","CREATE INDEX `index_ask_messages_conversationId` ON `ask_messages` (`conversationId`)"]
+ ["index","index_battery_at","battery","CREATE INDEX `index_battery_at` ON `battery` (`at`)"]

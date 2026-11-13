@@ -1,0 +1,37 @@
+本机已缓存 Room compiler 2.8.4；javap -c -p androidx.room.vo.Entity 的 getIdKey 方法。
+索引列表在字节码偏移 40 / 43 加入校验码输入；不是 34.json 导出结果。
+
+  public java.lang.String getIdKey();
+    Code:
+       0: new           #148                // class androidx/room/vo/SchemaIdentityKey
+       3: dup
+       4: invokespecial #151                // Method androidx/room/vo/SchemaIdentityKey."<init>":()V
+       7: astore_1
+       8: aload_1
+       9: aload_0
+      10: invokevirtual #153                // Method getTableName:()Ljava/lang/String;
+      13: invokevirtual #157                // Method androidx/room/vo/SchemaIdentityKey.append:(Ljava/lang/String;)V
+      16: aload_1
+      17: aload_0
+      18: getfield      #103                // Field primaryKey:Landroidx/room/vo/PrimaryKey;
+      21: checkcast     #6                  // class androidx/room/vo/HasSchemaIdentity
+      24: invokevirtual #160                // Method androidx/room/vo/SchemaIdentityKey.append:(Landroidx/room/vo/HasSchemaIdentity;)V
+      27: aload_1
+      28: aload_0
+      29: invokevirtual #164                // Method getProperties:()Landroidx/room/vo/Properties;
+      32: checkcast     #166                // class java/util/List
+      35: invokevirtual #170                // Method androidx/room/vo/SchemaIdentityKey.appendSorted:(Ljava/util/List;)V
+      38: aload_1
+      39: aload_0
+      40: getfield      #105                // Field indices:Ljava/util/List;
+      43: invokevirtual #170                // Method androidx/room/vo/SchemaIdentityKey.appendSorted:(Ljava/util/List;)V
+      46: aload_1
+      47: aload_0
+      48: getfield      #107                // Field foreignKeys:Ljava/util/List;
+      51: invokevirtual #170                // Method androidx/room/vo/SchemaIdentityKey.appendSorted:(Ljava/util/List;)V
+      54: aload_1
+      55: invokevirtual #173                // Method androidx/room/vo/SchemaIdentityKey.hash:()Ljava/lang/String;
+      58: dup
+      59: ldc           #175                // String hash(...)
+      61: invokestatic  #178                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      64: areturn

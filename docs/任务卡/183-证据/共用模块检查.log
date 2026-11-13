@@ -1,0 +1,113 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:transformCommonMainDependenciesMetadata
+> Task :shared:jvmProcessResources NO-SOURCE
+> Task :shared:processJvmMainResources SKIPPED
+> Task :shared:jvmTestProcessResources
+> Task :shared:processJvmTestResources SKIPPED
+> Task :shared:preBuild UP-TO-DATE
+> Task :shared:preDebugBuild UP-TO-DATE
+> Task :shared:generateDebugResValues
+> Task :shared:generateDebugResources
+> Task :shared:packageDebugResources
+> Task :shared:preDebugUnitTestBuild UP-TO-DATE
+> Task :shared:preReleaseBuild UP-TO-DATE
+> Task :shared:javaPreCompileDebug
+> Task :shared:javaPreCompileDebugUnitTest
+> Task :shared:generateReleaseResValues
+> Task :shared:generateReleaseResources
+> Task :shared:packageReleaseResources
+> Task :shared:preReleaseUnitTestBuild UP-TO-DATE
+> Task :shared:javaPreCompileRelease
+> Task :shared:javaPreCompileReleaseUnitTest
+> Task :shared:parseDebugLocalResources
+> Task :shared:parseReleaseLocalResources
+> Task :shared:mergeDebugJniLibFolders
+> Task :shared:mergeDebugNativeLibs NO-SOURCE
+> Task :shared:stripDebugDebugSymbols NO-SOURCE
+> Task :shared:extractDeepLinksForAarDebug
+> Task :shared:copyDebugJniLibsProjectAndLocalJars
+> Task :shared:mergeDebugShaders
+> Task :shared:generateDebugRFile
+> Task :shared:generateReleaseRFile
+> Task :shared:generateDebugUnitTestStubRFile
+> Task :shared:compileDebugShaders NO-SOURCE
+> Task :shared:debugAssetsCopyForAGP NO-SOURCE
+> Task :shared:generateDebugAssets UP-TO-DATE
+> Task :shared:generateReleaseUnitTestStubRFile
+> Task :shared:mergeDebugAssets
+> Task :shared:prepareDebugArtProfile
+> Task :shared:prepareLintJarForPublish
+> Task :shared:preDebugAndroidTestBuild UP-TO-DATE
+> Task :shared:generateDebugAndroidTestResValues
+> Task :shared:writeDebugAarMetadata
+> Task :shared:writeDebugLintModelMetadata
+> Task :shared:extractProguardFiles
+> Task :shared:processDebugManifest
+> Task :shared:compileCommonMainKotlinMetadata
+> Task :shared:compileReleaseKotlinAndroid
+> Task :shared:compileReleaseJavaWithJavac NO-SOURCE
+> Task :shared:compileKotlinJvm
+> Task :shared:compileDebugKotlinAndroid
+> Task :shared:compileJvmMainJava NO-SOURCE
+> Task :shared:jvmMainClasses
+> Task :shared:bundleLibRuntimeToJarRelease
+> Task :shared:jvmJar
+> Task :shared:compileDebugJavaWithJavac NO-SOURCE
+> Task :shared:processDebugJavaRes
+> Task :shared:bundleLibRuntimeToJarDebug
+> Task :shared:bundleLibCompileToJarDebug
+> Task :shared:processReleaseJavaRes
+> Task :shared:compileDebugUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:bundleLibCompileToJarRelease
+> Task :shared:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:processDebugUnitTestJavaRes NO-SOURCE
+> Task :shared:testDebugUnitTest NO-SOURCE
+> Task :shared:compileReleaseUnitTestKotlinAndroid NO-SOURCE
+> Task :shared:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :shared:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :shared:testReleaseUnitTest NO-SOURCE
+> Task :shared:extractDebugAnnotations
+> Task :shared:mergeDebugGeneratedProguardFiles
+> Task :shared:mergeDebugConsumerProguardFiles
+> Task :shared:createFullJarDebug
+> Task :shared:mergeDebugJavaResource
+> Task :shared:generateDebugLintReportModel
+> Task :shared:syncDebugLibJars
+> Task :shared:bundleDebugLocalLintAar
+> Task :shared:test UP-TO-DATE
+> Task :shared:generateDebugAndroidTestLintModel
+> Task :shared:generateDebugUnitTestLintModel
+
+> Task :shared:compileTestKotlinJvm
+w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/resound/digest/RulesParity152Test.kt:22:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+
+> Task :shared:compileJvmTestJava NO-SOURCE
+> Task :shared:jvmTestClasses
+> Task :shared:jvmTest
+> Task :shared:allTests
+> Task :shared:lintAnalyzeDebugAndroidTest
+> Task :shared:lintAnalyzeDebugUnitTest
+> Task :shared:lintAnalyzeDebug
+
+> Task :shared:lintReportDebug
+Wrote HTML report to file:///Users/coach/Developer/TaoSheng-183/shared/build/reports/lint-results-debug.html
+
+> Task :shared:lintDebug
+> Task :shared:lint
+> Task :shared:check
+
+[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-183/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 39s
+60 actionable tasks: 60 executed

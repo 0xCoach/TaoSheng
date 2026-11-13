@@ -1,0 +1,5 @@
+已运行一次：python3 tools/check_shared.py
+共用业务边界检查通过（无平台依赖豁免）
+
+已运行一次：python3 tools/trigger-audit-181/freeze_history.py --check
+历史回调与 10 个来源版本核对通过

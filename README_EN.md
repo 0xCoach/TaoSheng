@@ -56,7 +56,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ## ✨ Highlights
 
-1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected; dedicated recorders such as Omi and Sonicloud cards can be paired too (beta, see #27).
+1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected; dedicated recorders such as Omi and the Anker / Feishu D3200 can be paired too (beta, see #27).
 2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud, or any custom ASR (OpenAI-compatible, or a full request URL).
 3. **⏱ Automatic transcribe + digest on your schedule** — every 15–720 minutes; review and skill times are configurable.
 4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker; every voiceprint sample can be played back or deleted.
@@ -82,7 +82,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 24. **🔊 Ambient sound tags** (9 kinds: music, keyboard, rain, pets…), **📋 one-tap report copying** (full, by module, or free selection), **🏫 class mode & quiet hours**.
 25. **⬆️ In-app updates** — small delta patches first, ModelScope mirror in China; the pre-update backup runs right after download, so "Install" goes straight to the system prompt.
 26. **📍 Footprint** — records where you've been alongside capture; named places, "home" detection, a day timeline with the events that happened at each stop, optional daily footprint push. Locations stay on the phone.
-27. **📡 Dedicated recorders (beta)** — scan and pair Bluetooth recorders such as Omi, Sonicloud cards and the open-source ADeus pendant, then pick one as the input; falls back to the phone mic on disconnect and back-fills the gap afterwards. Each device is described by a signed "device card", so new devices can be supported without an app update.
+27. **📡 Dedicated recorders (beta)** — device cards and plugins support devices such as Omi, ADeus and the Anker / Feishu D3200. Live capture, offline transfer and controls depend on the device and driver. D3200 hardware acceptance for the official build is still pending. Version 0.3.0 removes the legacy built-in Sonicloud adapter; Sonicloud users should defer this upgrade.
 28. **🧭 Sound, place and ambience linked** — events show where you were ("📍 at the office"); Ask can filter by place ("what did we discuss at the office last week?"); optionally let the digest consider place and ambient sounds (off by default).
 29. **🚀 Three-minute onboarding** — a first-run wizard explains each permission before asking, prepares on-device ASR in the background, walks you through getting a DeepSeek key (auto-detected from the clipboard) and lets you try one sentence end to end; everything else is suggested only when it becomes relevant.
 

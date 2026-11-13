@@ -1,0 +1,26 @@
+[
+  {
+    "class": "app.resound.data.Driver175FixturesTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 4.669
+  },
+  {
+    "class": "app.resound.data.TriggerHistory181Test",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.649
+  },
+  {
+    "class": "app.resound.data.TableObservers182Test",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 1.543
+  }
+]

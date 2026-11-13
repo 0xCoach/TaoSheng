@@ -1,0 +1,12 @@
+{
+  "productBaseline": "1355f5f9ac43f0df1c8e28d2368bc8ac93a89e97",
+  "configCommit": "cba2b998906b4075cf436d51ffcf65f4b1140e38",
+  "schema": "app/schemas/app.resound.data.CaptureDatabase/33.json",
+  "sha256": "b61e26ea7697d22dae417e04abc01cec6229bf73b2f25b15bbc55bdda1a54292",
+  "identityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
+  "generatedImplementation": "app/build/generated/ksp/debug/kotlin/app/resound/data/CaptureDatabase_Impl.kt",
+  "generatedHashLines": [
+    "val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(33, \"c8e25a89cb4bb9cf5903037158d9d8d3\", \"3412bb4df8e5c7643980766122b9273d\") {",
+    "connection.execSQL(\"INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')\")"
+  ]
+}

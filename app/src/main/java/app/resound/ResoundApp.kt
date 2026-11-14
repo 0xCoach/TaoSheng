@@ -33,12 +33,7 @@ class ResoundApp : Application() {
     fun rescheduleDigest(changed: Boolean = false) {
         if (changed) transcribeScheduler.timingChanged() else transcribeScheduler.scheduleDigest()
     }
-    fun enqueueTimedDigest(target: Long, expires: Long) = transcribeScheduler.enqueueTimed(target, expires)
-    fun timedDigestValid(target: Long): Boolean {
-        val timing = AppGraph.digestTiming
-        val local = java.time.Instant.ofEpochMilli(target).atZone(java.time.ZoneId.systemDefault())
-        return timing.mode.value == DigestMode.TimePoints && local.hour * 60 + local.minute in timing.timePoints.value
-    }
+    fun recoverTimedDigest() = transcribeScheduler.recoverTimed()
     suspend fun resumeWaitingTranscriptionBatch(action: String?) = transcribeScheduler.resumeWaitingBatch(action)
     fun runTranscriptionNow() = transcribeScheduler.runNow()
     lateinit var controller: AndroidCaptureController
@@ -272,6 +267,7 @@ class ResoundApp : Application() {
         AppGraph.setup = AndroidSetupGuide(this)
         segmentFiles // 启动串行编码队列，重试完整暂存片段。
         scheduler.schedule()
+        registerActivityLifecycleCallbacks(app.resound.digest.DigestForegroundRecovery(this))
         app.resound.search.EmbeddingScheduler.start(this)
         val backupRepository = app.resound.backup.AndroidBackupRepository(this, database, diary = AppGraph.diary)
         AppGraph.backup = backupRepository

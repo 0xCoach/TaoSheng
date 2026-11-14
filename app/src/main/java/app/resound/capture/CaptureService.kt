@@ -378,6 +378,7 @@ class CaptureService : Service() {
         intervalStart = now
         store.prefs.edit().putLong("heartbeat", now).commit()
         folderImports()?.heartbeat(now)
+        (applicationContext as app.resound.ResoundApp).recoverTimedDigest()
     }
     private suspend fun fail(detail: String) {
         if (initialized) { beat(); store.event(WatchdogEventType.ServiceStopped, "$detail；等待手动恢复，保留未正常停止标记") }

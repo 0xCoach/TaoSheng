@@ -22,9 +22,36 @@ class AndroidDigestTiming(private val context: Context) : DigestTiming {
     override val nextDigestAt = mutableNext.asStateFlow()
     var onChanged: () -> Unit = {}
 
+    init {
+        // 首次升级从现在开始跟踪，避免把启用前的历史时间点误当待办。
+        if (!prefs.contains("timedGeneration")) {
+            check(prefs.edit().putString("timedGeneration", java.util.UUID.randomUUID().toString())
+                .putLong("timedSince", System.currentTimeMillis()).commit())
+        }
+    }
+    private fun android.content.SharedPreferences.Editor.newTimedGeneration() = apply {
+        putString("timedGeneration", java.util.UUID.randomUUID().toString())
+        putLong("timedSince", System.currentTimeMillis())
+    }
+    internal fun pendingTimed(now: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): app.resound.scheduling.TimedDigestRecovery.Ticket? {
+        // 一次快照同时读取配置和完成凭据，避免并发修改时间点时混用新旧设置。
+        val state = prefs.all
+        val generation = state["timedGeneration"] as? String ?: return null
+        val points = (state["timePoints"] as? String).orEmpty().split(',').mapNotNull(String::toIntOrNull)
+        return app.resound.scheduling.TimedDigestRecovery.pending(generation,
+            state["digestMode"] == DigestMode.TimePoints.name,
+            state["timedSince"] as? Long ?: now,
+            state["timedCompleted:$generation"] as? Long ?: 0L,
+            now, DigestTime.recent(points, now, zone))
+    }
+    internal fun completeTimed(ticket: app.resound.scheduling.TimedDigestRecovery.Ticket) {
+        // 完成凭据按配置代次隔离；旧任务结束不能覆盖用户刚改的设置。
+        check(prefs.edit().putLong("timedCompleted:${ticket.generation}", ticket.target).commit())
+    }
+
     @Synchronized override fun setMode(mode: DigestMode) {
         if (mode == mutableMode.value) return
-        check(prefs.edit().putString("digestMode", mode.name).commit())
+        check(prefs.edit().putString("digestMode", mode.name).newTimedGeneration().commit())
         mutableMode.value = mode
         onChanged()
     }
@@ -38,7 +65,7 @@ class AndroidDigestTiming(private val context: Context) : DigestTiming {
     }
     private fun save(points: List<Int>) {
         val normalized = normalize(points)
-        check(prefs.edit().putString("timePoints", normalized.joinToString(",")).commit())
+        check(prefs.edit().putString("timePoints", normalized.joinToString(",")).newTimedGeneration().commit())
         mutablePoints.value = normalized
         onChanged()
     }
@@ -61,5 +88,11 @@ internal object DigestTime {
             }
         }.filter { it > now }.minOrNull()
     }
-    fun missed(now: Long, target: Long, expires: Long) = now < target || expires <= target || now >= expires
+    /** 只需今天和昨天：更早的漏点会合并进最近一次到期任务。 */
+    fun recent(points: List<Int>, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<Long> {
+        val date = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        return (0L..1L).flatMap { days -> points.filter { it in 0..1439 }.map { minute ->
+            date.minusDays(days).atTime(minute / 60, minute % 60).atZone(zone).toInstant().toEpochMilli()
+        } }
+    }
 }

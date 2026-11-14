@@ -12,19 +12,18 @@ import app.resound.transcribe.PipelineTimes
 import kotlinx.coroutines.launch
 import androidx.work.await
 
-/** 始终只保留下一个闹钟；截止时间随闹钟快照保存，不因晚到而把窗口延到明天。 */
+/** 只安排下一次唤醒；漏点是否补做由持久化完成凭据决定。 */
 class DigestAlarm(private val context: Context, private val timing: AndroidDigestTiming) {
     private val alarms get() = context.getSystemService(AlarmManager::class.java)
-    private fun pending(target: Long = 0, expires: Long = 0) = PendingIntent.getBroadcast(context, 530,
-        Intent(context, DigestAlarmReceiver::class.java).putExtra(TARGET, target).putExtra(EXPIRES, expires),
+    private fun pending() = PendingIntent.getBroadcast(context, 530,
+        Intent(context, DigestAlarmReceiver::class.java),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
     fun cancel() { alarms.cancel(pending()); timing.next(null) }
     fun schedule(now: Long = System.currentTimeMillis()) {
         if (timing.mode.value != DigestMode.TimePoints) { cancel(); return }
         val next = DigestTime.next(timing.timePoints.value, now) ?: run { cancel(); return }
-        val expires = requireNotNull(DigestTime.next(timing.timePoints.value, next))
-        val intent = pending(next, expires)
+        val intent = pending()
         try {
             if (timing.canScheduleExact()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
             else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
@@ -35,9 +34,6 @@ class DigestAlarm(private val context: Context, private val timing: AndroidDiges
         timing.next(next)
     }
     companion object {
-        const val TARGET = "digest-target"
-        const val EXPIRES = "digest-expires"
-        const val NETWORK_GRACE_MS = 30 * 60_000L
         fun online(context: Context): Boolean {
             val cm = context.getSystemService(ConnectivityManager::class.java)
             return cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
@@ -48,17 +44,13 @@ class DigestAlarm(private val context: Context, private val timing: AndroidDiges
 class DigestAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as ResoundApp
-        val target = intent.getLongExtra(DigestAlarm.TARGET, 0)
-        // 到点时恰好断网（如 WiFi 重连）也等一会儿：30 分钟内联网照跑，超过或到了下一个点才算错过
-        val expires = minOf(intent.getLongExtra(DigestAlarm.EXPIRES, 0), target + DigestAlarm.NETWORK_GRACE_MS)
         val pending = goAsync()
-        // 先接续闹钟，不等本次流水线结束。
-        app.rescheduleDigest()
         app.scope.launch {
             try {
-                if (DigestTime.missed(System.currentTimeMillis(), target, expires)) {
-                    PipelineTimes.record(context, "${System.currentTimeMillis()} 到点整理 已错过，跳过")
-                } else app.enqueueTimedDigest(target, expires)?.await()
+                PipelineTimes.record(context, "${System.currentTimeMillis()} 到点整理 闹钟唤醒")
+                // 不以广播迟到判定过期；完成凭据决定是否仍需补做。
+                app.rescheduleDigest()
+                app.recoverTimedDigest()?.await()
             } finally { pending.finish() }
         }
     }

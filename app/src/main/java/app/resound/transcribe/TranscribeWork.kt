@@ -45,21 +45,21 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             TranscribePowerDiagnostics.execution(app, inputData.getBoolean(BATCHED, false))
             BackgroundTranscribeDiagnostics.delayed(applicationContext, inputData)
         }
-        fun expired(): Boolean {
-            if (mode != MODE_TIMED) return false
-            val target = inputData.getLong(DigestAlarm.TARGET, 0)
-            val expires = inputData.getLong(DigestAlarm.EXPIRES, 0)
-            return !app.timedDigestValid(target) || DigestTime.missed(System.currentTimeMillis(), target, expires)
-        }
-        if (expired()) { missed(); return Result.success() }
         // 周期、手动、到点与回顾前整理共用同一把锁。
         if (!pipeline.tryLock()) {
+            if (mode == MODE_TIMED) PipelineTimes.record(applicationContext,
+                "${System.currentTimeMillis()} 到点整理 等待其他转写/整理结束")
             if (mode == MODE_REALTIME && !BackgroundTranscribeDiagnostics.foreground)
                 BackgroundTranscribeDiagnostics.record(applicationContext, "realtime-pipeline-busy", "false")
             return Result.retry()
         }
         try {
-            if (expired()) { missed(); return Result.success() }
+            // 在拿到流水线锁后重新读取：闹钟、周期兜底、前台补漏只会有一个真正执行。
+            val timed = if (mode == MODE_TIMED) AppGraph.digestTiming.let {
+                (it as AndroidDigestTiming).pendingTimed()
+            } ?: return Result.success() else null
+            if (timed != null) PipelineTimes.record(applicationContext,
+                "${System.currentTimeMillis()} 到点整理 开始，计划=${timed.target}，延迟=${System.currentTimeMillis() - timed.target}ms")
             // 已有麦克风 FGS 不是文档保证的后台启动豁免；实时任务按加急/普通批次调度，不主动再起 FGS。
             if (mode != MODE_REALTIME) {
                 try { setForeground(getForegroundInfo()) }
@@ -67,15 +67,23 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
                 catch (_: Exception) { /* 系统拒绝前台时仍按普通任务执行。 */ }
             }
             val retry = executePipeline(app, mode, manual = mode == MODE_FULL && MANUAL_DIGEST in tags)
-            // 到点任务本轮失败不补跑；普通转写/间隔整理保持原来的重试行为。
-            return if (retry && mode != MODE_TIMED) Result.retry() else Result.success()
+            if (timed != null) {
+                if (retry) PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} 到点整理 暂时失败，保留进度等待重试")
+                else {
+                    // 不可重试错误（密钥/余额等）由原整理错误提示承接，避免无限请求。
+                    (AppGraph.digestTiming as AndroidDigestTiming).completeTimed(timed)
+                    PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} 到点整理 本轮结束，计划=${timed.target}")
+                }
+            }
+            return if (retry) Result.retry() else Result.success()
         } catch (e: CancellationException) {
+            if (mode == MODE_TIMED) PipelineTimes.record(applicationContext,
+                "${System.currentTimeMillis()} 到点整理 执行中断，未消耗完成凭据")
             if (mode == MODE_REALTIME && !BackgroundTranscribeDiagnostics.foreground)
                 BackgroundTranscribeDiagnostics.record(applicationContext, "realtime-stopped", "false")
             throw e
         } finally { PipelineProgress.finish(); pipeline.unlock() }
     }
-    private fun missed() = PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} 到点整理 已错过，跳过")
 
     companion object {
         private val pipeline = Mutex()
@@ -146,6 +154,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
 }
 class TranscribeScheduler(private val context: Context, private val settings: TranscribeSettings) {
     private val manager get() = WorkManager.getInstance(context)
+    private val recoveryNotice = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     /** 整理要调大模型，只要求联网（与转写的 WiFi 设置无关） */
     private fun digestConstraints() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
     /** 多久整理一次；由 ResoundApp 在整理设置就绪后装配 */
@@ -214,9 +223,23 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
             if (timing.mode.value == DigestMode.TimePoints) {
                 manager.cancelUniqueWork(DIGEST_PERIODIC)
                 alarm.schedule()
+                if (timing.timePoints.value.isEmpty()) {
+                    manager.cancelUniqueWork(TIMED_GUARD)
+                    manager.cancelUniqueWork(TIMED_NOW)
+                    return
+                }
+                // 无需录音服务存活也能补漏；网络恢复后由 WorkManager 执行。
+                manager.enqueueUniquePeriodicWork(TIMED_GUARD, ExistingPeriodicWorkPolicy.KEEP,
+                    PeriodicWorkRequestBuilder<TranscribeWork>(15, TimeUnit.MINUTES)
+                        .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_TIMED))
+                        .setInitialDelay(15, TimeUnit.MINUTES).setConstraints(digestConstraints())
+                        .addTag(TAG).addTag(TIMED_TAG).build())
+                recoverTimed()
                 return
             }
             alarm.cancel()
+            manager.cancelUniqueWork(TIMED_GUARD)
+            manager.cancelUniqueWork(TIMED_NOW)
         }
         val minutes = digestMinutes().toLong()
         manager.enqueueUniquePeriodicWork(DIGEST_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE,
@@ -224,16 +247,22 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
                 .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_DIGEST))
                 .setInitialDelay(minutes, TimeUnit.MINUTES).setConstraints(digestConstraints()).addTag(TAG).build())
     }
-    fun enqueueTimed(target: Long, expires: Long): Operation? {
-        if (digestTiming?.mode?.value != DigestMode.TimePoints) return null
-        return manager.enqueueUniqueWork("digest-timed-$target", ExistingWorkPolicy.KEEP,
+    fun recoverTimed(): Operation? {
+        val ticket = digestTiming?.pendingTimed() ?: return null
+        val notice = "${ticket.generation}:${ticket.target}"
+        val previous = recoveryNotice.value
+        if (previous != notice && recoveryNotice.compareAndSet(previous, notice)) {
+            PipelineTimes.record(context, "${System.currentTimeMillis()} 到点整理 发现待补任务，计划=${ticket.target}，" +
+                if (DigestAlarm.online(context)) "已请求调度" else "等待联网")
+        }
+        return manager.enqueueUniqueWork(TIMED_NOW, ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<TranscribeWork>()
-                .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_TIMED,
-                    DigestAlarm.TARGET to target, DigestAlarm.EXPIRES to expires))
+                .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_TIMED))
                 .setConstraints(digestConstraints()).addTag(TAG).addTag(TIMED_TAG)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST).build())
     }
-    /** 设置/系统时钟改变后旧窗口失效；进程启动和闹钟接续不取消已触发的任务。 */
+    /** 设置/系统时钟改变后重新调度；进程启动和闹钟接续不取消已触发的任务。 */
     fun timingChanged() { manager.cancelAllWorkByTag(TIMED_TAG); scheduleDigest() }
     /** 每存好一段录音调用；锁屏未充电攒批，低电/偏热仍交给原周期兜底。 */
     suspend fun segmentSaved(pendingMillis: Long) = earlyMutex.withLock {
@@ -290,6 +319,8 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build()
         const val TAG = "transcribe"
         const val TIMED_TAG = "digest-timed"
+        const val TIMED_GUARD = "digest-timed-guard"
+        const val TIMED_NOW = "digest-timed-recovery"
         const val PERIODIC = "transcribe-periodic"
         const val IMMEDIATE = "transcribe-now"
         const val EARLY_WORK = "transcribe-early"

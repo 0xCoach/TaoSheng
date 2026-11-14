@@ -45,6 +45,8 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val manualStates by (inputs?.manualSyncStates ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, app.resound.devices.android.ManualSyncState>()) }).collectAsStateWithLifecycle()
+    val manual = manualStates[d.address]
     val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow<Map<String, DeviceStatusModel>>(emptyMap()) }).collectAsStateWithLifecycle()
     var live by remember { mutableStateOf(previewInfo) }
     var busy by remember { mutableStateOf<String?>(null) }
@@ -58,7 +60,7 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
 
     fun run(label: String, block: suspend (DriverConnection) -> Unit) {
         val target = inputs ?: return
-        if (busy != null) return
+        if (busy != null || manual?.running == true) return
         scope.launch {
             busy = label; error = null; notice = null
             try { target.withDevice(d.address) { block(it) } }
@@ -112,6 +114,8 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                             tint = if (r == RecordingState.Recording) c.good else c.textSecondary)
                     }
                 }
+                if (live == null && previewStatus == null) Text("显示上次成功读取的状态，不代表当前状态；请连接并读取。", style = RsType.caption, color = c.textSecondary)
+                if (parts.any { it.part == 2 }) Text("充电盒读数由录音设备转报，接电或取出后可能延迟更新。", style = RsType.caption, color = c.textTertiary)
             } else if (inputs != null) {
                 Text("还没读过这台设备的电量和状态。", style = RsType.subhead, color = c.textTertiary)
             }
@@ -178,20 +182,19 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
             }
             // 离线录音
             if ((inputs != null || previewInfo != null) && meta?.tier == DriverTier.Plugin && (info == null || Capability.Files in info.capabilities)) {
-                ActionButton(if (busy == "正在检查离线录音…") "正在检查…" else "立即检查离线录音", ActionKind.Secondary, enabled = busy == null) {
-                    val target = inputs ?: return@ActionButton
-                    scope.launch {
-                        busy = "正在检查离线录音…"; error = null; notice = null
-                        try { target.syncDevice(d.address); notice = "离线录音已检查完" }
-                        catch (e: CancellationException) { throw e }
-                        catch (e: DeviceException) { error = e.code.text() }
-                        catch (_: Exception) { error = "检查没有完成，稍后再试" }
-                        finally { busy = null }
-                    }
+                ActionButton(if (manual?.running == true) "正在检查…" else "立即检查离线录音", ActionKind.Secondary, enabled = busy == null && manual?.running != true) {
+                    error = null; notice = null
+                    inputs?.startSyncDevice(d.address)
                 }
+                if (manual?.running == true) {
+                    Text("离开此页面会继续补传；暂停后可按已保存的进度继续。", style = RsType.caption, color = c.textSecondary)
+                    ActionButton(if (manual.pausing) "正在暂停…" else "暂停补传", ActionKind.Secondary, enabled = !manual.pausing) { inputs?.pauseSyncDevice(d.address) }
+                } else (manual?.errorCode?.text() ?: manual?.message)?.let { Text(it, style = RsType.caption,
+                    color = if (manual?.errorCode != null) c.warning else c.textSecondary) }
             }
             d.backfill?.let { b ->
-                Text("正在补传断开期间的录音：${b.doneFiles}/${b.files} 个文件", style = RsType.subhead, color = c.text)
+                Text("补传任务：${b.doneFiles}/${b.files} 项", style = RsType.subhead, color = c.text)
+                Text("已接收 ${formatBytes(b.doneBytes)} / ${formatBytes(b.bytes)}；同一文件的多个缺口分别计数。", style = RsType.caption, color = c.textSecondary)
                 if (b.bytes > 0) LinearProgressIndicator(progress = { (b.doneBytes.toFloat() / b.bytes).coerceIn(0f, 1f) }, color = c.accent,
                     trackColor = c.accentSoft, modifier = Modifier.fillMaxWidth().clip(CircleShape))
             }
@@ -201,7 +204,7 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                     style = RsType.caption, color = c.textTertiary)
             }
             Text("要用它录音，到上面“录音输入”里点它。", style = RsType.caption, color = c.textTertiary)
-            ActionButton(if (confirmForget) "确定忘记？再点一次" else "忘记这台设备", ActionKind.Danger) {
+            ActionButton(if (confirmForget) "确定忘记？再点一次" else "忘记这台设备", ActionKind.Danger, enabled = manual?.running != true) {
                 if (!confirmForget) { confirmForget = true; return@ActionButton }
                 onForget()
             }
@@ -322,7 +325,8 @@ private fun SettingRow(item: SettingItem, onChange: (SettingValue) -> Unit) {
             Text(item.label.zh, style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
             when (item.kind) {
                 SettingKind.Switch -> app.resound.ui.skills.Toggle((item.value as? SettingValue.Bool)?.value == true) { onChange(SettingValue.Bool(it)) }
-                SettingKind.ReadOnly -> Text(item.value.display(item), style = RsType.body, color = c.textSecondary)
+                SettingKind.ReadOnly -> Text(item.value.display(item), style = RsType.body, color = c.textSecondary,
+                    modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
                 SettingKind.Number -> {
                     val v = (item.value as? SettingValue.Num)?.value
                     val step = item.step ?: 1.0

@@ -1,1 +1,4 @@
 *.bat text eol=crlf
+
+# Real hardware capture prefixes must retain the reviewed original bytes.
+devices/src/jvmTest/resources/d3200-captured/replay-*-prefix.txt -text

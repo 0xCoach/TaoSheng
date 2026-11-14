@@ -43,7 +43,9 @@ import app.resound.ui.theme.RsType
 fun DeviceSection(devices: Devices, cards: DeviceCards, scanError: kotlinx.coroutines.flow.StateFlow<String?>) {
     val c = Rs.colors
     val context = LocalContext.current
-    val paired by devices.devices.collectAsStateWithLifecycle()
+    val rawPaired by devices.devices.collectAsStateWithLifecycle()
+    // 管理连接的补传进度来自实际已打开的文件通道，不沿用收音连接的旧状态。
+    val paired = rawPaired.map { if (it.backfill != null) it.copy(status = DeviceStatus.Backfilling) else it }
     val found by devices.found.collectAsStateWithLifecycle()
     val error by scanError.collectAsStateWithLifecycle()
     val installed by cards.cards.collectAsStateWithLifecycle()

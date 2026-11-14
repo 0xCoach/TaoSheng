@@ -17,7 +17,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.3.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.3.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -91,7 +91,7 @@
 28. **🎙️ 专题录音与停录时段**：会议、培训、通话、口播稿一键开始，可暂停、预约，结束后合成一件事出纪要（培训不区分说话人）；忘了开始可事后补；设好时段自动停录，比如夜里不录。
 29. **⬆️ App 内检查更新**：优先下载几 MB 的差异包，国内走魔搭镜像；下载完就在后台备份好，点安装直接弹出系统确认。
 30. **📍 足迹**：跟着录音一起记下每天去过哪，停留的地方显示地名、自动认出“家”；一天按地点分成时间轴，每个停留点下面列出当时发生的事；可每天推送“每日足迹”。定位只存在手机里。
-31. **📡 专用录音设备与开放适配（试用）**：通过设备说明卡或驱动插件接入 Omi、ADeus ESP32-C3、安克／飞书录音豆 D3200 等设备，复用涛声的转写、整理和记忆功能。D3200 试用驱动已实现实时收音、离线补传、录音控制、电量和存储查询，官方构建真机验收仍待完成；各设备能力与固件限制见[硬件接入说明](docs/硬件接入与协议适配.md)。0.3.0 已移除原内置声云适配，声云用户请暂缓升级。
+31. **📡 专用录音设备与开放适配（试用）**：通过设备说明卡或驱动插件接入 Omi、ADeus ESP32-C3、安克／飞书录音豆 D3200 等设备，复用涛声的转写、整理和记忆功能。D3200 试用驱动已实现实时收音、离线补传、录音控制、电量和存储查询，0.3.1 修复关灯收音和手动补传；贡献者已在 realme Android、04.92／盒 1.2.2 上验收，当前正式构建未再次进行真机验收；各设备能力与固件限制见[硬件接入说明](docs/硬件接入与协议适配.md)。0.3.0 已移除原内置声云适配，声云用户请暂缓升级。
 32. **🧭 声音、位置、环境音联动**：事件上显示当时在哪（“📍 在公司”）；问问能按地点问——“上周在公司聊了什么”“昨天在家提到过哪些待办”；可选让整理参考当时的地点和环境音，分场景更准（默认关）。
 33. **🚀 三分钟上手**：第一次打开有开箱向导——先说明再要权限、后台自动准备本机转写、一键去 DeepSeek 获取密钥（回来自动识别剪贴板）、现场说一句话看到转写和整理结果；其余设置按需提示，不打扰。
 34. **📱 桌面小组件「涛声快捷」**：在手机桌面的“小组件 / 添加小部件”里找到涛声，即可查看聆听和专题状态，一点添加待办、开始专题、暂停或恢复；专题进行中，“开始专题”会变成“记一下”，随手标记重点。
@@ -167,7 +167,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.3.0**（最新） | 2026-11-13 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk) | 首页与夜间模式焕新；语音待办与桌面小组件；专题记录管理、长会议分段续做；设置搜索与体检；减少后台开销。升级前备份，旧声云适配已移除。[详细更新日志](CHANGELOG.md#030--2026-11-13) |
+| **v0.3.1**（最新） | 2026-11-14 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk) | 到点整理迟到补漏、重启恢复与失败重试；修复 D3200 关灯收音及补传生命周期；更新下载稳定性修复。鸿蒙真机待验收。[详细更新日志](CHANGELOG.md#031--2026-11-14) |
+| **v0.3.0** | 2026-11-13 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk) | 首页与夜间模式焕新；语音待办与桌面小组件；专题记录管理、长会议分段续做；设置搜索与体检；减少后台开销。升级前备份，旧声云适配已移除。[详细更新日志](CHANGELOG.md#030--2026-11-13) |
 | **v0.2.22** | 2026-11-11 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.22-arm64.apk) | 新增专题录音（会议、培训、通话、口播稿，结束后合成一件事出纪要，可暂停、预约、事后补）；问问换模型也能用（Gemini 兼容、程序先查兜底）；整理被拒收不再卡住。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0222--2026-11-11) |
 | **v0.2.21** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.21-arm64.apk) | 新增足迹，并和声音、环境音联动（事件显示当时在哪、问问按地点问）；专用录音设备接入（试用）；开箱向导三分钟上手；锁屏本地转写更省电；更新前备份提前；问题记录含大模型诊断。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0221--2026-11-10) |
 | **v0.2.20** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/TaoSheng-v0.2.20-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.20-arm64.apk) | 修复麦克风“假运行”丢录音；蓝牙录音让出话筒给输入法；备份可选 WebDAV、S3；导出可只要文字、可选 Markdown；文件夹自动导入；推送换行；自定义请求头与 OpenCode Go。[详细更新日志](CHANGELOG.md#0220--2026-11-10) |

@@ -1,0 +1,56 @@
+{
+  "versionName": "0.3.1",
+  "versionCode": 78,
+  "certificateSha256": "7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07",
+  "apkSha256": "bfae43b332eac3672a7b3e11e207337dcdc4140def2c5827ca7d4e8842bc14e5",
+  "apkSize": 105757172,
+  "sourceCommit": "4cfc0bddcf175df4347dda65a2594c0b7d827f32",
+  "allPatchesReconstructed": true,
+  "patches": [
+    {
+      "fromSha256": "19a91b315e3580409abf60a8df917e7cbfb6fe0d852f61ee9f1ac62fda09a623",
+      "file": "TaoSheng-0.3.0-to-0.3.1.patch",
+      "sha256": "2c54edb99e7bbb200516dcb00fc7d2bc4100906f8f9c52e5420d990ee2a56497",
+      "size": 2229493
+    },
+    {
+      "fromSha256": "800e18c178f8622b3b095042e3c6aa653dcac5694b978c91d28de125abae5348",
+      "file": "TaoSheng-0.3.0-preview.11-to-0.3.1.patch",
+      "sha256": "7417a5deb4c89002980c3a7337c95bc8fdb0ce9e4726217b259f1926c1d0b9df",
+      "size": 2229792
+    },
+    {
+      "fromSha256": "dee4e393e2f32d0cb59916f0511b300db2337b81b00d22652b1517a7f581ed01",
+      "file": "TaoSheng-0.3.0-preview.10-to-0.3.1.patch",
+      "sha256": "6f916dd109a9711e53ed4dfbbbbdd7cfdde6e9b9023d7552c303191632872f27",
+      "size": 3332883
+    },
+    {
+      "fromSha256": "ce7338c5d67f8c4a7813a777447ce7bfeeef8dc1a618780720314167f463a0ea",
+      "file": "TaoSheng-0.3.0-preview.9-to-0.3.1.patch",
+      "sha256": "0193a050cccd7f1b551a4e2ef7ae51d3dd3880a41d12a5e7e42e9928b241764f",
+      "size": 3412897
+    },
+    {
+      "fromSha256": "07f7523fb69d7dab818ac79c82bd586ee9c431364c829fb96432447f27f2eb86",
+      "file": "TaoSheng-0.3.0-preview.8-to-0.3.1.patch",
+      "sha256": "a2196117b7c8407f09b2a263b7434cb37d6db419e4c9723fd8ec6a23d19f8f04",
+      "size": 4712878
+    }
+  ],
+  "modelscopePublicVerified": true,
+  "githubPublicVerified": true,
+  "latestManifestVerified": true,
+  "allPublicPatchesReconstructed": true,
+  "previewManifestUnchanged": true,
+  "previousFilesRetained": true,
+  "modelscopeReadmeVerified": true,
+  "modelscopeChangelogVerified": true,
+  "githubRelease": "https://github.com/0xCoach/TaoSheng/releases/tag/v0.3.1",
+  "modelscopeApk": "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk",
+  "checks": {
+    "android": "https://github.com/0xCoach/TaoSheng/actions/runs/43595873725",
+    "ios": "https://github.com/0xCoach/TaoSheng/actions/runs/43595873662",
+    "conclusion": "success"
+  }
+}

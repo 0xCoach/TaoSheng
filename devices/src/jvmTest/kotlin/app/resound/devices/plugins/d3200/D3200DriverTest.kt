@@ -38,6 +38,7 @@ class D3200DriverTest {
         var firmware="04.92"
         var serial:String?=null
         var requests=0
+        var audioSink: (suspend (ByteArray) -> Unit)? = null
         private fun reply(command:Int,p:ByteArray):ByteArray {
             val size=p.size+10
             val result=byteArrayOf(9,0xff.toByte(),0,0,1,(command ushr 8).toByte(),command.toByte(),size.toByte(),(size ushr 8).toByte())+p+byteArrayOf(0)
@@ -68,7 +69,8 @@ class D3200DriverTest {
                     val p=ByteArray(87); D3200Protocol.le32(file).copyInto(p,0); D3200Protocol.le32(332).copyInto(p,4)
                     ("soundcored3200".encodeToByteArray()+ByteArray(32)).copyInto(p,24)
                     notifications.emit(reply(command,p))
-                    notifications.emit(reply(0x1a08,unit(0)+unit(1)))
+                    val audio = reply(0x1a08,unit(0)+unit(1))
+                    audioSink?.invoke(audio) ?: notifications.emit(audio)
                 }
                 else -> error("unexpected command $command")
             }
@@ -126,6 +128,48 @@ class D3200DriverTest {
         try { connection.files!!.list(); fail("recording must prevent backfill") }
         catch (e:DeviceException) { assertEquals(ErrorCode.StateConflict,e.code) }
         connection.close()
+    }
+    @Test fun liveAudioOnLightSerialIsNotConsumedAsAReceipt() = runTest {
+        checkSerialAudio(backfill = false)
+    }
+    @Test fun savedAudioOnLightSerialPreservesAllPackets() = runTest {
+        checkSerialAudio(backfill = true)
+    }
+    private suspend fun checkSerialAudio(backfill: Boolean) {
+        val wire = Channel<ByteArray>(Channel.UNLIMITED)
+        var closes = 0
+        val serial = object : ClassicSerialPort {
+            override suspend fun open(serviceUuid: String) = object : SerialChannel {
+                override val incoming = wire.receiveAsFlow()
+                override suspend fun send(bytes: ByteArray) {
+                    wire.send(byteArrayOf(0xaa.toByte(),0x55,2,0x2c,1,2,1,0,0,0x57))
+                }
+                override suspend fun close() { closes++; wire.close() }
+            }
+        }
+        val session = Session(serial = serial)
+        session.store.putString("light", "1")
+        session.fakeLink.recording = !backfill
+        session.fakeLink.audioSink = { audio ->
+            // RFCOMM reads need not align with protocol frames.
+            wire.send(audio.copyOfRange(0, 13))
+            wire.send(audio.copyOfRange(13, audio.size))
+        }
+        val connection = D3200Driver().open(session)
+        try {
+            if (backfill) {
+                val file = connection.files!!.list().single()
+                val bytes = withTimeout(5_000) { connection.files!!.read(file, 0).toList() }
+                assertEquals(320, bytes.sumOf { it.size })
+            } else {
+                val chunk = withTimeout(5_000) { connection.live!!.frames.first() }
+                assertEquals(480, chunk.pcm.size)
+                assertEquals(ChunkOrigin(file.toString(), 0), chunk.origin)
+            }
+            session.heartbeat!!.invoke()
+            connection.controls.refresh()
+        } finally { connection.close() }
+        assertEquals(1, closes)
     }
     @Test fun lightCommandsRequireVerifiedFirmwareAndUseTwoSecondHeartbeat() = runTest {
         val sent=mutableListOf<ByteArray>(); val receipts=MutableSharedFlow<ByteArray>(extraBufferCapacity=4)

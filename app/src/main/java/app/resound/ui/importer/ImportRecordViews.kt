@@ -99,6 +99,9 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
     val mine = events.filter { it.startAt >= r.startAt && it.startAt < r.endAt }.sortedBy { it.startAt }
     val lines = segments.filter { it.segmentId in r.segmentIds }.sortedBy { r.segmentIds.indexOf(it.segmentId) }.flatMap { it.lines }
     var changing by remember { mutableStateOf<ImportKind?>(null) }
+    var exporting by remember(id) { mutableStateOf(false) }
+    if (exporting) app.resound.ui.transcript.ExportSheet(r.segmentIds,
+        app.resound.ui.transcript.safeName(r.fileName.substringBeforeLast('.'))) { exporting = false }
     RsSheet(r.fileName.substringBeforeLast('.'), "${r.kind.title} · ${formatClock(r.startAt)} 开始 · ${length(r.endAt - r.startAt)}" +
         (if (r.byChannel) " · 按左右声道分人" else ""), onDismiss = onDismiss) {
         val playingHere = (app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Import)?.recordId == r.id
@@ -121,6 +124,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
         if (lines.isNotEmpty() && !playingHere) ActionButton("▶ 播放整段", ActionKind.Secondary) {
             app.resound.ui.transcript.LinePlayer.play(context, lines, 0, app.resound.ui.transcript.PlaySource.Import(r.id))
         }
+        if (r.segmentIds.isNotEmpty()) ActionButton("导出录音", ActionKind.Secondary) { exporting = true }
         // 整理出的事
         if (mine.isNotEmpty()) {
             Text("整理出的 ${mine.size} 件事", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary)

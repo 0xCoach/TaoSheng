@@ -44,6 +44,12 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
     private val infoState = MutableStateFlow(D3200DeviceInfo())
     private val info get() = infoState.value
     private var lightChannel: SerialChannel? = null
+    // The connection owns these readers; neither receipt waits nor audio consumers
+    // may compete for SerialChannel.incoming (a single-consumer stream on Android).
+    private lateinit var readers: CoroutineScope
+    private var serialReader: Job? = null
+    private val frames = MutableSharedFlow<ByteArray>(extraBufferCapacity = 128)
+    private val lightReplies = MutableSharedFlow<ByteArray>(extraBufferCapacity = 4)
     private var heartbeat: ScheduledTask? = null
     private var lightId = 0
     override var identity = DeviceIdentity(DeviceId(platformIdentity), IdScope.PlatformLocal, "Anker", "D3200")
@@ -62,16 +68,28 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         throw DeviceException(ErrorCode.Timeout, cause = e)
     }
 
-    private fun rawFrames(): Flow<ByteArray> = flow {
+    private fun rawFrames(): Flow<ByteArray> = frames
+    private fun readFrames(source: Flow<ByteArray>): Job = readers.launch(start = CoroutineStart.UNDISPATCHED) {
         val parser = BeanLight.Decoder()
-        session.link.notifications(D3200Protocol.SERVICE, D3200Protocol.NOTIFY).collect { bytes ->
-            parser.push(bytes).forEach { frame ->
-                val cmd = D3200Protocol.command(frame)
-                if (cmd in setOf(0x0103, 0x0104, 0x1a06) || (cmd == 0x1882 && !controlling.value))
-                    update(cmd, D3200Protocol.payload(frame))
-                emit(frame)
+        try {
+            source.collect { bytes ->
+                parser.push(bytes).forEach { frame ->
+                    if (BeanLight.qc(frame)) lightReplies.emit(frame)
+                    else {
+                        val cmd = D3200Protocol.command(frame)
+                        if (cmd in setOf(0x0103, 0x0104, 0x1a06) || (cmd == 0x1882 && !controlling.value))
+                            update(cmd, D3200Protocol.payload(frame))
+                        frames.emit(frame)
+                    }
+                }
             }
-        }
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { failures.emit(DeviceException(ErrorCode.Disconnected, "device receive failed", e)) }
+    }
+    private suspend fun closeSerial() {
+        serialReader?.cancel()
+        try { lightChannel?.close() }
+        finally { serialReader?.join(); serialReader = null; lightChannel = null }
     }
     private suspend fun update(command: Int, payload: ByteArray) = infoLock.withLock {
         infoState.value = if (command == 0x0101) D3200DeviceInfo.parse(payload) else D3200DeviceInfo.pushed(command, payload, info)
@@ -103,6 +121,10 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         }
     }
     suspend fun initialize() {
+        // open() runs in a short-lived boundary call. Readers instead live exactly
+        // until connection.close(), which also handles failed initialization.
+        readers = CoroutineScope(currentCoroutineContext().minusKey(Job) + SupervisorJob())
+        readFrames(session.link.notifications(D3200Protocol.SERVICE, D3200Protocol.NOTIFY))
         val response = ask(D3200Protocol.frame(1,1), 0x0101)
         if (response.size < 51 || info.recording == null) throw DeviceException(ErrorCode.ProtocolError, "device info incomplete")
         crypto.handshake(ask(D3200Protocol.frame(0x2e,1,crypto.publicKey()),0x2e01))
@@ -145,25 +167,24 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         override suspend fun setLight(modeId: Int): LightMode = interactive {
             val mode = lightModes().firstOrNull { it.id == modeId } ?: throw DeviceException(ErrorCode.Unsupported)
             heartbeat?.cancel(); heartbeat = null
-            if (modeId == 0) { lightChannel?.close(); lightChannel = null; lightId = 0; session.store.putString("light", "0"); return@interactive mode }
+            if (modeId == 0) { closeSerial(); lightId = 0; session.store.putString("light", "0"); return@interactive mode }
             if (!info.firmware.startsWith("04.92")) throw DeviceException(ErrorCode.Unsupported)
             if (lightChannel == null) {
                 ask(BeanLight.enableSpp(),0x1a0f)
                 lightChannel = (session.extras.classicSerial ?: throw DeviceException(ErrorCode.Unsupported)).open(BeanLight.SPP)
+                serialReader = readFrames(requireNotNull(lightChannel).incoming)
             }
             val channel = requireNotNull(lightChannel)
             suspend fun send() = coroutineScope {
                 val receipt = async(start = CoroutineStart.UNDISPATCHED) {
-                    val parser = BeanLight.Decoder()
-                    channel.incoming.flatMapConcat { flow { parser.push(it).forEach { frame -> emit(frame) } } }
-                        .mapNotNull(BeanLight::receipt).first()
+                    lightReplies.mapNotNull(BeanLight::receipt).first()
                 }
                 try {
                     channel.send(BeanLight.command(modeId == 2))
                     if (!timed(3_000) { receipt.await() }) throw DeviceException(ErrorCode.VendorError)
                 } finally { receipt.cancel() }
             }
-            try { send() } catch (e: Exception) { channel.close(); lightChannel = null; throw e }
+            try { send() } catch (e: Exception) { closeSerial(); throw e }
             lightId = modeId
             session.store.putString("light",modeId.toString())
             heartbeat = session.keepAlive(2_000) {
@@ -174,9 +195,14 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         }
     }
     override val settings = object : DeviceSettings {
-        override suspend fun schema() = listOf(
-            SettingItem("autoStart",SettingKind.Switch,LocalizedText("自动开始设备录音"),SettingValue.Bool(session.store.getString("autoStart")=="true")),
-            SettingItem("autoSync",SettingKind.Switch,LocalizedText("自动补传"),SettingValue.Bool(session.store.getString("autoSync")!="false")))
+        override suspend fun schema() = buildList {
+            add(SettingItem("autoStart",SettingKind.Switch,LocalizedText("自动开始设备录音"),SettingValue.Bool(session.store.getString("autoStart")=="true")))
+            add(SettingItem("autoSync",SettingKind.Switch,LocalizedText("自动补传"),SettingValue.Bool(session.store.getString("autoSync")!="false")))
+            if (info.firmware.isNotBlank()) add(SettingItem("firmware",SettingKind.ReadOnly,LocalizedText("录音豆固件"),SettingValue.Text(info.firmware)))
+            if (info.boxFirmware.isNotBlank()) add(SettingItem("boxFirmware",SettingKind.ReadOnly,LocalizedText("充电盒固件"),SettingValue.Text(info.boxFirmware)))
+            if (info.firmware.startsWith("04.92") && session.extras.classicSerial != null)
+                add(SettingItem("lightScope",SettingKind.ReadOnly,LocalizedText("灯控范围"),SettingValue.Text("连接期间生效；断开或重连时可能亮灯，并非永久设置")))
+        }
         override suspend fun set(key: String,value: SettingValue): SettingValue {
             if (key !in setOf("autoStart","autoSync") || value !is SettingValue.Bool) throw DeviceException(ErrorCode.BadArgs)
             session.store.putString(key,value.value.toString()); return value
@@ -336,7 +362,11 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         override suspend fun confirm(file: RecordingFile, checksum: ByteArray?) {}
         override suspend fun delete(file: RecordingFile) { throw DeviceException(ErrorCode.Unsupported) }
     }
-    override suspend fun close() { heartbeat?.cancel(); lightChannel?.close(); lightChannel=null; stopped.value=true }
+    override suspend fun close() {
+        heartbeat?.cancel(); stopped.value = true
+        try { closeSerial() }
+        finally { if (::readers.isInitialized) readers.coroutineContext.job.cancelAndJoin() }
+    }
     private suspend fun awaitHeader(incoming: Channel<ByteArray>, header: ByteArray) {
         timed(8_000) {
             while (true) {

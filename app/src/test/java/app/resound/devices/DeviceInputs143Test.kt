@@ -73,6 +73,10 @@ class DeviceInputs143Test {
         val transport = DeviceCard("test-driver","test",1,"0",CardStatus.Trial,Transport.Ble,CardMatch())
         val audio = Live(); val driver = Driver(audio); val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
         var manualSyncs = 0
+        var holdManual = false
+        var manualCancelled = 0
+        var manualFailure: DeviceException? = null
+        val manualEntered = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
         val job = SupervisorJob(); val worker = CoroutineScope(coroutineContext + job)
         val link = object : HubLink, GattLink {
             override val gatt get() = this
@@ -95,7 +99,14 @@ class DeviceInputs143Test {
             override fun zoneOffsetMinutes()=0
         },object:PlatformExtras {},{ emptyFlow() },{ _,_-> },{ DeviceIdentity(DeviceId("test-identity"),IdScope.PlatformLocal) },worker,
             registered=listOf(RegisteredDriver(driver,transport)), onDriverLinked={ _,_,_,manual,_->
-                if (manual) manualSyncs++ else { entered.complete(Unit); release.await() }
+                if (manual) {
+                    manualSyncs++
+                    manualFailure?.let { throw it }
+                    if (holdManual) {
+                        manualEntered.send(Unit)
+                        try { awaitCancellation() } finally { manualCancelled++ }
+                    }
+                } else { entered.complete(Unit); release.await() }
             })
         try {
             inputs.withDevice(address) { it.controls.refresh() }
@@ -106,6 +117,29 @@ class DeviceInputs143Test {
             assertEquals(40,inputs.lastDeviceStatus.value[address]!!.batteries.last().percent)
             inputs.syncDevice(address)
             assertEquals(1,manualSyncs); assertFalse(audio.started.isCompleted)
+            holdManual = true
+            val page = launch { inputs.startSyncDevice(address); awaitCancellation() }
+            withTimeout(3000) { manualEntered.receive() }
+            page.cancelAndJoin()
+            assertTrue(inputs.manualSyncStates.value[address]!!.running)
+            inputs.startSyncDevice(address) // 重复点按不能创建另一个传输。
+            delay(20); assertEquals(2, manualSyncs)
+            inputs.pauseSyncDevice(address)
+            withTimeout(3000) { inputs.manualSyncStates.first { it[address]?.running == false } }
+            assertEquals(1, manualCancelled)
+            assertNull(inputs.devices.value.single().backfill)
+            inputs.startSyncDevice(address)
+            withTimeout(3000) { manualEntered.receive() }
+            inputs.pauseSyncDevice(address)
+            withTimeout(3000) { inputs.manualSyncStates.first { it[address]?.running == false } }
+            assertEquals(2, manualCancelled)
+            holdManual = false
+            manualFailure = DeviceException(ErrorCode.StateConflict)
+            inputs.startSyncDevice(address)
+            withTimeout(3000) { inputs.manualSyncStates.first { it[address]?.errorCode == ErrorCode.StateConflict } }
+            assertFalse(inputs.manualSyncStates.value[address]!!.running)
+            assertFalse(audio.started.isCompleted)
+            manualFailure = null
             inputs.select(InputChoice.Device(key,"test")); inputs.recording(true)
             withTimeout(3000) { entered.await() }; assertFalse(audio.started.isCompleted)
             val managing = async { inputs.withDevice(address) { it.controls.refresh() } }

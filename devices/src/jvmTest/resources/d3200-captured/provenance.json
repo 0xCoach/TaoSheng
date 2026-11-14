@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "live",
+    "source_sha256": "c743a03929bbf29988aee6da56b03c59b16195f01d1817b0919e7a97fb728a59",
+    "prefix_sha256": "769c584c87b32e5f03671bd22e407f54fefa43779c73850ab3ea853a77eee236",
+    "source_last_line": 4865,
+    "exact_byte_prefix": true,
+    "bytes_modified": 0,
+    "packets": 4848,
+    "seconds": 96.96000000000001,
+    "sequence_first": 1116,
+    "sequence_last": 5963,
+    "complete_original_file": false,
+    "recorded_status_writes": 3,
+    "old_resume_test_file_still_listed": null,
+    "voice_review_pending": false,
+    "published": false,
+    "voice_review": "user confirmed complete, normal, test content and silence only",
+    "public_sharing_authorized": true,
+    "public_sharing_authorized_date": "2026-11-14"
+  },
+  {
+    "kind": "files",
+    "source_sha256": "c020982a5774ea8fc9e7b3027291dce13d88c997fd71d2a35bc5ad8f08f114fe",
+    "prefix_sha256": "fdf4b012efecc0378004ce8e8c9787597fbcde11d1db1dd6e8deba35a6e02551",
+    "source_last_line": 993,
+    "exact_byte_prefix": true,
+    "bytes_modified": 0,
+    "packets": 968,
+    "seconds": 19.36,
+    "sequence_first": 0,
+    "sequence_last": 967,
+    "complete_original_file": true,
+    "recorded_status_writes": 0,
+    "old_resume_test_file_still_listed": true,
+    "voice_review_pending": false,
+    "published": false,
+    "voice_review": "user confirmed complete, normal, test content and silence only",
+    "public_sharing_authorized": true,
+    "public_sharing_authorized_date": "2026-11-14"
+  }
+]

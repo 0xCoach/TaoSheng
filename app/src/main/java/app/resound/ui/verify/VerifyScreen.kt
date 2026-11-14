@@ -310,7 +310,9 @@ private fun StatusCard(capture: CaptureController) {
                 label = "stateTitle",
             ) { Text(it, style = RsType.headline, color = c.text) }
             Spacer(Modifier.weight(1f))
-            Text(status.sourceName, style = RsType.caption, color = c.textTertiary)
+            val sourceName = if (app.resound.AppGraph.isInputsReady)
+                app.resound.AppGraph.inputs.status.collectAsStateWithLifecycle().value.using.name else status.sourceName
+            Text(sourceName, style = RsType.caption, color = c.textTertiary)
         }
         Spacer(Modifier.height(4.dp))
         Text(

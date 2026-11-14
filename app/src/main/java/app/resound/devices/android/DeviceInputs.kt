@@ -22,6 +22,8 @@ internal interface PairedDeviceStore {
 
 /** 注册表由装配层提供；卡片只为旧蓝牙连接工厂提供链路参数。 */
 internal data class RegisteredDriver(val driver: DeviceDriver, val transport: DeviceCard)
+internal data class ManualSyncState(val running: Boolean, val pausing: Boolean = false, val message: String? = null,
+                                    val errorCode: ErrorCode? = null)
 
 /** 旧界面/AudioSource 到设备中枢的兼容层。仅指定设备且正在录音时建立中枢生命周期。 */
 internal class DeviceInputs(
@@ -67,6 +69,10 @@ internal class DeviceInputs(
     override val found = discoveries.asStateFlow()
     private val error = MutableStateFlow<String?>(null)
     val lastError = error.asStateFlow()
+    private data class ManualSyncEntry(val task: Job, val state: ManualSyncState)
+    private val syncTasks = MutableStateFlow<Map<String, ManualSyncEntry>>(emptyMap())
+    val manualSyncStates = syncTasks.map { rows -> rows.mapValues { it.value.state } }
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
     private val selected = MutableStateFlow<String?>(null)
     private val active = MutableStateFlow(false)
     private val stream = MutableStateFlow<Feed?>(null)
@@ -360,6 +366,48 @@ internal class DeviceInputs(
         }
     }
 
+    /** 手动补传由应用持有；关闭详情不取消，暂停则等待连接清理并保留续传记录。 */
+    fun startSyncDevice(address: String) {
+        var message = "离线录音已检查完；未成功的任务可再次检查"
+        var errorCode: ErrorCode? = null
+        val task = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                syncDevice(address)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: DeviceException) {
+                errorCode = e.code
+                message = "检查没有完成，已保留进度，请稍后重试"
+            } catch (_: Exception) {
+                message = "检查没有完成，已保留进度，请稍后重试"
+            }
+        }
+        while (true) {
+            val old = syncTasks.value
+            if (old[address]?.state?.running == true) { task.cancel(); return }
+            if (syncTasks.compareAndSet(old, old + (address to ManualSyncEntry(task, ManualSyncState(true))))) break
+        }
+        task.invokeOnCompletion { cause ->
+            if (cause is CancellationException) {
+                message = "补传已暂停，已保存的进度会在下次检查时继续"
+                errorCode = null
+            }
+            update(address) { it.copy(backfill = null) }
+            syncTasks.update { rows ->
+                if (rows[address]?.task === task) rows + (address to ManualSyncEntry(task, ManualSyncState(false, message = message, errorCode = errorCode))) else rows
+            }
+        }
+        task.start()
+    }
+
+    fun pauseSyncDevice(address: String) {
+        val entry = syncTasks.value[address]?.takeIf { it.state.running } ?: return
+        syncTasks.update { rows ->
+            if (rows[address] === entry) rows + (address to entry.copy(state = entry.state.copy(pausing = true))) else rows
+        }
+        entry.task.cancel()
+    }
+
     /** 显式检查已保存录音；即使关闭自动补传也执行，设备录音中由驱动返回 StateConflict。 */
     suspend fun syncDevice(address: String) {
         val row = remembered.value.firstOrNull { it.address == address } ?: throw DeviceException(ErrorCode.NotFound)
@@ -493,6 +541,7 @@ internal class DeviceInputs(
         job.start()
     }
     override fun forget(address: String) {
+        pauseSyncDevice(address)
         pairing.getAndUpdate { it - address }[address]?.cancel()
         scope.launch {
             savedLock.withLock {

@@ -160,12 +160,20 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
         }
     }
     val counts = listOf(pendingItems?.size, ongoingItems?.size, null)
+    val recordSearch = app.resound.ui.today.rememberRecordSearch()
+    var searching by remember { mutableStateOf(false) }
+    if (searching && recordSearch != null)
+        app.resound.ui.today.RecordSearchSheet(recordSearch, app.resound.search.SearchKind.Todo) { searching = false }
 
     Box(Modifier.fillMaxSize()) {
         app.resound.ui.ScrollToTopOnReselect(listStates[pager.currentPage])
         Column(Modifier.fillMaxSize().background(c.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
             Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
-                PageTitle("待办"); Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PageTitle("待办", Modifier.weight(1f))
+                    recordSearch?.let { app.resound.ui.today.SearchButton { searching = true } }
+                }
+                Spacer(Modifier.height(12.dp))
                 // 胶囊带数字：不点进去也知道哪栏有东西；点胶囊翻过去
                 Capsules(TodoTab.entries.mapIndexed { i, t -> counts[i]?.takeIf { it > 0 }?.let { "${t.title} $it" } ?: t.title }, pager.currentPage) {
                     scope.launch { pager.animateScrollToPage(it) }
@@ -308,6 +316,10 @@ fun MemoryScreen(
     var openedEvent by remember { mutableStateOf<MemoryEvent?>(null) }
     var openedReview by remember { mutableStateOf<DailyReview?>(null) }
     var exporting by remember { mutableStateOf(false) }
+    val recordSearch = app.resound.ui.today.rememberRecordSearch()
+    var searching by remember { mutableStateOf(false) }
+    if (searching && recordSearch != null)
+        app.resound.ui.today.RecordSearchSheet(recordSearch, app.resound.search.SearchKind.Memory) { searching = false }
     var linesOpen by remember(epochDay) { mutableStateOf(false) }
     // 时间线顺序：记住上次的选择
     val uiPrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("ui", android.content.Context.MODE_PRIVATE)
@@ -391,6 +403,7 @@ fun MemoryScreen(
         item(key = "title") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PageTitle("记忆", Modifier.weight(1f))
+                recordSearch?.let { app.resound.ui.today.SearchButton { searching = true }; Spacer(Modifier.width(8.dp)) }
                 if (byDay && diary != null) {
                     Text("导出", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.accent,
                         modifier = Modifier.springClick { exporting = true }.clip(CircleShape).background(c.accentSoft)

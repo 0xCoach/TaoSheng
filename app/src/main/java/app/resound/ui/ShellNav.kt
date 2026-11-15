@@ -11,6 +11,10 @@ object ShellNav {
     val settingsPage = MutableStateFlow<app.resound.ui.settings.SettingsPage?>(null)
     fun openSettings(page: app.resound.ui.settings.SettingsPage) { settingsPage.value = page; go(4) }
 
+    /** 搜索结果点每日回顾：切到记忆页并打开那天的回顾（MainActivity 接收后清空） */
+    val reviewRequest = MutableStateFlow<java.time.LocalDate?>(null)
+    fun openReview(day: java.time.LocalDate) { reviewRequest.value = day }
+
     /** 通知栏“删最近 10 分钟”：回到今天页并打开聆听面板的删除确认 */
     val forgetRecent = MutableStateFlow(false)
 }

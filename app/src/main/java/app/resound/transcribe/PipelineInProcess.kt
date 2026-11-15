@@ -96,7 +96,7 @@ internal class PipelineInProcess(private val app: ResoundApp) {
             store.save(due.mode, PipelineDue.History(started, if (failure == PipelineDue.Failure.None) System.currentTimeMillis() else before.lastSuccess,
                 failure, if (failure == PipelineDue.Failure.None) 0 else before.failures + 1))
             due.ticket?.takeIf { !retry || blocked }?.let { (AppGraph.digestTiming as AndroidDigestTiming).completeTimed(it) }
-            result = when (failure) { PipelineDue.Failure.None -> "成功"; PipelineDue.Failure.Blocked -> "等待用户处理"; else -> "可重试失败" }
+            result = when (failure) { PipelineDue.Failure.None -> "成功"; PipelineDue.Failure.Blocked -> "需用户处理（按间隔再试）"; else -> "可重试失败" }
             return retry && !blocked
         } finally { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
             app.pipelineDiagnostics.record(started, source, mode, due.dueAt, result, System.currentTimeMillis() - started)

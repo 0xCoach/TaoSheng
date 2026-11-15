@@ -27,9 +27,10 @@ class PipelineDueTest {
         assertTrue(PipelineDue.decide(input(15 * minute).copy(intervalMinutes = 15,
             history = History(0, failure = Failure.Retryable, failures = 3))) is Decision.Run)
     }
-    @Test fun permanentFailureRequiresUserAction() {
-        assertEquals(Waiting.NeedsUser, (PipelineDue.decide(input(Long.MAX_VALUE).copy(
-            history = History(0, failure = Failure.Blocked))) as Decision.Wait).reason)
+    @Test fun permanentFailureRetriesOnlyAfterFullInterval() {
+        val blocked = History(0, failure = Failure.Blocked, failures = 1)
+        assertEquals(Decision.NotDue, PipelineDue.decide(input(29 * minute).copy(history = blocked)))
+        assertTrue(PipelineDue.decide(input(30 * minute).copy(history = blocked)) is Decision.Run)
     }
     @Test fun busyWaitDoesNotConsumeAttempt() {
         val request = input().copy(busy = true)

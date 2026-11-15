@@ -4,7 +4,7 @@ package app.resound.scheduling
 object PipelineDue {
     enum class Mode { IntervalDigest, TimedDigest, Transcribe, RealtimeFallback }
     enum class Failure { None, Retryable, Blocked }
-    enum class Waiting { Busy, Offline, Metered, NeedsUser }
+    enum class Waiting { Busy, Offline, Metered }
     data class History(
         val lastAttempt: Long,
         val lastSuccess: Long? = null,
@@ -42,7 +42,7 @@ object PipelineDue {
         val dueAt = if (history.failure == Failure.Retryable)
             maxOf(ticket?.target ?: Long.MIN_VALUE, nextAttemptAt(mode, intervalMinutes, history))
         else ticket?.target ?: nextAttemptAt(mode, intervalMinutes, history)
-        if (history.failure == Failure.Blocked) return Decision.Wait(Waiting.NeedsUser, dueAt)
+        // 密钥/余额等错误：不每分钟重试，但仍按设定间隔再试一次，用户改好设置后不用手动点也能恢复。
         if (now < dueAt) return Decision.NotDue
         if (busy) return Decision.Wait(Waiting.Busy, dueAt)
         if (!online) return Decision.Wait(Waiting.Offline, dueAt)

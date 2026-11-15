@@ -63,6 +63,25 @@ class DeviceSync120Test {
     private fun sync(plugin: Fake, ingest: suspend (File, DeviceFile, DeviceSlice, String) -> Unit = { _, _, _, _ -> }) =
         DeviceSync("address", root, db, listOf(plugin), ingest)
 
+    @Test fun selectedFilesLeaveUnselectedHistoryAndItsDurablePendingJobUntouched() = runBlocking {
+        val other = file.copy(id="private-history",name="older.pcm")
+        val pending = DeviceTransfer("older-job","address",other.id,other.name,4,10000,10000,"Pcm16",0,10000,10000)
+        db.deviceSync().save(pending)
+        val downloads = mutableListOf<String>()
+        val base = Fake(file)
+        val plugin = object : FileSourcePlugin by base {
+            override suspend fun list(link: DeviceLink) = listOf(file,other)
+            override fun download(link: DeviceLink,file: DeviceFile,fromOffset: Long) = flow {
+                downloads += file.id;emit(byteArrayOf(1,2,3,4))
+            }
+        }
+        val transfer = DeviceSync("address",root,db,listOf(plugin),{ _,_,_,_ -> })
+        transfer.importSelected(card,link,0,setOf(file.id))
+        assertEquals(listOf(file.id),downloads)
+        assertEquals(pending,db.deviceSync().rows("address").single { it.key==pending.key })
+        assertTrue(db.deviceSync().rows("address").single { it.fileId==file.id }.imported)
+    }
+
     @Test fun overlapUsesPhoneOffsetAndPadding() {
         assertEquals(DeviceSlice(1000, 8000, 12000), deviceSlice(file, 14000, 17000, 1000, null))
         assertNull(deviceSlice(file, 0, 9000, 1000, null))
@@ -91,7 +110,7 @@ class DeviceSync120Test {
         val plugin = Fake(file, false).apply { interrupt = true }
         sync(plugin).importAll(card, link, 0)
         sync(plugin).onLinked(card, link, null, null, null)
-        assertEquals(listOf(0L, 0L), plugin.offsets); assertEquals(1, plugin.deleted)
+        assertEquals(listOf(0L, 0L), plugin.offsets); assertEquals(0, plugin.deleted)
     }
     @Test fun threeBadDownloadsNeverImportOrDelete() = runBlocking {
         val plugin = Fake(file).apply { bad = true }
@@ -104,11 +123,11 @@ class DeviceSync120Test {
         sync(plugin) { _, _, _, _ -> fail("校验未通过") }.importAll(card, link, 0)
         assertEquals(listOf(0L, 0L, 0L), plugin.offsets); assertEquals(0, plugin.deleted)
     }
-    @Test fun successfulImportPrecedesDeleteAndDoesNotRepeat() = runBlocking {
+    @Test fun successfulImportNeverImplicitlyDeletesAndDoesNotRepeat() = runBlocking {
         val plugin = Fake(file); var count = 0
         val sync = sync(plugin) { local, _, _, _ -> assertEquals(0, plugin.deleted); assertEquals(4L, local.length()); count++ }
         sync.importAll(card, link, 0); sync.importAll(card, link, 0)
-        assertEquals(1, count); assertEquals(1, plugin.deleted)
+        assertEquals(1, count); assertEquals(0, plugin.deleted)
     }
     @Test fun adjacentGapsDoNotReimportPadding() = runBlocking {
         val plugin = Fake(file); val slices = mutableListOf<DeviceSlice>()
@@ -125,6 +144,20 @@ class DeviceSync120Test {
         assertEquals(setOf(0L to 2000L,5000L to 10000L),slices.map { it.from to it.to }.toSet())
         assertTrue(db.deviceSync().rows("address").all { it.imported })
         assertEquals(0,plugin.deleted)
+        assertEquals(listOf(0L),plugin.offsets) // Both missing ranges share one validated physical download.
+    }
+    @Test fun completeLiveCoverageStillArchivesWithoutDuplicatingTimeline() = runBlocking {
+        val plugin = Fake(file);var archived = false
+        seedLiveCoverage(db,"address",file,listOf(MillisRange(0,10000)))
+        val sync = DeviceSync("address",root,db,listOf(plugin),
+            ingest = { _,_,_,_ -> fail("完整实时覆盖不能重复导入") },
+            needsArchive = { !archived },onVerifiedSource = { _,source,hash ->
+                assertArrayEquals(byteArrayOf(1,2,3,4),source.readBytes())
+                assertEquals(DeviceSourceCache.sha256(source),hash);archived = true
+            })
+        sync.importAll(card,link,0);sync.importAll(card,link,0)
+        assertTrue(archived);assertEquals(listOf(0L),plugin.offsets);assertEquals(0,plugin.deleted)
+        assertTrue(db.deviceSync().rows("address").all { it.imported })
     }
     @Test fun crashRecoveryUsesPersistedSegmentsAndSpoolWithoutAssumingClockOffset() = runBlocking {
         val source = "CardDevice:device:a:1000:11000"
@@ -148,6 +181,15 @@ class DeviceSync120Test {
         val plugin = Fake(file)
         sync(plugin) { _, _, _, _ -> error("failed") }.importAll(card, link, 0)
         assertEquals(0, plugin.deleted); assertFalse(db.deviceSync().rows("address").single().imported)
+        sync(plugin).importAll(card,link,0)
+        assertEquals(listOf(0L),plugin.offsets) // A new coordinator reuses the full SHA-256-verified cache.
+    }
+    @Test fun corruptedCompleteCacheIsRedownloadedRatherThanResumedAtEof() = runBlocking {
+        val plugin = Fake(file)
+        sync(plugin) { _,_,_,_ -> error("import failed") }.importAll(card,link,0)
+        File(root,deviceSourceKey("address",file)).writeBytes(byteArrayOf(9,9,9,9))
+        sync(plugin) { local,_,_,_ -> assertArrayEquals(byteArrayOf(1,2,3,4),local.readBytes()) }.importAll(card,link,0)
+        assertEquals(listOf(0L,0L),plugin.offsets)
     }
     @Test fun sharedFingerprintSkipsWithoutUnsafeDelete() = runBlocking {
         val plugin = Fake(file)

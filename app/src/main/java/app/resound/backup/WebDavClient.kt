@@ -230,7 +230,7 @@ internal class WebDavClient(
             return (known(directory)+known(legacyDirectory)).map { it.name }
         }
         override fun files(directory: String): List<VolumeFile> {
-            require(directory in setOf("history", "objects"))
+            require(directory in setOf("history", "objects", "device-archives"))
             val dir = this@WebDavClient.directory.newBuilder().addPathSegment(directory).addPathSegment("").build()
             return try { listFilesIn(dir).filter { volumePath("$directory/${it.path}") }.map { it.copy(path="$directory/${it.path}") } }
             catch(e: BackupFailure) { if(e.human=="备份目录不存在") emptyList() else throw e }

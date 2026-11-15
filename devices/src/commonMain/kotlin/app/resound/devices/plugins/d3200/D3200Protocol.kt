@@ -11,8 +11,10 @@ internal object D3200Protocol {
     fun u16(b: ByteArray, at: Int) = (b[at].toInt() and 255) or ((b[at+1].toInt() and 255) shl 8)
     fun le32(n: Long) = ByteArray(4) { (n ushr (8*it)).toByte() }
     fun frame(type: Int, id: Int, payload: ByteArray = byteArrayOf()): ByteArray {
-        require((type shl 8 or id) in setOf(0x0101,0x2e01,0x1a0e,0x1b0e,0x1a07,0x1882))
+        require((type shl 8 or id) in setOf(0x0101,0x2e01,0x1a0e,0x1b0e,0x1a07,0x1882,0x1a05,0x1a02,0x1a10))
         if (type == 0x18) require(payload.contentEquals(byteArrayOf(1)) || payload.contentEquals(byteArrayOf(2)))
+        if (type == 0x1a && id == 0x10) require(payload.size == 4 && u32(payload,0) != 0L)
+        if (type == 0x1a && id == 0x02) require(payload.isEmpty())
         val b = byteArrayOf(8,0xee.toByte(),0,0,0,type.toByte(),id.toByte(),0,0) + payload + byteArrayOf(0)
         b[7]=b.size.toByte(); b[8]=(b.size ushr 8).toByte()
         b[b.lastIndex]=b.dropLast(1).sumOf { it.toInt() and 255 }.toByte()
@@ -20,6 +22,22 @@ internal object D3200Protocol {
     }
     fun request(file: Long, offset: Long) = frame(0x1a,7,le32(offset)+le32(file)+byteArrayOf(1))
     fun offlineRequest(file: Long, packet: Long) = frame(0x1a,7,le32(packet*166)+le32(file)+byteArrayOf(0))
+    fun wifiConfig(ssid: String, password: String): ByteArray {
+        val s = ssid.encodeToByteArray();val p = password.encodeToByteArray()
+        require(s.size in 1..32 && p.size in 8..63)
+        return frame(0x1a,5,byteArrayOf(s.size.toByte())+s+byteArrayOf(p.size.toByte())+p)
+    }
+    fun wifiEndpoint(payload: ByteArray): Pair<String,Int> {
+        require(payload.size >= 6)
+        val ip = (3 downTo 0).joinToString(".") { (payload[it].toInt() and 255).toString() }
+        val port = u16(payload,4);require(port in 1..65535)
+        return ip to port
+    }
+    fun wifiRequest(file: Long, packet: Long): String {
+        require(file in 1..0xffffffffL && packet in 0..0xffffffffL/166)
+        val data = byteArrayOf(8,0xee.toByte(),0,0,0,0x1a,7,18,0)+le32(packet*166)+le32(file)+byteArrayOf(0x1b)
+        return data.joinToString("") { (it.toInt() and 255).toString(16).padStart(2,'0') }
+    }
     fun listPage(page: Int) = frame(0x1b,0x0e,byteArrayOf(page.toByte(),(page ushr 8).toByte()))
     fun currentFile(p: ByteArray): Long { require(p.size>=2); val at=2+u16(p,0)*8; require(at+4<=p.size); return u32(p,at) }
     fun payload(b: ByteArray) = b.copyOfRange(9,b.size-1)

@@ -264,7 +264,11 @@ class AndroidAudioImporter internal constructor(
         internal fun enqueue(context: Context) {
             // 每次确认追加一个唤醒任务，避免 drain 即将结束时 KEEP 吞掉新文件；实际文件顺序以持久化列表为准。
             WorkManager.getInstance(context).enqueueUniqueWork("audio-import", ExistingWorkPolicy.APPEND_OR_REPLACE,
-                OneTimeWorkRequestBuilder<ImportWork>().setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS).build())
+                OneTimeWorkRequestBuilder<ImportWork>()
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS).build())
+            app.resound.update.UpdateDiagnostics.record(context,"audio_import queued expedited=true")
+            android.util.Log.i("ResoundImport","phase=Queued expedited=true")
         }
     }
 }

@@ -245,6 +245,22 @@ class DeviceHubTest {
         runCurrent(); advanceTimeBy(200_000); runCurrent(); command.await()
         assertEquals(listOf(1, 2), received); assertEquals(1, f.hub.diagnostics("handle-1").size)
     }
+    @Test fun fileNetworkWarmupExtendsOnlyFirstBlockTimeout() = runTest {
+        val clock = object : ClockPort {
+            override fun nowEpochMillis() = testScheduler.currentTime
+            override fun monotonicMillis() = testScheduler.currentTime
+            override fun zoneOffsetMinutes() = 0
+        }
+        val faults = mutableListOf<ErrorCode>()
+        val boundary = DriverBoundary(clock,{ faults += it },{})
+        val received = mutableListOf<Int>()
+        expect(ErrorCode.Timeout) {
+            boundary.stream(30_000,initialTimeout = 120_000) {
+                flow { delay(35_000);emit(1);delay(31_000);emit(2) }
+            }.collect { received += it }
+        }
+        assertEquals(listOf(1),received);assertEquals(listOf(ErrorCode.Timeout),faults)
+    }
     @Test fun physicalDisconnectCancelsLeaseAndReleasesForNextConnection() = runTest {
         val f = Fixture(this); f.start(); var released = false
         val holder = async { expect(ErrorCode.Disconnected) {

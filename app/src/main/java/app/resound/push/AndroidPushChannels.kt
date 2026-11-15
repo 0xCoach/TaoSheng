@@ -1,5 +1,8 @@
 package app.resound.push
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
 import app.resound.diagnostics.FailureNotes
 
 import app.resound.recordings.RecordingAudioPush
@@ -315,21 +318,54 @@ class AndroidPushChannels internal constructor(
      * 到点的通道推当天足迹，每个通道每天一次；返回下一次该检查的时刻（没有通道订阅足迹时为 null）。
      * 推送失败交给原有重试队列，这里照样记“已推”，避免重复刷屏。
      */
-    internal suspend fun dispatchFootprint(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long? {
+    private val footprintMutex = Mutex()
+    internal suspend fun dispatchFootprint(
+        now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
+    ): Long? = footprintMutex.withLock {
         val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-        var message: PushMessage? = null; var built = false
+        val day = today.toString()
+        var message: PushMessage? = null
+        var generationError: Throwable? = null
+        var built = false
         for (channel in channels.value.filter { it.enabled && it.subscription.footprint }) {
+            val id = channel.id
             val due = today.atStartOfDay(zone).plusMinutes(channel.subscription.footprintAt.toLong()).toInstant().toEpochMilli()
-            if (now < due || prefs.getString("footprint-sent-${channel.id}", null) == today.toString()) continue
-            if (!built) { message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                FailureNotes.record("push/AndroidPushChannels.kt:300", failure190)
-                null }; built = true }
-            message?.let { try { deliver(channel.id, it) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                FailureNotes.record("push/AndroidPushChannels.kt:301", failure190)
-                } }
-            prefs.edit().putString("footprint-sent-${channel.id}", today.toString()).apply()
+            val sameDay = prefs.getString("footprint-attempt-day-$id", null) == day
+            val retryAt = if (sameDay) prefs.getLong("footprint-retry-at-$id", 0) else 0
+            if (now < maxOf(due, retryAt) || prefs.getString("footprint-sent-$id", null) == day) continue
+            if (!built) {
+                try { message = footprintMessage(today) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { generationError = e }
+                built = true
+            }
+            val ready = message
+            if (ready == null) {
+                val failure = FootprintRetry.failed(
+                    prefs.getString("footprint-attempt-day-$id", null), day,
+                    prefs.getInt("footprint-attempts-$id", 0), now,
+                )
+                val reason = if (generationError == null) "无可用足迹消息" else "足迹生成异常"
+                val outcome = if (failure.handled) "三次失败，今天已处理" else "未记已发，稍后再试"
+                FailureNotes.record(
+                    "足迹通道=$id 日期=$day 生成次数=${failure.attempts} 原因=$reason $outcome",
+                    generationError ?: IllegalStateException("footprint unavailable"),
+                )
+                val edit = prefs.edit().putString("footprint-attempt-day-$id", day)
+                    .putInt("footprint-attempts-$id", failure.attempts)
+                    .putLong("footprint-retry-at-$id", failure.retryAt ?: 0)
+                if (failure.handled) edit.putString("footprint-sent-$id", day)
+                check(edit.commit())
+                continue
+            }
+            // 生成成功后的发送仍交给现有发件箱；失败不重复生成、不开第二套发送重试。
+            try { deliver(id, ready) }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { FailureNotes.record("push/footprint-delivery", e) }
+            check(prefs.edit().putString("footprint-sent-$id", day)
+                .remove("footprint-attempt-day-$id").remove("footprint-attempts-$id").remove("footprint-retry-at-$id").commit())
         }
-        return nextFootprintAt(now, zone)
+        nextFootprintAt(now, zone)
     }
 
     internal fun nextFootprintAt(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long? {
@@ -337,7 +373,9 @@ class AndroidPushChannels internal constructor(
         return channels.value.filter { it.enabled && it.subscription.footprint }.map { ch ->
             val sent = prefs.getString("footprint-sent-${ch.id}", null) == today.toString()
             val day = if (sent) today.plusDays(1) else today
-            maxOf(now, day.atStartOfDay(zone).plusMinutes(ch.subscription.footprintAt.toLong()).toInstant().toEpochMilli())
+            val retryAt = if (!sent && prefs.getString("footprint-attempt-day-${ch.id}", null) == today.toString())
+                prefs.getLong("footprint-retry-at-${ch.id}", 0) else 0
+            maxOf(now, retryAt, day.atStartOfDay(zone).plusMinutes(ch.subscription.footprintAt.toLong()).toInstant().toEpochMilli())
         }.minOrNull()
     }
 

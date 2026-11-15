@@ -1,5 +1,7 @@
 package app.resound.review
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import androidx.work.*
 import app.resound.AppGraph
@@ -22,7 +24,9 @@ internal class ManualReviewGeneration(
             work.getWorkInfosByTagFlow(TAG).collect { infos ->
                 infos.filter { !it.state.isFinished }.forEach { info ->
                     val date = info.tags.firstOrNull { it.startsWith(DATE_TAG) }
-                        ?.removePrefix(DATE_TAG)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                        ?.removePrefix(DATE_TAG)?.let { runCatching { LocalDate.parse(it) }.onFailure {
+                            FailureNotes.record("review/ManualReviewGeneration.kt:25", it)
+                        }.getOrNull() }
                         ?: return@forEach
                     synchronized(lock) {
                         if (active.add(date)) {
@@ -91,7 +95,9 @@ class ManualReviewWork(context: Context, params: WorkerParameters) : CoroutineWo
 
     override suspend fun doWork(): Result {
         val date = inputData.getString(ManualReviewGeneration.DATE)
-            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return Result.failure()
+            ?.let { runCatching { LocalDate.parse(it) }.onFailure {
+                FailureNotes.record("review/ManualReviewGeneration.kt:94", it)
+            }.getOrNull() } ?: return Result.failure()
         withReviewForeground { (AppGraph.review as RoomReviewRepository).run(date, scheduled = false) }
         // 每次点击给出一次确定结果；模型可重试错误由界面提示稍后再试。
         // 系统取消不捕获，WorkManager 可在进程恢复后重新运行。

@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.*
 import java.io.File
 import java.util.UUID
@@ -104,7 +106,9 @@ internal class LocalAudioExporter(
                                             }
                                             check(count > 0)
                                         } catch (e: CancellationException) { throw e }
-                                        catch (_: Exception) {
+                                        catch (failure190: Exception) {
+                                            FailureNotes.record("transcribe/LocalAudioExporter.kt:107", failure190)
+
                                             chunks.send(ExportChunk.Bad(id))
                                             return@launch
                                         } finally { decodeNanos += System.nanoTime() - begin - blocked }

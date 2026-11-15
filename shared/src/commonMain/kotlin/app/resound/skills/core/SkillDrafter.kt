@@ -1,5 +1,7 @@
 package app.resound.skills.core
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.skills.*
 
 
@@ -69,7 +71,9 @@ object SkillDrafter {
 
     /** 解析并收紧技能定义；门槛非法则拒绝，其余设置沿用原有默认/裁剪规则。 */
     fun parse(j: JSONObject, id: String): SkillDraft {
-        val trigger = runCatching { SkillJson.trigger(j.getJSONObject("trigger")) }.getOrNull()?.let {
+        val trigger = runCatching { SkillJson.trigger(j.getJSONObject("trigger")) }.onFailure {
+            FailureNotes.record("skills/core/SkillDrafter.kt:72", it)
+        }.getOrNull()?.let {
             when (it) {
                 is SkillTrigger.Daily -> SkillTrigger.Daily(it.minutes.coerceIn(0, 1439), it.weekdays.filter { d -> d in 1..7 }.toSet().let { w -> if (w.size == 7) emptySet() else w })
                 is SkillTrigger.AfterDigest -> SkillTrigger.AfterDigest(it.minGapMinutes.coerceIn(30, 24 * 60))

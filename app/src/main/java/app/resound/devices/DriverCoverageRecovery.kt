@@ -1,5 +1,7 @@
 package app.resound.devices
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.CaptureDatabase
 import app.resound.devices.driver.DriverStore
 import app.resound.devices.driver.MillisRange
@@ -43,7 +45,9 @@ internal suspend fun recoverDriverCoverage(db: CaptureDatabase, spool: File, fil
             add(it.startAt,it.endAt)
         }
         spool.listFiles().orEmpty().filter { it.extension == "source" }.forEach { meta ->
-            if (runCatching { meta.readText() }.getOrNull() == sourceId) {
+            if (runCatching { meta.readText() }.onFailure {
+                FailureNotes.record("devices/DriverCoverageRecovery.kt:46", it)
+            }.getOrNull() == sourceId) {
                 val start = meta.name.substringBefore('_').toLongOrNull() ?: return@forEach
                 val pcm = File(meta.parentFile,meta.nameWithoutExtension+".pcm")
                 val active = File(meta.parentFile,meta.nameWithoutExtension+".recording")

@@ -1,5 +1,7 @@
 package app.resound.topic.core
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.core.TranscriptLineData
 
 import app.resound.topic.*
@@ -99,7 +101,9 @@ class TopicProcessingSession(private val id: Long, private val source: String, p
                 val text = preview(cached)
                 if (text.isNotBlank()) save(state.copy(progress = state.progress.copy(notes = state.progress.notes + ("${state.progress.phase}:$key" to text))))
                 return cached
-            } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+            } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+                FailureNotes.record("topic/core/TopicProcessingRules.kt:102", failure190)
+                }
         }
         var last: Throwable? = null
         var candidate: String? = null

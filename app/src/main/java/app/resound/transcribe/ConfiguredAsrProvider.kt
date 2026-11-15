@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.net.AudioUpload
 import app.resound.net.androidNetwork
 import app.resound.net.customRecognize
@@ -16,7 +18,9 @@ import java.util.concurrent.TimeUnit
 class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }) : AsrProvider {
     override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = withContext(Dispatchers.IO) {
         val endpoint = settings.customEndpoint
-        val urls = runCatching { transcriptionEndpoints(endpoint, settings.customEndpointMode) }.getOrElse { throw AsrException(AsrError.Protocol) }
+        val urls = runCatching { transcriptionEndpoints(endpoint, settings.customEndpointMode) }.onFailure {
+            FailureNotes.record("transcribe/ConfiguredAsrProvider.kt:19", it)
+        }.getOrElse { throw AsrException(AsrError.Protocol) }
         val http = defaultAndroidHttp.newBuilder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES)
             .callTimeout(8,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
         val network = androidNetwork(http)

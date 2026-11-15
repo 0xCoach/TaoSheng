@@ -1,5 +1,7 @@
 package app.resound.topic
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.MainActivity
 import app.resound.R
 
@@ -118,7 +120,9 @@ internal class TopicAlarm(private val context: Context) {
         try {
             if (Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent)
             else manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent)
-        } catch (_: SecurityException) { manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent) }
+        } catch (failure190: SecurityException) {
+            FailureNotes.record("topic/TopicAndroid.kt:121", failure190)
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent) }
     }
 }
 class TopicAlarmReceiver : BroadcastReceiver() {
@@ -157,7 +161,9 @@ class TopicActionReceiver : BroadcastReceiver() {
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: TopicException) { TopicNotifications.error(context, e.message ?: TopicQuickPolicy.FAILED) }
-            catch (_: Exception) { TopicNotifications.error(context, TopicQuickPolicy.FAILED) }
+            catch (failure190: Exception) {
+                FailureNotes.record("topic/TopicAndroid.kt:160", failure190)
+                TopicNotifications.error(context, TopicQuickPolicy.FAILED) }
             finally { pending.finish() }
         }
     }
@@ -205,7 +211,9 @@ internal object TopicNotifications {
     }
     private fun send(context: Context, id: Int, builder: NotificationCompat.Builder) {
         if (!CaptureNotifications.permitted(context)) return
-        try { NotificationManagerCompat.from(context).notify(id, builder.build()) } catch (_: SecurityException) { }
+        try { NotificationManagerCompat.from(context).notify(id, builder.build()) } catch (failure190: SecurityException) {
+            FailureNotes.record("topic/TopicAndroid.kt:208", failure190)
+            }
     }
     fun error(context: Context, text: String) = send(context, 1355, base(context, text))
     fun clearObsolete(context: Context, current: Topic?) {
@@ -226,11 +234,15 @@ class TopicWork(context: Context, params: WorkerParameters) : CoroutineWorker(co
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+                FailureNotes.record("topic/TopicAndroid.kt:229", failure190)
+                }
             val app = applicationContext as ResoundApp
             if (app.voiceprintRepository.withStableResults { app.topics.engine.run() }) Result.retry() else Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (failure190: Exception) {
+            FailureNotes.record("topic/TopicAndroid.kt:233", failure190)
+            Result.retry() }
     }
     companion object {
         fun enqueue(context: Context) {

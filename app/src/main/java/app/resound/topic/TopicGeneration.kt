@@ -1,5 +1,7 @@
 package app.resound.topic
 
+import app.resound.diagnostics.FailureNotes
+
 // 与安卓 DigestPrompt 适配器同名，core ParsedEvent 保留全限定名。
 import app.resound.digest.core.MemoryEventData
 import app.resound.topic.core.TopicGenerationRules
@@ -125,7 +127,9 @@ internal class TopicGenerator(
         session?.phase("整理口播稿", chunks.size)
         fun parse(text: String): Pair<String, String> = try {
             TopicGenerationRules.parseScript(TopicProcessingRules.normalize(text))
-        } catch (_: Exception) { throw LlmException(LlmError.Format) }
+        } catch (failure190: Exception) {
+            FailureNotes.record("topic/TopicGeneration.kt:128", failure190)
+            throw LlmException(LlmError.Format) }
         for (chunk in chunks) {
             val read: suspend (List<TranscriptLineEntity>) -> Pair<String, String> = { part ->
                 val user = TopicGenerationRules.scriptInput(context, part.map { it.snapshot() }, words)
@@ -218,10 +222,16 @@ internal class TopicEngine(
                     dao.update(replacement.copy(eventId = eventId, cardId = cardId, status = "Done", error = null))
                     true
                 }
-                if (saved) { runCatching { session.finish() }; runCatching { ready(g.row.id) } }
+                if (saved) { runCatching { session.finish() }.onFailure {
+                    FailureNotes.record("topic/TopicGeneration.kt:221", it)
+                }; runCatching { ready(g.row.id) }.onFailure {
+                    FailureNotes.record("topic/TopicGeneration.kt:221", it)
+                } }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                runCatching { session?.fail(e) }
+                runCatching { session?.fail(e) }.onFailure {
+                    FailureNotes.record("topic/TopicGeneration.kt:224", it)
+                }
                 db.writeTransaction {
                     val row = dao.get(g.row.id)?.row
                     if (row?.revision == revision && row.status in setOf("Ended", "Summarizing"))

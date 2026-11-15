@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.scheduling.BackgroundSystem
 import app.resound.transcribe.BackgroundSystemInfo
 import app.resound.transcribe.PipelineTimes
@@ -58,7 +60,9 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
                     "battery-settings" -> Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS)
                     else -> Intent().setComponent(ComponentName.unflattenFromString(target))
                 }
-                val result = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                val result = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
+                    FailureNotes.record("capture/AndroidSetupGuide.kt:61", it)
+                }
                 PipelineTimes.record(context, "后台设置 $key 跳转=$target 结果=${if (result.isSuccess) "已打开" else "失败"}")
                 result.isSuccess
             }
@@ -74,7 +78,11 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
             else -> details
         }
         try { context.startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (_: RuntimeException) { runCatching { context.startActivity(details.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+        catch (failure190: RuntimeException) {
+            FailureNotes.record("capture/AndroidSetupGuide.kt:77", failure190)
+            runCatching { context.startActivity(details.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
+            FailureNotes.record("capture/AndroidSetupGuide.kt:77", it)
+        } }
     }
     override fun markDone(key: String) {
         if (key in setOf("autostart", "powerkeeper", "lock", "huawei_startup", "huawei_sleep_network", "anco_host")) prefs.edit().putBoolean(key, true).apply()

@@ -1,5 +1,7 @@
 package app.resound.diagnostics
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.LlmInputLimitException
 
 import android.content.Context
@@ -24,7 +26,9 @@ class LlmDiagnostics(context: Context) {
     internal fun save(row: JSONObject) { runCatching { synchronized(lock) {
         val rows = rows().filterNot { it.optString("id") == row.optString("id") } + row
         prefs.edit().putString("responses", JSONArray(rows.sortedBy { it.optLong("at") }.takeLast(20)).toString()).apply()
-    } } }
+    } }.onFailure {
+        FailureNotes.record("diagnostics/LlmDiagnostics.kt:24", it)
+    } }
 
     internal fun rows(): List<JSONObject> = runCatching {
         val array = JSONArray(prefs.getString("responses", "[]"))
@@ -33,14 +37,20 @@ class LlmDiagnostics(context: Context) {
 
     internal fun abandoned(count: Int, at: Long) { runCatching {
         prefs.edit().putInt("abandonedCount", count).putLong("abandonedAt", at).apply()
+    }.onFailure {
+        FailureNotes.record("diagnostics/LlmDiagnostics.kt:34", it)
     } }
 
     internal fun error(type: LlmError, at: Long) { runCatching {
         prefs.edit().putString("errorType", type.name).putLong("errorAt", at).apply()
+    }.onFailure {
+        FailureNotes.record("diagnostics/LlmDiagnostics.kt:38", it)
     } }
 
     internal fun switched(at: Long, from: String, to: String, reason: String) { runCatching {
         prefs.edit().putString("switch", scrubProblemReport("时间=${stamp(at)} 主=$from → 备=$to 原因=$reason")).apply()
+    }.onFailure {
+        FailureNotes.record("diagnostics/LlmDiagnostics.kt:42", it)
     } }
 
     internal fun state(): SharedPreferences = prefs
@@ -101,8 +111,12 @@ class LlmResponseTrace internal constructor(
         }
         persist()
     }
-    private fun update(block: JSONObject.() -> Unit) { runCatching { synchronized(this) { row.block() } } }
-    private fun persist() { runCatching { synchronized(this) { store.save(JSONObject(row.toString())) } } }
+    private fun update(block: JSONObject.() -> Unit) { runCatching { synchronized(this) { row.block() } }.onFailure {
+        FailureNotes.record("diagnostics/LlmDiagnostics.kt:104", it)
+    } }
+    private fun persist() { runCatching { synchronized(this) { store.save(JSONObject(row.toString())) } }.onFailure {
+        FailureNotes.record("diagnostics/LlmDiagnostics.kt:105", it)
+    } }
 }
 
 internal fun responseObject(content: String): JSONObject? = runCatching {
@@ -114,4 +128,6 @@ internal fun validJson(content: String): Boolean = runCatching {
     val value = tokener.nextValue()
     value != null && tokener.nextClean() == '\u0000' &&
         (value !is String || content.trim().startsWith('"'))
+}.onFailure {
+    FailureNotes.record("diagnostics/LlmDiagnostics.kt:112", it)
 }.getOrDefault(false)

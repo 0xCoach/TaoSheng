@@ -1,5 +1,7 @@
 package app.resound.things
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.platform.NowMillis
 
 import app.resound.data.writeTransaction
@@ -55,6 +57,8 @@ class DigestThingExtraction internal constructor(
                 "lines=${batch.eligible.size} results=${saved.size} rejected=$rejected sharedRequest=true", batteryPercent = null, charging = null))
             saved.filter { it.explicit }
         }
-        notices.distinctBy { it.id }.forEach { runCatching { notify(it) } }
+        notices.distinctBy { it.id }.forEach { runCatching { notify(it) }.onFailure {
+            FailureNotes.record("things/DigestThingExtraction.kt:58", it)
+        } }
     }
 }

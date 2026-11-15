@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.review.DailyReview
 
 import kotlinx.coroutines.Dispatchers
@@ -230,7 +232,9 @@ internal class PushHttp(client: OkHttpClient, private val kind: PushKind? = null
         if (!response.isSuccessful && response.code !in allowed) {
             val conclusion = PushErrors.status(response.code, kind == PushKind.MarkdownFolder)
             // 非成功响应也可能包含服务原因；只读有限字节，绝不回显原响应。
-            val json = runCatching { JSONObject(response.peekBody(65536).string()) }.getOrNull()
+            val json = runCatching { JSONObject(response.peekBody(65536).string()) }.onFailure {
+                FailureNotes.record("push/PushTransport.kt:233", it)
+            }.getOrNull()
             val reason = if (kind != null && kind !in setOf(PushKind.Webhook, PushKind.MarkdownFolder) && json != null)
                 PushErrors.refused(kind, json, values) else null
             throw PushFailure(conclusion + (reason?.let { "；$it" } ?: ""))

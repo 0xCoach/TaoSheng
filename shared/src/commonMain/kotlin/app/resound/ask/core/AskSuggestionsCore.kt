@@ -1,6 +1,8 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.ask.core
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.core.takeCodePoints
 import app.resound.platform.NowMillis
 import app.resound.platform.ZoneProvider
@@ -55,13 +57,17 @@ class AskSuggestionsCore(
                 state.value = if (hasKey()) result else EXAMPLES
             }
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { /* 推荐失败不打断问答，不展示原始服务异常。 */ }
+        catch (failure190: Exception) {
+            FailureNotes.record("ask/core/AskSuggestionsCore.kt:58", failure190)
+            /* 推荐失败不打断问答，不展示原始服务异常。 */ }
         finally { gate.unlock() }
     }
 
     private fun cached(): List<String> = runCatching {
         val a = JSONArray(store.questions())
         clean((0 until a.length()).map { a.getString(it) })
+    }.onFailure {
+        FailureNotes.record("ask/core/AskSuggestionsCore.kt:62", it)
     }.getOrDefault(emptyList())
 
     private fun clean(values: List<String>): List<String> = values.map { it.trim() }

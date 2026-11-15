@@ -1,5 +1,7 @@
 package app.resound.topic
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.TranscriptLineEntity
 
 import android.content.Context
@@ -25,6 +27,8 @@ internal class TopicCheckpointFiles(context: Context, private val currentSource:
     override fun observe(id: Long): Flow<TopicProgress> = changes.map { read(id)?.progress ?: TopicProgress() }.distinctUntilChanged()
     private fun readFile(id: Long) = runCatching {
         json.decodeFromString<TopicCheckpoint>(AtomicFile(file(id)).openRead().bufferedReader().use { it.readText() })
+    }.onFailure {
+        FailureNotes.record("topic/TopicCheckpointFiles.kt:26", it)
     }.getOrNull()
     override suspend fun read(id: Long): TopicCheckpoint? = withContext(Dispatchers.IO) {
         val value = mutex.withLock { readFile(id) }

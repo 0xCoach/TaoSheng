@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.audio.OggGuard
 import app.resound.backup.BackupDiagnostics
 import app.resound.platform.ZoneProvider
@@ -41,6 +43,8 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
         file.bufferedWriter().use { out ->
             out.appendLine("${context.appName}运行记录；最近3个自然日（本地时区）；${Instant.now()}")
             out.appendLine(transcribeDiagnostics())
+            out.appendLine("业务失败记录（当前进程最近 200 条，仅位置和类别）")
+            out.appendLine(FailureNotes.dump())
             out.appendLine(OggGuard.describe())
             out.appendLine(PipelineTimes.dump(context))
             out.appendLine(UpdateDiagnostics.dump(context))

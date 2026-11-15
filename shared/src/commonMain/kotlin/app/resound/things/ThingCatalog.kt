@@ -1,11 +1,15 @@
 package app.resound.things
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.platform.SharedJson
 import app.resound.platform.legacyValue
 import kotlinx.serialization.json.*
 
 fun thingAliases(json: String): List<String> = runCatching {
     SharedJson.parseToJsonElement(json).jsonArray.map { it.legacyValue() }
+}.onFailure {
+    FailureNotes.record("things/ThingCatalog.kt:7", it)
 }.getOrDefault(emptyList())
 fun ThingRecordData.model(names: Map<Long, String>) = ThingRecord(id, thingId, name,
     ThingAction.valueOf(action), place, who, ThingOwner.valueOf(owner), at, sourceLineId, sourceText,

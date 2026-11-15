@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.transcribe.*
 
 object NetDoubaoProtocol {
@@ -45,7 +47,9 @@ object NetDoubaoProtocol {
         val body = if (serialization == 1) Obj(payload.decodeToString())
             else if (kind == 15) Obj() else throw IllegalArgumentException()
         Packet(kind, flags, sequence, code, body)
-    } catch (_: Exception) { throw AsrException(AsrError.Protocol) }
+    } catch (failure190: Exception) {
+        FailureNotes.record("net/NetDoubaoProtocol.kt:48", failure190)
+        throw AsrException(AsrError.Protocol) }
 
     internal fun result(body: Obj, fallbackDuration: Long, logId: String?, separateSpeakers: Boolean = true): AsrResult {
         val result = body.optJSONObject("result")

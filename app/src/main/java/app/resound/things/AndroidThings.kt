@@ -1,5 +1,7 @@
 package app.resound.things
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.AppGraph
 import app.resound.R
 import app.resound.data.EventEntity
@@ -44,7 +46,9 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
                 runCatching { db.capture().event(EventEntity(at = System.currentTimeMillis(),
                     type = "ThingsUsage", detail = "mode=manual outcome=$outcome lines=${lines.size} context=${nearby.size} known=${selected.size} inputChars=${system
                         .length + input.length} promptTokens=${reply?.promptTokens ?: 0} completionTokens=${reply?.completionTokens ?: 0} results=$resultCount",
-                    batteryPercent = null, charging = null)) }
+                    batteryPercent = null, charging = null)) }.onFailure {
+                        FailureNotes.record("things/AndroidThings.kt:44", it)
+                    }
             }
         }
     }
@@ -93,6 +97,8 @@ internal class ThingNotifications(private val context: Context) {
             .setContentTitle("已记：${record.name} → $target").setContentText("待确认，点开查看")
             .setContentIntent(pending).setAutoCancel(true).setSilent(true).setOnlyAlertOnce(true).build()
         // 不主动索取权限；拒绝通知不影响记录入库。
-        try { manager.notify("thing-${record.id}", 7200, notification) } catch (_: SecurityException) { }
+        try { manager.notify("thing-${record.id}", 7200, notification) } catch (failure190: SecurityException) {
+            FailureNotes.record("things/AndroidThings.kt:96", failure190)
+            }
     }
 }

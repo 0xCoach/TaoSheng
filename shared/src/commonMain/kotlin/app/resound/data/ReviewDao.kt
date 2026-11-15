@@ -1,5 +1,7 @@
 package app.resound.data
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.search.EmbeddingEntity
 import app.resound.search.Vectors
 
@@ -68,7 +70,9 @@ abstract class ReviewDao {
         if (candidates.isEmpty()) return emptyList()
         val vectors = progressVectors(candidates.map { it.id }, candidates.minOf { it.starredAt!! }, end)
         val decoded = vectors.mapNotNull { row ->
-            runCatching { row to Vectors.normalize(Vectors.decode(row.vector, row.dim)) }.getOrNull()
+            runCatching { row to Vectors.normalize(Vectors.decode(row.vector, row.dim)) }.onFailure {
+                FailureNotes.record("data/ReviewDao.kt:71", it)
+            }.getOrNull()
         }
         return candidates.filter { event ->
             val own = decoded.firstOrNull { it.first.refId == event.id }

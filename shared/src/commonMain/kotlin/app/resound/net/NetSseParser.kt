@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.diagnostics.FailureNotes
+
 /** readLine 由 Okio 提供，UTF-8 / 网络分片不影响行边界；也支持 SSE 多行 data、注释和 CRLF。 */
 class NetSseParser(
     private val onText: (String) -> Unit,
@@ -82,7 +84,9 @@ class NetSseParser(
                 if (chars > 256_000) throw NetLlmException(NetLlmError.Format)
             }
         } catch (e: NetLlmException) { diagnostics?.content(text.toString()); throw e }
-        catch (_: Exception) { throw NetLlmException(NetLlmError.Format) }
+        catch (failure190: Exception) {
+            FailureNotes.record("net/NetSseParser.kt:85", failure190)
+            throw NetLlmException(NetLlmError.Format) }
     }
     private fun merge(target: Obj, incoming: Obj) {
         incoming.keys().forEach { key ->

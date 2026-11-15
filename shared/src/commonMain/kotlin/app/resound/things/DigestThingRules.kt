@@ -1,5 +1,7 @@
 package app.resound.things
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.platform.legacyText
 import app.resound.platform.legacyLong
 import app.resound.platform.SharedJson
@@ -36,7 +38,9 @@ object DigestThingRules {
                 require(source.id in eligible && source.id !in mediaLines)
                 value["lineId"] = JsonPrimitive(source.id)
                 proposals += ThingPromptRules.parse(buildJsonObject { put("items", JsonArray(listOf(JsonObject(value)))) }.toString(), lines, known, now.now())
-            } catch (e: CancellationException) { throw e } catch (_: Exception) { rejected++ }
+            } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+                FailureNotes.record("things/DigestThingRules.kt:39", failure190)
+                rejected++ }
         }
         return Parsed(proposals, rejected)
     }

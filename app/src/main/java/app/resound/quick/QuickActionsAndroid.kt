@@ -1,5 +1,7 @@
 package app.resound.quick
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.ui.items.QuickTodoActivity
 
 import android.content.ComponentName
@@ -66,10 +68,14 @@ internal fun attachQuickActionsAndroid(context: Context, scope: CoroutineScope, 
             while (true) {
                 try {
                     if (ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)) break
-                } catch (_: IllegalArgumentException) {
+                } catch (failure190: IllegalArgumentException) {
+                    FailureNotes.record("quick/QuickActionsAndroid.kt:69", failure190)
+
                     Log.w("QuickActions", "快捷菜单发布参数未被系统接受")
                     break
-                } catch (_: IllegalStateException) {
+                } catch (failure190: IllegalStateException) {
+                    FailureNotes.record("quick/QuickActionsAndroid.kt:72", failure190)
+
                     Log.w("QuickActions", "快捷菜单暂不可更新")
                 }
                 delay(60_000)

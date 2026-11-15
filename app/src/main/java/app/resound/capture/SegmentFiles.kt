@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.AppGraph
 
 import android.content.Context
@@ -35,7 +37,9 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
     }
     private fun deleteFile(file: File) {
         try { check(file.delete() || !file.exists()) }
-        catch (_: Exception) { android.util.Log.w("Privacy", "录音暂存文件删除失败") }
+        catch (failure190: Exception) {
+            FailureNotes.record("capture/SegmentFiles.kt:38", failure190)
+            android.util.Log.w("Privacy", "录音暂存文件删除失败") }
     }
     private fun removeDiscarded(base: String) {
         spool.listFiles().orEmpty().filter { it.name.substringBefore('.') == base }.forEach(::deleteFile)
@@ -110,7 +114,9 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         check(pcm.delete())
         metadata.delete()
         File(spool, pcm.nameWithoutExtension + ".source").delete()
-        if (!skip) runCatching { onSaved?.invoke() }
+        if (!skip) runCatching { onSaved?.invoke() }.onFailure {
+            FailureNotes.record("capture/SegmentFiles.kt:113", it)
+        }
     }
     internal fun pendingInRange(from: Long, until: Long): Boolean = spool.listFiles().orEmpty().any { file ->
         if (file.extension !in setOf("recording", "pcm")) false else {

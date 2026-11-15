@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.AppGraph
 
 import android.accessibilityservice.AccessibilityService
@@ -25,7 +27,9 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                         if (!valid()) null else Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)?.let { hardware ->
                             try { hardware.copy(Bitmap.Config.ARGB_8888, false) } finally { hardware.recycle() }
                         }
-                    } catch (_: Exception) { null } finally { buffer.close() }
+                    } catch (failure190: Exception) {
+                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:28", failure190)
+                        null } finally { buffer.close() }
                     if (bitmap == null) { finish(null); return }
                     // 旋转或分辨率改变时旧坐标不可靠，丢弃这一张，不补截。
                     if (bitmap.width != layout.width || bitmap.height != layout.height ||
@@ -34,7 +38,9 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                         bitmap.recycle(); dbg("截屏跳过：尺寸变化或黑屏"); finish(null); return
                     }
                     val recognizer = try { TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()) }
-                    catch (_: Exception) { bitmap.recycle(); finish(null); return }
+                    catch (failure190: Exception) {
+                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:37", failure190)
+                        bitmap.recycle(); finish(null); return }
                     try {
                         recognizer.process(InputImage.fromBitmap(bitmap, 0)).addOnCompleteListener(service.mainExecutor) { task ->
                             val result = try {
@@ -44,7 +50,9 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                         line.boundingBox?.let { OcrLine(line.text, it.left, it.top, it.right, it.bottom, index) }
                                     } }
                                     // 识字偶尔出繁体（測、輸），统一转简体
-                                    val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.getOrNull()
+                                    val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.onFailure {
+                                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:47", it)
+                                    }.getOrNull()
                                     val hot = if (AppGraph.isHotwordsReady) AppGraph.hotwords.let { it.words.value + it.automatic.value } else emptyList()
                                     // 繁转简，再按热词纠错
                                     val lines = raw.map { l ->
@@ -60,13 +68,19 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     )
                                     input
                                 }
-                            } catch (_: Exception) { null }
+                            } catch (failure190: Exception) {
+                                FailureNotes.record("capture/AndroidVoiceInputOcr.kt:63", failure190)
+                                null }
                             finally { bitmap.recycle(); recognizer.close() }
                             finish(result)
                         }
-                    } catch (_: Exception) { bitmap.recycle(); recognizer.close(); finish(null) }
+                    } catch (failure190: Exception) {
+                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:67", failure190)
+                        bitmap.recycle(); recognizer.close(); finish(null) }
                 }
             })
-        } catch (_: Exception) { dbg("截屏失败：调用异常"); finish(null) }
+        } catch (failure190: Exception) {
+            FailureNotes.record("capture/AndroidVoiceInputOcr.kt:70", failure190)
+            dbg("截屏失败：调用异常"); finish(null) }
     }
 }

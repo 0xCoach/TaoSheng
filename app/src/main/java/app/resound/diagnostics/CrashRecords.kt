@@ -1,5 +1,9 @@
 package app.resound.diagnostics
 
+import app.resound.transcribe.PipelineTimes
+
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.os.Process
 import java.io.File
@@ -7,17 +11,27 @@ import java.util.UUID
 
 /** 不调用 Throwable.toString/printStackTrace，避免 message、文件名或自定义线程名泄露内容。 */
 internal class CrashRecords(context: Context) {
+    private val appContext = context.applicationContext
     private val directory = File(context.filesDir, "crash")
     @Suppress("DEPRECATION")
     private val version = context.packageManager.getPackageInfo(context.packageName, 0).let {
         "versionName=${it.versionName} versionCode=${it.longVersionCode}"
     }
     fun installHandler() {
+        FailureNotes.install { line ->
+            try { PipelineTimes.record(appContext, "业务失败 $line") }
+            catch (error: Exception) {
+                // 诊断持久化失败仍保留共用层内存记录，并留下不含异常原文的系统日志。
+                android.util.Log.w("ResoundFailure", "诊断落盘失败 ${error.javaClass.simpleName}")
+            }
+        }
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(handler(previous))
     }
     internal fun handler(previous: Thread.UncaughtExceptionHandler?) = Thread.UncaughtExceptionHandler { thread, error ->
-        try { runCatching { record(thread, error) } }
+        try { runCatching { record(thread, error) }.onFailure {
+            FailureNotes.record("diagnostics/CrashRecords.kt:20", it)
+        } }
         finally {
             if (previous != null) previous.uncaughtException(thread, error)
             else { Process.killProcess(Process.myPid()); kotlin.system.exitProcess(10) }

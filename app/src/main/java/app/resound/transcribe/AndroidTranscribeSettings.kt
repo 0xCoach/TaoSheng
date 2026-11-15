@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.HeaderEntry
 import app.resound.digest.ServiceHeaders
 import app.resound.transcribe.local.LocalBackend
@@ -70,7 +72,9 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     fun setBackend(value: LocalBackend) = preferences.setBackend(value)
     fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = endpointMode.value) = preferences.saveCustom(endpoint, model, mode)
     private fun sourceChanged() {
-        _hasKey.value = runCatching { readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() } }.getOrDefault(false)
+        _hasKey.value = runCatching { readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() } }.onFailure {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:73", it)
+        }.getOrDefault(false)
     }
     suspend fun fetchModels(endpoint: String, key: String) = fetchRemoteModels(endpoint, key.trim().ifBlank { readKey() }, headers = headers(TranscribeSource.Custom.name))
     fun saveCustomAll(endpoint: String, model: String, key: String, mode: CustomEndpointMode = endpointMode.value) =
@@ -85,8 +89,12 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
         TranscribeSource.Local -> modelReady(if (backend.value == LocalBackend.Npu && LocalModels.npuSupported()) backend.value else LocalBackend.Cpu)
-        TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() || headers(source.name).any { it.value.isNotBlank() } }.getOrDefault(false)
-        TranscribeSource.Custom -> customModel.isNotBlank() && runCatching { validateEndpoint(customEndpoint, endpointMode.value); true }.getOrDefault(false)
+        TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() || headers(source.name).any { it.value.isNotBlank() } }.onFailure {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:88", it)
+        }.getOrDefault(false)
+        TranscribeSource.Custom -> customModel.isNotBlank() && runCatching { validateEndpoint(customEndpoint, endpointMode.value); true }.onFailure {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:89", it)
+        }.getOrDefault(false)
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
     private fun keyField() = if(source.value==TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey"
@@ -98,6 +106,8 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     }
     private fun usable() = (source.value == TranscribeSource.Custom && customEndpoint.isNotBlank() && customModel.isNotBlank()) || runCatching {
         readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() }
+    }.onFailure {
+        FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:99", it)
     }.getOrDefault(false)
     private val _hasKey = MutableStateFlow(usable())
     override val hasKey = _hasKey.asStateFlow()
@@ -143,7 +153,9 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
             val encrypted = cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8))
             check(prefs.edit().putString(keyField(), Base64.encodeToString(encrypted, Base64.NO_WRAP)).commit())
             _hasKey.value = true
-        } catch (_: Exception) { throw IllegalStateException("密钥安全保存失败，请重试") }
+        } catch (failure190: Exception) {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:146", failure190)
+            throw IllegalStateException("密钥安全保存失败，请重试") }
         refreshReady(); onChanged()
     }
     @Synchronized
@@ -155,10 +167,14 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     override fun setIntervalMinutes(minutes: Int) = preferences.setIntervalMinutes(minutes)
     override fun setWifiOnly(value: Boolean) = preferences.setWifiOnly(value)
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
-        val key = try { credential() } catch (_: Exception) { return@withContext Result.failure(IllegalStateException("密钥安全读取失败，请重新填写")) }
+        val key = try { credential() } catch (failure190: Exception) {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:158", failure190)
+            return@withContext Result.failure(IllegalStateException("密钥安全读取失败，请重新填写")) }
         if (key.isBlank() && headers(source.value.name).isEmpty() && source.value != TranscribeSource.Custom) Result.failure(IllegalStateException("还没填写转写密钥"))
         else try { testKey(key) } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.failure(IllegalStateException("转写测试失败，请重试")) }
+        catch (failure190: Exception) {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:161", failure190)
+            Result.failure(IllegalStateException("转写测试失败，请重试")) }
     }
     companion object { private const val ALIAS = "resound-asr-aes-v1" }
 }

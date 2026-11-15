@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.net.decodeNetworkHeaders
 import app.resound.net.encodeNetworkHeaders
 import app.resound.net.validateNetworkHeaders
@@ -34,7 +36,9 @@ class ServiceHeaders internal constructor(
         read("headers-$id").takeIf { it.isNotEmpty() }?.let { text ->
             decodeNetworkHeaders(text)
         }.orEmpty()
-    } catch (_: Exception) { throw IllegalStateException("请求头安全读取失败，请重新保存或恢复备份") }
+    } catch (failure190: Exception) {
+        FailureNotes.record("digest/ServiceHeaders.kt:37", failure190)
+        throw IllegalStateException("请求头安全读取失败，请重新保存或恢复备份") }
 
     fun save(id: String, headers: List<HeaderEntry>) {
         validateHeaders(headers)

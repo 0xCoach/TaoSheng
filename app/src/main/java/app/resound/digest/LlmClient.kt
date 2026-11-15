@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.diagnostics.LlmDiagnostics
 import app.resound.diagnostics.LlmResponseTrace
 import app.resound.net.NetLlmClient
@@ -69,7 +71,9 @@ class LlmClient(
     }
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
         val t = kotlin.coroutines.coroutineContext[LlmResponseTrace]
-            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
+            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.onFailure {
+                FailureNotes.record("digest/LlmClient.kt:72", it)
+            }.getOrNull()
         try {
             if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
             val client = network(preset)
@@ -84,7 +88,9 @@ class LlmClient(
     suspend fun streamChat(preset: LlmPreset, key: String, messages: JSONArray, tools: JSONArray,
         onText: (String) -> Unit, onUsage: (Long, Long) -> Unit, allowTools: Boolean = true): LlmStreamReply {
         val t = kotlin.coroutines.coroutineContext[LlmResponseTrace]
-            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
+            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.onFailure {
+                FailureNotes.record("digest/LlmClient.kt:87", it)
+            }.getOrNull()
         try {
             val client = network(preset)
             val r = core(client, preset).stream(preset, key, requestHeaders(preset), messages.toString(), tools.toString(), onText, onUsage, allowTools, trace(t))

@@ -1,5 +1,7 @@
 package app.resound.devices
 
+import app.resound.diagnostics.FailureNotes
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import app.resound.devices.core.CardParser
@@ -33,7 +35,9 @@ internal class RemoteDeviceCards(
     private val owners = mutableMapOf<String, SignedCards>()
     init {
         bundled.forEach { text -> parser.parseForCatalog(text).fold({ c -> merge(c, CardSource.Bundled) }, { report("bundled_invalid") }) }
-        runCatching { store.cached().forEach { accept(it, persist = false) } }.onFailure { report("cache_invalid") }
+        runCatching { store.cached().forEach { accept(it, persist = false) } }.onFailure {
+            FailureNotes.record("devices/RemoteDeviceCards.kt:36", it)
+        }.onFailure { report("cache_invalid") }
     }
     override fun parse(json: String) = parser.parse(json)
     @Synchronized override fun setEnabled(cardId: String, enabled: Boolean) {
@@ -88,13 +92,17 @@ internal class RemoteDeviceCards(
         Signature.getInstance("SHA256withECDSA").run {
             initVerify(key); update(table.json); verify(table.signature)
         }
+    }.onFailure {
+        FailureNotes.record("devices/RemoteDeviceCards.kt:81", it)
     }.getOrDefault(false)
 
     /** 调用者由 WorkManager 的 CONNECTED 约束保证联网；失败也计入每天一次。 */
     @Synchronized fun refresh(now: Long, fetch: (accept: (SignedCards) -> Boolean) -> Unit) {
         val last = store.lastAttempt
         if (last != 0L && now - last < DAY) return
-        try { store.lastAttempt = now; fetch { accept(it) } } catch (_: Exception) { report("fetch_failed") }
+        try { store.lastAttempt = now; fetch { accept(it) } } catch (failure190: Exception) {
+            FailureNotes.record("devices/RemoteDeviceCards.kt:97", failure190)
+            report("fetch_failed") }
     }
     companion object { const val MAX_SIGNATURE = 72; const val MAX_TABLE = 256 * 1024; const val MAX_CACHE = 4 * 1024 * 1024; const val DAY = 86_400_000L }
 }

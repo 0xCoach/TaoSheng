@@ -1,5 +1,7 @@
 package app.resound.skills
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.appDisplayName
 import app.resound.envsound.EnvSoundPresentation
 import app.resound.skills.core.SkillCallException
@@ -81,7 +83,9 @@ class LocalSkillRepository(
                 val reply = try { call(preset,key,system,user) }
                 catch (e: LlmException) { throw SkillCallException(e.type.name,e.type.human,e.detail) }
                 // 先归还成功调用以记用量；坏 JSON 保留给共用解析器报格式错。
-                val content = runCatching { org.json.JSONObject(reply.content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()).toString() }.getOrDefault(reply.content)
+                val content = runCatching { org.json.JSONObject(reply.content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()).toString() }.onFailure {
+                    FailureNotes.record("skills/LocalSkillRepository.kt:84", it)
+                }.getOrDefault(reply.content)
                 return SkillReply(content,reply.promptTokens,reply.completionTokens)
             }
         }

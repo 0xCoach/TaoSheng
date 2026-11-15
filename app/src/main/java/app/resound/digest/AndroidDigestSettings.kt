@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.transcribe.fetchRemoteModels
 
 import android.content.Context
@@ -84,13 +86,17 @@ class AndroidDigestSettings internal constructor(
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
             failover.clear(selected.id)
-            val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.getOrNull().orEmpty()
+            val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.onFailure {
+                FailureNotes.record("digest/AndroidDigestSettings.kt:87", it)
+            }.getOrNull().orEmpty()
             Result.success("可用（${selected.name}）${if (text.isNotBlank()) "：$text" else ""}")
         } catch (e: CancellationException) {
             throw e
         } catch (e: LlmException) {
             Result.failure(IllegalStateException(e.detail))
-        } catch (_: Exception) {
+        } catch (failure190: Exception) {
+            FailureNotes.record("digest/AndroidDigestSettings.kt:93", failure190)
+
             Result.failure(IllegalStateException("测试失败，请重试"))
         }
     }

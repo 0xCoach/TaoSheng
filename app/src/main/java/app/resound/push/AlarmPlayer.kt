@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -55,17 +57,23 @@ internal object AlarmPlayer {
                 prepare()
                 start()
             }
+        }.onFailure {
+            FailureNotes.record("push/AlarmPlayer.kt:49", it)
         }.getOrNull()
         // 每一步各自兜住：铃声、震动、电源键哪一样出错都不能让整个涛声崩掉（录音也在这个进程里）
         runCatching {
             vibrator(app)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
+        }.onFailure {
+            FailureNotes.record("push/AlarmPlayer.kt:60", it)
         }
         // 按电源键灭屏 = 不再响
         screenOff = runCatching {
             object : BroadcastReceiver() {
                 override fun onReceive(c: Context, intent: Intent) { _ringing.value?.let(onPower) }
             }.also { app.registerReceiver(it, IntentFilter(Intent.ACTION_SCREEN_OFF)) }
+        }.onFailure {
+            FailureNotes.record("push/AlarmPlayer.kt:65", it)
         }.getOrNull()
         handler.postDelayed(timeout, RING_MS)
         appContext = app
@@ -78,12 +86,20 @@ internal object AlarmPlayer {
     fun silence(id: Long? = null) {
         if (id != null && _ringing.value != id) return
         handler.removeCallbacks(timeout)
-        player?.runCatching { stop(); release() }
+        player?.runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             stop(); release() }
         player = null
-        appContext?.let { runCatching { vibrator(it)?.cancel() } }
-        screenOff?.let { r -> appContext?.runCatching { unregisterReceiver(r) } }
+        appContext?.let { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             vibrator(it)?.cancel() } }
+        screenOff?.let { r -> appContext?.runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             unregisterReceiver(r) } }
         screenOff = null
-        wake?.runCatching { if (isHeld) release() }
+        wake?.runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             if (isHeld) release() }
         wake = null
         _ringing.value = null
     }

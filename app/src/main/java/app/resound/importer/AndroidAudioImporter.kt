@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.transcribe.TranscribeSource
 
 import app.resound.appDisplayName
@@ -41,7 +43,11 @@ class AndroidAudioImporter internal constructor(
                 if (item.isNull("dual")) null else item.getBoolean("dual"), item.optInt("channels", 1), item.optString("recordKey").takeIf { it.isNotBlank() },
                 item.optString("recordName").takeIf { it.isNotBlank() }, if (item.isNull("recordStart")) null else item.getLong("recordStart"),
                 if (item.isNull("recordEnd")) null else item.getLong("recordEnd"), item.optString("fingerprint").takeIf { it.isNotBlank() })
-        }.filter { runCatching { UUID.fromString(it.pending.id) }.isSuccess }.toMutableList()
+        }.filter { runCatching { UUID.fromString(it.pending.id) }.onFailure {
+            FailureNotes.record("importer/AndroidAudioImporter.kt:44", it)
+        }.isSuccess }.toMutableList()
+    }.onFailure {
+        FailureNotes.record("importer/AndroidAudioImporter.kt:33", it)
     }.getOrDefault(mutableListOf())
     private val _pending = MutableStateFlow(entries.filter { it.startAt == null }.map { it.pending })
     override val pending = _pending.asStateFlow()
@@ -53,7 +59,9 @@ class AndroidAudioImporter internal constructor(
     init {
         scope.launch(Dispatchers.IO) {
             for (command in commands) try { command() }
-            catch (_: Exception) { reportError("导入队列保存失败，请重新打开${appDisplayName}重试") }
+            catch (failure190: Exception) {
+                FailureNotes.record("importer/AndroidAudioImporter.kt:56", failure190)
+                reportError("导入队列保存失败，请重新打开${appDisplayName}重试") }
         }
         File(context.cacheDir, "import-pcm").deleteRecursively()
         // 仅清理未被登记的半份复制；已排队缓存若被系统回收，由 worker 给出明确错误。
@@ -181,7 +189,9 @@ class AndroidAudioImporter internal constructor(
                 }
                 rememberQueued()
                 enqueue()
-            } catch (_: Exception) { reportError("导入排队失败，请重新打开${appDisplayName}重试") }
+            } catch (failure190: Exception) {
+                FailureNotes.record("importer/AndroidAudioImporter.kt:184", failure190)
+                reportError("导入排队失败，请重新打开${appDisplayName}重试") }
         }
     }
     internal fun startBatch(groups: List<List<ImportKindPolicy.BatchFile>>, asr: TranscribeSource?, kind: ImportKind) {

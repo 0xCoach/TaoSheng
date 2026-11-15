@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.diagnostics.LlmResponseTrace
 import app.resound.diagnostics.responseObject
 import app.resound.net.NetLlmException
@@ -68,6 +70,8 @@ object DigestPrompt {
                 val rawItems = raw?.optJSONArray("items")?.length() ?: 0
                 diagnostics?.parsed(result.first.size, result.second.size, empty = rawEvents == 0 && rawItems == 0,
                     filtered = (rawEvents > 0 && result.first.isEmpty()) || (rawItems > 0 && result.second.isEmpty()))
+            }.onFailure {
+                FailureNotes.record("digest/DigestPrompt.kt:65", it)
             }
             result
         } catch (e: LlmException) {

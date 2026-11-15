@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.HeaderEntry
 import app.resound.transcribe.*
 import io.ktor.client.HttpClient
@@ -74,7 +76,9 @@ class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig
                             final.completeExceptionally(AsrException(if(e.limited) AsrError.Server else if(e.status != null) NetDoubaoProtocol.error(e.code,e
                                 .status) else if(e.timeout) AsrError.Timeout else AsrError.Network,safe(e.logId) ?: logId,concurrencyLimited=e.limited))
                         }
-                        catch(_: Exception) { final.completeExceptionally(AsrException(AsrError.Protocol,logId)) }
+                        catch(failure190: Exception) {
+                            FailureNotes.record("net/NetDoubao.kt:77", failure190)
+                            final.completeExceptionally(AsrException(AsrError.Protocol,logId)) }
                     }
                     try {
                         session.send(Frame.Binary(true,NetDoubaoProtocol.frame(1,0,NetDoubaoProtocol.config(format,words,separateSpeakers,config.incrementalResults),true)))
@@ -84,7 +88,9 @@ class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig
                             if(final.isCompleted) { final.await(); throw AsrException(AsrError.Protocol,logId) }
                             if(!accounted) {
                                 try { beforeAudio() } catch(e: CancellationException) { throw e }
-                                catch(_: Exception) { throw AsrException(AsrError.Storage) }
+                                catch(failure190: Exception) {
+                                    FailureNotes.record("net/NetDoubao.kt:87", failure190)
+                                    throw AsrException(AsrError.Storage) }
                                 accounted = true
                             }
                             socket.drain(256 * 1024L) { final.isCompleted }
@@ -102,6 +108,8 @@ class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig
         } catch(e: TimeoutCancellationException) { currentCoroutineContext().ensureActive(); throw AsrException(AsrError.Timeout,logId) }
         catch(e: CancellationException) { throw e }
         catch(e: AsrException) { throw e }
-        catch(_: Exception) { throw AsrException(AsrError.Protocol,logId) }
+        catch(failure190: Exception) {
+            FailureNotes.record("net/NetDoubao.kt:105", failure190)
+            throw AsrException(AsrError.Protocol,logId) }
     }
 }

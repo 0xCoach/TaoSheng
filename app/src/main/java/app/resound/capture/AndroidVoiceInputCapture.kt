@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.ComponentName
 import android.content.Context
 import android.database.ContentObserver
@@ -60,7 +62,9 @@ class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase
                         is InputChange.Finish -> store.finish(change.token, change.after)
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { android.util.Log.w("VoiceInput", "语音输入保存失败：1 条") }
+                catch (failure190: Exception) {
+                    FailureNotes.record("capture/AndroidVoiceInputCapture.kt:63", failure190)
+                    android.util.Log.w("VoiceInput", "语音输入保存失败：1 条") }
             }
         }
     }

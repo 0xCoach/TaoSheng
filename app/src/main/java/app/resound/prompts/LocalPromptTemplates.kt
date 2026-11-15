@@ -1,5 +1,7 @@
 package app.resound.prompts
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.util.AtomicFile
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +49,8 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
             try { stream.write(text.toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
             catch (e: Exception) { atomic.failWrite(stream); throw IllegalStateException("模板保存失败，请重试") }
             mutable.value = infos()
+        }.onFailure {
+            FailureNotes.record("prompts/LocalPromptTemplates.kt:39", it)
         }
     }
     override fun reset(id: String): Unit = synchronized(fileLock) {

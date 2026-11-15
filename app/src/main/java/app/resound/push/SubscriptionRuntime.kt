@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.AppointmentReminders
 
 import android.content.SharedPreferences
@@ -33,7 +35,9 @@ internal class SubscriptionRuntime(
     private val states = ConcurrentHashMap<Long, MutableStateFlow<PushChannelStatus>>()
     private val queued = ConcurrentHashMap<Long, Long>()
     private fun meta(id: Long): JSONObject = try { JSONObject(prefs.getString("subscription-$id", "{}")!!) }
-    catch (_: org.json.JSONException) {
+    catch (failure190: org.json.JSONException) {
+        FailureNotes.record("push/SubscriptionRuntime.kt:36", failure190)
+
         File(directory, "$id.json").delete()
         check(prefs.edit().putString("subscription-$id", "{}").putBoolean("state-reset-$id", true).commit())
         JSONObject()
@@ -95,7 +99,9 @@ internal class SubscriptionRuntime(
         if (channelById(id)?.enabled != true || status(id).value.running) return
         deadline(id)?.let { at ->
             if (!continuation && queued[id]?.let { it <= at } == true) return
-            runCatching { schedule(id, at, continuation); queued[id] = at }.onFailure { update(id, false, Result.failure(PushFailure("调度保存失败，请重试"))) } }
+            runCatching { schedule(id, at, continuation); queued[id] = at }.onFailure {
+                FailureNotes.record("push/SubscriptionRuntime.kt:98", it)
+            }.onFailure { update(id, false, Result.failure(PushFailure("调度保存失败，请重试"))) } }
     }
     suspend fun scheduled(id: Long): Boolean {
         queued.remove(id)

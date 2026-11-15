@@ -1,6 +1,8 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.skills.core
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.core.clock
 import app.resound.net.Obj
 
@@ -147,4 +149,6 @@ private fun voiceMeta(raw: String?): VoiceMeta? = raw?.let { runCatching {
  val j = Obj(it)
  j.getString("package_name")
  VoiceMeta(j.getString("app"), if(j.isNull("title")) null else j.optString("title").takeIf(String::isNotBlank))
+}.onFailure {
+    FailureNotes.record("skills/core/SkillInput.kt:146", it)
 }.getOrNull() }

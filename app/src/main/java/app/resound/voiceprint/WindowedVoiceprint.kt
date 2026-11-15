@@ -1,5 +1,7 @@
 package app.resound.voiceprint
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.VoiceprintSampleEntity
 
@@ -63,7 +65,9 @@ internal object WindowedVoiceprint {
     /** 自动样本不参与身份中心，切断自学习反馈。人工离群通过 sampleHealth 标记，保留多种录音条件，绝不删除。 */
     fun trusted(samples: List<VoiceprintSampleEntity>): List<VoiceprintSampleEntity> {
         val manual = samples.filter { it.source != "auto" && it.source != "line-review" }.filter {
-            runCatching { VoiceprintMath.unit(VoiceprintMath.decode(it.vector)) }.isSuccess
+            runCatching { VoiceprintMath.unit(VoiceprintMath.decode(it.vector)) }.onFailure {
+                FailureNotes.record("voiceprint/WindowedVoiceprint.kt:66", it)
+            }.isSuccess
         }
         return manual
     }

@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.MemoryItemEntity
 
 import app.resound.data.TranscriptLineEntity
@@ -49,7 +51,9 @@ internal class ImportSummary(
         val leaves = mutableListOf<JSONObject>()
         fun parse(text: String): JSONObject {
             val json = try { JSONObject(text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```")) }
-                catch (_: Exception) { throw LlmException(LlmError.Format) }
+                catch (failure190: Exception) {
+                    FailureNotes.record("importer/ImportSummary.kt:52", failure190)
+                    throw LlmException(LlmError.Format) }
             if (json.optJSONArray("cards")?.length() != 1) throw LlmException(LlmError.Format)
             json.optJSONArray("todos")?.let { list -> repeat(list.length()) { i ->
                 val todo = list.optJSONObject(i) ?: return@repeat

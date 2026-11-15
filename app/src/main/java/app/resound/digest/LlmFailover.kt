@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.ask.AskPrefetchRequired
 import app.resound.diagnostics.LlmDiagnostics
 import app.resound.platform.NowMillis
@@ -105,7 +107,9 @@ class LlmFailover(
             recent.value?.let { diagnostics.switched(it.at, it.originalModel, it.actualModel, it.reason) }
         }) { candidate ->
             val p = candidate.preset
-            val trace = runCatching { diagnostics.start(feature, p) }.getOrNull()
+            val trace = runCatching { diagnostics.start(feature, p) }.onFailure {
+                FailureNotes.record("digest/LlmFailover.kt:108", it)
+            }.getOrNull()
             kotlin.coroutines.coroutineContext[TopicRequestContext]?.let { t -> trace?.topic(t.id, t.phase, t.block, t.total) }
             if (trace == null) call(p, candidate.key) else {
                 // 保持取消异常原对象，不让 withContext 复制异常。

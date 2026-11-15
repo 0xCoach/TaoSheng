@@ -52,7 +52,11 @@ internal class AndroidDeviceLink private constructor() : LinkedDevice {
         disconnectEvents.tryEmit(DeviceException(ErrorCode.Disconnected))
         connected.completeExceptionally(error); pending?.result?.completeExceptionally(error)
         synchronized(subscriptions) { subscriptions.values.forEach { s -> s.channels.forEach { it.close(error) } } }
-        gatt?.let { runCatching { it.disconnect() }; runCatching { it.close() } }; gatt = null
+        gatt?.let { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             it.disconnect() }; runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             it.close() } }; gatt = null
     }
     private fun notification(c: BluetoothGattCharacteristic, bytes: ByteArray) {
         val key = "${c.service.uuid}/${c.uuid}"

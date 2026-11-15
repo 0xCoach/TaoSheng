@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -43,7 +45,9 @@ class AndroidCaptureController(private val context: Context, private val store: 
         try {
             ContextCompat.startForegroundService(context, Intent(context, CaptureService::class.java).setAction(action)
                 .putExtra("minutes", minutes).putExtra("route", "controller"))
-        } catch (_: RuntimeException) {
+        } catch (failure190: RuntimeException) {
+            FailureNotes.record("capture/AndroidCaptureController.kt:46", failure190)
+
             update(CaptureState.Stopped)
             CaptureNotifications.interrupted(context)
         }

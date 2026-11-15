@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.diary.DiaryRepository
 import app.resound.onboarding.LocalOnboarding
 
@@ -82,12 +84,16 @@ class AndroidBackupRepository internal constructor(
         if (state.value.running) { error("云端备份正在运行，请完成后再修改存储设置"); return }
         try { cloud.save(kind, account, secret, webDavUrl, s3); refresh(); schedule() }
         catch (e: IllegalArgumentException) { error(e.message ?: "云端设置不正确") }
-        catch (_: Exception) { error("云端设置保存失败，请重试") }
+        catch (failure190: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:85", failure190)
+            error("云端设置保存失败，请重试") }
     }
     @Synchronized override fun clearCredentials() {
         if (state.value.running) { error("云端备份正在运行，请完成后再清除账号"); return }
         try { cloud.clear(); scheduler.cancelCloud(); refresh(); schedule() }
-        catch (_: Exception) { error("账号清除失败，请重试") }
+        catch (failure190: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:90", failure190)
+            error("账号清除失败，请重试") }
     }
     @Synchronized override fun setEnabled(enabled: Boolean) {
         check(prefs.edit().putBoolean("enabled", enabled).commit())
@@ -101,12 +107,16 @@ class AndroidBackupRepository internal constructor(
             check(prefs.edit().remove("base-cloud").remove("base-local").commit())
             error(null)
         }
-        catch (_: Exception) { error("备份口令安全保存失败，请重试") }
+        catch (failure190: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:104", failure190)
+            error("备份口令安全保存失败，请重试") }
     }
     @Synchronized private fun backupPassphrase(): String? = if (!passphrases.has()) null else {
         // 安全区读取失败不能静默降级成明文备份。
         try { passphrases.read().takeIf { it.isNotBlank() } ?: throw IllegalStateException() }
-        catch (_: Exception) { throw BackupFailure("备份口令读取失败，请重新设置") }
+        catch (failure190: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:109", failure190)
+            throw BackupFailure("备份口令读取失败，请重新设置") }
     }
     override suspend fun remoteBackups(): Result<List<RemoteBackup>> = withContext(Dispatchers.IO) {
         gate.withLock {
@@ -161,7 +171,9 @@ class AndroidBackupRepository internal constructor(
             try {
                 client.uploadDiary(date, repository.markdown(date, date, false))
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { failed = true }
+            catch (failure190: Exception) {
+                FailureNotes.record("backup/AndroidBackupRepository.kt:164", failure190)
+                failed = true }
         }
         if (failed) {
             // 不保存原文、响应体、账号或异常信息；诊断写盘失败也不影响 ZIP 备份。
@@ -169,6 +181,8 @@ class AndroidBackupRepository internal constructor(
                 context.getSharedPreferences("diary-sync", Context.MODE_PRIVATE).edit()
                     .putLong("lastFailureAt", System.currentTimeMillis())
                     .putString("lastFailure", "日记上传失败，下次定时备份时重试").commit()
+            }.onFailure {
+                FailureNotes.record("backup/AndroidBackupRepository.kt:168", it)
             }
             android.util.Log.w("DiarySync", "日记上传失败，下次定时备份时重试")
         }
@@ -181,7 +195,9 @@ class AndroidBackupRepository internal constructor(
                 ensureActive()
                 if (historyPath(name)) restoreVolumes(client().volumes(), passphrase, name)
                 else BackupRestore.restore(context, client(), name, database,
-                    storedPassphrase = runCatching { passphrases.read() }.getOrNull(), suppliedPassphrase = passphrase,
+                    storedPassphrase = runCatching { passphrases.read() }.onFailure {
+                        FailureNotes.record("backup/AndroidBackupRepository.kt:184", it)
+                    }.getOrNull(), suppliedPassphrase = passphrase,
                     closeDatabase = database::close, restartProcess = restartProcess)
                 Result.success(Unit)
             } catch (e: CancellationException) { throw e }
@@ -194,7 +210,11 @@ class AndroidBackupRepository internal constructor(
             val name = localFiles.select(tree)
             // 换手机时还没有备份口令，也必须先保存文件夹，随后恢复入口才能接收用户输入的口令。
             val count = runCatching {
-                withWorkspace { HistoryVolumes.summary(localFiles.volumes(tree), it, runCatching { passphrases.read() }.getOrNull())?.days ?: 0 }
+                withWorkspace { HistoryVolumes.summary(localFiles.volumes(tree), it, runCatching { passphrases.read() }.onFailure {
+                    FailureNotes.record("backup/AndroidBackupRepository.kt:197", it)
+                }.getOrNull())?.days ?: 0 }
+            }.onFailure {
+                FailureNotes.record("backup/AndroidBackupRepository.kt:196", it)
             }.getOrDefault(-1)
             check(prefs.edit().apply {
                 if (prefs.getString("localTree", null) != tree.toString()) remove("localLastAt").remove("localLastBytes")
@@ -263,10 +283,14 @@ class AndroidBackupRepository internal constructor(
         return try { block(workspace) } finally { workspace.deleteRecursively() }
     }
     override suspend fun cloudSummary(): Result<BackupSummary?> = cloudOperation(readOnly = true) {
-        withWorkspace { HistoryVolumes.summary(client().volumes(), it, runCatching { passphrases.read() }.getOrNull()) }
+        withWorkspace { HistoryVolumes.summary(client().volumes(), it, runCatching { passphrases.read() }.onFailure {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:266", it)
+        }.getOrNull()) }
     }
     override suspend fun localSummary(): Result<BackupSummary?> = localOperation(readOnly = true) {
-        withWorkspace { HistoryVolumes.summary(localVolumes(), it, runCatching { passphrases.read() }.getOrNull()) }
+        withWorkspace { HistoryVolumes.summary(localVolumes(), it, runCatching { passphrases.read() }.onFailure {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:269", it)
+        }.getOrNull()) }
     }
     override suspend fun restoreAllFromCloud(passphrase: String?): Result<Unit> = cloudOperation {
         restoreVolumes(client().volumes(), passphrase)
@@ -275,7 +299,9 @@ class AndroidBackupRepository internal constructor(
         restoreVolumes(localVolumes(), passphrase)
     }
     private fun restoreVolumes(store: VolumeStore, passphrase: String?, checkpoint: String? = null) {
-        BackupRestore.restoreVolumes(context, store, database, runCatching { passphrases.read() }.getOrNull(),
+        BackupRestore.restoreVolumes(context, store, database, runCatching { passphrases.read() }.onFailure {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:278", it)
+        }.getOrNull(),
             passphrase, database::close, restartProcess, checkpoint)
     }
     private suspend fun <T> cloudOperation(readOnly: Boolean = false, block: () -> T): Result<T> = withContext(Dispatchers.IO) {
@@ -299,7 +325,9 @@ class AndroidBackupRepository internal constructor(
         try {
             localFiles.read(source, download)
             BackupRestore.restoreFile(context, download, database,
-                storedPassphrase = runCatching { passphrases.read() }.getOrNull(), suppliedPassphrase = passphrase,
+                storedPassphrase = runCatching { passphrases.read() }.onFailure {
+                    FailureNotes.record("backup/AndroidBackupRepository.kt:302", it)
+                }.getOrNull(), suppliedPassphrase = passphrase,
                 closeDatabase = database::close, restartProcess = restartProcess,
                 fetchBase = { base, target -> localFiles.read(localSource(base), target) }, expectedName = name)
         } finally { download.delete() }

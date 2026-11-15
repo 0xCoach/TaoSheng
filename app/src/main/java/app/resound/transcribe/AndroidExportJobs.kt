@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.scheduling.refreshWhileNeeded
 import android.content.Context
 import androidx.work.*
@@ -26,7 +28,9 @@ internal class AndroidExportJobs(
     override val jobs: StateFlow<List<ExportJob>> = mutableJobs.asStateFlow()
 
     init {
-        val array = runCatching { JSONArray(prefs.getString("jobs", "[]")) }.getOrDefault(JSONArray())
+        val array = runCatching { JSONArray(prefs.getString("jobs", "[]")) }.onFailure {
+            FailureNotes.record("transcribe/AndroidExportJobs.kt:29", it)
+        }.getOrDefault(JSONArray())
         for (i in 0 until array.length()) runCatching {
             val json = array.getJSONObject(i)
             val ids = json.getJSONArray("segments")
@@ -47,6 +51,8 @@ internal class AndroidExportJobs(
             }
             val id = json.getString("id")
             entries[id] = Entry(request, ExportJob(id, request.title, json.getLong("started"), state), json.getLong("updated"))
+        }.onFailure {
+            FailureNotes.record("transcribe/AndroidExportJobs.kt:30", it)
         }
         entries.values.filter { it.job.state is ExportJobState.Cancelled }.forEach {
             (exporter as? LocalAudioExporter)?.removeJobFiles(it.job.id)
@@ -70,7 +76,9 @@ internal class AndroidExportJobs(
         val id = UUID.randomUUID().toString()
         entries[id] = Entry(normalized, ExportJob(id, request.title, now(), ExportJobState.Running(0f)), now())
         publish()
-        try { enqueue(id) } catch (_: Exception) { update(id, ExportJobState.Failed("无法安排后台导出，请重试")) }
+        try { enqueue(id) } catch (failure190: Exception) {
+            FailureNotes.record("transcribe/AndroidExportJobs.kt:73", failure190)
+            update(id, ExportJobState.Failed("无法安排后台导出，请重试")) }
         return id
     }
 

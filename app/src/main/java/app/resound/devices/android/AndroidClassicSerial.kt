@@ -22,10 +22,14 @@ internal class AndroidClassicSerial(private val context: Context, private val ad
             device.createInsecureRfcommSocketToServiceRecord(UUID.fromString(serviceUuid))
         } catch (e: SecurityException) { throw DeviceException(ErrorCode.PermissionDenied, cause = e) }
         try {
-            val timer = launch { delay(8_000); runCatching { socket.close() } }
+            val timer = launch { delay(8_000); runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 socket.close() } }
             try {
                 suspendCancellableCoroutine<Unit> { continuation ->
-                    continuation.invokeOnCancellation { runCatching { socket.close() } }
+                    continuation.invokeOnCancellation { runCatching {
+                        // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                         socket.close() } }
                     launch(Dispatchers.IO) {
                         try { socket.connect(); if (continuation.isActive) continuation.resume(Unit) }
                         catch (e: Exception) { if (continuation.isActive) continuation.resumeWithException(DeviceException(
@@ -34,7 +38,9 @@ internal class AndroidClassicSerial(private val context: Context, private val ad
                 }
             } finally { timer.cancel() }
             AndroidSerialChannel(socket)
-        } catch (e: Exception) { runCatching { socket.close() }; throw e }
+        } catch (e: Exception) { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             socket.close() }; throw e }
     }
 }
 
@@ -58,7 +64,9 @@ private class AndroidSerialChannel(private val socket: BluetoothSocket) : Serial
     }
     override val incoming: Flow<ByteArray> = packets.receiveAsFlow()
     override suspend fun close() {
-        withContext(Dispatchers.IO) { runCatching { socket.close() } }
+        withContext(Dispatchers.IO) { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             socket.close() } }
         scope.cancel(); reader.join(); packets.cancel()
     }
 }

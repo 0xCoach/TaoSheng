@@ -111,7 +111,9 @@ internal object ExportPcmDecoder {
             flush()
             check(total > 0) { "录音没有可解码的样本" }
         } finally {
-            codec?.let { runCatching { it.stop() }; it.release() }
+            codec?.let { runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 it.stop() }; it.release() }
             extractor.release()
         }
     }

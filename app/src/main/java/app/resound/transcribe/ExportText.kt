@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.TranscriptLineEntity
 import app.resound.voiceprint.VoiceprintThresholds
 import java.time.Instant
@@ -35,6 +37,8 @@ internal object ExportText {
         val people = events.flatMap { event -> runCatching {
             val array = JSONArray(event.peopleJson)
             (0 until array.length()).map { array.getString(it) }
+        }.onFailure {
+            FailureNotes.record("transcribe/ExportText.kt:35", it)
         }.getOrDefault(emptyList()) }.distinct()
         val output = StringBuilder()
         output.append(if (markdown) "# ${text(title)}\n\n" else "${text(title)}\n")

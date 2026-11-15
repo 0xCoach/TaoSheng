@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.work.*
@@ -39,7 +41,9 @@ internal class PhoneReminders(
                 reminder.keys.forEach { sent.put(it, now()) }
                 check(prefs.edit().putString("sent", sent.toString()).commit())
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (_: Exception) { failed = true; break }
+            catch (failure190: Exception) {
+                FailureNotes.record("push/PhoneReminders.kt:42", failure190)
+                failed = true; break }
         }
         val next = candidates.filter { r -> r.keys.any { !sent.has(it) } }.minOfOrNull { it.at }
         if (!failed && (next != null || !send)) schedule(next, send)
@@ -79,7 +83,9 @@ internal object PhoneReminderAlarm {
         try {
             if (canExact) alarms.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context))
             else alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context))
-        } catch (_: SecurityException) {
+        } catch (failure190: SecurityException) {
+            FailureNotes.record("push/PhoneReminders.kt:82", failure190)
+
             alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context))
         }
     }

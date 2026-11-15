@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.ask.AskCompatibility
 import app.resound.skills.SkillFiles
 import app.resound.transcribe.EndpointKind
@@ -45,7 +47,9 @@ class AndroidLlmProviders internal constructor(
 
     fun headers(id: String) = headerStore.headers(id)
     fun requestHeaders(preset: LlmPreset) = headerStore.forPreset(preset)
-    fun hasHeaderAuth(id: String) = runCatching { headers(id).any { it.value.isNotBlank() } }.getOrDefault(false)
+    fun hasHeaderAuth(id: String) = runCatching { headers(id).any { it.value.isNotBlank() } }.onFailure {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:48", it)
+    }.getOrDefault(false)
     fun saveHeaders(id: String, headers: List<HeaderEntry>) = synchronized(guard) {
         require(saved.value.any { it.id == id }) { "服务商不存在，请先保存服务商" }
         headerStore.save(id, headers)
@@ -126,7 +130,9 @@ class AndroidLlmProviders internal constructor(
     }
     internal fun readKey(id: String): String = synchronized(guard) {
         // 系统暂不能解密时返回未就绪，但不清除或覆盖原密文。
-        try { keys.read(id) } catch (_: Exception) { "" }
+        try { keys.read(id) } catch (failure190: Exception) {
+            FailureNotes.record("digest/AndroidLlmProviders.kt:129", failure190)
+            "" }
     }
 
     override suspend fun save(id: String?, templateId: String?, name: String, baseUrl: String, model: String, key: String?,
@@ -216,12 +222,16 @@ class AndroidLlmProviders internal constructor(
         Result.success("连接成功")
     } catch (e: CancellationException) { throw e }
     catch (e: LlmException) { Result.failure(IllegalStateException(e.detail)) }
-    catch (_: Exception) { Result.failure(IllegalStateException("测试失败，请检查地址、模型和密钥")) }
+    catch (failure190: Exception) {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:219", failure190)
+        Result.failure(IllegalStateException("测试失败，请检查地址、模型和密钥")) }
 
     override suspend fun models(id: String?, baseUrl: String, key: String?): List<String> = try {
         validateBase(baseUrl); fetchRemoteModels(ServiceHeaders.modelsEndpoint(baseUrl), draftKey(id, key), headers = headerStore.forService(id ?: "draft", baseUrl)).ids
     } catch (e: CancellationException) { throw e }
-    catch (_: Exception) { emptyList() }
+    catch (failure190: Exception) {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:224", failure190)
+        emptyList() }
 
     companion object {
         internal fun parseTemplates(text: String): List<ProviderTemplate> = JSONArray(text).let { a -> (0 until a.length()).map { i ->

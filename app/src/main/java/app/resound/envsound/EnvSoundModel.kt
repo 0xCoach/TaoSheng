@@ -1,5 +1,7 @@
 package app.resound.envsound
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import app.resound.transcribe.local.*
 import com.k2fsa.sherpa.onnx.*
@@ -59,7 +61,9 @@ class EnvSoundModel(private val context: Context) {
             }
             check(checkReady()) { "模型校验失败" }
         } catch(e: CancellationException) { state.value = EnvModelState.NotDownloaded; throw e }
-        catch(_: Exception) { state.value = EnvModelState.Failed("模型下载或校验失败，请重试") }
+        catch(failure190: Exception) {
+            FailureNotes.record("envsound/EnvSoundModel.kt:62", failure190)
+            state.value = EnvModelState.Failed("模型下载或校验失败，请重试") }
     }
     private var batch = false
     private var retained: AudioTagging? = null

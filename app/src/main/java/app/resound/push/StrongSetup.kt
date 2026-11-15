@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.app.NotificationManager
@@ -67,6 +69,8 @@ internal object StrongSetup {
             val ops = context.getSystemService(AppOpsManager::class.java)
             val check = AppOpsManager::class.java.getMethod("checkOpNoThrow", Int::class.java, Int::class.java, String::class.java)
             listOf(10020, 10021).all { check.invoke(ops, it, Process.myUid(), context.packageName) as Int == AppOpsManager.MODE_ALLOWED }
+        }.onFailure {
+            FailureNotes.record("push/StrongSetup.kt:66", it)
         }.getOrNull()
     }
 
@@ -78,15 +82,21 @@ internal object StrongSetup {
             Intent().setClassName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity").putExtra("packagename", pkg),
             Intent().setClassName("com.huawei.systemmanager", "com.huawei.permissionmanager.ui.MainActivity"),
         )
-        if (tries.none { runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess }) appDetails(context)
+        if (tries.none { runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
+            FailureNotes.record("push/StrongSetup.kt:81", it)
+        }.isSuccess }) appDetails(context)
     }
 
     private fun open(context: Context, intent: Intent) {
-        if (runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isFailure) appDetails(context)
+        if (runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
+            FailureNotes.record("push/StrongSetup.kt:85", it)
+        }.isFailure) appDetails(context)
     }
 
     private fun appDetails(context: Context) = runCatching {
         context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }.onFailure {
+        FailureNotes.record("push/StrongSetup.kt:88", it)
     }
 }

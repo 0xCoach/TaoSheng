@@ -1,4 +1,6 @@
 package app.resound.review
+
+import app.resound.diagnostics.FailureNotes
 import kotlinx.coroutines.*
 
 object ReviewPreparationRules {
@@ -6,7 +8,9 @@ object ReviewPreparationRules {
         val result = try {
             withTimeoutOrNull(timeoutMillis) { action() } ?: "超时，使用已有内容"
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { "失败，使用已有内容" }
+        catch (failure190: Exception) {
+            FailureNotes.record("review/ReviewPreparationRules.kt:9", failure190)
+            "失败，使用已有内容" }
         record(result)
         return result == "完成"
     }

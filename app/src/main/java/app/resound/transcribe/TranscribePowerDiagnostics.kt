@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.util.AtomicFile
 import android.util.Log
@@ -53,6 +55,8 @@ internal object TranscribePowerDiagnostics {
                     file.finishWrite(output)
                 } catch (e: Exception) { file.failWrite(output); throw e }
             }
+        }.onFailure {
+            FailureNotes.record("transcribe/TranscribePowerDiagnostics.kt:45", it)
         }.onFailure { Log.w("TranscribePower", "省电诊断写入失败") }
     }
 
@@ -67,6 +71,8 @@ internal object TranscribePowerDiagnostics {
                     "realtimeExecutions=${expedited + batched} expedited=$expedited batched=$batched"
             }
         }
+    }.onFailure {
+        FailureNotes.record("transcribe/TranscribePowerDiagnostics.kt:59", it)
     }.getOrElse { "转写省电 诊断读取失败" }
 
     private fun read(file: AtomicFile): JSONObject =

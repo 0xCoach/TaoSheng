@@ -1,5 +1,7 @@
 package app.resound.envsound
 
+import app.resound.diagnostics.FailureNotes
+
 import java.io.File
 import app.resound.transcribe.*
 import kotlinx.coroutines.CancellationException
@@ -55,8 +57,12 @@ internal class EnvSoundAnalysis(
                     gapScores = try { infer(gaps.pcm) } finally { gapInferMs = now() - inferAt }
                 }
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { gapFailed = true }
-            catch (_: LinkageError) { gapFailed = true }
+            catch (failure190: Exception) {
+                FailureNotes.record("envsound/EnvSoundAnalysis.kt:58", failure190)
+                gapFailed = true }
+            catch (failure190: LinkageError) {
+                FailureNotes.record("envsound/EnvSoundAnalysis.kt:59", failure190)
+                gapFailed = true }
             // 间隙失败不猜标签，也不改变已成功的原过滤判定。
             succeeded = true
             return EnvSoundEvidence(scores, gapScores, available, used, gapFailed) to me

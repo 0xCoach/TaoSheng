@@ -1,5 +1,7 @@
 package app.resound.transcribe.local
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import app.resound.transcribe.awaitResponse
 import android.os.Build
@@ -85,7 +87,9 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
     private fun status(text: String) { prefs.edit().putString("download-${if (speakers) "Speakers" else backend.name}",text).apply() }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         speakers = inputData.getBoolean("speakers", false)
-        backend = if (speakers) LocalBackend.Cpu else runCatching { LocalBackend.valueOf(inputData.getString("backend") ?: "") }.getOrElse { return@withContext Result.failure() }
+        backend = if (speakers) LocalBackend.Cpu else runCatching { LocalBackend.valueOf(inputData.getString("backend") ?: "") }.onFailure {
+            FailureNotes.record("transcribe/local/LocalModels.kt:88", it)
+        }.getOrElse { return@withContext Result.failure() }
         if (backend == LocalBackend.Npu && !LocalModels.npuSupported()) { status("您的手机暂不支持 NPU 识别，请下载 CPU 模型");return@withContext Result.failure() }
         val spec=if(speakers) LocalModels.speakers else LocalModels.spec(backend);val dir=LocalModels.directory(applicationContext,spec)
         if(LocalModels.ready(applicationContext,spec)){status("已下载并校验");return@withContext Result.success()}
@@ -124,7 +128,9 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
             archive.delete();status("已下载并校验")
             Result.success()
         } catch(e: kotlinx.coroutines.CancellationException){status("下载已暂停，可点击继续");throw e}
-        catch(_: Exception){status("下载未完成，请检查网络后重试；已校验失败的文件会重新下载");Result.failure()}
+        catch(failure190: Exception){
+            FailureNotes.record("transcribe/local/LocalModels.kt:127", failure190)
+           status("下载未完成，请检查网络后重试；已校验失败的文件会重新下载");Result.failure()}
         finally{staging.deleteRecursively();lock.unlock()}
     }
     private companion object {

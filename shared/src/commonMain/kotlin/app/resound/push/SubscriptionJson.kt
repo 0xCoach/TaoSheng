@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import kotlinx.serialization.json.*
 
 object SubscriptionJson {
@@ -40,6 +42,8 @@ object SubscriptionJson {
             j.flag("excludeMedia"), j.number("backfillDays"), lineContext = j.flag("lineContext", true),
             audio = AudioPush.entries.find { it.name == j["audio"]?.jsonPrimitive?.content } ?: AudioPush.Off,
             audioWithText = j.flag("audioWithText", true), audioWifiOnly = j.flag("audioWifiOnly", true),
-            footprint = j.flag("footprint", false), footprintAt = (runCatching { j.number("footprintAt") }.getOrNull() ?: 22 * 60).coerceIn(0, 1439))
+            footprint = j.flag("footprint", false), footprintAt = (runCatching { j.number("footprintAt") }.onFailure {
+                FailureNotes.record("push/SubscriptionJson.kt:43", it)
+            }.getOrNull() ?: 22 * 60).coerceIn(0, 1439))
     }
 }

@@ -1,4 +1,6 @@
 package app.resound.skills.core
+
+import app.resound.diagnostics.FailureNotes
 import app.resound.skills.*
 import app.resound.platform.NowMillis
 import kotlinx.datetime.LocalDate
@@ -40,7 +42,9 @@ class SkillExecution(
         run(s.id, today, kind, skipGap = skipGap)
     }
     private suspend fun isolated(block: suspend () -> Unit) {
-        try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 单个技能失败不阻断后续技能。 */ }
+        try { block() } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+            FailureNotes.record("skills/core/SkillExecution.kt:43", failure190)
+            /* 单个技能失败不阻断后续技能。 */ }
     }
     suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true,
         skipGap: Boolean = false): SkillAttempt = gate.withLock {
@@ -77,7 +81,9 @@ class SkillExecution(
                                     tokens += reply.promptTokens + reply.completionTokens
                                     withContext(NonCancellable) { usage(SkillSchedule.date(started).toString(), reply.promptTokens, reply.completionTokens) }
                                     parsed = try { SkillOutput.parse(reply.content, skill, date, input, now(), manual = !auto) } catch (
-                                        _: SkillFormatException) { throw SkillCallException("Format", "模型回复格式不对", "模型回复格式不对") }
+                                        failure190: SkillFormatException) {
+                                            FailureNotes.record("skills/core/SkillExecution.kt:79", failure190)
+                                            throw SkillCallException("Format", "模型回复格式不对", "模型回复格式不对") }
                                     break
                                 } catch (e: SkillCallException) {
                                     if (e.kind != "Format" || attempt == 1) throw e
@@ -106,7 +112,9 @@ class SkillExecution(
                                     if (auto && skill.push && saved.isNew) {
                                         try { push(decorate(saved.row.card())) }
                                         catch (e: CancellationException) { throw e }
-                                        catch (_: Exception) { /* 卡已保存；推送通道记录自己的错误，不重复生成。 */ }
+                                        catch (failure190: Exception) {
+                                            FailureNotes.record("skills/core/SkillExecution.kt:109", failure190)
+                                            /* 卡已保存；推送通道记录自己的错误，不重复生成。 */ }
                                     }
                                 }
                             }
@@ -122,7 +130,9 @@ class SkillExecution(
                     "Format" -> "模型回复格式不对"
                     else -> e.human
                 })
-            } catch (_: Exception) { SkillRunResult.Failed("技能运行失败，请重试") }
+            } catch (failure190: Exception) {
+                FailureNotes.record("skills/core/SkillExecution.kt:125", failure190)
+                SkillRunResult.Failed("技能运行失败，请重试") }
             record(id, date, started, kind, result, tokens, retryable, gateDiscarded)
             SkillAttempt(result, retryable)
         } catch (e: CancellationException) {

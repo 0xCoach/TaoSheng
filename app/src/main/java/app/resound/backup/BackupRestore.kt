@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.CaptureDatabase
 import app.resound.voiceprint.SampleAudioStore
 
@@ -59,7 +61,9 @@ internal object BackupRestore {
                     runBlocking { migrated.checkpoint("TRUNCATE") }
                 } finally { migrated.close() }
                 listOf("-wal", "-shm", "-journal", ".lck").forEach { File(File(verified, BackupArchive.DATABASE).path + it).delete() }
-            } catch (_: Exception) { throw BackupFailure("备份数据库迁移或校验失败，未恢复数据") }
+            } catch (failure190: Exception) {
+                FailureNotes.record("backup/BackupRestore.kt:62", failure190)
+                throw BackupFailure("备份数据库迁移或校验失败，未恢复数据") }
             snapshot(context, database)
             stage(context, verified)
             closeDatabase()
@@ -125,7 +129,9 @@ internal object BackupRestore {
             applyContents(context, pending, beforeWrite)
             check(done.deleteRecursively())
             check(pending.renameTo(done))
-        } catch (_: Exception) {
+        } catch (failure190: Exception) {
+            FailureNotes.record("backup/BackupRestore.kt:128", failure190)
+
             // 回滚失败仍须阻止初始化；不能把半恢复数据当正常数据继续运行。
             journal.rollback(); failed(); journal.clear()
             return

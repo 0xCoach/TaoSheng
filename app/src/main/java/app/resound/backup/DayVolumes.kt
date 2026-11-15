@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.prompts.LocalPromptTemplates
 import app.resound.skills.SkillFiles
 
@@ -207,7 +209,9 @@ internal object DayVolumes {
     private fun fetch(store: VolumeStore, item: JSONObject, work: File): File {
         val path = item.getString("path"); require(volumePath(path) && '/' in path)
         val file = File(work, "download-${UUID.randomUUID()}")
-        if (!store.read(path, file) || runCatching { verifyFile(file, item) }.isFailure) {
+        if (!store.read(path, file) || runCatching { verifyFile(file, item) }.onFailure {
+            FailureNotes.record("backup/DayVolumes.kt:210", it)
+        }.isFailure) {
             require(store.read(previousPath(path, item.getString("sha256")), file)) { "分卷缺失或损坏" }
         }
         verifyFile(file, item)

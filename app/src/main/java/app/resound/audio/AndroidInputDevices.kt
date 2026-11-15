@@ -1,5 +1,7 @@
 package app.resound.audio
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.media.AudioDeviceCallback
@@ -70,7 +72,9 @@ class AndroidInputDevices(context: Context) : InputDevices {
     }
     @Synchronized private fun refresh() {
         val ports = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).map {
-            InputPort(it.id, it.type, it.productName.toString(), runCatching { it.address }.getOrDefault(""))
+            InputPort(it.id, it.type, it.productName.toString(), runCatching { it.address }.onFailure {
+                FailureNotes.record("audio/AndroidInputDevices.kt:73", it)
+            }.getOrDefault(""))
         }
         publish(catalog.update(ports) + cardRoutes)
     }

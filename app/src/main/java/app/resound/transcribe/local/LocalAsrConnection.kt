@@ -1,5 +1,7 @@
 package app.resound.transcribe.local
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.capture.CaptureTuning
 
 import android.content.*
@@ -50,6 +52,8 @@ internal class LocalAsrConnection(private val context:Context) {
                     lastMetrics=Metrics(data.getInt("pid"),data.getInt("loads"),data.getInt("timedChunks"),data.getInt("chunks"),data.getString("language") ?: "auto",data
                         .getStringArrayList("detectedLanguages").orEmpty())
                     request.result.complete(result)
+                }.onFailure {
+                    FailureNotes.record("transcribe/local/LocalAsrConnection.kt:45", it)
                 }.onFailure{request.result.completeExceptionally(AsrException(AsrError.Protocol))}
                 request.started.complete(Unit)
             }
@@ -81,7 +85,9 @@ internal class LocalAsrConnection(private val context:Context) {
     }
     private fun disconnect() {
         idle?.cancel();idle=null
-        if(bound){closing=death;runCatching{context.unbindService(connection!!)};diagnostic("local-unbound")}
+        if(bound){closing=death;runCatching{
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+            context.unbindService(connection!!)};diagnostic("local-unbound")}
         bound=false;connection=null;binding=null
     }
     private suspend fun connect():Messenger {
@@ -94,7 +100,9 @@ internal class LocalAsrConnection(private val context:Context) {
             override fun onServiceConnected(name:ComponentName,binder:IBinder){
                 if(binding!==ready)return
                 try {binder.linkToDeath({scope.launch{generation.complete(Unit);if(binding===ready)broken()}},0);ready.complete(Messenger(binder))}
-                catch(_:Exception){broken()}
+                catch(failure190:Exception){
+                    FailureNotes.record("transcribe/local/LocalAsrConnection.kt:97", failure190)
+                   broken()}
             }
             override fun onServiceDisconnected(name:ComponentName){if(binding===ready)broken()}
             override fun onBindingDied(name:ComponentName){if(binding===ready)broken()}
@@ -129,7 +137,9 @@ internal class LocalAsrConnection(private val context:Context) {
             try { withTimeout(InferenceWakeLock.timeoutMillis(audio.durationMillis)){request.result.await()} }
             catch(e:TimeoutCancellationException){diagnostic("local-inference-timeout");throw e}
         } finally {
-            if(!request.result.isCompleted)runCatching{messenger?.send(Message.obtain(null,7).apply{data=Bundle().apply{putString("id",id)}})}
+            if(!request.result.isCompleted)runCatching{
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                messenger?.send(Message.obtain(null,7).apply{data=Bundle().apply{putString("id",id)}})}
             pending.remove(id)
             if(pending.isEmpty())idle=scope.launch{delay(IDLE_MILLIS);if(pending.isEmpty())disconnect()}
         }

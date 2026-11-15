@@ -84,7 +84,8 @@ class AskToolsCore(private val store: AskToolStore, spec: String, private val zo
             where += columns.joinToString(" OR ", "(", ")") { "$it=?" }; columns.forEach { args += value }
         }
         val order = if (starredOnly && words.isEmpty()) "e.starredAt" else s.getString("time")
-        return Query("SELECT ${s.getString("select")}${if (name == "search_lines") ", l.voiceInputJson" else ""} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
+        return Query(
+            "SELECT ${s.getString("select")}${if (name == "search_lines") ", l.voiceInputJson" else ""} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
     }
 
     private fun withoutKeywords(args: JSONObject) = JSONObject(args.toString()).apply { remove("keywords") }

@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.SharedPreferences
 import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.withContext
@@ -65,20 +67,28 @@ internal object PushDiagnostics {
             .put("result", safe).put("stage", trace.stage).put("exception", trace.exception)
             .put("skipped", trace.skipped.size).put("categories", JSONObject(trace.skipped.groupingBy { it.substringBefore(':') }.eachCount()))
             .put("notices", JSONArray(trace.notices.toList()))
-        val old = runCatching { JSONArray(prefs.getString("diagnostics", "[]")) }.getOrDefault(JSONArray())
+        val old = runCatching { JSONArray(prefs.getString("diagnostics", "[]")) }.onFailure {
+            FailureNotes.record("push/PushDiagnostics.kt:68", it)
+        }.getOrDefault(JSONArray())
         val ring = JSONArray().put(entry)
         repeat(minOf(29, old.length())) { ring.put(old.getJSONObject(it)) }
         check(prefs.edit().putString("diagnostics", ring.toString()).commit())
     }
     fun dump(prefs: SharedPreferences): String = buildString {
-        val logs = runCatching { JSONArray(prefs.getString("diagnostics", "[]")) }.getOrDefault(JSONArray())
-        val channels = runCatching { JSONArray(prefs.getString("channels", "[]")) }.getOrDefault(JSONArray())
+        val logs = runCatching { JSONArray(prefs.getString("diagnostics", "[]")) }.onFailure {
+            FailureNotes.record("push/PushDiagnostics.kt:74", it)
+        }.getOrDefault(JSONArray())
+        val channels = runCatching { JSONArray(prefs.getString("channels", "[]")) }.onFailure {
+            FailureNotes.record("push/PushDiagnostics.kt:75", it)
+        }.getOrDefault(JSONArray())
         appendLine("推送通道（仅配置类型，不含地址或凭据）")
         repeat(channels.length()) { i ->
             val row = channels.optJSONObject(i) ?: return@repeat
             val kind = PushKind.entries.find { it.name == row.optString("kind") } ?: return@repeat
             val format = PushFormat.entries.find { it.name == row.optString("format") }
-            val s = runCatching { Subscriptions.read(row.getJSONObject("subscription")) }.getOrNull()
+            val s = runCatching { Subscriptions.read(row.getJSONObject("subscription")) }.onFailure {
+                FailureNotes.record("push/PushDiagnostics.kt:81", it)
+            }.getOrNull()
             val last = (0 until logs.length()).mapNotNull { logs.optJSONObject(it) }.firstOrNull { it.optLong("channelId") == row.optLong("id") }
             appendLine("录音通道ID=${row.optLong("id")} 开启=${row.optBoolean("enabled") && s?.audio != null && s.audio != AudioPush.Off} 模式=${s?.audio} ${prefs.getString(
                 "audio-diagnostic-${row.optLong("id")}", "尚未统计")} ")

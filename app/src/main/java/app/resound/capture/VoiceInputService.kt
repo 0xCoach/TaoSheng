@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import android.accessibilityservice.AccessibilityService
 import android.app.KeyguardManager
 import android.graphics.Rect
@@ -40,7 +42,9 @@ class VoiceInputService : AccessibilityService() {
         override fun run() {
             if (!running) return
             if (!allowed()) engine?.reset()
-            else sample(runCatching { manager?.activeRecordingConfigurations.orEmpty() }.getOrDefault(emptyList()))
+            else sample(runCatching { manager?.activeRecordingConfigurations.orEmpty() }.onFailure {
+                FailureNotes.record("capture/VoiceInputService.kt:43", it)
+            }.getOrDefault(emptyList()))
             handler.postDelayed(this, 250)
         }
     }
@@ -60,12 +64,16 @@ class VoiceInputService : AccessibilityService() {
     private fun startMonitoring() {
         if (running) return
         running = true
-        registered = runCatching { manager?.registerAudioRecordingCallback(callback, handler); true }.getOrDefault(false)
+        registered = runCatching { manager?.registerAudioRecordingCallback(callback, handler); true }.onFailure {
+            FailureNotes.record("capture/VoiceInputService.kt:63", it)
+        }.getOrDefault(false)
         handler.post(tick)
     }
     private fun stopMonitoring() {
         running = false; handler.removeCallbacks(tick)
-        if (registered) runCatching { manager?.unregisterAudioRecordingCallback(callback) }
+        if (registered) runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             manager?.unregisterAudioRecordingCallback(callback) }
         registered = false; engine?.reset()
     }
     private fun sample(configs: List<AudioRecordingConfiguration>) {
@@ -79,13 +87,17 @@ class VoiceInputService : AccessibilityService() {
         if (!allowed()) { engine?.reset(); return }
         val e = engine ?: return
         // 先查录音状态，防止文字事件早于系统录音回调；不从 event.text 读取密码或被排除应用。
-        val configs = runCatching { manager?.activeRecordingConfigurations.orEmpty() }.getOrDefault(emptyList())
+        val configs = runCatching { manager?.activeRecordingConfigurations.orEmpty() }.onFailure {
+            FailureNotes.record("capture/VoiceInputService.kt:82", it)
+        }.getOrDefault(emptyList())
         val other = configs.any { !it.isClientSilenced && !OwnRecordingSessions.contains(it.clientAudioSessionId) }
         if (!other && !e.needsScreen) return
         val screen = safeSnapshot(event)
         e.recording(other, System.currentTimeMillis(), screen, capture!!.settings.value)
     }
-    private fun safeSnapshot(event: AccessibilityEvent?): InputScreen? = runCatching { snapshot(event) }.getOrNull()
+    private fun safeSnapshot(event: AccessibilityEvent?): InputScreen? = runCatching { snapshot(event) }.onFailure {
+        FailureNotes.record("capture/VoiceInputService.kt:88", it)
+    }.getOrNull()
     private fun snapshot(event: AccessibilityEvent?): InputScreen? {
         // 输入法浮窗出现时仍选择应用窗口，不能把键盘候选词当上下文。
         val visibleWindows = windows
@@ -134,7 +146,9 @@ class VoiceInputService : AccessibilityService() {
                 }
                 // 关闭上下文时不遍历整棵树；标题栏只用于标题，不计入正文。
                 if (settings.context) walk(root, 0)
-                val label = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+                val label = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.onFailure {
+                    FailureNotes.record("capture/VoiceInputService.kt:137", it)
+                }.getOrDefault(pkg)
                 // 标题是猜的（滚动、弹出语音面板都会变），不能用来判断是否换了页面
                 val page = "$pkg:${root.windowId}:${root.className}"
                 var send = false
@@ -191,6 +205,8 @@ class VoiceInputService : AccessibilityService() {
             } finally { @Suppress("DEPRECATION") visible.forEach { it.recycle() } }
             OcrLayout(metrics.bounds.width(), metrics.bounds.height(), insets.top,
                 metrics.bounds.height() - insets.bottom, ime)
+        }.onFailure {
+            FailureNotes.record("capture/VoiceInputService.kt:182", it)
         }.getOrNull()
         if (layout == null) { e.recognized(request, null); return }
         ocr.capture(layout, request.screen.packageName, ::valid) { result -> e.recognized(request, result) }

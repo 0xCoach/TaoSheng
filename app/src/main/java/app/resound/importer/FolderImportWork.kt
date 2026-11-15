@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.R
 
 import android.app.*
@@ -21,7 +23,9 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
             (AppGraph.folderImports as AndroidFolderImports).scan()
             Result.success()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (failure190: Exception) {
+            FailureNotes.record("importer/FolderImportWork.kt:24", failure190)
+            Result.retry() }
     }
     companion object {
         internal const val PERIODIC = "folder-import-periodic"
@@ -43,7 +47,9 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
                 manager.notify(id, 3117, NotificationCompat.Builder(context, "import")
                     .setSmallIcon(R.drawable.ic_notify).setContentTitle("从${name}导入了 $count 个录音")
                     .setContentText("已加入转写整理队列").setContentIntent(pending).setAutoCancel(true).build())
-            } catch (_: SecurityException) { /* 通知权限被撤回不影响已提交的导入。 */ }
+            } catch (failure190: SecurityException) {
+                FailureNotes.record("importer/FolderImportWork.kt:46", failure190)
+                /* 通知权限被撤回不影响已提交的导入。 */ }
         }
     }
 }

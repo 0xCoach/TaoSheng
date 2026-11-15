@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -75,6 +77,8 @@ class AndroidQuietSchedule(
                 QuietRule(row.getString("id"), row.getString("name"), row.getInt("startMinute"), row.getInt("endMinute"),
                     (0 until days.length()).map { kotlinx.datetime.DayOfWeek.valueOf(DayOfWeek.of(days.getInt(it)).name) }.toSet(), row.getBoolean("enabled"))
             }.filter { it.startMinute in 0..1439 && it.endMinute in 0..1439 }
+        }.onFailure {
+            FailureNotes.record("capture/AndroidQuietSchedule.kt:71", it)
         }.getOrDefault(emptyList())
 
         fun arm(context: Context, at: Long?) {
@@ -86,7 +90,9 @@ class AndroidQuietSchedule(
             try {
                 if (Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
                 else manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
-            } catch (_: SecurityException) { manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent) }
+            } catch (failure190: SecurityException) {
+                FailureNotes.record("capture/AndroidQuietSchedule.kt:89", failure190)
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent) }
         }
     }
 }

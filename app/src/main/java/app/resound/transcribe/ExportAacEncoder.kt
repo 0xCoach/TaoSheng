@@ -111,9 +111,17 @@ internal class ExportAacEncoder(target: File) : ExportPcmSink {
         }
     }
     override fun close() {
-        runCatching { codec.stop() }; runCatching { codec.release() }
-        if (started) runCatching { muxer?.stop() }
-        runCatching { muxer?.release() }
+        runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             codec.stop() }; runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             codec.release() }
+        if (started) runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             muxer?.stop() }
+        runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             muxer?.release() }
     }
 }
 

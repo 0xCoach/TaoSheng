@@ -1,5 +1,7 @@
 package app.resound.ask
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.ask.core.AskDateException
 import app.resound.ask.core.AskTime
 import app.resound.ask.core.AskToolStore
@@ -66,7 +68,9 @@ class AskTools(
         return db.readSql(sql, (base.args + listOf(kind, model)).toTypedArray()) { c ->
             buildList {
                 while (c.step()) {
-                    val values = runCatching { Vectors.decode(c.getBlob(2), c.getLong(1).toInt()) }.getOrNull() ?: continue
+                    val values = runCatching { Vectors.decode(c.getBlob(2), c.getLong(1).toInt()) }.onFailure {
+                        FailureNotes.record("ask/AskTools.kt:69", it)
+                    }.getOrNull() ?: continue
                     val score = Vectors.cosine(vector, values)
                     if (score.isFinite()) add(c.getLong(0) to score)
                 }
@@ -82,7 +86,9 @@ class AskTools(
                 names.associateWith { semanticIds(it, args, vector, local.model, stays) }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { emptyMap() } // 模型缺失或无法加载时静默退回关键词。
+        catch (failure190: Exception) {
+            FailureNotes.record("ask/AskTools.kt:85", failure190)
+            emptyMap() } // 模型缺失或无法加载时静默退回关键词。
         finally { if (local is AutoCloseable) local.close() }
     }
 

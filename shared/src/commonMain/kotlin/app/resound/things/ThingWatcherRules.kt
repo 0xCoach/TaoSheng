@@ -1,5 +1,7 @@
 package app.resound.things
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.platform.NowMillis
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -47,7 +49,9 @@ class ThingWatcherRules(private val store: ThingWatchStore,
                 while (withTimeoutOrNull(debounceMillis) { requests.receive(); true } == true) { }
                 try { if (runOnce()) { retryPause(); request() } }
                 catch (e: CancellationException) { throw e }
-                catch (_: Exception) { delay(retryMillis); request() } // 存储临时失败下次重试，不推进水位。
+                catch (failure190: Exception) {
+                    FailureNotes.record("things/ThingWatcherRules.kt:50", failure190)
+                    delay(retryMillis); request() } // 存储临时失败下次重试，不推进水位。
             }
         }
     }
@@ -77,7 +81,9 @@ class ThingWatcherRules(private val store: ThingWatchStore,
         val proposals = try {
             if (lines.isEmpty()) emptyList() else detect(lines, dao.context(state.watermark).reversed(), known)
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
+        catch (failure190: Exception) {
+            FailureNotes.record("things/ThingWatcherRules.kt:80", failure190)
+
             store.transaction {
                 val current = dao.state() ?: ThingWatchData()
                 if (current != state) return@transaction
@@ -98,7 +104,9 @@ class ThingWatcherRules(private val store: ThingWatchStore,
             dao.state(state.copy(watermark = end, failures = 0, failedEnd = null))
             saved.filter { it.explicit }
         }
-        notifications.distinctBy { it.id }.forEach { runCatching { notify(it) } }
+        notifications.distinctBy { it.id }.forEach { runCatching { notify(it) }.onFailure {
+            FailureNotes.record("things/ThingWatcherRules.kt:101", it)
+        } }
         dao.maxLineId() > end
     }
 }

@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 
 /** 沿用环形记录；保留脱敏后的提供方说明，不写堆栈。 */
@@ -23,6 +25,8 @@ object BackupDiagnostics {
             val lines = prefs.getString("runs", "").orEmpty().lines().filter { it.isNotBlank() }
             val line = "${System.currentTimeMillis()} $step ${error.javaClass.simpleName} ${safeReason(error)}"
             prefs.edit().putString("runs", (lines + line).takeLast(50).joinToString("\n")).commit()
+        }.onFailure {
+            FailureNotes.record("backup/BackupDiagnostics.kt:21", it)
         }
     }
     fun dump(context: Context): String = context.getSharedPreferences("backup-diagnostics", Context.MODE_PRIVATE)

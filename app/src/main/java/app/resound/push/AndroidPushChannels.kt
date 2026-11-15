@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.recordings.RecordingAudioPush
 import app.resound.review.DailyReview
 
@@ -130,7 +132,9 @@ class AndroidPushChannels internal constructor(
         val kind = PushKind.valueOf(row.getString("kind"))
         val refs = row.getJSONObject("secrets")
         val summary = if (row.optBoolean("useLinkedNutstore")) "使用数据备份中所选的云端存储" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
-            val present = runCatching { secrets.read(refs.optString(field.key)).isNotBlank() }.getOrDefault(false)
+            val present = runCatching { secrets.read(refs.optString(field.key)).isNotBlank() }.onFailure {
+                FailureNotes.record("push/AndroidPushChannels.kt:133", it)
+            }.getOrDefault(false)
             "${field.label} ${if (present) "已设置" else "未填写"}"
         }
         return PushChannel(row.getLong("id"), kind, row.getString("name"), row.getBoolean("enabled"),
@@ -143,7 +147,9 @@ class AndroidPushChannels internal constructor(
         val kind = PushKind.valueOf(row.getString("kind"))
         val own = fields(kind).associate { field -> field.key to if (field.secret) {
             val ref = row.getJSONObject("secrets").optString(field.key)
-            if (ref.isEmpty()) "" else runCatching { secrets.read(ref) }.getOrDefault("")
+            if (ref.isEmpty()) "" else runCatching { secrets.read(ref) }.onFailure {
+                FailureNotes.record("push/AndroidPushChannels.kt:146", it)
+            }.getOrDefault("")
         } else row.getJSONObject("values").optString(field.key) }
         return if (kind == PushKind.MarkdownFolder && row.optBoolean("useLinkedNutstore")) own +
             (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else own
@@ -180,6 +186,8 @@ class AndroidPushChannels internal constructor(
                     other.getLong("id") != id && other.getString("kind") == kind.name && runCatching {
                         val v = values(other)
                         folderIdentity(v) == folderIdentity(configured)
+                    }.onFailure {
+                        FailureNotes.record("push/AndroidPushChannels.kt:180", it)
                     }.getOrDefault(false)
                 }
                 if (conflict != null) throw PushFailure("这个文件夹已经给“${conflict.getString("name")}”通道用了，换个名字")
@@ -212,21 +220,27 @@ class AndroidPushChannels internal constructor(
             subscriptions.configure(publicChannel(row), true)
             Result.success(channelId)
         } catch (e: Exception) {
-            if (!stored) createdRefs.forEach { runCatching { secrets.remove(it) } }
+            if (!stored) createdRefs.forEach { runCatching { secrets.remove(it) }.onFailure {
+                FailureNotes.record("push/AndroidPushChannels.kt:215", it)
+            } }
             Result.failure(if (e is PushFailure) e else PushFailure("通道保存失败，请重试"))
         }
     }
 
     private fun removeSecrets(row: JSONObject) {
         val refs = row.getJSONObject("secrets")
-        refs.keys().forEach { key -> runCatching { secrets.remove(refs.getString(key)) } }
+        refs.keys().forEach { key -> runCatching { secrets.remove(refs.getString(key)) }.onFailure {
+            FailureNotes.record("push/AndroidPushChannels.kt:222", it)
+        } }
     }
     @Synchronized override fun setEnabled(id: Long, enabled: Boolean) {
         try {
             persist(readChannels().onEach { if (it.getLong("id") == id) it.put("enabled", enabled) })
             if (enabled) channels.value.find { it.id == id }?.let { subscriptions.configure(it, true) } else cancelSubscription(id)
         }
-        catch (_: Exception) { throw PushFailure("通道设置保存失败，请重试") }
+        catch (failure190: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:229", failure190)
+            throw PushFailure("通道设置保存失败，请重试") }
     }
     @Synchronized override fun delete(id: Long) {
         try {
@@ -236,9 +250,13 @@ class AndroidPushChannels internal constructor(
             cancelSubscription(id)
             subscriptions.forget(id)
             rows.find { it.getLong("id") == id }?.let(::removeSecrets)
-            outbox.all.filterValues { value -> runCatching { JSONObject(value as String).getLong("channelId") == id }.getOrDefault(false) }
+            outbox.all.filterValues { value -> runCatching { JSONObject(value as String).getLong("channelId") == id }.onFailure {
+                FailureNotes.record("push/AndroidPushChannels.kt:239", it)
+            }.getOrDefault(false) }
                 .keys.forEach { outbox.edit().remove(it).commit() }
-        } catch (_: Exception) { throw PushFailure("通道删除失败，请重试") }
+        } catch (failure190: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:241", failure190)
+            throw PushFailure("通道删除失败，请重试") }
     }
 
     override suspend fun test(id: Long): Result<String> {
@@ -247,7 +265,9 @@ class AndroidPushChannels internal constructor(
         if (channel.subscription.records.isNotEmpty() || channel.subscription.lines != LinesMode.Off) return pushNow(id)
         val review = try { latestReview() }
         catch (e: CancellationException) { throw e }
-        catch (_: Exception) { return Result.failure(PushFailure("回顾读取失败，请稍后重试")) }
+        catch (failure190: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:250", failure190)
+            return Result.failure(PushFailure("回顾读取失败，请稍后重试")) }
         val message = if (review != null) PushMessage("测试 · ${review.pushTitle()}", review.pushBody(PushFormat.Text),
             PushTopic.DailyReview, "resound://review?open=review&date=${review.date}", System.currentTimeMillis(), review)
         else PushMessage("测试推送", "如果你看到这条，说明通道可用", null, null, System.currentTimeMillis())
@@ -270,7 +290,9 @@ class AndroidPushChannels internal constructor(
                 if (summary && channel.kind in setOf(PushKind.MarkdownFolder, PushKind.Notion)) subscriptions.changed(channel, summary = true)
                 else deliver(channel.id, message)
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { /* 单通道失败不阻断其他通道。 */ }
+            catch (failure190: Exception) {
+                FailureNotes.record("push/AndroidPushChannels.kt:273", failure190)
+                /* 单通道失败不阻断其他通道。 */ }
         } }.joinAll()
     }
 
@@ -282,7 +304,9 @@ class AndroidPushChannels internal constructor(
     /** 现在给这个通道推一次今天的足迹（不记“今天已推”，到点还会照常推）。 */
     internal suspend fun pushFootprintNow(id: Long): Result<String> {
         val today = java.time.LocalDate.now()
-        val message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (_: Exception) { return Result.failure(PushFailure("足迹读取失败，请稍后重试")) }
+        val message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:285", failure190)
+            return Result.failure(PushFailure("足迹读取失败，请稍后重试")) }
             ?: return Result.success("今天还没有足迹")
         return deliver(id, message).map { "已推今日足迹" }
     }
@@ -297,8 +321,12 @@ class AndroidPushChannels internal constructor(
         for (channel in channels.value.filter { it.enabled && it.subscription.footprint }) {
             val due = today.atStartOfDay(zone).plusMinutes(channel.subscription.footprintAt.toLong()).toInstant().toEpochMilli()
             if (now < due || prefs.getString("footprint-sent-${channel.id}", null) == today.toString()) continue
-            if (!built) { message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }; built = true }
-            message?.let { try { deliver(channel.id, it) } catch (e: CancellationException) { throw e } catch (_: Exception) { } }
+            if (!built) { message = try { footprintMessage(today) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+                FailureNotes.record("push/AndroidPushChannels.kt:300", failure190)
+                null }; built = true }
+            message?.let { try { deliver(channel.id, it) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+                FailureNotes.record("push/AndroidPushChannels.kt:301", failure190)
+                } }
             prefs.edit().putString("footprint-sent-${channel.id}", today.toString()).apply()
         }
         return nextFootprintAt(now, zone)
@@ -322,6 +350,8 @@ class AndroidPushChannels internal constructor(
                     other.getLong("id") != id && other.getString("kind") == PushKind.MarkdownFolder.name && runCatching {
                         val v = values(other)
                         folderIdentity(v) == folderIdentity(resolved)
+                    }.onFailure {
+                        FailureNotes.record("push/AndroidPushChannels.kt:322", it)
                     }.getOrDefault(false)
                 }
                 if (conflict != null) throw PushFailure("这个文件夹已经给“${conflict.getString("name")}”通道用了，换个名字")
@@ -355,7 +385,9 @@ class AndroidPushChannels internal constructor(
                 val job = UUID.randomUUID().toString()
                 val payload = JSONObject().put("channelId", id).put("testing", testing).put("message", attempt.snapshot.json())
                 check(outbox.edit().putString(job, payload.toString()).commit())
-                try { enqueue(job) } catch (_: Exception) {
+                try { enqueue(job) } catch (failure190: Exception) {
+                    FailureNotes.record("push/AndroidPushChannels.kt:358", failure190)
+
                     outbox.edit().remove(job).commit()
                     val failure = Result.failure<Unit>(PushFailure("推送失败，重试任务未能保存，请手动重试"))
                     resolve(id)?.let { (channel, values) -> record(channel, message, failure, sensitiveValues(values)) }
@@ -364,7 +396,9 @@ class AndroidPushChannels internal constructor(
             }
             result
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.failure(PushFailure("推送记录保存失败，请稍后重试")) }
+        catch (failure190: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:367", failure190)
+            Result.failure(PushFailure("推送记录保存失败，请稍后重试")) }
     }
 
     /** 首次失败后最多额外尝试 3 次；不递归创建新任务，删除/停用后的普通推送停止。 */
@@ -390,7 +424,9 @@ class AndroidPushChannels internal constructor(
             if (!again) outbox.edit().remove(job).commit()
             again
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
+        catch (failure190: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:393", failure190)
+
             if (attemptCount >= 2) outbox.edit().remove(job).commit()
             attemptCount < 2
         }
@@ -412,7 +448,9 @@ class AndroidPushChannels internal constructor(
     }
 
     private fun sensitiveValues(values: Map<String, String>): Collection<String> = values.values +
-        runCatching { PushFields.headers(values["headers"].orEmpty()).values.toList() }.getOrDefault(emptyList())
+        runCatching { PushFields.headers(values["headers"].orEmpty()).values.toList() }.onFailure {
+            FailureNotes.record("push/AndroidPushChannels.kt:415", it)
+        }.getOrDefault(emptyList())
 
     private fun redact(text: String, sensitive: Collection<String>): String {
         var safe = text

@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.MemoryDao
 import app.resound.data.MemoryItemEntity
 import kotlinx.coroutines.*
@@ -31,7 +33,9 @@ class RoomManualTodos(
                 TodoDrafts(ManualTodoPrompt.parse(reply.content, zone), true)
             } ?: fallback
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { fallback }
+        catch (failure190: Exception) {
+            FailureNotes.record("digest/RoomManualTodos.kt:34", failure190)
+            fallback }
     }
 
     override fun add(drafts: List<TodoDraft>, origin: ItemOrigin, sourceText: String, fromEventId: Long?) {

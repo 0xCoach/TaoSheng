@@ -40,7 +40,9 @@ object VoiceprintRecorder {
             }
             pcm
         } finally {
-            runCatching { recorder?.stop() }; recorder?.release()
+            runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 recorder?.stop() }; recorder?.release()
             if (resume && controller.status.value.state != CaptureState.Stopped && controller.status.value.state != CaptureState.NoPermission) withContext(NonCancellable) { controller.resume() }
         }
     }

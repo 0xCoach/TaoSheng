@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.R
 import app.resound.usage.UsagePurpose
 
@@ -29,7 +31,9 @@ class AndroidImportKinds internal constructor(
     private val transcribe: () -> Unit,
 ) : ImportKinds {
     private val prefs = context.getSharedPreferences("import-kinds", Context.MODE_PRIVATE)
-    private val last = MutableStateFlow(prefs.getString("last", null)?.let { runCatching { ImportKind.valueOf(it) }.getOrNull() })
+    private val last = MutableStateFlow(prefs.getString("last", null)?.let { runCatching { ImportKind.valueOf(it) }.onFailure {
+        FailureNotes.record("importer/AndroidImportKinds.kt:32", it)
+    }.getOrNull() })
     override val lastKind = last.asStateFlow()
     init {
         scope.launch(Dispatchers.IO) {
@@ -104,10 +108,14 @@ class ImportSummaryWork(context: Context, params: WorkerParameters) : CoroutineW
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 前台受限时仍可用普通 Worker。 */ }
+            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
+                FailureNotes.record("importer/AndroidImportKinds.kt:107", failure190)
+                /* 前台受限时仍可用普通 Worker。 */ }
             (AppGraph.importKinds as AndroidImportKinds).engine.run()
             Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (failure190: Exception) {
+            FailureNotes.record("importer/AndroidImportKinds.kt:111", failure190)
+            Result.retry() }
     }
 }

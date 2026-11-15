@@ -1,5 +1,7 @@
 package app.resound.recordings
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.*
 import android.content.*
 import android.content.pm.ServiceInfo
@@ -20,7 +22,9 @@ class RecordingPackWorker(context: Context, params: WorkerParameters) : Coroutin
             PackNotifications.finished(applicationContext, id, packer.current.value?.takeIf { it.first == id }?.second)
             if (ok) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
+        catch (failure190: Exception) {
+            FailureNotes.record("recordings/RecordingPackWorker.kt:23", failure190)
+
             if (runAttemptCount < 3) Result.retry() else {
                 packer.fail(id, "无法启动后台打包，请打开应用后重试")
                 PackNotifications.finished(applicationContext, id, packer.current.value?.second)
@@ -53,7 +57,9 @@ internal object PackNotifications {
         runCatching { manager(c).notify(number(id) + 0x10000000, NotificationCompat.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(if (state is RecordingPackState.Done) "录音包已保存" else "录音打包失败")
             .setContentText(if (state is RecordingPackState.Done) state.name else (state as RecordingPackState.Failed).message)
-            .setContentIntent(open).setAutoCancel(true).build()) }
+            .setContentIntent(open).setAutoCancel(true).build()) }.onFailure {
+                FailureNotes.record("recordings/RecordingPackWorker.kt:53", it)
+            }
     }
     fun clear(c: Context, id: String) { manager(c).cancel(number(id)); manager(c).cancel(number(id) + 0x10000000) }
 }

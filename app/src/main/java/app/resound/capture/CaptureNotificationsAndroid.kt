@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.MainActivity
 import app.resound.OutputTime
 import app.resound.R
@@ -92,7 +94,9 @@ object CaptureNotifications {
         try { NotificationManagerCompat.from(context).notify(INTERRUPTED, NotificationCompat.Builder(context, "interrupted")
             .setSmallIcon(R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.interrupted(context.appName))
             .setContentText(CaptureNotificationPolicy.INTERRUPTED_DETAIL).setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(action(context, CaptureService.RESUME)).setAutoCancel(true).build()) } catch (_: SecurityException) { }
+            .setContentIntent(action(context, CaptureService.RESUME)).setAutoCancel(true).build()) } catch (failure190: SecurityException) {
+                FailureNotes.record("capture/CaptureNotificationsAndroid.kt:95", failure190)
+                }
     }
     /** 卡 112：麦克风一直收不到声音，重开也没用 */
     fun silentMic(context: Context) {
@@ -101,7 +105,9 @@ object CaptureNotifications {
         try { NotificationManagerCompat.from(context).notify(SILENT_MIC, NotificationCompat.Builder(context, "interrupted")
             .setSmallIcon(R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.SILENT)
             .setContentText(CaptureNotificationPolicy.SILENT_DETAIL).setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(openApp(context)).setAutoCancel(true).build()) } catch (_: SecurityException) { }
+            .setContentIntent(openApp(context)).setAutoCancel(true).build()) } catch (failure190: SecurityException) {
+                FailureNotes.record("capture/CaptureNotificationsAndroid.kt:104", failure190)
+                }
     }
     fun cancelSilentMic(context: Context) = NotificationManagerCompat.from(context).cancel(SILENT_MIC)
 }

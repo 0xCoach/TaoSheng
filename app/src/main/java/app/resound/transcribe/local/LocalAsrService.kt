@@ -1,5 +1,7 @@
 package app.resound.transcribe.local
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.transcribe.TranscribePowerDiagnostics
 import app.resound.transcribe.readPcm16
 import app.resound.voiceprint.SpeakerTurns
@@ -68,7 +70,9 @@ class LocalAsrService : Service() {
     private fun send(request:Request,type:Int,fields:Bundle.()->Unit={}) {
         runCatching {request.reply.send(Message.obtain(null,type).apply{data=Bundle().apply{
             putString("id",request.id);putString("processInstance",processInstance);putInt("pid",Process.myPid());fields()
-        }})}
+        }})}.onFailure {
+            FailureNotes.record("transcribe/local/LocalAsrService.kt:69", it)
+        }
     }
     private fun model(backend:LocalBackend,language:LocalAsrLanguage):OfflineRecognizer {
         require(backend!=LocalBackend.Npu || LocalModels.npuSupported())
@@ -139,7 +143,9 @@ class LocalAsrService : Service() {
             }
         } catch(e:CancellationException){throw e}
         catch(e:Exception){
-            if(phase=="asr"){runCatching{recognizer?.release()};recognizer=null;recognizerKey=""}
+            if(phase=="asr"){runCatching{
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                recognizer?.release()};recognizer=null;recognizerKey=""}
             send(request,4){LocalAsrFailure.write(this,phase,e);timingFields()}
         } catch(e:LinkageError){send(request,4){LocalAsrFailure.write(this,phase,e);timingFields()}}
     }

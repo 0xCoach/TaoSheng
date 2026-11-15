@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.audio.OwnRecordingSessions
 
 import android.media.AudioFormat
@@ -116,10 +118,14 @@ class AndroidTodoVoiceInput internal constructor(
                 val text = result.sentences.joinToString("\n") { it.text.trim() }.trim()
                 if (text.isEmpty()) VoiceNoteResult.Empty else VoiceNoteResult.Text(text)
             }
-        } catch (_: TimeoutCancellationException) { VoiceNoteResult.Failed("识别超时，没能完成") }
+        } catch (failure190: TimeoutCancellationException) {
+            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:119", failure190)
+            VoiceNoteResult.Failed("识别超时，没能完成") }
         catch (e: CancellationException) { throw e }
         catch (e: AsrException) { VoiceNoteResult.Failed(voiceFailure(e.type)) }
-        catch (_: Exception) { VoiceNoteResult.Failed("没能完成语音识别") }
+        catch (failure190: Exception) {
+            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:122", failure190)
+            VoiceNoteResult.Failed("没能完成语音识别") }
         finally {
             withContext(NonCancellable + Dispatchers.IO) {
                 active.recording.cancelAndJoin()
@@ -171,7 +177,9 @@ private class AndroidTodoMicrophone : TodoMicrophone {
     override fun close() {
         val active = recorder ?: return
         recorder = null
-        try { runCatching { active.stop() } } finally { active.release() }
+        try { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             active.stop() } } finally { active.release() }
     }
 }
 

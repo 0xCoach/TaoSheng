@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.os.PowerManager
 import android.os.SystemClock
@@ -22,7 +24,9 @@ internal class ThreadCpuDiagnostics {
             runCatching {
                 val at = SystemClock.elapsedRealtime()
                 val wall = System.currentTimeMillis()
-                val interactive = runCatching { context.getSystemService(PowerManager::class.java).isInteractive }.getOrNull()
+                val interactive = runCatching { context.getSystemService(PowerManager::class.java).isInteractive }.onFailure {
+                    FailureNotes.record("capture/ThreadCpuDiagnostics.kt:25", it)
+                }.getOrNull()
                 val current = ProcThreadCpu.read()
                 val elapsed = previousAt?.let { at - it }?.takeIf { it > 0 }
                 val previous0 = previous
@@ -36,6 +40,8 @@ internal class ThreadCpuDiagnostics {
                     delta?.entries?.joinToString(";") { "${it.key}=${it.value}" }.orEmpty(), status,
                     others.joinToString(";") { "${it.first}=${it.second}" }).joinToString("\t")
                 append(context, line)
+            }.onFailure {
+                FailureNotes.record("capture/ThreadCpuDiagnostics.kt:22", it)
             }.onFailure {
                 previous = null
                 previousAt = null
@@ -66,6 +72,8 @@ internal class ThreadCpuDiagnostics {
         suspend fun dump(context: Context): String = withContext(Dispatchers.IO) { fileMutex.withLock { runCatching {
             "时间戳ms\t充电\t亮屏\t录音状态\t距上次ms\t各组CPU增量ms\t采样状态\t其他组前三\n" +
                 rows(file(context)).takeLast(MAX_LINES).joinToString("\n")
+        }.onFailure {
+            FailureNotes.record("capture/ThreadCpuDiagnostics.kt:66", it)
         }.getOrDefault("线程CPU诊断读取失败") } }
     }
 }

@@ -1,5 +1,7 @@
 package app.resound.privacy
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import androidx.work.*
 import app.resound.ResoundApp
@@ -15,7 +17,9 @@ class PrivacyCleanupWorker(context: Context, params: WorkerParameters) : Corouti
         val actions = RoomPrivacyActions((applicationContext as ResoundApp).database)
         if (actions.retryFileCleanup()) Result.success() else Result.retry()
     } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-      catch (_: Exception) { Result.retry() }
+      catch (failure190: Exception) {
+          FailureNotes.record("privacy/PrivacyCleanupWorker.kt:18", failure190)
+          Result.retry() }
 
     companion object {
         fun enqueue(context: Context) {

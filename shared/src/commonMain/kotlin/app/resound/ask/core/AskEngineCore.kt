@@ -1,4 +1,6 @@
 package app.resound.ask.core
+
+import app.resound.diagnostics.FailureNotes
 import app.resound.ask.*
 import app.resound.net.*
 import app.resound.net.Arr as JSONArray
@@ -147,10 +149,14 @@ class AskEngineCore(
                             JSONObject().put("pending", true).put("summary", proposal!!.action.summary)
                                 .put("detail", proposal!!.action.detail).put("notice", "尚未修改数据，必须由用户在卡片上确认")
                         } else JSONObject(search(call.name, args.toString(), sources))
-                    } catch (_: AskArgumentFormatException) {
+                    } catch (failure190: AskArgumentFormatException) {
+                        FailureNotes.record("ask/core/AskEngineCore.kt:150", failure190)
+
                         reply.diagnostics?.parsed(items = reply.calls.size, empty = false, error = NetLlmError.Format)
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")
-                    } catch (_: IllegalArgumentException) {
+                    } catch (failure190: IllegalArgumentException) {
+                        FailureNotes.record("ask/core/AskEngineCore.kt:153", failure190)
+
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")
                     }
                 }

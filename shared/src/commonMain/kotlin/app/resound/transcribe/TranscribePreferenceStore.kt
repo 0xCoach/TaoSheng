@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.transcribe.local.LocalBackend
 
 import app.resound.transcribe.local.LocalAsrLanguage
@@ -22,9 +24,13 @@ class TranscribePreferenceStore(
     private val saveKey: (String) -> Unit,
     private val sourceChanged: () -> Unit, private val refreshReady: () -> Unit,
 ) {
-    private val _source = MutableStateFlow(runCatching { TranscribeSource.valueOf(readString("source", "Doubao")!!) }.getOrDefault(TranscribeSource.Doubao))
+    private val _source = MutableStateFlow(runCatching { TranscribeSource.valueOf(readString("source", "Doubao")!!) }.onFailure {
+        FailureNotes.record("transcribe/TranscribePreferenceStore.kt:25", it)
+    }.getOrDefault(TranscribeSource.Doubao))
     val source = _source.asStateFlow()
-    private val _backend = MutableStateFlow(runCatching { LocalBackend.valueOf(readString("backend", "Npu")!!) }.getOrDefault(LocalBackend.Npu))
+    private val _backend = MutableStateFlow(runCatching { LocalBackend.valueOf(readString("backend", "Npu")!!) }.onFailure {
+        FailureNotes.record("transcribe/TranscribePreferenceStore.kt:27", it)
+    }.getOrDefault(LocalBackend.Npu))
     val backend = _backend.asStateFlow()
     private val _language = MutableStateFlow(LocalAsrLanguage.fromCode(readString("localLanguage", null)))
     val language = _language.asStateFlow()
@@ -48,7 +54,9 @@ class TranscribePreferenceStore(
     val customEndpoint get() = readString("endpoint", "")!!
     val customModel get() = readString("model", "")!!
     /** 自定义地址的写法：自动补路径（OpenAI 兼容）或按填写的原样请求（MiniMax 等）。 */
-    private val _endpointMode = MutableStateFlow(runCatching { CustomEndpointMode.valueOf(readString("endpointMode", CustomEndpointMode.Auto.name)!!) }.getOrDefault(CustomEndpointMode.Auto))
+    private val _endpointMode = MutableStateFlow(runCatching { CustomEndpointMode.valueOf(readString("endpointMode", CustomEndpointMode.Auto.name)!!) }.onFailure {
+        FailureNotes.record("transcribe/TranscribePreferenceStore.kt:51", it)
+    }.getOrDefault(CustomEndpointMode.Auto))
     val endpointMode = _endpointMode.asStateFlow()
     val customEndpointMode get() = _endpointMode.value
     /** 完整地址模式下要不要同时发热词（prompt）：MiniMax 等不认这个参数，默认不发。 */

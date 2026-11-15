@@ -1,5 +1,7 @@
 package app.resound.ask
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.ask.core.AskChangeStore
 import app.resound.ask.core.AskChangeTarget
 import app.resound.ask.core.AskChangesCore
@@ -64,7 +66,9 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
                         detail = if (e is StaleChange) "记录已变化或被删除，请重新查询后再修改。" else "修改未成功，数据未更改，请重新提问后重试。")).encode())
             }
         }
-        if (confirm) runCatching { onChanged() }
+        if (confirm) runCatching { onChanged() }.onFailure {
+            FailureNotes.record("ask/AskChanges.kt:67", it)
+        }
     }
     private class StaleChange : Exception()
     private suspend fun apply(proposal: ProposedChange) {

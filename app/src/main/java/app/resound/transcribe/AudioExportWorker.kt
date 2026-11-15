@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -34,7 +36,9 @@ class AudioExportWorker(context: Context, params: WorkerParameters) : CoroutineW
             jobs.job(jobId)?.let { ExportNotifications.finished(applicationContext, it) }
             if (success) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
+        catch (failure190: Exception) {
+            FailureNotes.record("transcribe/AudioExportWorker.kt:37", failure190)
+
             // 后台启动限制可能暂时阻止前台服务；保留请求由 WorkManager 重试。
             if (runAttemptCount < 3) Result.retry() else {
                 jobs.update(jobId, ExportJobState.Failed("无法启动后台导出，请打开应用后重试"))
@@ -87,7 +91,9 @@ internal object ExportNotifications {
     fun finished(context: Context, job: ExportJob) {
         if (job.state is ExportJobState.Done || job.state is ExportJobState.Failed) {
             // 通知权限被拒绝不应把已生成的导出改成失败。
-            runCatching { manager(context).notify(resultId(job.id), result(context, job)) }
+            runCatching { manager(context).notify(resultId(job.id), result(context, job)) }.onFailure {
+                FailureNotes.record("transcribe/AudioExportWorker.kt:90", it)
+            }
         }
     }
     fun clear(context: Context, id: String) {

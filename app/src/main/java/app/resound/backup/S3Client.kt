@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -41,7 +43,9 @@ internal class S3Client(
         } else hash
         val response = client.newCall(S3Signing.sign(raw, settings.region, access, secret, payload, now())).execute()
         if (response.isSuccessful) return response
-        val code = runCatching { xml(response.peekBody(65536).byteStream()).firstOrNull { it.first == "Code" }?.second }.getOrNull()
+        val code = runCatching { xml(response.peekBody(65536).byteStream()).firstOrNull { it.first == "Code" }?.second }.onFailure {
+            FailureNotes.record("backup/S3Client.kt:44", it)
+        }.getOrNull()
         // HEAD 404 无响应体；先确认桶可读，避免把桶不存在冒充对象不存在。
         if (missing && response.code == 404 && code != "NoSuchBucket") return response
         val failure = failure(response.code, code)

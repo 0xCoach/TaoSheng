@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.util.AtomicFile
 import org.json.JSONArray
@@ -96,6 +98,8 @@ internal object IncrementalBackup {
         at - metadata.getLong("createdAt") in 0 until WEEK && metadata.getString("snapshotMethod") == METHOD &&
             before.version == after.version && before.pageSize == after.pageSize && before.autoVacuum == after.autoVacuum &&
             BackupArchive.sha(base) == files(metadata).getValue(BackupArchive.DATABASE).getString("sha256")
+    }.onFailure {
+        FailureNotes.record("backup/IncrementalBackup.kt:94", it)
     }.getOrDefault(false)
 
     fun generate(context: Context, workspace: File, content: File, fullZip: File, at: Long, passphrase: String?,
@@ -106,7 +110,9 @@ internal object IncrementalBackup {
         val database = File(content, BackupArchive.DATABASE)
         val baseName = channel?.let { prefs.getString("base-$it", null) }
         val base = baseName?.let { File(cache, "$it.db") }
-        val metadata = baseName?.let { runCatching { JSONObject(File(cache, "$it.json").readText()) }.getOrNull() }
+        val metadata = baseName?.let { runCatching { JSONObject(File(cache, "$it.json").readText()) }.onFailure {
+            FailureNotes.record("backup/IncrementalBackup.kt:109", it)
+        }.getOrNull() }
         var chosen = fullZip
         var dependency: String? = null
         if (baseName != null && base != null && metadata != null &&

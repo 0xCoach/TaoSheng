@@ -1,5 +1,7 @@
 package app.resound.audio
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import android.content.Context
@@ -25,6 +27,8 @@ object OggGuard {
         val nativeCrash = if (Build.VERSION.SDK_INT < 30) null else runCatching {
             context.getSystemService(ActivityManager::class.java).getHistoricalProcessExitReasons(context.packageName, 0, 10)
                 .firstOrNull { it.processName == context.packageName }?.reason == ApplicationExitInfo.REASON_CRASH_NATIVE
+        }.onFailure {
+            FailureNotes.record("audio/OggGuard.kt:25", it)
         }.getOrNull()
         val now = System.currentTimeMillis()
         val old = store.getLong("oggPausedUntil", 0)
@@ -42,7 +46,9 @@ object OggGuard {
 
     /** 包住一次 OGG 写入：进程在里面崩掉时标记会留下 */
     fun <T> writing(block: () -> T): T {
-        val marker = dir?.let { File(it, "${Thread.currentThread().id}-${System.nanoTime()}") }?.also { runCatching { it.createNewFile() } }
+        val marker = dir?.let { File(it, "${Thread.currentThread().id}-${System.nanoTime()}") }?.also { runCatching { it.createNewFile() }.onFailure {
+            FailureNotes.record("audio/OggGuard.kt:45", it)
+        } }
         try { return block() } finally { marker?.delete() }
     }
 

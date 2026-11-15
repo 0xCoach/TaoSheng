@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -87,8 +89,12 @@ internal class DownloadsBackupFiles(private val context: Context) : VolumeStore 
         } catch (e: Exception) {
             // 清理失败不覆盖最初的错误；已发布的新文件不能在清理旧文件失败时删掉。
             if (!published) {
-                runCatching { resolver.delete(uri, null, null) }
-                runCatching { if (locate(path) == null) locate("$path.previous")?.let { publish(it.uri, name, directory) } }
+                runCatching {
+                    // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                     resolver.delete(uri, null, null) }
+                runCatching { if (locate(path) == null) locate("$path.previous")?.let { publish(it.uri, name, directory) } }.onFailure {
+                    FailureNotes.record("backup/DownloadsBackupFiles.kt:91", it)
+                }
             }
             BackupDiagnostics.record(context, "downloads-write", e)
             throw e

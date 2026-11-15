@@ -52,7 +52,9 @@ internal class AndroidUpdatePlatform(
                 val pending = PendingIntent.getBroadcast(context, id, intent, flags)
                 session.commit(pending.intentSender)
             }
-        } catch (e: Exception) { runCatching { installer.abandonSession(id) }; throw e }
+        } catch (e: Exception) { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             installer.abandonSession(id) }; throw e }
     }
     override fun notifyAvailable(info: UpdateInfo) = UpdateNotifications.available(context, info)
     override fun dismissNotification() = UpdateNotifications.dismiss(context)

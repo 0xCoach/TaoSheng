@@ -1,5 +1,7 @@
 package app.resound.redo
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.LlmException
 import app.resound.transcribe.AsrException
 
@@ -84,7 +86,9 @@ internal class AndroidRedoService(
             else -> "重做事件"
         }, normalized,
             RedoJobState.Running("排队中", 0f), now()))
-        try { enqueue() } catch (_: Exception) { update(id, RedoJobState.Failed("无法安排后台重做，请重试")) }
+        try { enqueue() } catch (failure190: Exception) {
+            FailureNotes.record("redo/AndroidRedoService.kt:87", failure190)
+            update(id, RedoJobState.Failed("无法安排后台重做，请重试")) }
         return id
     }
     @Synchronized override fun cancel(id: String) {
@@ -173,7 +177,9 @@ internal class AndroidRedoService(
         mutableJobs.value = value
     }
     private fun load(): List<RedoJob> {
-        val json = runCatching { JSONArray(prefs.getString("jobs", "[]")) }.getOrDefault(JSONArray())
+        val json = runCatching { JSONArray(prefs.getString("jobs", "[]")) }.onFailure {
+            FailureNotes.record("redo/AndroidRedoService.kt:176", it)
+        }.getOrDefault(JSONArray())
         return (0 until json.length()).mapNotNull { i -> runCatching {
             val j = json.getJSONObject(i)
             fun ids(key: String) = j.getJSONArray(key).let { a -> (0 until a.length()).map { a.getLong(it) } }
@@ -187,6 +193,8 @@ internal class AndroidRedoService(
                 else -> RedoJobState.Running("等待恢复", 0f)
             }
             RedoJob(j.getString("id"), j.getString("title"), request, state, j.getLong("at"))
+        }.onFailure {
+            FailureNotes.record("redo/AndroidRedoService.kt:177", it)
         }.getOrNull() }
     }
     companion object {

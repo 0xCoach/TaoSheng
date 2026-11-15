@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.R
 
 import android.app.*
@@ -97,7 +99,9 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
             }
             Result.success()
         } catch (e: CancellationException) { importer.interrupted(); throw e }
-        catch (_: Exception) { importer.interrupted(); Result.retry() }
+        catch (failure190: Exception) {
+            FailureNotes.record("importer/ImportWork.kt:100", failure190)
+            importer.interrupted(); Result.retry() }
     }
 }
 

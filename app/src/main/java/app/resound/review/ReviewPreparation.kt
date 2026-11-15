@@ -9,8 +9,8 @@ import androidx.work.ForegroundInfo
 import app.resound.AppGraph
 import app.resound.ResoundApp
 import app.resound.digest.DigestAlarm
-import app.resound.transcribe.PipelineTimes
-import app.resound.transcribe.TranscribeWork
+import app.resound.scheduling.PipelineModes
+import app.resound.scheduling.PipelineOffer
 import kotlinx.coroutines.*
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -39,18 +39,32 @@ internal fun CoroutineWorker.reviewForegroundInfo(): ForegroundInfo {
 }
 
 internal object ReviewPreparation {
-    suspend fun run(app: ResoundApp): Boolean =
-        prepare(record = { PipelineTimes.record(app, "${System.currentTimeMillis()} 回顾前整理 $it") }) {
-            when {
-                currentCoroutineContext()[PreparationAllowed]?.value == false -> "前台申请失败，使用已有内容"
-                !DigestAlarm.online(app) -> "没有网络，使用已有内容"
-                !AppGraph.digestSettings.hasKey.value -> "没有密钥，使用已有内容"
-                else -> {
-                    val retry = TranscribeWork.beforeReview(app)
-                    if (retry || app.digestRunner.last.value.second != null) "未全部完成，使用已有内容" else "完成"
+    suspend fun run(app: ResoundApp): Boolean {
+        val round = app.pipelineDiagnostics.round("回顾前", PipelineModes.REVIEW)
+        var failure: Throwable? = null
+        try {
+            return prepare(record = { result ->
+                round.result = if (result == "完成") "成功" else "未全部完成"
+                round.note(result)
+            }) {
+                when {
+                    currentCoroutineContext()[PreparationAllowed]?.value == false -> "前台申请失败，使用已有内容"
+                    !DigestAlarm.online(app) -> "没有网络，使用已有内容"
+                    !AppGraph.digestSettings.hasKey.value -> "没有密钥，使用已有内容"
+                    else -> {
+                        val offered = app.pipelineScheduler.offer("回顾前", PipelineModes.REVIEW, round = round)
+                        val result = (offered as? PipelineOffer.Completed)?.result
+                        if (result == null || result.retry || result.blocked) "未全部完成，使用已有内容" else "完成"
+                    }
                 }
             }
+        } catch (e: CancellationException) {
+            failure = e; round.result = "取消"; round.note("系统取消，使用已有内容"); throw e
+        } finally {
+            try { withContext(NonCancellable) { app.pipelineDiagnostics.record(round) } }
+            catch (e: Exception) { if (failure != null) failure.addSuppressed(e) else throw e }
         }
+    }
 
     /** 只吞本次超时和普通失败，系统取消必须继续抛出；等待流水线锁也包含在额度内。 */
     internal suspend fun prepare(timeoutMillis: Long = 10 * 60_000L, record: (String) -> Unit, action: suspend () -> String) =

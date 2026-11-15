@@ -82,21 +82,21 @@ class TranscribeSchedulerTest {
         val settings=AndroidTranscribeSettings(context)
         settings.setSource(TranscribeSource.Local)
         TranscribeScheduler(context,settings).schedule()
-        assertEquals(NetworkType.NOT_REQUIRED,manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single().constraints.requiredNetworkType)
+        assertEquals(NetworkType.NOT_REQUIRED,manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single().constraints.requiredNetworkType)
     }
-    @Test fun periodicScheduleUsesIntervalAndUnmeteredAndUpdatesSameWork() {
+    @Test fun periodicOpportunityIsFifteenMinutesAndIndependentOfNetworkSettings() {
         val settings = Settings()
         val scheduler = TranscribeScheduler(context, settings)
         val before = System.currentTimeMillis()
         scheduler.schedule()
-        val first = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single()
-        assertEquals(NetworkType.UNMETERED, first.constraints.requiredNetworkType)
-        assertTrue(first.nextScheduleTimeMillis >= before + 30 * 60_000)
+        val first = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single()
+        assertEquals(NetworkType.NOT_REQUIRED, first.constraints.requiredNetworkType)
+        assertTrue(first.nextScheduleTimeMillis >= before + 15 * 60_000)
         settings.setIntervalMinutes(45); settings.setWifiOnly(false); scheduler.schedule()
-        val next = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single()
+        val next = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single()
         assertEquals(first.id, next.id)
-        assertEquals(NetworkType.CONNECTED, next.constraints.requiredNetworkType)
-        assertEquals(45 * 60_000L, next.periodicityInfo!!.repeatIntervalMillis)
+        assertEquals(NetworkType.NOT_REQUIRED, next.constraints.requiredNetworkType)
+        assertEquals(15 * 60_000L, next.periodicityInfo!!.repeatIntervalMillis)
     }
     @Test fun immediateWorkIsUniqueAndReconfiguresQueuedConstraints() = runBlocking {
         val settings = Settings()
@@ -146,6 +146,25 @@ class TranscribeSchedulerTest {
             assertEquals("不应导出的原话", repository.day(java.time.Instant.ofEpochMilli(1).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toKotlinLocalDate()).first().single().lines.single().text)
             assertFalse(repository.day(java.time.Instant.ofEpochMilli(1).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toKotlinLocalDate()).first().single().audioAvailable)
         } finally { job.cancelAndJoin(); db.close() }
+    }
+
+    @Test fun upgradeCancelsThreeLegacyNamesAndKeepsOneFallback() {
+        val legacyModes = mapOf(TranscribeScheduler.PERIODIC to TranscribeWork.MODE_TRANSCRIBE,
+            TranscribeScheduler.DIGEST_PERIODIC to TranscribeWork.MODE_DIGEST,
+            TranscribeScheduler.TIMED_GUARD to TranscribeWork.MODE_TIMED)
+        for ((name, mode) in legacyModes) {
+            manager.enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.KEEP,
+                PeriodicWorkRequestBuilder<TranscribeWork>(15, java.util.concurrent.TimeUnit.MINUTES)
+                    .setInputData(workDataOf(TranscribeWork.MODE to mode, "periodic188" to true))
+                    .setInitialDelay(15, java.util.concurrent.TimeUnit.MINUTES).build()).result.get()
+        }
+        val scheduler = TranscribeScheduler(context, Settings())
+        scheduler.schedule(); scheduler.scheduleDigest()
+        for (name in legacyModes.keys) assertTrue(manager.getWorkInfosForUniqueWork(name).get().all { it.state.isFinished })
+        val fallback = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single()
+        assertFalse(fallback.state.isFinished)
+        assertEquals(15 * 60_000L, fallback.periodicityInfo!!.repeatIntervalMillis)
+        assertEquals(NetworkType.NOT_REQUIRED, fallback.constraints.requiredNetworkType)
     }
 
 }

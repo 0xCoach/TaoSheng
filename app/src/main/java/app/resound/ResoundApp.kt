@@ -23,7 +23,7 @@ class ResoundApp : Application() {
     private lateinit var watchdogPreferences: android.content.SharedPreferences.OnSharedPreferenceChangeListener
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val pipelineDiagnostics by lazy { app.resound.transcribe.PipelineDiagnostics(this) }
-    internal val pipelineInProcess by lazy { app.resound.transcribe.PipelineInProcess(this) }
+    internal val pipelineScheduler by lazy { app.resound.transcribe.PipelineScheduler(this) }
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
     internal lateinit var cardDevices: app.resound.devices.android.DeviceInputs
     val database by lazy { CaptureDatabase.open(this) }
@@ -38,8 +38,8 @@ class ResoundApp : Application() {
     fun recoverTimedDigest() = transcribeScheduler.recoverTimed()
     suspend fun resumeWaitingTranscriptionBatch(action: String?) {
         when (action) {
-            android.content.Intent.ACTION_SCREEN_ON -> pipelineInProcess.trigger("亮屏")
-            android.content.Intent.ACTION_POWER_CONNECTED -> pipelineInProcess.trigger("接电")
+            android.content.Intent.ACTION_SCREEN_ON -> pipelineScheduler.trigger("亮屏")
+            android.content.Intent.ACTION_POWER_CONNECTED -> pipelineScheduler.trigger("接电")
         }
         transcribeScheduler.resumeWaitingBatch(action)
     }
@@ -301,7 +301,7 @@ class ResoundApp : Application() {
         inputs.attachCards(cardDevices, AppGraph.deviceCards, scope)
         app.resound.devices.DeviceCardsWork.schedule(this)
         app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
-        pipelineInProcess
+        pipelineScheduler
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         pushChannels.attachFootprint(this, scope)

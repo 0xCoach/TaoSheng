@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** 只在流水线锁内写；判断只读内存快照。写盘成功后才允许开始网络请求。 */
 internal class PipelineScheduleStore(context: Context, now: Long) {
-    private val prefs = context.getSharedPreferences("pipeline-due-188", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("pipeline-schedule", Context.MODE_PRIVATE)
     private val state = MutableStateFlow(PipelineDue.Mode.entries.associateWith { mode ->
         val key = mode.name
         PipelineDue.History(prefs.getLong("$key.attempt", now),

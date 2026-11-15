@@ -62,8 +62,8 @@ class AndroidVoiceInputCapture(private val context: Context, db: CaptureDatabase
                         is InputChange.Finish -> store.finish(change.token, change.after)
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (failure190: Exception) {
-                    FailureNotes.record("capture/AndroidVoiceInputCapture.kt:63", failure190)
+                catch (caught: Exception) {
+                    FailureNotes.record("capture/AndroidVoiceInputCapture.kt:63", caught)
                     android.util.Log.w("VoiceInput", "语音输入保存失败：1 条") }
             }
         }

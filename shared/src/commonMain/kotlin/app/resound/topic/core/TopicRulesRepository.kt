@@ -38,8 +38,8 @@ class TopicRulesRepository(
     private suspend fun changed() {
         publish(dao.all())
         // 调度/通知失败不把已提交的数据操作误报为失败；启动和分钟巡检会重新排钟。
-        try { onChanged() } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-            FailureNotes.record("topic/core/TopicRulesRepository.kt:39", failure190)
+        try { onChanged() } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+            FailureNotes.record("topic/core/TopicRulesRepository.kt:39", caught)
             }
     }
     private suspend fun <T> edit(block: suspend () -> T): T = gate.withLock {
@@ -50,8 +50,8 @@ class TopicRulesRepository(
     private suspend fun <T> result(block: suspend () -> T): Result<T> = try { Result.success(block()) }
         catch (e: CancellationException) { throw e }
         catch (e: TopicException) { Result.failure(e) }
-        catch (failure190: Exception) {
-            FailureNotes.record("topic/core/TopicRulesRepository.kt:49", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("topic/core/TopicRulesRepository.kt:49", caught)
             Result.failure(TopicException("专题保存失败，请重试")) }
     private fun requireTopic(ok: Boolean, error: String) { if (!ok) throw TopicException(error) }
     private suspend fun get(id: Long) = dao.get(id) ?: throw TopicException("专题不存在")

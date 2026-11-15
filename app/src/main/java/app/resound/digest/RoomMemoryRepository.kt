@@ -31,8 +31,8 @@ class RoomMemoryRepository(
 private object AndroidMemoryLegacyCodec : MemoryLegacyCodec {
     override fun strings(text: String): List<String> = JSONArray(text).let { a -> (0 until a.length()).map { a.getString(it) } }
     override fun encodeStrings(values: List<String>): String = JSONArray(values).toString()
-    override fun canonicalArray(text: String): String = try { JSONArray(text).toString() } catch (failure190: JSONException) {
-        FailureNotes.record("digest/RoomMemoryRepository.kt:32", failure190)
+    override fun canonicalArray(text: String): String = try { JSONArray(text).toString() } catch (caught: JSONException) {
+        FailureNotes.record("digest/RoomMemoryRepository.kt:32", caught)
         "[]" }
     override fun appendLong(text: String, value: Long): String = JSONArray(text).put(value).toString()
 }

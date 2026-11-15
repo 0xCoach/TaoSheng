@@ -49,8 +49,8 @@ class ThingWatcherRules(private val store: ThingWatchStore,
                 while (withTimeoutOrNull(debounceMillis) { requests.receive(); true } == true) { }
                 try { if (runOnce()) { retryPause(); request() } }
                 catch (e: CancellationException) { throw e }
-                catch (failure190: Exception) {
-                    FailureNotes.record("things/ThingWatcherRules.kt:50", failure190)
+                catch (caught: Exception) {
+                    FailureNotes.record("things/ThingWatcherRules.kt:50", caught)
                     delay(retryMillis); request() } // 存储临时失败下次重试，不推进水位。
             }
         }
@@ -81,8 +81,8 @@ class ThingWatcherRules(private val store: ThingWatchStore,
         val proposals = try {
             if (lines.isEmpty()) emptyList() else detect(lines, dao.context(state.watermark).reversed(), known)
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("things/ThingWatcherRules.kt:80", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("things/ThingWatcherRules.kt:80", caught)
 
             store.transaction {
                 val current = dao.state() ?: ThingWatchData()

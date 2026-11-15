@@ -104,8 +104,8 @@ internal object StrongReminders {
             .addAction(0, "已完成", broadcast(context, ACTION_DONE, id))
             .addAction(0, "不再响", broadcast(context, ACTION_STOP, id))
             .build()
-        try { NotificationManagerCompat.from(context).notify(tag(id), ID, notification) } catch (failure190: SecurityException) {
-            FailureNotes.record("push/StrongReminders.kt:105", failure190)
+        try { NotificationManagerCompat.from(context).notify(tag(id), ID, notification) } catch (caught: SecurityException) {
+            FailureNotes.record("push/StrongReminders.kt:105", caught)
             return }
         runCatching { AlarmPlayer.start(context, id) { ringingId -> dismiss(context, ringingId) } }.onFailure {
             FailureNotes.record("push/StrongReminders.kt:106", it)
@@ -124,8 +124,8 @@ internal object StrongReminders {
         try {
             if (exact) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
             else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
-        } catch (failure190: SecurityException) {
-            FailureNotes.record("push/StrongReminders.kt:121", failure190)
+        } catch (caught: SecurityException) {
+            FailureNotes.record("push/StrongReminders.kt:121", caught)
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending) }
     }
     private fun cancelAlarm(context: Context, id: Long) =
@@ -177,8 +177,8 @@ internal object StrongReminders {
                     val item = (context.applicationContext as ResoundApp).database.memory().itemIncludingDeleted(id)
                     if (item == null || item.deleted || item.status != ItemStatus.Accepted.name || !item.strongReminder) stop(context, id)
                     else ring(context, id, body, intent.getIntExtra(EXTRA_REPEAT, 0))
-                } catch (failure190: Exception) {
-                    FailureNotes.record("push/StrongReminders.kt:172", failure190)
+                } catch (caught: Exception) {
+                    FailureNotes.record("push/StrongReminders.kt:172", caught)
                     /* 再响失败只是少响一次，不能让涛声崩掉 */
                 } finally { finished() }
             }

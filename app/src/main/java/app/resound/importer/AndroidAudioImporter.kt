@@ -59,8 +59,8 @@ class AndroidAudioImporter internal constructor(
     init {
         scope.launch(Dispatchers.IO) {
             for (command in commands) try { command() }
-            catch (failure190: Exception) {
-                FailureNotes.record("importer/AndroidAudioImporter.kt:56", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("importer/AndroidAudioImporter.kt:56", caught)
                 reportError("导入队列保存失败，请重新打开${appDisplayName}重试") }
         }
         File(context.cacheDir, "import-pcm").deleteRecursively()
@@ -189,8 +189,8 @@ class AndroidAudioImporter internal constructor(
                 }
                 rememberQueued()
                 enqueue()
-            } catch (failure190: Exception) {
-                FailureNotes.record("importer/AndroidAudioImporter.kt:184", failure190)
+            } catch (caught: Exception) {
+                FailureNotes.record("importer/AndroidAudioImporter.kt:184", caught)
                 reportError("导入排队失败，请重新打开${appDisplayName}重试") }
         }
     }

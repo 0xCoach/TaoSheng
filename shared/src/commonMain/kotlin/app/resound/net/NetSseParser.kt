@@ -84,8 +84,8 @@ class NetSseParser(
                 if (chars > 256_000) throw NetLlmException(NetLlmError.Format)
             }
         } catch (e: NetLlmException) { diagnostics?.content(text.toString()); throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("net/NetSseParser.kt:85", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("net/NetSseParser.kt:85", caught)
             throw NetLlmException(NetLlmError.Format) }
     }
     private fun merge(target: Obj, incoming: Obj) {

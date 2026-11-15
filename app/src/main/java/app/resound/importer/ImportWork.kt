@@ -99,8 +99,8 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
             }
             Result.success()
         } catch (e: CancellationException) { importer.interrupted(); throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("importer/ImportWork.kt:100", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("importer/ImportWork.kt:100", caught)
             importer.interrupted(); Result.retry() }
     }
 }

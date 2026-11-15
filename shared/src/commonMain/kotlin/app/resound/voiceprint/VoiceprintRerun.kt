@@ -30,8 +30,8 @@ class VoiceprintRerun(
                 requests.tryReceive()
                 var retry = true
                 repeat(3) {
-                    if (retry) retry = try { run() } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                        FailureNotes.record("voiceprint/VoiceprintRerun.kt:31", failure190)
+                    if (retry) retry = try { run() } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                        FailureNotes.record("voiceprint/VoiceprintRerun.kt:31", caught)
                         true }
                 }
                 if (retry) fallback()

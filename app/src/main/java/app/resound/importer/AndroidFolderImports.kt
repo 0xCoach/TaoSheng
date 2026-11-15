@@ -54,8 +54,8 @@ internal class AndroidFolderImports(
             for (command in commands) mutex.withLock {
                 try { command() }
                 catch (e: CancellationException) { throw e }
-                catch (failure190: Exception) {
-                    FailureNotes.record("importer/AndroidFolderImports.kt:53", failure190)
+                catch (caught: Exception) {
+                    FailureNotes.record("importer/AndroidFolderImports.kt:53", caught)
 
                     // 文件夹级错误由具体操作填写；这里只保护应用协程不因存储异常退出。
                     _state.value = _state.value.copy(folders = _state.value.folders.map { it.copy(lastError = "无法保存文件夹设置，请检查存储空间后重试") })

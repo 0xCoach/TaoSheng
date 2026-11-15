@@ -127,8 +127,8 @@ internal class TopicGenerator(
         session?.phase("整理口播稿", chunks.size)
         fun parse(text: String): Pair<String, String> = try {
             TopicGenerationRules.parseScript(TopicProcessingRules.normalize(text))
-        } catch (failure190: Exception) {
-            FailureNotes.record("topic/TopicGeneration.kt:128", failure190)
+        } catch (caught: Exception) {
+            FailureNotes.record("topic/TopicGeneration.kt:128", caught)
             throw LlmException(LlmError.Format) }
         for (chunk in chunks) {
             val read: suspend (List<TranscriptLineEntity>) -> Pair<String, String> = { part ->

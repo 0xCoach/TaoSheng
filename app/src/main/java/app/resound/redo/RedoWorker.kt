@@ -18,8 +18,8 @@ class RedoWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         setForeground(getForegroundInfo())
         (AppGraph.redo as AndroidRedoService).drain { setForeground(RedoNotifications.foreground(applicationContext, it)) }
         Result.success()
-    } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-        FailureNotes.record("redo/RedoWorker.kt:19", failure190)
+    } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+        FailureNotes.record("redo/RedoWorker.kt:19", caught)
         Result.retry() }
 }
 class CancelRedoReceiver : BroadcastReceiver() {

@@ -153,8 +153,8 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
             val encrypted = cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8))
             check(prefs.edit().putString(keyField(), Base64.encodeToString(encrypted, Base64.NO_WRAP)).commit())
             _hasKey.value = true
-        } catch (failure190: Exception) {
-            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:146", failure190)
+        } catch (caught: Exception) {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:146", caught)
             throw IllegalStateException("密钥安全保存失败，请重试") }
         refreshReady(); onChanged()
     }
@@ -167,13 +167,13 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     override fun setIntervalMinutes(minutes: Int) = preferences.setIntervalMinutes(minutes)
     override fun setWifiOnly(value: Boolean) = preferences.setWifiOnly(value)
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
-        val key = try { credential() } catch (failure190: Exception) {
-            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:158", failure190)
+        val key = try { credential() } catch (caught: Exception) {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:158", caught)
             return@withContext Result.failure(IllegalStateException("密钥安全读取失败，请重新填写")) }
         if (key.isBlank() && headers(source.value.name).isEmpty() && source.value != TranscribeSource.Custom) Result.failure(IllegalStateException("还没填写转写密钥"))
         else try { testKey(key) } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:161", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:161", caught)
             Result.failure(IllegalStateException("转写测试失败，请重试")) }
     }
     companion object { private const val ALIAS = "resound-asr-aes-v1" }

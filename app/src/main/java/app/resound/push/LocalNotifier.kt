@@ -50,8 +50,8 @@ class LocalNotifier(private val context: Context, private val channel: String = 
                     .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
                     .setPriority(if (urgent) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
                     .apply { if (urgent) setCategory(NotificationCompat.CATEGORY_REMINDER).setVisibility(NotificationCompat.VISIBILITY_PUBLIC) }.build())
-        } catch (failure190: SecurityException) {
-            FailureNotes.record("push/LocalNotifier.kt:51", failure190)
+        } catch (caught: SecurityException) {
+            FailureNotes.record("push/LocalNotifier.kt:51", caught)
             throw IllegalStateException("请开启${channelName}通知权限") }
     }
 

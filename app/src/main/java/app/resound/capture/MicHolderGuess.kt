@@ -28,8 +28,8 @@ class MicHolderGuess(private val context: Context) {
     fun openSettings() {
         val direct = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${context.packageName}"))
         try { context.startActivity(direct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (failure190: RuntimeException) {
-            FailureNotes.record("capture/MicHolderGuess.kt:29", failure190)
+        catch (caught: RuntimeException) {
+            FailureNotes.record("capture/MicHolderGuess.kt:29", caught)
             context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 

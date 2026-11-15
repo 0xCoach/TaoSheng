@@ -57,8 +57,8 @@ object DoubaoProtocol {
         val body = if (serialization == 1) JSONObject(payload.toString(Charsets.UTF_8))
             else if (kind == 15) JSONObject() else throw IllegalArgumentException()
         Packet(kind, flags, sequence, code, body)
-    } catch (failure190: Exception) {
-        FailureNotes.record("transcribe/DoubaoProtocol.kt:58", failure190)
+    } catch (caught: Exception) {
+        FailureNotes.record("transcribe/DoubaoProtocol.kt:58", caught)
         throw AsrException(AsrError.Protocol) }
 
     fun result(body: JSONObject, fallbackDuration: Long, logId: String?, separateSpeakers: Boolean = true): AsrResult {

@@ -84,15 +84,15 @@ class AndroidBackupRepository internal constructor(
         if (state.value.running) { error("云端备份正在运行，请完成后再修改存储设置"); return }
         try { cloud.save(kind, account, secret, webDavUrl, s3); refresh(); schedule() }
         catch (e: IllegalArgumentException) { error(e.message ?: "云端设置不正确") }
-        catch (failure190: Exception) {
-            FailureNotes.record("backup/AndroidBackupRepository.kt:85", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:85", caught)
             error("云端设置保存失败，请重试") }
     }
     @Synchronized override fun clearCredentials() {
         if (state.value.running) { error("云端备份正在运行，请完成后再清除账号"); return }
         try { cloud.clear(); scheduler.cancelCloud(); refresh(); schedule() }
-        catch (failure190: Exception) {
-            FailureNotes.record("backup/AndroidBackupRepository.kt:90", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:90", caught)
             error("账号清除失败，请重试") }
     }
     @Synchronized override fun setEnabled(enabled: Boolean) {
@@ -107,15 +107,15 @@ class AndroidBackupRepository internal constructor(
             check(prefs.edit().remove("base-cloud").remove("base-local").commit())
             error(null)
         }
-        catch (failure190: Exception) {
-            FailureNotes.record("backup/AndroidBackupRepository.kt:104", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:104", caught)
             error("备份口令安全保存失败，请重试") }
     }
     @Synchronized private fun backupPassphrase(): String? = if (!passphrases.has()) null else {
         // 安全区读取失败不能静默降级成明文备份。
         try { passphrases.read().takeIf { it.isNotBlank() } ?: throw IllegalStateException() }
-        catch (failure190: Exception) {
-            FailureNotes.record("backup/AndroidBackupRepository.kt:109", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("backup/AndroidBackupRepository.kt:109", caught)
             throw BackupFailure("备份口令读取失败，请重新设置") }
     }
     override suspend fun remoteBackups(): Result<List<RemoteBackup>> = withContext(Dispatchers.IO) {
@@ -171,8 +171,8 @@ class AndroidBackupRepository internal constructor(
             try {
                 client.uploadDiary(date, repository.markdown(date, date, false))
             } catch (e: CancellationException) { throw e }
-            catch (failure190: Exception) {
-                FailureNotes.record("backup/AndroidBackupRepository.kt:164", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("backup/AndroidBackupRepository.kt:164", caught)
                 failed = true }
         }
         if (failed) {

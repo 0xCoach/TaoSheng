@@ -37,8 +37,8 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
     }
     private fun deleteFile(file: File) {
         try { check(file.delete() || !file.exists()) }
-        catch (failure190: Exception) {
-            FailureNotes.record("capture/SegmentFiles.kt:38", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("capture/SegmentFiles.kt:38", caught)
             android.util.Log.w("Privacy", "录音暂存文件删除失败") }
     }
     private fun removeDiscarded(base: String) {

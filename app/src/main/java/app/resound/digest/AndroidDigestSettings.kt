@@ -94,8 +94,8 @@ class AndroidDigestSettings internal constructor(
             throw e
         } catch (e: LlmException) {
             Result.failure(IllegalStateException(e.detail))
-        } catch (failure190: Exception) {
-            FailureNotes.record("digest/AndroidDigestSettings.kt:93", failure190)
+        } catch (caught: Exception) {
+            FailureNotes.record("digest/AndroidDigestSettings.kt:93", caught)
 
             Result.failure(IllegalStateException("测试失败，请重试"))
         }

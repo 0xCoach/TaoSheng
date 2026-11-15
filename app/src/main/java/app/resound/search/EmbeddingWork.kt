@@ -80,8 +80,8 @@ class SearchModelWork(context: Context, params: WorkerParameters) : CoroutineWor
             EmbeddingScheduler.catchUp(applicationContext) // 首次就绪补算全部历史。
             Result.success()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("search/EmbeddingWork.kt:81", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("search/EmbeddingWork.kt:81", caught)
             Result.retry() }
     }
 }
@@ -128,8 +128,8 @@ class EmbeddingWork(context: Context, params: WorkerParameters) : CoroutineWorke
                 Result.success()
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("search/EmbeddingWork.kt:127", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("search/EmbeddingWork.kt:127", caught)
             Result.retry() }
     }
 }

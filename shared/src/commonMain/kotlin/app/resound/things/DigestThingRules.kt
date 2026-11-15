@@ -38,8 +38,8 @@ object DigestThingRules {
                 require(source.id in eligible && source.id !in mediaLines)
                 value["lineId"] = JsonPrimitive(source.id)
                 proposals += ThingPromptRules.parse(buildJsonObject { put("items", JsonArray(listOf(JsonObject(value)))) }.toString(), lines, known, now.now())
-            } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                FailureNotes.record("things/DigestThingRules.kt:39", failure190)
+            } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                FailureNotes.record("things/DigestThingRules.kt:39", caught)
                 rejected++ }
         }
         return Parsed(proposals, rejected)

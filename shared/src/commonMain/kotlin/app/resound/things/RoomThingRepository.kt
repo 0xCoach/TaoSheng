@@ -23,8 +23,8 @@ class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope
     val dao = db.things()
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     init { scope.launch { for (command in commands) try { command() }
-        catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-            FailureNotes.record("things/RoomThingRepository.kt:24", failure190)
+        catch (e: CancellationException) { throw e } catch (caught: Exception) {
+            FailureNotes.record("things/RoomThingRepository.kt:24", caught)
             problem("寻物保存失败，请重试") } } }
     private fun change(block: suspend () -> Unit) { check(commands.trySend { db.writeTransaction { block() } }.isSuccess) }
     suspend fun flush() { val done = CompletableDeferred<Unit>(); commands.send { done.complete(Unit) }; done.await() }
@@ -95,8 +95,8 @@ class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope
     override suspend fun draft(text: String): ThingDrafts {
         val fallback = ThingDrafts(listOf(ThingDraft(text.trim().take(12), ThingAction.Placed, null, null)), false)
         return try { withTimeoutOrNull(20_000) { parseDraft(text).takeIf { it.items.isNotEmpty() } ?: fallback } ?: fallback }
-        catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-            FailureNotes.record("things/RoomThingRepository.kt:94", failure190)
+        catch (e: CancellationException) { throw e } catch (caught: Exception) {
+            FailureNotes.record("things/RoomThingRepository.kt:94", caught)
             fallback }
     }
     override fun add(drafts: List<ThingDraft>, origin: ThingOrigin, sourceText: String) {

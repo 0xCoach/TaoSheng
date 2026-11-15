@@ -228,11 +228,11 @@ internal class RoutedRecording(
                 OwnRecordingSessions.add(record.audioSessionId)
                 record.startRecording()
                 if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { keep = true; return record }
-            } catch (failure190: IllegalArgumentException) {
-                FailureNotes.record("audio/ExternalAudioSource.kt:217", failure190)
+            } catch (caught: IllegalArgumentException) {
+                FailureNotes.record("audio/ExternalAudioSource.kt:217", caught)
                 /* 下一种原生格式 */ }
-            catch (failure190: IllegalStateException) {
-                FailureNotes.record("audio/ExternalAudioSource.kt:218", failure190)
+            catch (caught: IllegalStateException) {
+                FailureNotes.record("audio/ExternalAudioSource.kt:218", caught)
                 /* 下一种原生格式 */ }
             finally { if (!keep) record?.let { runCatching {
                 // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。

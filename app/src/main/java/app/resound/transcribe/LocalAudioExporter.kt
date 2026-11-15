@@ -106,8 +106,8 @@ internal class LocalAudioExporter(
                                             }
                                             check(count > 0)
                                         } catch (e: CancellationException) { throw e }
-                                        catch (failure190: Exception) {
-                                            FailureNotes.record("transcribe/LocalAudioExporter.kt:107", failure190)
+                                        catch (caught: Exception) {
+                                            FailureNotes.record("transcribe/LocalAudioExporter.kt:107", caught)
 
                                             chunks.send(ExportChunk.Bad(id))
                                             return@launch

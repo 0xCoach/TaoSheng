@@ -60,8 +60,8 @@ class SkillGeneration(
                     .first()
                 observe(key, info.id)
             } catch (e: CancellationException) { throw e }
-            catch (failure190: Exception) {
-                FailureNotes.record("skills/SkillGeneration.kt:61", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("skills/SkillGeneration.kt:61", caught)
                 finish(key, SkillRunResult.Failed("后台任务未能启动，请重试")) }
         }
         Unit
@@ -166,8 +166,8 @@ class SkillGenerationWork(context: Context, params: WorkerParameters) : Coroutin
         val notice = SkillGenerationNotice.from(repository.skills.value.find { it.id == skillId }?.name ?: "技能", date, result)
         try { notice.send(LocalNotifier(applicationContext, LocalNotifier.SKILL_GENERATION_CHANNEL)) }
         catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("skills/SkillGeneration.kt:161", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("skills/SkillGeneration.kt:161", caught)
             /* 系统通知被关闭不影响已保存的卡和界面结果，也不重复调用模型。 */ }
         val output = SkillGeneration.output(result)
         return if (result is SkillRunResult.Failed) Result.failure(output) else Result.success(output)

@@ -90,8 +90,8 @@ internal class LocalBackupFiles(
     fun status(uri: Uri): LocalFolderAccess = if (selected[uri] == false || step("persisted-grant") { persisted(uri) })
         LocalFolderAccess.Ok else LocalFolderAccess.NeedsReauthorize
     fun select(uri: Uri): String = access {
-        val durable = try { step("persist") { persist(uri) }; true } catch (failure190: SecurityException) {
-            FailureNotes.record("backup/BackupFiles.kt:91", failure190)
+        val durable = try { step("persist") { persist(uri) }; true } catch (caught: SecurityException) {
+            FailureNotes.record("backup/BackupFiles.kt:91", caught)
             false }
         val directory = resolve(uri)
         val probe = directory.createFile("application/octet-stream", "resound-probe-${UUID.randomUUID()}.tmp")

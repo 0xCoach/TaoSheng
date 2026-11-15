@@ -57,8 +57,8 @@ class AskSuggestionsCore(
                 state.value = if (hasKey()) result else EXAMPLES
             }
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("ask/core/AskSuggestionsCore.kt:58", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("ask/core/AskSuggestionsCore.kt:58", caught)
             /* 推荐失败不打断问答，不展示原始服务异常。 */ }
         finally { gate.unlock() }
     }

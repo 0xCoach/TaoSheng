@@ -54,8 +54,8 @@ internal class AndroidFolderDocuments(private val context: Context) : FolderDocu
             resolver.openFileDescriptor(document.uri, "r")?.let { descriptor ->
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { return audioFingerprint(it.channel) }
             }
-        } catch (failure190: java.io.IOException) {
-            FailureNotes.record("importer/FolderDocuments.kt:55", failure190)
+        } catch (caught: java.io.IOException) {
+            FailureNotes.record("importer/FolderDocuments.kt:55", caught)
             /* 重新打开流，兼容不可 seek 的 provider。 */ }
         return resolver.openInputStream(document.uri)?.use(::audioFingerprint) ?: throw java.io.IOException("无法读取录音")
     }

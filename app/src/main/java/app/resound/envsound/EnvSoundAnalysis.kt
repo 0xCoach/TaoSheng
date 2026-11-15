@@ -57,11 +57,11 @@ internal class EnvSoundAnalysis(
                     gapScores = try { infer(gaps.pcm) } finally { gapInferMs = now() - inferAt }
                 }
             } catch (e: CancellationException) { throw e }
-            catch (failure190: Exception) {
-                FailureNotes.record("envsound/EnvSoundAnalysis.kt:58", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("envsound/EnvSoundAnalysis.kt:58", caught)
                 gapFailed = true }
-            catch (failure190: LinkageError) {
-                FailureNotes.record("envsound/EnvSoundAnalysis.kt:59", failure190)
+            catch (caught: LinkageError) {
+                FailureNotes.record("envsound/EnvSoundAnalysis.kt:59", caught)
                 gapFailed = true }
             // 间隙失败不猜标签，也不改变已成功的原过滤判定。
             succeeded = true

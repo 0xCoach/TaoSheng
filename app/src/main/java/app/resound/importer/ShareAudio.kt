@@ -28,7 +28,7 @@ suspend fun ComponentActivity.receiveSharedAudio(intent: Intent?) {
         val errors = AppGraph.importer.receive(uris).mapNotNull { it.exceptionOrNull()?.message }.distinct()
         if (errors.isNotEmpty()) Toast.makeText(this, errors.joinToString("；"), Toast.LENGTH_LONG).show()
     } catch (e: CancellationException) { throw e }
-    catch (failure190: Exception) {
-        FailureNotes.record("importer/ShareAudio.kt:29", failure190)
+    catch (caught: Exception) {
+        FailureNotes.record("importer/ShareAudio.kt:29", caught)
         Toast.makeText(this, "无法接收录音，请重新分享", Toast.LENGTH_LONG).show() }
 }

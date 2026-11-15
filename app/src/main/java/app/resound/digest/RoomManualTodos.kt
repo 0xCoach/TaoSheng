@@ -33,8 +33,8 @@ class RoomManualTodos(
                 TodoDrafts(ManualTodoPrompt.parse(reply.content, zone), true)
             } ?: fallback
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("digest/RoomManualTodos.kt:34", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("digest/RoomManualTodos.kt:34", caught)
             fallback }
     }
 

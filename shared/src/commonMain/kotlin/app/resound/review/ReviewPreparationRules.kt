@@ -8,8 +8,8 @@ object ReviewPreparationRules {
         val result = try {
             withTimeoutOrNull(timeoutMillis) { action() } ?: "超时，使用已有内容"
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("review/ReviewPreparationRules.kt:9", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("review/ReviewPreparationRules.kt:9", caught)
             "失败，使用已有内容" }
         record(result)
         return result == "完成"

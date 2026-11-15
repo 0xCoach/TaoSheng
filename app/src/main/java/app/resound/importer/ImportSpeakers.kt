@@ -85,8 +85,8 @@ internal class ImportSpeakers(
             }
             null
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("importer/ImportSpeakers.kt:86", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("importer/ImportSpeakers.kt:86", caught)
             "声纹合并暂不可用，已保留原分人结果，未强行合并为两人" }
         finally { (model as? AutoCloseable)?.close() }
     }

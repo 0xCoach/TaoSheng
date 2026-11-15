@@ -130,8 +130,8 @@ class AndroidLlmProviders internal constructor(
     }
     internal fun readKey(id: String): String = synchronized(guard) {
         // 系统暂不能解密时返回未就绪，但不清除或覆盖原密文。
-        try { keys.read(id) } catch (failure190: Exception) {
-            FailureNotes.record("digest/AndroidLlmProviders.kt:129", failure190)
+        try { keys.read(id) } catch (caught: Exception) {
+            FailureNotes.record("digest/AndroidLlmProviders.kt:129", caught)
             "" }
     }
 
@@ -222,15 +222,15 @@ class AndroidLlmProviders internal constructor(
         Result.success("连接成功")
     } catch (e: CancellationException) { throw e }
     catch (e: LlmException) { Result.failure(IllegalStateException(e.detail)) }
-    catch (failure190: Exception) {
-        FailureNotes.record("digest/AndroidLlmProviders.kt:219", failure190)
+    catch (caught: Exception) {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:219", caught)
         Result.failure(IllegalStateException("测试失败，请检查地址、模型和密钥")) }
 
     override suspend fun models(id: String?, baseUrl: String, key: String?): List<String> = try {
         validateBase(baseUrl); fetchRemoteModels(ServiceHeaders.modelsEndpoint(baseUrl), draftKey(id, key), headers = headerStore.forService(id ?: "draft", baseUrl)).ids
     } catch (e: CancellationException) { throw e }
-    catch (failure190: Exception) {
-        FailureNotes.record("digest/AndroidLlmProviders.kt:224", failure190)
+    catch (caught: Exception) {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:224", caught)
         emptyList() }
 
     companion object {

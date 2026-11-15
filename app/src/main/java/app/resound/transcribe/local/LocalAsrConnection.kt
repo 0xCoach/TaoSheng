@@ -100,8 +100,8 @@ internal class LocalAsrConnection(private val context:Context) {
             override fun onServiceConnected(name:ComponentName,binder:IBinder){
                 if(binding!==ready)return
                 try {binder.linkToDeath({scope.launch{generation.complete(Unit);if(binding===ready)broken()}},0);ready.complete(Messenger(binder))}
-                catch(failure190:Exception){
-                    FailureNotes.record("transcribe/local/LocalAsrConnection.kt:97", failure190)
+                catch(caught:Exception){
+                    FailureNotes.record("transcribe/local/LocalAsrConnection.kt:97", caught)
                    broken()}
             }
             override fun onServiceDisconnected(name:ComponentName){if(binding===ready)broken()}

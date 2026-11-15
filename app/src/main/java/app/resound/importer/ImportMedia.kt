@@ -83,8 +83,8 @@ internal class ImportMedia(private val context: Context) {
             if (duration <= 0) throw ImportFailure("暂不支持这种格式")
             return AudioMetadata(duration, date, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
         } catch (e: ImportFailure) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("importer/ImportMedia.kt:80", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("importer/ImportMedia.kt:80", caught)
             throw ImportFailure("暂不支持这种格式") }
         finally { extractor.release() }
     }

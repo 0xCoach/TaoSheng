@@ -49,8 +49,8 @@ internal class AndroidRecordingPacker(
             .put("fromTime", range.fromTime.toString()).put("toTime", range.toTime.toString()).put("text", options.withText)
             .put("skip", options.skipMedia).put("state", "running")
         publish()
-        try { enqueue(id) } catch (failure190: Exception) {
-            FailureNotes.record("recordings/AndroidRecordingPacker.kt:50", failure190)
+        try { enqueue(id) } catch (caught: Exception) {
+            FailureNotes.record("recordings/AndroidRecordingPacker.kt:50", caught)
             fail(id, "无法安排后台打包，请重试") }
         return id
     }
@@ -127,8 +127,8 @@ internal class AndroidRecordingPacker(
             }
             true
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("recordings/AndroidRecordingPacker.kt:124", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("recordings/AndroidRecordingPacker.kt:124", caught)
             fail(id, "录音打包失败，请检查原声文件和剩余空间后重试"); false }
         finally { if (!done && uri != null) context.contentResolver.delete(uri!!, null, null) }
     } }

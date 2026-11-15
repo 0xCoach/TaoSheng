@@ -118,13 +118,13 @@ class AndroidTodoVoiceInput internal constructor(
                 val text = result.sentences.joinToString("\n") { it.text.trim() }.trim()
                 if (text.isEmpty()) VoiceNoteResult.Empty else VoiceNoteResult.Text(text)
             }
-        } catch (failure190: TimeoutCancellationException) {
-            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:119", failure190)
+        } catch (caught: TimeoutCancellationException) {
+            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:119", caught)
             VoiceNoteResult.Failed("识别超时，没能完成") }
         catch (e: CancellationException) { throw e }
         catch (e: AsrException) { VoiceNoteResult.Failed(voiceFailure(e.type)) }
-        catch (failure190: Exception) {
-            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:122", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:122", caught)
             VoiceNoteResult.Failed("没能完成语音识别") }
         finally {
             withContext(NonCancellable + Dispatchers.IO) {

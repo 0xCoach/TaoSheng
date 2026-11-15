@@ -57,8 +57,8 @@ internal class AsrSilenceTrimmer(
                 durationMillis = plan.trimmedSamples / 16L), plan)
         } catch (e: CancellationException) {
             temporary?.delete(); throw e
-        } catch (failure190: Exception) {
-            FailureNotes.record("transcribe/AsrSilenceTrimmer.kt:58", failure190)
+        } catch (caught: Exception) {
+            FailureNotes.record("transcribe/AsrSilenceTrimmer.kt:58", caught)
 
             // 优化失败时仍用完整原录音，不因映射或缓存失败丢字。
             temporary?.delete(); null

@@ -73,8 +73,8 @@ internal class ImportKindEngine(
                     ImportTodoMerge.merge(db, row.id)
                     dao.update(current.copy(cardId = cardId, status = "Done", summaryRequested = false))
                 }
-                try { afterReady() } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                    FailureNotes.record("importer/ImportKindEngine.kt:74", failure190)
+                try { afterReady() } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                    FailureNotes.record("importer/ImportKindEngine.kt:74", caught)
                     /* 已保存纪要不因后续调度失败回滚。 */ }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {

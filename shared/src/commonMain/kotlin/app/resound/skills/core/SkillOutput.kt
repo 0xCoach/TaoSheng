@@ -39,8 +39,8 @@ object SkillOutput {
             }
             return Parsed(rows, j.nullString("nothing_reason") ?: "没有符合要求的内容")
         } catch (e: SkillFormatException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("skills/core/SkillOutput.kt:40", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("skills/core/SkillOutput.kt:40", caught)
             throw SkillFormatException() }
     }
     private fun ref(raw: Any?, input: SkillInput) = raw?.toString()?.let { if (it.startsWith("L")) it else "L$it" }?.let(input.lines::get)

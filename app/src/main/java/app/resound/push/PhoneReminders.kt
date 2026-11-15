@@ -41,8 +41,8 @@ internal class PhoneReminders(
                 reminder.keys.forEach { sent.put(it, now()) }
                 check(prefs.edit().putString("sent", sent.toString()).commit())
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (failure190: Exception) {
-                FailureNotes.record("push/PhoneReminders.kt:42", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("push/PhoneReminders.kt:42", caught)
                 failed = true; break }
         }
         val next = candidates.filter { r -> r.keys.any { !sent.has(it) } }.minOfOrNull { it.at }
@@ -83,8 +83,8 @@ internal object PhoneReminderAlarm {
         try {
             if (canExact) alarms.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context))
             else alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context))
-        } catch (failure190: SecurityException) {
-            FailureNotes.record("push/PhoneReminders.kt:82", failure190)
+        } catch (caught: SecurityException) {
+            FailureNotes.record("push/PhoneReminders.kt:82", caught)
 
             alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context))
         }

@@ -38,10 +38,10 @@ internal class VoiceprintFeatureCache(private val directory: File?) {
                 require(input.read() == -1)
                 Feature(vector, duration)
             }
-        } catch (failure190: IOException) {
-            FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", failure190)
-            null } catch (failure190: IllegalArgumentException) {
-            FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", failure190)
+        } catch (caught: IOException) {
+            FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", caught)
+            null } catch (caught: IllegalArgumentException) {
+            FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", caught)
             null }
     }
 

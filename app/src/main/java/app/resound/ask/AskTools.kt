@@ -86,8 +86,8 @@ class AskTools(
                 names.associateWith { semanticIds(it, args, vector, local.model, stays) }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("ask/AskTools.kt:85", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("ask/AskTools.kt:85", caught)
             emptyMap() } // 模型缺失或无法加载时静默退回关键词。
         finally { if (local is AutoCloseable) local.close() }
     }

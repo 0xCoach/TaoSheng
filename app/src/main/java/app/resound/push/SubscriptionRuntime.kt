@@ -35,8 +35,8 @@ internal class SubscriptionRuntime(
     private val states = ConcurrentHashMap<Long, MutableStateFlow<PushChannelStatus>>()
     private val queued = ConcurrentHashMap<Long, Long>()
     private fun meta(id: Long): JSONObject = try { JSONObject(prefs.getString("subscription-$id", "{}")!!) }
-    catch (failure190: org.json.JSONException) {
-        FailureNotes.record("push/SubscriptionRuntime.kt:36", failure190)
+    catch (caught: org.json.JSONException) {
+        FailureNotes.record("push/SubscriptionRuntime.kt:36", caught)
 
         File(directory, "$id.json").delete()
         check(prefs.edit().putString("subscription-$id", "{}").putBoolean("state-reset-$id", true).commit())

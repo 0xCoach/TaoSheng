@@ -71,8 +71,8 @@ internal class UpdateRemote(
             try {
                 val table = SignedCards(readLimited(url, 256 * 1024), readLimited("$url.sig", RemoteDeviceCards.MAX_SIGNATURE))
                 if (accept(table)) return
-            } catch (failure190: Exception) {
-                FailureNotes.record("update/UpdateRemote.kt:68", failure190)
+            } catch (caught: Exception) {
+                FailureNotes.record("update/UpdateRemote.kt:68", caught)
                 log("cards source_failed") }
         }
         throw java.io.IOException("cards_sources_exhausted")

@@ -100,8 +100,8 @@ internal class RemoteDeviceCards(
     @Synchronized fun refresh(now: Long, fetch: (accept: (SignedCards) -> Boolean) -> Unit) {
         val last = store.lastAttempt
         if (last != 0L && now - last < DAY) return
-        try { store.lastAttempt = now; fetch { accept(it) } } catch (failure190: Exception) {
-            FailureNotes.record("devices/RemoteDeviceCards.kt:97", failure190)
+        try { store.lastAttempt = now; fetch { accept(it) } } catch (caught: Exception) {
+            FailureNotes.record("devices/RemoteDeviceCards.kt:97", caught)
             report("fetch_failed") }
     }
     companion object { const val MAX_SIGNATURE = 72; const val MAX_TABLE = 256 * 1024; const val MAX_CACHE = 4 * 1024 * 1024; const val DAY = 86_400_000L }

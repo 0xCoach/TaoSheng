@@ -45,8 +45,8 @@ suspend fun customRecognize(client: HttpClient, urls: List<String>, key: String,
             if (code !in 200..299) throw AsrException(if (code >= 500 || code == 429) AsrError.Server else AsrError.Protocol)
             val text = try { customTranscriptionText(r.limitedText(1_000_000, "识别响应不完整或格式异常")) }
                 catch(e: AsrException) { throw e }
-                catch(failure190: IllegalStateException) {
-                    FailureNotes.record("net/NetCustomAsr.kt:46", failure190)
+                catch(caught: IllegalStateException) {
+                    FailureNotes.record("net/NetCustomAsr.kt:46", caught)
                     throw AsrException(AsrError.Protocol) }
             AsrResult(if(text.isBlank()) emptyList() else listOf(AsrSentence(0,duration,text,null)),duration,null)
         }

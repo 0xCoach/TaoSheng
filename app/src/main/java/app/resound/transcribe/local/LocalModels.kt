@@ -128,8 +128,8 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
             archive.delete();status("已下载并校验")
             Result.success()
         } catch(e: kotlinx.coroutines.CancellationException){status("下载已暂停，可点击继续");throw e}
-        catch(failure190: Exception){
-            FailureNotes.record("transcribe/local/LocalModels.kt:127", failure190)
+        catch(caught: Exception){
+            FailureNotes.record("transcribe/local/LocalModels.kt:127", caught)
            status("下载未完成，请检查网络后重试；已校验失败的文件会重新下载");Result.failure()}
         finally{staging.deleteRecursively();lock.unlock()}
     }

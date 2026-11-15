@@ -146,8 +146,8 @@ class AskStoreRepository(
                     }
                 }
             }
-        } catch (failure190: TimeoutCancellationException) {
-            FailureNotes.record("ask/AskStoreRepository.kt:147", failure190)
+        } catch (caught: TimeoutCancellationException) {
+            FailureNotes.record("ask/AskStoreRepository.kt:147", caught)
 
             updates.trySend { current = current.copy(error = "查询超时，请重试") }
         } catch (e: CancellationException) {
@@ -165,8 +165,8 @@ class AskStoreRepository(
                 try {
                     val (userId, assistantId) = dao.saveExchange(user.entity(conversationId), final.entity(conversationId).copy(actionJson = proposal?.encoded))
                     state.value = history + user.copy(id = userId) + final.copy(id = assistantId)
-                } catch (failure190: Exception) {
-                    FailureNotes.record("ask/AskStoreRepository.kt:164", failure190)
+                } catch (caught: Exception) {
+                    FailureNotes.record("ask/AskStoreRepository.kt:164", caught)
 
                     state.value = history + user + final.copy(error = "问答保存失败，请重试")
                 }

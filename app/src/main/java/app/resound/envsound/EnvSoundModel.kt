@@ -61,8 +61,8 @@ class EnvSoundModel(private val context: Context) {
             }
             check(checkReady()) { "模型校验失败" }
         } catch(e: CancellationException) { state.value = EnvModelState.NotDownloaded; throw e }
-        catch(failure190: Exception) {
-            FailureNotes.record("envsound/EnvSoundModel.kt:62", failure190)
+        catch(caught: Exception) {
+            FailureNotes.record("envsound/EnvSoundModel.kt:62", caught)
             state.value = EnvModelState.Failed("模型下载或校验失败，请重试") }
     }
     private var batch = false

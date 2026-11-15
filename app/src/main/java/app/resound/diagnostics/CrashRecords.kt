@@ -18,13 +18,13 @@ internal class CrashRecords(context: Context) {
         "versionName=${it.versionName} versionCode=${it.longVersionCode}"
     }
     fun installHandler() {
-        FailureNotes.install { line ->
+        FailureNotes.install(write = { line ->
             try { PipelineTimes.record(appContext, "业务失败 $line") }
             catch (error: Exception) {
                 // 诊断持久化失败仍保留共用层内存记录，并留下不含异常原文的系统日志。
                 android.util.Log.w("ResoundFailure", "诊断落盘失败 ${error.javaClass.simpleName}")
             }
-        }
+        }, now = System::currentTimeMillis)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(handler(previous))
     }

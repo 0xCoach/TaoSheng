@@ -47,8 +47,8 @@ object NetDoubaoProtocol {
         val body = if (serialization == 1) Obj(payload.decodeToString())
             else if (kind == 15) Obj() else throw IllegalArgumentException()
         Packet(kind, flags, sequence, code, body)
-    } catch (failure190: Exception) {
-        FailureNotes.record("net/NetDoubaoProtocol.kt:48", failure190)
+    } catch (caught: Exception) {
+        FailureNotes.record("net/NetDoubaoProtocol.kt:48", caught)
         throw AsrException(AsrError.Protocol) }
 
     internal fun result(body: Obj, fallbackDuration: Long, logId: String?, separateSpeakers: Boolean = true): AsrResult {

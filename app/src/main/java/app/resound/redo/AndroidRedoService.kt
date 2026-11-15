@@ -86,8 +86,8 @@ internal class AndroidRedoService(
             else -> "重做事件"
         }, normalized,
             RedoJobState.Running("排队中", 0f), now()))
-        try { enqueue() } catch (failure190: Exception) {
-            FailureNotes.record("redo/AndroidRedoService.kt:87", failure190)
+        try { enqueue() } catch (caught: Exception) {
+            FailureNotes.record("redo/AndroidRedoService.kt:87", caught)
             update(id, RedoJobState.Failed("无法安排后台重做，请重试")) }
         return id
     }

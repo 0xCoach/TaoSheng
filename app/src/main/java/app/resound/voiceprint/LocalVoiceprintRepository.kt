@@ -61,8 +61,8 @@ class LocalVoiceprintRepository(
             val value = validName(name)
             dao.insertPerson(VoiceprintPersonEntity(name = value, createdAt = now())).also { revision++ }
         } }) } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:62", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:62", caught)
             Result.failure(IllegalArgumentException("请使用不重复的 1–30 字人物名")) }
     }
     private fun validName(name: String): String = name.trim().also {
@@ -178,8 +178,8 @@ class LocalVoiceprintRepository(
         scope.launch(Dispatchers.IO) {
             try { actions.withLock { error.value = null; block() }; schedule() }
             catch (e: CancellationException) { throw e }
-            catch (failure190: Exception) {
-                FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:177", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:177", caught)
                 error.value = "声纹操作未完成：请检查名字是否重复、录音是否可用后重试" }
         }
     }
@@ -224,8 +224,8 @@ class LocalVoiceprintRepository(
             schedule()
             Result.success(Unit)
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:221", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:221", caught)
             Result.failure(IllegalArgumentException("保存未完成，请检查名字和原话后重试")) }
     }
     private suspend fun assign(lineId: Long, personId: Long) {
@@ -325,8 +325,8 @@ class LocalVoiceprintRepository(
             schedule()
             Result.success(Unit)
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:320", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:320", caught)
 
             error.value = "录入失败：需要至少 1.5 秒有效人声，请重新录制"
             Result.failure(IllegalArgumentException(error.value))
@@ -481,15 +481,15 @@ class LocalVoiceprintRepository(
                         }
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (failure190: Exception) {
-                    FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:470", failure190)
+                catch (caught: Exception) {
+                    FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:470", caught)
                     retry = true; lastError = "声纹处理失败，录音已保留，稍后重试" }
                 finally { unpin(segment.id) }
                 yield()
             }
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:475", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:475", caught)
             retry = true; lastError = "声纹模型或样本读取失败，稍后重试" }
         finally { (model as? AutoCloseable)?.close() }
         return gate.withLock {

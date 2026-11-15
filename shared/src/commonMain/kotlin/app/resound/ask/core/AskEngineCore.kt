@@ -149,13 +149,13 @@ class AskEngineCore(
                             JSONObject().put("pending", true).put("summary", proposal!!.action.summary)
                                 .put("detail", proposal!!.action.detail).put("notice", "尚未修改数据，必须由用户在卡片上确认")
                         } else JSONObject(search(call.name, args.toString(), sources))
-                    } catch (failure190: AskArgumentFormatException) {
-                        FailureNotes.record("ask/core/AskEngineCore.kt:150", failure190)
+                    } catch (caught: AskArgumentFormatException) {
+                        FailureNotes.record("ask/core/AskEngineCore.kt:150", caught)
 
                         reply.diagnostics?.parsed(items = reply.calls.size, empty = false, error = NetLlmError.Format)
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")
-                    } catch (failure190: IllegalArgumentException) {
-                        FailureNotes.record("ask/core/AskEngineCore.kt:153", failure190)
+                    } catch (caught: IllegalArgumentException) {
+                        FailureNotes.record("ask/core/AskEngineCore.kt:153", caught)
 
                         JSONObject().put("error", "参数无效，请检查日期与工具参数")
                     }

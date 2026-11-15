@@ -100,8 +100,8 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
         } catch (e: CancellationException) { throw e }
         catch (e: NetLlmException) { throw e }
         catch (e: IOException) { throw NetLlmException(NetLlmError.Network, detail = networkError(e)) }
-        catch (failure190: Exception) {
-            FailureNotes.record("net/NetLlmClient.kt:97", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("net/NetLlmClient.kt:97", caught)
             throw NetLlmException(NetLlmError.Format) }
     }
     /** LLM 的路径探测共用一次 call deadline，不能每换一次路径就重新计时。 */

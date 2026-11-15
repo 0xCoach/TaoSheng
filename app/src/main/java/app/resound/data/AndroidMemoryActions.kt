@@ -65,8 +65,8 @@ suspend fun MemoryDao.updateItem(id: Long, content: String, dueAt: Long?, hasTim
         updateItemRow(id, content.trim(), normalized, text, who?.trim()?.takeIf { it.isNotEmpty() }, at)
     }
 
-private fun validPoints(text: String): String = try { org.json.JSONArray(text).toString() } catch (failure190: org.json.JSONException) {
-    FailureNotes.record("data/AndroidMemoryActions.kt:66", failure190)
+private fun validPoints(text: String): String = try { org.json.JSONArray(text).toString() } catch (caught: org.json.JSONException) {
+    FailureNotes.record("data/AndroidMemoryActions.kt:66", caught)
     "[]" }
 
 suspend fun MemoryDao.setItemsStatus(ids: List<Long>, status: String) = setItemsStatus(ids, status, System.currentTimeMillis())

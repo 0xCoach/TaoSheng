@@ -89,8 +89,8 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
             } catch (e: CancellationException) {
                 withContext(NonCancellable) { link.close() }
                 throw e
-            } catch (failure190: Exception) {
-                FailureNotes.record("devices/android/AndroidDevicePlatform.kt:90", failure190)
+            } catch (caught: Exception) {
+                FailureNotes.record("devices/android/AndroidDevicePlatform.kt:90", caught)
                 null }
             val recording = capture?.let { RecordingGattLink(raw, clock, it::line) }
             recording?.maxWriteLength(true)
@@ -185,8 +185,8 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
                                 output.flush()
                                 if (sink.stopped) { queue.cancel(); break }
                             }
-                        } catch (failure190: CaptureQueueFull) {
-                            FailureNotes.record("devices/android/AndroidDevicePlatform.kt:184", failure190)
+                        } catch (caught: CaptureQueueFull) {
+                            FailureNotes.record("devices/android/AndroidDevicePlatform.kt:184", caught)
                             sink.line("# capture-stopped queue-full") }
                         catch (e: CancellationException) {
                             sink.line("# capture-stopped cancelled")
@@ -194,16 +194,16 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
                         }
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (failure190: Exception) {
-                    FailureNotes.record("devices/android/AndroidDevicePlatform.kt:191", failure190)
+                catch (caught: Exception) {
+                    FailureNotes.record("devices/android/AndroidDevicePlatform.kt:191", caught)
                     /* 文件不可写不能影响收音；保留已落盘的部分。 */ }
                 finally { queue.cancel(); activeCaptures.update { it - target.name } }
             }
             job.invokeOnCompletion { activeCaptures.update { it - target.name } }
             return CaptureWriter(queue, job)
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("devices/android/AndroidDevicePlatform.kt:197", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("devices/android/AndroidDevicePlatform.kt:197", caught)
             file?.let { activeCaptures.update { names -> names - it.name } }; return null }
     }
     companion object {

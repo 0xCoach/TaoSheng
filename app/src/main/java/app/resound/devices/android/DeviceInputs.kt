@@ -386,8 +386,8 @@ internal class DeviceInputs(
             } catch (e: DeviceException) {
                 errorCode = e.code
                 message = "检查没有完成，已保留进度，请稍后重试"
-            } catch (failure190: Exception) {
-                FailureNotes.record("devices/android/DeviceInputs.kt:383", failure190)
+            } catch (caught: Exception) {
+                FailureNotes.record("devices/android/DeviceInputs.kt:383", caught)
 
                 message = "检查没有完成，已保留进度，请稍后重试"
             }

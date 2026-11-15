@@ -101,8 +101,8 @@ class TopicProcessingSession(private val id: Long, private val source: String, p
                 val text = preview(cached)
                 if (text.isNotBlank()) save(state.copy(progress = state.progress.copy(notes = state.progress.notes + ("${state.progress.phase}:$key" to text))))
                 return cached
-            } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                FailureNotes.record("topic/core/TopicProcessingRules.kt:102", failure190)
+            } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                FailureNotes.record("topic/core/TopicProcessingRules.kt:102", caught)
                 }
         }
         var last: Throwable? = null

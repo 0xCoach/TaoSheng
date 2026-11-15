@@ -70,8 +70,8 @@ class LlmBalanceChecker(
         require(key.isNotBlank() || providers.hasHeaderAuth(providers.activeId.value))
         Result.success(fetch(BalanceSource(url.trim(), key, path.trim().ifBlank { null }, providers.requestHeaders(providers.credentials().first))))
     } catch (e: CancellationException) { throw e }
-    catch (failure190: Exception) {
-        FailureNotes.record("usage/LlmBalance.kt:71", failure190)
+    catch (caught: Exception) {
+        FailureNotes.record("usage/LlmBalance.kt:71", caught)
         Result.failure(IllegalStateException("余额测试失败，请检查地址、字段和密钥")) }
 
     fun setThreshold(yuan: Double) = synchronized(providers.guard) {
@@ -113,16 +113,16 @@ class LlmBalanceChecker(
                 if (synchronized(providers.guard) { token == generation && id == providers.activeId.value }) {
                     try { alert(b, line) }
                     catch (e: CancellationException) { throw e }
-                    catch (failure190: Exception) {
-                        FailureNotes.record("usage/LlmBalance.kt:112", failure190)
+                    catch (caught: Exception) {
+                        FailureNotes.record("usage/LlmBalance.kt:112", caught)
                         prefs.edit().putBoolean("alerted-$id", false).apply() }
                 }
             }
         } catch (e: CancellationException) {
             synchronized(providers.guard) { if (token == generation) _state.value = _state.value.copy(loading = false) }
             throw e
-        } catch (failure190: Exception) {
-            FailureNotes.record("usage/LlmBalance.kt:118", failure190)
+        } catch (caught: Exception) {
+            FailureNotes.record("usage/LlmBalance.kt:118", caught)
 
             synchronized(providers.guard) { if (token == generation) _state.value = _state.value.copy(loading = false, error = "余额查询失败，请检查配置和网络") }
         }

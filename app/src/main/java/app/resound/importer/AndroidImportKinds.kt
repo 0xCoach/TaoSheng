@@ -108,14 +108,14 @@ class ImportSummaryWork(context: Context, params: WorkerParameters) : CoroutineW
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (failure190: Exception) {
-                FailureNotes.record("importer/AndroidImportKinds.kt:107", failure190)
+            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                FailureNotes.record("importer/AndroidImportKinds.kt:107", caught)
                 /* 前台受限时仍可用普通 Worker。 */ }
             (AppGraph.importKinds as AndroidImportKinds).engine.run()
             Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("importer/AndroidImportKinds.kt:111", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("importer/AndroidImportKinds.kt:111", caught)
             Result.retry() }
     }
 }

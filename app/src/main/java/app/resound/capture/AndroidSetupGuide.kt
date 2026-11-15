@@ -78,8 +78,8 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
             else -> details
         }
         try { context.startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (failure190: RuntimeException) {
-            FailureNotes.record("capture/AndroidSetupGuide.kt:77", failure190)
+        catch (caught: RuntimeException) {
+            FailureNotes.record("capture/AndroidSetupGuide.kt:77", caught)
             runCatching { context.startActivity(details.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
             FailureNotes.record("capture/AndroidSetupGuide.kt:77", it)
         } }

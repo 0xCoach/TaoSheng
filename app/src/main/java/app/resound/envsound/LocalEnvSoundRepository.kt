@@ -80,11 +80,11 @@ class LocalEnvSoundRepository(
             log("环境音 ${elapsed}ms ${decision.verdict.name}")
             return decision.skip
         } catch(e: CancellationException) { throw e }
-        catch(failure190: Exception) {
-            FailureNotes.record("envsound/LocalEnvSoundRepository.kt:81", failure190)
+        catch(caught: Exception) {
+            FailureNotes.record("envsound/LocalEnvSoundRepository.kt:81", caught)
             log("环境音 ${(now()-start).coerceAtLeast(0)}ms 判断失败，照常转写"); return false }
-        catch(failure190: LinkageError) {
-            FailureNotes.record("envsound/LocalEnvSoundRepository.kt:82", failure190)
+        catch(caught: LinkageError) {
+            FailureNotes.record("envsound/LocalEnvSoundRepository.kt:82", caught)
             log("环境音 JNI 不可用，照常转写"); return false }
     }
     companion object {

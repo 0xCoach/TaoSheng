@@ -132,8 +132,8 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
             }
             androidx.core.location.LocationManagerCompat.getCurrentLocation(manager, provider, null as android.os.CancellationSignal?,
                 ContextCompat.getMainExecutor(app)) { loc -> loc?.let(::save) }
-        } catch (failure190: SecurityException) {
-            FailureNotes.record("location/Location.kt:123", failure190)
+        } catch (caught: SecurityException) {
+            FailureNotes.record("location/Location.kt:123", caught)
             }
     }
 

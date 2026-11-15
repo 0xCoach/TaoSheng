@@ -19,8 +19,8 @@ class VoiceprintRecomputeWork(context: Context, params: WorkerParameters) : Coro
                 if (runAttemptCount < 3) Result.retry() else Result.failure()
             } else Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("voiceprint/VoiceprintRecomputeWork.kt:20", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/VoiceprintRecomputeWork.kt:20", caught)
             if (runAttemptCount < 3) Result.retry() else Result.failure() }
     }
 

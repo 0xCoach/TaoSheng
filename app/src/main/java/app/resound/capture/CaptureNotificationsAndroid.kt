@@ -94,8 +94,8 @@ object CaptureNotifications {
         try { NotificationManagerCompat.from(context).notify(INTERRUPTED, NotificationCompat.Builder(context, "interrupted")
             .setSmallIcon(R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.interrupted(context.appName))
             .setContentText(CaptureNotificationPolicy.INTERRUPTED_DETAIL).setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(action(context, CaptureService.RESUME)).setAutoCancel(true).build()) } catch (failure190: SecurityException) {
-                FailureNotes.record("capture/CaptureNotificationsAndroid.kt:95", failure190)
+            .setContentIntent(action(context, CaptureService.RESUME)).setAutoCancel(true).build()) } catch (caught: SecurityException) {
+                FailureNotes.record("capture/CaptureNotificationsAndroid.kt:95", caught)
                 }
     }
     /** 卡 112：麦克风一直收不到声音，重开也没用 */
@@ -105,8 +105,8 @@ object CaptureNotifications {
         try { NotificationManagerCompat.from(context).notify(SILENT_MIC, NotificationCompat.Builder(context, "interrupted")
             .setSmallIcon(R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.SILENT)
             .setContentText(CaptureNotificationPolicy.SILENT_DETAIL).setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(openApp(context)).setAutoCancel(true).build()) } catch (failure190: SecurityException) {
-                FailureNotes.record("capture/CaptureNotificationsAndroid.kt:104", failure190)
+            .setContentIntent(openApp(context)).setAutoCancel(true).build()) } catch (caught: SecurityException) {
+                FailureNotes.record("capture/CaptureNotificationsAndroid.kt:104", caught)
                 }
     }
     fun cancelSilentMic(context: Context) = NotificationManagerCompat.from(context).cancel(SILENT_MIC)

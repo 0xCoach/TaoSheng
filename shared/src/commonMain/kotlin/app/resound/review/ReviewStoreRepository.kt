@@ -101,8 +101,8 @@ class ReviewStoreRepository(
             val prepared = try {
                 withTimeoutOrNull(10 * 60_000L) { beforeReview() } ?: false
             } catch (e: CancellationException) { throw e }
-            catch (failure190: Exception) {
-                FailureNotes.record("review/ReviewStoreRepository.kt:100", failure190)
+            catch (caught: Exception) {
+                FailureNotes.record("review/ReviewStoreRepository.kt:100", caught)
                 false }
             mutable.update { it.copy(stage = "正在写回顾…") }
             val timezone = TimeZone.of(zone.zoneId())
@@ -131,8 +131,8 @@ class ReviewStoreRepository(
                     model = reply.actualModel ?: preset.model
                     try { CorePrompt.parse(reply.content, source.snapshot(), timezone) }
                     catch (e: CancellationException) { throw e }
-                    catch (failure190: Exception) {
-                        FailureNotes.record("review/ReviewStoreRepository.kt:128", failure190)
+                    catch (caught: Exception) {
+                        FailureNotes.record("review/ReviewStoreRepository.kt:128", caught)
 
                         error("模型返回的格式不对，换个模型或稍后再试", date)
                         return@withLock false
@@ -149,8 +149,8 @@ class ReviewStoreRepository(
                     val deepLink = "resound://review?open=review&date=$date"
                     notify("今日回顾", row.brief, deepLink, row)
                 } catch (e: CancellationException) { throw e }
-                catch (failure190: Exception) {
-                    FailureNotes.record("review/ReviewStoreRepository.kt:144", failure190)
+                catch (caught: Exception) {
+                    FailureNotes.record("review/ReviewStoreRepository.kt:144", caught)
                     error("回顾已生成，通知发送失败，请检查通知权限", date); return@withLock false }
             }
             error(if (prepared) null else "已用现有内容生成；还有录音没整理完", date)

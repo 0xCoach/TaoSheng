@@ -36,8 +36,8 @@ class AudioExportWorker(context: Context, params: WorkerParameters) : CoroutineW
             jobs.job(jobId)?.let { ExportNotifications.finished(applicationContext, it) }
             if (success) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("transcribe/AudioExportWorker.kt:37", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("transcribe/AudioExportWorker.kt:37", caught)
 
             // 后台启动限制可能暂时阻止前台服务；保留请求由 WorkManager 重试。
             if (runAttemptCount < 3) Result.retry() else {

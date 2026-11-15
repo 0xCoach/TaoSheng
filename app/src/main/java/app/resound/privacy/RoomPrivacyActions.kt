@@ -166,16 +166,16 @@ class RoomPrivacyActions(
                 check(file.delete() || !file.exists())
                 dao.cleaned(row.path)
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-              catch (failure190: Exception) {
-                  FailureNotes.record("privacy/RoomPrivacyActions.kt:165", failure190)
+              catch (caught: Exception) {
+                  FailureNotes.record("privacy/RoomPrivacyActions.kt:165", caught)
                   complete = false; diagnostic("录音文件删除失败") }
         }
         complete
     }
 
     private fun cleanup(message: String, block: () -> Unit) {
-        try { block() } catch (failure190: Exception) {
-            FailureNotes.record("privacy/RoomPrivacyActions.kt:171", failure190)
+        try { block() } catch (caught: Exception) {
+            FailureNotes.record("privacy/RoomPrivacyActions.kt:171", caught)
             diagnostic(message) } // 不记录路径、原话或异常原文。
     }
 }

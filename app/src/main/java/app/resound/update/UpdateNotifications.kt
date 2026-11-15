@@ -38,8 +38,8 @@ internal object UpdateNotifications {
             manager.notify(id, NotificationCompat.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle(title).setContentText(body).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true).build())
             true
-        } catch (failure190: SecurityException) {
-            FailureNotes.record("update/UpdateNotifications.kt:39", failure190)
+        } catch (caught: SecurityException) {
+            FailureNotes.record("update/UpdateNotifications.kt:39", caught)
             false }
     }
 }

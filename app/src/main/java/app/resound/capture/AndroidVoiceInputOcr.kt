@@ -27,8 +27,8 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                         if (!valid()) null else Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)?.let { hardware ->
                             try { hardware.copy(Bitmap.Config.ARGB_8888, false) } finally { hardware.recycle() }
                         }
-                    } catch (failure190: Exception) {
-                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:28", failure190)
+                    } catch (caught: Exception) {
+                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:28", caught)
                         null } finally { buffer.close() }
                     if (bitmap == null) { finish(null); return }
                     // 旋转或分辨率改变时旧坐标不可靠，丢弃这一张，不补截。
@@ -38,8 +38,8 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                         bitmap.recycle(); dbg("截屏跳过：尺寸变化或黑屏"); finish(null); return
                     }
                     val recognizer = try { TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()) }
-                    catch (failure190: Exception) {
-                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:37", failure190)
+                    catch (caught: Exception) {
+                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:37", caught)
                         bitmap.recycle(); finish(null); return }
                     try {
                         recognizer.process(InputImage.fromBitmap(bitmap, 0)).addOnCompleteListener(service.mainExecutor) { task ->
@@ -68,19 +68,19 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     )
                                     input
                                 }
-                            } catch (failure190: Exception) {
-                                FailureNotes.record("capture/AndroidVoiceInputOcr.kt:63", failure190)
+                            } catch (caught: Exception) {
+                                FailureNotes.record("capture/AndroidVoiceInputOcr.kt:63", caught)
                                 null }
                             finally { bitmap.recycle(); recognizer.close() }
                             finish(result)
                         }
-                    } catch (failure190: Exception) {
-                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:67", failure190)
+                    } catch (caught: Exception) {
+                        FailureNotes.record("capture/AndroidVoiceInputOcr.kt:67", caught)
                         bitmap.recycle(); recognizer.close(); finish(null) }
                 }
             })
-        } catch (failure190: Exception) {
-            FailureNotes.record("capture/AndroidVoiceInputOcr.kt:70", failure190)
+        } catch (caught: Exception) {
+            FailureNotes.record("capture/AndroidVoiceInputOcr.kt:70", caught)
             dbg("截屏失败：调用异常"); finish(null) }
     }
 }

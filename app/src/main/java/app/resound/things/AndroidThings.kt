@@ -97,8 +97,8 @@ internal class ThingNotifications(private val context: Context) {
             .setContentTitle("已记：${record.name} → $target").setContentText("待确认，点开查看")
             .setContentIntent(pending).setAutoCancel(true).setSilent(true).setOnlyAlertOnce(true).build()
         // 不主动索取权限；拒绝通知不影响记录入库。
-        try { manager.notify("thing-${record.id}", 7200, notification) } catch (failure190: SecurityException) {
-            FailureNotes.record("things/AndroidThings.kt:96", failure190)
+        try { manager.notify("thing-${record.id}", 7200, notification) } catch (caught: SecurityException) {
+            FailureNotes.record("things/AndroidThings.kt:96", caught)
             }
     }
 }

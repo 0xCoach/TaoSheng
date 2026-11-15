@@ -46,8 +46,8 @@ internal class CloudSettings(private val prefs: SharedPreferences, private val s
     val hasSecret: Boolean get() = secrets.has(secretKey(kind))
     val webDavUrl: String? get() = prefs.getString("webDavUrl", null)
     val s3: S3Settings? get() = prefs.getString("s3", null)?.let(::s3FromJson)
-    fun password(): String = try { secrets.read(secretKey(kind)) } catch (failure190: Exception) {
-        FailureNotes.record("backup/CloudSettings.kt:47", failure190)
+    fun password(): String = try { secrets.read(secretKey(kind)) } catch (caught: Exception) {
+        FailureNotes.record("backup/CloudSettings.kt:47", caught)
         throw BackupFailure("云端密钥读取失败，请重新填写") }
     fun save(kind: CloudKind, account: String, secret: String?, webDavUrl: String?, s3: S3Settings?) {
         val login = account.trim()

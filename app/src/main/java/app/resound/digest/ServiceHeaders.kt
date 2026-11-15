@@ -36,8 +36,8 @@ class ServiceHeaders internal constructor(
         read("headers-$id").takeIf { it.isNotEmpty() }?.let { text ->
             decodeNetworkHeaders(text)
         }.orEmpty()
-    } catch (failure190: Exception) {
-        FailureNotes.record("digest/ServiceHeaders.kt:37", failure190)
+    } catch (caught: Exception) {
+        FailureNotes.record("digest/ServiceHeaders.kt:37", caught)
         throw IllegalStateException("请求头安全读取失败，请重新保存或恢复备份") }
 
     fun save(id: String, headers: List<HeaderEntry>) {

@@ -23,8 +23,8 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
             (AppGraph.folderImports as AndroidFolderImports).scan()
             Result.success()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("importer/FolderImportWork.kt:24", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("importer/FolderImportWork.kt:24", caught)
             Result.retry() }
     }
     companion object {
@@ -47,8 +47,8 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
                 manager.notify(id, 3117, NotificationCompat.Builder(context, "import")
                     .setSmallIcon(R.drawable.ic_notify).setContentTitle("从${name}导入了 $count 个录音")
                     .setContentText("已加入转写整理队列").setContentIntent(pending).setAutoCancel(true).build())
-            } catch (failure190: SecurityException) {
-                FailureNotes.record("importer/FolderImportWork.kt:46", failure190)
+            } catch (caught: SecurityException) {
+                FailureNotes.record("importer/FolderImportWork.kt:46", caught)
                 /* 通知权限被撤回不影响已提交的导入。 */ }
         }
     }

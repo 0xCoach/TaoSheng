@@ -22,8 +22,8 @@ class RecordingPackWorker(context: Context, params: WorkerParameters) : Coroutin
             PackNotifications.finished(applicationContext, id, packer.current.value?.takeIf { it.first == id }?.second)
             if (ok) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
-        catch (failure190: Exception) {
-            FailureNotes.record("recordings/RecordingPackWorker.kt:23", failure190)
+        catch (caught: Exception) {
+            FailureNotes.record("recordings/RecordingPackWorker.kt:23", caught)
 
             if (runAttemptCount < 3) Result.retry() else {
                 packer.fail(id, "无法启动后台打包，请打开应用后重试")

@@ -90,8 +90,8 @@ class AndroidQuietSchedule(
             try {
                 if (Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
                 else manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
-            } catch (failure190: SecurityException) {
-                FailureNotes.record("capture/AndroidQuietSchedule.kt:89", failure190)
+            } catch (caught: SecurityException) {
+                FailureNotes.record("capture/AndroidQuietSchedule.kt:89", caught)
                 manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent) }
         }
     }

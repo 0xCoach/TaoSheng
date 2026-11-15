@@ -65,6 +65,9 @@ object RecordSearchRules {
 }
 
 class RecordSearch(private val db: RoomDatabase) {
+    /** 卡 194：五类独立配额、时间过滤与分页。旧 search 保留原行为。 */
+    suspend fun searchAll(request: ExpandedSearchRequest): ExpandedSearchResult = ExpandedSearch(db).search(request)
+
     suspend fun search(query: String): List<SearchHit> {
         val words = RecordSearchRules.words(query)
         if (words.isEmpty()) return emptyList()

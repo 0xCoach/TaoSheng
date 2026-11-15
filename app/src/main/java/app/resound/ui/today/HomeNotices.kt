@@ -160,6 +160,40 @@ internal fun BackgroundLimitCard(body: String, onSettings: () -> Unit, onHide: (
     }
 }
 
+/** 唤醒芯片不能和录音同时工作的品牌多见于这些厂商；只用来决定是否在首页提示一次 */
+internal fun wakeWordLikelyBlocked(brand: String = android.os.Build.MANUFACTURER): Boolean =
+    brand.lowercase() in setOf("xiaomi", "redmi", "poco", "meizu", "oppo", "oneplus", "realme", "vivo", "iqoo")
+
+internal const val WAKE_WORD_TIP = "部分手机（如小米、魅族）在涛声录音时，喊“小爱同学”等唤醒词会没反应：手机不支持同时听唤醒词和录音。可以改用长按电源键唤醒语音助手。"
+
+/** 录音时语音助手唤不醒：只对常见受影响品牌、在开始收音后提示一次，点“知道了”不再出现 */
+@Composable
+fun WakeWordNotice(listening: Boolean, topGap: Dp = 0.dp) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("home-notices", Context.MODE_PRIVATE) }
+    var seen by remember { mutableStateOf(prefs.getBoolean("wakeWordTipSeen", false)) }
+    if (seen || !listening || !wakeWordLikelyBlocked()) return
+    val c = Rs.colors
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("🎙", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("录音时语音助手可能唤不醒", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("这台手机不支持一边录音一边听唤醒词。想用小爱同学等语音助手时，改用长按电源键唤醒。",
+                    style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Pill("知道了", filled = false) {
+                    seen = true
+                    prefs.edit().putBoolean("wakeWordTipSeen", true).apply()
+                }
+            }
+        }
+    }
+}
+
 /** 按系统类型给“保活”提示换说法；界面只说要做什么 */
 internal fun keepAliveHint(context: Context): String =
     when ((context.applicationContext as? app.resound.ResoundApp)?.pipelineDiagnostics?.system) {

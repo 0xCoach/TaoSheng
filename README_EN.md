@@ -174,6 +174,8 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
 
+> **Voice assistant wake word not responding while recording?** On many phones (e.g. Xiaomi, Meizu) the system pauses wake-word listening whenever an app is recording; this is a hardware limitation. While TaoSheng records, wake your assistant by **long-pressing the power button** instead.
+
 arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/latest/download/SHA256SUMS). Official signing certificate SHA-256: `7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`.
 
 ### Build from source

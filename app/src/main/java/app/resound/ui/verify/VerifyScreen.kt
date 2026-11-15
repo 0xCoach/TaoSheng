@@ -134,6 +134,7 @@ fun VerifyScreen(
         if (g.isVoiceInputReady) item { Box(Modifier.settingsAnchor("voice-input")) { VoiceInputSection(g.voiceInput) } }
         if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
         item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }
+        item { Box(Modifier.settingsAnchor("wake-word")) { WakeWordSection() } }
         item { LinkRow("运行记录与诊断", "统计 · 守护 · 麦克风占用") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Advanced) } }
     }
 }
@@ -615,6 +616,16 @@ private fun SetupRow(item: SetupItem, onOpen: () -> Unit, onDone: () -> Unit) {
             Pill("我已设置", filled = false, onClick = onDone)
         } else if (item.done == false) {
             Text("去设置 ›", style = RsType.subhead, color = c.accent)
+        }
+    }
+}
+
+/** 录音占着麦克风时，很多手机的唤醒芯片会被系统暂停；涛声改不了，只说替代办法 */
+@Composable
+private fun WakeWordSection() {
+    Section("语音助手") {
+        RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
+            Text(app.resound.ui.today.WAKE_WORD_TIP, style = RsType.caption, color = Rs.colors.textSecondary)
         }
     }
 }

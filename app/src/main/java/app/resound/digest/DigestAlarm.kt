@@ -8,9 +8,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import app.resound.ResoundApp
-import app.resound.transcribe.PipelineTimes
 import kotlinx.coroutines.launch
-import androidx.work.await
 
 /** 只安排下一次唤醒；漏点是否补做由持久化完成凭据决定。 */
 class DigestAlarm(private val context: Context, private val timing: AndroidDigestTiming) {
@@ -21,17 +19,18 @@ class DigestAlarm(private val context: Context, private val timing: AndroidDiges
 
     fun cancel() { alarms.cancel(pending()); timing.next(null) }
     fun schedule(now: Long = System.currentTimeMillis()) {
-        if (timing.mode.value != DigestMode.TimePoints) { cancel(); return }
-        val next = DigestTime.next(timing.timePoints.value, now) ?: run { cancel(); return }
+        val interval = timing.mode.value != DigestMode.TimePoints
+        val next = if (interval) (context.applicationContext as? ResoundApp)?.pipelineInProcess?.nextIntervalAlarmAt(now)
+            ?: (now + 30 * 60_000L) else DigestTime.next(timing.timePoints.value, now) ?: run { cancel(); return }
         val intent = pending()
         try {
-            if (timing.canScheduleExact()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
+            if (!interval && timing.canScheduleExact()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
             else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
         } catch (_: SecurityException) {
             // 检查后权限被收回也保留普通闹钟兜底。
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
         }
-        timing.next(next)
+        timing.next(if (interval) null else next)
     }
     companion object {
         fun online(context: Context): Boolean {
@@ -43,14 +42,29 @@ class DigestAlarm(private val context: Context, private val timing: AndroidDiges
 
 class DigestAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val app = context.applicationContext as ResoundApp
+        val application = context.applicationContext as ResoundApp
         val pending = goAsync()
-        app.scope.launch {
+        val handoff = context.getSystemService(android.os.PowerManager::class.java)
+            .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "resound:pipeline-handoff188")
+        runCatching { handoff.acquire(10_000L) }
+        // 广播只做交接；不能让 goAsync 等待可能持续数分钟的网络流水线。
+        application.scope.launch {
             try {
-                PipelineTimes.record(context, "${System.currentTimeMillis()} 到点整理 闹钟唤醒")
-                // 不以广播迟到判定过期；完成凭据决定是否仍需补做。
-                app.rescheduleDigest()
-                app.recoverTimedDigest()?.await()
+                val source = if (app.resound.AppGraph.digestTiming.mode.value == DigestMode.TimePoints) "到点闹钟" else "闹钟"
+                application.rescheduleDigest() // 先留下一次机会，进程中断也不会断链。
+                application.scope.launch {
+                    try { application.pipelineInProcess.runIfDue(source) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { app.resound.transcribe.PipelineTimes.record(context, "闹钟流水线未完成：${e.javaClass.simpleName}") }
+                    finally {
+                        if (handoff.isHeld) handoff.release()
+                        application.rescheduleDigest()
+                    }
+                }
+            } catch (e: Exception) {
+                if (handoff.isHeld) handoff.release()
+                app.resound.transcribe.PipelineTimes.record(context, "闹钟交接失败：${e.javaClass.simpleName}")
+                if (e is kotlinx.coroutines.CancellationException) throw e
             } finally { pending.finish() }
         }
     }

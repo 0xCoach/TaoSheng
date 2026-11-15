@@ -44,6 +44,8 @@ internal class LocalProblemReports(
                 appendLine("生成时间=$at")
                 appendLine("\n最近闪退（最多 10 条）"); appendLine(crashes.dump())
                 appendLine("\n运行诊断"); appendLine(diagnostics.readText())
+                appendLine("\n自动整理/转写触发（最近7天，最多2000行）")
+                (context.applicationContext as? app.resound.ResoundApp)?.let { appendLine(it.pipelineDiagnostics.dump()) }
                 appendLine("\n各线程 CPU 时间（最近 1008 次；DefaultDispatcher/IO 合并）")
                 appendLine(app.resound.capture.ThreadCpuDiagnostics.dump(context))
                 appendLine("\n整理与大模型诊断")

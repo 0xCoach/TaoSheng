@@ -253,7 +253,7 @@ internal fun SettingsList(
         }
         item {
             Group {
-                SRow(SettingsGlyph.Tool, Tints.advanced, "高级与诊断", "整理要求 · 运行记录") { onOpen(SettingsPage.Advanced) }
+                SRow(SettingsGlyph.Tool, Tints.advanced, "高级与诊断", "运行记录 · 导出问题记录") { onOpen(SettingsPage.Advanced) }
             }
         }
     }

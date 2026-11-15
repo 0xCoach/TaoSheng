@@ -1,6 +1,10 @@
 package app.resound.digest
 
 import app.resound.data.saveDigest
+import app.resound.digest.core.DigestOutcome
+import app.resound.digest.core.DigestRecovery
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 import android.content.Context
 import app.resound.appName
@@ -66,9 +70,13 @@ class DigestRunner(
     /** 兼容旧调用的单次 force；生产流水线用 run 的显式参数，避免自动任务消费手动意图。 */
     @Volatile var forceOnce = false
 
-    /** true 表示有暂时性错误，希望稍后重试 */
-    suspend fun run(force: Boolean? = null, manual: Boolean = false): Boolean {
-        if (!gate.tryLock()) return false
+    /** true 表示有暂时性错误，希望稍后重试；保留已有调用语义。 */
+    suspend fun run(force: Boolean? = null, manual: Boolean = false): Boolean =
+        runOutcome(force, manual) is DigestOutcome.Retryable
+
+    /** 取消始终抛出，不把取消包装成正常返回，更不能发布成功。 */
+    internal suspend fun runOutcome(force: Boolean? = null, manual: Boolean = false): DigestOutcome {
+        if (!gate.tryLock()) return DigestOutcome.NothingToDo
         var madeEvents = false
         // force 只决定对话是否结束；manual 只决定技能是否跳过最短间隔。
         val forceNow = force ?: forceOnce.also { forceOnce = false }
@@ -77,51 +85,24 @@ class DigestRunner(
         probe = null
         try {
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) { record(null, "还没填写大模型密钥"); return false }
-            unsavedReply?.let { dao.rememberDigest(it); unsavedReply = null; clearInFlight() }
+            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset))
+                return needsUser("还没填写大模型密钥", null)
+            replayUnsavedReply()
             val undigested = dao.undigestedLines()
-            val chunks = mutableListOf<List<TranscriptLineEntity>>()
-            for (pending in dao.pendingDigests()) {
-                val source = dao.refreshLines(pending.ids())
-                // 核验不了的旧缓存与原逻辑一样丢弃、重新整理：多花一次请求，好过整理永久停住。
-                if (source.size == pending.ids().size && dao.topicLineCount(pending.ids()) == 0 && matches(pending, source, preset)) chunks += source
-                else dao.removePendingDigest(pending.id)
-            }
-            val inFlight = prefs.getString("inflight", null)
-            if (inFlight != null) {
-                val ids = prefs.getString("inflight-lines", "")!!.split(',').mapNotNull(String::toLongOrNull).toSet()
-                if (dao.pendingDigest(inFlight) != null || undigested.none { it.id in ids } || manual) {
-                    clearInFlight()
-                } else {
-                    record(now(), "上次整理结果未能保存，已暂停自动请求；请检查存储后点“现在整理”重试")
-                    return false
-                }
-            }
-            val replayIds = chunks.flatten().map { it.id }.toSet()
-            val sessions = sessions(undigested.filterNot { it.id in replayIds }, gapMillis())
-            for (session in sessions) {
-                val ready = if (closed(session, forceNow)) session else settledPrefix(session)
-                chunks.addAll(batches(ready))
-            }
+            val chunks = verifiedPendingChunks(preset)
+            if (!resolveInFlight(undigested, manual))
+                return needsUser("上次整理结果未能保存，已暂停自动请求；请检查存储后点“现在整理”重试")
+            appendReadyChunks(chunks, undigested, forceNow)
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
-            for ((index, chunk) in chunks.withIndex()) {
-                if (!networkAllowed() && cached(chunk, preset) == null) { record(now(), "等待网络"); return true }
-                _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed())
-                val refreshed = dao.refreshLines(chunk.map { it.id })
-                when (val outcome = if (refreshed.isEmpty()) null else digest(refreshed, preset, key) { madeEvents = true }) {
-                    null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
-                    LlmError.Auth, LlmError.Quota -> { record(now(), failureDetail ?: outcome.human); return false }
-                    LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format -> { record(now(), failureDetail ?: outcome.human); return retryFailure }
-                }
-            }
-            record(now(), null)
-            return false
+            val result = runBatches(chunks, preset, key) { madeEvents = true }
+            currentCoroutineContext().ensureActive()
+            if (result == DigestOutcome.Done || result == DigestOutcome.NothingToDo) record(now(), null)
+            return result
         } catch (e: CancellationException) { throw e }
-        catch (e: LlmInputLimitException) { record(now(), e.message); return false }
-        catch (e: DigestBatchLimitException) { record(now(), e.message); return false }
+        catch (e: LlmInputLimitException) { return needsUser(e.message.orEmpty()) }
+        catch (e: DigestBatchLimitException) { return needsUser(e.message.orEmpty()) }
         catch (_: Exception) {
-            record(now(), "整理的本地数据暂时无法读取或保存，请检查存储后重试")
-            return false
+            return needsUser("整理的本地数据暂时无法读取或保存，请检查存储后重试")
         } finally {
             _progress.value = _progress.value.copy(finishedAt = elapsed())
             _running.value = false
@@ -133,6 +114,68 @@ class DigestRunner(
                 catch (_: Exception) { /* 技能调度失败不影响已完成的整理。 */ }
             }
         }
+    }
+
+    private fun needsUser(reason: String, at: Long? = now()): DigestOutcome.NeedsUser {
+        record(at, reason)
+        return DigestOutcome.NeedsUser(reason)
+    }
+
+    private suspend fun replayUnsavedReply() {
+        // rememberDigest 可能返回 false（来源已删除）；必须等调用完成后才能清内存与在途状态。
+        unsavedReply?.let { dao.rememberDigest(it); unsavedReply = null; clearInFlight() }
+    }
+
+    private suspend fun verifiedPendingChunks(preset: LlmPreset): MutableList<List<TranscriptLineEntity>> {
+        val chunks = mutableListOf<List<TranscriptLineEntity>>()
+        for (pending in dao.pendingDigests()) {
+            val source = dao.refreshLines(pending.ids())
+            // 保留短路顺序：来源不完整时不再查主题或核对模型。
+            if (source.size == pending.ids().size && dao.topicLineCount(pending.ids()) == 0 && matches(pending, source, preset))
+                chunks += source
+            else dao.removePendingDigest(pending.id)
+        }
+        return chunks
+    }
+
+    private suspend fun resolveInFlight(undigested: List<TranscriptLineEntity>, manual: Boolean): Boolean {
+        val inFlight = prefs.getString("inflight", null) ?: return true
+        val ids = prefs.getString("inflight-lines", "")!!.split(',').mapNotNull(String::toLongOrNull).toSet()
+        if (!DigestRecovery.mayClearInFlight(dao.pendingDigest(inFlight) != null,
+                undigested.none { it.id in ids }, manual)) return false
+        clearInFlight()
+        return true
+    }
+
+    private suspend fun appendReadyChunks(chunks: MutableList<List<TranscriptLineEntity>>,
+                                          undigested: List<TranscriptLineEntity>, force: Boolean) {
+        val replayIds = chunks.flatten().map { it.id }.toSet()
+        for (session in sessions(undigested.filterNot { it.id in replayIds }, gapMillis())) {
+            val ready = if (closed(session, force)) session else settledPrefix(session)
+            chunks.addAll(batches(ready))
+        }
+    }
+
+    private suspend fun runBatches(chunks: List<List<TranscriptLineEntity>>, preset: LlmPreset,
+                                   key: String, onEvents: () -> Unit): DigestOutcome {
+        for ((index, chunk) in chunks.withIndex()) {
+            if (!networkAllowed() && cached(chunk, preset) == null) {
+                record(now(), "等待网络")
+                return DigestOutcome.Retryable("等待网络")
+            }
+            _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed())
+            val refreshed = dao.refreshLines(chunk.map { it.id })
+            when (val error = if (refreshed.isEmpty()) null else digest(refreshed, preset, key, onEvents)) {
+                null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
+                LlmError.Auth, LlmError.Quota -> return needsUser(failureDetail ?: error.human)
+                LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format -> {
+                    val reason = failureDetail ?: error.human
+                    record(now(), reason)
+                    return if (retryFailure) DigestOutcome.Retryable(reason) else DigestOutcome.NeedsUser(reason)
+                }
+            }
+        }
+        return if (chunks.isEmpty()) DigestOutcome.NothingToDo else DigestOutcome.Done
     }
 
     internal suspend fun withIdle(block: suspend () -> Unit) { gate.lock(); try { block() } finally { gate.unlock() } }

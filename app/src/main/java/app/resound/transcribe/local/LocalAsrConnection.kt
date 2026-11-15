@@ -80,7 +80,7 @@ internal class LocalAsrConnection(private val context:Context) {
         diagnostic("local-binding-lost")
         death.complete(Unit)
         binding?.completeExceptionally(AsrException(AsrError.LocalEngine))
-        for(request in pending.values){request.started.complete(Unit);request.result.completeExceptionally(AsrException(AsrError.LocalEngine))}
+        for(request in pending.values){request.started.complete(Unit);request.result.completeExceptionally(AsrException(AsrError.LocalEngine, detail = "local-unbound"))}
         disconnect()
     }
     private fun disconnect() {
@@ -129,13 +129,13 @@ internal class LocalAsrConnection(private val context:Context) {
         var messenger:Messenger?=null
         try {
             messenger=connect()
-            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("path",audio.file.path);putString("pcmPath",
+            messenger.send(Message.obtain(null,1).apply{replyTo=receiver;data=Bundle().apply{putString("id",id);putString("segment", request.timings?.segmentId?.let { "segment:$it" } ?: "audio:${LocalResumeFiles.hash(audio.file.path.toByteArray())}");putString("hotwords", currentCoroutineContext()[LocalResumeRequest]?.hotwords ?: "");putString("path",audio.file.path);putString("pcmPath",
                 audio.pcmFile?.path);putString("backend",backend.name);putString("language",language.code);putBoolean("separateSpeakers",audio.separateSpeakers);putInt(
                 "speakerCount", audio.speakerCount ?: -1);putLong("timeoutMillis",InferenceWakeLock.timeoutMillis(audio.durationMillis))}})
             // 排队期间不消耗模型执行超时，调用方取消仍会立即生效。
             request.started.await()
             try { withTimeout(InferenceWakeLock.timeoutMillis(audio.durationMillis)){request.result.await()} }
-            catch(e:TimeoutCancellationException){diagnostic("local-inference-timeout");throw e}
+            catch(e:TimeoutCancellationException){diagnostic("local-inference-timeout");throw AsrException(AsrError.Interrupted, detail = "local-inference-timeout")}
         } finally {
             if(!request.result.isCompleted)runCatching{
                 // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。

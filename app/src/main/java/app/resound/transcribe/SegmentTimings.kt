@@ -12,7 +12,7 @@ internal enum class AsrPart(val title: String) {
 }
 
 internal class SegmentTimings(
-    private val segmentId: Long,
+    val segmentId: Long,
     private val source: TranscribeSource?,
     private val audioMillis: Long,
     private val clock: () -> Long = { System.nanoTime() / 1_000_000 },

@@ -17,7 +17,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.3.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.4.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -72,7 +72,7 @@
 9. **☁️ 每天自动备份到云端和本机**：云端可选坚果云、WebDAV（Nextcloud、群晖等）或 S3 兼容存储（阿里云、腾讯云、R2 等）；增量备份，只传变化；保留 3 / 7 / 30 天版本；可设口令加密；换手机一键恢复，设置和密钥一起回来。
 10. **🧠 整理模型随便换，可完全本地运行**：内置 DeepSeek、豆包、通义、Kimi、智谱等十多家服务商，点一下切换，能查余额的显示余额并低额提醒；也支持任何 OpenAI 兼容接口（可填自定义请求头，内置 OpenCode Go）和局域网自建模型，转写 + 整理全程不出你自己的设备。
 11. **🛟 主模型出问题自动换备用**：配了多个模型时，主模型断网、宕机、余额不足或密钥失效，自动按顺序换用备用模型，整理、回顾、问问都不中断（默认开启，可关）。
-12. **🔒 锁屏、后台一直在听**：前台服务 + 守护，被系统杀掉自动拉起；通知栏快捷开关一键暂停。
+12. **🔒 锁屏、后台一直在听，按时整理**：前台服务 + 守护，被系统杀掉自动拉起；录音时自己按设定间隔检查并执行转写和整理，不只靠系统后台任务，鸿蒙等后台限制严的手机也能按时整理；华为、荣耀、鸿蒙（含卓易通）有专属保活引导；通知栏快捷开关一键暂停。
 13. **🔋 只录人声，安静不录**：本机人声检测（Silero VAD），实测自身耗电约 0.5%/小时。
 14. **📺 外放时不转写**：手机在放视频、音乐时自动跳过，不把视频里的话当成你说的；别的应用要用麦克风（电话、语音消息）时自动让出。
 15. **⌨️ 语音输入也记得**（可选）：在微信等应用用输入法语音输入时，记下你说的话和当时的聊天上下文，分得清哪句是你、哪句是对方；截图只在内存里识字，识完即丢。
@@ -89,7 +89,7 @@
 26. **🔊 环境音识别**：听出说话之外的声音（音乐、键盘声、雨、宠物、流水、家电、脚步、闹钟、车流 9 类），写进事件和周报的“声音印象”。
 27. **📋 日报周报一键复制**：全文复制、按模块多选复制或自由选字，格式和勾选状态都保留。
 28. **🎙️ 专题录音与停录时段**：会议、培训、通话、口播稿一键开始，可暂停、预约，结束后合成一件事出纪要（培训不区分说话人）；忘了开始可事后补；设好时段自动停录，比如夜里不录。
-29. **⬆️ App 内检查更新**：优先下载几 MB 的差异包，国内走魔搭镜像；下载完就在后台备份好，点安装直接弹出系统确认。
+29. **⬆️ App 内更新，首页直接提示**：有新版本时首页弹出提示，在面板里直接下载安装；优先下载几 MB 的差异包，国内走魔搭镜像；安装前自动备份，点安装直接弹出系统确认。
 30. **📍 足迹**：跟着录音一起记下每天去过哪，停留的地方显示地名、自动认出“家”；一天按地点分成时间轴，每个停留点下面列出当时发生的事；可每天推送“每日足迹”。定位只存在手机里。
 31. **📡 专用录音设备与开放适配（试用）**：通过设备说明卡或驱动插件接入 Omi、ADeus ESP32-C3、安克／飞书录音豆 D3200 等设备，复用涛声的转写、整理和记忆功能。D3200 试用驱动已实现实时收音、离线补传、录音控制、电量和存储查询，0.3.1 修复关灯收音和手动补传；贡献者已在 realme Android、04.92／盒 1.2.2 上验收，当前正式构建未再次进行真机验收；各设备能力与固件限制见[硬件接入说明](docs/硬件接入与协议适配.md)。0.3.0 已移除原内置声云适配，声云用户请暂缓升级。
 32. **🧭 声音、位置、环境音联动**：事件上显示当时在哪（“📍 在公司”）；问问能按地点问——“上周在公司聊了什么”“昨天在家提到过哪些待办”；可选让整理参考当时的地点和环境音，分场景更准（默认关）。
@@ -100,6 +100,7 @@
 37. **📝 长会议分段整理，中断后继续**：显示整理进度，继续时复用已完成的分段结果；失败专题可用已有原话重试，无需重新转写；重新生成期间保留原纪要，成功后再替换。
 38. **🔎 设置能搜索，问题有入口**：在设置里搜“耗电”“不录”等常用说法，点结果即可定位并高亮对应选项；设置首页的体检提示集中展示需要处理的问题。
 39. **🌗 首页与夜间模式焕新**：聆听、暂停、专题操作更集中，进行中的专题显示计时和重点操作；夜间采用纯黑背景、分层文字和橙色点缀，并改善大字体显示。
+40. **🔎 首页搜索原话和事件**：点首页日期旁的放大镜，按关键词搜说过的话和整理出的事件，多个词用空格分开；点原话直接跳到那一刻。
 
 <table>
 <tr>
@@ -147,7 +148,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 手机之外，也可以把录音豆、录音卡或开源吊坠作为涛声的声音来源，继续使用同一套转写、整理、待办与记忆功能。
 
 - **已有设备**：普通蓝牙耳机、有线或 USB 麦克风走系统音频输入；专用设备按协议通过说明卡或驱动插件接入。当前提供 Omi、ADeus ESP32-C3 说明卡，以及安克／飞书录音豆 D3200 试用驱动。各设备的实时收音、离线补传和控制能力不同。
-- **录音豆 D3200**：驱动包含实时收音、离线补传、录音控制及录音豆 / 充电盒电量、存储查询。原贡献者验证包已有部分实测记录，迁移后的官方构建仍待真机验收，其他固件也需单独验证。
+- **录音豆 D3200**：驱动包含实时收音、离线补传、录音控制及录音豆 / 充电盒电量、存储查询。贡献者已在 realme Android、固件 04.92／盒 1.2.2 上验收 0.3.1 的修复，官方正式构建尚未再次真机验收，其他固件也需单独验证。
 - **统一的硬件适配规范**：涛声提供设备说明卡和驱动插件的适配规范。厂商与开发者按规范接入后，可复用现有的设备管理、转写、整理和记忆能力，减少重复开发。设备专属逻辑集中在对应适配模块中，减少对核心代码的改动，方便后续维护和扩展。欢迎提供协议资料、SDK、设备及固件信息、测试样机参与适配。
 
 [设备能力与接入指南](docs/硬件接入与协议适配.md) · [硬件适配规范](docs/taoecho/README.md) · [插件提交与真机验收要求](docs/taoecho/插件提交清单.md) · [在 GitHub 发起接入讨论](https://github.com/0xCoach/TaoSheng/issues/new)
@@ -167,7 +168,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.3.1**（最新） | 2026-11-14 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk) | 到点整理迟到补漏、重启恢复与失败重试；修复 D3200 关灯收音及补传生命周期；更新下载稳定性修复。鸿蒙真机待验收。[详细更新日志](CHANGELOG.md#031--2026-11-14) |
+| **v0.4.0**（最新） | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.0-arm64.apk) | 录音时按间隔自查整理，改善鸿蒙等手机后台不按时；首页搜索原话与事件、新版本弹窗；切换服务商立即生效；设置备份补齐；许可证改为 FSL-1.1-MIT。[详细更新日志](CHANGELOG.md#040--2026-11-16) |
+| **v0.3.1** | 2026-11-14 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk) | 到点整理迟到补漏、重启恢复与失败重试；修复 D3200 关灯收音及补传生命周期；更新下载稳定性修复。鸿蒙真机待验收。[详细更新日志](CHANGELOG.md#031--2026-11-14) |
 | **v0.3.0** | 2026-11-13 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.0-arm64.apk) | 首页与夜间模式焕新；语音待办与桌面小组件；专题记录管理、长会议分段续做；设置搜索与体检；减少后台开销。升级前备份，旧声云适配已移除。[详细更新日志](CHANGELOG.md#030--2026-11-13) |
 | **v0.2.22** | 2026-11-11 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.22-arm64.apk) | 新增专题录音（会议、培训、通话、口播稿，结束后合成一件事出纪要，可暂停、预约、事后补）；问问换模型也能用（Gemini 兼容、程序先查兜底）；整理被拒收不再卡住。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0222--2026-11-11) |
 | **v0.2.21** | 2026-11-10 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.2.21-arm64.apk) | 新增足迹，并和声音、环境音联动（事件显示当时在哪、问问按地点问）；专用录音设备接入（试用）；开箱向导三分钟上手；锁屏本地转写更省电；更新前备份提前；问题记录含大模型诊断。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#0221--2026-11-10) |
@@ -191,7 +193,7 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 - 只支持 64 位安卓手机（arm64-v8a，近几年的手机基本都是），Android 10 及以上。
 - 手机上直接打开下载的 apk 安装；提示“未知来源”时按提示允许即可。
 - 历史版本和更新说明见 [Releases](https://github.com/0xCoach/TaoSheng/releases)。
-- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/SHA256SUMS)。
+- 最新版文件校验（SHA-256）见 [正式版附件 SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/latest/download/SHA256SUMS)。
 - 正式签名证书指纹（SHA-256）：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`。只认这个签名的安装包，别处下载的改装版可能被动过手脚。
 
 ### 从源码编译
@@ -229,7 +231,7 @@ $env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
 1. **打开必要权限**：麦克风、通知、电池白名单，每项都先说明用途再弹系统确认；同时在后台自动下载本机转写模型（约 170～330 MB，用流量时会提醒）。
 2. **配置整理模型**：点“去 DeepSeek 获取密钥”，在网页里创建密钥并复制，回到涛声会自动识别并测试；也可以“以后再说”，或之后在 设置 →「整理模型」换成别家 / 自定义接口。
 3. **说句话试试**：模型装好后说一句话，当场看到转写和整理出的事件、待办。
-4. **其他设置（可选）**：向导最后会问要不要现在设置后台保活、备份、推送、足迹；小米 / 澎湃 OS 建议做一下后台保活（自启动、电池无限制）。
+4. **其他设置（可选）**：向导最后会问要不要现在设置后台保活、备份、推送、足迹。小米 / 澎湃 OS 建议打开自启动、电池设为无限制；华为、荣耀、鸿蒙建议在“应用启动管理”里把涛声改成手动、三项全开（在卓易通里使用的，要对卓易通本身设置），“设置 → 录音与后台”里有逐项引导。
 5. （可选）**录入声纹**：设置 →「声纹与人物」→ 我，照着屏幕朗读三段短文，涛声就能认出哪句是你说的。
 
 换手机的老用户：在向导第一页点“换手机了？从备份恢复”。
@@ -238,11 +240,11 @@ $env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
 
 | 页面 | 做什么 |
 | --- | --- |
-| **今天** | 收音状态、今日节奏、待确认的待办、按时间排的事；拖时间轴回看 |
+| **今天** | 收音状态、今日节奏、待确认的待办、按时间排的事；拖时间轴回看；点放大镜搜原话和事件 |
 | **问问** | 打字提问，“这周我答应了哪些事？”“老王的电话是多少？”，答案附原话 |
 | **记忆** | 按天的日记、关键信息、重点 ★、灵感，以及技能卡片 |
 | **待办** | 待确认 / 进行中 / 已完成；左滑标重点，右滑删除 |
-| **设置** | 录音与后台（含专用录音设备、文件夹自动导入）、原话与转写、整理模型、声纹与人物、整理技能、整理指令、每日回顾、推送通道、热词识别、环境音识别、足迹、数据备份、版本更新 |
+| **设置** | 录音与后台（含专用录音设备、文件夹自动导入、保活引导）、原话与转写、整理模型、声纹与人物、整理技能、整理指令、每日回顾、推送通道、热词识别、环境音识别、足迹、数据备份、版本更新；遇到问题在“高级与诊断”导出问题记录 |
 
 ### 自己写一个技能
 
@@ -272,22 +274,26 @@ flowchart LR
 | --- | --- |
 | 界面 | Kotlin · Jetpack Compose · 浅色暖橙主题 + 夜间模式 |
 | 存储 | Room（SQLite + FTS4 全文检索）· 本机向量检索 |
-| 后台 | 前台服务 + WorkManager + 守护 · 无障碍服务（语音输入，可选） |
+| 共用代码 | Kotlin 多平台（KMP）：业务规则、数据库、网络（Ktor）放在 `shared`，为以后的 iOS 版本复用 |
+| 后台 | 前台服务（录音时自查到期并执行转写、整理）+ WorkManager 与闹钟兜底 + 守护 · 无障碍服务（语音输入，可选） |
 | 本机模型 | Silero VAD · CAM++ 声纹 · SenseVoice（sherpa-onnx + 高通 QNN NPU）· pyannote 分段 |
 | 云端 | 豆包语音流式识别 2.0 · 自定义转写服务 · DeepSeek 等十多家服务商 / 任意 OpenAI 兼容接口 |
 
 ```
+shared/   跨平台共用（Kotlin 多平台）：数据库与查询、网络、整理与问问规则、调度规则
+devices/  专用录音设备：设备说明卡、驱动插件与协议
 app/src/main/java/app/resound/
 ├── capture/     收音服务、人声切段、守护、语音输入
 ├── audio/       音频来源（手机麦 / 外接麦）、编码
-├── transcribe/  云端 / 本地 / 自定义转写、热词
+├── transcribe/  云端 / 本地 / 自定义转写、热词、转写与整理调度
 ├── voiceprint/  声纹提取、认人与样本管理
 ├── digest/      大模型整理成事件和记忆
 ├── ask/         “问问”：大模型 + 查询工具 + 原话出处
 ├── review/      每日 / 每周回顾
 ├── skills/      技能卡片框架
+├── topic/       专题录音与纪要
 ├── push/        十种推送通道
-├── backup/      增量备份与恢复（本机 + WebDAV / S3）
+├── backup/      增量备份与恢复（本机 + 坚果云 / WebDAV / S3）
 ├── privacy/     删除与隐私开关
 └── ui/          全部界面
 ```
@@ -296,7 +302,7 @@ app/src/main/java/app/resound/
 
 涛声的代码几乎全部由 AI 完成：**Claude** 负责架构、接口约定和全部界面，**Codex** 负责录音、转写、数据库、推送、备份等底层。人只做一件事——提需求、在手机上实测、说哪里不对。
 
-近百张任务卡和每一张的交付说明都公开在 [`docs/任务卡/`](docs/任务卡)，包括踩过的坑（比如安卓正则比电脑严格导致的启动崩溃、坚果云请求太多会 503）。想看 AI 协作开发是怎么一步步推进的，可以从那里读起。
+近两百张任务卡和每一张的交付说明都公开在 [`docs/任务卡/`](docs/任务卡)，包括踩过的坑（比如安卓正则比电脑严格导致的启动崩溃、坚果云请求太多会 503）。想看 AI 协作开发是怎么一步步推进的，可以从那里读起。
 
 ## 🗺 路线图
 
@@ -311,11 +317,14 @@ app/src/main/java/app/resound/
 - [x] 足迹，以及声音、位置、环境音联动
 - [x] 专用录音设备接入（说明卡 + 文件插件，试用）
 - [x] 开箱向导，三分钟上手
+- [x] 上线官网 [www.taosheng.app](https://www.taosheng.app)
+- [x] 鸿蒙等手机的后台按时整理、首页搜索与新版本提示
+- [x] 核心代码迁入跨平台共用模块，为 iOS 版本打基础
 
 下一步：
 
 - [ ] 持续优化录音、转写和 AI 整理体验
-- [ ] 上线官网，完善新手引导和使用文档
+- [ ] 完善新手引导和使用文档
 - [ ] 探索开箱即用、按量付费的 AI 服务
 - [ ] 逐步适配 ESP32 等录音设备，探索开放接入协议
 - [ ] 推进 Google Play 上架，探索 iOS 版本
@@ -326,20 +335,22 @@ app/src/main/java/app/resound/
 
 - 涛声是**个人记忆工具**。录音和保存他人对话在很多国家和地区受法律约束，请遵守当地法律，并在需要时告知身边的人。
 - 涛声刻意保留了常驻通知和系统麦克风指示灯，**不会也不应被改造成隐蔽录音工具**。
-- 当前是早期验证版，主要在小米 14 Pro 上实测；其他品牌的后台保活策略差异很大，欢迎提 Issue 反馈你的机型表现。
+- 当前是早期验证版，主要在小米 14 Pro 上实测；其他品牌的后台保活策略差异很大（鸿蒙卓易通等环境的后台限制尤其严格），欢迎提 Issue 反馈你的机型表现，附上“高级与诊断”里导出的问题记录更好定位。
 - 云端转写和大模型按服务商价格计费，费用由你自己的账号承担；用本地转写可以省掉转写费用。
 
 ## 🙏 致谢
 
-- [@feitian124](https://github.com/feitian124)：感谢帮忙制作涛声官网。
+- [@feitian124](https://github.com/feitian124)：感谢帮忙制作涛声官网，并在 [PR #27](https://github.com/0xCoach/TaoSheng/pull/27) 中为 README 加上 Star 历史曲线。
 - [@ethansunqing](https://github.com/ethansunqing)：在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中报告并定位 OPPO Find N6 的 SIGILL 闪退，提供初始二进制补丁方案，并完成 ONNX Runtime 1.25.1 升级后的真机复测。
 - [@brookDeng](https://github.com/brookDeng)：补充小米 pandora（25098PN5AC）的独立故障分析，以及升级测试版后的覆盖安装、数据保留和前后台聆听复测。
 - [@aadnapp](https://github.com/aadnapp)：在 [PR #7](https://github.com/0xCoach/TaoSheng/pull/7) 中提供 Android 9 兼容适配方案、手动让出麦克风的实现及真机测试反馈，为项目评估旧系统支持提供了参考。
 - [@JunWeiUp](https://github.com/JunWeiUp)：在 [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) 中贡献本机声纹样本管理（样本回放、删除、样本声音清理与占用统计、备份排除），此前在 [PR #8](https://github.com/0xCoach/TaoSheng/pull/8) 提出了自建异步语音服务的对接方案。
-- [@SoukNow](https://github.com/SoukNow)：在 [PR #10](https://github.com/0xCoach/TaoSheng/pull/10) 中贡献自定义转写的完整请求地址写法。
+- [@SoukNow](https://github.com/SoukNow)：在 [PR #10](https://github.com/0xCoach/TaoSheng/pull/10) 中贡献自定义转写的完整请求地址写法，在 [PR #11](https://github.com/0xCoach/TaoSheng/pull/11) 中贡献多选合并几件事。
 - [@JunWeiUp](https://github.com/JunWeiUp)：在 [PR #19](https://github.com/0xCoach/TaoSheng/pull/19) 中贡献**足迹**：全天定位记录、地名与“家”的识别、一天时间轴、手动改地点和每日足迹推送，并在真机上长期使用验证。
-- [@sheacoding](https://github.com/sheacoding)：在 [PR #14](https://github.com/0xCoach/TaoSheng/pull/14)～[#16](https://github.com/0xCoach/TaoSheng/pull/16) 中完整探索了声云录音卡的接入（实时收音、蓝牙文件导入、Wi-Fi 快传），促成了涛声通用的专用录音设备接入结构。
-- [@a327173196](https://github.com/a327173196)：在 [#20](https://github.com/0xCoach/TaoSheng/issues/20)、[#21](https://github.com/0xCoach/TaoSheng/issues/21)、[#25](https://github.com/0xCoach/TaoSheng/issues/25) 中细致排查鸿蒙兼容层的本机备份、后台转写问题，并提出问题记录补充大模型诊断。
+- [@sheacoding](https://github.com/sheacoding)：在 [PR #14](https://github.com/0xCoach/TaoSheng/pull/14)～[#16](https://github.com/0xCoach/TaoSheng/pull/16) 中完整探索了声云录音卡的接入（实时收音、蓝牙文件导入、Wi-Fi 快传），促成了涛声通用的专用录音设备接入结构；并在 [PR #13](https://github.com/0xCoach/TaoSheng/pull/13) 中移除机器专属 JDK 路径、补齐 Windows 构建入口。
+- [@a327173196](https://github.com/a327173196)：在 [#20](https://github.com/0xCoach/TaoSheng/issues/20)、[#21](https://github.com/0xCoach/TaoSheng/issues/21)、[#25](https://github.com/0xCoach/TaoSheng/issues/25)、[#35](https://github.com/0xCoach/TaoSheng/issues/35) 中细致排查鸿蒙兼容层的本机备份、后台转写问题，提出问题记录补充大模型诊断，并用宿主日志实测定位了后台任务被系统压延，促成 0.4.0 的后台按时整理。
+- [@xhp1211](https://github.com/xhp1211)：在 [PR #39](https://github.com/0xCoach/TaoSheng/pull/39) 中修复 D3200 关灯收音与补传生命周期，并完成真实回放和真机验收。
+- [@4965898](https://github.com/4965898)：在 [#34](https://github.com/0xCoach/TaoSheng/issues/34) 中提出首页关键词搜索，并反馈切换服务商需重启才生效的问题。
 - [@BulbLi](https://github.com/BulbLi)：在 [#18](https://github.com/0xCoach/TaoSheng/issues/18) 中提出接入 OpenCode Go 与自定义请求头。
 
 - [Omi](https://github.com/BasedHardware/omi)——开源 AI 可穿戴设备，给了涛声最初的灵感

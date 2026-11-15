@@ -37,7 +37,7 @@ object FailureNotes {
     }
 
     /** 平台在现有崩溃诊断初始化处注入持久化与时钟；共用层不创建平台对象。 */
-    fun install(write: (String) -> Unit, now: (() -> Long)? = null) { clock.value = now; writer.value = write }
+    fun install(now: (() -> Long)? = null, write: (String) -> Unit) { clock.value = now; writer.value = write }
     fun dump(): String = notes.value.joinToString("\n")
     internal fun resetForTest() { notes.value = emptyList(); writer.value = null; clock.value = null; seen.value = emptyMap() }
 }

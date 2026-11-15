@@ -98,7 +98,7 @@ class PreferenceBackup190Test {
         BackupSettings.capture(context, root)
         val settingsFile = File(root, "settings.json")
         val settings = JSONObject(settingsFile.readText())
-        assertFalse(settings.has("pipeline-due-188")); assertFalse(settings.has("setup"))
+        assertFalse(settings.has("pipeline-schedule")); assertFalse(settings.has("setup"))
         assertFalse(settings.getJSONObject("capture").has("heartbeat"))
         assertFalse(settings.getJSONObject("push").has("footprint-sent-8"))
         assertFalse(settings.getJSONObject("digest").has("timedSince"))
@@ -108,16 +108,16 @@ class PreferenceBackup190Test {
         fun item(value: Any) = JSONObject().put("type", if (value is Boolean) "boolean" else "long").put("value", value)
         settings.getJSONObject("capture").put("heartbeat", item(999L))
         settings.put("setup", JSONObject().put("autostart", item(true)))
-        settings.put("pipeline-due-188", JSONObject().put("lastAttempt", item(999L)))
+        settings.put("pipeline-schedule", JSONObject().put("lastAttempt", item(999L)))
         settingsFile.writeText(settings.toString())
         prefs("capture").edit().putLong("heartbeat", 77).commit()
         prefs("setup").edit().putBoolean("autostart", false).commit()
-        prefs("pipeline-due-188").edit().putLong("lastAttempt", 77).commit()
+        prefs("pipeline-schedule").edit().putLong("lastAttempt", 77).commit()
         BackupSettings.apply(context, root)
         assertTrue(prefs("capture").getBoolean("enabled", false))
         assertEquals(77L, prefs("capture").getLong("heartbeat", 0))
         assertFalse(prefs("setup").getBoolean("autostart", true))
-        assertEquals(77L, prefs("pipeline-due-188").getLong("lastAttempt", 0))
+        assertEquals(77L, prefs("pipeline-schedule").getLong("lastAttempt", 0))
     }
 
     private fun database(): CaptureDatabase = CaptureDatabase.open(context).also {

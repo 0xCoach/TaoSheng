@@ -1,10 +1,12 @@
 package app.resound.diagnostics
 
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.*
 import org.junit.Test
 
 class FailureNotesTest {
+    @Before fun clear() = FailureNotes.resetForTest()
     @After fun reset() = FailureNotes.resetForTest()
 
     @Test fun sameFailureWritesOncePerIntervalThenReportsSuppressedCount() {

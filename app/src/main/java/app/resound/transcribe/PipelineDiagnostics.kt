@@ -17,7 +17,7 @@ internal class PipelineDiagnostics(private val context: Context) {
     private val prefs = context.getSharedPreferences("pipeline-triggers-188", Context.MODE_PRIVATE)
     private val mutex = Mutex()
     private val signals = BackgroundSystemInfo.read(context)
-    private val system = BackgroundSystem.identify(signals)
+    val system = BackgroundSystem.identify(signals)
     private val rows = MutableStateFlow(BackgroundRecords.retain(BackgroundRecords.decode(prefs.getString("runs", "[]")!!), System.currentTimeMillis()))
     private val mutableHealth = MutableStateFlow(BackgroundRecords.health(rows.value, day(System.currentTimeMillis()), system.label, false))
     val backgroundHealth = mutableHealth.asStateFlow()

@@ -251,6 +251,8 @@ fun TodayScreen(
                 Header(date, themeMode, onThemeMode)
                 if (dayOffset == 0) {
                     app.resound.ui.settings.CrashNotice(topGap = 20.dp)
+                    UpdatePrompt(topGap = 16.dp)
+                    BackgroundLimitNotice(topGap = 12.dp)
                     // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
                     StartChecklist(capture, hasKey, topGap = 20.dp)
                     app.resound.ui.onboarding.OnboardingTipCard(topGap = 12.dp)

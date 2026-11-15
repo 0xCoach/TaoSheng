@@ -154,14 +154,15 @@ internal object BackupRestore {
         check(File(data, BackupArchive.PROMPTS).deleteRecursively())
         check(File(data, BackupArchive.SKILLS).deleteRecursively())
         val volumes = File(pending, "day-volumes").isFile
+        // 日卷沿用既有顺序：先恢复设置再替换数据库，journal 仍负责整体回滚。
         if (volumes) BackupSettings.apply(context, pending)
         pending.walkTopDown().filter { it.isFile }.forEach { source ->
             val path = source.relativeTo(pending).invariantSeparatorsPath
-            if (path == "manifest.json" || volumes && path in setOf("day-volumes", "settings.json", "secrets.json")) return@forEach
+            if (path in setOf("manifest.json", "settings.json", "secrets.json") || volumes && path == "day-volumes") return@forEach
             require(BackupArchive.allowed(path))
             beforeWrite(path)
             if (path.startsWith("shared_prefs/")) {
-                restorePreferences(context, source)
+                writePreferences(context, source, replace = false, configurationOnly = true)
                 return@forEach
             }
             val target = File(data, path).apply { parentFile!!.mkdirs() }
@@ -170,11 +171,18 @@ internal object BackupRestore {
             try { source.inputStream().use { it.copyTo(stream) }; atomic.finishWrite(stream) }
             catch (e: Exception) { atomic.failWrite(stream); throw e }
         }
+        val settings = File(pending, "settings.json")
+        val secrets = File(pending, "secrets.json")
+        require(settings.isFile == secrets.isFile)
+        if (!volumes && settings.isFile) BackupSettings.apply(context, pending)
         // 队列是运行时数据，不能继续发送恢复前的消息；密钥与未出现的设置项全部保留。
         check(context.getSharedPreferences("push-retries", Context.MODE_PRIVATE).edit().clear().commit())
         check(context.getSharedPreferences("digest-state", Context.MODE_PRIVATE).edit().clear().commit())
     }
-    internal fun restorePreferences(context: Context, source: File, replace: Boolean = false) {
+    internal fun restorePreferences(context: Context, source: File, replace: Boolean = false) =
+        writePreferences(context, source, replace, configurationOnly = false)
+
+    private fun writePreferences(context: Context, source: File, replace: Boolean, configurationOnly: Boolean) {
         val parser = android.util.Xml.newPullParser()
         val edit = context.getSharedPreferences(source.nameWithoutExtension, Context.MODE_PRIVATE).edit()
         if (replace) edit.clear()
@@ -186,9 +194,14 @@ internal object BackupRestore {
                 if (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) continue
                 val name = parser.getAttributeValue(null, "name") ?: continue
                 if (!replace && name in setOf("encryptedKey", "customEncryptedKey")) continue
+                // 导入旧 XML 也过滤运行字段；本机 journal 回滚不经过此过滤，仍完整还原。
+                if (configurationOnly && !BackupSettings.setting(source.nameWithoutExtension, name)) continue
                 val value = parser.getAttributeValue(null, "value")
                 when (parser.name) {
-                    "string" -> edit.putString(name, parser.nextText())
+                    "string" -> {
+                        val text = parser.nextText()
+                        edit.putString(name, if (configurationOnly) PreferenceBackupPolicy.stringValue(source.nameWithoutExtension, name, text) else text)
+                    }
                     "boolean" -> edit.putBoolean(name, value.toBooleanStrict())
                     "int" -> edit.putInt(name, value.toInt())
                     "long" -> edit.putLong(name, value.toLong())

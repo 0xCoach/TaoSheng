@@ -173,6 +173,7 @@ class ResoundApp : Application() {
                     (!settings.wifiOnly.value || network.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
                 }
             })
+        transcribeRunner.localResume = app.resound.transcribe.local.LocalResumeQueue(this)
         settings.testKey = { key ->
             val file = File.createTempFile("asr-test-", ".ogg", cacheDir)
             try {

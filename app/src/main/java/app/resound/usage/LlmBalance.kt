@@ -1,5 +1,8 @@
 package app.resound.usage
 
+import app.resound.net.androidNetwork
+import app.resound.net.queryBalance
+
 import app.resound.digest.HeaderEntry
 import android.content.SharedPreferences
 import app.resound.digest.AndroidLlmProviders
@@ -118,9 +121,9 @@ class LlmBalanceChecker(
     }
 
     internal suspend fun fetch(src: BalanceSource): LlmBalance {
-        val network = app.resound.net.androidNetwork(http)
+        val network = androidNetwork(http)
         run {
-            val b = app.resound.net.queryBalance(network, src.url, src.key, src.headers, src.path)
+            val b = queryBalance(network, src.url, src.key, src.headers, src.path)
             return LlmBalance(b.total, b.granted, b.toppedUp, b.currency, b.available, now())
         }
     }

@@ -57,5 +57,6 @@ fun body(date: LocalDate, brief: String, sections: List<PushReviewSection>, form
     }
     const val UPDATED = "{{RESOUND_UPDATED}}"
     fun card(type: String, date: String, content: String, title: String, count: Int, body: String): String =
-        "---\n类型: ${JsonPrimitive(type).legacyText()}\n日期: ${JsonPrimitive(date).legacyText()}\n内容: ${JsonPrimitive(content).legacyText()}\n更新: \"$UPDATED\"\n来源: 自动生成，请勿手动修改（改了会被覆盖）\n条数: $count\n---\n# $title\n\n${body.trim()}\n"
+        "---\n类型: ${JsonPrimitive(type).legacyText()}\n日期: ${JsonPrimitive(date).legacyText()}\n内容: ${JsonPrimitive(content).legacyText(
+            )}\n更新: \"$UPDATED\"\n来源: 自动生成，请勿手动修改（改了会被覆盖）\n条数: $count\n---\n# $title\n\n${body.trim()}\n"
 }

@@ -1,5 +1,7 @@
 package app.resound.topic
 
+import app.resound.data.TranscriptLineEntity
+
 import android.content.Context
 import android.util.AtomicFile
 import app.resound.topic.core.*
@@ -71,5 +73,5 @@ internal fun topicFailure(e: Throwable) = when (e) {
     else -> TopicFailure(TopicFailureKind.Permanent, "本地处理未完成，请重试")
 }
 
-internal fun topicSource(g: TopicGroup, lines: List<app.resound.data.TranscriptLineEntity>): String =
+internal fun topicSource(g: TopicGroup, lines: List<TranscriptLineEntity>): String =
     topicHash(TopicProcessingRules.source(g.snapshot(), lines.map { it.snapshot() }))

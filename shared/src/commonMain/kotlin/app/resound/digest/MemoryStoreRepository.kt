@@ -2,6 +2,9 @@
 
 package app.resound.digest
 
+import app.resound.data.TranscriptLineEntity
+import app.resound.transcribe.VoiceInputMeta
+
 
 import app.resound.data.MemoryDao
 import app.resound.data.MemoryEventEntity
@@ -41,7 +44,7 @@ class MemoryStoreRepository(
     private val today: () -> String,
     private val codec: MemoryLegacyCodec,
     private val dueDate: (Long) -> MemoryDueDate,
-    private val readVoiceInput: (String?) -> app.resound.transcribe.VoiceInputMeta?,
+    private val readVoiceInput: (String?) -> VoiceInputMeta?,
 ) : MemoryRepository {
 
     override fun events(date: LocalDate): Flow<List<MemoryEvent>> = events(date, TimeZone.of(zoneProvider.zoneId()))
@@ -181,7 +184,7 @@ class MemoryStoreRepository(
 
     override fun runNow() = runNowAction()
 
-    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, app.resound.data.TranscriptLineEntity>): MemoryEvent {
+    private fun MemoryEventEntity.toModel(items: List<MemoryItemEntity>, repeats: Map<Long, Int>, lines: Map<Long, TranscriptLineEntity>): MemoryEvent {
         val originalTitle = this.originalTitle
         val originalSummary = this.originalSummary
         val originalPointsJson = this.originalPointsJson
@@ -193,7 +196,7 @@ class MemoryStoreRepository(
     )
     }
 
-    private fun MemoryItemEntity.toModel(repeats: Int = 1, lines: Map<Long, app.resound.data.TranscriptLineEntity>) = MemoryItem(
+    private fun MemoryItemEntity.toModel(repeats: Int = 1, lines: Map<Long, TranscriptLineEntity>) = MemoryItem(
         id, eventId, category, kind, content, dueText, dueAt, who,
         runCatching { ItemStatus.valueOf(status) }.getOrDefault(ItemStatus.Pending), lineId, createdAt, doneAt, statusChangedAt, sortOrder, repeats, mergedInto, editedAt,
         lines[doneHintLineId]?.let { DoneHint(it.id, it.text, doneHintAt ?: it.startAt) },

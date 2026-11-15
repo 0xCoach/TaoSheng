@@ -1,5 +1,9 @@
 package app.resound.push
 
+import app.resound.OutputTime
+import app.resound.envsound.EnvSoundPresentation
+import app.resound.transcribe.VoiceInputMetadata
+
 import app.resound.data.*
 import app.resound.skills.*
 import org.json.JSONArray
@@ -30,7 +34,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         "Pending" -> "待确认"; "Accepted" -> "进行中"; "Done" -> "已完成"; "Ignored" -> "已忽略"; else -> status.toString()
     }
     private fun date(at: Long) = day(at, zone)
-    private val outputTime = app.resound.OutputTime(zone, today)
+    private val outputTime = OutputTime(zone, today)
     private fun time(at: Long) = outputTime.moment(at)
     private fun cn(date: LocalDate) = date.format(DateTimeFormatter.ofPattern("yyyy年M月d日 EEEE", Locale.CHINESE))
     private fun item(i: MemoryItemEntity, snapshot: PushSnapshot): String {
@@ -47,7 +51,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 val line = lines.get(index)
                 appendLine("- ${if (line is JSONObject) line.optString("text") else line}")
                 val eventId = if (line is JSONObject) line.optLong("eventId").takeIf { it > 0 } else section.optJSONArray("eventIds")?.optLong(index)?.takeIf { it > 0 }
-                app.resound.envsound.EnvSoundPresentation.line(eventId).takeIf { it.isNotBlank() }?.let { appendLine(it) }
+                EnvSoundPresentation.line(eventId).takeIf { it.isNotBlank() }?.let { appendLine(it) }
             } }
         }
     }
@@ -73,7 +77,8 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
         val files = sortedMapOf<String, String>()
         val events = data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }
         val days = (events.map { date(it.startAt) } + data.items.flatMap { listOfNotNull(date(it.createdAt), it.doneAt?.let(::date), it.dueAt?.let(::date)) } +
-            data.cards.map { LocalDate.ofEpochDay(it.date) } + data.reviews.filter { it.type == "daily" }.map { LocalDate.parse(it.startDate) } + data.lines.map { date(it.startAt) }).filter { it <= today && (data.startDate == null || it >= data.startDate) }.toSortedSet()
+            data.cards.map { LocalDate.ofEpochDay(it.date) } + data.reviews.filter { it.type == "daily" }.map { LocalDate.parse(it.startDate) } + data.lines.map { date(it
+                .startAt) }).filter { it <= today && (data.startDate == null || it >= data.startDate) }.toSortedSet()
         days.forEach { d ->
             val es = events.filter { date(it.startAt) == d }
             val lines = data.lines.filter { date(it.startAt) == d }
@@ -89,7 +94,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 es.forEach { e ->
                     appendLine("<a id=\"E${e.id}\"></a>\n### E${e.id} · ${outputTime.event(e.startAt, e.endAt)} ${if (e.starred) "★ 重点 · " else ""}${e.title}${if (e.important) " · 要紧" else ""}")
                     appendLine("场景：${e.scene} · 参与人：${JSONArray(e.peopleJson).strings().joinToString("、")}")
-                    appendLine(e.summary); app.resound.envsound.EnvSoundPresentation.line(e.id).takeIf { it.isNotBlank() }?.let { appendLine(it) }; JSONArray(e.pointsJson).strings().forEach { appendLine("- $it") }
+                    appendLine(e.summary); EnvSoundPresentation.line(e.id).takeIf { it.isNotBlank() }?.let { appendLine(it) }; JSONArray(e.pointsJson).strings().forEach { appendLine("- $it") }
                     data.items.filter { it.eventId == e.id }.forEach { appendLine(item(it, data)) }
                 }
                 val sources = items.map { it.eventId }.distinct().filter { id -> es.none { it.id == id } }
@@ -111,7 +116,8 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             }
             files[dailyPath(d)] = card("每日记录", "$d", "回顾、时间线、当天条目、技能卡片", title, es.size + items.size + cs.size + rs.size, body)
             if (lines.isNotEmpty()) files[transcriptPath(d)] = card("原话", "$d", "按时间排列的原话", "${cn(d)} · 原话", lines.size,
-                lines.joinToString("\n\n") { "### L${it.id} · ${time(it.startAt)} · ${it.speakerName ?: it.speakerTag ?: "某人"}\n${it.text}${app.resound.transcribe.VoiceInputMetadata.markdown(it.voiceInputJson, s.lineContext)}" })
+                lines.joinToString("\n\n") { "### L${it.id} · ${time(it.startAt)} · ${it.speakerName ?: it.speakerTag ?: "某人"}\n${it.text}${VoiceInputMetadata.markdown(it
+                    .voiceInputJson, s.lineContext)}" })
         }
         data.reviews.filter { it.type != "daily" }.groupBy { weekPath(LocalDate.parse(it.startDate)) }.forEach { (path, rows) ->
             val monday = LocalDate.parse(rows.first().startDate).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)); val end = monday.plusDays(6)
@@ -122,11 +128,13 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             files["recent-days-index.md"] = card("索引", "最近30天", "每天一行", "最近 30 天", 30, (0L..29L).map { today.minusDays(it) }.joinToString("\n") { d ->
                 val es = events.filter { date(it.startAt) == d }
                 val brief = data.reviews.firstOrNull { it.type == "daily" && it.startDate == "$d" }?.brief ?: es.firstOrNull()?.title ?: "暂无记录"
-                "- $d · ${d.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.CHINESE)} · ${es.size} 件事 · ${brief.replace("\n", " ")} · ${es.count { it.starred }} 个重点" + if (d in days) " · [[${dailyPath(d)}]]" else ""
+                "- $d · ${d.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.CHINESE)} · ${es.size} 件事 · ${brief.replace("\n", " ")} · ${es.count { it
+                    .starred }} 个重点" + if (d in days) " · [[${dailyPath(d)}]]" else ""
             })
             if (RecordKind.Starred in s.records) {
                 val stars = events.filter { it.starred }
-                files["starred-highlights.md"] = card("我的重点", "订阅范围", "标星与进展", "我的重点", stars.size, stars.joinToString("\n") { "- E${it.id} · ${it.title} · [[${dailyPath(date(it.startAt))}#E${it.id}]]\n${progress(it, data)}" })
+                files["starred-highlights.md"] = card("我的重点", "订阅范围", "标星与进展", "我的重点", stars.size, stars.joinToString("\n") { "- E${it.id} · ${it.title} · [[${dailyPath(
+                    date(it.startAt))}#E${it.id}]]\n${progress(it, data)}" })
             }
             if (RecordKind.Todos in s.records) {
                 val tasks = data.items.filter { it.category in setOf("待办", "约定", "备忘") }
@@ -148,7 +156,15 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             | daily/ | 每日回顾、时间线、条目、卡片 | 按订阅触发 |
             | weekly/ | 每周回顾 | 回顾生成后 |
             | transcripts/ | 原话（仅开启时） | 按订阅触发 |
-            ${if (s.layout == FolderLayout.ByCategory) "| recent-days-index.md | 最近30天导航 | 同步时 |\n| starred-highlights.md | 重点与进展 | 同步时 |\n| todos-and-appointments.md | 待办与约定 | 同步时 |\n| ideas.md、decisions-and-facts.md | 最近一年提取项 | 同步时 |\n| archive/ | 一年以前的提取项 | 同步时 |\n| inbox/ | 预留；只建空目录，不读取 | 不处理 |\n| my-notes/ | 归用户所有 | 涛声永不读写、不删除 |" else ""}
+            ${if (s.layout == FolderLayout.ByCategory) (
+                "| recent-days-index.md | 最近30天导航 | 同步时 |\n" +
+                    "| starred-highlights.md | 重点与进展 | 同步时 |\n" +
+                    "| todos-and-appointments.md | 待办与约定 | 同步时 |\n" +
+                    "| ideas.md、decisions-and-facts.md | 最近一年提取项 | 同步时 |\n" +
+                    "| archive/ | 一年以前的提取项 | 同步时 |\n" +
+                    "| inbox/ | 预留；只建空目录，不读取 | 不处理 |\n" +
+                    "| my-notes/ | 归用户所有 | 涛声永不读写、不删除 |"
+                ) else ""}
 
             ## 给智能体的用法
             ${if (s.layout == FolderLayout.ByCategory) "先读 recent-days-index.md → 某天细节读 daily/ → 核对原话读 transcripts/；重点和待办直接读汇总文件。" else "先按日期读 daily/，其中包含当天汇总；核对原话读 transcripts/；每周总结读 weekly/。"}

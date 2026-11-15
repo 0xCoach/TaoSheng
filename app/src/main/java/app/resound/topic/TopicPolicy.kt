@@ -1,4 +1,6 @@
 package app.resound.topic
+
+import app.resound.data.MemoryItemEntity
 import app.resound.topic.core.TopicPolicy as Core
 import app.resound.digest.snapshot
 import kotlinx.datetime.toKotlinTimeZone
@@ -13,8 +15,10 @@ internal object TopicPolicy {
  fun mask(days: Set<java.time.DayOfWeek>) = Core.mask(days.map { kotlinx.datetime.DayOfWeek.valueOf(it.name) }.toSet())
  fun days(mask: Int?) = Core.days(mask)
  fun words(name: String?) = Core.words(name)
- fun next(start: Long,days: Set<java.time.DayOfWeek>,after: Long,zone: java.time.ZoneId) = Core.next(start,days.map { kotlinx.datetime.DayOfWeek.valueOf(it.name) }.toSet(),after,zone.toKotlinTimeZone())
+ fun next(start: Long,days: Set<java.time.DayOfWeek>,after: Long,zone: java.time.ZoneId) = Core.next(start,days.map { kotlinx.datetime.DayOfWeek.valueOf(it.name) }.toSet(
+     ),after,zone.toKotlinTimeZone())
  fun overlaps(a: Long,b: Long,c: Long,d: Long) = Core.overlaps(a,b,c,d)
- fun conflicts(start: Long,end: Long,repeat: Set<java.time.DayOfWeek>,groups: List<TopicGroup>,zone: java.time.ZoneId) = Core.conflicts(start,end,repeat.map { kotlinx.datetime.DayOfWeek.valueOf(it.name) }.toSet(),groups.map { it.snapshot() },zone.toKotlinTimeZone())
- fun changed(item: app.resound.data.MemoryItemEntity) = Core.changed(item.snapshot())
+ fun conflicts(start: Long,end: Long,repeat: Set<java.time.DayOfWeek>,groups: List<TopicGroup>,zone: java.time.ZoneId) = Core.conflicts(start,end,repeat.map { kotlinx
+     .datetime.DayOfWeek.valueOf(it.name) }.toSet(),groups.map { it.snapshot() },zone.toKotlinTimeZone())
+ fun changed(item: MemoryItemEntity) = Core.changed(item.snapshot())
 }

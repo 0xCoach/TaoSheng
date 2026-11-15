@@ -1,5 +1,9 @@
 package app.resound.skills
 
+import app.resound.platform.NowMillis
+import app.resound.skills.core.SkillDrafting
+import app.resound.skills.core.SkillExecution
+
 import app.resound.data.MemoryDao
 import app.resound.skills.core.*
 import app.resound.skills.core.SkillSchedule as CoreSchedule
@@ -75,16 +79,16 @@ class SkillStoreRepository(
     override fun deleteMine(skillId: String) { files.deleteMine(skillId); changed() }
     override fun deleteCard(id: Long) { scope.launch { dao.delete(id, now()) } }
 
-    override suspend fun draft(conversation: List<DraftTurn>) = app.resound.skills.core.SkillDrafting.draft(
-        conversation, app.resound.platform.NowMillis(now), appName(),
+    override suspend fun draft(conversation: List<DraftTurn>) = SkillDrafting.draft(
+        conversation, NowMillis(now), appName(),
         model = draftModel,
         usage = { date,prompt,completion -> memory.addUsage(date,prompt,completion,UsagePurpose.Draft) },
     )
     override suspend fun runNow(skillId: String, date: LocalDate) = run(skillId, date, CoreSchedule.MANUAL).result
     override suspend fun trial(skillId: String, date: LocalDate, promptOverride: String?) = run(skillId, date, CoreSchedule.TRIAL, promptOverride).result
 
-    private val execution = app.resound.skills.core.SkillExecution(
-        files, runStore, app.resound.platform.NowMillis(now),
+    private val execution = SkillExecution(
+        files, runStore, NowMillis(now),
         models = models, hotwords = hotwords, appName = appName,
         usage = { date,prompt,completion -> memory.addUsage(date,prompt,completion,UsagePurpose.Skill) },
         push = { card -> push(CorePush.title(card), pushBody(card), "resound://card?open=card&id=${card.id}") },

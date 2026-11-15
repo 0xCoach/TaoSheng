@@ -1,5 +1,8 @@
 package app.resound.importer
 
+import app.resound.AppGraph
+import app.resound.transcribe.TranscribeSource
+
 import app.resound.audio.SegmentEncoder
 import app.resound.capture.CaptureTuning
 import app.resound.capture.SpeechSegmenter
@@ -13,7 +16,8 @@ import java.nio.ByteOrder
 internal fun importStartAt(epoch: Long, sample: Long) = epoch + sample * 1000 / CaptureTuning.SAMPLE_RATE
 
 /** VAD/切段只持有前滚；完整片段写 PCM 暂存，再复用录音编码器。 */
-internal class ImportSegments(private val folder: File, private val id: String, private val epoch: Long, private val record: ImportRecordRow? = null, private val channel: Int? = null) : SpeechSegmenter.Sink, AutoCloseable {
+internal class ImportSegments(private val folder: File, private val id: String, private val epoch: Long, private val record: ImportRecordRow? = null,
+    private val channel: Int? = null) : SpeechSegmenter.Sink, AutoCloseable {
     internal data class Piece(val pcm: File, val start: Long, val end: Long, val index: Int)
     val ready = ArrayDeque<Piece>()
     private var output: OutputStream? = null
@@ -36,7 +40,7 @@ internal class ImportSegments(private val folder: File, private val id: String, 
         if (keep) ready.addLast(Piece(file, start, importStartAt(epoch, endSample), index - 1)) else file.delete()
         pcm = null
     }
-    suspend fun save(db: CaptureDatabase, destination: File, asr: app.resound.transcribe.TranscribeSource? = null): Int {
+    suspend fun save(db: CaptureDatabase, destination: File, asr: TranscribeSource? = null): Int {
         var saved = 0
         destination.mkdirs()
         while (ready.isNotEmpty()) {
@@ -48,7 +52,8 @@ internal class ImportSegments(private val folder: File, private val id: String, 
                     val audio = SegmentEncoder.encode(piece.pcm, base)
                     db.capture().segment(SegmentEntity(startAt = piece.start, endAt = piece.end, sourceId = "import", importRecordId = record?.id, importChannel = channel,
                         speakerCount = record?.let { ImportKindPolicy.speakers(ImportKind.valueOf(it.kind), it.byChannel) },
-                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name, separateSpeakers = if (record != null) ImportKindPolicy.separate(ImportKind.valueOf(record.kind), record.byChannel) else if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.effectiveSeparateSpeakers(piece.start) else null))
+                        path = audio.path, sizeBytes = audio.length(), playbackMillis = 0, asrSource = asr?.name, separateSpeakers = if (record != null) ImportKindPolicy
+                            .separate(ImportKind.valueOf(record.kind), record.byChannel) else if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(piece.start) else null))
                 }
                 saved++
             } catch (e: Exception) {

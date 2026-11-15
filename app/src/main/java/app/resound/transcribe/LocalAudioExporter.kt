@@ -176,7 +176,8 @@ internal class LocalAudioExporter(
             delivered = true
             if (duration > 0) speeds.record(duration, elapsed)
         } finally {
-            record("${now()} 录音导出 总时长=${duration}ms 段数=$attempted 合成=${(System.nanoTime() - started) / 1_000_000}ms 解码=${decodeNanos / 1_000_000}ms 编码=${encodeNanos / 1_000_000}ms 跳过=${excluded.size} 完成=$delivered")
+            record("${now()} 录音导出 总时长=${duration}ms 段数=$attempted 合成=${(System.nanoTime(
+                ) - started) / 1_000_000}ms 解码=${decodeNanos / 1_000_000}ms 编码=${encodeNanos / 1_000_000}ms 跳过=${excluded.size} 完成=$delivered")
             encoder?.close()
             synchronized(active) {
                 if (!delivered) folder.deleteRecursively()

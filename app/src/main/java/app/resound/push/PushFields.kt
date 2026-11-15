@@ -1,5 +1,8 @@
 package app.resound.push
 
+import app.resound.backup.CloudAddress
+import app.resound.backup.s3FromJson
+
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -13,7 +16,8 @@ internal object PushFields {
             PushKind.PushPlus, PushKind.ServerChan -> if (!required(if (kind == PushKind.PushPlus) "token" else "sendKey").matches(Regex("[A-Za-z0-9_-]+"))) throw PushFailure("密钥格式不正确")
             PushKind.WeCom -> {
                 val url = https(required("webhook"))
-                if (url.host != "qyapi.weixin.qq.com" || url.port != 443 || url.encodedPath != "/cgi-bin/webhook/send" || url.queryParameterNames != setOf("key") || url.queryParameterValues("key").size != 1 || url.queryParameter("key").isNullOrBlank()) throw PushFailure("请填写有效的企业微信机器人地址")
+                if (url.host != "qyapi.weixin.qq.com" || url.port != 443 || url.encodedPath != "/cgi-bin/webhook/send" || url.queryParameterNames != setOf("key") || url
+                    .queryParameterValues("key").size != 1 || url.queryParameter("key").isNullOrBlank()) throw PushFailure("请填写有效的企业微信机器人地址")
             }
             PushKind.Feishu, PushKind.DingTalk -> {
                 val url = https(required("webhook"))
@@ -42,12 +46,13 @@ internal object PushFields {
             PushKind.Notion -> { ascii(required("token")); databaseId(required("databaseId")) }
             PushKind.MarkdownFolder -> {
                 try {
-                    if (values["cloudKind"] == "S3") app.resound.backup.CloudAddress.s3(app.resound.backup.s3FromJson(required("s3")))
-                    else app.resound.backup.CloudAddress.parse(default(values, "url", "https://dav.jianguoyun.com/dav/"))
+                    if (values["cloudKind"] == "S3") CloudAddress.s3(s3FromJson(required("s3")))
+                    else CloudAddress.parse(default(values, "url", "https://dav.jianguoyun.com/dav/"))
                 } catch (e: IllegalArgumentException) { throw PushFailure(e.message ?: "云端地址格式不正确") }
                 required("account"); required("password")
                 val folder = required("folder")
-                if (folder.startsWith('/') || folder.contains("..") || folder.contains('\\') || folder.split('/').any { it.isBlank() } || folder.any { it.code < 32 }) throw PushFailure("文件夹须为相对路径，不能含 .. 或空目录")
+                if (folder.startsWith('/') || folder.contains("..") || folder.contains('\\') || folder.split('/').any { it.isBlank() } || folder.any { it
+                    .code < 32 }) throw PushFailure("文件夹须为相对路径，不能含 .. 或空目录")
             }
         }
     }
@@ -58,7 +63,8 @@ internal object PushFields {
             if (last.replace("-", "").length == 32) last else url(value).pathSegments.lastOrNull().orEmpty().takeLast(32)
         } else value
         val compact = raw.replace("-", "")
-        if (compact.length != 32 || compact.any { it !in "0123456789abcdefABCDEF" } || (raw.length != 32 && !(raw.length == 36 && listOf(8,13,18,23).all { raw[it] == '-' }))) throw PushFailure("Notion 数据库 ID 格式不正确")
+        if (compact.length != 32 || compact.any { it !in "0123456789abcdefABCDEF" } || (raw.length != 32 && !(raw.length == 36 && listOf(8,13,18,23)
+            .all { raw[it] == '-' }))) throw PushFailure("Notion 数据库 ID 格式不正确")
         return compact.lowercase(java.util.Locale.ROOT)
     }
     private fun localHost(host: String): Boolean {

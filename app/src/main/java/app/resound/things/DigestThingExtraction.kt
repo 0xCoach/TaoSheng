@@ -1,5 +1,7 @@
 package app.resound.things
 
+import app.resound.platform.NowMillis
+
 import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.EventEntity
@@ -37,7 +39,7 @@ class DigestThingExtraction internal constructor(
     internal suspend fun commit(batch: Batch?, content: String, events: List<DigestPrompt.ParsedEvent>, save: suspend () -> Unit) {
         if (batch == null) { save(); return }
         val parsed = DigestThingRules.parse(normalizeThingJson(content), batch.lines.map { it.shared() }, batch.eligible, batch.known,
-            events.filter { it.scene == "媒体" }.flatMap { it.lineIds }.toSet(), app.resound.platform.NowMillis(now))
+            events.filter { it.scene == "媒体" }.flatMap { it.lineIds }.toSet(), NowMillis(now))
         val rejected = parsed.rejected
         val notices = db.writeTransaction {
             // 在改写事件归属前核对原始资格及原话，防止删除/重转写后复活旧请求。

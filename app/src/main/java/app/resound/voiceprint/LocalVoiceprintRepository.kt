@@ -1,5 +1,9 @@
 package app.resound.voiceprint
 
+import app.resound.transcribe.AsrPart
+import app.resound.transcribe.cleanupImportedAudio
+import app.resound.transcribe.measureAsr
+
 import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.transcribe.TranscribePolicy
@@ -328,7 +332,7 @@ class LocalVoiceprintRepository(
     suspend fun hasPending(): Boolean = dao.pending().any { (it.separateSpeakers != false || (it.importChannel != null && it.speakerCount != 0)) }
 
     suspend fun runSegment(segmentId: Long): Boolean = withContext(Dispatchers.IO) {
-        app.resound.transcribe.measureAsr(app.resound.transcribe.AsrPart.Voiceprint) { rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) } }
+        measureAsr(AsrPart.Voiceprint) { rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) } }
     }
     data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
 
@@ -499,7 +503,7 @@ class LocalVoiceprintRepository(
 
     suspend fun cleanupAudio() {
         gate.withLock {
-            app.resound.transcribe.cleanupImportedAudio(db.transcribe(), now(), reading = reading.keys)
+            cleanupImportedAudio(db.transcribe(), now(), reading = reading.keys)
         }
         cleanupOriginalAudio?.invoke()
     }

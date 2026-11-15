@@ -34,7 +34,8 @@ internal data class PushSnapshot(
         return PushSnapshot(visible, selectedItems,
             if (s.summaries) cards.filter { c ->
                 c.deletedAt == null && included(c.at) && localRecord("card", c.id) {
-                    org.json.JSONArray(c.evidenceJson).strings().mapNotNull(String::toLongOrNull).all { id -> origins.containsKey(id) && (origins[id] == null || origins[id] in ids) }.also { if (it) c.card() }
+                    org.json.JSONArray(c.evidenceJson).strings().mapNotNull(String::toLongOrNull).all { id -> origins.containsKey(id) && (origins[id] == null ||
+                        origins[id] in ids) }.also { if (it) c.card() }
                 } == true
             } else emptyList(),
             if (s.summaries) reviews.filter { r -> localRecord("review", r.id) {

@@ -1,5 +1,7 @@
 package app.resound.devices.android
 
+import app.resound.devices.driver.DriverCatalog
+
 import app.resound.audio.*
 import app.resound.devices.*
 import app.resound.devices.card.*
@@ -126,7 +128,7 @@ internal class DeviceInputs(
         val card = registeredDriver?.transport ?: installed.first { it.card.id == row.cardId }.card
         val driverId = registeredDriver?.driver?.meta?.id ?: "card:${card.id}"
         val ports = MutableStateFlow<Port?>(null)
-        val catalog = object : app.resound.devices.driver.DriverCatalog {
+        val catalog = object : DriverCatalog {
             override val drivers = installed.map { item -> CardDriver(item.card, true,
                 plugins.firstOrNull { it.id == item.card.filePlugin },
                 report = { report(row.address, it) }, readTimeout = CaptureHealth.STALL_MS,
@@ -336,7 +338,7 @@ internal class DeviceInputs(
             val card = registration?.transport ?: installed.firstOrNull { it.card.id == row.cardId }?.card
                 ?: throw DeviceException(ErrorCode.NotFound)
             val id = registration?.driver?.meta?.id ?: "card:${card.id}"
-            val catalog = object : app.resound.devices.driver.DriverCatalog {
+            val catalog = object : DriverCatalog {
                 override val drivers = installed.map { item -> CardDriver(item.card,true,plugins.firstOrNull { it.id == item.card.filePlugin }) } + registered.map { it.driver }
             }
             coroutineScope {

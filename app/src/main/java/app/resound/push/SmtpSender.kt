@@ -107,7 +107,8 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
         internal fun mime(values: Map<String, String>, format: PushFormat, message: PushMessage): String {
             val headers = "From: ${values.getValue("account")}\r\nTo: ${values.getValue("to")}\r\nSubject: ${subject(message.title)}\r\nMIME-Version: 1.0\r\n"
             fun part(type: String, text: String) = "Content-Type: $type; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${encoded(text)}\r\n"
-            if (message.memory == null) return headers + if (format == PushFormat.Text) part("text/plain", message.rendered(format)) else part("text/html", markdownHtml(message.rendered(PushFormat.Markdown)))
+            if (message.memory == null) return headers + if (format == PushFormat.Text) part("text/plain", message.rendered(format)) else part("text/html",
+                markdownHtml(message.rendered(PushFormat.Markdown)))
             val boundary = "resound-${UUID.randomUUID()}"
             val filename = "记忆-${message.memory.getString("date")}.md"
             val encodedFilename = java.net.URLEncoder.encode(filename, "UTF-8").replace("+", "%20")

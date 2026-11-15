@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.AppGraph
+
 import android.content.Context
 import app.resound.audio.SegmentEncoder
 import app.resound.data.CaptureDao
@@ -104,7 +106,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         val skip = PlaybackPolicy.skip(end - start, playbackMillis, values?.getOrNull(1) != "false")
         dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = readSourceId(pcm), path = file.absolutePath, sizeBytes = file.length(),
             playbackMillis = playbackMillis, status = if (skip) "SkippedPlayback" else "Pending",
-            completedAt = if (skip) end else null, separateSpeakers = if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
+            completedAt = if (skip) end else null, separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
         check(pcm.delete())
         metadata.delete()
         File(spool, pcm.nameWithoutExtension + ".source").delete()

@@ -1,5 +1,8 @@
 package app.resound.backup
 
+import app.resound.data.CaptureDatabase
+import app.resound.voiceprint.SampleAudioStore
+
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -16,7 +19,7 @@ import kotlinx.coroutines.runBlocking
 internal object BackupRestore {
     private fun pending(context: Context) = File(context.noBackupFilesDir, "backup-restore")
     fun restore(
-        context: Context, client: RemoteStore, name: String, database: app.resound.data.CaptureDatabase,
+        context: Context, client: RemoteStore, name: String, database: CaptureDatabase,
         storedPassphrase: String? = null, suppliedPassphrase: String? = null,
         closeDatabase: () -> Unit, restartProcess: () -> Unit,
     ) {
@@ -29,7 +32,7 @@ internal object BackupRestore {
         } finally { download.delete() }
     }
     fun restoreFile(
-        context: Context, source: File, database: app.resound.data.CaptureDatabase,
+        context: Context, source: File, database: CaptureDatabase,
         storedPassphrase: String? = null, suppliedPassphrase: String? = null,
         closeDatabase: () -> Unit, restartProcess: () -> Unit,
         fetchBase: ((String, File) -> Unit)? = null, expectedName: String? = null,
@@ -51,7 +54,7 @@ internal object BackupRestore {
                 storedPassphrase, suppliedPassphrase, fetchBase, expectedName)
             // 先在隔离副本上走同一套 Room 迁移和 schema 校验，失败不替换本机数据。
             try {
-                val migrated = app.resound.data.CaptureDatabase.open(context, File(verified, BackupArchive.DATABASE).absolutePath)
+                val migrated = CaptureDatabase.open(context, File(verified, BackupArchive.DATABASE).absolutePath)
                 try {
                     runBlocking { migrated.checkpoint("TRUNCATE") }
                 } finally { migrated.close() }
@@ -63,7 +66,7 @@ internal object BackupRestore {
             restartProcess()
         } finally { workspace.deleteRecursively(); verified.deleteRecursively() }
     }
-    fun restoreVolumes(context: Context, store: VolumeStore, database: app.resound.data.CaptureDatabase,
+    fun restoreVolumes(context: Context, store: VolumeStore, database: CaptureDatabase,
         stored: String?, supplied: String?, closeDatabase: () -> Unit, restartProcess: () -> Unit, checkpoint: String? = null) {
         if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
         val id = java.util.UUID.randomUUID()
@@ -78,7 +81,7 @@ internal object BackupRestore {
             restartProcess()
         } finally { work.deleteRecursively(); verified.deleteRecursively() }
     }
-    private fun snapshot(context: Context, database: app.resound.data.CaptureDatabase) {
+    private fun snapshot(context: Context, database: CaptureDatabase) {
         val directory = File(context.noBackupFilesDir, "before-restore").apply { check(isDirectory || mkdirs()) }
         val id = java.util.UUID.randomUUID()
         val stage = File(directory, ".$id-content").apply { check(mkdirs()) }
@@ -138,7 +141,7 @@ internal object BackupRestore {
             val file = File(db.path + suffix); check(!file.exists() || file.delete())
         }
         // 回放副本不属于备份；恢复后旧样本不得借用本机残留文件或原录音。
-        app.resound.voiceprint.SampleAudioStore.afterRestore(context)
+        SampleAudioStore.afterRestore(context)
         // 缓存可重建；旧缓存不能混入恢复后的数据。
         check(File(data, BackupArchive.FEATURES).deleteRecursively())
         // 旧备份没有自定义模板时，也必须清掉本机的覆盖文本。

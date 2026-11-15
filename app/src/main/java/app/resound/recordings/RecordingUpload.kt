@@ -1,5 +1,7 @@
 package app.resound.recordings
 
+import app.resound.backup.BackupFailure
+
 import app.resound.push.*
 import java.io.File
 import java.time.*
@@ -139,7 +141,7 @@ internal class RecordingUploader(private val state: RecordingUploadState, privat
             return uploaded
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            state.json.put("error", when (e) { is PushFailure -> e.message; is app.resound.backup.BackupFailure -> e.human; else -> "录音上传失败，请检查网络后重试" }); state.save(); throw e
+            state.json.put("error", when (e) { is PushFailure -> e.message; is BackupFailure -> e.human; else -> "录音上传失败，请检查网络后重试" }); state.save(); throw e
         }
     }
 }

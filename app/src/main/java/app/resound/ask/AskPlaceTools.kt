@@ -1,5 +1,7 @@
 package app.resound.ask
 
+import app.resound.ask.core.AskPlaceToolsCore
+
 import app.resound.context.PlaceAt
 import app.resound.data.*
 import app.resound.location.LocationRepository
@@ -17,7 +19,7 @@ class AskPlaceTools(
     private val placesDuring: suspend (Long, Long) -> List<PlaceAt>,
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) {
-    private val core = app.resound.ask.core.AskPlaceToolsCore(tools.core, enabled, staysAt, placesDuring, kotlinx.datetime.TimeZone.of(zone.id))
+    private val core = AskPlaceToolsCore(tools.core, enabled, staysAt, placesDuring, kotlinx.datetime.TimeZone.of(zone.id))
     suspend fun execute(name: String, args: JSONObject, sources: MutableList<AskSource>): JSONObject =
         JSONObject(core.execute(name, args.toString(), sources))
 }

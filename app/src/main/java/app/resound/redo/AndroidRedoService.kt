@@ -1,5 +1,8 @@
 package app.resound.redo
 
+import app.resound.digest.LlmException
+import app.resound.transcribe.AsrException
+
 import app.resound.scheduling.BackgroundRefreshPolicy
 import app.resound.scheduling.refreshWhileNeeded
 import android.content.Context
@@ -136,8 +139,8 @@ internal class AndroidRedoService(
                         }
                     } catch (e: CancellationException) { throw e }
                     catch (e: Exception) { update(next.id, RedoJobState.Failed(when (e) {
-                        is app.resound.digest.LlmException -> e.type.human
-                        is app.resound.transcribe.AsrException -> e.type.human
+                        is LlmException -> e.type.human
+                        is AsrException -> e.type.human
                         is IllegalArgumentException, is IllegalStateException -> e.message ?: "重做失败，请重试"
                         else -> "重做失败，请重试"
                     })) }

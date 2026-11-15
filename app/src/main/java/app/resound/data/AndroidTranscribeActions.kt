@@ -1,5 +1,7 @@
 package app.resound.data
 
+import app.resound.capture.VoiceInputDedup
+
 suspend fun TranscribeDao.deleteFailed(id: Long): Boolean = transaction {
         val row = findSegment(id) ?: return@transaction false
         if (row.status !in setOf("Failed", "Quiet", "Abandoned")) return@transaction false
@@ -39,8 +41,8 @@ suspend fun TranscribeDao.complete(row: SegmentEntity, lines: List<TranscriptLin
         if (findSegment(row.id) == null) return@transaction
         deleteLines(row.id)
         // 语音输入那条已经记下的话（带上下文），录音转写里不再重复记；重转时同样过一遍
-        val voice = if (lines.isEmpty()) emptyList() else voiceInputs(lines.minOf { it.startAt } - app.resound.capture.VoiceInputDedup.MIC_AFTER_MS,
-            lines.maxOf { it.startAt } + app.resound.capture.VoiceInputDedup.MIC_BEFORE_MS)
-        insertLines(lines.filter { line -> voice.none { app.resound.capture.VoiceInputDedup.heardByMic(it.startAt, it.text, line.startAt, line.text, line.speakerName) } })
+        val voice = if (lines.isEmpty()) emptyList() else voiceInputs(lines.minOf { it.startAt } - VoiceInputDedup.MIC_AFTER_MS,
+            lines.maxOf { it.startAt } + VoiceInputDedup.MIC_BEFORE_MS)
+        insertLines(lines.filter { line -> voice.none { VoiceInputDedup.heardByMic(it.startAt, it.text, line.startAt, line.text, line.speakerName) } })
         update(row)
     }

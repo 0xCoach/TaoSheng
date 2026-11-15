@@ -1,5 +1,8 @@
 package app.resound.push
 
+import app.resound.recordings.RecordingAudioPush
+import app.resound.review.DailyReview
+
 import android.content.Context
 import android.content.SharedPreferences
 import app.resound.digest.SecretStore
@@ -22,12 +25,12 @@ class AndroidPushChannels internal constructor(
     private val secrets: PushSecrets,
     private val transport: PushTransport,
     private val enqueue: (String) -> Unit,
-    private val latestReview: suspend () -> app.resound.review.DailyReview? = { null },
+    private val latestReview: suspend () -> DailyReview? = { null },
     stateDirectory: java.io.File = java.io.File(System.getProperty("java.io.tmpdir"), "push-${UUID.randomUUID()}"),
     private val enqueueSubscription: (Long, Long, Boolean) -> Unit = { _, _, _ -> },
     private val cancelSubscription: (Long) -> Unit = {},
 ) : PushChannels {
-    constructor(context: Context, latestReview: suspend () -> app.resound.review.DailyReview? = { null }) : this(
+    constructor(context: Context, latestReview: suspend () -> DailyReview? = { null }) : this(
         context.getSharedPreferences("push", Context.MODE_PRIVATE),
         context.getSharedPreferences("push-retries", Context.MODE_PRIVATE),
         object : PushSecrets {
@@ -41,7 +44,7 @@ class AndroidPushChannels internal constructor(
         { RecordPushScheduler(context).cancel(it) },
     )
 
-    internal var audioPush: app.resound.recordings.RecordingAudioPush? = null
+    internal var audioPush: RecordingAudioPush? = null
     override fun audioStatus(id: Long): Flow<AudioPushStatus> = audioPush?.status(id)
         ?: flowOf(AudioPushStatus(0, 0, 0, null, null, null))
     internal fun resolveAudio(id: Long) = resolve(id)
@@ -154,7 +157,8 @@ class AndroidPushChannels internal constructor(
                               memoryWithLines: Boolean): Result<Long> =
         withContext(Dispatchers.IO) { saveLocked(id, kind, name, values, topics, format, memoryWithLines) }
 
-    @Synchronized private fun saveLocked(id: Long?, kind: PushKind, name: String, input: Map<String, String>, topics: Set<PushTopic>, format: PushFormat, memoryWithLines: Boolean, subscription: PushSubscription? = null, linked: Boolean = false): Result<Long> {
+    @Synchronized private fun saveLocked(id: Long?, kind: PushKind, name: String, input: Map<String, String>, topics: Set<PushTopic>, format: PushFormat,
+        memoryWithLines: Boolean, subscription: PushSubscription? = null, linked: Boolean = false): Result<Long> {
         val createdRefs = mutableListOf<String>()
         var stored = false
         return try {
@@ -202,7 +206,8 @@ class AndroidPushChannels internal constructor(
             persist(rows.filterNot { it.getLong("id") == channelId } + row)
             stored = true
             old?.let(::removeSecrets)
-            if (old != null && (old.getString("kind") != kind.name || canonical(old.getJSONObject("values")) != canonical(plain) || old.optBoolean("useLinkedNutstore") != actualLinked)) subscriptions.reset(channelId)
+            if (old != null && (old.getString("kind") != kind.name || canonical(old.getJSONObject("values")) != canonical(plain) || old
+                .optBoolean("useLinkedNutstore") != actualLinked)) subscriptions.reset(channelId)
             cancelSubscription(channelId)
             subscriptions.configure(publicChannel(row), true)
             Result.success(channelId)
@@ -402,7 +407,8 @@ class AndroidPushChannels internal constructor(
         repeat(minOf(logs.length(), 99)) { ring.put(logs.getJSONObject(it)) }
         check(prefs.edit().putString("logs", ring.toString()).commit())
         mutableLogs.value = readLogs()
-        if (!message.title.startsWith("上传录音 ") && !message.title.startsWith("同步文件夹 · ") && !message.title.startsWith("推送订阅 · ")) subscriptions.messageResult(channel.id, result.map { PushTrace.current()?.success(message.title) ?: message.title })
+        if (!message.title.startsWith("上传录音 ") && !message.title.startsWith("同步文件夹 · ") && !message.title.startsWith("推送订阅 · ")) subscriptions.messageResult(channel.id,
+            result.map { PushTrace.current()?.success(message.title) ?: message.title })
     }
 
     private fun sensitiveValues(values: Map<String, String>): Collection<String> = values.values +

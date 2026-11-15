@@ -1,5 +1,7 @@
 package app.resound.location
 
+import app.resound.data.CaptureDatabase
+
 import androidx.sqlite.execSQL
 import android.Manifest
 import android.annotation.SuppressLint
@@ -172,7 +174,7 @@ class LocationRepository(val settings: LocationSettings, val tracker: LocationTr
     fun latest(): Flow<LocationPoint?> = dao.latestFlow()
 
     companion object {
-        fun create(context: Context, database: app.resound.data.CaptureDatabase, scope: CoroutineScope): LocationRepository {
+        fun create(context: Context, database: CaptureDatabase, scope: CoroutineScope): LocationRepository {
             val dao = database.location()
             val settings = LocationSettings(context)
             return LocationRepository(settings, LocationTracker(context, dao, scope), dao, PlaceResolver(context, database.places(), settings))

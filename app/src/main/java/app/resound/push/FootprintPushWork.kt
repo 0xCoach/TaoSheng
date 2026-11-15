@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.location.FootprintReports
+
 import android.content.Context
 import androidx.work.*
 import app.resound.AppGraph
@@ -35,7 +37,7 @@ internal object FootprintPushScheduler {
 internal fun AndroidPushChannels.attachFootprint(context: Context, scope: CoroutineScope) {
     footprintMessage = { date ->
         if (!AppGraph.isLocationReady) null
-        else app.resound.location.FootprintReports.build(AppGraph.location, date)?.let { r ->
+        else FootprintReports.build(AppGraph.location, date)?.let { r ->
             PushMessage(r.title, r.body, PushTopic.Footprint, "resound://footprint?date=${r.date}", System.currentTimeMillis(), footprint = r.json)
         }
     }

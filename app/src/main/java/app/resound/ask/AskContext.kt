@@ -1,10 +1,16 @@
 package app.resound.ask
 
+import app.resound.ask.core.AskContextCore
+import app.resound.ask.core.AskContextLine
+import app.resound.ask.core.AskContextRecord
+import app.resound.ask.core.AskContextStore
+import app.resound.transcribe.VoiceInputMetadata
+
 import app.resound.data.*
 import org.json.JSONObject
 
-class AskContextReader(private val db: CaptureDatabase) : app.resound.ask.core.AskContextStore {
-    private val core = app.resound.ask.core.AskContextCore(this)
+class AskContextReader(private val db: CaptureDatabase) : AskContextStore {
+    private val core = AskContextCore(this)
     suspend fun followUp(history: List<AskMessage>) = core.followUp(history)
     suspend fun read(source: AskSource) = core.read(source)
 
@@ -30,7 +36,7 @@ class AskContextReader(private val db: CaptureDatabase) : app.resound.ask.core.A
         }
     }
 
-    override suspend fun record(source: AskSource): app.resound.ask.core.AskContextRecord {
+    override suspend fun record(source: AskSource): AskContextRecord {
         require(source.kind in setOf("event", "item"))
         // 只信库里的当前内容；不用调用方传来的标题/摘要，以免已删除内容继续被上传。
         val item = source.kind == "item"
@@ -39,18 +45,18 @@ class AskContextReader(private val db: CaptureDatabase) : app.resound.ask.core.A
             else "SELECT id,title,summary,startAt FROM memory_events WHERE id=? AND deleted=0"
         return db.readSql(sql, arrayOf(source.id)) { c ->
             require(c.step()) { "这条记录已不存在" }
-            app.resound.ask.core.AskContextRecord(if (c.isNull(0)) null else c.getLong(0), c.getLong(3), c.getText(1), c.getText(2),
+            AskContextRecord(if (c.isNull(0)) null else c.getLong(0), c.getLong(3), c.getText(1), c.getText(2),
                 if (item) c.getText(4) else null, if (item) c.getText(5) else null)
         }
     }
-    override suspend fun lines(eventId: Long?): List<app.resound.ask.core.AskContextLine> =
+    override suspend fun lines(eventId: Long?): List<AskContextLine> =
         db.readSql("SELECT id,startAt,text,coalesce(speakerName,speakerTag,'某人'),voiceInputJson FROM transcript_lines WHERE eventId=? ORDER BY startAt,id LIMIT 40", arrayOf(eventId)) { c ->
             buildList {
                 while (c.step()) {
-                    val meta = if (c.isNull(4)) null else app.resound.transcribe.VoiceInputMetadata.read(c.getText(4))?.let {
-                        app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(500), after = it.after?.take(500))).toString()
+                    val meta = if (c.isNull(4)) null else VoiceInputMetadata.read(c.getText(4))?.let {
+                        VoiceInputMetadata.json(it.copy(before = it.before?.take(500), after = it.after?.take(500))).toString()
                     }
-                    add(app.resound.ask.core.AskContextLine(c.getLong(0), c.getLong(1), c.getText(2), c.getText(3), meta))
+                    add(AskContextLine(c.getLong(0), c.getLong(1), c.getText(2), c.getText(3), meta))
                 }
             }
         }

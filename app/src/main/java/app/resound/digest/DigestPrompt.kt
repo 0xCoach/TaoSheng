@@ -1,5 +1,9 @@
 package app.resound.digest
 
+import app.resound.diagnostics.LlmResponseTrace
+import app.resound.diagnostics.responseObject
+import app.resound.net.NetLlmException
+
 import app.resound.data.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -9,7 +13,7 @@ import kotlinx.datetime.toKotlinLocalDate
 import app.resound.digest.core.DigestPrompt as Core
 
 internal fun ZoneId.sharedZone() = kotlinx.datetime.TimeZone.of(id)
-internal inline fun <T> promptResult(block: () -> T): T = try { block() } catch (e: app.resound.net.NetLlmException) {
+internal inline fun <T> promptResult(block: () -> T): T = try { block() } catch (e: NetLlmException) {
     throw LlmException(LlmError.valueOf(e.type.name))
 }
 /** 安卓日期、Room 快照和诊断适配；规则在 shared。 */
@@ -54,11 +58,12 @@ object DigestPrompt {
     )
 
     fun parse(content: String, lines: List<TranscriptLineEntity>, zone: ZoneId = ZoneId.systemDefault(), unseparated: Set<Long> = emptySet(),
-        diagnostics: app.resound.diagnostics.LlmResponseTrace? = null): Pair<List<ParsedEvent>, List<ParsedItem>> {
+        diagnostics: LlmResponseTrace? = null): Pair<List<ParsedEvent>, List<ParsedItem>> {
         return try {
-            val result = promptResult { Core.parse(content, lines.map { it.snapshot() }, zone.sharedZone(), unseparated) }.let { (events, items) -> events.map { it.android() } to items.map { it.android() } }
+            val result = promptResult { Core.parse(content, lines.map { it.snapshot() }, zone.sharedZone(), unseparated) }.let { (events, items) -> events.map { it
+                .android() } to items.map { it.android() } }
             runCatching {
-                val raw = app.resound.diagnostics.responseObject(content)
+                val raw = responseObject(content)
                 val rawEvents = raw?.optJSONArray("events")?.length() ?: 0
                 val rawItems = raw?.optJSONArray("items")?.length() ?: 0
                 diagnostics?.parsed(result.first.size, result.second.size, empty = rawEvents == 0 && rawItems == 0,

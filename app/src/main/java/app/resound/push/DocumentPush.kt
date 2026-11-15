@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.OutputTime
+
 import okhttp3.Credentials
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -103,7 +105,8 @@ internal class MarkdownFolderPush(private val http: PushHttp) {
         parts.indices.forEach { i -> http.execute(request(parts.take(i + 1) + "").method("MKCOL", ByteArray(0).toRequestBody()).build(), setOf(405), false) }
         val content = if (daily != null) daily.getString("markdown") else {
             val prefix = old!!.text.takeIf { old.code != 404 }.orEmpty().trimEnd()
-            (if (prefix.isEmpty()) "" else "$prefix\n\n") + "## ${app.resound.OutputTime().moment(message.at)} ${message.title}\n\n${message.rendered(if (format == PushFormat.Text) format else PushFormat.Markdown)}\n"
+            (if (prefix.isEmpty()) "" else "$prefix\n\n") + "## ${OutputTime().moment(message.at)} ${message.title}\n\n${message.rendered(if (format == PushFormat
+                .Text) format else PushFormat.Markdown)}\n"
         }
         val put = request(file)
         if (old?.code == 404) put.header("If-None-Match", "*") else old?.etag?.let { put.header("If-Match", it) }

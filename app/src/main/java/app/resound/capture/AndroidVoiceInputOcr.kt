@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.AppGraph
+
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Bitmap
 import android.os.Build
@@ -43,7 +45,7 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                     } }
                                     // 识字偶尔出繁体（測、輸），统一转简体
                                     val hans = runCatching { android.icu.text.Transliterator.getInstance("Hant-Hans") }.getOrNull()
-                                    val hot = if (app.resound.AppGraph.isHotwordsReady) app.resound.AppGraph.hotwords.let { it.words.value + it.automatic.value } else emptyList()
+                                    val hot = if (AppGraph.isHotwordsReady) AppGraph.hotwords.let { it.words.value + it.automatic.value } else emptyList()
                                     // 繁转简，再按热词纠错
                                     val lines = raw.map { l ->
                                         val corrected = l.copy(text = VoiceInputHotwords.correct(hans?.transliterate(l.text) ?: l.text, hot))
@@ -51,7 +53,11 @@ internal class AndroidVoiceInputOcr(private val service: AccessibilityService) {
                                         else corrected
                                     }
                                     val input = VoiceInputOcr.screenshot(lines, layout, pkg)
-                                    dbg("识字完成：应用=$pkg 块数=${blocks.size} 输入框字数=${input?.text?.length ?: 0} 右侧气泡字数=${input?.bubble?.length ?: 0} 上下文行数=${input?.context?.size ?: 0} 有标题=${input?.title != null}")
+                                    dbg(
+                                        "识字完成：应用=$pkg 块数=${blocks.size} 输入框字数=${input?.text?.length ?: 0} " +
+                                            "右侧气泡字数=${input?.bubble?.length ?: 0} " +
+                                            "上下文行数=${input?.context?.size ?: 0} 有标题=${input?.title != null}"
+                                    )
                                     input
                                 }
                             } catch (_: Exception) { null }

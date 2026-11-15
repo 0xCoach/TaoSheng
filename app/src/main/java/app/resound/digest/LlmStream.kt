@@ -1,5 +1,10 @@
 package app.resound.digest
 
+import app.resound.diagnostics.LlmResponseTrace
+import app.resound.net.NetLlmException
+import app.resound.net.NetSseParser
+import app.resound.net.NetworkTrace
+
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -9,7 +14,7 @@ data class LlmToolCall(val id: String, val name: String, val arguments: String, 
         .put("function", JSONObject().put("name", name).put("arguments", arguments))
         .also { if (extraContent != null) it.put("extra_content", JSONObject(extraContent.toString())) }
 }
-data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val reasoningContent: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null) {
+data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val reasoningContent: String? = null, val diagnostics: LlmResponseTrace? = null) {
     fun message(): JSONObject = JSONObject().put("role", "assistant").put("content", content.ifEmpty { null } ?: JSONObject.NULL)
         .also { if (calls.isNotEmpty()) it.put("tool_calls", JSONArray(calls.map { c -> c.json() })) }
         .also { if (reasoningContent != null) it.put("reasoning_content", reasoningContent) }
@@ -17,14 +22,14 @@ data class LlmStreamReply(val content: String, val calls: List<LlmToolCall>, val
 
 /** 旧 OkHttp 门面也使用共用 SSE 规则；只转换平台 JSON 和诊断类型。 */
 internal class LlmSseParser(onText: (String) -> Unit, onUsage: (Long, Long) -> Unit,
-    diagnostics: app.resound.diagnostics.LlmResponseTrace? = null) {
-    private val core = app.resound.net.NetSseParser(onText, onUsage, diagnostics?.let { trace -> object : app.resound.net.NetworkTrace {
+    diagnostics: LlmResponseTrace? = null) {
+    private val core = NetSseParser(onText, onUsage, diagnostics?.let { trace -> object : NetworkTrace {
         override fun http(status: Int) = trace.http(status)
         override fun content(text: String) = trace.content(text)
         override fun finishReason(reason: String?) = trace.finishReason(reason)
     } })
     val done get() = core.done
-    private inline fun <T> result(block: () -> T): T = try { block() } catch (e: app.resound.net.NetLlmException) {
+    private inline fun <T> result(block: () -> T): T = try { block() } catch (e: NetLlmException) {
         val type = LlmError.valueOf(e.type.name)
         throw LlmException(type, e.status, e.detail ?: type.human, truncated = e.truncated)
     }

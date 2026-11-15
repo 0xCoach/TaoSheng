@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.formatElapsed
+
 /** 分母是本轮可整理的原话数；只有该批已落库才增加完成数，不按等待时间猜百分比。 */
 data class DigestProgress(
     val total: Int = 0,
@@ -15,9 +17,9 @@ data class DigestProgress(
     fun detail(now: Long): String {
         if (batch == 0) return "正在统计待整理原话…"
         val elapsed = ((finishedAt ?: now) - batchStartedAt).coerceAtLeast(0)
-        return "第 $batch/$batches 批 · 等待模型 ${app.resound.formatElapsed(elapsed)}"
+        return "第 $batch/$batches 批 · 等待模型 ${formatElapsed(elapsed)}"
     }
     val completion: String? get() = finishedAt?.takeIf { total > 0 && done == total }?.let {
-        "本轮整理完成 · 用时 ${app.resound.formatElapsed(it - startedAt)}"
+        "本轮整理完成 · 用时 ${formatElapsed(it - startedAt)}"
     }
 }

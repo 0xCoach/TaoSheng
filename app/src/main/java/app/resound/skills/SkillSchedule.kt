@@ -1,5 +1,8 @@
 package app.resound.skills
 
+// 同名类型与本文件声明或已有 import 冲突，以下引用保留全限定名：
+// app.resound.skills.core.SkillSchedule
+
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toKotlinLocalDate
 import android.content.Context

@@ -1,5 +1,9 @@
 package app.resound.ask
 
+import app.resound.ask.core.AskChangeStore
+import app.resound.ask.core.AskChangeTarget
+import app.resound.ask.core.AskChangesCore
+
 import app.resound.data.writeTransaction
 import app.resound.data.*
 import kotlinx.coroutines.CancellationException
@@ -23,17 +27,17 @@ data class ProposedChange(val action: AskAction, val operation: String, val args
 class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = System::currentTimeMillis,
     private val onChanged: () -> Unit = {}) {
 
-    private suspend fun item(id: Long): app.resound.ask.core.AskChangeTarget? = db.readSql("""SELECT i.content,i.status,i.dueAt
+    private suspend fun item(id: Long): AskChangeTarget? = db.readSql("""SELECT i.content,i.status,i.dueAt
         FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.id=? AND i.deleted=0 AND (e.id IS NULL OR e.deleted=0)""", arrayOf(id)) { c ->
-        if (c.step()) app.resound.ask.core.AskChangeTarget(c.getText(0), c.getText(1), if (c.isNull(2)) null else c.getLong(2)) else null
+        if (c.step()) AskChangeTarget(c.getText(0), c.getText(1), if (c.isNull(2)) null else c.getLong(2)) else null
     }
-    private suspend fun event(id: Long): app.resound.ask.core.AskChangeTarget? = db.readSql("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id)) { c ->
-        if (c.step()) app.resound.ask.core.AskChangeTarget(c.getText(0), c.getLong(1).toInt().toString(), null) else null
+    private suspend fun event(id: Long): AskChangeTarget? = db.readSql("SELECT title,starred FROM memory_events WHERE id=? AND deleted=0", arrayOf(id)) { c ->
+        if (c.step()) AskChangeTarget(c.getText(0), c.getLong(1).toInt().toString(), null) else null
     }
     private fun due(args: JSONObject): Long? = if (!args.has("due") || args.isNull("due")) null
         else AskTools.timestamp(args.getString("due"), false, ZoneId.systemDefault())
     suspend fun propose(input: JSONObject, sources: List<AskSource>): ProposedChange {
-        val core = app.resound.ask.core.AskChangesCore(object : app.resound.ask.core.AskChangeStore {
+        val core = AskChangesCore(object : AskChangeStore {
             override suspend fun item(id: Long) = this@AskChanges.item(id)
             override suspend fun event(id: Long) = this@AskChanges.event(id)
         }, kotlinx.datetime.TimeZone.of(ZoneId.systemDefault().id))

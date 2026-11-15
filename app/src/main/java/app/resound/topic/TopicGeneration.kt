@@ -1,5 +1,9 @@
 package app.resound.topic
 
+// 与安卓 DigestPrompt 适配器同名，core ParsedEvent 保留全限定名。
+import app.resound.digest.core.MemoryEventData
+import app.resound.topic.core.TopicGenerationRules
+
 import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.digest.*
@@ -74,7 +78,7 @@ internal class TopicGenerator(
                 val plain = DigestPrompt.transcript(part, unseparated = if (kind == TopicKind.Training) part.map { it.segmentId }.toSet() else unseparated).first
                 val text = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(plain, words), unfinished, ignored)
                 val system = DigestPrompt.system(template(), Instant.ofEpochMilli(part.first().startAt).atZone(ZoneId.systemDefault()).toLocalDate(), appName) +
-                    app.resound.topic.core.TopicGenerationRules.DIGEST_SUFFIX
+                    TopicGenerationRules.DIGEST_SUFFIX
                 val input = "$data\n$text"
                 var reply: LlmReply? = null
                 val call: suspend (String, String) -> String = { s, u ->
@@ -110,21 +114,21 @@ internal class TopicGenerator(
                     .copy(entity = "topic:${row.id}")
             }
         }
-        val event = app.resound.topic.core.TopicGenerationRules.synthesize(g.snapshot(), events.map { it.shared() }, lines.size, acceptedLines.size, model, now).android()
+        val event = TopicGenerationRules.synthesize(g.snapshot(), events.map { it.shared() }, lines.size, acceptedLines.size, model, now).android()
         return TopicOutput(event, items.distinctBy { listOf(it.category, it.content, it.dueText, it.who) }, card)
     }
-    private fun context(g: TopicGroup, lines: List<TranscriptLineEntity>) = app.resound.topic.core.TopicGenerationRules.context(g.snapshot(), lines.map { it.snapshot() })
+    private fun context(g: TopicGroup, lines: List<TranscriptLineEntity>) = TopicGenerationRules.context(g.snapshot(), lines.map { it.snapshot() })
 
     private suspend fun script(g: TopicGroup, lines: List<TranscriptLineEntity>, context: String, words: List<String>, session: TopicProcessingSession?): SkillCardRow {
         val organized = mutableListOf<String>(); val verbatim = mutableListOf<String>()
         val chunks = if (session != null) TopicProcessingRules.chunks(lines, { line, text -> line.copy(text = text) }) { it.text } else ImportChunks.split(lines)
         session?.phase("整理口播稿", chunks.size)
         fun parse(text: String): Pair<String, String> = try {
-            app.resound.topic.core.TopicGenerationRules.parseScript(TopicProcessingRules.normalize(text))
+            TopicGenerationRules.parseScript(TopicProcessingRules.normalize(text))
         } catch (_: Exception) { throw LlmException(LlmError.Format) }
         for (chunk in chunks) {
             val read: suspend (List<TranscriptLineEntity>) -> Pair<String, String> = { part ->
-                val user = app.resound.topic.core.TopicGenerationRules.scriptInput(context, part.map { it.snapshot() }, words)
+                val user = TopicGenerationRules.scriptInput(context, part.map { it.snapshot() }, words)
                 val text = session?.request(SCRIPT_PROMPT, user, { a, b -> request(a, b).content }, { parse(it) }, { parse(it).first })
                     ?: request(SCRIPT_PROMPT, user).content
                 parse(text)
@@ -133,11 +137,11 @@ internal class TopicGenerator(
             results.forEach { organized += it.first; verbatim += it.second }
             session?.advance()
         }
-        return app.resound.topic.core.TopicGenerationRules.scriptCard(g.snapshot(),organized,verbatim,lines.map { it.id },now).android()
+        return TopicGenerationRules.scriptCard(g.snapshot(),organized,verbatim,lines.map { it.id },now).android()
     }
     companion object {
-        const val SCRIPT_PROMPT = app.resound.topic.core.TopicGenerationRules.SCRIPT_PROMPT
-        fun scriptSize(text: String) = app.resound.topic.core.TopicGenerationRules.scriptSize(text)
+        const val SCRIPT_PROMPT = TopicGenerationRules.SCRIPT_PROMPT
+        fun scriptSize(text: String) = TopicGenerationRules.scriptSize(text)
     }
 
 }
@@ -229,5 +233,9 @@ internal class TopicEngine(
     }
 }
 
-private fun app.resound.digest.core.MemoryEventData.android() = MemoryEventEntity(id = id, startAt = startAt, endAt = endAt, scene = scene, title = title, summary = summary, pointsJson = pointsJson, peopleJson = peopleJson, place = place, emotion = emotion, intensity = intensity, important = important, deleted = deleted, createdAt = createdAt, model = model, starred = starred, starredAt = starredAt, editedAt = editedAt, originalTitle = originalTitle, originalSummary = originalSummary, originalPointsJson = originalPointsJson)
-private fun DigestPrompt.ParsedEvent.shared() = app.resound.digest.core.DigestPrompt.ParsedEvent(lineIds,startAt,endAt,scene,title,summary,points,people,place,emotion,intensity,important)
+private fun MemoryEventData.android() = MemoryEventEntity(id = id, startAt = startAt, endAt = endAt, scene = scene, title = title, summary = summary,
+    pointsJson = pointsJson, peopleJson = peopleJson, place = place, emotion = emotion, intensity = intensity, important = important, deleted = deleted,
+    createdAt = createdAt, model = model, starred = starred, starredAt = starredAt, editedAt = editedAt, originalTitle = originalTitle, originalSummary = originalSummary,
+    originalPointsJson = originalPointsJson)
+private fun DigestPrompt.ParsedEvent.shared() = app.resound.digest.core.DigestPrompt.ParsedEvent(
+    lineIds,startAt,endAt,scene,title,summary,points,people,place,emotion,intensity,important)

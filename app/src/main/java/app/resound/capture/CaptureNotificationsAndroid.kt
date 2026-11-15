@@ -1,5 +1,13 @@
 package app.resound.capture
 
+import app.resound.MainActivity
+import app.resound.OutputTime
+import app.resound.R
+import app.resound.onboarding.LocalOnboarding
+import app.resound.topic.TopicActionReceiver
+import app.resound.topic.TopicNotifications
+import app.resound.ui.items.QuickTodoActivity
+
 import app.resound.appName
 import app.resound.AppGraph
 import app.resound.quick.QuickPrefsRules
@@ -27,18 +35,19 @@ object CaptureNotifications {
         (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
     private fun pauseMinutes() = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastPauseMinutes.value else QuickPrefsRules.DEFAULT_PAUSE
     private fun action(context: Context, action: String): PendingIntent = PendingIntent.getForegroundService(context, action.hashCode(),
-        Intent(context, CaptureService::class.java).setAction(action).putExtra("route", "notification").putExtra("minutes", pauseMinutes()), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        Intent(context, CaptureService::class.java).setAction(action).putExtra("route", "notification").putExtra("minutes", pauseMinutes()), PendingIntent
+            .FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     /** 快速加待办：浮在当前界面上直接语音输入，不进入涛声主界面 */
     private fun addTodo(context: Context): PendingIntent = PendingIntent.getActivity(context, 24,
-        Intent(context, app.resound.ui.items.QuickTodoActivity::class.java)
+        Intent(context, QuickTodoActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(context, 25,
-        Intent(context, app.resound.MainActivity::class.java)
+        Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun openTopic(context: Context, id: Long): PendingIntent = PendingIntent.getActivity(context, 26,
-        Intent(context, app.resound.MainActivity::class.java)
+        Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             .putExtra("open", "topic").putExtra("topicId", id), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun ongoing(context: Context, paused: Boolean): Notification {
@@ -48,13 +57,13 @@ object CaptureNotifications {
         // 通知是界面：今天只写时刻，第二天写“明天”，更远才写日期（文件、推送正文才一律写全）
         val at = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault())
         val hm = at.format(java.time.format.DateTimeFormatter.ofPattern("H:mm"))
-        val clock = CaptureNotificationPolicy.clock(java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), at.toLocalDate()), hm, app.resound.OutputTime().moment(until))
-        val topic = if (app.resound.AppGraph.isTopicsReady) app.resound.AppGraph.topics.current.value else null
-        val topicLine = topic?.let { app.resound.topic.TopicNotifications.line(it) }
+        val clock = CaptureNotificationPolicy.clock(java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), at.toLocalDate()), hm, OutputTime().moment(until))
+        val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
+        val topicLine = topic?.let { TopicNotifications.line(it) }
         val notice = CaptureNotificationPolicy.ongoing(context.appName, paused, quietName, clock, topicLine, pauseMinutes())
         val kind = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else QuickPrefsRules.defaultTopic
         return NotificationCompat.Builder(context, "listening")
-        .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(notice.title)
+        .setSmallIcon(R.drawable.ic_notify).setContentTitle(notice.title)
         .setContentText(notice.text)
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
         // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
@@ -65,11 +74,11 @@ object CaptureNotifications {
             CaptureNoticeTarget.App -> openApp(context)
         })
         .apply {
-            if (topic != null) app.resound.topic.TopicNotifications.actions(this, context, topic)
+            if (topic != null) TopicNotifications.actions(this, context, topic)
             else {
                 // 顺序：加待办、开专题、暂停（暂停中为“恢复”）
                 addAction(0, CaptureNotificationPolicy.ADD_TODO, addTodo(context))
-                addAction(0, CaptureNotificationPolicy.START_TOPIC, app.resound.topic.TopicActionReceiver.intent(context, "start"))
+                addAction(0, CaptureNotificationPolicy.START_TOPIC, TopicActionReceiver.intent(context, "start"))
                 addAction(0, notice.toggle, action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE))
             }
         }
@@ -77,11 +86,11 @@ object CaptureNotifications {
     }
     fun interrupted(context: Context) {
         // 与现有中断判定共用入口，即使没有通知权限也保留事实。
-        app.resound.onboarding.LocalOnboarding.captureInterrupted(context)
+        LocalOnboarding.captureInterrupted(context)
         channels(context)
         if (!permitted(context)) return
         try { NotificationManagerCompat.from(context).notify(INTERRUPTED, NotificationCompat.Builder(context, "interrupted")
-            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.interrupted(context.appName))
+            .setSmallIcon(R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.interrupted(context.appName))
             .setContentText(CaptureNotificationPolicy.INTERRUPTED_DETAIL).setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(action(context, CaptureService.RESUME)).setAutoCancel(true).build()) } catch (_: SecurityException) { }
     }
@@ -90,7 +99,7 @@ object CaptureNotifications {
         channels(context)
         if (!permitted(context)) return
         try { NotificationManagerCompat.from(context).notify(SILENT_MIC, NotificationCompat.Builder(context, "interrupted")
-            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.SILENT)
+            .setSmallIcon(R.drawable.ic_notify).setContentTitle(CaptureNotificationPolicy.SILENT)
             .setContentText(CaptureNotificationPolicy.SILENT_DETAIL).setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openApp(context)).setAutoCancel(true).build()) } catch (_: SecurityException) { }
     }

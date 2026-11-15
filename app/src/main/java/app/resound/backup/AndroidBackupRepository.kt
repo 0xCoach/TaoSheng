@@ -1,5 +1,8 @@
 package app.resound.backup
 
+import app.resound.diary.DiaryRepository
+import app.resound.onboarding.LocalOnboarding
+
 import android.content.Context
 import android.net.Uri
 import app.resound.data.CaptureDatabase
@@ -16,7 +19,7 @@ class AndroidBackupRepository internal constructor(
     private val context: Context,
     private val database: CaptureDatabase,
     private val config: BackupConfig = BackupConfig(),
-    private val diary: app.resound.diary.DiaryRepository? = null,
+    private val diary: DiaryRepository? = null,
     private val passphrases: BackupPassphrases = SecureBackupPassphrases(context),
     private val localFiles: LocalBackupFiles = LocalBackupFiles(context),
     private val restartProcess: () -> Unit = { BackupRestore.restart(context) },
@@ -139,7 +142,7 @@ class AndroidBackupRepository internal constructor(
                 val summary = HistoryVolumes.sync(context, database, client.volumes(), workspace, backupPassphrase(), state.value.keep)
                 check(prefs.edit().putLong("lastAt", summary.lastAt!!).putLong("lastBytes", summary.lastUploadBytes!!)
                     .putInt("count", summary.days).remove("error").commit())
-                app.resound.onboarding.LocalOnboarding.backupSucceeded(context)
+                LocalOnboarding.backupSucceeded(context)
                 BackupRestore.clearSnapshots(context)
                 if (periodic) syncDiary(client)
                 false
@@ -239,7 +242,7 @@ class AndroidBackupRepository internal constructor(
                 val summary = HistoryVolumes.sync(context, database, store, work, backupPassphrase(), local.value.keep)
                 check(prefs.edit().putLong("localLastAt", summary.lastAt!!).putLong("localLastBytes", summary.lastUploadBytes!!)
                     .putInt("localCount", summary.days).commit())
-                app.resound.onboarding.LocalOnboarding.backupSucceeded(context)
+                LocalOnboarding.backupSucceeded(context)
                 BackupRestore.clearSnapshots(context)
             }
         }
@@ -251,7 +254,7 @@ class AndroidBackupRepository internal constructor(
             DayVolumes.export(context, database, work, file, backupPassphrase())
             localFiles.export(file, target)
             check(prefs.edit().putLong("localLastAt", System.currentTimeMillis()).putLong("localLastBytes", file.length()).commit())
-            app.resound.onboarding.LocalOnboarding.backupSucceeded(context)
+            LocalOnboarding.backupSucceeded(context)
             BackupRestore.clearSnapshots(context)
         }
     }

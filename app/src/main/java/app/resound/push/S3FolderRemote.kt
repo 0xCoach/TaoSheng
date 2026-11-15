@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.OutputTime
+
 import app.resound.backup.*
 import okhttp3.OkHttpClient
 import java.io.File
@@ -30,7 +32,7 @@ internal class S3FolderRemote(private val s3: S3Client, private val folder: Stri
         if (old != null && old.second == null) throw PushFailure("S3 未返回 ETag，无法安全追加推送记录")
         val prefix = old?.first.orEmpty().trimEnd()
         val content = (if (prefix.isEmpty()) "" else "$prefix\n\n") +
-            "## ${app.resound.OutputTime().moment(message.at)} ${message.title}\n\n${message.rendered(if (format == PushFormat.Text) format else PushFormat.Markdown)}\n"
+            "## ${OutputTime().moment(message.at)} ${message.title}\n\n${message.rendered(if (format == PushFormat.Text) format else PushFormat.Markdown)}\n"
         s3.putText(path, content, if (old == null) mapOf("If-None-Match" to "*") else mapOf("If-Match" to old.second!!))
     }
 }

@@ -42,7 +42,8 @@ class SkillExecution(
     private suspend fun isolated(block: suspend () -> Unit) {
         try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 单个技能失败不阻断后续技能。 */ }
     }
-    suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true, skipGap: Boolean = false): SkillAttempt = gate.withLock {
+    suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true,
+        skipGap: Boolean = false): SkillAttempt = gate.withLock {
         val skill = files.skills.value.find { it.id == id } ?: return@withLock SkillAttempt(SkillRunResult.Failed("技能不存在"))
         if (skill.origin == SkillOrigin.Core) return@withLock SkillAttempt(SkillRunResult.Nothing("请使用原来的整理或回顾设置"))
         var started = now(); val history = dao.runsOf(id)
@@ -75,7 +76,8 @@ class SkillExecution(
                                     val reply = model.request(SkillPrompt.system(skill, promptOverride ?: files.prompt(id), date, appName()), SkillInputs.user(input, hotwords()))
                                     tokens += reply.promptTokens + reply.completionTokens
                                     withContext(NonCancellable) { usage(SkillSchedule.date(started).toString(), reply.promptTokens, reply.completionTokens) }
-                                    parsed = try { SkillOutput.parse(reply.content, skill, date, input, now(), manual = !auto) } catch (_: SkillFormatException) { throw SkillCallException("Format", "模型回复格式不对", "模型回复格式不对") }
+                                    parsed = try { SkillOutput.parse(reply.content, skill, date, input, now(), manual = !auto) } catch (
+                                        _: SkillFormatException) { throw SkillCallException("Format", "模型回复格式不对", "模型回复格式不对") }
                                     break
                                 } catch (e: SkillCallException) {
                                     if (e.kind != "Format" || attempt == 1) throw e

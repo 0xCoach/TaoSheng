@@ -1,5 +1,7 @@
 package app.resound.data
 
+import app.resound.ask.AskConversation
+
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -42,7 +44,7 @@ abstract class AskDao {
         AND (:query = '' OR instr(lower(c.title), lower(:query)) > 0 OR EXISTS(
             SELECT 1 FROM ask_messages m WHERE m.conversationId=c.id AND instr(lower(m.text), lower(:query)) > 0))
         ORDER BY updatedAt DESC, c.id DESC LIMIT :limit""")
-    abstract fun history(query: String, limit: Int): kotlinx.coroutines.flow.Flow<List<app.resound.ask.AskConversation>>
+    abstract fun history(query: String, limit: Int): kotlinx.coroutines.flow.Flow<List<AskConversation>>
 
     @Query("UPDATE ask_conversations SET title = :title WHERE id = :id")
     abstract suspend fun rename(id: Long, title: String)

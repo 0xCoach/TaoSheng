@@ -1,6 +1,8 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.review
 
+import app.resound.digest.LlmInputLimitException
+
 import app.resound.data.*
 import app.resound.digest.LlmPreset
 import app.resound.digest.snapshot
@@ -116,7 +118,7 @@ class ReviewStoreRepository(
                     val system = CorePrompt.system(template(), appName)
                     val rawInput = CorePrompt.input(date, source.snapshot(), timezone, minutes)
                     val input = try { ReviewInputBudgetRules.fit(rawInput, system, inputChars(preset)) }
-                    catch (e: app.resound.digest.LlmInputLimitException) { if (hasBackup(preset)) rawInput else throw e }
+                    catch (e: LlmInputLimitException) { if (hasBackup(preset)) rawInput else throw e }
                     val reply = chat(preset, key, system, input)
                     // 格式错误的成功调用也实际消耗了 token。
                     memory.addUsage(Instant.fromEpochMilliseconds(now()).toLocalDateTime(timezone).date.toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)
@@ -144,7 +146,7 @@ class ReviewStoreRepository(
             error(if (prepared) null else "已用现有内容生成；还有录音没整理完", date)
             false
         } catch (e: CancellationException) { throw e }
-        catch (e: app.resound.digest.LlmInputLimitException) { error(e.message, date); false }
+        catch (e: LlmInputLimitException) { error(e.message, date); false }
         catch (e: Exception) {
             val detail = failure(e)
             error(detail?.message ?: REVIEW_FAILURE, date)

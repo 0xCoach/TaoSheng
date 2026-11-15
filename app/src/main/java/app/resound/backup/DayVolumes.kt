@@ -1,5 +1,8 @@
 package app.resound.backup
 
+import app.resound.prompts.LocalPromptTemplates
+import app.resound.skills.SkillFiles
+
 import android.content.Context
 import app.resound.data.CaptureDatabase
 import org.json.JSONArray
@@ -63,7 +66,8 @@ internal object DayVolumes {
             if (!store.read(stateName(encrypted), file)) continue
             try {
                 val dir = File(work, "state-content-${UUID.randomUUID()}")
-                unzip(plaintext(file, work, stored, supplied), dir) { it in setOf("manifest.json", "rows.jsonl", "settings.json", "secrets.json") || BackupArchive.allowed(it) && (it.startsWith(BackupArchive.SKILLS) || it.startsWith(BackupArchive.PROMPTS)) }
+                unzip(plaintext(file, work, stored, supplied), dir) { it in setOf("manifest.json", "rows.jsonl", "settings.json", "secrets.json") || BackupArchive
+                    .allowed(it) && (it.startsWith(BackupArchive.SKILLS) || it.startsWith(BackupArchive.PROMPTS)) }
                 val manifest = JSONObject(File(dir, "manifest.json").readText())
                 require(manifest.getInt("format") == FORMAT && manifest.getBoolean("encrypted") == encrypted)
                 val declared = entries(manifest.getJSONArray("files"))
@@ -82,8 +86,8 @@ internal object DayVolumes {
     }
     private fun fileInfo(file: File, path: String) = JSONObject().put("path", path).put("size", file.length()).put("sha256", BackupArchive.sha(file))
     private fun fileAssets(context: Context, target: File) {
-        for ((prefix, lock) in listOf(BackupArchive.SKILLS to app.resound.skills.SkillFiles.fileLock,
-            BackupArchive.PROMPTS to app.resound.prompts.LocalPromptTemplates.fileLock)) synchronized(lock) {
+        for ((prefix, lock) in listOf(BackupArchive.SKILLS to SkillFiles.fileLock,
+            BackupArchive.PROMPTS to LocalPromptTemplates.fileLock)) synchronized(lock) {
             val root = File(context.applicationInfo.dataDir, prefix)
             root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath.removeSuffix(".bak") }
                 .filter { BackupArchive.allowed(prefix + it) }.toSet().forEach { path ->

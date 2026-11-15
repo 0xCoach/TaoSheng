@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.data.MemoryItemEntity
+
 import app.resound.data.TranscriptLineEntity
 import app.resound.digest.*
 import app.resound.skills.*
@@ -35,7 +37,7 @@ internal class ImportSummary(
     private val now: () -> Long = System::currentTimeMillis,
     private val session: TopicProcessingSession? = null,
 ) {
-    suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<app.resound.data.MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
+    suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
         val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()
         val indexed = lines.associateBy { "L${it.id}" }

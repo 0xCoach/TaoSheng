@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.transcribe.local.LocalBackend
+
 import app.resound.transcribe.local.LocalAsrLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +24,7 @@ class TranscribePreferenceStore(
 ) {
     private val _source = MutableStateFlow(runCatching { TranscribeSource.valueOf(readString("source", "Doubao")!!) }.getOrDefault(TranscribeSource.Doubao))
     val source = _source.asStateFlow()
-    private val _backend = MutableStateFlow(runCatching { app.resound.transcribe.local.LocalBackend.valueOf(readString("backend", "Npu")!!) }.getOrDefault(app.resound.transcribe.local.LocalBackend.Npu))
+    private val _backend = MutableStateFlow(runCatching { LocalBackend.valueOf(readString("backend", "Npu")!!) }.getOrDefault(LocalBackend.Npu))
     val backend = _backend.asStateFlow()
     private val _language = MutableStateFlow(LocalAsrLanguage.fromCode(readString("localLanguage", null)))
     val language = _language.asStateFlow()
@@ -57,7 +59,8 @@ class TranscribePreferenceStore(
     fun setSource(value: TranscribeSource) { saveString("source", value.name);_source.value=value
         if(!contains("realtime"))_realtime.value=value==TranscribeSource.Local
         sourceChanged();refreshReady();onChanged() }
-    fun setBackend(value: app.resound.transcribe.local.LocalBackend) { saveString("backend", value.name);_backend.value=value;clearNpuCheck();setLocalStatus(if(value==app.resound.transcribe.local.LocalBackend.Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
+    fun setBackend(value: LocalBackend) { saveString("backend", value.name);_backend.value=value;clearNpuCheck();setLocalStatus(if(value==LocalBackend
+        .Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
     fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = _endpointMode.value) {
         validateEndpoint(endpoint, mode)
         require(model.trim().isNotEmpty()) { "请填写模型名" }

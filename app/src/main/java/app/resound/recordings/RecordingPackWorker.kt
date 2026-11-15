@@ -48,7 +48,8 @@ internal object PackNotifications {
     }
     fun finished(c: Context, id: String, state: RecordingPackState?) {
         if (state !is RecordingPackState.Done && state !is RecordingPackState.Failed) return
-        val open = PendingIntent.getActivity(c, number(id), Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val open = PendingIntent.getActivity(c, number(id), Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         runCatching { manager(c).notify(number(id) + 0x10000000, NotificationCompat.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(if (state is RecordingPackState.Done) "录音包已保存" else "录音打包失败")
             .setContentText(if (state is RecordingPackState.Done) state.name else (state as RecordingPackState.Failed).message)

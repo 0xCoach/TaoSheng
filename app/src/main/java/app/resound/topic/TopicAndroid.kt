@@ -1,5 +1,8 @@
 package app.resound.topic
 
+import app.resound.MainActivity
+import app.resound.R
+
 import app.resound.scheduling.BackgroundRefreshPolicy
 import app.resound.scheduling.refreshWhileNeeded
 import android.app.*
@@ -172,7 +175,7 @@ internal object TopicNotifications {
     private const val OFF = 1353
     private const val READY = 1354
     private fun open(context: Context, id: Long): PendingIntent = PendingIntent.getActivity(context, id.hashCode(),
-        Intent(context, app.resound.MainActivity::class.java).putExtra("open", "topic").putExtra("topicId", id)
+        Intent(context, MainActivity::class.java).putExtra("open", "topic").putExtra("topicId", id)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun line(topic: Topic, now: Long = System.currentTimeMillis()): String {
@@ -198,7 +201,7 @@ internal object TopicNotifications {
     }
     private fun base(context: Context, title: String): NotificationCompat.Builder {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("topics", "专题录音", NotificationManager.IMPORTANCE_DEFAULT))
-        return NotificationCompat.Builder(context, "topics").setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(title).setAutoCancel(true)
+        return NotificationCompat.Builder(context, "topics").setSmallIcon(R.drawable.ic_notify).setContentTitle(title).setAutoCancel(true)
     }
     private fun send(context: Context, id: Int, builder: NotificationCompat.Builder) {
         if (!CaptureNotifications.permitted(context)) return
@@ -218,7 +221,7 @@ internal object TopicNotifications {
 class TopicWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("topic-work", "专题整理", NotificationManager.IMPORTANCE_LOW))
-        return ForegroundInfo(3135, NotificationCompat.Builder(applicationContext, "topic-work").setSmallIcon(app.resound.R.drawable.ic_notify)
+        return ForegroundInfo(3135, NotificationCompat.Builder(applicationContext, "topic-work").setSmallIcon(R.drawable.ic_notify)
             .setContentTitle("正在整理专题").setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {

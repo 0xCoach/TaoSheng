@@ -1,5 +1,10 @@
 package app.resound.transcribe
 
+import app.resound.digest.HeaderEntry
+import app.resound.digest.ServiceHeaders
+import app.resound.transcribe.local.LocalBackend
+import app.resound.transcribe.local.LocalModels
+
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -19,10 +24,10 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 
-class AndroidTranscribeSettings internal constructor(private val context: Context, private val headerStore: app.resound.digest.ServiceHeaders) : TranscribeSettings {
-    constructor(context: Context) : this(context, app.resound.digest.ServiceHeaders(context, transcription = true))
+class AndroidTranscribeSettings internal constructor(private val context: Context, private val headerStore: ServiceHeaders) : TranscribeSettings {
+    constructor(context: Context) : this(context, ServiceHeaders(context, transcription = true))
     override fun headers(presetId: String) = headerStore.headers(presetId)
-    override fun saveHeaders(presetId: String, headers: List<app.resound.digest.HeaderEntry>) {
+    override fun saveHeaders(presetId: String, headers: List<HeaderEntry>) {
         require(TranscribeSource.entries.any { it.name == presetId }) { "转写服务不存在" }
         headerStore.save(presetId, headers)
         refreshReady(); onChanged()
@@ -57,12 +62,12 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         preferences.localPreferenceChanged(); refreshReady()
     }
     init { localPrefs.registerOnSharedPreferenceChangeListener(listener) }
-    fun downloadStatus(backend: app.resound.transcribe.local.LocalBackend) = localPrefs.getString("download-${backend.name}", "未下载")!!
-    fun modelReady(backend: app.resound.transcribe.local.LocalBackend) = app.resound.transcribe.local.LocalModels.ready(context, app.resound.transcribe.local.LocalModels.spec(backend))
-    fun download(backend: app.resound.transcribe.local.LocalBackend, retry: Boolean = false) = app.resound.transcribe.local.LocalModels.enqueue(context, backend, retry)
+    fun downloadStatus(backend: LocalBackend) = localPrefs.getString("download-${backend.name}", "未下载")!!
+    fun modelReady(backend: LocalBackend) = LocalModels.ready(context, LocalModels.spec(backend))
+    fun download(backend: LocalBackend, retry: Boolean = false) = LocalModels.enqueue(context, backend, retry)
     fun setLocalStatus(value: String) = preferences.setLocalStatus(value)
     fun setSource(value: TranscribeSource) = preferences.setSource(value)
-    fun setBackend(value: app.resound.transcribe.local.LocalBackend) = preferences.setBackend(value)
+    fun setBackend(value: LocalBackend) = preferences.setBackend(value)
     fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = endpointMode.value) = preferences.saveCustom(endpoint, model, mode)
     private fun sourceChanged() {
         _hasKey.value = runCatching { readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() } }.getOrDefault(false)
@@ -74,19 +79,20 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     private fun validateEndpoint(endpoint: String, mode: CustomEndpointMode) {
         if (mode == CustomEndpointMode.Full) fullEndpoint(endpoint) else OpenAiEndpoint.bases(endpoint)
     }
-    fun identity() = "${source.value}:${backend.value}:${endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource.Local) "" else readKey())}:${keyFingerprint(org.json.JSONArray(headers(source.value.name).map { listOf(it.name, it.value) }).toString())}" +
+    fun identity() = "${source.value}:${backend.value}:${endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource
+        .Local) "" else readKey())}:${keyFingerprint(org.json.JSONArray(headers(source.value.name).map { listOf(it.name, it.value) }).toString())}" +
         if (source.value == TranscribeSource.Local) ":${language.value.code}" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
-        TranscribeSource.Local -> modelReady(if (backend.value == app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) backend.value else app.resound.transcribe.local.LocalBackend.Cpu)
+        TranscribeSource.Local -> modelReady(if (backend.value == LocalBackend.Npu && LocalModels.npuSupported()) backend.value else LocalBackend.Cpu)
         TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() || headers(source.name).any { it.value.isNotBlank() } }.getOrDefault(false)
         TranscribeSource.Custom -> customModel.isNotBlank() && runCatching { validateEndpoint(customEndpoint, endpointMode.value); true }.getOrDefault(false)
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
     private fun keyField() = if(source.value==TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey"
     fun refreshReady() { _ready.value=if(source.value==TranscribeSource.Local) {
-        if(backend.value==app.resound.transcribe.local.LocalBackend.Npu && app.resound.transcribe.local.LocalModels.npuSupported()) modelReady(app.resound.transcribe.local.LocalBackend.Npu)
-        else modelReady(app.resound.transcribe.local.LocalBackend.Cpu)
+        if(backend.value==LocalBackend.Npu && LocalModels.npuSupported()) modelReady(LocalBackend.Npu)
+        else modelReady(LocalBackend.Cpu)
     } else usable()
         _hasKey.value = usable()
     }

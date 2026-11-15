@@ -1,6 +1,9 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.diary
 
+import app.resound.skills.FieldType
+import app.resound.skills.SkillCard
+
 import app.resound.data.MemoryDao
 import app.resound.digest.*
 import app.resound.review.ReviewRepository
@@ -12,7 +15,7 @@ import kotlinx.datetime.*
 /** 日记查询和内容组装；Uri/实际文件输出仍由安卓原入口负责。 */
 class DiaryContentStore(
     private val memory: MemoryRepository, private val reviews: ReviewRepository,
-    private val dao: MemoryDao, private val cards: suspend (LocalDate) -> List<app.resound.skills.SkillCard>,
+    private val dao: MemoryDao, private val cards: suspend (LocalDate) -> List<SkillCard>,
     private val lineWindow: ((LocalDate) -> Pair<Long, Long>)?,
     private val zoneProvider: ZoneProvider, private val io: CoroutineDispatcher,
     initialCloudSync: Boolean, private val saveCloudSync: (Boolean) -> Boolean,
@@ -107,7 +110,7 @@ interface DiaryTextTime {
 }
 
 /** 按生成时保存的字段类型渲染，技能改名或删字段不影响旧卡导出。 */
-fun diaryCardsMarkdown(cards: List<app.resound.skills.SkillCard>, format: DiaryTextTime): String {
+fun diaryCardsMarkdown(cards: List<SkillCard>, format: DiaryTextTime): String {
     if (cards.isEmpty()) return ""
     fun time(at: Long) = format.moment(at)
     return "## 卡片\n" + cards.sortedBy { it.at }.joinToString("\n\n") { card ->
@@ -117,15 +120,15 @@ fun diaryCardsMarkdown(cards: List<app.resound.skills.SkillCard>, format: DiaryT
             card.fields.forEach { field ->
                 val value = card.values[field.key] ?: return@forEach
                 val text = when (field.type) {
-                    app.resound.skills.FieldType.Text, app.resound.skills.FieldType.Paragraph -> value.text.orEmpty()
-                    app.resound.skills.FieldType.Bullets -> value.items.joinToString("\n") { "- $it" }
-                    app.resound.skills.FieldType.Checklist -> value.items.mapIndexed { i, item -> "- [${if (value.checked.getOrNull(i) == true) "x" else " "}] $item" }.joinToString("\n")
-                    app.resound.skills.FieldType.Quotes -> value.quotes.joinToString("\n") { q ->
+                    FieldType.Text, FieldType.Paragraph -> value.text.orEmpty()
+                    FieldType.Bullets -> value.items.joinToString("\n") { "- $it" }
+                    FieldType.Checklist -> value.items.mapIndexed { i, item -> "- [${if (value.checked.getOrNull(i) == true) "x" else " "}] $item" }.joinToString("\n")
+                    FieldType.Quotes -> value.quotes.joinToString("\n") { q ->
                         ("${q.speaker} · ${time(q.at)}：${q.text}").lines().joinToString("\n") { "> $it" }
                     }
-                    app.resound.skills.FieldType.Number -> value.number?.let { "$it ${value.unit.orEmpty()}" }.orEmpty()
-                    app.resound.skills.FieldType.Tags -> value.items.joinToString("、")
-                    app.resound.skills.FieldType.Rating -> value.rating?.let { "$it / 5" }.orEmpty()
+                    FieldType.Number -> value.number?.let { "$it ${value.unit.orEmpty()}" }.orEmpty()
+                    FieldType.Tags -> value.items.joinToString("、")
+                    FieldType.Rating -> value.rating?.let { "$it / 5" }.orEmpty()
                 }
                 if (text.isNotBlank()) add("**${field.label}**\n$text")
             }

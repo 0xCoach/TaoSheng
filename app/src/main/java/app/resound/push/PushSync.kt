@@ -1,5 +1,8 @@
 package app.resound.push
 
+import app.resound.platform.SharedJson
+import app.resound.transcribe.VoiceInputMetadata
+
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -138,9 +141,11 @@ internal object RecordDelta {
         val data = input.validated()
         data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }.forEach { e ->
             put("event:${e.id}", JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt).put("title", e.title).put("summary", e.summary)
-                .put("points", JSONArray(e.pointsJson)).put("people", JSONArray(e.peopleJson)).put("scene", e.scene).put("important", e.important).put("starred", e.starred).put("starredAt", e.starredAt ?: JSONObject.NULL))
+                .put("points", JSONArray(e.pointsJson)).put("people", JSONArray(e.peopleJson)).put("scene", e.scene).put("important", e.important).put("starred", e
+                    .starred).put("starredAt", e.starredAt ?: JSONObject.NULL))
         }
-        data.items.forEach { i -> put("item:${i.id}", JSONObject().put("id", i.id).put("eventId", i.eventId ?: JSONObject.NULL).put("origin", i.origin).put("sourceText", i.sourceText ?: JSONObject.NULL).put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
+        data.items.forEach { i -> put("item:${i.id}", JSONObject().put("id", i.id).put("eventId", i.eventId ?: JSONObject.NULL).put("origin", i.origin).put("sourceText",
+            i.sourceText ?: JSONObject.NULL).put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
             .put("content", i.content).put("status", i.status).put("at", i.createdAt).put("due", i.dueAt ?: i.dueText ?: JSONObject.NULL)
             .put("doneAt", i.doneAt ?: JSONObject.NULL).put("who", i.who ?: JSONObject.NULL).put("repeats", data.repeats[i.id] ?: 1)) }
         data.cards.forEach { c -> put("card:${c.id}", JSONObject().put("id", c.id).put("date", LocalDate.ofEpochDay(c.date)).put("title", c.title)
@@ -148,10 +153,11 @@ internal object RecordDelta {
         data.reviews.forEach { r -> put("review:${r.id}", JSONObject().put("id", r.id).put("type", r.type).put("startDate", r.startDate).put("endDate", r.endDate)
             .put("brief", r.brief).put("sections", JSONArray(r.sectionsJson))) }
         data.lines.forEach { l -> put("line:${l.id}", JSONObject().put("id", l.id).put("at", l.startAt).put("end", l.endAt)
-            .put("eventId", l.eventId ?: JSONObject.NULL).put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, s.lineContext)) } }) }
+            .put("eventId", l.eventId ?: JSONObject.NULL).put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { VoiceInputMetadata.read(l
+                .voiceInputJson)?.let { put("voice_input", VoiceInputMetadata.json(it, s.lineContext)) } }) }
     }
     fun changes(current: Map<String, JSONObject>, old: JSONObject): JSONObject = JSONObject(RecordDeltaRules.changes(
-        current.mapValues { app.resound.platform.SharedJson.parseToJsonElement(it.value.toString()) as kotlinx.serialization.json.JsonObject },
+        current.mapValues { SharedJson.parseToJsonElement(it.value.toString()) as kotlinx.serialization.json.JsonObject },
         old.keys().asSequence().associateWith { old.optString(it) }, PushTrace.current()?.skipped.orEmpty(),
         { key -> sha256(canonical(current.getValue(key))) }).toString())
     fun acknowledge(current: Map<String, JSONObject>, state: PushSyncState) {

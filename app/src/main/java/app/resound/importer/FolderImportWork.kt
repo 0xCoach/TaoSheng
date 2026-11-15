@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.R
+
 import android.app.*
 import android.content.Context
 import android.content.Intent
@@ -39,7 +41,7 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
             val pending = PendingIntent.getActivity(context, 117, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             try {
                 manager.notify(id, 3117, NotificationCompat.Builder(context, "import")
-                    .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("从${name}导入了 $count 个录音")
+                    .setSmallIcon(R.drawable.ic_notify).setContentTitle("从${name}导入了 $count 个录音")
                     .setContentText("已加入转写整理队列").setContentIntent(pending).setAutoCancel(true).build())
             } catch (_: SecurityException) { /* 通知权限被撤回不影响已提交的导入。 */ }
         }

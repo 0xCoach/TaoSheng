@@ -14,7 +14,8 @@ fun customMultipart(audio: AudioUpload, model: String, prompt: String?, boundary
     fun quote(s: String) = s.replace("\n", "%0A").replace("\r", "%0D").replace("\"", "%22")
     fun field(name: String, value: String) = "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\nContent-Length: ${value.encodeToByteArray().size}\r\n\r\n$value\r\n"
     val mime = when(audio.format) { "ogg" -> "audio/ogg"; "wav" -> "audio/wav"; else -> "audio/mp4" }
-    val prefix = (field("model", model) + "--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quote(audio.name)}\"\r\nContent-Type: $mime\r\nContent-Length: ${audio.size}\r\n\r\n").encodeToByteArray()
+    val prefix = (field("model", model) + "--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quote(audio
+        .name)}\"\r\nContent-Type: $mime\r\nContent-Length: ${audio.size}\r\n\r\n").encodeToByteArray()
     val suffix = ("\r\n" + field("response_format", "json") + (prompt?.takeIf { it.isNotEmpty() }?.let { field("prompt", it) } ?: "") + "--$boundary--\r\n").encodeToByteArray()
     return object : OutgoingContent.WriteChannelContent() {
         override val contentType = ContentType.parse("multipart/form-data; boundary=$boundary")

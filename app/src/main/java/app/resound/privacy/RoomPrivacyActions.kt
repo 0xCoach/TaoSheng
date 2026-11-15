@@ -1,5 +1,8 @@
 package app.resound.privacy
 
+import app.resound.data.PrivacyFileCleanup
+import app.resound.transcribe.SegmentDeleter
+
 import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
@@ -25,7 +28,7 @@ class RoomPrivacyActions(
     private val diagnostic: (String) -> Unit = { android.util.Log.w("Privacy", it); Unit },
     private val scheduleCleanup: () -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
-) : PrivacyActions, app.resound.transcribe.SegmentDeleter {
+) : PrivacyActions, SegmentDeleter {
     private val gate = Mutex()
     private val dao = db.privacy()
     private val requests = mutableMapOf<Long, CompletableDeferred<ForgetResult>>()
@@ -114,7 +117,7 @@ class RoomPrivacyActions(
                     val source = db.voiceprint().lines(segment.id)
                     files += segment to source
                     if (PrivacyRules.cleanupFile(segment.path, segment.sourceId))
-                        dao.queueCleanup(app.resound.data.PrivacyFileCleanup(segment.path))
+                        dao.queueCleanup(PrivacyFileCleanup(segment.path))
                     val target = if (explicitEvent == null) source else source.filter { it.eventId == explicitEvent }
                     events += target.mapNotNull { it.eventId }
                     dao.deleteSamples(segment.id)

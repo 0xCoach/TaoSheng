@@ -1,5 +1,9 @@
 package app.resound.things
 
+import app.resound.AppGraph
+import app.resound.R
+import app.resound.data.EventEntity
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -29,7 +33,7 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
         var resultCount = 0
         var outcome = "failed"
         try {
-            reply = settings.failover.request("寻物", db.memory(), app.resound.usage.UsagePurpose.Things, manualClient::chatJson)(preset, key, system, input)
+            reply = settings.failover.request("寻物", db.memory(), UsagePurpose.Things, manualClient::chatJson)(preset, key, system, input)
             return ThingPrompt.parse(reply.content, lines, selected.map { it.id }.toSet(), System.currentTimeMillis()).also {
                 resultCount = it.size; outcome = "ok"
             }
@@ -37,8 +41,9 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
             withContext(NonCancellable) {
                 reply?.let { db.memory().addUsage(LocalDate.now().toString(), it.promptTokens, it.completionTokens, UsagePurpose.Things) }
                 // 仅记录计数，不写原话、物品名、密钥或模型回复。
-                runCatching { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
-                    type = "ThingsUsage", detail = "mode=manual outcome=$outcome lines=${lines.size} context=${nearby.size} known=${selected.size} inputChars=${system.length + input.length} promptTokens=${reply?.promptTokens ?: 0} completionTokens=${reply?.completionTokens ?: 0} results=$resultCount",
+                runCatching { db.capture().event(EventEntity(at = System.currentTimeMillis(),
+                    type = "ThingsUsage", detail = "mode=manual outcome=$outcome lines=${lines.size} context=${nearby.size} known=${selected.size} inputChars=${system
+                        .length + input.length} promptTokens=${reply?.promptTokens ?: 0} completionTokens=${reply?.completionTokens ?: 0} results=$resultCount",
                     batteryPercent = null, charging = null)) }
             }
         }
@@ -50,7 +55,7 @@ internal fun createThings(context: Context, db: CaptureDatabase, scope: Coroutin
         ThingDrafts(detect(listOf(line), known).map { p -> p.row.let {
             ThingDraft(it.name, ThingAction.valueOf(it.action), it.place, it.who, ThingOwner.valueOf(it.owner), it.thingId)
         } }, true)
-    }, now = app.resound.AppGraph.platform.now, problem = { message -> scope.launch { db.capture().event(app.resound.data.EventEntity(at = System.currentTimeMillis(),
+    }, now = AppGraph.platform.now, problem = { message -> scope.launch { db.capture().event(EventEntity(at = System.currentTimeMillis(),
         type = "ThingsStorage", detail = message, batteryPercent = null, charging = null)) } })
     val notifications = ThingNotifications(context)
     val prefs = context.getSharedPreferences("things", Context.MODE_PRIVATE)
@@ -84,7 +89,7 @@ internal class ThingNotifications(private val context: Context) {
         val intent = Intent(context, MainActivity::class.java).putExtra("open", "things_pending")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending = PendingIntent.getActivity(context, 7200, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = NotificationCompat.Builder(context, "things").setSmallIcon(app.resound.R.drawable.ic_notify)
+        val notification = NotificationCompat.Builder(context, "things").setSmallIcon(R.drawable.ic_notify)
             .setContentTitle("已记：${record.name} → $target").setContentText("待确认，点开查看")
             .setContentIntent(pending).setAutoCancel(true).setSilent(true).setOnlyAlertOnce(true).build()
         // 不主动索取权限；拒绝通知不影响记录入库。

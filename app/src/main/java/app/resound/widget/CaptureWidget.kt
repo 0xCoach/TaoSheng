@@ -1,5 +1,10 @@
 package app.resound.widget
 
+import app.resound.audio.MicYield
+import app.resound.ui.items.QuickTodoActivity
+import app.resound.ui.topic.topicHomeTitle
+import app.resound.ui.verify.resumeAt
+
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -51,7 +56,7 @@ class CaptureWidget : AppWidgetProvider() {
         fun attach(context: Context, scope: CoroutineScope, capture: CaptureController, topics: TopicRepository) {
             scope.launch(Dispatchers.Main.immediate) {
                 combine(
-                    capture.status.map { Triple(it.state, it.pausedUntil, it.quietName) to (it.busyDetail == app.resound.audio.MicYield.IN_CALL) }.distinctUntilChanged(),
+                    capture.status.map { Triple(it.state, it.pausedUntil, it.quietName) to (it.busyDetail == MicYield.IN_CALL) }.distinctUntilChanged(),
                     topics.current.map { t -> t?.let { Triple(it.id, it.status, it.marks.size) } }.distinctUntilChanged(),
                 ) { a, b -> a to b }.debounce(1000).collect { refresh(context) }
             }
@@ -61,7 +66,7 @@ class CaptureWidget : AppWidgetProvider() {
             if (!AppGraph.isReady) return
             val status = AppGraph.capture.status.value
             val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
-            val inCall = status.busyDetail == app.resound.audio.MicYield.IN_CALL
+            val inCall = status.busyDetail == MicYield.IN_CALL
             val capture = when (status.state) {
                 CaptureState.Listening, CaptureState.Recording -> HomeCapture.Active
                 CaptureState.Paused -> HomeCapture.Paused
@@ -69,10 +74,10 @@ class CaptureWidget : AppWidgetProvider() {
                 CaptureState.Stopped -> HomeCapture.Stopped
                 CaptureState.NoPermission -> HomeCapture.NoPermission
             }
-            val resumeAt = app.resound.ui.verify.resumeAt(status.pausedUntil)?.let {
+            val resumeAt = resumeAt(status.pausedUntil)?.let {
                 Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().let { t -> "%d:%02d".format(t.hour, t.minute) }
             }
-            val view = WidgetRules.view(capture, topic?.let { app.resound.ui.topic.topicHomeTitle(it) },
+            val view = WidgetRules.view(capture, topic?.let { topicHomeTitle(it) },
                 topic?.status == TopicStatus.Paused, resumeAt, status.quietName)
 
             val rv = RemoteViews(context.packageName, R.layout.widget_capture)
@@ -81,7 +86,7 @@ class CaptureWidget : AppWidgetProvider() {
             rv.setInt(R.id.widget_dot, "setImageAlpha", if (view.active) 255 else 90)
             rv.setOnClickPendingIntent(R.id.widget_root, openApp(context, topic?.id))
             rv.setOnClickPendingIntent(R.id.widget_todo, PendingIntent.getActivity(context, 1670,
-                Intent(context, app.resound.ui.items.QuickTodoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+                Intent(context, QuickTodoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             when (view.topicButton) {
                 WidgetTopicButton.StartTopic -> {

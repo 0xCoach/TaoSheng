@@ -62,7 +62,11 @@ internal class EnvSoundAnalysis(
             return EnvSoundEvidence(scores, gapScores, available, used, gapFailed) to me
         } finally {
             phase(null)
-            log("环境音分步 解码=${decodeMs}ms 模型=${modelMs}ms 本人检查=${identityMs}ms 间隙提取=${gapExtractMs}ms 间隙推理=${gapInferMs}ms 间隙总样本=$available 间隙使用样本=$used 间隙失败=$gapFailed 检查=$checked 成功=$succeeded 总计=${now()-start}ms")
+            log(
+                "环境音分步 解码=${decodeMs}ms 模型=${modelMs}ms 本人检查=${identityMs}ms " +
+                    "间隙提取=${gapExtractMs}ms 间隙推理=${gapInferMs}ms 间隙总样本=$available " +
+                    "间隙使用样本=$used 间隙失败=$gapFailed 检查=$checked 成功=$succeeded 总计=${now()-start}ms"
+            )
         }
     }
 

@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.transcribe.fetchRemoteModels
+
 import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +42,8 @@ class AndroidDigestSettings internal constructor(
     val customEndpoint get() = providers.saved.value.firstOrNull { it.id == "custom" }?.baseUrl.orEmpty()
     val customModel get() = providers.saved.value.firstOrNull { it.id == "custom" }?.model.orEmpty()
     override val presets get() = providers.saved.value.map { it.preset() }
-    suspend fun fetchModels(endpoint:String,key:String)=app.resound.transcribe.fetchRemoteModels(ServiceHeaders.modelsEndpoint(endpoint),key.trim().ifBlank{readKey()}, headers = providers.headerStore.forService(presetId.value, endpoint))
+    suspend fun fetchModels(endpoint:String,key:String)=fetchRemoteModels(ServiceHeaders.modelsEndpoint(endpoint),key.trim().ifBlank{readKey()}, headers = providers
+        .headerStore.forService(presetId.value, endpoint))
     fun saveCustomAll(endpoint:String,model:String,key:String) {
         providers.ensureLegacy("custom")
         val p = providers.saved.value.first { it.id == "custom" }

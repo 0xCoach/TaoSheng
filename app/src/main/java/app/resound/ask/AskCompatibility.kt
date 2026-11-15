@@ -1,5 +1,8 @@
 package app.resound.ask
 
+// 同名类型与本文件声明或已有 import 冲突，以下引用保留全限定名：
+// app.resound.ask.core.AskFailure
+
 import android.content.Context
 import app.resound.digest.LlmError
 import app.resound.digest.LlmException

@@ -1,5 +1,7 @@
 package app.resound.things
 
+import app.resound.platform.NowMillis
+
 import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.*
@@ -13,7 +15,7 @@ fun things(rows: List<ThingRow>, records: List<ThingRecordRow>) = thingCatalog(r
 
 class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope,
     private val parseDraft: suspend (String) -> ThingDrafts,
-    private val now: app.resound.platform.NowMillis,
+    private val now: NowMillis,
     private val problem: (String) -> Unit = {},
 ) : ThingRepository {
     val dao = db.things()

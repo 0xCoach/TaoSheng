@@ -39,7 +39,8 @@ class EnvSoundModel(private val context: Context) {
                 }
             } catch(e: java.io.IOException) {
                 val archive = File(dir, "upstream.part")
-                val spec = ModelSpec("env-sound", upstream, 111034072, "07e2fafcdcbc461f2816188d9b0bbafced12584030cf67d5652e549ef256a2c6", "model.int8.onnx", 27038066, files.getValue("model.int8.onnx").second, false)
+                val spec = ModelSpec("env-sound", upstream, 111034072, "07e2fafcdcbc461f2816188d9b0bbafced12584030cf67d5652e549ef256a2c6", "model.int8.onnx", 27038066,
+                    files.getValue("model.int8.onnx").second, false)
                 downloadModelFile(spec, archive, status = {
                     val percent = Regex("下载 ([0-9]+)%").find(it)?.groupValues?.get(1)?.toFloatOrNull()
                     if(percent != null) state.value = EnvModelState.Downloading(percent/100)

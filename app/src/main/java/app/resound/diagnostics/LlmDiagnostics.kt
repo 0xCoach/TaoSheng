@@ -1,5 +1,7 @@
 package app.resound.diagnostics
 
+import app.resound.digest.LlmInputLimitException
+
 import android.content.Context
 import android.content.SharedPreferences
 import app.resound.digest.LlmError
@@ -92,7 +94,7 @@ class LlmResponseTrace internal constructor(
             if (error != null) put("error", when (error) {
                 is LlmException -> error.type.name
                 is kotlinx.coroutines.CancellationException -> "Cancelled"
-                is app.resound.digest.LlmInputLimitException -> "InputLimit"
+                is LlmInputLimitException -> "InputLimit"
                 is java.io.IOException -> LlmError.Network.name
                 else -> "Local"
             })

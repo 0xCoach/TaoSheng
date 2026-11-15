@@ -7,7 +7,8 @@ object EnvSoundRules {
     const val contentLimit = .2f
     const val mediaSpeech = .05f
     const val mediaMusic = .9f
-    val speech = listOf("Speech", "Male speech, man speaking", "Female speech, woman speaking", "Child speech, kid speaking", "Conversation", "Narration, monologue", "Whispering", "Speech synthesizer")
+    val speech = listOf("Speech", "Male speech, man speaking", "Female speech, woman speaking", "Child speech, kid speaking", "Conversation", "Narration, monologue",
+        "Whispering", "Speech synthesizer")
     val human = listOf("Baby cry, infant cry", "Crying, sobbing", "Laughter", "Cough", "Breathing", "Screaming", "Shout")
     val tags = linkedMapOf(
         EnvTag.Music to (.8f to listOf("Music")),
@@ -37,7 +38,8 @@ object EnvSoundRules {
         val gapValid = (tags.values.flatMap { it.second } + sounds.values.flatMap { it.second }).all { gapScores[it]?.let { v -> v.isFinite() && v in 0f..1f } == true }
         fun gapMax(names: List<String>) = names.maxOfOrNull { gapScores[it] ?: 0f } ?: 0f
         val media = settings.enabled && valid && !me && s >= mediaSpeech && music >= mediaMusic
-        val skip = settings.enabled && valid && !me && settings.skip != SkipMode.Off && s < speechLimit && h < humanLimit && max(tags.values.flatMap { it.second } + sounds.values.flatMap { it.second }) >= contentLimit
+        val skip = settings.enabled && valid && !me && settings.skip != SkipMode.Off && s < speechLimit && h < humanLimit && max(tags.values.flatMap { it
+            .second } + sounds.values.flatMap { it.second }) >= contentLimit
         val verdict = when { media -> SegmentVerdict.Media; skip && settings.skip == SkipMode.On -> SegmentVerdict.Skipped; skip -> SegmentVerdict.Skippable; else -> SegmentVerdict.Keep }
         return Decision(verdict, when(verdict) { SegmentVerdict.Media -> "疑似影视"; SegmentVerdict.Keep -> null; else -> if(music >= contentLimit) "音乐" else "环境音" },
             if(settings.enabled && settings.tags && valid && gapValid) tags.filter { gapMax(it.value.second) >= it.value.first }.keys else emptySet(),

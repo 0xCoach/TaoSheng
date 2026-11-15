@@ -1,9 +1,11 @@
 package app.resound.skills
 
+import app.resound.envsound.EnvSoundPresentation
+
 import org.json.JSONArray
 import org.json.JSONObject
 
-suspend fun SkillCardRow.card() = app.resound.envsound.EnvSoundPresentation.decorate(SkillCard(id, skillId, skillName, icon, kotlinx.datetime.LocalDate.fromEpochDays(date.toInt()), at, endAt, title, summary,
+suspend fun SkillCardRow.card() = EnvSoundPresentation.decorate(SkillCard(id, skillId, skillName, icon, kotlinx.datetime.LocalDate.fromEpochDays(date.toInt()), at, endAt, title, summary,
         SkillJson.fields(JSONArray(fieldsJson)), SkillJson.values(JSONObject(valuesJson)),
         JSONArray(evidenceJson).elements().map { (it as Number).toLong() }, generatedAt, manual))
     fun SkillCardRow.entities() = JSONArray(aliasesJson).elements().map { it.toString() }.toSet() + entity

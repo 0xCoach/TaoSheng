@@ -1,4 +1,7 @@
 package app.resound.ask.core
+
+import app.resound.digest.ItemStatus
+import app.resound.digest.core.DigestPrompt
 import app.resound.ask.*
 import app.resound.context.PlaceAt
 import app.resound.net.Arr as JSONArray
@@ -74,8 +77,8 @@ class AskToolsCore(private val store: AskToolStore, spec: String, private val zo
         }
         for (field in listOf("speaker", "category", "status")) if (a.has(field) && !a.isNull(field)) {
             val value = a.getString(field); require(value.length in 1..80)
-            if (field == "category") require(value in app.resound.digest.core.DigestPrompt.CATEGORIES)
-            if (field == "status") require(value in app.resound.digest.ItemStatus.entries.map { it.name })
+            if (field == "category") require(value in DigestPrompt.CATEGORIES)
+            if (field == "status") require(value in ItemStatus.entries.map { it.name })
             val columns = s.optJSONArray(field)?.let { c -> (0 until c.length()).map { c.getString(it) } }
                 ?: listOf(s.getString(field))
             where += columns.joinToString(" OR ", "(", ")") { "$it=?" }; columns.forEach { args += value }

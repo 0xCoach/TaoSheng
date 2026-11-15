@@ -169,7 +169,8 @@ internal class S3Client(
             code in setOf("RequestTimeTooSkewed", "RequestExpired", "RequestInTheFuture", "RequestNotYetValid", "RequestTimeTooSkewedException") -> BackupFailure("手机时间不准，请到系统设置里打开自动设置时间")
             code in setOf("InvalidAccessKeyId", "SignatureDoesNotMatch", "InvalidToken", "ExpiredToken") -> BackupFailure("S3 访问密钥不正确，请检查访问密钥 ID 和私有访问密钥")
             code == "NoSuchBucket" -> BackupFailure("S3 桶不存在，请检查桶名和服务地址")
-            code in setOf("AuthorizationHeaderMalformed", "IncorrectEndpoint", "IllegalLocationConstraintException", "PermanentRedirect", "AuthorizationQueryParametersError") || status in 300..399 -> BackupFailure("S3 区域或服务地址不对，请按桶所在区域填写")
+            code in setOf("AuthorizationHeaderMalformed", "IncorrectEndpoint", "IllegalLocationConstraintException", "PermanentRedirect",
+                "AuthorizationQueryParametersError") || status in 300..399 -> BackupFailure("S3 区域或服务地址不对，请按桶所在区域填写")
             status == 401 || status == 403 -> BackupFailure("S3 无访问权限，请检查密钥及桶的读写、列出和删除权限")
             status == 404 -> BackupFailure("S3 桶或对象不存在，请检查桶名和路径")
             status == 412 -> BackupFailure("文件已被其他客户端修改，请重试")

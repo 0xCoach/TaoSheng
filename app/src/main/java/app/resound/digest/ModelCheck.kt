@@ -1,5 +1,14 @@
 package app.resound.digest
 
+import app.resound.ask.AskCitations
+import app.resound.ask.AskSource
+import app.resound.digest.core.ModelCheckCore
+import app.resound.net.NetLlmError
+import app.resound.net.NetLlmException
+import app.resound.net.NetReply
+import app.resound.net.NetStreamReply
+import app.resound.net.NetToolCall
+
 import kotlinx.coroutines.CancellationException
 import app.resound.ask.AskFailure
 import app.resound.ask.AskFailureRecord
@@ -25,23 +34,23 @@ class ModelCheck(
     private val stream: suspend (messages: JSONArray, tools: JSONArray) -> LlmStreamReply,
 ) {
     private suspend fun <T> network(block: suspend () -> T): T = try { block() } catch (e: LlmException) {
-        throw app.resound.net.NetLlmException(app.resound.net.NetLlmError.valueOf(e.type.name), e.status, e.detail, truncated = e.truncated)
+        throw NetLlmException(NetLlmError.valueOf(e.type.name), e.status, e.detail, truncated = e.truncated)
     }
-    suspend fun run(): List<ModelCheckItem> = app.resound.digest.core.ModelCheckCore(
-        json = { system, user -> network { json(system, user) }.let { app.resound.net.NetReply(it.content, it.promptTokens, it.completionTokens) } },
+    suspend fun run(): List<ModelCheckItem> = ModelCheckCore(
+        json = { system, user -> network { json(system, user) }.let { NetReply(it.content, it.promptTokens, it.completionTokens) } },
         toolResult = { toolResult(it?.let(AskFailure::valueOf)) },
         stream = { messages, tools -> network { stream(JSONArray(messages), JSONArray(tools)) }.let { reply ->
-            app.resound.net.NetStreamReply(reply.content, reply.calls.map { app.resound.net.NetToolCall(it.id, it.name, it.arguments, it.extraContent?.toString()) }, reply.reasoningContent)
+            NetStreamReply(reply.content, reply.calls.map { NetToolCall(it.id, it.name, it.arguments, it.extraContent?.toString()) }, reply.reasoningContent)
         } },
         failure = { e -> AskFailure.from(LlmException(LlmError.valueOf(e.type.name), e.status, e.detail ?: LlmError.valueOf(e.type.name).human, truncated = e.truncated)).name },
-        citationValid = { content -> app.resound.ask.AskCitations.parse(content, listOf(
-            app.resound.ask.AskSource("line", 1, 0, "检测资料", "我们的暗号是蓝鲸"))).let { !it.invalid && it.sources.isNotEmpty() } },
+        citationValid = { content -> AskCitations.parse(content, listOf(
+            AskSource("line", 1, 0, "检测资料", "我们的暗号是蓝鲸"))).let { !it.invalid && it.sources.isNotEmpty() } },
     ).run().map { ModelCheckItem(it.feature, it.ok, it.detail, it.degraded) }
     companion object {
-        const val CONNECT = app.resound.digest.core.ModelCheckCore.CONNECT
-        const val JSON = app.resound.digest.core.ModelCheckCore.JSON
-        const val STREAM = app.resound.digest.core.ModelCheckCore.STREAM
-        const val TOOLS = app.resound.digest.core.ModelCheckCore.TOOLS
-        const val CITE = app.resound.digest.core.ModelCheckCore.CITE
+        const val CONNECT = ModelCheckCore.CONNECT
+        const val JSON = ModelCheckCore.JSON
+        const val STREAM = ModelCheckCore.STREAM
+        const val TOOLS = ModelCheckCore.TOOLS
+        const val CITE = ModelCheckCore.CITE
     }
 }

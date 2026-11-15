@@ -327,7 +327,8 @@ internal class RedoEngine(
             }
             db.memory().markDigested(participatingLines.map { it.id }, now())
             db.writeSql("DELETE FROM skill_cards WHERE id IN (${cards.filterNot { it.manual }.map { it.id }.sqlIds()})")
-            val cardIds = newCards.filterNot { fresh -> cards.any { it.manual && it.skillId == fresh.skillId && (it.entity == fresh.entity || overlap(it.at, it.endAt ?: it.at + 1, fresh.at, fresh.endAt ?: fresh.at + 1) > 0) } }.map { db.skills().save(it.copy(id = 0)) }
+            val cardIds = newCards.filterNot { fresh -> cards.any { it.manual && it.skillId == fresh.skillId && (it.entity == fresh.entity || overlap(it.at, it
+                .endAt ?: it.at + 1, fresh.at, fresh.endAt ?: fresh.at + 1) > 0) } }.map { db.skills().save(it.copy(id = 0)) }
             // 提交后按新旧 ID 并集记录，撤销只触碰这些行，不吞掉后来新增的录音/事件。
             val afterSelectors = trackedSelectors.toMutableMap()
             afterSelectors["memory_events"] = "id IN (${ids.sqlIds()})"

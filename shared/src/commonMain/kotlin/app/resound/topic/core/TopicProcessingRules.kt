@@ -1,5 +1,7 @@
 package app.resound.topic.core
 
+import app.resound.digest.core.TranscriptLineData
+
 import app.resound.topic.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -13,7 +15,7 @@ object TopicProcessingRules {
     /** 两份局部纪要逐级合成，不再次把整场会议送回模型。 */
     fun <T> summaryGroups(parts: List<T>): List<List<T>> = parts.chunked(2)
     /** 用内容与范围判断断点能否复用；归属事件、整理状态等派生字段不影响来源。 */
-    fun source(g: TopicGroup, lines: List<app.resound.digest.core.TranscriptLineData>): String = buildJsonArray {
+    fun source(g: TopicGroup, lines: List<TranscriptLineData>): String = buildJsonArray {
         add(g.row.kind); add(g.row.name)
         add(buildJsonArray { g.spans.forEach { span -> add(buildJsonArray { add(span.startAt); add(span.endAt) }) } })
         add(buildJsonArray { g.marks.forEach { add(it.at) } })

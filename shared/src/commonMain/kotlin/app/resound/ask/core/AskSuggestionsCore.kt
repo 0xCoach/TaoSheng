@@ -1,5 +1,9 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.ask.core
+
+import app.resound.digest.core.takeCodePoints
+import app.resound.platform.NowMillis
+import app.resound.platform.ZoneProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,8 +27,8 @@ class AskSuggestionsCore(
     private val hasKey: () -> Boolean,
     private val recent: suspend () -> String,
     private val generate: suspend (String) -> List<String>,
-    private val now: app.resound.platform.NowMillis,
-    private val zone: app.resound.platform.ZoneProvider,
+    private val now: NowMillis,
+    private val zone: ZoneProvider,
 ) {
     private val gate = Mutex()
     private val state = MutableStateFlow(if (hasKey()) cached().ifEmpty { EXAMPLES } else EXAMPLES)
@@ -61,7 +65,7 @@ class AskSuggestionsCore(
     }.getOrDefault(emptyList())
 
     private fun clean(values: List<String>): List<String> = values.map { it.trim() }
-        .filter { it.isNotEmpty() && app.resound.digest.core.takeCodePoints(it, 12).length == it.length && '\n' !in it && '\r' !in it }
+        .filter { it.isNotEmpty() && takeCodePoints(it, 12).length == it.length && '\n' !in it && '\r' !in it }
         .distinct().take(4)
 
     companion object {

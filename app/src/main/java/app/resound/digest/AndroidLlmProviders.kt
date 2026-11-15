@@ -1,5 +1,10 @@
 package app.resound.digest
 
+import app.resound.ask.AskCompatibility
+import app.resound.skills.SkillFiles
+import app.resound.transcribe.EndpointKind
+import app.resound.usage.LlmBalanceChecker
+
 import android.content.Context
 import app.resound.transcribe.OpenAiEndpoint
 import app.resound.transcribe.fetchRemoteModels
@@ -48,11 +53,11 @@ class AndroidLlmProviders internal constructor(
     }
     internal val guard = Any()
     private val prefs = context.getSharedPreferences("llm-providers", Context.MODE_PRIVATE)
-    val askCompatibility = app.resound.ask.AskCompatibility(context)
+    val askCompatibility = AskCompatibility(context)
     override val templates = parseTemplates(context.assets.open("llm-providers.json").bufferedReader().use { it.readText() }.also(LlmInputBudget::configure))
     private val listeners = mutableListOf<(String?) -> Unit>()
     /** 必须先将技能引用落盘，删除失败时不移除服务商/密钥。 */
-    var beforeDelete: (String) -> Unit = { id -> app.resound.skills.SkillFiles(context).resetProviders(setOf(id)) }
+    var beforeDelete: (String) -> Unit = { id -> SkillFiles(context).resetProviders(setOf(id)) }
     private val _saved: MutableStateFlow<List<SavedProvider>>
     private val _activeId: MutableStateFlow<String>
 
@@ -80,8 +85,8 @@ class AndroidLlmProviders internal constructor(
         if (base.isNotBlank() || model.isNotBlank() || keys.has("custom")) {
             val oldUrl = balance.getString("customUrl", "").orEmpty()
             val oldPath = balance.getString("customPath", "").orEmpty()
-            val suggested = app.resound.usage.LlmBalanceChecker.suggest(base)?.takeIf {
-                oldUrl.isBlank() && oldPath.isBlank() && app.resound.usage.LlmBalanceChecker.isDeepSeek(base)
+            val suggested = LlmBalanceChecker.suggest(base)?.takeIf {
+                oldUrl.isBlank() && oldPath.isBlank() && LlmBalanceChecker.isDeepSeek(base)
             }
             list += SavedProvider("custom", null, "自定义", base, model, keys.has("custom"),
                 oldUrl.ifBlank { suggested?.first.orEmpty() }, oldPath.ifBlank { suggested?.second.orEmpty() })
@@ -240,4 +245,4 @@ class AndroidLlmProviders internal constructor(
 private fun JSONObject.nullString(key: String) = if (isNull(key)) null else getString(key)
 internal fun SavedProvider.preset() = LlmInputBudget.bind(LlmPreset(id, name, baseUrl, model), templateId)
 /** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权。 */
-fun LlmPreset.allowsEmptyKey() = id == "custom" || app.resound.transcribe.OpenAiEndpoint.kind(baseUrl) == app.resound.transcribe.EndpointKind.LocalHttp
+fun LlmPreset.allowsEmptyKey() = id == "custom" || OpenAiEndpoint.kind(baseUrl) == EndpointKind.LocalHttp

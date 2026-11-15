@@ -1,5 +1,7 @@
 package app.resound.voiceprint
 
+import app.resound.audio.OwnRecordingSessions
+
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -22,7 +24,7 @@ object VoiceprintRecorder {
             val active = AudioRecord(MediaRecorder.AudioSource.MIC, 16000, AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, maxOf(min * 2, 32000)).also { recorder = it }
             check(active.state == AudioRecord.STATE_INITIALIZED)
-            app.resound.audio.OwnRecordingSessions.add(active.audioSessionId)
+            OwnRecordingSessions.add(active.audioSessionId)
             active.startRecording()
             val pcm = ShortArray(15 * 16000)
             var count = 0

@@ -44,9 +44,11 @@ class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig
                 } catch(e: CancellationException) { throw e }
                 catch(e: Exception) {
                     val failure = generateSequence(e as Throwable?) { it.cause }.take(8).filterIsInstance<NetworkHandshakeFailure>().firstOrNull()
-                    if(failure != null) throw AsrException(if(failure.limited) AsrError.Server else if(failure.status != null) NetDoubaoProtocol.error(failure.code,failure.status) else if(failure.timeout) AsrError.Timeout else AsrError.Network,safe(failure.logId),concurrencyLimited=failure.limited)
+                    if(failure != null) throw AsrException(if(failure.limited) AsrError.Server else if(failure.status != null) NetDoubaoProtocol.error(failure.code,
+                        failure.status) else if(failure.timeout) AsrError.Timeout else AsrError.Network,safe(failure.logId),concurrencyLimited=failure.limited)
                     val limited = doubaoRateLimited(handshakeCode, handshakeStatus, handshakeMessage)
-                    throw AsrException(if(limited) AsrError.Server else if(handshakeStatus != null) NetDoubaoProtocol.error(handshakeCode,handshakeStatus) else AsrError.Network,logId,concurrencyLimited=limited)
+                    throw AsrException(if(limited) AsrError.Server else if(handshakeStatus != null) NetDoubaoProtocol.error(handshakeCode,handshakeStatus) else AsrError
+                        .Network,logId,concurrencyLimited=limited)
                 }
                 try {
                     val final = CompletableDeferred<AsrResult>()
@@ -69,7 +71,8 @@ class NetDoubao(private val client: HttpClient, private val config: DoubaoConfig
                         } catch(e: CancellationException) { throw e }
                         catch(e: AsrException) { final.completeExceptionally(e) }
                         catch(e: NetworkHandshakeFailure) {
-                            final.completeExceptionally(AsrException(if(e.limited) AsrError.Server else if(e.status != null) NetDoubaoProtocol.error(e.code,e.status) else if(e.timeout) AsrError.Timeout else AsrError.Network,safe(e.logId) ?: logId,concurrencyLimited=e.limited))
+                            final.completeExceptionally(AsrException(if(e.limited) AsrError.Server else if(e.status != null) NetDoubaoProtocol.error(e.code,e
+                                .status) else if(e.timeout) AsrError.Timeout else AsrError.Network,safe(e.logId) ?: logId,concurrencyLimited=e.limited))
                         }
                         catch(_: Exception) { final.completeExceptionally(AsrException(AsrError.Protocol,logId)) }
                     }

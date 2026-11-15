@@ -1,6 +1,8 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.context
 
+import app.resound.platform.ZoneProvider
+
 import app.resound.envsound.*
 import app.resound.location.*
 import kotlinx.datetime.*
@@ -17,7 +19,7 @@ class SituationStore(
     private val sounds: suspend (Long, Long) -> List<EnvSoundRow>,
     private val placeRevision: () -> Long = { 0 },
     private val soundRevision: () -> Long = { 0 },
-    private val zone: app.resound.platform.ZoneProvider,
+    private val zone: ZoneProvider,
     private val io: kotlinx.coroutines.CoroutineDispatcher,
     private val permissionDenied: (Exception) -> Boolean,
     radians: (Double) -> Double,

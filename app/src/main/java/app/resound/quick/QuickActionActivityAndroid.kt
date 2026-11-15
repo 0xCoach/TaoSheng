@@ -1,5 +1,7 @@
 package app.resound.quick
 
+import app.resound.ui.items.QuickTodoActivity
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -66,7 +68,7 @@ class QuickActionActivity : ComponentActivity() {
             QuickCommand.PauseListening -> capture.pause(minutes)
             QuickCommand.ResumeListening -> capture.resume()
             QuickCommand.StartListening -> capture.start()
-            QuickCommand.AddTodo -> { startActivity(android.content.Intent(this, app.resound.ui.items.QuickTodoActivity::class.java)
+            QuickCommand.AddTodo -> { startActivity(android.content.Intent(this, QuickTodoActivity::class.java)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)); return "" }
         }
         if (command.needsMicrophone) {

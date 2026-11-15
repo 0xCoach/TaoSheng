@@ -14,7 +14,8 @@ class CaptureWatchdog(context: Context, params: WorkerParameters) : CoroutineWor
     override suspend fun doWork(): Result {
         val app = applicationContext as ResoundApp
         val store = app.store
-        if (capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh()) == null && store.prefs.getBoolean("enabled", false) && System.currentTimeMillis() - store.prefs.getLong("heartbeat", 0) > CaptureTuning.HEARTBEAT_MS * 3)
+        if (capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh()) == null && store.prefs
+            .getBoolean("enabled", false) && System.currentTimeMillis() - store.prefs.getLong("heartbeat", 0) > CaptureTuning.HEARTBEAT_MS * 3)
             CaptureNotifications.interrupted(applicationContext)
         return Result.success()
     }

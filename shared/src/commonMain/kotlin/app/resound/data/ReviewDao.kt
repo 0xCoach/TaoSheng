@@ -1,5 +1,8 @@
 package app.resound.data
 
+import app.resound.search.EmbeddingEntity
+import app.resound.search.Vectors
+
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
@@ -27,7 +30,7 @@ data class ReviewEventVector(val refId: Long, val startAt: Long, val model: Stri
 abstract class ReviewDao {
     // 只订阅失效通知；内容规则仍由 reviewInput 唯一维护，向量变化也会影响历史重点。
     @RawQuery(observedEntities = [MemoryEventEntity::class, MemoryItemEntity::class,
-        app.resound.search.EmbeddingEntity::class])
+        EmbeddingEntity::class])
     abstract fun materialChanges(query: RoomRawQuery): Flow<Int>
 
     @Query("SELECT * FROM reviews WHERE type = 'daily' AND startDate = :date AND endDate = :date LIMIT 1")
@@ -65,13 +68,13 @@ abstract class ReviewDao {
         if (candidates.isEmpty()) return emptyList()
         val vectors = progressVectors(candidates.map { it.id }, candidates.minOf { it.starredAt!! }, end)
         val decoded = vectors.mapNotNull { row ->
-            runCatching { row to app.resound.search.Vectors.normalize(app.resound.search.Vectors.decode(row.vector, row.dim)) }.getOrNull()
+            runCatching { row to Vectors.normalize(Vectors.decode(row.vector, row.dim)) }.getOrNull()
         }
         return candidates.filter { event ->
             val own = decoded.firstOrNull { it.first.refId == event.id }
             own == null || decoded.none { (row, vector) ->
                 row.refId != event.id && row.startAt > event.starredAt!! && row.startAt <= end &&
-                    row.model == own.first.model && app.resound.search.Vectors.cosine(own.second, vector) >= 0.80
+                    row.model == own.first.model && Vectors.cosine(own.second, vector) >= 0.80
             }
         }.take(3)
     }

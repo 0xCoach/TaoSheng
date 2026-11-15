@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.platform.SharedJson
+
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.ZonedDateTime
@@ -9,7 +11,7 @@ internal object Subscriptions {
     fun topics(s: PushSubscription) = SubscriptionRules.topics(s)
     fun tighten(s: PushSubscription, c: PushCapabilities) = SubscriptionRules.tighten(s, c)
     fun json(s: PushSubscription) = JSONObject(SubscriptionJson.encode(s).toString())
-    fun read(j: JSONObject) = SubscriptionJson.read(app.resound.platform.SharedJson.parseToJsonElement(j.toString()) as kotlinx.serialization.json.JsonObject)
+    fun read(j: JSONObject) = SubscriptionJson.read(SharedJson.parseToJsonElement(j.toString()) as kotlinx.serialization.json.JsonObject)
     fun nextSchedule(t: RecordTrigger.Schedule, after: ZonedDateTime): Long =
         SubscriptionRules.nextSchedule(t, after.toInstant().toEpochMilli(), after.zone.id)
     fun changeAt(t: RecordTrigger, last: Long?, now: Long) = SubscriptionRules.changeAt(t, last, now)

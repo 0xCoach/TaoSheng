@@ -1,5 +1,10 @@
 package app.resound.transcribe
 
+import app.resound.net.EndpointRules
+import app.resound.net.androidNetwork
+import app.resound.net.defaultAndroidHttp
+import app.resound.net.queryModels
+
 import app.resound.digest.HeaderEntry
 import java.net.URI
 import kotlinx.coroutines.Dispatchers
@@ -22,20 +27,22 @@ object OpenAiEndpoint {
             else->EndpointKind.Invalid
         }
     }
-    private fun isLocalHost(host:String) = app.resound.net.EndpointRules.isLocalHost(host)
+    private fun isLocalHost(host:String) = EndpointRules.isLocalHost(host)
     /** 保留代理前缀和已有版本号，仅在没有版本号时依次尝试 /v1 与无版本路径。 */
     fun bases(input:String):List<String> {
         val value=input.trim().trimEnd('/');val uri=runCatching { URI(value) }.getOrNull()
         require(kind(value)!=EndpointKind.Invalid && uri!=null && uri.userInfo==null && uri.rawQuery==null && uri.rawFragment==null){"请输入 http:// 或 https:// 开头的服务地址，不要包含密钥或查询参数"}
-        return app.resound.net.EndpointRules.bases(value,uri.path.orEmpty())
+        return EndpointRules.bases(value,uri.path.orEmpty())
     }
     fun transcriptions(input:String)=bases(input).map{"$it/audio/transcriptions"}
 }
 data class RemoteModels(val base:String,val ids:List<String>)
-suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=app.resound.net.defaultAndroidHttp.newBuilder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList()):RemoteModels=withContext(Dispatchers.IO){
-    val network = app.resound.net.androidNetwork(client)
+suspend fun fetchRemoteModels(endpoint:String,key:String, client:OkHttpClient=defaultAndroidHttp.newBuilder().connectTimeout(10,TimeUnit.SECONDS).callTimeout(if(OpenAiEndpoint.kind(
+    endpoint)==EndpointKind.LocalHttp) 60 else 25,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(), headers: List<HeaderEntry> = emptyList(
+    )):RemoteModels=withContext(Dispatchers.IO){
+    val network = androidNetwork(client)
     try {
-        val r = app.resound.net.queryModels(network, OpenAiEndpoint.bases(endpoint), key, headers)
+        val r = queryModels(network, OpenAiEndpoint.bases(endpoint), key, headers)
         RemoteModels(r.base, r.ids)
     } catch(e:kotlinx.coroutines.CancellationException){throw e}
     catch(e:IllegalStateException){throw e}

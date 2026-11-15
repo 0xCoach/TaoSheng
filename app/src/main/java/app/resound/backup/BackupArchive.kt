@@ -1,5 +1,8 @@
 package app.resound.backup
 
+import app.resound.prompts.LocalPromptTemplates
+import app.resound.skills.SkillFiles
+
 import android.content.Context
 import androidx.sqlite.*
 import androidx.sqlite.driver.AndroidSQLiteDriver
@@ -25,7 +28,7 @@ internal object BackupArchive {
             it == "overrides.json" || it.matches(Regex("prompts/[a-z0-9_]+[.]md")) ||
                 it.matches(Regex("mine/my_[a-z0-9_]+/(skill[.]json|prompt[.]md|default[.]md)"))
         }) ||
-        (path.startsWith(PROMPTS) && path.removePrefix(PROMPTS) in app.resound.prompts.LocalPromptTemplates.ids.map { "$it.md" }) ||
+        (path.startsWith(PROMPTS) && path.removePrefix(PROMPTS) in LocalPromptTemplates.ids.map { "$it.md" }) ||
         (path.startsWith(FEATURES) && path.removePrefix(FEATURES).matches(Regex("[a-f0-9]{64}"))) ||
         (path.startsWith("shared_prefs/") && path.removePrefix("shared_prefs/") in safePrefs)
     fun sha(file: File): String = file.inputStream().use { input ->
@@ -120,8 +123,8 @@ internal object BackupArchive {
         File(data, FEATURES).listFiles()?.filter { allowed(FEATURES + it.name) && it.isFile }?.forEach {
             it.copyTo(File(staging, FEATURES + it.name).apply { parentFile!!.mkdirs() })
         }
-        synchronized(app.resound.prompts.LocalPromptTemplates.fileLock) {
-            app.resound.prompts.LocalPromptTemplates.ids.forEach { id ->
+        synchronized(LocalPromptTemplates.fileLock) {
+            LocalPromptTemplates.ids.forEach { id ->
                 val source = android.util.AtomicFile(File(context.filesDir, "prompts/$id.md"))
                 if (source.baseFile.exists() || File(source.baseFile.path + ".bak").exists()) {
                     source.openRead().use { input ->
@@ -130,7 +133,7 @@ internal object BackupArchive {
                 }
             }
         }
-        synchronized(app.resound.skills.SkillFiles.fileLock) {
+        synchronized(SkillFiles.fileLock) {
             val root = File(data, SKILLS)
             // AtomicFile 的 .bak 通过 openRead 恢复，.new 不当成有效文件备份。
             val paths = root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath.removeSuffix(".bak") }

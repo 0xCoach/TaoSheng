@@ -1,5 +1,7 @@
 package app.resound.transcribe.local
 
+import app.resound.PipelineProgress
+
 import android.content.*
 import android.os.*
 import app.resound.transcribe.*
@@ -40,5 +42,5 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
         return call(audio,LocalBackend.Cpu,language).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "正在使用：CPU 识别")}
     }
     private suspend fun call(audio:AsrAudio,backend:LocalBackend,language:LocalAsrLanguage):AsrResult =
-        correction.apply(LocalAsrConnection.get(context).recognize(audio,backend,language){settings.setLocalStatus(it);app.resound.PipelineProgress.detail(it)})
+        correction.apply(LocalAsrConnection.get(context).recognize(audio,backend,language){settings.setLocalStatus(it);PipelineProgress.detail(it)})
 }

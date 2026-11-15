@@ -47,8 +47,6 @@ class TranscribeSchedulerTest {
             db.capture().segment(app.resound.data.SegmentEntity(id = 1, startAt = 1, endAt = 10_001, sourceId = "mic", path = audio.path, sizeBytes = 1,
                 status = "SkippedPlayback", completedAt = 10_001, playbackMillis = 9_000))
             assertTrue(db.transcribe().candidates(Long.MAX_VALUE).isEmpty())
-            assertEquals(1, db.transcribe().expired(10_001).size)
-            assertTrue(TranscribePolicy.canDelete("SkippedPlayback", 10_001, 10_001 + TranscribePolicy.RETENTION_MILLIS))
             val settings = Settings()
             val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope, app.resound.platform.SystemZone, app.resound.platform.SystemNow, Dispatchers.IO)
             repository.transcribeAnyway(1)

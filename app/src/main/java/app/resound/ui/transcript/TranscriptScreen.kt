@@ -746,7 +746,7 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
                 TranscriptStatus.Empty -> Note("只有声音，没识别出说话内容")
                 TranscriptStatus.Failed -> Note(seg.error ?: "没转成功，可以在上面点重试", c.critical)
                 TranscriptStatus.SkippedPlayback -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Note("手机外放声音时录的，没有转写", modifier = Modifier.weight(1f))
+                    Note("手机外放声音时录的，没有转写" + skippedAudioHint(seg), modifier = Modifier.weight(1f))
                     if (seg.audioAvailable) Pill("仍然转写", filled = false, onClick = onTranscribeAnyway)
                 }
                 // 修不好的：灰色说明 + 删除；不再挂红字提醒
@@ -759,6 +759,21 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
     // 多选时整张卡盖一层：点 = 勾选，长按 = 选到这段（原话里的点按播放暂停）
     if (selected != null) Box(Modifier.matchParentSize().combinedClickable(
         interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap, onLongClick = onLongPress))
+    }
+}
+
+/** 卡 192：外放片段的原声按用户设的保留天数删除，删了就不能“仍然转写”，所以标出还剩几天 */
+@Composable
+private fun skippedAudioHint(seg: SegmentTranscript): String {
+    if (!seg.audioAvailable) return "，原声已删除"
+    if (!app.resound.AppGraph.isOriginalAudioReady) return ""
+    val days by app.resound.AppGraph.originalAudio.retentionDays.collectAsStateWithLifecycle()
+    // 外放片段生成时就算“完成”，完成时间即录音结束时间
+    val left = app.resound.transcribe.originalAudioRemainingDays(seg.endAt, "SkippedPlayback", days, false, System.currentTimeMillis())
+    return when (left) {
+        null -> ""
+        0, 1 -> "，原声 1 天内删除"
+        else -> "，原声还留 $left 天"
     }
 }
 

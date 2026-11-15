@@ -131,7 +131,7 @@ class ImportHotwordsTest {
             val voiceprints = app.resound.voiceprint.LocalVoiceprintRepository(db, scope,
                 readPcm = { file -> assertTrue(file.exists()); ShortArray(32_000) { 2000 } },
                 createEngine = { app.resound.voiceprint.SpeakerEmbedding { FloatArray(192).apply { this[0] = 1f } } }, schedule = {})
-            val runner = TranscribeRunner(db.transcribe(), provider, { "test" }, { _, _ -> }, now = { clock }, deferAudioCleanup = true,
+            val runner = TranscribeRunner(db.transcribe(), provider, { "test" }, { _, _ -> }, now = { clock },
                 afterImport = { voiceprints.run(); voiceprints.cleanupAudio() })
             runner.run()
             val done = db.transcribe().observeSegments().first().single { it.path == files[0].path }

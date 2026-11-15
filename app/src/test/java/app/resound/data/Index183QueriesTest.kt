@@ -53,7 +53,6 @@ class Index183QueriesTest {
             }
             val range=mapOf<String,Any?>("start" to 100L,"end" to 350L)
             ids(db,"data/TranscribeDao.kt#recentDone",db.transcribe().recentDone(100).map { it.id },mapOf("since" to 100L))
-            ids(db,"data/TranscribeDao.kt#expired",db.transcribe().expired(500).map { it.id },mapOf("before" to 500L))
             // Failed的声纹时间刻意与id顺序相反，新增索引不能改变旧失败列表的扫描顺序。
             assertEquals(listOf(3L,4L),db.transcribe().observeFailedSegments().first().map { it.id })
             ids(db,"data/VoiceprintDao.kt#doneSegments",db.voiceprint().doneSegments().map { it.id })

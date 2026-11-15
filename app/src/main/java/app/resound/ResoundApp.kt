@@ -151,7 +151,7 @@ class ResoundApp : Application() {
             }
         }
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
-            settings::credential, transcripts::updateState, deferAudioCleanup = true,
+            settings::credential, transcripts::updateState,
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             recordTiming = { PipelineTimes.recordSegment(this, it) },
             defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers, topicTraining = database.topics()::trainingAt,
@@ -173,6 +173,7 @@ class ResoundApp : Application() {
                     (!settings.wifiOnly.value || network.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
                 }
             })
+        transcribeRunner.localResume = app.resound.transcribe.local.LocalResumeQueue(this)
         settings.testKey = { key ->
             val file = File.createTempFile("asr-test-", ".ogg", cacheDir)
             try {

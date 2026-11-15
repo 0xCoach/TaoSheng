@@ -24,10 +24,7 @@ data class DoubaoConfig(
         ?: maxOf(90_000L, 30_000L + durationMillis.coerceAtLeast(0) * 3 / 2)
 }
 object TranscribePolicy {
-    const val RETENTION_MILLIS = 24 * 60 * 60 * 1000L
     val ROUND_STOPPERS = setOf(AsrError.Speakers, AsrError.Network, AsrError.Server, AsrError.ModelMissing, AsrError.LocalEngine)
-    fun canDelete(status: String, completedAt: Long?, now: Long) =
-        status in setOf("Done", "Empty", "SkippedPlayback", "Abandoned", "Quiet") && completedAt != null && now >= completedAt && now - completedAt >= RETENTION_MILLIS
     fun retryAt(type: AsrError, attempts: Int, now: Long): Long? =
         if (type.retryable && attempts < 5) now + (60_000L shl (attempts - 1).coerceIn(0, 4)) else null
     fun safeLogId(value: String?, key: String): String? = value?.takeIf {

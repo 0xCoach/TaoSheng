@@ -75,7 +75,8 @@ class PreferenceBackup190Test {
         BackupSettings.apply(context, root) { store, key, value -> restored[store to key] = value }
         assertEquals(37, prefs("quick_prefs").getInt("pauseMinutes", 0))
         assertTrue(prefs("device-ui").getBoolean("lightOffWarned", false))
-        assertTrue(prefs("onboarding").getBoolean("dismissed_Backup", false))
+        // 引导提示也属于本机引导状态，沿用卡132整体不备份的约定。
+        assertFalse(prefs("onboarding").getBoolean("dismissed_Backup", false))
         assertFalse(prefs("onboarding").contains("count_wizard_done"))
         assertEquals("fixture-passphrase", restored["backup-encryption-secrets" to "passphrase"])
     }
@@ -102,7 +103,8 @@ class PreferenceBackup190Test {
         assertFalse(settings.getJSONObject("capture").has("heartbeat"))
         assertFalse(settings.getJSONObject("push").has("footprint-sent-8"))
         assertFalse(settings.getJSONObject("digest").has("timedSince"))
-        assertFalse(settings.getJSONObject("devices").getJSONObject("paired").getString("value").contains("clockOffset"))
+        // 校时偏移是解释设备旧录音、补传所需的数据，不能当成可丢弃缓存。
+        assertTrue(settings.getJSONObject("devices").getJSONObject("paired").getString("value").contains("clockOffset"))
         assertFalse(settings.getJSONObject("folder-imports").getJSONObject("folders").getString("value").contains("lastScanAt"))
         // 模拟旧日卷仍夹带运行字段：可读取，但不得恢复到本机。
         fun item(value: Any) = JSONObject().put("type", if (value is Boolean) "boolean" else "long").put("value", value)

@@ -11,7 +11,7 @@
 
 🌐 官网：[www.taosheng.app](https://www.taosheng.app)，感谢 [@feitian124](https://github.com/feitian124) 帮忙制作，后续如考虑国际化或可能调整。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
+[![License: FSL-1.1-MIT](https://img.shields.io/badge/License-FSL--1.1--MIT-orange.svg)](LICENSE.md)
 ![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
@@ -353,7 +353,12 @@ app/src/main/java/app/resound/
 
 ## 📄 许可
 
-[MIT](LICENSE) © 2026 0xCoach
+源码公开，按 [FSL-1.1-MIT](LICENSE.md) 提供 © 2026 0xCoach
+
+- 可以自用、学习、研究、修改，也可以在公司内部使用；不得用于与涛声竞争的商业产品或服务。
+- 每个版本发布满两年后自动转为 [MIT](https://opensource.org/license/mit) 许可。
+- **v0.3.1 及之前**的版本按 MIT 许可发布，继续适用 MIT；此前按 MIT 合入的贡献见 [NOTICE.md](NOTICE.md)。
+- 想参与贡献请先看 [CONTRIBUTING.md](CONTRIBUTING.md)，首次提 PR 需签署 [CLA](CLA.md)。
 
 <div align="center">
 

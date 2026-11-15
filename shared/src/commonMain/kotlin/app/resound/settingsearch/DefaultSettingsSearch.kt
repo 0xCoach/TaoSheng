@@ -125,7 +125,7 @@ internal object SettingsIndex {
         }
         page("About", "关于涛声", "关于 版本信息 帮助") {
             item("隐私说明", "privacy", "数据安全 密钥安全 上传哪些")
-            item("项目主页", "homepage", "开源 GitHub 源码 MIT")
+            item("项目主页", "homepage", "开源 源码公开 GitHub FSL MIT 许可")
             item("接收预览版", "preview", "测试版 抢先体验 preview 内测")
         }
     }

@@ -136,8 +136,8 @@ fun AboutPage(version: String?, bottom: Dp) {
             Pill("去高级与诊断", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Advanced) }
         }
 
-        AboutCard("开源") {
-            Text("涛声以 MIT 许可开源，代码、更新记录和问题反馈都在项目主页。", style = RsType.body, color = c.textSecondary)
+        AboutCard("源码公开") {
+            Text("涛声源码公开（FSL-1.1-MIT），每个版本发布两年后自动转为 MIT。代码、更新记录和问题反馈都在项目主页。", style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
             HomepageLink()
         }

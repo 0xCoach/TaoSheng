@@ -11,7 +11,7 @@ No hardware to buy. No account. Your data stays on your phone.
 
 🌐 Website: [www.taosheng.app](https://www.taosheng.app). Thanks to [@feitian124](https://github.com/feitian124) for helping build it; the website may change as we consider internationalization.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
+[![License: FSL-1.1-MIT](https://img.shields.io/badge/License-FSL--1.1--MIT-orange.svg)](LICENSE.md)
 ![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
@@ -248,7 +248,12 @@ TaoSheng is a personal memory tool. Recording conversations is regulated in many
 
 ## 📄 License
 
-[MIT](LICENSE) © 2026 0xCoach
+Source-available under [FSL-1.1-MIT](LICENSE.md) © 2026 0xCoach
+
+- Free to use, study, modify and use internally; not for commercial products or services that compete with TaoSheng.
+- Each version automatically becomes available under the [MIT](https://opensource.org/license/mit) license two years after its release.
+- Versions **up to and including v0.3.1** were released under MIT and remain so; contributions merged under MIT are listed in [NOTICE.md](NOTICE.md).
+- See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing; first-time pull requests require signing the [CLA](CLA.md).
 
 ## ⭐ Star history
 

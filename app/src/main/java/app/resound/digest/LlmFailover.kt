@@ -28,7 +28,9 @@ class LlmFailover(
     // 配置修改后，旧的在途请求不能再次把新配置放进冷却。
     private val generations = mutableMapOf<String, Long>()
     init {
-        providers.listen { id -> if (id != null) clear(id) }
+        // 改了某个服务商（地址、模型、密钥、请求头）清它的冷却；切换当前服务商（id 为空）清新选中的那个，
+        // 否则旧地址留下的失败记录会让新选择先被排到后面，报错里还可能出现旧地址（议题 #34）。
+        providers.listen { id -> clear(id ?: providers.activeId.value) }
         providers.onTestSuccess = ::clear
     }
     /** 只投影模型名及固定原因，不导出配置 id、异常 detail 或凭证。 */

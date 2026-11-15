@@ -44,7 +44,7 @@ class LlmDiagnostics(context: Context) {
     internal fun state(): SharedPreferences = prefs
 
     internal fun dumpResponses(): String = rows().joinToString("\n") { row ->
-        listOf("at", "purpose", "provider", "model", "elapsedMs", "http", "finish_reason", "truncated",
+        listOf("at", "purpose", "provider", "model", "endpoint", "elapsedMs", "http", "finish_reason", "truncated",
             "chars", "json", "topic", "phase", "block", "blocks", "events", "items", "empty", "filtered", "error").joinToString(" ") { key ->
             "$key=${if (key == "at") stamp(row.optLong(key)) else if (row.isNull(key)) "暂无" else row.opt(key)}"
         }
@@ -66,6 +66,8 @@ class LlmResponseTrace internal constructor(
     private val row = JSONObject().put("id", UUID.randomUUID().toString()).put("at", System.currentTimeMillis())
         .put("purpose", feature.take(40)).put("provider", scrubProblemReport(preset.name).take(120))
         .put("model", scrubProblemReport(preset.model).take(120))
+        // 只记地址类型和短指纹，不记地址本身：换了地址指纹就变，能看出用的是新地址还是旧地址。
+        .put("endpoint", endpointFingerprint(preset.baseUrl))
 
     internal fun topic(id: Long, phase: String, block: Int, total: Int) = update {
         put("topic", id); put("phase", phase); put("block", block); put("blocks", total)
@@ -113,3 +115,11 @@ internal fun validJson(content: String): Boolean = runCatching {
     value != null && tokener.nextClean() == '\u0000' &&
         (value !is String || content.trim().startsWith('"'))
 }.getOrDefault(false)
+
+/** 地址类型 + SHA-256 前 8 位；问题记录里不出现真实地址。 */
+internal fun endpointFingerprint(baseUrl: String): String {
+    val kind = runCatching { app.resound.transcribe.OpenAiEndpoint.kind(baseUrl).name }.getOrDefault("Unknown")
+    val hash = java.security.MessageDigest.getInstance("SHA-256").digest(baseUrl.trim().trimEnd('/').toByteArray())
+        .take(4).joinToString("") { "%02x".format(it) }
+    return "$kind-$hash"
+}

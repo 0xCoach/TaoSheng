@@ -116,6 +116,28 @@ class LlmFailover103Test {
         providers.setKey("changed"); seen.clear(); chat(call); assertEquals(listOf("primary", "backup"), seen)
         time += 5 * 60_000L; seen.clear(); chat(call); assertEquals(listOf("primary", "backup"), seen)
     }
+    @Test fun switchingActiveProviderClearsItsCooldown34() = runBlocking {
+        val b = backup()
+        val seen = mutableListOf<String>()
+        val call: suspend (LlmPreset, String, String, String) -> LlmReply = { p, _, _, _ ->
+            seen += p.model; if (p.id == b.id && seen.size == 1) throw LlmException(LlmError.Network) else reply
+        }
+        // b 当主模型先失败一次进入冷却
+        failover.chat("整理", b, "fixture", "s", "u", call, {})
+        seen.clear(); failover.chat("整理", b, "fixture", "s", "u", { p, _, _, _ -> seen += p.model; reply }, {})
+        assertEquals("冷却中的主模型排在后面", "primary", seen.first())
+        // 用户在设置里切换到 b：冷却应立即清掉，下次先试 b
+        providers.activate(b.id)
+        seen.clear(); failover.chat("整理", b, "fixture", "s", "u", { p, _, _, _ -> seen += p.model; reply }, {})
+        assertEquals(listOf("backup"), seen)
+    }
+    @Test fun endpointFingerprintChangesWithAddressAndHidesIt34() {
+        val a = app.resound.diagnostics.endpointFingerprint("http://127.0.0.1:3066/v1")
+        val b = app.resound.diagnostics.endpointFingerprint("http://100.64.0.2:3066/v1")
+        assertNotEquals(a, b)
+        assertFalse(a.contains("127.0.0.1")); assertFalse(b.contains("100.64"))
+        assertEquals(a, app.resound.diagnostics.endpointFingerprint("http://127.0.0.1:3066/v1/"))
+    }
     @Test fun successfulManualTestClearsCooldown() = runBlocking {
         val c = client { 200 to """{"choices":[{"message":{"content":"{}"}}]}""" }
         val p = AndroidLlmProviders(context, c, keys)

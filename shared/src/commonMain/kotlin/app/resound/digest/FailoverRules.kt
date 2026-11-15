@@ -53,7 +53,10 @@ class FailoverRules(private val store: FailoverStore, private val now: app.resou
                 }
             }
         }
+        // 主模型这一轮没真正试过时，报错来自之前的冷却记录：要说清楚，不能当成刚发生的错误。
+        val stale = errors[primary.id] == null && store.cooling(primary.id) != null
         val error = errors[primary.id] ?: store.cooling(primary.id)?.error ?: errors.values.first()
-        throw exhausted(error, if (candidates.size > 1) "；备用模型也没成功" else "")
+        throw exhausted(error, (if (stale) "（主模型刚失败过，这次没重试；改了设置后点“测试连接”可立即恢复）" else "") +
+            if (candidates.size > 1) "；备用模型也没成功" else "")
     }
 }

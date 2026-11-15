@@ -130,10 +130,10 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("问题反馈") {
-            Text("遇到闪退或功能不对，导出问题记录发给开发。只含运行情况和出错位置，不含原话、待办和密钥。",
+            Text("遇到闪退或功能不对，在“高级与诊断”导出问题记录发给开发。",
                 style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
-            ExportProblemPill()
+            Pill("去高级与诊断", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Advanced) }
         }
 
         AboutCard("开源") {

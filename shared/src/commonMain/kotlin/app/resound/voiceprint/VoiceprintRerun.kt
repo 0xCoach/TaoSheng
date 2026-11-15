@@ -1,5 +1,7 @@
 package app.resound.voiceprint
 
+import app.resound.diagnostics.FailureNotes
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import app.resound.platform.AppDispatchers
@@ -28,7 +30,9 @@ class VoiceprintRerun(
                 requests.tryReceive()
                 var retry = true
                 repeat(3) {
-                    if (retry) retry = try { run() } catch (e: CancellationException) { throw e } catch (_: Exception) { true }
+                    if (retry) retry = try { run() } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                        FailureNotes.record("voiceprint/VoiceprintRerun.kt:31", caught)
+                        true }
                 }
                 if (retry) fallback()
             }

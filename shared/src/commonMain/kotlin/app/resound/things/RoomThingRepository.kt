@@ -1,5 +1,9 @@
 package app.resound.things
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.platform.NowMillis
+
 import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.*
@@ -13,13 +17,15 @@ fun things(rows: List<ThingRow>, records: List<ThingRecordRow>) = thingCatalog(r
 
 class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope,
     private val parseDraft: suspend (String) -> ThingDrafts,
-    private val now: app.resound.platform.NowMillis,
+    private val now: NowMillis,
     private val problem: (String) -> Unit = {},
 ) : ThingRepository {
     val dao = db.things()
     private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     init { scope.launch { for (command in commands) try { command() }
-        catch (e: CancellationException) { throw e } catch (_: Exception) { problem("寻物保存失败，请重试") } } }
+        catch (e: CancellationException) { throw e } catch (caught: Exception) {
+            FailureNotes.record("things/RoomThingRepository.kt:24", caught)
+            problem("寻物保存失败，请重试") } } }
     private fun change(block: suspend () -> Unit) { check(commands.trySend { db.writeTransaction { block() } }.isSuccess) }
     suspend fun flush() { val done = CompletableDeferred<Unit>(); commands.send { done.complete(Unit) }; done.await() }
     override val autoDetect = dao.observeState().map { it?.enabled ?: true }.stateIn(scope, SharingStarted.Eagerly, true)
@@ -89,7 +95,9 @@ class RoomThingRepository(private val db: CaptureDatabase, scope: CoroutineScope
     override suspend fun draft(text: String): ThingDrafts {
         val fallback = ThingDrafts(listOf(ThingDraft(text.trim().take(12), ThingAction.Placed, null, null)), false)
         return try { withTimeoutOrNull(20_000) { parseDraft(text).takeIf { it.items.isNotEmpty() } ?: fallback } ?: fallback }
-        catch (e: CancellationException) { throw e } catch (_: Exception) { fallback }
+        catch (e: CancellationException) { throw e } catch (caught: Exception) {
+            FailureNotes.record("things/RoomThingRepository.kt:94", caught)
+            fallback }
     }
     override fun add(drafts: List<ThingDraft>, origin: ThingOrigin, sourceText: String) {
         require(origin != ThingOrigin.Live && drafts.isNotEmpty())

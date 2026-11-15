@@ -1,5 +1,9 @@
 package app.resound.location
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.data.CaptureDatabase
+
 import androidx.sqlite.execSQL
 import android.Manifest
 import android.annotation.SuppressLint
@@ -52,7 +56,9 @@ class LocationSettings(context: Context) {
     fun hasForeground() = granted(Manifest.permission.ACCESS_FINE_LOCATION) || granted(Manifest.permission.ACCESS_COARSE_LOCATION)
     fun hasBackground() = granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     /** 手机“位置信息”总开关；关着时有权限也拿不到任何位置。 */
-    fun systemEnabled() = runCatching { androidx.core.location.LocationManagerCompat.isLocationEnabled(app.getSystemService(android.location.LocationManager::class.java)) }.getOrDefault(true)
+    fun systemEnabled() = runCatching { androidx.core.location.LocationManagerCompat.isLocationEnabled(app.getSystemService(android.location.LocationManager::class.java)) }.onFailure {
+        FailureNotes.record("location/Location.kt:57", it)
+    }.getOrDefault(true)
     /** 开关打开且至少有前台定位权限时，收音服务才带上定位类型。 */
     fun wanted() = _enabled.value && hasForeground()
     private fun granted(p: String) = ContextCompat.checkSelfPermission(app, p) == PackageManager.PERMISSION_GRANTED
@@ -66,7 +72,9 @@ class LocationSettings(context: Context) {
     private val secrets by lazy { SecretStore(app, "location-secrets", "resound-location-aes-v1") }
     private val _hasAmapKey = MutableStateFlow(app.getSharedPreferences("location-secrets", Context.MODE_PRIVATE).contains("amap"))
     val hasAmapKey: StateFlow<Boolean> = _hasAmapKey
-    fun amapKey(): String = if (_hasAmapKey.value) runCatching { secrets.read("amap") }.getOrDefault("") else ""
+    fun amapKey(): String = if (_hasAmapKey.value) runCatching { secrets.read("amap") }.onFailure {
+        FailureNotes.record("location/Location.kt:71", it)
+    }.getOrDefault("") else ""
     fun setAmapKey(key: String?) {
         if (key.isNullOrBlank()) secrets.remove("amap") else secrets.write("amap", key.trim())
         _hasAmapKey.value = !key.isNullOrBlank()
@@ -88,7 +96,9 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
             if (!keep(lastSaved, point)) return
             lastSaved = point
         }
-        scope.launch(Dispatchers.IO) { runCatching { dao.insert(point) } }
+        scope.launch(Dispatchers.IO) { runCatching { dao.insert(point) }.onFailure {
+            FailureNotes.record("location/Location.kt:93", it)
+        } }
     }
     private val listener = LocationListener { save(it) }
     private var lastFixAsk = 0L
@@ -104,10 +114,14 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
         if (!granted || !androidx.core.location.LocationManagerCompat.isLocationEnabled(manager)) return
         val now = android.os.SystemClock.elapsedRealtime()
         synchronized(this) { if (!force && now - lastFixAsk < 30_000) return; lastFixAsk = now }
-        if (lastSaved == null) scope.launch(Dispatchers.IO) { lastSaved = lastSaved ?: runCatching { dao.latest() }.getOrNull() }
+        if (lastSaved == null) scope.launch(Dispatchers.IO) { lastSaved = lastSaved ?: runCatching { dao.latest() }.onFailure {
+            FailureNotes.record("location/Location.kt:109", it)
+        }.getOrNull() }
         val providers = manager.getProviders(true)
         try {
-            providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
+            providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.onFailure {
+                FailureNotes.record("location/Location.kt:112", it)
+            }.getOrNull() }
                 .filter { System.currentTimeMillis() - it.time < 2 * 60_000 }.minByOrNull { if (it.hasAccuracy()) it.accuracy else 999f }
                 ?.let(::save)
             val provider = when {
@@ -118,7 +132,9 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
             }
             androidx.core.location.LocationManagerCompat.getCurrentLocation(manager, provider, null as android.os.CancellationSignal?,
                 ContextCompat.getMainExecutor(app)) { loc -> loc?.let(::save) }
-        } catch (_: SecurityException) { }
+        } catch (caught: SecurityException) {
+            FailureNotes.record("location/Location.kt:123", caught)
+            }
     }
 
     @SuppressLint("MissingPermission")
@@ -172,7 +188,7 @@ class LocationRepository(val settings: LocationSettings, val tracker: LocationTr
     fun latest(): Flow<LocationPoint?> = dao.latestFlow()
 
     companion object {
-        fun create(context: Context, database: app.resound.data.CaptureDatabase, scope: CoroutineScope): LocationRepository {
+        fun create(context: Context, database: CaptureDatabase, scope: CoroutineScope): LocationRepository {
             val dao = database.location()
             val settings = LocationSettings(context)
             return LocationRepository(settings, LocationTracker(context, dao, scope), dao, PlaceResolver(context, database.places(), settings))

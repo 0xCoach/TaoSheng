@@ -1,5 +1,17 @@
 package app.resound.ask
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.ask.core.AskDateException
+import app.resound.ask.core.AskTime
+import app.resound.ask.core.AskToolStore
+import app.resound.ask.core.AskToolsCore
+import app.resound.search.Embedder
+import app.resound.search.SearchTokens
+import app.resound.search.Vectors
+import app.resound.things.FindThingsTool
+import app.resound.transcribe.VoiceInputMetadata
+
 import app.resound.data.*
 import app.resound.context.PlaceAt
 import org.json.JSONObject
@@ -10,15 +22,15 @@ class AskTools(
     private val db: CaptureDatabase,
     private val spec: JSONObject,
     private val zone: ZoneId = ZoneId.systemDefault(),
-    private val embedder: () -> app.resound.search.Embedder? = { null },
+    private val embedder: () -> Embedder? = { null },
 ) {
     data class Query(val sql: String, val args: List<Any>, val kind: String)
-    internal val core = app.resound.ask.core.AskToolsCore(object : app.resound.ask.core.AskToolStore {
-        override suspend fun read(query: app.resound.ask.core.AskToolsCore.Query) = read(Query(query.sql, query.args, query.kind)).map { it.toString() }
-        override fun terms(words: List<String>) = app.resound.search.SearchTokens.terms(words)
+    internal val core = AskToolsCore(object : AskToolStore {
+        override suspend fun read(query: AskToolsCore.Query) = read(Query(query.sql, query.args, query.kind)).map { it.toString() }
+        override fun terms(words: List<String>) = SearchTokens.terms(words)
         override suspend fun semantic(names: List<String>, args: String, text: String, stays: List<PlaceAt>?) = semantic(names, JSONObject(args), text, stays)
-        override fun merge(keyword: List<Long>, semantic: List<Long>) = app.resound.search.Vectors.merge(keyword, semantic)
-        override suspend fun findThings(args: String, sources: MutableList<AskSource>) = app.resound.things.FindThingsTool(db, zone).execute(JSONObject(args), sources).toString()
+        override fun merge(keyword: List<Long>, semantic: List<Long>) = Vectors.merge(keyword, semantic)
+        override suspend fun findThings(args: String, sources: MutableList<AskSource>) = FindThingsTool(db, zone).execute(JSONObject(args), sources).toString()
     }, spec.toString(), kotlinx.datetime.TimeZone.of(zone.id))
     fun query(name: String, input: JSONObject, ids: List<Long>? = null, stays: List<PlaceAt>? = null): Query = dateResult {
         core.query(name, input.toString(), ids, stays).let { Query(it.sql, it.args, it.kind) }
@@ -31,7 +43,8 @@ class AskTools(
                 cursor.columnNames.forEachIndexed { i, column ->
                     row.put(if (column == "voiceInputJson") "voice_input" else column, when {
                         cursor.isNull(i) -> JSONObject.NULL
-                        column == "voiceInputJson" -> app.resound.transcribe.VoiceInputMetadata.read(cursor.getText(i))?.let { app.resound.transcribe.VoiceInputMetadata.json(it.copy(before = it.before?.take(750), after = it.after?.take(750))) } ?: JSONObject.NULL
+                        column == "voiceInputJson" -> VoiceInputMetadata.read(cursor.getText(i))?.let { VoiceInputMetadata.json(it.copy(before = it.before?.take(750),
+                            after = it.after?.take(750))) } ?: JSONObject.NULL
                         column == "starred" -> cursor.getInt(i) != 0
                         column in setOf("id", "at", "starred_at") -> cursor.getLong(i)
                         else -> cursor.getText(i).take(900)
@@ -55,8 +68,10 @@ class AskTools(
         return db.readSql(sql, (base.args + listOf(kind, model)).toTypedArray()) { c ->
             buildList {
                 while (c.step()) {
-                    val values = runCatching { app.resound.search.Vectors.decode(c.getBlob(2), c.getLong(1).toInt()) }.getOrNull() ?: continue
-                    val score = app.resound.search.Vectors.cosine(vector, values)
+                    val values = runCatching { Vectors.decode(c.getBlob(2), c.getLong(1).toInt()) }.onFailure {
+                        FailureNotes.record("ask/AskTools.kt:69", it)
+                    }.getOrNull() ?: continue
+                    val score = Vectors.cosine(vector, values)
                     if (score.isFinite()) add(c.getLong(0) to score)
                 }
             }.sortedByDescending { it.second }.take(20)
@@ -67,11 +82,13 @@ class AskTools(
         val local = embedder() ?: return emptyMap()
         return try {
             if (!local.ready()) emptyMap() else {
-                val vector = app.resound.search.Vectors.normalize(local.embed(text, query = true))
+                val vector = Vectors.normalize(local.embed(text, query = true))
                 names.associateWith { semanticIds(it, args, vector, local.model, stays) }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { emptyMap() } // 模型缺失或无法加载时静默退回关键词。
+        catch (caught: Exception) {
+            FailureNotes.record("ask/AskTools.kt:85", caught)
+            emptyMap() } // 模型缺失或无法加载时静默退回关键词。
         finally { if (local is AutoCloseable) local.close() }
     }
 
@@ -81,11 +98,11 @@ class AskTools(
     }
     companion object {
         fun timestamp(value: String, end: Boolean, zone: ZoneId): Long = dateResult {
-            app.resound.ask.core.AskTime.timestamp(value, end, kotlinx.datetime.TimeZone.of(zone.id))
+            AskTime.timestamp(value, end, kotlinx.datetime.TimeZone.of(zone.id))
         }
     }
 }
 
 /** 日期异常保留旧安卓入口类型，供既有调用方处理。 */
 private inline fun <T> dateResult(block: () -> T): T = try { block() }
-catch (e: app.resound.ask.core.AskDateException) { throw java.time.DateTimeException(e.message, e) }
+catch (e: AskDateException) { throw java.time.DateTimeException(e.message, e) }

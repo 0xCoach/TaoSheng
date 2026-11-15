@@ -1,5 +1,7 @@
 package app.resound.devices
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.util.AtomicFile
 import androidx.work.*
@@ -45,10 +47,14 @@ internal class AndroidCardsStore(context: Context) : CardsStore {
 internal fun createDeviceCards(context: Context): RemoteDeviceCards {
     val report: (String) -> Unit = { UpdateDiagnostics.record(context, "device_cards $it") }
     val bundled = context.assets.list("devices").orEmpty().filter { it.endsWith(".json") }.mapNotNull { name ->
-        runCatching { context.assets.open("devices/$name").bufferedReader().use { it.readText() } }.getOrElse { report("asset_failed"); null }
+        runCatching { context.assets.open("devices/$name").bufferedReader().use { it.readText() } }.onFailure {
+            FailureNotes.record("devices/DeviceCardsWork.kt:48", it)
+        }.getOrElse { report("asset_failed"); null }
     }
     val key = runCatching { context.assets.open("device-cards-public-key.hex").bufferedReader().use { it.readText().trim() }
         .also { require(it.matches(Regex("(?:[0-9a-f]{2}){1,256}"))) }.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    }.onFailure {
+        FailureNotes.record("devices/DeviceCardsWork.kt:50", it)
     }.getOrElse { report("official_key_missing"); byteArrayOf() }
     val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0.0.0"
     return RemoteDeviceCards(bundled, AndroidCardsStore(context), key, version, report)

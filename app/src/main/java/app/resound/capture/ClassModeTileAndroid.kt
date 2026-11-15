@@ -1,5 +1,9 @@
 package app.resound.capture
 
+import app.resound.MainActivity
+import app.resound.topic.TopicActionReceiver
+import app.resound.topic.TopicNotifications
+
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -18,7 +22,7 @@ import kotlinx.coroutines.*
 class ClassModeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
-        app.resound.topic.TopicActionReceiver.intent(context, TopicQuickPolicy.receiverAction(topic != null), topic?.id ?: 0).send()
+        TopicActionReceiver.intent(context, TopicQuickPolicy.receiverAction(topic != null), topic?.id ?: 0).send()
     }
 }
 
@@ -42,7 +46,7 @@ class ClassModeTileService : TileService() {
                 AppGraph.topics.current.value != null -> Tile.STATE_ACTIVE
                 else -> Tile.STATE_INACTIVE
             }
-            subtitle = TopicQuickPolicy.tileSubtitle(usable, if (usable) AppGraph.topics.current.value?.let { app.resound.topic.TopicNotifications.line(it) } else null,
+            subtitle = TopicQuickPolicy.tileSubtitle(usable, if (usable) AppGraph.topics.current.value?.let { TopicNotifications.line(it) } else null,
                 if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else QuickPrefsRules.defaultTopic)
             contentDescription = "$label，$subtitle"
             updateTile()
@@ -52,9 +56,9 @@ class ClassModeTileService : TileService() {
         super.onClick()
         if (!AppGraph.isTopicsReady) return
         val topic = AppGraph.topics.current.value
-        if (topic == null) { app.resound.topic.TopicActionReceiver.intent(this, "start", 0).send(); return }
+        if (topic == null) { TopicActionReceiver.intent(this, "start", 0).send(); return }
         // 进行中点一下打开专题面板（记一下/暂停/结束），不直接结束，免得误触
-        val open = android.content.Intent(this, app.resound.MainActivity::class.java)
+        val open = android.content.Intent(this, MainActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             .putExtra("open", "topic").putExtra("topicId", topic.id)
         if (android.os.Build.VERSION.SDK_INT >= 34) startActivityAndCollapse(android.app.PendingIntent.getActivity(this, 27, open,

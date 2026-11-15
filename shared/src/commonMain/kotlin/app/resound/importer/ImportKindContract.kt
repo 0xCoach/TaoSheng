@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.transcribe.TranscribeSource
+
 import kotlinx.datetime.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,10 +35,10 @@ interface ImportKinds {
     val lastKind: StateFlow<ImportKind?>
 
     /** 带类型开始导入（同时记住这次的类型）；asr 同 ImportContract */
-    fun start(pendingId: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?, kind: ImportKind)
+    fun start(pendingId: String, startAt: Long, asr: TranscribeSource?, kind: ImportKind)
 
     /** 一次选的多个文件：[merge] 为 true 时首尾相接（间隔 ≤5 分钟）的合成同一条记录，否则各自一条 */
-    fun startBatch(pendingIds: List<String>, startAts: List<Long>, asr: app.resound.transcribe.TranscribeSource?, kind: ImportKind, merge: Boolean)
+    fun startBatch(pendingIds: List<String>, startAts: List<Long>, asr: TranscribeSource?, kind: ImportKind, merge: Boolean)
 
     fun records(date: LocalDate): Flow<List<ImportRecord>>
     fun record(id: Long): Flow<ImportRecord?>

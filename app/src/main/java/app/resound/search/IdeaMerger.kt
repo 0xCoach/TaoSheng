@@ -1,5 +1,7 @@
 package app.resound.search
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.*
 
 /** 只比较当前模型、向量已就绪的独立灵感；早记录为主，原文和出处始终保留。 */
@@ -14,7 +16,9 @@ class IdeaMerger(private val db: CaptureDatabase) {
             ORDER BY i.createdAt,i.id""", arrayOf(model)) { cursor ->
             buildList {
                 while (cursor.step()) {
-                    val vector = runCatching { Vectors.normalize(Vectors.decode(cursor.getBlob(1), cursor.getLong(2).toInt())) }.getOrNull()
+                    val vector = runCatching { Vectors.normalize(Vectors.decode(cursor.getBlob(1), cursor.getLong(2).toInt())) }.onFailure {
+                        FailureNotes.record("search/IdeaMerger.kt:17", it)
+                    }.getOrNull()
                     if (vector != null) add(Idea(cursor.getLong(0), vector))
                 }
             }

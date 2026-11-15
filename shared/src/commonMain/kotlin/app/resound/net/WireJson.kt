@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.platform.PrettyJson
+
 import app.resound.platform.SharedJson
 import kotlinx.serialization.json.*
 
@@ -26,7 +28,7 @@ class Obj private constructor(private val fields: MutableMap<String, Any?>) {
     fun optInt(key: String, fallback: Int = 0) = optLong(key, fallback.toLong()).toInt()
     fun getLong(key: String) = getString(key).let { it.toLongOrNull() ?: it.toDouble().toLong() }
     fun getDouble(key: String) = getString(key).toDouble()
-    fun toString(indent: Int) = app.resound.platform.PrettyJson.encodeToString(JsonObject.serializer(), element())
+    fun toString(indent: Int) = PrettyJson.encodeToString(JsonObject.serializer(), element())
     fun getInt(key: String) = getString(key).toDouble().toInt()
     fun optBoolean(key: String, fallback: Boolean = false) = fields[key]?.toString()?.lowercase()?.toBooleanStrictOrNull() ?: fallback
     fun element(): JsonObject = JsonObject(fields.mapValues { wrap(it.value) })

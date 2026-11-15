@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.digest.LlmException
@@ -71,7 +73,9 @@ internal class ImportKindEngine(
                     ImportTodoMerge.merge(db, row.id)
                     dao.update(current.copy(cardId = cardId, status = "Done", summaryRequested = false))
                 }
-                try { afterReady() } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 已保存纪要不因后续调度失败回滚。 */ }
+                try { afterReady() } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                    FailureNotes.record("importer/ImportKindEngine.kt:74", caught)
+                    /* 已保存纪要不因后续调度失败回滚。 */ }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 db.writeTransaction {

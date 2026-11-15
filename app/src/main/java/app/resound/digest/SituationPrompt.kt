@@ -1,4 +1,7 @@
 package app.resound.digest
+
+// 同名类型与本文件声明或已有 import 冲突，以下引用保留全限定名：
+// app.resound.digest.core.SituationPrompt
 import app.resound.data.*
 import app.resound.context.SituationLookup
 import java.time.ZoneId

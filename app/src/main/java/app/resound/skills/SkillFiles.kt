@@ -1,5 +1,7 @@
 package app.resound.skills
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.util.AtomicFile
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +48,8 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
                 require(d.skill.id == dir.name && d.skill.id.startsWith("my_"))
                 definitions[d.skill.id] = d to requireNotNull(read(File(dir, "prompt.md")))
                 read(File(dir, "default.md"))?.let { mineDefaults[d.skill.id] = it }
+            }.onFailure {
+                FailureNotes.record("skills/SkillFiles.kt:44", it)
             }
         }
         val overrides = overrides()
@@ -89,7 +93,9 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         if (id in setOf("timeline", "review")) return@synchronized
         require(id in definitions && text.isNotBlank()) { "要求不能为空" }
         write(File(root, "prompts/$id.md"), text); reload()
-    } }
+    } }.onFailure {
+        FailureNotes.record("skills/SkillFiles.kt:88", it)
+    }
     override fun resetPrompt(id: String) = synchronized(fileLock) {
         if (id !in definitions) return@synchronized
         AtomicFile(File(root, "prompts/$id.md")).delete()
@@ -107,7 +113,9 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         write(File(root, "mine/$target/prompt.md"), prompt(id))
         write(File(root, "mine/$target/default.md"), defaultPrompt(id))
         write(File(root, "mine/$target/skill.json"), SkillJson.encode(definition)); reload(); target
-    } }
+    } }.onFailure {
+        FailureNotes.record("skills/SkillFiles.kt:100", it)
+    }
     override fun saveMine(s: Skill, prompt: String): Result<Unit> = runCatching { synchronized(fileLock) {
         require(s.origin == SkillOrigin.Mine && s.id.startsWith("my_")); SkillJson.validate(s); require(prompt.isNotBlank())
         val old = definitions[s.id]?.first
@@ -123,7 +131,9 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
         // 整份保存包含生效设置；旧覆盖不能盖住这次编辑。
         val all = overrides(); all.remove(s.id); write(File(root, "overrides.json"), all.toString(2))
         AtomicFile(File(root, "prompts/${s.id}.md")).delete(); reload()
-    } }
+    } }.onFailure {
+        FailureNotes.record("skills/SkillFiles.kt:111", it)
+    }
     override fun deleteMine(id: String) = synchronized(fileLock) {
         if (definitions[id]?.first?.skill?.origin != SkillOrigin.Mine) return@synchronized
         check(File(root, "mine/$id").deleteRecursively()); AtomicFile(File(root, "prompts/$id.md")).delete()

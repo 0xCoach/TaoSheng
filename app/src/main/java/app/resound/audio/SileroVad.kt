@@ -28,7 +28,9 @@ class SileroVad(context: Context, private val sensitivity: VadSensitivity = VadS
             val sr = OnnxTensor.createTensor(env, rateBuffer, longArrayOf()).also { tensors += it }
             inputs = mapOf("input" to x, "state" to h, "sr" to sr)
         } catch (e: Throwable) {
-            tensors.forEach { runCatching { it.close() } }
+            tensors.forEach { runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 it.close() } }
             session.close()
             throw e
         }

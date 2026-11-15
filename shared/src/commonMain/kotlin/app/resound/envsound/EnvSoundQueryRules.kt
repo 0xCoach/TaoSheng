@@ -1,13 +1,15 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.envsound
 
+import app.resound.platform.FileRef
+
 import app.resound.data.MemoryEventEntity
 import app.resound.data.SegmentEntity
 import kotlinx.datetime.*
 import kotlin.time.Duration.Companion.hours
 
-fun EnvSoundRow.view(isFile: (app.resound.platform.FileRef) -> Boolean) = SegmentSound(segmentId, startAt, endAt, SegmentVerdict.valueOf(verdict), reason,
-    names(tags), names(sounds), restored, reportedWrong, isFile(app.resound.platform.FileRef(path)))
+fun EnvSoundRow.view(isFile: (FileRef) -> Boolean) = SegmentSound(segmentId, startAt, endAt, SegmentVerdict.valueOf(verdict), reason,
+    names(tags), names(sounds), restored, reportedWrong, isFile(FileRef(path)))
 fun mergeSounds(events: List<MemoryEventEntity>, rows: List<EnvSoundRow>): Map<Long, EventSounds> {
     val ordered = rows.sortedBy { it.startAt }
     val active = mutableListOf<EnvSoundRow>()

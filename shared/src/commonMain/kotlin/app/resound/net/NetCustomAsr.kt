@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.HeaderEntry
 import app.resound.transcribe.*
 import io.ktor.client.HttpClient
@@ -14,7 +16,8 @@ fun customMultipart(audio: AudioUpload, model: String, prompt: String?, boundary
     fun quote(s: String) = s.replace("\n", "%0A").replace("\r", "%0D").replace("\"", "%22")
     fun field(name: String, value: String) = "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\nContent-Length: ${value.encodeToByteArray().size}\r\n\r\n$value\r\n"
     val mime = when(audio.format) { "ogg" -> "audio/ogg"; "wav" -> "audio/wav"; else -> "audio/mp4" }
-    val prefix = (field("model", model) + "--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quote(audio.name)}\"\r\nContent-Type: $mime\r\nContent-Length: ${audio.size}\r\n\r\n").encodeToByteArray()
+    val prefix = (field("model", model) + "--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quote(audio
+        .name)}\"\r\nContent-Type: $mime\r\nContent-Length: ${audio.size}\r\n\r\n").encodeToByteArray()
     val suffix = ("\r\n" + field("response_format", "json") + (prompt?.takeIf { it.isNotEmpty() }?.let { field("prompt", it) } ?: "") + "--$boundary--\r\n").encodeToByteArray()
     return object : OutgoingContent.WriteChannelContent() {
         override val contentType = ContentType.parse("multipart/form-data; boundary=$boundary")
@@ -42,7 +45,9 @@ suspend fun customRecognize(client: HttpClient, urls: List<String>, key: String,
             if (code !in 200..299) throw AsrException(if (code >= 500 || code == 429) AsrError.Server else AsrError.Protocol)
             val text = try { customTranscriptionText(r.limitedText(1_000_000, "识别响应不完整或格式异常")) }
                 catch(e: AsrException) { throw e }
-                catch(_: IllegalStateException) { throw AsrException(AsrError.Protocol) }
+                catch(caught: IllegalStateException) {
+                    FailureNotes.record("net/NetCustomAsr.kt:46", caught)
+                    throw AsrException(AsrError.Protocol) }
             AsrResult(if(text.isBlank()) emptyList() else listOf(AsrSentence(0,duration,text,null)),duration,null)
         }
         if(result != null) return result

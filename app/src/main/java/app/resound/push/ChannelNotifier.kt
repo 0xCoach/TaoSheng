@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.review.DailyReview
+
 import kotlinx.coroutines.CancellationException
 
 class ChannelNotifier(private val local: Notifier, private val channels: AndroidPushChannels) : Notifier {
@@ -8,7 +10,7 @@ class ChannelNotifier(private val local: Notifier, private val channels: Android
     }
 
     internal suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?,
-        remoteReview: app.resound.review.DailyReview?) {
+        remoteReview: DailyReview?) {
         var localError: Exception? = null
         try { local.send(title, body, deepLink, topic) }
         catch (e: CancellationException) { throw e }

@@ -1,5 +1,7 @@
 package app.resound.update
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -69,7 +71,9 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                 confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 // 若系统限制后台弹窗，通知仍能让用户进入系统确认页。
                 UpdateNotifications.confirmation(context, confirm)
-                runCatching { context.startActivity(confirm) }
+                runCatching { context.startActivity(confirm) }.onFailure {
+                    FailureNotes.record("update/UpdateWork.kt:72", it)
+                }
                 UpdateDiagnostics.record(context, "install session=$session result=pending_user_action")
                 return
             }

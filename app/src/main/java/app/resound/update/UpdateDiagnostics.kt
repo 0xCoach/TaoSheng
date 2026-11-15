@@ -1,5 +1,7 @@
 package app.resound.update
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 
 internal class AndroidUpdateStore(context: Context) : UpdateStore {
@@ -25,6 +27,8 @@ object UpdateDiagnostics {
             val prefs = context.getSharedPreferences("update-times", Context.MODE_PRIVATE)
             val lines = prefs.getString("runs", "").orEmpty().lines().filter { it.isNotBlank() }
             prefs.edit().putString("runs", (lines + "${System.currentTimeMillis()} $line").takeLast(50).joinToString("\n")).commit()
+        }.onFailure {
+            FailureNotes.record("update/UpdateDiagnostics.kt:24", it)
         }
     }
     fun dump(context: Context) = context.getSharedPreferences("update-times", Context.MODE_PRIVATE)

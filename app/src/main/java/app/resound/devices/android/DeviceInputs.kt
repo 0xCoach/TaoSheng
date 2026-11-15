@@ -1,5 +1,9 @@
 package app.resound.devices.android
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.devices.driver.DriverCatalog
+
 import app.resound.audio.*
 import app.resound.devices.*
 import app.resound.devices.card.*
@@ -126,7 +130,7 @@ internal class DeviceInputs(
         val card = registeredDriver?.transport ?: installed.first { it.card.id == row.cardId }.card
         val driverId = registeredDriver?.driver?.meta?.id ?: "card:${card.id}"
         val ports = MutableStateFlow<Port?>(null)
-        val catalog = object : app.resound.devices.driver.DriverCatalog {
+        val catalog = object : DriverCatalog {
             override val drivers = installed.map { item -> CardDriver(item.card, true,
                 plugins.firstOrNull { it.id == item.card.filePlugin },
                 report = { report(row.address, it) }, readTimeout = CaptureHealth.STALL_MS,
@@ -242,7 +246,9 @@ internal class DeviceInputs(
                 sync.cancelAndJoin()
                 if (failure != null) gap(row.address, port.disconnectedAt.value ?: clock.nowEpochMillis())
                 // 不重新申请租约，物理断开时旧连接已不在中枢；stop 仅取消本连接的声音流。
-                runCatching { live?.stop() }
+                runCatching {
+                    // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                     live?.stop() }
             }
             update(row.address) { it.copy(status = if (failure == null) DeviceStatus.Disconnected else DeviceStatus.Waiting,
                 backfill = null, lastError = failure?.message ?: it.lastError) }
@@ -256,7 +262,9 @@ internal class DeviceInputs(
         if (cachedStatus.value[address] == status) return
         cachedStatus.update { it + (address to status) }
         val key = selection.deviceId?.let { "id:${it.value}" } ?: "handle:$address"
-        runCatching { repository.store(selection.driverId,key).putString("lastStatus",DeviceStatusCache.encode(status)) }
+        runCatching { repository.store(selection.driverId,key).putString("lastStatus",DeviceStatusCache.encode(status)) }.onFailure {
+            FailureNotes.record("devices/android/DeviceInputs.kt:261", it)
+        }
     }
     private fun render(address: String, device: HubDevice) {
         cacheStatus(address,device.status)
@@ -336,7 +344,7 @@ internal class DeviceInputs(
             val card = registration?.transport ?: installed.firstOrNull { it.card.id == row.cardId }?.card
                 ?: throw DeviceException(ErrorCode.NotFound)
             val id = registration?.driver?.meta?.id ?: "card:${card.id}"
-            val catalog = object : app.resound.devices.driver.DriverCatalog {
+            val catalog = object : DriverCatalog {
                 override val drivers = installed.map { item -> CardDriver(item.card,true,plugins.firstOrNull { it.id == item.card.filePlugin }) } + registered.map { it.driver }
             }
             coroutineScope {
@@ -378,7 +386,9 @@ internal class DeviceInputs(
             } catch (e: DeviceException) {
                 errorCode = e.code
                 message = "检查没有完成，已保留进度，请稍后重试"
-            } catch (_: Exception) {
+            } catch (caught: Exception) {
+                FailureNotes.record("devices/android/DeviceInputs.kt:383", caught)
+
                 message = "检查没有完成，已保留进度，请稍后重试"
             }
         }

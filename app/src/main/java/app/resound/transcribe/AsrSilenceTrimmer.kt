@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -55,7 +57,9 @@ internal class AsrSilenceTrimmer(
                 durationMillis = plan.trimmedSamples / 16L), plan)
         } catch (e: CancellationException) {
             temporary?.delete(); throw e
-        } catch (_: Exception) {
+        } catch (caught: Exception) {
+            FailureNotes.record("transcribe/AsrSilenceTrimmer.kt:58", caught)
+
             // 优化失败时仍用完整原录音，不因映射或缓存失败丢字。
             temporary?.delete(); null
         } finally { decoded?.delete() }

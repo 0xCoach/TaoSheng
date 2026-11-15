@@ -1,5 +1,11 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.scheduling.BackgroundSystem
+import app.resound.transcribe.BackgroundSystemInfo
+import app.resound.transcribe.PipelineTimes
+
 import app.resound.appName
 import android.Manifest
 import android.content.ComponentName
@@ -14,18 +20,19 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 class AndroidSetupGuide(private val context: Context) : SetupGuide {
-    private val signals = app.resound.transcribe.BackgroundSystemInfo.read(context)
-    private val system = app.resound.scheduling.BackgroundSystem.identify(signals)
+    private val signals = BackgroundSystemInfo.read(context)
+    private val system = BackgroundSystem.identify(signals)
     private val prefs = context.getSharedPreferences("setup", Context.MODE_PRIVATE)
     override fun items(): List<SetupItem> {
         fun manual(key: String): Boolean? = if (prefs.getBoolean(key, false)) true else null
         // 自启动、省电策略只有小米系（MIUI / 澎湃）有直达页面，别的品牌不显示，免得点进去打不开
         val xiaomi = Build.MANUFACTURER.lowercase() in setOf("xiaomi", "redmi", "poco")
-        val huawei = system != app.resound.scheduling.BackgroundSystem.Type.Android
-        val container = system == app.resound.scheduling.BackgroundSystem.Type.Container
+        val huawei = system != BackgroundSystem.Type.Android
+        val container = system == BackgroundSystem.Type.Container
         return listOfNotNull(
             SetupItem("mic", "麦克风权限", "在应用权限里允许使用麦克风。", ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
-            SetupItem("notify", "通知权限", "允许通知，并允许录音中断提醒显示。", NotificationManagerCompat.from(context).areNotificationsEnabled() && (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)),
+            SetupItem("notify", "通知权限", "允许通知，并允许录音中断提醒显示。", NotificationManagerCompat.from(context).areNotificationsEnabled() && (Build.VERSION.SDK_INT < 33 ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)),
             SetupItem("battery", "忽略电池优化", "允许${context.appName}不受电池优化限制。", context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)),
             if (!xiaomi) null else SetupItem("autostart", "小米自启动", "在安全中心为${context.appName}开启自启动；系统不提供可靠查询，设置后请手动确认。", manual("autostart")),
             if (!xiaomi) null else SetupItem("powerkeeper", "省电策略：无限制", "将${context.appName}的省电策略设为无限制，设置后请手动确认。", manual("powerkeeper")),
@@ -37,24 +44,26 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
     override fun open(key: String) {
         if (key == "lock") return // 最近任务锁定只有操作说明，没有可靠直达页面。
         if (key in setOf("huawei_startup", "huawei_sleep_network", "anco_host")) {
-            if (system == app.resound.scheduling.BackgroundSystem.Type.Container) {
-                app.resound.transcribe.PipelineTimes.record(context, "后台设置 $key：容器仅显示宿主操作说明")
+            if (system == BackgroundSystem.Type.Container) {
+                PipelineTimes.record(context, "后台设置 $key：容器仅显示宿主操作说明")
                 return
             }
-            val vendor = if (system == app.resound.scheduling.BackgroundSystem.Type.Honor) "com.hihonor.systemmanager" else "com.huawei.systemmanager"
-            val targets = if (key == "huawei_sleep_network") listOf("battery-settings", "details") else if (system == app.resound.scheduling.BackgroundSystem.Type.Honor) listOf(
+            val vendor = if (system == BackgroundSystem.Type.Honor) "com.hihonor.systemmanager" else "com.huawei.systemmanager"
+            val targets = if (key == "huawei_sleep_network") listOf("battery-settings", "details") else if (system == BackgroundSystem.Type.Honor) listOf(
                 "$vendor/.startupmgr.ui.StartupNormalAppListActivity", "$vendor/.startupmgr.ui.StartupAppListActivity", "details") else listOf(
                 "$vendor/.startupmgr.ui.StartupNormalAppListActivity",
                 "$vendor/.appcontrol.activity.StartupAppControlActivity",
                 "$vendor/.optimize.process.ProtectActivity", "details")
-            app.resound.scheduling.BackgroundSystem.openFirst(targets) { target ->
+            BackgroundSystem.openFirst(targets) { target ->
                 val intent = when (target) {
                     "details" -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
                     "battery-settings" -> Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS)
                     else -> Intent().setComponent(ComponentName.unflattenFromString(target))
                 }
-                val result = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                app.resound.transcribe.PipelineTimes.record(context, "后台设置 $key 跳转=$target 结果=${if (result.isSuccess) "已打开" else "失败"}")
+                val result = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
+                    FailureNotes.record("capture/AndroidSetupGuide.kt:61", it)
+                }
+                PipelineTimes.record(context, "后台设置 $key 跳转=$target 结果=${if (result.isSuccess) "已打开" else "失败"}")
                 result.isSuccess
             }
             return
@@ -69,7 +78,11 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
             else -> details
         }
         try { context.startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (_: RuntimeException) { runCatching { context.startActivity(details.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+        catch (caught: RuntimeException) {
+            FailureNotes.record("capture/AndroidSetupGuide.kt:77", caught)
+            runCatching { context.startActivity(details.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
+            FailureNotes.record("capture/AndroidSetupGuide.kt:77", it)
+        } }
     }
     override fun markDone(key: String) {
         if (key in setOf("autostart", "powerkeeper", "lock", "huawei_startup", "huawei_sleep_network", "anco_host")) prefs.edit().putBoolean(key, true).apply()

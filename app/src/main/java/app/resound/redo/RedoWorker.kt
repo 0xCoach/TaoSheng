@@ -1,5 +1,7 @@
 package app.resound.redo
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.*
 import android.content.*
 import android.content.pm.ServiceInfo
@@ -16,7 +18,9 @@ class RedoWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         setForeground(getForegroundInfo())
         (AppGraph.redo as AndroidRedoService).drain { setForeground(RedoNotifications.foreground(applicationContext, it)) }
         Result.success()
-    } catch (e: CancellationException) { throw e } catch (_: Exception) { Result.retry() }
+    } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+        FailureNotes.record("redo/RedoWorker.kt:19", caught)
+        Result.retry() }
 }
 class CancelRedoReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -56,7 +60,11 @@ internal object RedoNotifications {
         }
         runCatching { manager(context).notify(resultId(job.id), NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notify).setContentTitle(if (job.state is RedoJobState.Done) "${title}完成" else "${title}失败")
-            .setContentText(text).setContentIntent(open).setAutoCancel(true).build()) }
+            .setContentText(text).setContentIntent(open).setAutoCancel(true).build()) }.onFailure {
+                FailureNotes.record("redo/RedoWorker.kt:57", it)
+            }
     }
-    fun clear(context: Context, id: String) { runCatching { manager(context).cancel(resultId(id)) } }
+    fun clear(context: Context, id: String) { runCatching {
+        // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+         manager(context).cancel(resultId(id)) } }
 }

@@ -1,10 +1,12 @@
 package app.resound.topic
+
+import app.resound.data.CaptureDatabase
 import app.resound.topic.core.TopicRulesRepository
 import app.resound.platform.NowMillis
 import app.resound.platform.ZoneProvider
 import kotlinx.coroutines.CoroutineScope
 class RoomTopicRepository private constructor(private val core: TopicRulesRepository) : TopicRepository by core {
- constructor(db: app.resound.data.CaptureDatabase, scope: CoroutineScope,
+ constructor(db: CaptureDatabase, scope: CoroutineScope,
   now: NowMillis, zone: ZoneProvider,
   quiet: (Long,Long) -> Boolean = { _,_ -> false }, recordingEnabled: () -> Boolean = { true },
   checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints()

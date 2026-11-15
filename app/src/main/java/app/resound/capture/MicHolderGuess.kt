@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import android.Manifest
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
@@ -26,7 +28,9 @@ class MicHolderGuess(private val context: Context) {
     fun openSettings() {
         val direct = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${context.packageName}"))
         try { context.startActivity(direct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (_: RuntimeException) { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        catch (caught: RuntimeException) {
+            FailureNotes.record("capture/MicHolderGuess.kt:29", caught)
+            context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
     /** 例如“可能是 小红书 或 讯飞输入法（语音输入）”；猜不出返回 null */

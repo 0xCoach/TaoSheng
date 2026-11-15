@@ -1,6 +1,11 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.skills.core
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.digest.core.clock
+import app.resound.net.Obj
+
 import app.resound.skills.*
 
 
@@ -16,7 +21,7 @@ data class SkillInput(val data: String, val lines: Map<String, TranscriptLineDat
 data class SkillSource(val events: List<MemoryEventData>, val lines: List<TranscriptLineData>)
 
 object SkillInputs {
-    fun time(at: Long): String = Instant.fromEpochMilliseconds(at).toLocalDateTime(SKILL_ZONE).let { "${it.date} ${app.resound.digest.core.clock(it.time, true)}" }
+    fun time(at: Long): String = Instant.fromEpochMilliseconds(at).toLocalDateTime(SKILL_ZONE).let { "${it.date} ${clock(it.time, true)}" }
     fun speaker(l: TranscriptLineData): String = l.speakerName?.takeIf { it.isNotBlank() }
         ?: if ((l.speakerScore ?: 0f) >= 0.45f) "可能是我（未确认）"
         else l.speakerTag?.takeUnless { it.startsWith("uncertain:") }?.let { "说话人${it.toIntOrNull()?.plus(1) ?: it}" } ?: "待确认"
@@ -127,7 +132,13 @@ object SkillPrompt {
         s.fields.forEach { appendLine("${it.key} | ${it.label} | ${it.type} | ${it.hint} | ${if (it.required) "必填" else "可选"}") }
         appendLine("输出格式（固定）：")
         appendLine("""{"cards":[{"entity":"稳定的实体标识","title":"标题","summary":"一句摘要","at":"HH:mm","end":null,"values":{},"evidence":["L1"]}],"nothing_reason":"不出卡的原因"}""")
-        appendLine("values 的 Text/Paragraph 用字符串；Bullets/Tags 用字符串数组；Checklist 用 {\"items\":[\"谁做什么\"],\"checked\":[false]}；Number 用 {\"number\":1,\"unit\":\"小时\"}；Rating 用 1～5 整数；Quotes 仅用行号数组，例如 [\"L1\"]，最多 3 条，禁止抄写原文。evidence 仅用本次原话的 L 行号，不存在的不得写。")
+        appendLine(
+            "values 的 Text/Paragraph 用字符串；Bullets/Tags 用字符串数组；" +
+                "Checklist 用 {\"items\":[\"谁做什么\"],\"checked\":[false]}；" +
+                "Number 用 {\"number\":1,\"unit\":\"小时\"}；Rating 用 1～5 整数；" +
+                "Quotes 仅用行号数组，例如 [\"L1\"]，最多 3 条，禁止抄写原文。" +
+                "evidence 仅用本次原话的 L 行号，不存在的不得写。"
+        )
         appendLine("每次最多 ${s.maxCardsPerDay} 张；不足资格则 cards:[] 并给 nothing_reason。时段卡的 end 为 HH:mm，其余为 null。")
         if (s.maxCardsPerDay == 1) appendLine("entity 固定为 $date。")
     }
@@ -135,7 +146,9 @@ object SkillPrompt {
 
 private data class VoiceMeta(val app: String, val title: String?)
 private fun voiceMeta(raw: String?): VoiceMeta? = raw?.let { runCatching {
- val j = app.resound.net.Obj(it)
+ val j = Obj(it)
  j.getString("package_name")
  VoiceMeta(j.getString("app"), if(j.isNull("title")) null else j.optString("title").takeIf(String::isNotBlank))
+}.onFailure {
+    FailureNotes.record("skills/core/SkillInput.kt:146", it)
 }.getOrNull() }

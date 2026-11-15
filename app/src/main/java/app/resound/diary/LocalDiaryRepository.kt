@@ -1,5 +1,10 @@
 package app.resound.diary
 
+import app.resound.OutputTime
+import app.resound.envsound.EnvSoundPresentation
+import app.resound.skills.SkillCard
+import app.resound.transcribe.VoiceInputMetadata
+
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -21,15 +26,15 @@ import java.util.Locale
 class LocalDiaryRepository(
     private val context: Context, memory: MemoryRepository, reviews: ReviewRepository, dao: MemoryDao,
     zoneProvider: ZoneProvider, private val io: CoroutineDispatcher,
-    cards: suspend (LocalDate) -> List<app.resound.skills.SkillCard> = { emptyList() },
+    cards: suspend (LocalDate) -> List<SkillCard> = { emptyList() },
     lineWindow: ((LocalDate) -> Pair<Long, Long>)? = null,
 ) : DiaryRepository {
     private val prefs = context.getSharedPreferences("diary", Context.MODE_PRIVATE)
     private val store = DiaryContentStore(memory, reviews, dao, { cards(it.toJavaLocalDate()) },
         lineWindow?.let { read -> { date -> read(date.toJavaLocalDate()) } }, zoneProvider, io,
         prefs.getBoolean("cloudSync", false), { prefs.edit().putBoolean("cloudSync", it).commit() },
-        { AndroidDiaryTime(ZoneId.of(it)) }, app.resound.envsound.EnvSoundPresentation::line,
-        app.resound.transcribe.VoiceInputMetadata::markdown)
+        { AndroidDiaryTime(ZoneId.of(it)) }, EnvSoundPresentation::line,
+        VoiceInputMetadata::markdown)
     override val cloudSync get() = store.cloudSync
     @Synchronized override fun setCloudSync(enabled: Boolean) = store.setCloudSync(enabled)
     override suspend fun markdown(from: LocalDate, to: LocalDate, includeLines: Boolean) =
@@ -48,11 +53,11 @@ class LocalDiaryRepository(
 }
 
 private class AndroidDiaryTime(zone: ZoneId) : DiaryTextTime {
-    private val time = app.resound.OutputTime(zone)
+    private val time = OutputTime(zone)
     override fun moment(at: Long) = time.moment(at)
     override fun event(start: Long, end: Long) = time.event(start, end)
     override fun day(date: kotlinx.datetime.LocalDate) = date.toJavaLocalDate().format(DAY)
     companion object { private val DAY = DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA) }
 }
-internal fun cardsMarkdown(cards: List<app.resound.skills.SkillCard>, zone: ZoneId = ZoneId.systemDefault()) =
+internal fun cardsMarkdown(cards: List<SkillCard>, zone: ZoneId = ZoneId.systemDefault()) =
     diaryCardsMarkdown(cards, AndroidDiaryTime(zone))

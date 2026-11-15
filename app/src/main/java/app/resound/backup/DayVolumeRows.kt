@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.search.SearchIndex
+
 import android.content.Context
 import androidx.sqlite.*
 import androidx.sqlite.driver.AndroidSQLiteDriver
@@ -25,7 +27,8 @@ internal object DayVolumeRows {
         // 足迹（PR #19）：定位点按天分卷
         "location_points" to "at",
     )
-    val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples", "voiceprint_exclusions", "location_places")
+    val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples",
+        "voiceprint_exclusions", "location_places")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()
     fun canonical(value: Any?): String = when (value) {
@@ -129,7 +132,7 @@ internal object DayVolumeRows {
                         days.forEach { insert(this, it, false) }
                         listOf("lines_fts", "events_fts", "items_fts").forEach { executeSql("DELETE FROM $it") }
                         val statements = mutableListOf<String>()
-                        app.resound.search.SearchIndex.install({ statements += it }, backfill = true)
+                        SearchIndex.install({ statements += it }, backfill = true)
                         statements.forEach { executeSql(it) }
                         usePrepared("PRAGMA foreign_key_check") { require(!it.step()) }
                         usePrepared("PRAGMA integrity_check") { require(it.step() && it.getText(0) == "ok" && !it.step()) }

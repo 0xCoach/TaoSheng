@@ -1,5 +1,7 @@
 package app.resound.search
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -78,7 +80,9 @@ class SearchModelWork(context: Context, params: WorkerParameters) : CoroutineWor
             EmbeddingScheduler.catchUp(applicationContext) // 首次就绪补算全部历史。
             Result.success()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (caught: Exception) {
+            FailureNotes.record("search/EmbeddingWork.kt:81", caught)
+            Result.retry() }
     }
 }
 
@@ -124,6 +128,8 @@ class EmbeddingWork(context: Context, params: WorkerParameters) : CoroutineWorke
                 Result.success()
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (caught: Exception) {
+            FailureNotes.record("search/EmbeddingWork.kt:127", caught)
+            Result.retry() }
     }
 }

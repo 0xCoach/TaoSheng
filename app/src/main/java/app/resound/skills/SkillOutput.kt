@@ -1,4 +1,6 @@
 package app.resound.skills
+
+import app.resound.diagnostics.FailureNotes
 import java.time.LocalDate
 import kotlinx.datetime.toKotlinLocalDate
 import app.resound.digest.LlmException
@@ -9,5 +11,7 @@ object SkillOutput {
  fun parse(content: String,skill: Skill,date: LocalDate,input: SkillInput,now: Long,manual: Boolean): Parsed = try {
   val normalized = org.json.JSONObject(content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```")).toString()
   Core.parse(normalized,skill,date.toKotlinLocalDate(),input.snapshot(),now,manual).let { Parsed(it.rows.map { row -> row.android() },it.reason) }
- } catch (_: Exception) { throw LlmException(LlmError.Format) }
+ } catch (caught: Exception) {
+     FailureNotes.record("skills/SkillOutput.kt:12", caught)
+     throw LlmException(LlmError.Format) }
 }

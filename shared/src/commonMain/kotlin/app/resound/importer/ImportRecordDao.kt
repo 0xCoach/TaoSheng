@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.data.MemoryItemEntity
+
 import androidx.sqlite.execSQL
 import androidx.room.*
 import androidx.sqlite.SQLiteConnection
@@ -29,7 +31,7 @@ abstract class ImportRecordDao {
     abstract suspend fun attachTodoEvents(id: Long)
     @Query("SELECT id FROM import_records") abstract suspend fun ids(): List<Long>
     @Query("SELECT * FROM memory_items WHERE category = '待办' AND lineId IN (SELECT l.id FROM transcript_lines l JOIN segments s ON s.id = l.segmentId WHERE s.importRecordId = :id) ORDER BY id")
-    abstract suspend fun todos(id: Long): List<app.resound.data.MemoryItemEntity>
+    abstract suspend fun todos(id: Long): List<MemoryItemEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insert(row: ImportRecordRow): Long
     @Update abstract suspend fun update(row: ImportRecordRow)
     @Query("SELECT * FROM import_records WHERE id = :id") abstract suspend fun get(id: Long): ImportRecordRow?

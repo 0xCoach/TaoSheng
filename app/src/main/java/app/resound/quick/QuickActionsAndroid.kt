@@ -1,5 +1,9 @@
 package app.resound.quick
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.ui.items.QuickTodoActivity
+
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -52,7 +56,7 @@ internal fun attachQuickActionsAndroid(context: Context, scope: CoroutineScope, 
                     .setIcon(IconCompat.createWithResource(context, shortcutIcon(entry.action)))
                     .setIntent(if (entry.action == QuickAction.AddTodo)
                         // 加待办直接打开浮在当前界面上的语音面板
-                        Intent(context, app.resound.ui.items.QuickTodoActivity::class.java).setAction(Intent.ACTION_VIEW)
+                        Intent(context, QuickTodoActivity::class.java).setAction(Intent.ACTION_VIEW)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     else Intent(context, QuickActionActivity::class.java).setAction(Intent.ACTION_VIEW)
                         .setData(Uri.parse("resound://quick/${entry.action.name}/$topicId"))
@@ -64,10 +68,14 @@ internal fun attachQuickActionsAndroid(context: Context, scope: CoroutineScope, 
             while (true) {
                 try {
                     if (ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)) break
-                } catch (_: IllegalArgumentException) {
+                } catch (caught: IllegalArgumentException) {
+                    FailureNotes.record("quick/QuickActionsAndroid.kt:69", caught)
+
                     Log.w("QuickActions", "快捷菜单发布参数未被系统接受")
                     break
-                } catch (_: IllegalStateException) {
+                } catch (caught: IllegalStateException) {
+                    FailureNotes.record("quick/QuickActionsAndroid.kt:72", caught)
+
                     Log.w("QuickActions", "快捷菜单暂不可更新")
                 }
                 delay(60_000)

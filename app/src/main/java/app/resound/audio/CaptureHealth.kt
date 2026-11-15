@@ -1,5 +1,7 @@
 package app.resound.audio
 
+import app.resound.diagnostics.FailureNotes
+
 import android.media.AudioManager
 import android.media.AudioRecordingConfiguration
 
@@ -42,5 +44,7 @@ internal object CaptureHealth {
         !OwnRecordingSessions.contains(it.clientAudioSessionId) && it.clientAudioSource != HOTWORD
     }
 
-    fun othersRecording(manager: AudioManager): Boolean = runCatching { others(manager.activeRecordingConfigurations) }.getOrDefault(false)
+    fun othersRecording(manager: AudioManager): Boolean = runCatching { others(manager.activeRecordingConfigurations) }.onFailure {
+        FailureNotes.record("audio/CaptureHealth.kt:45", it)
+    }.getOrDefault(false)
 }

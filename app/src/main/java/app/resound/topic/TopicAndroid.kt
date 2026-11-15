@@ -1,5 +1,10 @@
 package app.resound.topic
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.MainActivity
+import app.resound.R
+
 import app.resound.scheduling.BackgroundRefreshPolicy
 import app.resound.scheduling.refreshWhileNeeded
 import android.app.*
@@ -115,7 +120,9 @@ internal class TopicAlarm(private val context: Context) {
         try {
             if (Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent)
             else manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent)
-        } catch (_: SecurityException) { manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent) }
+        } catch (caught: SecurityException) {
+            FailureNotes.record("topic/TopicAndroid.kt:121", caught)
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, intent) }
     }
 }
 class TopicAlarmReceiver : BroadcastReceiver() {
@@ -154,7 +161,9 @@ class TopicActionReceiver : BroadcastReceiver() {
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: TopicException) { TopicNotifications.error(context, e.message ?: TopicQuickPolicy.FAILED) }
-            catch (_: Exception) { TopicNotifications.error(context, TopicQuickPolicy.FAILED) }
+            catch (caught: Exception) {
+                FailureNotes.record("topic/TopicAndroid.kt:160", caught)
+                TopicNotifications.error(context, TopicQuickPolicy.FAILED) }
             finally { pending.finish() }
         }
     }
@@ -172,7 +181,7 @@ internal object TopicNotifications {
     private const val OFF = 1353
     private const val READY = 1354
     private fun open(context: Context, id: Long): PendingIntent = PendingIntent.getActivity(context, id.hashCode(),
-        Intent(context, app.resound.MainActivity::class.java).putExtra("open", "topic").putExtra("topicId", id)
+        Intent(context, MainActivity::class.java).putExtra("open", "topic").putExtra("topicId", id)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     fun line(topic: Topic, now: Long = System.currentTimeMillis()): String {
@@ -198,11 +207,13 @@ internal object TopicNotifications {
     }
     private fun base(context: Context, title: String): NotificationCompat.Builder {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("topics", "专题录音", NotificationManager.IMPORTANCE_DEFAULT))
-        return NotificationCompat.Builder(context, "topics").setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle(title).setAutoCancel(true)
+        return NotificationCompat.Builder(context, "topics").setSmallIcon(R.drawable.ic_notify).setContentTitle(title).setAutoCancel(true)
     }
     private fun send(context: Context, id: Int, builder: NotificationCompat.Builder) {
         if (!CaptureNotifications.permitted(context)) return
-        try { NotificationManagerCompat.from(context).notify(id, builder.build()) } catch (_: SecurityException) { }
+        try { NotificationManagerCompat.from(context).notify(id, builder.build()) } catch (caught: SecurityException) {
+            FailureNotes.record("topic/TopicAndroid.kt:208", caught)
+            }
     }
     fun error(context: Context, text: String) = send(context, 1355, base(context, text))
     fun clearObsolete(context: Context, current: Topic?) {
@@ -218,16 +229,20 @@ internal object TopicNotifications {
 class TopicWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("topic-work", "专题整理", NotificationManager.IMPORTANCE_LOW))
-        return ForegroundInfo(3135, NotificationCompat.Builder(applicationContext, "topic-work").setSmallIcon(app.resound.R.drawable.ic_notify)
+        return ForegroundInfo(3135, NotificationCompat.Builder(applicationContext, "topic-work").setSmallIcon(R.drawable.ic_notify)
             .setContentTitle("正在整理专题").setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                FailureNotes.record("topic/TopicAndroid.kt:229", caught)
+                }
             val app = applicationContext as ResoundApp
             if (app.voiceprintRepository.withStableResults { app.topics.engine.run() }) Result.retry() else Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (caught: Exception) {
+            FailureNotes.record("topic/TopicAndroid.kt:233", caught)
+            Result.retry() }
     }
     companion object {
         fun enqueue(context: Context) {

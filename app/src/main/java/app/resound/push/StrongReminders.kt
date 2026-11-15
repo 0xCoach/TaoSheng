@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -102,8 +104,12 @@ internal object StrongReminders {
             .addAction(0, "已完成", broadcast(context, ACTION_DONE, id))
             .addAction(0, "不再响", broadcast(context, ACTION_STOP, id))
             .build()
-        try { NotificationManagerCompat.from(context).notify(tag(id), ID, notification) } catch (_: SecurityException) { return }
-        runCatching { AlarmPlayer.start(context, id) { ringingId -> dismiss(context, ringingId) } }
+        try { NotificationManagerCompat.from(context).notify(tag(id), ID, notification) } catch (caught: SecurityException) {
+            FailureNotes.record("push/StrongReminders.kt:105", caught)
+            return }
+        runCatching { AlarmPlayer.start(context, id) { ringingId -> dismiss(context, ringingId) } }.onFailure {
+            FailureNotes.record("push/StrongReminders.kt:106", it)
+        }
         // 不理会就 5 分钟后再响，最多再响三次
         if (repeat < MAX_REPEATS) alarm(context, id, System.currentTimeMillis() + GAP_MS, repeat + 1) else cancelAlarm(context, id)
     }
@@ -118,7 +124,9 @@ internal object StrongReminders {
         try {
             if (exact) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
             else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
-        } catch (_: SecurityException) { alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending) }
+        } catch (caught: SecurityException) {
+            FailureNotes.record("push/StrongReminders.kt:121", caught)
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending) }
     }
     private fun cancelAlarm(context: Context, id: Long) =
         context.getSystemService(AlarmManager::class.java).cancel(broadcast(context, ACTION_RING, id))
@@ -169,7 +177,9 @@ internal object StrongReminders {
                     val item = (context.applicationContext as ResoundApp).database.memory().itemIncludingDeleted(id)
                     if (item == null || item.deleted || item.status != ItemStatus.Accepted.name || !item.strongReminder) stop(context, id)
                     else ring(context, id, body, intent.getIntExtra(EXTRA_REPEAT, 0))
-                } catch (_: Exception) { /* 再响失败只是少响一次，不能让涛声崩掉 */
+                } catch (caught: Exception) {
+                    FailureNotes.record("push/StrongReminders.kt:172", caught)
+                    /* 再响失败只是少响一次，不能让涛声崩掉 */
                 } finally { finished() }
             }
             else -> finished()

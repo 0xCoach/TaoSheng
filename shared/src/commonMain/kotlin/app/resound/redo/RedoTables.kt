@@ -1,5 +1,7 @@
 package app.resound.redo
 
+import app.resound.skills.SkillCardRow
+
 import androidx.room.*
 import app.resound.data.*
 
@@ -20,6 +22,6 @@ interface RedoDao {
     suspend fun segments(start: Long, end: Long): List<SegmentEntity>
     @Query("SELECT * FROM memory_items WHERE eventId IN (:ids)") suspend fun items(ids: List<Long>): List<MemoryItemEntity>
     @Query("SELECT * FROM transcript_lines WHERE eventId IN (:ids) ORDER BY startAt, id") suspend fun eventLines(ids: List<Long>): List<TranscriptLineEntity>
-    @Query("SELECT * FROM skill_cards WHERE deletedAt IS NULL") suspend fun cards(): List<app.resound.skills.SkillCardRow>
+    @Query("SELECT * FROM skill_cards WHERE deletedAt IS NULL") suspend fun cards(): List<SkillCardRow>
     @Update suspend fun item(row: MemoryItemEntity)
 }

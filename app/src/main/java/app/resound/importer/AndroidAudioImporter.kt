@@ -1,5 +1,9 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.transcribe.TranscribeSource
+
 import app.resound.appDisplayName
 import android.content.Context
 import android.net.Uri
@@ -13,7 +17,9 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false, val asr: app.resound.transcribe.TranscribeSource? = null, val kind: ImportKind? = null, val source: String = "", val dual: Boolean? = null, val channels: Int = 1, val recordKey: String? = null, val recordName: String? = null, val recordStart: Long? = null, val recordEnd: Long? = null, val fingerprint: String? = null)
+internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false, val asr: TranscribeSource? = null,
+    val kind: ImportKind? = null, val source: String = "", val dual: Boolean? = null, val channels: Int = 1, val recordKey: String? = null,
+    val recordName: String? = null, val recordStart: Long? = null, val recordEnd: Long? = null, val fingerprint: String? = null)
 
 /** 文件先落盘，再提交确认信息；队列与确认列表同一次 commit，避免进程死亡丢掉授权内容。 */
 class AndroidAudioImporter internal constructor(
@@ -32,12 +38,16 @@ class AndroidAudioImporter internal constructor(
             val item = json.getJSONObject(i)
             ImportEntry(PendingImport(item.getString("id"), ImportInfo(item.getString("name"), item.getLong("duration"),
                 if (item.isNull("suggested")) null else item.getLong("suggested"))),
-                if (item.isNull("start")) null else item.getLong("start"), item.optBoolean("cancelled"), item.optString("asr").takeIf { it.isNotBlank() }?.let { app.resound.transcribe.TranscribeSource.valueOf(it) },
+                if (item.isNull("start")) null else item.getLong("start"), item.optBoolean("cancelled"), item.optString("asr").takeIf { it.isNotBlank() }?.let { TranscribeSource.valueOf(it) },
                 item.optString("kind").takeIf { it.isNotBlank() }?.let(ImportKind::valueOf), item.optString("source"),
                 if (item.isNull("dual")) null else item.getBoolean("dual"), item.optInt("channels", 1), item.optString("recordKey").takeIf { it.isNotBlank() },
                 item.optString("recordName").takeIf { it.isNotBlank() }, if (item.isNull("recordStart")) null else item.getLong("recordStart"),
                 if (item.isNull("recordEnd")) null else item.getLong("recordEnd"), item.optString("fingerprint").takeIf { it.isNotBlank() })
-        }.filter { runCatching { UUID.fromString(it.pending.id) }.isSuccess }.toMutableList()
+        }.filter { runCatching { UUID.fromString(it.pending.id) }.onFailure {
+            FailureNotes.record("importer/AndroidAudioImporter.kt:44", it)
+        }.isSuccess }.toMutableList()
+    }.onFailure {
+        FailureNotes.record("importer/AndroidAudioImporter.kt:33", it)
     }.getOrDefault(mutableListOf())
     private val _pending = MutableStateFlow(entries.filter { it.startAt == null }.map { it.pending })
     override val pending = _pending.asStateFlow()
@@ -49,7 +59,9 @@ class AndroidAudioImporter internal constructor(
     init {
         scope.launch(Dispatchers.IO) {
             for (command in commands) try { command() }
-            catch (_: Exception) { reportError("导入队列保存失败，请重新打开${appDisplayName}重试") }
+            catch (caught: Exception) {
+                FailureNotes.record("importer/AndroidAudioImporter.kt:56", caught)
+                reportError("导入队列保存失败，请重新打开${appDisplayName}重试") }
         }
         File(context.cacheDir, "import-pcm").deleteRecursively()
         // 仅清理未被登记的半份复制；已排队缓存若被系统回收，由 worker 给出明确错误。
@@ -164,8 +176,8 @@ class AndroidAudioImporter internal constructor(
     }
 
     override fun start(id: String, startAt: Long) = start(id, startAt, null)
-    override fun start(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?) = startKind(id, startAt, asr, ImportKind.Normal)
-    internal fun startKind(id: String, startAt: Long, asr: app.resound.transcribe.TranscribeSource?, kind: ImportKind) {
+    override fun start(id: String, startAt: Long, asr: TranscribeSource?) = startKind(id, startAt, asr, ImportKind.Normal)
+    internal fun startKind(id: String, startAt: Long, asr: TranscribeSource?, kind: ImportKind) {
         commands.trySend command@{
             try {
                 synchronized(this@AndroidAudioImporter) {
@@ -177,10 +189,12 @@ class AndroidAudioImporter internal constructor(
                 }
                 rememberQueued()
                 enqueue()
-            } catch (_: Exception) { reportError("导入排队失败，请重新打开${appDisplayName}重试") }
+            } catch (caught: Exception) {
+                FailureNotes.record("importer/AndroidAudioImporter.kt:184", caught)
+                reportError("导入排队失败，请重新打开${appDisplayName}重试") }
         }
     }
-    internal fun startBatch(groups: List<List<ImportKindPolicy.BatchFile>>, asr: app.resound.transcribe.TranscribeSource?, kind: ImportKind) {
+    internal fun startBatch(groups: List<List<ImportKindPolicy.BatchFile>>, asr: TranscribeSource?, kind: ImportKind) {
         commands.trySend command@{
             synchronized(this@AndroidAudioImporter) {
                 if (groups.flatten().any { f -> entries.none { it.pending.id == f.id && it.startAt == null } }) return@command

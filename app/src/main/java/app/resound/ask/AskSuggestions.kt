@@ -1,4 +1,7 @@
 package app.resound.ask
+
+import app.resound.platform.NowMillis
+import app.resound.platform.ZoneProvider
 import android.content.SharedPreferences
 import java.time.ZoneId
 import app.resound.ask.core.AskSuggestionsCore
@@ -18,7 +21,7 @@ class AskSuggestions(
         override fun questions() = prefs.getString("questions", "[]") ?: "[]"
         override fun reserve(day: String, count: Int, at: Long) = prefs.edit().putString("day", day).putInt("count", count).putLong("at", at).commit()
         override fun save(questions: String) = prefs.edit().putString("questions", questions).commit()
-    }, hasKey, recent, generate, app.resound.platform.NowMillis(now), app.resound.platform.ZoneProvider { zone.id })
+    }, hasKey, recent, generate, NowMillis(now), ZoneProvider { zone.id })
     val questions = core.questions
     suspend fun refresh() = core.refresh()
     companion object { val EXAMPLES = AskSuggestionsCore.EXAMPLES }

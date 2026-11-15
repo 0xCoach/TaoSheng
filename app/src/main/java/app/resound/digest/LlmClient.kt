@@ -1,5 +1,18 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.diagnostics.LlmDiagnostics
+import app.resound.diagnostics.LlmResponseTrace
+import app.resound.net.NetLlmClient
+import app.resound.net.NetLlmException
+import app.resound.net.NetworkTrace
+import app.resound.net.androidNetwork
+import app.resound.net.defaultAndroidHttp
+import app.resound.transcribe.EndpointKind
+import app.resound.transcribe.OpenAiEndpoint
+import app.resound.transcribe.modelServiceError
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -23,42 +36,44 @@ class LlmException(val type: LlmError, val status: Int = 0, val detail: String =
     }
 }
 
-data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: app.resound.diagnostics.LlmResponseTrace? = null)
+data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: LlmResponseTrace? = null)
 /** 400 类拒收：换个时间重发同样内容也不会成功。 */
 val LlmException.rejected: Boolean get() = type == LlmError.Server && status in LlmClient.REJECTED_STATUS
 
 
 /** 安卓兼容入口；业务 JSON、SSE 与 HTTP 规则在 shared。 */
 class LlmClient(
-    private val http: OkHttpClient = app.resound.net.defaultAndroidHttp.newBuilder()
+    private val http: OkHttpClient = defaultAndroidHttp.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
     private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
-    private val diagnostics: app.resound.diagnostics.LlmDiagnostics? = null,
+    private val diagnostics: LlmDiagnostics? = null,
 ) {
     private suspend fun network(preset: LlmPreset): io.ktor.client.HttpClient {
         if (preset.baseUrl.isBlank() || preset.model.isBlank()) throw LlmException(LlmError.Format)
-        return app.resound.net.androidNetwork(http.newBuilder().followRedirects(false).followSslRedirects(false)
+        return androidNetwork(http.newBuilder().followRedirects(false).followSslRedirects(false)
             .connectTimeout(10, TimeUnit.SECONDS).apply {
-                if (app.resound.transcribe.OpenAiEndpoint.kind(preset.baseUrl) == app.resound.transcribe.EndpointKind.LocalHttp)
+                if (OpenAiEndpoint.kind(preset.baseUrl) == EndpointKind.LocalHttp)
                     readTimeout(maxOf(http.readTimeoutMillis.toLong(), 180_000), TimeUnit.MILLISECONDS)
             }.build())
     }
-    private fun core(client: io.ktor.client.HttpClient, preset: LlmPreset) = app.resound.net.NetLlmClient(client,
-        app.resound.transcribe.OpenAiEndpoint.bases(preset.baseUrl),http.callTimeoutMillis.toLong()) { error ->
-        app.resound.transcribe.modelServiceError(preset.baseUrl, error, LlmError.Network.human)
+    private fun core(client: io.ktor.client.HttpClient, preset: LlmPreset) = NetLlmClient(client,
+        OpenAiEndpoint.bases(preset.baseUrl),http.callTimeoutMillis.toLong()) { error ->
+        modelServiceError(preset.baseUrl, error, LlmError.Network.human)
     }
-    private fun trace(value: app.resound.diagnostics.LlmResponseTrace?) = value?.let { t -> object : app.resound.net.NetworkTrace {
+    private fun trace(value: LlmResponseTrace?) = value?.let { t -> object : NetworkTrace {
         override fun http(status: Int) = t.http(status)
         override fun content(text: String) = t.content(text)
         override fun finishReason(reason: String?) = t.finishReason(reason)
     } }
-    private fun error(e: app.resound.net.NetLlmException): LlmException {
+    private fun error(e: NetLlmException): LlmException {
         val type = LlmError.valueOf(e.type.name)
         return LlmException(type, e.status, e.detail ?: type.human, e.usage?.let { LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated)
     }
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
-        val t = kotlin.coroutines.coroutineContext[app.resound.diagnostics.LlmResponseTrace]
-            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
+        val t = kotlin.coroutines.coroutineContext[LlmResponseTrace]
+            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.onFailure {
+                FailureNotes.record("digest/LlmClient.kt:72", it)
+            }.getOrNull()
         try {
             if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
             val client = network(preset)
@@ -66,21 +81,23 @@ class LlmClient(
             t?.complete()
             LlmReply(reply.content, reply.promptTokens, reply.completionTokens, diagnostics = t)
         } catch (e: Throwable) {
-            val safe = if (e is app.resound.net.NetLlmException) error(e) else e
+            val safe = if (e is NetLlmException) error(e) else e
             t?.complete(safe); throw safe
         }
     }
     suspend fun streamChat(preset: LlmPreset, key: String, messages: JSONArray, tools: JSONArray,
         onText: (String) -> Unit, onUsage: (Long, Long) -> Unit, allowTools: Boolean = true): LlmStreamReply {
-        val t = kotlin.coroutines.coroutineContext[app.resound.diagnostics.LlmResponseTrace]
-            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
+        val t = kotlin.coroutines.coroutineContext[LlmResponseTrace]
+            ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.onFailure {
+                FailureNotes.record("digest/LlmClient.kt:87", it)
+            }.getOrNull()
         try {
             val client = network(preset)
             val r = core(client, preset).stream(preset, key, requestHeaders(preset), messages.toString(), tools.toString(), onText, onUsage, allowTools, trace(t))
             t?.content(r.content); t?.complete()
             return LlmStreamReply(r.content, r.calls.map { LlmToolCall(it.id, it.name, it.arguments, it.extraContent?.let(::JSONObject)) }, r.reasoningContent, t)
         } catch(e: Throwable) {
-            val safe = if (e is app.resound.net.NetLlmException) error(e) else e
+            val safe = if (e is NetLlmException) error(e) else e
             t?.complete(safe); throw safe
         }
     }

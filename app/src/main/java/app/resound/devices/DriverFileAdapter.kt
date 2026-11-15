@@ -1,5 +1,7 @@
 package app.resound.devices
 
+import app.resound.devices.driver.ChecksumAlgo
+
 import app.resound.devices.driver.AudioFileFormat
 import app.resound.devices.driver.DeviceException
 import app.resound.devices.driver.DeviceFiles
@@ -41,7 +43,7 @@ internal class DriverFileAdapter(override val id: String, private val files: Dev
     override suspend fun delete(link: DeviceLink, file: DeviceFile) = files.delete(original(file))
     override suspend fun checksum(link: DeviceLink, file: DeviceFile) = original(file).checksum
     override fun checksumAlgorithm(file: DeviceFile) = when (files.caps.checksum) {
-        app.resound.devices.driver.ChecksumAlgo.Sha256 -> "SHA-256"
+        ChecksumAlgo.Sha256 -> "SHA-256"
         else -> null
     }
 }

@@ -1,5 +1,7 @@
 package app.resound.devices
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.CaptureDatabase
 import app.resound.data.EventEntity
 import app.resound.importer.audioFingerprint
@@ -93,10 +95,14 @@ internal class DeviceSync(
                         mutableProgress.value = mutableProgress.value?.let { it.copy(doneFiles = it.doneFiles + 1) }
                     }
                     catch (e: CancellationException) { throw e }
-                    catch (_: Exception) { problem("设备文件补传失败，已保留源文件，重连后可重试") }
+                    catch (caught: Exception) {
+                        FailureNotes.record("devices/DeviceSync.kt:96", caught)
+                        problem("设备文件补传失败，已保留源文件，重连后可重试") }
                 }
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { problem("设备文件列表或连接失败，已保留源文件") }
+            catch (caught: Exception) {
+                FailureNotes.record("devices/DeviceSync.kt:99", caught)
+                problem("设备文件列表或连接失败，已保留源文件") }
             finally { mutableProgress.value = null }
         } }
 

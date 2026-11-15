@@ -1,5 +1,13 @@
 package app.resound.skills
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.appDisplayName
+import app.resound.envsound.EnvSoundPresentation
+import app.resound.skills.core.SkillCallException
+import app.resound.skills.core.SkillModel
+import app.resound.skills.core.SkillReply
+
 import app.resound.data.MemoryDao
 import app.resound.digest.*
 import app.resound.push.*
@@ -28,13 +36,13 @@ class LocalSkillRepository(
     io: CoroutineDispatcher,
 ) : SkillRepository {
     private val store = SkillStoreRepository(files, dao, memory, scope,
-        { model(it, request) }, { model(null, draftRequest) }, RoomSkillRunStore(dao), hotwords, { app.resound.appDisplayName },
+        { model(it, request) }, { model(null, draftRequest) }, RoomSkillRunStore(dao), hotwords, { appDisplayName },
         { title, body, link -> notifier.send(title, body, link, PushTopic.SkillCard) }, SkillCardPush::body, schedule, now,
         generation?.let { g -> { id, date -> g.generate(id, date.toJavaLocalDate()) } },
         generation?.generating ?: MutableStateFlow(emptySet<Pair<String, kotlinx.datetime.LocalDate>>()).asStateFlow(),
         generation?.generated ?: MutableStateFlow(emptyMap<Pair<String, kotlinx.datetime.LocalDate>, SkillRunResult>()).asStateFlow(),
-        beforeWeeklyReview, app.resound.envsound.EnvSoundPresentation::changes, { it.card() },
-        app.resound.envsound.EnvSoundPresentation::decorate, io)
+        beforeWeeklyReview, EnvSoundPresentation::changes, { it.card() },
+        EnvSoundPresentation::decorate, io)
     override val skills get() = store.skills
     override val status get() = store.status
     override val generating get() = store.generating
@@ -67,16 +75,18 @@ class LocalSkillRepository(
     override fun deleteMine(skillId: String) = store.deleteMine(skillId)
     override fun deleteCard(id: Long) = store.deleteCard(id)
     override suspend fun draft(conversation: List<DraftTurn>) = store.draft(conversation)
-    private fun model(presetId: String?, call: suspend (LlmPreset,String,String,String) -> LlmReply): app.resound.skills.core.SkillModel {
+    private fun model(presetId: String?, call: suspend (LlmPreset,String,String,String) -> LlmReply): SkillModel {
         val (preset, key) = credentials(presetId)
-        return object : app.resound.skills.core.SkillModel {
+        return object : SkillModel {
             override val ready = !(key.isBlank() && !preset.allowsEmptyKey() && !hasBackup(preset))
-            override suspend fun request(system: String,user: String): app.resound.skills.core.SkillReply {
+            override suspend fun request(system: String,user: String): SkillReply {
                 val reply = try { call(preset,key,system,user) }
-                catch (e: LlmException) { throw app.resound.skills.core.SkillCallException(e.type.name,e.type.human,e.detail) }
+                catch (e: LlmException) { throw SkillCallException(e.type.name,e.type.human,e.detail) }
                 // 先归还成功调用以记用量；坏 JSON 保留给共用解析器报格式错。
-                val content = runCatching { org.json.JSONObject(reply.content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()).toString() }.getOrDefault(reply.content)
-                return app.resound.skills.core.SkillReply(content,reply.promptTokens,reply.completionTokens)
+                val content = runCatching { org.json.JSONObject(reply.content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()).toString() }.onFailure {
+                    FailureNotes.record("skills/LocalSkillRepository.kt:84", it)
+                }.getOrDefault(reply.content)
+                return SkillReply(content,reply.promptTokens,reply.completionTokens)
             }
         }
     }

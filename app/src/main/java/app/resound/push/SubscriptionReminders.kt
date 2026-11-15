@@ -1,5 +1,8 @@
 package app.resound.push
 
+import app.resound.OutputTime
+import app.resound.data.MemoryItemEntity
+
 import app.resound.digest.AppointmentReminders
 import org.json.JSONObject
 import java.time.ZoneId
@@ -10,13 +13,13 @@ internal object SubscriptionReminders {
     fun candidates(data: PushSnapshot, s: PushSubscription, sent: JSONObject,
                    settings: AppointmentReminders = AppointmentReminders(),
                    zone: ZoneId = ZoneId.systemDefault(), now: Long = System.currentTimeMillis()): List<SubscriptionReminder> {
-        val outputTime = app.resound.OutputTime(zone)
+        val outputTime = OutputTime(zone)
         val events = data.events.filter { !it.deleted && (!s.excludeMedia || it.scene !in setOf("媒体")) }
         val ids = events.map { it.id }.toSet()
         val items = data.items.filter { !it.deleted && (it.eventId == null || it.eventId in ids) && it.mergedInto == null && it.status == "Accepted" }
         val timed = items.filter { it.category in setOf("待办", "约定") && it.dueAt != null }
         // 记下（或改过、接受）这一条之前就已经过去的提醒时刻不再补发：如 5 分钟后的事，不该立刻弹“1 小时后开始”
-        fun known(it: app.resound.data.MemoryItemEntity) = maxOf(it.createdAt, it.editedAt ?: 0L, it.statusChangedAt ?: 0L)
+        fun known(it: MemoryItemEntity) = maxOf(it.createdAt, it.editedAt ?: 0L, it.statusChangedAt ?: 0L)
         fun identity(id: Long, due: Long?, version: Long) = if (version == 0L) "$id:$due" else "$id:$due:$version"
         val due = timed.filter { it.dueAt!! >= known(it) }.map {
             // 只有日期没有钟点的，手机上别半夜 0 点弹，改成当天早上 9 点

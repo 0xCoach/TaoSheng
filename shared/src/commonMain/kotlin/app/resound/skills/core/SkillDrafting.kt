@@ -1,5 +1,7 @@
 package app.resound.skills.core
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.skills.*
 import app.resound.platform.NowMillis
 import kotlinx.coroutines.CancellationException
@@ -24,7 +26,9 @@ object SkillDrafting {
             } catch (e: CancellationException) { throw e }
             catch (e: SkillCallException) {
                 if (e.kind != "Format") return Result.failure(IllegalStateException(e.detail))
-            } catch (_: Exception) { /* 模型输出不合格式，重试一次 */ }
+            } catch (caught: Exception) {
+                FailureNotes.record("skills/core/SkillDrafting.kt:27", caught)
+                /* 模型输出不合格式，重试一次 */ }
         }
         return Result.failure(IllegalStateException("没生成成功，换个说法再试一次"))
     }

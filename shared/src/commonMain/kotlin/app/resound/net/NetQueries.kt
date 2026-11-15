@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.HeaderEntry
 import app.resound.transcribe.*
 import io.ktor.client.HttpClient
@@ -18,7 +20,9 @@ object BalanceRules {
         return NetBalance(num("total_balance"), num("granted_balance"), num("topped_up_balance"), pick.optString("currency", "CNY"), json.optBoolean("is_available", true))
     }
     fun pick(body: String, path: String): Double {
-        var node = runCatching { SharedJson.parseToJsonElement(body) }.getOrNull()?.takeIf { it is JsonObject || it is JsonArray } ?: error("返回的不是 JSON")
+        var node = runCatching { SharedJson.parseToJsonElement(body) }.onFailure {
+            FailureNotes.record("net/NetQueries.kt:21", it)
+        }.getOrNull()?.takeIf { it is JsonObject || it is JsonArray } ?: error("返回的不是 JSON")
         for (part in path.split('.').filter { it.isNotBlank() }) node = when(val n = node) {
             is JsonObject -> n[part] ?: error("返回结果里没有“$part”")
             is JsonArray -> part.toIntOrNull()?.let { n.getOrNull(it) } ?: error("“$part”不是有效的序号")
@@ -28,7 +32,9 @@ object BalanceRules {
     }
 }
 suspend fun queryBalance(client: HttpClient, url: String, key: String, headers: List<HeaderEntry>, path: String?): NetBalance {
-    val parsed = runCatching { Url(url) }.getOrElse { error("查询地址格式不对") }
+    val parsed = runCatching { Url(url) }.onFailure {
+        FailureNotes.record("net/NetQueries.kt:31", it)
+    }.getOrElse { error("查询地址格式不对") }
     require(parsed.protocol.name in setOf("http", "https") && parsed.user.isNullOrEmpty() && parsed.password.isNullOrEmpty() && '?' !in url && '#' !in url)
     val requestHeaders = networkHeaders(key, listOf(HeaderEntry("Accept", "application/json")) + headers)
     return client.consume(url, requestHeaders) { r ->

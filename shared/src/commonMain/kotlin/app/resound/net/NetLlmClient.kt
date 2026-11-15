@@ -1,5 +1,7 @@
 package app.resound.net
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.digest.LlmPreset
 import app.resound.digest.HeaderEntry
 import io.ktor.client.HttpClient
@@ -40,7 +42,9 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
                     if (response.status.value in setOf(404, 405) && index < bases.lastIndex) return@consume null
                     trace?.http(response.status.value)
                     val raw = response.bodyAsText(); trace?.content(raw)
-                    val json = runCatching { Obj(raw) }.getOrNull()
+                    val json = runCatching { Obj(raw) }.onFailure {
+                        FailureNotes.record("net/NetLlmClient.kt:43", it)
+                    }.getOrNull()
                     val usage = json?.optJSONObject("usage")?.let { NetReply("", it.optLong("prompt_tokens"), it.optLong("completion_tokens")) }
                     if (response.status.value !in 200..299) throw httpError(response.status.value, usage, raw)
                     trace?.finishReason(json?.optJSONArray("choices")?.optJSONObject(0)?.optString("finish_reason")?.takeUnless { it == "null" })
@@ -72,7 +76,9 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
                     if (status in setOf(404, 405) && index < bases.lastIndex) return@consume null
                     trace?.http(status)
                     if (status !in 200..299) {
-                        runCatching { Obj(response.bodyAsText()).optJSONObject("usage") }.getOrNull()?.let { onUsage(it.optLong("prompt_tokens"), it.optLong("completion_tokens")) }
+                        runCatching { Obj(response.bodyAsText()).optJSONObject("usage") }.onFailure {
+                            FailureNotes.record("net/NetLlmClient.kt:75", it)
+                        }.getOrNull()?.let { onUsage(it.optLong("prompt_tokens"), it.optLong("completion_tokens")) }
                         throw httpError(status)
                     }
                     val context = currentCoroutineContext()
@@ -94,7 +100,9 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
         } catch (e: CancellationException) { throw e }
         catch (e: NetLlmException) { throw e }
         catch (e: IOException) { throw NetLlmException(NetLlmError.Network, detail = networkError(e)) }
-        catch (_: Exception) { throw NetLlmException(NetLlmError.Format) }
+        catch (caught: Exception) {
+            FailureNotes.record("net/NetLlmClient.kt:97", caught)
+            throw NetLlmException(NetLlmError.Format) }
     }
     /** LLM 的路径探测共用一次 call deadline，不能每换一次路径就重新计时。 */
     private suspend fun <T> deadline(block: suspend () -> T): T = try {

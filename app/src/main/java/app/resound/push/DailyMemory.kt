@@ -1,5 +1,11 @@
 package app.resound.push
 
+import app.resound.digest.ItemOrigin
+import app.resound.envsound.EnvSoundPresentation
+import app.resound.platform.SharedJson
+import app.resound.platform.SystemZone
+import app.resound.transcribe.VoiceInputMetadata
+
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toKotlinLocalDate
 import android.content.Context
@@ -22,15 +28,17 @@ internal suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdow
     val data = JSONObject()
         .put("review", review?.let { JSONObject().put("brief", it.brief).put("sections", it.pushJson().getJSONArray("sections")) } ?: JSONObject.NULL)
         .put("events", JSONArray(input.events.mapNotNull { e -> localRecord("event", e.id) { JSONObject().put("id", e.id).put("start", e.startAt).put("end", e.endAt)
-            .put("title", e.title).put("summary", app.resound.envsound.EnvSoundPresentation.append(e.summary, e.id)).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put("important", e.important).put("starred", e.starred) } }))
+            .put("title", e.title).put("summary", EnvSoundPresentation.append(e.summary, e.id)).put("scene", e.scene).put("people", JSONArray(e.peopleJson)).put(
+                "important", e.important).put("starred", e.starred) } }))
         .put("items", JSONArray(input.items.filter { it.status != "Ignored" }.map { i -> JSONObject().put("id", i.id).put("category", i.category)
             .put("kind", i.kind ?: JSONObject.NULL).put("content", i.content).put("due", i.dueAt ?: i.dueText ?: JSONObject.NULL)
             .put("who", i.who ?: JSONObject.NULL).put("status", i.status) }))
         .put("cards", JSONArray(cards.map { c -> JSONObject().put("skill", c.skillName).put("title", c.title).put("summary", c.summary)
             .put("at", c.at).put("values", SkillJson.values(c.values)) }))
         .apply { if (lines != null) put("lines", JSONArray(lines.map { l -> JSONObject().put("id", l.id).put("at", l.startAt)
-            .put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { app.resound.transcribe.VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input", app.resound.transcribe.VoiceInputMetadata.json(it, lineContext)) } } })) }
-    fun element(key: String) = app.resound.platform.SharedJson.parseToJsonElement(data.get(key).toString())
+            .put("speaker", l.speakerName ?: l.speakerTag ?: "某人").put("text", l.text).apply { VoiceInputMetadata.read(l.voiceInputJson)?.let { put("voice_input",
+                VoiceInputMetadata.json(it, lineContext)) } } })) }
+    fun element(key: String) = SharedJson.parseToJsonElement(data.get(key).toString())
     return JSONObject(PushBodyRules.dailyMemory(date.toString(), generatedAt, markdown, element("review"),
         element("events") as kotlinx.serialization.json.JsonArray, element("items") as kotlinx.serialization.json.JsonArray,
         element("cards") as kotlinx.serialization.json.JsonArray,
@@ -57,7 +65,8 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         }
         override fun dayItems(date: kotlinx.datetime.LocalDate) = flow {
             val rows = input(date.toJavaLocalDate()).items.filter { it.status != "Ignored" }.map { i -> MemoryItem(i.id, i.eventId, i.category, i.kind, i.content,
-                i.dueText, i.dueAt, i.who, ItemStatus.valueOf(i.status), i.lineId, i.createdAt, i.doneAt, origin = app.resound.digest.ItemOrigin.entries.firstOrNull { it.name.equals(i.origin, true) } ?: app.resound.digest.ItemOrigin.Digest, sourceText = i.sourceText) }
+                i.dueText, i.dueAt, i.who, ItemStatus.valueOf(i.status), i.lineId, i.createdAt, i.doneAt, origin = ItemOrigin.entries.firstOrNull { it.name.equals(i
+                    .origin, true) } ?: ItemOrigin.Digest, sourceText = i.sourceText) }
             emit(DayItems(rows.filter { it.category in setOf("待办", "约定", "备忘") }, emptyList(), emptyList(),
                 rows.filter { it.category !in setOf("待办", "约定", "备忘") }))
         }
@@ -65,7 +74,7 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
     private val safeReviews = object : ReviewRepository by reviews {
         override fun daily(date: kotlinx.datetime.LocalDate) = flow { emit(localRecord("review", date.toEpochDays().toLong()) { reviews.daily(date).first() }) }
     }
-    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, app.resound.platform.SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards) { date ->
+    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards) { date ->
         window(date).let { (start, end) -> (start + 1) to (end + 1) }
     }
     suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {
@@ -91,7 +100,8 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
             val date = time.toLocalDate()
             if (time.isAfter(ReviewTime.cutoff(date, reviews.state.value.dailyAtMinutes, zone))) date.plusDays(1) else date
         }
-        return listOfNotNull(latest, skills.latestCardDate()?.let(LocalDate::ofEpochDay), reviewDao.recent().first().mapNotNull { row -> localRecord("review", row.id) { LocalDate.parse(row.startDate) } }.maxOrNull()).maxOrNull()
+        return listOfNotNull(latest, skills.latestCardDate()?.let(LocalDate::ofEpochDay), reviewDao.recent().first().mapNotNull { row -> localRecord("review", row
+            .id) { LocalDate.parse(row.startDate) } }.maxOrNull()).maxOrNull()
     }
     private fun strings(text: String): List<String> = JSONArray(text).let { a -> List(a.length()) { a.getString(it) } }
 }

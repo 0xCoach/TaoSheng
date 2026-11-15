@@ -1,5 +1,7 @@
 package app.resound.devices.android
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.devices.driver.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,5 +31,7 @@ internal object DeviceStatusCache {
         val storage=json.optJSONObject("storage")?.let { StorageInfo(it.longOrNull("total"),it.longOrNull("free"),it.longOrNull("unconfirmed")) }
         val recording=json.optString("recording").takeIf { it.isNotEmpty() }?.let(RecordingState::valueOf)
         DeviceStatusModel(batteries,storage,recording)
+    }.onFailure {
+        FailureNotes.record("devices/android/DeviceStatusCache.kt:18", it)
     }.getOrNull()
 }

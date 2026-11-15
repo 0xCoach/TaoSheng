@@ -1,5 +1,7 @@
 package app.resound.devices
 
+import app.resound.diagnostics.FailureNotes
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.*
@@ -32,6 +34,8 @@ internal class AndroidPairedDeviceStore(private val prefs: SharedPreferences) : 
                 if (row.has("gapStart")) row.getLong("gapStart") else null,
                 if (row.has("clockOffset")) row.getLong("clockOffset") else null)
         }.filter { BluetoothAdapter.checkBluetoothAddress(it.address) }.distinctBy { it.address }
+    }.onFailure {
+        FailureNotes.record("devices/AndroidDevices.kt:28", it)
     }.getOrDefault(emptyList())
     override fun write(devices: List<RememberedDevice>) {
         val rows = JSONArray()

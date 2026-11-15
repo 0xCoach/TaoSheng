@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.voiceprint.*
@@ -83,7 +85,9 @@ internal class ImportSpeakers(
             }
             null
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { "声纹合并暂不可用，已保留原分人结果，未强行合并为两人" }
+        catch (caught: Exception) {
+            FailureNotes.record("importer/ImportSpeakers.kt:86", caught)
+            "声纹合并暂不可用，已保留原分人结果，未强行合并为两人" }
         finally { (model as? AutoCloseable)?.close() }
     }
 }

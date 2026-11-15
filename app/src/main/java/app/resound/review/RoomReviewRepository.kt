@@ -1,5 +1,7 @@
 package app.resound.review
 
+import app.resound.envsound.EnvSoundPresentation
+
 import android.content.SharedPreferences
 import app.resound.data.*
 import app.resound.digest.*
@@ -30,8 +32,8 @@ class RoomReviewRepository(
         { dailyMemory(it.toJavaLocalDate()) }, beforeReview, hasBackup, LlmPreset::allowsEmptyKey, LlmInputBudget::inputChars,
         { (it as? LlmException)?.let { e -> ReviewFailure(e.detail, e.type.retryable) } },
         if (work == null) null else { date -> generation!!.generate(date.toJavaLocalDate()) },
-        { generation?.isActive() == true }, app.resound.envsound.EnvSoundPresentation::changes,
-        app.resound.envsound.EnvSoundPresentation::decorate,
+        { generation?.isActive() == true }, EnvSoundPresentation::changes,
+        EnvSoundPresentation::decorate,
         { prefs.edit().putInt("dailyAtMinutes", it).apply() }, { prefs.edit().putBoolean("pushEnabled", it).apply() },
         { message, date -> prefs.edit().putString("lastError", message).putString("lastErrorDate", date).apply() })
     init {

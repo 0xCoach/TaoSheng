@@ -1,5 +1,7 @@
 package app.resound.location
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.location.Places.toPlace
 import java.time.Instant
 import java.time.LocalDate
@@ -91,7 +93,9 @@ object FootprintReports {
         val names = HashMap<String, Place?>()
         for (s in stays) {
             val key = Places.cell(s.lat, s.lng)
-            if (key !in names) names[key] = runCatching { repo.places.resolve(s.lat, s.lng) }.getOrNull()
+            if (key !in names) names[key] = runCatching { repo.places.resolve(s.lat, s.lng) }.onFailure {
+                FailureNotes.record("location/FootprintReport.kt:94", it)
+            }.getOrNull()
         }
         val end = minOf(now, date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
         return render(date, zone, points, end,

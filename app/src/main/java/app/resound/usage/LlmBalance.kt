@@ -1,5 +1,10 @@
 package app.resound.usage
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.net.androidNetwork
+import app.resound.net.queryBalance
+
 import app.resound.digest.HeaderEntry
 import android.content.SharedPreferences
 import app.resound.digest.AndroidLlmProviders
@@ -65,7 +70,9 @@ class LlmBalanceChecker(
         require(key.isNotBlank() || providers.hasHeaderAuth(providers.activeId.value))
         Result.success(fetch(BalanceSource(url.trim(), key, path.trim().ifBlank { null }, providers.requestHeaders(providers.credentials().first))))
     } catch (e: CancellationException) { throw e }
-    catch (_: Exception) { Result.failure(IllegalStateException("余额测试失败，请检查地址、字段和密钥")) }
+    catch (caught: Exception) {
+        FailureNotes.record("usage/LlmBalance.kt:71", caught)
+        Result.failure(IllegalStateException("余额测试失败，请检查地址、字段和密钥")) }
 
     fun setThreshold(yuan: Double) = synchronized(providers.guard) {
         require(yuan.isFinite())
@@ -106,21 +113,25 @@ class LlmBalanceChecker(
                 if (synchronized(providers.guard) { token == generation && id == providers.activeId.value }) {
                     try { alert(b, line) }
                     catch (e: CancellationException) { throw e }
-                    catch (_: Exception) { prefs.edit().putBoolean("alerted-$id", false).apply() }
+                    catch (caught: Exception) {
+                        FailureNotes.record("usage/LlmBalance.kt:112", caught)
+                        prefs.edit().putBoolean("alerted-$id", false).apply() }
                 }
             }
         } catch (e: CancellationException) {
             synchronized(providers.guard) { if (token == generation) _state.value = _state.value.copy(loading = false) }
             throw e
-        } catch (_: Exception) {
+        } catch (caught: Exception) {
+            FailureNotes.record("usage/LlmBalance.kt:118", caught)
+
             synchronized(providers.guard) { if (token == generation) _state.value = _state.value.copy(loading = false, error = "余额查询失败，请检查配置和网络") }
         }
     }
 
     internal suspend fun fetch(src: BalanceSource): LlmBalance {
-        val network = app.resound.net.androidNetwork(http)
+        val network = androidNetwork(http)
         run {
-            val b = app.resound.net.queryBalance(network, src.url, src.key, src.headers, src.path)
+            val b = queryBalance(network, src.url, src.key, src.headers, src.path)
             return LlmBalance(b.total, b.granted, b.toppedUp, b.currency, b.available, now())
         }
     }
@@ -130,6 +141,8 @@ class LlmBalanceChecker(
             LlmBalance(o.getDouble("total"), o.optDouble("granted").takeIf { it.isFinite() }, o.optDouble("toppedUp").takeIf { it.isFinite() },
                 o.getString("currency"), o.getBoolean("available"), o.getLong("at"))
         }
+    }.onFailure {
+        FailureNotes.record("usage/LlmBalance.kt:130", it)
     }.getOrNull()
 
     companion object {
@@ -149,7 +162,11 @@ class LlmBalanceChecker(
 
         /** 按路径取数：a.b.0.c；数或数字字符串都行 */
         fun pick(body: String, path: String): Double {
-            var node: Any? = runCatching { JSONObject(body) }.getOrNull() ?: runCatching { org.json.JSONArray(body) }.getOrNull() ?: error("返回的不是 JSON")
+            var node: Any? = runCatching { JSONObject(body) }.onFailure {
+                FailureNotes.record("usage/LlmBalance.kt:155", it)
+            }.getOrNull() ?: runCatching { org.json.JSONArray(body) }.onFailure {
+                FailureNotes.record("usage/LlmBalance.kt:155", it)
+            }.getOrNull() ?: error("返回的不是 JSON")
             for (part in path.split('.').filter { it.isNotBlank() }) {
                 node = when (val n = node) {
                     is JSONObject -> if (n.has(part)) n.get(part) else error("返回结果里没有“$part”")
@@ -162,7 +179,9 @@ class LlmBalanceChecker(
 
         /** 常见服务的余额接口，按模型地址自动填；拿不准的让用户自己填 */
         fun suggest(base: String): Pair<String, String>? {
-            val host = runCatching { java.net.URI(base.trim()).host }.getOrNull() ?: return null
+            val host = runCatching { java.net.URI(base.trim()).host }.onFailure {
+                FailureNotes.record("usage/LlmBalance.kt:168", it)
+            }.getOrNull() ?: return null
             return when {
                 host == "api.moonshot.cn" -> "https://api.moonshot.cn/v1/users/me/balance" to "data.available_balance"
                 host == "api.deepseek.com" -> "https://api.deepseek.com/user/balance" to "balance_infos.0.total_balance"
@@ -171,6 +190,8 @@ class LlmBalanceChecker(
         }
 
         /** 只认 DeepSeek 官方地址 */
-        fun isDeepSeek(base: String) = runCatching { java.net.URI(base.trim()).host == "api.deepseek.com" }.getOrDefault(false)
+        fun isDeepSeek(base: String) = runCatching { java.net.URI(base.trim()).host == "api.deepseek.com" }.onFailure {
+            FailureNotes.record("usage/LlmBalance.kt:177", it)
+        }.getOrDefault(false)
     }
 }

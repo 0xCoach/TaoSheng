@@ -1,5 +1,11 @@
 package app.resound.voiceprint
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.transcribe.AsrPart
+import app.resound.transcribe.cleanupImportedAudio
+import app.resound.transcribe.measureAsr
+
 import app.resound.data.writeTransaction
 import app.resound.data.*
 import app.resound.transcribe.TranscribePolicy
@@ -55,7 +61,9 @@ class LocalVoiceprintRepository(
             val value = validName(name)
             dao.insertPerson(VoiceprintPersonEntity(name = value, createdAt = now())).also { revision++ }
         } }) } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.failure(IllegalArgumentException("请使用不重复的 1–30 字人物名")) }
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:62", caught)
+            Result.failure(IllegalArgumentException("请使用不重复的 1–30 字人物名")) }
     }
     private fun validName(name: String): String = name.trim().also {
         require(it.isNotBlank() && it.length <= 30 && it != "我") { "请填写 1–30 字且不重复的人物名" }
@@ -170,7 +178,9 @@ class LocalVoiceprintRepository(
         scope.launch(Dispatchers.IO) {
             try { actions.withLock { error.value = null; block() }; schedule() }
             catch (e: CancellationException) { throw e }
-            catch (_: Exception) { error.value = "声纹操作未完成：请检查名字是否重复、录音是否可用后重试" }
+            catch (caught: Exception) {
+                FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:177", caught)
+                error.value = "声纹操作未完成：请检查名字是否重复、录音是否可用后重试" }
         }
     }
     private data class Group(
@@ -214,7 +224,9 @@ class LocalVoiceprintRepository(
             schedule()
             Result.success(Unit)
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.failure(IllegalArgumentException("保存未完成，请检查名字和原话后重试")) }
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:221", caught)
+            Result.failure(IllegalArgumentException("保存未完成，请检查名字和原话后重试")) }
     }
     private suspend fun assign(lineId: Long, personId: Long) {
         val personName = if (personId == 0L) "我" else requireNotNull(dao.people().find { it.id == personId }).name
@@ -313,7 +325,9 @@ class LocalVoiceprintRepository(
             schedule()
             Result.success(Unit)
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:320", caught)
+
             error.value = "录入失败：需要至少 1.5 秒有效人声，请重新录制"
             Result.failure(IllegalArgumentException(error.value))
         }
@@ -328,7 +342,7 @@ class LocalVoiceprintRepository(
     suspend fun hasPending(): Boolean = dao.pending().any { (it.separateSpeakers != false || (it.importChannel != null && it.speakerCount != 0)) }
 
     suspend fun runSegment(segmentId: Long): Boolean = withContext(Dispatchers.IO) {
-        app.resound.transcribe.measureAsr(app.resound.transcribe.AsrPart.Voiceprint) { rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) } }
+        measureAsr(AsrPart.Voiceprint) { rounds.withLock { process(db.transcribe().exportSegments(listOf(segmentId)).map { it.segment }) } }
     }
     data class SampleHealth(val sampleId: Long, val automatic: Boolean, val outlier: Boolean)
 
@@ -338,7 +352,9 @@ class LocalVoiceprintRepository(
             val manual = WindowedVoiceprint.trusted(samples)
             val center = if (manual.isEmpty()) null else representative(manual)
             samples.map { sample ->
-                val score = center?.let { runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), it) }.getOrDefault(0f) }
+                val score = center?.let { runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), it) }.onFailure {
+                    FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:345", it)
+                }.getOrDefault(0f) }
                 SampleHealth(sample.id, sample.source == "auto", sample.source == "line-review" || score == null || score < WindowedVoiceprint.OUTLIER)
             }
         }
@@ -435,7 +451,9 @@ class LocalVoiceprintRepository(
                                 // 清理旧自动样本的离群/超长向量；用户手动样本绝不删除。
                                 val me = candidates.find { it.id == 0L }
                                 if (train && me != null) for (sample in dao.allSamples().filter { it.source == "auto" }) {
-                                    val score = runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), me.vector) }.getOrDefault(0f)
+                                    val score = runCatching { VoiceprintMath.cosine(VoiceprintMath.decode(sample.vector), me.vector) }.onFailure {
+                                        FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:442", it)
+                                    }.getOrDefault(0f)
                                     if (sample.durationMillis > WindowedVoiceprint.WINDOW_MILLIS || score < WindowedVoiceprint.AUTO_SCORE) {
                                         sample.segmentId?.let { id -> sample.groupKey?.let { key -> dao.removeSample(id, key) } }
                                     }
@@ -463,12 +481,16 @@ class LocalVoiceprintRepository(
                         }
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { retry = true; lastError = "声纹处理失败，录音已保留，稍后重试" }
+                catch (caught: Exception) {
+                    FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:470", caught)
+                    retry = true; lastError = "声纹处理失败，录音已保留，稍后重试" }
                 finally { unpin(segment.id) }
                 yield()
             }
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { retry = true; lastError = "声纹模型或样本读取失败，稍后重试" }
+        catch (caught: Exception) {
+            FailureNotes.record("voiceprint/LocalVoiceprintRepository.kt:475", caught)
+            retry = true; lastError = "声纹模型或样本读取失败，稍后重试" }
         finally { (model as? AutoCloseable)?.close() }
         return gate.withLock {
             // 最后一段提交后发生纠正，也要让正在运行的 worker 重试，避免 KEEP 调度吞掉本次请求。
@@ -499,7 +521,7 @@ class LocalVoiceprintRepository(
 
     suspend fun cleanupAudio() {
         gate.withLock {
-            app.resound.transcribe.cleanupImportedAudio(db.transcribe(), now(), reading = reading.keys)
+            cleanupImportedAudio(db.transcribe(), now(), reading = reading.keys)
         }
         cleanupOriginalAudio?.invoke()
     }

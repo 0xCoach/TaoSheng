@@ -1,12 +1,18 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.net.decodeNetworkHeaders
+import app.resound.net.encodeNetworkHeaders
+import app.resound.net.validateNetworkHeaders
+
 import android.content.Context
 import okhttp3.Request
 import java.net.URI
 import java.util.UUID
 
 /** 统一校验；错误绝不包含输入，避免值借异常进入问题记录。 */
-internal fun validateHeaders(headers: List<HeaderEntry>) = app.resound.net.validateNetworkHeaders(headers)
+internal fun validateHeaders(headers: List<HeaderEntry>) = validateNetworkHeaders(headers)
 
 internal fun Request.Builder.serviceHeaders(key: String, headers: List<HeaderEntry>): Request.Builder = apply {
     validateHeaders(headers)
@@ -28,13 +34,15 @@ class ServiceHeaders internal constructor(
 
     fun headers(id: String): List<HeaderEntry> = try {
         read("headers-$id").takeIf { it.isNotEmpty() }?.let { text ->
-            app.resound.net.decodeNetworkHeaders(text)
+            decodeNetworkHeaders(text)
         }.orEmpty()
-    } catch (_: Exception) { throw IllegalStateException("请求头安全读取失败，请重新保存或恢复备份") }
+    } catch (caught: Exception) {
+        FailureNotes.record("digest/ServiceHeaders.kt:37", caught)
+        throw IllegalStateException("请求头安全读取失败，请重新保存或恢复备份") }
 
     fun save(id: String, headers: List<HeaderEntry>) {
         validateHeaders(headers)
-        if (headers.isEmpty()) remove("headers-$id") else write("headers-$id", app.resound.net.encodeNetworkHeaders(headers))
+        if (headers.isEmpty()) remove("headers-$id") else write("headers-$id", encodeNetworkHeaders(headers))
     }
 
     fun forPreset(preset: LlmPreset): List<HeaderEntry> = forService(preset.id, preset.baseUrl)

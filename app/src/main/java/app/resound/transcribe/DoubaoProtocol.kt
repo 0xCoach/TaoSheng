@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -55,7 +57,9 @@ object DoubaoProtocol {
         val body = if (serialization == 1) JSONObject(payload.toString(Charsets.UTF_8))
             else if (kind == 15) JSONObject() else throw IllegalArgumentException()
         Packet(kind, flags, sequence, code, body)
-    } catch (_: Exception) { throw AsrException(AsrError.Protocol) }
+    } catch (caught: Exception) {
+        FailureNotes.record("transcribe/DoubaoProtocol.kt:58", caught)
+        throw AsrException(AsrError.Protocol) }
 
     fun result(body: JSONObject, fallbackDuration: Long, logId: String?, separateSpeakers: Boolean = true): AsrResult {
         val result = body.optJSONObject("result")

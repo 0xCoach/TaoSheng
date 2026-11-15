@@ -1,5 +1,7 @@
 package app.resound.ask
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.net.Arr as JSONArray
 import app.resound.net.Obj as JSONObject
 
@@ -28,10 +30,14 @@ object AskCitations {
         (0 until array.length()).map { i -> array.getJSONObject(i).let {
             AskSource(it.getString("kind"), it.getLong("id"), it.getLong("at"), it.getString("title"), it.getString("quote"))
         } }
+    }.onFailure {
+        FailureNotes.record("ask/AskCitations.kt:26", it)
     }.getOrDefault(emptyList())
     /** 兼容旧数组，复用 sourcesJson 保存模式，不变更 Room 表。 */
     fun encodeMessage(sources: List<AskSource>, mode: AskMode): String = JSONObject()
         .put("sources", JSONArray(encode(sources))).put("mode", mode.name).toString()
-    fun mode(json: String): AskMode = runCatching { AskMode.valueOf(JSONObject(json).getString("mode")) }.getOrDefault(AskMode.Tools)
+    fun mode(json: String): AskMode = runCatching { AskMode.valueOf(JSONObject(json).getString("mode")) }.onFailure {
+        FailureNotes.record("ask/AskCitations.kt:35", it)
+    }.getOrDefault(AskMode.Tools)
     fun withoutMarkers(text: String): String = marker.replace(text, "")
 }

@@ -1,5 +1,7 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.topic.core
+
+import app.resound.digest.core.MemoryItemData
 import app.resound.topic.*
 
 import kotlinx.datetime.*
@@ -57,7 +59,7 @@ object TopicPolicy {
             }
         }
     }
-    fun changed(item: app.resound.digest.core.MemoryItemData) = item.deleted || item.status != "Pending" ||
+    fun changed(item: MemoryItemData) = item.deleted || item.status != "Pending" ||
         item.statusChangedAt != null || item.editedAt != null || item.noMerge || item.strongReminder
 }
 

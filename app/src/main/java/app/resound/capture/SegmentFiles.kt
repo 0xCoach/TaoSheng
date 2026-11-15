@@ -1,5 +1,9 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.AppGraph
+
 import android.content.Context
 import app.resound.audio.SegmentEncoder
 import app.resound.data.CaptureDao
@@ -33,7 +37,9 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
     }
     private fun deleteFile(file: File) {
         try { check(file.delete() || !file.exists()) }
-        catch (_: Exception) { android.util.Log.w("Privacy", "录音暂存文件删除失败") }
+        catch (caught: Exception) {
+            FailureNotes.record("capture/SegmentFiles.kt:38", caught)
+            android.util.Log.w("Privacy", "录音暂存文件删除失败") }
     }
     private fun removeDiscarded(base: String) {
         spool.listFiles().orEmpty().filter { it.name.substringBefore('.') == base }.forEach(::deleteFile)
@@ -104,11 +110,13 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         val skip = PlaybackPolicy.skip(end - start, playbackMillis, values?.getOrNull(1) != "false")
         dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = readSourceId(pcm), path = file.absolutePath, sizeBytes = file.length(),
             playbackMillis = playbackMillis, status = if (skip) "SkippedPlayback" else "Pending",
-            completedAt = if (skip) end else null, separateSpeakers = if (app.resound.AppGraph.isAsrSpeedReady) app.resound.AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
+            completedAt = if (skip) end else null, separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
         check(pcm.delete())
         metadata.delete()
         File(spool, pcm.nameWithoutExtension + ".source").delete()
-        if (!skip) runCatching { onSaved?.invoke() }
+        if (!skip) runCatching { onSaved?.invoke() }.onFailure {
+            FailureNotes.record("capture/SegmentFiles.kt:113", it)
+        }
     }
     internal fun pendingInRange(from: Long, until: Long): Boolean = spool.listFiles().orEmpty().any { file ->
         if (file.extension !in setOf("recording", "pcm")) false else {

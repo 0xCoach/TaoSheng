@@ -55,7 +55,7 @@ class AndroidBluetoothCenter(
     }
     private fun stop() {
         val old = callback; callback = null
-        try { if (old != null) scanner?.stopScan(old) } catch (_: SecurityException) { }
+        try { if (old != null) scanner?.stopScan(old) } catch (_: SecurityException) { /* 停止扫描的释放操作；权限已撤回时无须再停止，可忽略。 */  }
         scanner = null
     }
     private fun reconcile() {

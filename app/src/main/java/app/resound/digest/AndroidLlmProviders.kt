@@ -1,5 +1,12 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.ask.AskCompatibility
+import app.resound.skills.SkillFiles
+import app.resound.transcribe.EndpointKind
+import app.resound.usage.LlmBalanceChecker
+
 import android.content.Context
 import app.resound.transcribe.OpenAiEndpoint
 import app.resound.transcribe.fetchRemoteModels
@@ -40,7 +47,9 @@ class AndroidLlmProviders internal constructor(
 
     fun headers(id: String) = headerStore.headers(id)
     fun requestHeaders(preset: LlmPreset) = headerStore.forPreset(preset)
-    fun hasHeaderAuth(id: String) = runCatching { headers(id).any { it.value.isNotBlank() } }.getOrDefault(false)
+    fun hasHeaderAuth(id: String) = runCatching { headers(id).any { it.value.isNotBlank() } }.onFailure {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:48", it)
+    }.getOrDefault(false)
     fun saveHeaders(id: String, headers: List<HeaderEntry>) = synchronized(guard) {
         require(saved.value.any { it.id == id }) { "服务商不存在，请先保存服务商" }
         headerStore.save(id, headers)
@@ -48,11 +57,11 @@ class AndroidLlmProviders internal constructor(
     }
     internal val guard = Any()
     private val prefs = context.getSharedPreferences("llm-providers", Context.MODE_PRIVATE)
-    val askCompatibility = app.resound.ask.AskCompatibility(context)
+    val askCompatibility = AskCompatibility(context)
     override val templates = parseTemplates(context.assets.open("llm-providers.json").bufferedReader().use { it.readText() }.also(LlmInputBudget::configure))
     private val listeners = mutableListOf<(String?) -> Unit>()
     /** 必须先将技能引用落盘，删除失败时不移除服务商/密钥。 */
-    var beforeDelete: (String) -> Unit = { id -> app.resound.skills.SkillFiles(context).resetProviders(setOf(id)) }
+    var beforeDelete: (String) -> Unit = { id -> SkillFiles(context).resetProviders(setOf(id)) }
     private val _saved: MutableStateFlow<List<SavedProvider>>
     private val _activeId: MutableStateFlow<String>
 
@@ -80,8 +89,8 @@ class AndroidLlmProviders internal constructor(
         if (base.isNotBlank() || model.isNotBlank() || keys.has("custom")) {
             val oldUrl = balance.getString("customUrl", "").orEmpty()
             val oldPath = balance.getString("customPath", "").orEmpty()
-            val suggested = app.resound.usage.LlmBalanceChecker.suggest(base)?.takeIf {
-                oldUrl.isBlank() && oldPath.isBlank() && app.resound.usage.LlmBalanceChecker.isDeepSeek(base)
+            val suggested = LlmBalanceChecker.suggest(base)?.takeIf {
+                oldUrl.isBlank() && oldPath.isBlank() && LlmBalanceChecker.isDeepSeek(base)
             }
             list += SavedProvider("custom", null, "自定义", base, model, keys.has("custom"),
                 oldUrl.ifBlank { suggested?.first.orEmpty() }, oldPath.ifBlank { suggested?.second.orEmpty() })
@@ -121,7 +130,9 @@ class AndroidLlmProviders internal constructor(
     }
     internal fun readKey(id: String): String = synchronized(guard) {
         // 系统暂不能解密时返回未就绪，但不清除或覆盖原密文。
-        try { keys.read(id) } catch (_: Exception) { "" }
+        try { keys.read(id) } catch (caught: Exception) {
+            FailureNotes.record("digest/AndroidLlmProviders.kt:129", caught)
+            "" }
     }
 
     override suspend fun save(id: String?, templateId: String?, name: String, baseUrl: String, model: String, key: String?,
@@ -211,12 +222,16 @@ class AndroidLlmProviders internal constructor(
         Result.success("连接成功")
     } catch (e: CancellationException) { throw e }
     catch (e: LlmException) { Result.failure(IllegalStateException(e.detail)) }
-    catch (_: Exception) { Result.failure(IllegalStateException("测试失败，请检查地址、模型和密钥")) }
+    catch (caught: Exception) {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:219", caught)
+        Result.failure(IllegalStateException("测试失败，请检查地址、模型和密钥")) }
 
     override suspend fun models(id: String?, baseUrl: String, key: String?): List<String> = try {
         validateBase(baseUrl); fetchRemoteModels(ServiceHeaders.modelsEndpoint(baseUrl), draftKey(id, key), headers = headerStore.forService(id ?: "draft", baseUrl)).ids
     } catch (e: CancellationException) { throw e }
-    catch (_: Exception) { emptyList() }
+    catch (caught: Exception) {
+        FailureNotes.record("digest/AndroidLlmProviders.kt:224", caught)
+        emptyList() }
 
     companion object {
         internal fun parseTemplates(text: String): List<ProviderTemplate> = JSONArray(text).let { a -> (0 until a.length()).map { i ->
@@ -240,4 +255,4 @@ class AndroidLlmProviders internal constructor(
 private fun JSONObject.nullString(key: String) = if (isNull(key)) null else getString(key)
 internal fun SavedProvider.preset() = LlmInputBudget.bind(LlmPreset(id, name, baseUrl, model), templateId)
 /** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权。 */
-fun LlmPreset.allowsEmptyKey() = id == "custom" || app.resound.transcribe.OpenAiEndpoint.kind(baseUrl) == app.resound.transcribe.EndpointKind.LocalHttp
+fun LlmPreset.allowsEmptyKey() = id == "custom" || OpenAiEndpoint.kind(baseUrl) == EndpointKind.LocalHttp

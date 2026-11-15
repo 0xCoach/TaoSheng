@@ -1,5 +1,19 @@
 package app.resound.ask
 
+import app.resound.ask.core.AskArgumentFormatException
+import app.resound.ask.core.AskEngineCore
+import app.resound.ask.core.AskModel
+// 与安卓兼容层同名，core 异常和失败类型保留全限定名。
+import app.resound.ask.core.AskReply
+import app.resound.ask.core.AskTrace
+import app.resound.ask.core.ChangeProposal
+import app.resound.digest.LlmReply
+import app.resound.net.NetLlmError
+import app.resound.net.NetLlmException
+import app.resound.net.NetReply
+import app.resound.net.NetStreamReply
+import app.resound.net.NetToolCall
+
 import app.resound.digest.LlmStreamReply
 import app.resound.digest.LlmException
 import app.resound.digest.LlmError
@@ -24,14 +38,16 @@ class AskEngine(
 ) {
     data class Update(val text: String, val sources: List<AskSource>, val progress: String?, val error: String? = null, val proposal: ProposedChange? = null, val mode: AskMode = AskMode.Tools)
 
-    private val core = app.resound.ask.core.AskEngineCore(
-        stream = app.resound.ask.core.AskModel { messages, tools, text, tokens ->
+    private val core = AskEngineCore(
+        stream = AskModel { messages, tools, text, tokens ->
             val reply = try { stream.call(JSONArray(messages), JSONArray(tools), text, tokens) }
-            catch (e: AskPrefetchRequired) { throw app.resound.ask.core.AskPrefetchRequired(app.resound.ask.core.AskFailure.valueOf(e.reason.name), e.actualFailure) }
+            catch (e: AskPrefetchRequired) {
+                throw app.resound.ask.core.AskPrefetchRequired(app.resound.ask.core.AskFailure.valueOf(e.reason.name), e.actualFailure)
+            }
             catch (e: LlmException) { throw e.toAskNet() }
-            app.resound.ask.core.AskReply(app.resound.net.NetStreamReply(reply.content,
-                reply.calls.map { app.resound.net.NetToolCall(it.id, it.name, it.arguments, it.extraContent?.toString()) }, reply.reasoningContent),
-                reply.diagnostics?.let { trace -> app.resound.ask.core.AskTrace { items, empty, filtered, error ->
+            AskReply(NetStreamReply(reply.content,
+                reply.calls.map { NetToolCall(it.id, it.name, it.arguments, it.extraContent?.toString()) }, reply.reasoningContent),
+                reply.diagnostics?.let { trace -> AskTrace { items, empty, filtered, error ->
                     trace.parsed(items = items, empty = empty, filtered = filtered, error = error?.let { LlmError.valueOf(it.name) })
                 } })
         }, definitions.toString(),
@@ -47,16 +63,16 @@ class AskEngine(
             update(Update(value.text, value.sources, value.progress, value.error, value.proposal?.let {
                 ProposedChange(it.action, it.operation, JSONObject(it.args), it.expected)
             }, value.mode))
-        } } catch (e: app.resound.net.NetLlmException) {
+        } } catch (e: NetLlmException) {
             val type = LlmError.valueOf(e.type.name)
             throw LlmException(type, e.status, e.detail ?: type.human,
-                e.usage?.let { app.resound.digest.LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated)
+                e.usage?.let { LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated)
         }
     }
 }
-internal fun LlmException.toAskNet() = app.resound.net.NetLlmException(app.resound.net.NetLlmError.valueOf(type.name), status, detail,
-    usage?.let { app.resound.net.NetReply(it.content, it.promptTokens, it.completionTokens) }, truncated)
-private fun ProposedChange.toCore() = app.resound.ask.core.ChangeProposal(action, operation, args.toString(), expected)
+internal fun LlmException.toAskNet() = NetLlmException(NetLlmError.valueOf(type.name), status, detail,
+    usage?.let { NetReply(it.content, it.promptTokens, it.completionTokens) }, truncated)
+private fun ProposedChange.toCore() = ChangeProposal(action, operation, args.toString(), expected)
 private inline fun <T> toolArguments(block: () -> T): T = try { block() }
-catch (e: org.json.JSONException) { throw app.resound.ask.core.AskArgumentFormatException(e) }
+catch (e: org.json.JSONException) { throw AskArgumentFormatException(e) }
 catch (e: java.time.DateTimeException) { throw IllegalArgumentException(e) }

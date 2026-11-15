@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.media.*
 import android.net.Uri
@@ -54,7 +56,9 @@ internal class ImportMedia(private val context: Context) {
                     if (!cursor.isNull(it)) modified = cursor.getLong(it) * 1000 // MediaStore 是秒。
                 }
             }
-        } }
+        } }.onFailure {
+            FailureNotes.record("importer/ImportMedia.kt:45", it)
+        }
         return SharedAudio(name, modified, Uri.decode(uri.toString()))
     }
     fun inspect(file: File): AudioMetadata {
@@ -72,12 +76,16 @@ internal class ImportMedia(private val context: Context) {
                     retriever.setDataSource(file.path)
                     date = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE)
                     if (duration <= 0) duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
+                }.onFailure {
+                    FailureNotes.record("importer/ImportMedia.kt:71", it)
                 }
             } finally { retriever.release() }
             if (duration <= 0) throw ImportFailure("暂不支持这种格式")
             return AudioMetadata(duration, date, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
         } catch (e: ImportFailure) { throw e }
-        catch (_: Exception) { throw ImportFailure("暂不支持这种格式") }
+        catch (caught: Exception) {
+            FailureNotes.record("importer/ImportMedia.kt:80", caught)
+            throw ImportFailure("暂不支持这种格式") }
         finally { extractor.release() }
     }
 }
@@ -186,6 +194,8 @@ internal class ImportDecoder {
                 }
             }
             consume(resampler.finish())
-        } finally { codec?.let { runCatching { it.stop() }; it.release() }; extractor.release() }
+        } finally { codec?.let { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             it.stop() }; it.release() }; extractor.release() }
     }
 }

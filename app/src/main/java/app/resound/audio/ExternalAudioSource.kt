@@ -1,5 +1,7 @@
 package app.resound.audio
 
+import app.resound.diagnostics.FailureNotes
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -113,9 +115,13 @@ internal class RoutedRecording(
                         while (true) {
                             delay(500)
                             val limit = if (yieldReason() != null) CaptureHealth.STALL_YIELDING_MS else CaptureHealth.STALL_MS
-                            if (SystemClock.elapsedRealtime() - lastReturnAt.get() > limit) { stalled.set(true); runCatching { opened.stop() }; break }
+                            if (SystemClock.elapsedRealtime() - lastReturnAt.get() > limit) { stalled.set(true); runCatching {
+                                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                                 opened.stop() }; break }
                         }
-                    } finally { if (!stalled.get()) runCatching { opened.stop() } }
+                    } finally { if (!stalled.get()) runCatching {
+                        // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                         opened.stop() } }
                 }
                 try {
                     while (currentCoroutineContext().isActive) {
@@ -173,16 +179,24 @@ internal class RoutedRecording(
             throw AudioSourceException(AudioSourceException.Reason.Unknown, e.message)
         } finally {
             try {
-                record?.let { runCatching { it.stop() }; it.release() }
+                record?.let { runCatching {
+                    // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                     it.stop() }; it.release() }
             } finally {
                 onOpenChanged(false)
                 if (requestedCommunication) {
-                    if (Build.VERSION.SDK_INT >= 31) runCatching { manager.clearCommunicationDevice() }
-                    else { @Suppress("DEPRECATION") runCatching { manager.stopBluetoothSco() } }
+                    if (Build.VERSION.SDK_INT >= 31) runCatching {
+                        // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                         manager.clearCommunicationDevice() }
+                    else { @Suppress("DEPRECATION") runCatching {
+                        // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                         manager.stopBluetoothSco() } }
                 }
                 // MODE_NORMAL 释放本进程的模式请求；不能恢复读到的全局模式，
                 // 否则前一轮残留的通信模式会被重新申请，回放持续走听筒。
-                if (ownsCommunication) runCatching { manager.mode = AudioManager.MODE_NORMAL }
+                if (ownsCommunication) runCatching {
+                    // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                     manager.mode = AudioManager.MODE_NORMAL }
                 signals.close()
             }
         }
@@ -214,9 +228,15 @@ internal class RoutedRecording(
                 OwnRecordingSessions.add(record.audioSessionId)
                 record.startRecording()
                 if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { keep = true; return record }
-            } catch (_: IllegalArgumentException) { /* 下一种原生格式 */ }
-            catch (_: IllegalStateException) { /* 下一种原生格式 */ }
-            finally { if (!keep) record?.let { runCatching { it.stop() }; it.release() } }
+            } catch (caught: IllegalArgumentException) {
+                FailureNotes.record("audio/ExternalAudioSource.kt:217", caught)
+                /* 下一种原生格式 */ }
+            catch (caught: IllegalStateException) {
+                FailureNotes.record("audio/ExternalAudioSource.kt:218", caught)
+                /* 下一种原生格式 */ }
+            finally { if (!keep) record?.let { runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 it.stop() }; it.release() } }
         }
         throw AudioSourceException(AudioSourceException.Reason.Busy, "无法打开输入设备")
     }

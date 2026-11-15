@@ -1,4 +1,7 @@
 package app.resound.ask.core
+
+import app.resound.digest.ItemStatus
+import app.resound.digest.core.DigestPrompt
 import app.resound.ask.*
 import app.resound.context.PlaceAt
 import app.resound.net.Arr as JSONArray
@@ -74,14 +77,15 @@ class AskToolsCore(private val store: AskToolStore, spec: String, private val zo
         }
         for (field in listOf("speaker", "category", "status")) if (a.has(field) && !a.isNull(field)) {
             val value = a.getString(field); require(value.length in 1..80)
-            if (field == "category") require(value in app.resound.digest.core.DigestPrompt.CATEGORIES)
-            if (field == "status") require(value in app.resound.digest.ItemStatus.entries.map { it.name })
+            if (field == "category") require(value in DigestPrompt.CATEGORIES)
+            if (field == "status") require(value in ItemStatus.entries.map { it.name })
             val columns = s.optJSONArray(field)?.let { c -> (0 until c.length()).map { c.getString(it) } }
                 ?: listOf(s.getString(field))
             where += columns.joinToString(" OR ", "(", ")") { "$it=?" }; columns.forEach { args += value }
         }
         val order = if (starredOnly && words.isEmpty()) "e.starredAt" else s.getString("time")
-        return Query("SELECT ${s.getString("select")}${if (name == "search_lines") ", l.voiceInputJson" else ""} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
+        return Query(
+            "SELECT ${s.getString("select")}${if (name == "search_lines") ", l.voiceInputJson" else ""} FROM ${s.getString("table")} WHERE ${where.joinToString(" AND ")} ORDER BY $order DESC, $prefix.id DESC LIMIT 41", args, s.getString("kind"))
     }
 
     private fun withoutKeywords(args: JSONObject) = JSONObject(args.toString()).apply { remove("keywords") }

@@ -1,5 +1,10 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.data.CaptureDatabase
+import app.resound.voiceprint.SampleAudioStore
+
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -16,7 +21,7 @@ import kotlinx.coroutines.runBlocking
 internal object BackupRestore {
     private fun pending(context: Context) = File(context.noBackupFilesDir, "backup-restore")
     fun restore(
-        context: Context, client: RemoteStore, name: String, database: app.resound.data.CaptureDatabase,
+        context: Context, client: RemoteStore, name: String, database: CaptureDatabase,
         storedPassphrase: String? = null, suppliedPassphrase: String? = null,
         closeDatabase: () -> Unit, restartProcess: () -> Unit,
     ) {
@@ -29,7 +34,7 @@ internal object BackupRestore {
         } finally { download.delete() }
     }
     fun restoreFile(
-        context: Context, source: File, database: app.resound.data.CaptureDatabase,
+        context: Context, source: File, database: CaptureDatabase,
         storedPassphrase: String? = null, suppliedPassphrase: String? = null,
         closeDatabase: () -> Unit, restartProcess: () -> Unit,
         fetchBase: ((String, File) -> Unit)? = null, expectedName: String? = null,
@@ -51,19 +56,21 @@ internal object BackupRestore {
                 storedPassphrase, suppliedPassphrase, fetchBase, expectedName)
             // 先在隔离副本上走同一套 Room 迁移和 schema 校验，失败不替换本机数据。
             try {
-                val migrated = app.resound.data.CaptureDatabase.open(context, File(verified, BackupArchive.DATABASE).absolutePath)
+                val migrated = CaptureDatabase.open(context, File(verified, BackupArchive.DATABASE).absolutePath)
                 try {
                     runBlocking { migrated.checkpoint("TRUNCATE") }
                 } finally { migrated.close() }
                 listOf("-wal", "-shm", "-journal", ".lck").forEach { File(File(verified, BackupArchive.DATABASE).path + it).delete() }
-            } catch (_: Exception) { throw BackupFailure("备份数据库迁移或校验失败，未恢复数据") }
+            } catch (caught: Exception) {
+                FailureNotes.record("backup/BackupRestore.kt:62", caught)
+                throw BackupFailure("备份数据库迁移或校验失败，未恢复数据") }
             snapshot(context, database)
             stage(context, verified)
             closeDatabase()
             restartProcess()
         } finally { workspace.deleteRecursively(); verified.deleteRecursively() }
     }
-    fun restoreVolumes(context: Context, store: VolumeStore, database: app.resound.data.CaptureDatabase,
+    fun restoreVolumes(context: Context, store: VolumeStore, database: CaptureDatabase,
         stored: String?, supplied: String?, closeDatabase: () -> Unit, restartProcess: () -> Unit, checkpoint: String? = null) {
         if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
         val id = java.util.UUID.randomUUID()
@@ -78,7 +85,7 @@ internal object BackupRestore {
             restartProcess()
         } finally { work.deleteRecursively(); verified.deleteRecursively() }
     }
-    private fun snapshot(context: Context, database: app.resound.data.CaptureDatabase) {
+    private fun snapshot(context: Context, database: CaptureDatabase) {
         val directory = File(context.noBackupFilesDir, "before-restore").apply { check(isDirectory || mkdirs()) }
         val id = java.util.UUID.randomUUID()
         val stage = File(directory, ".$id-content").apply { check(mkdirs()) }
@@ -122,7 +129,9 @@ internal object BackupRestore {
             applyContents(context, pending, beforeWrite)
             check(done.deleteRecursively())
             check(pending.renameTo(done))
-        } catch (_: Exception) {
+        } catch (caught: Exception) {
+            FailureNotes.record("backup/BackupRestore.kt:128", caught)
+
             // 回滚失败仍须阻止初始化；不能把半恢复数据当正常数据继续运行。
             journal.rollback(); failed(); journal.clear()
             return
@@ -138,21 +147,22 @@ internal object BackupRestore {
             val file = File(db.path + suffix); check(!file.exists() || file.delete())
         }
         // 回放副本不属于备份；恢复后旧样本不得借用本机残留文件或原录音。
-        app.resound.voiceprint.SampleAudioStore.afterRestore(context)
+        SampleAudioStore.afterRestore(context)
         // 缓存可重建；旧缓存不能混入恢复后的数据。
         check(File(data, BackupArchive.FEATURES).deleteRecursively())
         // 旧备份没有自定义模板时，也必须清掉本机的覆盖文本。
         check(File(data, BackupArchive.PROMPTS).deleteRecursively())
         check(File(data, BackupArchive.SKILLS).deleteRecursively())
         val volumes = File(pending, "day-volumes").isFile
+        // 日卷沿用既有顺序：先恢复设置再替换数据库，journal 仍负责整体回滚。
         if (volumes) BackupSettings.apply(context, pending)
         pending.walkTopDown().filter { it.isFile }.forEach { source ->
             val path = source.relativeTo(pending).invariantSeparatorsPath
-            if (path == "manifest.json" || volumes && path in setOf("day-volumes", "settings.json", "secrets.json")) return@forEach
+            if (path in setOf("manifest.json", "settings.json", "secrets.json") || volumes && path == "day-volumes") return@forEach
             require(BackupArchive.allowed(path))
             beforeWrite(path)
             if (path.startsWith("shared_prefs/")) {
-                restorePreferences(context, source)
+                writePreferences(context, source, replace = false, configurationOnly = true)
                 return@forEach
             }
             val target = File(data, path).apply { parentFile!!.mkdirs() }
@@ -161,11 +171,18 @@ internal object BackupRestore {
             try { source.inputStream().use { it.copyTo(stream) }; atomic.finishWrite(stream) }
             catch (e: Exception) { atomic.failWrite(stream); throw e }
         }
+        val settings = File(pending, "settings.json")
+        val secrets = File(pending, "secrets.json")
+        require(settings.isFile == secrets.isFile)
+        if (!volumes && settings.isFile) BackupSettings.apply(context, pending)
         // 队列是运行时数据，不能继续发送恢复前的消息；密钥与未出现的设置项全部保留。
         check(context.getSharedPreferences("push-retries", Context.MODE_PRIVATE).edit().clear().commit())
         check(context.getSharedPreferences("digest-state", Context.MODE_PRIVATE).edit().clear().commit())
     }
-    internal fun restorePreferences(context: Context, source: File, replace: Boolean = false) {
+    internal fun restorePreferences(context: Context, source: File, replace: Boolean = false) =
+        writePreferences(context, source, replace, configurationOnly = false)
+
+    private fun writePreferences(context: Context, source: File, replace: Boolean, configurationOnly: Boolean) {
         val parser = android.util.Xml.newPullParser()
         val edit = context.getSharedPreferences(source.nameWithoutExtension, Context.MODE_PRIVATE).edit()
         if (replace) edit.clear()
@@ -177,9 +194,14 @@ internal object BackupRestore {
                 if (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) continue
                 val name = parser.getAttributeValue(null, "name") ?: continue
                 if (!replace && name in setOf("encryptedKey", "customEncryptedKey")) continue
+                // 导入旧 XML 也过滤运行字段；本机 journal 回滚不经过此过滤，仍完整还原。
+                if (configurationOnly && !BackupSettings.setting(source.nameWithoutExtension, name)) continue
                 val value = parser.getAttributeValue(null, "value")
                 when (parser.name) {
-                    "string" -> edit.putString(name, parser.nextText())
+                    "string" -> {
+                        val text = parser.nextText()
+                        edit.putString(name, if (configurationOnly) PreferenceBackupPolicy.stringValue(source.nameWithoutExtension, name, text) else text)
+                    }
                     "boolean" -> edit.putBoolean(name, value.toBooleanStrict())
                     "int" -> edit.putInt(name, value.toInt())
                     "long" -> edit.putLong(name, value.toLong())

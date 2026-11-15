@@ -1,5 +1,10 @@
 package app.resound.update
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.devices.RemoteDeviceCards
+import app.resound.devices.SignedCards
+
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -16,8 +21,12 @@ internal class UpdateRemote(
 ) {
     private val checks = client.newBuilder().callTimeout(15, TimeUnit.SECONDS).build()
     fun check(previewEnabled: Boolean = false): UpdateManifest {
-        val official = runCatching { checkChannel(sources, false) }.getOrNull()
-        val preview = if (previewEnabled) runCatching { checkChannel(previewSources, true) }.getOrNull() else null
+        val official = runCatching { checkChannel(sources, false) }.onFailure {
+            FailureNotes.record("update/UpdateRemote.kt:22", it)
+        }.getOrNull()
+        val preview = if (previewEnabled) runCatching { checkChannel(previewSources, true) }.onFailure {
+            FailureNotes.record("update/UpdateRemote.kt:23", it)
+        }.getOrNull() else null
         return listOfNotNull(official, preview).maxByOrNull { it.versionCode }
             ?: throw UpdateFailure(UPDATE_NETWORK_ERROR, "sources_exhausted")
     }
@@ -53,16 +62,18 @@ internal class UpdateRemote(
     }
 
     /** 参数表复用更新检查的客户端、超时、限长及镜像回退；表和签名必须来自同一源。 */
-    fun deviceCards(accept: (app.resound.devices.SignedCards) -> Boolean,
+    fun deviceCards(accept: (SignedCards) -> Boolean,
         urls: List<String> = listOf(
             "https://raw.githubusercontent.com/0xCoach/TaoSheng/main/device-cards.json",
             UpdateSources.MODELSCOPE + "device-cards.json",
         )) {
         for (url in urls) {
             try {
-                val table = app.resound.devices.SignedCards(readLimited(url, 256 * 1024), readLimited("$url.sig", app.resound.devices.RemoteDeviceCards.MAX_SIGNATURE))
+                val table = SignedCards(readLimited(url, 256 * 1024), readLimited("$url.sig", RemoteDeviceCards.MAX_SIGNATURE))
                 if (accept(table)) return
-            } catch (_: Exception) { log("cards source_failed") }
+            } catch (caught: Exception) {
+                FailureNotes.record("update/UpdateRemote.kt:68", caught)
+                log("cards source_failed") }
         }
         throw java.io.IOException("cards_sources_exhausted")
     }

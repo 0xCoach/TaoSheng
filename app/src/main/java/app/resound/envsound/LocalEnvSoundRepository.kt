@@ -1,5 +1,9 @@
 package app.resound.envsound
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.PipelineProgress
+
 import android.content.Context
 import android.content.SharedPreferences
 import app.resound.data.writeTransaction
@@ -76,16 +80,22 @@ class LocalEnvSoundRepository(
             log("环境音 ${elapsed}ms ${decision.verdict.name}")
             return decision.skip
         } catch(e: CancellationException) { throw e }
-        catch(_: Exception) { log("环境音 ${(now()-start).coerceAtLeast(0)}ms 判断失败，照常转写"); return false }
-        catch(_: LinkageError) { log("环境音 JNI 不可用，照常转写"); return false }
+        catch(caught: Exception) {
+            FailureNotes.record("envsound/LocalEnvSoundRepository.kt:81", caught)
+            log("环境音 ${(now()-start).coerceAtLeast(0)}ms 判断失败，照常转写"); return false }
+        catch(caught: LinkageError) {
+            FailureNotes.record("envsound/LocalEnvSoundRepository.kt:82", caught)
+            log("环境音 JNI 不可用，照常转写"); return false }
     }
     companion object {
-        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit, sharedPcm: SharedPcmFiles? = null, zoneProvider: ZoneProvider, now: () -> Long, io: CoroutineDispatcher): LocalEnvSoundRepository {
+        fun create(context: Context, db: CaptureDatabase, scope: CoroutineScope, me: suspend (ShortArray) -> Boolean, schedule: () -> Unit,
+            sharedPcm: SharedPcmFiles? = null, zoneProvider: ZoneProvider, now: () -> Long, io: CoroutineDispatcher): LocalEnvSoundRepository {
             val model = EnvSoundModel(context)
             val gaps = EnvSoundGapExtractor(context)
             val reader = AsrAudioReader(context.cacheDir)
             // 单独的后台低优先级线程；调用者等待结束才启动 ASR，不抢本地转写 CPU。
-            val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "env-sound") }.asCoroutineDispatcher()
+            val dispatcher = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process
+                .THREAD_PRIORITY_BACKGROUND); r.run() }, "env-sound") }.asCoroutineDispatcher()
             val record: (String) -> Unit = { PipelineTimes.record(context, "${System.currentTimeMillis()} $it") }
             val analysis = EnvSoundAnalysis({ file -> sharedPcm?.prepare(file) ?: reader.readPcm(file) }, { pcm ->
                 val timing = currentCoroutineContext()[SegmentTimings]
@@ -93,7 +103,7 @@ class LocalEnvSoundRepository(
                     timing?.add(AsrPart.EnvLoad, load); timing?.add(AsrPart.EnvPrepare, prepare); timing?.add(AsrPart.EnvInfer, infer)
                 }
             }, me,
-                phase = { app.resound.PipelineProgress.detail(it) }, log = record, extractGaps = gaps::extract)
+                phase = { PipelineProgress.detail(it) }, log = record, extractGaps = gaps::extract)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
                 { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record,zoneProvider = zoneProvider, now = now, io = io).also { repo ->
                 repo.beginBatch = { model.beginBatch(); gaps.beginBatch() }

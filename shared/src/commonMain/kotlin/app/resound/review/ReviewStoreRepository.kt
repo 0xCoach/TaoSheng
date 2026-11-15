@@ -1,6 +1,10 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.review
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.digest.LlmInputLimitException
+
 import app.resound.data.*
 import app.resound.digest.LlmPreset
 import app.resound.digest.snapshot
@@ -39,7 +43,9 @@ class ReviewStoreRepository(
     private val gate = Mutex()
     private val mutable = MutableStateFlow(ReviewState(false, initial.lastError?.let { if (it.startsWith("生成失败：")) REVIEW_FAILURE else it },
         initial.dailyAtMinutes.coerceIn(0, 1439), initial.pushEnabled,
-        lastErrorDate = initial.lastErrorDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }))
+        lastErrorDate = initial.lastErrorDate?.let { runCatching { LocalDate.parse(it) }.onFailure {
+            FailureNotes.record("review/ReviewStoreRepository.kt:44", it)
+        }.getOrNull() }))
     override val state = mutable.asStateFlow()
     override fun daily(date: LocalDate): Flow<DailyReview?> = combine(dao.daily(date.toString()), presentationChanges()) { row, _ -> row?.toModel() }.flowOn(io)
     override fun recent(): Flow<List<DailyReview>> = combine(dao.recent(), presentationChanges()) { rows, _ -> rows.map { it.toModel() } }.flowOn(io)
@@ -95,7 +101,9 @@ class ReviewStoreRepository(
             val prepared = try {
                 withTimeoutOrNull(10 * 60_000L) { beforeReview() } ?: false
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { false }
+            catch (caught: Exception) {
+                FailureNotes.record("review/ReviewStoreRepository.kt:100", caught)
+                false }
             mutable.update { it.copy(stage = "正在写回顾…") }
             val timezone = TimeZone.of(zone.zoneId())
             val minutes = state.value.dailyAtMinutes
@@ -116,14 +124,16 @@ class ReviewStoreRepository(
                     val system = CorePrompt.system(template(), appName)
                     val rawInput = CorePrompt.input(date, source.snapshot(), timezone, minutes)
                     val input = try { ReviewInputBudgetRules.fit(rawInput, system, inputChars(preset)) }
-                    catch (e: app.resound.digest.LlmInputLimitException) { if (hasBackup(preset)) rawInput else throw e }
+                    catch (e: LlmInputLimitException) { if (hasBackup(preset)) rawInput else throw e }
                     val reply = chat(preset, key, system, input)
                     // 格式错误的成功调用也实际消耗了 token。
                     memory.addUsage(Instant.fromEpochMilliseconds(now()).toLocalDateTime(timezone).date.toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Review)
                     model = reply.actualModel ?: preset.model
                     try { CorePrompt.parse(reply.content, source.snapshot(), timezone) }
                     catch (e: CancellationException) { throw e }
-                    catch (_: Exception) {
+                    catch (caught: Exception) {
+                        FailureNotes.record("review/ReviewStoreRepository.kt:128", caught)
+
                         error("模型返回的格式不对，换个模型或稍后再试", date)
                         return@withLock false
                     }
@@ -139,12 +149,14 @@ class ReviewStoreRepository(
                     val deepLink = "resound://review?open=review&date=$date"
                     notify("今日回顾", row.brief, deepLink, row)
                 } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { error("回顾已生成，通知发送失败，请检查通知权限", date); return@withLock false }
+                catch (caught: Exception) {
+                    FailureNotes.record("review/ReviewStoreRepository.kt:144", caught)
+                    error("回顾已生成，通知发送失败，请检查通知权限", date); return@withLock false }
             }
             error(if (prepared) null else "已用现有内容生成；还有录音没整理完", date)
             false
         } catch (e: CancellationException) { throw e }
-        catch (e: app.resound.digest.LlmInputLimitException) { error(e.message, date); false }
+        catch (e: LlmInputLimitException) { error(e.message, date); false }
         catch (e: Exception) {
             val detail = failure(e)
             error(detail?.message ?: REVIEW_FAILURE, date)

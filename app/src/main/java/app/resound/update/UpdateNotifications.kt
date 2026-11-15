@@ -1,5 +1,7 @@
 package app.resound.update
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -36,6 +38,8 @@ internal object UpdateNotifications {
             manager.notify(id, NotificationCompat.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle(title).setContentText(body).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true).build())
             true
-        } catch (_: SecurityException) { false }
+        } catch (caught: SecurityException) {
+            FailureNotes.record("update/UpdateNotifications.kt:39", caught)
+            false }
     }
 }

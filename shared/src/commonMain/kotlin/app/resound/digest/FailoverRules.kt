@@ -1,5 +1,7 @@
 package app.resound.digest
 
+import app.resound.platform.NowMillis
+
 /** 存储由平台实现；方法提供单次快照/原子更新，配置代次防止旧请求污染新配置。 */
 interface FailoverStore {
     fun cooling(id: String): FailoverCooling?
@@ -12,7 +14,7 @@ data class FailoverFailure(val reason: String, val capacity: Boolean = false, va
     val rejected: Boolean = false, val longCooling: Boolean = false)
 
 /** 选择、容量递增、冷却、最多三次与错误优先级；I/O、凭据及异常类型映射均由安卓插口提供。 */
-class FailoverRules(private val store: FailoverStore, private val now: app.resound.platform.NowMillis,
+class FailoverRules(private val store: FailoverStore, private val now: NowMillis,
     private val capacity: (LlmPreset) -> Int,
     private val classify: (Exception) -> FailoverFailure?,
     private val safeCoolingError: (Exception) -> Exception,

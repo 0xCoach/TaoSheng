@@ -1,5 +1,9 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.R
+
 import android.app.*
 import android.content.*
 import android.content.pm.ServiceInfo
@@ -20,7 +24,7 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
             Intent(applicationContext, CancelImportReceiver::class.java).setAction(entry.pending.id),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(applicationContext, "import")
-            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("正在导入 ${entry.pending.info.displayName}")
+            .setSmallIcon(R.drawable.ic_notify).setContentTitle("正在导入 ${entry.pending.info.displayName}")
             .setOngoing(true).addAction(0, "取消", cancel).build()
         return ForegroundInfo(3028, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
@@ -95,7 +99,9 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
             }
             Result.success()
         } catch (e: CancellationException) { importer.interrupted(); throw e }
-        catch (_: Exception) { importer.interrupted(); Result.retry() }
+        catch (caught: Exception) {
+            FailureNotes.record("importer/ImportWork.kt:100", caught)
+            importer.interrupted(); Result.retry() }
     }
 }
 

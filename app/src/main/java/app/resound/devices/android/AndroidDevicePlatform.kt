@@ -1,5 +1,7 @@
 package app.resound.devices.android
 
+import app.resound.diagnostics.FailureNotes
+
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
 import android.content.Context
@@ -87,7 +89,9 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
             } catch (e: CancellationException) {
                 withContext(NonCancellable) { link.close() }
                 throw e
-            } catch (_: Exception) { null }
+            } catch (caught: Exception) {
+                FailureNotes.record("devices/android/AndroidDevicePlatform.kt:90", caught)
+                null }
             val recording = capture?.let { RecordingGattLink(raw, clock, it::line) }
             recording?.maxWriteLength(true)
             recording?.maxWriteLength(false)
@@ -181,20 +185,26 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
                                 output.flush()
                                 if (sink.stopped) { queue.cancel(); break }
                             }
-                        } catch (_: CaptureQueueFull) { sink.line("# capture-stopped queue-full") }
+                        } catch (caught: CaptureQueueFull) {
+                            FailureNotes.record("devices/android/AndroidDevicePlatform.kt:184", caught)
+                            sink.line("# capture-stopped queue-full") }
                         catch (e: CancellationException) {
                             sink.line("# capture-stopped cancelled")
                             throw e
                         }
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { /* 文件不可写不能影响收音；保留已落盘的部分。 */ }
+                catch (caught: Exception) {
+                    FailureNotes.record("devices/android/AndroidDevicePlatform.kt:191", caught)
+                    /* 文件不可写不能影响收音；保留已落盘的部分。 */ }
                 finally { queue.cancel(); activeCaptures.update { it - target.name } }
             }
             job.invokeOnCompletion { activeCaptures.update { it - target.name } }
             return CaptureWriter(queue, job)
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { file?.let { activeCaptures.update { names -> names - it.name } }; return null }
+        catch (caught: Exception) {
+            FailureNotes.record("devices/android/AndroidDevicePlatform.kt:197", caught)
+            file?.let { activeCaptures.update { names -> names - it.name } }; return null }
     }
     companion object {
         fun legacyIdentity(address: String) = DeviceIdentity(DeviceId("android:" + DeviceInputs.deviceKey(address)), IdScope.PlatformLocal)

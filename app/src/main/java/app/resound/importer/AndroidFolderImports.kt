@@ -1,5 +1,7 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import android.net.Uri
 import app.resound.data.writeTransaction
@@ -40,7 +42,9 @@ internal class AndroidFolderImports(
         repeat(rows.length()) { i ->
             val row = rows.getJSONObject(i)
             val id = row.getString("id")
-            val accessible = row.optBoolean("accessible", true) && runCatching { documents.granted(Uri.parse(id)) }.getOrDefault(false)
+            val accessible = row.optBoolean("accessible", true) && runCatching { documents.granted(Uri.parse(id)) }.onFailure {
+                FailureNotes.record("importer/AndroidFolderImports.kt:43", it)
+            }.getOrDefault(false)
             folders += Setting(WatchedFolder(id, row.getString("name"), ImportKind.valueOf(row.getString("kind")),
                 row.getBoolean("enabled"), accessible, if (row.isNull("lastScanAt")) null else row.getLong("lastScanAt"),
                 row.optInt("imported"), if (!accessible) PERMISSION_ERROR else row.optString("error").takeIf { it.isNotBlank() }), row.optBoolean("baseline"))
@@ -50,7 +54,9 @@ internal class AndroidFolderImports(
             for (command in commands) mutex.withLock {
                 try { command() }
                 catch (e: CancellationException) { throw e }
-                catch (_: Exception) {
+                catch (caught: Exception) {
+                    FailureNotes.record("importer/AndroidFolderImports.kt:53", caught)
+
                     // 文件夹级错误由具体操作填写；这里只保护应用协程不因存储异常退出。
                     _state.value = _state.value.copy(folders = _state.value.folders.map { it.copy(lastError = "无法保存文件夹设置，请检查存储空间后重试") })
                 }
@@ -176,14 +182,18 @@ internal class AndroidFolderImports(
             setting = setting.copy(baseline = false, folder = f.copy(lastScanAt = now, imported = f.imported + imported, lastError = error))
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            val lost = e is SecurityException || e is java.io.FileNotFoundException || !runCatching { documents.granted(tree) }.getOrDefault(false)
+            val lost = e is SecurityException || e is java.io.FileNotFoundException || !runCatching { documents.granted(tree) }.onFailure {
+                FailureNotes.record("importer/AndroidFolderImports.kt:179", it)
+            }.getOrDefault(false)
             setting = setting.copy(folder = f.copy(accessible = !lost, lastScanAt = now, imported = f.imported + imported,
                 lastError = if (lost) PERMISSION_ERROR else "扫描失败：${e.message ?: "请稍后重试"}"))
         } finally {
             folders[index] = setting.copy(folder = setting.folder.copy(imported = f.imported + imported))
             if (imported > 0) { lastImported = imported; lastImportedAt = now }
             save()
-            if (imported > 0) runCatching { notify(f.id, f.name, imported) }
+            if (imported > 0) runCatching { notify(f.id, f.name, imported) }.onFailure {
+                FailureNotes.record("importer/AndroidFolderImports.kt:186", it)
+            }
         }
     }
     /** 复用录音服务现有心跳，不创建计时器/闹钟/额外唤醒锁。 */

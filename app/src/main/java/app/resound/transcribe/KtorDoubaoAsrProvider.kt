@@ -1,5 +1,10 @@
 package app.resound.transcribe
 
+import app.resound.net.NetDoubao
+import app.resound.net.NetworkAsrMetrics
+import app.resound.net.defaultAndroidHttp
+import app.resound.net.withAndroidSocket
+
 import app.resound.digest.HeaderEntry
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
@@ -10,7 +15,7 @@ import java.util.concurrent.TimeUnit
 class DoubaoAsrProvider(
     private val reader: AsrAudioReader,
     private val config: DoubaoConfig = DoubaoConfig(),
-    private val client: OkHttpClient = app.resound.net.defaultAndroidHttp.newBuilder().connectTimeout(15,TimeUnit.SECONDS)
+    private val client: OkHttpClient = defaultAndroidHttp.newBuilder().connectTimeout(15,TimeUnit.SECONDS)
         .readTimeout(0,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
     private val headers: () -> List<HeaderEntry> = { emptyList() },
     private val hotwords: () -> List<String> = { emptyList() },
@@ -23,8 +28,8 @@ class DoubaoAsrProvider(
                     try { kotlinx.coroutines.withTimeout(config.timeoutFor(audio.durationMillis)) {
                         measureAsr(AsrPart.Prepare) { reader.prepare(audio) }.use { prepared ->
                             val connectId = java.util.UUID.randomUUID().toString()
-                            app.resound.net.withAndroidSocket(client, connectId) { network, sockets, configureSocket ->
-                                app.resound.net.NetDoubao(network,config,::gunzip,object : app.resound.net.NetworkAsrMetrics {
+                            withAndroidSocket(client, connectId) { network, sockets, configureSocket ->
+                                NetDoubao(network,config,::gunzip,object : NetworkAsrMetrics {
                                     override suspend fun <T> measure(part: String, block: suspend () -> T): T = measureAsr(AsrPart.valueOf(part),block)
                                 },sockets,configureSocket).recognize(audio.durationMillis,prepared.format,audio.separateSpeakers,
                                     Hotwords.doubao(hotwords()),key,connectId,headers(),beforeAudio) { emit ->

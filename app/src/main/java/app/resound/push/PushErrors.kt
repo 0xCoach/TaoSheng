@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.backup.BackupFailure
+
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 import java.io.InterruptedIOException
@@ -60,7 +62,7 @@ internal object PushErrors {
         val port = url?.port?.toString() ?: PushFields.default(values, "port", "465")
         val text = when {
             error is PushFailure -> error.message.orEmpty()
-            error is app.resound.backup.BackupFailure -> error.human
+            error is BackupFailure -> error.human
             causes.any { it is UnknownHostException } -> "找不到 $host：检查地址拼写；用 Tailscale 等内网地址时确认手机已连上"
             causes.any { it is SSLException || it is CertificateException } -> "安全连接失败：证书无效或过期；内网服务可改用 http://"
             causes.any { it is InterruptedIOException } -> TIMEOUT

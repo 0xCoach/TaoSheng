@@ -1,5 +1,9 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.digest.AppointmentReminders
+
 import android.content.SharedPreferences
 import app.resound.platform.NowMillis
 import kotlinx.coroutines.CancellationException
@@ -25,13 +29,15 @@ internal class SubscriptionRuntime(
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
-    var reminderSettings: () -> app.resound.digest.AppointmentReminders = { app.resound.digest.AppointmentReminders() }
+    var reminderSettings: () -> AppointmentReminders = { AppointmentReminders() }
     var source: suspend (LocalDate?, Boolean) -> PushSnapshot = { _, _ -> throw PushFailure("记忆数据尚未就绪") }
     private val gates = ConcurrentHashMap<Long, Mutex>()
     private val states = ConcurrentHashMap<Long, MutableStateFlow<PushChannelStatus>>()
     private val queued = ConcurrentHashMap<Long, Long>()
     private fun meta(id: Long): JSONObject = try { JSONObject(prefs.getString("subscription-$id", "{}")!!) }
-    catch (_: org.json.JSONException) {
+    catch (caught: org.json.JSONException) {
+        FailureNotes.record("push/SubscriptionRuntime.kt:36", caught)
+
         File(directory, "$id.json").delete()
         check(prefs.edit().putString("subscription-$id", "{}").putBoolean("state-reset-$id", true).commit())
         JSONObject()
@@ -51,7 +57,8 @@ internal class SubscriptionRuntime(
             else j.put("lastError", result.exceptionOrNull()?.message)
         }
         val j = meta(id)
-        states.getValue(id).value = PushChannelStatus(j.optLong("lastPushAt").takeIf { it > 0 }, j.optString("lastResult").takeIf { it.isNotEmpty() }, j.optString("lastError").takeIf { it.isNotEmpty() }, running)
+        states.getValue(id).value = PushChannelStatus(j.optLong("lastPushAt").takeIf { it > 0 }, j.optString("lastResult").takeIf { it.isNotEmpty() }, j.optString(
+            "lastError").takeIf { it.isNotEmpty() }, running)
     }
     fun messageResult(id: Long, result: Result<String>) = update(id, status(id).value.running, result)
     fun forget(id: Long) {
@@ -92,7 +99,9 @@ internal class SubscriptionRuntime(
         if (channelById(id)?.enabled != true || status(id).value.running) return
         deadline(id)?.let { at ->
             if (!continuation && queued[id]?.let { it <= at } == true) return
-            runCatching { schedule(id, at, continuation); queued[id] = at }.onFailure { update(id, false, Result.failure(PushFailure("调度保存失败，请重试"))) } }
+            runCatching { schedule(id, at, continuation); queued[id] = at }.onFailure {
+                FailureNotes.record("push/SubscriptionRuntime.kt:98", it)
+            }.onFailure { update(id, false, Result.failure(PushFailure("调度保存失败，请重试"))) } }
     }
     suspend fun scheduled(id: Long): Boolean {
         queued.remove(id)
@@ -131,11 +140,13 @@ internal class SubscriptionRuntime(
                 val today = day(started, zone())
                 val since = state.since(s, today, rebuild)
                 if (rebuild && channel.kind == PushKind.MarkdownFolder) { state.json.put("rebuilding", true); state.save() }
-                val summaryOnly = !manual && !state.json.optBoolean("rebuilding") && (due.optBoolean("summaryBatch") || !due.has("batchAt") && due.optLong("summaryAt").let { it > 0 && it <= started } &&
+                val summaryOnly = !manual && !state.json.optBoolean("rebuilding") && (due.optBoolean("summaryBatch") || !due.has("batchAt") && due.optLong("summaryAt")
+                    .let { it > 0 && it <= started } &&
                     listOf("scheduleAt", "fullAt", "changeAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } })
                 val raw = source(since, s.lines != LinesMode.Off)
                 val reminderDue = !manual && due.optLong("reminderAt").let { it > 0 && it <= started }
-                val reminders = if (reminderDue) SubscriptionReminders.candidates(raw, s, due.optJSONObject("reminded") ?: JSONObject(), reminderSettings(), zone(), started).filter { it.at <= started } else emptyList()
+                val reminders = if (reminderDue) SubscriptionReminders.candidates(raw, s, due.optJSONObject("reminded") ?: JSONObject(), reminderSettings(), zone(),
+                    started).filter { it.at <= started } else emptyList()
                 val reminderOnly = reminderDue && listOf("scheduleAt", "fullAt", "changeAt", "summaryAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } }
                 if (reminders.isNotEmpty()) {
                     sendReminders(channel, values, reminders, state, started)
@@ -162,7 +173,8 @@ internal class SubscriptionRuntime(
                     }
                     channel.kind == PushKind.Webhook -> {
                         val selected = if (summaryOnly) current.filterKeys { it.startsWith("card:") || it.startsWith("review:") } else current
-                        val previous = if (summaryOnly) JSONObject().also { j -> state.records.keys().asSequence().filter { it.startsWith("card:") || it.startsWith("review:") }.forEach { j.put(it, state.records.get(it)) } } else state.records
+                        val previous = if (summaryOnly) JSONObject().also { j -> state.records.keys().asSequence().filter { it.startsWith("card:") || it.startsWith(
+                            "review:") }.forEach { j.put(it, state.records.get(it)) } } else state.records
                         if (!full || summaryOnly) {
                             val delta = RecordDelta.changes(selected, previous)
                             val count = delta.getJSONArray("changes").length()
@@ -176,7 +188,8 @@ internal class SubscriptionRuntime(
                             sendDocuments(channel, values, data, s, files, state, false, started).also { RecordDelta.acknowledge(current, state) }
                         }
                     }
-                    channel.kind in setOf(PushKind.Notion, PushKind.Telegram, PushKind.Email) -> sendDocuments(channel, values, data, s, files, state, channel.kind == PushKind.Notion && s.incremental && !rebuild, started)
+                    channel.kind in setOf(PushKind.Notion, PushKind.Telegram, PushKind.Email) -> sendDocuments(channel, values, data, s, files, state, channel
+                        .kind == PushKind.Notion && s.incremental && !rebuild, started)
                     else -> throw PushFailure("这个通道只支持摘要和提醒")
                 }
                 change(id) { j ->
@@ -186,13 +199,15 @@ internal class SubscriptionRuntime(
                 val summaryCounts = state.json.optJSONObject("summaryCounts") ?: JSONObject()
                 data.cards.map { LocalDate.ofEpochDay(it.date) }.plus(data.reviews.filter { it.type == "daily" }.map { LocalDate.parse(it.startDate) }).distinct().forEach { date ->
                     val path = MemoryFolder.dailyPath(date)
-                    if (state.templates.optString(path) == files[path]) summaryCounts.put(path, data.cards.count { LocalDate.ofEpochDay(it.date) == date } + data.reviews.count { it.type == "daily" && it.startDate == date.toString() })
+                    if (state.templates.optString(path) == files[path]) summaryCounts.put(path, data.cards.count { LocalDate.ofEpochDay(it.date) == date } + data.reviews
+                        .count { it.type == "daily" && it.startDate == date.toString() })
                 }
                 state.json.put("summaryCounts", summaryCounts); state.save()
                 reminderSchedule(channel, raw)
                 Result.success(trace.success(description + if (more) "，余下文件已排队" else ""))
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { if (trace.exception.isEmpty()) trace.exception = e.javaClass.simpleName; Result.failure(PushFailure(if (e is PushFailure) e.message ?: "同步失败" else "同步失败，请检查网络和通道配置")) }
+            catch (e: Exception) { if (trace.exception.isEmpty()) trace.exception = e.javaClass.simpleName; Result.failure(PushFailure(if (e is PushFailure) e
+                .message ?: "同步失败" else "同步失败，请检查网络和通道配置")) }
             finally { update(id, false) }
             PushDiagnostics.record(prefs, channel, PushTopic.DailyMemory, result, trace)
             update(id, false, result)
@@ -243,7 +258,8 @@ internal class SubscriptionRuntime(
             val week = files[MemoryFolder.weekPath(date)] ?: return@forEach
             documents[path] = (documents[path] ?: MemoryFolder.card("每日记录", "$date", "每周回顾", "$date · 每周回顾", 1, "")) + "\n" + week
         }
-        if (channel.kind == PushKind.Webhook) state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && it.startsWith("daily/") && it !in documents }.forEach { path ->
+        if (channel.kind == PushKind.Webhook) state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && it.startsWith("daily/") &&
+            it !in documents }.forEach { path ->
             documents[path] = MemoryFolder.card("每日记录", path.substringAfterLast('/').take(10), "已删除或移出范围", "当天已无记录", 0, "")
         }
         var count = 0
@@ -276,7 +292,8 @@ internal class SubscriptionRuntime(
             if (channel.kind == PushKind.Webhook && path !in files) { state.files.remove(path); state.templates.remove(path) }
             state.save(); count++
         }
-        if (channel.kind == PushKind.Notion) state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && it.startsWith("daily/") && it !in documents }.forEach { path ->
+        if (channel.kind == PushKind.Notion) state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && it.startsWith("daily/") &&
+            it !in documents }.forEach { path ->
             transport.deleteNotionDay(values, path.substringAfterLast('/').take(10))
             state.files.remove(path); state.templates.remove(path); state.save(); count++
         }

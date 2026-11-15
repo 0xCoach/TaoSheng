@@ -69,7 +69,9 @@ class LocalSpeakerDiarizer(private val context: Context) : AutoCloseable {
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             // 预判不可用不阻断完整分人，也不能以“预判失败”作为单人的证据。
-            runCatching { precheckEmbedding?.close() }; precheckEmbedding = null
+            runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 precheckEmbedding?.close() }; precheckEmbedding = null
             false
         }
     }

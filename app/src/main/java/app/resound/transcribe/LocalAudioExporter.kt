@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.*
 import java.io.File
 import java.util.UUID
@@ -104,7 +106,9 @@ internal class LocalAudioExporter(
                                             }
                                             check(count > 0)
                                         } catch (e: CancellationException) { throw e }
-                                        catch (_: Exception) {
+                                        catch (caught: Exception) {
+                                            FailureNotes.record("transcribe/LocalAudioExporter.kt:107", caught)
+
                                             chunks.send(ExportChunk.Bad(id))
                                             return@launch
                                         } finally { decodeNanos += System.nanoTime() - begin - blocked }
@@ -176,7 +180,8 @@ internal class LocalAudioExporter(
             delivered = true
             if (duration > 0) speeds.record(duration, elapsed)
         } finally {
-            record("${now()} 录音导出 总时长=${duration}ms 段数=$attempted 合成=${(System.nanoTime() - started) / 1_000_000}ms 解码=${decodeNanos / 1_000_000}ms 编码=${encodeNanos / 1_000_000}ms 跳过=${excluded.size} 完成=$delivered")
+            record("${now()} 录音导出 总时长=${duration}ms 段数=$attempted 合成=${(System.nanoTime(
+                ) - started) / 1_000_000}ms 解码=${decodeNanos / 1_000_000}ms 编码=${encodeNanos / 1_000_000}ms 跳过=${excluded.size} 完成=$delivered")
             encoder?.close()
             synchronized(active) {
                 if (!delivered) folder.deleteRecursively()

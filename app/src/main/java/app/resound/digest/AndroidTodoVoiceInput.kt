@@ -1,5 +1,9 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.audio.OwnRecordingSessions
+
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -114,10 +118,14 @@ class AndroidTodoVoiceInput internal constructor(
                 val text = result.sentences.joinToString("\n") { it.text.trim() }.trim()
                 if (text.isEmpty()) VoiceNoteResult.Empty else VoiceNoteResult.Text(text)
             }
-        } catch (_: TimeoutCancellationException) { VoiceNoteResult.Failed("识别超时，没能完成") }
+        } catch (caught: TimeoutCancellationException) {
+            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:119", caught)
+            VoiceNoteResult.Failed("识别超时，没能完成") }
         catch (e: CancellationException) { throw e }
         catch (e: AsrException) { VoiceNoteResult.Failed(voiceFailure(e.type)) }
-        catch (_: Exception) { VoiceNoteResult.Failed("没能完成语音识别") }
+        catch (caught: Exception) {
+            FailureNotes.record("digest/AndroidTodoVoiceInput.kt:122", caught)
+            VoiceNoteResult.Failed("没能完成语音识别") }
         finally {
             withContext(NonCancellable + Dispatchers.IO) {
                 active.recording.cancelAndJoin()
@@ -159,7 +167,7 @@ private class AndroidTodoMicrophone : TodoMicrophone {
         val active = AudioRecord(MediaRecorder.AudioSource.MIC, 16000, AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT, maxOf(min * 2, 32000)).also { recorder = it }
         check(active.state == AudioRecord.STATE_INITIALIZED)
-        app.resound.audio.OwnRecordingSessions.add(active.audioSessionId)
+        OwnRecordingSessions.add(active.audioSessionId)
         active.startRecording()
         check(active.recordingState == AudioRecord.RECORDSTATE_RECORDING)
         check(active.activeRecordingConfiguration?.isClientSilenced != true)
@@ -169,7 +177,9 @@ private class AndroidTodoMicrophone : TodoMicrophone {
     override fun close() {
         val active = recorder ?: return
         recorder = null
-        try { runCatching { active.stop() } } finally { active.release() }
+        try { runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             active.stop() } } finally { active.release() }
     }
 }
 

@@ -1,5 +1,8 @@
 package app.resound.digest
 
+import app.resound.transcribe.MAX_INTERVAL
+import app.resound.transcribe.MIN_INTERVAL
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -26,12 +29,12 @@ class DigestPreferenceStore(
     /** 多久整理一次（分钟）；第一次沿用原来“多久转写一次”的设置（以前两者是同一个定时任务） */
     private val _intervalMinutes = MutableStateFlow(readInt("interval",
         legacyInterval())
-        .coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL))
+        .coerceIn(MIN_INTERVAL, MAX_INTERVAL))
     val intervalMinutes = _intervalMinutes.asStateFlow()
     /** 间隔改了要重排整理任务；由 ResoundApp 装配 */
     var onIntervalChanged: () -> Unit = {}
     fun setIntervalMinutes(value: Int) {
-        val v = value.coerceIn(app.resound.transcribe.MIN_INTERVAL, app.resound.transcribe.MAX_INTERVAL)
+        val v = value.coerceIn(MIN_INTERVAL, MAX_INTERVAL)
         check(saveInt("interval", v)); _intervalMinutes.value = v; onIntervalChanged()
     }
     /** 整理前先让模型思考：分条更准，但费用约为原来的 3～5 倍；默认关 */

@@ -1,5 +1,10 @@
 package app.resound.ask
 
+import app.resound.diagnostics.FailureNotes
+
+// 同名类型与本文件声明或已有 import 冲突，以下引用保留全限定名：
+// app.resound.ask.core.AskFailure
+
 import android.content.Context
 import app.resound.digest.LlmError
 import app.resound.digest.LlmException
@@ -38,10 +43,14 @@ class AskCompatibility(context: Context, private val now: () -> Long = System::c
     private fun modelKey(id: String, model: String) = org.json.JSONArray().put(id).put(model).toString()
     fun generation(id: String): Long = synchronized(lock) { prefs.getLong("generation:$id", 0) }
     fun state(preset: LlmPreset): AskCompatibilityState = synchronized(lock) {
-        val row = runCatching { JSONObject(prefs.getString(key(preset), "{}")!!) }.getOrDefault(JSONObject())
+        val row = runCatching { JSONObject(prefs.getString(key(preset), "{}")!!) }.onFailure {
+            FailureNotes.record("ask/AskCompatibility.kt:44", it)
+        }.getOrDefault(JSONObject())
         fun record(name: String): AskFailureRecord? = runCatching {
             val value = row.getJSONObject(name)
             AskFailureRecord(AskFailure.valueOf(value.getString("reason")), value.getLong("at"))
+        }.onFailure {
+            FailureNotes.record("ask/AskCompatibility.kt:45", it)
         }.getOrNull()
         AskCompatibilityState(record("fallback"), record("failure"))
     }
@@ -56,14 +65,18 @@ class AskCompatibility(context: Context, private val now: () -> Long = System::c
     fun passed(preset: LlmPreset, generation: Long) = update(preset, generation) { remove("fallback") }
     private fun update(preset: LlmPreset, generation: Long, block: JSONObject.() -> Unit) = synchronized(lock) {
         if (generation != generation(preset.id)) return@synchronized
-        val row = runCatching { JSONObject(prefs.getString(key(preset), "{}")!!) }.getOrDefault(JSONObject())
+        val row = runCatching { JSONObject(prefs.getString(key(preset), "{}")!!) }.onFailure {
+            FailureNotes.record("ask/AskCompatibility.kt:62", it)
+        }.getOrDefault(JSONObject())
         row.block()
         prefs.edit().putString(key(preset), row.toString()).apply()
     }
     fun changed(id: String) = synchronized(lock) {
         val editor = prefs.edit().putLong("generation:$id", generation(id) + 1)
         prefs.all.keys.filter { it.startsWith("model:") }.forEach { key ->
-            if (runCatching { org.json.JSONArray(key.removePrefix("model:")).getString(0) == id }.getOrDefault(false)) editor.remove(key)
+            if (runCatching { org.json.JSONArray(key.removePrefix("model:")).getString(0) == id }.onFailure {
+                FailureNotes.record("ask/AskCompatibility.kt:69", it)
+            }.getOrDefault(false)) editor.remove(key)
         }
         editor.apply()
     }

@@ -1,5 +1,7 @@
 package app.resound.voiceprint
 
+import app.resound.diagnostics.FailureNotes
+
 import android.util.AtomicFile
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
@@ -36,7 +38,11 @@ internal class VoiceprintFeatureCache(private val directory: File?) {
                 require(input.read() == -1)
                 Feature(vector, duration)
             }
-        } catch (_: IOException) { null } catch (_: IllegalArgumentException) { null }
+        } catch (caught: IOException) {
+            FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", caught)
+            null } catch (caught: IllegalArgumentException) {
+            FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", caught)
+            null }
     }
 
     fun write(key: String, feature: Feature) {

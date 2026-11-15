@@ -1,5 +1,7 @@
 package app.resound.push
 
+import app.resound.diagnostics.FailureNotes
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -48,7 +50,9 @@ class LocalNotifier(private val context: Context, private val channel: String = 
                     .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
                     .setPriority(if (urgent) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
                     .apply { if (urgent) setCategory(NotificationCompat.CATEGORY_REMINDER).setVisibility(NotificationCompat.VISIBILITY_PUBLIC) }.build())
-        } catch (_: SecurityException) { throw IllegalStateException("请开启${channelName}通知权限") }
+        } catch (caught: SecurityException) {
+            FailureNotes.record("push/LocalNotifier.kt:51", caught)
+            throw IllegalStateException("请开启${channelName}通知权限") }
     }
 
     companion object {

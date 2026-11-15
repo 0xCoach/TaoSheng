@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.transcribe.VoiceInputMeta
 import java.util.UUID
 
@@ -343,7 +345,9 @@ internal class VoiceInputEngine(
 }
 
 /** 诊断日志：只写步骤和数字，绝不写文字内容。 */
-internal fun dbg(msg: String) { VoiceInputTrace.add(msg); runCatching { android.util.Log.d("VoiceInputDbg", msg) } }
+internal fun dbg(msg: String) { VoiceInputTrace.add(msg); runCatching { android.util.Log.d("VoiceInputDbg", msg) }.onFailure {
+    FailureNotes.record("capture/VoiceInputEngine.kt:346", it)
+} }
 
 /** 最近几百步语音输入判断，随“导出诊断记录”一起导出；同 dbg 一样只有步骤和数字，没有文字内容 */
 object VoiceInputTrace {

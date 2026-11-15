@@ -31,7 +31,9 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
         val host = values.getValue("host")
         val port = PushFields.default(values, "port", "465").toInt()
         val socket = AtomicReference<Socket?>()
-        val deadline = timer.schedule({ runCatching { socket.get()?.close() } }, 10, TimeUnit.SECONDS)
+        val deadline = timer.schedule({ runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             socket.get()?.close() } }, 10, TimeUnit.SECONDS)
         try {
             socket.set(sockets.connect(host, port))
             if (port == 465) socket.set(sockets.tls(socket.get()!!, host, port))
@@ -81,11 +83,15 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
             writer.write(mime.lineSequence().joinToString("\r\n") { if (it.startsWith('.')) ".$it" else it })
             writer.write("\r\n.\r\n"); writer.flush(); reply(250)
             // DATA 的 250 即已接收；QUIT 失败不能把已发送邮件变为失败并重复投递。
-            runCatching { writer.write("QUIT\r\n"); writer.flush() }
+            runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 writer.write("QUIT\r\n"); writer.flush() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
             throw PushErrors.failure(if (deadline.isDone) java.net.SocketTimeoutException() else e, values)
-        } finally { deadline.cancel(false); runCatching { socket.get()?.close() } }
+        } finally { deadline.cancel(false); runCatching {
+            // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+             socket.get()?.close() } }
     }
     companion object {
         private val timer = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "push-smtp-timeout").apply { isDaemon = true } }
@@ -107,7 +113,8 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets()) {
         internal fun mime(values: Map<String, String>, format: PushFormat, message: PushMessage): String {
             val headers = "From: ${values.getValue("account")}\r\nTo: ${values.getValue("to")}\r\nSubject: ${subject(message.title)}\r\nMIME-Version: 1.0\r\n"
             fun part(type: String, text: String) = "Content-Type: $type; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${encoded(text)}\r\n"
-            if (message.memory == null) return headers + if (format == PushFormat.Text) part("text/plain", message.rendered(format)) else part("text/html", markdownHtml(message.rendered(PushFormat.Markdown)))
+            if (message.memory == null) return headers + if (format == PushFormat.Text) part("text/plain", message.rendered(format)) else part("text/html",
+                markdownHtml(message.rendered(PushFormat.Markdown)))
             val boundary = "resound-${UUID.randomUUID()}"
             val filename = "记忆-${message.memory.getString("date")}.md"
             val encodedFilename = java.net.URLEncoder.encode(filename, "UTF-8").replace("+", "%20")

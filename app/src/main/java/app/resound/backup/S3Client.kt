@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -41,7 +43,9 @@ internal class S3Client(
         } else hash
         val response = client.newCall(S3Signing.sign(raw, settings.region, access, secret, payload, now())).execute()
         if (response.isSuccessful) return response
-        val code = runCatching { xml(response.peekBody(65536).byteStream()).firstOrNull { it.first == "Code" }?.second }.getOrNull()
+        val code = runCatching { xml(response.peekBody(65536).byteStream()).firstOrNull { it.first == "Code" }?.second }.onFailure {
+            FailureNotes.record("backup/S3Client.kt:44", it)
+        }.getOrNull()
         // HEAD 404 无响应体；先确认桶可读，避免把桶不存在冒充对象不存在。
         if (missing && response.code == 404 && code != "NoSuchBucket") return response
         val failure = failure(response.code, code)
@@ -169,7 +173,8 @@ internal class S3Client(
             code in setOf("RequestTimeTooSkewed", "RequestExpired", "RequestInTheFuture", "RequestNotYetValid", "RequestTimeTooSkewedException") -> BackupFailure("手机时间不准，请到系统设置里打开自动设置时间")
             code in setOf("InvalidAccessKeyId", "SignatureDoesNotMatch", "InvalidToken", "ExpiredToken") -> BackupFailure("S3 访问密钥不正确，请检查访问密钥 ID 和私有访问密钥")
             code == "NoSuchBucket" -> BackupFailure("S3 桶不存在，请检查桶名和服务地址")
-            code in setOf("AuthorizationHeaderMalformed", "IncorrectEndpoint", "IllegalLocationConstraintException", "PermanentRedirect", "AuthorizationQueryParametersError") || status in 300..399 -> BackupFailure("S3 区域或服务地址不对，请按桶所在区域填写")
+            code in setOf("AuthorizationHeaderMalformed", "IncorrectEndpoint", "IllegalLocationConstraintException", "PermanentRedirect",
+                "AuthorizationQueryParametersError") || status in 300..399 -> BackupFailure("S3 区域或服务地址不对，请按桶所在区域填写")
             status == 401 || status == 403 -> BackupFailure("S3 无访问权限，请检查密钥及桶的读写、列出和删除权限")
             status == 404 -> BackupFailure("S3 桶或对象不存在，请检查桶名和路径")
             status == 412 -> BackupFailure("文件已被其他客户端修改，请重试")

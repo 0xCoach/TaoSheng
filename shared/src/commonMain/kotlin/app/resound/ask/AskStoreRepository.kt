@@ -1,5 +1,7 @@
 package app.resound.ask
 
+import app.resound.diagnostics.FailureNotes
+
 import app.resound.data.AskConversationEntity
 import app.resound.data.AskDao
 import app.resound.data.AskMessageEntity
@@ -144,7 +146,9 @@ class AskStoreRepository(
                     }
                 }
             }
-        } catch (_: TimeoutCancellationException) {
+        } catch (caught: TimeoutCancellationException) {
+            FailureNotes.record("ask/AskStoreRepository.kt:147", caught)
+
             updates.trySend { current = current.copy(error = "查询超时，请重试") }
         } catch (e: CancellationException) {
             updates.trySend { if (current.text.isEmpty()) current = current.copy(text = "已停止") }
@@ -161,7 +165,9 @@ class AskStoreRepository(
                 try {
                     val (userId, assistantId) = dao.saveExchange(user.entity(conversationId), final.entity(conversationId).copy(actionJson = proposal?.encoded))
                     state.value = history + user.copy(id = userId) + final.copy(id = assistantId)
-                } catch (_: Exception) {
+                } catch (caught: Exception) {
+                    FailureNotes.record("ask/AskStoreRepository.kt:164", caught)
+
                     state.value = history + user + final.copy(error = "问答保存失败，请重试")
                 }
             }

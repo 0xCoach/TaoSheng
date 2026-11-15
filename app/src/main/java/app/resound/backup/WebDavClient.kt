@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.diagnostics.FailureNotes
+
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -61,7 +63,9 @@ internal class WebDavClient(
     /** 新目录 + 旧中文目录里的全部备份（恢复列表用），新的在前；新目录还没建时视为空 */
     override fun backups(): List<RemoteBackup> {
         fun quiet(dir: HttpUrl) = try { listIn(dir) } catch (e: BackupFailure) { if (e.human == "备份目录不存在") emptyList() else throw e }
-        return (quiet(directory) + runCatching { quiet(legacyDirectory) }.getOrDefault(emptyList()))
+        return (quiet(directory) + runCatching { quiet(legacyDirectory) }.onFailure {
+            FailureNotes.record("backup/WebDavClient.kt:64", it)
+        }.getOrDefault(emptyList()))
             .sortedWith(compareByDescending<RemoteBackup> { it.at }.thenByDescending { it.name })
     }
     private fun listIn(dir: HttpUrl): List<RemoteBackup> = listFilesIn(dir).mapNotNull { item ->
@@ -97,6 +101,8 @@ internal class WebDavClient(
                     "propstat" -> { inPropstat = true; propSuccess = false; propSize = 0L; propModified = 0L }
                     "getlastmodified" -> if (inResponse) propModified = runCatching {
                         java.time.ZonedDateTime.parse(parser.nextText(),java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli()
+                    }.onFailure {
+                        FailureNotes.record("backup/WebDavClient.kt:98", it)
                     }.getOrDefault(0L)
                     "getcontentlength" -> if (inResponse) propSize = parser.nextText().toLongOrNull()?.coerceAtLeast(0) ?: 0
                     "status" -> if (inResponse) {
@@ -132,7 +138,9 @@ internal class WebDavClient(
             request("MOVE", url(part), headers = mapOf("Destination" to url(name).toString(), "Overwrite" to "F")).close()
         } finally {
             // 仅清理本次临时文件；失败绝不触碰旧正式备份。
-            runCatching { delete(part) }
+            runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 delete(part) }
         }
     }
     /** 日记是固定路径的覆盖上传；与 ZIP 目录、保留策略分离。 */
@@ -206,7 +214,9 @@ internal class WebDavClient(
                     request("DELETE", destination).close()
                     request("MOVE", temporary, headers = mapOf("Destination" to destination.toString(), "Overwrite" to "F")).close()
                 }
-            } finally { runCatching { request("DELETE", temporary).close() } }
+            } finally { runCatching {
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                 request("DELETE", temporary).close() } }
         }
         override fun delete(path: String) { missing { request("DELETE", target(path)).close() } }
         override fun copy(from: String, to: String) {

@@ -1,5 +1,10 @@
 package app.resound.diagnostics
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.ask.AskCompatibility
+import app.resound.digest.LlmPreset
+
 import android.content.Context
 import app.resound.data.MemoryDao
 import app.resound.digest.LlmError
@@ -28,7 +33,9 @@ internal class LlmProblemDiagnostics(
         val inflight = state.contains("inflight")
         val count = state.getString("inflight-lines", "").orEmpty().split(',').mapNotNull(String::toLongOrNull).distinct().size
         appendLine("在途批次=$inflight 在途句数=${if (inflight) count else 0}")
-        appendLine("待整理句数=${runCatching { dao?.undigestedCount() }.getOrNull() ?: "暂无"}")
+        appendLine("待整理句数=${runCatching { dao?.undigestedCount() }.onFailure {
+            FailureNotes.record("diagnostics/LlmProblemDiagnostics.kt:34", it)
+        }.getOrNull() ?: "暂无"}")
         val values = state.all
         fun total(prefix: String) = values.filterKeys { it.startsWith(prefix) }.values.sumOf { (it as? Number)?.toLong()?.coerceAtLeast(0) ?: 0 }
         appendLine("格式失败计数（fail-*）=${total("fail-")} 本地保存失败计数（local-*）=${total("local-")}")
@@ -42,18 +49,22 @@ internal class LlmProblemDiagnostics(
             val primary = saved.firstOrNull { it.optString("id") == active } ?: saved.firstOrNull()
             buildString {
                 appendLine("服务商=${primary?.optString("name") ?: "暂无"} 模型=${primary?.optString("model") ?: "暂无"} 服务地址=${safeServiceAddress(primary?.optString("baseUrl").orEmpty())}")
-                val ask = primary?.let { app.resound.ask.AskCompatibility(context).state(
-                    app.resound.digest.LlmPreset(it.optString("id"), "", "", it.optString("model"))) }
+                val ask = primary?.let { AskCompatibility(context).state(
+                    LlmPreset(it.optString("id"), "", "", it.optString("model"))) }
                 appendLine("问问程序先查=${ask?.fallback != null} 标记原因=${ask?.fallback?.reason?.human ?: "暂无"} 时间=${LlmDiagnostics.stamp(ask?.fallback?.at ?: 0)}")
                 appendLine("上次实际问答失败=${ask?.lastFailure?.reason?.human ?: "暂无"} 时间=${LlmDiagnostics.stamp(ask?.lastFailure?.at ?: 0)}")
                 appendLine("备用切换=${context.getSharedPreferences("digest", 0).getBoolean("failoverEnabled", true)}")
                 append("备用列表（已保存的其他配置）：")
                 append(saved.filter { it != primary }.joinToString("；") { "${it.optString("name")} / ${it.optString("model")}" }.ifBlank { "暂无" })
             }
+        }.onFailure {
+            FailureNotes.record("diagnostics/LlmProblemDiagnostics.kt:40", it)
         }.getOrDefault("暂无"))
         val end = today()
         appendLine("最近 3 天用量（${end.minusDays(2)} 至 $end，按用途汇总）：")
-        val usage = runCatching { dao?.usageByPurpose(end.minusDays(2).toString(), end.toString())?.first() }.getOrNull()
+        val usage = runCatching { dao?.usageByPurpose(end.minusDays(2).toString(), end.toString())?.first() }.onFailure {
+            FailureNotes.record("diagnostics/LlmProblemDiagnostics.kt:59", it)
+        }.getOrNull()
         if (usage.isNullOrEmpty()) appendLine("暂无") else {
             usage.groupBy { row -> UsagePurpose.entries.firstOrNull { it.name == row.purpose } ?: UsagePurpose.Other }
                 .forEach { (purpose, rows) ->
@@ -63,7 +74,9 @@ internal class LlmProblemDiagnostics(
         appendLine("最近大模型响应摘要（最多 20 条；未到解析阶段或不适用的字段为暂无）：")
         appendLine(diagnostics.dumpResponses())
         appendLine("备用切换记录：${recent.getString("switch", null) ?: "暂无"}")
-        appendLine("冷却状态（当前进程）：${runCatching { failover?.coolingDiagnostics() }.getOrNull() ?: "暂无"}")
+        appendLine("冷却状态（当前进程）：${runCatching { failover?.coolingDiagnostics() }.onFailure {
+            FailureNotes.record("diagnostics/LlmProblemDiagnostics.kt:69", it)
+        }.getOrNull() ?: "暂无"}")
     })
 }
 
@@ -72,4 +85,6 @@ internal fun safeServiceAddress(value: String): String = runCatching {
     val uri = URI(value)
     if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank()) "暂无"
     else URI(uri.scheme, null, uri.host, -1, uri.path, null, null).toASCIIString()
+}.onFailure {
+    FailureNotes.record("diagnostics/LlmProblemDiagnostics.kt:74", it)
 }.getOrDefault("暂无")

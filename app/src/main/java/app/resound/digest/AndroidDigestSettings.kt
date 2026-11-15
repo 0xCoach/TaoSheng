@@ -1,5 +1,9 @@
 package app.resound.digest
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.transcribe.fetchRemoteModels
+
 import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +44,8 @@ class AndroidDigestSettings internal constructor(
     val customEndpoint get() = providers.saved.value.firstOrNull { it.id == "custom" }?.baseUrl.orEmpty()
     val customModel get() = providers.saved.value.firstOrNull { it.id == "custom" }?.model.orEmpty()
     override val presets get() = providers.saved.value.map { it.preset() }
-    suspend fun fetchModels(endpoint:String,key:String)=app.resound.transcribe.fetchRemoteModels(ServiceHeaders.modelsEndpoint(endpoint),key.trim().ifBlank{readKey()}, headers = providers.headerStore.forService(presetId.value, endpoint))
+    suspend fun fetchModels(endpoint:String,key:String)=fetchRemoteModels(ServiceHeaders.modelsEndpoint(endpoint),key.trim().ifBlank{readKey()}, headers = providers
+        .headerStore.forService(presetId.value, endpoint))
     fun saveCustomAll(endpoint:String,model:String,key:String) {
         providers.ensureLegacy("custom")
         val p = providers.saved.value.first { it.id == "custom" }
@@ -81,13 +86,17 @@ class AndroidDigestSettings internal constructor(
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
             failover.clear(selected.id)
-            val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.getOrNull().orEmpty()
+            val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.onFailure {
+                FailureNotes.record("digest/AndroidDigestSettings.kt:87", it)
+            }.getOrNull().orEmpty()
             Result.success("可用（${selected.name}）${if (text.isNotBlank()) "：$text" else ""}")
         } catch (e: CancellationException) {
             throw e
         } catch (e: LlmException) {
             Result.failure(IllegalStateException(e.detail))
-        } catch (_: Exception) {
+        } catch (caught: Exception) {
+            FailureNotes.record("digest/AndroidDigestSettings.kt:93", caught)
+
             Result.failure(IllegalStateException("测试失败，请重试"))
         }
     }

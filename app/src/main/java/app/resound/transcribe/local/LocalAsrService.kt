@@ -1,5 +1,11 @@
 package app.resound.transcribe.local
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.transcribe.TranscribePowerDiagnostics
+import app.resound.transcribe.readPcm16
+import app.resound.voiceprint.SpeakerTurns
+
 import android.app.Service
 import android.content.Intent
 import android.os.*
@@ -51,7 +57,7 @@ class LocalAsrService : Service() {
             try {if(request.id !in cancelled){
                 val wake = InferenceWakeLock(getSystemService(PowerManager::class.java)
                     .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "resound:local-asr")) { startedAt, millis ->
-                    app.resound.transcribe.TranscribePowerDiagnostics.held(this@LocalAsrService, startedAt, millis)
+                    TranscribePowerDiagnostics.held(this@LocalAsrService, startedAt, millis)
                 }
                 activeWake = request.id to wake
                 try {
@@ -64,7 +70,9 @@ class LocalAsrService : Service() {
     private fun send(request:Request,type:Int,fields:Bundle.()->Unit={}) {
         runCatching {request.reply.send(Message.obtain(null,type).apply{data=Bundle().apply{
             putString("id",request.id);putString("processInstance",processInstance);putInt("pid",Process.myPid());fields()
-        }})}
+        }})}.onFailure {
+            FailureNotes.record("transcribe/local/LocalAsrService.kt:69", it)
+        }
     }
     private fun model(backend:LocalBackend,language:LocalAsrLanguage):OfflineRecognizer {
         require(backend!=LocalBackend.Npu || LocalModels.npuSupported())
@@ -93,11 +101,12 @@ class LocalAsrService : Service() {
             val shared=request.data.getString("pcmPath")
             val pcm=timed("Prepare") { if(shared != null) readLocalAudio(shared, filesDir, cacheDir) { file ->
                 require(file.canonicalPath.startsWith(cacheDir.canonicalPath + "/asr-shared-"))
-                app.resound.transcribe.readPcm16(file)
+                readPcm16(file)
             } else readLocalAudio(request.data.getString("path"), filesDir, cacheDir, AsrAudioReader(cacheDir)::readPcm) }
             phase="speakers"
             val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
-            val turns=if (!separateSpeakers) listOf(app.resound.voiceprint.SpeakerTurns.Turn(0,pcm.size,null)) else timed("Diarize") { diarizer.turns(pcm, request.data.getInt("speakerCount", -1)){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}} }
+            val turns=if (!separateSpeakers) listOf(SpeakerTurns.Turn(0,pcm.size,null)) else timed("Diarize") { diarizer.turns(pcm, request.data.getInt("speakerCount",
+                -1)){done,total->send(request,2){putInt("done",done);putInt("total",total);putString("phase","区分说话人")}} }
             speakerDecision=if(separateSpeakers)diarizer.lastDecision else "关闭"
             if(request.id in cancelled)return
             phase="asr"
@@ -134,7 +143,9 @@ class LocalAsrService : Service() {
             }
         } catch(e:CancellationException){throw e}
         catch(e:Exception){
-            if(phase=="asr"){runCatching{recognizer?.release()};recognizer=null;recognizerKey=""}
+            if(phase=="asr"){runCatching{
+                // 仅释放/清除临时资源；失败不改变已确定的业务结果，可忽略。
+                recognizer?.release()};recognizer=null;recognizerKey=""}
             send(request,4){LocalAsrFailure.write(this,phase,e);timingFields()}
         } catch(e:LinkageError){send(request,4){LocalAsrFailure.write(this,phase,e);timingFields()}}
     }

@@ -1,5 +1,7 @@
 package app.resound.context
 
+import app.resound.platform.ZoneProvider
+
 import app.resound.data.*
 import app.resound.envsound.EnvSoundRow
 import app.resound.location.*
@@ -20,9 +22,9 @@ class LocalSituationLookup internal constructor(
     zone: () -> ZoneId, io: kotlinx.coroutines.CoroutineDispatcher,
     pointBounds: suspend () -> Pair<Long, Long>? = { null },
 ) : SituationLookup by SituationStore(available, points, cachedPlace, sounds, placeRevision, soundRevision,
-    app.resound.platform.ZoneProvider { zone().id }, io, { it is SecurityException }, Math::toRadians, pointBounds) {
+    ZoneProvider { zone().id }, io, { it is SecurityException }, Math::toRadians, pointBounds) {
     companion object {
-        fun create(database: CaptureDatabase, location: LocationRepository, scope: CoroutineScope, zone: app.resound.platform.ZoneProvider, io: kotlinx.coroutines.CoroutineDispatcher): LocalSituationLookup {
+        fun create(database: CaptureDatabase, location: LocationRepository, scope: CoroutineScope, zone: ZoneProvider, io: kotlinx.coroutines.CoroutineDispatcher): LocalSituationLookup {
             val places = AtomicLong()
             val sounds = AtomicLong()
             scope.launch(start = CoroutineStart.UNDISPATCHED) {

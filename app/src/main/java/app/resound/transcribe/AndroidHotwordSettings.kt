@@ -1,5 +1,7 @@
 package app.resound.transcribe
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import app.resound.data.VoiceprintDao
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +26,8 @@ class AndroidHotwordSettings(context: Context, dao: VoiceprintDao, scope: Corout
     private val current = MutableStateFlow(runCatching {
         val array = JSONArray(prefs.getString("hotwords", "[]"))
         Hotwords.normalize((0 until array.length()).map { array.getString(it) })
+    }.onFailure {
+        FailureNotes.record("transcribe/AndroidHotwordSettings.kt:24", it)
     }.getOrDefault(emptyList()))
     override val words = current.asStateFlow()
     override val automatic = dao.observePeople().map { people ->

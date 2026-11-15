@@ -1,4 +1,10 @@
 package app.resound.skills
+
+// 同名类型与本文件声明或已有 import 冲突，以下引用保留全限定名：
+// app.resound.skills.core.SkillPrompt
+// app.resound.skills.core.SkillSource
+
+import app.resound.digest.core.TranscriptLineData
 import app.resound.appDisplayName
 import app.resound.data.TranscriptLineEntity
 import app.resound.digest.snapshot
@@ -16,12 +22,13 @@ object SkillInputs {
   val byId = raw.associateBy { it.id }
   return Core.boundedLines(raw.map { it.snapshot() }, speakers, limit).map { byId.getValue(it.id) }
  }
- internal fun gateLines(raw: List<app.resound.digest.core.TranscriptLineData>, speakers: SkillSpeakers) = Core.gateLines(raw,speakers)
+ internal fun gateLines(raw: List<TranscriptLineData>, speakers: SkillSpeakers) = Core.gateLines(raw,speakers)
  suspend fun load(dao: SkillDao,skill: Skill,date: LocalDate,since: Long?,until: Long) = prepare(dao,skill,date,until,source(dao,skill,date,since,until))
  internal suspend fun source(dao: SkillDao,skill: Skill,date: LocalDate,since: Long?,until: Long) = Core.source(RoomSkillInputStore(dao),skill,date.toKotlinLocalDate(),since,until)
  internal suspend fun prepare(dao: SkillDao,skill: Skill,date: LocalDate,until: Long,source: SkillSource): SkillInput {
   val value = Core.prepare(RoomSkillInputStore(dao),skill,date.toKotlinLocalDate(),until,source)
-  return SkillInput(value.data,value.lines.mapValues { (_,l) -> TranscriptLineEntity(l.id,l.segmentId,l.startAt,l.endAt,l.text,l.speakerTag,l.speakerName,l.eventId,l.digestedAt,l.speakerScore,l.speakerPersonId,l.speakerManual,l.voiceInputJson,l.voiceInputPendingUntil,l.originalText) })
+  return SkillInput(value.data,value.lines.mapValues { (_,l) -> TranscriptLineEntity(l.id,l.segmentId,l.startAt,l.endAt,l.text,l.speakerTag,l.speakerName,l.eventId,l
+      .digestedAt,l.speakerScore,l.speakerPersonId,l.speakerManual,l.voiceInputJson,l.voiceInputPendingUntil,l.originalText) })
  }
  fun user(input: SkillInput,hotwords: List<String>) = Core.user(input.snapshot(),hotwords)
 }

@@ -1,5 +1,7 @@
 package app.resound.transcribe.local
 
+import app.resound.diagnostics.FailureNotes
+
 import android.content.Context
 import app.resound.transcribe.awaitResponse
 import android.os.Build
@@ -34,7 +36,8 @@ private fun ModelSpec.withDomesticMirror() = copy(
 object LocalModels {
     val cpu = ModelSpec("sense-cpu-v1", "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2",163002883,
         "7d1efa2138a65b0b488df37f8b89e3d91a60676e416f515b952358d83dfd347e", "model.int8.onnx",239233841,"c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51").withDomesticMirror()
-    val npu = ModelSpec("sense-sm8650-v1", "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models-qnn-binary/sherpa-onnx-qnn-SM8650-binary-30-seconds-sense-voice-zh-en-ja-ko-yue-2024-07-17-int8.tar.bz2",161991500,
+    val npu = ModelSpec("sense-sm8650-v1",
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models-qnn-binary/sherpa-onnx-qnn-SM8650-binary-30-seconds-sense-voice-zh-en-ja-ko-yue-2024-07-17-int8.tar.bz2",161991500,
         "8d050c08b01898b73144329be150cb4d4cc8802d72d6cae6add16e96fb7f0ef5", "model.bin",255995904,"f66bc5b70ce1d0c7c5abab3f45bbe59fdc266952ab6defc99d9864149ffd0098").withDomesticMirror()
     val speakers = ModelSpec("speakers-v2", "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2", 6958444,
         "24615ee884c897d9d2ba09bb4d30da6bb1b15e685065962db5b02e76e4996488", "model.onnx", 5992913,
@@ -84,7 +87,9 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
     private fun status(text: String) { prefs.edit().putString("download-${if (speakers) "Speakers" else backend.name}",text).apply() }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         speakers = inputData.getBoolean("speakers", false)
-        backend = if (speakers) LocalBackend.Cpu else runCatching { LocalBackend.valueOf(inputData.getString("backend") ?: "") }.getOrElse { return@withContext Result.failure() }
+        backend = if (speakers) LocalBackend.Cpu else runCatching { LocalBackend.valueOf(inputData.getString("backend") ?: "") }.onFailure {
+            FailureNotes.record("transcribe/local/LocalModels.kt:88", it)
+        }.getOrElse { return@withContext Result.failure() }
         if (backend == LocalBackend.Npu && !LocalModels.npuSupported()) { status("您的手机暂不支持 NPU 识别，请下载 CPU 模型");return@withContext Result.failure() }
         val spec=if(speakers) LocalModels.speakers else LocalModels.spec(backend);val dir=LocalModels.directory(applicationContext,spec)
         if(LocalModels.ready(applicationContext,spec)){status("已下载并校验");return@withContext Result.success()}
@@ -123,7 +128,9 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
             archive.delete();status("已下载并校验")
             Result.success()
         } catch(e: kotlinx.coroutines.CancellationException){status("下载已暂停，可点击继续");throw e}
-        catch(_: Exception){status("下载未完成，请检查网络后重试；已校验失败的文件会重新下载");Result.failure()}
+        catch(caught: Exception){
+            FailureNotes.record("transcribe/local/LocalModels.kt:127", caught)
+           status("下载未完成，请检查网络后重试；已校验失败的文件会重新下载");Result.failure()}
         finally{staging.deleteRecursively();lock.unlock()}
     }
     private companion object {
@@ -133,7 +140,8 @@ class ModelDownloadWork(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun getForegroundInfo(): ForegroundInfo {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("local-model","本地模型下载",NotificationManager.IMPORTANCE_LOW))
         return ForegroundInfo(3010+if(speakers)2 else if(::backend.isInitialized && backend==LocalBackend.Npu)1 else 0,
-            NotificationCompat.Builder(applicationContext,"local-model").setSmallIcon(R.drawable.ic_notify).setContentTitle(if(speakers) "正在下载说话人分段模型" else "正在下载 SenseVoice 本地模型").setOngoing(true).build(),ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            NotificationCompat.Builder(applicationContext,"local-model").setSmallIcon(R.drawable.ic_notify).setContentTitle(if(
+                speakers) "正在下载说话人分段模型" else "正在下载 SenseVoice 本地模型").setOngoing(true).build(),ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
 }
 

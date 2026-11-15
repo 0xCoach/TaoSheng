@@ -5,7 +5,8 @@ import app.resound.data.SegmentEntity
 import app.resound.data.MemoryEventEntity
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "env_sounds", foreignKeys = [ForeignKey(entity = SegmentEntity::class, parentColumns = ["id"], childColumns = ["segmentId"], onDelete = ForeignKey.CASCADE)], indices = [Index("startAt")])
+@Entity(tableName = "env_sounds", foreignKeys = [ForeignKey(entity = SegmentEntity::class, parentColumns = ["id"], childColumns = ["segmentId"], onDelete = ForeignKey
+    .CASCADE)], indices = [Index("startAt")])
 data class EnvSoundRow(@PrimaryKey val segmentId: Long, val startAt: Long, val endAt: Long,
     val path: String, val verdict: String, val reason: String?, val tags: String, val sounds: String,
     val scores: String, val skipped: Boolean, val markMedia: Boolean, val restored: Boolean = false,

@@ -1,5 +1,10 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.R
+import app.resound.usage.UsagePurpose
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -26,7 +31,9 @@ class AndroidImportKinds internal constructor(
     private val transcribe: () -> Unit,
 ) : ImportKinds {
     private val prefs = context.getSharedPreferences("import-kinds", Context.MODE_PRIVATE)
-    private val last = MutableStateFlow(prefs.getString("last", null)?.let { runCatching { ImportKind.valueOf(it) }.getOrNull() })
+    private val last = MutableStateFlow(prefs.getString("last", null)?.let { runCatching { ImportKind.valueOf(it) }.onFailure {
+        FailureNotes.record("importer/AndroidImportKinds.kt:32", it)
+    }.getOrNull() })
     override val lastKind = last.asStateFlow()
     init {
         scope.launch(Dispatchers.IO) {
@@ -82,8 +89,8 @@ class AndroidImportKinds internal constructor(
             }, request = { system, user ->
                 val (preset, key) = settings.skillCredentials(null)
                 if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
-                val reply = settings.failover.request("导入纪要", db.memory(), app.resound.usage.UsagePurpose.Skill, llm::chatJson)(preset, key, system, user)
-                withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, app.resound.usage.UsagePurpose.Skill) }
+                val reply = settings.failover.request("导入纪要", db.memory(), UsagePurpose.Skill, llm::chatJson)(preset, key, system, user)
+                withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
                 reply
             })
             return AndroidImportKinds(context, db, importer, scope,
@@ -97,14 +104,18 @@ class ImportSummaryWork(context: Context, params: WorkerParameters) : CoroutineW
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel("import", "导入录音", NotificationManager.IMPORTANCE_LOW))
         return ForegroundInfo(3077, NotificationCompat.Builder(applicationContext, "import")
-            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("正在整理导入录音").setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            .setSmallIcon(R.drawable.ic_notify).setContentTitle("正在整理导入录音").setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (_: Exception) { /* 前台受限时仍可用普通 Worker。 */ }
+            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                FailureNotes.record("importer/AndroidImportKinds.kt:107", caught)
+                /* 前台受限时仍可用普通 Worker。 */ }
             (AppGraph.importKinds as AndroidImportKinds).engine.run()
             Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { Result.retry() }
+        catch (caught: Exception) {
+            FailureNotes.record("importer/AndroidImportKinds.kt:111", caught)
+            Result.retry() }
     }
 }

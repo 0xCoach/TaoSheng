@@ -1,5 +1,8 @@
 package app.resound.skills
 
+import app.resound.skills.core.SkillMergePlan
+import app.resound.skills.core.SkillMergeRules
+
 import androidx.room.*
 import app.resound.data.MemoryEventEntity
 import app.resound.data.MemoryItemEntity
@@ -80,10 +83,10 @@ abstract class SkillDao {
     /** 删除判断、手动恢复、合并和日上限在同一事务里完成。 */
     @Transaction
     open suspend fun mergeWithReason(incoming: SkillCardRow, max: Int, manual: Boolean = false): SkillMergeResult {
-        return when (val plan = app.resound.skills.core.SkillMergeRules.merge(incoming.snapshot(),dayRows(incoming.skillId,incoming.date).map { it.snapshot() },max,manual)) {
-            app.resound.skills.core.SkillMergePlan.Deleted -> SkillMergeResult.Deleted
-            is app.resound.skills.core.SkillMergePlan.Full -> SkillMergeResult.Full(plan.count)
-            is app.resound.skills.core.SkillMergePlan.Saved -> {
+        return when (val plan = SkillMergeRules.merge(incoming.snapshot(),dayRows(incoming.skillId,incoming.date).map { it.snapshot() },max,manual)) {
+            SkillMergePlan.Deleted -> SkillMergeResult.Deleted
+            is SkillMergePlan.Full -> SkillMergeResult.Full(plan.count)
+            is SkillMergePlan.Saved -> {
                 if (plan.removeIds.isNotEmpty()) removeMerged(plan.removeIds)
                 val row = plan.row.android()
                 val id = save(row)

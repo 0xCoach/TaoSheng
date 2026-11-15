@@ -1,5 +1,9 @@
 package app.resound.importer
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.data.MemoryItemEntity
+
 import app.resound.data.TranscriptLineEntity
 import app.resound.digest.*
 import app.resound.skills.*
@@ -35,7 +39,7 @@ internal class ImportSummary(
     private val now: () -> Long = System::currentTimeMillis,
     private val session: TopicProcessingSession? = null,
 ) {
-    suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<app.resound.data.MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
+    suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
         val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()
         val indexed = lines.associateBy { "L${it.id}" }
@@ -47,7 +51,9 @@ internal class ImportSummary(
         val leaves = mutableListOf<JSONObject>()
         fun parse(text: String): JSONObject {
             val json = try { JSONObject(text.trim().removePrefix("```json").removePrefix("```").removeSuffix("```")) }
-                catch (_: Exception) { throw LlmException(LlmError.Format) }
+                catch (caught: Exception) {
+                    FailureNotes.record("importer/ImportSummary.kt:52", caught)
+                    throw LlmException(LlmError.Format) }
             if (json.optJSONArray("cards")?.length() != 1) throw LlmException(LlmError.Format)
             json.optJSONArray("todos")?.let { list -> repeat(list.length()) { i ->
                 val todo = list.optJSONObject(i) ?: return@repeat

@@ -1,4 +1,9 @@
 package app.resound.skills
+
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.data.TranscriptLineEntity
+// core 的 SkillInput、SkillMergeResult 与本包类型同名，保留全限定名。
 import app.resound.skills.core.*
 import app.resound.digest.snapshot
 internal open class RoomSkillInputStore(private val dao: SkillDao) : SkillInputStore {
@@ -27,6 +32,8 @@ internal class RoomSkillRunStore(private val dao: SkillDao) : RoomSkillInputStor
 }
 
 /** 沿用旧模型输入的宽容 JSON 边界；共用层只接收规范 JSON，坏元数据仍保留为不可解析。 */
-internal fun app.resound.data.TranscriptLineEntity.skillSnapshot() = snapshot().let { line ->
- line.copy(voiceInputJson = line.voiceInputJson?.let { raw -> runCatching { org.json.JSONObject(raw).toString() }.getOrDefault(raw) })
+internal fun TranscriptLineEntity.skillSnapshot() = snapshot().let { line ->
+ line.copy(voiceInputJson = line.voiceInputJson?.let { raw -> runCatching { org.json.JSONObject(raw).toString() }.onFailure {
+     FailureNotes.record("skills/SkillSnapshots.kt:34", it)
+ }.getOrDefault(raw) })
 }

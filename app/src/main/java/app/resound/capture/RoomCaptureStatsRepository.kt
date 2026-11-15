@@ -1,5 +1,13 @@
 package app.resound.capture
 
+import app.resound.diagnostics.FailureNotes
+
+import app.resound.audio.OggGuard
+import app.resound.backup.BackupDiagnostics
+import app.resound.platform.ZoneProvider
+import app.resound.transcribe.PipelineTimes
+import app.resound.update.UpdateDiagnostics
+
 import app.resound.appName
 import android.content.Context
 import app.resound.data.*
@@ -11,7 +19,7 @@ import java.time.LocalDate
 import kotlinx.datetime.toKotlinLocalDate
 import java.time.Instant
 
-class RoomCaptureStatsRepository(private val context: Context, private val dao: CaptureDao, zoneProvider: app.resound.platform.ZoneProvider,
+class RoomCaptureStatsRepository(private val context: Context, private val dao: CaptureDao, zoneProvider: ZoneProvider,
     private val transcribeDiagnostics: suspend () -> String = { "" }) : CaptureStatsRepository {
     private val queries = CaptureStatsQueries(dao, zoneProvider)
     private fun bounds(date: LocalDate) = queries.bounds(date.toKotlinLocalDate())
@@ -35,11 +43,13 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
         file.bufferedWriter().use { out ->
             out.appendLine("${context.appName}运行记录；最近3个自然日（本地时区）；${Instant.now()}")
             out.appendLine(transcribeDiagnostics())
-            out.appendLine(app.resound.audio.OggGuard.describe())
-            out.appendLine(app.resound.transcribe.PipelineTimes.dump(context))
-            out.appendLine(app.resound.update.UpdateDiagnostics.dump(context))
+            out.appendLine("业务失败记录（当前进程最近 200 条，仅位置和类别）")
+            out.appendLine(FailureNotes.dump())
+            out.appendLine(OggGuard.describe())
+            out.appendLine(PipelineTimes.dump(context))
+            out.appendLine(UpdateDiagnostics.dump(context))
             out.appendLine("本机备份诊断（最近 50 行）")
-            out.appendLine(app.resound.backup.BackupDiagnostics.dump(context))
+            out.appendLine(BackupDiagnostics.dump(context))
             out.appendLine(VoiceInputTrace.dump())
             val diarySync = context.getSharedPreferences("diary-sync", Context.MODE_PRIVATE)
             if (diarySync.contains("lastFailureAt")) out.appendLine(
@@ -55,7 +65,8 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
             out.appendLine("待处理暂存文件=${spool.size}，字节=${spool.sumOf { it.length() }}")
             out.appendLine("运行时长来自心跳确认区间；心跳可能因休眠延迟；Killed 缺口是最后心跳至下次启动的上界估计。")
             out.appendLine("speechMillis 为保留片段时长，包含前滚/尾静音；dischargePerHour 为整机变化；appPowerPerHour 为自身模型估算（系数未校准），不充电有效区间不足30分钟不显示。")
-            out.appendLine("自身模型 a=${AppPowerModel.CPU_MAH_PER_SECOND} mAh/CPU秒 b=${AppPowerModel.MIC_MAH_PER_HOUR} mA c=${AppPowerModel.NETWORK_MAH_PER_MB} mAh/MB；MB=1000000字节；容量由剩余电荷/电量比例估算，失败回退4880mAh")
+            out.appendLine("自身模型 a=${AppPowerModel.CPU_MAH_PER_SECOND} mAh/CPU秒 b=${AppPowerModel.MIC_MAH_PER_HOUR} mA c=${AppPowerModel
+                .NETWORK_MAH_PER_MB} mAh/MB；MB=1000000字节；容量由剩余电荷/电量比例估算，失败回退4880mAh")
             repeat(3) { offset ->
                 val date = LocalDate.now().minusDays(offset.toLong())
                 val (a, b) = bounds(date)

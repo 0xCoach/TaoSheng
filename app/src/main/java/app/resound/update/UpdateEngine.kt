@@ -1,5 +1,7 @@
 package app.resound.update
 
+import app.resound.diagnostics.FailureNotes
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -129,7 +131,10 @@ internal class UpdateEngine(
         if (restored) return
         kotlin.check(directory.isDirectory || directory.mkdirs())
         val seen = store.long("installedVersion")
-        val saved = store.string("manifest")?.let { runCatching { UpdateManifest.parse(it).let { release -> release.copy(previewSource = store.long("manifestPreview") == 1L || release.preview) } }.getOrNull() }
+        val saved = store.string("manifest")?.let { runCatching { UpdateManifest.parse(it).let { release -> release.copy(previewSource = store.long(
+            "manifestPreview") == 1L || release.preview) } }.onFailure {
+                FailureNotes.record("update/UpdateEngine.kt:132", it)
+            }.getOrNull() }
         if ((seen > 0 && seen != versionCode) || (saved != null && !saved.newerThan(versionCode))) {
             directory.listFiles()?.forEach { kotlin.check(it.deleteRecursively()) }
             store.save("manifest" to null, "ready" to null, "session" to null, "installedHash" to null)

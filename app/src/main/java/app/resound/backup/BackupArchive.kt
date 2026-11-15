@@ -1,5 +1,8 @@
 package app.resound.backup
 
+import app.resound.prompts.LocalPromptTemplates
+import app.resound.skills.SkillFiles
+
 import android.content.Context
 import androidx.sqlite.*
 import androidx.sqlite.driver.AndroidSQLiteDriver
@@ -14,18 +17,18 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 internal object BackupArchive {
-    // 新增设置文件必须先审查再加入；默认不包含任何未知文件或密钥容器。
-    val safePrefs = setOf("capture.xml", "transcribe.xml", "digest.xml", "diary.xml", "push.xml", "inputs.xml", "devices.xml", "device-drivers.xml")
+    // 旧 XML 路径保留，只增加经分类的设置；密钥绝不复制设备绑定密文。
+    val safePrefs: Set<String> = BackupSettings.prefs.mapTo(linkedSetOf()) { "$it.xml" }
     const val DATABASE = "databases/capture.db"
     const val FEATURES = "databases/capture.db.voiceprint-features/"
     const val SKILLS = "files/skills/"
     const val PROMPTS = "files/prompts/"
-    fun allowed(path: String): Boolean = path == DATABASE ||
+    fun allowed(path: String): Boolean = path == DATABASE || path in setOf("settings.json", "secrets.json") ||
         (path.startsWith(SKILLS) && path.removePrefix(SKILLS).let {
             it == "overrides.json" || it.matches(Regex("prompts/[a-z0-9_]+[.]md")) ||
                 it.matches(Regex("mine/my_[a-z0-9_]+/(skill[.]json|prompt[.]md|default[.]md)"))
         }) ||
-        (path.startsWith(PROMPTS) && path.removePrefix(PROMPTS) in app.resound.prompts.LocalPromptTemplates.ids.map { "$it.md" }) ||
+        (path.startsWith(PROMPTS) && path.removePrefix(PROMPTS) in LocalPromptTemplates.ids.map { "$it.md" }) ||
         (path.startsWith(FEATURES) && path.removePrefix(FEATURES).matches(Regex("[a-f0-9]{64}"))) ||
         (path.startsWith("shared_prefs/") && path.removePrefix("shared_prefs/") in safePrefs)
     fun sha(file: File): String = file.inputStream().use { input ->
@@ -120,8 +123,8 @@ internal object BackupArchive {
         File(data, FEATURES).listFiles()?.filter { allowed(FEATURES + it.name) && it.isFile }?.forEach {
             it.copyTo(File(staging, FEATURES + it.name).apply { parentFile!!.mkdirs() })
         }
-        synchronized(app.resound.prompts.LocalPromptTemplates.fileLock) {
-            app.resound.prompts.LocalPromptTemplates.ids.forEach { id ->
+        synchronized(LocalPromptTemplates.fileLock) {
+            LocalPromptTemplates.ids.forEach { id ->
                 val source = android.util.AtomicFile(File(context.filesDir, "prompts/$id.md"))
                 if (source.baseFile.exists() || File(source.baseFile.path + ".bak").exists()) {
                     source.openRead().use { input ->
@@ -130,7 +133,7 @@ internal object BackupArchive {
                 }
             }
         }
-        synchronized(app.resound.skills.SkillFiles.fileLock) {
+        synchronized(SkillFiles.fileLock) {
             val root = File(data, SKILLS)
             // AtomicFile 的 .bak 通过 openRead 恢复，.new 不当成有效文件备份。
             val paths = root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath.removeSuffix(".bak") }
@@ -148,9 +151,10 @@ internal object BackupArchive {
                 writeHotwords(context, File(staging, "shared_prefs/$name"))
                 return@forEach
             }
-            File(data, "shared_prefs/$name").takeIf { it.isFile }?.copyTo(
-                File(staging, "shared_prefs/$name").apply { parentFile!!.mkdirs() })
+            BackupSettings.writeLegacyPreferences(context, name.removeSuffix(".xml"), File(staging, "shared_prefs/$name"))
         }
+        // 在旧布局上新增可移植设置/密钥文件；原 transcribe.xml 仍只放热词。
+        BackupSettings.capture(context, staging)
         val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
         pack(staging, zip, at, version, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() })
     }
@@ -230,6 +234,10 @@ internal object BackupArchive {
                 require(file.isFile && file.length() == item.getLong("size") && sha(file) == item.getString("sha256"))
             }
             require(DATABASE in declared && declared + "manifest.json" == names)
+            val settings = File(staging, "settings.json")
+            val secrets = File(staging, "secrets.json")
+            require(settings.isFile == secrets.isFile)
+            if (settings.isFile) BackupSettings.validate(JSONObject(settings.readText()), JSONObject(secrets.readText()))
             // 校验的是暂存副本，可写打开：安卓的 FTS4 完整性检查要写临时数据，只读打开会报“attempt to write a readonly database”
             AndroidSQLiteDriver().open(File(staging, DATABASE).path).use { db ->
                 require(db.userVersion == sourceVersion)

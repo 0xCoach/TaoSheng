@@ -17,7 +17,6 @@ class TranscribeRunner(
     private val now: () -> Long = System::currentTimeMillis,
     private val today: () -> String = { LocalDate.now().toString() },
     private val gate: Mutex = Mutex(),
-    private val deferAudioCleanup: Boolean = false,
     private val updateProgress: (Int, Int) -> Unit = { _, _ -> },
     private val identity: () -> String = key,
     private val ready: () -> Boolean = { true },
@@ -55,8 +54,7 @@ class TranscribeRunner(
         try {
             beginBatch()
             dao.recoverInterrupted(now())
-            if (!deferAudioCleanup) cleanup()
-            else cleanupImportedAudio(dao, now())
+            cleanupImportedAudio(dao, now())
             val started = now()
             val configuration = runCatching { identity() }.getOrDefault("")
             if (!ready() && dao.candidates(now()).none { it.asrSource != null }) { updateState(started, "转写未就绪，请配置服务或下载本地模型"); return false }
@@ -153,7 +151,6 @@ class TranscribeRunner(
                 if (candidate.sourceId == "import" && outcome in setOf("Done", "Empty")) {
                     // 声纹失败不应把成功的转写改回失败；音频留待重试或三天上限清理。
                     try { heavy.withLock { afterImport() } } catch (e: CancellationException) { throw e } catch (_: Exception) { }
-                    if (!deferAudioCleanup) cleanupImportedAudio(dao, now())
                 }
                 if (error == AsrError.Auth) return RoundDecision.Stop
                 if (error in TranscribePolicy.ROUND_STOPPERS) return RoundDecision.Retry
@@ -180,13 +177,6 @@ class TranscribeRunner(
         }
     }
     private enum class RoundDecision { Continue, Stop, Retry }
-    private suspend fun cleanup() {
-        val timestamp = now()
-        cleanupImportedAudio(dao, timestamp)
-        for (segment in dao.expired(timestamp - TranscribePolicy.RETENTION_MILLIS)) {
-            if (TranscribePolicy.canDelete(segment.status, segment.completedAt, timestamp)) File(segment.path).delete()
-        }
-    }
     suspend fun test(audio: AsrAudio, credential: String): Result<String> = gate.withLock {
         val began = now()
         var reserved = 0L

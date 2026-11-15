@@ -42,7 +42,7 @@ class Failure065Test {
         override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult {
             throw AsrException(type)
         }
-    }, { "key" }, { _, _ -> }, now = { clock }, deferAudioCleanup = true)
+    }, { "key" }, { _, _ -> }, now = { clock })
     private suspend fun failedCount() = dao.observeSegments().first().count { it.status == "Failed" }
 
     @Test fun audioFailureIsAbandonedAndMissingFileHasReadableReason() = runBlocking {

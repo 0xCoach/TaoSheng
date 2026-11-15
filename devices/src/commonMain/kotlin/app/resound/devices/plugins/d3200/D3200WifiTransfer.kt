@@ -1,5 +1,8 @@
 package app.resound.devices.plugins.d3200
 
+// Wi-Fi protocol research: tacshi/Soundcore (MIT); indirect AllDayRec sources are
+// disclosed in vendor/d3200/THIRD_PARTY_NOTICES.md and assets/licenses/d3200/.
+
 import app.resound.devices.driver.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel

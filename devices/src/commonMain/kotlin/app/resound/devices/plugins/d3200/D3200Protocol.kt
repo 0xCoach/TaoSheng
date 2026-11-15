@@ -1,5 +1,9 @@
 package app.resound.devices.plugins.d3200
 
+// Protocol reference/adaptation: AllDayRec (MIT), tacshi/Soundcore (MIT).
+// AllDayRec credits ws/soundcore (0BSD) and open-feishu-recording-bean (MIT).
+// Copyright notices and scope: vendor/d3200/THIRD_PARTY_NOTICES.md; bundled in assets/licenses/d3200/.
+
 import app.resound.devices.driver.CryptoPort
 
 /** 私有 BLE 协议；长度及序号小端，音频每 166 字节含 4 字节序号、1 字节标志、160 字节密文、1 字节尾部。 */

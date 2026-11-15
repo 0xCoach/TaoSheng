@@ -1,5 +1,7 @@
 package app.resound.devices.plugins.d3200
 
+// Protocol research attribution and licenses: vendor/d3200/THIRD_PARTY_NOTICES.md.
+
 /** Payload offsets from Soundcore's DeviceInfoModel / PROTOCOL.md §6.1. */
 data class D3200DeviceInfo(
     val battery: Int? = null, val charging: Boolean? = null,

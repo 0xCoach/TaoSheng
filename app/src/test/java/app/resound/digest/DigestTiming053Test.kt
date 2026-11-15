@@ -79,7 +79,7 @@ class DigestTiming053Test {
             val scheduler = TranscribeScheduler(context, AndroidTranscribeSettings(context)).apply { digestTiming = timing }
             timing.onChanged = scheduler::timingChanged
             scheduler.schedule()
-            val transcribe = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single()
+            val transcribe = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single()
             timing.addTimePoint(720); timing.setMode(DigestMode.TimePoints)
             assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().all { it.state.isFinished })
             assertNotNull(timing.nextDigestAt.value)
@@ -93,14 +93,14 @@ class DigestTiming053Test {
             scheduler.recoverTimed()!!.result.get()
             scheduler.recoverTimed()!!.result.get()
             val work = manager.getWorkInfosForUniqueWork(TranscribeScheduler.TIMED_NOW).get().single()
-            assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.TIMED_GUARD).get().any { !it.state.isFinished })
+            assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.TIMED_GUARD).get().all { it.state.isFinished })
             assertEquals(NetworkType.CONNECTED, work.constraints.requiredNetworkType)
             timing.setMode(DigestMode.Interval)
             assertNull(timing.nextDigestAt.value)
             assertEquals(1, digestAlarms().size) // 卡188：间隔模式保留非精确闹钟链。
-            assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().any { !it.state.isFinished })
+            assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().all { it.state.isFinished })
             assertTrue(manager.getWorkInfosByTag(TranscribeScheduler.TIMED_TAG).get().all { it.state.isFinished })
-            assertEquals(transcribe.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single().id)
+            assertEquals(transcribe.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single().id)
         } finally { manager.cancelAllWork().result.get(); WorkManagerTestInitHelper.closeWorkDatabase() }
     }
 

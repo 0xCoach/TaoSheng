@@ -153,13 +153,12 @@ class ScreenOffBatch126Test {
 
     @Test fun promotionDoesNotTouchPeriodicFallbackOrDigest() = runBlocking {
         scheduler.schedule()
-        val fallback = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single()
-        val digest = manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().single()
+        val fallback = manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single()
         scheduler.segmentSaved(1000)
         scheduler.resumeWaitingBatch(Intent.ACTION_POWER_CONNECTED)
-        assertEquals(fallback.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single().id)
-        assertEquals(30 * 60_000L, spec(fallback.id).intervalDuration)
-        assertEquals(digest.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().single().id)
+        assertEquals(fallback.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.PIPELINE_PERIODIC).get().single().id)
+        assertEquals(15 * 60_000L, spec(fallback.id).intervalDuration)
+        assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().all { it.state.isFinished })
     }
 
     @Test fun dailyDiagnosticsAccumulateSplitMidnightAndExportThroughPipeline() {

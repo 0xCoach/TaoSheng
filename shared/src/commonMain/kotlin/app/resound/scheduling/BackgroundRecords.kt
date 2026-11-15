@@ -6,7 +6,8 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class BackgroundRun(val at: Long, val day: String, val source: String, val mode: String,
-    val dueAt: Long, val result: String, val durationMillis: Long, val lockWaitMillis: Long = 0)
+    val dueAt: Long, val result: String, val durationMillis: Long, val lockWaitMillis: Long = 0,
+    val stages: Map<String, Long> = emptyMap(), val reason: String = "", val runId: String = "")
 
 /** 内部快照；界面约定须由 Claude 确认后再接入 AppGraph。 */
 data class BackgroundHealth(val systemType: String, val todayDigestCount: Int = 0,
@@ -18,7 +19,7 @@ object BackgroundRecords {
     fun encode(rows: List<BackgroundRun>): String = Json.encodeToString(rows)
     fun retain(rows: List<BackgroundRun>, now: Long) = rows.filter { it.at >= now - 7 * 86_400_000L }.takeLast(2000)
     fun summary(rows: List<BackgroundRun>): String = rows.groupBy { it.day }.entries.sortedBy { it.key }.joinToString("\n") { (day, entries) ->
-        val counts = listOf("心跳", "亮屏", "接电", "打开App", "闹钟", "系统周期", "到点闹钟", "手动", "系统补漏").joinToString("、") { source -> "$source=${entries.count { it.source == source }}" }
+        val counts = (listOf("心跳", "亮屏", "接电", "打开App", "闹钟", "系统周期", "到点闹钟", "手动", "系统补漏") + entries.map { it.source }).distinct().joinToString("、") { source -> "$source=${entries.count { it.source == source }}" }
         val delays = entries.map { (it.at - it.dueAt).coerceAtLeast(0) }
         "$day $counts 平均迟到=${delays.average().toLong()}ms 最长迟到=${delays.maxOrNull() ?: 0}ms"
     }

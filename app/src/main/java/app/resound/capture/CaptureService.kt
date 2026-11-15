@@ -381,7 +381,7 @@ class CaptureService : Service() {
         folderImports()?.heartbeat(now)
         (applicationContext as app.resound.ResoundApp).let { application ->
             application.pipelineDiagnostics.heartbeat(AppGraph.digestTiming.mode.value == DigestMode.Interval)
-            application.pipelineInProcess.trigger("心跳")
+            application.pipelineScheduler.trigger("心跳")
         }
     }
     private suspend fun fail(detail: String) {

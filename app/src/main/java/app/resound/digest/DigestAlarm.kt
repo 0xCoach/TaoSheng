@@ -20,8 +20,10 @@ class DigestAlarm(private val context: Context, private val timing: AndroidDiges
     fun cancel() { alarms.cancel(pending()); timing.next(null) }
     fun schedule(now: Long = System.currentTimeMillis()) {
         val interval = timing.mode.value != DigestMode.TimePoints
-        val next = if (interval) (context.applicationContext as? ResoundApp)?.pipelineInProcess?.nextIntervalAlarmAt(now)
-            ?: (now + 30 * 60_000L) else DigestTime.next(timing.timePoints.value, now) ?: run { cancel(); return }
+        val intervalAt = if (interval) (context.applicationContext as? ResoundApp)?.pipelineScheduler?.nextIntervalAlarmAt(now)
+            ?: (now + 30 * 60_000L) else null
+        val timedAt = if (!interval) DigestTime.next(timing.timePoints.value, now) else null
+        val next = app.resound.scheduling.PipelineRunRules.nextAlarm(intervalAt, timedAt) ?: run { cancel(); return }
         val intent = pending()
         try {
             if (!interval && timing.canScheduleExact()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, intent)
@@ -45,7 +47,7 @@ class DigestAlarmReceiver : BroadcastReceiver() {
         val application = context.applicationContext as ResoundApp
         val pending = goAsync()
         val handoff = context.getSystemService(android.os.PowerManager::class.java)
-            .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "resound:pipeline-handoff188")
+            .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "resound:pipeline-handoff")
         runCatching { handoff.acquire(10_000L) }
         // 广播只做交接；不能让 goAsync 等待可能持续数分钟的网络流水线。
         application.scope.launch {
@@ -53,9 +55,12 @@ class DigestAlarmReceiver : BroadcastReceiver() {
                 val source = if (app.resound.AppGraph.digestTiming.mode.value == DigestMode.TimePoints) "到点闹钟" else "闹钟"
                 application.rescheduleDigest() // 先留下一次机会，进程中断也不会断链。
                 application.scope.launch {
-                    try { application.pipelineInProcess.runIfDue(source) }
+                    try { application.pipelineScheduler.offer(source, inProcess = true) }
                     catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                    catch (e: Exception) { app.resound.transcribe.PipelineTimes.record(context, "闹钟流水线未完成：${e.javaClass.simpleName}") }
+                    catch (e: Exception) {
+                        // offer 已记录本轮；诊断存储不可写时保留系统日志，下次闹钟仍接续。
+                        android.util.Log.e("DigestAlarm", "流水线未完成：${e.javaClass.simpleName}")
+                    }
                     finally {
                         if (handoff.isHeld) handoff.release()
                         application.rescheduleDigest()
@@ -63,7 +68,9 @@ class DigestAlarmReceiver : BroadcastReceiver() {
                 }
             } catch (e: Exception) {
                 if (handoff.isHeld) handoff.release()
-                app.resound.transcribe.PipelineTimes.record(context, "闹钟交接失败：${e.javaClass.simpleName}")
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    application.pipelineDiagnostics.failure("闹钟", "交接失败：${e.javaClass.simpleName}")
+                }
                 if (e is kotlinx.coroutines.CancellationException) throw e
             } finally { pending.finish() }
         }

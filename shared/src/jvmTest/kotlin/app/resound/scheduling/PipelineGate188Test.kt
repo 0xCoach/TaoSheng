@@ -30,5 +30,14 @@ class PipelineGate188Test {
         gate.mutex.lock()
         try { assertFalse(gate.runIfDue({ error("锁忙不能判定或记尝试") }) { fail() }) }
         finally { gate.mutex.unlock() }
+        gate.mutex.lock()
+        val review = async { gate.offer(PipelineRequest(PipelineModes.REVIEW), { error("回顾不受周期到期限制") }) {
+            error("超时前不应拿到锁")
+        } }
+        yield()
+        assertFalse(review.isCompleted)
+        review.cancelAndJoin()
+        assertTrue(gate.mutex.isLocked) // 等锁者取消不能释放别人的锁。
+        gate.mutex.unlock()
     }
 }

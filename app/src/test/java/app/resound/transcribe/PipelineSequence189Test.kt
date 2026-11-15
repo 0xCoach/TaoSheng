@@ -24,12 +24,31 @@ class PipelineSequence189Test {
         for (mode in listOf("full", "timed", "review"))
             assertEquals(listOf("转写", "声纹", "整理"), stages(mode, "等待 WiFi"))
     }
-    @Test fun legacyPeriodicCollisionAndOtherRetries() {
+    @Test fun legacyPeriodicCollisionAndOtherRetries() = runBlocking {
         for (mode in listOf("transcribe", "digest", "timed", "full", "realtime")) {
             for (guard in listOf(false, true)) {
                 val success = mode in listOf("transcribe", "digest") || mode == "timed" && guard
                 assertEquals(if (success) androidx.work.ListenableWorker.Result.success() else androidx.work.ListenableWorker.Result.retry(),
                     TranscribeWork.busyResult(mode, guard))
+                val request = TranscribeWork.request(androidx.work.workDataOf(
+                    "mode" to mode, "periodic188" to guard), setOf(TranscribeWork.MANUAL_DIGEST))
+                assertEquals(mode, request.mode)
+                assertEquals(success, request.periodic)
+                assertEquals(mode == "full", request.manual)
+                val gate = PipelineGate()
+                gate.mutex.lock()
+                val offered = gate.offer(request,
+                    { error("撞锁不得采样或写尝试") }) { error("撞锁不得执行") }
+                gate.mutex.unlock()
+                assertEquals(!success, offered.retry)
+                var entered = false
+                val run = gate.offer(request,
+                    { PipelineDue.Decision.Run(PipelineDue.Mode.TimedDigest, 0) }) {
+                    entered = true
+                    PipelineResult(digest = app.resound.digest.core.DigestOutcome.Retryable("测试网络"))
+                }
+                assertTrue(entered)
+                assertEquals(!success, run.retry)
             }
         }
     }

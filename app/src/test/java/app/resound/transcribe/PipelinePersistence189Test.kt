@@ -31,10 +31,16 @@ class PipelinePersistence189Test {
         timing.completeTimed(ticket)
         assertNull(AndroidDigestTiming(context).pendingTimed(now))
         val records = PipelineDiagnostics(context)
-        records.record(now, "心跳", "digest", now - 1000, "成功", 50)
+        val round = records.round("心跳", "digest")
+        records.record(round)
+        round.result = "成功"
+        round.stages["转写"] = 20
+        round.stages["整理"] = 30
+        records.record(round)
         val dump = PipelineDiagnostics(context).dump()
         assertEquals(1, dump.lines().count { it.startsWith("时间=") })
         assertTrue(dump.contains("来源=心跳")); assertTrue(dump.contains("结果=成功"))
+        assertTrue(dump.contains("转写=20ms")); assertTrue(dump.contains("整理=30ms"))
     }
 
     @Test fun replyNotPersistedIsReplayedInMemoryWithoutSecondPayment() = runBlocking {

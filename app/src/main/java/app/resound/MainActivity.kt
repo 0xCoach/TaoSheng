@@ -143,6 +143,12 @@ class MainActivity : ComponentActivity() {
                     mode = it
                     prefs.edit().putString("theme", it.name).apply()
                 }
+                val reviewAsk by app.resound.ui.ShellNav.reviewRequest.collectAsStateWithLifecycle()
+                LaunchedEffect(reviewAsk) {
+                    val day = reviewAsk ?: return@LaunchedEffect
+                    dayOnly = false; openReview = day; tabRequest = 2 to System.nanoTime()
+                    app.resound.ui.ShellNav.reviewRequest.value = null
+                }
                 val privacy by privacyRequest.collectAsStateWithLifecycle()
                 LaunchedEffect(privacy) {
                     if (privacy == "deleteRecent") {

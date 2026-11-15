@@ -35,13 +35,15 @@ class RecordSearchDb34Test {
         db.memory().insertEvent(MemoryEventEntity(startAt = 8000, endAt = 9000, scene = "工作", title = "合同签约安排",
             summary = "约好明天签", pointsJson = "[]", peopleJson = "[]", place = null, emotion = null, intensity = null,
             important = false, createdAt = 9000, model = "fixture"))
-        val hits = RecordSearch(db).search("合同签")
-        assertEquals(listOf(SearchHit.Kind.Event, SearchHit.Kind.Line), hits.map { it.kind })
-        assertEquals("老王", hits[1].speaker); assertEquals(1L, hits[1].segmentId)
-        assertTrue(hits[1].text.contains("合同签"))
+        suspend fun find(q: String) = RecordSearch(db).searchAll(ExpandedSearchRequest(q)).categories
+        val hits = find("合同签")
+        assertEquals(1, hits.getValue(SearchKind.Event).hits.size)
+        val line = hits.getValue(SearchKind.Line).hits.single()
+        assertEquals("老王", line.speaker); assertEquals(1L, line.segmentId)
+        assertTrue(line.text.contains("合同签"))
         // 单字走兜底也能查到；两个词要同时出现
-        assertEquals(1, RecordSearch(db).search("会").size)
-        assertEquals(1, RecordSearch(db).search("今天 预算").size)
-        assertTrue(RecordSearch(db).search("   ").isEmpty())
+        assertEquals(1, find("会").getValue(SearchKind.Line).hits.size)
+        assertEquals(1, find("今天 预算").getValue(SearchKind.Line).hits.size)
+        assertTrue(find("   ").values.all { it.hits.isEmpty() })
     }
 }

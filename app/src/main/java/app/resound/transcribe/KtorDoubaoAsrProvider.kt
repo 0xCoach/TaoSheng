@@ -10,14 +10,12 @@ import java.util.concurrent.TimeUnit
 class DoubaoAsrProvider(
     private val reader: AsrAudioReader,
     private val config: DoubaoConfig = DoubaoConfig(),
-    private val client: OkHttpClient = (if (app.resound.AppGraph.legacyNetwork) OkHttpClient.Builder() else app.resound.net.defaultAndroidHttp.newBuilder()).connectTimeout(15,TimeUnit.SECONDS)
+    private val client: OkHttpClient = app.resound.net.defaultAndroidHttp.newBuilder().connectTimeout(15,TimeUnit.SECONDS)
         .readTimeout(0,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
     private val headers: () -> List<HeaderEntry> = { emptyList() },
     private val hotwords: () -> List<String> = { emptyList() },
 ) : AsrProvider {
-    private val legacy = if(app.resound.AppGraph.legacyNetwork) LegacyDoubaoAsrProvider(reader,config,client,headers,hotwords) else null
     override suspend fun recognize(audio: AsrAudio,key: String,beforeAudio: suspend () -> Unit): AsrResult {
-        legacy?.let { return it.recognize(audio,key,beforeAudio) }
         return DoubaoConcurrency.global.withPermit {
             try {
                 withContext(Dispatchers.IO) {

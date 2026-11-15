@@ -195,14 +195,8 @@ class ImportHotwordsTest {
         val request = JSONObject(String(DoubaoProtocol.config("pcm", words))).getJSONObject("request")
         val hotwords = JSONObject(request.getJSONObject("corpus").getString("context")).getJSONArray("hotwords")
         assertEquals(5000, hotwords.length()); assertEquals("手动词", hotwords.getJSONObject(0).getString("word"))
-        val file = File.createTempFile("custom", ".ogg", context.cacheDir)
-        try {
-            val body = customAsrBody(AsrAudio(file, "ogg", 1000), "test", words)
-            val part = body.parts.single { it.headers?.get("Content-Disposition")?.contains("name=\"prompt\"") == true }
-            val buffer = okio.Buffer(); part.body.writeTo(buffer)
-            val prompt = buffer.readUtf8()
-            assertTrue(prompt.startsWith("可能出现的词：手动词、自动词")); assertEquals(200, prompt.length)
-        } finally { file.delete() }
+        val prompt = Hotwords.customPrompt(words)
+        assertTrue(prompt.startsWith("可能出现的词：手动词、自动词")); assertEquals(200, prompt.length)
     }
 
     @Test fun digestInputAddsScopedCorrectionWithoutChangingOriginalLines() {

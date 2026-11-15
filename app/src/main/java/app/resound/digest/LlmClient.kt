@@ -1,21 +1,11 @@
 package app.resound.digest
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 enum class LlmError(val human: String, val retryable: Boolean) {
     Auth("大模型密钥无效或没开通", false),
@@ -38,14 +28,13 @@ data class LlmReply(val content: String, val promptTokens: Long, val completionT
 val LlmException.rejected: Boolean get() = type == LlmError.Server && status in LlmClient.REJECTED_STATUS
 
 
-/** 安卓兼容入口；业务 JSON、SSE 与 HTTP 规则在 shared，旧链路保留到 0.3.1。 */
+/** 安卓兼容入口；业务 JSON、SSE 与 HTTP 规则在 shared。 */
 class LlmClient(
-    private val http: OkHttpClient = (if (app.resound.AppGraph.legacyNetwork) OkHttpClient.Builder() else app.resound.net.defaultAndroidHttp.newBuilder())
+    private val http: OkHttpClient = app.resound.net.defaultAndroidHttp.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
     private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
     private val diagnostics: app.resound.diagnostics.LlmDiagnostics? = null,
 ) {
-    private val legacy = if (app.resound.AppGraph.legacyNetwork) LegacyLlmClient(http, requestHeaders, diagnostics) else null
     private suspend fun network(preset: LlmPreset): io.ktor.client.HttpClient {
         if (preset.baseUrl.isBlank() || preset.model.isBlank()) throw LlmException(LlmError.Format)
         return app.resound.net.androidNetwork(http.newBuilder().followRedirects(false).followSslRedirects(false)
@@ -68,7 +57,6 @@ class LlmClient(
         return LlmException(type, e.status, e.detail ?: type.human, e.usage?.let { LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated)
     }
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
-        legacy?.let { return@withContext it.chatJson(preset, key, system, user, thinking) }
         val t = kotlin.coroutines.coroutineContext[app.resound.diagnostics.LlmResponseTrace]
             ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
         try {
@@ -84,7 +72,6 @@ class LlmClient(
     }
     suspend fun streamChat(preset: LlmPreset, key: String, messages: JSONArray, tools: JSONArray,
         onText: (String) -> Unit, onUsage: (Long, Long) -> Unit, allowTools: Boolean = true): LlmStreamReply {
-        legacy?.let { return it.streamChat(preset, key, messages, tools, onText, onUsage, allowTools) }
         val t = kotlin.coroutines.coroutineContext[app.resound.diagnostics.LlmResponseTrace]
             ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.getOrNull()
         try {

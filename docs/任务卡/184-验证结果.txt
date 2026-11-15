@@ -1,0 +1,28 @@
+卡184 验证结果（2026-11-15）
+基线 b6d8b9669aa68cbad15a38a62e9cbe1f0a3bb673；工作分支 codex/184-network
+python3 tools/check_shared.py：通过
+Gradle：BUILD SUCCESSFUL in 2m 43s；133 actionable tasks: 133 executed
+:app:assembleDebug / :shared:check / :app:testDebugUnitTest：通过
+APK ZIP 验证：含 AndroidManifest.xml 和 classes.dex；大小 122504806 字节
+APK SHA256：0459a68b5b824ed5711cb87d64ed4470a26f9949f35240334ba2fe0b5e89e60f
+
+app/build/test-results/testDebugUnitTest: tests=87, failures=0, errors=0, time=9.783s
+  app.resound.digest.CustomHeaders116Test: 9 passed
+  app.resound.digest.LlmCancellationAudit087Test: 1 passed
+  app.resound.digest.LlmProviders076Test: 14 passed
+  app.resound.digest.LlmStream136Test: 3 passed
+  app.resound.importer.ImportHotwordsTest: 9 passed
+  app.resound.net.KtorParity151Test: 20 passed
+  app.resound.transcribe.AsrFrames073Test: 2 passed
+  app.resound.transcribe.CustomFullEndpointTest: 7 passed
+  app.resound.transcribe.CustomHttp055Test: 8 passed
+  app.resound.transcribe.CustomModelsTest: 3 passed
+  app.resound.transcribe.DoubaoAsrProviderTest: 8 passed
+  app.resound.transcribe.DoubaoConcurrency073Test: 1 passed
+  app.resound.usage.LlmBalanceTest: 2 passed
+shared/build/test-results/jvmTest: tests=195, failures=0, errors=0, time=1.696s
+
+生产旧网络标识扫描：0 命中（范围及正则见交付说明）
+禁改文件与 b6d8b96 一致；shared/devices 源码无改动
+git diff --check：通过
+清理：build/、app/build/、shared/build/、devices/build/、/tmp/taosheng-184-gradle 均已删除

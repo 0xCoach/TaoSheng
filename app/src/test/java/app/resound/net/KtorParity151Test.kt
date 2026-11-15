@@ -11,7 +11,6 @@ import okhttp3.mockwebserver.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,97 +26,133 @@ class KtorParity151Test {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val headers = listOf(HeaderEntry("x-test","one"),HeaderEntry("X-Test","two"),HeaderEntry("Authorization","custom"))
     private fun preset(s: MockWebServer) = LlmPreset("test","test",s.url("/proxy/v1").toString(),"test")
-    private fun http() = OkHttpClient.Builder().build()
-    private fun same(a: RecordedRequest, b: RecordedRequest, multipart: Boolean = false, ws: Boolean = false) {
-        assertEquals(a.method,b.method); assertEquals(a.path,b.path)
-        // UUID、WebSocket nonce 是随机输入；两条真实链路的值本来就不同。
-        val excluded = if(ws) setOf("sec-websocket-key","x-api-connect-id") else emptySet()
-        fun normalized(r: RecordedRequest) = r.headers.names().filterNot { it.lowercase() in excluded }.associate { name ->
-            name.lowercase() to r.headers.values(name).map { if(multipart && name.equals("content-type",true)) it.substringBefore("boundary=") else it }
+    // 固定 wire 契约：不再依赖另一份生产实现作为测试预言机。
+    private fun request(r: RecordedRequest, method: String, path: String, auth: String? = null, custom: Boolean = false) {
+        assertEquals(method, r.method); assertEquals(path, r.path)
+        assertEquals(auth, r.getHeader("Authorization"))
+        assertEquals("okhttp/4.12.0", r.getHeader("User-Agent"))
+        assertNull(r.getHeader("Accept-Charset"))
+        assertNull(r.getHeader("X-Resound-Local-Socket-Route"))
+        val socket = path == "/asr"
+        val expected = linkedMapOf(
+            "host" to listOf("${r.requestUrl!!.host}:${r.requestUrl!!.port}"),
+            "connection" to listOf(if(socket) "Upgrade" else "Keep-Alive"),
+            "accept-encoding" to listOf("gzip"),
+            "user-agent" to listOf("okhttp/4.12.0"),
+        )
+        auth?.let { expected["authorization"] = listOf(it) }
+        if(custom) expected["x-test"] = listOf("two")
+        if(method == "POST") {
+            val contentType = r.getHeader("Content-Type")!!
+            if(path.startsWith("/speech")) assertTrue(contentType.startsWith("multipart/form-data; boundary="))
+            else assertEquals("application/json; charset=utf-8",contentType)
+            expected["content-type"] = listOf(contentType)
+            expected["content-length"] = listOf(r.bodySize.toString())
         }
-        assertEquals(normalized(a),normalized(b))
-        if(multipart) {
-            val ba = a.getHeader("Content-Type")!!.substringAfter("boundary=")
-            val bb = b.getHeader("Content-Type")!!.substringAfter("boundary=")
-            assertArrayEquals(a.body.readByteArray().decodeToString().replace(ba,"BOUNDARY").encodeToByteArray(),b.body.readByteArray().decodeToString().replace(bb,"BOUNDARY").encodeToByteArray())
-        } else assertArrayEquals(a.body.readByteArray(),b.body.readByteArray())
+        if(path == "/balance") expected["accept"] = listOf("application/json")
+        if(socket) {
+            expected["upgrade"] = listOf("websocket")
+            expected["sec-websocket-version"] = listOf("13")
+            expected["sec-websocket-extensions"] = listOf("permessage-deflate")
+            expected["sec-websocket-key"] = listOf(r.getHeader("Sec-WebSocket-Key")!!)
+            expected["x-api-key"] = listOf("fake")
+            expected["x-api-resource-id"] = listOf("resource")
+            expected["x-api-connect-id"] = listOf(r.getHeader("X-Api-Connect-Id")!!)
+        }
+        assertEquals(expected, r.headers.names().associate { it.lowercase() to r.headers.values(it) })
+        if (custom) {
+            assertEquals(listOf("two"), r.headers.values("X-Test"))
+            val names = r.headers.names().map { it.lowercase() }
+            assertTrue(names.containsAll(listOf("x-test", "authorization")))
+            assertTrue(r.headers.indexOfFirst { it.first.equals("X-Test", true) } <
+                r.headers.indexOfFirst { it.first.equals("Authorization", true) })
+        }
     }
-    private suspend fun chatPair(status: Int, body: String, extra: List<HeaderEntry> = emptyList()): Pair<Result<LlmReply>,Result<LlmReply>> = MockWebServer().use { s ->
-        repeat(2) { s.enqueue(MockResponse().setResponseCode(status).setBody(body)) }
-        val p = preset(s)
-        val old = runCatching { LegacyLlmClient(requestHeaders={extra}).chatJson(p,"fake","系统/指令","用户") }
-        val new = runCatching { LlmClient(requestHeaders={extra}).chatJson(p,"fake","系统/指令","用户") }
-        same(s.takeRequest(),s.takeRequest()); old to new
+    private val chatBody = """{"model":"test","messages":[{"role":"system","content":"系统\/指令"},{"role":"user","content":"用户"}],"response_format":{"type":"json_object"},"temperature":0.2,"max_tokens":8192}"""
+    private suspend fun chat(status: Int, body: String, extra: List<HeaderEntry> = emptyList()): Result<LlmReply> = MockWebServer().use { s ->
+        s.enqueue(MockResponse().setResponseCode(status).setBody(body))
+        val result = runCatching { LlmClient(requestHeaders={extra}).chatJson(preset(s),"fake","系统/指令","用户") }
+        val r = s.takeRequest()
+        request(r,"POST","/proxy/v1/chat/completions",if(extra.isEmpty()) "Bearer fake" else "custom",extra.isNotEmpty())
+        assertEquals("application/json; charset=utf-8", r.getHeader("Content-Type"))
+        assertEquals(chatBody.encodeToByteArray().size.toString(), r.getHeader("Content-Length"))
+        assertEquals(chatBody, r.body.readUtf8()); assertNull(r.getHeader("Accept"))
+        result
     }
-    private fun sameError(pair: Pair<Result<LlmReply>,Result<LlmReply>>) {
-        val a = pair.first.exceptionOrNull() as LlmException; val b = pair.second.exceptionOrNull() as LlmException
-        assertEquals(a.type,b.type); assertEquals(a.status,b.status); assertEquals(a.message,b.message); assertEquals(a.usage,b.usage)
+    private fun error(result: Result<LlmReply>, type: LlmError, status: Int = 0, detail: String = type.human, usage: LlmReply? = null) {
+        val e = result.exceptionOrNull() as LlmException
+        assertEquals(type,e.type); assertEquals(status,e.status); assertEquals(detail,e.message); assertEquals(usage,e.usage)
     }
     @Test fun chatContentUsageAndHeaders() = runBlocking {
-        val r=chatPair(200,"""{"choices":[{"message":{"content":"回答"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":3}}""",headers)
-        assertEquals(r.first.getOrThrow(),r.second.getOrThrow())
+        assertEquals(LlmReply("回答",9,3),chat(200,"""{"choices":[{"message":{"content":"回答"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":3}}""",headers).getOrThrow())
     }
     @Test fun chatAuthQuotaRateAndServer() = runBlocking {
-        for(code in listOf(401,402,403,429,500)) sameError(chatPair(code,"""{"usage":{"prompt_tokens":2,"completion_tokens":1}}"""))
+        for((code,type) in listOf(401 to LlmError.Auth,402 to LlmError.Quota,403 to LlmError.Auth,429 to LlmError.RateLimit,500 to LlmError.Server))
+            error(chat(code,"""{"usage":{"prompt_tokens":2,"completion_tokens":1}}"""),type,code,usage=LlmReply("",2,1))
     }
     @Test fun chatRejectionAndInvalidJson() = runBlocking {
-        sameError(chatPair(400,"context length exceeded")); sameError(chatPair(200,"not json"))
+        error(chat(400,"context length exceeded"),LlmError.Server,400,"这批原话太长，大模型服务拒收")
+        error(chat(200,"not json"),LlmError.Format)
     }
     @Test fun chatEmptyReplySemantics() = runBlocking {
-        val r=chatPair(200,"""{"choices":[{"message":{"content":""}}]}"""); assertEquals(r.first.getOrThrow(),r.second.getOrThrow())
-        sameError(chatPair(200,"{}"))
+        assertEquals(LlmReply("",0,0),chat(200,"""{"choices":[{"message":{"content":""}}]}""").getOrThrow())
+        error(chat(200,"{}"),LlmError.Format)
     }
     @Test fun fallbackPathsAndRedirectRejection() = runBlocking {
         MockWebServer().use { s ->
-            repeat(2) { s.enqueue(MockResponse().setResponseCode(404)); s.enqueue(MockResponse().setBody("""{"choices":[{"message":{"content":"ok"}}]}""")) }
+            s.enqueue(MockResponse().setResponseCode(404)); s.enqueue(MockResponse().setBody("""{"choices":[{"message":{"content":"ok"}}]}"""))
             val p=preset(s).copy(baseUrl=s.url("/proxy").toString())
-            assertEquals(LegacyLlmClient().chatJson(p,"","s","u"),LlmClient().chatJson(p,"","s","u"))
-            val old=listOf(s.takeRequest(),s.takeRequest()); val new=listOf(s.takeRequest(),s.takeRequest()); old.zip(new).forEach { same(it.first,it.second) }
+            assertEquals(LlmReply("ok",0,0),LlmClient().chatJson(p,"","s","u"))
+            val expected="""{"model":"test","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"response_format":{"type":"json_object"},"temperature":0.2,"max_tokens":8192}"""
+            for(path in listOf("/proxy/v1/chat/completions","/proxy/chat/completions")) {
+                val r=s.takeRequest(); request(r,"POST",path); assertEquals(expected,r.body.readUtf8())
+            }
         }
-        sameError(chatPair(302,""))
+        error(chat(302,""),LlmError.Server,302)
     }
     @Test fun callTimeoutClassification() = runBlocking {
         MockWebServer().use { s ->
-            repeat(2) { s.enqueue(MockResponse().setBody("{}").setBodyDelay(1,TimeUnit.SECONDS)) }
-            val h=OkHttpClient.Builder().callTimeout(200,TimeUnit.MILLISECONDS).build(); val p=preset(s)
-            sameError(runCatching { LegacyLlmClient(h).chatJson(p,"","s","u") } to runCatching { LlmClient(h).chatJson(p,"","s","u") })
+            s.enqueue(MockResponse().setBody("{}").setBodyDelay(1,TimeUnit.SECONDS))
+            val h=OkHttpClient.Builder().callTimeout(200,TimeUnit.MILLISECONDS).build()
+            error(runCatching { LlmClient(h).chatJson(preset(s),"","s","u") },LlmError.Network,
+                detail="等待超时：本地模型首次加载可能较慢，稍后再试")
         }
     }
     private val stream = "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"思考\",\"content\":\"你\"}}]}\r\n\r\n" +
         "data: {\"choices\":[{\"delta\":{\"content\":\"好\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}\n\n" + "data: [DONE]\n\n"
     @Test fun streamFragmentsReasoningAndCallbackOrder() = runBlocking {
         MockWebServer().use { s ->
-            repeat(2) { s.enqueue(MockResponse().setBody(stream).throttleBody(13,1,TimeUnit.MILLISECONDS)) }
-            val a=mutableListOf<String>();val b=mutableListOf<String>();val p=preset(s)
-            val old=LegacyLlmClient().streamChat(p,"",JSONArray(),JSONArray(),{a.add(it)},{x,y->a.add("$x/$y")})
-            val new=LlmClient().streamChat(p,"",JSONArray(),JSONArray(),{b.add(it)},{x,y->b.add("$x/$y")})
-            assertEquals(old,new);assertEquals(a,b);same(s.takeRequest(),s.takeRequest())
+            s.enqueue(MockResponse().setBody(stream).throttleBody(13,1,TimeUnit.MILLISECONDS))
+            val callbacks=mutableListOf<String>()
+            val result=LlmClient().streamChat(preset(s),"",JSONArray(),JSONArray(),{callbacks.add(it)},{x,y->callbacks.add("$x/$y")})
+            assertEquals(LlmStreamReply("你好",emptyList(),"思考"),result)
+            assertEquals(listOf("你","3/2","好"),callbacks)
+            val r=s.takeRequest(); request(r,"POST","/proxy/v1/chat/completions")
+            assertEquals("""{"model":"test","messages":[],"stream":true,"stream_options":{"include_usage":true},"temperature":0.2,"max_tokens":4096}""",r.body.readUtf8())
         }
     }
     @Test fun streamInterruptedAndTruncated() = runBlocking {
-        for(body in listOf(stream.substringBefore("data: [DONE]"),stream.replace("stop","length"))) MockWebServer().use { s ->
-            repeat(2){s.enqueue(MockResponse().setBody(body))}; val p=preset(s)
-            val a=runCatching { LegacyLlmClient().streamChat(p,"",JSONArray(),JSONArray(),{},{_,_->}) }.exceptionOrNull() as LlmException
-            val b=runCatching { LlmClient().streamChat(p,"",JSONArray(),JSONArray(),{},{_,_->}) }.exceptionOrNull() as LlmException
-            assertEquals(a.type,b.type);assertEquals(a.message,b.message);assertEquals(a.truncated,b.truncated)
+        for(truncated in listOf(false,true)) MockWebServer().use { s ->
+            s.enqueue(MockResponse().setBody(if(truncated) stream.replace("stop","length") else stream.substringBefore("data: [DONE]")))
+            val e=runCatching { LlmClient().streamChat(preset(s),"",JSONArray(),JSONArray(),{},{_,_->}) }.exceptionOrNull() as LlmException
+            assertEquals(if(truncated) LlmError.Format else LlmError.Network,e.type)
+            assertEquals(if(truncated) LlmException.TRUNCATED else "网络连接失败，等待重试",e.message)
+            assertEquals(truncated,e.truncated)
         }
     }
     @Test fun cancellationStopsBodyAndCallbacks() = runBlocking {
-        for(legacy in listOf(true,false)) MockWebServer().use { s ->
+        MockWebServer().use { s ->
             s.enqueue(MockResponse().setBody(stream.substringBefore("data: [DONE]") + ": keepalive\n\n".repeat(2000)).throttleBody(64,100,TimeUnit.MILLISECONDS))
             var callbacks=0
-            val first = CompletableDeferred<Unit>()
-            val p = preset(s)
+            val first=CompletableDeferred<Unit>()
             val job=launch(start=CoroutineStart.UNDISPATCHED) {
-                val onText: (String) -> Unit = { callbacks++; first.complete(Unit) }
-                if(legacy) LegacyLlmClient().streamChat(p,"",JSONArray(),JSONArray(),onText,{_,_->})
-                else LlmClient().streamChat(p,"",JSONArray(),JSONArray(),onText,{_,_->})
+                LlmClient().streamChat(preset(s),"",JSONArray(),JSONArray(),{callbacks++;first.complete(Unit)},{_,_->})
             }
             try {
                 withTimeout(3000) { first.await() }
-                withTimeout(2000){job.cancelAndJoin()};val n=callbacks;delay(30);assertEquals(n,callbacks)
+                withTimeout(2000) { job.cancelAndJoin() }; assertTrue(job.isCancelled)
+                val n=callbacks; delay(30); assertEquals(n,callbacks)
             } finally { job.cancelAndJoin() }
-
         }
     }
     @Test fun balanceNumbersAndErrors() {
@@ -136,44 +171,55 @@ class KtorParity151Test {
         val providers=AndroidLlmProviders(context,LlmClient(),keys,headerStore=store)
         val checker=LlmBalanceChecker(context.getSharedPreferences("balance151",0),providers,{_,_->},now={1})
         MockWebServer().use { s ->
-            repeat(2){s.enqueue(MockResponse().setBody("{\"n\":4}"))};val src=BalanceSource(s.url("/balance").toString(),"fake","n",headers)
-            assertEquals(checker.legacyFetch(src),checker.fetch(src));same(s.takeRequest(),s.takeRequest())
-            repeat(2){s.enqueue(MockResponse().setBody(" ".repeat(65537)))}
-            assertEquals(runCatching{checker.legacyFetch(src)}.exceptionOrNull()?.message,runCatching{checker.fetch(src)}.exceptionOrNull()?.message)
+            s.enqueue(MockResponse().setBody("{\"n\":4}"));val src=BalanceSource(s.url("/balance").toString(),"fake","n",headers)
+            assertEquals(LlmBalance(4.0,null,null,"CNY",true,1),checker.fetch(src))
+            val r=s.takeRequest(); request(r,"GET","/balance","custom",true)
+            assertEquals("application/json",r.getHeader("Accept")); assertEquals(0L,r.bodySize)
+            s.enqueue(MockResponse().setBody(" ".repeat(65537)))
+            assertEquals("余额响应过大",runCatching{checker.fetch(src)}.exceptionOrNull()?.message)
         }
     }
     @Test fun modelsFallbackSortingAndHeaders() = runBlocking {
         MockWebServer().use { s ->
-            repeat(2){s.enqueue(MockResponse().setResponseCode(405));s.enqueue(MockResponse().setBody("""{"data":[{"id":"z"},{"id":"a"},{"id":"z"}]}"""))}
+            s.enqueue(MockResponse().setResponseCode(405));s.enqueue(MockResponse().setBody("""{"data":[{"id":"z"},{"id":"a"},{"id":"z"}]}"""))
             val url=s.url("/").toString()
-            assertEquals(legacyFetchRemoteModels(url,"fake",headers=headers),fetchRemoteModels(url,"fake",headers=headers))
-            val old=listOf(s.takeRequest(),s.takeRequest());val new=listOf(s.takeRequest(),s.takeRequest());old.zip(new).forEach{same(it.first,it.second)}
+            assertEquals(RemoteModels(url.trimEnd('/'),listOf("a","z")),fetchRemoteModels(url,"fake",headers=headers))
+            for(path in listOf("/v1/models","/models")) { val r=s.takeRequest(); request(r,"GET",path,"custom",true); assertEquals(0L,r.bodySize) }
         }
     }
     @Test fun modelsAuthAndEmptyList() = runBlocking {
         for((status,body) in listOf(403 to "{}",200 to "{\"data\":[]}")) MockWebServer().use { s ->
-            repeat(2){s.enqueue(MockResponse().setResponseCode(status).setBody(body))};val url=s.url("/v1").toString()
-            assertEquals(runCatching{legacyFetchRemoteModels(url,"")}.exceptionOrNull()?.message,runCatching{fetchRemoteModels(url,"")}.exceptionOrNull()?.message)
+            s.enqueue(MockResponse().setResponseCode(status).setBody(body));val url=s.url("/v1").toString()
+            assertEquals(if(status==403) "鉴权失败，请检查密钥" else "没有可选模型，请手动填写",runCatching{fetchRemoteModels(url,"")}.exceptionOrNull()?.message)
         }
     }
     private fun audio()=AsrAudio(java.io.File.createTempFile("net151",".ogg",context.cacheDir).apply{writeBytes(byteArrayOf(1,2,3))},"ogg",1200)
     @Test fun multipartBytesPromptAndResult() = runBlocking {
         MockWebServer().use { s ->
-            repeat(2){s.enqueue(MockResponse().setBody("{\"text\":\" 你好 \"}"))}
+            s.enqueue(MockResponse().setBody("{\"text\":\" 你好 \"}"))
             val settings=AndroidTranscribeSettings(context);settings.saveCustomAll(s.url("/speech?x=1").toString(),"asr","",CustomEndpointMode.Full);settings.setCustomPrompt(true)
             val audio=audio()
             try {
                 var count=0
-                val a=LegacyCustomAsrProvider(settings){listOf("涛声")}.recognize(audio,""){count++}
                 val b=CustomAsrProvider(settings){listOf("涛声")}.recognize(audio,""){count++}
-                assertEquals(a,b);assertEquals(2,count);same(s.takeRequest(),s.takeRequest(),multipart=true)
+                assertEquals(AsrResult(listOf(AsrSentence(0,1200,"你好",null)),1200,null),b);assertEquals(1,count)
+                val r=s.takeRequest(); request(r,"POST","/speech?x=1")
+                val boundary=r.getHeader("Content-Type")!!.substringAfter("boundary=")
+                val expected="--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\nContent-Length: 3\r\n\r\nasr\r\n" +
+                    "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${audio.file.name}\"\r\nContent-Type: audio/ogg\r\nContent-Length: 3\r\n\r\n" +
+                    "\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\nContent-Length: 4\r\n\r\njson\r\n" +
+                    "--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\nContent-Length: 27\r\n\r\n可能出现的词：涛声\r\n--BOUNDARY--\r\n"
+                assertEquals(expected,r.body.clone().readUtf8().replace(boundary,"BOUNDARY"))
+                assertEquals(r.bodySize.toString(),r.getHeader("Content-Length"))
             } finally { audio.file.delete() }
         }
     }
     @Test fun transcriptionErrorsAndEmpty() {
-        for(body in listOf("{\"text\":\"\"}","{\"base_resp\":{\"status_code\":1004}}","{\"base_resp\":{\"status_code\":9}}")) {
-            val a=runCatching{transcriptionText(JSONObject(body))};val b=runCatching{customTranscriptionText(body)}
-            assertEquals(a.getOrNull(),b.getOrNull());assertEquals(a.exceptionOrNull()?.message,b.exceptionOrNull()?.message)
+        assertEquals("",customTranscriptionText("{\"text\":\"\"}"))
+        for((code,type) in listOf(1004 to AsrError.Auth,9 to AsrError.Protocol)) {
+            val e=runCatching { customTranscriptionText("{\"base_resp\":{\"status_code\":$code}}") }.exceptionOrNull() as AsrException
+            assertEquals(type,e.type)
+            assertEquals(if(code==1004) "鉴权失败，请检查密钥" else "服务返回错误，请检查地址、密钥和参数",e.message)
         }
     }
     @Test fun doubaoConfigAndAudioFrameBytes() {
@@ -182,10 +228,9 @@ class KtorParity151Test {
             for(flag in listOf(0,2)) assertArrayEquals(DoubaoProtocol.frame(2,flag,byteArrayOf(1,2,3)),NetDoubaoProtocol.frame(2,flag,byteArrayOf(1,2,3)))
         }
     }
-    private suspend fun doubaoPair(error: Boolean, disconnect: Boolean = false): Pair<Result<AsrResult>,Result<AsrResult>> = MockWebServer().use { s ->
-        val frames=mutableListOf<List<ByteArray>>()
-        repeat(2) {
-            val received=mutableListOf<ByteArray>();frames.add(received)
+    private suspend fun doubao(error: Boolean, disconnect: Boolean = false): Result<AsrResult> = MockWebServer().use { s ->
+        val received=mutableListOf<ByteArray>()
+        run {
             s.enqueue(MockResponse().withWebSocketUpgrade(object:WebSocketListener(){
                 override fun onMessage(ws:WebSocket,b:ByteString){
                     received.add(b.toByteArray())
@@ -202,19 +247,25 @@ class KtorParity151Test {
         }
         val audio=audio().copy(format="pcm").also { it.file.writeBytes(ByteArray(6400)) };val cfg=DoubaoConfig(s.url("/asr").toString().replace("http:","ws:"),"resource",3000)
         try {
-            val a=runCatching{LegacyDoubaoAsrProvider(AsrAudioReader(context.cacheDir),cfg).recognize(audio,"fake") {}}
-            val b=runCatching{DoubaoAsrProvider(AsrAudioReader(context.cacheDir),cfg).recognize(audio,"fake") {}}
-            same(s.takeRequest(),s.takeRequest(),ws=true)
-            assertEquals(frames[0].size,frames[1].size);frames[0].zip(frames[1]).forEach{assertArrayEquals(it.first,it.second)}
-            a to b
+            var accounted=0
+            val b=runCatching{DoubaoAsrProvider(AsrAudioReader(context.cacheDir),cfg).recognize(audio,"fake") {accounted++}}
+            val r=s.takeRequest(); request(r,"GET","/asr")
+            assertEquals("fake",r.getHeader("X-Api-Key")); assertEquals("resource",r.getHeader("X-Api-Resource-Id"))
+            assertTrue(r.getHeader("X-Api-Connect-Id")!!.matches(Regex("[a-f0-9-]{36}")))
+            assertEquals("websocket",r.getHeader("Upgrade")); assertNotNull(r.getHeader("Sec-WebSocket-Key"))
+            assertEquals(1,accounted); assertEquals(2,received.size)
+            val config=DoubaoProtocol.config("pcm")
+            assertArrayEquals(byteArrayOf(0x11,0x10,0x10,0) + java.nio.ByteBuffer.allocate(4).putInt(config.size).array() + config,received[0])
+            assertArrayEquals(byteArrayOf(0x11,0x22,0,0,0,0,0x19,0) + ByteArray(6400),received[1])
+            b
         } finally { audio.file.delete() }
     }
-    @Test fun doubaoHandshakeFramesAndResult()=runBlocking{val r=doubaoPair(false);assertEquals(r.first.getOrThrow(),r.second.getOrThrow())}
-    @Test fun doubaoServerError()=runBlocking{val r=doubaoPair(true);assertEquals((r.first.exceptionOrNull() as AsrException).type,(r.second.exceptionOrNull() as AsrException).type)}
+    @Test fun doubaoHandshakeFramesAndResult()=runBlocking {
+        assertEquals(AsrResult(listOf(AsrSentence(0,1000,"你好",null)),1200,"safe-id"),doubao(false).getOrThrow())
+    }
+    @Test fun doubaoServerError()=runBlocking { assertEquals(AsrError.Auth,(doubao(true).exceptionOrNull() as AsrException).type) }
     @Test fun doubaoConnectionLossStaysNetwork()=runBlocking {
-        val r=doubaoPair(false,disconnect=true)
-        assertEquals(AsrError.Network,(r.first.exceptionOrNull() as AsrException).type)
-        assertEquals(AsrError.Network,(r.second.exceptionOrNull() as AsrException).type)
+        assertEquals(AsrError.Network,(doubao(false,disconnect=true).exceptionOrNull() as AsrException).type)
     }
     @Test fun headersRejectInvalidInputsWithoutEcho() {
         for(h in listOf(HeaderEntry("Host","secret"),HeaderEntry("x","secret\n"))) {

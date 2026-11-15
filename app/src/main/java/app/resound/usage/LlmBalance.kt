@@ -1,7 +1,6 @@
 package app.resound.usage
 
 import app.resound.digest.HeaderEntry
-import app.resound.digest.serviceHeaders
 import android.content.SharedPreferences
 import app.resound.digest.AndroidLlmProviders
 import kotlinx.coroutines.CancellationException
@@ -11,9 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -121,23 +118,10 @@ class LlmBalanceChecker(
     }
 
     internal suspend fun fetch(src: BalanceSource): LlmBalance {
-        if (app.resound.AppGraph.legacyNetwork) return legacyFetch(src)
         val network = app.resound.net.androidNetwork(http)
         run {
             val b = app.resound.net.queryBalance(network, src.url, src.key, src.headers, src.path)
             return LlmBalance(b.total, b.granted, b.toppedUp, b.currency, b.available, now())
-        }
-    }
-    internal suspend fun legacyFetch(src: BalanceSource): LlmBalance = withContext(Dispatchers.IO) {
-        val url = src.url.toHttpUrlOrNull() ?: error("查询地址格式不对")
-        require(url.username.isEmpty() && url.password.isEmpty() && url.query == null && url.fragment == null)
-        http.newCall(Request.Builder().url(url).header("Accept", "application/json").serviceHeaders(src.key, src.headers).get().build()).execute().use { r ->
-            check(r.isSuccessful) { "余额查询失败" }
-            val body = r.body?.source() ?: error("余额响应为空")
-            body.request(65_537)
-            check(body.buffer.size <= 65_536) { "余额响应过大" }
-            val content = body.readUtf8()
-            if (src.path == null) parse(content, now()) else LlmBalance(pick(content, src.path), null, null, "CNY", true, now())
         }
     }
     private fun cached(id: String): LlmBalance? = runCatching {

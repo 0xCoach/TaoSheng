@@ -45,37 +45,48 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             TranscribePowerDiagnostics.execution(app, inputData.getBoolean(BATCHED, false))
             BackgroundTranscribeDiagnostics.delayed(applicationContext, inputData)
         }
+        app.pipelineInProcess.awaitSnapshot()
+        val periodic = isPeriodic(mode, inputData.getBoolean(PERIODIC_TRIGGER, false))
+        if (periodic) app.pipelineDiagnostics.systemPeriodic()
         // 周期、手动、到点与回顾前整理共用同一把锁。
         if (!pipeline.tryLock()) {
             if (mode == MODE_TIMED) PipelineTimes.record(applicationContext,
                 "${System.currentTimeMillis()} 到点整理 等待其他转写/整理结束")
             if (mode == MODE_REALTIME && !BackgroundTranscribeDiagnostics.foreground)
                 BackgroundTranscribeDiagnostics.record(applicationContext, "realtime-pipeline-busy", "false")
-            return Result.retry()
+            return busyResult(mode, inputData.getBoolean(PERIODIC_TRIGGER, false))
         }
         try {
-            // 在拿到流水线锁后重新读取：闹钟、周期兜底、前台补漏只会有一个真正执行。
-            val timed = if (mode == MODE_TIMED) AppGraph.digestTiming.let {
-                (it as AndroidDigestTiming).pendingTimed()
-            } ?: return Result.success() else null
-            if (timed != null) PipelineTimes.record(applicationContext,
-                "${System.currentTimeMillis()} 到点整理 开始，计划=${timed.target}，延迟=${System.currentTimeMillis() - timed.target}ms")
+            if (periodic || mode == MODE_TIMED) {
+                val due = app.pipelineInProcess.decision(mode) as? app.resound.scheduling.PipelineDue.Decision.Run
+                    ?: return Result.success()
+                try { setForeground(getForegroundInfo()) }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) {}
+                val retry = app.pipelineInProcess.execute(due, if (periodic) "系统周期" else "系统补漏")
+                return if (!periodic && retry) Result.retry() else Result.success()
+            }
             // 已有麦克风 FGS 不是文档保证的后台启动豁免；实时任务按加急/普通批次调度，不主动再起 FGS。
             if (mode != MODE_REALTIME) {
                 try { setForeground(getForegroundInfo()) }
                 catch (e: CancellationException) { throw e }
                 catch (_: Exception) { /* 系统拒绝前台时仍按普通任务执行。 */ }
             }
-            val retry = executePipeline(app, mode, manual = mode == MODE_FULL && MANUAL_DIGEST in tags)
-            if (timed != null) {
-                if (retry) PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} 到点整理 暂时失败，保留进度等待重试")
-                else {
-                    // 不可重试错误（密钥/余额等）由原整理错误提示承接，避免无限请求。
-                    (AppGraph.digestTiming as AndroidDigestTiming).completeTimed(timed)
-                    PipelineTimes.record(applicationContext, "${System.currentTimeMillis()} 到点整理 本轮结束，计划=${timed.target}")
+            val started = System.currentTimeMillis()
+            var result = "中断"
+            try {
+                if (mode == MODE_FULL) app.pipelineDiagnostics.record(started, "手动", mode, started, "执行中", 0)
+                var digestBlocked = false
+                val retry = executePipeline(app, mode, manual = mode == MODE_FULL && MANUAL_DIGEST in tags,
+                    reportDigestBlocked = { digestBlocked = it })
+                if (mode == MODE_FULL) app.pipelineInProcess.manualCompleted(retry, digestBlocked)
+                result = if (digestBlocked) "等待用户处理" else if (retry) "可重试失败" else "成功"
+                return if (retry) Result.retry() else Result.success()
+            } finally {
+                if (mode == MODE_FULL) kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    app.pipelineDiagnostics.record(started, "手动", mode, started, result, System.currentTimeMillis() - started)
                 }
             }
-            return if (retry) Result.retry() else Result.success()
         } catch (e: CancellationException) {
             if (mode == MODE_TIMED) PipelineTimes.record(applicationContext,
                 "${System.currentTimeMillis()} 到点整理 执行中断，未消耗完成凭据")
@@ -86,7 +97,12 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     companion object {
-        private val pipeline = Mutex()
+        internal val gate = app.resound.scheduling.PipelineGate()
+        private val pipeline get() = gate.mutex
+        internal const val PERIODIC_TRIGGER = "periodic188"
+        internal fun busyResult(mode: String, guard: Boolean): Result = if (isPeriodic(mode, guard)) Result.success() else Result.retry()
+        internal fun isPeriodic(mode: String, guard: Boolean) =
+            mode == MODE_DIGEST || mode == MODE_TRANSCRIBE || (mode == MODE_TIMED && guard)
         const val MODE = "mode"
         const val MODE_REALTIME = "realtime"
         internal const val BATCHED = "earlyBatched"
@@ -105,7 +121,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             finally { PipelineProgress.finish() }
         }
 
-        private suspend fun executePipeline(app: ResoundApp, mode: String, manual: Boolean = false): Boolean {
+        internal suspend fun executePipeline(app: ResoundApp, mode: String, manual: Boolean = false, reportDigestBlocked: (Boolean) -> Unit = {}): Boolean {
             var mark = SystemClock.elapsedRealtime()
             fun lap(): Long = SystemClock.elapsedRealtime().let { now -> (now - mark).also { mark = now } }
             val pendingBefore = app.database.transcribe().pendingMillis()
@@ -148,6 +164,7 @@ class TranscribeWork(context: Context, params: WorkerParameters) : CoroutineWork
             })
             // 回顾前整理由外层统一记一次诊断（含等锁、超时和失败）。
             if (mode != MODE_REVIEW) PipelineTimes.record(app, "${System.currentTimeMillis()} ${MODE_NAMES[mode] ?: mode} 待转录音 ${formatElapsed(pendingBefore)} · " + parts.joinToString(" · "))
+            reportDigestBlocked(mode in setOf(MODE_DIGEST, MODE_FULL, MODE_TIMED, MODE_REVIEW) && !digestRetry && app.digestRunner.last.value.second != null)
             return transcribeRetry || voiceprintRetry || digestRetry
         }
     }
@@ -231,13 +248,13 @@ class TranscribeScheduler(private val context: Context, private val settings: Tr
                 // 无需录音服务存活也能补漏；网络恢复后由 WorkManager 执行。
                 manager.enqueueUniquePeriodicWork(TIMED_GUARD, ExistingPeriodicWorkPolicy.KEEP,
                     PeriodicWorkRequestBuilder<TranscribeWork>(15, TimeUnit.MINUTES)
-                        .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_TIMED))
+                        .setInputData(workDataOf(TranscribeWork.MODE to TranscribeWork.MODE_TIMED, TranscribeWork.PERIODIC_TRIGGER to true))
                         .setInitialDelay(15, TimeUnit.MINUTES).setConstraints(digestConstraints())
                         .addTag(TAG).addTag(TIMED_TAG).build())
                 recoverTimed()
                 return
             }
-            alarm.cancel()
+            alarm.schedule()
             manager.cancelUniqueWork(TIMED_GUARD)
             manager.cancelUniqueWork(TIMED_NOW)
         }

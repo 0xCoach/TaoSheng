@@ -108,6 +108,8 @@ abstract class TranscribeDao {
     /** 还没转写的录音总时长（毫秒），决定是否提前转写 */
     @Query("SELECT COALESCE(SUM(endAt - startAt), 0) FROM segments WHERE status = 'Pending'")
     abstract suspend fun pendingMillis(): Long
+    @Query("SELECT COALESCE(SUM(endAt - startAt), 0) FROM segments WHERE status = 'Pending' OR (status = 'Failed' AND attempts < 5)")
+    abstract fun observePendingMillis(): Flow<Long>
     @Query("SELECT MIN(nextRetryAt) FROM segments WHERE status = 'Failed' AND attempts < 5 AND nextRetryAt IS NOT NULL")
     abstract suspend fun earliestRetry(): Long?
     // Running 的尝试未完成，不占失败次数；已发送的用量仍保留，第五次中断也可恢复。

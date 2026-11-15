@@ -71,7 +71,7 @@ class DigestTiming053Test {
         assertEquals(at("18:00:00"), pending.target)
     }
 
-    @Test fun switchingBackCancelsAlarmAndRestoresPeriodicWithoutChangingTranscription() {
+    @Test fun switchingBackReplacesTimedAlarmWithIntervalFallbackWithoutChangingTranscription() {
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().setExecutor(SynchronousExecutor()).build())
         val manager = WorkManager.getInstance(context)
         try {
@@ -97,7 +97,7 @@ class DigestTiming053Test {
             assertEquals(NetworkType.CONNECTED, work.constraints.requiredNetworkType)
             timing.setMode(DigestMode.Interval)
             assertNull(timing.nextDigestAt.value)
-            assertTrue(digestAlarms().isEmpty())
+            assertEquals(1, digestAlarms().size) // 卡188：间隔模式保留非精确闹钟链。
             assertTrue(manager.getWorkInfosForUniqueWork(TranscribeScheduler.DIGEST_PERIODIC).get().any { !it.state.isFinished })
             assertTrue(manager.getWorkInfosByTag(TranscribeScheduler.TIMED_TAG).get().all { it.state.isFinished })
             assertEquals(transcribe.id, manager.getWorkInfosForUniqueWork(TranscribeScheduler.PERIODIC).get().single().id)

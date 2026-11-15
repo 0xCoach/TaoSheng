@@ -1,5 +1,6 @@
 package app.resound.capture
 
+import app.resound.digest.DigestMode
 import app.resound.AppGraph
 import app.resound.topic.TopicPolicy
 
@@ -378,7 +379,10 @@ class CaptureService : Service() {
         intervalStart = now
         store.prefs.edit().putLong("heartbeat", now).commit()
         folderImports()?.heartbeat(now)
-        (applicationContext as app.resound.ResoundApp).recoverTimedDigest()
+        (applicationContext as app.resound.ResoundApp).let { application ->
+            application.pipelineDiagnostics.heartbeat(AppGraph.digestTiming.mode.value == DigestMode.Interval)
+            application.pipelineInProcess.trigger("心跳")
+        }
     }
     private suspend fun fail(detail: String) {
         if (initialized) { beat(); store.event(WatchdogEventType.ServiceStopped, "$detail；等待手动恢复，保留未正常停止标记") }
@@ -424,6 +428,7 @@ class CaptureService : Service() {
     private fun stopLocation() { if (AppGraph.isLocationReady) AppGraph.location.tracker.stop() }
     private fun releaseWakeLock() { wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null }
     override fun onDestroy() {
+        (applicationContext as app.resound.ResoundApp).pipelineDiagnostics.serviceStopped()
         alive = false
         instance = null
         folderImports()?.recordingChanged()

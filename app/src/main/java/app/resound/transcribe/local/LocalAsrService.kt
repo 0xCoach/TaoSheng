@@ -107,7 +107,7 @@ class LocalAsrService : Service() {
             phase="asr"
             val segment = requireNotNull(request.data.getString("segment"))
             val files = LocalResumeFiles(File(noBackupFilesDir, "asr-progress")) { reason ->
-                // 诊断由后续独立提交接入主进程。
+                send(request,8){putString("reason",reason);putString("segment",segment)}
             }
             val separateSpeakers=request.data.getBoolean("separateSpeakers",true)
             val backend=LocalBackend.valueOf(request.data.getString("backend")!!)
@@ -145,6 +145,7 @@ class LocalAsrService : Service() {
                     value.timestampBits.map { Float.fromBits(it) }.toFloatArray(),value.language,"","",floatArrayOf()),chunk,value.tag)
             }
             progress.decoded.forEachIndexed { index,value -> replay(value,chunks[index]) }
+            send(request,8){putString("reason","resume-start");putString("segment",segment);putInt("total",chunks.size);putInt("done",progress.decoded.size)}
             val rec=if(progress.decoded.size<chunks.size) timed("ModelLoad") { model(backend,language) } else null
             timed("Recognize") {
             for(index in progress.decoded.size until chunks.size){

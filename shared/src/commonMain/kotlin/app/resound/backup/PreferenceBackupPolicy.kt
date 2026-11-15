@@ -71,6 +71,23 @@ object PreferenceBackupPolicy {
     val backedUp: Set<String> get() = settings.keys + secretPrefs
     val asrKeys = setOf("encryptedKey", "customEncryptedKey")
 
+    /** 只解密生产代码使用的凭据键；容器内其他元数据不是密文，不能尝试 Base64 解码。 */
+    fun secret(store: String, key: String): Boolean = when (store) {
+        "transcribe" -> key in asrKeys
+        "digest-secrets" -> key.startsWith("key-") || key.startsWith("headers-") || key == "opencode-session"
+        "transcribe-header-secrets" -> key.startsWith("headers-") || key == "opencode-session"
+        "push-secrets" -> uuidReference(key)
+        "backup-secrets" -> key in setOf("password", "webDavPassword", "s3Secret")
+        "location-secrets" -> key == "amap"
+        "backup-encryption-secrets" -> key == "passphrase"
+        else -> false
+    }
+
+    private fun uuidReference(key: String): Boolean = key.length == 36 && key.indices.all { index ->
+        if (index in setOf(8, 13, 18, 23)) key[index] == '-'
+        else key[index] in "0123456789abcdefABCDEF"
+    }
+
     fun setting(store: String, key: String): Boolean {
         if (store !in settings || store == "transcribe" && key in asrKeys) return false
         return when (store) {

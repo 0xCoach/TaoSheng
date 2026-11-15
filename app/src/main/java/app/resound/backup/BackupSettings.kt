@@ -3,6 +3,7 @@ package app.resound.backup
 import android.content.Context
 import app.resound.digest.SecretStore
 import app.resound.diagnostics.FailureNotes
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -15,6 +16,13 @@ internal object BackupSettings {
         "transcribe-header-secrets" to "resound-asr-headers-aes-v1", "location-secrets" to "resound-location-aes-v1",
         "backup-encryption-secrets" to "resound-backup-passphrase-v1")
     private val asrKeys = PreferenceBackupPolicy.asrKeys
+    // 默认本机密钥容器有明确键空间；显式注入的读写端口仍保留既有通用键空间约定。
+    private class LocalSecretReader(private val context: Context) : (String, String) -> String {
+        override fun invoke(store: String, key: String) = SecretStore(context, store, stores.getValue(store)).read(key)
+    }
+    private class LocalSecretWriter(private val context: Context) : (String, String, String) -> Unit {
+        override fun invoke(store: String, key: String, value: String) = SecretStore(context, store, stores.getValue(store)).write(key, value)
+    }
     internal fun setting(store: String, key: String): Boolean = PreferenceBackupPolicy.setting(store, key)
     private fun value(store: String, key: String, value: Any?): Any? {
         if (value !is String) return value
@@ -53,9 +61,7 @@ internal object BackupSettings {
         }
     }
 
-    fun capture(context: Context, target: File, read: (String, String) -> String = { store, key ->
-        SecretStore(context, store, stores.getValue(store)).read(key)
-    }) {
+    fun capture(context: Context, target: File, read: (String, String) -> String = LocalSecretReader(context)) {
         val settings = JSONObject()
         prefs.sorted().forEach { name ->
             val entries = JSONObject()
@@ -69,9 +75,17 @@ internal object BackupSettings {
         val secrets = JSONObject()
         stores.forEach { (name, _) ->
             val entries = JSONObject()
-            context.getSharedPreferences(name, 0).all.keys.filter { name != "transcribe" || it in asrKeys }.sorted().forEach { key ->
+            context.getSharedPreferences(name, 0).all.keys.filter {
+                (name != "transcribe" || it in asrKeys) && (read !is LocalSecretReader || PreferenceBackupPolicy.secret(name, it))
+            }.sorted().forEach { key ->
                 // 读取失败中止本次备份，不把不完整的密钥集合冒充完整备份。
-                entries.put(key, read(name, key))
+                val plain = try { read(name, key) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (caught: Exception) {
+                    FailureNotes.record("backup/credential-read", caught)
+                    throw BackupFailure("密钥读取失败，备份未完成；请检查密钥或重新保存后重试")
+                }
+                entries.put(key, plain)
             }
             secrets.put(name, entries)
         }
@@ -94,9 +108,7 @@ internal object BackupSettings {
             }
         }
     }
-    fun apply(context: Context, source: File, write: (String, String, String) -> Unit = { store, key, value ->
-        SecretStore(context, store, stores.getValue(store)).write(key, value)
-    }) {
+    fun apply(context: Context, source: File, write: (String, String, String) -> Unit = LocalSecretWriter(context)) {
         val settings = JSONObject(File(source, "settings.json").readText())
         val secrets = JSONObject(File(source, "secrets.json").readText())
         validate(settings, secrets)
@@ -123,7 +135,9 @@ internal object BackupSettings {
         }
         secrets.keys().forEach { name ->
             val entries = secrets.getJSONObject(name)
-            entries.keys().forEach { key -> write(name, key, entries.getString(key)) }
+            entries.keys().forEach { key ->
+                if (write !is LocalSecretWriter || PreferenceBackupPolicy.secret(name, key)) write(name, key, entries.getString(key))
+            }
         }
     }
 }

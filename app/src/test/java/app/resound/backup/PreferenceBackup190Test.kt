@@ -2,6 +2,9 @@ package app.resound.backup
 
 import android.app.Application
 import android.content.Context
+import android.content.ContextWrapper
+import app.resound.devices.AndroidPairedDeviceStore
+import app.resound.devices.android.AndroidHubRepository
 import app.resound.data.CaptureDatabase
 import app.resound.data.open
 import app.resound.data.readSqlBlocking
@@ -95,7 +98,10 @@ class PreferenceBackup190Test {
         prefs("push").edit().putString("channels", "[]").putString("footprint-sent-8", "old-day").commit()
         prefs("digest").edit().putString("digestMode", "Timed").putLong("timedSince", 999).commit()
         prefs("folder-imports").edit().putString("folders", "[{\"id\":\"uri\",\"name\":\"目录\",\"kind\":\"Training\",\"enabled\":true,\"baseline\":true,\"lastScanAt\":999}]").commit()
-        prefs("devices").edit().putString("paired", "[{\"address\":\"device\",\"cardId\":\"card\",\"name\":\"设备\",\"clockOffset\":999,\"gapStart\":999}]").commit()
+        prefs("devices").edit().putString("paired", "[{\"address\":\"AA:BB:CC:DD:EE:FF\",\"cardId\":\"card\",\"name\":\"设备\",\"clockOffset\":999,\"gapStart\":999}]").commit()
+        AndroidHubRepository(prefs("device-drivers")).store("test", "device").apply {
+            putString("progress", "42"); putBytes("token", byteArrayOf(1, 2))
+        }
         BackupSettings.capture(context, root)
         val settingsFile = File(root, "settings.json")
         val settings = JSONObject(settingsFile.readText())
@@ -120,6 +126,24 @@ class PreferenceBackup190Test {
         assertEquals(77L, prefs("capture").getLong("heartbeat", 0))
         assertFalse(prefs("setup").getBoolean("autostart", true))
         assertEquals(77L, prefs("pipeline-schedule").getLong("lastAttempt", 0))
+
+        // 用独立偏好空间模拟另一台手机：必要的设备数据可用，本机运行状态不被源包覆盖。
+        val peer = object : ContextWrapper(context) {
+            override fun getSharedPreferences(name: String, mode: Int) =
+                context.getSharedPreferences("peer-190-$name", mode)
+        }
+        val names = PreferenceBackupPolicy.backedUp + PreferenceBackupPolicy.excluded.keys
+        names.forEach { peer.getSharedPreferences(it, 0).edit().clear().commit() }
+        try {
+            peer.getSharedPreferences("capture", 0).edit().putLong("heartbeat", 88).commit()
+            BackupSettings.apply(peer, root)
+            val paired = AndroidPairedDeviceStore(peer.getSharedPreferences("devices", 0)).read().single()
+            assertEquals(999L, paired.clockOffset); assertEquals(999L, paired.gapStart)
+            val restored = AndroidHubRepository(peer.getSharedPreferences("device-drivers", 0)).store("test", "device")
+            assertEquals("42", restored.getString("progress"))
+            assertArrayEquals(byteArrayOf(1, 2), restored.getBytes("token"))
+            assertEquals(88L, peer.getSharedPreferences("capture", 0).getLong("heartbeat", 0))
+        } finally { names.forEach { peer.getSharedPreferences(it, 0).edit().clear().commit() } }
     }
 
     private fun database(): CaptureDatabase = CaptureDatabase.open(context).also {

@@ -87,7 +87,12 @@ class BackupArchiveTest {
             assertEquals(BackupArchive.safePrefs, names.filter { it.startsWith("shared_prefs/") }.map { it.substringAfter('/') }.toSet())
             val hotwords = file.getInputStream(file.getEntry("shared_prefs/transcribe.xml")).bufferedReader().readText()
             assertTrue(hotwords.contains("hotwords")); assertFalse(hotwords.contains("test"))
-            assertFalse(names.any { "secret" in it || "audio" in it || "unknown" in it })
+            // 卡190明确要求可移植密钥一并备份；仍禁止设备绑定的密文 XML、音频和未知设置。
+            assertTrue("secrets.json" in names)
+            assertFalse(names.any { ("secret" in it && it != "secrets.json") || "audio" in it || "unknown" in it })
+            val portable = org.json.JSONObject(file.getInputStream(file.getEntry("secrets.json")).bufferedReader().readText())
+            assertFalse(portable.getJSONObject("backup-secrets").has("test"))
+            assertFalse(portable.getJSONObject("digest-secrets").has("test"))
         }
         val verified = File(root, "verified")
         BackupArchive.verify(zip, verified, db.testSql.version)

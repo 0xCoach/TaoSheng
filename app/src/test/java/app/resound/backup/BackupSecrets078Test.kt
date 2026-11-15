@@ -90,4 +90,21 @@ class BackupSecrets078Test {
         assertTrue(runCatching { BackupSettings.capture(context, root) { _, _ -> error("模拟安全区暂不可读") } }.isFailure)
         assertFalse(File(root, "secrets.json").exists())
     }
+
+    @Test fun nonCredentialMetadataIsNotDecodedAsCiphertext() {
+        BackupSettings.stores.keys.forEach { prefs(it).edit().putString("test", "not-base64!").commit() }
+        // 执行真实默认读取路径；元数据不能进入 SecretStore.read，更不应触发 Keystore。
+        BackupSettings.capture(context, root)
+        val secrets = JSONObject(File(root, "secrets.json").readText())
+        BackupSettings.stores.keys.forEach { assertFalse(secrets.getJSONObject(it).has("test")) }
+    }
+
+    @Test fun malformedActualCredentialAbortsWithSafeFailure() {
+        prefs("backup-secrets").edit().putString("password", "not-base64!").commit()
+        val failure = runCatching { BackupSettings.capture(context, root) }.exceptionOrNull()
+        assertTrue(failure is BackupFailure)
+        assertTrue(failure!!.message.orEmpty().contains("备份未完成"))
+        assertFalse(failure.message.orEmpty().contains("not-base64!"))
+        assertFalse(File(root, "secrets.json").exists())
+    }
 }

@@ -91,7 +91,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 33. **📅 To-dos on a calendar** — a week strip (expandable to a month) with dots for busy and overdue days; an agenda from today, later items grouped into “next week” / months, undated ones under “anytime”; move all overdue to today in one tap, confirm pending items inline, and add a to-do to an empty day by voice. “Add to phone calendar” opens the system calendar prefilled (no calendar permission needed).
 34. **📜 Changelog in the app** — after an update, the home screen shows “Updated to X · see what’s new” once; Settings → Updates → Changelog lists every release offline, with the current one expanded.
 35. **📣 Notices without an update** — announcements such as community QR codes or service notices appear on the home screen (images can be saved to the gallery); the notice file is signature-checked, download-only, and dismissed notices stay hidden.
-36. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
+36. **📍 Mark moments** — tap “Mark” from the notification, launcher shortcut, widget or player; the minutes around it (2 min before / 1 min after by default) are summarized in more detail with key quotes, flagged on the timeline, and their audio kept like starred items.
+37. **🎧 Bluetooth mics yield to media** — when recording with a DJI Mic or Bluetooth headset, playing a video or music hands the mic back so sound plays normally; recording continues on the phone mic and switches back a few seconds after playback stops.
+38. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
 
 <table>
 <tr>

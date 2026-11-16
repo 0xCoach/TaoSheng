@@ -36,14 +36,20 @@ class QuickTodoActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val mode = runCatching { ThemeMode.valueOf(getSharedPreferences("ui", MODE_PRIVATE).getString("theme", "System")!!) }
             .getOrDefault(ThemeMode.System)
-        setContent { ResoundTheme(mode) { QuickTodoFlow(onClose = ::finish) } }
+        val day = intent.getLongExtra(DAY, Long.MIN_VALUE).takeIf { it != Long.MIN_VALUE }?.let { java.time.LocalDate.ofEpochDay(it) }
+        setContent { ResoundTheme(mode) { QuickTodoFlow(day, onClose = ::finish) } }
+    }
+
+    companion object {
+        /** 待办日历里点某天“加一条”：说出的事没提日子时，就定在这一天 */
+        const val DAY = "day"
     }
 }
 
 private enum class QuickPhase { Starting, Listening, Recognizing, Drafting, Typing }
 
 @Composable
-private fun QuickTodoFlow(onClose: () -> Unit) {
+private fun QuickTodoFlow(day: java.time.LocalDate?, onClose: () -> Unit) {
     val context = LocalContext.current
     if (!AppGraph.isManualTodosReady || !AppGraph.isTodoVoiceReady) {
         LaunchedEffect(Unit) { Toast.makeText(context, "涛声还在启动，请稍后再试", Toast.LENGTH_SHORT).show(); onClose() }
@@ -74,7 +80,7 @@ private fun QuickTodoFlow(onClose: () -> Unit) {
     DisposableEffect(Unit) { onDispose { if (phase == QuickPhase.Listening || phase == QuickPhase.Starting) voice.cancel() } }
 
     result?.let { (drafts, origin, source) ->
-        DraftSheet(drafts, source, onDismiss = onClose) { confirmed ->
+        DraftSheet(drafts, source, onDismiss = onClose, defaultDay = day) { confirmed ->
             todos.add(confirmed, origin, source)
             toast("已添加 ${confirmed.size} 条待办")
             onClose()
@@ -87,7 +93,7 @@ private fun QuickTodoFlow(onClose: () -> Unit) {
         return
     }
     val c = Rs.colors
-    RsSheet("说一下要做的事", "几件事一起说也行，说完点“说完了”", onDismiss = { voice.cancel(); onClose() }) {
+    RsSheet(day?.let { "说一下 ${it.monthValue}月${it.dayOfMonth}日 要做的事" } ?: "说一下要做的事", "几件事一起说也行，说完点“说完了”", onDismiss = { voice.cancel(); onClose() }) {
         val level by voice.level.collectAsStateWithLifecycle()
         Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
             when (phase) {

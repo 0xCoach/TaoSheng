@@ -146,7 +146,7 @@ class Promo041Shots {
         Box(Modifier.fillMaxSize().background(c.background))
         val due = today.plusDays(1)
         DraftSheet(TodoDrafts(listOf(TodoDraft("待办", "我答应别人", "把发布会演示稿发给小林", "$due", at(0, 0, due), "小林", false)), true),
-            "明天记得把发布会演示稿发给小林", {}, {})
+            "明天记得把发布会演示稿发给小林", onDismiss = {}, onConfirm = {})
     }
 
     /** 语音加待办面板（照 QuickTodoFlow 的样子，正在听） */

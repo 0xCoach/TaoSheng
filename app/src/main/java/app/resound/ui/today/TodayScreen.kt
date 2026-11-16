@@ -1261,6 +1261,14 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                 }
                 Spacer(Modifier.height(10.dp))
             }
+            // 加到手机日历：打开系统日历的新建日程，填好标题、时间、备注；没定日子的先选日子
+            if (task && item.status != ItemStatus.Ignored) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                ActionChip(if (item.dueAt != null) "📅 加到手机日历" else "📅 选日子后加到手机日历", ChipTone.AccentSoft, Modifier.fillMaxWidth()) {
+                    app.resound.ui.items.SystemCalendar.add(ctx, item)
+                }
+                Spacer(Modifier.height(10.dp))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (task) ActionChip("编辑", ChipTone.Plain, Modifier.weight(1f)) { editing = true }
                 openEvent?.let { ActionChip("查看来源", ChipTone.Plain, Modifier.weight(1f), onClick = it) }

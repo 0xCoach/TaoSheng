@@ -6,6 +6,7 @@ import app.resound.data.retryFailed
 
 import app.resound.push.attachSubscriptions
 import app.resound.push.attachFootprint
+import app.resound.push.attachScreenTime
 
 import android.app.Application
 import app.resound.capture.*
@@ -142,6 +143,42 @@ class ResoundApp : Application() {
         AppGraph.playbackSink = app.resound.screentime.PlaybackRecorder(
             database.screenTime(), playbackTitleSettings) { pkgs -> app.resound.screentime.appLabels(this, pkgs) }
         AppGraph.playbackQueries = app.resound.screentime.PlaybackQueries(database.screenTime())
+        val screenPrefs = getSharedPreferences("screen-time", MODE_PRIVATE)
+        val screenTimeSettings = app.resound.screentime.ScreenTimeSettings(
+            readBoolean = { key, def -> screenPrefs.getBoolean(key, def) },
+            persist = { bools, longs, strs ->
+                val editor = screenPrefs.edit()
+                bools.forEach { (key, value) -> editor.putBoolean(key, value) }
+                longs.forEach { (key, value) -> editor.putLong(key, value) }
+                strs.forEach { (key, value) -> editor.putString(key, value) }
+                editor.commit()
+            },
+            readLong = { key, def -> screenPrefs.getLong(key, def) },
+            now = AppGraph.platform.now::now,
+            readString = { key, def -> screenPrefs.getString(key, def) ?: def })
+        AppGraph.screenTimeSettings = screenTimeSettings
+        val screenTimeSource = app.resound.screentime.AndroidScreenEventSource(this)
+        AppGraph.screenTimePuller = app.resound.screentime.ScreenTimePuller(screenTimeSettings,
+            screenTimeSource, database.screenTime(),
+            now = AppGraph.platform.now::now, denied = { it is SecurityException },
+            diagnostic = { android.util.Log.i("screentime", it) })
+        val launcherPkgs = packageManager.queryIntentActivities(
+            android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
+            android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            .filter { it.priority >= 0 }
+            .mapNotNull { it.activityInfo?.packageName }.toSet() + "com.android.systemui"
+        AppGraph.screenTimeReader = app.resound.screentime.ScreenTimeQueries(database.screenTime(),
+            AppGraph.screenTimePuller, screenTimeSettings, permitted = screenTimeSource::permitted,
+            playbackPermitted = { androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName) },
+            excluded = launcherPkgs, now = AppGraph.platform.now::now,
+            playbackQueries = AppGraph.playbackQueries!!,
+            titlesAllowed = { playbackTitleSettings.enabled.value })
+        scope.launch {
+            screenTimeSettings.enabled.collect { on ->
+                app.resound.screentime.ScreenTimePullWorker.schedule(this@ResoundApp, on)
+                if (on) launch { AppGraph.screenTimePuller.pull() }
+            }
+        }
         val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
             guard = { block -> voiceprintRepository.withAudioCleanup(block) },
             playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
@@ -333,6 +370,7 @@ class ResoundApp : Application() {
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         pushChannels.attachFootprint(this, scope)
+        pushChannels.attachScreenTime(this, scope)
         app.resound.recordings.attachRecordingArchive(this, database, pushChannels, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         val folderImports = app.resound.importer.AndroidFolderImports(this, database, scope,

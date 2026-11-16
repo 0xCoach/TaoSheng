@@ -225,7 +225,7 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
             Field(values[f.key] ?: "", if (ch != null && f.secret) "已保存，留空表示不改" else f.hint, f.secret) { values[f.key] = it.trim() }
         }
         val allowed = remember(kind) { repo.topics(kind) }
-        SubscriptionEditor(sub, caps, isNew = ch == null) { sub = it }
+        SubscriptionEditor(sub, caps, format, isNew = ch == null) { sub = it }
         if (caps.formats.size > 1) {
             Label("格式")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -422,8 +422,11 @@ private fun hm(m: Int) = "%d:%02d".format(m / 60, m % 60)
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, isNew: Boolean, onChange: (PushSubscription) -> Unit) {
+private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, format: PushFormat, isNew: Boolean, onChange: (PushSubscription) -> Unit) {
     val c = Rs.colors
+    val screenTimeOn = if (app.resound.AppGraph.isScreenTimeReady)
+        app.resound.AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle().value
+    else false
     // 一键模板
     val templates = buildList {
         add("手机通知" to PushSubscription.PhoneNotice)
@@ -466,6 +469,21 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, is
                 listOf(12, 18, 20, 21, 22, 23).map { it * 60 }.forEach { m -> Choice(hm(m), sub.footprintAt == m) { onChange(sub.copy(footprintAt = m)) } }
             }
             Text("位置会推到这个通道，注意保管；点“现在推一次”可以马上推今天的足迹。", style = RsType.caption, color = c.warning)
+        }
+    }
+    Block("每日屏幕时间", "每天定时推当天用了哪些 App、各用多久；要先在“设置 → 屏幕时间”里打开") {
+        val canToggle = screenTimeOn || sub.screenTime
+        ToggleRow("推每日屏幕时间", if (format == PushFormat.Json) "总时长和用得最多的 App；自定义接口另附完整时间线" else "总时长和用得最多的 App（只有 JSON 格式会附带完整时间线）",
+            sub.screenTime, enabled = canToggle) { onChange(sub.copy(screenTime = it)) }
+        if (!canToggle) {
+            Text("屏幕时间未开启，先在“设置 → 屏幕时间”里打开。", style = RsType.caption, color = c.textTertiary)
+        }
+        if (sub.screenTime) {
+            SubLabel("每天几点推")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(12, 18, 20, 21, 22, 23).map { it * 60 }.forEach { m -> Choice(hm(m), sub.screenTimeAt == m) { onChange(sub.copy(screenTimeAt = m)) } }
+            }
+            Text("App 使用记录会推到这个通道，注意保管。", style = RsType.caption, color = c.warning)
         }
     }
     // 卡 072：推录音（原始 OGG），只有坚果云同步文件夹能收文件

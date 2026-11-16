@@ -2,10 +2,12 @@ package app.resound.ask
 
 import app.resound.AppGraph
 import app.resound.ask.core.AskDefinitions
+import app.resound.ask.core.AskScreenToolsCore
 import app.resound.digest.LlmFailover
 import app.resound.platform.NowMillis
 import app.resound.search.EmbeddingScheduler
 import app.resound.search.LocalEmbedder
+import kotlinx.datetime.TimeZone
 
 import app.resound.digest.allowsEmptyKey
 import app.resound.usage.UsagePurpose
@@ -43,6 +45,13 @@ fun createAskRepository(
         // 卡 130 合并后统一用情境查询；没装配时退回问问自带的同语义实现
         { name, from, to -> if (AppGraph.isSituationReady) AppGraph.situation.staysAt(name, from, to) else places.staysAt(name, from, to) },
         { from, to -> places.placesDuring(from, to) })
+    val screenTools = AskScreenToolsCore(
+        { AppGraph.screenTimeReader },
+        TimeZone.of(java.time.ZoneId.systemDefault().id),
+        includeAppPlayback = { AppGraph.isDigestSettingsReady && AppGraph.digestSettings.includeAppPlayback.value },
+        screenEnabled = { AppGraph.isScreenTimeReady && AppGraph.screenTimeSettings.enabled.value },
+        playbackTitlesEnabled = { AppGraph.isPlaybackTitleReady && AppGraph.playbackTitleSettings.enabled.value },
+    )
     val changes = AskChanges(database, onChanged = { EmbeddingScheduler.enqueue(context) })
     val suggestions = AskSuggestions(
         context.getSharedPreferences("ask-suggestions", Context.MODE_PRIVATE),
@@ -89,7 +98,8 @@ fun createAskRepository(
             settings.failover.stream("问答", session, messages, if (prefetching) JSONArray() else definitions, client, delta,
                 { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, allowTools = requested.length() > 0)
         }, definitions, { name, args, sources ->
-            placeTools.execute(name, args, sources)
+            if (name == "apps_during") JSONObject(screenTools.execute(args.toString(), sources))
+            else placeTools.execute(name, args, sources)
         }, { _, _ -> }, changes::propose,
             mode = {
                 prefetching = compatibility.state(preset).fallback != null

@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -68,33 +67,12 @@ internal fun PlaybackTitleCard() {
     if (saveError) {
         Text("保存失败，请重试", style = RsType.caption, color = c.warning)
     }
-    if (titleOn && app.resound.AppGraph.isDigestSettingsReady) {
-        val includeApp by app.resound.AppGraph.digestSettings.includeAppPlayback.collectAsStateWithLifecycle()
-        var appSaveError by remember { mutableStateOf(false) }
-        Spacer(Modifier.height(12.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("整理时带上 App 与播放信息", style = RsType.body, color = c.text)
-                Text(
-                    if (includeApp) "整理时把正在播放的 App 和节目名发给大模型，用来标外放声音来自哪里"
-                    else "关掉后整理不再把 App 和节目名发给大模型；仍会标「手机在外放」",
-                    style = RsType.caption, color = c.textSecondary,
-                )
-            }
-            RsToggle(includeApp) { on ->
-                appSaveError = false
-                try {
-                    app.resound.AppGraph.digestSettings.setIncludeAppPlayback(on)
-                } catch (e: IllegalStateException) {
-                    app.resound.diagnostics.FailureNotes.record("ui/include-app-playback-save", e)
-                    appSaveError = true
-                }
-            }
-        }
-        if (appSaveError) {
-            Text("保存失败，请重试", style = RsType.caption, color = c.warning)
-        }
-    }
+    Text(
+        "整理时是否带上节目名，在 设置 → 屏幕时间 页底部调整",
+        style = RsType.caption,
+        color = c.textTertiary,
+        modifier = Modifier.padding(top = 8.dp),
+    )
     if (titleOn && !listenerOn) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("需要通知使用权才能记下正在播放什么", style = RsType.caption, color = c.textSecondary, modifier = Modifier.weight(1f))

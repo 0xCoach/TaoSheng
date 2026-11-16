@@ -2,7 +2,7 @@ package app.resound.screentime
 
 /**
  * 屏幕时间的读取约定（Claude 定稿，签名不得自行修改）。
- * 本版播放记录只读走 [PlaybackQueries]；[ScreenTimeReader] 仍保留签名，本 PR 不装配实现。
+ * 播放记录只读走 [PlaybackQueries]；屏幕使用走 [ScreenTimeQueries]（实现 [ScreenTimeReader]）。
  * 区间一律左闭右开、纪元毫秒。
  */
 
@@ -36,7 +36,7 @@ data class ScreenTimeResult(
     }
 }
 
-/** 缺口代码，共六个；coverage_lag 只在查询时现算，不落库。 */
+/** 缺口代码；coverage_lag 只在查询时现算，不落库。privacy_deleted 由删除入口写入，不含 App 信息。 */
 object GapCode {
     const val USAGE_ACCESS_MISSING = "usage_access_missing"
     const val NOTIFICATION_ACCESS_MISSING = "notification_access_missing"
@@ -44,7 +44,11 @@ object GapCode {
     const val COVERAGE_LAG = "coverage_lag"
     const val LISTENER_DISCONNECTED = "listener_disconnected"
     const val DISABLED = "disabled"
+    const val PRIVACY_DELETED = "privacy_deleted"
 }
+
+/** 这些缺口覆盖的时间不得被重放成使用段。 */
+val SESSION_BLOCKING_GAP_CODES = setOf(GapCode.PULL_FAILED, GapCode.DISABLED, GapCode.PRIVACY_DELETED)
 
 /** 播放记录的覆盖来源名（与 [SCREEN_SOURCE] 并列）。 */
 const val PLAYBACK_SOURCE = "playback"

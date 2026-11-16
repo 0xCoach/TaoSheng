@@ -108,6 +108,22 @@ class PreferenceBackup190Test {
         assertEquals(42L, prefs("playback-title").getLong("playbackTitleEnabledAt", 0))
     }
 
+    @Test fun screenTimeSwitchSurvivesBackupButLastPullDoesNot() {
+        prefs("screen-time").edit()
+            .putBoolean("screenTimeEnabled", true)
+            .putLong("screenTimeEnabledAt", 42)
+            .putLong("screenTimeDisabledAt", 7)
+            .putLong("screenTimeLastPullAt", 999)
+            .commit()
+        BackupSettings.capture(context, root)
+        prefs("screen-time").edit().clear().commit()
+        BackupSettings.apply(context, root)
+        assertTrue(prefs("screen-time").getBoolean("screenTimeEnabled", false))
+        assertEquals(42L, prefs("screen-time").getLong("screenTimeEnabledAt", 0))
+        assertEquals(7L, prefs("screen-time").getLong("screenTimeDisabledAt", 0))
+        assertFalse(prefs("screen-time").contains("screenTimeLastPullAt"))
+    }
+
     @Test fun brokenStructuredSettingDoesNotLeakItsValueInDiagnostics() {
         prefs("folder-imports").edit().putString("folders", "private-folder-content").commit()
         val failure = runCatching { BackupSettings.capture(context, root) }.exceptionOrNull()

@@ -23,7 +23,8 @@ class AskParity153Test {
     },sample("spec.json"),zone)
 
     @Test fun definitionsMatchRecordedBytes() {
-        assertEquals(Arr(sample("definitions.json")).toString(), AskDefinitions.json())
+        val expected = Arr(sample("definitions.json")).put(Obj("""{"type":"function","function":{"name":"apps_during","description":"查某段时间手机上用了哪些 App、各用多久，以及手机播放过什么（设备播放记录，只表示手机在播放，不代表本人在听）；只有开启屏幕时间时才有数据","parameters":{"type":"object","properties":{"from":{"type":"string","description":"YYYY-MM-DD 或 YYYY-MM-DD HH:mm"},"to":{"type":"string","description":"YYYY-MM-DD 或 YYYY-MM-DD HH:mm"}},"required":["from","to"],"additionalProperties":false}}}"""))
+        assertEquals(expected.toString(), AskDefinitions.json())
     }
     @Test fun fullSystemPromptMatchesRecordedBytes() {
         assertEquals(sample("prompt.txt"),app.resound.digest.core.DigestPrompt.system(sample("template.md"),LocalDate(2026,11,10),"涛声").replace("{{TODAY}}","2026-11-10"))

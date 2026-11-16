@@ -232,7 +232,7 @@ fun TodayScreen(
     var boxTop by remember { mutableStateOf(0f) }
     val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
-    fun pendingIndex() = 2 + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0)
+    fun pendingIndex() = 3 + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0)
     fun timelineIndex() = pendingIndex() + (if (pendingCount > 0) 1 else 0)
     // 主卡上点了暂停：底部浮一条“已暂停 30 分钟 · 改时长 · 撤销”
     var pausedNote by remember { mutableStateOf<Pair<Int, Long>?>(null) }
@@ -293,7 +293,7 @@ fun TodayScreen(
                     rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) }
                 })
         }
-        if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
+        todayScreenTimeAndImport(date, importing)
         if (pendingCount > 0) {
             item {
                 Section("待确认", trailing = { Text("$pendingCount 条", style = RsType.caption, color = c.textTertiary) }) {

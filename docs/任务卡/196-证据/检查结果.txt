@@ -1,6 +1,0 @@
-python3 tools/check_shared.py：通过
-:shared:check、:app:compileDebugKotlin、:app:assembleRelease、受影响测试：通过（1m10s）
-Release APK 清理前：107004883 bytes
-SHA-256: ab3bf3b92d58fe6df9ac684c3692b35de4732ffc7c9dbaafff8e06afc7e44f6b
-iOS：shared + devices 真机与模拟器编译通过。
-范围：UI/MainActivity/Contract/schema 无变更；git diff --check 通过。

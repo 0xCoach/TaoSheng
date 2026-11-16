@@ -65,7 +65,8 @@ abstract class TranscribeDao {
     @Transaction
     @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
     @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e
-        WHERE e.starred = 1 AND e.deleted = 0 AND s.startAt < e.endAt AND s.endAt > e.startAt)""")
+        WHERE e.starred = 1 AND e.deleted = 0 AND s.startAt < e.endAt AND s.endAt > e.startAt)
+        OR EXISTS (SELECT 1 FROM marks m WHERE s.startAt < m.at + m.afterMillis AND s.endAt > m.at - m.beforeMillis)""")
     abstract suspend fun starredAudio(): List<Long>
 
     @Query("SELECT EXISTS(SELECT 1 FROM segments WHERE path IN (:ogg, :m4a))")

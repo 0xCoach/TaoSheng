@@ -40,6 +40,7 @@ object PreferenceBackupPolicy {
         "transcribe-header-secrets", "location-secrets", "backup-encryption-secrets",
     )
     val excluded = mapOf(
+        "custom-asr-formats" to "自定义转写格式能力缓存，30 天重新探测，不备份",
         "onboarding" to "首次转写、向导计时、诊断计数及提示已读均是本机引导状态，沿用既有不备份约定",
         "ask-compatibility" to "服务端能力探测缓存和失败冷却",
         "ask-suggestions" to "问答推荐缓存",

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.CustomFormats196Test" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-16T11:17:22.590Z" hostname="CoachdeMacBook-Air.local" time="1.177">
+  <properties/>
+  <testcase name="cacheStoresOnlyAddressFingerprintAndTimestampAndIsExcludedFromBackup" classname="app.resound.transcribe.CustomFormats196Test" time="1.152"/>
+  <testcase name="cachePersistsButConfigurationChangesClearItAndOldRequestsCannotRewrite" classname="app.resound.transcribe.CustomFormats196Test" time="0.025"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,6 @@
+类	测试	失败	跳过	秒
+app.resound.net.KtorParity151Test	20	0	0	2.08
+app.resound.transcribe.CustomFormats196Test	2	0	0	1.177
+app.resound.transcribe.CustomFullEndpointTest	7	0	0	4.384
+app.resound.transcribe.CustomHttp055Test	8	0	0	0.291
+app.resound.net.CustomAsrFormats196Test	4	0	0	0.164

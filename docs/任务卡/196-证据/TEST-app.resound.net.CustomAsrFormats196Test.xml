@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.net.CustomAsrFormats196Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-16T11:17:10.798Z" hostname="CoachdeMacBook-Air.local" time="0.164">
+  <properties/>
+  <testcase name="failedJsonFallbackDoesNotRemember[jvm]" classname="app.resound.net.CustomAsrFormats196Test" time="0.13"/>
+  <testcase name="newAddressAndThirtyDaysReprobe[jvm]" classname="app.resound.net.CustomAsrFormats196Test" time="0.001"/>
+  <testcase name="unrelatedFailuresNeverRetryOrCache[jvm]" classname="app.resound.net.CustomAsrFormats196Test" time="0.016"/>
+  <testcase name="unsupportedFormatRetriesSameAudioAndRemembers[jvm]" classname="app.resound.net.CustomAsrFormats196Test" time="0.016"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>

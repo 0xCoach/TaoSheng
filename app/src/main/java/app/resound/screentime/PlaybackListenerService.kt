@@ -10,6 +10,7 @@ import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.util.Log
 import app.resound.AppGraph
+import app.resound.diagnostics.FailureNotes
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ class PlaybackListenerService : NotificationListenerService() {
     private val componentName by lazy { ComponentName(this, PlaybackListenerService::class.java) }
     private val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.Default.limitedParallelism(1) + CoroutineExceptionHandler { _, t ->
+            FailureNotes.record("screentime/PlaybackListenerService.collect", t)
             Log.w(TAG, "playback: " + t.javaClass.simpleName)
         },
     )
@@ -43,45 +45,53 @@ class PlaybackListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        manager = getSystemService(MediaSessionManager::class.java)
+        watchTitleSwitch()
+    }
+
+    private fun collectionAllowed() = manager != null && AppGraph.isPlaybackTitleReady &&
+        AppGraph.playbackTitleSettings.enabled.value
+
+    private fun startCollection() {
+        if (!collectionAllowed() || sessionsListener != null) return
+        val m = manager ?: return
         emit { it.connected(System.currentTimeMillis()) }
-        val m = getSystemService(MediaSessionManager::class.java)
-        manager = m
         val listener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
             onSessionsChanged(controllers ?: emptyList())
         }
         sessionsListener = listener
         m.addOnActiveSessionsChangedListener(listener, componentName, mainHandler)
-        val sessions = m.getActiveSessions(componentName)
-        sessions.forEach { addSession(it) }
-        Log.i(TAG, "playback: connected sessions=" + sessions.size)
+        onSessionsChanged(m.getActiveSessions(componentName))
         startHeartbeat()
-        watchTitleSwitch()
+    }
+
+    private fun stopCollection() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+        sessionsListener?.let { manager?.removeOnActiveSessionsChangedListener(it) }
+        sessionsListener = null
+        for ((controller, callback) in registrations.values) controller.unregisterCallback(callback)
+        registrations.clear()
     }
 
     override fun onListenerDisconnected() {
-        val listener = sessionsListener
-        val m = manager
-        if (m != null && listener != null) m.removeOnActiveSessionsChangedListener(listener)
-        sessionsListener = null
+        stopCollection()
         manager = null
-        for ((controller, callback) in registrations.values) controller.unregisterCallback(callback)
-        val n = registrations.size
-        registrations.clear()
-        heartbeatJob?.cancel()
-        heartbeatJob = null
         titleSwitchJob?.cancel()
         titleSwitchJob = null
         emit { it.disconnected(System.currentTimeMillis()) }
-        Log.i(TAG, "playback: disconnected sessions=$n")
         super.onListenerDisconnected()
     }
 
     override fun onDestroy() {
+        stopCollection()
+        manager = null
         scope.cancel()
         super.onDestroy()
     }
 
     private fun onSessionsChanged(controllers: List<MediaController>) {
+        if (!collectionAllowed()) return
         val incoming = LinkedHashMap<String, MediaController>()
         for (c in controllers) incoming[sessionKey(c)] = c
         val gone = registrations.keys.filter { it !in incoming }
@@ -97,15 +107,16 @@ class PlaybackListenerService : NotificationListenerService() {
     }
 
     private fun addSession(controller: MediaController) {
+        if (!collectionAllowed()) return
         val key = sessionKey(controller)
         if (key in registrations) return
         val callback = object : MediaController.Callback() {
             override fun onPlaybackStateChanged(state: PlaybackState?) {
-                emitChanged(controller, playing = isPlaying(controller.playbackState))
+                emitChanged(controller)
             }
 
             override fun onMetadataChanged(metadata: MediaMetadata?) {
-                emitChanged(controller, playing = isPlaying(controller.playbackState))
+                emitChanged(controller)
             }
 
             override fun onSessionDestroyed() {
@@ -116,7 +127,7 @@ class PlaybackListenerService : NotificationListenerService() {
         }
         controller.registerCallback(callback, mainHandler)
         registrations[key] = controller to callback
-        emitChanged(controller, playing = isPlaying(controller.playbackState))
+        emitChanged(controller)
     }
 
     private fun watchTitleSwitch() {
@@ -124,16 +135,10 @@ class PlaybackListenerService : NotificationListenerService() {
         if (!AppGraph.isPlaybackTitleReady) return
         val settings = AppGraph.playbackTitleSettings
         titleSwitchJob = scope.launch {
-            var was = settings.enabled.value
             settings.enabled.collect { on ->
-                val turnedOn = !was && on
-                was = on
-                if (!turnedOn) return@collect
                 withContext(Dispatchers.Main.immediate) {
-                    for ((_, pair) in registrations) {
-                        val controller = pair.first
-                        emitChanged(controller, playing = isPlaying(controller.playbackState))
-                    }
+                    updatePlaybackCollection(on && collectionAllowed(), sessionsListener != null,
+                        start = ::startCollection, stop = ::stopCollection)
                 }
             }
         }
@@ -146,6 +151,7 @@ class PlaybackListenerService : NotificationListenerService() {
                 delay(HEARTBEAT_MS)
                 val now = System.currentTimeMillis()
                 val keys = withContext(Dispatchers.Main.immediate) {
+                    if (!collectionAllowed()) return@withContext emptyList<String>()
                     registrations.mapNotNull { (key, pair) ->
                         val state = pair.first.playbackState
                         if (state != null &&
@@ -160,14 +166,16 @@ class PlaybackListenerService : NotificationListenerService() {
         }
     }
 
-    private fun emitChanged(controller: MediaController, playing: Boolean) {
+    private fun emitChanged(controller: MediaController, playing: Boolean? = null) {
+        if (!collectionAllowed()) return
+        val active = playing ?: isPlaying(controller.playbackState)
         val md = controller.metadata
         val title = pickMeta(md, MediaMetadata.METADATA_KEY_TITLE, MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
         val subtitle = pickMeta(md, MediaMetadata.METADATA_KEY_ARTIST, MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
         val at = System.currentTimeMillis()
         val key = sessionKey(controller)
         val pkg = controller.packageName
-        emit { it.changed(key, pkg, title, subtitle, playing, at) }
+        emit { it.changed(key, pkg, title, subtitle, active, at) }
     }
 
     private fun emit(block: suspend (PlaybackSink) -> Unit) {

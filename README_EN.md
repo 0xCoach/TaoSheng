@@ -16,7 +16,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.4.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.4.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -63,11 +63,11 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 5. **✅ Todos extracted automatically** — and marked done when you later say "sent it".
 6. **🃏 Daily cards & custom skills** — meeting notes, check-in, weekly review, mood diary; add your own with JSON + a prompt.
 7. **💬 Ask anything, with citations** — what you said or promised on any day, linked to the original lines.
-8. **🤖 Feed your agent** — daily transcripts + digests (Markdown + JSON) pushed as diffs to 10 channels.
+8. **🤖 Feed your agent** — daily transcripts + digests (Markdown + JSON) pushed as diffs to 10 channels; tap “Copy for agent” on a sync folder and paste it into Claude Code, Codex or another command-running agent so it can read your memory folder directly (read-only).
 9. **☁️ Daily backup to the cloud and local** — Nutstore, any WebDAV (Nextcloud, Synology…) or S3-compatible storage (Aliyun, Tencent, R2, AWS, MinIO…); incremental, 3 / 7 / 30-day versions, optional passphrase encryption, one-tap restore with settings and keys.
 10. **🧠 Bring your own LLM** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with one-tap switching and balance alerts, or any OpenAI-compatible endpoint (with custom request headers; OpenCode Go built in), including LAN self-hosted.
 11. **🛟 Automatic fallback** — if the main model is down, rate-limited, out of credit or its key fails, the next configured model takes over (on by default).
-12. **🔒 Always on, even when locked, digests on time** — foreground service + watchdog; while recording, TaoSheng checks its own schedule and runs transcription and digests itself instead of relying only on system background jobs, so phones with strict background limits (e.g. HarmonyOS) stay on time; Huawei / Honor / HarmonyOS (including the Zhuoyitong compatibility layer) get dedicated keep-alive guidance.
+12. **🔒 Always on, even when locked, digests on time** — foreground service + watchdog; while recording, TaoSheng checks its own schedule and runs transcription and digests itself instead of relying only on system background jobs, so phones with strict background limits (e.g. HarmonyOS) stay on time; Huawei / Honor / HarmonyOS (including the Zhuoyitong compatibility layer) get dedicated keep-alive guidance; if the system interrupts on-device transcription, it resumes where it stopped instead of starting over.
 13. **🔋 Records only speech** — on-device VAD; ~0.5% battery per hour in testing.
 14. **📺 Ignores media playback** and yields the mic to calls.
 15. **⌨️ Remembers keyboard dictation** (optional) with chat context.
@@ -87,7 +87,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 29. **🚀 Three-minute onboarding** — a first-run wizard explains each permission before asking, prepares on-device ASR in the background, walks you through getting a DeepSeek key (auto-detected from the clipboard) and lets you try one sentence end to end; everything else is suggested only when it becomes relevant.
 30. **📱 Home-screen widget & quick voice to-dos** — see listening and topic status, add a to-do by voice, start a topic, pause or resume, from the widget, notification or app-icon shortcut.
 31. **🎙️ Topic mode & long meetings** — meeting, training, call·interview, voice script or normal sessions with scheduling, pause and after-the-fact selection; long meetings are summarized in resumable parts; topic records can be searched, filtered and deleted.
-32. **🔎 Search everywhere** — search what you said and the events it became from the home screen (tap a line to jump to that moment); search settings by everyday words such as “battery”.
+32. **🔎 Search everywhere** — search lines, events, to-dos, memories, found things, topics, reviews and Ask history across all dates, from the home screen or the To-dos / Memory pages; results are grouped by type with counts, date filters and endless loading (tap a line to jump to that moment); search settings by everyday words such as “battery”.
 33. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
 
 <table>
@@ -146,7 +146,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.4.0** (2026-11-16, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.0-arm64.apk) — On-time background digests while recording (for HarmonyOS and other strict phones) with Huawei / Honor keep-alive guidance; home-screen search and new-version prompt; switching model providers takes effect immediately; more settings restored from backups; license changed to FSL-1.1-MIT. [Changelog (Chinese)](CHANGELOG.md#040--2026-11-16).
+**v0.4.1** (2026-11-16, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.1-arm64.apk) — On-device transcription resumes after interruptions (long recordings on HarmonyOS); search extended to to-dos, memories, found things, topics, reviews and Ask; “Copy for agent” on sync folders; wake-word note for Xiaomi / Meizu; back-to-top on the transcript page. [Changelog (Chinese)](CHANGELOG.md#041--2026-11-16).
+
+**v0.4.0** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.0-arm64.apk) — On-time background digests while recording (for HarmonyOS and other strict phones) with Huawei / Honor keep-alive guidance; home-screen search and new-version prompt; switching model providers takes effect immediately; more settings restored from backups; license changed to FSL-1.1-MIT. [Changelog (Chinese)](CHANGELOG.md#040--2026-11-16).
 
 **v0.3.1** (2026-11-14): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk) — Missed scheduled digests are caught up and retried; D3200 lights-off capture and transfer fixes; update download stability. [Changelog (Chinese)](CHANGELOG.md#031--2026-11-14).
 
@@ -225,7 +227,7 @@ Almost all code was written by AI: **Claude** did architecture, contracts and ev
 
 ## 🗺 Roadmap
 
-Done: always-on capture, cloud / on-device ASR, voiceprints, AI digest / Ask / reviews / skills, 10 push channels, incremental backup (Nutstore / WebDAV / S3), dictation capture, footprint with sound–place linking, dedicated recorders (beta), first-run wizard, the [website](https://www.taosheng.app), on-time background digests and home-screen search, core code moved into a cross-platform shared module.
+Done: always-on capture, cloud / on-device ASR, voiceprints, AI digest / Ask / reviews / skills, 10 push channels, incremental backup (Nutstore / WebDAV / S3), dictation capture, footprint with sound–place linking, dedicated recorders (beta), first-run wizard, the [website](https://www.taosheng.app), on-time background digests, resumable on-device transcription, search across everything, copy-for-agent memory access, core code moved into a cross-platform shared module.
 
 Next:
 

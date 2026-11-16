@@ -179,4 +179,50 @@ class RoomPrivacyActionsTest {
         assertEquals(from, left.untilAt)
         assertEquals(from, left.lastSeenAt)
     }
+    private suspend fun seedPlaybackPrivacy() {
+        event(10)
+        for ((id, at) in listOf(10L to 10_000L, 20L to 20_000L, 30L to 30_000L)) {
+            segment(id, at)
+            if (id != 20L) line(id, id, 10)
+            db.screenTime().insertEvents(listOf(ScreenEventRow(at = at + 100, pkg = "test", cls = "", type = 1)))
+            db.screenTime().insertPlayback(PlaybackRow(sessionKey = "$id", pkg = "test", name = "test",
+                title = "test", subtitle = null, fromAt = at, untilAt = at + 1000, lastSeenAt = at + 1000))
+            for (source in listOf(SCREEN_SOURCE, PLAYBACK_SOURCE))
+                db.screenTime().recordGap(ScreenCoverageGapRow(source = source, fromAt = at, untilAt = at + 1000, code = "test"))
+        }
+    }
+
+    private suspend fun assertPlaybackPrivacy(remaining: List<Long>) {
+        assertEquals(remaining, db.screenTime().playbacksOverlapping(0, now).map { it.fromAt })
+        assertEquals(remaining.map { it + 100 }, db.screenTime().events(0, now).map { it.at })
+        for (source in listOf(SCREEN_SOURCE, PLAYBACK_SOURCE))
+            assertEquals(remaining, db.screenTime().gaps(source, 0, now).map { it.fromAt })
+    }
+
+    @Test fun eventDeletionClearsOnlyItsSegmentsPlaybackAndGaps() = runBlocking {
+        seedPlaybackPrivacy()
+        privacy.forgetEvent(10)
+        assertPlaybackPrivacy(listOf(20_000L))
+    }
+
+    @Test fun segmentDeletionClearsPlaybackAndGaps() = runBlocking {
+        seedPlaybackPrivacy()
+        privacy.forgetSegment(20)
+        assertPlaybackPrivacy(listOf(10_000L, 30_000L))
+    }
+
+    @Test fun batchDeletionPreservesPlaybackBetweenSegments() = runBlocking {
+        seedPlaybackPrivacy()
+        privacy.deleteSegments(listOf(10, 30, 10))
+        assertPlaybackPrivacy(listOf(20_000L))
+    }
+
+    @Test fun rangeWithoutAudioClearsPlaybackAndBothGapSources() = runBlocking {
+        seedPlaybackPrivacy()
+        db.testSql.execSQL("DELETE FROM transcript_lines")
+        db.testSql.execSQL("DELETE FROM segments")
+        privacy.deleteRange(20_000, 21_000)
+        assertPlaybackPrivacy(listOf(10_000L, 30_000L))
+    }
+
 }

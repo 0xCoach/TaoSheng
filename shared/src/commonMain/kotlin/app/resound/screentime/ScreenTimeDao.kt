@@ -52,6 +52,10 @@ interface ScreenTimeDao {
     @Query("DELETE FROM screen_events WHERE at >= :from AND at < :until")
     suspend fun deleteEvents(from: Long, until: Long)
 
+    /** 删除与遗忘区间重叠的缺口。 */
+    @Query("DELETE FROM screen_coverage_gaps WHERE fromAt < :until AND untilAt > :from")
+    suspend fun deleteGaps(from: Long, until: Long)
+
     @Query("SELECT MAX(at) FROM screen_events")
     suspend fun lastEventAt(): Long?
 

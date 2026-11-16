@@ -153,10 +153,13 @@ class RoomPrivacyActions(
                     deletedEvents += dao.deleteEvent(id)
                 }
                 if (!keepEvents) db.memory().repairMergedItems()
-                // 按时间遗忘时屏幕时间原始事件一并删除，删除下限提到区间终点，防被拉取拉回。
-                screenRange?.let { (from, until) ->
+                // 按指定范围或逐段时间删除；不把不相邻录音之间的记录一起删除。
+                val ranges = screenRange?.let { listOf(it) }
+                    ?: segments.map { it.startAt to it.endAt }.distinct()
+                for ((from, until) in ranges) {
                     db.screenTime().deleteEvents(from, until)
                     db.screenTime().forgetPlayback(from, until)
+                    db.screenTime().deleteGaps(from, until)
                     db.screenTime().raiseFloor(SCREEN_SOURCE, until)
                 }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)

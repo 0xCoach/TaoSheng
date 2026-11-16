@@ -22,6 +22,7 @@ private class QDao : ScreenTimeDao {
     override suspend fun updateCoveredUntil(source: String, value: Long) = die()
     override suspend fun raiseFloor(source: String, value: Long) = die()
     override suspend fun recordGap(gap: ScreenCoverageGapRow) = die()
+    override suspend fun deleteGaps(from: Long, until: Long) = Unit
     override suspend fun deleteEvents(from: Long, until: Long) = die()
     override suspend fun lastEventAt() = die()
     override suspend fun openPlayback(sessionKey: String) = playbacks.firstOrNull { it.sessionKey == sessionKey && it.untilAt == null }

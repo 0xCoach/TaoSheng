@@ -62,6 +62,9 @@ class ResoundApp : Application() {
             files = app.resound.platform.LocalFileStore(app.resound.platform.AndroidDispatchers),
             dispatchers = app.resound.platform.AndroidDispatchers,
         )
+        AppGraph.markSettings = app.resound.marks.AndroidMarkSettings(getSharedPreferences("marks", MODE_PRIVATE))
+        AppGraph.marks = app.resound.marks.MarkRepository(database, AppGraph.platform.now::now,
+            { AppGraph.markSettings.range.value }, { topicId, markId -> AppGraph.topics.unmark(topicId, markId) })
         val crashes = app.resound.diagnostics.CrashRecords(this)
         crashes.installHandler()
         appDisplayName = appName
@@ -213,7 +216,7 @@ class ResoundApp : Application() {
         val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things
         val skillScheduler = app.resound.skills.SkillScheduler(this)
-        digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, situation = AppGraph.situation, thingExtraction = thingExtraction, networkAllowed = {
+        digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, situation = AppGraph.situation, marks = database.marks()::overlapping, thingExtraction = thingExtraction, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         }, unseparated = database.transcribe()::unseparated, playbackMillis = database.transcribe()::playbackMillis,

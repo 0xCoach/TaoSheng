@@ -16,7 +16,7 @@ class Quick147Test {
     @Test fun listeningUsesRememberedDurationAndTopicInMenuAndTile() {
         val entries = policy.entries(ListenState.Listening, TopicState.None, 60, TopicKind.Training)
         // 卡 163：“加待办”任何状态都排第一
-        assertEquals(listOf(QuickEntry(QuickAction.AddTodo, "加待办"), QuickEntry(QuickAction.Pause, "暂停 1 小时"), QuickEntry(QuickAction.StartTopic, "开始培训专题")), entries)
+        assertEquals(listOf(QuickEntry(QuickAction.AddTodo, "加待办"), QuickEntry(QuickAction.MarkTopic, "记一下"), QuickEntry(QuickAction.Pause, "暂停 1 小时"), QuickEntry(QuickAction.StartTopic, "开始培训专题")), entries)
         var paused = 0
         val controller = object : CaptureController {
             override val status = MutableStateFlow(CaptureStatus(CaptureState.Listening, 0))

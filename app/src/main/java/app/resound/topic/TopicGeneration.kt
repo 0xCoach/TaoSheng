@@ -61,6 +61,7 @@ internal class TopicGenerator(
     private val hotwords: () -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
     private val appName: String = "涛声",
+    private val marks: (suspend (Long, Long) -> List<app.resound.marks.MarkRow>)? = null,
 ) {
     suspend fun generate(g: TopicGroup, lines: List<TranscriptLineEntity>, unfinished: List<MemoryItemEntity>,
         ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null): TopicOutput {
@@ -72,7 +73,6 @@ internal class TopicGenerator(
         val accepted = mutableListOf<TranscriptLineEntity>()
         var model = ""
         val batches = TopicBatches(request)
-        val data = context(g, lines)
         val digestChunks = if (session != null) TopicProcessingRules.chunks(lines, { line, text -> line.copy(text = text) }) { it.text } else DigestRunner.batches(lines)
         session?.phase("提取要点", digestChunks.size)
         for (chunk in digestChunks) {
@@ -81,7 +81,7 @@ internal class TopicGenerator(
                 val text = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(plain, words), unfinished, ignored)
                 val system = DigestPrompt.system(template(), Instant.ofEpochMilli(part.first().startAt).atZone(ZoneId.systemDefault()).toLocalDate(), appName) +
                     TopicGenerationRules.DIGEST_SUFFIX
-                val input = "$data\n$text"
+                val input = "${context(g, part, false)}\n$text"
                 var reply: LlmReply? = null
                 val call: suspend (String, String) -> String = { s, u ->
                     request(s, u).also { reply = it; model = it.actualModel ?: model }.content
@@ -106,7 +106,7 @@ internal class TopicGenerator(
         val acceptedLines = lines.filter { it.id in acceptedIds }
         val card = when (kind) {
             TopicKind.Normal -> null
-            TopicKind.Script -> script(g, acceptedLines, data, words, session)
+            TopicKind.Script -> script(g, acceptedLines, words, session)
             else -> {
                 val summary = ImportSummary(importTemplate, request, now, session)
                 summary.generate(ImportRecordRow(id = row.id, pendingId = "topic:${row.id}", fileName = row.name ?: kind.title,
@@ -119,9 +119,13 @@ internal class TopicGenerator(
         val event = TopicGenerationRules.synthesize(g.snapshot(), events.map { it.shared() }, lines.size, acceptedLines.size, model, now).android()
         return TopicOutput(event, items.distinctBy { listOf(it.category, it.content, it.dueText, it.who) }, card)
     }
-    private fun context(g: TopicGroup, lines: List<TranscriptLineEntity>) = TopicGenerationRules.context(g.snapshot(), lines.map { it.snapshot() })
+    private suspend fun context(g: TopicGroup, lines: List<TranscriptLineEntity>, databaseIds: Boolean = true): String {
+        val stored = if (lines.isEmpty()) emptyList() else marks?.invoke(lines.minOf { it.startAt }, lines.maxOf { it.endAt })
+        return if (stored == null) TopicGenerationRules.context(g.snapshot(), lines.map { it.snapshot() }, databaseIds = databaseIds)
+        else TopicGenerationRules.context(g.snapshot(), lines.map { it.snapshot() }, stored, databaseIds)
+    }
 
-    private suspend fun script(g: TopicGroup, lines: List<TranscriptLineEntity>, context: String, words: List<String>, session: TopicProcessingSession?): SkillCardRow {
+    private suspend fun script(g: TopicGroup, lines: List<TranscriptLineEntity>, words: List<String>, session: TopicProcessingSession?): SkillCardRow {
         val organized = mutableListOf<String>(); val verbatim = mutableListOf<String>()
         val chunks = if (session != null) TopicProcessingRules.chunks(lines, { line, text -> line.copy(text = text) }) { it.text } else ImportChunks.split(lines)
         session?.phase("整理口播稿", chunks.size)
@@ -132,7 +136,7 @@ internal class TopicGenerator(
             throw LlmException(LlmError.Format) }
         for (chunk in chunks) {
             val read: suspend (List<TranscriptLineEntity>) -> Pair<String, String> = { part ->
-                val user = TopicGenerationRules.scriptInput(context, part.map { it.snapshot() }, words)
+                val user = TopicGenerationRules.scriptInput(context(g, part), part.map { it.snapshot() }, words)
                 val text = session?.request(SCRIPT_PROMPT, user, { a, b -> request(a, b).content }, { parse(it) }, { parse(it).first })
                     ?: request(SCRIPT_PROMPT, user).content
                 parse(text)

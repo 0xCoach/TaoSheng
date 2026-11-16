@@ -45,7 +45,7 @@ class DefaultQuickActionsPolicy : QuickActionsPolicy {
         listOf(QuickEntry(QuickAction.AddTodo, "加待办")) + when (topic) {
             TopicState.Running -> listOf(QuickEntry(QuickAction.MarkTopic, "记一下"), QuickEntry(QuickAction.Pause, "暂停专题"), QuickEntry(QuickAction.EndTopic, "结束专题"))
             TopicState.Paused -> listOf(QuickEntry(QuickAction.Resume, "继续专题"), QuickEntry(QuickAction.EndTopic, "结束专题"))
-            TopicState.None -> listOf(when (listen) {
+            TopicState.None -> (if (listen == ListenState.Listening) listOf(QuickEntry(QuickAction.MarkTopic, "记一下")) else emptyList()) + listOf(when (listen) {
                 ListenState.Listening -> QuickEntry(QuickAction.Pause, QuickText.pause(lastPauseMinutes))
                 ListenState.Paused -> QuickEntry(QuickAction.Resume, "现在恢复")
                 ListenState.Stopped, ListenState.Unavailable -> QuickEntry(QuickAction.StartListening, "开始聆听")

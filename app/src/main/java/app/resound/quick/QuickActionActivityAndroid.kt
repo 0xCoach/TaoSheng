@@ -65,7 +65,10 @@ class QuickActionActivity : ComponentActivity() {
                 val result = topics.start(kind, null)
                 TopicQuickPolicy.startFeedback(result.error, result.recordingDisabled, result.quietOverride)?.let { return it }
             }
-            QuickCommand.MarkTopic -> topics.mark()
+            QuickCommand.MarkTopic -> if (current == null) {
+                val mark = AppGraph.marks.recording()
+                return app.resound.marks.MarkFeedback.text(mark.at)
+            } else topics.mark()
             QuickCommand.EndTopic -> topics.end()
             QuickCommand.PauseTopic -> topics.pause()
             QuickCommand.ResumeTopic -> topics.resume()

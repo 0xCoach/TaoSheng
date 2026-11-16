@@ -39,25 +39,25 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=37",
+    "newLine": "user_version=38",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"c4833f8c0c29b234f112233f5a7c9b48\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"30bf4f9dfd3f241be95b43dd32783778\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "c4833f8c0c29b234f112233f5a7c9b48",
+  "newIdentityHash": "30bf4f9dfd3f241be95b43dd32783778",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c4833f8c0c29b234f112233f5a7c9b48')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '30bf4f9dfd3f241be95b43dd32783778')"
   ],
   "indices": [
     {
@@ -119,6 +119,16 @@
     {
       "name": "index_playback_rows_sessionKey",
       "row": "[\"index\",\"index_playback_rows_sessionKey\",\"playback_rows\",\"CREATE INDEX `index_playback_rows_sessionKey` ON `playback_rows` (`sessionKey`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_marks_at",
+      "row": "[\"index\",\"index_marks_at\",\"marks\",\"CREATE INDEX `index_marks_at` ON `marks` (`at`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_marks_topicMarkId",
+      "row": "[\"index\",\"index_marks_topicMarkId\",\"marks\",\"CREATE UNIQUE INDEX `index_marks_topicMarkId` ON `marks` (`topicMarkId`)\"]",
       "occurrences": 1
     }
   ],
@@ -182,6 +192,18 @@
       "block": [
         "TABLE playback_rows",
         "columns=[\"id\",\"sessionKey\",\"pkg\",\"name\",\"title\",\"subtitle\",\"fromAt\",\"untilAt\",\"lastSeenAt\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "marks",
+      "masterRows": [
+        "[\"table\",\"marks\",\"marks\",\"CREATE TABLE `marks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `beforeMillis` INTEGER NOT NULL, `afterMillis` INTEGER NOT NULL, `label` TEXT, `source` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `topicMarkId` INTEGER)\"]"
+      ],
+      "block": [
+        "TABLE marks",
+        "columns=[\"id\",\"at\",\"beforeMillis\",\"afterMillis\",\"label\",\"source\",\"createdAt\",\"topicMarkId\"]",
         ""
       ],
       "occurrences": 1

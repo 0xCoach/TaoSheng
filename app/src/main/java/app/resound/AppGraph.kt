@@ -13,6 +13,8 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var marks: app.resound.marks.MarkRepository
+    lateinit var markSettings: app.resound.marks.AndroidMarkSettings
     lateinit var platform: app.resound.platform.PlatformServices
     val isPlatformReady: Boolean get() = ::platform.isInitialized
 
@@ -37,6 +39,7 @@ object AppGraph {
     val isLlmProvidersReady: Boolean get() = ::llmProviders.isInitialized
     lateinit var topics: app.resound.topic.TopicRepository
     val isTopicsReady: Boolean get() = ::topics.isInitialized
+    val isMarksReady: Boolean get() = ::marks.isInitialized && ::markSettings.isInitialized
     lateinit var asrSpeed: app.resound.transcribe.AsrSpeedSettings
     lateinit var llmBalance: app.resound.usage.LlmBalanceChecker
     val isLlmBalanceReady: Boolean get() = ::llmBalance.isInitialized

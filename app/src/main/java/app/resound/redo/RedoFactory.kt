@@ -56,7 +56,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             digestSettings.skillCredentials(presetId)
         }
         val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation,
-            db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis })
+            db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis }, db.marks()::overlapping)
         val (text, indexed) = contextPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System
             .currentTimeMillis() - 60L * 86_400_000))

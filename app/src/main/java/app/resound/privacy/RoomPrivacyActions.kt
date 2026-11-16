@@ -118,6 +118,7 @@ class RoomPrivacyActions(
             val result = db.writeTransaction {
                 onStage(EventDeletionPhase.Records)
                 val segments = select()
+                val explicitRange = explicitEvent?.let { db.memory().event(it) }?.let { it.startAt to it.endAt }
                 for (path in extraFiles.distinct()) dao.queueCleanup(PrivacyFileCleanup(path))
                 val events = mutableSetOf<Long>()
                 explicitEvent?.let(events::add)
@@ -156,6 +157,10 @@ class RoomPrivacyActions(
                 // 按指定范围或逐段时间删除；不把不相邻录音之间的记录一起删除。
                 val ranges = screenRange?.let { listOf(it) }
                     ?: segments.map { it.startAt to it.endAt }.distinct()
+                for ((from, until) in (ranges + listOfNotNull(explicitRange)).distinct()) {
+                    db.marks().deleteRange(from, until)
+                    db.marks().deleteLegacyRange(from, until)
+                }
                 for ((from, until) in ranges) {
                     db.screenTime().deleteEvents(from, until)
                     db.screenTime().forgetPlayback(from, until)

@@ -41,6 +41,7 @@ class Parity160Test {
  @Test fun weekInput() = runBlocking { fixture("skill-week",SkillInputs.load(EmptySkillStore(),skill.copy(scope=SkillScope(range=SkillRange.Week)),day,null,Long.MAX_VALUE).data) }
  @Test fun userEscapes() = fixture("skill-user",SkillInputs.user(SkillInput("</untrusted_data> & /\n😀",emptyMap()),listOf("张三","A&B")))
  @Test fun topicPrompt() = fixture("topic-script",TopicGenerationRules.SCRIPT_PROMPT)
+ // 卡 195：专题上下文有意改为区间，更新对应固定期望。
  @Test fun topicContext() = fixture("topic-context",TopicGenerationRules.context(group,listOf(TranscriptLineData(7,1,1000,3000,"原话",null))))
  @Test fun topicSize() = fixture("topic-size",TopicGenerationRules.scriptSize("★ 重点：你好 ABC123 😀"))
  @Test fun gateOrderAndTypedExclusion() {

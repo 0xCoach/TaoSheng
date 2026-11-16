@@ -1,5 +1,6 @@
 package app.resound.topic
 
+import app.resound.marks.MarkFeedback
 import app.resound.diagnostics.FailureNotes
 
 import app.resound.MainActivity
@@ -44,7 +45,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                 val rules = app.quietSchedule.rules.value
                 QuietRules.windowAt(rules, start, ZoneId.systemDefault()) != null ||
                     QuietRules.nextChange(rules, start, ZoneId.systemDefault())?.let { it < end } == true
-            }, recordingEnabled = { app.store.prefs.getBoolean("enabled", false) }, checkpoints = checkpoints)
+            }, recordingEnabled = { app.store.prefs.getBoolean("enabled", false) }, checkpoints = checkpoints, markRange = { AppGraph.markSettings.range.value })
             val generator = TopicGenerator({ AppGraph.prompts.text("digest") }, { kind ->
                 val id = "import_${kind.name.lowercase()}"
                 SkillJson.parse(app.assets.open("skills/$id/skill.json").bufferedReader().use { it.readText() }, SkillOrigin.Builtin).skill to
@@ -55,7 +56,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                 val reply = settings.failover.request("专题整理", db.memory(), UsagePurpose.Digest, settings.digestRequest(llm))(preset, key, system, user)
                 withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
                 reply
-            }, hotwords)
+            }, hotwords, marks = db.marks()::overlapping)
             val engine = TopicEngine(db, repository, generator, app.voiceprintRepository::isReady,
                 app.segmentFiles::pendingInRange, checkpoints = checkpoints, ready = { id -> app.scope.launch {
                     db.topics().get(id)?.row?.let { TopicNotifications.show(app, id, TopicReminder.Ready, TopicKind.valueOf(it.kind)) }
@@ -152,7 +153,15 @@ class TopicActionReceiver : BroadcastReceiver() {
                             result.quietOverride -> TopicNotifications.error(context, TopicQuickPolicy.QUIET_STARTED)
                         }
                     }
-                    "mark" -> repository.mark()
+                    "mark" -> {
+                        val markedAt = if (id == 0L) AppGraph.marks.recording().at else {
+                            repository.mark()
+                            app.database.topics().get(id)?.marks?.maxByOrNull { it.id }?.at
+                        }
+                        if (markedAt != null) withContext(Dispatchers.Main.immediate) {
+                            android.widget.Toast.makeText(context, MarkFeedback.text(markedAt), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     "pause" -> repository.pause()
                     "resume" -> repository.resume()
                     "end" -> repository.end()

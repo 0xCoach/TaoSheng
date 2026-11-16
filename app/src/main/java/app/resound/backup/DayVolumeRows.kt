@@ -18,7 +18,7 @@ import java.time.ZoneId
 /** 分卷只保存数据，不执行备份中的 SQL；列名、表名始终由当前 App 决定。 */
 internal object DayVolumeRows {
     val dated = linkedMapOf(
-        "topics" to "createdAt", "topic_spans" to "startAt", "topic_marks" to "at",
+        "marks" to "at", "topics" to "createdAt", "topic_spans" to "startAt", "topic_marks" to "at",
         "import_records" to "startAt", "segments" to "startAt", "transcript_lines" to "startAt", "memory_events" to "startAt",
         "thing_records" to "at", "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
         "ask_conversations" to "createdAt", "ask_messages" to "at",
@@ -134,6 +134,8 @@ internal object DayVolumeRows {
                     db.immediateTransaction {
                         insert(this, state, true)
                         days.forEach { insert(this, it, false) }
+                        executeSql(app.resound.marks.MarkSchema.BACKFILL)
+                        executeSql(app.resound.marks.MarkSchema.CLEAN_EMPTY_SEQUENCE)
                         // 恢复收尾：覆盖指针以表内实际事件为准；状态卷比事件卷新时避免假覆盖。
                         executeSql("UPDATE screen_pull_state SET coveredUntil = COALESCE((SELECT MAX(at) FROM screen_events), coveredUntil) WHERE source = 'screen'")
                         listOf("lines_fts", "events_fts", "items_fts").forEach { executeSql("DELETE FROM $it") }

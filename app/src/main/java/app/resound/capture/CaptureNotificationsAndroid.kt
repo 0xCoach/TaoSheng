@@ -80,7 +80,8 @@ object CaptureNotifications {
             else {
                 // 顺序：加待办、开专题、暂停（暂停中为“恢复”）
                 addAction(0, CaptureNotificationPolicy.ADD_TODO, addTodo(context))
-                addAction(0, CaptureNotificationPolicy.START_TOPIC, TopicActionReceiver.intent(context, "start"))
+                if (!paused) addAction(0, "记一下", TopicActionReceiver.intent(context, "mark"))
+                else addAction(0, CaptureNotificationPolicy.START_TOPIC, TopicActionReceiver.intent(context, "start"))
                 addAction(0, notice.toggle, action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE))
             }
         }

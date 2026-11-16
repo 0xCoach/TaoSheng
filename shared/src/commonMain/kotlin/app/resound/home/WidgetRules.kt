@@ -27,7 +27,7 @@ object WidgetRules {
         topicTitle != null -> WidgetView(topicTitle, if (topicPaused) "专题已暂停" else "点 ★ 记下重点", !topicPaused,
             WidgetTopicButton.MarkTopic, if (topicPaused) WidgetToggle.ResumeTopic else WidgetToggle.PauseTopic)
         else -> when (capture) {
-            HomeCapture.Active -> WidgetView("正在聆听", "只在有人说话时录音", true, WidgetTopicButton.StartTopic, WidgetToggle.PauseListening)
+            HomeCapture.Active -> WidgetView("正在聆听", "只在有人说话时录音", true, WidgetTopicButton.MarkTopic, WidgetToggle.PauseListening)
             HomeCapture.Paused -> WidgetView(quietName?.let { "${it}中" } ?: "已暂停", resumeAt?.let { "$it 自动恢复" } ?: "点右边按钮恢复", false,
                 WidgetTopicButton.StartTopic, WidgetToggle.ResumeListening)
             HomeCapture.InCall -> WidgetView("通话中，暂停收音", "通话结束后自动继续", false, WidgetTopicButton.StartTopic, WidgetToggle.PauseListening)

@@ -9,6 +9,7 @@ import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
+import app.resound.screentime.SCREEN_SOURCE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -43,7 +44,7 @@ class RoomPrivacyActions(
             val until = now()
             val from = PrivacyRules.recentStart(minutes, until)
             discardRecording()
-            recentFiles(from, until) { erase { dao.recent(from, until) } }
+            recentFiles(from, until) { erase(screenRange = from to until) { dao.recent(from, until) } }
         } }
     }
 
@@ -51,7 +52,7 @@ class RoomPrivacyActions(
         PrivacyRules.validateRange(fromMillis, untilMillis)
         return withContext(Dispatchers.IO + NonCancellable) { gate.withLock {
             if (PrivacyRules.discardRecording(untilMillis, now())) discardRecording()
-            recentFiles(fromMillis, untilMillis) { erase { dao.recent(fromMillis, untilMillis) } }
+            recentFiles(fromMillis, untilMillis) { erase(screenRange = fromMillis to untilMillis) { dao.recent(fromMillis, untilMillis) } }
         } }
     }
 
@@ -101,6 +102,7 @@ class RoomPrivacyActions(
     }
 
     private suspend fun erase(explicitEvent: Long? = null, keepEvents: Boolean = false,
+                              screenRange: Pair<Long, Long>? = null,
                               onStage: (EventDeletionPhase) -> Unit = {}, select: suspend () -> List<SegmentEntity>): ForgetResult {
         onStage(EventDeletionPhase.WaitingForAudio)
         return voiceprintGuard {
@@ -143,6 +145,12 @@ class RoomPrivacyActions(
                     deletedEvents += dao.deleteEvent(id)
                 }
                 if (!keepEvents) db.memory().repairMergedItems()
+                // 按时间遗忘时屏幕时间原始事件一并删除，删除下限提到区间终点，防被拉取拉回。
+                screenRange?.let { (from, until) ->
+                    db.screenTime().deleteEvents(from, until)
+                    db.screenTime().forgetPlayback(from, until)
+                    db.screenTime().raiseFloor(SCREEN_SOURCE, until)
+                }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)
             }
             onStage(EventDeletionPhase.Files)

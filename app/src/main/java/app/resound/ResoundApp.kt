@@ -92,6 +92,12 @@ class ResoundApp : Application() {
         AppGraph.prompts = app.resound.prompts.LocalPromptTemplates(this)
         AppGraph.inputs = inputs
         AppGraph.playbackSkip = AndroidPlaybackSkipSettings(this)
+        val transcribePrefs = getSharedPreferences("transcribe", MODE_PRIVATE)
+        AppGraph.playbackDigestSettings = app.resound.transcribe.PlaybackDigestSettings(
+            readBoolean = { key, def -> transcribePrefs.getBoolean(key, def) },
+            saveBoolean = { key, value -> transcribePrefs.edit().putBoolean(key, value).commit() },
+        )
+        AppGraph.playback = PlaybackMonitor(this, scope)
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)
         AppGraph.capture = controller
@@ -122,6 +128,17 @@ class ResoundApp : Application() {
         AppGraph.envSound = envSound
         AppGraph.location = app.resound.location.LocationRepository.create(this, database, scope)
         AppGraph.situation = app.resound.context.LocalSituationLookup.create(database, AppGraph.location, scope, AppGraph.platform.zone, AppGraph.platform.dispatchers.io)
+        val playbackPrefs = getSharedPreferences("playback-title", MODE_PRIVATE)
+        val playbackTitleSettings = app.resound.screentime.PlaybackTitleSettings(
+            readBoolean = { key, def -> playbackPrefs.getBoolean(key, def) },
+            saveBoolean = { key, value -> playbackPrefs.edit().putBoolean(key, value).commit() },
+            readLong = { key, def -> playbackPrefs.getLong(key, def) },
+            saveLong = { key, value -> playbackPrefs.edit().putLong(key, value).commit() },
+            now = AppGraph.platform.now::now)
+        AppGraph.playbackTitleSettings = playbackTitleSettings
+        AppGraph.playbackSink = app.resound.screentime.PlaybackRecorder(
+            database.screenTime(), playbackTitleSettings) { pkgs -> app.resound.screentime.appLabels(this, pkgs) }
+        AppGraph.playbackQueries = app.resound.screentime.PlaybackQueries(database.screenTime())
         val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
             guard = { block -> voiceprintRepository.withAudioCleanup(block) },
             playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
@@ -194,7 +211,9 @@ class ResoundApp : Application() {
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, situation = AppGraph.situation, thingExtraction = thingExtraction, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        }, unseparated = database.transcribe()::unseparated, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual) })
+        }, unseparated = database.transcribe()::unseparated, playbackMillis = database.transcribe()::playbackMillis,
+            isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged,
+            afterDigest = { manual -> app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual) })
         AppGraph.importKinds = app.resound.importer.AndroidImportKinds.create(this, database,
             AppGraph.importer as app.resound.importer.AndroidAudioImporter, scope, digestSettings, llm,
             app.resound.importer.ImportSpeakers(database, pcmReader::readPcm, { CampPlusEmbedding(this) }),

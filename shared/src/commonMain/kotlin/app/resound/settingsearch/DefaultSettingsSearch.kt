@@ -49,6 +49,7 @@ internal object SettingsIndex {
             item("热词识别", "hotwords", "热词 纠错 错字 人名 术语")
             item("原声保留", "audio-retention", "录音保留 音频删除 存多久 空间")
             item("区分说话人", "speakers", "多人分段 谁说的 分人 说话人")
+            item("记录播放标题", "playback-title", "播放标题 节目名 通知使用权 外放来源")
         }
         page("EnvSound", "环境音识别", "背景声音 声音分类 环境识别") {
             item("开启环境音识别", "env-enabled", "环境模型 环境开关 声音模型")

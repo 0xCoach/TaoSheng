@@ -24,6 +24,12 @@ import app.resound.search.EventFts
 import app.resound.search.ItemFts
 import app.resound.search.LineFts
 import app.resound.search.SearchIndex
+import app.resound.screentime.PlaybackRow
+import app.resound.screentime.ScreenAppNameRow
+import app.resound.screentime.ScreenCoverageGapRow
+import app.resound.screentime.ScreenEventRow
+import app.resound.screentime.ScreenPullStateRow
+import app.resound.screentime.ScreenTimeDao
 import app.resound.skills.SkillCardRow
 import app.resound.skills.SkillDao
 import app.resound.skills.SkillRunRow
@@ -52,7 +58,9 @@ data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     val logId: String? = null, @ColumnInfo(defaultValue = "0") val sentMillis: Long = 0, val voiceprintProcessedAt: Long? = null,
     @ColumnInfo(defaultValue = "0") val playbackMillis: Long = 0, val firstFailedAt: Long? = null, val asrSource: String? = null, @ColumnInfo(defaultValue = "0") val redoPending: Boolean = false,
     /** null 为升级前尚未确定；首次转写按录音开始时刻固化。 */
-    val separateSpeakers: Boolean? = null, val importRecordId: Long? = null, val importChannel: Int? = null, val speakerCount: Int? = null)
+    val separateSpeakers: Boolean? = null, val importRecordId: Long? = null, val importChannel: Int? = null, val speakerCount: Int? = null,
+    /** 外放「仍要转写」片段的整理闸：0 正常；1 暂不参与整理；2 用户已放行。 */
+    @ColumnInfo(defaultValue = "0") val playbackDigest: Int = 0)
 @Entity(tableName = "watchdog", indices = [Index("at")])
 data class EventEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val at: Long, val type: String,
     val detail: String?, val batteryPercent: Int?, val charging: Boolean?, val gapStart: Long? = null, val gapEnd: Long? = null)
@@ -99,7 +107,9 @@ interface CaptureDao {
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, LineFts::class, EventFts::class,
     ItemFts::class, EmbeddingEntity::class,
-    PendingDigest::class, EnvSoundRow::class, SkillCardRow::class, SkillRunRow::class, LocationPoint::class, PlaceRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
+    PendingDigest::class, EnvSoundRow::class, SkillCardRow::class, SkillRunRow::class, LocationPoint::class, PlaceRow::class,
+    ScreenEventRow::class, ScreenAppNameRow::class, ScreenPullStateRow::class, ScreenCoverageGapRow::class, PlaybackRow::class],
+    version = CaptureDatabase.VERSION, exportSchema = true)
 @ConstructedBy(CaptureDatabaseConstructor::class)
 abstract class CaptureDatabase : RoomDatabase() {
     /** 由安卓装配入口传入；内存测试库为 null，不从底层连接反查路径。 */
@@ -124,9 +134,10 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): SkillDao
     abstract fun location(): LocationDao
     abstract fun places(): PlaceDao
+    abstract fun screenTime(): ScreenTimeDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 34
+        const val VERSION = 37
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -378,10 +389,36 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)")
             }
         }
+        /** 屏幕时间四张表；事件唯一索引（at,pkg,type,cls）让重复拉取靠冲突忽略去重。 */
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL DEFAULT '', `type` INTEGER NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_screen_events_at_pkg_type_cls` ON `screen_events` (`at`, `pkg`, `type`, `cls`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_app_names` (`pkg` TEXT NOT NULL PRIMARY KEY, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_pull_state` (`source` TEXT NOT NULL PRIMARY KEY, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL DEFAULT 0)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_coverage_gaps` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER NOT NULL, `code` TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_screen_coverage_gaps_source_fromAt` ON `screen_coverage_gaps` (`source`, `fromAt`)")
+            }
+        }
+        /** 设备播放记录表；untilAt 播放中为 null。SQL 与实体 createSql 对齐，避免两路径 sqlite_master 文本分叉。 */
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `playback_rows` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionKey` TEXT NOT NULL, `pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `title` TEXT, `subtitle` TEXT, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER, `lastSeenAt` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_playback_rows_fromAt` ON `playback_rows` (`fromAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_playback_rows_sessionKey` ON `playback_rows` (`sessionKey`)")
+            }
+        }
+        /** 外放「仍要转写」片段的整理闸列。 */
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                db.execSQL("ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
             MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
             MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27,
-            MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
+            MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36,
+            MIGRATION_36_37)
     }
 }
 

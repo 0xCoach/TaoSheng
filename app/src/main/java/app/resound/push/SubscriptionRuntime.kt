@@ -159,7 +159,7 @@ internal class SubscriptionRuntime(
                 }
                 val data = raw.select(s, since, today, zone())
                 val generator = MemoryFolder(today, zone())
-                val files = if (summaryOnly) summaryFiles(data, s, state, generator) else generator.generate(data, s)
+                val files = (if (summaryOnly) summaryFiles(data, s, state, generator) else generator.generate(data, s)).toMutableMap()
                 val current = RecordDelta.records(data, s)
                 if (!reminderOnly) trace.requireContent(if (summaryOnly) current.keys.count { it.startsWith("card:") || it.startsWith("review:") } else current.size)
                 val full = !s.incremental || rebuild || due.optLong("fullAt").let { it > 0 && it <= started }

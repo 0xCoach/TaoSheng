@@ -92,7 +92,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -233,7 +232,7 @@ fun TodayScreen(
     var boxTop by remember { mutableStateOf(0f) }
     val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
-    fun pendingIndex() = 2 + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0)
+    fun pendingIndex() = 3 + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0)
     fun timelineIndex() = pendingIndex() + (if (pendingCount > 0) 1 else 0)
     // 主卡上点了暂停：底部浮一条“已暂停 30 分钟 · 改时长 · 撤销”
     var pausedNote by remember { mutableStateOf<Pair<Int, Long>?>(null) }
@@ -710,30 +709,6 @@ internal fun friendlyDue(at: Long, text: String?): String {
 }
 
 // ---------- 时间线 ----------
-
-@Composable
-private fun EmptyTimeline(memory: MemoryRepository) {
-    val c = Rs.colors
-    val digest by memory.state.collectAsStateWithLifecycle()
-    RsCard(padding = PaddingValues(vertical = 32.dp, horizontal = 20.dp)) {
-        Text(
-            if (digest.pendingLines > 0) "有 ${digest.pendingLines} 句原话等着整理" else "这一天还没有整理出事件",
-            style = RsType.subhead,
-            color = c.textSecondary,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "录到人声 → 转写成原话 → 说完约 10 分钟后整理成一件件事",
-            style = RsType.caption,
-            color = c.textTertiary,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
 
 internal fun partOfDay(at: Long): String = when (Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).hour) {
     in 0..5 -> "凌晨"

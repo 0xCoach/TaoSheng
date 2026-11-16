@@ -57,7 +57,23 @@ class TranscribeSchedulerTest {
             assertNull(db.transcribe().segment(1).completedAt)
             assertEquals(9_000L, db.transcribe().segment(1).playbackMillis)
             withTimeout(3000) { while (manager.getWorkInfosForUniqueWork(TranscribeScheduler.IMMEDIATE).get().isEmpty()) delay(20) }
+            assertEquals(1, db.transcribe().segment(1).playbackDigest)
             Unit
+        } finally { scope.cancel(); db.close(); audio.delete() }
+    }
+    @Test fun transcribeAnywayDigestTwoRequeuesAndWritesIntent() = runBlocking {
+        val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val audio = java.io.File.createTempFile("playback-digest-two", ".ogg", context.cacheDir).apply { writeBytes(byteArrayOf(1)) }
+        try {
+            db.capture().segment(app.resound.data.SegmentEntity(id = 1, startAt = 1, endAt = 10_001, sourceId = "mic", path = audio.path, sizeBytes = 1,
+                status = "SkippedPlayback", completedAt = 10_001, playbackMillis = 9_000))
+            val settings = Settings()
+            val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope, app.resound.platform.SystemZone, app.resound.platform.SystemNow, Dispatchers.IO)
+            repository.transcribeAnyway(1, 2)
+            withTimeout(3000) { db.transcribe().observeSegments().first { it.single().status == "Pending" } }
+            assertEquals(2, db.transcribe().segment(1).playbackDigest)
+            assertEquals(1, db.transcribe().candidates(Long.MAX_VALUE).size)
         } finally { scope.cancel(); db.close(); audio.delete() }
     }
     @Test fun repositoryPublishesAndResetsRealRoundProgress() = runBlocking {

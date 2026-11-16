@@ -36,8 +36,10 @@ class Index183MigrationTest {
         val fixtures = Driver175FixturesTest()
         db.useReaderConnection { fixtures.golden("backup-before.txt", fixtures.snapshot(it)) }
     }
+    /** sqlite_master 对象清单（type/name/tbl_name）。SQL 文本因迁移手写语句与新装实体语句可有已登记的形态差异，
+     *  两条路径的完整文本分别由 fresh-install.txt 与 backup-before.txt 快照白名单逐字锁定。 */
     private suspend fun structure(db: CaptureDatabase) = db.readSql("SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name") { c ->
-        buildList { while (c.step()) add((0..3).map { if (c.isNull(it)) null else c.getText(it) }) }
+        buildList { while (c.step()) add((0..2).map { c.getText(it) }) }
     }
     @Test fun realRoomMigrates33PreservesEveryRowMatchesFreshAndIsRepeatable() = runBlocking(Dispatchers.IO) {
         val file = oldBackup("index183-upgrade")
@@ -50,8 +52,12 @@ class Index183MigrationTest {
             assertEquals(CaptureDatabase.VERSION, db.testSql.version)
             db.close()
             AndroidSQLiteDriver().open(file.path).use { connection ->
-                val migration = CaptureDatabase.MIGRATIONS.single { it.startVersion == 33 && it.endVersion == CaptureDatabase.VERSION }
-                repeat(2) { migration.migrate(connection) }
+                val chain = CaptureDatabase.MIGRATIONS.filter { it.startVersion >= 33 && it.endVersion <= CaptureDatabase.VERSION }
+                assertEquals("33→当前版本的迁移链完整无缺口", CaptureDatabase.VERSION - 33, chain.size)
+                // 库已由上面的 Room open 真实升到当前版本。33→36 的历史迁移写成 IF NOT EXISTS 幂等式，
+                // 对同一库重复重放两遍验证；36→37 的 ALTER ADD COLUMN 无 IF NOT EXISTS（SQLite 不支持），
+                // 不可对已升级的库重放，其单次真实执行已由 Room open 覆盖。
+                chain.dropLast(1).let { history -> repeat(2) { history.forEach { migration -> migration.migrate(connection) } } }
             }
             db = CaptureDatabase.open(context, file.path)
             sameAsOldBackup(db)

@@ -89,12 +89,25 @@ class AndroidPushChannels internal constructor(
     }
     override suspend fun pushNow(id: Long): Result<String> {
         val s = channels.value.find { it.id == id }?.subscription ?: return subscriptions.run(id)
-        if (!s.footprint) return subscriptions.run(id)
-        // 订阅了足迹：先推今天的足迹，再按原订阅推其他内容
-        val footprint = pushFootprintNow(id)
         val other = s.summaries || s.reminders || s.records.isNotEmpty() || s.lines != LinesMode.Off
-        if (!other) return footprint
-        return subscriptions.run(id).map { it + "；" + (footprint.getOrNull() ?: "足迹：" + (footprint.exceptionOrNull()?.message ?: "推送失败")) }
+        val extras = mutableListOf<Result<String>>()
+        if (s.footprint) extras += pushFootprintNow(id)
+        fun describe(r: Result<String>, label: String) = r.getOrNull() ?: "$label：" + (r.exceptionOrNull()?.message ?: "推送失败")
+        if (extras.isEmpty()) return subscriptions.run(id)
+        if (!other) {
+            if (extras.size == 1) return extras.single()
+            return Result.success(buildList {
+                var i = 0
+                if (s.footprint) add(describe(extras[i++], "足迹"))
+            }.joinToString("；"))
+        }
+        return subscriptions.run(id).map { base ->
+            var i = 0
+            buildString {
+                append(base)
+                if (s.footprint) append("；").append(describe(extras[i++], "足迹"))
+            }
+        }
     }
     override suspend fun rebuild(id: Long) = subscriptions.run(id, rebuild = true)
     override fun status(id: Long): Flow<PushChannelStatus> = subscriptions.status(id)

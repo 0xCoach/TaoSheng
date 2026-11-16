@@ -27,6 +27,8 @@ class AndroidDigestSettings internal constructor(
         { key, value -> prefs.edit().putInt(key, value).commit() })
     override val includeSituation get() = preferences.includeSituation
     override fun setIncludeSituation(on: Boolean) = preferences.setIncludeSituation(on)
+    override val includeAppPlayback get() = preferences.includeAppPlayback
+    override fun setIncludeAppPlayback(on: Boolean) = preferences.setIncludeAppPlayback(on)
     val pauseMinutes get() = preferences.pauseMinutes
     val maxWaitMinutes get() = preferences.maxWaitMinutes
     val intervalMinutes get() = preferences.intervalMinutes

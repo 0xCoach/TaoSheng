@@ -88,7 +88,9 @@ fun createAskRepository(
             // Tools 额度耗尽仍带定义；Prefetch 完全不发送 tools / tool_choice。
             settings.failover.stream("问答", session, messages, if (prefetching) JSONArray() else definitions, client, delta,
                 { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, allowTools = requested.length() > 0)
-        }, definitions, placeTools::execute, { _, _ -> }, changes::propose,
+        }, definitions, { name, args, sources ->
+            placeTools.execute(name, args, sources)
+        }, { _, _ -> }, changes::propose,
             mode = {
                 prefetching = compatibility.state(preset).fallback != null
                 if (prefetching) AskMode.Prefetch else AskMode.Tools

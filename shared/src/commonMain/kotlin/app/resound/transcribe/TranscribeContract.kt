@@ -27,7 +27,7 @@ enum class TranscriptStatus {
     /** 失败，会自动重试；超过次数后停在这里等手动重试 */
     Failed,
 
-    /** 手机用扬声器外放媒体时录的：不转写（可手动“仍然转写”），录音 1 天后删除 */
+    /** 手机用扬声器外放媒体时录的：不转写（可手动「只转写」或「转写并整理」），录音 1 天后删除 */
     SkippedPlayback,
 
     /** 卡 065：录音文件丢失、损坏或解码失败，重试也修不好：不再提醒，可删除；原声按保留天数正常清理 */
@@ -79,6 +79,8 @@ data class SegmentTranscript(
     val error: String? = null,
     /** 录音文件是否还在（转写成功 1 天后删除） */
     val audioAvailable: Boolean,
+    /** 外放时录的片段被用户「仍要转写」后：转写保留、可搜可问，但暂不参与整理，等用户在界面上放行 */
+    val playbackHeld: Boolean = false,
 )
 
 data class TranscribeQueueState(
@@ -110,8 +112,11 @@ interface TranscriptRepository {
     /** 把停在 Failed 的段重新放回队列 */
     fun retryFailed()
 
-    /** 外放时录的片段，用户要求仍然转写：放回队列并立即跑一轮 */
-    fun transcribeAnyway(segmentId: Long) {}
+    /** 外放时录的片段，用户一步选择：放回队列并立即跑一轮。[playbackDigest] 只转写为 1，转写并整理为 2。缺省 1，兼容旧调用。 */
+    fun transcribeAnyway(segmentId: Long, playbackDigest: Int = 1) {}
+
+    /** 外放片段放行整理：[SegmentTranscript.playbackHeld] 的片段改为参与整理，等下一轮整理（自动或「现在整理」）处理；不主动触发整理 */
+    fun allowPlaybackDigest(segmentId: Long) {}
 
     /** 卡 065：忽略现在提醒里的所有失败段（变成 Quiet，不再计入 failed），以后仍可手动重试 */
     fun ignoreFailed() {}

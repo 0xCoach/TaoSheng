@@ -13,6 +13,7 @@ import app.resound.data.MemoryEventEntity
 import app.resound.data.MemoryItemEntity
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.PendingDigest
+import app.resound.data.SegmentPlayback
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,8 @@ class DigestRunner(
     private val afterDigest: suspend (Boolean) -> Unit = {},
     private val isMedia: suspend (Long, Long) -> Boolean = { _, _ -> false },
     private val unseparated: suspend (List<Long>) -> List<Long> = { emptyList() },
+    /** 片段编号 → 手机麦克风片段的外放毫秒数快照；空表示无外放资料（生产装配 [app.resound.data.TranscribeDao.playbackMillis]）。 */
+    private val playbackMillis: suspend (List<Long>) -> List<SegmentPlayback> = { emptyList() },
     private val thingExtraction: app.resound.things.DigestThingExtraction? = null,
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = settings.digestRequest(client),
     private val situation: app.resound.context.SituationLookup? = null,
@@ -207,7 +210,8 @@ class DigestRunner(
         val batchId = identity(lines)
         var storedId = batchId
         return try {
-            val contextPrompt = SituationPrompt(settings.includeSituation.value, situation)
+            val contextPrompt = SituationPrompt(settings.includeSituation.value, situation,
+                playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis })
             val (text, indexed) = contextPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
             val unfinished = dao.unfinishedForDigest()
             val candidates = unfinished.map { it.id }.toSet()

@@ -55,7 +55,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
             digestSettings.skillCredentials(presetId)
         }
-        val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation)
+        val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation,
+            db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis })
         val (text, indexed) = contextPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System
             .currentTimeMillis() - 60L * 86_400_000))

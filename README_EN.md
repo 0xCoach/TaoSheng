@@ -89,7 +89,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 31. **🎙️ Topic mode & long meetings** — meeting, training, call·interview, voice script or normal sessions with scheduling, pause and after-the-fact selection; long meetings are summarized in resumable parts; topic records can be searched, filtered and deleted.
 32. **🔎 Search everywhere** — search lines, events, to-dos, memories, found things, topics, reviews and Ask history across all dates, from the home screen or the To-dos / Memory pages; results are grouped by type with counts, date filters and endless loading (tap a line to jump to that moment); search settings by everyday words such as “battery”.
 33. **📅 To-dos on a calendar** — a week strip (expandable to a month) with dots for busy and overdue days; an agenda from today, later items grouped into “next week” / months, undated ones under “anytime”; move all overdue to today in one tap, confirm pending items inline, and add a to-do to an empty day by voice. “Add to phone calendar” opens the system calendar prefilled (no calendar permission needed).
-33. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
+34. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
 
 <table>
 <tr>

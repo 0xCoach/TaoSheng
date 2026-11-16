@@ -22,7 +22,9 @@ class AskParity153Test {
         override suspend fun findThings(args: String, sources: MutableList<AskSource>) = error("不应调用寻物")
     },sample("spec.json"),zone)
 
-    @Test fun definitionsMatchRecordedBytes() { assertEquals(sample("definitions.json"),AskDefinitions.json()) }
+    @Test fun definitionsMatchRecordedBytes() {
+        assertEquals(Arr(sample("definitions.json")).toString(), AskDefinitions.json())
+    }
     @Test fun fullSystemPromptMatchesRecordedBytes() {
         assertEquals(sample("prompt.txt"),app.resound.digest.core.DigestPrompt.system(sample("template.md"),LocalDate(2026,11,10),"涛声").replace("{{TODAY}}","2026-11-10"))
     }

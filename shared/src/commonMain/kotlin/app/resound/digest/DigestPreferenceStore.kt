@@ -20,6 +20,13 @@ class DigestPreferenceStore(
         check(saveBoolean("includeSituation", on))
         _includeSituation.value = on
     }
+    /** 整理时把 App 与节目标题发给大模型；默认开，与地点/环境开关互不影响。 */
+    private val _includeAppPlayback = MutableStateFlow(readBoolean("includeAppPlayback", true))
+    val includeAppPlayback = _includeAppPlayback.asStateFlow()
+    fun setIncludeAppPlayback(on: Boolean) {
+        check(saveBoolean("includeAppPlayback", on))
+        _includeAppPlayback.value = on
+    }
     /** 两句话之间停多久算这段对话结束（分钟）；结束后才整理，避免一件事被切成两半 */
     private val _pauseMinutes = MutableStateFlow(readInt("pauseMinutes", DEFAULT_PAUSE).coerceIn(PAUSE_RANGE))
     val pauseMinutes = _pauseMinutes.asStateFlow()

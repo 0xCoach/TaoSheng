@@ -84,6 +84,30 @@ class PreferenceBackup190Test {
         assertEquals("fixture-passphrase", restored["backup-encryption-secrets" to "passphrase"])
     }
 
+    @Test fun appPlaybackAndPlaybackDigestSwitchesSurviveBackupRoundTrip() {
+        prefs("digest").edit().putBoolean("includeAppPlayback", false).commit()
+        prefs("transcribe").edit().putBoolean("includePlaybackDigest", true).putBoolean("skipPlayback", false).commit()
+        BackupSettings.capture(context, root)
+        prefs("digest").edit().clear().commit()
+        prefs("transcribe").edit().clear().commit()
+        BackupSettings.apply(context, root)
+        assertFalse(prefs("digest").getBoolean("includeAppPlayback", true))
+        assertTrue(prefs("transcribe").getBoolean("includePlaybackDigest", false))
+        assertFalse(prefs("transcribe").getBoolean("skipPlayback", true))
+    }
+
+    @Test fun playbackTitleSwitchSurvivesBackupRoundTrip() {
+        prefs("playback-title").edit()
+            .putBoolean("playbackTitleEnabled", true)
+            .putLong("playbackTitleEnabledAt", 42)
+            .commit()
+        BackupSettings.capture(context, root)
+        prefs("playback-title").edit().clear().commit()
+        BackupSettings.apply(context, root)
+        assertTrue(prefs("playback-title").getBoolean("playbackTitleEnabled", false))
+        assertEquals(42L, prefs("playback-title").getLong("playbackTitleEnabledAt", 0))
+    }
+
     @Test fun brokenStructuredSettingDoesNotLeakItsValueInDiagnostics() {
         prefs("folder-imports").edit().putString("folders", "private-folder-content").commit()
         val failure = runCatching { BackupSettings.capture(context, root) }.exceptionOrNull()

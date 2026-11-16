@@ -112,13 +112,13 @@ abstract class MemoryDao {
     /** 已转写、还没整理过的句子（按时间）。稀疏筛选先扫原话，避免时间排序索引全量回表。 */
     @Query(
         """SELECT l.* FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId
-           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
+           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND s.playbackDigest != 1 AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedLines(): List<TranscriptLineEntity>
 
     @Query(
         """SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId
-           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
+           WHERE l.digestedAt IS NULL AND s.status = 'Done' AND s.playbackDigest != 1 AND $OUTSIDE_TOPICS AND l.voiceInputPendingUntil IS NULL AND (s.importRecordId IS NULL OR EXISTS (SELECT 1 FROM import_records r WHERE r.id = s.importRecordId AND r.ingestComplete = 1 AND r.speakersReady = 1)) ORDER BY l.startAt, l.id""",
     )
     abstract suspend fun undigestedCount(): Int
 
@@ -135,7 +135,7 @@ abstract class MemoryDao {
     )
     abstract suspend fun unfinishedSegments(start: Long, end: Long): Int
 
-    @Query("SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND $OUTSIDE_TOPICS")
+    @Query("SELECT COUNT(*) FROM transcript_lines l NOT INDEXED CROSS JOIN segments s ON s.id = l.segmentId WHERE l.digestedAt IS NULL AND s.status = 'Done' AND s.playbackDigest != 1 AND $OUTSIDE_TOPICS")
     abstract fun observeUndigestedCount(): Flow<Int>
 
     @Insert abstract suspend fun insertEvent(row: MemoryEventEntity): Long

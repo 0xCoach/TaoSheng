@@ -92,7 +92,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -713,30 +712,6 @@ internal fun friendlyDue(at: Long, text: String?): String {
 }
 
 // ---------- 时间线 ----------
-
-@Composable
-private fun EmptyTimeline(memory: MemoryRepository) {
-    val c = Rs.colors
-    val digest by memory.state.collectAsStateWithLifecycle()
-    RsCard(padding = PaddingValues(vertical = 32.dp, horizontal = 20.dp)) {
-        Text(
-            if (digest.pendingLines > 0) "有 ${digest.pendingLines} 句原话等着整理" else "这一天还没有整理出事件",
-            style = RsType.subhead,
-            color = c.textSecondary,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "录到人声 → 转写成原话 → 说完约 10 分钟后整理成一件件事",
-            style = RsType.caption,
-            color = c.textTertiary,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
 
 internal fun partOfDay(at: Long): String = when (Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).hour) {
     in 0..5 -> "凌晨"

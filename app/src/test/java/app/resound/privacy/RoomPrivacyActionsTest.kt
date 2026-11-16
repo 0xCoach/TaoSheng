@@ -1,6 +1,7 @@
 package app.resound.privacy
 
 import app.resound.data.testSql
+import app.resound.screentime.*
 import android.app.Application
 import androidx.room.Room
 import app.resound.data.*
@@ -151,4 +152,77 @@ class RoomPrivacyActionsTest {
         db.memory().saveDigest(listOf(eventRow(1) to listOf(1)), { listOf(item(1, it.single(), 1)) }, listOf(1), now)
         assertEquals(0, count("memory_events")); assertEquals(0, count("memory_items"))
     }
+
+    /** 按时间遗忘同时删屏幕事件、下限提到区间终点。 */
+    @Test fun deleteRangeRemovesScreenEventsAndRaisesFloor() = runBlocking {
+        db.screenTime().insertEvents(listOf(
+            ScreenEventRow(at = now - 30_000, pkg = "a", cls = "", type = 1),
+            ScreenEventRow(at = now - 90_000, pkg = "a", cls = "", type = 1)))
+        db.screenTime().advanceCoveredUntil(SCREEN_SOURCE, now)
+        privacy.deleteRange(now - 60_000, now)
+        assertEquals(1, count("screen_events"))
+        assertEquals(now - 90_000, db.screenTime().events(0, now).single().at)
+        assertEquals(now, db.screenTime().state(SCREEN_SOURCE)?.floor)
+    }
+
+    /** 必测 8：区间内的播放行删除，跨左边界的行截断到 from。 */
+    @Test fun deleteRangeRemovesInsidePlaybackAndTruncatesLeftCrossing() = runBlocking {
+        val from = now - 60_000
+        db.screenTime().insertPlayback(PlaybackRow(sessionKey = "in", pkg = "a", name = "a", title = "内",
+            subtitle = null, fromAt = from + 1_000, untilAt = now - 1_000, lastSeenAt = now - 1_000))
+        db.screenTime().insertPlayback(PlaybackRow(sessionKey = "left", pkg = "b", name = "b", title = "跨左",
+            subtitle = null, fromAt = now - 90_000, untilAt = null, lastSeenAt = now - 10_000))
+        privacy.deleteRange(from, now)
+        val left = db.screenTime().playbacksOverlapping(0, now + 1).single()
+        assertEquals("left", left.sessionKey)
+        assertEquals(now - 90_000, left.fromAt)
+        assertEquals(from, left.untilAt)
+        assertEquals(from, left.lastSeenAt)
+    }
+    private suspend fun seedPlaybackPrivacy() {
+        event(10)
+        for ((id, at) in listOf(10L to 10_000L, 20L to 20_000L, 30L to 30_000L)) {
+            segment(id, at)
+            if (id != 20L) line(id, id, 10)
+            db.screenTime().insertEvents(listOf(ScreenEventRow(at = at + 100, pkg = "test", cls = "", type = 1)))
+            db.screenTime().insertPlayback(PlaybackRow(sessionKey = "$id", pkg = "test", name = "test",
+                title = "test", subtitle = null, fromAt = at, untilAt = at + 1000, lastSeenAt = at + 1000))
+            for (source in listOf(SCREEN_SOURCE, PLAYBACK_SOURCE))
+                db.screenTime().recordGap(ScreenCoverageGapRow(source = source, fromAt = at, untilAt = at + 1000, code = "test"))
+        }
+    }
+
+    private suspend fun assertPlaybackPrivacy(remaining: List<Long>) {
+        assertEquals(remaining, db.screenTime().playbacksOverlapping(0, now).map { it.fromAt })
+        assertEquals(remaining.map { it + 100 }, db.screenTime().events(0, now).map { it.at })
+        for (source in listOf(SCREEN_SOURCE, PLAYBACK_SOURCE))
+            assertEquals(remaining, db.screenTime().gaps(source, 0, now).map { it.fromAt })
+    }
+
+    @Test fun eventDeletionClearsOnlyItsSegmentsPlaybackAndGaps() = runBlocking {
+        seedPlaybackPrivacy()
+        privacy.forgetEvent(10)
+        assertPlaybackPrivacy(listOf(20_000L))
+    }
+
+    @Test fun segmentDeletionClearsPlaybackAndGaps() = runBlocking {
+        seedPlaybackPrivacy()
+        privacy.forgetSegment(20)
+        assertPlaybackPrivacy(listOf(10_000L, 30_000L))
+    }
+
+    @Test fun batchDeletionPreservesPlaybackBetweenSegments() = runBlocking {
+        seedPlaybackPrivacy()
+        privacy.deleteSegments(listOf(10, 30, 10))
+        assertPlaybackPrivacy(listOf(20_000L))
+    }
+
+    @Test fun rangeWithoutAudioClearsPlaybackAndBothGapSources() = runBlocking {
+        seedPlaybackPrivacy()
+        db.testSql.execSQL("DELETE FROM transcript_lines")
+        db.testSql.execSQL("DELETE FROM segments")
+        privacy.deleteRange(20_000, 21_000)
+        assertPlaybackPrivacy(listOf(10_000L, 30_000L))
+    }
+
 }

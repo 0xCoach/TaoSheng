@@ -80,6 +80,14 @@ object AppGraph {
     val isSituationReady: Boolean get() = ::situation.isInitialized
     val isLocationReady: Boolean get() = ::location.isInitialized
 
+    /** 「记录播放标题」开关（默认关）。 */
+    lateinit var playbackTitleSettings: app.resound.screentime.PlaybackTitleSettings
+    val isPlaybackTitleReady: Boolean get() = ::playbackTitleSettings.isInitialized
+    /** 只读播放记录；为 null 时整理外放标注不匹配标题。 */
+    @Volatile var playbackQueries: app.resound.screentime.PlaybackQueries? = null
+    /** 设备播放记录接收方；为 null 时通知监听服务丢弃回调。 */
+    @Volatile var playbackSink: app.resound.screentime.PlaybackSink? = null
+
     // 卡 079：寻物
     lateinit var things: app.resound.things.ThingRepository
     val isThingsReady: Boolean get() = ::things.isInitialized
@@ -120,6 +128,11 @@ object AppGraph {
 
     lateinit var playbackSkip: app.resound.capture.PlaybackSkipSettings
     val isPlaybackSkipReady: Boolean get() = ::playbackSkip.isInitialized
+    lateinit var playbackDigestSettings: app.resound.transcribe.PlaybackDigestSettings
+    val isPlaybackDigestReady: Boolean get() = ::playbackDigestSettings.isInitialized
+
+    /** 播放状态（是否在放、是否可能外放）应用级单例；有订阅者才注册系统回调。 */
+    lateinit var playback: app.resound.capture.PlaybackMonitor
 
 
     lateinit var review: app.resound.review.ReviewRepository
@@ -159,6 +172,7 @@ object AppGraph {
 
     lateinit var memory: MemoryRepository
     lateinit var digestSettings: DigestSettings
+    val isDigestSettingsReady: Boolean get() = ::digestSettings.isInitialized
 
     lateinit var ask: app.resound.ask.AskRepository
     val isAskReady: Boolean get() = ::ask.isInitialized

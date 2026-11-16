@@ -1,10 +1,12 @@
 package app.resound.context
 
+import app.resound.AppGraph
 import app.resound.platform.ZoneProvider
-
 import app.resound.data.*
 import app.resound.envsound.EnvSoundRow
 import app.resound.location.*
+import app.resound.screentime.DevicePlayback
+import app.resound.screentime.NamedAppSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
@@ -21,8 +23,10 @@ class LocalSituationLookup internal constructor(
     placeRevision: () -> Long = { 0 }, soundRevision: () -> Long = { 0 },
     zone: () -> ZoneId, io: kotlinx.coroutines.CoroutineDispatcher,
     pointBounds: suspend () -> Pair<Long, Long>? = { null },
+    appSessions: suspend (Long, Long) -> List<NamedAppSession> = { _, _ -> emptyList() },
+    devicePlayback: suspend (Long, Long) -> List<DevicePlayback> = { _, _ -> emptyList() },
 ) : SituationLookup by SituationStore(available, points, cachedPlace, sounds, placeRevision, soundRevision,
-    ZoneProvider { zone().id }, io, { it is SecurityException }, Math::toRadians, pointBounds) {
+    ZoneProvider { zone().id }, io, { it is SecurityException }, Math::toRadians, pointBounds, appSessions, devicePlayback) {
     companion object {
         fun create(database: CaptureDatabase, location: LocationRepository, scope: CoroutineScope, zone: ZoneProvider, io: kotlinx.coroutines.CoroutineDispatcher): LocalSituationLookup {
             val places = AtomicLong()
@@ -39,6 +43,13 @@ class LocalSituationLookup internal constructor(
                     database.readSql("SELECT MIN(at), MAX(at) FROM location_points") {
                         if (!it.step() || it.isNull(0)) null else it.getLong(0) to it.getLong(1)
                     }
+                },
+                devicePlayback = { from, until ->
+                    if (!app.resound.digest.allowAppPlaybackInPrompt(
+                            AppGraph.isPlaybackTitleReady && AppGraph.playbackTitleSettings.enabled.value,
+                            AppGraph.isDigestSettingsReady && AppGraph.digestSettings.includeAppPlayback.value,
+                        )) emptyList()
+                    else AppGraph.playbackQueries?.overlapping(from, until).orEmpty()
                 })
         }
 

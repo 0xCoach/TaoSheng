@@ -75,12 +75,15 @@ class TranscriptStoreRepository(
             SegmentTranscript(segment.id, segment.startAt, segment.endAt, TranscriptStatus.valueOf(segment.status),
                 lines.sortedWith(compareBy({ it.startAt }, { it.id })).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it
                     .speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) },
-                segment.error, segment.sourceId != "voice-input" && isAudioFile(FileRef(segment.path)))
+                segment.error, segment.sourceId != "voice-input" && isAudioFile(FileRef(segment.path)),
+                playbackHeld = segment.playbackDigest == 1)
         } }.flowOn(io)
     }
-    override fun transcribeAnyway(segmentId: Long) { scope.launch {
-        if (isAudioFile(FileRef(dao.segment(segmentId).path)) && dao.transcribeAnyway(segmentId) > 0) runNowAction()
+    override fun transcribeAnyway(segmentId: Long, playbackDigest: Int) { scope.launch {
+        check(playbackDigest == 1 || playbackDigest == 2) { "playbackDigest 只能是 1 或 2" }
+        if (isAudioFile(FileRef(dao.segment(segmentId).path)) && dao.transcribeAnyway(segmentId, playbackDigest) > 0) runNowAction()
     } }
+    override fun allowPlaybackDigest(segmentId: Long) { scope.launch { dao.allowPlaybackDigest(segmentId) } }
     override fun runNow() = runNowAction()
     override fun retryFailed() { scope.launch { dao.retryFailed(now.now()); runNowAction() } }
     override fun ignoreFailed() { scope.launch { dao.ignoreFailed(now.now()) } }

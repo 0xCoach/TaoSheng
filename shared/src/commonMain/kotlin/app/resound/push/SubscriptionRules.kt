@@ -27,6 +27,7 @@ object SubscriptionRules {
         require(backfillDays == null || backfillDays >= 0) { "补齐天数不能为负数" }
         require(s.fullCheckAt == null || s.fullCheckAt in 0..1439) { "时刻须为 0～1439 分钟" }
         require(s.footprintAt in 0..1439) { "足迹推送时刻须为 0～1439 分钟" }
+        require(s.screenTimeAt in 0..1439) { "屏幕时间推送时刻须为 0～1439 分钟" }
         when (val t = s.trigger) {
             is RecordTrigger.OnChange -> require(t.minGapMinutes >= 5) { "最短间隔至少 5 分钟" }
             is RecordTrigger.Schedule -> require(t.times.isNotEmpty() && t.times.all { it in 0..1439 } && t.weekdays.all { it in 1..7 }) { "请填写有效的时刻和星期" }

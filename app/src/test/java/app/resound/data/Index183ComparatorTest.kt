@@ -24,6 +24,26 @@ class Index183ComparatorTest {
             val after = (1 until rows.size).first { rows[it] > index }
             rows.add(after, index)
         }
+        for (master in Index183FixtureDelta.tableMasterRows) {
+            val after = (1 until rows.size).first { rows[it] > master }
+            rows.add(after, master)
+        }
+        for (block in Index183FixtureDelta.tableBlocks) {
+            val at = rows.withIndex().first { it.value.startsWith("TABLE ") && it.value > block[0] }.index
+            rows.addAll(at, block)
+        }
+        val add = Index183FixtureDelta.spec.getJSONObject("columnAdds")
+        val masterOld = rows.first { it.startsWith("[\"table\",\"segments\"") }
+        val masterAt = rows.indexOf(masterOld)
+        val fkAt = masterOld.indexOf(", FOREIGN KEY(")
+        val cut = if (fkAt < 0) masterOld.lastIndexOf(')') else fkAt
+        val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
+        rows[masterAt] = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
+        rows[rows.indexOf(add.getString("columnsOldLine"))] = add.getString("columnsNewLine")
+        val dataAt = rows.indexOf("TABLE segments")
+        val dataEnd = (dataAt + 2 until rows.size).firstOrNull { rows[it].isEmpty() || rows[it].startsWith("TABLE ") } ?: rows.size
+        val suffix = add.getString("dataSuffix")
+        for (k in dataAt + 2 until dataEnd) rows[k] = rows[k].dropLast(1) + suffix
         return rows.joinToString("\n")
     }
     private fun rejected(text: String) {
@@ -44,7 +64,7 @@ class Index183ComparatorTest {
     }
     @Test fun wrongMissingOrDuplicateVersionAndWrongIdentityFail() {
         val actual = allowed()
-        rejected(actual.replaceFirst("user_version=34", "user_version=35"))
+        rejected(actual.replaceFirst("user_version=${CaptureDatabase.VERSION}", "user_version=${CaptureDatabase.VERSION + 1}"))
         rejected(actual.substringAfter('\n'))
         rejected("user_version=34\n$actual")
         val identity = Index183FixtureDelta.spec.getJSONObject("identity")

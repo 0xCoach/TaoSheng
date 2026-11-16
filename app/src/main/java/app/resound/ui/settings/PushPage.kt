@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -575,13 +576,13 @@ private fun SubLabel(text: String) {
 }
 
 @Composable
-private fun ToggleRow(title: String, desc: String, on: Boolean, onChange: (Boolean) -> Unit) {
+private fun ToggleRow(title: String, desc: String, on: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     val c = Rs.colors
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.then(if (enabled) Modifier else Modifier.alpha(0.4f)), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, style = RsType.body, color = c.text)
             Text(desc, style = RsType.caption, color = c.textSecondary)
         }
-        Switch(on, onChange)
+        Switch(on) { if (enabled) onChange(it) }
     }
 }

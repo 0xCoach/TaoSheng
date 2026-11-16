@@ -8,6 +8,9 @@ interface DigestSettings {
     /** 卡 130：整理时把每段原话当时的地点和环境音一起交给大模型（位置会发给大模型服务商，默认关） */
     val includeSituation: kotlinx.coroutines.flow.StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(false)
     fun setIncludeSituation(on: Boolean) {}
+    /** 整理时把 App 与节目标题发给大模型（默认开）；关掉后提示词只保留「手机在外放」 */
+    val includeAppPlayback: kotlinx.coroutines.flow.StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(true)
+    fun setIncludeAppPlayback(on: Boolean) {}
     fun headers(presetId: String): List<HeaderEntry> = emptyList()
     fun saveHeaders(presetId: String, headers: List<HeaderEntry>) {}
     val presets: List<LlmPreset>

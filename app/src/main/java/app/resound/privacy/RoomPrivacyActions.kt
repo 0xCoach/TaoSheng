@@ -9,6 +9,7 @@ import app.resound.data.writeTransaction
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
+import app.resound.screentime.SCREEN_SOURCE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -44,7 +45,7 @@ class RoomPrivacyActions(
             val until = now()
             val from = PrivacyRules.recentStart(minutes, until)
             discardRecording()
-            archiveFiles(from,until) { extra -> recentFiles(from, until) { erase(extraFiles = extra) { dao.recent(from, until) } } }
+            archiveFiles(from,until) { extra -> recentFiles(from, until) { erase(screenRange = from to until, extraFiles = extra) { dao.recent(from, until) } } }
         } }
     }
 
@@ -53,7 +54,7 @@ class RoomPrivacyActions(
         return withContext(Dispatchers.IO + NonCancellable) { gate.withLock {
             if (PrivacyRules.discardRecording(untilMillis, now())) discardRecording()
             archiveFiles(fromMillis,untilMillis) { extra -> recentFiles(fromMillis, untilMillis) {
-                erase(extraFiles = extra) { dao.recent(fromMillis, untilMillis) }
+                erase(screenRange = fromMillis to untilMillis, extraFiles = extra) { dao.recent(fromMillis, untilMillis) }
             } }
         } }
     }
@@ -107,6 +108,7 @@ class RoomPrivacyActions(
     }
 
     private suspend fun erase(explicitEvent: Long? = null, keepEvents: Boolean = false,
+                              screenRange: Pair<Long, Long>? = null,
                               onStage: (EventDeletionPhase) -> Unit = {}, extraFiles: List<String> = emptyList(),
                               select: suspend () -> List<SegmentEntity>): ForgetResult {
         onStage(EventDeletionPhase.WaitingForAudio)
@@ -151,6 +153,15 @@ class RoomPrivacyActions(
                     deletedEvents += dao.deleteEvent(id)
                 }
                 if (!keepEvents) db.memory().repairMergedItems()
+                // 按指定范围或逐段时间删除；不把不相邻录音之间的记录一起删除。
+                val ranges = screenRange?.let { listOf(it) }
+                    ?: segments.map { it.startAt to it.endAt }.distinct()
+                for ((from, until) in ranges) {
+                    db.screenTime().deleteEvents(from, until)
+                    db.screenTime().forgetPlayback(from, until)
+                    db.screenTime().deleteGaps(from, until)
+                    db.screenTime().raiseFloor(SCREEN_SOURCE, until)
+                }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)
             }
             onStage(EventDeletionPhase.Files)

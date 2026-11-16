@@ -105,12 +105,15 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         val file = listOf(File(base.path + ".ogg"), File(base.path + ".m4a")).firstOrNull { it.exists() && it.length() > 0 }
             ?: SegmentEncoder.encode(pcm, base)
         val metadata = File(spool, pcm.nameWithoutExtension + ".playback")
-        val values = metadata.takeIf { it.exists() }?.readText()?.split(":")
-        val playbackMillis = (values?.firstOrNull()?.toLongOrNull() ?: 0).coerceIn(0, end - start)
-        val skip = PlaybackPolicy.skip(end - start, playbackMillis, values?.getOrNull(1) != "false")
+        val (rawMillis, skipEnabled, includeDigest) = metadata.takeIf { it.exists() }?.readText()
+            ?.let { app.resound.transcribe.PlaybackDigestSettings.parseFile(it) } ?: Triple(0L, true, false)
+        val playbackMillis = rawMillis.coerceIn(0, end - start)
+        val skip = PlaybackPolicy.skip(end - start, playbackMillis, skipEnabled)
+        val playbackDigest = app.resound.transcribe.PlaybackDigestSettings.initial(end - start, playbackMillis, includeDigest)
         dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = readSourceId(pcm), path = file.absolutePath, sizeBytes = file.length(),
             playbackMillis = playbackMillis, status = if (skip) "SkippedPlayback" else "Pending",
-            completedAt = if (skip) end else null, separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
+            completedAt = if (skip) end else null, playbackDigest = playbackDigest,
+            separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
         check(pcm.delete())
         metadata.delete()
         File(spool, pcm.nameWithoutExtension + ".source").delete()
@@ -152,10 +155,12 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         private fun savePlayback() {
             val current = file ?: return
             val ms = playbackSamples * 1000 / CaptureTuning.SAMPLE_RATE
-            val enabled = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).getBoolean("skipPlayback", true)
+            val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
+            val skipEnabled = prefs.getBoolean("skipPlayback", true)
+            val includeDigest = prefs.getBoolean(app.resound.transcribe.PlaybackDigestSettings.KEY, false)
             val target = android.util.AtomicFile(File(spool, current.nameWithoutExtension + ".playback"))
             val stream = target.startWrite()
-            try { stream.write("$ms:$enabled".toByteArray()); target.finishWrite(stream) }
+            try { stream.write(app.resound.transcribe.PlaybackDigestSettings.formatFile(ms, skipEnabled, includeDigest).toByteArray()); target.finishWrite(stream) }
             catch (e: Exception) { target.failWrite(stream); throw e }
             savedMillis = ms
         }

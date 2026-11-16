@@ -51,4 +51,14 @@ class DigestSettings177Test {
         val target = File("src/test/resources/repo177/AndroidDigestSettings/preferences.txt")
         assertEquals(target.readText(), text)
     }
+
+    @Test fun includeAppPlaybackDefaultsOnAndPersists() {
+        val context: Context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("digest", 0).edit().clear().commit()
+        val first = AndroidDigestSettings(context, LlmClient())
+        assertTrue(first.includeAppPlayback.value)
+        first.setIncludeAppPlayback(false)
+        assertFalse(first.includeAppPlayback.value)
+        assertFalse(AndroidDigestSettings(context, LlmClient()).includeAppPlayback.value)
+    }
 }

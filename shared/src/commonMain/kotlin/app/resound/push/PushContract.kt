@@ -95,6 +95,10 @@ data class PushSubscription(
     val footprint: Boolean = false,
     /** 每天几点推足迹（一天里的分钟数） */
     val footprintAt: Int = 22 * 60,
+    /** 每日屏幕时间：默认不推 */
+    val screenTime: Boolean = false,
+    /** 每天几点推屏幕时间（一天里的分钟数） */
+    val screenTimeAt: Int = 22 * 60,
 ) {
     companion object {
         /** 一键模板：选了再细调 */

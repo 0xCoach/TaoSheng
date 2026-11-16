@@ -36,6 +36,10 @@ class DigestBudget088Test {
             applyLlmOptions(preset.copy(baseUrl = "https://api.openai.com/v1", model = "gpt-5.6"), openai)
             assertFalse(openai.has("max_tokens"))
             assertEquals(LlmClient.MAX_JSON_OUTPUT_TOKENS, openai.getInt("max_completion_tokens"))
+            val gpt6 = JSONObject().put("temperature", 0.2).put("max_tokens", LlmClient.MAX_JSON_OUTPUT_TOKENS)
+            applyLlmOptions(preset.copy(baseUrl = "https://api.openai.com/v1", model = "gpt-6-luna"), gpt6)
+            assertFalse(gpt6.has("max_tokens") || gpt6.has("temperature"))
+            assertEquals(LlmClient.MAX_JSON_OUTPUT_TOKENS, gpt6.getInt("max_completion_tokens"))
         } finally { server.shutdown() }
     }
 }

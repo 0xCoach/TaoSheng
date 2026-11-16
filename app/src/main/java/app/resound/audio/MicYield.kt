@@ -11,6 +11,7 @@ object MicYield {
         mode == android.media.AudioManager.MODE_RINGTONE || mode == android.media.AudioManager.MODE_IN_CALL ||
             (mode == android.media.AudioManager.MODE_IN_COMMUNICATION && !ownCommunication)
 
+    const val PLAYBACK = BluetoothPlaybackYield.REASON
     const val IN_CALL = "通话中"
     const val OTHER_APP = "别的应用在用麦克风"
 

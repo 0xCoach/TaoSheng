@@ -66,7 +66,9 @@ object CaptureNotifications {
         val kind = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else QuickPrefsRules.defaultTopic
         return NotificationCompat.Builder(context, "listening")
         .setSmallIcon(R.drawable.ic_notify).setContentTitle(notice.title)
-        .setContentText(notice.text)
+        .setContentText(if (!paused && AppGraph.isInputsReady)
+            AppGraph.inputs.status.value.note?.takeIf { it.startsWith(app.resound.audio.MicYield.PLAYBACK) } ?: notice.text
+            else notice.text)
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
         // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
         // 专题进行中点通知直接打开这场专题（大按钮记一下/暂停/结束）：系统常把常驻通知收起，按钮要长按才看得到

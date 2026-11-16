@@ -30,10 +30,14 @@ internal class InputSwitchLoop(
         var timer: Job? = null
         var generation = 0L
         var note: String? = null
+        var playbackYield = false
+        var pauseForPlayback = false
         try {
             for (change in changes) {
                 when (change) {
                     is Change.Devices -> {
+                        playbackYield = change.snapshot.playbackYield
+                        pauseForPlayback = change.snapshot.pauseForPlayback
                         val next = change.snapshot.selected()
                         if (next != selected || choice != change.snapshot.choice) { failed = null; note = null }
                         selected = next
@@ -55,10 +59,12 @@ internal class InputSwitchLoop(
                 }
                 val delayMs = ((until[selected.device.key] ?: 0) - now()).coerceAtLeast(0)
                 val replacedPort = active?.let { it.device.key == selected.device.key && it.portId != selected.portId } == true
-                val next = if (selected == failed || delayMs > 0 || replacedPort) InputRoute(InputDevices.PHONE) else selected
+                val next = if (playbackYield || selected == failed || delayMs > 0 || replacedPort) InputRoute(InputDevices.PHONE, pausedForPlayback = pauseForPlayback) else selected
                 timer?.cancel(); timer = null
                 if (delayMs > 0 && selected != failed) timer = launch { delay(delayMs); changes.send(Change.Retry) }
                 if (next.device.kind != InputKind.Phone) note = null
+                if (playbackYield) note = MicYield.PLAYBACK + if (pauseForPlayback) "；暂停录音" else "；先用手机麦克风"
+                else if (note?.startsWith(MicYield.PLAYBACK) == true) note = null
                 if (active == next) { onUnchanged(next, note); continue }
                 val previous = active
                 recording?.cancelAndJoin() // record 的 finally 正常 finish，不会丢弃片段。

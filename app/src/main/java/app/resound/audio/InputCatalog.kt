@@ -4,8 +4,9 @@ import android.media.AudioDeviceInfo as D
 
 /** 系统 id 仅用于当前路由；持久标识不使用会随拔插变化的 id/USB 地址。 */
 internal data class InputPort(val id: Int, val type: Int, val name: String, val address: String = "")
-internal data class InputRoute(val device: InputDevice, val portId: Int? = null)
-internal data class InputSnapshot(val choice: InputChoice, val routes: List<InputRoute>) {
+internal data class InputRoute(val device: InputDevice, val portId: Int? = null, val pausedForPlayback: Boolean = false)
+internal data class InputSnapshot(val choice: InputChoice, val routes: List<InputRoute>,
+    val playbackYield: Boolean = false, val pauseForPlayback: Boolean = false) {
     fun selected(): InputRoute = when (val value = choice) {
         InputChoice.Phone -> InputRoute(InputDevices.PHONE)
         // 卡 112：自动不选蓝牙。蓝牙录音要占通话模式，会让语音输入法等拿不到话筒；要用蓝牙请在列表里指定

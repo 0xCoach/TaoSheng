@@ -26,7 +26,7 @@ internal class InputPreferences(private val prefs: SharedPreferences) {
         else -> InputChoice.Phone
     }
     fun write(choice: InputChoice) {
-        val edit = prefs.edit().clear()
+        val edit = prefs.edit().remove("key").remove("name")
         when (choice) {
             InputChoice.Phone -> edit.putString("choice", "phone")
             InputChoice.AutoExternal -> edit.putString("choice", "auto")

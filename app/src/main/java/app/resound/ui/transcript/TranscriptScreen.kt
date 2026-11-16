@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import app.resound.ui.ScrollTopButton
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -238,6 +239,8 @@ fun TranscriptScreen(
           }
         }
     }
+    // 原话很长时滑下去要上滑很久：右侧淡入“↑”，点一下回到顶部；多选时让给底部操作栏
+    if (!selection.active) ScrollTopButton(listState, bottomPadding)
     ReachHereChip(reach, selection, boxTop, reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
     // 底部两行：✕ · 已选 N 段 · 共几分钟 · 全选 / 播放 · 导出 · 复制原话 · 删除
     SegmentSelectBar(selection, order, chosen, bottomPadding, onTop = { bottomEdge = it },

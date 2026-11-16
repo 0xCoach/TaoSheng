@@ -51,7 +51,7 @@ internal fun PlaybackTitleCard() {
             Text("记录播放标题", style = RsType.body, color = c.text)
             Text(
                 if (titleOn) "记下手机正在播放的 App 和节目标题，用来标注外放声音来自哪里；不读通知内容"
-                else "关闭时不记录播放标题；外放片段整理时只标「手机在外放」",
+                else "关闭时不读取、不记录播放标题；外放片段整理时只标「手机在外放」。之前记下的标题会保留，可用隐私删除清掉",
                 style = RsType.caption, color = c.textSecondary,
             )
         }

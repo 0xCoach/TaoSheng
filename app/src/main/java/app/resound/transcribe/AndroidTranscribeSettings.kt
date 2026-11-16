@@ -34,6 +34,16 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         headerStore.save(presetId, headers)
         refreshReady(); onChanged()
     }
+    private val formatPrefs = context.getSharedPreferences("custom-asr-formats", Context.MODE_PRIVATE)
+    internal fun customFormats(endpoint: String, model: String, mode: CustomEndpointMode) = app.resound.net.CustomAsrFormats(
+        ::keyFingerprint,
+        { key -> if (formatPrefs.contains(key)) formatPrefs.getLong(key, 0) else null },
+        { key, at ->
+            // 设置已改变时，旧请求不能重新写入过期结论。
+            if (customEndpoint == endpoint && customModel == model && customEndpointMode == mode)
+                formatPrefs.edit().putLong(key, at).apply()
+        }, System::currentTimeMillis,
+    )
     private val localPrefs = context.getSharedPreferences("local-asr", Context.MODE_PRIVATE)
     private val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
     private val preferences = TranscribePreferenceStore(prefs::getString, prefs::getBoolean, prefs::getInt, prefs::contains,
@@ -42,7 +52,13 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         { key, value -> prefs.edit().putInt(key, value).commit() }, localPrefs::getString,
         { key, value -> localPrefs.edit().putString(key, value).apply() },
         { localPrefs.edit().remove("npuCheck").apply() },
-        { endpoint, model, mode -> prefs.edit().putString("endpoint", endpoint).putString("model", model).putString("endpointMode", mode.name).commit() },
+        { endpoint, model, mode ->
+            if (app.resound.net.CustomAsrFormats.configurationChanged(
+                    prefs.getString("endpoint", "").orEmpty(), prefs.getString("model", "").orEmpty(),
+                    prefs.getString("endpointMode", CustomEndpointMode.Auto.name).orEmpty(), endpoint, model, mode.name))
+                formatPrefs.edit().clear().commit()
+            prefs.edit().putString("endpoint", endpoint).putString("model", model).putString("endpointMode", mode.name).commit()
+        },
         ::validateEndpoint, ::saveKey, ::sourceChanged, ::refreshReady)
     val source get() = preferences.source
     val backend get() = preferences.backend

@@ -769,7 +769,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                             retry = { app.resound.ui.topic.TopicUi.openTopic = e.topic.id }, retryLabel = "查看进度")
                     }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
-                    is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events.size) { onOpenImport(e.record) }
+                    is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events) { onOpenImport(e.record) }
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
             }

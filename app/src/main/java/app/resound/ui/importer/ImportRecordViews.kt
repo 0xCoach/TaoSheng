@@ -1,5 +1,6 @@
 package app.resound.ui.importer
 
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.compose.foundation.background
@@ -58,21 +59,49 @@ private fun length(ms: Long): String {
     return if (m < 60) "$m 分钟" else "${m / 60} 小时" + if (m % 60 > 0) " ${m % 60} 分" else ""
 }
 
-/** 时间线上的一行：“09:15 · 导入的会议 · 项目周会（1 小时 12 分）· 5 件事 ›” */
+/**
+ * 时间线上的一份导入录音，和其他事件卡同一个样子：
+ * 标题用纪要的标题（没有纪要就用整理出的第一件事），后面一个“导入·通话”小标签；
+ * 下面两行摘要；最后一行小字是文件名 · 时长 · 几件事。还没处理完时标题照旧、显示进度。
+ */
 @Composable
-internal fun ImportLine(r: ImportRecord, events: Int, onOpen: () -> Unit) {
+internal fun ImportLine(r: ImportRecord, events: List<MemoryEvent>, onOpen: () -> Unit) {
     val c = Rs.colors
-    Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(formatClock(r.startAt), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.widthIn(min = 58.dp))
-        app.resound.ui.skills.SkillIcon(kindIcon(r.kind), 28.dp)
-        Spacer(Modifier.width(10.dp))
+    val day = remember(r.startAt) { java.time.Instant.ofEpochMilli(r.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+    val skills = remember { app.resound.ui.skills.skillRepo() }
+    val card = if (r.cardId == null) null else remember(day) { skills.cards(day.toKotlinLocalDate()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList()).value.firstOrNull { it.id == r.cardId }
+    val first = events.minByOrNull { it.startAt }
+    val kindName = r.kind.title.substringBefore(" ")
+    val done = r.status == ImportRecordStatus.Done
+    val title = (card?.title ?: first?.title)?.takeIf { done && it.isNotBlank() } ?: "导入的$kindName"
+    val summary = (card?.summary ?: first?.summary)?.takeIf { done && it.isNotBlank() }
+    val ink = app.resound.ui.skills.skillInk(kindIcon(r.kind))
+    Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp)) {
+        Text(formatClock(r.startAt), style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.textSecondary,
+            modifier = Modifier.widthIn(min = 58.dp).padding(top = 1.dp))
         Column(Modifier.weight(1f)) {
-            Text("导入的${r.kind.title.substringBefore(" ")}", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = app.resound.ui.skills.skillInk(kindIcon(r.kind)))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                app.resound.ui.skills.SkillIcon(kindIcon(r.kind), 20.dp)
+                Spacer(Modifier.width(6.dp))
+                Text(title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Spacer(Modifier.width(6.dp))
+                Text("导入·$kindName", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = ink, maxLines = 1,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(ink.copy(alpha = 0.12f))
+                        .padding(horizontal = 7.dp, vertical = 1.dp))
+            }
+            if (summary != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(summary, style = RsType.caption.copy(lineHeight = 18.sp), color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(3.dp))
             val st = statusText(r)
-            Text(listOfNotNull(r.fileName.substringBeforeLast('.'), length(r.endAt - r.startAt), st ?: if (events > 0) "$events 件事" else null).joinToString(" · "),
-                style = RsType.caption, color = if (r.status == ImportRecordStatus.Failed) c.critical else c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(listOfNotNull(r.fileName.substringBeforeLast('.'), length(r.endAt - r.startAt), st ?: if (events.isNotEmpty()) "${events.size} 件事" else null)
+                .joinToString(" · "), style = RsType.caption, color = if (r.status == ImportRecordStatus.Failed) c.critical else c.textTertiary,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text("›", style = RsType.title, color = c.textTertiary)
+        Text("›", style = RsType.title, color = c.textTertiary, modifier = Modifier.padding(start = 6.dp))
     }
 }
 

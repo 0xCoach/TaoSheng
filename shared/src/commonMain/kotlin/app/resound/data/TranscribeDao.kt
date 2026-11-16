@@ -187,8 +187,6 @@ abstract class TranscribeDao {
     @Query("SELECT * FROM transcript_lines WHERE voiceInputJson IS NOT NULL AND startAt BETWEEN :from AND :to")
     abstract suspend fun voiceInputs(from: Long, to: Long): List<TranscriptLineEntity>
 
-    @Query("SELECT * FROM segments NOT INDEXED WHERE status IN ('Done', 'Empty', 'SkippedPlayback', 'SkippedEnv', 'Abandoned', 'Quiet') AND completedAt <= :before")
-    abstract suspend fun expired(before: Long): List<SegmentEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: AsrUsageEntity)
     @Query("UPDATE asr_usage SET sentMillis = sentMillis + :millis WHERE day = :day")
     abstract suspend fun addUsage(day: String, millis: Long)

@@ -11,6 +11,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
+/** 远程与本地服务通用的等待超时提示（议题 #46：慢速链路下不能只说“本地模型加载慢”） */
+const val WAIT_TIMEOUT_TEXT = "等待超时：网络较慢或服务处理时间较长（本地模型首次加载也会较慢），稍后再试"
+
 interface NetworkTrace {
     fun http(status: Int)
     fun content(text: String)
@@ -109,7 +112,7 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
         if(callTimeout > 0) withTimeout(callTimeout) { block() } else block()
     } catch(e: TimeoutCancellationException) {
         currentCoroutineContext().ensureActive()
-        throw NetLlmException(NetLlmError.Network,detail="等待超时：本地模型首次加载可能较慢，稍后再试")
+        throw NetLlmException(NetLlmError.Network,detail=WAIT_TIMEOUT_TEXT)
     }
     private class UnexpectedEnd : Exception()
     companion object {

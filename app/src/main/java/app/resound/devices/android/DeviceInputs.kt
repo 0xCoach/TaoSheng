@@ -325,6 +325,14 @@ internal class DeviceInputs(
     fun archiveMaintenanceEnabled(): Boolean = remembered.value.any { row ->
         stableIdentity(row.address)?.let { archives?.configuration(it)?.retention?.enabled } == true
     }
+    suspend fun withArchivePrivacyDeletion(from: Long,until: Long,
+        block: suspend (List<String>) -> app.resound.privacy.ForgetResult): app.resound.privacy.ForgetResult {
+        // A paused foreground transfer cannot recreate an original while it is being erased.
+        val jobs = syncTasks.value.values.filter { it.state.running }.map { it.task }
+        remembered.value.forEach { pauseSyncDevice(it.address) }
+        jobs.forEach { it.cancelAndJoin() }
+        return archives?.withPrivacyDeletion(from,until,block) ?: block(emptyList())
+    }
     suspend fun maintainDeviceStorage() {
         val archive = archives ?: return
         for (row in remembered.value) {

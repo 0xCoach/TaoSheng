@@ -52,7 +52,7 @@ internal fun DeviceArchiveSection(address: String, inputs: DeviceInputs, status:
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Pill(if(expanded) "收起完整原声与存储管理" else "完整原声与设备存储",filled = false) { expanded = !expanded }
         if (expanded) {
-            Text("开启后，下次补传也会下载并归档设备列表中已被实时收音覆盖的完整录音，可能占用较多空间。完整归档不会随人声片段保留期自动删除。",style = RsType.caption,color = c.textSecondary)
+            Text("开启后，下次补传也会归档已被实时收音覆盖的完整录音，可能占用较多空间。完整归档不随人声片段保留期自动删除；隐私删除对应时间或全部本机录音时会一并清理，保护开关不阻止隐私删除。独立备份需在原目的地另行删除。",style = RsType.caption,color = c.textSecondary)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("保存完整原声",style = RsType.subhead,color = c.text,modifier = Modifier.weight(1f))
                 Switch(checked = options.archiveEnabled,enabled = enabled && !busy && !options.retention.enabled,

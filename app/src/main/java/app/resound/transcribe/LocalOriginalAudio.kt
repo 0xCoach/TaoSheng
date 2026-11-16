@@ -63,7 +63,7 @@ class LocalOriginalAudio(
             val rows = existing(); val stars = dao.starredAudio().toSet()
             val candidates = rows.filter { s ->
                 !pending(s) && s.id !in reading && (includeStarred || s.id !in stars) && (range == null || s.startAt in range) &&
-                    (retention == null || (timestamp - (s.completedAt ?: s.firstFailedAt ?: timestamp) >= (if (s.status == "SkippedEnv") maxOf(1, retention) else retention) * 86_400_000L))
+                    (retention == null || originalAudioRemainingDays(s.completedAt ?: s.firstFailedAt ?: timestamp, s.status, retention, false, timestamp) == 0)
             }
             var bytes = 0L
             val removed = candidates.filter { s ->

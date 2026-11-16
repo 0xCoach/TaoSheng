@@ -82,6 +82,18 @@ class DeviceSync120Test {
         assertTrue(db.deviceSync().rows("address").single { it.fileId==file.id }.imported)
     }
 
+    @Test fun privacyFenceSkipsListedAndPersistedPendingSourceWithoutDownloading() = runBlocking {
+        val pending = DeviceTransfer("private-pending","address",file.id,file.name,file.bytes,file.startedAt,
+            file.durationMillis,file.format.name,0,10000,10000)
+        db.deviceSync().save(pending)
+        val plugin = Fake(file)
+        val transfer = DeviceSync("address",root,db,listOf(plugin),{ _,_,_,_ -> fail("privacy-erased source imported") },
+            mayImportSource={false})
+        transfer.importAll(card,link,0)
+        assertTrue(plugin.offsets.isEmpty())
+        assertEquals(pending,db.deviceSync().rows("address").single())
+    }
+
     @Test fun overlapUsesPhoneOffsetAndPadding() {
         assertEquals(DeviceSlice(1000, 8000, 12000), deviceSlice(file, 14000, 17000, 1000, null))
         assertNull(deviceSlice(file, 0, 9000, 1000, null))

@@ -11,7 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.work.*
 import app.resound.AppGraph
 import app.resound.devices.android.DeviceInputs
-import app.resound.update.UpdateDiagnostics
+import app.resound.diagnostics.FailureNotes
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
@@ -35,15 +35,15 @@ class DeviceRetentionWork(context: Context, params: WorkerParameters) : Coroutin
             return defer(available)
         return try {
             setForeground(foreground())
-            UpdateDiagnostics.record(applicationContext,"device_maintenance start available=$available attempt=$runAttemptCount")
+            FailureNotes.note("devices/DeviceRetentionWork:Started")
             android.util.Log.i("ResoundDeviceMaintenance","phase=Started available=$available attempt=$runAttemptCount")
             devices.maintainDeviceStorage()
-            UpdateDiagnostics.record(applicationContext,"device_maintenance completed")
+            FailureNotes.note("devices/DeviceRetentionWork:Completed")
             android.util.Log.i("ResoundDeviceMaintenance","phase=Completed")
             Result.success()
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            UpdateDiagnostics.record(applicationContext,"device_maintenance failed=${e.javaClass.simpleName} attempt=$runAttemptCount")
+            FailureNotes.record("devices/DeviceRetentionWork:Failed",e)
             android.util.Log.i("ResoundDeviceMaintenance","phase=Failed type=${e.javaClass.simpleName}")
             defer(available)
         }
@@ -95,7 +95,7 @@ internal object DeviceRetentionScheduler {
             .setInputData(workDataOf("backup_available" to true))
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST).build()
-        UpdateDiagnostics.record(context,"device_maintenance queued backup_available=true")
+        FailureNotes.note("devices/DeviceRetentionWork:BackupAvailableQueued")
         android.util.Log.i("ResoundDeviceMaintenance","phase=Queued backup_available=true")
         return WorkManager.getInstance(context).enqueueUniqueWork("device-archive-maintenance-available",ExistingWorkPolicy.KEEP,request)
     }

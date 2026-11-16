@@ -174,7 +174,7 @@ class VoiceprintRepositoryTest {
         enroll(); val (segment, _) = segment()
         val transcribe = TranscribeRunner(db.transcribe(), object : AsrProvider {
             override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = error("不应上传")
-        }, { "" }, { _, _ -> }, now = { clock }, deferAudioCleanup = true)
+        }, { "" }, { _, _ -> }, now = { clock })
         transcribe.run()
         assertTrue(File(segment.path).exists()) // App 的转写开始阶段不再提前删待比对录音。
         failDecode = true

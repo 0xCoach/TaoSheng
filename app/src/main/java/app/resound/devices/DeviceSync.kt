@@ -46,6 +46,7 @@ internal class DeviceSync(
     private val onVerifiedSource: suspend (DeviceFile, File, String) -> Unit = { _, _, _ -> },
     private val onImportedSource: suspend (DeviceFile) -> Unit = {},
     private val needsArchive: suspend (DeviceFile) -> Boolean = { false },
+    private val mayImportSource: (DeviceFile) -> Boolean = { true },
 ) {
     private val plugins = plugins.associateBy { it.id }
     private val mutableProgress = MutableStateFlow<BackfillProgress?>(null)
@@ -90,7 +91,7 @@ internal class DeviceSync(
                 if (!all && start == null && end == null && previous.none { !it.imported }) {
                     phase(DeviceSyncPhase.Completed);return@withLock
                 }
-                val files = plugin.list(link).filter { selectedFileIds == null || it.id in selectedFileIds }
+                val files = plugin.list(link).filter { mayImportSource(it) && (selectedFileIds == null || it.id in selectedFileIds) }
                 if (all || start != null || end != null) for (file in files) {
                     try {
                         val slice = deviceSlice(file, start, end, offset, (plugin as? DeviceFileDetails)?.modifiedAt(file)) ?: continue
@@ -118,6 +119,8 @@ internal class DeviceSync(
                         file.durationMillis,file.format.name,0,requireNotNull(file.durationMillis),slice.start))
                 }
                 val pending = db.deviceSync().rows(deviceKey).filter { !it.deleted && !it.imported &&
+                    mayImportSource(DeviceFile(it.fileId,it.name,it.size,it.startedAt,it.duration,
+                        FileFormat.entries.firstOrNull { format -> format.name == it.format } ?: FileFormat.Opus)) &&
                     (selectedFileIds == null || it.fileId in selectedFileIds) }
                 val jobs = if (newestFirst) pending.sortedByDescending { it.phoneStart } else pending
                 meter = DeviceSyncMeter(jobs.map { row ->

@@ -279,6 +279,17 @@ class AndroidPushChannels internal constructor(
         }
     }
 
+    override suspend fun agentPrompt(id: Long): String? = withContext(Dispatchers.IO) {
+        val row = readChannels().firstOrNull { it.getLong("id") == id && it.getString("kind") == PushKind.MarkdownFolder.name } ?: return@withContext null
+        val v = try { values(row) }
+        catch (e: CancellationException) { throw e }
+        catch (caught: Exception) {
+            FailureNotes.record("push/AndroidPushChannels.kt:agentPrompt", caught)
+            return@withContext null }
+        AgentPrompt.text(v["url"].orEmpty(), v["account"].orEmpty(), v["password"].orEmpty(),
+            v["folder"]?.takeIf { it.isNotBlank() } ?: "Resound-Memory", s3 = v["cloudKind"] == "S3")
+    }
+
     internal suspend fun dispatchDailyMemory(date: java.time.LocalDate) {
         // 回顾生成入口不再隐式推全量记录，整理结果严格服从各通道触发器。
         channels.value.filter { it.enabled && it.subscription.summaries && it.kind in setOf(PushKind.MarkdownFolder, PushKind.Notion) }

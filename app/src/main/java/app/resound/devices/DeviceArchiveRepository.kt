@@ -3,6 +3,8 @@ package app.resound.devices
 import android.content.Context
 import android.util.AtomicFile
 import app.resound.data.CaptureDatabase
+import app.resound.diagnostics.FailureNotes
+import app.resound.privacy.ForgetResult
 import app.resound.devices.driver.*
 import app.resound.backup.AndroidBackupRepository
 import app.resound.importer.ImportDecoder
@@ -28,12 +30,20 @@ internal class DeviceArchiveRepository(
     private val root = File(context.filesDir,"device-archives").apply { mkdirs() }
     private val gate = Mutex()
     private val cleanupGate = Mutex()
+    private val contentGate = Mutex()
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val installFile = File(context.noBackupFilesDir,"device-archive-installation")
     val installation = if (installFile.isFile) installFile.readText() else UUID.randomUUID().toString().also {
         installFile.parentFile!!.mkdirs(); installFile.writeText(it)
     }
-    private val rows = MutableStateFlow(load())
+    private val erasedFile = AtomicFile(File(context.noBackupFilesDir,"device-archive-privacy.json"))
+    private var privacyReadable = true
+    private val erasures = MutableStateFlow<List<DeviceArchiveErasure>>(if (!erasedFile.baseFile.exists() && !File(erasedFile.baseFile.path+".bak").exists()) emptyList() else
+        runCatching { json.decodeFromString<List<DeviceArchiveErasure>>(erasedFile.openRead().bufferedReader().use { it.readText() }) }
+            .getOrElse { FailureNotes.record("devices/DeviceArchiveRepository:privacyManifest",it);privacyReadable=false;emptyList() })
+    private fun erased(record: DeviceArchiveRecord) = !privacyReadable || erasures.value.any { it.excludes(record.id,record.startedAtMillis,record.durationMillis) }
+    fun allowsSource(source: DeviceFile) = privacyReadable && erasures.value.none { it.excludes(null,source.startedAt,source.durationMillis ?: 0) }
+    private val rows = MutableStateFlow(load().filterNot(::erased))
     val records = rows.asStateFlow()
     private val configurations = MutableStateFlow<Map<String,DeviceArchiveOptions>>(emptyMap())
     val options = configurations.asStateFlow()
@@ -43,10 +53,19 @@ internal class DeviceArchiveRepository(
     private fun safe(value: String): String { require(value.matches(Regex("[a-f0-9]{64}"))); return value }
     private fun manifest(id: String) = AtomicFile(File(root,"${safe(id)}.json"))
     fun audio(record: DeviceArchiveRecord) = File(root,"${safe(record.archiveSha256)}.audio")
-    private fun load() = root.listFiles().orEmpty().filter { it.name.matches(Regex("[a-f0-9]{64}[.]json([.]bak)?")) }
+    private fun load(): List<DeviceArchiveRecord> {
+        val listed = root.listFiles() ?: run {
+            FailureNotes.record("devices/DeviceArchiveRepository:listManifests",java.io.IOException())
+            return emptyList()
+        }
+        return listed.filter { it.name.matches(Regex("[a-f0-9]{64}[.]json([.]bak)?")) }
         .map { if (it.name.endsWith(".bak")) File(it.path.removeSuffix(".bak")) else it }.distinctBy { it.name }.mapNotNull { file ->
-        runCatching { json.decodeFromString<DeviceArchiveRecord>(AtomicFile(file).openRead().bufferedReader().use { it.readText() }) }
-            .getOrNull()?.takeIf { it.id == file.name.removeSuffix(".json") }
+        runCatching {
+            json.decodeFromString<DeviceArchiveRecord>(AtomicFile(file).openRead().bufferedReader().use { it.readText() }).also {
+                require(it.id == file.name.removeSuffix(".json"));safe(it.archiveSha256)
+            }
+        }.onFailure { FailureNotes.record("devices/DeviceArchiveRepository:manifest",it) }.getOrNull()
+    }
     }
     fun configuration(identity: String): DeviceArchiveOptions {
         configurations.value[identity]?.let { return it }
@@ -71,6 +90,7 @@ internal class DeviceArchiveRepository(
         if (saved.retention.enabled) DeviceRetentionScheduler.runNow(context)
     } }
     private fun saveLocked(value: DeviceArchiveRecord) {
+        if (erased(value)) return
         write(manifest(value.id),json.encodeToString(value))
         rows.update { list -> list.filterNot { it.id == value.id } + value }
     }
@@ -82,15 +102,16 @@ internal class DeviceArchiveRepository(
         message(identity,if(cancelled) "操作已取消，请查看各项结果" else "操作未完成，请查看错误和各项结果")
     }
     suspend fun needsArchive(identity: String, source: DeviceFile): Boolean = withContext(Dispatchers.IO) {
-        configuration(identity).archiveEnabled && rows.value.none { record ->
+        allowsSource(source) && configuration(identity).archiveEnabled && rows.value.none { record ->
             record.deviceIdentity == identity && record.fileId == source.id && record.sourceBytes == source.bytes &&
                 record.startedAtMillis == source.startedAt && record.durationMillis == source.durationMillis &&
                 record.installation == installation && audio(record).isFile && DeviceSourceCache.sha256(audio(record)) == record.archiveSha256
         }
     }
-    suspend fun archive(driver: String, identity: String, handle: String, source: DeviceFile, raw: File, sourceHash: String) = withContext(Dispatchers.IO) {
-        if (!configuration(identity).archiveEnabled) return@withContext
+    suspend fun archive(driver: String, identity: String, handle: String, source: DeviceFile, raw: File, sourceHash: String) = withContext(Dispatchers.IO) { contentGate.withLock {
+        if (!configuration(identity).archiveEnabled || !allowsSource(source)) return@withContext
         val id = hash("$driver|$identity|${source.id}|${source.bytes}|${source.startedAt}|${source.durationMillis}|${source.format}|$sourceHash")
+        if (erasures.value.any { it.excludes(id,source.startedAt,source.durationMillis ?: 0) }) return@withContext
         rows.value.firstOrNull { it.id == id }?.let { old ->
             if (old.installation == installation && audio(old).isFile && DeviceSourceCache.sha256(audio(old)) == old.archiveSha256) return@withContext
         }
@@ -120,7 +141,7 @@ internal class DeviceArchiveRepository(
             }
             message(identity,"完整原声已归档；导入与独立备份分别确认")
         } finally { temp.delete() }
-    }
+    } }
     suspend fun refreshImports(identity: String, fileId: String? = null) = withContext(Dispatchers.IO) {
         // Do not treat a fingerprint shortcut or a seeded coverage row as a completed decode/import receipt.
         for (record in rows.value.filter { it.deviceIdentity == identity && !it.imported && (fileId == null || it.fileId == fileId) }) {
@@ -149,15 +170,15 @@ internal class DeviceArchiveRepository(
             it.copy(protected = value)
         }
     }
-    suspend fun backUp(id: String) = withContext(Dispatchers.IO) {
+    suspend fun backUp(id: String) = withContext(Dispatchers.IO) { contentGate.withLock {
         val record = rows.value.first { it.id == id }; check(record.installation == installation)
         val local = audio(record); check(local.isFile && local.length() == record.archiveBytes && DeviceSourceCache.sha256(local) == record.archiveSha256)
         message(record.deviceIdentity,"正在独立备份并读回校验")
         val receipt = requireNotNull(backup()) { "请先配置独立备份（USB 电脑或云端）" }.backupDeviceArchive(record,local,clock::nowEpochMillis)
         update(id) { it.copy(backup = receipt,error = null) }; message(record.deviceIdentity,"完整原声已独立备份并读回校验")
         if (configuration(record.deviceIdentity).retention.enabled) DeviceRetentionScheduler.runNow(context)
-    }
-    suspend fun restore(id: String, fromIndependentBackup: Boolean = false) = withContext(Dispatchers.IO) {
+    } }
+    suspend fun restore(id: String, fromIndependentBackup: Boolean = false) = withContext(Dispatchers.IO) { contentGate.withLock {
         val record = rows.value.first { it.id == id }; val local = audio(record)
         if (fromIndependentBackup || !local.isFile || DeviceSourceCache.sha256(local) != record.archiveSha256)
             requireNotNull(backup()) { "本机原声缺失，请配置原独立备份目的地" }.restoreDeviceArchive(record,local)
@@ -165,7 +186,7 @@ internal class DeviceArchiveRepository(
         importArchive(record,local)
         update(id) { it.copy(imported = true) }
         message(record.deviceIdentity,if(fromIndependentBackup) "已从独立备份完整读回并导入涛声；设备原件状态不变" else "本机完整归档已导入涛声；设备原件状态不变")
-    }
+    } }
     /** Non-destructive same-source check using the user's current BLE / fast-transfer preference. */
     suspend fun verifyDeviceSource(id: String, connection: DriverConnection) = withContext(Dispatchers.IO) {
         val record = rows.value.first { it.id == id }
@@ -189,14 +210,60 @@ internal class DeviceArchiveRepository(
         message(record.deviceIdentity,"设备原件整段 SHA-256 与归档凭证一致；未重复导入、未删除")
     }
     fun backupDestination() = backup()?.deviceArchiveDestination()
-    suspend fun discoverBackup(identity: String) = withContext(Dispatchers.IO) {
+    suspend fun discoverBackup(identity: String) = withContext(Dispatchers.IO) { contentGate.withLock {
         val recovered = requireNotNull(backup()) { "请先配置原独立备份目的地" }.discoverDeviceArchives(identity)
         gate.withLock {
             for (record in recovered) if (rows.value.none { it.id == record.id }) saveLocked(record)
         }
         message(identity,"已读取独立备份清单；从归档导入时会重新下载并校验完整原声，不继承自动清理资格")
-    }
-    suspend fun cleanup(connection: DriverConnection, automatic: Boolean = true, selectedIds: Set<String>? = null) = withContext(Dispatchers.IO) {
+    } }
+
+    /** Called inside the privacy action; its DB transaction durably queues every local file. */
+    suspend fun withPrivacyDeletion(from: Long, until: Long, block: suspend (List<String>) -> ForgetResult): ForgetResult =
+        withContext(Dispatchers.IO) { contentGate.withLock { gate.withLock {
+            check(privacyReadable) { "隐私删除记录无法读取，请先导出问题记录" }
+            val inventory = load()
+            val selected = inventory.filter { deviceArchiveOverlaps(it.startedAtMillis,it.durationMillis,from,until) }
+            val hashes = selected.map { it.archiveSha256 }.toSet()
+            val removed = inventory.filter { it in selected || it.archiveSha256 in hashes }
+            val keep = inventory.filterNot { it in removed }.map { it.archiveSha256 }.toSet()
+            val listed = requireNotNull(root.listFiles()) { "无法读取完整原声目录" }
+            val paths = mutableSetOf<String>()
+            fun variants(file: File) { paths += file.path;paths += file.path+".bak";paths += file.path+".new" }
+            for (record in removed) { variants(manifest(record.id).baseFile);variants(audio(record)) }
+            // Unreadable manifests and orphan/partial originals have no reliable date: erase conservatively.
+            val good = inventory.map { it.id }.toSet()
+            for (file in listed) {
+                val base = file.name.removeSuffix(".bak").removeSuffix(".new")
+                if (base.matches(Regex("[a-f0-9]{64}[.]json")) && base.removeSuffix(".json") !in good ||
+                    base.matches(Regex("[a-f0-9]{64}[.]audio")) && base.removeSuffix(".audio") !in keep ||
+                    base.matches(Regex("[.][a-f0-9]{64}[.]part"))) variants(File(root,base))
+            }
+            val downloads = File(context.filesDir,"device-sync/downloads")
+            for (record in removed) if (record.localDeviceHandle.isNotBlank()) {
+                for (format in FileFormat.entries) {
+                    val source = DeviceFile(record.fileId,"",record.sourceBytes,record.startedAtMillis,record.durationMillis,format)
+                    val cache = File(downloads,deviceSourceKey(record.localDeviceHandle,source))
+                    variants(cache);variants(File(cache.path+".sha256"))
+                }
+                for (transfer in db.deviceSync().rows(record.localDeviceHandle).filter {
+                    it.fileId == record.fileId && it.size == record.sourceBytes && it.startedAt == record.startedAtMillis &&
+                        it.duration == record.durationMillis && it.key.matches(Regex("[A-Za-z0-9-]{1,200}"))
+                }) {
+                    variants(File(downloads,transfer.key))
+                    variants(File(context.cacheDir,"device-import-${transfer.key}.ogg"))
+                }
+            }
+            // The upper bound is clamped to now: later new recordings remain eligible for archiving.
+            val fence = DeviceArchiveErasure(from,minOf(until,clock.nowEpochMillis()),removed.map { it.id }.toSet())
+            val updated = erasures.value + fence
+            write(erasedFile,json.encodeToString(updated));erasures.value = updated
+            rows.value = inventory.filterNot { erased(it) || it in removed }
+            try { block(paths.toList()) }
+            finally { rows.value = load().filterNot(::erased) }
+        } } }
+
+    suspend fun cleanup(connection: DriverConnection, automatic: Boolean = true, selectedIds: Set<String>? = null) = withContext(Dispatchers.IO) { contentGate.withLock {
         cleanupGate.withLock {
             val identity = connection.identity.id.value
             if (connection.identity.scope != IdScope.Global) { message(identity,"设备没有全局稳定身份，未执行自动清理");return@withLock }
@@ -252,5 +319,5 @@ internal class DeviceArchiveRepository(
             }
             message(identity,"清理检查完成：本次已删除 $removed 条设备原件；未满足条件的已跳过，完整归档和独立备份保留")
         }
-    }
+    } }
 }

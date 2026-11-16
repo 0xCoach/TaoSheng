@@ -15,6 +15,13 @@ object FailureNotes {
 
     fun record(site: String, error: Throwable) {
         val line = "$site ${error::class.simpleName ?: "Throwable"}"
+        append(line)
+    }
+
+    /** 固定代码位置的维护阶段；不传设备标识、路径、用户文本或运行参数。 */
+    fun note(site: String) { append(site) }
+
+    private fun append(line: String) {
         notes.update { (it + line).takeLast(200) }
         val write = writer.value ?: return
         val now = clock.value?.invoke()

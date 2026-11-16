@@ -4,6 +4,7 @@ import app.resound.devices.DeviceArchiveRecord
 import app.resound.devices.DeviceArchiveBackupReceipt
 import app.resound.devices.DeviceArchiveRemoteManifest
 import app.resound.devices.DeviceSourceCache
+import app.resound.diagnostics.FailureNotes
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import java.io.File
@@ -23,7 +24,7 @@ internal object DeviceArchiveBackup {
             store.files("device-archives").filter { it.path.matches(Regex("device-archives/[a-f0-9]{64}[.]json")) }.mapNotNull { file ->
                 val target = File(work,"manifest.json")
                 check(file.bytes in 1..1_048_576) { "归档清单大小异常" }
-                if (!store.read(file.path,target)) return@mapNotNull null
+                check(store.read(file.path,target)) { "独立归档清单不可读取" }
                 check(target.length() <= 1_048_576)
                 val manifest = json.decodeFromString<DeviceArchiveRemoteManifest>(target.readText())
                 val record = manifest.record
@@ -33,7 +34,9 @@ internal object DeviceArchiveBackup {
                 record.copy(imported = false,backup = DeviceArchiveBackupReceipt(destination,objectPath(manifest.storedSha256),
                     file.path,record.archiveSha256,record.archiveBytes,0))
             }
-        } finally { work.deleteRecursively() }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { FailureNotes.record("backup/DeviceArchiveBackup:discoverManifest",e);throw e }
+        finally { work.deleteRecursively() }
     }
     fun upload(store: VolumeStore, record: DeviceArchiveRecord, source: File, passphrase: String?, destination: String,
                now: () -> Long, root: File): DeviceArchiveBackupReceipt {
@@ -53,8 +56,11 @@ internal object DeviceArchiveBackup {
         } finally { work.deleteRecursively() }
     }
     private fun verifyInto(store: VolumeStore, record: DeviceArchiveRecord, passphrase: String?, work: File): File {
-        val metadata = File(work,"readback.json");check(store.read(manifestPath(record),metadata)) { "独立归档清单不可读取" }
-        val manifest = json.decodeFromString<DeviceArchiveRemoteManifest>(metadata.readText())
+        val manifest = try {
+            val metadata = File(work,"readback.json");check(store.read(manifestPath(record),metadata)) { "独立归档清单不可读取" }
+            json.decodeFromString<DeviceArchiveRemoteManifest>(metadata.readText())
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { FailureNotes.record("backup/DeviceArchiveBackup:readbackManifest",e);throw e }
         check(manifest.format == 1 && manifest.record.id == record.id && manifest.record.deviceIdentity == record.deviceIdentity &&
             manifest.record.archiveSha256 == record.archiveSha256 && manifest.record.archiveBytes == record.archiveBytes &&
             manifest.record.sourceSha256 == record.sourceSha256) { "独立归档清单不匹配" }

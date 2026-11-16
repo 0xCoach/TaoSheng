@@ -170,7 +170,14 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             ${if (s.layout == FolderLayout.ByCategory) "先读 recent-days-index.md → 某天细节读 daily/ → 核对原话读 transcripts/；重点和待办直接读汇总文件。" else "先按日期读 daily/，其中包含当天汇总；核对原话读 transcripts/；每周总结读 weekly/。"}
             my-notes/ 归用户；其余自动生成的文件请勿手动修改，改了会被覆盖。inbox/ 预留，不读取。
             缺少某类文件表示未订阅或没有内容。条目 I 编号、事件 E 编号用于引用来源。
-        """.trimIndent())
+
+            ## 智能体读取须知
+            - 本文件夹由用户手机上的「涛声」App 自动写入：全天录音 → 转写 → 整理成事件、待办和回顾。用户问“我之前……”“我答应过谁……”“某天做了什么”时来这里查。
+            - 按日期找：每日记录在 daily/年-月/年-月-日-星期_daily-record.md（如 daily/2026-11/2026-11-16-Mon_daily-record.md），当天原话在 transcripts/ 下同名的 _transcript.md，每周回顾在 weekly/。路径都能按日期直接拼出，一般不用列目录。
+            - 时间都是北京时间。内容由录音自动整理，可能有错字或认错人；拿不准时以原话为准，并告诉用户“记录里是这么写的”，不要补写记录里没有的内容。
+            - 通过 WebDAV 只读访问：只用 GET（和列目录用的 PROPFIND），不要 PUT、DELETE、MOVE、MKCOL。内容只用来回答用户本人，不要转发或上传到别处。
+            - 本说明随涛声更新，以这里写的为准。
+        """.lines().joinToString("\n") { it.trimStart() }.trim())
         return files
     }
     private fun progress(e: MemoryEventEntity, data: PushSnapshot): String {

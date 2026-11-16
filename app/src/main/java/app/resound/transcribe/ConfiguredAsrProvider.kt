@@ -21,8 +21,10 @@ class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private
         val urls = runCatching { transcriptionEndpoints(endpoint, settings.customEndpointMode) }.onFailure {
             FailureNotes.record("transcribe/ConfiguredAsrProvider.kt:19", it)
         }.getOrElse { throw AsrException(AsrError.Protocol) }
-        val http = defaultAndroidHttp.newBuilder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(8,TimeUnit.MINUTES)
-            .callTimeout(8,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
+        // 议题 #46：慢速链路（如约 7 KB/s 的中继）上传一段录音要几十秒，中途偶尔卡住；
+        // 上传不能沿用默认的 10 秒写入限制，总时限也要容得下“上传 + 服务端转写”。固定值，避免每次新建一套网络客户端。
+        val http = defaultAndroidHttp.newBuilder().connectTimeout(30,TimeUnit.SECONDS).writeTimeout(2,TimeUnit.MINUTES)
+            .readTimeout(8,TimeUnit.MINUTES).callTimeout(15,TimeUnit.MINUTES).followRedirects(false).followSslRedirects(false).build()
         val network = androidNetwork(http)
         try {
             val upload = AudioUpload(audio.file.name, audio.format, audio.file.length()) { consume ->

@@ -8,7 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.work.*
 import app.resound.AppGraph
 import app.resound.devices.android.DeviceInputs
-import app.resound.update.UpdateDiagnostics
+import app.resound.diagnostics.FailureNotes
 import kotlinx.coroutines.CancellationException
 import java.security.MessageDigest
 
@@ -21,7 +21,7 @@ class DeviceSyncWork(context: Context, params: WorkerParameters) : CoroutineWork
         val selected = inputData.getStringArray("files")?.toSet()
         if (selected?.isEmpty() == true) return Result.failure()
         return try {
-            UpdateDiagnostics.record(applicationContext,"device_transfer start selected=${selected?.size ?: -1} attempt=$runAttemptCount")
+            FailureNotes.note("devices/DeviceSyncWork:Started")
             val manager = applicationContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel("device-transfer","设备录音补传",NotificationManager.IMPORTANCE_LOW))
             val notification = NotificationCompat.Builder(applicationContext,"device-transfer")
@@ -30,11 +30,12 @@ class DeviceSyncWork(context: Context, params: WorkerParameters) : CoroutineWork
                 .addAction(android.R.drawable.ic_media_pause,"暂停",WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)).build()
             setForeground(ForegroundInfo(17044,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
             val completed = devices.runManualSync(address,selected)
-            UpdateDiagnostics.record(applicationContext,"device_transfer completed=$completed")
+            if (completed) FailureNotes.note("devices/DeviceSyncWork:Completed")
+            else FailureNotes.note("devices/DeviceSyncWork:Incomplete")
             if (completed) Result.success() else Result.failure()
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            UpdateDiagnostics.record(applicationContext,"device_transfer failed=${e.javaClass.simpleName}")
+            FailureNotes.record("devices/DeviceSyncWork:Failed",e)
             Result.failure()
         }
     }

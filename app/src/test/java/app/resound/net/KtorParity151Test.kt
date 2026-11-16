@@ -115,7 +115,7 @@ class KtorParity151Test {
             s.enqueue(MockResponse().setBody("{}").setBodyDelay(1,TimeUnit.SECONDS))
             val h=OkHttpClient.Builder().callTimeout(200,TimeUnit.MILLISECONDS).build()
             error(runCatching { LlmClient(h).chatJson(preset(s),"","s","u") },LlmError.Network,
-                detail="等待超时：本地模型首次加载可能较慢，稍后再试")
+                detail=app.resound.net.WAIT_TIMEOUT_TEXT)
         }
     }
     private val stream = "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"思考\",\"content\":\"你\"}}]}\r\n\r\n" +

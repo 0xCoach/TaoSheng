@@ -142,7 +142,8 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
                         onDetail = { detail(row.address,it) },
                         onVerifiedSource = { file,source,hash -> archives.archive(row.cardId,connection.identity.id.value,row.address,file,source,hash) },
                         onImportedSource = { file -> archives.refreshImports(connection.identity.id.value,file.id) },
-                        needsArchive = { file -> archives.needsArchive(connection.identity.id.value,file) })
+                        needsArchive = { file -> archives.needsArchive(connection.identity.id.value,file) },
+                        mayImportSource = archives::allowsSource)
                     coroutineScope {
                         val observer = launch { sync.progress.collect(progress) }
                         try {

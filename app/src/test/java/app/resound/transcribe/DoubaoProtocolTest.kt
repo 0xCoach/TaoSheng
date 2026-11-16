@@ -53,17 +53,12 @@ class DoubaoProtocolTest {
             assertThrows(AsrException::class.java) { DoubaoProtocol.parse(bad) }
         }
     }
-    @Test fun retryAndRetentionBoundaries() {
+    @Test fun retryBoundaries() {
         assertEquals(60_000L, TranscribePolicy.retryAt(AsrError.Network, 1, 0))
         assertEquals(480_000L, TranscribePolicy.retryAt(AsrError.Timeout, 4, 0))
         assertNull(TranscribePolicy.retryAt(AsrError.Network, 5, 0))
         assertNull(TranscribePolicy.retryAt(AsrError.Auth, 1, 0))
-        val day = TranscribePolicy.RETENTION_MILLIS
-        for (status in listOf("Pending", "Running", "Failed")) assertFalse(TranscribePolicy.canDelete(status, 0, day * 2))
-        assertFalse(TranscribePolicy.canDelete("Done", null, day * 2))
-        assertFalse(TranscribePolicy.canDelete("Done", 100, day + 99))
-        assertTrue(TranscribePolicy.canDelete("Done", 100, day + 100))
-        assertTrue(TranscribePolicy.canDelete("Empty", 100, day + 100))
+
     }
     @Test fun logIdNeverContainsKeyOrKeyParts() {
         assertNull(TranscribePolicy.safeLogId("prefix-secret-suffix", "secret-value"))

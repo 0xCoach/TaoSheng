@@ -2,6 +2,7 @@ package app.resound.devices
 
 import android.app.Application
 import app.resound.backup.*
+import app.resound.diagnostics.FailureNotes
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.runner.RunWith
@@ -51,6 +52,13 @@ class DeviceArchiveBackupTest {
     @Test fun successfulPutWithoutReadbackCannotProduceReceipt() {
         val unavailable = object : VolumeStore by store { override fun read(path: String,target: File) = false }
         assertThrows(IllegalStateException::class.java) { DeviceArchiveBackup.upload(unavailable,row,source,null,"remote",{100},root) }
+        assertTrue(source.isFile)
+    }
+    @Test fun unreadableRemoteManifestFailsDiscoveryAndLeavesProblemNote() {
+        DeviceArchiveBackup.upload(store,row,source,null,"remote",{100},root)
+        val unavailable = object : VolumeStore by store { override fun read(path: String,target: File) = false }
+        assertThrows(IllegalStateException::class.java) { DeviceArchiveBackup.discover(unavailable,"stable","remote",root) }
+        assertTrue(FailureNotes.dump().contains("backup/DeviceArchiveBackup:discoverManifest IllegalStateException"))
         assertTrue(source.isFile)
     }
 }

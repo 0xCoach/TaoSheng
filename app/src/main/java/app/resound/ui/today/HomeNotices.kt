@@ -194,6 +194,53 @@ fun WakeWordNotice(listening: Boolean, topGap: Dp = 0.dp) {
     }
 }
 
+/**
+ * 更新后第一次打开：首页一张小卡“已更新到 X · 这次更新了什么”，点开看这一版说明；看过或关掉不再出现。
+ * 全新安装不提示（安装时间等于更新时间，且从没记过）。
+ */
+@Composable
+fun WhatsNewNotice(topGap: Dp = 0.dp) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("home-notices", Context.MODE_PRIVATE) }
+    val current = remember { app.resound.ui.settings.Changelog.currentVersion(context) }
+    val entries = remember { app.resound.ui.settings.Changelog.entries(context) }
+    var seen by remember {
+        val stored = prefs.getString("whatsNewSeen", null)
+        val fresh = stored == null && runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).let { it.firstInstallTime == it.lastUpdateTime }
+        }.getOrDefault(false)
+        // 全新安装：直接记成已看过，免得下次误判
+        if (fresh) prefs.edit().putString("whatsNewSeen", current).apply()
+        mutableStateOf(!app.resound.update.ChangelogRules.shouldShowWhatsNew(stored, current, fresh, entries))
+    }
+    var open by remember { mutableStateOf(false) }
+    val entry = app.resound.update.ChangelogRules.entry(entries, current)
+    if (seen || entry == null) return
+    fun done() { seen = true; prefs.edit().putString("whatsNewSeen", current).apply() }
+    if (open) app.resound.ui.settings.ChangelogSheet(entry) { open = false; done() }
+    val c = Rs.colors
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("✨", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("已更新到 ${app.resound.ui.settings.displayVersion(current)}", style = RsType.body, color = c.text)
+                if (entry.title.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(entry.title, style = RsType.caption, color = c.textSecondary)
+                }
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    Pill("看看更新了什么", filled = true) { open = true }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("知道了", filled = false) { done() }
+                }
+            }
+        }
+    }
+}
+
 /** 按系统类型给“保活”提示换说法；界面只说要做什么 */
 internal fun keepAliveHint(context: Context): String =
     when ((context.applicationContext as? app.resound.ResoundApp)?.pipelineDiagnostics?.system) {

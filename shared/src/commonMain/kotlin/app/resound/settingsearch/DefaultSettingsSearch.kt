@@ -122,6 +122,7 @@ internal object SettingsIndex {
         page("Update", "版本更新", "升级 新版本 下载更新") {
             item("检查更新", "check-update", "最新版 检查版本 手动更新")
             item("自动检查更新", "auto-update", "自动升级 更新开关 后台检查")
+            item("更新日志", "changelog", "更新记录 版本历史 更新了什么 新功能")
             item("跳过这个版本", "skip-version", "暂不更新 忽略版本 不升级")
         }
         page("About", "关于涛声", "关于 版本信息 帮助") {

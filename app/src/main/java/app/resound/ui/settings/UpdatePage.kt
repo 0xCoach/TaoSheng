@@ -109,6 +109,9 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
                 app.resound.ui.skills.Toggle(auto) { updater.setAutoCheck(it) }
             }
         }
+
+        // 更新日志：装好以后也能回看每一版改了什么（读安装包里的 CHANGELOG.md，不用联网）
+        ChangelogCard(updater.currentVersion)
     }
 }
 

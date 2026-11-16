@@ -125,8 +125,14 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("隐私") {
-            Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；录音转写后 24 小时自动删除。",
+            Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；原录音默认保留 3 天后自动删除，可在“原话与转写”里改。",
                 style = RsType.body, color = c.text)
+        }
+
+        AboutCard("更新日志") {
+            Text("每个版本改了什么，都能在“版本更新”里回看。", style = RsType.body, color = c.textSecondary)
+            Spacer(Modifier.height(12.dp))
+            Pill("查看更新日志", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Update) }
         }
 
         AboutCard("问题反馈") {

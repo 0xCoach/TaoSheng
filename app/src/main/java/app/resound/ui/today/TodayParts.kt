@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,12 +15,7 @@ import app.resound.digest.MemoryRepository
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsCard
-import java.time.LocalDate
 
-internal fun LazyListScope.todayScreenTimeAndImport(date: LocalDate, importing: Boolean) {
-    item(key = "screenTime") { ScreenTimeCard(date) }
-    if (importing) item(key = "import") { app.resound.ui.importer.ImportBanner() }
-}
 
 @Composable
 internal fun EmptyTimeline(memory: MemoryRepository) {

@@ -3,7 +3,7 @@ package app.resound.screentime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** 屏幕时间采集开关，默认关闭；关闭时不调用事件源、不拉取。不管播放记录。
+/** 屏幕时间采集开关，默认打开（还要用户授予“使用情况访问”才真正采集）；关闭时不调用事件源、不拉取。不管播放记录。
  *  一次开关切换涉及的键由 [persist] 同一次提交写入，成功后才发布状态。 */
 class ScreenTimeSettings(
     readBoolean: (String, Boolean) -> Boolean,
@@ -12,7 +12,16 @@ class ScreenTimeSettings(
     private val now: () -> Long,
     private val readString: (String, String) -> String = { _, def -> def },
 ) {
-    private val _enabled = MutableStateFlow(readBoolean(KEY, false))
+    private val _enabled = MutableStateFlow(readBoolean(KEY, true))
+    private val _showOnHome = MutableStateFlow(readBoolean(HOME_KEY, true))
+    private val _eventInUse = MutableStateFlow(readBoolean(EVENT_IN_USE_KEY, true))
+    /** 首页录音卡显示屏幕用时、节奏图下显示手机使用条。 */
+    val showOnHome = _showOnHome.asStateFlow()
+    /** 时间线事件下面标“当时在用 某 App”。 */
+    val eventInUse = _eventInUse.asStateFlow()
+
+    fun setShowOnHome(on: Boolean) { check(persist(mapOf(HOME_KEY to on), emptyMap(), emptyMap())); _showOnHome.value = on }
+    fun setEventInUse(on: Boolean) { check(persist(mapOf(EVENT_IN_USE_KEY to on), emptyMap(), emptyMap())); _eventInUse.value = on }
     val enabled = _enabled.asStateFlow()
 
     fun setEnabled(on: Boolean) {
@@ -65,6 +74,8 @@ class ScreenTimeSettings(
 
     companion object {
         const val KEY = "screenTimeEnabled"
+        const val HOME_KEY = "screenTimeShowOnHome"
+        const val EVENT_IN_USE_KEY = "screenTimeEventInUse"
         const val LAST_PULL_KEY = "screenTimeLastPullAt"
         const val ENABLED_AT_KEY = "screenTimeEnabledAt"
         const val DISABLED_AT_KEY = "screenTimeDisabledAt"

@@ -119,6 +119,9 @@ internal fun OverviewCard(
     pastDate: LocalDate?,
     onPending: () -> Unit,
     onPaused: (Int) -> Unit,
+    /** 今天（或那一天）屏幕用时，分钟；没开屏幕时间或首页不显示时为 null */
+    screenMinutes: Int? = null,
+    onScreen: () -> Unit = {},
 ) {
     val c = Rs.colors
     val ink = cardInk()
@@ -141,24 +144,20 @@ internal fun OverviewCard(
 
     Column(Modifier.fillMaxWidth().then(background).padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 12.dp).animateContentSize()) {
         if (pastDate != null) {
-            PastDayCard(pastDate, speechMillis, eventCount, ink)
+            PastDayCard(pastDate, speechMillis, eventCount, ink, screenMinutes, onScreen)
             return@Column
         }
-        LiveCard(capture, memory, transcripts, hasKey, speechMillis, eventCount, pendingCount, ink, onPending, onPaused)
+        LiveCard(capture, memory, transcripts, hasKey, speechMillis, eventCount, pendingCount, ink, onPending, onPaused, screenMinutes, onScreen)
     }
 }
 
 @Composable
-private fun PastDayCard(date: LocalDate, speechMillis: Long?, eventCount: Int?, ink: CardInk) {
+private fun PastDayCard(date: LocalDate, speechMillis: Long?, eventCount: Int?, ink: CardInk, screenMinutes: Int?, onScreen: () -> Unit) {
     Row(Modifier.height(36.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(date.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)) + " · 回顾", style = RsType.headline, color = ink.text)
     }
     Spacer(Modifier.height(6.dp))
-    Row(Modifier.fillMaxWidth()) {
-        Stat(speechMillis?.let { HomeRules.speechParts(it) } ?: listOf(NumberPart("—", false)), "人声", ink)
-        Spacer(Modifier.width(36.dp))
-        Stat(eventCount?.let { listOf(NumberPart("$it", false), NumberPart("件", true)) } ?: listOf(NumberPart("—", false)), "事件", ink)
-    }
+    StatRow(speechMillis, screenMinutes, eventCount, ink, onScreen)
     Spacer(Modifier.height(4.dp))
 }
 
@@ -166,6 +165,7 @@ private fun PastDayCard(date: LocalDate, speechMillis: Long?, eventCount: Int?, 
 private fun ColumnScope.LiveCard(
     capture: CaptureController, memory: MemoryRepository, transcripts: TranscriptRepository, hasKey: Boolean,
     speechMillis: Long?, eventCount: Int?, pendingCount: Int, ink: CardInk, onPending: () -> Unit, onPaused: (Int) -> Unit,
+    screenMinutes: Int?, onScreen: () -> Unit,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -296,14 +296,9 @@ private fun ColumnScope.LiveCard(
         }
     }
 
-    // ---------- 三个统计：数字大、单位小，三项间距相等（首项靠左、末项靠右） ----------
+    // ---------- 统计：人声 · 屏幕 · 事件；待确认在下面单独一栏，卡片不加高 ----------
     Spacer(Modifier.height(10.dp))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Stat(speechMillis?.let { HomeRules.speechParts(it) } ?: listOf(NumberPart("—", false)), "人声", ink)
-        Stat(eventCount?.let { listOf(NumberPart("$it", false), NumberPart("件", true)) } ?: listOf(NumberPart("—", false)), "事件", ink)
-        Stat(listOf(NumberPart("$pendingCount", false), NumberPart("条", true)), "待确认", ink,
-            dim = pendingCount == 0, onClick = if (pendingCount > 0) onPending else null)
-    }
+    StatRow(speechMillis, screenMinutes, eventCount, ink, onScreen)
 
     // ---------- 整理行：状态文字 + 现在整理 + 模型 ----------
     Spacer(Modifier.height(10.dp))
@@ -327,6 +322,7 @@ private fun ColumnScope.LiveCard(
     } else null
     val model = HomeRules.modelButton(provider?.name, hasKey, quotaOrAuth)
     Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
         Text(
             when {
                 stage != null -> stageLine(pipeline, queue.runDone, queue.runTotal)
@@ -335,8 +331,9 @@ private fun ColumnScope.LiveCard(
                 toTranscribe > 0 -> "$toTranscribe 段录音待转写" + (queue.lastError?.let { " · $it" } ?: "")
                 else -> digestLine(digest.running, digest.pendingLines, digest.lastRunAt, digest.lastError, hasKey, now, nextDigest)
             },
-            style = RsType.caption, color = ink.soft, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
+            style = RsType.caption, color = ink.soft, maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
+        }
         if (hasKey) {
             Spacer(Modifier.width(8.dp))
             Row(
@@ -410,6 +407,28 @@ private fun ColumnScope.LiveCard(
 }
 
 /** 一个统计：数字 26 号中粗、等宽数字，单位小一号淡一级；数字变化时向上滚动 */
+/** 人声 · 屏幕 · 事件。三项时首项靠左、末项靠右、中间居中；没开屏幕时间时两项。 */
+@Composable
+private fun StatRow(speechMillis: Long?, screenMinutes: Int?, eventCount: Int?, ink: CardInk, onScreen: () -> Unit) {
+    val speech = speechMillis?.let { HomeRules.speechParts(it) } ?: listOf(NumberPart("—", false))
+    val events = eventCount?.let { listOf(NumberPart("$it", false), NumberPart("件", true)) } ?: listOf(NumberPart("—", false))
+    if (screenMinutes == null) {
+        Row(Modifier.fillMaxWidth()) {
+            Stat(speech, "人声", ink)
+            Spacer(Modifier.width(36.dp))
+            Stat(events, "事件", ink)
+        }
+        return
+    }
+    val screen = if (screenMinutes < 60) listOf(NumberPart("$screenMinutes", false), NumberPart("分", true))
+        else listOf(NumberPart("${screenMinutes / 60}", false), NumberPart("小时", true), NumberPart("${screenMinutes % 60}", false), NumberPart("分", true))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Stat(speech, "人声", ink)
+        Stat(screen, "屏幕", ink, onClick = onScreen)
+        Stat(events, "事件", ink)
+    }
+}
+
 @Composable
 private fun Stat(parts: List<NumberPart>, label: String, ink: CardInk, dim: Boolean = false, onClick: (() -> Unit)? = null) {
     val alpha = if (dim) 0.5f else 1f

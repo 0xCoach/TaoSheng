@@ -135,7 +135,9 @@ private fun quietHours(rules: List<QuietRule>, date: LocalDate): Map<Int, String
 internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, date: LocalDate, pendingSegments: Int,
                         onFilter: (TimelineFilter) -> Unit, onHour: (Int) -> Unit, onOpen: (MemoryEvent) -> Unit, onPeople: () -> Unit = {},
                         meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {},
-                        onEnv: (app.resound.envsound.EnvSpan) -> Unit = {}) {
+                        onEnv: (app.resound.envsound.EnvSpan) -> Unit = {},
+                        /** 屏幕时间：0..23 点每小时用手机的分钟数；没开屏幕时间或首页不显示时为 null */
+                        screenByHour: List<Int>? = null) {
     val c = Rs.colors
     val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date.toKotlinLocalDate()) else kotlinx.coroutines.flow.flowOf(null) }
@@ -176,7 +178,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             Stat("会议", meetings.size, "场", null, Modifier.weight(1f)) { if (meetings.isNotEmpty()) onMeetings(meetings) }
         }
         Spacer(Modifier.height(12.dp))
-        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour, onEnv) }
+        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour, onEnv, screenByHour) }
     }
 }
 
@@ -206,7 +208,8 @@ private fun Stat(label: String, count: Int, unit: String, delta: String?, modifi
  * 开了环境音识别时，柱子下面一排小图标标出当时的环境（连着几小时相同只画一个），柱顶小圆点是敲门、狗叫这类特别声音。
  */
 @Composable
-private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHour: (Int) -> Unit, onEnv: (app.resound.envsound.EnvSpan) -> Unit) {
+private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHour: (Int) -> Unit, onEnv: (app.resound.envsound.EnvSpan) -> Unit,
+                     screen: List<Int>? = null) {
     val c = Rs.colors
     val quiet = remember(rules, date) { quietHours(rules, date) }
     val totals = (0..23).map { r.speechByHour[it] + r.mediaByHour[it] }
@@ -268,7 +271,8 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
                 Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: "") +
-                    envHint(h, spans, env).joinToString("") { " · $it" },
+                    envHint(h, spans, env).joinToString("") { " · $it" } +
+                    (screen?.getOrNull(h)?.takeIf { it > 0 }?.let { " · 手机 $it 分钟" } ?: ""),
                     style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent, maxLines = 1)
             }
         }
@@ -290,6 +294,17 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
         }
         }
         if (spans.isNotEmpty()) EnvIcons(spans, lit, { lit = it }, onEnv)
+        // 屏幕时间：柱子下面一条细色带，每小时一格，手机用得越多颜色越深；和上面的说话柱共用时间轴，按住柱子时一起报分钟数
+        if (screen != null) {
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth().height(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                (0..23).forEach { h ->
+                    val m = screen.getOrElse(h) { 0 }
+                    Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(2.dp))
+                        .background(if (m == 0) c.separator.fade(0.5f) else phoneTint(c).copy(alpha = if (h == hover) 1f else 0.2f + 0.8f * (m / 30f).coerceIn(0f, 1f))))
+                }
+            }
+        }
         // 刻度：3·9·15·21 淡竖线，0·6·12·18·24 写数字
         Box(Modifier.fillMaxWidth().height(4.dp)) {
             listOf(3, 9, 15, 21).forEach { h ->
@@ -385,3 +400,7 @@ private fun MiniBars(r: DayRhythm, modifier: Modifier) {
         }
     }
 }
+
+/** 屏幕时间的颜色：沉稳的灰蓝，和说话的橙色分开，夜间略亮 */
+internal fun phoneTint(c: app.resound.ui.theme.RsColors) =
+    if (c.isDark) androidx.compose.ui.graphics.Color(0xFF8FA8DA) else androidx.compose.ui.graphics.Color(0xFF6B8AC9)

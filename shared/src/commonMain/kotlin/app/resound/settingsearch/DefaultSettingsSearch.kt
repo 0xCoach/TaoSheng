@@ -70,6 +70,8 @@ internal object SettingsIndex {
         page("ScreenTime", "屏幕时间", "手机使用 App 用时 玩手机 使用时长") {
             item("记录屏幕时间", "screen-time-enabled", "使用情况访问 采集开关 授权")
             item("整理时带上 App 与播放信息", "include-app-playback", "节目名 播放标题 隐私 大模型")
+            item("首页显示屏幕用时", "screen-time-home", "首页 节奏图 手机使用条")
+            item("事件上显示当时在用", "screen-time-event", "当时在用 事件 App")
         }
         page("Devices", "外接设备", "录音卡 硬件 外设 蓝牙设备") {
             item("扫描设备", "device-scan", "找设备 连接 配对 蓝牙扫描")

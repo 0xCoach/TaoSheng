@@ -451,7 +451,7 @@ class ScreenTimeSettingsTest {
 
     @Test fun statePublishesOnlyAfterSaveCommits() {
         val settings = ScreenTimeSettings(
-            readBoolean = { _, def -> def }, persist = { _, _, _ -> false },
+            readBoolean = { _, _ -> false }, persist = { _, _, _ -> false },
             readLong = { _, def -> def },
             now = { error("提交失败不得写 enabledAt") })
         try { settings.setEnabled(true) } catch (_: IllegalStateException) {}

@@ -324,3 +324,47 @@ internal fun keepAliveHint(context: Context): String =
             "华为、荣耀手机要把涛声的“应用启动管理”改成手动、三项全开，才能全天收音、按时整理。"
         else -> "小米等手机还要打开“自启动”、把电池设为“无限制”，才能全天收音不断。"
     }
+
+/**
+ * 屏幕时间默认开着，但要用户在系统里亲手给两项权限才真正记录。缺哪项就在首页提醒一次，
+ * 每项后面“去开启”直达系统设置；回到涛声自动重查，都开好卡片就消失。
+ * 点“暂不需要”就把缺权限的那几项功能关掉，卡片不再出现，不让功能一直悬着。
+ */
+@Composable
+fun ScreenTimePermissionNotice(topGap: Dp = 0.dp) {
+    if (!AppGraph.isScreenTimeReady || !AppGraph.isPlaybackTitleReady) return
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("home-notices", Context.MODE_PRIVATE) }
+    var dismissed by remember { mutableStateOf(prefs.getBoolean("screenPermissionDismissed", false)) }
+    val screenOn by AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle()
+    val titleOn by AppGraph.playbackTitleSettings.enabled.collectAsStateWithLifecycle()
+    val (usage, notice) = app.resound.ui.screentime.rememberScreenPermissions()
+    val needUsage = screenOn && !usage
+    val needNotice = titleOn && !notice
+    if (dismissed || (!needUsage && !needNotice)) return
+    val c = Rs.colors
+    val missing = listOf(needUsage, needNotice).count { it }
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Text("开启屏幕时间 · 还差 $missing 项权限", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+        Spacer(Modifier.height(4.dp))
+        Text("看每天用了哪些 App、播放了什么，和说话、事件放在一起。这两项要在系统设置里亲手打开。", style = RsType.caption, color = c.textSecondary)
+        Spacer(Modifier.height(4.dp))
+        if (screenOn) app.resound.ui.screentime.PermissionRow("使用情况访问", usage) { app.resound.ui.screentime.ScreenPermissions.openUsageAccess(context) }
+        if (titleOn) app.resound.ui.screentime.PermissionRow("通知使用权", notice) { app.resound.ui.screentime.ScreenPermissions.openNotificationAccess(context) }
+        Text("开启后，整理时会参考你在用的 App 和播放的节目（会发给你设置的大模型），可在“设置 → 屏幕时间”里关闭。数据只存在手机里。",
+            style = RsType.caption, color = c.textTertiary)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Pill("更多设置", filled = false) { ShellNav.openSettings(SettingsPage.ScreenTime) }
+            Pill("暂不需要", filled = false) {
+                try {
+                    if (needUsage) AppGraph.screenTimeSettings.setEnabled(false)
+                    if (needNotice) AppGraph.playbackTitleSettings.setEnabled(false)
+                } catch (e: IllegalStateException) { app.resound.diagnostics.FailureNotes.record("ui/screen-permission-skip", e) }
+                dismissed = true
+                prefs.edit().putBoolean("screenPermissionDismissed", true).apply()
+            }
+        }
+    }
+}

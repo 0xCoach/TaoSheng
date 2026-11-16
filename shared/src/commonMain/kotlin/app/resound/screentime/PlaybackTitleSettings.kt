@@ -3,7 +3,7 @@ package app.resound.screentime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** 「记录播放标题」开关，默认关闭；关闭时不写播放记录。写法照 DigestPreferenceStore：成功提交后才发布状态。 */
+/** 「记录播放标题」开关，默认打开（还要用户授予通知使用权才真正记录）；关闭时不写播放记录。写法照 DigestPreferenceStore：成功提交后才发布状态。 */
 class PlaybackTitleSettings(
     readBoolean: (String, Boolean) -> Boolean,
     private val saveBoolean: (String, Boolean) -> Boolean,
@@ -11,7 +11,7 @@ class PlaybackTitleSettings(
     private val saveLong: (String, Long) -> Boolean,
     private val now: () -> Long,
 ) {
-    private val _enabled = MutableStateFlow(readBoolean(KEY, false))
+    private val _enabled = MutableStateFlow(readBoolean(KEY, true))
     val enabled = _enabled.asStateFlow()
 
     fun setEnabled(on: Boolean) {

@@ -354,15 +354,18 @@ app/src/main/java/app/resound/
 ## 🙏 致谢
 
 - [@feitian124](https://github.com/feitian124)：感谢帮忙制作涛声官网，并在 [PR #27](https://github.com/0xCoach/TaoSheng/pull/27) 中为 README 加上 Star 历史曲线。
-- [@ethansunqing](https://github.com/ethansunqing)：在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中报告并定位 OPPO Find N6 的 SIGILL 闪退，提供初始二进制补丁方案，并完成 ONNX Runtime 1.25.1 升级后的真机复测。
+- [@ethansunqing](https://github.com/ethansunqing)：在 [PR #1](https://github.com/0xCoach/TaoSheng/pull/1) 中报告并定位 OPPO Find N6 的 SIGILL 闪退，提供初始二进制补丁方案，并完成 ONNX Runtime 1.25.1 升级后的真机复测；在 [#44](https://github.com/0xCoach/TaoSheng/issues/44) 中提出录音 / 回放一键打点，促成 0.5.0 的“打点”。
 - [@brookDeng](https://github.com/brookDeng)：补充小米 pandora（25098PN5AC）的独立故障分析，以及升级测试版后的覆盖安装、数据保留和前后台聆听复测。
 - [@aadnapp](https://github.com/aadnapp)：在 [PR #7](https://github.com/0xCoach/TaoSheng/pull/7) 中提供 Android 9 兼容适配方案、手动让出麦克风的实现及真机测试反馈，为项目评估旧系统支持提供了参考。
 - [@JunWeiUp](https://github.com/JunWeiUp)：在 [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) 中贡献本机声纹样本管理（样本回放、删除、样本声音清理与占用统计、备份排除），此前在 [PR #8](https://github.com/0xCoach/TaoSheng/pull/8) 提出了自建异步语音服务的对接方案。
 - [@SoukNow](https://github.com/SoukNow)：在 [PR #10](https://github.com/0xCoach/TaoSheng/pull/10) 中贡献自定义转写的完整请求地址写法，在 [PR #11](https://github.com/0xCoach/TaoSheng/pull/11) 中贡献多选合并几件事。
 - [@JunWeiUp](https://github.com/JunWeiUp)：在 [PR #19](https://github.com/0xCoach/TaoSheng/pull/19) 中贡献**足迹**：全天定位记录、地名与“家”的识别、一天时间轴、手动改地点和每日足迹推送，并在真机上长期使用验证。
 - [@sheacoding](https://github.com/sheacoding)：在 [PR #14](https://github.com/0xCoach/TaoSheng/pull/14)～[#16](https://github.com/0xCoach/TaoSheng/pull/16) 中完整探索了声云录音卡的接入（实时收音、蓝牙文件导入、Wi-Fi 快传），促成了涛声通用的专用录音设备接入结构；并在 [PR #13](https://github.com/0xCoach/TaoSheng/pull/13) 中移除机器专属 JDK 路径、补齐 Windows 构建入口。
-- [@a327173196](https://github.com/a327173196)：在 [#20](https://github.com/0xCoach/TaoSheng/issues/20)、[#21](https://github.com/0xCoach/TaoSheng/issues/21)、[#25](https://github.com/0xCoach/TaoSheng/issues/25)、[#35](https://github.com/0xCoach/TaoSheng/issues/35) 中细致排查鸿蒙兼容层的本机备份、后台转写问题，提出问题记录补充大模型诊断，并用宿主日志实测定位了后台任务被系统压延，促成 0.4.0 的后台按时整理。
-- [@xhp1211](https://github.com/xhp1211)：在 [PR #39](https://github.com/0xCoach/TaoSheng/pull/39) 中修复 D3200 关灯收音与补传生命周期，并完成真实回放和真机验收。
+- [@a327173196](https://github.com/a327173196)：在 [#20](https://github.com/0xCoach/TaoSheng/issues/20)、[#21](https://github.com/0xCoach/TaoSheng/issues/21)、[#25](https://github.com/0xCoach/TaoSheng/issues/25)、[#35](https://github.com/0xCoach/TaoSheng/issues/35) 中细致排查鸿蒙兼容层的本机备份、后台转写问题，提出问题记录补充大模型诊断，并用宿主日志实测定位了后台任务被系统压延，促成 0.4.0 的后台按时整理；在 [#48](https://github.com/0xCoach/TaoSheng/issues/48) 中提出并附真实返回样例，促成自定义转写支持逐句时间与说话人。
+- [@xhp1211](https://github.com/xhp1211)：在 [PR #39](https://github.com/0xCoach/TaoSheng/pull/39) 中修复 D3200 关灯收音与补传生命周期，并完成真实回放和真机验收；在 [PR #42](https://github.com/0xCoach/TaoSheng/pull/42) 中完善 D3200 归档、Wi-Fi 快传与隐私删除。
+- [@zj1123581321](https://github.com/zj1123581321)：在 [#41](https://github.com/0xCoach/TaoSheng/issues/41) 中提出屏幕时间与外放来源的完整方案，并在 [PR #47](https://github.com/0xCoach/TaoSheng/pull/47)、[PR #50](https://github.com/0xCoach/TaoSheng/pull/50) 中贡献设备播放检测与外放归属（外放内容不再被整理成本人经历）、屏幕时间采集、每日推送与问问查 App 使用，隐私删除覆盖完整，还在小米 14 上实测修正了锁屏判断。
+- [@coaskyridi](https://github.com/coaskyridi)：在 [#46](https://github.com/0xCoach/TaoSheng/issues/46) 中反馈慢速链路下长音频分段转写频繁超时，促成 0.4.2 放宽自定义转写的上传与等待时限。
+- [@nickcheng](https://github.com/nickcheng)：在 [PR #49](https://github.com/0xCoach/TaoSheng/pull/49) 中修复 OpenAI gpt-6 系列模型检测被拒。
 - [@4965898](https://github.com/4965898)：在 [#34](https://github.com/0xCoach/TaoSheng/issues/34) 中提出首页关键词搜索，并反馈切换服务商需重启才生效的问题。
 - [@BulbLi](https://github.com/BulbLi)：在 [#18](https://github.com/0xCoach/TaoSheng/issues/18) 中提出接入 OpenCode Go 与自定义请求头。
 

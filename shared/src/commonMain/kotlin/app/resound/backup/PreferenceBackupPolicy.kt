@@ -16,7 +16,7 @@ object PreferenceBackupPolicy {
         "backup" to "本机/云端目的地、保留份数和自动备份设置；排除统计和错误",
         "ask-selection" to "用户选择的问答模型",
         "usage" to "用户填写的计费单价",
-        "inputs" to "用户选择的录音来源；系统设备授权仍需新手机重新确认",
+        "inputs" to "用户选择的录音来源、蓝牙播放让出及手机续录选项；系统设备授权仍需新手机重新确认",
         "voice-input" to "语音输入开关、排除应用和截屏识字选项",
         "llm-providers" to "模型服务商及当前选择",
         "llm-balance" to "余额阈值；排除余额缓存和已提醒标记",

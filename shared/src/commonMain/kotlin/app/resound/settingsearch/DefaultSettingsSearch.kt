@@ -37,7 +37,7 @@ internal object SettingsIndex {
             item("录音权限", "permissions", "授权 麦克风权限 通知权限 录不了")
             item("免打扰时段", "quiet", "不录 静音 睡觉 午休 勿扰 停录时段")
             item("暂停时长", "pause-length", "暂停多久 半小时 一小时 两小时")
-            item("录音输入", "input", "手机麦克风 蓝牙耳机 领夹麦 Type-C 切换麦克风")
+            item("录音输入", "input", "手机麦克风 蓝牙耳机 领夹麦 Type-C 切换麦克风 大疆 看视频没声音 蓝牙麦让出")
             item("语音输入记录", "voice-input", "输入法 无障碍 微信打字 口述")
             item("外放跳过", "playback", "听歌 看视频 扬声器 外放不录")
             item("文件夹导入", "folder-import", "自动导入 扫描文件夹 导入录音 外部录音")

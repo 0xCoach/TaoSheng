@@ -199,7 +199,12 @@ private fun ColumnScope.LiveCard(
             CaptureState.Listening -> "正在聆听"
             CaptureState.Paused -> (status.quietName?.let { "${it}中" } ?: "已暂停") +
                 (app.resound.ui.verify.resumeAt(status.pausedUntil)?.let { " · ${app.resound.ui.verify.formatUpcoming(it)} 恢复" } ?: "")
-            CaptureState.MicBusy -> if (inCall) "通话中，暂停收音" else "麦克风被别的应用占用"
+            CaptureState.MicBusy -> when {
+                inCall -> "通话中，暂停收音"
+                // 卡 193：用蓝牙麦时在放视频音乐，蓝牙麦先让出（设置为“让出期间暂停录音”时才会到这里）
+                status.busyDetail == app.resound.audio.MicYield.PLAYBACK -> "放视频音乐中，蓝牙麦已让出"
+                else -> "麦克风被别的应用占用"
+            }
             CaptureState.Stopped -> "没在聆听"
             CaptureState.NoPermission -> "缺少权限"
         }
@@ -278,7 +283,7 @@ private fun ColumnScope.LiveCard(
     }
     // 专题副行 / 麦克风被谁占
     val subLine = when {
-        status.state == CaptureState.MicBusy && !inCall -> status.busyDetail
+        status.state == CaptureState.MicBusy && !inCall && status.busyDetail != app.resound.audio.MicYield.PLAYBACK -> status.busyDetail
         else -> null
     }
     subLine?.let { Text(it, style = RsType.caption, color = ink.soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 16.dp, top = 1.dp)) }

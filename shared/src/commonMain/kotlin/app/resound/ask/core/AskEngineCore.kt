@@ -199,6 +199,7 @@ class AskEngineCore(
     private fun progress(name: String, args: JSONObject): String {
         val keyword = args.optJSONArray("keywords")?.optString(0)?.take(16)?.takeIf { it.isNotBlank() }
         return when {
+            name == "apps_during" -> "正在查手机使用记录…"
             name == "get_day" -> "正在翻 ${args.optString("date").take(10)} 的记录…"
             keyword != null -> "正在找关于‘$keyword’的${if (name == "search_lines") "原话" else "事"}…"
             name == "search_lines" -> "正在翻${args.optString("from").take(16)}的原话…"

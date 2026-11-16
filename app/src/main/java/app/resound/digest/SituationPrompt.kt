@@ -17,5 +17,6 @@ internal class SituationPrompt(enabled: Boolean, lookup: SituationLookup?, playb
     companion object {
         const val RULE = app.resound.digest.core.SituationPrompt.RULE
         const val PLAYBACK_RULE = app.resound.digest.core.SituationPrompt.PLAYBACK_RULE
+        const val IN_USE_RULE = app.resound.digest.core.SituationPrompt.IN_USE_RULE
     }
 }

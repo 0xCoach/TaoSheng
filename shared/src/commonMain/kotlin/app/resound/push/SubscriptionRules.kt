@@ -19,6 +19,7 @@ object SubscriptionRules {
         if (s.reminders) add(PushTopic.TodoReminder)
         if (s.records.isNotEmpty() || s.lines != LinesMode.Off) add(PushTopic.DailyMemory)
         if (s.footprint) add(PushTopic.Footprint)
+        if (s.screenTime) add(PushTopic.ScreenTime)
     }
     fun tighten(s: PushSubscription, c: PushCapabilities): PushSubscription {
         val rangeDays = s.rangeDays

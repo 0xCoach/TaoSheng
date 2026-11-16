@@ -43,7 +43,7 @@ internal data class PushMessage(val title: String, val body: String, val topic: 
             PushTopic.DailyReview -> "daily_review"; PushTopic.TodoReminder -> "todo_reminder"
             PushTopic.NewEvent -> "new_event"; PushTopic.SkillCard -> "skill_card"
             PushTopic.DailyMemory -> "daily_memory"; PushTopic.Footprint -> "footprint"
-            null -> "test"
+            PushTopic.ScreenTime -> "screen_time"; null -> "test"
         }).put("version", 1).put("app", "resound")
     companion object {
         fun from(json: JSONObject) = PushMessage(json.getString("title"), json.getString("body"),

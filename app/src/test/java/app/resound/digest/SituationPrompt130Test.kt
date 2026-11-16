@@ -2,9 +2,12 @@ package app.resound.digest
 
 import app.resound.context.PlaceAt
 import app.resound.context.SituationLookup
+import app.resound.context.SituationStore
 import app.resound.data.MemoryEventEntity
 import app.resound.data.TranscriptLineEntity
+import app.resound.envsound.EnvSoundRow
 import app.resound.screentime.DevicePlayback
+import app.resound.screentime.NamedAppSession
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -122,12 +125,20 @@ class SituationPrompt130Test {
     }
 
     private class CountingLookup(
+        private val home: Boolean = false,
+        private val sessions: List<NamedAppSession> = emptyList(),
         private val playbacks: List<DevicePlayback> = emptyList(),
     ) : SituationLookup {
+        val calls = mutableListOf<Pair<Long, Long>>()
         val playbackCalls = mutableListOf<Pair<Long, Long>>()
-        override suspend fun placeDuring(start: Long, end: Long): PlaceAt? = null
+        override suspend fun placeDuring(start: Long, end: Long): PlaceAt? =
+            if (home) PlaceAt("家", true, start, end) else null
         override suspend fun envDuring(start: Long, end: Long, limit: Int) = emptyList<String>()
         override suspend fun staysAt(placeName: String, from: Long, to: Long) = emptyList<PlaceAt>()
+        override suspend fun appSessions(from: Long, until: Long): List<NamedAppSession> {
+            calls += from to until
+            return sessions
+        }
         override suspend fun devicePlayback(from: Long, until: Long): List<DevicePlayback> {
             playbackCalls += from to until
             return playbacks
@@ -154,6 +165,11 @@ class SituationPrompt130Test {
         assertEquals(listOf("【外放：手机在外放】"), neitherText.lines().filter { it.startsWith("【") })
         assertFalse(neitherText.contains("在用"))
         assertFalse(neitherText.contains("来源未知"))
+
+        val inUseOnly = CountingLookup(sessions = listOf(NamedAppSession("com.tencent.mm", "微信", 0, 10_000)))
+        val (inUseText, _) = SituationPrompt(true, inUseOnly, playing).transcript(oneLine, zone = zone)
+        assertEquals(listOf("【在用：微信｜外放：手机在外放】"), inUseText.lines().filter { it.startsWith("【") })
+        assertFalse(inUseText.contains("可能是 微信"))
     }
 
     @Test fun longestOverlappingPlaybackWins() = runBlocking {
@@ -213,5 +229,94 @@ class SituationPrompt130Test {
         assertFalse(text.contains("小宇宙"))
         assertFalse(text.contains("某集"))
         assertFalse(text.contains("app.podcast"))
+    }
+
+    @Test fun inUseItemAppearsForMicSegmentsAndQueriesOncePerBatch() = runBlocking {
+        val lookup = CountingLookup(home = true,
+            sessions = listOf(NamedAppSession("com.tencent.mm", "微信", 0, 6000)))
+        val prompt = SituationPrompt(true, lookup, mapOf(1L to 5000L, 2L to 0L))
+        val (text, _) = prompt.transcript(lines, zone = zone)
+        assertEquals(
+            listOf("【当时在：家｜在用：微信｜外放：手机在外放】", "【当时在：家｜在用：微信】", "【当时在：家】"),
+            text.lines().filter { it.startsWith("【") },
+        )
+        assertEquals(listOf(0L to 6000L), lookup.calls)
+        assertEquals(listOf(0L to 6000L), lookup.playbackCalls)
+    }
+
+    @Test fun longestOverlappingAppWins() = runBlocking {
+        val lookup = CountingLookup(sessions = listOf(
+            NamedAppSession("com.tencent.mm", "微信", 0, 60_000),
+            NamedAppSession("com.ss.android.ugc.aweme", "抖音", 60_000, 240_000)))
+        val longLine = listOf(TranscriptLineEntity(1, 1, 0, 240_000, "一句长话", null))
+        val (text, _) = SituationPrompt(true, lookup, mapOf(1L to 5000L)).transcript(longLine, zone = zone)
+        assertEquals(listOf("【在用：抖音｜外放：手机在外放】"), text.lines().filter { it.startsWith("【") })
+        assertEquals(listOf(0L to 240_000L), lookup.calls)
+    }
+
+    @Test fun includeSituationOffStillShowsInUse() = runBlocking {
+        val lookup = CountingLookup(home = true,
+            sessions = listOf(NamedAppSession("com.tencent.mm", "微信", 0, 6000)))
+        val (text, _) = SituationPrompt(false, lookup, mapOf(1L to 5000L, 2L to 0L)).transcript(lines, zone = zone)
+        assertEquals(
+            listOf("【在用：微信｜外放：手机在外放】", "【在用：微信】"),
+            text.lines().filter { it.startsWith("【") },
+        )
+        assertFalse(text.contains("当时在"))
+        assertEquals(listOf(0L to 6000L), lookup.calls)
+    }
+
+    @Test fun privacyOffDoesNotQueryForegroundAppsOrShowInUse() = runBlocking {
+        var queried = false
+        val lookup = object : SituationLookup {
+            override suspend fun placeDuring(start: Long, end: Long): PlaceAt? = null
+            override suspend fun envDuring(start: Long, end: Long, limit: Int) = emptyList<String>()
+            override suspend fun staysAt(placeName: String, from: Long, to: Long) = emptyList<PlaceAt>()
+            override suspend fun appSessions(from: Long, until: Long): List<NamedAppSession> =
+                foregroundSessionsForPrompt(screenEnabled = true, includeAppPlayback = false) {
+                    queried = true
+                    listOf(NamedAppSession("com.tencent.mm", "微信", 0, 6000))
+                }
+        }
+        val prompt = SituationPrompt(true, lookup, mapOf(1L to 5000L))
+        val (text, _) = prompt.transcript(oneLine, zone = zone)
+        assertFalse(queried)
+        assertFalse(text.contains("在用"))
+        assertFalse(text.contains("微信"))
+        assertFalse(prompt.system("模板").contains(SituationPrompt.IN_USE_RULE))
+    }
+
+    @Test fun systemAppendsInUseRuleBetweenBaseRuleAndPlaybackRule() = runBlocking {
+        val prompt = SituationPrompt(true, CountingLookup(sessions = listOf(NamedAppSession("com.tencent.mm", "微信", 0, 6000))),
+            mapOf(1L to 5000L, 3L to 5000L))
+        prompt.transcript(lines, zone = zone)
+        val system = prompt.system("模板")
+        assertTrue(system.contains(SituationPrompt.IN_USE_RULE))
+        val base = system.indexOf(SituationPrompt.RULE)
+        val inUse = system.indexOf(SituationPrompt.IN_USE_RULE)
+        val playback = system.indexOf(SituationPrompt.PLAYBACK_RULE)
+        assertTrue("$base < $inUse < $playback", base < inUse && inUse < playback)
+        val quiet = SituationPrompt(true, lookup(), emptyMap())
+        quiet.transcript(lines, zone = zone)
+        assertEquals("模板\n\n${SituationPrompt.RULE}", quiet.system("模板"))
+    }
+
+    @Test fun realSituationStoreQueriesAppSessionsOncePerBatch() = runBlocking {
+        var calls = 0
+        val store = SituationStore(
+            available = { true },
+            points = { _, _ -> emptyList() },
+            cachedPlace = { _, _ -> null },
+            sounds = { _, _ -> listOf(EnvSoundRow(segmentId = 4, startAt = 5000, endAt = 6000, path = "", verdict = "",
+                reason = null, tags = "Rain", sounds = "", scores = "", skipped = false, markMedia = false)) },
+            zone = app.resound.platform.ZoneProvider { "UTC" },
+            io = kotlinx.coroutines.Dispatchers.Unconfined,
+            permissionDenied = { false },
+            radians = Math::toRadians,
+            appSessions = { _, _ -> calls++; listOf(NamedAppSession("com.tencent.mm", "微信", 0, 6000)) },
+        )
+        val (text, _) = SituationPrompt(true, store, mapOf(1L to 5000L, 2L to 0L)).transcript(lines, zone = zone)
+        assertEquals(listOf("【在用：微信｜外放：手机在外放】", "【在用：微信】", "【周围：雨】"), text.lines().filter { it.startsWith("【") })
+        assertEquals(1, calls)
     }
 }

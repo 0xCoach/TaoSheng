@@ -23,4 +23,14 @@ class AppPlaybackPromptTest {
         assertEquals(listOf("x"), playbackRecordsForPrompt(true, true) { n++; listOf("x") })
         assertEquals(1, n)
     }
+
+    @Test fun foregroundGateSkipsQueryUnlessScreenAndPrivacyOn() {
+        var n = 0
+        assertEquals(emptyList<String>(), foregroundSessionsForPrompt(false, true) { n++; listOf("微信") })
+        assertEquals(emptyList<String>(), foregroundSessionsForPrompt(true, false) { n++; listOf("微信") })
+        assertEquals(emptyList<String>(), foregroundSessionsForPrompt(false, false) { n++; listOf("微信") })
+        assertEquals(0, n)
+        assertEquals(listOf("微信"), foregroundSessionsForPrompt(true, true) { n++; listOf("微信") })
+        assertEquals(1, n)
+    }
 }

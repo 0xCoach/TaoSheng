@@ -2,6 +2,11 @@ package app.resound.screentime
 
 import android.app.Application
 import androidx.room.Room
+import androidx.work.Configuration
+import androidx.work.testing.SynchronousExecutor
+import androidx.work.testing.TestListenableWorkerBuilder
+import androidx.work.testing.WorkManagerTestInitHelper
+import app.resound.AppGraph
 import app.resound.data.CaptureDatabase
 import app.resound.data.testSql
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +30,7 @@ import java.io.File
 class ScreenTimeMigrationTest {
     private val context get() = RuntimeEnvironment.getApplication()
     private lateinit var db: CaptureDatabase
+    private val clock = 1_700_000_000_000L
 
     @Before fun setup() {
         // 真 SQLite 上的 34→35 全量迁移：库从导出的 34.json 逐表重建，用 MIGRATIONS 升到当前版本。
@@ -71,6 +77,33 @@ class ScreenTimeMigrationTest {
         db.screenTime().raiseFloor(SCREEN_SOURCE, 700)
         db.screenTime().raiseFloor(SCREEN_SOURCE, 300)
         assertEquals(700L, db.screenTime().state(SCREEN_SOURCE)?.floor)
+    }
+
+    /** 总开关打开 → Worker.doWork() → pull() → 假事件源的 RESUMED 出现在 events 且覆盖到注入时钟。 */
+    @Test fun workerPullRoutesFakeResumedEventIntoDaoAndAdvancesCoverage() = runBlocking(Dispatchers.IO) {
+        WorkManagerTestInitHelper.initializeTestWorkManager(context,
+            Configuration.Builder().setExecutor(SynchronousExecutor()).build())
+        try {
+            var permittedChecked = false
+            var savedPull = 0L
+            val source = object : ScreenEventSource {
+                override fun permitted(): Boolean { permittedChecked = true; return true }
+                override suspend fun since(from: Long, until: Long) = listOf(RawScreenEvent(clock - 1_000, "com.example.app", "com.example.MainActivity", 1))
+                override suspend fun appNames(pkgs: Set<String>) = mapOf("com.example.app" to "示例")
+            }
+            val settings = ScreenTimeSettings(readBoolean = { _, _ -> true },
+                persist = { _, longs, _ -> longs[ScreenTimeSettings.LAST_PULL_KEY]?.let { savedPull = it }; true },
+                readLong = { _, _ -> savedPull }, now = { clock })
+            val puller = ScreenTimePuller(settings, source, db.screenTime(), now = { clock },
+                denied = { it is SecurityException }, diagnostic = {})
+            AppGraph.screenTimePuller = puller
+            val result = TestListenableWorkerBuilder<ScreenTimePullWorker>(context).build().doWork()
+            assertTrue(result is androidx.work.ListenableWorker.Result.Success)
+            assertTrue(permittedChecked)
+            assertEquals(listOf(clock - 1_000), db.screenTime().events(0, clock).map { it.at })
+            assertEquals(clock, db.screenTime().state(SCREEN_SOURCE)?.coveredUntil)
+            assertEquals(clock, savedPull)
+        } finally { WorkManagerTestInitHelper.closeWorkDatabase() }
     }
 }
 

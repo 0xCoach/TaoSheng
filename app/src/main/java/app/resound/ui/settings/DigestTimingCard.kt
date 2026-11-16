@@ -131,7 +131,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
             Column(Modifier.weight(1f)) {
                 Text("整理时参考地点和环境音", style = RsType.subhead, color = c.text)
                 Spacer(Modifier.height(4.dp))
-                Text("每段对话附上当时在哪（来自足迹）、周围有什么声音，分场景、认地点更准。这些信息会一起发给整理用的大模型服务。",
+                Text("「附带情境」只管地点和环境；App 与播放信息由屏幕时间页底部的开关管。",
                     style = RsType.caption, color = c.textTertiary)
             }
             Spacer(Modifier.width(12.dp))

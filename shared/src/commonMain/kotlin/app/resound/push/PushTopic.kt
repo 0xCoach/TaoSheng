@@ -9,4 +9,7 @@ enum class PushTopic(val title: String) {
 
     /** 每天定时推当天足迹：在家/外出时长、停留地点；Webhook 另附结构化数据和定位点 */
     Footprint("每日足迹"),
+
+    /** 每天定时推当天屏幕时间：总时长与前几个 App；Webhook 另附结构化时间线 */
+    ScreenTime("每日屏幕时间"),
 }

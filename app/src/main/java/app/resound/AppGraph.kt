@@ -91,6 +91,13 @@ object AppGraph {
     /** 设备播放记录接收方；为 null 时通知监听服务丢弃回调。 */
     @Volatile var playbackSink: app.resound.screentime.PlaybackSink? = null
 
+    /** 屏幕时间采集开关（默认关）；只管屏幕事件，不影响播放记录。 */
+    lateinit var screenTimeSettings: app.resound.screentime.ScreenTimeSettings
+    lateinit var screenTimePuller: app.resound.screentime.ScreenTimePuller
+    val isScreenTimeReady: Boolean get() = ::screenTimeSettings.isInitialized && ::screenTimePuller.isInitialized
+    /** 屏幕时间读取入口；为 null 时消费方按总开关关闭处理。 */
+    @Volatile var screenTimeReader: app.resound.screentime.ScreenTimeReader? = null
+
     // 卡 079：寻物
     lateinit var things: app.resound.things.ThingRepository
     val isThingsReady: Boolean get() = ::things.isInitialized

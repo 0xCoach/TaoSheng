@@ -34,6 +34,7 @@ object PreferenceBackupPolicy {
         "quick_prefs" to "快捷暂停时长和课堂类型",
         "device-ui" to "用户确认过的关灯提示",
         "playback-title" to "记录播放标题开关及开启时刻",
+        "screen-time" to "屏幕时间采集开关及开/关时刻；排除上次拉取节流时间",
     )
     val secretPrefs = setOf(
         "transcribe", "digest-secrets", "push-secrets", "backup-secrets",
@@ -70,7 +71,6 @@ object PreferenceBackupPolicy {
         "transcribe-queue" to "上次转写运行时间与错误",
         "update-popup" to "当前版本更新弹窗去重时间，真正的跳过/稍后设置在 app-update",
         "update-times" to "更新检查和安装诊断",
-        "screen-time" to "旧版屏幕时间开关，本版本不采集、不备份",
     )
     val backedUp: Set<String> get() = settings.keys + secretPrefs
     val asrKeys = setOf("encryptedKey", "customEncryptedKey")
@@ -112,6 +112,7 @@ object PreferenceBackupPolicy {
             "local-asr" -> key !in setOf("actual", "npuCheck") && !key.startsWith("download-")
             "llm-balance" -> !key.startsWith("cached") && !key.startsWith("alerted")
             "folder-imports" -> key == "folders"
+            "screen-time" -> key != "screenTimeLastPullAt"
             else -> true
         }
     }

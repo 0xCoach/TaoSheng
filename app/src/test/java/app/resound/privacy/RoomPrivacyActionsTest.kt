@@ -153,8 +153,8 @@ class RoomPrivacyActionsTest {
         assertEquals(0, count("memory_events")); assertEquals(0, count("memory_items"))
     }
 
-    /** 按时间遗忘同时删屏幕事件、下限提到区间终点。 */
-    @Test fun deleteRangeRemovesScreenEventsAndRaisesFloor() = runBlocking {
+    /** 按时间遗忘同时删屏幕事件、下限提到区间终点；随后的拉取起点不早于该终点。 */
+    @Test fun deleteRangeRemovesScreenEventsAndRaisesFloorSoPullStartsAfterIt() = runBlocking {
         db.screenTime().insertEvents(listOf(
             ScreenEventRow(at = now - 30_000, pkg = "a", cls = "", type = 1),
             ScreenEventRow(at = now - 90_000, pkg = "a", cls = "", type = 1)))
@@ -163,6 +163,17 @@ class RoomPrivacyActionsTest {
         assertEquals(1, count("screen_events"))
         assertEquals(now - 90_000, db.screenTime().events(0, now).single().at)
         assertEquals(now, db.screenTime().state(SCREEN_SOURCE)?.floor)
+        var sinceFrom = 0L
+        val puller = ScreenTimePuller(
+            ScreenTimeSettings(readBoolean = { _, _ -> true }, persist = { _, _, _ -> true },
+                readLong = { _, def -> def }, now = { now }),
+            object : ScreenEventSource {
+                override fun permitted() = true
+                override suspend fun since(from: Long, until: Long): List<RawScreenEvent> { sinceFrom = from; return emptyList() }
+                override suspend fun appNames(pkgs: Set<String>) = emptyMap<String, String>()
+            }, db.screenTime(), now = { now }, denied = { it is SecurityException })
+        puller.pull()
+        assertTrue(sinceFrom >= now)
     }
 
     /** 必测 8：区间内的播放行删除，跨左边界的行截断到 from。 */
@@ -196,7 +207,7 @@ class RoomPrivacyActionsTest {
         assertEquals(remaining, db.screenTime().playbacksOverlapping(0, now).map { it.fromAt })
         assertEquals(remaining.map { it + 100 }, db.screenTime().events(0, now).map { it.at })
         for (source in listOf(SCREEN_SOURCE, PLAYBACK_SOURCE))
-            assertEquals(remaining, db.screenTime().gaps(source, 0, now).map { it.fromAt })
+            assertEquals(remaining, db.screenTime().gaps(source, 0, now).filter { it.code != GapCode.PRIVACY_DELETED }.map { it.fromAt })
     }
 
     @Test fun eventDeletionClearsOnlyItsSegmentsPlaybackAndGaps() = runBlocking {
@@ -223,6 +234,156 @@ class RoomPrivacyActionsTest {
         db.testSql.execSQL("DELETE FROM segments")
         privacy.deleteRange(20_000, 21_000)
         assertPlaybackPrivacy(listOf(10_000L, 30_000L))
+    }
+
+    private fun queriesAt(clock: Long): ScreenTimeQueries {
+        var lastPull = clock
+        val settings = ScreenTimeSettings(
+            readBoolean = { _, _ -> true },
+            persist = { _, longs, _ -> longs[ScreenTimeSettings.LAST_PULL_KEY]?.let { lastPull = it }; true },
+            readLong = { _, _ -> lastPull },
+            now = { clock },
+        )
+        val source = object : ScreenEventSource {
+            override fun permitted() = true
+            override suspend fun since(from: Long, until: Long) = emptyList<RawScreenEvent>()
+            override suspend fun appNames(pkgs: Set<String>) = emptyMap<String, String>()
+        }
+        return ScreenTimeQueries(
+            db.screenTime(), ScreenTimePuller(settings, source, db.screenTime(), now = { clock }, denied = { false }),
+            settings, { true }, { true }, emptySet(), { clock }, PlaybackQueries(db.screenTime()),
+        )
+    }
+
+    /** 真实删除入口之后走真实查询：被删时段不得再出现使用段。 */
+    @Test fun deleteRangeThenQueryDoesNotReplayForgottenWindow() = runBlocking {
+        val t = 1_000_000_000_000L
+        val actions = RoomPrivacyActions(db, now = { t })
+        db.screenTime().insertEvents(listOf(
+            ScreenEventRow(at = t, pkg = "private.app", cls = "Main", type = 1),
+            ScreenEventRow(at = t + 180_000, pkg = "other.app", cls = "Main", type = 1),
+        ))
+        db.screenTime().advanceCoveredUntil(SCREEN_SOURCE, t + 240_000)
+        actions.deleteRange(t + 60_000, t + 120_000)
+        val forgotten = queriesAt(t + 240_000).sessions(t + 60_000, t + 120_000)
+        assertTrue(forgotten.sessions.isEmpty())
+        val around = queriesAt(t + 240_000).sessions(t, t + 240_000)
+        assertTrue(around.sessions.none { it.from < t + 120_000 && it.until > t + 60_000 })
+    }
+
+    /** 尚无拉取状态行时删除也必须留下下限。 */
+    @Test fun deleteWithoutPriorPullStateStillLeavesFloor() = runBlocking {
+        assertNull(db.screenTime().state(SCREEN_SOURCE))
+        privacy.deleteRange(1_000, 2_000)
+        assertEquals(2_000L, db.screenTime().state(SCREEN_SOURCE)?.floor)
+    }
+
+    /** 在途 since 回调里删除后，提交不得写回已删事件。 */
+    @Test fun inFlightPullAfterDeleteDoesNotRewriteForgottenEvents() = runBlocking {
+        db.screenTime().advanceCoveredUntil(SCREEN_SOURCE, 100)
+        val source = object : ScreenEventSource {
+            override fun permitted() = true
+            override suspend fun since(from: Long, until: Long): List<RawScreenEvent> {
+                privacy.deleteRange(1_000, 2_000)
+                return listOf(RawScreenEvent(1_500, "private.app", "Main", 1))
+            }
+            override suspend fun appNames(pkgs: Set<String>) = mapOf("private.app" to "私")
+        }
+        val settings = ScreenTimeSettings(
+            readBoolean = { _, _ -> true }, persist = { _, _, _ -> true },
+            readLong = { _, def -> def }, now = { now },
+        )
+        val result = ScreenTimePuller(settings, source, db.screenTime(), now = { now }, denied = { false }).pull()
+        assertEquals(PullResult.Pulled(0), result)
+        assertEquals(0, db.screenTime().events(0, now + 1).size)
+        assertEquals(2_000L, db.screenTime().state(SCREEN_SOURCE)?.floor)
+        assertTrue(db.screenTime().names().isEmpty())
+    }
+
+    /** 全部删除把下限停在操作时刻，之后新事件仍能采到，名称表清空。 */
+    @Test fun deleteAllStopsFloorAtNowAndLaterEventsCanBePulled() = runBlocking {
+        db.screenTime().insertEvents(listOf(ScreenEventRow(at = 100, pkg = "old", cls = "", type = 1)))
+        db.screenTime().upsertNames(listOf(ScreenAppNameRow("old", "旧应用", 100)))
+        db.screenTime().advanceCoveredUntil(SCREEN_SOURCE, 200)
+        privacy.deleteAll()
+        assertEquals(0, count("screen_events"))
+        assertEquals(0, count("screen_app_names"))
+        assertEquals(now, db.screenTime().state(SCREEN_SOURCE)?.floor)
+        assertTrue(db.screenTime().state(SCREEN_SOURCE)!!.floor < Long.MAX_VALUE)
+        val later = now + 1_000
+        val source = object : ScreenEventSource {
+            override fun permitted() = true
+            override suspend fun since(from: Long, until: Long) = listOf(RawScreenEvent(later, "new.app", "Main", 1))
+            override suspend fun appNames(pkgs: Set<String>) = mapOf("new.app" to "新应用")
+        }
+        val clock = now + 31_000
+        val settings = ScreenTimeSettings(
+            readBoolean = { _, _ -> true }, persist = { _, _, _ -> true },
+            readLong = { _, def -> def }, now = { clock },
+        )
+        assertEquals(PullResult.Pulled(1), ScreenTimePuller(settings, source, db.screenTime(), now = { clock }, denied = { false }).pull())
+        assertEquals(listOf(later), db.screenTime().events(0, clock + 1).map { it.at })
+        assertEquals("新应用", db.screenTime().names().single().name)
+    }
+
+    /** 部分删除清掉已无事件引用的名称，仍被引用的保留。 */
+    @Test fun partialDeleteDropsUnreferencedNamesOnly() = runBlocking {
+        db.screenTime().insertEvents(listOf(
+            ScreenEventRow(at = 100, pkg = "gone", cls = "", type = 1),
+            ScreenEventRow(at = 300, pkg = "kept", cls = "", type = 1),
+        ))
+        db.screenTime().upsertNames(listOf(ScreenAppNameRow("gone", "已删", 1), ScreenAppNameRow("kept", "仍在", 1)))
+        privacy.deleteRange(50, 200)
+        assertEquals(listOf("kept"), db.screenTime().names().map { it.pkg })
+    }
+
+    /** 没有关联录音的事件删除后，明确区间内的屏幕使用段、事件行和播放行都要清掉。 */
+    @Test fun forgetEventWithoutAudioClearsScreenSessionsEventsAndPlayback() = runBlocking {
+        val from = 10_000_000L
+        val until = 10_120_000L
+        val id = db.memory().insertEvent(MemoryEventEntity(
+            startAt = from, endAt = until, scene = "其他", title = "测试", summary = "摘要",
+            pointsJson = "[]", peopleJson = "[]", place = null, emotion = null, intensity = null,
+            important = false, createdAt = now, model = "test",
+        ))
+        assertTrue(db.privacy().eventSegments(id).isEmpty())
+        db.screenTime().insertEvents(listOf(
+            ScreenEventRow(at = from + 1_000, pkg = "talk.app", cls = "Main", type = 1),
+            ScreenEventRow(at = from + 60_000, pkg = "talk.app", cls = "Main", type = 1),
+        ))
+        db.screenTime().upsertNames(listOf(ScreenAppNameRow("talk.app", "谈话", from)))
+        db.screenTime().insertPlayback(PlaybackRow(
+            sessionKey = "talk", pkg = "talk.app", name = "谈话", title = "节目",
+            subtitle = null, fromAt = from + 10_000, untilAt = from + 20_000, lastSeenAt = from + 20_000,
+        ))
+        db.screenTime().advanceCoveredUntil(SCREEN_SOURCE, until)
+        val actions = RoomPrivacyActions(db, now = { until })
+        assertEquals(1, actions.forgetEvent(id).events)
+        assertNull(db.memory().event(id))
+        val result = queriesAt(until + 31_000).sessions(from, until)
+        assertTrue(result.sessions.isEmpty())
+        assertTrue(db.screenTime().events(from, until).isEmpty())
+        assertTrue(db.screenTime().playbacksOverlapping(from, until).isEmpty())
+    }
+
+    /** 两次交错删除后，前一次区间里没被第二次覆盖的那截仍受缺口保护，不能被更早的前台事件重放回来。 */
+    @Test fun overlappingRangeDeletesKeepProtectionOnUncoveredPrefix() = runBlocking {
+        val ten = 1_000_000_000_000L
+        val tenThirty = ten + 1_800_000
+        val eleven = ten + 3_600_000
+        val twelve = ten + 7_200_000
+        val nineFifty = ten - 600_000
+        db.screenTime().insertEvents(listOf(
+            ScreenEventRow(at = nineFifty, pkg = "front.app", cls = "Main", type = 1),
+        ))
+        db.screenTime().advanceCoveredUntil(SCREEN_SOURCE, twelve)
+        val actions = RoomPrivacyActions(db, now = { twelve })
+        actions.deleteRange(ten, eleven)
+        actions.deleteRange(tenThirty, twelve)
+        val around = queriesAt(twelve).sessions(nineFifty, twelve)
+        assertTrue(around.sessions.none { it.from < eleven && it.until > ten })
+        assertTrue(around.sessions.none { it.from < twelve && it.until > tenThirty })
+        assertTrue(queriesAt(twelve).sessions(ten, twelve).sessions.isEmpty())
     }
 
 }

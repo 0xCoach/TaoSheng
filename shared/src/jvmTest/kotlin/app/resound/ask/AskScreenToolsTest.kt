@@ -84,13 +84,13 @@ class AskScreenToolsTest {
             enabled = true,
             sessions = emptyList(),
             coverageUntil = null,
-            gaps = listOf(CoverageGap(GapCode.USAGE_ACCESS_MISSING, "screen", from, to, "设置 → 使用情况访问 → 回响 开启")),
+            gaps = listOf(CoverageGap(GapCode.USAGE_ACCESS_MISSING, "screen", from, to, "设置 → 使用情况访问 → 涛声 开启")),
         ))
         val out = AskScreenToolsCore({ reader }, zone)
             .execute("""{"from":"2026-11-13 23:00","to":"2026-11-14 01:00"}""", mutableListOf())
         assertEquals(1, reader.calls)
         assertEquals(
-            """{"totals":[],"sessions":[],"devicePlayback":[],"coverageUntil":null,"gaps":[{"code":"usage_access_missing","source":"screen","from":"2026-11-13 23:00","until":"2026-11-14 01:01","fix":"设置 → 使用情况访问 → 回响 开启"}],"truncated":false}""",
+            """{"totals":[],"sessions":[],"devicePlayback":[],"coverageUntil":null,"gaps":[{"code":"usage_access_missing","source":"screen","from":"2026-11-13 23:00","until":"2026-11-14 01:01","fix":"设置 → 使用情况访问 → 涛声 开启"}],"truncated":false}""",
             out,
         )
     }

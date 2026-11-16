@@ -67,6 +67,10 @@ internal object SettingsIndex {
             item("显示地名", "place-names", "高德 地址 地理编码 地名")
             item("常去地点", "places", "家 公司 地点名称 停留")
         }
+        page("ScreenTime", "屏幕时间", "手机使用 App 用时 玩手机 使用时长") {
+            item("记录屏幕时间", "screen-time-enabled", "使用情况访问 采集开关 授权")
+            item("整理时带上 App 与播放信息", "include-app-playback", "节目名 播放标题 隐私 大模型")
+        }
         page("Devices", "外接设备", "录音卡 硬件 外设 蓝牙设备") {
             item("扫描设备", "device-scan", "找设备 连接 配对 蓝牙扫描")
             item("设备说明卡", "device-cards", "驱动 插件 导入说明卡 支持设备")

@@ -2,11 +2,11 @@ package app.resound.screentime
 
 /** 缺口的修复文案已定死；落库行遇到未知代码直接抛错（fail fast）。 */
 private fun fixFor(code: String): String = when (code) {
-    GapCode.USAGE_ACCESS_MISSING -> "设置 → 使用情况访问 → 回响 开启"
-    GapCode.NOTIFICATION_ACCESS_MISSING -> "设置 → 通知使用权 → 回响 开启"
+    GapCode.USAGE_ACCESS_MISSING -> "设置 → 使用情况访问 → 涛声 开启"
+    GapCode.NOTIFICATION_ACCESS_MISSING -> "设置 → 通知使用权 → 涛声 开启"
     GapCode.PULL_FAILED -> "这段超出系统保留期或采集失败，无法补回"
-    GapCode.COVERAGE_LAG -> "打开回响，等待下一次采集"
-    GapCode.LISTENER_DISCONNECTED -> "设置 → 通知使用权 → 回响 重新开启"
+    GapCode.COVERAGE_LAG -> "打开涛声，等待下一次采集"
+    GapCode.LISTENER_DISCONNECTED -> "设置 → 通知使用权 → 涛声 重新开启"
     GapCode.DISABLED -> "屏幕时间关闭期间未采集"
     GapCode.PRIVACY_DELETED -> "这段已按你的删除要求清除，无法恢复"
     else -> throw IllegalArgumentException("未知缺口代码: $code")

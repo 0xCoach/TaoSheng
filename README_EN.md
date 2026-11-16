@@ -16,7 +16,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.4.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.4.2-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -147,7 +147,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.4.1** (2026-11-16, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.1-arm64.apk) — On-device transcription resumes after interruptions (long recordings on HarmonyOS); search extended to to-dos, memories, found things, topics, reviews and Ask; “Copy for agent” on sync folders; wake-word note for Xiaomi / Meizu; back-to-top on the transcript page. [Changelog (Chinese)](CHANGELOG.md#041--2026-11-16).
+**v0.4.2** (2026-11-16, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.2/TaoSheng-v0.4.2-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.2-arm64.apk) — To-dos on a calendar (week strip, move overdue to today, pending shown dashed, later items grouped); add a to-do to the phone calendar in one tap; custom transcription no longer times out while uploading on slow links. [Changelog (Chinese)](CHANGELOG.md#042--2026-11-16).
+
+**v0.4.1** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.1-arm64.apk) — On-device transcription resumes after interruptions (long recordings on HarmonyOS); search extended to to-dos, memories, found things, topics, reviews and Ask; “Copy for agent” on sync folders; wake-word note for Xiaomi / Meizu; back-to-top on the transcript page. [Changelog (Chinese)](CHANGELOG.md#041--2026-11-16).
 
 **v0.4.0** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.0-arm64.apk) — On-time background digests while recording (for HarmonyOS and other strict phones) with Huawei / Honor keep-alive guidance; home-screen search and new-version prompt; switching model providers takes effect immediately; more settings restored from backups; license changed to FSL-1.1-MIT. [Changelog (Chinese)](CHANGELOG.md#040--2026-11-16).
 

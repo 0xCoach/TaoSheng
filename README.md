@@ -17,7 +17,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.4.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.4.2-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -170,7 +170,8 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.4.1**（最新） | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.1-arm64.apk) | 本地转写被打断后接着转，改善鸿蒙长录音；搜索扩展到待办、记忆、寻物、专题、回顾、问问；同步文件夹“复制给智能体”；语音助手唤醒说明；原话页回到顶部。[详细更新日志](CHANGELOG.md#041--2026-11-16) |
+| **v0.4.2**（最新） | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.2/TaoSheng-v0.4.2-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.2-arm64.apk) | 待办按日历看（周条、过期一键改到今天、待确认虚线、一周后合并）；一键加到手机日历；自定义转写慢速网络不再上传超时。[详细更新日志](CHANGELOG.md#042--2026-11-16) |
+| **v0.4.1** | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.1-arm64.apk) | 本地转写被打断后接着转，改善鸿蒙长录音；搜索扩展到待办、记忆、寻物、专题、回顾、问问；同步文件夹“复制给智能体”；语音助手唤醒说明；原话页回到顶部。[详细更新日志](CHANGELOG.md#041--2026-11-16) |
 | **v0.4.0** | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.0-arm64.apk) | 录音时按间隔自查整理，改善鸿蒙等手机后台不按时；首页搜索原话与事件、新版本弹窗；切换服务商立即生效；设置备份补齐；许可证改为 FSL-1.1-MIT。[详细更新日志](CHANGELOG.md#040--2026-11-16) |
 | **v0.3.1** | 2026-11-14 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk) | 到点整理迟到补漏、重启恢复与失败重试；修复 D3200 关灯收音及补传生命周期；更新下载稳定性修复。鸿蒙真机待验收。[详细更新日志](CHANGELOG.md#031--2026-11-14) |
 | **v0.3.0** | 2026-11-13 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) | 首页与夜间模式焕新；语音待办与桌面小组件；专题记录管理、长会议分段续做；设置搜索与体检；减少后台开销。升级前备份，旧声云适配已移除。[详细更新日志](CHANGELOG.md#030--2026-11-13) |
@@ -326,6 +327,7 @@ app/src/main/java/app/resound/
 - [x] 鸿蒙等手机的后台按时整理、首页搜索与新版本提示
 - [x] 核心代码迁入跨平台共用模块，为 iOS 版本打基础
 - [x] 本地转写断点续转、全部内容搜索、复制给智能体读记忆
+- [x] 待办日历视图，一键加到手机日历
 
 下一步：
 

@@ -281,7 +281,7 @@ class Topic135Test {
         assertEquals(time, event.endAt)
         assertEquals(1, db.testSql.query("SELECT COUNT(*) FROM memory_events").use { it.moveToFirst(); it.getInt(0) })
         assertTrue(calls.count { !it.first.contains("必须恰好输出一张") } >= 2)
-        assertTrue(calls.filter { it.first.contains("必须恰好输出一张") }.all { it.second.contains("用户标记的重点时刻") && it.second.contains("★ 重点") && it.second.contains("项目例会") })
+        assertTrue(calls.filter { it.first.contains("必须恰好输出一张") }.all { it.second.contains("用户打点区间") && it.second.contains("★ 重点") && it.second.contains("项目例会") })
         assertEquals("import_meeting", db.skills().card(topic.row.cardId!!).first()!!.skillId)
         assertEquals(601, db.memory().eventLines(event.id).first().size)
     }

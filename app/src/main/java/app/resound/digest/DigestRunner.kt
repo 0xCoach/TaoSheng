@@ -50,6 +50,7 @@ class DigestRunner(
     private val thingExtraction: app.resound.things.DigestThingExtraction? = null,
     private val request: suspend (LlmPreset, String, String, String) -> LlmReply = settings.digestRequest(client),
     private val situation: app.resound.context.SituationLookup? = null,
+    private val marks: suspend (Long, Long) -> List<app.resound.marks.MarkRow> = { _, _ -> emptyList() },
 ) {
     private val diagnostics = app.resound.diagnostics.LlmDiagnostics(context)
     private val responseTraces = mutableMapOf<String, app.resound.diagnostics.LlmResponseTrace>()
@@ -211,7 +212,7 @@ class DigestRunner(
         var storedId = batchId
         return try {
             val contextPrompt = SituationPrompt(settings.includeSituation.value, situation,
-                playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis })
+                playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis }, marks)
             val (text, indexed) = contextPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
             val unfinished = dao.unfinishedForDigest()
             val candidates = unfinished.map { it.id }.toSet()

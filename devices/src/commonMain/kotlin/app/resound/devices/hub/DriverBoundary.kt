@@ -36,7 +36,7 @@ internal class DriverBoundary(
 
     /** 计时只覆盖等待下一块，消费者保存数据的时间不算驱动超时。 */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun <T> stream(blockTimeout: Long? = null, source: () -> Flow<T>): Flow<T> = flow {
+    fun <T> stream(blockTimeout: Long? = null, initialTimeout: Long? = blockTimeout, source: () -> Flow<T>): Flow<T> = flow {
         coroutineScope {
             val input = produce<T>(capacity = 0) {
                 try { source().collect { send(it) } }
@@ -44,10 +44,12 @@ internal class DriverBoundary(
                 catch (e: Exception) { channel.close(e) }
             }
             try {
+                var first = true
                 while (true) {
                     val item = try {
-                        if (blockTimeout == null) input.receiveCatching()
-                        else withTimeout(blockTimeout) { input.receiveCatching() }
+                        val wait = if (first) initialTimeout else blockTimeout
+                        if (wait == null) input.receiveCatching()
+                        else withTimeout(wait) { input.receiveCatching() }
                     } catch (e: TimeoutCancellationException) {
                         currentCoroutineContext().ensureActive()
                         fault(ErrorCode.Timeout)
@@ -55,6 +57,7 @@ internal class DriverBoundary(
                     }
                     item.exceptionOrNull()?.let { failure -> call { throw failure } }
                     if (item.isClosed) break
+                    first = false
                     emit(item.getOrThrow())
                 }
             } finally { input.cancel() }
@@ -76,8 +79,12 @@ internal class GuardedConnection private constructor(
     override val policy: DriverPolicy,
     override val binding: DeviceBinding?,
     override val closed: Flow<DeviceException>,
-) : DriverConnection {
+) : DriverConnection, DeviceFileMaintenanceConnection {
     override suspend fun close() = boundary.call { raw.close() }
+    override suspend fun prepareFileMaintenance() = boundary.call {
+        (raw as? DeviceFileMaintenanceConnection)?.prepareFileMaintenance()
+        Unit
+    }
     companion object {
         suspend fun create(raw: DriverConnection, b: DriverBoundary): GuardedConnection = b.call {
             GuardedConnection(raw, b, raw.identity, raw.capabilities.toSet(), raw.live?.let { live ->
@@ -93,7 +100,8 @@ internal class GuardedConnection private constructor(
                 object : DeviceFiles {
                     override val caps = caps
                     override suspend fun list() = b.call { files.list() }
-                    override fun read(file: RecordingFile, fromOffset: Long) = b.stream(30_000) { files.read(file, fromOffset) }
+                    override fun read(file: RecordingFile, fromOffset: Long) = b.stream(30_000,
+                        initialTimeout = if ((raw as? LocalFileTransferConnection)?.preparingFileNetwork == true) 120_000 else 30_000) { files.read(file, fromOffset) }
                     override suspend fun confirm(file: RecordingFile, checksum: ByteArray?) = b.call { files.confirm(file, checksum) }
                     override suspend fun delete(file: RecordingFile) = b.call { files.delete(file) }
                 }

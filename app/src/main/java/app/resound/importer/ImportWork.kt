@@ -13,25 +13,35 @@ import app.resound.AppGraph
 import app.resound.ResoundApp
 import app.resound.audio.SileroVad
 import app.resound.capture.SpeechSegmenter
+import app.resound.update.UpdateDiagnostics
 import kotlinx.coroutines.*
 import java.io.File
 
 class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    private fun foreground(entry: ImportEntry): ForegroundInfo {
+    // Android 10/11 starts the foreground service before doWork for expedited work.
+    override suspend fun getForegroundInfo(): ForegroundInfo = foreground(null)
+
+    private fun foreground(entry: ImportEntry?): ForegroundInfo {
         applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel("import", "导入录音", NotificationManager.IMPORTANCE_LOW))
-        val cancel = PendingIntent.getBroadcast(applicationContext, 0,
-            Intent(applicationContext, CancelImportReceiver::class.java).setAction(entry.pending.id),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(applicationContext, "import")
-            .setSmallIcon(R.drawable.ic_notify).setContentTitle("正在导入 ${entry.pending.info.displayName}")
-            .setOngoing(true).addAction(0, "取消", cancel).build()
-        return ForegroundInfo(3028, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            .setSmallIcon(R.drawable.ic_notify)
+            .setContentTitle(if (entry == null) "正在准备导入录音" else "正在导入 ${entry.pending.info.displayName}")
+            .setOngoing(true)
+        if (entry != null) {
+            val cancel = PendingIntent.getBroadcast(applicationContext, 0,
+                Intent(applicationContext, CancelImportReceiver::class.java).setAction(entry.pending.id),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            notification.addAction(0, "取消", cancel)
+        }
+        return ForegroundInfo(3028, notification.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val importer = AppGraph.importer as AndroidAudioImporter
         val app = applicationContext as ResoundApp
         try {
+            UpdateDiagnostics.record(applicationContext,"audio_import start attempt=$runAttemptCount")
+            android.util.Log.i("ResoundImport","phase=Started attempt=$runAttemptCount")
             importer.rememberQueued()
             while (true) {
                 val entry = importer.next() ?: break
@@ -97,6 +107,8 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 importer.finish(id, error)
                 app.runTranscriptionNow() // 部分成功后失败或取消的片段也进入正常队列。
             }
+            UpdateDiagnostics.record(applicationContext,"audio_import completed")
+            android.util.Log.i("ResoundImport","phase=Completed")
             Result.success()
         } catch (e: CancellationException) { importer.interrupted(); throw e }
         catch (caught: Exception) {

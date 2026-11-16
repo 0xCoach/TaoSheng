@@ -132,7 +132,11 @@ class ResoundApp : Application() {
             recentFiles = { from, until, block -> segmentFiles.withRecentDeletion(from, until, block) },
             voiceprintGuard = { block -> voiceprintRepository.withPrivacyDeletion(block) },
             removeFeatures = voiceprintRepository::removeFeatures,
-            scheduleCleanup = { app.resound.privacy.PrivacyCleanupWorker.enqueue(this) })
+            scheduleCleanup = { app.resound.privacy.PrivacyCleanupWorker.enqueue(this) },
+            archiveFiles = { from,until,block ->
+                check(::cardDevices.isInitialized) { "设备归档尚未就绪，请稍后重试" }
+                cardDevices.withArchivePrivacyDeletion(from,until,block)
+            })
         app.resound.privacy.PrivacyCleanupWorker.start(this)
         AppGraph.privacy = privacyActions
         AppGraph.segmentDeleter = privacyActions

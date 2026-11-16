@@ -38,14 +38,16 @@ class D3200DriverTest {
         var firmware="04.92"
         var serial:String?=null
         var requests=0
+        var deletes=0
+        var savedExists=true
         var audioSink: (suspend (ByteArray) -> Unit)? = null
-        private fun reply(command:Int,p:ByteArray):ByteArray {
+        fun reply(command:Int,p:ByteArray):ByteArray {
             val size=p.size+10
             val result=byteArrayOf(9,0xff.toByte(),0,0,1,(command ushr 8).toByte(),command.toByte(),size.toByte(),(size ushr 8).toByte())+p+byteArrayOf(0)
             result[result.lastIndex]=result.dropLast(1).sumOf { it.toInt() and 255 }.toByte()
             return result
         }
-        private fun unit(seq:Long):ByteArray = D3200Protocol.le32(seq)+byteArrayOf(0)+ByteArray(160).apply { this[0]=0xf8.toByte() }+byteArrayOf(0)
+        fun unit(seq:Long):ByteArray = D3200Protocol.le32(seq)+byteArrayOf(0)+ByteArray(160).apply { this[0]=0xf8.toByte() }+byteArrayOf(0)
         override fun maxWriteLength(withResponse:Boolean)=514
         override suspend fun read(service:String,characteristic:String)=byteArrayOf()
         override fun notifications(service:String,characteristic:String):Flow<ByteArray> = notifications
@@ -58,7 +60,9 @@ class D3200DriverTest {
                 }
                 0x2e01 -> notifications.emit(reply(command,byteArrayOf(4)+ByteArray(64)+crypto.shared))
                 0x1a0e -> notifications.emit(reply(command,byteArrayOf(0,0)+D3200Protocol.le32(file)+D3200Protocol.le32(40)))
-                0x1b0e -> notifications.emit(reply(command,byteArrayOf(1,0)+D3200Protocol.le32(file)+D3200Protocol.le32(file+1)+D3200Protocol.le32(40)+ByteArray(8)))
+                0x1b0e -> notifications.emit(reply(command,if(savedExists) byteArrayOf(1,0)+D3200Protocol.le32(file)+D3200Protocol.le32(file+1)+D3200Protocol.le32(40)+ByteArray(8) else ByteArray(10)))
+                0x1a10 -> { deletes++;savedExists=false;notifications.emit(reply(command,byteArrayOf())) }
+                0x1a05 -> notifications.emit(reply(command,byteArrayOf(1,4,168.toByte(),192.toByte(),0xbb.toByte(),1)))
                 0x1a0f -> notifications.emit(reply(command,byteArrayOf()))
                 0x1882 -> {
                     recording = D3200Protocol.payload(bytes).single().toInt() == 1
@@ -76,12 +80,13 @@ class D3200DriverTest {
             }
         }
     }
-    private inner class Session(val crypto:FakeCrypto=FakeCrypto(), serial: ClassicSerialPort? = null) : DriverSession {
+    private inner class Session(val crypto:FakeCrypto=FakeCrypto(), serial: ClassicSerialPort? = null, network: LocalFileNetworkPort? = null) : DriverSession {
         val fakeLink=Link(crypto)
         override val link:GattLink=fakeLink
         override val store=Store()
         override val clock=object:ClockPort { override fun nowEpochMillis()=1731000000000L; override fun monotonicMillis()=0L; override fun zoneOffsetMinutes()=0 }
-        override val extras=object:PlatformExtras { override val classicSerial = serial }
+        override val extras: PlatformExtras = if(network == null) object:PlatformExtras { override val classicSerial = serial }
+            else object:LocalFileNetworkExtras { override val classicSerial = serial;override val fileNetwork = requireNotNull(network) }
         var heartbeat: (suspend () -> Unit)? = null
         var heartbeatMillis = 0L
         override val toolbox=object:Toolbox {
@@ -97,6 +102,57 @@ class D3200DriverTest {
             return object:ScheduledTask { override fun cancel() { heartbeat=null } }
         }
         override fun log(level:LogLevel,message:String) {}
+    }
+    @Test fun deleteRequiresExplicitReceiptAndStoppedDeviceThenRelists() = runTest {
+        val network = object : LocalFileNetworkPort {
+            override val status = MutableStateFlow(LocalFileNetworkStatus(LocalFileNetworkPhase.Idle))
+            override suspend fun detachBluetooth() { error("maintenance must keep Bluetooth") }
+            override suspend fun open(config: LocalFileNetworkConfig): LocalFileNetworkChannel = error("maintenance must keep Bluetooth")
+            override fun clearPeerTrust() {}
+        }
+        val session=Session(network = network);session.fakeLink.recording=false;session.store.putString("fastTransfer","true")
+        val connection=D3200Driver().open(session);val files=connection.files!!;val entry=files.list().single()
+        (connection as DeviceFileMaintenanceConnection).prepareFileMaintenance()
+        assertEquals(320,files.read(entry,0).toList().sumOf { it.size })
+        assertEquals(1,session.fakeLink.requests)
+        try { files.delete(entry);fail("not confirmed") } catch(e:DeviceException) { assertEquals(ErrorCode.NotConfirmed,e.code) }
+        files.confirm(entry,ByteArray(32));session.fakeLink.recording=true
+        try { files.delete(entry);fail("still recording") } catch(e:DeviceException) { assertEquals(ErrorCode.StateConflict,e.code) }
+        assertEquals(0,session.fakeLink.deletes)
+        session.fakeLink.recording=false;files.confirm(entry,ByteArray(32));files.delete(entry)
+        assertEquals(1,session.fakeLink.deletes);assertTrue(files.list().isEmpty());connection.close()
+    }
+    @Test fun wifiHandoffPreservesCryptoAndResumesAtPacketBoundary() = runTest {
+        assertEquals("08ee0000001a071200f2010000785634121b",D3200Protocol.wifiRequest(0x12345678,3))
+        val inbound=Channel<ByteArray>(Channel.UNLIMITED);var detached=0;var closed=0
+        lateinit var session: Session
+        val network=object:LocalFileNetworkPort {
+            override val status=MutableStateFlow(LocalFileNetworkStatus(LocalFileNetworkPhase.Idle))
+            override suspend fun detachBluetooth() { detached++ }
+            override fun clearPeerTrust() {}
+            override suspend fun open(config:LocalFileNetworkConfig):LocalFileNetworkChannel {
+                assertEquals("192.168.4.1",config.ipv4);assertEquals(443,config.port)
+                assertEquals("okhttp/3.12.13.18",config.webSocketUserAgent);assertFalse(config.requestCompression)
+                assertTrue(config.allowExpiredPeerCertificate)
+                return object:LocalFileNetworkChannel {
+                    override val incoming=inbound.receiveAsFlow()
+                    override suspend fun sendText(value:String) {
+                        if(value=="FINISH")return
+                        assertEquals(36,value.length)
+                        val p=ByteArray(87);D3200Protocol.le32(file).copyInto(p,0);D3200Protocol.le32(332).copyInto(p,4)
+                        ("soundcored3200".encodeToByteArray()+ByteArray(32)).copyInto(p,24)
+                        inbound.send(session.fakeLink.reply(0x1a07,p))
+                        inbound.send(session.fakeLink.reply(0x1a08,session.fakeLink.unit(0)+session.fakeLink.unit(1)))
+                    }
+                    override suspend fun close() { closed++;inbound.close() }
+                }
+            }
+        }
+        session=Session(network=network);session.store.putString("fastTransfer","true");session.fakeLink.recording=false
+        val connection=D3200Driver().open(session);val entry=connection.files!!.list().single()
+        assertEquals(160,connection.files!!.read(entry,160).toList().sumOf { it.size })
+        assertEquals(1,detached);assertEquals(0,session.fakeLink.requests)
+        connection.close();assertEquals(1,closed)
     }
     @Test fun handshakeLiveAndRefreshKeepAudioAndCoverage() = runTest {
         val session=Session(); val driver=D3200Driver(); val connection=driver.open(session)

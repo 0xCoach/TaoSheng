@@ -1,14 +1,21 @@
 package app.resound.ui.verify
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +40,8 @@ import kotlinx.coroutines.launch
  */
 @Composable
 internal fun DeviceDetailSheet(d: DeviceState, inputs: DeviceInputs?, meta: DriverMeta?, onForget: () -> Unit, onDismiss: () -> Unit) {
-    RsSheet(d.name, deviceSubtitle(d, meta), onDismiss = onDismiss, fixedHeight = true) {
+    val experiences by (inputs?.deviceExperiences ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,app.resound.devices.DeviceExperience>()) }).collectAsStateWithLifecycle()
+    RsSheet(d.name, deviceSubtitle(d, meta,experiences[d.address]), onDismiss = onDismiss, fixedHeight = true) {
         DeviceDetailBody(d, inputs, meta, onForget)
     }
 }
@@ -48,14 +56,23 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
     val manualStates by (inputs?.manualSyncStates ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, app.resound.devices.android.ManualSyncState>()) }).collectAsStateWithLifecycle()
     val manual = manualStates[d.address]
     val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow<Map<String, DeviceStatusModel>>(emptyMap()) }).collectAsStateWithLifecycle()
+    val connected by (inputs?.currentDeviceStates ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,app.resound.devices.hub.HubDevice>()) }).collectAsStateWithLifecycle()
+    val experiences by (inputs?.deviceExperiences ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,app.resound.devices.DeviceExperience>()) }).collectAsStateWithLifecycle()
+    val transfers by (inputs?.transferDetails ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,app.resound.devices.DeviceSyncDetail>()) }).collectAsStateWithLifecycle()
+    val networks by (inputs?.fileNetworkStates ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,LocalFileNetworkStatus>()) }).collectAsStateWithLifecycle()
+    var readingNow by remember { mutableStateOf(System.currentTimeMillis()) }
+    var showNetworkDiagnostic by remember { mutableStateOf(false) }
+    LaunchedEffect(d.address) { while (true) { kotlinx.coroutines.delay(30_000); readingNow = System.currentTimeMillis() } }
     var live by remember { mutableStateOf(previewInfo) }
     var busy by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var confirmForget by remember { mutableStateOf(false) }
+    var selectableFiles by remember { mutableStateOf<List<RecordingFile>?>(null) }
+    var selectedFiles by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingOff by remember { mutableStateOf<LightMode?>(null) }
     var disabled by remember { mutableStateOf(inputs?.disabledReason(d.address)) }
-    val status = live?.status ?: cached[d.address] ?: previewStatus
+    val status = connected[d.address]?.status ?: live?.status ?: cached[d.address] ?: previewStatus
     val prefs = remember { context.getSharedPreferences("device-ui", android.content.Context.MODE_PRIVATE) }
 
     fun run(label: String, block: suspend (DriverConnection) -> Unit) {
@@ -78,13 +95,24 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
         live = LiveInfo(conn.capabilities, light, live?.lightId, settings, conn.status.value)
     }
     // 已经连着（正在收音或补传）时顺手读一次，不额外占用设备；没连着就等用户点“读取”
-    LaunchedEffect(d.address, d.status) {
-        if (live == null && (d.status == DeviceStatus.Live || d.status == DeviceStatus.Backfilling)) load()
+    LaunchedEffect(d.address, d.status,connected[d.address]?.connection) {
+        if (live == null && (d.status == DeviceStatus.Live || d.status == DeviceStatus.Backfilling ||
+                connected[d.address]?.connection == app.resound.devices.hub.ConnectionState.Connected)) load()
     }
     fun setLight(mode: LightMode) = run("正在设置灯光…") { conn ->
         val actual = conn.controls.setLight(mode.id)
         live = live?.copy(lightId = actual.id)
         notice = "设备已确认：${actual.name.zh}"
+    }
+    fun saveSetting(item: SettingItem, value: SettingValue) = run("正在保存…") { conn ->
+        val actual = conn.settings?.set(item.key,value) ?: throw DeviceException(ErrorCode.Unsupported)
+        live = live?.copy(settings = live!!.settings.map { if(it.key == item.key) it.copy(value = actual) else it })
+    }
+    var pendingWifi by remember { mutableStateOf<Pair<SettingItem,SettingValue>?>(null) }
+    val wifiPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val pending = pendingWifi;pendingWifi = null
+        if (granted && pending != null) saveSetting(pending.first,pending.second)
+        else error = "未授予附近 Wi-Fi 权限，仍可使用蓝牙补传"
     }
 
     Box(Modifier.fillMaxWidth()) {
@@ -94,6 +122,11 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                 ActionButton("重新启用", ActionKind.Primary) { inputs?.enableDriver(d.address); disabled = null; notice = "已重新启用，下次收音时会重新连接" }
             }
             d.lastError?.takeIf { disabled == null }?.let { Text(it, style = RsType.subhead, color = c.warning) }
+            experiences[d.address]?.activity?.let { activity ->
+                Text(activity.text(),style = RsType.subhead,color = c.textSecondary)
+                if (activity == app.resound.devices.DeviceActivity.WaitingForRecording)
+                    Text("请用设备按键开始，或在下方点“开始”。设备暂停不会因重连而自动解除。",style = RsType.caption,color = c.textTertiary)
+            }
 
             // 读数
             val parts = status?.batteries.orEmpty()
@@ -114,7 +147,10 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                             tint = if (r == RecordingState.Recording) c.good else c.textSecondary)
                     }
                 }
-                if (live == null && previewStatus == null) Text("显示上次成功读取的状态，不代表当前状态；请连接并读取。", style = RsType.caption, color = c.textSecondary)
+                if (connected[d.address]?.connection !in setOf(app.resound.devices.hub.ConnectionState.Connected,app.resound.devices.hub.ConnectionState.Backfilling) && previewStatus == null)
+                    Text("显示最近成功读取的状态；当前没有保持蓝牙连接，请刷新后再判断。", style = RsType.caption, color = c.textSecondary)
+                if (parts.any { app.resound.devices.deviceReadingFreshness(it.readAtMillis,readingNow) == app.resound.devices.DeviceReadingFreshness.Stale })
+                    Text("部分电量读数已超过2分钟，请刷新后再判断；断开时保留的值不代表在线。",style = RsType.caption,color = c.warning)
                 if (parts.any { it.part == 2 }) Text("充电盒读数由录音设备转报，接电或取出后可能延迟更新。", style = RsType.caption, color = c.textTertiary)
             } else if (inputs != null) {
                 Text("还没读过这台设备的电量和状态。", style = RsType.subhead, color = c.textTertiary)
@@ -171,10 +207,11 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                         info.settings.forEachIndexed { i, item ->
                             if (i > 0) Line()
                             SettingRow(item) { value ->
-                                run("正在保存…") { conn ->
-                                    val actual = conn.settings?.set(item.key, value) ?: throw DeviceException(ErrorCode.Unsupported)
-                                    live = live?.copy(settings = live!!.settings.map { if (it.key == item.key) it.copy(value = actual) else it })
-                                }
+                                val permission = if (android.os.Build.VERSION.SDK_INT >= 33) android.Manifest.permission.NEARBY_WIFI_DEVICES else android.Manifest.permission.ACCESS_FINE_LOCATION
+                                if (item.key == "fastTransfer" && value == SettingValue.Bool(true) &&
+                                    androidx.core.content.ContextCompat.checkSelfPermission(context,permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    pendingWifi = item to value;wifiPermission.launch(permission)
+                                } else saveSetting(item,value)
                             }
                         }
                     }
@@ -182,6 +219,15 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
             }
             // 离线录音
             if ((inputs != null || previewInfo != null) && meta?.tier == DriverTier.Plugin && (info == null || Capability.Files in info.capabilities)) {
+                ActionButton("选择离线录音",ActionKind.Secondary,enabled = busy == null && manual?.running != true) {
+                    run("正在读取文件列表…") { conn ->
+                        conn.controls.refresh()
+                        if (conn.status.value.recording != RecordingState.Stopped) throw DeviceException(ErrorCode.StateConflict)
+                        selectedFiles = emptySet()
+                        selectableFiles = conn.files?.list()?.sortedByDescending { it.start.epochMillis }
+                            ?: throw DeviceException(ErrorCode.Unsupported)
+                    }
+                }
                 ActionButton(if (manual?.running == true) "正在检查…" else "立即检查离线录音", ActionKind.Secondary, enabled = busy == null && manual?.running != true) {
                     error = null; notice = null
                     inputs?.startSyncDevice(d.address)
@@ -192,12 +238,45 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                 } else (manual?.errorCode?.text() ?: manual?.message)?.let { Text(it, style = RsType.caption,
                     color = if (manual?.errorCode != null) c.warning else c.textSecondary) }
             }
-            d.backfill?.let { b ->
+            transfers[d.address]?.let { DeviceSyncDetailView(it) }
+            networks[d.address]?.let { network ->
+                val message = when (network.phase) {
+                    LocalFileNetworkPhase.Idle -> null
+                    LocalFileNetworkPhase.OpeningHotspot -> "正在开启设备热点，准备交接蓝牙连接"
+                    LocalFileNetworkPhase.Joining -> "请在系统弹窗确认连接设备热点 ${network.ssid.orEmpty()}"
+                    LocalFileNetworkPhase.Connecting -> "设备热点已接入，正在建立加密快传通道"
+                    LocalFileNetworkPhase.Transferring -> "当前使用设备 Wi-Fi 快传；其他联网不切到设备热点"
+                    LocalFileNetworkPhase.Finished -> "设备快传连接已释放"
+                    LocalFileNetworkPhase.Failed -> {
+                        val reason = when(network.failure) {
+                            LocalFileNetworkFailure.PermissionDenied -> "附近 Wi-Fi 权限未授予"
+                            LocalFileNetworkFailure.JoinUnavailable -> "系统未能接入设备热点"
+                            LocalFileNetworkFailure.JoinTimeout -> "等待系统连接设备热点超时"
+                            LocalFileNetworkFailure.NetworkLost -> "设备热点连接已断开"
+                            LocalFileNetworkFailure.TlsPeer -> "设备 TLS 或证书连接未通过"
+                            LocalFileNetworkFailure.SocketTimeout -> "建立设备快传通道超时"
+                            LocalFileNetworkFailure.SocketFailed -> "设备快传通道连接失败"
+                            LocalFileNetworkFailure.Cancelled -> "本次设备热点连接已取消"
+                            null -> "快传未完成"
+                        }
+                        "$reason；进度已保留，可继续使用蓝牙"
+                    }
+                }
+                message?.let { Text(it,style = RsType.caption,color = c.textSecondary) }
+                val diagnostic=network.diagnostic
+                if(network.phase == LocalFileNetworkPhase.Failed && diagnostic != null) {
+                    Pill(if(showNetworkDiagnostic) "收起快传诊断" else "查看快传诊断",filled = false) { showNetworkDiagnostic = !showNetworkDiagnostic }
+                    if(showNetworkDiagnostic) Text(diagnostic,style = RsType.caption,color = c.textTertiary)
+                }
+            }
+            d.backfill?.takeIf { transfers[d.address] == null }?.let { b ->
                 Text("补传任务：${b.doneFiles}/${b.files} 项", style = RsType.subhead, color = c.text)
                 Text("已接收 ${formatBytes(b.doneBytes)} / ${formatBytes(b.bytes)}；同一文件的多个缺口分别计数。", style = RsType.caption, color = c.textSecondary)
                 if (b.bytes > 0) LinearProgressIndicator(progress = { (b.doneBytes.toFloat() / b.bytes).coerceIn(0f, 1f) }, color = c.accent,
                     trackColor = c.accentSoft, modifier = Modifier.fillMaxWidth().clip(CircleShape))
             }
+            experiences[d.address]?.let { DeviceEventView(it) }
+            if (inputs != null && meta?.tier == DriverTier.Plugin) DeviceArchiveSection(d.address,inputs,status,busy == null && manual?.running != true)
             meta?.let { m ->
                 if (m.stability == Stability.Trial) Text(
                     "试用：这款设备由${if (m.tier == DriverTier.Plugin) "社区" else "公开资料"}适配" + (m.maintainer?.let { "，维护人 $it" } ?: "") + "，可能有不稳定的地方，有问题请反馈。",
@@ -211,6 +290,30 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
             Text("忘记后不再自动连接；系统蓝牙里的配对不受影响。", style = RsType.caption, color = c.textTertiary)
         }
     }
+    selectableFiles?.let { files ->
+        AlertDialog(onDismissRequest = { selectableFiles = null },title = { Text("选择离线录音") },
+            text = {
+                Column {
+                    Text("只补传勾选的已保存文件，其余历史队列保留。已选 ${selectedFiles.size} 条。")
+                    if (selectedFiles.sumOf { it.encodeToByteArray().size } > 6000) Text("本次选择较多，请分批补传。")
+                    LazyColumn(Modifier.heightIn(max = 380.dp)) {
+                        items(files,key = { it.id }) { file ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = file.id in selectedFiles,onCheckedChange = { checked ->
+                                    selectedFiles = if(checked) selectedFiles+file.id else selectedFiles-file.id
+                                })
+                                val started = file.start.epochMillis?.let { android.text.format.DateFormat.format("MM-dd HH:mm",it) } ?: "时间未知"
+                                Text("$started · ${(file.durationMillis ?: 0)/1000} 秒 · ${formatBytes(file.bytes ?: 0)}")
+                            }
+                        }
+                    }
+                }
+            },confirmButton = {
+                TextButton(enabled = selectedFiles.isNotEmpty() && selectedFiles.sumOf { it.encodeToByteArray().size } <= 6000,onClick = {
+                    inputs?.startSyncDevice(d.address,selectedFiles.toSet());selectableFiles = null
+                }) { Text("补传所选") }
+            },dismissButton = { TextButton(onClick = { selectableFiles = null }) { Text("取消") } })
+    }
 }
 
 internal data class LiveInfo(
@@ -221,8 +324,8 @@ internal data class LiveInfo(
     val status: DeviceStatusModel,
 )
 
-internal fun deviceSubtitle(d: DeviceState, meta: DriverMeta?): String = buildString {
-    append(when (d.status) {
+internal fun deviceSubtitle(d: DeviceState, meta: DriverMeta?, experience: app.resound.devices.DeviceExperience? = null): String = buildString {
+    append(experience?.activity?.text() ?: when (d.status) {
         DeviceStatus.Connecting -> "正在连接"
         DeviceStatus.Live -> "正在收音"
         DeviceStatus.Waiting -> "没连上，靠近手机会自动连"

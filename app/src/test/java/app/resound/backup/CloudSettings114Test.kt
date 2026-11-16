@@ -66,7 +66,7 @@ class CloudSettings114Test {
         } finally { directory.deleteRecursively() }
     }
     @Test fun addressPolicyAndSecretReuseRejectUnsafeConfiguration() {
-        listOf("http://10.0.0.2/dav", "http://172.16.0.2/", "http://192.168.1.2/", "http://nas.local/", "https://example.com/").forEach { CloudAddress.parse(it) }
+        listOf("http://10.0.0.2/dav", "http://172.16.0.2/", "http://192.168.1.2/", "http://nas.local/", "http://127.0.0.1:18743/", "http://[::1]:18743/", "https://example.com/").forEach { CloudAddress.parse(it) }
         listOf("http://172.32.0.2/", "http://example.com/", "http://10.1.2.999/", "http://10.1.example.2.3/", "https://user:pass@example.com/", "https://example.com/?key=x").forEach {
             assertTrue(it, runCatching { CloudAddress.parse(it) }.isFailure)
         }

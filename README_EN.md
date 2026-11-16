@@ -90,7 +90,8 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 32. **🔎 Search everywhere** — search lines, events, to-dos, memories, found things, topics, reviews and Ask history across all dates, from the home screen or the To-dos / Memory pages; results are grouped by type with counts, date filters and endless loading (tap a line to jump to that moment); search settings by everyday words such as “battery”.
 33. **📅 To-dos on a calendar** — a week strip (expandable to a month) with dots for busy and overdue days; an agenda from today, later items grouped into “next week” / months, undated ones under “anytime”; move all overdue to today in one tap, confirm pending items inline, and add a to-do to an empty day by voice. “Add to phone calendar” opens the system calendar prefilled (no calendar permission needed).
 34. **📜 Changelog in the app** — after an update, the home screen shows “Updated to X · see what’s new” once; Settings → Updates → Changelog lists every release offline, with the current one expanded.
-35. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
+35. **📣 Notices without an update** — announcements such as community QR codes or service notices appear on the home screen (images can be saved to the gallery); the notice file is signature-checked, download-only, and dismissed notices stay hidden.
+36. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
 
 <table>
 <tr>

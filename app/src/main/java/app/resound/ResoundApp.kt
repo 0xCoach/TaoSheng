@@ -324,6 +324,7 @@ class ResoundApp : Application() {
         AppGraph.deviceScanError = cardDevices.lastError
         inputs.attachCards(cardDevices, AppGraph.deviceCards, scope)
         app.resound.devices.DeviceCardsWork.schedule(this)
+        app.resound.notice.NoticeWork.schedule(this)
         app.resound.update.UpdateWork.schedule(this, updater.autoCheck.value, updater.previewChannel.value)
         pipelineScheduler
         registerActivityLifecycleCallbacks(app.resound.update.UpdateForegroundChecks(updater, scope))

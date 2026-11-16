@@ -153,7 +153,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 **v0.4.0** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.0-arm64.apk) — On-time background digests while recording (for HarmonyOS and other strict phones) with Huawei / Honor keep-alive guidance; home-screen search and new-version prompt; switching model providers takes effect immediately; more settings restored from backups; license changed to FSL-1.1-MIT. [Changelog (Chinese)](CHANGELOG.md#040--2026-11-16).
 
-**v0.3.1** (2026-11-14): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.3.1-arm64.apk) — Missed scheduled digests are caught up and retried; D3200 lights-off capture and transfer fixes; update download stability. [Changelog (Chinese)](CHANGELOG.md#031--2026-11-14).
+**v0.3.1** (2026-11-14): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) — Missed scheduled digests are caught up and retried; D3200 lights-off capture and transfer fixes; update download stability. [Changelog (Chinese)](CHANGELOG.md#031--2026-11-14).
 
 **v0.3.0** (2026-11-13): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) — New interface, voice to-dos, home-screen widget, resumable long-meeting summaries and reduced background work. Back up before upgrading; legacy Sonicloud support removed. [Changelog (Chinese)](CHANGELOG.md#030--2026-11-13).
 

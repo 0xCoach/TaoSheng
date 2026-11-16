@@ -29,7 +29,7 @@ internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = f
         host == "api.moonshot.cn" && model.startsWith("kimi-k3") -> {
             body.remove("temperature"); body.put("reasoning_effort", "low"); completionLimit(16_384)
         }
-        host == "api.openai.com" && (model.startsWith("gpt-5.4") || model.startsWith("gpt-5.6")) -> {
+        host == "api.openai.com" && (model.startsWith("gpt-5.4") || model.startsWith("gpt-5.6") || model.startsWith("gpt-6")) -> {
             body.remove("temperature"); body.put("reasoning_effort", "none")
             completionLimit(if (stream) 1800 else NetLlmClient.MAX_JSON_OUTPUT_TOKENS)
         }

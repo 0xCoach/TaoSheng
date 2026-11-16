@@ -142,7 +142,7 @@ class RoomPrivacyActionsTest {
                 calls++; beforeAudio(); entered.complete(Unit); release.await()
                 return AsrResult(emptyList(), 1000, null)
             }
-        }, { "test" }, { _, _ -> }, deferAudioCleanup = true)
+        }, { "test" }, { _, _ -> })
         val work = async { runner.run() }
         entered.await()
         privacy.forgetSegment(1); privacy.forgetSegment(2)

@@ -53,7 +53,11 @@ internal class PipelineScheduler(private val app: ResoundApp) {
             if (mode != PipelineModes.REVIEW) pendingReady.await()
             if (periodic) app.pipelineDiagnostics.systemPeriodic()
             lockStart = SystemClock.elapsedRealtime()
-            return gate.offer(request, { decision(mode) }) { due ->
+            return gate.offer(request, {
+                if (source in setOf("亮屏", "接电") && app.transcribeRunner.localResume?.readyToResume() == true)
+                    PipelineDue.Decision.Run(PipelineDue.Mode.Transcribe, System.currentTimeMillis())
+                else decision(mode)
+            }) { due ->
                 entered = true
                 round.lockWaitMillis = SystemClock.elapsedRealtime() - requireNotNull(lockStart)
                 round.mode = when (due?.mode) {

@@ -75,6 +75,7 @@ class DeviceInputs143Test {
         var manualSyncs = 0
         var holdManual = false
         var manualCancelled = 0
+        var manualSelection: Set<String>? = null
         var manualFailure: DeviceException? = null
         val manualEntered = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
         val job = SupervisorJob(); val worker = CoroutineScope(coroutineContext + job)
@@ -98,8 +99,9 @@ class DeviceInputs143Test {
             override fun monotonicMillis()=System.nanoTime()/1_000_000
             override fun zoneOffsetMinutes()=0
         },object:PlatformExtras {},{ emptyFlow() },{ _,_-> },{ DeviceIdentity(DeviceId("test-identity"),IdScope.PlatformLocal) },worker,
-            registered=listOf(RegisteredDriver(driver,transport)), onDriverLinked={ _,_,_,manual,_->
+            registered=listOf(RegisteredDriver(driver,transport)), onDriverLinked={ _,_,_,manual,selected,_->
                 if (manual) {
+                    manualSelection = selected
                     manualSyncs++
                     manualFailure?.let { throw it }
                     if (holdManual) {
@@ -133,6 +135,12 @@ class DeviceInputs143Test {
             inputs.pauseSyncDevice(address)
             withTimeout(3000) { inputs.manualSyncStates.first { it[address]?.running == false } }
             assertEquals(2, manualCancelled)
+            val ownedByWorker = launch { inputs.runManualSync(address,setOf("chosen")) }
+            withTimeout(3000) { manualEntered.receive() }
+            assertEquals(setOf("chosen"),manualSelection)
+            ownedByWorker.cancelAndJoin()
+            assertEquals(3,manualCancelled)
+            assertFalse(inputs.manualSyncStates.value[address]!!.running)
             holdManual = false
             manualFailure = DeviceException(ErrorCode.StateConflict)
             inputs.startSyncDevice(address)

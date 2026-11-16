@@ -47,7 +47,12 @@ internal class DeviceInputs(
     private val report: (String, LinkDiagnostics) -> Unit = { _, _ -> },
     private val registered: List<RegisteredDriver> = emptyList(),
     private val extrasFor: (String, String) -> PlatformExtras = { _, _ -> extras },
-    private val onDriverLinked: suspend (RememberedDevice, DriverConnection, DeviceLink, Boolean, (BackfillProgress?) -> Unit) -> Unit = { _, _, _, _, _ -> },
+    private val onDriverLinked: suspend (RememberedDevice, DriverConnection, DeviceLink, Boolean, Set<String>?, (BackfillProgress?) -> Unit) -> Unit = { _, _, _, _, _, _ -> },
+    val transferDetails: StateFlow<Map<String, DeviceSyncDetail>> = MutableStateFlow(emptyMap()),
+    val fileNetworkStates: StateFlow<Map<String,LocalFileNetworkStatus>> = MutableStateFlow(emptyMap()),
+    val archives: DeviceArchiveRepository? = null,
+    private val scheduleManual: ((String,Set<String>?) -> Unit)? = null,
+    private val cancelManual: (String) -> Unit = {},
 ) : Devices {
     private val savedLock = Mutex()
     private val remembered = MutableStateFlow(store.read())
@@ -69,8 +74,14 @@ internal class DeviceInputs(
         registered.any { it.driver.meta.id == id } || installed.any { it.enabled && it.card.id == id && it.card.audio != null }
     private val states = MutableStateFlow(remembered.value.map { it.state() })
     override val devices = states.asStateFlow()
+    private val hubStates = MutableStateFlow<Map<String, HubDevice>>(emptyMap())
+    val currentDeviceStates = hubStates.asStateFlow()
+    private val experience = MutableStateFlow<Map<String, DeviceExperience>>(emptyMap())
+    val deviceExperiences = experience.asStateFlow()
     private val discoveries = MutableStateFlow<List<FoundDevice>>(emptyList())
     override val found = discoveries.asStateFlow()
+    private val discoveryTimes = MutableStateFlow<Map<String,Long>>(emptyMap())
+    val discoverySeenAt = discoveryTimes.asStateFlow()
     private val error = MutableStateFlow<String?>(null)
     val lastError = error.asStateFlow()
     private data class ManualSyncEntry(val task: Job, val state: ManualSyncState)
@@ -180,6 +191,7 @@ internal class DeviceInputs(
         } finally {
             withContext(NonCancellable) { hub.close() }
             runningHub.compareAndSet(activeHub, null)
+            hubStates.update { it - row.address }
             update(row.address) { it.copy(status = DeviceStatus.Disconnected, backfill = null,
                 lastError = if (!available(row.cardId, cards.cards.value)) "设备说明卡不可用" else it.lastError) }
         }
@@ -201,7 +213,7 @@ internal class DeviceInputs(
             try {
                 if (plugin) {
                     hub.withConnection(row.address, LeaseOwner.Backfill) { connection ->
-                        try { onDriverLinked(before, connection, CardDeviceLink(port.link), false) { progress -> update(row.address) { it.copy(backfill = progress) } } }
+                        try { onDriverLinked(before, connection, CardDeviceLink(port.link), false,null) { progress -> update(row.address) { it.copy(backfill = progress) } } }
                         catch (e: DeviceException) { if (e.code != ErrorCode.StateConflict) throw e }
                     }
                     return@launch
@@ -267,6 +279,7 @@ internal class DeviceInputs(
         }
     }
     private fun render(address: String, device: HubDevice) {
+        hubStates.update { it + (address to device) }
         cacheStatus(address,device.status)
         update(address) { old ->
         val available = stream.value?.key == deviceKey(address)
@@ -305,8 +318,31 @@ internal class DeviceInputs(
         repository.setDisabled(selection.driverId, key, null)
         update(address) { it.copy(lastError = null) }
     }
-    fun select(choice: InputChoice) { selected.value = (choice as? InputChoice.Device)?.key }
-    fun recording(value: Boolean) { active.value = value }
+    fun select(choice: InputChoice) { selected.value = (choice as? InputChoice.Device)?.key; states.value.forEach { refreshExperience(it.address) } }
+    fun recording(value: Boolean) { active.value = value; states.value.forEach { refreshExperience(it.address) } }
+    fun stableIdentity(address: String): String? = hubStates.value[address]?.identity?.id?.value
+        ?: repository.selections().firstOrNull { it.platformHandle == address }?.deviceId?.value
+    fun archiveMaintenanceEnabled(): Boolean = remembered.value.any { row ->
+        stableIdentity(row.address)?.let { archives?.configuration(it)?.retention?.enabled } == true
+    }
+    suspend fun withArchivePrivacyDeletion(from: Long,until: Long,
+        block: suspend (List<String>) -> app.resound.privacy.ForgetResult): app.resound.privacy.ForgetResult {
+        // A paused foreground transfer cannot recreate an original while it is being erased.
+        val jobs = syncTasks.value.values.filter { it.state.running }.map { it.task }
+        remembered.value.forEach { pauseSyncDevice(it.address) }
+        jobs.forEach { it.cancelAndJoin() }
+        return archives?.withPrivacyDeletion(from,until,block) ?: block(emptyList())
+    }
+    suspend fun maintainDeviceStorage() {
+        val archive = archives ?: return
+        for (row in remembered.value) {
+            val identity = stableIdentity(row.address) ?: continue
+            if (!archive.configuration(identity).retention.enabled) continue
+            archive.backupPending(identity)
+            if (active.value || syncTasks.value[row.address]?.state?.running == true) continue
+            withDevice(row.address) { archive.cleanup(it) }
+        }
+    }
 
     /** 管理操作与收音共用连接租约；未收音时只短暂连接，不启动声音或补传。 */
     suspend fun <T> withDevice(address: String, action: suspend (DriverConnection) -> T): T {
@@ -356,8 +392,12 @@ internal class DeviceInputs(
                         override suspend fun close() = transport.close()
                     }
                 },toolbox,clock,extrasFor(address,id),this)
+                var observer: Job? = null
                 try {
                     hub.select(Advertisement(address,row.name,emptySet(),emptyMap(),null),id)
+                    observer = launch(start = CoroutineStart.UNDISPATCHED) {
+                        hub.devices.collect { rows -> rows.firstOrNull { it.platformHandle == address }?.let { render(address,it) } }
+                    }
                     if (registration != null) {
                         val selection = repository.selections().firstOrNull { it.platformHandle == address && it.driverId == id }
                         val key = selection?.deviceId?.let { "id:${it.value}" } ?: "handle:$address"
@@ -368,19 +408,37 @@ internal class DeviceInputs(
                     }
                     hub.connect(address)
                     use(hub)
-                } finally { withContext(NonCancellable) { hub.close() } }
+                } finally { withContext(NonCancellable) {
+                    observer?.cancelAndJoin(); hub.close()
+                    hubStates.update { it - address }
+                    update(address) { it.copy(status = DeviceStatus.Disconnected) }
+                } }
             }
             } finally { mutex.unlock() }
         }
     }
 
     /** 手动补传由应用持有；关闭详情不取消，暂停则等待连接清理并保留续传记录。 */
-    fun startSyncDevice(address: String) {
+    fun startSyncDevice(address: String, fileIds: Set<String>? = null) {
+        require(fileIds == null || fileIds.isNotEmpty())
+        if (scheduleManual != null) scheduleManual.invoke(address,fileIds)
+        else scope.launch { runManualSync(address,fileIds) }
+    }
+
+    /** Worker owns this scope: lock screen, process recreation and cancellation keep the same durable queue. */
+    suspend fun runManualSync(address: String, fileIds: Set<String>? = null): Boolean = coroutineScope {
+        require(fileIds == null || fileIds.isNotEmpty())
         var message = "离线录音已检查完；未成功的任务可再次检查"
         var errorCode: ErrorCode? = null
-        val task = scope.launch(start = CoroutineStart.LAZY) {
+        val task = launch(start = CoroutineStart.LAZY) {
             try {
-                syncDevice(address)
+                try { syncDevice(address,fileIds) }
+                catch (e: DeviceException) {
+                    if (e.code != ErrorCode.Disconnected) throw e
+                    currentCoroutineContext().ensureActive()
+                    delay(1500)
+                    syncDevice(address,fileIds) // One bounded reconnect; durable bytes survive transport handoff failure.
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: DeviceException) {
@@ -388,13 +446,13 @@ internal class DeviceInputs(
                 message = "检查没有完成，已保留进度，请稍后重试"
             } catch (caught: Exception) {
                 FailureNotes.record("devices/android/DeviceInputs.kt:383", caught)
-
+                errorCode = ErrorCode.ProtocolError
                 message = "检查没有完成，已保留进度，请稍后重试"
             }
         }
         while (true) {
             val old = syncTasks.value
-            if (old[address]?.state?.running == true) { task.cancel(); return }
+            if (old[address]?.state?.running == true) { task.cancel(); return@coroutineScope false }
             if (syncTasks.compareAndSet(old, old + (address to ManualSyncEntry(task, ManualSyncState(true))))) break
         }
         task.invokeOnCompletion { cause ->
@@ -408,9 +466,12 @@ internal class DeviceInputs(
             }
         }
         task.start()
+        task.join()
+        errorCode == null
     }
 
     fun pauseSyncDevice(address: String) {
+        cancelManual(address)
         val entry = syncTasks.value[address]?.takeIf { it.state.running } ?: return
         syncTasks.update { rows ->
             if (rows[address] === entry) rows + (address to entry.copy(state = entry.state.copy(pausing = true))) else rows
@@ -419,7 +480,7 @@ internal class DeviceInputs(
     }
 
     /** 显式检查已保存录音；即使关闭自动补传也执行，设备录音中由驱动返回 StateConflict。 */
-    suspend fun syncDevice(address: String) {
+    suspend fun syncDevice(address: String, fileIds: Set<String>? = null) {
         val row = remembered.value.firstOrNull { it.address == address } ?: throw DeviceException(ErrorCode.NotFound)
         if (registered.none { it.driver.meta.id == row.cardId }) throw DeviceException(ErrorCode.Unsupported)
         val unused = object : DeviceLink {
@@ -430,7 +491,7 @@ internal class DeviceInputs(
         }
         withDevice(address) { connection ->
             if (connection.files == null) throw DeviceException(ErrorCode.Unsupported)
-            onDriverLinked(row,connection,unused,true) { progress -> update(address) { it.copy(backfill=progress) } }
+            onDriverLinked(row,connection,unused,true,fileIds) { progress -> update(address) { it.copy(backfill=progress) } }
         }
     }
     fun audioSource(key: String): AudioSource = object : AudioSource, AudioTimeline {
@@ -491,6 +552,28 @@ internal class DeviceInputs(
     }
     private fun update(address: String, change: (DeviceState) -> DeviceState) {
         states.update { rows -> rows.map { if (it.address == address) change(it) else it } }
+        refreshExperience(address)
+    }
+    private fun refreshExperience(address: String) {
+        val row = states.value.firstOrNull { it.address == address } ?: return
+        val snapshot = hubStates.value[address]
+        val link = when (snapshot?.connection) {
+            ConnectionState.Connecting -> DeviceLinkPhase.Connecting
+            ConnectionState.Connected -> DeviceLinkPhase.Connected
+            ConnectionState.Backfilling -> DeviceLinkPhase.Backfilling
+            ConnectionState.WaitingReconnect -> DeviceLinkPhase.WaitingReconnect
+            ConnectionState.Disabled -> DeviceLinkPhase.Disabled
+            else -> DeviceLinkPhase.Disconnected
+        }
+        val recording = when (snapshot?.status?.recording) {
+            RecordingState.Recording -> DeviceRecorderPhase.Recording
+            RecordingState.Paused -> DeviceRecorderPhase.Paused
+            RecordingState.Stopped -> DeviceRecorderPhase.Stopped
+            else -> null
+        }
+        val activity = deviceActivity(link,recording,active.value && selected.value == deviceKey(address),
+            stream.value?.key == deviceKey(address),row.backfill != null)
+        experience.update { it + (address to (it[address] ?: DeviceExperience()).advance(activity,clock.nowEpochMillis())) }
     }
     private suspend fun saveRow(address: String, change: (RememberedDevice) -> RememberedDevice) = savedLock.withLock {
         val next = remembered.value.map { if (it.address == address) change(it) else it }
@@ -499,7 +582,7 @@ internal class DeviceInputs(
     private suspend fun gap(address: String, at: Long) = saveRow(address) { if (it.gapStart == null) it.copy(gapStart = at) else it }
 
     override fun startScan() {
-        stopScan(); discoveries.value = emptyList(); error.value = null
+        stopScan(); discoveries.value = emptyList(); discoveryTimes.value = emptyMap(); error.value = null
         val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 withTimeoutOrNull(30_000) {
@@ -511,7 +594,11 @@ internal class DeviceInputs(
                         val name = match?.card?.name ?: requireNotNull(plugin).driver.meta.name.zh
                         val trial = match?.card?.status == CardStatus.Trial || plugin?.driver?.meta?.stability == Stability.Trial
                         val device = FoundDevice(ad.platformHandle, ad.name?.takeIf { it.isNotBlank() } ?: name, id, trial, ad.rssi)
-                        discoveries.update { (it.filterNot { row -> row.address == device.address } + device).takeLast(100) }
+                        discoveries.update { rows ->
+                            if (rows.any { it.address == device.address }) rows.map { if (it.address == device.address) device else it }
+                            else (rows + device).takeLast(100)
+                        }
+                        discoveryTimes.update { times -> (times + (device.address to clock.nowEpochMillis())).filterKeys { handle -> discoveries.value.any { it.address == handle } } }
                     }
                 }
             } catch (e: CancellationException) { throw e }

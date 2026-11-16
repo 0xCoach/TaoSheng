@@ -1,7 +1,8 @@
 package app.resound.devices.plugins.d3200
 
 // Adapted from the MIT-licensed AllDayRec Bean implementation (suyiiyii).
-// See vendor/d3200/LICENSE-AllDayRec and docs/任务卡/D3200-协议与灯控-交付说明.md.
+// Copyright (c) 2026 suyiiyii. License and provenance: vendor/d3200/THIRD_PARTY_NOTICES.md.
+// The original MIT notice is also distributed in assets/licenses/d3200/LICENSE-AllDayRec.
 /** Verified D3200 04.92 RGB command and fixed SPP enablement. No flash or recording commands. */
 object BeanLight {
     const val SPP = "0cf12d31-fac3-4553-bd80-d6832e7d3200"

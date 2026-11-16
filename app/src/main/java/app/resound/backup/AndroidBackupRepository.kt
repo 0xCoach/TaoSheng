@@ -127,6 +127,37 @@ class AndroidBackupRepository internal constructor(
     }
     override fun backupNow() { scheduler.runNow() }
     @Synchronized private fun client(): RemoteStore = clientFactory?.invoke() ?: cloud.remote(config)
+    internal fun deviceArchiveDestination(): String? {
+        if (!cloud.hasSecret && clientFactory == null) return null
+        val identity = "${state.value.cloud}|${state.value.account}|${state.value.webDavUrl}|${state.value.s3}|${config.endpoint}"
+        return java.security.MessageDigest.getInstance("SHA-256").digest(identity.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+    internal suspend fun backupDeviceArchive(record: app.resound.devices.DeviceArchiveRecord, source: File,
+                                             now: () -> Long): app.resound.devices.DeviceArchiveBackupReceipt = withContext(Dispatchers.IO) {
+        gate.withLock {
+            val destination = requireNotNull(deviceArchiveDestination()) { "请先配置独立云端备份" }
+            val remote = client(); remote.ensureDirectory()
+            DeviceArchiveBackup.upload(remote.volumes(),record,source,backupPassphrase(),destination,now,context.cacheDir)
+        }
+    }
+    internal suspend fun discoverDeviceArchives(identity: String): List<app.resound.devices.DeviceArchiveRecord> = withContext(Dispatchers.IO) {
+        gate.withLock {
+            val destination = requireNotNull(deviceArchiveDestination()) { "请先配置原独立备份目的地" }
+            DeviceArchiveBackup.discover(client().volumes(),identity,destination,context.cacheDir)
+        }
+    }
+    internal suspend fun verifyDeviceArchiveBackup(record: app.resound.devices.DeviceArchiveRecord): Boolean = withContext(Dispatchers.IO) {
+        gate.withLock {
+            if (record.backup?.destination != deviceArchiveDestination()) return@withLock false
+            DeviceArchiveBackup.verify(client().volumes(),record,backupPassphrase(),context.cacheDir)
+        }
+    }
+    internal suspend fun restoreDeviceArchive(record: app.resound.devices.DeviceArchiveRecord, target: File) = withContext(Dispatchers.IO) {
+        gate.withLock {
+            check(record.backup?.destination == deviceArchiveDestination()) { "归档备份目的地已变化" }
+            DeviceArchiveBackup.restore(client().volumes(),record,backupPassphrase(),context.cacheDir,target)
+        }
+    }
     /** 发送时现取所选存储和安全区凭据，不复制到推送配置。 */
     @Synchronized internal fun pushCredentials(): Map<String, String>? = cloud.credentials(config)
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {

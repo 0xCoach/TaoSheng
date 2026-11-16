@@ -219,8 +219,8 @@ class TranscribePersistenceTest {
         assertEquals("Pending", dao.segment(second.id).status)
         assertEquals(0, dao.segment(second.id).attempts)
     }
-    @Test fun cleanupDeletesOnlySuccessfulAudioAfterFullDayIncludingEmpty() = runBlocking {
-        val day = TranscribePolicy.RETENTION_MILLIS
+    @Test fun runnerDoesNotDeleteCompletedAudioAfterFullDay() = runBlocking {
+        val day = 86_400_000L
         val done = insert(1, "Done", complete = 100)
         val empty = insert(2, "Empty", complete = 100)
         val recent = insert(3, "Done", complete = 101)
@@ -230,7 +230,7 @@ class TranscribePersistenceTest {
         var error: String? = null
         val runner = TranscribeRunner(dao, provider { _, _ -> error("不应联网") }, { "" }, { _, message -> error = message }, now = { day + 100 }, ready = { false })
         runner.run()
-        assertFalse(File(done.path).exists()); assertFalse(File(empty.path).exists())
+        assertTrue(File(done.path).exists()); assertTrue(File(empty.path).exists())
         for (row in listOf(recent, pending, failed, running)) assertTrue(File(row.path).exists())
         assertEquals("Done", dao.segment(done.id).status)
         assertEquals("Failed", dao.segment(running.id).status)

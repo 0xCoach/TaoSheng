@@ -163,7 +163,7 @@ internal class S3Client(
         }
         override fun legacy() = backups().map { it.name }
         override fun files(directory: String): List<VolumeFile> {
-            require(directory in setOf("history", "objects"))
+            require(directory in setOf("history", "objects", "device-archives"))
             return objects("$backup$directory/").map { it.copy(path = it.path.removePrefix(backup)) }.filter { volumePath(it.path) }
         }
     }

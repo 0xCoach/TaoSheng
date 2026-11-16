@@ -15,7 +15,8 @@ internal object CloudAddress {
         val parts = url.host.split('.')
         val octets = parts.mapNotNull { it.toIntOrNull()?.takeIf { n -> n in 0..255 } }
         val privateIp = parts.size == 4 && octets.size == 4 && (octets[0] == 10 || octets[0] == 172 && octets[1] in 16..31 || octets[0] == 192 && octets[1] == 168)
-        require(url.isHttps || privateIp || url.host.endsWith(".local")) { "请使用 HTTPS；HTTP 只允许局域网 IP 或 .local 地址" }
+        val usbLoopback = url.host == "127.0.0.1" || url.host == "::1"
+        require(url.isHttps || privateIp || usbLoopback || url.host.endsWith(".local")) { "请使用 HTTPS；HTTP 只允许局域网、USB 本机地址或 .local 地址" }
         return url
     }
     fun s3(settings: S3Settings): S3Settings {

@@ -17,10 +17,12 @@ import app.resound.importer.AndroidAudioImporter
 import app.resound.importer.ImportFingerprint
 import app.resound.importer.audioFingerprint
 import app.resound.devices.driver.SettingValue
+import app.resound.devices.driver.LocalFileNetworkPhase
+import app.resound.backup.AndroidBackupRepository
 import app.resound.update.UpdateDiagnostics
 import app.resound.devices.android.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -74,13 +76,29 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
     val plugins = emptyList<FileSourcePlugin>()
     val ingest = deviceImport(app, app.database, AppGraph.importer as AndroidAudioImporter)
     val registered = DriverCatalog.registered()
+    val archives = DeviceArchiveRepository(app,app.database,platform.clock,
+        backup = { if (AppGraph.isBackupReady) AppGraph.backup as? AndroidBackupRepository else null },
+        encode = DriverCatalog::encode, importArchive = { record,source ->
+            val file = DeviceFile(record.fileId,"完整归档",record.archiveBytes,record.startedAtMillis,record.durationMillis,FileFormat.valueOf(record.archiveFormat))
+            val start = record.startedAtMillis ?: record.firstSeenClosedAtMillis-record.durationMillis
+            ingest(source,file,DeviceSlice(0,record.durationMillis,start),"archive-restore-${record.id}-${java.util.UUID.randomUUID()}")
+        })
+    val transferDetails = MutableStateFlow<Map<String,DeviceSyncDetail>>(emptyMap())
+    fun detail(address: String, value: DeviceSyncDetail) {
+        val previous = transferDetails.value[address]
+        if (previous?.phase != value.phase || previous.receivedBytes == 0L && value.receivedBytes > 0 ||
+            (previous?.receivedBytes ?: 0L)/262144 != value.receivedBytes/262144)
+            android.util.Log.i("ResoundDeviceTransfer","phase=${value.phase} received=${value.receivedBytes} total=${value.totalBytes}")
+        transferDetails.update { it + (address to value) }
+    }
     return DeviceInputs(cards, AndroidPairedDeviceStore(app.getSharedPreferences("devices", Context.MODE_PRIVATE)),
         platform.repository, { address, card -> platform.connector { card.link.mtu }.connect(address) },
         platform.toolbox, platform.clock, platform.extras, { platform.bluetooth.scan() },
         AndroidDeviceBond(app)::pair, AndroidDevicePlatform::legacyIdentity, app.scope, plugins,
         onLinked = { row, card, link, start, end, offset, progress ->
             val sync = syncs.getOrPut(row.address) { DeviceSync(row.address, File(app.filesDir, "device-sync/downloads"),
-                app.database, plugins, ingest) }
+                app.database, plugins, ingest, elapsedMillis = platform.clock::monotonicMillis,
+                onDetail = { detail(row.address,it) }) }
             coroutineScope {
                 val observer = launch { sync.progress.collect(progress) }
                 try { sync.onLinked(card, link, start, end, offset) }
@@ -90,14 +108,17 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
             val label = MessageDigest.getInstance("SHA-256").digest(address.toByteArray()).take(6).joinToString("") { "%02x".format(it) }
             UpdateDiagnostics.record(app,
                 "device_link 设备 $label 收包=${stats.received} 丢包=${stats.lost} 校验失败=${stats.crcFailures} 解码失败=${stats.decodeFailures}")
-        }, registered = registered, extrasFor = platform::extrasFor,
-        onDriverLinked = { row, connection, link, manual, progress ->
+        }, registered = registered, extrasFor = platform::extrasFor, transferDetails = transferDetails,
+        fileNetworkStates = platform.fileNetworkStates,archives = archives,
+        scheduleManual = { address,ids -> DeviceSyncScheduler.enqueue(app,address,ids) },
+        cancelManual = { address -> DeviceSyncScheduler.cancel(app,address) },
+        onDriverLinked = { row, connection, link, manual, selectedIds, progress ->
             val auto = connection.settings?.schema()?.firstOrNull { it.key == "autoSync" }?.value as? SettingValue.Bool
             if (manual || auto?.value != false) {
                 val files = connection.files
                 if (files != null) {
                     val adapter = DriverFileAdapter(row.cardId, files)
-                    val listed = adapter.list(link)
+                    val listed = adapter.list(link).filter { selectedIds == null || it.id in selectedIds }
                     val selection = platform.repository.selections().first { it.platformHandle == row.address }
                     val storeKey = selection.deviceId?.let { "id:${it.value}" } ?: "handle:${row.address}"
                     val driverStore = platform.repository.store(selection.driverId,storeKey)
@@ -117,12 +138,22 @@ internal fun createDevices(app: ResoundApp, cards: DeviceCards): DeviceInputs {
                                         app.database.folderImports().remember(ImportFingerprint(audioFingerprint(source),System.currentTimeMillis()))
                                 } else ingest(source,file,slice,key)
                             } finally { converted.delete() }
-                        },newestFirst=connection.policy.newestFirst)
+                        },newestFirst=connection.policy.newestFirst,elapsedMillis=platform.clock::monotonicMillis,
+                        onDetail = { detail(row.address,it) },
+                        onVerifiedSource = { file,source,hash -> archives.archive(row.cardId,connection.identity.id.value,row.address,file,source,hash) },
+                        onImportedSource = { file -> archives.refreshImports(connection.identity.id.value,file.id) },
+                        needsArchive = { file -> archives.needsArchive(connection.identity.id.value,file) },
+                        mayImportSource = archives::allowsSource)
                     coroutineScope {
                         val observer = launch { sync.progress.collect(progress) }
                         try {
-                            sync.importAll(card,link,row.clockOffset)
-                            check(app.database.deviceSync().rows(row.address).none { !it.imported }) { "设备文件尚未完成导入" }
+                            if (selectedIds == null) sync.importAll(card,link,row.clockOffset)
+                            else sync.importSelected(card,link,row.clockOffset,selectedIds)
+                            check(app.database.deviceSync().rows(row.address).none { !it.imported &&
+                                (selectedIds == null || it.fileId in selectedIds) }) { "设备文件尚未完成导入" }
+                            if (platform.fileNetworkStates.value[row.address]?.phase != LocalFileNetworkPhase.Transferring)
+                                archives.cleanup(connection,selectedIds = selectedIds?.let { ids -> archives.records.value.filter {
+                                    it.deviceIdentity == connection.identity.id.value && it.fileId in ids }.map { it.id }.toSet() })
                         }
                         finally { observer.cancelAndJoin(); progress(null) }
                     }

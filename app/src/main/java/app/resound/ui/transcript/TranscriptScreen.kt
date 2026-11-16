@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import app.resound.ui.ScrollTopButton
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -239,6 +240,8 @@ fun TranscriptScreen(
           }
         }
     }
+    // 原话很长时滑下去要上滑很久：右侧淡入“↑”，点一下回到顶部；多选时让给底部操作栏
+    if (!selection.active) ScrollTopButton(listState, bottomPadding)
     ReachHereChip(reach, selection, boxTop, reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
     // 底部两行：✕ · 已选 N 段 · 共几分钟 · 全选 / 播放 · 导出 · 复制原话 · 删除
     SegmentSelectBar(selection, order, chosen, bottomPadding, onTop = { bottomEdge = it },
@@ -747,6 +750,21 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
     // 多选时整张卡盖一层：点 = 勾选，长按 = 选到这段（原话里的点按播放暂停）
     if (selected != null) Box(Modifier.matchParentSize().combinedClickable(
         interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap, onLongClick = onLongPress))
+    }
+}
+
+/** 卡 192：外放片段的原声按用户设的保留天数删除，删了就不能“仍然转写”，所以标出还剩几天 */
+@Composable
+internal fun skippedAudioHint(seg: SegmentTranscript): String {
+    if (!seg.audioAvailable) return "，原声已删除"
+    if (!app.resound.AppGraph.isOriginalAudioReady) return ""
+    val days by app.resound.AppGraph.originalAudio.retentionDays.collectAsStateWithLifecycle()
+    // 外放片段生成时就算“完成”，完成时间即录音结束时间
+    val left = app.resound.transcribe.originalAudioRemainingDays(seg.endAt, "SkippedPlayback", days, false, System.currentTimeMillis())
+    return when (left) {
+        null -> ""
+        0, 1 -> "，原声 1 天内删除"
+        else -> "，原声还留 $left 天"
     }
 }
 

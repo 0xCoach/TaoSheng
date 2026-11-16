@@ -60,12 +60,35 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
     val repository: HubRepository = AndroidHubRepository(preferences)
     private val activeCaptures = MutableStateFlow<Set<String>>(emptySet())
     private val captureFilesMutex = Mutex()
+    private class Handoff(val close: suspend () -> Unit) { val intentional = MutableStateFlow(false) }
+    private val handoffs = MutableStateFlow<Map<String,Handoff>>(emptyMap())
+    private val networks = MutableStateFlow<Map<String,LocalFileNetworkPort>>(emptyMap())
+    private val networkStates = MutableStateFlow<Map<String,LocalFileNetworkStatus>>(emptyMap())
+    val fileNetworkStates = networkStates.asStateFlow()
+    private fun networkFor(handle: String, driver: String): LocalFileNetworkPort {
+        val id = "$driver|$handle"
+        fun store(): DriverStore {
+            val selection = repository.selections().firstOrNull { it.platformHandle == handle && it.driverId == driver }
+                ?: throw DeviceException(ErrorCode.NotFound)
+            return repository.store(driver,selection.deviceId?.let { "id:${it.value}" } ?: "handle:$handle")
+        }
+        while (true) {
+            val old = networks.value;old[id]?.let { return it }
+            val port = AndroidLocalFileNetwork(context,scope,detach = {
+                val owner = handoffs.value[handle] ?: throw DeviceException(ErrorCode.Disconnected)
+                owner.intentional.value = true;owner.close()
+            },readPin = { store().getString("fileNetworkPeerPin") },savePin = { store().putString("fileNetworkPeerPin",it) },
+                publish = { state -> networkStates.update { it + (handle to state) } })
+            if (networks.compareAndSet(old,old+(id to port))) return port
+        }
+    }
     var captureEnabled: Boolean
         get() = preferences.getBoolean("captureEnabled", false)
         set(value) { preferences.edit().putBoolean("captureEnabled", value).apply() }
     val bluetooth = AndroidBluetoothCenter(context, scope, clock)
     val extras: PlatformExtras = object : PlatformExtras { override val classicSerial: ClassicSerialPort? = null }
-    internal fun extrasFor(handle: String, driverId: String): PlatformExtras = object : PlatformExtras {
+    internal fun extrasFor(handle: String, driverId: String): PlatformExtras = object : LocalFileNetworkExtras {
+        override val fileNetwork = networkFor(handle,driverId)
         override val classicSerial: ClassicSerialPort = AndroidClassicSerial(context) {
             val selection = repository.selections().firstOrNull { it.platformHandle == handle && it.driverId == driverId }
             val key = selection?.deviceId?.let { "id:${it.value}" } ?: "handle:$handle"
@@ -82,6 +105,8 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
             val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: throw DeviceException(ErrorCode.Disconnected)
             val link = AndroidDeviceLink.connect(context, adapter.getRemoteDevice(handle), mtuPreference(handle))
             val raw = AndroidGattLink(link)
+            val handoff = Handoff { link.close() }
+            handoffs.update { it + (handle to handoff) }
             // 开关只影响之后新建的连接；驱动编号来自中枢已经保存的选择。
             val capture = try {
                 if (captureEnabled) repository.selections().firstOrNull { it.platformHandle == handle }
@@ -101,10 +126,11 @@ class AndroidDevicePlatform(private val context: Context, private val scope: Cor
             } }
             object : HubLink {
                 override val gatt: GattLink = recording ?: raw
-                override val disconnected = link.disconnections
+                override val disconnected = link.disconnections.filter { !handoff.intentional.value }
                 override suspend fun close() {
                     try { link.close() }
                     finally {
+                        handoffs.update { if (it[handle] === handoff) it - handle else it }
                         recording?.recordDisconnected()
                         observer?.cancel()
                         capture?.finish()

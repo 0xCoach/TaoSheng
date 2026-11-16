@@ -51,6 +51,8 @@ fun DeviceSection(devices: Devices, cards: DeviceCards, scanError: kotlinx.corou
     val installed by cards.cards.collectAsStateWithLifecycle()
     val inputs = devices as? app.resound.devices.android.DeviceInputs
     val cached by (inputs?.lastDeviceStatus ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, app.resound.devices.driver.DeviceStatusModel>()) }).collectAsStateWithLifecycle()
+    val experiences by (inputs?.deviceExperiences ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,app.resound.devices.DeviceExperience>()) }).collectAsStateWithLifecycle()
+    val discoveredAt by (inputs?.discoverySeenAt ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String,Long>()) }).collectAsStateWithLifecycle()
     val plugins = remember { app.resound.devices.android.DriverCatalog.registered().map { it.driver.meta } }
     fun metaFor(cardId: String): app.resound.devices.driver.DriverMeta? = plugins.firstOrNull { it.id == cardId }
         ?: installed.firstOrNull { it.card.id == cardId }?.card?.let { card ->
@@ -82,14 +84,14 @@ fun DeviceSection(devices: Devices, cards: DeviceCards, scanError: kotlinx.corou
         RsCard(Modifier.animateContentSize(), padding = PaddingValues(vertical = 4.dp)) {
             paired.forEachIndexed { i, d ->
                 if (i > 0) Divider64()
-                PairedRow(d, cached[d.address]) { detail = d.address }
+                PairedRow(d, cached[d.address],experiences[d.address]) { detail = d.address }
             }
             if (scanning || found.isNotEmpty()) {
                 if (paired.isNotEmpty()) Divider64()
                 ScanHeader(scanning, found.isEmpty())
                 found.filter { f -> paired.none { it.address == f.address } }.forEach { f ->
                     Divider64()
-                    FoundRow(f) { devices.pair(f) }
+                    FoundRow(f,discoveredAt[f.address]) { devices.pair(f) }
                 }
             }
             if (paired.isEmpty() && !scanning && found.isEmpty()) {
@@ -179,14 +181,14 @@ private fun DeviceStatus.tint(): Color = when (this) {
 }
 
 @Composable
-private fun PairedRow(d: DeviceState, status: app.resound.devices.driver.DeviceStatusModel?, onClick: () -> Unit) {
+private fun PairedRow(d: DeviceState, status: app.resound.devices.driver.DeviceStatusModel?, experience: app.resound.devices.DeviceExperience?, onClick: () -> Unit) {
     val c = Rs.colors
     Row(Modifier.fillMaxWidth().springClick(onClick).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Glyph("设", d.status.tint())
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(d.name, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1)
-            Text(d.lastError ?: d.statusLine(), style = RsType.caption, color = if (d.lastError != null) c.warning else c.textTertiary, maxLines = 2)
+            Text(d.lastError ?: experience?.activity?.text() ?: d.statusLine(), style = RsType.caption, color = if (d.lastError != null) c.warning else c.textTertiary, maxLines = 2)
             d.backfill?.takeIf { it.bytes > 0 }?.let { b ->
                 LinearProgressIndicator(progress = { (b.doneBytes.toFloat() / b.bytes).coerceIn(0f, 1f) }, color = c.accent, trackColor = c.accentSoft,
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(CircleShape))
@@ -215,7 +217,7 @@ private fun ScanHeader(scanning: Boolean, empty: Boolean) {
 }
 
 @Composable
-private fun FoundRow(f: FoundDevice, onPair: () -> Unit) {
+private fun FoundRow(f: FoundDevice, seenAt: Long?, onPair: () -> Unit) {
     val c = Rs.colors
     var pairing by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -227,6 +229,7 @@ private fun FoundRow(f: FoundDevice, onPair: () -> Unit) {
                 if (f.trial) { Spacer(Modifier.width(6.dp)); Tag("试用", c.warning) }
             }
             f.rssi?.let { Text(if (it > -60) "就在旁边" else if (it > -80) "附近" else "有点远", style = RsType.caption, color = c.textTertiary) }
+            agoText(seenAt)?.let { Text("最近发现：$it；可见不代表可以连接",style = RsType.caption,color = c.textTertiary) }
         }
         Pill(if (pairing) "配对中" else "配对", filled = !pairing) { if (!pairing) { pairing = true; onPair() } }
     }

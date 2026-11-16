@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.selects.select
 
 /** 私有协议插件。平台提供连接、设备作用域存储与密码实现。 */
-class D3200Driver : DeviceDriver {
+class D3200Driver : DeviceDriver, LocalFileTransferDriver {
     override val meta = DriverMeta("d3200", DriverTier.Plugin, Stability.Trial,
         LocalizedText("安克 / 飞书录音豆 D3200"), listOf("安克录音豆", "飞书录音豆"), maintainer = "xhp1211")
     private val observed = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -32,7 +32,7 @@ class D3200Driver : DeviceDriver {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class D3200Connection(private val session: DriverSession, platformIdentity: String) : DriverConnection {
+internal class D3200Connection(private val session: DriverSession, platformIdentity: String) : DriverConnection, LocalFileTransferConnection, DeviceFileMaintenanceConnection {
     private val crypto = D3200Crypto(session.toolbox.crypto)
     private val commandLock = Mutex()
     private val operations = Mutex()
@@ -48,6 +48,20 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
     // may compete for SerialChannel.incoming (a single-consumer stream on Android).
     private lateinit var readers: CoroutineScope
     private var serialReader: Job? = null
+    private var bluetoothReader: Job? = null
+    private val wifi = D3200WifiTransfer(session,crypto,{ request,expected -> ask(request,expected) }) {
+        heartbeat?.cancel();heartbeat = null
+        closeSerial();bluetoothReader?.cancelAndJoin();bluetoothReader = null
+    }
+    private var fileMaintenance = false
+    private val useWifi get() = !fileMaintenance && info.firmware.startsWith("04.92") && wifi.enabled
+    override val preparingFileNetwork get() = useWifi || wifi.handedOff
+    override suspend fun prepareFileMaintenance() = operations.withLock {
+        if (wifi.handedOff) throw DeviceException(ErrorCode.Disconnected,"reconnect Bluetooth for file maintenance")
+        fileMaintenance = true
+    }
+    private var listedFiles = emptyList<RecordingFile>()
+    private val confirmedDeletes = mutableSetOf<String>()
     private val frames = MutableSharedFlow<ByteArray>(extraBufferCapacity = 128)
     private val lightReplies = MutableSharedFlow<ByteArray>(extraBufferCapacity = 4)
     private var heartbeat: ScheduledTask? = null
@@ -124,17 +138,24 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         // open() runs in a short-lived boundary call. Readers instead live exactly
         // until connection.close(), which also handles failed initialization.
         readers = CoroutineScope(currentCoroutineContext().minusKey(Job) + SupervisorJob())
-        readFrames(session.link.notifications(D3200Protocol.SERVICE, D3200Protocol.NOTIFY))
+        bluetoothReader = readFrames(session.link.notifications(D3200Protocol.SERVICE, D3200Protocol.NOTIFY))
         val response = ask(D3200Protocol.frame(1,1), 0x0101)
         if (response.size < 51 || info.recording == null) throw DeviceException(ErrorCode.ProtocolError, "device info incomplete")
         crypto.handshake(ask(D3200Protocol.frame(0x2e,1,crypto.publicKey()),0x2e01))
+        if (session.store.getString("wifiPendingClose") == "true") {
+            ask(D3200Protocol.frame(0x1a,2),0x1a02)
+            session.store.putString("wifiPendingClose",null)
+        }
         val mode = session.store.getString("light")?.toIntOrNull() ?: 0
         if (mode != 0 && info.firmware.startsWith("04.92") && session.extras.classicSerial != null) controls.setLight(mode)
         session.schedule("status",30_000) {
             if (operations.tryLock()) try { refreshInternal() } finally { operations.unlock() }
         }
     }
-    private suspend fun refreshInternal() { val p = ask(D3200Protocol.frame(1,1),0x0101); if (p.size < 51) throw DeviceException(ErrorCode.ProtocolError) }
+    private suspend fun refreshInternal() {
+        if (wifi.handedOff) return
+        val p = ask(D3200Protocol.frame(1,1),0x0101); if (p.size < 51) throw DeviceException(ErrorCode.ProtocolError)
+    }
     private suspend fun <T> interactive(block: suspend () -> T): T {
         if (!operations.tryLock()) throw DeviceException(ErrorCode.BusyRetry)
         try { return block() } finally { operations.unlock() }
@@ -198,13 +219,22 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         override suspend fun schema() = buildList {
             add(SettingItem("autoStart",SettingKind.Switch,LocalizedText("自动开始设备录音"),SettingValue.Bool(session.store.getString("autoStart")=="true")))
             add(SettingItem("autoSync",SettingKind.Switch,LocalizedText("自动补传"),SettingValue.Bool(session.store.getString("autoSync")!="false")))
+            if (session.extras is LocalFileNetworkExtras && info.firmware.startsWith("04.92")) {
+                add(SettingItem("fastTransfer",SettingKind.Switch,LocalizedText("优先 Wi-Fi 快传（需系统连接确认）"),SettingValue.Bool(session.store.getString("fastTransfer")=="true")))
+                add(SettingItem("resetFileNetworkTrust",SettingKind.Switch,LocalizedText("下次连接重新核验快传证书"),SettingValue.Bool(false)))
+            }
             if (info.firmware.isNotBlank()) add(SettingItem("firmware",SettingKind.ReadOnly,LocalizedText("录音豆固件"),SettingValue.Text(info.firmware)))
             if (info.boxFirmware.isNotBlank()) add(SettingItem("boxFirmware",SettingKind.ReadOnly,LocalizedText("充电盒固件"),SettingValue.Text(info.boxFirmware)))
             if (info.firmware.startsWith("04.92") && session.extras.classicSerial != null)
                 add(SettingItem("lightScope",SettingKind.ReadOnly,LocalizedText("灯控范围"),SettingValue.Text("连接期间生效；断开或重连时可能亮灯，并非永久设置")))
         }
         override suspend fun set(key: String,value: SettingValue): SettingValue {
-            if (key !in setOf("autoStart","autoSync") || value !is SettingValue.Bool) throw DeviceException(ErrorCode.BadArgs)
+            if (value !is SettingValue.Bool) throw DeviceException(ErrorCode.BadArgs)
+            if (key in setOf("fastTransfer","resetFileNetworkTrust")) {
+                val port = (session.extras as? LocalFileNetworkExtras)?.fileNetwork ?: throw DeviceException(ErrorCode.Unsupported)
+                if (!info.firmware.startsWith("04.92")) throw DeviceException(ErrorCode.Unsupported)
+                if (key == "resetFileNetworkTrust") { if (value.value) port.clearPeerTrust();return SettingValue.Bool(false) }
+            } else if (key !in setOf("autoStart","autoSync")) throw DeviceException(ErrorCode.BadArgs)
             session.store.putString(key,value.value.toString()); return value
         }
     }
@@ -218,6 +248,7 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
     private val pendingCoverage = MutableStateFlow<Map<String,List<MillisRange>>>(emptyMap())
     override val live = object : LiveAudio {
         override suspend fun start() {
+            if (wifi.handedOff) throw DeviceException(ErrorCode.Disconnected,"reconnect Bluetooth after fast transfer")
             stopped.value = false
             if (info.recording != 1 && D3200ControlPolicy.autoStart(session.store.getString("autoStart") == "true", session.store.getString("hold") == "true"))
                 controls.setRecording(RecordingState.Recording)
@@ -302,8 +333,10 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         }
     }
     override val files = object : DeviceFiles {
-        override val caps = FileCaps(resume=true,confirm=false,delete=false,checksum=null,reclaim=Reclaim.Never)
+        override val caps get() = FileCaps(resume=true,confirm=true,delete=info.firmware.startsWith("04.92") && !wifi.handedOff,
+            checksum=null,reclaim=Reclaim.Manual)
         override suspend fun list(): List<RecordingFile> = operations.withLock {
+            if (wifi.handedOff) return@withLock listedFiles
             refreshInternal()
             if (info.recording != 0) throw DeviceException(ErrorCode.StateConflict, "stop and save recording first")
             val all=linkedMapOf<Long,D3200HistoryCore.FileEntry>(); val active=mutableSetOf<Long>(); var page=0
@@ -317,12 +350,13 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
             all.values.filter { it.id !in active && it.durationMillis>0 }.sortedBy { it.id }.map {
                 RecordingFile(it.id.toString(),FileState.Complete,it.durationMillis/20*160,AudioFileFormat.Opus20,
                     DeviceTime(epochMillis=D3200HistoryCore.epoch(it.id,session.clock.nowEpochMillis())),it.durationMillis,liveCovered=coverage(it.id.toString()))
-            }
+            }.also { listedFiles = it }
         }
         override fun read(file: RecordingFile,fromOffset: Long): Flow<ByteArray> = flow {
             operations.withLock {
                 refreshInternal()
                 if (info.recording!=0) throw DeviceException(ErrorCode.StateConflict, "stop and save recording first")
+                if (wifi.handedOff || useWifi) { wifi.read(file,fromOffset) { emit(it) };return@withLock }
                 val id=file.id.toLongOrNull() ?: throw DeviceException(ErrorCode.BadArgs)
                 require(fromOffset>=0 && fromOffset%160==0L)
                 coroutineScope {
@@ -359,13 +393,30 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
                 }
             }
         }
-        override suspend fun confirm(file: RecordingFile, checksum: ByteArray?) {}
-        override suspend fun delete(file: RecordingFile) { throw DeviceException(ErrorCode.Unsupported) }
+        override suspend fun confirm(file: RecordingFile, checksum: ByteArray?) = operations.withLock {
+            if (wifi.handedOff || !info.firmware.startsWith("04.92")) throw DeviceException(ErrorCode.Unsupported)
+            if (checksum?.size != 32 || file.state != FileState.Complete || listedFiles.none { it.id == file.id && it.bytes == file.bytes && it.start == file.start && it.durationMillis == file.durationMillis })
+                throw DeviceException(ErrorCode.NotConfirmed)
+            confirmedDeletes += file.id
+            Unit
+        }
+        override suspend fun delete(file: RecordingFile) = operations.withLock {
+            if (!caps.delete) throw DeviceException(ErrorCode.Unsupported)
+            if (!confirmedDeletes.remove(file.id)) throw DeviceException(ErrorCode.NotConfirmed)
+            refreshInternal()
+            if (info.recording != 0) throw DeviceException(ErrorCode.StateConflict,"stop and save recording first")
+            val id = file.id.toLongOrNull()?.takeIf { it in 1..0xffffffffL } ?: throw DeviceException(ErrorCode.BadArgs)
+            ask(D3200Protocol.frame(0x1a,0x10,D3200Protocol.le32(id)),0x1a10)
+            Unit
+        }
     }
     override suspend fun close() {
         heartbeat?.cancel(); stopped.value = true
         try { closeSerial() }
-        finally { if (::readers.isInitialized) readers.coroutineContext.job.cancelAndJoin() }
+        finally {
+            try { wifi.close() }
+            finally { confirmedDeletes.clear();if (::readers.isInitialized) readers.coroutineContext.job.cancelAndJoin() }
+        }
     }
     private suspend fun awaitHeader(incoming: Channel<ByteArray>, header: ByteArray) {
         timed(8_000) {

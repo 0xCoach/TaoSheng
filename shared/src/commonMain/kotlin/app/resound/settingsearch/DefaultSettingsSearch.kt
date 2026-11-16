@@ -33,6 +33,7 @@ internal object SettingsIndex {
         }
         page("Capture", "录音与后台", "收音 听声音 麦克风 录音设置") {
             item("后台保活", "battery", "耗电 电池 省电 被杀 中断 后台")
+            item("语音助手唤醒", "wake-word", "小爱同学 唤醒词 语音助手 喊不醒")
             item("录音权限", "permissions", "授权 麦克风权限 通知权限 录不了")
             item("免打扰时段", "quiet", "不录 静音 睡觉 午休 勿扰 停录时段")
             item("暂停时长", "pause-length", "暂停多久 半小时 一小时 两小时")

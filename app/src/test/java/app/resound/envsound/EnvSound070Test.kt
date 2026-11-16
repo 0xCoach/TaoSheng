@@ -54,7 +54,7 @@ class EnvSound070Test {
         override suspend fun recognize(audio: AsrAudio,key: String,beforeAudio: suspend () -> Unit): AsrResult {
             asr++;beforeAudio();return AsrResult(emptyList(),audio.durationMillis,null)
         }
-    },{"key"},{_,_->},now={clock},deferAudioCleanup=true,beforeTranscribe=repo::beforeTranscribe)
+    },{"key"},{_,_->},now={clock},beforeTranscribe=repo::beforeTranscribe)
     @Test fun pureMusicAndSpeechAndHumanProtection() {
         assertEquals(SegmentVerdict.Skippable,EnvSoundRules.decide(scores,enabled,false).verdict)
         assertEquals(SegmentVerdict.Keep,EnvSoundRules.decide(score("Speech" to .9f),enabled,false).verdict)

@@ -28,7 +28,7 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
             try {return call(audio,LocalBackend.Npu,language).also{if(checked!=true)settings.recordNpuCheck(key,true);settings.setLocalStatus("正在使用：NPU 识别")}}
             catch(e:CancellationException){throw e}
             catch(e:Exception){
-                if(e is AsrException && e.type in setOf(AsrError.Speakers, AsrError.Audio))throw e
+                if(e is AsrException && (e.type in setOf(AsrError.Speakers, AsrError.Audio) || e.detail in LOCAL_INTERRUPTION_REASONS))throw e
                 // 通过过的偶发失败只回退这一次，不记成“不可用”
                 if(checked!=true)settings.recordNpuCheck(key,false)
                 fallback="NPU 识别暂时不可用，已自动改用 CPU"
@@ -42,5 +42,7 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
         return call(audio,LocalBackend.Cpu,language).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "正在使用：CPU 识别")}
     }
     private suspend fun call(audio:AsrAudio,backend:LocalBackend,language:LocalAsrLanguage):AsrResult =
-        correction.apply(LocalAsrConnection.get(context).recognize(audio,backend,language){settings.setLocalStatus(it);PipelineProgress.detail(it)})
+        withContext(LocalResumeRequest(LocalResumeFiles.hash(hotwords().joinToString("\u0000").toByteArray()))) {
+            correction.apply(LocalAsrConnection.get(context).recognize(audio,backend,language){settings.setLocalStatus(it);PipelineProgress.detail(it)})
+        }
 }

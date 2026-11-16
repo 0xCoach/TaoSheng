@@ -30,12 +30,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.os.PersistableBundle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -275,6 +280,7 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                     scope.launch { result = repo.rebuild(ch.id); busy = false }
                 }
             }
+            if (ch.kind == PushKind.MarkdownFolder) AgentCopy(repo, ch.id)
             ActionButton(if (busy) "正在发送…" else "测试一下", ActionKind.Secondary, enabled = !busy) {
                 busy = true; result = null
                 scope.launch { result = repo.test(ch.id); busy = false }
@@ -284,6 +290,26 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
             }
         }
     }
+}
+
+/** 同步文件夹：复制一段话给 Claude Code、Codex 等智能体，让它只读这个文件夹。S3 不是 WebDAV，不显示。 */
+@Composable
+private fun AgentCopy(repo: PushChannels, id: Long) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val prompt by produceState<String?>(null, id) { value = repo.agentPrompt(id) }
+    var copied by remember { mutableStateOf(false) }
+    val text = prompt ?: return
+    ActionButton(if (copied) "已复制" else "复制给智能体", ActionKind.Secondary) {
+        val clip = ClipData.newPlainText("涛声记忆库", text).apply {
+            // 含应用密码：系统剪贴板预览里不显示内容
+            description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+        }
+        context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
+        copied = true
+    }
+    Text("粘贴给 Claude Code、Codex 等能运行命令的智能体，它就能读你的记忆。这段话含应用密码；不想让它读了，到网盘设置里删掉这个应用密码就行。",
+        style = RsType.caption, color = c.textSecondary)
 }
 
 @Composable

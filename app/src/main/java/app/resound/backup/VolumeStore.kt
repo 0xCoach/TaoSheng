@@ -15,7 +15,8 @@ internal interface VolumeStore {
 
 internal data class VolumeFile(val path: String, val bytes: Long, val modifiedAt: Long)
 
-internal fun volumePath(path: String): Boolean = historyPath(path) || objectPath(path) || legacyVolumePath(path)
+internal fun volumePath(path: String): Boolean = historyPath(path) || objectPath(path) || legacyVolumePath(path) ||
+    path.matches(Regex("device-archives/[a-f0-9]{64}[.](bin|json)"))
 internal fun objectPath(path: String) = path.matches(Regex("objects/[a-f0-9]{64}[.]bin"))
 internal fun historyPath(path: String) = path.matches(Regex("history/resound-point-[0-9]{13,16}-[0-9]{1,16}-[a-f0-9]{12}-[ep][.]json"))
 internal fun legacyVolumePath(path: String): Boolean = path in setOf("resound-state.zip", "resound-state.zip.enc") ||
@@ -45,7 +46,7 @@ internal class DirectoryVolumeStore(private val root: File) : VolumeStore {
     override fun copy(from: String, to: String) = put(to, file(from))
     override fun legacy() = root.listFiles().orEmpty().filter { it.isFile && BackupNames.metadata(it.name) != null }.map { it.name }
     override fun files(directory: String): List<VolumeFile> {
-        require(directory in setOf("history", "objects"))
+        require(directory in setOf("history", "objects", "device-archives"))
         return File(root,directory).listFiles().orEmpty().filter { it.isFile && volumePath("$directory/${it.name}") }
             .map { VolumeFile("$directory/${it.name}",it.length(),it.lastModified()) }
     }

@@ -25,7 +25,7 @@ import app.resound.ui.verify.Pill
 @Composable
 internal fun SkippedPlaybackActions(seg: SegmentTranscript, onTranscribeAnyway: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Note("手机外放声音时录的，没有转写", modifier = Modifier.weight(1f))
+        Note("手机外放声音时录的，没有转写" + skippedAudioHint(seg), modifier = Modifier.weight(1f))
         if (seg.audioAvailable) {
             Pill("只转写", filled = false, onClick = { onTranscribeAnyway(1) })
             Spacer(Modifier.width(8.dp))

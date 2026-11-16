@@ -54,7 +54,7 @@ class LocalAsrFailure063Test {
                 return AsrResult(listOf(AsrSentence(0, 100, "成功", null)), 500, null)
             }
         }
-        val runner = TranscribeRunner(db.transcribe(), provider, { "" }, { _, _ -> }, deferAudioCleanup = true)
+        val runner = TranscribeRunner(db.transcribe(), provider, { "" }, { _, _ -> })
         assertFalse(runner.run())
         // 卡 065：缺文件在转写前直接放弃，保留失败记录且不交给转写器。
         assertEquals(listOf("good.ogg"), calls)

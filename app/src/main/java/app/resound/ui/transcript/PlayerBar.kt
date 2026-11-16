@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,6 +99,18 @@ private fun Bar(inline: Boolean = false) {
     } else lines.indexOfFirst { it.id == LinePlayer.currentLineId }.coerceAtLeast(0)
     fun mmss(ms: Long) = "%d:%02d".format(ms / 60_000, ms / 1000 % 60)
     val segs = LinePlayer.segmentOrder.size
+    // 卡 195：回放时在当前位置打点；4 秒内可撤销
+    val markScope = androidx.compose.runtime.rememberCoroutineScope()
+    var lastMark by remember { mutableStateOf<app.resound.marks.MarkRow?>(null) }
+    androidx.compose.runtime.LaunchedEffect(lastMark) { if (lastMark != null) { kotlinx.coroutines.delay(4_000); lastMark = null } }
+    fun markHere() {
+        if (!app.resound.AppGraph.isMarksReady) return
+        val at = LinePlayer.positionAt.takeIf { it > 0 } ?: return
+        markScope.launch {
+            lastMark = runCatching { app.resound.AppGraph.marks.playback(at, 0, 0) }
+                .onFailure { app.resound.diagnostics.FailureNotes.record("ui/transcript/PlayerBar.kt:mark", it) }.getOrNull()
+        }
+    }
     val segIdx = dragAt?.let { LinePlayer.segmentOrder.indexOf(it.first).coerceAtLeast(0) } ?: LinePlayer.segmentIndex
     val sourceLabel = if (inline) null else when (LinePlayer.source) { is PlaySource.Event -> "回到这件事 ›"; is PlaySource.Transcript -> "回到原话 ›"; is PlaySource.Import -> "回到这次导入 ›"; null -> null }
     fun goBack() {
@@ -152,6 +165,11 @@ private fun Bar(inline: Boolean = false) {
                                 modifier = Modifier.clip(CircleShape).springClick { goBack() }.padding(vertical = 4.dp))
                         }
                     }
+                    if (app.resound.AppGraph.isMarksReady) {
+                        Text("📍记一下", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                            modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { markHere() }.padding(horizontal = 10.dp, vertical = 5.dp))
+                        Spacer(Modifier.width(6.dp))
+                    }
                     SpeedChip()
                     Spacer(Modifier.width(6.dp))
                     if (!inline) {
@@ -173,6 +191,12 @@ private fun Bar(inline: Boolean = false) {
                 SeekBar(frac, onDrag = { dragging = it }, onDone = { f -> LinePlayer.seekFraction(f); dragging = null })
                 Row {
                     Text(mmss((frac * total).toLong()), style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+                    lastMark?.let { m ->
+                        Text(app.resound.marks.MarkFeedback.text(m.at) + " · 撤销", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                            modifier = Modifier.clip(CircleShape).springClick { markScope.launch { app.resound.AppGraph.marks.undo(m.id) }; lastMark = null }
+                                .padding(horizontal = 6.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
                     Text(mmss(total), style = RsType.caption, color = c.textTertiary)
                 }
                 Box(Modifier.fillMaxWidth()) {

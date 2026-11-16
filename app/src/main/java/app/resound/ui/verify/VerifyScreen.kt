@@ -135,6 +135,7 @@ fun VerifyScreen(
         if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
         item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }
         item { Box(Modifier.settingsAnchor("wake-word")) { WakeWordSection() } }
+        if (app.resound.AppGraph.isMarksReady) item { Box(Modifier.settingsAnchor("marks")) { MarkRangeSection() } }
         item { LinkRow("运行记录与诊断", "统计 · 守护 · 麦克风占用") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Advanced) } }
     }
 }
@@ -626,6 +627,40 @@ private fun WakeWordSection() {
     Section("语音助手") {
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
             Text(app.resound.ui.today.WAKE_WORD_TIP, style = RsType.caption, color = Rs.colors.textSecondary)
+        }
+    }
+}
+
+/** 卡 195：打点前后各包含多久（只影响之后的新打点） */
+@Composable
+private fun MarkRangeSection() {
+    val c = Rs.colors
+    val settings = app.resound.AppGraph.markSettings
+    val range by settings.range.collectAsStateWithLifecycle()
+    val options = listOf(30_000L to "30 秒", 60_000L to "1 分钟", 120_000L to "2 分钟", 300_000L to "5 分钟", 600_000L to "10 分钟")
+    @Composable fun Choices(label: String, value: Long, onPick: (Long) -> Unit) {
+        Text(label, style = RsType.subhead, color = c.text)
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (ms, text) ->
+                val on = ms == value
+                Text(text, style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                    color = if (on) c.onSelected else c.textSecondary,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(if (on) c.selected else c.fill)
+                        .springClick { onPick(ms) }.padding(horizontal = 14.dp, vertical = 7.dp))
+            }
+        }
+    }
+    Section("打点“记一下”") {
+        RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
+            Text("录音时在通知栏、长按图标或桌面小组件点“记一下”，回放时点“📍记一下”。打点前后这段会整理得更细、附上关键原话，原声也按重点保留。",
+                style = RsType.caption, color = c.textSecondary)
+            Spacer(Modifier.height(14.dp))
+            Choices("往前包含", range.beforeMillis) { settings.setRange(it, range.afterMillis) }
+            Spacer(Modifier.height(14.dp))
+            Choices("往后包含", range.afterMillis) { settings.setRange(range.beforeMillis, it) }
+            Spacer(Modifier.height(10.dp))
+            Text("只影响之后新打的点。", style = RsType.caption, color = c.textTertiary)
         }
     }
 }

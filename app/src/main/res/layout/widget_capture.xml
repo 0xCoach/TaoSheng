@@ -53,6 +53,15 @@
         android:src="@drawable/ic_qa_todo" />
 
     <ImageView
+        android:id="@+id/widget_mark"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="6dp"
+        android:contentDescription="记一下"
+        android:src="@drawable/ic_qa_mark"
+        android:visibility="gone" />
+
+    <ImageView
         android:id="@+id/widget_topic"
         android:layout_width="40dp"
         android:layout_height="40dp"

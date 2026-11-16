@@ -10,7 +10,7 @@ class WidgetRules167Test {
     @Test fun listeningShowsPauseAndStartTopic() {
         val v = WidgetRules.view(HomeCapture.Active, null, false, null, null)
         assertEquals("正在聆听", v.status); assertTrue(v.active)
-        assertEquals(WidgetTopicButton.MarkTopic, v.topicButton); assertEquals(WidgetToggle.PauseListening, v.toggle)
+        assertEquals(WidgetTopicButton.StartTopic, v.topicButton); assertEquals(WidgetToggle.PauseListening, v.toggle)
     }
 
     @Test fun pausedShowsResumeTimeAndQuietName() {

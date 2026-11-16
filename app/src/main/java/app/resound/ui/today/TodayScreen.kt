@@ -835,7 +835,13 @@ internal fun TimelineLine(event: MemoryEvent, onLongPress: (() -> Unit)? = null,
         )
         Column(Modifier.weight(1f).alpha(dim)) {
             val counts = event.items.groupingBy { it.category }.eachCount()
+            // 卡 195：这件事和你打的点重叠就标一个📍（按时间重叠算，打点后马上出现）
+            val marked by remember(event.id, event.startAt, event.endAt) {
+                if (app.resound.AppGraph.isMarksReady) app.resound.AppGraph.marks.observeDay(event.startAt, event.endAt)
+                else kotlinx.coroutines.flow.flowOf(emptyList())
+            }.collectAsStateWithLifecycle(initialValue = emptyList())
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (marked.isNotEmpty()) { Text("📍", style = RsType.caption); Spacer(Modifier.width(4.dp)) }
                 Text(event.title, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 // ★ 只给你亲手标的重点；大模型判断的“要紧”用浅色小字，只作参考

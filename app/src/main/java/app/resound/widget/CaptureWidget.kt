@@ -88,6 +88,10 @@ class CaptureWidget : AppWidgetProvider() {
             rv.setOnClickPendingIntent(R.id.widget_todo, PendingIntent.getActivity(context, 1670,
                 Intent(context, QuickTodoActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            // 卡 195：聆听中（不在专题里）多一个“记一下”，开专题照旧在旁边；专题里“记一下”就在专题按钮位上
+            val showMark = capture == HomeCapture.Active && view.topicButton == WidgetTopicButton.StartTopic
+            rv.setViewVisibility(R.id.widget_mark, if (showMark) android.view.View.VISIBLE else android.view.View.GONE)
+            if (showMark) rv.setOnClickPendingIntent(R.id.widget_mark, TopicActionReceiver.intent(context, "mark", 0))
             when (view.topicButton) {
                 WidgetTopicButton.StartTopic -> {
                     rv.setImageViewResource(R.id.widget_topic, R.drawable.ic_qa_topic)

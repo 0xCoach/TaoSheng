@@ -9,8 +9,9 @@ class RoomTopicRepository private constructor(private val core: TopicRulesReposi
  constructor(db: CaptureDatabase, scope: CoroutineScope,
   now: NowMillis, zone: ZoneProvider,
   quiet: (Long,Long) -> Boolean = { _,_ -> false }, recordingEnabled: () -> Boolean = { true },
-  checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints()
- ) : this(TopicRulesRepository(RoomTopicStore(db),scope,now,zone,quiet,recordingEnabled,checkpoints))
+  checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints(),
+  markRange: () -> app.resound.marks.MarkRange = { app.resound.marks.MarkRange() }
+ ) : this(TopicRulesRepository(RoomTopicStore(db, markRange),scope,now,zone,quiet,recordingEnabled,checkpoints))
  var onChanged: suspend () -> Unit
   get() = core.onChanged
   set(value) { core.onChanged = value }

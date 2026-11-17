@@ -49,10 +49,10 @@ internal class UpdateEngine(
     private val gate = Mutex()
     private val mutable = MutableStateFlow<UpdateState>(UpdateState.Idle)
     override val state = mutable.asStateFlow()
-    private val auto = MutableStateFlow(store.long("autoOff") != 1L)
+    private val auto = MutableStateFlow(store.long("autoOn") == 1L)
     override val autoCheck = auto.asStateFlow()
     override fun setAutoCheck(enabled: Boolean) {
-        store.save("autoOff" to if (enabled) 0L else 1L); auto.value = enabled
+        store.save("autoOn" to if (enabled) 1L else 0L); auto.value = enabled
         reschedule(enabled, preview.value)
     }
     private val preview = MutableStateFlow(store.long("previewChannel") == 1L)
@@ -87,6 +87,8 @@ internal class UpdateEngine(
             restore()
             discardDisabledPreview()
             if (mutable.value is UpdateState.Installing) return@withLock
+            // 个人分支默认已关自动检查（见 auto 初始化）；手动检查仍可走上游源，
+            // 平台层校验签名不一致的安装包会直接判"不适用"并删除
             // 关了自动检查：后台和启动时都不查，只认手动
             if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")

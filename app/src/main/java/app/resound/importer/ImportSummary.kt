@@ -38,8 +38,11 @@ internal class ImportSummary(
     private val request: suspend (String, String) -> LlmReply,
     private val now: () -> Long = System::currentTimeMillis,
     private val session: TopicProcessingSession? = null,
+    private val callName: suspend (Long) -> String? = { null },
 ) {
     suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
+        val promptFileName = if (record.kind == ImportKind.Call.name) callName(record.id) ?: CallNamePolicy.prompt(null,
+            CallFileNames.parse(record.fileName,null,null,null,kotlinx.datetime.TimeZone.of(SKILL_ZONE.id)).name) else record.fileName
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
         val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()
         val indexed = lines.associateBy { "L${it.id}" }
@@ -95,7 +98,7 @@ internal class ImportSummary(
             val previous = chunks.getOrNull(i - 1)?.lastOrNull()
             val read: suspend (List<TranscriptLineEntity>) -> JSONObject = { part ->
                 val text = buildString {
-                    appendLine("文件：${record.fileName}；第 ${i + 1}/${chunks.size} 块；范围 ${SkillInputs.time(part.first().startAt)}～${SkillInputs.time(part.maxOf { it.endAt })}")
+                    appendLine("文件：${promptFileName}；第 ${i + 1}/${chunks.size} 块；范围 ${SkillInputs.time(part.first().startAt)}～${SkillInputs.time(part.maxOf { it.endAt })}")
                     previous?.let { appendLine("上一块末句（仅供衔接，不重复行动）：[L${it.id}] ${SkillInputs.speaker(it)}：${it.text}") }
                     part.forEach { appendLine("[L${it.id}] ${SkillInputs.time(it.startAt)} ${SkillInputs.speaker(it)}：${it.text}") }
                 }

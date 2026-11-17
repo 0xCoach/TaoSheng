@@ -1,0 +1,24 @@
+卡 199 本地验证摘要
+分支：codex/199-call-recordings
+新测试：共用规则 8 + 安卓集成 12 = 20 个 @Test；包含表驱动 12 个必需文件名样例。
+
+指定包首轮（/tmp/taosheng-199-checks.log）：206 项，9 失败，4 跳过；失败为 7 项新增触发器集合断言、1 项精确比较器合成输入、1 项普通文件元数据时间回归。
+修复后定向补跑（/tmp/taosheng-199-recheck.log）：55 项全部通过；shared:check 的 JVM 测试 370 项通过。
+最终受影响 importer 包（/tmp/taosheng-199-final-checks.log）：43 项全部通过，JUnit 累计执行约 8.4 秒；包含新增安卓 12 项。
+共用解析最后补充样例首轮：7 项通过，1 项自拟数据错误；括号里的 6 位数按规范属于服务号，修正为非括号时间后只补跑受影响用例并通过。
+各轮单元测试实际执行累计远低于 10 分钟；构建/编译耗时另计。未跑应用全量测试。
+
+最终检查：python3 tools/check_shared.py 通过；:shared:check、:app:compileDebugKotlin、:app:assembleRelease 通过（最终日志 /tmp/taosheng-199-final-output.log，BUILD SUCCESSFUL in 55s）。
+所有 gradlew 使用 -Dorg.gradle.daemon.registry.base=/tmp/taosheng-199-gradle -PskipSigningSecrets=true。
+JAVA_HOME=/opt/homebrew/opt/openjdk@21；ANDROID_HOME=/opt/homebrew/share/android-commandlinetools。
+未运行 gradlew --stop，未访问手机，未发布。
+
+实际 Release 构建产物（清理前核验）：
+app/build/outputs/apk/release/app-release.apk；107491299 字节；SHA-256 b0a74d600c55b7d032d753627e60fdb69f8bb4cebe9b34b63a2c091e29e892dd
+共用规则-补充样例修正后.xml：tests=1 failures=0 time=0.061 秒
+共用规则-补充样例首轮.xml：tests=8 failures=1 time=0.056 秒
+安卓集成-12项.xml：tests=12 failures=0 time=6.262 秒
+
+iOS：JAVA_HOME/ANDROID_HOME 同上，TAOSHENG_GRADLE_REGISTRY=/tmp/taosheng-199-gradle zsh tools/check_ios.sh 通过；shared + devices 的 iosArm64、iosSimulatorArm64 均编译通过。
+共用边界最终检查通过；git diff --check 通过。
+清理完成并核验：app/build、shared/build、devices/build、根 build 和 /tmp/taosheng-199-gradle 均已删除；APK 仅作本地构建验证后随 build 清理。

@@ -29,6 +29,7 @@ class TranscriptStoreRepository(
     private val readVoiceInput: (String?) -> VoiceInputMeta?,
     private val runNowAction: () -> Unit,
     private val deleteFailedAction: suspend (Long) -> Unit,
+    private val callDisplay: app.resound.importer.CallDisplayNames? = null,
 ) : TranscriptRepository {
     private val last = MutableStateFlow(initialLast)
     // 仅存本进程当前轮次，进程重启不能恢复旧进度。
@@ -71,10 +72,10 @@ class TranscriptStoreRepository(
         val zone = TimeZone.of(zoneProvider.zoneId())
         val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
         val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
-        return combine(dao.day(start, end), clock) { rows, _ -> rows.filter { it.segment.status != "SkippedEnv" }.map { (segment, lines) ->
+        return combine(dao.day(start, end), clock, callDisplay?.names ?: flowOf(emptyMap())) { rows, _, names -> rows.filter { it.segment.status != "SkippedEnv" }.map { (segment, lines) ->
             SegmentTranscript(segment.id, segment.startAt, segment.endAt, TranscriptStatus.valueOf(segment.status),
                 lines.sortedWith(compareBy({ it.startAt }, { it.id })).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it
-                    .speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) },
+                    .speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), names[it.id]) },
                 segment.error, segment.sourceId != "voice-input" && isAudioFile(FileRef(segment.path)),
                 playbackHeld = segment.playbackDigest == 1)
         } }.flowOn(io)

@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter
 class RoomMemoryRepository(
     dao: MemoryDao, runner: DigestRunner, runNowAction: () -> Unit, scope: CoroutineScope,
     reminderSettings: AndroidAppointmentSettings? = null, eventChanged: () -> Unit = {},
-    zoneProvider: ZoneProvider, now: NowMillis, io: CoroutineDispatcher,
+    zoneProvider: ZoneProvider, now: NowMillis, io: CoroutineDispatcher, callDisplay: app.resound.importer.CallDisplayNames? = null,
 ) : MemoryRepository by MemoryStoreRepository(dao, runner.running, runner.last, runNowAction, scope,
     reminderSettings?.state, reminderSettings?.let { it::set }, eventChanged, zoneProvider, now, io,
     { Instant.ofEpochMilli(now.now()).atZone(ZoneId.of(zoneProvider.zoneId())).toLocalDate().toString() }, AndroidMemoryLegacyCodec, { at ->
@@ -26,7 +26,7 @@ class RoomMemoryRepository(
         MemoryDueDate(date.toLocalDate().atStartOfDay(date.zone).toInstant().toEpochMilli(),
             date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
             date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
-    }, VoiceInputMetadata::read)
+    }, VoiceInputMetadata::read, callDisplay)
 
 private object AndroidMemoryLegacyCodec : MemoryLegacyCodec {
     override fun strings(text: String): List<String> = JSONArray(text).let { a -> (0 until a.length()).map { a.getString(it) } }

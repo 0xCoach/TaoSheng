@@ -53,6 +53,8 @@ data class TranscriptLine(
     val segmentId: Long = 0,
     /** 卡 048：这句来自语音输入（不是录音转写）时的来源和上下文；录音转写的为 null */
     val voiceInput: VoiceInputMeta? = null,
+    /** 卡 199：仅展示的通话对方名；不代表声纹身份，不用于判断“我”。 */
+    val displaySpeakerName: String? = null,
 )
 
 /** 卡 048：语音输入的来源与当时屏幕上的上下文 */

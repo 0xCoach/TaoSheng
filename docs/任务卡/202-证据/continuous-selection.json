@@ -1,0 +1,216 @@
+{
+  "best": {
+    "correlation": 0.7,
+    "modulation": 0.3,
+    "hits": 7,
+    "n": 8,
+    "false_events": 0,
+    "fan": 0,
+    "objective": 0.875
+  },
+  "grid": [
+    {
+      "correlation": 0.1,
+      "modulation": 0.15,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.1,
+      "modulation": 0.3,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.1,
+      "modulation": 0.5,
+      "hits": 6,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.75
+    },
+    {
+      "correlation": 0.1,
+      "modulation": 0.8,
+      "hits": 4,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.5
+    },
+    {
+      "correlation": 0.2,
+      "modulation": 0.15,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.2,
+      "modulation": 0.3,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.2,
+      "modulation": 0.5,
+      "hits": 6,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.75
+    },
+    {
+      "correlation": 0.2,
+      "modulation": 0.8,
+      "hits": 4,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.5
+    },
+    {
+      "correlation": 0.3,
+      "modulation": 0.15,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.3,
+      "modulation": 0.3,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.3,
+      "modulation": 0.5,
+      "hits": 6,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.75
+    },
+    {
+      "correlation": 0.3,
+      "modulation": 0.8,
+      "hits": 4,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.5
+    },
+    {
+      "correlation": 0.5,
+      "modulation": 0.15,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.5,
+      "modulation": 0.3,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.5,
+      "modulation": 0.5,
+      "hits": 6,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.75
+    },
+    {
+      "correlation": 0.5,
+      "modulation": 0.8,
+      "hits": 4,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.5
+    },
+    {
+      "correlation": 0.7,
+      "modulation": 0.15,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.7,
+      "modulation": 0.3,
+      "hits": 7,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.875
+    },
+    {
+      "correlation": 0.7,
+      "modulation": 0.5,
+      "hits": 6,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.75
+    },
+    {
+      "correlation": 0.7,
+      "modulation": 0.8,
+      "hits": 4,
+      "n": 8,
+      "false_events": 0,
+      "fan": 0,
+      "objective": 0.5
+    }
+  ],
+  "selection": "tune source positives + reused background stress; validation positives not used",
+  "sources": [
+    {
+      "id": "191297",
+      "seconds": 65.4605,
+      "split": "tune"
+    },
+    {
+      "id": "40967",
+      "seconds": 120.0,
+      "split": "tune"
+    },
+    {
+      "id": "841772",
+      "seconds": 120.0,
+      "split": "validation"
+    },
+    {
+      "id": "63349",
+      "seconds": 41.131375,
+      "split": "validation"
+    }
+  ]
+}

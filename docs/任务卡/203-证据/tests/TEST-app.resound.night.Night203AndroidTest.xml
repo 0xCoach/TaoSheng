@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.night.Night203AndroidTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-17T10:03:57.603Z" hostname="CoachdeMacBook-Air.local" time="0.243">
+  <properties/>
+  <testcase name="weekFolderPathAndWebhookContainOnlyText" classname="app.resound.night.Night203AndroidTest" time="0.019"/>
+  <testcase name="deletingSourceRemovesDerivedWeekAndPersonalWeightsAtomically" classname="app.resound.night.Night203AndroidTest" time="0.098"/>
+  <testcase name="dreamUsesExistingSegmentsAndDeletionRewritesThread" classname="app.resound.night.Night203AndroidTest" time="0.125"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -96,6 +96,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 38. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
 39. **📱 Screen time** — today's phone time sits in the recording card; a phone-usage band runs under the speech bars on the same 24-hour axis (press an hour for “talk 12 min · phone 22 min”), and events show “using WeChat 6 min” at the time. Tap through for day / week views with real app icons, hourly breakdown with that hour's events, comparison with the 7-day average, and played shows. Optional daily push; Ask can answer “what was I using this afternoon”. On by default — a home card links straight to the two system permissions; turn it off any time. Data stays on the phone and is cleared by “don't keep this” and privacy deletion.
 40. **📞 Phone calls, captured** — turn on your phone's built-in automatic call recording, then pick “Call recordings” under auto-import folders: TaoSheng shows the steps for your phone brand and opens the picker right at the recordings folder. Each call is transcribed into a call note a few minutes after hanging up, with the other party and time read from the file name, and you can search by name or the last digits of the number. For recordings already in the folder, choose only new, last 7 days, last 30 days, or list all (shown on the timeline, transcribed when you tap). Multiple folders supported. Contacts are never read and numbers are never sent to any model.
+41. **🌙 Nights: sleep, snoring, sleep talk** — turn on “Night” in Settings and leave the phone by the bed; it starts on its own once you fall asleep. In the morning a “Last night” card shows when you went to bed, roughly fell asleep and got up, how often you woke, and one line comparing it with your usual. A whole-night sound map marks snoring, coughs and sleep talk — tap to replay; sleep talk appears as text. Up to 3 uncertain clips are offered for a quick yes / no swipe, so it learns your bedroom. Tag nights (“slept on my side”, “had a drink”) to see what helps; a weekly report, trends and a one-page summary for your doctor are included. “Last night” is added to the pushed day thread as text only. Audio stays on the phone and unconfirmed clips are deleted after 7 days; for reference only, not a medical test.
 
 <table>
 <tr>
@@ -210,10 +211,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 First run:
 1. Grant mic & notification permissions, whitelist battery, enable autostart (the in-app guide walks you through it on Xiaomi, Huawei, Honor and HarmonyOS).
-2. Settings → 原话与转写 (transcription): paste your Doubao key or choose local. Settings → 整理模型 (LLM): pick DeepSeek or a custom endpoint.
-3. Settings → 声纹与人物 → 我: read three short passages to enroll your voice.
+2. Settings → 语音转写 (transcription): paste your Doubao key or choose local. Settings → 整理模型 (LLM): pick DeepSeek or a custom endpoint.
+3. Settings → 人物声纹 → 我: read three short passages to enroll your voice.
 4. Turn on listening on the Today tab and live your day.
-5. Optional: backup (数据备份) and push channels (推送通道).
+5. Optional: backup (备份恢复) and push channels (推送通道).
 
 ## 🏗 How it works
 

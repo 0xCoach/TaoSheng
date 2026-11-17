@@ -10,12 +10,12 @@ import kotlin.time.Instant
 @Serializable enum class ThreadKind { Place, Event, App, Playback, Gap, Zone }
 @Serializable data class ThreadEntry(val kind: ThreadKind, val start: Long, val end: Long, val text: String, val eventIds: List<Long> = emptyList(), val hourly: Boolean = false, val eventTitle: String? = null, val place: String? = null, val inUse: String? = null)
 @Serializable data class DayOverview(val speechMillis: Long, val phoneMillis: Long?, val outsideMillis: Long?, val places: Int?, val events: Int)
-@Serializable data class DayThread(val date: String, val overview: DayOverview, val entries: List<ThreadEntry>)
+@Serializable data class DayThread(val date: String, val overview: DayOverview, val entries: List<ThreadEntry>, val night: app.resound.night.NightThread? = null)
 data class ThreadEvent(val id: Long, val start: Long, val end: Long, val title: String, val place: String? = null, val people: List<String> = emptyList(), val scene: String = "", val call: Boolean = false)
 data class ThreadGap(val start: Long, val end: Long, val reason: String = "没有录音", val screen: Boolean = false, val qualified: Boolean = false)
 data class ThreadInput(val date: LocalDate, val start: Long, val end: Long, val speechMillis: Long,
     val events: List<ThreadEvent> = emptyList(), val places: List<PlaceAt> = emptyList(), val apps: List<NamedAppSession> = emptyList(),
-    val playback: List<DevicePlayback> = emptyList(), val gaps: List<ThreadGap> = emptyList(), val location: Boolean = true, val screen: Boolean = true)
+    val playback: List<DevicePlayback> = emptyList(), val gaps: List<ThreadGap> = emptyList(), val location: Boolean = true, val screen: Boolean = true, val night: app.resound.night.NightThread? = null)
 
 object DayThreads {
     private const val MIN = 60_000L
@@ -84,10 +84,11 @@ object DayThreads {
         }
         DayThread(date.toString(), DayOverview(speechMillis, if (screen) sessions.sumOf { it.until - it.from } else null,
             if (location) stays.filter { !it.home }.sumOf { it.end - it.start } + stays.zipWithNext().sumOf { (a, b) -> (b.start - a.end).coerceAtLeast(0) } else null,
-            if (location) stays.map { it.name }.distinct().size else null, visible.size), deduped)
+            if (location) stays.map { it.name }.distinct().size else null, visible.size), deduped, night)
     }
     fun duration(ms: Long): String { val m = ms / MIN; return if (m >= 60) "${m / 60} 小时" + if (m % 60 > 0) " ${m % 60} 分" else "" else "$m 分" }
     fun markdown(thread: DayThread, zones: ZoneHistory): String = buildString {
+        thread.night?.let { appendLine(it.markdown); appendLine() }
         appendLine("## 今天概览")
         with(thread.overview) { appendLine(listOfNotNull("说话 ${duration(speechMillis)}", phoneMillis?.let { "手机 ${duration(it)}" }, outsideMillis?.let { "外出 ${duration(it)}" }, places?.let { "去了 $it 个地方" }, "$events 件事").joinToString(" · ")) }
         appendLine("\n## 一天的线索\n本节时间为 ${zones.caption(LocalDate.parse(thread.date))}")

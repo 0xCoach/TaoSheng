@@ -1,0 +1,82 @@
+[
+  {
+    "split": "tune",
+    "snr": "clean",
+    "n": 24,
+    "baseline": 22,
+    "accepted": 3,
+    "three_windows": 4
+  },
+  {
+    "split": "tune",
+    "snr": "20",
+    "n": 24,
+    "baseline": 23,
+    "accepted": 3,
+    "three_windows": 5
+  },
+  {
+    "split": "tune",
+    "snr": "10",
+    "n": 24,
+    "baseline": 22,
+    "accepted": 3,
+    "three_windows": 4
+  },
+  {
+    "split": "tune",
+    "snr": "5",
+    "n": 24,
+    "baseline": 20,
+    "accepted": 3,
+    "three_windows": 4
+  },
+  {
+    "split": "tune",
+    "snr": "0",
+    "n": 24,
+    "baseline": 18,
+    "accepted": 2,
+    "three_windows": 3
+  },
+  {
+    "split": "validation",
+    "snr": "clean",
+    "n": 16,
+    "baseline": 16,
+    "accepted": 1,
+    "three_windows": 5
+  },
+  {
+    "split": "validation",
+    "snr": "20",
+    "n": 16,
+    "baseline": 15,
+    "accepted": 1,
+    "three_windows": 3
+  },
+  {
+    "split": "validation",
+    "snr": "10",
+    "n": 16,
+    "baseline": 15,
+    "accepted": 1,
+    "three_windows": 3
+  },
+  {
+    "split": "validation",
+    "snr": "5",
+    "n": 16,
+    "baseline": 15,
+    "accepted": 0,
+    "three_windows": 3
+  },
+  {
+    "split": "validation",
+    "snr": "0",
+    "n": 16,
+    "baseline": 13,
+    "accepted": 0,
+    "three_windows": 4
+  }
+]

@@ -59,7 +59,7 @@ internal suspend fun prepareDayThreads(
             }?.toList().orEmpty()
             val retained = if (removed) DayThreads.redact(old, live, removedRanges).let { it.copy(overview = it.overview.copy(speechMillis = input.input.speechMillis)) } else old
             // 关掉订阅时连历史整类也移除，不能在封存内容中泄露。
-            DayThreads.restrict(retained, channel.subscription.footprint, channel.subscription.screenTime)
+            DayThreads.restrict(retained, channel.subscription.footprint, channel.subscription.screenTime).copy(night = input.input.night)
         } else DayThreads.build(input.input, zones)
         val section = "$DAY_THREAD_MARKER\n本文时间为 ${zones.caption(date.toKotlinLocalDate())}\n\n${DayThreads.markdown(thread, zones)}\n$DAY_THREAD_END"
         val path = MemoryFolder.dailyPath(date)

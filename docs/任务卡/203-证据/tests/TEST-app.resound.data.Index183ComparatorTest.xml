@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.data.Index183ComparatorTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-17T10:03:52.331Z" hostname="CoachdeMacBook-Air.local" time="2.209">
+  <properties/>
+  <testcase name="wrongMissingOrDuplicateVersionAndWrongIdentityFail" classname="app.resound.data.Index183ComparatorTest" time="1.993"/>
+  <testcase name="sqlDeltaIsLimitedToNamedCasesAndNeverChangesArgumentsOrResults" classname="app.resound.data.Index183ComparatorTest" time="0.044"/>
+  <testcase name="missingExtraAndWrongIndexDefinitionsFail" classname="app.resound.data.Index183ComparatorTest" time="0.033"/>
+  <testcase name="exactDeltaPassesAndUnlistedSnapshotsStayExact" classname="app.resound.data.Index183ComparatorTest" time="0.11"/>
+  <testcase name="aSingleBusinessValueChangeFails" classname="app.resound.data.Index183ComparatorTest" time="0.029"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

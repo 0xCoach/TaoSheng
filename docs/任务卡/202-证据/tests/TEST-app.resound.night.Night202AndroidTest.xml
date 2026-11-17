@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.night.Night202AndroidTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-17T09:36:35.150Z" hostname="CoachdeMacBook-Air.local" time="2.378">
+  <properties/>
+  <testcase name="migrates39ToCurrentAndMatchesFreshSchema" classname="app.resound.night.Night202AndroidTest" time="1.916"/>
+  <testcase name="backupContainsOnlyConfirmedClipAndSnapshotDropsExpiredPaths" classname="app.resound.night.Night202AndroidTest" time="0.222"/>
+  <testcase name="compressedScoresAndEnvelopeAreLosslessAndBackupPathIsRestricted" classname="app.resound.night.Night202AndroidTest" time="0.092"/>
+  <testcase name="feedbackRetentionAndDeletionQueueKeepEvidenceButRemoveAudio" classname="app.resound.night.Night202AndroidTest" time="0.148"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -125,7 +125,7 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("隐私") {
-            Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；原录音默认保留 3 天后自动删除，可在“原话与转写”里改。",
+            Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；原录音默认保留 3 天后自动删除，可在“语音转写”里改。",
                 style = RsType.body, color = c.text)
         }
 
@@ -136,10 +136,10 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("问题反馈") {
-            Text("遇到闪退或功能不对，在“高级与诊断”导出问题记录发给开发。",
+            Text("遇到闪退或功能不对，在“高级诊断”导出问题记录发给开发。",
                 style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
-            Pill("去高级与诊断", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Advanced) }
+            Pill("去高级诊断", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Advanced) }
         }
 
         AboutCard("源码公开") {

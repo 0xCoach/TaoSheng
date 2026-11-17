@@ -160,6 +160,7 @@ class RoomPrivacyActions(
                 val ranges = screenRange?.let { listOf(it) }
                     ?: segments.map { it.startAt to it.endAt }.distinct()
                 for ((from, until) in (ranges + listOfNotNull(explicitRange)).distinct()) {
+                    if (app.resound.AppGraph.isNightReady) (app.resound.AppGraph.night as? app.resound.night.AndroidNight)?.store?.eraseRange(from, until)
                     db.marks().deleteRange(from, until)
                     db.marks().deleteLegacyRange(from, until)
                 }

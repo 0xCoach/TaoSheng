@@ -30,6 +30,7 @@ internal class SubscriptionRuntime(
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
     var dayThreadSource: (suspend (LocalDate, PushSnapshot, PushSubscription, app.resound.platform.ZoneHistory, Boolean) -> DayThreadSource)? = null
+    var nightWeekSource: suspend () -> List<app.resound.night.WeeklyReport> = ::currentNightWeeks
     var reminderSettings: () -> AppointmentReminders = { AppointmentReminders() }
     var automaticSource: (suspend (LocalDate?, Boolean) -> PushSnapshot)? = null
     var source: suspend (LocalDate?, Boolean) -> PushSnapshot = { _, _ -> throw PushFailure("记忆数据尚未就绪") }
@@ -178,14 +179,21 @@ internal class SubscriptionRuntime(
                 val preparedDays = dayThreadSource?.let { loader -> prepareDayThreads(files, state, channel, raw, today,
                     Instant.ofEpochMilli(started).atZone(zone()).hour, historical, loader) }.orEmpty()
                 if (dayThreadSource == null) applyScreenTime(files, s, today)
+                val nightWeeks = if(channel.kind in setOf(PushKind.MarkdownFolder,PushKind.Webhook)) nightWeekSource() else emptyList()
+                val weekFiles = nightWeeks.associate { app.resound.night.NightWeeks.path(it.weekStart) to it.markdown }
+                val oldWeeks = state.json.optJSONObject("nightWeeks") ?: JSONObject()
+                val removedWeeks = oldWeeks.keys().asSequence().filter { old -> nightWeeks.none { it.weekStart.toString()==old } }.toList()
+                weekFiles.forEach { (path,body) -> files[path]=body }
+                removedWeeks.forEach { start -> files[app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(start))]="" }
+
                 if (dayFinal) {
-                    val finalized = preparedDays.map { MemoryFolder.dailyPath(it.date) }.toSet()
+                    val finalized = preparedDays.map { MemoryFolder.dailyPath(it.date) }.toSet() + weekFiles.keys + removedWeeks.map { app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(it)) }
                     val output = state.templates.keys().asSequence().associateWith { state.templates.getString(it) }.toMutableMap()
                     files.filterKeys { it in finalized || it == "README.md" }.forEach { (path, body) -> output[path] = body }
                     files.clear(); files.putAll(output)
                 }
                 val current = RecordDelta.records(data, s)
-                if (!reminderOnly && !dayFinal) trace.requireContent(if (summaryOnly) current.keys.count { it.startsWith("card:") || it.startsWith("review:") } else current.size)
+                if (!reminderOnly && !dayFinal && nightWeeks.isEmpty() && removedWeeks.isEmpty()) trace.requireContent(if (summaryOnly) current.keys.count { it.startsWith("card:") || it.startsWith("review:") } else current.size)
                 val full = !s.incremental || rebuild || due.optLong("fullAt").let { it > 0 && it <= started }
                 val description = when {
                     dayFinal && channel.kind == PushKind.Webhook -> "已检查每日线索"
@@ -216,6 +224,23 @@ internal class SubscriptionRuntime(
                     channel.kind in setOf(PushKind.Notion, PushKind.Telegram, PushKind.Email) -> sendDocuments(channel, values, if (dayFinal) PushSnapshot() else data, s, files, state, channel
                         .kind == PushKind.Notion && (dayFinal || s.incremental && !rebuild), started)
                     else -> throw PushFailure("这个通道只支持摘要和提醒")
+                }
+                if(channel.kind==PushKind.Webhook) {
+                    for(report in nightWeeks) {
+                        val key=report.weekStart.toString();val payload=nightWeekPayload(report);val hash=sha256(payload.toString())
+                        if(oldWeeks.optString(key)!=hash) {
+                            transport.send(channel.kind,PushFormat.Json,values,PushMessage("夜里周报 · $key","",PushTopic.DailyMemory,null,started,memory=payload)).getOrThrow()
+                            oldWeeks.put(key,hash);state.json.put("nightWeeks",oldWeeks);state.save()
+                        }
+                    }
+                    for(key in removedWeeks) {
+                        transport.send(channel.kind,PushFormat.Json,values,PushMessage("夜里周报已移除","",PushTopic.DailyMemory,null,started,memory=JSONObject().put("type","night_week").put("weekStart",key).put("deleted",true))).getOrThrow()
+                        oldWeeks.remove(key);state.save()
+                    }
+                } else if(channel.kind==PushKind.MarkdownFolder) {
+                    for(report in nightWeeks)if(state.templates.optString(app.resound.night.NightWeeks.path(report.weekStart))==report.markdown)oldWeeks.put(report.weekStart.toString(),sha256(report.markdown))
+                    removedWeeks.filter {state.templates.optString(app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(it))).isEmpty()}.forEach {oldWeeks.remove(it)}
+                    state.json.put("nightWeeks",oldWeeks);state.save()
                 }
                 for (prepared in preparedDays) {
                     val path = MemoryFolder.dailyPath(prepared.date)

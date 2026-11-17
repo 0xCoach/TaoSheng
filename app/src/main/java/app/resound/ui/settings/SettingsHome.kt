@@ -54,7 +54,7 @@ import app.resound.ui.voiceprint.LocalVoiceprint
  * 设置首页（11-12 改版）：
  * 顶部“体检”状态卡（一切正常时收成一行，有问题时列出并给“去处理”）+ 搜索；
  * 每行前加彩色小图标，图标按组用相近色系（记录偏暖、整理偏紫蓝、数据绿、通用灰）；
- * 正常不放点，只有要处理的才亮黄点 / 红点；最底下“高级与诊断”收纳不常用的。
+ * 正常不放点，只有要处理的才亮黄点 / 红点；“通用”里的“高级诊断”收纳不常用的。
  */
 
 /** 各组图标色：同组相近色系，整体沉稳；组与组之间靠色相区分 */
@@ -62,7 +62,7 @@ private object Tints {
     // 记录：暖色系
     val capture = Color(0xFFF07B2E); val devices = Color(0xFFF2994A); val transcript = Color(0xFFE0A030)
     val voiceprint = Color(0xFFE06A50); val env = Color(0xFFD4A017); val location = Color(0xFFC9643A)
-    val screenTime = Color(0xFFB07048)
+    val screenTime = Color(0xFFB07048); val night = Color(0xFF6E6AD8)
     // 整理：紫蓝系
     val model = Color(0xFF7C5CC4); val skills = Color(0xFF5B5BD6); val push = Color(0xFF3B82C4)
     // 数据：绿
@@ -149,11 +149,11 @@ internal fun SettingsList(
                     CaptureState.Stopped -> "未开启"
                     CaptureState.NoPermission -> "缺少权限"
                 }
-                SRow(SettingsGlyph.Mic, Tints.capture, "录音与后台", captureLine,
+                SRow(SettingsGlyph.Mic, Tints.capture, SettingsPage.Capture.title, captureLine,
                     alert = if (status.state == CaptureState.Stopped || status.state == CaptureState.NoPermission) c.critical else null) { onOpen(SettingsPage.Capture) }
                 if (AppGraph.isDevicesReady) {
                     Divider()
-                    SRow(SettingsGlyph.Device, Tints.devices, "外接设备", app.resound.ui.verify.devicesSummary()) { onOpen(SettingsPage.Devices) }
+                    SRow(SettingsGlyph.Device, Tints.devices, SettingsPage.Devices.title, app.resound.ui.verify.devicesSummary()) { onOpen(SettingsPage.Devices) }
                 }
                 Divider()
                 val asr = transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings
@@ -169,24 +169,12 @@ internal fun SettingsList(
                     (queue?.pending ?: 0) > 0 -> "$asrSource · ${queue!!.pending} 段待转"
                     else -> "$asrSource · ${if (asrRealtime) "实时" else "每 $asrInterval 分钟"}"
                 }
-                SRow(SettingsGlyph.Lines, Tints.transcript, "原话与转写", asrLine, alert = if (!asrKey || failed > 0) c.warning else null) { onOpen(SettingsPage.Transcript) }
+                SRow(SettingsGlyph.Lines, Tints.transcript, SettingsPage.Transcript.title, asrLine, alert = if (!asrKey || failed > 0) c.warning else null) { onOpen(SettingsPage.Transcript) }
                 if (vp != null) {
                     Divider()
-                    SRow(SettingsGlyph.People, Tints.voiceprint, "声纹与人物",
+                    SRow(SettingsGlyph.People, Tints.voiceprint, SettingsPage.Voiceprint.title,
                         if (vp.ready) "已能认出你" else "还差 ${maxOf(0, 3 - vp.samples)} 段样本", alert = if (vp.ready) null else c.warning) { onOpen(SettingsPage.Voiceprint) }
                 }
-                app.resound.ui.envsound.envSoundSummary()?.let { v ->
-                    Divider()
-                    SRow(SettingsGlyph.Wave, Tints.env, "环境音识别", v) { onOpen(SettingsPage.EnvSound) }
-                }
-                if (AppGraph.isLocationReady) {
-                    val locOn = AppGraph.location.settings.enabled.collectAsStateWithLifecycle().value
-                    Divider()
-                    SRow(SettingsGlyph.Pin, Tints.location, "足迹", if (locOn) "记录全天位置" else "未开启") { onOpen(SettingsPage.Location) }
-                }
-                val stOn = if (AppGraph.isScreenTimeReady) AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle().value else false
-                Divider()
-                SRow(SettingsGlyph.Clock, Tints.screenTime, "屏幕时间", if (stOn) "记录每天用了哪些 App" else "未开启") { onOpen(SettingsPage.ScreenTime) }
             }
         }
         // ---------- 整理 ----------
@@ -214,26 +202,31 @@ internal fun SettingsList(
                     alert = when { !llmKey || (bal != null && !bal.available) -> c.critical; low -> c.warning; else -> null }) { onOpen(SettingsPage.Model) }
                 Divider()
                 val skillList = app.resound.ui.skills.skillRepo().skills.collectAsStateWithLifecycle().value
-                SRow(SettingsGlyph.Grid, Tints.skills, "整理技能", "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个") { onOpen(SettingsPage.Skills) }
+                SRow(SettingsGlyph.Grid, Tints.skills, SettingsPage.Skills.title, "开了 ${skillList.count { it.enabled && it.origin != app.resound.skills.SkillOrigin.Core }} 个") { onOpen(SettingsPage.Skills) }
                 if (AppGraph.isPushReady) {
                     val channels = AppGraph.push.channels.collectAsStateWithLifecycle(initialValue = emptyList()).value
                     Divider()
-                    SRow(SettingsGlyph.Send, Tints.push, "推送通道", channels.count { it.enabled }.let { if (it == 0) "只发手机通知" else "$it 个通道" }) { onOpen(SettingsPage.Push) }
+                    SRow(SettingsGlyph.Send, Tints.push, SettingsPage.Push.title, channels.count { it.enabled }.let { if (it == 0) "只发手机通知" else "$it 个通道" }) { onOpen(SettingsPage.Push) }
                 }
             }
         }
-        // ---------- 数据（备份没准备好时整组不显示，不写“开发中”） ----------
-        if (AppGraph.isBackupReady) item {
-            GroupSection("数据") {
-                val b = AppGraph.backup.state.collectAsStateWithLifecycle().value
-                val lb = AppGraph.backup.local.collectAsStateWithLifecycle().value
-                val parts = buildList {
-                    if (b.account != null) add(Triple(b.cloud.title(), b.lastError == null && b.lastBackupAt != null, b.lastBackupAt))
-                    if (lb.folder != null) add(Triple("本机", lb.lastError == null && lb.lastAt != null, lb.lastAt))
+        // ---------- 线索：听到的环境、手机、去过哪、睡得怎样，和“一天的线索”一一对应 ----------
+        item {
+            GroupSection("线索") {
+                var first = true
+                @Composable fun gap() { if (!first) Divider(); first = false }
+                app.resound.ui.envsound.envSoundSummary()?.let { v ->
+                    gap(); SRow(SettingsGlyph.Wave, Tints.env, SettingsPage.EnvSound.title, v) { onOpen(SettingsPage.EnvSound) }
                 }
-                val failed = parts.any { !it.second }
-                val value = if (parts.isEmpty()) "未开启" else parts.joinToString("  ") { (name, ok, at) -> name + " " + if (ok) backupClock(at!!, short = true) else "失败" }
-                SRow(SettingsGlyph.Cloud, Tints.backup, "数据备份", value, alert = if (failed) c.critical else null) { onOpen(SettingsPage.Backup) }
+                val stOn = if (AppGraph.isScreenTimeReady) AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle().value else false
+                gap(); SRow(SettingsGlyph.Clock, Tints.screenTime, SettingsPage.ScreenTime.title, if (stOn) "已开启" else "未开启") { onOpen(SettingsPage.ScreenTime) }
+                if (AppGraph.isLocationReady) {
+                    val locOn = AppGraph.location.settings.enabled.collectAsStateWithLifecycle().value
+                    gap(); SRow(SettingsGlyph.Pin, Tints.location, SettingsPage.Location.title, if (locOn) "已开启" else "未开启") { onOpen(SettingsPage.Location) }
+                }
+                app.resound.ui.night.nightSummary()?.let { v ->
+                    gap(); SRow(SettingsGlyph.Moon, Tints.night, SettingsPage.Night.title, v) { onOpen(SettingsPage.Night) }
+                }
             }
         }
         // ---------- 通用 ----------
@@ -245,19 +238,28 @@ internal fun SettingsList(
                     Text("外观", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
                     Segmented(listOf(ThemeMode.System to "自动", ThemeMode.Light to "浅色", ThemeMode.Dark to "深色"), themeMode, onThemeMode)
                 }
+                if (AppGraph.isBackupReady) {
+                    val b = AppGraph.backup.state.collectAsStateWithLifecycle().value
+                    val lb = AppGraph.backup.local.collectAsStateWithLifecycle().value
+                    val parts = buildList {
+                        if (b.account != null) add(Triple(b.cloud.title(), b.lastError == null && b.lastBackupAt != null, b.lastBackupAt))
+                        if (lb.folder != null) add(Triple("本机", lb.lastError == null && lb.lastAt != null, lb.lastAt))
+                    }
+                    val failed = parts.any { !it.second }
+                    val value = if (parts.isEmpty()) "未开启" else parts.joinToString("  ") { (name, ok, at) -> name + " " + if (ok) backupClock(at!!, short = true) else "失败" }
+                    Divider()
+                    SRow(SettingsGlyph.Cloud, Tints.backup, SettingsPage.Backup.title, value, alert = if (failed) c.critical else null) { onOpen(SettingsPage.Backup) }
+                }
                 if (AppGraph.isUpdaterReady) {
                     val updater = AppGraph.updater
                     val (summary, fresh) = updateSummary(updater.currentVersion, updater.state.collectAsStateWithLifecycle().value)
                     Divider()
-                    SRow(SettingsGlyph.Up, Tints.update, "版本更新", summary, alert = if (fresh) c.accent else null) { onOpen(SettingsPage.Update) }
+                    SRow(SettingsGlyph.Up, Tints.update, SettingsPage.Update.title, summary, alert = if (fresh) c.accent else null) { onOpen(SettingsPage.Update) }
                 }
                 Divider()
-                SRow(SettingsGlyph.Info, Tints.about, "关于涛声", "") { onOpen(SettingsPage.About) }
-            }
-        }
-        item {
-            Group {
-                SRow(SettingsGlyph.Tool, Tints.advanced, "高级与诊断", "运行记录 · 导出问题记录") { onOpen(SettingsPage.Advanced) }
+                SRow(SettingsGlyph.Tool, Tints.advanced, SettingsPage.Advanced.title, "运行记录 · 问题记录") { onOpen(SettingsPage.Advanced) }
+                Divider()
+                SRow(SettingsGlyph.Info, Tints.about, SettingsPage.About.title, "") { onOpen(SettingsPage.About) }
             }
         }
     }

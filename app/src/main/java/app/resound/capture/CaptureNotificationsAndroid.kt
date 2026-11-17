@@ -62,7 +62,7 @@ object CaptureNotifications {
         val clock = CaptureNotificationPolicy.clock(java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), at.toLocalDate()), hm, OutputTime().moment(until))
         val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
         val topicLine = topic?.let { TopicNotifications.line(it) }
-        val notice = CaptureNotificationPolicy.ongoing(context.appName, paused, quietName, clock, topicLine, pauseMinutes())
+        val notice = CaptureNotificationPolicy.night(CaptureNotificationPolicy.ongoing(context.appName, paused, quietName, clock, topicLine, pauseMinutes()), app.resound.AppGraph.isNightReady && app.resound.AppGraph.night.live.value.state in setOf(app.resound.night.NightState.Active, app.resound.night.NightState.Provisional))
         val kind = if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else QuickPrefsRules.defaultTopic
         return NotificationCompat.Builder(context, "listening")
         .setSmallIcon(R.drawable.ic_notify).setContentTitle(notice.title)

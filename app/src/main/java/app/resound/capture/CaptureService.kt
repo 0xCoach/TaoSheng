@@ -70,10 +70,12 @@ class CaptureService : Service() {
             capacityMah = AppPowerModel.capacityMah(charge, percent)))
         threadCpuDiagnostics.record(this, charging.takeIf { epoch == chargeEpoch.get() }, state.name)
     }
+    private var nightCapture: app.resound.night.NightCapture? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
+        nightCapture = (AppGraph.night as? app.resound.night.AndroidNight)?.capture(scope)
         alive = true
         instance = this
         folderImports()?.recordingChanged()
@@ -342,6 +344,7 @@ class CaptureService : Service() {
                             timeline?.frameArchiveId ?: source.id, sensitivity.minSpeechSamples),
                             sensitivity.minSpeechSamples).also { segmenter = it }
                         vad.accept(frame) { pcm, speech, level ->
+                            if (route.device.kind == InputKind.Phone) nightCapture?.accept(pcm, speech, System.currentTimeMillis() - pcm.size / 16)
                             cutter.accept(pcm, speech, AppGraph.playback.state.value.speakerPlaying)
                             val next = if (cutter.active) CaptureState.Recording else CaptureState.Listening
                             // 状态和采样在此线程串行；人声状态切换不改变 running 区间。
@@ -396,6 +399,7 @@ class CaptureService : Service() {
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy
     private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null, quietName: String? = null) {
         if (initialized && running(state) != running(next)) beat()
+        nightCapture?.captureState(when(next) { CaptureState.Paused -> if(quietName != null) "停录时段内没有记录" else "已暂停录音"; CaptureState.MicBusy -> "麦克风被占用"; else -> null })
         state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
     }
     private fun folderImports() = if (AppGraph.isFolderImportReady)
@@ -465,6 +469,7 @@ class CaptureService : Service() {
             pending.completion?.completeExceptionally(CancellationException("录音服务已停止"))
         }
         stopLocation()
+        nightCapture?.close(); nightCapture = null
         unregisterReceiver(powerReceiver)
         if (!normalStop && controller.status.value.state != CaptureState.NoPermission) controller.update(CaptureState.Stopped)
         scope.cancel(); dispatcher.close(); releaseWakeLock()

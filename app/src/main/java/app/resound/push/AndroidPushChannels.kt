@@ -150,7 +150,7 @@ class AndroidPushChannels internal constructor(
     private fun publicChannel(row: JSONObject): PushChannel {
         val kind = PushKind.valueOf(row.getString("kind"))
         val refs = row.getJSONObject("secrets")
-        val summary = if (row.optBoolean("useLinkedNutstore")) "使用数据备份中所选的云端存储" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
+        val summary = if (row.optBoolean("useLinkedNutstore")) "使用备份恢复中所选的云端存储" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
             val present = runCatching { secrets.read(refs.optString(field.key)).isNotBlank() }.onFailure {
                 FailureNotes.record("push/AndroidPushChannels.kt:133", it)
             }.getOrDefault(false)
@@ -171,7 +171,7 @@ class AndroidPushChannels internal constructor(
             }.getOrDefault("")
         } else row.getJSONObject("values").optString(field.key) }
         return if (kind == PushKind.MarkdownFolder && row.optBoolean("useLinkedNutstore")) own +
-            (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else own
+            (linkedCredentials() ?: throw PushFailure("先在备份恢复里连接云端存储，或改为单独配置")) else own
     }
     private fun persist(rows: List<JSONObject>) {
         check(prefs.edit().putString("channels", JSONArray(rows).toString()).commit())
@@ -196,7 +196,7 @@ class AndroidPushChannels internal constructor(
             val merged = fields(kind).associate { field -> field.key to
                 (input[field.key]?.trim().orEmpty().let { if (field.secret && it.isEmpty()) previous[field.key].orEmpty() else it }) }
             val actualLinked = linked && kind == PushKind.MarkdownFolder
-            val effective = if (actualLinked) merged + (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else merged
+            val effective = if (actualLinked) merged + (linkedCredentials() ?: throw PushFailure("先在备份恢复里连接云端存储，或改为单独配置")) else merged
             val configured = effective.toMutableMap()
             if (kind == PushKind.MarkdownFolder) {
                 if (configured["folder"].isNullOrBlank()) configured["folder"] = "Resound-Memory"

@@ -1,0 +1,44 @@
+{
+  "source": "https://huggingface.co/datasets/dust-systems/psg-audio",
+  "original": "https://doi.org/10.11922/sciencedb.00345",
+  "license": "CC-BY-4.0 (mirror README)",
+  "path": "V3/APNEA_EDF/00000999-100507/00000999-100507%5B001%5D.edf",
+  "slice_seconds": [
+    60,
+    360
+  ],
+  "bytes": 59227800,
+  "sha256": "efbfdb970619217e8393e2ae025ce8ef1e699b0668fb157e74459c75cc460822",
+  "channel": "Mic",
+  "rate_original": 48000,
+  "rate_model": 16000,
+  "annotation_sha256": "ef66da7eca3bc2e6cac357604282e7655b4332d2763e45be97c4ccd48950bbbd",
+  "respiratory_annotations": [
+    {
+      "Type": "ObstructiveApnea",
+      "Start": "155",
+      "Duration": "17"
+    },
+    {
+      "Type": "ObstructiveApnea",
+      "Start": "209",
+      "Duration": "19"
+    },
+    {
+      "Type": "ObstructiveApnea",
+      "Start": "264.5",
+      "Duration": "14"
+    },
+    {
+      "Type": "ObstructiveApnea",
+      "Start": "295.5",
+      "Duration": "12.5"
+    },
+    {
+      "Type": "ObstructiveApnea",
+      "Start": "347",
+      "Duration": "11.5"
+    }
+  ],
+  "limits": "Single 5-minute real excerpt; clinical respiratory annotations are not equivalent to the product SnoreBreak label. No full-night false-positive claim."
+}

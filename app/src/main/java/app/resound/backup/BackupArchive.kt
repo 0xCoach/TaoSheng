@@ -24,6 +24,7 @@ internal object BackupArchive {
     const val SKILLS = "files/skills/"
     const val PROMPTS = "files/prompts/"
     fun allowed(path: String): Boolean = path == DATABASE || path in setOf("settings.json", "secrets.json") ||
+        path.matches(Regex("files/night/[0-9]+/[0-9]+-[a-z0-9]+[.](ogg|m4a)")) ||
         (path.startsWith(SKILLS) && path.removePrefix(SKILLS).let {
             it == "overrides.json" || it.matches(Regex("prompts/[a-z0-9_]+[.]md")) ||
                 it.matches(Regex("mine/my_[a-z0-9_]+/(skill[.]json|prompt[.]md|default[.]md)"))
@@ -120,6 +121,18 @@ internal object BackupArchive {
         val db = File(staging, DATABASE).apply { parentFile!!.mkdirs() }
         snapshot(database, db)
         val data = File(context.applicationInfo.dataDir)
+        // 按快照里的确认状态挑文件，未确认片段不打包；相对路径恢复到新手机仍有效。
+        AndroidSQLiteDriver().open(db.path).use { snapshot ->
+            snapshot.prepare("SELECT path FROM night_clips WHERE confirmed = 1 AND path IS NOT NULL").use { rows ->
+                while (rows.step()) {
+                    val path = "files/night/" + rows.getText(0)
+                    require(allowed(path))
+                    val source = File(data, path)
+                    if (source.isFile) source.copyTo(File(staging, path).apply { parentFile!!.mkdirs() })
+                }
+            }
+            snapshot.execSQL("UPDATE night_clips SET path = NULL WHERE confirmed = 0")
+        }
         File(data, FEATURES).listFiles()?.filter { allowed(FEATURES + it.name) && it.isFile }?.forEach {
             it.copyTo(File(staging, FEATURES + it.name).apply { parentFile!!.mkdirs() })
         }

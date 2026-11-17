@@ -111,7 +111,7 @@ object PreferenceBackupPolicy {
             )
             "local-asr" -> key !in setOf("actual", "npuCheck") && !key.startsWith("download-")
             "llm-balance" -> !key.startsWith("cached") && !key.startsWith("alerted")
-            "folder-imports" -> key == "folders"
+            "folder-imports" -> key in setOf("folders", "backfillPaused")
             "screen-time" -> key != "screenTimeLastPullAt"
             else -> true
         }

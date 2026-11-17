@@ -59,7 +59,7 @@ class Driver175FixturesTest {
             File(replay.path + ".triggers.txt").writeText(
                 "expected=${expected.size}\nactual=${observed.size}\ncurrent=${current.size}\n" +
                     "missing=" + (current - observed).sorted().joinToString(",") + "\n")
-            assertEquals("$name 手写触发器集合", expected, observed)
+            assertEquals("$name 手写触发器集合（卡199增加删除关联回退）", expected + "folder_import_deleted", observed)
         }
         assertTrue("缺少旧夹具 $name；第二段禁止重录标准答案", file.isFile)
         Index183FixtureDelta.assertSame(name, file.readText(), actual)

@@ -24,6 +24,12 @@ class Index183ComparatorTest {
             val after = (1 until rows.size).first { rows[it] > index }
             rows.add(after, index)
         }
+        val triggers=Index183FixtureDelta.spec.getJSONArray("triggers")
+        repeat(triggers.length()) { n ->
+            val trigger=triggers.getString(n)
+            val at=(1 until rows.size).first { rows[it] > trigger }
+            rows.add(at,trigger)
+        }
         for (master in Index183FixtureDelta.tableMasterRows) {
             val after = (1 until rows.size).first { rows[it] > master }
             rows.add(after, master)

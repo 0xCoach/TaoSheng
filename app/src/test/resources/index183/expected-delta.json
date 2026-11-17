@@ -39,25 +39,25 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=38",
+    "newLine": "user_version=39",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"30bf4f9dfd3f241be95b43dd32783778\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"7dd0e16c09aa5ca6066de5b40f2161f4\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "30bf4f9dfd3f241be95b43dd32783778",
+  "newIdentityHash": "7dd0e16c09aa5ca6066de5b40f2161f4",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '30bf4f9dfd3f241be95b43dd32783778')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7dd0e16c09aa5ca6066de5b40f2161f4')"
   ],
   "indices": [
     {
@@ -129,6 +129,30 @@
     {
       "name": "index_marks_topicMarkId",
       "row": "[\"index\",\"index_marks_topicMarkId\",\"marks\",\"CREATE UNIQUE INDEX `index_marks_topicMarkId` ON `marks` (`topicMarkId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_folder_recordings_startAt",
+      "table": "folder_recordings",
+      "row": "[\"index\",\"index_folder_recordings_startAt\",\"folder_recordings\",\"CREATE INDEX `index_folder_recordings_startAt` ON `folder_recordings` (`startAt`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_folder_recordings_number",
+      "table": "folder_recordings",
+      "row": "[\"index\",\"index_folder_recordings_number\",\"folder_recordings\",\"CREATE INDEX `index_folder_recordings_number` ON `folder_recordings` (`number`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_folder_recordings_folderId_documentUri",
+      "table": "folder_recordings",
+      "row": "[\"index\",\"index_folder_recordings_folderId_documentUri\",\"folder_recordings\",\"CREATE UNIQUE INDEX `index_folder_recordings_folderId_documentUri` ON `folder_recordings` (`folderId`, `documentUri`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_phone_labels_1",
+      "table": "phone_labels",
+      "row": "[\"index\",\"sqlite_autoindex_phone_labels_1\",\"phone_labels\",null]",
       "occurrences": 1
     }
   ],
@@ -207,6 +231,30 @@
         ""
       ],
       "occurrences": 1
+    },
+    {
+      "name": "folder_recordings",
+      "masterRows": [
+        "[\"table\",\"folder_recordings\",\"folder_recordings\",\"CREATE TABLE `folder_recordings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `folderId` TEXT NOT NULL, `documentUri` TEXT NOT NULL, `fingerprint` TEXT, `fileName` TEXT NOT NULL, `size` INTEGER NOT NULL, `modified` INTEGER NOT NULL, `startAt` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL, `number` TEXT, `partyName` TEXT, `direction` TEXT, `state` TEXT NOT NULL, `importRecordId` INTEGER, `createdAt` INTEGER NOT NULL, `kind` TEXT NOT NULL, `pendingId` TEXT, `backfill` INTEGER NOT NULL, `notified` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE folder_recordings",
+        "columns=[\"id\",\"folderId\",\"documentUri\",\"fingerprint\",\"fileName\",\"size\",\"modified\",\"startAt\",\"durationMillis\",\"number\",\"partyName\",\"direction\",\"state\",\"importRecordId\",\"createdAt\",\"kind\",\"pendingId\",\"backfill\",\"notified\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "phone_labels",
+      "masterRows": [
+        "[\"table\",\"phone_labels\",\"phone_labels\",\"CREATE TABLE `phone_labels` (`number` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`number`))\"]"
+      ],
+      "block": [
+        "TABLE phone_labels",
+        "columns=[\"number\",\"name\",\"updatedAt\"]",
+        ""
+      ],
+      "occurrences": 1
     }
   ],
   "querySql": [
@@ -246,5 +294,8 @@
     "dataSuffix": ",{\"integer\":0}]",
     "insertSql": "ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0",
     "masterFreshLine": "[\"table\",\"segments\",\"segments\",\"CREATE TABLE `segments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `sourceId` TEXT NOT NULL, `path` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL DEFAULT 0, `nextRetryAt` INTEGER, `error` TEXT, `completedAt` INTEGER, `logId` TEXT, `sentMillis` INTEGER NOT NULL DEFAULT 0, `voiceprintProcessedAt` INTEGER, `playbackMillis` INTEGER NOT NULL DEFAULT 0, `firstFailedAt` INTEGER, `asrSource` TEXT, `redoPending` INTEGER NOT NULL DEFAULT 0, `separateSpeakers` INTEGER, `importRecordId` INTEGER, `importChannel` INTEGER, `speakerCount` INTEGER, `playbackDigest` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`importRecordId`) REFERENCES `import_records`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )\"]"
-  }
+  },
+  "triggers": [
+    "[\"trigger\",\"folder_import_deleted\",\"import_records\",\"CREATE TRIGGER folder_import_deleted AFTER DELETE ON import_records BEGIN UPDATE folder_recordings SET importRecordId = NULL, state = 'Listed', pendingId = NULL, backfill = 0, notified = 1 WHERE importRecordId = OLD.id; END\"]"
+  ]
 }

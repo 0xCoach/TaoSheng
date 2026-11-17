@@ -75,6 +75,12 @@ internal object Index183FixtureDelta {
             assertEquals("$name 索引完整行次数", rule.getInt("occurrences"), observed.count { it == exact })
             observed.removeAt(observed.indexOf(exact))
         }
+        val triggers = spec.optJSONArray("triggers")
+        if (triggers != null) repeat(triggers.length()) { i ->
+            val exact = triggers.getString(i)
+            assertEquals("$name 卡199触发器精确SQL", 1, observed.count { it == exact })
+            observed.removeAt(observed.indexOf(exact))
+        }
         val tables = spec.getJSONArray("tables")
         repeat(tables.length()) { n ->
             val rule = tables.getJSONObject(n)

@@ -342,7 +342,8 @@ class ScreenTimePushTest {
             assertFalse(uploaded.contains("哔哩哔哩"))
             assertFalse(uploaded.contains("271.两眼一抹黑"))
             assertFalse(uploaded.contains(SCREEN_TIME_MARKER))
-            assertTrue(yesterday in asked)
+            // 卡 200：屏幕时间已并入“一天的线索”，每日文档不再单独取屏幕时间正文
+            assertTrue(asked.isEmpty())
         } finally { dav.close() }
     }
 

@@ -7,14 +7,22 @@ import java.time.ZoneId
 
 /** 偏好随卡 190 的设置备份；进程启动和系统换区时各检查一次。 */
 internal class AndroidZoneHistory(private val prefs: SharedPreferences) {
-    fun read(): ZoneHistory {
+    /** 整理时每句原话都要查时区：读一次就缓存，系统时区变了或记录更新后再重读 */
+    @Volatile private var cache: Pair<String, ZoneHistory>? = null
+    private fun load(zone: String): ZoneHistory {
         val rows = runCatching { Json.decodeFromString<List<ZoneChange>>(prefs.getString("changes", "[]")!!) }.getOrDefault(emptyList())
-        return ZoneHistory(rows, ZoneId.systemDefault().id)
+        return ZoneHistory(rows, zone)
+    }
+    fun read(): ZoneHistory {
+        val zone = ZoneId.systemDefault().id
+        cache?.let { (z, h) -> if (z == zone) return h }
+        return load(zone).also { cache = zone to it }
     }
     fun check() {
-        val before = read()
+        val before = load(ZoneId.systemDefault().id)
         val after = before.record(System.currentTimeMillis(), ZoneId.systemDefault().id)
         if (before.changes != after) check(prefs.edit().putString("changes", Json.encodeToString(after)).commit())
+        cache = null
     }
     fun attach(context: Context) {
         check()

@@ -23,7 +23,7 @@ import java.time.LocalDate
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class SkillRepository177Test {
  @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
- @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
     @Test fun queryStatusAndSettingsMatchOldRepository() = runBlocking {
         val context: Context = RuntimeEnvironment.getApplication()
         val root = File(context.cacheDir, "skills177").apply { deleteRecursively(); mkdirs() }

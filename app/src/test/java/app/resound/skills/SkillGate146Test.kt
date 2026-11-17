@@ -29,7 +29,7 @@ import java.time.LocalDate
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class SkillGate146Test {
  @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
- @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
     private val day = LocalDate.parse("2026-11-12")
     private val start = day.atTime(10, 0).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
     private val gate = SkillGate(2, 10, 20, false)

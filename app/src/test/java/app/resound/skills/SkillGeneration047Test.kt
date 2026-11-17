@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class SkillGeneration047Test {
  @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
- @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val day = LocalDate.parse("2026-10-24")
     private val start = day.atStartOfDay(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()

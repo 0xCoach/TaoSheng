@@ -53,5 +53,6 @@ class ZoneHistory(val changes: List<ZoneChange>, private val current: String) {
 
 /** 平台在启动时注入；规则本身不读取系统时间或偏好。 */
 object HistoricalZones {
-    var history: () -> ZoneHistory = { ZoneHistory(emptyList(), "UTC") }
+    /** 未注入时（测试、独立进程）按手机当前时区，避免误用 UTC 让时间整体偏移 */
+    var history: () -> ZoneHistory = { ZoneHistory(emptyList(), TimeZone.currentSystemDefault().id) }
 }

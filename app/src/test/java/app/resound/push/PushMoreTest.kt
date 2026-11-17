@@ -39,7 +39,7 @@ import javax.crypto.spec.SecretKeySpec
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class PushMoreTest {
     @org.junit.Before fun currentZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), ZoneId.systemDefault().id) } }
-    @org.junit.After fun resetZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
+    @org.junit.After fun resetZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
 
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val date = LocalDate.parse("2026-10-24")

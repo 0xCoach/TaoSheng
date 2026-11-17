@@ -39,7 +39,10 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val clips=dao.clips(id).associateBy { it.id }
         val rows=dao.events(id)
         val events=rows.map { r->json.decodeFromString<NightEvent>(r.payload).copy(id=r.id,audioAvailable=clips[json.decodeFromString<NightEvent>(r.payload).clipId]?.path?.let { available(it) }==true) }
-        return NightDetail(summary(row),events,dao.envelope(id)?.let(decodeEnvelope),events.filter { it.asked && it.feedback==Feedback.None }.map { it.id },vetoed=rows.filter { it.vetoed }.map { it.id }.toSet())
+        val tagLinks=dao.tagLinks(id);val tagList=dao.tagList();val suggested=tagList.filter {t->tagLinks.any {it.tagId==t.id && it.state=="suggested"}}.map {NightTag(it.id,it.name,it.preset)}
+        val dreams=dao.dreams(id).map {json.decodeFromString<Dream>(it.payload).copy(id=it.id)}
+        val notice=if(settings.value.breakReminder && dao.notice("break")?.muted!=true && dao.notice("notice-night-$id")!=null)SnoreBreaks.NOTICE else null
+        return NightDetail(summary(row),events,dao.envelope(id)?.let(decodeEnvelope),events.filter { it.asked && it.feedback==Feedback.None }.map { it.id },suggestedTags=suggested,dreams=dreams,breakNotice=notice,vetoed=rows.filter { it.vetoed }.map { it.id }.toSet())
     }
     override suspend fun feedback(eventId: Long,value: Feedback)=gate.withLock {
         db.writeTransaction {
@@ -68,9 +71,17 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     override suspend fun deleteNight(nightId: Long)=gate.withLock { db.writeTransaction { erase(nightId) };cleanup();changed() }
     /** 调用方已有事务；删除整夜避免残留梦话或从信号重新生成隐私内容。 */
     suspend fun erase(id: Long) {
+        val learned=dao.feedback().any {it.nightId==id}
         if(dao.get(id)?.state in setOf("Active","Provisional"))dao.notice(NightNoticeRow("privacy-floor",now(),false))
-        dao.clips(id).mapNotNull { it.path }.forEach { db.privacy().queueCleanup(PrivacyFileCleanup(fileRef(it).id)) };dao.delete(id) }
-    suspend fun eraseRange(from: Long,until: Long) { dao.all().filter { it.start<until && it.end>from }.forEach { erase(it.id) } }
+        dao.clips(id).mapNotNull { it.path }.forEach { db.privacy().queueCleanup(PrivacyFileCleanup(fileRef(it).id)) };dao.delete(id);if(learned)dao.clearPersonal();NightWeekPrivacy.refresh(this,zones()) }
+    suspend fun eraseRange(from: Long,until: Long) {
+        for(row in dao.all()) {
+            if(row.start<until && row.end>from)erase(row.id)
+            else for(dream in dao.dreams(row.id))if(dream.at<until && maxOf(dream.until,dream.at+1)>from) {
+                dao.deleteDream(dream.id);dao.update(row.copy(updatedAt=now()))
+            }
+        }
+    }
     suspend fun expire(at: Long)=gate.withLock {
         db.writeTransaction { for(c in dao.expired(at)) { c.path?.let { db.privacy().queueCleanup(PrivacyFileCleanup(fileRef(it).id)) };dao.updateClip(c.copy(path=null));dao.get(c.nightId)?.let { dao.update(it.copy(updatedAt=at)) } } };cleanup()
     }
@@ -100,7 +111,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val s=old.copy(state=NightState.Ready,times=sleep.times,sleepMillis=sleep.millis,awakeCount=sleep.count,awakeMillis=sleep.awake.sumOf { it.millis },
             snoreMillis=NightRules.merge(events.filter { it.kind==NightEventKind.Snore }.map { NightSpan(it.start,it.end) }).sumOf { it.millis },
             coughCount=events.count { it.kind==NightEventKind.Cough },talkCount=events.count { it.kind==NightEventKind.SleepTalk },
-            confidence=confidence,reasons=reasons+if(sound.isEmpty())listOf("没听到睡眠声音，确认手机放在床边") else emptyList())
+            snoreBreaks=events.count { it.kind==NightEventKind.SnoreBreak },confidence=confidence,reasons=reasons+if(sound.isEmpty())listOf("没听到睡眠声音，确认手机放在床边") else emptyList())
         val questions=rows.filter { it.kind in setOf("Snore","Cough") && it.certainty<.8 }.sortedBy { it.certainty }.take(3).map { it.id }.toSet()
         rows.forEach { r->val e=json.decodeFromString<NightEvent>(r.payload);if(e.asked!=(r.id in questions))dao.updateEvent(r.copy(payload=json.encodeToString(e.copy(asked=r.id in questions)))) }
         dao.update(row.copy(state=s.state.name,payload=json.encodeToString(s.copy(sentence=NightPresentation.sentence(s,history,settings.value.sharedRoom))),signals=json.encodeToString(session.copy(originalTimes=session.originalTimes ?: sleep.times)),updatedAt=now()))

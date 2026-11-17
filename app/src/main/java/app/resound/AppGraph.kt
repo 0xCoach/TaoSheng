@@ -71,6 +71,7 @@ object AppGraph {
     val isRedoReady: Boolean get() = ::redo.isInitialized
 
     // 卡 070：环境音识别
+    lateinit var nightInsights: app.resound.night.NightInsights
     lateinit var night: app.resound.night.NightRepository
     val isNightReady: Boolean get() = ::night.isInitialized
     lateinit var envSound: app.resound.envsound.EnvSoundRepository

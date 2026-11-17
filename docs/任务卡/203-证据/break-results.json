@@ -1,0 +1,9 @@
+[
+{"case":"simulated_gasp","seconds":76,"events":0,"perHour":0.0},
+{"case":"normal_pause","seconds":64,"events":0,"perHour":0.0},
+{"case":"rustle_after_pause","seconds":76,"events":0,"perHour":0.0},
+{"case":"speech_after_pause","seconds":76,"events":0,"perHour":0.0},
+{"case":"continuous_snore","seconds":120,"events":0,"perHour":0.0},
+{"case":"simulated_gasp_stationary","seconds":76,"events":1,"perHour":47.36842105263158},
+{"case":"psg_real_60_360","seconds":300,"events":0,"perHour":0.0}
+]

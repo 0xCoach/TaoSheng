@@ -29,7 +29,7 @@ internal suspend fun loadDayThread(database: CaptureDatabase, date: LocalDate, s
     val events = snapshot.events.filter { !it.deleted && it.startAt < end && (it.endAt > start || it.startAt == it.endAt && it.startAt >= start) && (!subscription.excludeMedia || it.scene != "媒体") }
         .filter { RecordKind.Timeline in subscription.records || RecordKind.Starred in subscription.records && it.starred }
         .map { ThreadEvent(it.id, it.startAt, it.endAt, it.title, it.place, org.json.JSONArray(it.peopleJson).strings(), it.scene, it.id in callEvents) }
-    val night = (AppGraph.night as? app.resound.night.AndroidNight)?.let { owner -> owner.store.dao.onDate(day.toString())?.let { owner.store.detail(it.id) }?.let { app.resound.night.NightThreads.build(it, owner.settings.value, zones) } }
+    val night = ((if(AppGraph.isNightReady) AppGraph.night else null) as? app.resound.night.AndroidNight)?.let { owner -> owner.store.dao.onDate(day.toString())?.let { owner.store.detail(it.id) }?.let { app.resound.night.NightThreads.build(it, owner.settings.value, zones) } }
     return DayThreadSource(ThreadInput(day, start, end,
         // 与首页 CaptureStatsQueries.dayStats 相同：每个录音段在当天的交集总和。
         segments.sumOf { (minOf(end, it.endAt) - maxOf(start, it.startAt)).coerceAtLeast(0) }, events,

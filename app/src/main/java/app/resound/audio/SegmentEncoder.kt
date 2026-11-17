@@ -30,6 +30,13 @@ object SegmentEncoder {
         }
         error("无可用编码器")
     }
+    fun encodeAac(pcm: File, target: File) {
+        val partial = File(target.path + ".part")
+        try {
+            encodeOne(pcm, partial, MediaFormat.MIMETYPE_AUDIO_AAC, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            check(partial.length() > 0 && partial.renameTo(target)) { "AAC 编码文件落盘失败" }
+        } finally { partial.delete() }
+    }
     private fun encodeOne(pcm: File, target: File, mime: String, container: Int) {
         val codec = MediaCodec.createEncoderByType(mime)
         var muxer: MediaMuxer? = null

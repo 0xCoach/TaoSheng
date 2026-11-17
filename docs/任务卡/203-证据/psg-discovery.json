@@ -1,0 +1,363 @@
+{
+  "url": "https://huggingface.co/api/datasets/dust-systems/psg-audio/tree/main?recursive=false&limit=100",
+  "files": [
+    {
+      "type": "directory",
+      "oid": "a13127d4dd2c89b6c40fde01bc2ec64c2c80d367",
+      "size": 0,
+      "path": "V1"
+    },
+    {
+      "type": "directory",
+      "oid": "84813892418293228036cf68dd463c40659db1ed",
+      "size": 0,
+      "path": "V2"
+    },
+    {
+      "type": "directory",
+      "oid": "5a2a617d1d90c7861a8acd601c5780eb4bf56702",
+      "size": 0,
+      "path": "V3"
+    },
+    {
+      "type": "file",
+      "oid": "3f9c89464e5fdd5be869ccfbcae1024899130845",
+      "size": 94298,
+      "path": ".gitattributes"
+    },
+    {
+      "type": "file",
+      "oid": "4afbfda9a2fc890488398ac4a031b1cfcd15382a",
+      "size": 1025,
+      "path": "CPAP_pressure.txt"
+    },
+    {
+      "type": "file",
+      "oid": "d10d0959d86530d5c42b45e89a851790043867f3",
+      "size": 4271,
+      "path": "README.md"
+    },
+    {
+      "type": "file",
+      "oid": "98f4b69ee69654029d9be0eb2f75be1d6493d098",
+      "size": 4099,
+      "path": "README.txt"
+    }
+  ],
+  "children": {
+    "V1/APNEA_RML_clean": [
+      {
+        "type": "file",
+        "oid": "43478453d57b10eb88b8c5205e8da976cb1a85bd",
+        "size": 390797,
+        "path": "V1/APNEA_RML_clean/00000993-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "125bfc7b22982c2e651a124ff1a5bdd997262bf8",
+        "size": 238861,
+        "path": "V1/APNEA_RML_clean/00000995-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "f0f69e806aadcf71b5ec2e79b2526ff47e5914fa",
+        "size": 254210,
+        "path": "V1/APNEA_RML_clean/00000999-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "845e0eb7301f37ad227bd687058c96f95407a3d6",
+        "size": 230764,
+        "path": "V1/APNEA_RML_clean/00001000-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "a1b8f7b3a1f138931df062dbb62c5fa225abc366",
+        "size": 216246,
+        "path": "V1/APNEA_RML_clean/00001002-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "c3efd433ed846103a696ba9623baebab9a299830",
+        "size": 410864,
+        "path": "V1/APNEA_RML_clean/00001004-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "913def163d8dc675bc2ce43e0ab8d7fa7cf0936e",
+        "size": 165048,
+        "path": "V1/APNEA_RML_clean/00001006-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "8a985ffe871c985eed858f623fc7f5d573404370",
+        "size": 189197,
+        "path": "V1/APNEA_RML_clean/00001008-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "a3cc4a95247287b8c87e2eb077f68e5c7df32c45",
+        "size": 364837,
+        "path": "V1/APNEA_RML_clean/00001010-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "71595b50c1c2094a4f4a9f7273f9b3b96ebd9f50",
+        "size": 207832,
+        "path": "V1/APNEA_RML_clean/00001012-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "7861de6ac97a417a227532e83489690e0a36bf28",
+        "size": 249089,
+        "path": "V1/APNEA_RML_clean/00001014-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "4ea5f7ab341b110b76874e15dcb286f5f05d6e26",
+        "size": 168956,
+        "path": "V1/APNEA_RML_clean/00001016-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "ae240ad4c4758b12824f600ab0de830fdc6ed0ef",
+        "size": 315497,
+        "path": "V1/APNEA_RML_clean/00001018-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "c2062b28fb3456d5d84c0c9b3e52c5b114109ffd",
+        "size": 350477,
+        "path": "V1/APNEA_RML_clean/00001020-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "ed8cab082be50c990c56c6f4600772b1fd15eb62",
+        "size": 197349,
+        "path": "V1/APNEA_RML_clean/00001022-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "88e347d9d42c51a23ceab3af35e29a5047401789",
+        "size": 172620,
+        "path": "V1/APNEA_RML_clean/00001024-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "f046e166c704e0f22902cc7e6bffb8c7f9891ef9",
+        "size": 618996,
+        "path": "V1/APNEA_RML_clean/00001026-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "89bb5becf4263c840e1deb99c6b87f23ac523815",
+        "size": 234600,
+        "path": "V1/APNEA_RML_clean/00001028-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "3cc02e870c12a72073897a82a731f743c6f4cf4b",
+        "size": 511026,
+        "path": "V1/APNEA_RML_clean/00001030-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "23a2219a29ee9b51afd1032348a503cb1aae08b1",
+        "size": 718520,
+        "path": "V1/APNEA_RML_clean/00001032-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "d77f0d945803a22d1bf5212770ec481b686a593e",
+        "size": 202870,
+        "path": "V1/APNEA_RML_clean/00001039-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "f0e10f279bd75463e33116d0e9ea9bd5aebdafb2",
+        "size": 326617,
+        "path": "V1/APNEA_RML_clean/00001043-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "6d31db71c880e72ad79a845a5f66f890f7eecd78",
+        "size": 514784,
+        "path": "V1/APNEA_RML_clean/00001049-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "5262c313073cfa791a3797460d4b7b3e0bd1549b",
+        "size": 535286,
+        "path": "V1/APNEA_RML_clean/00001053-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "4e2b95cc1d293cd37685d03106449ac54e8c72a4",
+        "size": 592268,
+        "path": "V1/APNEA_RML_clean/00001057-100507.rml"
+      },
+      {
+        "type": "file",
+        "oid": "b3015717c69e10bb0016b4103fed735d7968153b",
+        "size": 178541,
+        "path": "V1/APNEA_RML_clean/00001069-100507.rml"
+      }
+    ],
+    "V3": [
+      {
+        "type": "directory",
+        "oid": "0b7b16190d70d20f767c487cebefe881a7c14073",
+        "size": 0,
+        "path": "V3/APNEA_EDF"
+      },
+      {
+        "type": "directory",
+        "oid": "9669e9d4963f61b7d28b757928e320dd8d67371c",
+        "size": 0,
+        "path": "V3/APNEA_RML"
+      },
+      {
+        "type": "directory",
+        "oid": "06b9083377a66327d95bdb7d25c924fd50fda9f7",
+        "size": 0,
+        "path": "V3/APNEA_RML_clean"
+      },
+      {
+        "type": "file",
+        "oid": "7f12ecbc34ba4618d47105a5cc0ddef593171831",
+        "size": 6737,
+        "lfs": {
+          "oid": "6b51e7bf02b02e9d54b164760df9b9d542c8a0728132c1d3fbb5606443dc47ba",
+          "size": 6737,
+          "pointerSize": 129
+        },
+        "xetHash": "683d7a7493a3fc40514e5042a82055cf537359e10bb3f062f3e2191718683eb7",
+        "path": "V3/code.rar"
+      }
+    ]
+  },
+  "edf": [
+    {
+      "type": "directory",
+      "oid": "5ddf79d4cde1409e14126fc6d11bf90c2d6e4a3f",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00000999-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "84b2394e6c654863c7d435b9542c076aaee7e520",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001006-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "02d30f85dc70b1d47456b76ed0cf272bd98b6891",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001014-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "51f3663c5b3e127083fd0453825f8fe66cfe2d64",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001016-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "f3f808a9ba3c439f1e1e1336ef815c8356cb8215",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001018-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "320383f4c26847c4fe8974b2c4f3017fa3d75b0d",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001020-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "bc1f963848b076f41fe9d0df31dab85de9664b0e",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001024-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "b3ee697eba1cf7507fd3c5c9c114db6bdde8de4f",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001026-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "14e8287079c742b47bd986da3f88773d93ecbd50",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001028-100507"
+    },
+    {
+      "type": "directory",
+      "oid": "3fdf057d5697f55253408090e2ae3bd71938c438",
+      "size": 0,
+      "path": "V3/APNEA_EDF/00001039-100507"
+    }
+  ],
+  "subject": [
+    {
+      "type": "file",
+      "oid": "92008c6ef9441bf0cd93acb158ec3db54e24f12b",
+      "size": 710738976,
+      "lfs": {
+        "oid": "720d94a13685fe938d14659907aaa81b78db7cdc4c07e358c7bc75dfcb6b4ea9",
+        "size": 710738976,
+        "pointerSize": 134
+      },
+      "xetHash": "1e252f3abe2baa839e97212755c8905cdf23dd2123b62e543cd118b09399b126",
+      "path": "V3/APNEA_EDF/00000999-100507/00000999-100507%5B001%5D.edf"
+    },
+    {
+      "type": "file",
+      "oid": "11cb58d71e59e33093040e8adba148490db0924c",
+      "size": 710738976,
+      "lfs": {
+        "oid": "ee8bc0d0255b894af55bec66004d6d153e7afba980c8465dd0c204e95983dd25",
+        "size": 710738976,
+        "pointerSize": 134
+      },
+      "xetHash": "cb8739f0109c9b857fec5b9217b04b1096b7b795c7096b9611fec69cd790b9fe",
+      "path": "V3/APNEA_EDF/00000999-100507/00000999-100507%5B002%5D.edf"
+    },
+    {
+      "type": "file",
+      "oid": "463519c216319135c5680a7bbb00f38c158fb9e0",
+      "size": 710738976,
+      "lfs": {
+        "oid": "ba2838be06375238f8725ec57f221cb7da448485990cc3fa9691f14256a6ed13",
+        "size": 710738976,
+        "pointerSize": 134
+      },
+      "xetHash": "2b8e5429d51ae48fdd4e6b78e4b17d231201d0df184350a3639fe26a25a932b5",
+      "path": "V3/APNEA_EDF/00000999-100507/00000999-100507%5B003%5D.edf"
+    },
+    {
+      "type": "file",
+      "oid": "60ef2932c92993edeca194f0d62f1fb19e8cdb70",
+      "size": 710738976,
+      "lfs": {
+        "oid": "dc0fb95f22d1fa49b7994b0d5a59a5091e6ffda88833acb9c67ca9025ced6a52",
+        "size": 710738976,
+        "pointerSize": 134
+      },
+      "xetHash": "0869abf119ddd4530db98f8fc296e978e84eccf398ec8848d6810748fa3d462e",
+      "path": "V3/APNEA_EDF/00000999-100507/00000999-100507%5B004%5D.edf"
+    },
+    {
+      "type": "file",
+      "oid": "93ebdd87adcf7408c7bdf754fe4e76dcbd897e35",
+      "size": 98915802,
+      "lfs": {
+        "oid": "3d6117b3c4462498fe586c7eb28997987be5a32a30c39318e3435f4810776b3f",
+        "size": 98915802,
+        "pointerSize": 133
+      },
+      "xetHash": "79c675e4bd6e4debcdbac2d090b96a76744727eea7fd17f88475dad5aac43e8f",
+      "path": "V3/APNEA_EDF/00000999-100507/00000999-100507%5B005%5D.edf"
+    }
+  ]
+}

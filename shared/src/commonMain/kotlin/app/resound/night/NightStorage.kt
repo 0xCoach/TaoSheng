@@ -65,10 +65,12 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Query("SELECT * FROM night_dreams WHERE nightId=:id ORDER BY at") suspend fun dreams(id: Long): List<NightDreamRow>
     @Query("SELECT * FROM night_dreams WHERE id=:id") suspend fun dream(id: Long): NightDreamRow?
     @Query("DELETE FROM night_dreams WHERE id=:id") suspend fun deleteDream(id: Long)
+    @Query("DELETE FROM night_personal") suspend fun clearPersonal()
     @Query("SELECT * FROM night_personal") fun personal(): Flow<List<NightPersonalRow>>
     @Upsert suspend fun personal(row: NightPersonalRow)
     @Query("SELECT * FROM night_weeks ORDER BY weekStart DESC") fun weeks(): Flow<List<NightWeekRow>>
     @Upsert suspend fun week(row: NightWeekRow)
+    @Query("DELETE FROM night_weeks WHERE weekStart=:start") suspend fun deleteWeek(start: String)
     @Query("SELECT * FROM night_notice WHERE `key`=:key") suspend fun notice(key: String): NightNoticeRow?
     @Upsert suspend fun notice(row: NightNoticeRow)
 }

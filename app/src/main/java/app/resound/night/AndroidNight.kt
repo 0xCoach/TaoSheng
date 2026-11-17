@@ -13,6 +13,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class AndroidNight(val context: Context,val store: NightStore,val files: NightFiles,val model: LocalEnvSoundRepository) : NightRepository by store {
+    val insights by lazy { NightInsightsAndroid(context,this) }
     fun capture(scope: CoroutineScope)=NightCapture(this,scope)
     suspend fun cleanup() { (AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.retryFileCleanup() }
     suspend fun process() {
@@ -35,7 +36,9 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
                     for(w in meta.windows) {
                         val offset=((w.at-c.start)*16).toInt()
                         if(offset<0 || offset+NightTuning.WINDOW>pcm.size || !seen.add(w.at))continue
-                        processor.accept(NightWindow(w.at,pcm.copyOfRange(offset,offset+NightTuning.WINDOW),false,0.0,0,w.features))
+                        val samples=pcm.copyOfRange(offset,offset+NightTuning.WINDOW)
+                        val rms=kotlin.math.sqrt(samples.sumOf { val x=it/32768.0;x*x }/samples.size)
+                        processor.accept(NightWindow(w.at,samples,false,rms,NightFrames.db(rms)-w.features.aboveBackground,w.features))
                     }
                 }
                 processor.finish()
@@ -48,6 +51,7 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
             } finally {model.endNight()}
         }
     }
+    suspend fun maintainInsights() = insights.maintain()
     companion object {
         fun create(context: Context,db: CaptureDatabase,scope: CoroutineScope,model: LocalEnvSoundRepository): AndroidNight {
             val prefs=context.getSharedPreferences("night",0);val json=Json { ignoreUnknownKeys=true;encodeDefaults=true };val files=NightFiles(context)
@@ -58,7 +62,7 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
                     val data=NightFiles.unpack(row.points);val n=data.size/3
                     NightEnvelope(row.start,5_000,ByteArray(n) { data[it*3] },ByteArray(n) { data[it*3+1] },ByteArray(n) { data[it*3+2] })
                 },{ (AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.retryFileCleanup();Unit },{ DayThreadPushScheduler.refresh(context) },app.quietSchedule.rules)
-            return AndroidNight(context,store,files,model).also { NightWork.schedule(context) }
+            return AndroidNight(context,store,files,model).also { AppGraph.nightInsights=it.insights.repository;NightWork.schedule(context) }
         }
     }
 }

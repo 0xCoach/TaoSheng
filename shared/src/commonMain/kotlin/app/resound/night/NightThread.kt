@@ -27,6 +27,7 @@ object NightThreads {
             appendLine("## 昨晚\n本节时间为 ${zones.caption(summary.date)}")
             if(times!=null)appendLine("- 上床 ${zones.clock(times.bedtime)} · ${if(times.onsetEstimated)"约 " else ""}${zones.clock(times.onset)} 入睡 · ${zones.clock(times.wake)} 起床 · 睡了约 ${NightRules.duration(summary.sleepMillis ?: 0)}（醒了 ${summary.awakeCount} 次，共 ${NightRules.duration(summary.awakeMillis)}）")
             events.forEach {e->appendLine("- ${e.start.substring(11,16)}–${e.end.substring(11,16)} ${e.text}"+(e.aboveBackgroundDb?.let { "，最响比背景高 $it 分贝" } ?: ""))}
+            detail.breakNotice?.let { appendLine("- $it") }
             detail.dreams.mapNotNull { it.text }.forEach { appendLine("- 梦：${it.replace('\n',' ')}") }
             appendLine("- 可信度：${summary.confidence?.title ?: "仅供参考"}（${summary.reasons.joinToString("；")}）")
         }.trimEnd()

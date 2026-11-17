@@ -1,0 +1,76 @@
+{
+  "tests": [
+    {
+      "name": "app.resound.night.Night202AndroidTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.766"
+    },
+    {
+      "name": "app.resound.night.Night203AndroidTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.243"
+    },
+    {
+      "name": "app.resound.push.DayThreadPush200Test",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.356"
+    },
+    {
+      "name": "app.resound.push.Night203PushTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.038"
+    },
+    {
+      "name": "app.resound.data.Index183ComparatorTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.209"
+    },
+    {
+      "name": "app.resound.night.Night202Test",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.117"
+    },
+    {
+      "name": "app.resound.night.Night203Test",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.047"
+    },
+    {
+      "name": "app.resound.context.DayThread200Test",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.078"
+    }
+  ],
+  "apk": {
+    "bytes": 126096734,
+    "sha256": "71ef5e82dcf93acb20ea84208db459ced5b6273c9d93ba5ab4a5c937930086d0"
+  },
+  "shared_boundary": "PASS",
+  "shared_check": "PASS (filtered tests)",
+  "android_build": "PASS",
+  "ios_compile": "PASS shared/devices arm64 and simulatorArm64",
+  "phone_test": false,
+  "aac_real_playback_test": "NOT RUN: no device operations authorized",
+  "production_contract_signature_changed": false,
+  "database_version": 40,
+  "extra_evaluation_test": "PASS: one targeted test after adding real PSG excerpt; tests/PSG-evaluation.xml",
+  "evaluation_raw_data_removed": true,
+  "privacy_followup": "PASS: two deletion-path tests after excluding unrelated weights from provisional cancellation",
+  "gradle_parameters": "-Dorg.gradle.daemon.registry.base=/tmp/taosheng-202-gradle -PskipSigningSecrets=true; JAVA_HOME=/opt/homebrew/opt/openjdk@21; ANDROID_HOME=/opt/homebrew/share/android-commandlinetools"
+}

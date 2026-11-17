@@ -18,6 +18,7 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
         Triple("review", "每日回顾", "根据已整理的事件生成每日回顾"),
         Triple("ask", "问问", "检索记忆并回答问题"),
         Triple("things", "找东西放哪了", "从新原话中找物品位置与借还记录"),
+        Triple("night_week", "夜里周报", "只润色统计数字，不作医疗结论"),
         Triple("merge", "合并成一条", "把分开记的几件事合成一件"),
     )
     private val mutable = MutableStateFlow(infos())
@@ -60,7 +61,7 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
         mutable.value = infos()
     }
     companion object {
-        internal val ids = listOf("digest", "review", "ask", "things", "merge")
+        internal val ids = listOf("digest", "review", "ask", "things", "merge", "night_week")
         // AtomicFile 本身不串行化读写；备份与编辑共享此锁。
         internal val fileLock = Any()
     }

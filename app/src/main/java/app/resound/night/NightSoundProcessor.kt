@@ -8,9 +8,19 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
     private val recent=ArrayDeque<Pair<NightWindow,Map<String,Float>>>()
     private var best: List<Pair<NightWindow,Map<String,Float>>> = emptyList()
     private var bestEnergy=-1.0
+    private val fine=ArrayDeque<SnoreLevel>()
+    private val breaks=mutableSetOf<Long>()
     suspend fun accept(w: NightWindow) {
         val scores=owner.model.nightScores(w.pcm)
         evidence(w,scores)
+        repeat(4) {index ->
+            val rms=kotlin.math.sqrt((index*8000 until (index+1)*8000).sumOf {val x=w.pcm[it]/32768.0;x*x}/8000)
+            fine.addLast(SnoreLevel(w.start+index*500,NightFrames.db(rms)-w.background,(scores["Snoring"] ?: 0f)>=NightTuning.SNORE && detector.currentSnore!=null))
+        }
+        while(fine.isNotEmpty() && fine.first().at<w.start-120_000)fine.removeFirst()
+        for(span in SnoreBreaks.find(fine.toList()))if(breaks.add(span.start)) {
+            if(owner.store.dao.events(id).none {it.kind=="SnoreBreak" && it.start==span.start})owner.store.addEvent(id,NightEvent(0,NightEventKind.SnoreBreak,span.start,span.end))
+        }
         recent.addLast(w to scores);while(recent.size>45)recent.removeFirst()
         val finished=detector.accept(w.start,scores,w.features)
         for((kind,span) in finished)save(kind,span)

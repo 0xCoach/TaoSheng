@@ -73,6 +73,14 @@ internal object SettingsIndex {
             item("首页显示屏幕用时", "screen-time-home", "首页 节奏图 手机使用条")
             item("事件上显示当时在用", "screen-time-event", "当时在用 事件 App")
         }
+        page("Night", "夜里", "睡眠 打鼾 鼾声 梦话 咳嗽 作息") {
+            item("夜里记录", "night-enabled", "睡觉 几点睡 起床 睡眠时间")
+            item("整晚完整识别", "night-full", "耗电 充电 电量 先存后认")
+            item("夜里时间段", "night-window", "几点开始 熬夜 早睡")
+            item("同屋有人", "night-shared", "伴侣 卧室 室友")
+            item("个人判断", "night-personal", "是 不是 误报 学习")
+            item("周报", "night-week", "每周 趋势 给医生")
+        }
         page("Devices", "外接设备", "录音卡 硬件 外设 蓝牙设备") {
             item("扫描设备", "device-scan", "找设备 连接 配对 蓝牙扫描")
             item("设备说明卡", "device-cards", "驱动 插件 导入说明卡 支持设备")

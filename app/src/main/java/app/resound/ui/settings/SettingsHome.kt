@@ -62,7 +62,7 @@ private object Tints {
     // 记录：暖色系
     val capture = Color(0xFFF07B2E); val devices = Color(0xFFF2994A); val transcript = Color(0xFFE0A030)
     val voiceprint = Color(0xFFE06A50); val env = Color(0xFFD4A017); val location = Color(0xFFC9643A)
-    val screenTime = Color(0xFFB07048)
+    val screenTime = Color(0xFFB07048); val night = Color(0xFF6E6AD8)
     // 整理：紫蓝系
     val model = Color(0xFF7C5CC4); val skills = Color(0xFF5B5BD6); val push = Color(0xFF3B82C4)
     // 数据：绿
@@ -187,6 +187,10 @@ internal fun SettingsList(
                 val stOn = if (AppGraph.isScreenTimeReady) AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle().value else false
                 Divider()
                 SRow(SettingsGlyph.Clock, Tints.screenTime, "屏幕时间", if (stOn) "记录每天用了哪些 App" else "未开启") { onOpen(SettingsPage.ScreenTime) }
+                app.resound.ui.night.nightSummary()?.let { v ->
+                    Divider()
+                    SRow(SettingsGlyph.Moon, Tints.night, "夜里", v) { onOpen(SettingsPage.Night) }
+                }
             }
         }
         // ---------- 整理 ----------

@@ -240,6 +240,7 @@ fun TodayScreen(
     val screenDay = app.resound.ui.screentime.rememberScreenDay(date, active = screenHome)
     var screenOpen by remember { mutableStateOf(false) }
     if (screenOpen) app.resound.ui.screentime.ScreenTimeSheet(date, memory, onOpenEvent = { screenOpen = false; opened = it }) { screenOpen = false }
+    app.resound.ui.night.NightSheets()
     var boxTop by remember { mutableStateOf(0f) }
     val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
@@ -281,11 +282,15 @@ fun TodayScreen(
             }
         }
         item {
+            // 卡 202：“昨晚”卡和录音卡放在同一格，不改后面各格的位置
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pendingCount,
                 pastDate = if (dayOffset == 0) null else date,
                 onPending = { rhythmScope.launch { listState.animateScrollToItem(pendingIndex()) } },
                 onPaused = { pausedNote = it to System.nanoTime() },
                 screenMinutes = screenDay?.totalMinutes, onScreen = { screenOpen = true })
+            app.resound.ui.night.NightHomeCard(date)
+            }
         }
         if (rhythmShown) item(key = "rhythm") {
             RhythmCard(list, dayLines, date, transcribeQueue.pending, screenByHour = screenDay?.byHour,

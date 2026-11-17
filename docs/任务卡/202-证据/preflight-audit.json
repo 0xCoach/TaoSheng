@@ -1,0 +1,13 @@
+{
+  "source_sha256": {
+    "results/manifest.csv": "8418735934ebedd2eecff544546179d03905bd3eb39028ace7824ea457e9408f",
+    "results/windows.csv": "f06c690b458e7d5daa0325ff6f2a4890473300589e14b44760c373fea61324b5",
+    "results/mixing_manifest.csv": "f3ab24b153d7d6658fe650484aa4a6d8c485c1d3505277532674bd6fee25ece0",
+    "scripts/evaluate.py": "5db4b938c00f1aa3acc748b5038a95b627a1cd04adb477edc88445d68d412339"
+  },
+  "verified_audio_files": 97,
+  "deleted_audio_files": 97,
+  "temp_directory_removed": true,
+  "inference": "Reused original two-second model scores; no fresh model inference",
+  "production_rules_changed": false
+}

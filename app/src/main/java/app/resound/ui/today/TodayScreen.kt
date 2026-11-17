@@ -195,8 +195,14 @@ fun TodayScreen(
         app.resound.topic.core.TopicProcessingRules.pending(it) && it.eventId == null
     }.map { TimelineEntry.TopicPending(it) } else emptyList()
     val importEntries = folded.map { rec -> TimelineEntry.Import(rec, shownEvents.filter { inImport(it) == rec }) }
+    // 卡 199：同步文件夹里列出、还没转写的录音（只在“全部”时显示）
+    val listedEntries = if (filter == TimelineFilter.All && app.resound.AppGraph.isCallRecordingReady) remember(date) {
+        val zone = java.time.ZoneId.systemDefault()
+        app.resound.AppGraph.folderRecordings.between(date.atStartOfDay(zone).toInstant().toEpochMilli(), date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+    }.collectAsStateWithLifecycle(initialValue = emptyList()).value.filter { it.state != app.resound.importer.ListedState.Imported }
+        .map { TimelineEntry.Listed(it) } else emptyList()
     val entries = (shownEvents.filter { inImport(it) == null }.map { TimelineEntry.Event(it) } +
-        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries + pendingTopics)
+        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries + pendingTopics + listedEntries)
         .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
     val groups = entries.groupBy { partOfDay(it.at) }.toList()
 
@@ -738,6 +744,8 @@ internal sealed interface TimelineEntry {
     data class Card(val card: app.resound.skills.SkillCard) : TimelineEntry { override val at get() = card.at }
     /** 卡 077：一份导入的录音（一个或几个文件合成一条），整理出的事收在里面 */
     data class Import(val record: app.resound.importer.ImportRecord, val events: List<MemoryEvent>) : TimelineEntry { override val at get() = record.startAt }
+    /** 卡 199：同步文件夹里列出、还没转写的录音 */
+    data class Listed(val recording: app.resound.importer.FolderRecording) : TimelineEntry { override val at get() = recording.startAt }
 }
 
 /** 一个时段一张卡，组内每件事一行，细线分隔：比一事一卡更轻、更紧凑 */
@@ -779,6 +787,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                     }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                     is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events) { onOpenImport(e.record) }
+                    is TimelineEntry.Listed -> app.resound.ui.importer.ListedLine(e.recording)
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
             }

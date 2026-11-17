@@ -177,25 +177,6 @@ internal fun SettingsList(
                 }
             }
         }
-        // ---------- 线索：听到的环境、手机、去过哪、睡得怎样，和“一天的线索”一一对应 ----------
-        item {
-            GroupSection("线索") {
-                var first = true
-                @Composable fun gap() { if (!first) Divider(); first = false }
-                app.resound.ui.envsound.envSoundSummary()?.let { v ->
-                    gap(); SRow(SettingsGlyph.Wave, Tints.env, SettingsPage.EnvSound.title, v) { onOpen(SettingsPage.EnvSound) }
-                }
-                val stOn = if (AppGraph.isScreenTimeReady) AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle().value else false
-                gap(); SRow(SettingsGlyph.Clock, Tints.screenTime, SettingsPage.ScreenTime.title, if (stOn) "已开启" else "未开启") { onOpen(SettingsPage.ScreenTime) }
-                if (AppGraph.isLocationReady) {
-                    val locOn = AppGraph.location.settings.enabled.collectAsStateWithLifecycle().value
-                    gap(); SRow(SettingsGlyph.Pin, Tints.location, SettingsPage.Location.title, if (locOn) "已开启" else "未开启") { onOpen(SettingsPage.Location) }
-                }
-                app.resound.ui.night.nightSummary()?.let { v ->
-                    gap(); SRow(SettingsGlyph.Moon, Tints.night, SettingsPage.Night.title, v) { onOpen(SettingsPage.Night) }
-                }
-            }
-        }
         // ---------- 整理 ----------
         item {
             GroupSection("整理") {
@@ -226,6 +207,25 @@ internal fun SettingsList(
                     val channels = AppGraph.push.channels.collectAsStateWithLifecycle(initialValue = emptyList()).value
                     Divider()
                     SRow(SettingsGlyph.Send, Tints.push, SettingsPage.Push.title, channels.count { it.enabled }.let { if (it == 0) "只发手机通知" else "$it 个通道" }) { onOpen(SettingsPage.Push) }
+                }
+            }
+        }
+        // ---------- 线索：听到的环境、手机、去过哪、睡得怎样，和“一天的线索”一一对应 ----------
+        item {
+            GroupSection("线索") {
+                var first = true
+                @Composable fun gap() { if (!first) Divider(); first = false }
+                app.resound.ui.envsound.envSoundSummary()?.let { v ->
+                    gap(); SRow(SettingsGlyph.Wave, Tints.env, SettingsPage.EnvSound.title, v) { onOpen(SettingsPage.EnvSound) }
+                }
+                val stOn = if (AppGraph.isScreenTimeReady) AppGraph.screenTimeSettings.enabled.collectAsStateWithLifecycle().value else false
+                gap(); SRow(SettingsGlyph.Clock, Tints.screenTime, SettingsPage.ScreenTime.title, if (stOn) "已开启" else "未开启") { onOpen(SettingsPage.ScreenTime) }
+                if (AppGraph.isLocationReady) {
+                    val locOn = AppGraph.location.settings.enabled.collectAsStateWithLifecycle().value
+                    gap(); SRow(SettingsGlyph.Pin, Tints.location, SettingsPage.Location.title, if (locOn) "已开启" else "未开启") { onOpen(SettingsPage.Location) }
+                }
+                app.resound.ui.night.nightSummary()?.let { v ->
+                    gap(); SRow(SettingsGlyph.Moon, Tints.night, SettingsPage.Night.title, v) { onOpen(SettingsPage.Night) }
                 }
             }
         }

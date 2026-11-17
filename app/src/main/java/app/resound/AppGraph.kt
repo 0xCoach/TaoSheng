@@ -163,6 +163,18 @@ object AppGraph {
     lateinit var ask: app.resound.ask.AskRepository
     val isAskReady: Boolean get() = ::ask.isInitialized
 
+    lateinit var ideas: app.resound.inbox.IdeaRepository
+    val isIdeasReady: Boolean get() = ::ideas.isInitialized
+
+    lateinit var projects: app.resound.projects.ProjectRepository
+    val isProjectsReady: Boolean get() = ::projects.isInitialized
+
+    lateinit var analysis: app.resound.analysis.AnalysisRepository
+    val isAnalysisReady: Boolean get() = ::analysis.isInitialized
+
+    lateinit var agentBridge: app.resound.agent.AgentBridge
+    val isAgentReady: Boolean get() = ::agentBridge.isInitialized
+
     lateinit var voiceprint: app.resound.voiceprint.VoiceprintRepository
     val isVoiceprintReady: Boolean get() = ::voiceprint.isInitialized
 

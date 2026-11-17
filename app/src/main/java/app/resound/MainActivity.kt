@@ -163,6 +163,7 @@ class MainActivity : ComponentActivity() {
                                 if (AppGraph.isDiaryReady) AppGraph.diary else null, openReview, { openReview = null }, ShellBottomPadding, showReview = !dayOnly)
                         },
                         "待办" to { TodoScreen(memory, ShellBottomPadding) },
+                        "助手" to { app.resound.ui.assistant.AssistantScreen(ShellBottomPadding) },
                         "设置" to {
                             SettingsScreen(capture, transcribeSettings, digestSettings, mode, setMode, ShellBottomPadding) { page, bottom ->
                                 when (page) {

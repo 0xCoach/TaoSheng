@@ -149,6 +149,13 @@ abstract class MemoryDao {
             setItemStatus(id, "Accepted", row.createdAt)
         }
     }
+    /** 单条手动插入并直接接受，返回新条目 id（灵感转待办等程序入口用）。 */
+    @Transaction
+    open suspend fun addManualItem(row: MemoryItemEntity): Long {
+        val id = insertManualItem(row)
+        setItemStatus(id, "Accepted", row.createdAt)
+        return id
+    }
 
     @Query("UPDATE transcript_lines SET eventId = :eventId WHERE id IN (:ids)")
     abstract suspend fun assignLines(ids: List<Long>, eventId: Long)
@@ -307,6 +314,17 @@ abstract class MemoryDao {
            WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.category IN (:categories) ORDER BY i.createdAt DESC, i.id DESC LIMIT 500""",
     )
     abstract fun itemsByCategory(categories: List<String>): Flow<List<MemoryItemEntity>>
+
+    /** 灵感收件箱同步用：全部“灵感”提取项（不含忽略/合并掉的），含各状态。 */
+    @Transaction
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.category = '灵感' AND i.status != 'Ignored'
+        ORDER BY i.createdAt, i.id""")
+    abstract suspend fun inspirationItems(): List<MemoryItemEntity>
+
+    /** 按编号取一句原话（灵感/分析溯源用）。 */
+    @Query("SELECT * FROM transcript_lines WHERE id = :id")
+    abstract suspend fun lineById(id: Long): TranscriptLineEntity?
 
     @Transaction
     @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId

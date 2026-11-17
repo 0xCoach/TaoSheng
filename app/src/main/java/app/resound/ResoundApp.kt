@@ -217,6 +217,19 @@ class ResoundApp : Application() {
         AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers
+        // M2：灵感收件箱 / 项目记忆 / AI 分析 / Agent 桥接（本地能力，未配模型也可用手动功能）
+        AppGraph.ideas = app.resound.inbox.IdeaRepository(database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        AppGraph.projects = app.resound.projects.ProjectRepository(database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        val analysisRepository = app.resound.analysis.AnalysisRepository(database, scope, AppGraph.platform.now,
+            AppGraph.platform.zone, AppGraph.platform.dispatchers.io,
+            { digestSettings.skillCredentials(null) }, digestSettings::canUseWithoutKey,
+            { digestSettings.failover.hasBackup(it) },
+            digestSettings.failover.request("分析", database.memory(), app.resound.usage.UsagePurpose.Analysis, llm::chatJson))
+        AppGraph.analysis = analysisRepository
+        scope.launch { analysisRepository.ensureSeeded(); AppGraph.ideas.syncFromDigest() }
+        AppGraph.agentBridge = app.resound.agent.AgentBridge(this, database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        AppGraph.agentBridge.startDriver()
+        app.resound.agent.AgentDispatchWork.schedule(this)
         AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), digestSettings.providers, { b, line ->
             app.resound.push.LocalNotifier(this, app.resound.push.LocalNotifier.BALANCE_CHANNEL).send(
                 if (b.available) "整理模型余额不足 ¥%.2f".format(b.total) else "整理模型余额已用完",

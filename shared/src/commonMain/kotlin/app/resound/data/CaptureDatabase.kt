@@ -1,9 +1,20 @@
 package app.resound.data
 
+import app.resound.agent.AgentDao
+import app.resound.agent.AgentEndpointRow
+import app.resound.agent.AgentSchema
+import app.resound.agent.AgentTaskRow
+import app.resound.analysis.AnalysisDao
+import app.resound.analysis.AnalysisRunRow
+import app.resound.analysis.AnalysisSchema
+import app.resound.analysis.AnalysisTemplateRow
 import app.resound.devices.DeviceSyncStore
 import app.resound.devices.DeviceTransfer
 import app.resound.envsound.EnvSoundDao
 import app.resound.envsound.EnvSoundRow
+import app.resound.inbox.IdeaDao
+import app.resound.inbox.IdeaRow
+import app.resound.inbox.IdeaSchema
 import app.resound.importer.FolderImportDao
 import app.resound.importer.FolderObservation
 import app.resound.importer.ImportFingerprint
@@ -16,6 +27,11 @@ import app.resound.location.LocationSchema
 import app.resound.location.PlaceDao
 import app.resound.location.PlaceRow
 import app.resound.location.PlaceSchema
+import app.resound.projects.ProjectDao
+import app.resound.projects.ProjectLinkRow
+import app.resound.projects.ProjectMarkRow
+import app.resound.projects.ProjectRow
+import app.resound.projects.ProjectSchema
 import app.resound.push.PushDao
 import app.resound.redo.RedoDao
 import app.resound.redo.RedoSnapshotRow
@@ -99,7 +115,9 @@ interface CaptureDao {
     VoiceprintSampleEntity::class, VoiceprintExclusionEntity::class, VoiceprintPersonEntity::class,
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, LineFts::class, EventFts::class,
     ItemFts::class, EmbeddingEntity::class,
-    PendingDigest::class, EnvSoundRow::class, SkillCardRow::class, SkillRunRow::class, LocationPoint::class, PlaceRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
+    PendingDigest::class, EnvSoundRow::class, SkillCardRow::class, SkillRunRow::class, LocationPoint::class, PlaceRow::class,
+    IdeaRow::class, ProjectRow::class, ProjectLinkRow::class, ProjectMarkRow::class,
+    AnalysisTemplateRow::class, AnalysisRunRow::class, AgentEndpointRow::class, AgentTaskRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 @ConstructedBy(CaptureDatabaseConstructor::class)
 abstract class CaptureDatabase : RoomDatabase() {
     /** 由安卓装配入口传入；内存测试库为 null，不从底层连接反查路径。 */
@@ -124,9 +142,13 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun skills(): SkillDao
     abstract fun location(): LocationDao
     abstract fun places(): PlaceDao
+    abstract fun ideas(): IdeaDao
+    abstract fun projects(): ProjectDao
+    abstract fun analysis(): AnalysisDao
+    abstract fun agent(): AgentDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 34
+        const val VERSION = 35
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -378,10 +400,19 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `transcript_lines` (`startAt`)")
             }
         }
+        /** 第二大脑：灵感收件箱、项目长期记忆、AI 分析模板与结果、Agent 桥接。 */
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                IdeaSchema.create(db)
+                ProjectSchema.create(db)
+                AnalysisSchema.create(db)
+                AgentSchema.create(db)
+            }
+        }
         val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
             MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
             MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27,
-            MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34)
+            MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35)
     }
 }
 

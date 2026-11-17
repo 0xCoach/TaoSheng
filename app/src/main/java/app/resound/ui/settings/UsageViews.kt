@@ -67,6 +67,8 @@ private fun purposeColor(p: UsagePurpose): Color = when (p) {
     UsagePurpose.Skill -> Color(0xFF6E5FA6)
     UsagePurpose.Draft -> Color(0xFF3F8F6F)
     UsagePurpose.Things -> Color(0xFF3A8FB7)
+    UsagePurpose.Analysis -> Color(0xFF8A6FB8)
+    UsagePurpose.Agent -> Color(0xFF4A7FA0)
     UsagePurpose.Other -> Color(0xFFB0A89E)
 }
 

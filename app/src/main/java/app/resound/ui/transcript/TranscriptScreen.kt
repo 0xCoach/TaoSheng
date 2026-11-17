@@ -919,6 +919,15 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                         if (app.resound.AppGraph.isHotwordsReady) DropdownMenuItem(text = { Text("加入热词", style = RsType.body, color = c.text) }, onClick = {
                             hotwordFrom = selected.text; menuFor = null
                         })
+                        // 手动把这句话收进灵感收件箱（溯源到这句原话）
+                        if (app.resound.AppGraph.isIdeasReady) DropdownMenuItem(text = { Text("标为灵感", style = RsType.body, color = c.text) }, onClick = {
+                            val line = selected
+                            menuFor = null
+                            kotlinx.coroutines.MainScope().launch(kotlinx.coroutines.Dispatchers.IO) {
+                                app.resound.AppGraph.ideas.markFromLine(line.id, line.segmentId, line.text)
+                            }
+                            Toast.makeText(context, "已收进灵感收件箱", Toast.LENGTH_SHORT).show()
+                        })
                         // 语音输入的句子本来就是你说的，不用纠正说话人
                         if (voiceprint != null && selected.voiceInput == null) {
                         DropdownMenuItem(text = { Text("这是谁 / 输入名字", style = RsType.body, color = c.text) }, onClick = {

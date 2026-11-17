@@ -448,6 +448,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
         Text("这种通道只能发短消息，推不了整理结果和原话；想给智能体读，用同步文件夹或自定义接口。", style = RsType.caption, color = c.textTertiary)
     } else {
     SubLabel("整理结果（可多选）")
+    Text("每天凌晨会把前一天的地点、App、播放和事件按时间串成一段线索，写在当天文档开头。", style = RsType.caption, color = c.textTertiary)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         RecordKind.entries.forEach { k ->
             Choice(k.title, k in sub.records) { onChange(sub.copy(records = if (k in sub.records) sub.records - k else sub.records + k)) }

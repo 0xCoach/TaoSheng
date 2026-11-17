@@ -6,6 +6,7 @@ import app.resound.data.retryFailed
 
 import app.resound.push.attachSubscriptions
 import app.resound.push.attachFootprint
+import app.resound.push.attachDayThread
 import app.resound.push.attachScreenTime
 
 import android.app.Application
@@ -72,6 +73,7 @@ class ResoundApp : Application() {
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
+        app.resound.platform.AndroidZoneHistory(getSharedPreferences("zone-history", MODE_PRIVATE)).attach(this)
         AppGraph.quickPrefs = app.resound.quick.AndroidQuickPrefs(this)
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }
         AppGraph.asrSpeed = asrSpeed
@@ -371,6 +373,7 @@ class ResoundApp : Application() {
         pushChannels.attachSubscriptions(this, database, backupRepository, scope)
         pushChannels.attachFootprint(this, scope)
         pushChannels.attachScreenTime(this, scope)
+        pushChannels.attachDayThread(this, database, scope)
         app.resound.recordings.attachRecordingArchive(this, database, pushChannels, scope)
         scope.launch { transcribeRunner.recoverOnStartup(); transcribeRunner.withIdleAudio { voiceprintRepository.cleanupAudio() } }
         val folderImports = app.resound.importer.AndroidFolderImports(this, database, scope,

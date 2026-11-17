@@ -54,6 +54,8 @@ enum class NightEventKind {
     Gap,
     /** 手机在床上时的轻微晃动 */
     Turn,
+    /** 卡 203：鼾声中断（不写医学词） */
+    SnoreBreak,
 }
 
 enum class Feedback { None, Yes, No }
@@ -70,6 +72,11 @@ data class NightSettings(
     /** 推送（一天的线索、day_context）里包含“昨晚” */
     val includeInPush: Boolean = true,
     val lowBatteryReminder: Boolean = true,
+    /** 卡 203 */
+    val weeklyReport: Boolean = true,
+    val dreamPrompt: Boolean = true,
+    val personalModel: Boolean = true,
+    val breakReminder: Boolean = true,
 )
 
 /** 用户改过的以用户为准；[onsetEstimated] 为 true 时界面写“约” */
@@ -135,6 +142,9 @@ data class NightSummary(
     /** 早上那句话；整理完才有 */
     val sentence: String?,
     val modes: List<NightModeSpan>,
+    /** 卡 203 */
+    val snoreBreaks: Int = 0,
+    val tags: List<NightTag> = emptyList(),
 )
 
 data class NightDetail(
@@ -144,6 +154,13 @@ data class NightDetail(
     val envelope: NightEnvelope?,
     /** 早上要问的事件 id，最多 3 个，按把握从小到大 */
     val questions: List<Long>,
+    /** 卡 203 */
+    val suggestedTags: List<NightTag> = emptyList(),
+    val dreams: List<Dream> = emptyList(),
+    /** 鼾声中断提示（30 天最多一次），没有为 null */
+    val breakNotice: String? = null,
+    /** 个人判断否决掉的事件 id（仍在 events 里，可纠正） */
+    val vetoed: Set<Long> = emptySet(),
 )
 
 data class NightLive(val state: NightState, val mode: NightMode?, val since: Long?)
@@ -175,4 +192,65 @@ interface NightRepository {
 
     /** 回听用；录音已删为 null */
     suspend fun audio(clipId: Long): FileRef?
+}
+
+// ---------------- 卡 203 ----------------
+
+/** [preset] 为 true 的是预置标签，不能删 */
+data class NightTag(val id: Long, val name: String, val preset: Boolean)
+
+/** 记梦：说的（segmentIds 转写后有 text）或写的 */
+data class Dream(val id: Long, val nightId: Long, val at: Long, val text: String?, val segmentIds: List<Long>, val transcribing: Boolean)
+
+enum class CompareMetric(val title: String) { Snore("鼾声"), Sleep("睡眠"), Latency("入睡用时"), Awake("醒来次数") }
+
+/** “标了‘侧睡’的 5 晚，鼾声中位数比其他晚少 38 分钟（可能有关，样本还少）” */
+data class TagFinding(val tag: NightTag, val metric: CompareMetric, val withNights: Int, val withoutNights: Int,
+    val withMedian: Long, val withoutMedian: Long, val text: String)
+
+data class WeeklyReport(val weekStart: LocalDate, val nights: Int, val markdown: String,
+    val finding: String?, val suggestion: String?, val polished: Boolean, val createdAt: Long)
+
+enum class PersonalKind { Snore, Cough }
+data class PersonalModelStatus(val kind: PersonalKind, val yes: Int, val no: Int, val active: Boolean,
+    /** 交叉验证准确率 0..1；没训练过为 null */
+    val accuracy: Float?, val ruleAccuracy: Float?, val trainedAt: Long?)
+
+/** 趋势图的一晚 */
+data class NightPoint(val date: LocalDate, val bedtime: Long?, val onset: Long?, val wake: Long?, val sleepMillis: Long?,
+    val snoreMillis: Long, val coughCount: Int, val awakeCount: Int, val snoreBreaks: Int,
+    val confidence: NightConfidence?, val tags: List<String>)
+
+data class DoctorReport(val from: LocalDate, val to: LocalDate, val markdown: String, val clips: List<FileRef>)
+
+interface NightInsights {
+    val tags: Flow<List<NightTag>>
+    suspend fun createTag(name: String): Result<NightTag>
+    suspend fun deleteTag(tagId: Long)
+    /** 打标签或取消；也用于确认建议 */
+    suspend fun setTag(nightId: Long, tagId: Long, on: Boolean)
+    suspend fun dismissSuggestion(nightId: Long, tagId: Long)
+
+    /** 最近 60 晚的对比结论，没有为空 */
+    fun findings(): Flow<List<TagFinding>>
+
+    /** 新的在前 */
+    fun weeklyReports(): Flow<List<WeeklyReport>>
+
+    val personal: Flow<List<PersonalModelStatus>>
+
+    /** 之后 3 分钟内录下的人声归为这一夜的梦 */
+    suspend fun startDream(nightId: Long): Dream
+    suspend fun writeDream(nightId: Long, text: String): Dream
+    suspend fun deleteDream(dreamId: Long)
+
+    /** 最响 15 秒 m4a；没有鼾声片段为 null；第二项 true 表示片段没确认过 */
+    suspend fun loudestClip(nightId: Long): Pair<FileRef, Boolean>?
+
+    /** 鼾声中断提示“不再提示” */
+    suspend fun muteBreakNotice()
+
+    /** 含两端，按日期升序 */
+    fun trend(from: LocalDate, to: LocalDate): Flow<List<NightPoint>>
+    suspend fun doctorReport(from: LocalDate, to: LocalDate): DoctorReport
 }

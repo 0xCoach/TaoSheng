@@ -56,7 +56,7 @@ import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.springClick
 
 /**
- * 整理时机：按间隔或按时间点（二选一）、停多久算一段结束、一直在说时最多等多久先整理。只管整理，转写在「原话与转写」里设置。
+ * 整理时机：按间隔或按时间点（二选一）、停多久算一段结束、一直在说时最多等多久先整理。只管整理，转写在「语音转写」里设置。
  * [timing] 为空（底层还没装配）时只显示按间隔。
  */
 @Composable
@@ -68,7 +68,7 @@ fun DigestTimingCard(settings: AndroidDigestSettings, timing: DigestTiming? = if
     RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         Text("什么时候整理", style = RsType.body, color = c.text)
         Spacer(Modifier.height(4.dp))
-        Text("把转写好的原话整理成一件件事。转写在「原话与转写」里单独设置。", style = RsType.caption, color = c.textSecondary)
+        Text("把转写好的原话整理成一件件事。转写在「语音转写」里单独设置。", style = RsType.caption, color = c.textSecondary)
 
         Spacer(Modifier.height(16.dp))
         val mode = timing?.mode?.collectAsStateWithLifecycle()?.value ?: DigestMode.Interval

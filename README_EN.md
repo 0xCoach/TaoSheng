@@ -211,10 +211,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 First run:
 1. Grant mic & notification permissions, whitelist battery, enable autostart (the in-app guide walks you through it on Xiaomi, Huawei, Honor and HarmonyOS).
-2. Settings → 原话与转写 (transcription): paste your Doubao key or choose local. Settings → 整理模型 (LLM): pick DeepSeek or a custom endpoint.
-3. Settings → 声纹与人物 → 我: read three short passages to enroll your voice.
+2. Settings → 语音转写 (transcription): paste your Doubao key or choose local. Settings → 整理模型 (LLM): pick DeepSeek or a custom endpoint.
+3. Settings → 人物声纹 → 我: read three short passages to enroll your voice.
 4. Turn on listening on the Today tab and live your day.
-5. Optional: backup (数据备份) and push channels (推送通道).
+5. Optional: backup (备份恢复) and push channels (推送通道).
 
 ## 🏗 How it works
 

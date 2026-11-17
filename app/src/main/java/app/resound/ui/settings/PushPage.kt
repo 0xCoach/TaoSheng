@@ -211,13 +211,13 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         val folderKind = kind == PushKind.MarkdownFolder
         if (folderKind) {
             Label("存到哪里")
-            app.resound.ui.skills.Segments(listOf("用数据备份的云端", "单独配置"), if (linked) 0 else 1) {
+            app.resound.ui.skills.Segments(listOf("用备份恢复的云端", "单独配置"), if (linked) 0 else 1) {
                 linked = it == 0
                 // 单独配置时服务器地址直接填好坚果云的，只需填账号和应用密码
                 if (!linked && values["url"].isNullOrBlank()) values["url"] = NUTSTORE_DAV
             }
-            if (linked) Text(linkedAccount?.let { _ -> backupState?.let { "用数据备份里的 ${it.cloud.title()}（${it.cloudLine()}），不用再填账号密码" } ?: "用数据备份里已连接的云端存储" }
-                ?: "数据备份里还没连接云端存储，先去连接，或改为单独配置（单独配置只支持 WebDAV）",
+            if (linked) Text(linkedAccount?.let { _ -> backupState?.let { "用备份恢复里的 ${it.cloud.title()}（${it.cloudLine()}），不用再填账号密码" } ?: "用数据备份里已连接的云端存储" }
+                ?: "备份恢复里还没连接云端存储，先去连接，或改为单独配置（单独配置只支持 WebDAV）",
                 style = RsType.caption, color = if (linkedAccount == null) c.critical else c.textSecondary)
         }
         fields.filter { !(folderKind && linked && it.key != "folder") }.forEach { f ->
@@ -461,7 +461,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
     }
     }
     // 每日足迹：所有通道都能收；聊天类收文字摘要，自定义接口另附结构化数据和定位点
-    Block("每日足迹", "每天定时推当天去过哪、各待多久；要先在“设置 → 足迹”里开始记录") {
+    Block("每日足迹", "每天定时推当天去过哪、各待多久；要先在“设置 → 位置足迹”里开始记录") {
         ToggleRow("推每日足迹", if (caps.records) "在家/外出时长、停留地点和地址；自定义接口另附全部定位点" else "在家/外出时长、停留地点和地址",
             sub.footprint) { onChange(sub.copy(footprint = it)) }
         if (sub.footprint) {

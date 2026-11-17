@@ -31,7 +31,7 @@ internal object SettingsIndex {
             add(SettingsEntry(title, key, title, keywords = words.split(' ')))
             SettingsPageIndex(key, title, this).options()
         }
-        page("Capture", "录音与后台", "收音 听声音 麦克风 录音设置") {
+        page("Capture", "录音管理", "录音与后台 收音 听声音 麦克风 录音设置") {
             item("后台保活", "battery", "耗电 电池 省电 被杀 中断 后台")
             item("语音助手唤醒", "wake-word", "小爱同学 唤醒词 语音助手 喊不醒")
             item("打点记一下", "marks", "打点 标记重点 记一下 重点范围")
@@ -43,7 +43,7 @@ internal object SettingsIndex {
             item("外放跳过", "playback", "听歌 看视频 扬声器 外放不录")
             item("文件夹导入", "folder-import", "自动导入 导入录音 外部录音 通话录音 电话录音 录音笔")
         }
-        page("Transcript", "原话与转写", "文字 识别 听写 转文字") {
+        page("Transcript", "语音转写", "原话与转写 文字 识别 听写 转文字") {
             item("转写服务", "asr", "豆包 SenseVoice 本地转写 云端转写")
             item("本地模型", "local-model", "模型下载 离线 没网 NPU 加速")
             item("转写间隔", "asr-interval", "多久转一次 实时转写 等文字 转写时间")
@@ -53,7 +53,7 @@ internal object SettingsIndex {
             item("区分说话人", "speakers", "多人分段 谁说的 分人 说话人")
             item("记录播放标题", "playback-title", "播放标题 节目名 通知使用权 外放来源")
         }
-        page("EnvSound", "环境音识别", "背景声音 声音分类 环境识别") {
+        page("EnvSound", "环境声音", "环境音识别 背景声音 声音分类 环境识别") {
             item("开启环境音识别", "env-enabled", "环境模型 环境开关 声音模型")
             item("跳过纯音乐和环境音", "skip-noise", "音乐 噪音 不转写 鸟叫")
             item("疑似影视外放", "tv-audio", "电视剧 电影 配乐 外放人声")
@@ -61,7 +61,7 @@ internal object SettingsIndex {
             item("记下特别声音", "special-sounds", "婴儿哭 敲门 狗叫 警笛")
             item("在卡片和回顾里显示", "env-summary", "显示环境 隐藏环境 回顾声音")
         }
-        page("Location", "足迹", "位置 定位 去过哪里 轨迹") {
+        page("Location", "位置足迹", "足迹 位置 定位 去过哪里 轨迹") {
             item("记录全天位置", "location-enabled", "位置开关 GPS 行踪")
             item("定位权限", "location-permission", "始终允许 后台定位 授权位置")
             item("显示地名", "place-names", "高德 地址 地理编码 地名")
@@ -73,7 +73,7 @@ internal object SettingsIndex {
             item("首页显示屏幕用时", "screen-time-home", "首页 节奏图 手机使用条")
             item("事件上显示当时在用", "screen-time-event", "当时在用 事件 App")
         }
-        page("Night", "夜里", "睡眠 打鼾 鼾声 梦话 咳嗽 作息") {
+        page("Night", "夜间睡眠", "夜里 打鼾 鼾声 梦话 咳嗽 作息") {
             item("夜里记录", "night-enabled", "睡觉 几点睡 起床 睡眠时间")
             item("整晚完整识别", "night-full", "耗电 充电 电量 先存后认")
             item("夜里时间段", "night-window", "几点开始 熬夜 早睡")
@@ -107,7 +107,7 @@ internal object SettingsIndex {
             item("推送内容", "push-content", "原话推送 只推我说的 记忆文档 录音上传")
             item("最近推送", "push-history", "发送失败 推送记录 测试推送")
         }
-        page("Voiceprint", "声纹与人物", "认人 说话人 是谁 名字 声纹") {
+        page("Voiceprint", "人物声纹", "声纹与人物 认人 说话人 是谁 名字 声纹") {
             item("录入声音样本", "voice-samples", "认识我 朗读样本 录声纹 学习声音")
             item("人物管理", "people", "改名字 添加人物 合并人物 人物详情")
             item("重新认一遍", "recognize-again", "重新识别 认错人 重跑声纹")
@@ -118,7 +118,7 @@ internal object SettingsIndex {
             item("回顾推送通知", "review-push", "总结通知 回顾消息 自动推送")
             item("手动生成回顾", "review-now", "重新总结 补回顾 生成昨天回顾")
         }
-        page("Backup", "数据备份", "保存数据 恢复 换手机 防丢") {
+        page("Backup", "备份恢复", "数据备份 保存数据 恢复 换手机 防丢") {
             item("本机备份位置", "local-folder", "下载目录 备份文件夹 本地备份")
             item("云端存储", "cloud-storage", "坚果云 S3 WebDAV 阿里云 网盘")
             item("每晚自动备份", "backup-auto", "自动保存 凌晨备份 定时备份")
@@ -127,7 +127,7 @@ internal object SettingsIndex {
             item("历史版本保留", "backup-keep", "保留份数 清理备份 恢复点")
             item("恢复数据", "restore", "导入备份 找回数据 换机恢复")
         }
-        page("Advanced", "高级与诊断", "排查 故障 日志 高级设置") {
+        page("Advanced", "高级诊断", "高级与诊断 排查 故障 日志 高级设置") {
             item("整理要求", "prompts", "整理指令 提示词 prompt 语气 整理规则")
             item("运行记录", "runs", "任务记录 处理记录 整理失败")
             item("守护记录", "watchdog", "被系统杀 重启记录 中断记录 自动恢复")

@@ -63,10 +63,11 @@ data class InnerPage(val title: String, val backLabel: String, val onBack: () ->
 val LocalSettingsInner = androidx.compose.runtime.staticCompositionLocalOf<(InnerPage?) -> Unit> { {} }
 
 enum class SettingsPage(val title: String) {
-    Skills("整理技能"), Capture("录音与后台"), Devices("外接设备"), Advanced("高级与诊断"),
-    Transcript("原话与转写"), Model("模型与整理时间"), Voiceprint("声纹与人物"), Review("每日回顾"),
-    Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境音识别"), Location("足迹"),
-    ScreenTime("屏幕时间"), Night("夜里"), Backup("数据备份"), Update("版本更新"), About("关于涛声")
+    // 设置首页统一四字名：记录 / 线索 / 整理 / 通用 四组，名字只说是什么，状态写在小字里
+    Skills("整理技能"), Capture("录音管理"), Devices("外接设备"), Advanced("高级诊断"),
+    Transcript("语音转写"), Model("整理模型"), Voiceprint("人物声纹"), Review("每日回顾"),
+    Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境声音"), Location("位置足迹"),
+    ScreenTime("屏幕时间"), Night("夜间睡眠"), Backup("备份恢复"), Update("版本更新"), About("关于涛声")
 }
 
 /**

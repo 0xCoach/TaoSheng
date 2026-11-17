@@ -81,7 +81,16 @@ class NightShots {
             override val quietConflict: StateFlow<QuietRule?> = MutableStateFlow(QuietRule("sleep", "睡眠", 23 * 60, 7 * 60))
             override val live: StateFlow<NightLive> = MutableStateFlow(NightLive(NightState.Ready, null, null))
             override fun nights(from: kotlinx.datetime.LocalDate, to: kotlinx.datetime.LocalDate): Flow<List<NightSummary>> = flowOf(listOf(summary))
-            override fun night(date: kotlinx.datetime.LocalDate): Flow<NightDetail?> = flowOf(detail)
+            override fun night(date: kotlinx.datetime.LocalDate): Flow<NightDetail?> {
+                val d = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
+                if (d == wakeDay) return flowOf(detail)
+                val r = Random(d.toEpochDay()); val base = d.atStartOfDay(zone).toInstant().toEpochMilli()
+                val evs = buildList {
+                    repeat(r.nextInt(0, 3)) { k -> val s = base + r.nextLong(30, 300) * 60_000; add(NightEvent(100L + k, NightEventKind.Snore, s, s + r.nextLong(15, 50) * 60_000)) }
+                    if (r.nextInt(3) == 0) { val s = base + r.nextLong(120, 280) * 60_000; add(NightEvent(200, NightEventKind.Awake, s, s + 12 * 60_000)) }
+                }
+                return flowOf(detail.copy(events = evs))
+            }
             override suspend fun feedback(eventId: Long, value: Feedback) {}
             override suspend fun editTimes(nightId: Long, bedtime: Long?, onset: Long?, wake: Long?) {}
             override suspend fun deleteNight(nightId: Long) {}
@@ -103,13 +112,14 @@ class NightShots {
             override suspend fun deleteDream(dreamId: Long) {}
             override suspend fun loudestClip(nightId: Long): Pair<FileRef, Boolean>? = null
             override suspend fun muteBreakNotice() {}
-            override fun trend(from: kotlinx.datetime.LocalDate, to: kotlinx.datetime.LocalDate): Flow<List<NightPoint>> = flowOf((0 until 30).map { i ->
-                val d = wakeDay.minusDays(29L - i); val r = Random(i)
+            override fun trend(from: kotlinx.datetime.LocalDate, to: kotlinx.datetime.LocalDate): Flow<List<NightPoint>> = flowOf((0 until 120).map { i ->
+                val d = wakeDay.minusDays(119L - i); val r = Random(i)
                 val on = d.minusDays(1).atTime(23, 0).plusMinutes(r.nextLong(0, 110)).atZone(zone).toInstant().toEpochMilli()
                 val wk = d.atTime(6, 30).plusMinutes(r.nextLong(0, 80)).atZone(zone).toInstant().toEpochMilli()
                 NightPoint(kotlinx.datetime.LocalDate(d.year, d.monthValue, d.dayOfMonth), on - 1_200_000, on, wk, wk - on - 600_000,
-                    r.nextLong(0, 90) * 60_000, r.nextInt(3), r.nextInt(3), 0, if (i % 9 == 4) NightConfidence.Rough else NightConfidence.Good, emptyList())
-            })
+                    r.nextLong(0, 90) * 60_000, r.nextInt(3), r.nextInt(3), 0, if (i % 9 == 4) NightConfidence.Rough else NightConfidence.Good,
+                    listOfNotNull("侧睡".takeIf { i % 3 == 0 }, "喝了酒".takeIf { i % 5 == 1 }))
+            }.filter { it.date >= from && it.date <= to })
             override suspend fun doctorReport(from: kotlinx.datetime.LocalDate, to: kotlinx.datetime.LocalDate) = DoctorReport(from, to, "", emptyList())
         }
     }
@@ -134,5 +144,13 @@ class NightShots {
     @Test fun homeDark() = capture("night-home-dark", dark = true) { NightHomeCard(wakeDay) }
     @Test fun detail() = capture("night-detail") { RsCard { NightBody(detail, sharedRoom = false) {} } }
     @Test fun trend() = capture("night-trend") { RsCard { TrendBody() } }
+    @Test fun week() = capture("night-week") {
+        WeekCard(WeeklyReport(kotlinx.datetime.LocalDate(wakeDay.minusDays(8).year, wakeDay.minusDays(8).monthValue, wakeDay.minusDays(8).dayOfMonth), 6,
+            "## 上周睡眠\n平均睡眠 6 小时 52 分", "喝酒的两晚鼾声都翻倍了", "下周试试睡前不喝酒", false, 0))
+        FindingCard(TagFinding(tagList[1], CompareMetric.Sleep, 4, 12, 6 * 3_600_000L, 7 * 3_600_000L + 20 * 60_000L, ""))
+    }
+    @Test fun trend7() = capture("night-trend-7") { RsCard { TrendBody(7) } }
+    @Test fun trend90() = capture("night-trend-90") { RsCard { TrendBody(90) } }
+    @Test fun trendDark() = capture("night-trend-dark", dark = true) { RsCard { TrendBody(7) } }
     @Test fun settings() = capture("night-settings", scroll = false) { NightSettingsPage(0.dp) }
 }

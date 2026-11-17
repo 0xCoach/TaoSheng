@@ -10,6 +10,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,145 +69,67 @@ internal fun NightTrendSheet(onDismiss: () -> Unit) {
 }
 
 @Composable
-internal fun TrendBody() {
+internal fun TrendBody(initialDays: Int = 30) {
     val c = Rs.colors
-    var days by remember { mutableStateOf(30) }
+    var days by remember { mutableStateOf(initialDays) }
+    var tag by remember { mutableStateOf<String?>(null) }
     val today = LocalDate.now()
-    val points by remember(days) { AppGraph.nightInsights.trend(today.minusDays(days - 1L).toKotlin(), today.toKotlin()) }
+    val first = today.minusDays(days - 1L)
+    val points by remember(days) { AppGraph.nightInsights.trend(first.toKotlin(), today.toKotlin()) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
+    val previous by remember(days) { AppGraph.nightInsights.trend(first.minusDays(days.toLong()).toKotlin(), first.minusDays(1).toKotlin()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+    // 7/30 天要把鼾声和醒来画进每晚的条里，逐晚取详情；90 天按周合并不需要
+    val dates = points.filter { it.onset != null }.map { it.javaDate() }
+    val details by remember(days, dates) {
+        if (days > 45 || dates.isEmpty()) flowOf(emptyMap())
+        else combine(dates.map { d -> AppGraph.night.night(d.toKotlin()).map { d to it } }) { arr -> arr.mapNotNull { (d, v) -> v?.let { d to it } }.toMap() }
+    }.collectAsStateWithLifecycle(initialValue = emptyMap())
     val findings by AppGraph.nightInsights.findings().collectAsStateWithLifecycle(initialValue = emptyList())
     val reports by AppGraph.nightInsights.weeklyReports().collectAsStateWithLifecycle(initialValue = emptyList())
+    val valid = points.filter { it.sleepMillis != null && it.confidence != NightConfidence.Rough }
+    val prevValid = previous.filter { it.sleepMillis != null && it.confidence != NightConfidence.Rough }
+
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(7, 30, 90).forEach { d -> ChoicePill("$d 天", d == days, Modifier.weight(1f)) { days = d } }
+        listOf(7, 30, 90).forEach { d -> ChoicePill("$d 天", d == days, Modifier.weight(1f)) { days = d; tag = null } }
     }
     Spacer(Modifier.height(14.dp))
-    val valid = points.filter { it.sleepMillis != null && it.confidence != NightConfidence.Rough }
     if (valid.isEmpty()) {
         Text("这段时间还没有完整的夜晚记录", style = RsType.body, color = c.textSecondary, modifier = Modifier.padding(vertical = 20.dp))
     } else {
-        Averages(valid)
-        Spacer(Modifier.height(16.dp))
-        Head("作息", "每根是一晚：从入睡到起床")
-        SleepSpans(points, today.minusDays(days - 1L), days)
-        Spacer(Modifier.height(16.dp))
-        Head("鼾声", "每晚鼾声时长")
-        Bars(points, today.minusDays(days - 1L), days) { it.snoreMillis }
-    }
-    if (findings.isNotEmpty()) {
-        Spacer(Modifier.height(18.dp))
-        Head("试试看的发现", "样本少时只是线索，不代表一定有关")
-        findings.forEach { f ->
-            Text(f.text, style = RsType.body, color = c.text, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                .clip(RoundedCornerShape(12.dp)).background(c.fill).padding(12.dp))
+        TrendHero(days, valid, prevValid)
+        Spacer(Modifier.height(20.dp))
+        Head("作息 · 鼾声", if (days > 45) "每根是一周：淡色是最早到最晚，实心是中间值；下面的圆点越大，鼾声越多" else "每根是一晚，从入睡到起床；深色是鼾声，断开是醒了。点一根看那晚")
+        SleepChart(points, details, first, days, tag)
+        val tags = points.flatMap { it.tags }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.map { it.key }
+        if (tags.isNotEmpty()) {
+            Spacer(Modifier.height(18.dp))
+            Head("试试看", "点一个标签，图上只亮那几晚")
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tags.forEach { t ->
+                    val on = tag == t
+                    Text(t, style = RsType.subhead.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium),
+                        color = if (on) Color.White else c.textSecondary,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) SnoreColor else c.fill)
+                            .springClick { tag = if (on) null else t }.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+            }
+        }
+        val shownFindings = findings.filter { tag == null || it.tag.name == tag }
+        if (shownFindings.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            shownFindings.forEach { FindingCard(it) }
         }
     }
     if (reports.isNotEmpty()) {
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(20.dp))
         Head("周报")
-        reports.forEach { r -> WeekRow(r) }
+        reports.forEach { WeekCard(it) }
     }
-    Spacer(Modifier.height(18.dp))
+    Spacer(Modifier.height(20.dp))
     DoctorPage()
     Spacer(Modifier.height(16.dp))
 }
-
-@Composable
-private fun Averages(valid: List<NightPoint>) {
-    val c = Rs.colors
-    val sleep = valid.mapNotNull { it.sleepMillis }.average().toLong()
-    val zone = ZoneId.systemDefault()
-    // 入睡时刻按“晚上 18 点起算的分钟”平均，跨午夜不出错
-    val onsets = valid.mapNotNull { it.onset }.map { val t = java.time.Instant.ofEpochMilli(it).atZone(zone); ((t.hour - 18 + 24) % 24) * 60 + t.minute }
-    val onset = if (onsets.isEmpty()) null else onsets.average().toInt().let { m -> val h = (m / 60 + 18) % 24; "%d:%02d".format(h, m % 60) }
-    val snore = valid.map { it.snoreMillis }.average().toLong()
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf("平均睡眠" to hours(sleep), "平均入睡" to (onset ?: "—"), "鼾声每晚" to if (snore > 0) hours(snore) else "很少").forEach { (k, v) ->
-            Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.fill).padding(horizontal = 12.dp, vertical = 10.dp)) {
-                Text(k, style = RsType.caption, color = c.textTertiary)
-                Text(v, style = RsType.headline, color = c.text)
-            }
-        }
-    }
-    Text("共 ${valid.size} 晚有效记录", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 6.dp))
-}
-
-/** 纵轴 20 点到次日 12 点，每晚一根竖条从入睡到起床 */
-@Composable
-private fun SleepSpans(points: List<NightPoint>, first: LocalDate, days: Int) {
-    val c = Rs.colors
-    val good = c.accent; val faded = c.accent.copy(alpha = .3f); val grid = c.separator
-    val reveal = remember(days) { Animatable(0f) }
-    LaunchedEffect(days) { reveal.animateTo(1f, tween(600)) }
-    val zone = ZoneId.systemDefault()
-    Row {
-        Column(Modifier.height(150.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            listOf("20点", "0点", "4点", "8点", "12点").forEach { Text(it, style = RsType.caption, color = c.textTertiary) }
-        }
-        Spacer(Modifier.padding(start = 6.dp))
-        Canvas(Modifier.weight(1f).height(150.dp)) {
-            val w = size.width; val h = size.height
-            val slot = w / days
-            fun y(at: Long): Float {
-                val t = java.time.Instant.ofEpochMilli(at).atZone(zone)
-                val m = ((t.hour - 20 + 24) % 24) * 60 + t.minute
-                return (m / (16f * 60)).coerceIn(0f, 1f) * h
-            }
-            listOf(0f, .25f, .5f, .75f, 1f).forEach { f -> drawLine(grid, Offset(0f, f * h), Offset(w, f * h), 1f) }
-            points.forEach { p ->
-                val i = java.time.temporal.ChronoUnit.DAYS.between(first, LocalDate.of(p.date.year, p.date.monthNumber, p.date.dayOfMonth)).toInt()
-                val a = p.onset ?: return@forEach; val b = p.wake ?: return@forEach
-                if (i !in 0 until days) return@forEach
-                val top = y(a); val bottom = top + (y(b) - top) * reveal.value
-                val bw = (slot * .62f).coerceAtMost(14.dp.toPx())
-                drawRoundRect(if (p.confidence == NightConfidence.Rough) faded else good, Offset(i * slot + (slot - bw) / 2, top), Size(bw, (bottom - top).coerceAtLeast(2f)), CornerRadius(bw / 2))
-            }
-        }
-    }
-}
-
-@Composable
-private fun Bars(points: List<NightPoint>, first: LocalDate, days: Int, value: (NightPoint) -> Long) {
-    val c = Rs.colors
-    val color = SnoreColor; val faded = SnoreColor.copy(alpha = .3f); val track = c.fill
-    val max = points.maxOfOrNull(value)?.coerceAtLeast(60_000) ?: 60_000
-    val reveal = remember(days) { Animatable(0f) }
-    LaunchedEffect(days) { reveal.animateTo(1f, tween(600)) }
-    Row(verticalAlignment = Alignment.Top) {
-        Text(hours(max), style = RsType.caption, color = c.textTertiary)
-        Spacer(Modifier.padding(start = 6.dp))
-        Canvas(Modifier.weight(1f).height(80.dp)) {
-            val w = size.width; val h = size.height; val slot = w / days
-            drawRoundRect(track, Offset(0f, h - 1f), Size(w, 1f))
-            points.forEach { p ->
-                val i = java.time.temporal.ChronoUnit.DAYS.between(first, LocalDate.of(p.date.year, p.date.monthNumber, p.date.dayOfMonth)).toInt()
-                if (i !in 0 until days) return@forEach
-                val v = value(p); if (v <= 0) return@forEach
-                val bh = (v.toFloat() / max * h * reveal.value).coerceAtLeast(2f)
-                val bw = (slot * .62f).coerceAtMost(14.dp.toPx())
-                drawRoundRect(if (p.confidence == NightConfidence.Rough) faded else color, Offset(i * slot + (slot - bw) / 2, h - bh), Size(bw, bh), CornerRadius(bw / 3))
-            }
-        }
-    }
-}
-
-@Composable
-private fun WeekRow(r: app.resound.night.WeeklyReport) {
-    val c = Rs.colors
-    var open by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(12.dp)).background(c.fill)
-        .springClick { open = !open }.padding(12.dp).animateContentSize()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${r.weekStart.monthNumber}月${r.weekStart.dayOfMonth}日这一周 · ${r.nights} 晚", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
-            Text(if (open) "收起" else "展开", style = RsType.caption, color = c.accent)
-        }
-        r.finding?.let { Text(it, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(top = 4.dp)) }
-        if (open) Text(plain(r.markdown), style = RsType.subhead, color = c.text, modifier = Modifier.padding(top = 8.dp))
-    }
-}
-
-/** 去掉 markdown 标记，界面上直接读 */
-private fun plain(md: String) = md.lines().joinToString("\n") { it.trimStart('#', ' ').replace("**", "").replace("|", " ").trimEnd() }
-    .replace(Regex("\n-{3,}.*"), "").trim()
 
 /** 给医生的一页：生成文字稿预览，导出 PDF，可连同几段典型录音一起分享 */
 @Composable
@@ -223,7 +151,7 @@ private fun DoctorPage() {
         }
     }
     report?.let { r ->
-        Text(plain(r.markdown), style = RsType.subhead, color = c.text, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.fill).padding(12.dp))
+        Text(plainText(r.markdown), style = RsType.subhead, color = c.text, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.fill).padding(12.dp))
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill("分享 PDF", filled = true) {

@@ -86,7 +86,11 @@ internal fun NightBody(d: NightDetail, sharedRoom: Boolean, onDeleted: () -> Uni
     }
 
     if (s.state == NightState.Processing) Text("正在整理昨晚的声音，充电时会更快。", style = RsType.subhead, color = c.textSecondary)
+    // 首页只留一行提醒，确认、标签建议、中断提示都放在这里最上面
+    BreakNotice(d)
     s.sentence?.let { Text(it, style = RsType.title.copy(fontWeight = FontWeight.SemiBold), color = c.text) }
+    Questions(d)
+    Suggestions(d)
     Spacer(Modifier.height(14.dp))
     Stats(d)
     s.times?.let { t ->

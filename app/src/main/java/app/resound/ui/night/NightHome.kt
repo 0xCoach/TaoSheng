@@ -50,69 +50,22 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
-/**
- * 首页“昨晚”卡：一句话 + 三个时间 + 小声音地图；下面最多 3 段“是不是”（左滑不是、右滑是，也能点），
- * 再下面是标签建议和鼾声中断提示。点卡片打开详情。夜里功能没开或这天没有记录时不显示。
- */
+/** 鼾声中断提示（30 天最多一次），放在“昨晚”详情最上面 */
 @Composable
-fun NightHomeCard(date: LocalDate) {
-    if (!AppGraph.isNightReady) return
-    val repo = AppGraph.night
-    val settings by repo.settings.collectAsStateWithLifecycle()
-    if (!settings.enabled) return
-    val detail by remember(date) { repo.night(date.toKotlin()) }.collectAsStateWithLifecycle(initialValue = null)
-    val live by repo.live.collectAsStateWithLifecycle()
-    val d = detail
-    // 还没有“昨晚”，或这一夜还在记：只占一行，告诉用户已经打开、今晚怎么放，并留一个看趋势的入口
-    if (d == null || d.summary.state in setOf(NightState.Waiting, NightState.Provisional, NightState.Active)) {
-        if (date == LocalDate.now()) NightStatusRow(live)
-        return
-    }
+internal fun BreakNotice(d: NightDetail) {
+    val note = d.breakNotice ?: return
     val c = Rs.colors
-    val s = d.summary
     val scope = rememberCoroutineScope()
-    RsCard(Modifier.springClick { NightUi.openDate = date }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("昨晚", style = RsType.headline, color = c.text)
-            Spacer(Modifier.weight(1f))
-            s.confidence?.let { conf ->
-                Row(Modifier.clip(RoundedCornerShape(50)).background(confidenceColor(conf).copy(alpha = .14f)).padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (conf == app.resound.night.NightConfidence.Good) "记录完整" else conf.title, style = RsType.caption, color = confidenceColor(conf))
-                }
-            }
-            Text("  ›", style = RsType.headline, color = c.textTertiary)
-        }
-        Spacer(Modifier.height(8.dp))
-        when (s.state) {
-            NightState.Processing -> Text("正在整理昨晚的声音…", style = RsType.body, color = c.textSecondary)
-            else -> Text(s.sentence ?: s.sleepMillis?.let { "睡了约 ${span(it)}" } ?: "昨晚没记到完整的睡眠", style = RsType.body.copy(fontWeight = FontWeight.Medium), color = c.text)
-        }
-        s.times?.let { t ->
-            Spacer(Modifier.height(6.dp))
-            Text("上床 ${clock(t.bedtime)} · ${if (t.onsetEstimated && !t.editedOnset) "约 " else ""}${clock(t.onset)} 入睡 · ${clock(t.wake)} 起床",
-                style = RsType.subhead, color = c.textSecondary)
-            Spacer(Modifier.height(12.dp))
-            NightMap(t.bedtime, t.wake, d.envelope, d.events, selected = null, height = 44.dp, showHours = false)
-        }
-        Questions(d)
-        Suggestions(d)
-        d.breakNotice?.let { note ->
-            Spacer(Modifier.height(12.dp))
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.accentSoft).padding(12.dp)) {
-                Text(note, style = RsType.subhead, color = c.text)
-                Spacer(Modifier.height(6.dp))
-                Text("不再提示", style = RsType.caption, color = c.accent, modifier = Modifier.springClick {
-                    scope.launch { AppGraph.nightInsights.muteBreakNotice() }
-                })
-            }
-        }
+    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(RoundedCornerShape(14.dp)).background(c.accentSoft).padding(12.dp)) {
+        Text(note, style = RsType.subhead, color = c.text)
+        Spacer(Modifier.height(6.dp))
+        Text("不再提示", style = RsType.caption, color = c.accent, modifier = Modifier.springClick { scope.launch { AppGraph.nightInsights.muteBreakNotice() } })
     }
 }
 
 /** 最多 3 段拿不准的：一次一张，滑走或点完换下一张 */
 @Composable
-private fun Questions(d: NightDetail) {
+internal fun Questions(d: NightDetail) {
     val asks = d.questions.mapNotNull { id -> d.events.firstOrNull { it.id == id } }.filter { it.feedback == Feedback.None }
     if (asks.isEmpty()) return
     val c = Rs.colors
@@ -174,7 +127,7 @@ private fun AskCard(e: NightEvent) {
 
 /** “昨晚好像 喝了酒？”：点了才算标上 */
 @Composable
-private fun Suggestions(d: NightDetail) {
+internal fun Suggestions(d: NightDetail) {
     if (d.suggestedTags.isEmpty()) return
     val c = Rs.colors
     val scope = rememberCoroutineScope()
@@ -190,21 +143,3 @@ private fun Suggestions(d: NightDetail) {
 
 internal fun LocalDate.toKotlin(): kotlinx.datetime.LocalDate = kotlinx.datetime.LocalDate(year, monthValue, dayOfMonth)
 
-@Composable
-private fun NightStatusRow(live: app.resound.night.NightLive) {
-    val c = Rs.colors
-    val recording = live.state == NightState.Active || live.state == NightState.Provisional
-    RsCard(padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🌙", style = RsType.title)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(if (recording) "夜里记录中" + (live.since?.let { " · ${clock(it)} 开始" } ?: "") else "夜里记录已打开",
-                    style = RsType.body.copy(fontWeight = FontWeight.Medium), color = c.text)
-                Text(if (recording) live.mode?.title ?: "正在听" else "今晚把手机放在床头，插着电更好",
-                    style = RsType.caption, color = c.textSecondary)
-            }
-            Text("趋势 ›", style = RsType.subhead, color = c.accent, modifier = Modifier.springClick { NightUi.trendOpen = true }.padding(start = 8.dp, top = 6.dp, bottom = 6.dp))
-        }
-    }
-}

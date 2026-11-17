@@ -76,16 +76,19 @@ class NightShots {
 
     private var enabledFake = true
     private var hasNight = true
+    private var eveningLive = false
     private fun install() {
         AppGraph.night = object : NightRepository {
             override val settings: StateFlow<NightSettings> = MutableStateFlow(NightSettings(enabled = enabledFake))
             override fun update(settings: NightSettings) { (this.settings as MutableStateFlow).value = settings }
             override val quietConflict: StateFlow<QuietRule?> = MutableStateFlow(QuietRule("sleep", "睡眠", 23 * 60, 7 * 60).takeIf { hasNight })
-            override val live: StateFlow<NightLive> = MutableStateFlow(NightLive(NightState.Ready, null, null))
+            override val live: StateFlow<NightLive> = MutableStateFlow(if (eveningLive) NightLive(NightState.Active, NightMode.Full, at(0, 23, 30)) else NightLive(NightState.Ready, null, null))
             override fun nights(from: kotlinx.datetime.LocalDate, to: kotlinx.datetime.LocalDate): Flow<List<NightSummary>> = flowOf(listOf(summary))
             override fun night(date: kotlinx.datetime.LocalDate): Flow<NightDetail?> {
                 val d = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
                 if (d == wakeDay) return flowOf(detail.takeIf { hasNight })
+                if (d == wakeDay.plusDays(1)) return flowOf(if (eveningLive) detail.copy(summary = summary.copy(id = 2, state = NightState.Ready, times = NightTimes(at(0, 23, 20), at(0, 23, 30), at(1, 7, 0), true), sentence = null),
+                    events = emptyList(), questions = emptyList()) else null)
                 val r = Random(d.toEpochDay()); val base = d.atStartOfDay(zone).toInstant().toEpochMilli()
                 val evs = buildList {
                     repeat(r.nextInt(0, 3)) { k -> val s = base + r.nextLong(30, 300) * 60_000; add(NightEvent(100L + k, NightEventKind.Snore, s, s + r.nextLong(15, 50) * 60_000)) }
@@ -161,15 +164,18 @@ class NightShots {
         }
         app.resound.ui.today.OverviewCard(app.resound.ui.preview.FakeCaptureController(), app.resound.ui.preview.FakeMemoryRepository(),
             app.resound.ui.preview.FakeTranscriptRepository(), true, 2 * 3600_000L + 24 * 60_000L, 12, 0, null, {}, {}, screenMinutes = 194)
-        NightHomeCard(wakeDay)
+        val talk = mapOf(8 to 4, 9 to 6, 10 to 34, 11 to 12, 12 to 20, 13 to 4, 14 to 6, 15 to 14, 16 to 8, 18 to 10, 19 to 16, 20 to 9, 21 to 5, 22 to 3)
+        val lines = talk.flatMap { (h, mins) -> (0 until mins).map { i -> app.resound.transcribe.TranscriptLine(h * 100L + i, at(h, i), at(h, i) + 50_000L, "…", null) } }
+        val phone = listOf(0, 0, 0, 6, 0, 0, 0, 9, 12, 9, 6, 8, 28, 14, 10, 22, 9, 7, 6, 11, 13, 26, 18, if (eveningLive) 4 else 9)
+        app.resound.ui.today.RhythmCard(evs, lines, d, 0, {}, {}, {}, screenByHour = phone, night = rememberNightRhythm(d))
         app.resound.ui.today.TimelineGroup("上午", evs.map { app.resound.ui.today.TimelineEntry.Event(it) }) {}
     }
     @Test fun homeBefore() { enabledFake = false; capture("home-before", scroll = false) { Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Home() } } }
     @Test fun homeMorning() = capture("home-morning", scroll = false) { Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Home() } }
     @Test fun homeAfter() { hasNight = false; capture("home-after", scroll = false) { Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Home() } } }
+    @Test fun homeLate() { eveningLive = true; capture("home-late", scroll = false) { Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Home() } } }
+    @Test fun homeDark() = capture("home-dark", dark = true, scroll = false) { Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { Home() } }
 
-    @Test fun home() = capture("night-home") { NightHomeCard(wakeDay) }
-    @Test fun homeDark() = capture("night-home-dark", dark = true) { NightHomeCard(wakeDay) }
     @Test fun detail() = capture("night-detail") { RsCard { NightBody(detail, sharedRoom = false) {} } }
     @Test fun trend() = capture("night-trend") { RsCard { TrendBody() } }
     @Test fun week() = capture("night-week") {

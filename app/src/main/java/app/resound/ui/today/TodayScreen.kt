@@ -242,7 +242,9 @@ fun TodayScreen(
     if (screenOpen) app.resound.ui.screentime.ScreenTimeSheet(date, memory, onOpenEvent = { screenOpen = false; opened = it }) { screenOpen = false }
     app.resound.ui.night.NightSheets()
     var boxTop by remember { mutableStateOf(0f) }
-    val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
+    // 卡 202：夜里记录开着时，今日节奏里画昨晚（和今晚刚开始）的睡眠；还没说话但有睡眠也显示
+    val nightRhythm = app.resound.ui.night.rememberNightRhythm(date)
+    val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null } || nightRhythm?.day != null
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
     fun pendingIndex() = 2 + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0)
     fun timelineIndex() = pendingIndex() + (if (pendingCount > 0) 1 else 0)
@@ -282,18 +284,14 @@ fun TodayScreen(
             }
         }
         item {
-            // 卡 202：“昨晚”卡和录音卡放在同一格，不改后面各格的位置
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
             OverviewCard(capture, memory, transcripts, hasKey, speechMillis = day?.speechMillis, eventCount = events?.size, pendingCount = pendingCount,
                 pastDate = if (dayOffset == 0) null else date,
                 onPending = { rhythmScope.launch { listState.animateScrollToItem(pendingIndex()) } },
                 onPaused = { pausedNote = it to System.nanoTime() },
                 screenMinutes = screenDay?.totalMinutes, onScreen = { screenOpen = true })
-            app.resound.ui.night.NightHomeCard(date)
-            }
         }
         if (rhythmShown) item(key = "rhythm") {
-            RhythmCard(list, dayLines, date, transcribeQueue.pending, screenByHour = screenDay?.byHour,
+            RhythmCard(list, dayLines, date, transcribeQueue.pending, screenByHour = screenDay?.byHour, night = nightRhythm, onScreen = { screenOpen = true },
                 onFilter = { f -> filter = f; rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) } },
                 onHour = { h ->
                     // 跳到这个小时所在的时段：先回到全部，再滚到那一组

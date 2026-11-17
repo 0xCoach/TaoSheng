@@ -114,5 +114,5 @@ internal suspend fun playClip(clipId: Long): Boolean {
 
 internal fun clipKey(clipId: Long) = "night-$clipId"
 
-/** 鼾声用夜色的靛蓝，和橙色主色、琥珀色咳嗽分得开 */
-internal val SnoreColor = Color(0xFF6E6AD8)
+/** 夜空紫：鼾声用深紫，和说话的橙、手机的灰蓝、咳嗽的琥珀都分得开 */
+internal val SnoreColor = Color(0xFF7E4FC6)

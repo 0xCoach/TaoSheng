@@ -65,8 +65,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.abs
 
-/** 睡着的条：柔和的靛蓝；鼾声用更深的 [SnoreColor] 画在条里面 */
-internal val SleepColor = Color(0xFFA9A6F2)
+/** 睡着：浅夜空紫；鼾声用更深的 [SnoreColor] 画在里面 */
+internal val SleepColor = Color(0xFFC3A8EE)
 
 private val zone: ZoneId get() = ZoneId.systemDefault()
 
@@ -87,7 +87,7 @@ private fun median(xs: List<Int>): Int? = xs.sorted().let { if (it.isEmpty()) nu
 internal fun TrendHero(days: Int, valid: List<NightPoint>, previous: List<NightPoint>) {
     val c = Rs.colors
     val dark = c.background.luminance() < .5f
-    val brush = Brush.linearGradient(if (dark) listOf(Color(0xFF29264A), Color(0xFF3B2B24)) else listOf(Color(0xFFECEAFF), Color(0xFFFFEADB)))
+    val brush = Brush.linearGradient(if (dark) listOf(Color(0xFF2E2347), Color(0xFF3B2B24)) else listOf(Color(0xFFF1E9FF), Color(0xFFFFEADB)))
     val avg = valid.mapNotNull { it.sleepMillis }.average().toLong()
     val prevAvg = previous.mapNotNull { it.sleepMillis }.takeIf { it.size >= 3 }?.average()?.toLong()
     val onsets = valid.mapNotNull { it.onset }.map(::eveningMinutes)
@@ -109,7 +109,7 @@ internal fun TrendHero(days: Int, valid: List<NightPoint>, previous: List<NightP
             if (abs(diff) >= 5) {
                 Spacer(Modifier.height(6.dp))
                 Text("比前 $days 天${if (diff > 0) "多" else "少"} ${abs(diff)} 分", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (dark) Color(0xFFD6D3FF) else Color(0xFF5450B8),
+                    color = if (dark) Color(0xFFE0D2FF) else SnoreColor,
                     modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = if (dark) .08f else .6f)).padding(horizontal = 10.dp, vertical = 4.dp))
             }
         }

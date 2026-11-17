@@ -41,7 +41,7 @@ internal class ImportSummary(
     private val callName: suspend (Long) -> String? = { null },
 ) {
     suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
-        val promptFileName = if (record.kind == ImportKind.Call.name) callName(record.id) ?: CallNamePolicy.prompt(null,
+        val promptFileName = if (record.kind == ImportKind.Call.name) callName(record.id) ?: CallNamePolicy.prompt(
             CallFileNames.parse(record.fileName,null,null,null,kotlinx.datetime.TimeZone.of(SKILL_ZONE.id)).name) else record.fileName
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
         val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()

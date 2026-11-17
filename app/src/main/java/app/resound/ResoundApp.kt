@@ -201,8 +201,7 @@ class ResoundApp : Application() {
             ExportSpeeds(getSharedPreferences("export-speeds", MODE_PRIVATE))) { PipelineTimes.record(this, it) }
         AppGraph.audioExporter.cleanup()
         AppGraph.exportJobs = AndroidExportJobs(this, AppGraph.audioExporter, scope)
-        val callDisplay = app.resound.importer.CallDisplayNames(database.folderRecordings())
-        val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io, callDisplay)
+        val transcripts = RoomTranscriptRepository(this, database.transcribe(), settings, scheduler, scope, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
         val asrChooser = app.resound.redo.AndroidAsrChooser(this, settings, scope) { AppGraph.usage.price.value.asrPerHour }
         val sourceNetwork: (TranscribeSource) -> Boolean = { source ->
             if (source == TranscribeSource.Local) true else {
@@ -278,7 +277,7 @@ class ResoundApp : Application() {
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
-        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io, callDisplay)
+        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
         AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers
@@ -378,7 +377,6 @@ class ResoundApp : Application() {
             AppGraph.importer as app.resound.importer.AndroidAudioImporter)
         AppGraph.folderImports = folderImports
         AppGraph.folderRecordings = folderImports.recordings
-        AppGraph.phoneLabels = folderImports.recordings
         folderImports.recordings.start()
         registerActivityLifecycleCallbacks(app.resound.importer.FolderImportForeground(folderImports))
         ImportAudioCleanupWork.schedule(this)

@@ -91,18 +91,16 @@ interface FolderImports {
     fun scanNow()
 }
 
-/* ---------------- 卡 199：列出的录音、通话对方、号码备注 ---------------- */
+/* ---------------- 卡 199：列出的录音、通话对方 ---------------- */
 
-/** 通话对方：显示名按“号码备注 > 文件名里的名字 > 号码”取 */
+/** 通话对方：全部来自文件名，有名字用名字，没有用号码 */
 data class CallParty(
     val number: String?,
     /** 文件名里写的名字 */
     val fileName: String?,
-    /** 用户给这个号码填的备注 */
-    val label: String?,
     val direction: CallDirection?,
 ) {
-    val display: String? get() = label ?: fileName ?: number
+    val display: String? get() = fileName ?: number
 }
 
 enum class ListedState {
@@ -145,11 +143,9 @@ interface FolderRecordings {
     /** 某条导入记录对应的录音（导入记录卡片显示对方用）；不是文件夹导入的为 null */
     fun byImport(importRecordId: Long): Flow<FolderRecording?>
 
-    /** 按对方名字/备注/号码搜（号码可只输后几位），新的在前，最多 200 条 */
+    /** 按对方名字/号码搜（号码可只输后几位），新的在前，最多 200 条 */
     fun search(query: String): Flow<List<FolderRecording>>
 
-    /** 和某个号码的全部通话，新的在前 */
-    fun withNumber(number: String): Flow<List<FolderRecording>>
 
     /** 把列出的录音排进转写（用户点了“转写”）；插在补转前面 */
     fun transcribe(ids: List<Long>)
@@ -158,9 +154,3 @@ interface FolderRecordings {
     fun pauseBackfill(paused: Boolean)
 }
 
-interface PhoneLabels {
-    /** 规范化号码 → 备注 */
-    val labels: StateFlow<Map<String, String>>
-    /** 填或改备注；name 为空白时删除备注。号码按 CallFileNames.normalizeNumber 规范化 */
-    fun setLabel(number: String, name: String?)
-}

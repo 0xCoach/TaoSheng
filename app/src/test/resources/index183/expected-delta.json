@@ -46,18 +46,18 @@
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"7dd0e16c09aa5ca6066de5b40f2161f4\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"c3788a0a892eaf59e86f88c180a1fd41\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "7dd0e16c09aa5ca6066de5b40f2161f4",
+  "newIdentityHash": "c3788a0a892eaf59e86f88c180a1fd41",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7dd0e16c09aa5ca6066de5b40f2161f4')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c3788a0a892eaf59e86f88c180a1fd41')"
   ],
   "indices": [
     {
@@ -148,12 +148,6 @@
       "table": "folder_recordings",
       "row": "[\"index\",\"index_folder_recordings_folderId_documentUri\",\"folder_recordings\",\"CREATE UNIQUE INDEX `index_folder_recordings_folderId_documentUri` ON `folder_recordings` (`folderId`, `documentUri`)\"]",
       "occurrences": 1
-    },
-    {
-      "name": "sqlite_autoindex_phone_labels_1",
-      "table": "phone_labels",
-      "row": "[\"index\",\"sqlite_autoindex_phone_labels_1\",\"phone_labels\",null]",
-      "occurrences": 1
     }
   ],
   "tables": [
@@ -240,18 +234,6 @@
       "block": [
         "TABLE folder_recordings",
         "columns=[\"id\",\"folderId\",\"documentUri\",\"fingerprint\",\"fileName\",\"size\",\"modified\",\"startAt\",\"durationMillis\",\"number\",\"partyName\",\"direction\",\"state\",\"importRecordId\",\"createdAt\",\"kind\",\"pendingId\",\"backfill\",\"notified\"]",
-        ""
-      ],
-      "occurrences": 1
-    },
-    {
-      "name": "phone_labels",
-      "masterRows": [
-        "[\"table\",\"phone_labels\",\"phone_labels\",\"CREATE TABLE `phone_labels` (`number` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`number`))\"]"
-      ],
-      "block": [
-        "TABLE phone_labels",
-        "columns=[\"number\",\"name\",\"updatedAt\"]",
         ""
       ],
       "occurrences": 1

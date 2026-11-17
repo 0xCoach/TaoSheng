@@ -99,7 +99,7 @@ interface CaptureDao {
     fun batteries(start: Long, end: Long): Flow<List<BatteryEntity>>
 }
 
-@Database(entities = [app.resound.importer.FolderRecordingRow::class, app.resound.importer.PhoneLabelRow::class, app.resound.marks.MarkRow::class, TopicRow::class, TopicSpanRow::class, TopicMarkRow::class, DeviceTransfer::class, ImportFingerprint::class, FolderObservation::class,
+@Database(entities = [app.resound.importer.FolderRecordingRow::class, app.resound.marks.MarkRow::class, TopicRow::class, TopicSpanRow::class, TopicMarkRow::class, DeviceTransfer::class, ImportFingerprint::class, FolderObservation::class,
     PrivacyFileCleanup::class, ThingRow::class, ThingRecordRow::class, ThingWatchState::class, ImportRecordRow::class, RedoSnapshotRow::class, SegmentEntity::class,
     EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,

@@ -7,6 +7,5 @@ fun ImportRecordWithSegments.record() = ImportRecord(row.id, row.fileName, Impor
 /** 只向纪要提供名字，不能用 display（它允许退回电话号码）。 */
 internal suspend fun callPromptName(db: app.resound.data.CaptureDatabase, id: Long): String? {
     val row = db.folderRecordings().byImport(id) ?: return null
-    val label = db.folderRecordings().labelSnapshot().firstOrNull { it.number == row.number }?.name
-    return CallNamePolicy.prompt(label,row.partyName)
+    return CallNamePolicy.prompt(row.partyName)
 }

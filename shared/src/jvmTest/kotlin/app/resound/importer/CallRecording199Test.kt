@@ -75,12 +75,7 @@ class CallRecording199Test {
         assertTrue(FolderHistoryPolicy.expands(FolderHistory.OnlyNew,FolderHistory.ListAll))
         assertFalse(FolderHistoryPolicy.expands(FolderHistory.Days30,FolderHistory.Days7))
     }
-    @Test fun displayKeepsIdentityAndPromptNeverFallsBackToNumber() {
-        val me=CallDisplayLine(1,1,"call:0","我",0,"13800138000",null,"我")
-        val other=me.copy(id=2,speakerTag="call:1",speakerName=null,speakerPersonId=null)
-        assertEquals(mapOf(2L to "我"),CallNamePolicy.display(listOf(me,other)))
-        assertTrue(CallNamePolicy.display(listOf(me.copy(speakerName=null,speakerPersonId=null),other)).isEmpty())
-        assertEquals("对方",CallNamePolicy.prompt(null,null));assertEquals("张总",CallNamePolicy.prompt("张总",null))
-        assertNull(other.speakerName);assertNull(other.speakerPersonId)
+    @Test fun promptNeverFallsBackToNumber() {
+        assertEquals("对方",CallNamePolicy.prompt(null));assertEquals("张总",CallNamePolicy.prompt("张总"))
     }
 }

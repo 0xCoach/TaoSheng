@@ -16,7 +16,7 @@ import java.time.LocalDate
 class RoomTranscriptRepository private constructor(private val store: TranscriptStoreRepository) : TranscriptRepository by store {
     constructor(context: Context, dao: TranscribeDao, settings: TranscribeSettings,
         scheduler: TranscribeScheduler, scope: CoroutineScope, zoneProvider: ZoneProvider,
-        now: NowMillis, io: CoroutineDispatcher, callDisplay: app.resound.importer.CallDisplayNames? = null,
+        now: NowMillis, io: CoroutineDispatcher,
     ) : this(context.getSharedPreferences("transcribe-queue", Context.MODE_PRIVATE).let { prefs ->
         TranscriptStoreRepository(dao, settings, scope, zoneProvider, now, io,
             calendarChanges(context), scheduler.observe().map { work ->
@@ -25,7 +25,7 @@ class RoomTranscriptRepository private constructor(private val store: Transcript
             prefs.getLong("lastRunAt", 0).takeIf { it > 0 } to prefs.getString("lastError", null),
             { at, error -> check(prefs.edit().putLong("lastRunAt", at ?: 0).putString("lastError", error).commit()) },
             { File(it.id).isFile }, VoiceInputMetadata::read, scheduler::runNow,
-            { dao.deleteFailed(it) }, callDisplay)
+            { dao.deleteFailed(it) })
     })
     internal val clock get() = store.clock
     fun updateProgress(total: Int, done: Int) = store.updateProgress(total, done)

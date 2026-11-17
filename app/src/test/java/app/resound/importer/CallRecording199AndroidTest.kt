@@ -119,18 +119,16 @@ class CallRecording199AndroidTest {
         assertEquals("Listed",db.folderRecordings().all().single().state);assertNull(db.folderRecordings().all().single().importRecordId)
         folders.scan();assertNull(importer.next())
     }
-    @Test fun labelsSearchSuffixAndPermissionRestore()=runBlocking {
+    @Test fun searchSuffixAndPermissionRestore()=runBlocking {
         docs.add("张三(13800138000).wav",1);folders.addHistory(tree,ImportKind.Call,FolderHistory.ListAll)
-        folders.recordings.setLabel("+86 138 0013 8000","张总")
-        withTimeout(5000) { folders.recordings.labels.first { it["13800138000"]=="张总" } }
         val result=withTimeout(5000) { folders.recordings.search("8000").first { it.isNotEmpty() } }
-        assertEquals("张总",result.single().call!!.display)
+        assertEquals("张三",result.single().call!!.display)
         assertTrue(folders.recordings.search("800").first().isEmpty())
-        assertEquals(1,folders.recordings.search("张总").first().size)
+        assertEquals(1,folders.recordings.search("张三").first().size)
         docs.granted=false;folders.scan()
-        assertEquals(ListedState.Missing,folders.recordings.search("张总").first().single().state)
+        assertEquals(ListedState.Missing,folders.recordings.search("张三").first().single().state)
         docs.granted=true;folders.addHistory(tree,ImportKind.Call,FolderHistory.ListAll)
-        assertEquals(ListedState.Listed,folders.recordings.search("张总").first().single().state)
+        assertEquals(ListedState.Listed,folders.recordings.search("张三").first().single().state)
     }
     @Test fun newFileHasPriorityOverQueuedBackfill()=runBlocking {
         docs.add("old.wav",1);folders.addHistory(tree,ImportKind.Normal,FolderHistory.Days7)
@@ -151,7 +149,7 @@ class CallRecording199AndroidTest {
             assertEquals("captured",error?.message);assertFalse(captured!!.contains("13800138000"));assertTrue(captured!!.contains(label ?: "对方"))
         }
     }
-    @Test fun displayFlowAndFreshSnapshotFollowLabelsWithoutWritingIdentity()=runBlocking {
+    @Test fun backfillLinesAreQuietForPush()=runBlocking {
         val record=db.imports().insert(ImportRecordRow(pendingId="display",fileName="call",kind="Call",startAt=1,endAt=3000,byChannel=false))
         db.folderRecordings().insert(FolderRecordingRow(folderId="f",documentUri="u",fileName="call",size=1,modified=1,startAt=1,durationMillis=3000,
             number="13800138000",state="Imported",importRecordId=record,createdAt=1,kind="Call",backfill=true))
@@ -159,12 +157,6 @@ class CallRecording199AndroidTest {
         db.transcribe().insertLines(listOf(
             app.resound.data.TranscriptLineEntity(id=1,segmentId=1,startAt=1,endAt=1000,text="你好",speakerTag="call:0",speakerName="我",speakerPersonId=0),
             app.resound.data.TranscriptLineEntity(id=2,segmentId=1,startAt=1001,endAt=3000,text="你好",speakerTag="call:1")))
-        val resolver=CallDisplayNames(db.folderRecordings())
-        assertEquals("13800138000",resolver.snapshot()[2L])
-        val changed=async { withTimeout(5000) { resolver.names.first { it[2L]=="我" } } }
-        db.folderRecordings().label(PhoneLabelRow("13800138000","我",now))
-        assertEquals("我",changed.await()[2L]);assertEquals("我",resolver.snapshot()[2L])
-        assertNull(db.imports().lines(record).last().speakerName);assertNull(db.imports().lines(record).last().speakerScore)
         assertEquals(setOf(1L,2L),db.folderRecordings().quietLines(now).toSet())
     }
     @Test fun migration38ToCurrentPreservesOldDataAndAddsTables()=runBlocking {
@@ -180,7 +172,6 @@ class CallRecording199AndroidTest {
         }
         val migrated=Room.databaseBuilder(context,CaptureDatabase::class.java,name).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).addMigrations(*CaptureDatabase.MIGRATIONS).build()
         try { assertTrue(migrated.folderImports().contains("keep"));assertTrue(migrated.folderRecordings().all().isEmpty());assertEquals(CaptureDatabase.VERSION,migrated.testSql.version)
-            migrated.folderRecordings().label(PhoneLabelRow("10010","联通",1));assertEquals("联通",migrated.folderRecordings().labelSnapshot().single().name)
         } finally { migrated.close();context.deleteDatabase(name) }
     }
 }

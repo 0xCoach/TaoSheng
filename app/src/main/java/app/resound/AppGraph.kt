@@ -158,8 +158,7 @@ object AppGraph {
     val isImportKindsReady: Boolean get() = ::importKinds.isInitialized
     lateinit var folderImports: app.resound.importer.FolderImports
     lateinit var folderRecordings: app.resound.importer.FolderRecordings
-    lateinit var phoneLabels: app.resound.importer.PhoneLabels
-    val isCallRecordingReady: Boolean get() = ::folderRecordings.isInitialized && ::phoneLabels.isInitialized
+    val isCallRecordingReady: Boolean get() = ::folderRecordings.isInitialized
     val isFolderImportReady: Boolean get() = ::folderImports.isInitialized
     lateinit var importer: app.resound.importer.AudioImporter
     val isImporterReady: Boolean get() = ::importer.isInitialized

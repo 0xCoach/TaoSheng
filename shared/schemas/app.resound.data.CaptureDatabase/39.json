@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 39,
-    "identityHash": "7dd0e16c09aa5ca6066de5b40f2161f4",
+    "identityHash": "c3788a0a892eaf59e86f88c180a1fd41",
     "entities": [
       {
         "tableName": "folder_recordings",
@@ -153,36 +153,6 @@
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_folder_recordings_folderId_documentUri` ON `${TABLE_NAME}` (`folderId`, `documentUri`)"
           }
         ]
-      },
-      {
-        "tableName": "phone_labels",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`number` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`number`))",
-        "fields": [
-          {
-            "fieldPath": "number",
-            "columnName": "number",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "name",
-            "columnName": "name",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "updatedAt",
-            "columnName": "updatedAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "number"
-          ]
-        }
       },
       {
         "tableName": "marks",
@@ -3393,7 +3363,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7dd0e16c09aa5ca6066de5b40f2161f4')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c3788a0a892eaf59e86f88c180a1fd41')"
     ]
   }
 }

@@ -31,7 +31,7 @@ internal object DayVolumeRows {
         // 设备播放记录按开始时刻分卷
         "playback_rows" to "fromAt",
     )
-    val global = setOf("phone_labels", "import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples",
+    val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples",
         "voiceprint_exclusions", "location_places", "screen_app_names", "screen_pull_state", "screen_coverage_gaps")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()

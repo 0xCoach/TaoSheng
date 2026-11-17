@@ -47,7 +47,6 @@ class MemoryStoreRepository(
     private val codec: MemoryLegacyCodec,
     private val dueDate: (Long) -> MemoryDueDate,
     private val readVoiceInput: (String?) -> VoiceInputMeta?,
-    private val callDisplay: app.resound.importer.CallDisplayNames? = null,
 ) : MemoryRepository {
 
     override fun events(date: LocalDate): Flow<List<MemoryEvent>> = events(date, TimeZone.of(zoneProvider.zoneId()))
@@ -104,11 +103,10 @@ class MemoryStoreRepository(
     override fun unmerge(itemId: Long) { scope.launch { dao.unmerge(itemId) } }
 
     override suspend fun sourceLines(lineId: Long): List<TranscriptLine> = kotlinx.coroutines.withContext(io) {
-        val names = callDisplay?.snapshot().orEmpty()
-        dao.segmentLinesOf(lineId).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), names[it.id]) }
+        dao.segmentLinesOf(lineId).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) }
     }
-    override fun eventLines(eventId: Long): Flow<List<TranscriptLine>> = combine(dao.eventLines(eventId), callDisplay?.names ?: kotlinx.coroutines.flow.flowOf(emptyMap())) { rows, names ->
-        rows.map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), names[it.id]) }
+    override fun eventLines(eventId: Long): Flow<List<TranscriptLine>> = dao.eventLines(eventId).map { rows ->
+        rows.map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) }
     }.flowOn(io)
 
     override fun pendingItems(): Flow<List<MemoryItem>> = listed(dao.pendingItems())

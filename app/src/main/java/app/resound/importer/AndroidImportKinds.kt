@@ -64,10 +64,10 @@ class AndroidImportKinds internal constructor(
         check(prefs.edit().putString("last", kind.name).commit()); last.value = kind
         importer.startBatch(ImportKindPolicy.batch(files, merge), asr, kind)
     }
-    private fun presented(source: Flow<List<ImportRecordWithSegments>>) = combine(source, db.folderRecordings().observe(), db.folderRecordings().labels()) { records, files, labels ->
+    private fun presented(source: Flow<List<ImportRecordWithSegments>>) = combine(source, db.folderRecordings().observe()) { records, files ->
         records.map { record ->
             val file = files.firstOrNull { it.importRecordId == record.row.id }
-            val display = file?.let { labels.firstOrNull { p -> p.number == it.number }?.name ?: it.partyName ?: it.number }
+            val display = file?.let { it.partyName ?: it.number }
             record.record().copy(defaultTitle=if (record.row.kind == "Call" && display != null) "和 $display 通话" else null)
         }
     }

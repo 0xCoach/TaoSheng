@@ -20,6 +20,9 @@ data class PlaceAt(
 )
 
 interface SituationLookup {
+    /** 整日停留点，沿用足迹聚类和缓存；不返回原始定位点。 */
+    suspend fun dayStays(from: Long, until: Long): List<PlaceAt> = emptyList()
+
     /**
      * [start, end) 内停留最久的地点；这段时间主要在路上、或没有定位记录、或足迹没开，返回 null。
      * 只读本地缓存的地名，不触发联网反查。

@@ -95,8 +95,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         oldCards.groupBy { it.skillId to it.date }.flatMap { (group, _) ->
             val skill = files.skills.value.find { it.id == group.first } ?: error("相关技能已删除，无法重新生成")
             val date = LocalDate.ofEpochDay(group.second)
-            val start = date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
-            val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+            val start = date.atStartOfDay(SKILL_ZONE(date)).toInstant().toEpochMilli()
+            val end = date.plusDays(1).atStartOfDay(SKILL_ZONE(date)).toInstant().toEpochMilli()
             val raw = lines.filter { it.startAt < end && it.endAt > start }
             val gateLines = SkillInputs.gateLines(raw.map { it.snapshot() }, skill.scope.speakers)
             val gateFailure = SkillGateRules.failure(skill.gate, gateLines)

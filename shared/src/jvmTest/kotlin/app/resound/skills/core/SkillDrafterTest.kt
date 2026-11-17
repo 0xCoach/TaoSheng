@@ -6,6 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SkillDrafterTest {
+ @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
     @Test fun askReturnsQuestionWithOptions() {
         val step = SkillDrafter.step("""{"ask":"想什么时候看？","options":["每晚","每次发生时"]}""", "my_x", mustFinish = false)
         assertEquals(DraftStep.Ask("想什么时候看？", listOf("每晚", "每次发生时")), step)

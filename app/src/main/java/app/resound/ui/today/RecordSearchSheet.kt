@@ -11,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.resound.ui.verify.RsCard
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -186,6 +188,9 @@ fun RecordSearchSheet(search: RecordSearch, initialKind: SearchKind? = null, onD
         } finally { loadingMore = false }
     }
     val words = remember(query) { RecordSearchRules.words(query) }
+    // 卡 199：自动导入文件夹里的通话，按对方名字或号码后几位搜（不受类型、时间筛选影响，只在“全部”里显示）
+    val calls = if (AppGraph.isCallRecordingReady && kind == null && query.isNotBlank()) remember(query) { AppGraph.folderRecordings.search(query.trim()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList()).value.filter { it.call != null }.take(20) else emptyList()
 
     val open: (ExpandedSearchHit) -> Unit = { hit -> scope.launch { openHit(hit, zone, onDismiss) { detail = it } } }
 
@@ -205,11 +210,25 @@ fun RecordSearchSheet(search: RecordSearch, initialKind: SearchKind? = null, onD
                 else pickRange(context, (range as? SearchRange.Custom)) { range = it }
             }
             val list = hits
+            if (calls.isNotEmpty()) {
+                SectionHeader("通话", calls.size) {}
+                RsCard(padding = PaddingValues(vertical = 4.dp)) {
+                    calls.forEachIndexed { i, r ->
+                        if (i > 0) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                        val id = r.importRecordId
+                        Column(if (id != null) Modifier.springClick { onDismiss(); PlayerNav.openImport = id } else Modifier) {
+                            Text(dayLabel(Instant.ofEpochMilli(r.startAt).atZone(zone).toLocalDate()), style = RsType.caption, color = c.textTertiary,
+                                modifier = Modifier.padding(start = 18.dp, top = 8.dp))
+                            app.resound.ui.importer.ListedLine(r)
+                        }
+                    }
+                }
+            }
             when {
                 query.isBlank() -> Hint("例如：合同、老王 周五、报销。所有日期都会搜到")
                 failed -> Hint("搜索没有完成，请稍后再试")
                 list == null -> Hint("正在查…")
-                list.isEmpty() -> Hint("没有找到“${query.trim()}”" + if (range != SearchRange.All) "，可以把时间放宽到“全部”" else "")
+                list.isEmpty() -> if (calls.isEmpty()) Hint("没有找到“${query.trim()}”" + if (range != SearchRange.All) "，可以把时间放宽到“全部”" else "")
                 kind == null -> KIND_LABELS.mapNotNull { it.first }.forEach { k ->
                     val rows = overview[k].orEmpty()
                     if (rows.isEmpty()) return@forEach

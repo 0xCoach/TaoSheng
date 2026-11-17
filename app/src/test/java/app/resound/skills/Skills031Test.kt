@@ -27,9 +27,11 @@ import java.time.LocalDate
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class Skills031Test {
+ @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val day = LocalDate.parse("2026-10-23")
-    private val start = day.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+    private val start = day.atStartOfDay(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
     private var clock = start + 22 * 3_600_000L
     private lateinit var db: CaptureDatabase
     private lateinit var root: File
@@ -156,7 +158,7 @@ class Skills031Test {
         assertEquals(due, SkillSchedule.next(s, emptyList(), start))
         assertEquals(clock, SkillSchedule.next(s, emptyList(), clock))
         assertEquals(due + 86_400_000, SkillSchedule.next(s, emptyList(), clock, catchUp = false))
-        assertEquals(day.plusDays(2).atTime(21, 0).atZone(SKILL_ZONE).toInstant().toEpochMilli(), SkillSchedule.next(skill("weekly"), emptyList(), clock))
+        assertEquals(day.plusDays(2).atTime(21, 0).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli(), SkillSchedule.next(skill("weekly"), emptyList(), clock))
         val yesterday = SkillRunRow(skillId = s.id, date = day.minusDays(1).toEpochDay(), at = start - 1, ok = false, result = "网络", tokens = 0, kind = SkillSchedule.DAILY, retryable = true)
         assertEquals(clock, SkillSchedule.next(s, listOf(yesterday), clock))
         val failure = yesterday.copy(date = day.toEpochDay(), at = clock)

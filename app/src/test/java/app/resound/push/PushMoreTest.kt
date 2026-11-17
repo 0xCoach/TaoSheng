@@ -38,6 +38,9 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class PushMoreTest {
+    @org.junit.Before fun currentZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), ZoneId.systemDefault().id) } }
+    @org.junit.After fun resetZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
+
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val date = LocalDate.parse("2026-10-24")
     private val at = 1_700_000_000_000L
@@ -237,7 +240,7 @@ class PushMoreTest {
         val review = DailyReview(date.toKotlinLocalDate(), "简述", listOf(ReviewSection("一句话", listOf("内容"), listOf(1))), at)
         val lines = listOf(TranscriptLineEntity(1, 1, at, at + 1000, "原句", "speaker1", "我"))
         val j = dailyMemoryJson(date, at, "# 文档", review, input, listOf(card()), lines)
-        assertEquals(setOf("type", "version", "app", "date", "generatedAt", "markdown", "data"), j.keys().asSequence().toSet())
+        assertEquals(setOf("type", "version", "app", "date", "generatedAt", "markdown", "data", "utcOffset"), j.keys().asSequence().toSet())
         val data = j.getJSONObject("data")
         assertEquals(setOf("review", "events", "items", "cards", "lines"), data.keys().asSequence().toSet())
         assertEquals(setOf("id", "start", "end", "title", "summary", "scene", "people", "important", "starred"), data.getJSONArray("events").getJSONObject(0).keys().asSequence().toSet())

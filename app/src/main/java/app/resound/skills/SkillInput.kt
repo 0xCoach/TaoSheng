@@ -12,7 +12,8 @@ import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
 import java.time.ZoneId
 import app.resound.skills.core.SkillInputs as Core
-val SKILL_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+fun SKILL_ZONE(at: Long): ZoneId = ZoneId.of(app.resound.platform.HistoricalZones.history().zoneAt(at).id)
+fun SKILL_ZONE(date: LocalDate): ZoneId = ZoneId.of(app.resound.platform.HistoricalZones.history().zonesOn(date.toKotlinLocalDate()).first().zoneId)
 data class SkillInput(val data: String, val lines: Map<String, TranscriptLineEntity>)
 internal typealias SkillSource = app.resound.skills.core.SkillSource
 object SkillInputs {
@@ -33,6 +34,6 @@ object SkillInputs {
  fun user(input: SkillInput,hotwords: List<String>) = Core.user(input.snapshot(),hotwords)
 }
 object SkillPrompt {
- val RULES get() = app.resound.skills.core.SkillPrompt.rules(appDisplayName)
+ val RULES get() = app.resound.skills.core.SkillPrompt.rules(appDisplayName, app.resound.platform.HistoricalZones.history().label(System.currentTimeMillis()))
  fun system(s: Skill,requirements: String,date: LocalDate) = app.resound.skills.core.SkillPrompt.system(s,requirements,date.toKotlinLocalDate(),appDisplayName)
 }

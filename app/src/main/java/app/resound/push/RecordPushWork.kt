@@ -37,9 +37,19 @@ internal fun AndroidPushChannels.attachSubscriptions(context: Context, database:
     linkedCredentials = backup::pushCredentials
     linkedAccount = backup.state.map { if (it.hasPassword) it.account else null }.distinctUntilChanged()
     subscriptions.source = { since, lines -> database.push().snapshot(since?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: Long.MIN_VALUE, lines) }
+    subscriptions.automaticSource = { since, lines ->
+        val today = java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val hidden = database.folderRecordings().quietLines(today).toSet()
+        val cards = database.folderRecordings().quietCards(today).toSet()
+        val raw = subscriptions.source(since,lines)
+        val events = hidden.mapNotNull { raw.lineOrigins[it] }.toSet()
+        raw.copy(events=raw.events.filter { it.id !in events }, items=raw.items.filter { it.lineId !in hidden && it.eventId !in events },
+            cards=raw.cards.filter { it.id !in cards }, lines=raw.lines.filter { it.id !in hidden },
+            lineOrigins=raw.lineOrigins.filterKeys { it !in hidden }, repeats=raw.items.filter { it.lineId !in hidden && it.eventId !in events }.groupingBy { it.mergedInto ?: it.id }.eachCount())
+    }
     subscriptions.reminderSettings = { AppGraph.memory.appointmentReminders.value }
     phoneReminders = PhoneReminders(context.getSharedPreferences("phone-reminders", Context.MODE_PRIVATE),
-        { subscriptions.source(null, false) }, subscriptions.reminderSettings, LocalNotifier(context), { at, continuation -> schedulePhoneReminder(context, at, continuation) },
+        { requireNotNull(subscriptions.automaticSource)(null, false) }, subscriptions.reminderSettings, LocalNotifier(context), { at, continuation -> schedulePhoneReminder(context, at, continuation) },
         strongNotifier = StrongReminderNotifier(context),
         onRefresh = { snapshot -> StrongReminders.sweep(context, snapshot) })
     scope.launch(Dispatchers.IO) {
@@ -51,7 +61,8 @@ internal fun AndroidPushChannels.attachSubscriptions(context: Context, database:
     scope.launch(Dispatchers.IO) {
         restoreSubscriptions()
         // Room 在事务提交后才通知，覆盖整理完成、状态/标星、软删除及“这段别记”。启动也校对一次。
-        database.invalidationTracker.createFlow("memory_events", "memory_items", "transcript_lines", "skill_cards", "reviews", emitInitialState = true)
-            .debounce(1000).collect { recordsChanged(); phoneReminders?.refresh() }
+        database.invalidationTracker.createFlow("memory_events", "memory_items", "transcript_lines", "skill_cards", "reviews", "segments", emitInitialState = true)
+            .debounce(1000)
+            .collect { recordsChanged(); phoneReminders?.refresh(); DayThreadPushScheduler.refresh(context) }
     }
 }

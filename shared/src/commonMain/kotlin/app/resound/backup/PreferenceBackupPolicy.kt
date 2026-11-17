@@ -5,6 +5,7 @@ import kotlinx.serialization.json.*
 /** 设置与运行状态的跨平台分类；同一文件混合存储时按键过滤，恢复旧包也执行同一规则。 */
 object PreferenceBackupPolicy {
     val settings = mapOf(
+        "zone-history" to "历史时区段，用于解释已发生数据的日期和偏移",
         "marks" to "新打点前后范围（毫秒）",
         "transcribe" to "识别来源、模型、语言、热词、间隔及网络偏好；加密字段另走密钥导出",
         "local-asr" to "本地模型用户选项；排除本机 NPU 检查和下载状态",
@@ -111,7 +112,7 @@ object PreferenceBackupPolicy {
             )
             "local-asr" -> key !in setOf("actual", "npuCheck") && !key.startsWith("download-")
             "llm-balance" -> !key.startsWith("cached") && !key.startsWith("alerted")
-            "folder-imports" -> key == "folders"
+            "folder-imports" -> key in setOf("folders", "backfillPaused")
             "screen-time" -> key != "screenTimeLastPullAt"
             else -> true
         }

@@ -20,9 +20,9 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
     companion object {
         const val UPDATED = "{{RESOUND_UPDATED}}"
 
-        /** 说明卡里的“更新”时间：北京时间，如 2026-10-24 22:00 */
-        fun updatedText(at: Long): String = Instant.ofEpochMilli(at).atZone(ZoneId.of("Asia/Shanghai"))
-            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        /** 更新时间使用当前手机时区并写明偏移。 */
+        fun updatedText(at: Long): String = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm xxx"))
         fun dailyPath(date: LocalDate) = MemoryPaths.daily(date.toKotlinLocalDate())
         fun transcriptPath(date: LocalDate) = MemoryPaths.transcript(date.toKotlinLocalDate())
         fun weekPath(date: LocalDate) = MemoryPaths.week(date.toKotlinLocalDate())
@@ -33,8 +33,9 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
     private fun statusText(status: Any): String = when (status.toString()) {
         "Pending" -> "待确认"; "Accepted" -> "进行中"; "Done" -> "已完成"; "Ignored" -> "已忽略"; else -> status.toString()
     }
-    private fun date(at: Long) = day(at, zone)
-    private val outputTime = OutputTime(zone, today)
+    private val historical get() = app.resound.platform.HistoricalZones.history()
+    private fun date(at: Long) = day(at, ZoneId.of(historical.zoneAt(at).id))
+    private val outputTime = OutputTime(zone, today, { at -> ZoneId.of(historical.zoneAt(at).id) })
     private fun time(at: Long) = outputTime.moment(at)
     private fun cn(date: LocalDate) = date.format(DateTimeFormatter.ofPattern("yyyy年M月d日 EEEE", Locale.CHINESE))
     private fun item(i: MemoryItemEntity, snapshot: PushSnapshot): String {
@@ -87,6 +88,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             val items = data.items.filter { date(it.createdAt) == d || it.dueAt?.let(::date) == d || it.doneAt?.let(::date) == d }
             val title = "${cn(d)} · ${es.maxByOrNull { if (it.starred) 2 else if (it.important) 1 else 0 }?.title ?: rs.firstOrNull()?.brief?.lineSequence()?.firstOrNull() ?: "当日记录"}等 ${es.size} 件事"
             val body = buildString {
+                appendLine("本文时间为 ${historical.caption(d.toKotlinLocalDate())}\n")
                 appendLine("<!-- resound:reviews:start -->")
                 rs.forEach { appendLine("## 当天回顾\n${review(it)}") }
                 appendLine("<!-- resound:reviews:end -->")
@@ -167,6 +169,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                 ) else ""}
 
             ## 给智能体的用法
+            问某天在哪、用了什么、听了什么，读那天 daily 文件开头的“一天的线索”。
             ${if (s.layout == FolderLayout.ByCategory) "先读 recent-days-index.md → 某天细节读 daily/ → 核对原话读 transcripts/；重点和待办直接读汇总文件。" else "先按日期读 daily/，其中包含当天汇总；核对原话读 transcripts/；每周总结读 weekly/。"}
             my-notes/ 归用户；其余自动生成的文件请勿手动修改，改了会被覆盖。inbox/ 预留，不读取。
             缺少某类文件表示未订阅或没有内容。条目 I 编号、事件 E 编号用于引用来源。
@@ -174,7 +177,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             ## 智能体读取须知
             - 本文件夹由用户手机上的「涛声」App 自动写入：全天录音 → 转写 → 整理成事件、待办和回顾。用户问“我之前……”“我答应过谁……”“某天做了什么”时来这里查。
             - 按日期找：每日记录在 daily/年-月/年-月-日-星期_daily-record.md（如 daily/2026-11/2026-11-16-Mon_daily-record.md），当天原话在 transcripts/ 下同名的 _transcript.md，每周回顾在 weekly/。路径都能按日期直接拼出，一般不用列目录。
-            - 时间都是北京时间。内容由录音自动整理，可能有错字或认错人；拿不准时以原话为准，并告诉用户“记录里是这么写的”，不要补写记录里没有的内容。
+            - 时间以每天文档开头写的 UTC 偏移为准。内容由录音自动整理，可能有错字或认错人；拿不准时以原话为准，并告诉用户“记录里是这么写的”，不要补写记录里没有的内容。
             - 通过 WebDAV 只读访问：只用 GET（和列目录用的 PROPFIND），不要 PUT、DELETE、MOVE、MKCOL。内容只用来回答用户本人，不要转发或上传到别处。
             - 本说明随涛声更新，以这里写的为准。
         """.lines().joinToString("\n") { it.trimStart() }.trim())

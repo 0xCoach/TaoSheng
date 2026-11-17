@@ -60,6 +60,7 @@ class ImportWork(context: Context, params: WorkerParameters) : CoroutineWorker(c
                         app.database.imports().insert(row)
                         record = requireNotNull(app.database.imports().byPending(recordKey))
                     }
+                    app.database.folderRecordings().attached(id, requireNotNull(record).id)
                     if (importer.isCancelled(id)) throw ImportFailure("已取消导入")
                     setForeground(foreground(entry))
                     importer.update(id, 0, 0)

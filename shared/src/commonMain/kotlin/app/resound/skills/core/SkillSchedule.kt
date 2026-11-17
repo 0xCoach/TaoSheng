@@ -10,7 +10,7 @@ object SkillSchedule {
     const val MANUAL = "manual"
     const val TRIAL = "trial"
     fun automatic(r: SkillRunData) = r.kind == DAILY || r.kind == AFTER
-    fun date(at: Long): LocalDate = Instant.fromEpochMilliseconds(at).toLocalDateTime(SKILL_ZONE).date
+    fun date(at: Long): LocalDate = Instant.fromEpochMilliseconds(at).toLocalDateTime(SKILL_ZONE(at)).date
     fun autoCount(runs: List<SkillRunData>, day: LocalDate) = runs.count { automatic(it) && date(it.at) == day }
     /** 当天已错过但尚未跑的排到现在；只枚举今天及以后，不补昨天。 */
     fun next(skill: Skill, runs: List<SkillRunData>, now: Long, catchUp: Boolean = true): Long? {
@@ -21,7 +21,7 @@ object SkillSchedule {
             val day = today.plusDays(offset)
             if (t.weekdays.isNotEmpty() && day.dayOfWeek.isoDayNumber !in t.weekdays) continue
             if (autoCount(runs, day) >= 6) continue
-            val time = day.startMillis() + t.minutes * 60_000L
+            val time = day.atMillis(LocalTime(t.minutes / 60, t.minutes % 60))
             val period = runs.filter { it.kind == DAILY && it.date == day.toEpochDay() }
             if (period.isNotEmpty()) {
                 val last = period.last()

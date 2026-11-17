@@ -74,7 +74,7 @@ internal fun ImportLine(r: ImportRecord, events: List<MemoryEvent>, onOpen: () -
     val first = events.minByOrNull { it.startAt }
     val kindName = r.kind.title.substringBefore(" ")
     val done = r.status == ImportRecordStatus.Done
-    val title = (card?.title ?: first?.title)?.takeIf { done && it.isNotBlank() } ?: "导入的$kindName"
+    val title = (card?.title ?: first?.title)?.takeIf { done && it.isNotBlank() } ?: r.defaultTitle ?: "导入的$kindName"
     val summary = (card?.summary ?: first?.summary)?.takeIf { done && it.isNotBlank() }
     val ink = app.resound.ui.skills.skillInk(kindIcon(r.kind))
     Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp)) {
@@ -131,7 +131,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
     var exporting by remember(id) { mutableStateOf(false) }
     if (exporting) app.resound.ui.transcript.ExportSheet(r.segmentIds,
         app.resound.ui.transcript.safeName(r.fileName.substringBeforeLast('.'))) { exporting = false }
-    RsSheet(r.fileName.substringBeforeLast('.'), "${r.kind.title} · ${formatClock(r.startAt)} 开始 · ${length(r.endAt - r.startAt)}" +
+    RsSheet(r.defaultTitle ?: r.fileName.substringBeforeLast('.'), "${r.kind.title} · ${formatClock(r.startAt)} 开始 · ${length(r.endAt - r.startAt)}" +
         (if (r.byChannel) " · 按左右声道分人" else ""), onDismiss = onDismiss) {
         val playingHere = (app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Import)?.recordId == r.id
         if (playingHere) app.resound.ui.transcript.InlinePlayer()

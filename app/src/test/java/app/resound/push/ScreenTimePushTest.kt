@@ -217,7 +217,7 @@ class ScreenTimePushTest {
             val daily = dav.files.filterKeys { it.contains("daily-record") }.values.single()
             assertTrue(daily.contains("开会"))
             assertTrue(daily.contains("<!-- resound:reminders -->"))
-            assertTrue(daily.contains("新屏幕时间"))
+            assertFalse(daily.contains(SCREEN_TIME_MARKER))
             val reminded = JSONObject(prefs.getString("subscription-1", "{}")!!).optJSONObject("reminded")
             assertTrue(reminded != null && reminded.length() > 0)
             assertTrue(reminded!!.keys().asSequence().any { it.startsWith("item:1:") })
@@ -245,9 +245,9 @@ class ScreenTimePushTest {
             server.enqueue(MockResponse().setResponseCode(204))
             runtime.run(1).getOrThrow()
             val first = JSONObject(server.takeRequest(2, TimeUnit.SECONDS)!!.body.readUtf8()).getString("markdown")
-            assertTrue(first.contains("<!-- resound:screen-time -->"))
-            assertTrue(first.contains("## 屏幕时间"))
-            assertTrue(first.contains("哔哩哔哩 192 分"))
+            assertFalse(first.contains("<!-- resound:screen-time -->"))
+            assertFalse(first.contains("## 屏幕时间"))
+            assertFalse(first.contains("哔哩哔哩 192 分"))
             ch = ch.copy(subscription = openSub.copy(screenTime = false), topics = Subscriptions.topics(openSub.copy(screenTime = false)))
             server.enqueue(MockResponse().setResponseCode(204))
             runtime.run(1).getOrThrow()
@@ -342,7 +342,8 @@ class ScreenTimePushTest {
             assertFalse(uploaded.contains("哔哩哔哩"))
             assertFalse(uploaded.contains("271.两眼一抹黑"))
             assertFalse(uploaded.contains(SCREEN_TIME_MARKER))
-            assertTrue(yesterday in asked)
+            // 卡 200：屏幕时间已并入“一天的线索”，每日文档不再单独取屏幕时间正文
+            assertTrue(asked.isEmpty())
         } finally { dav.close() }
     }
 

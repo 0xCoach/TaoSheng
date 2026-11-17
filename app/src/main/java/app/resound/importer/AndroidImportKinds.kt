@@ -64,10 +64,17 @@ class AndroidImportKinds internal constructor(
         check(prefs.edit().putString("last", kind.name).commit()); last.value = kind
         importer.startBatch(ImportKindPolicy.batch(files, merge), asr, kind)
     }
-    override fun records(date: kotlinx.datetime.LocalDate): Flow<List<ImportRecord>> = db.imports().day(
-        date.toJavaLocalDate().atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli(), date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
-    ).map { rows -> rows.map { it.record() } }
-    override fun record(id: Long): Flow<ImportRecord?> = db.imports().observe(id).map { it?.record() }
+    private fun presented(source: Flow<List<ImportRecordWithSegments>>) = combine(source, db.folderRecordings().observe()) { records, files ->
+        records.map { record ->
+            val file = files.firstOrNull { it.importRecordId == record.row.id }
+            val display = file?.let { it.partyName ?: it.number }
+            record.record().copy(defaultTitle=if (record.row.kind == "Call" && display != null) "和 $display 通话" else null)
+        }
+    }
+    override fun records(date: kotlinx.datetime.LocalDate): Flow<List<ImportRecord>> = presented(db.imports().day(
+        date.toJavaLocalDate().atStartOfDay(SKILL_ZONE(date.toJavaLocalDate())).toInstant().toEpochMilli(), date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE(date.toJavaLocalDate())).toInstant().toEpochMilli()
+    ))
+    override fun record(id: Long): Flow<ImportRecord?> = presented(db.imports().observe(id).map { listOfNotNull(it) }).map { it.firstOrNull() }
     override fun changeKind(recordId: Long, kind: ImportKind) {
         scope.launch(Dispatchers.IO) { engine.change(recordId, kind); transcribe(); enqueue(context) }
     }
@@ -86,7 +93,7 @@ class AndroidImportKinds internal constructor(
                 val id = "import_${kind.name.lowercase()}"
                 SkillJson.parse(context.assets.open("skills/$id/skill.json").bufferedReader().use { it.readText() }, SkillOrigin.Builtin).skill to
                     context.assets.open("skills/$id/prompt.md").bufferedReader().use { it.readText() }
-            }, request = { system, user ->
+            }, callName = { id -> callPromptName(db,id) }, request = { system, user ->
                 val (preset, key) = settings.skillCredentials(null)
                 if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
                 val reply = settings.failover.request("导入纪要", db.memory(), UsagePurpose.Skill, llm::chatJson)(preset, key, system, user)

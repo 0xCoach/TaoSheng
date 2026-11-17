@@ -27,6 +27,8 @@ data class ImportRecord(
     val segmentIds: List<Long>,
     /** 双声道按声道分人 */
     val byChannel: Boolean,
+    /** 卡 199：没有纪要标题时的展示标题，原始文件名仍在 fileName。 */
+    val defaultTitle: String? = null,
 )
 
 interface ImportKinds {

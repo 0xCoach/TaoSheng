@@ -28,12 +28,13 @@ class LocalDiaryRepository(
     zoneProvider: ZoneProvider, private val io: CoroutineDispatcher,
     cards: suspend (LocalDate) -> List<SkillCard> = { emptyList() },
     lineWindow: ((LocalDate) -> Pair<Long, Long>)? = null,
+    historicalTime: ((Long) -> ZoneId)? = null,
 ) : DiaryRepository {
     private val prefs = context.getSharedPreferences("diary", Context.MODE_PRIVATE)
     private val store = DiaryContentStore(memory, reviews, dao, { cards(it.toJavaLocalDate()) },
         lineWindow?.let { read -> { date -> read(date.toJavaLocalDate()) } }, zoneProvider, io,
         prefs.getBoolean("cloudSync", false), { prefs.edit().putBoolean("cloudSync", it).commit() },
-        { AndroidDiaryTime(ZoneId.of(it)) }, EnvSoundPresentation::line,
+        { AndroidDiaryTime(ZoneId.of(it), historicalTime) }, EnvSoundPresentation::line,
         VoiceInputMetadata::markdown)
     override val cloudSync get() = store.cloudSync
     @Synchronized override fun setCloudSync(enabled: Boolean) = store.setCloudSync(enabled)
@@ -52,8 +53,8 @@ class LocalDiaryRepository(
 
 }
 
-private class AndroidDiaryTime(zone: ZoneId) : DiaryTextTime {
-    private val time = OutputTime(zone)
+private class AndroidDiaryTime(zone: ZoneId, historicalTime: ((Long) -> ZoneId)? = null) : DiaryTextTime {
+    private val time = OutputTime(zone, historicalZone = historicalTime ?: { zone })
     override fun moment(at: Long) = time.moment(at)
     override fun event(start: Long, end: Long) = time.event(start, end)
     override fun day(date: kotlinx.datetime.LocalDate) = date.toJavaLocalDate().format(DAY)

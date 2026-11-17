@@ -72,6 +72,7 @@ abstract class ImportRecordDao {
 /** 覆盖失败段删除、隐私删除等所有 SQL 删段入口；同事务撤销包含已删原话的纪要。 */
 object ImportRecordSchema {
     fun install(db: SQLiteConnection) {
+        FolderRecordingSchema.install(db)
         db.execSQL("""CREATE TRIGGER IF NOT EXISTS import_segment_deleted AFTER DELETE ON segments
             WHEN OLD.importRecordId IS NOT NULL BEGIN
             DELETE FROM skill_cards WHERE id = (SELECT cardId FROM import_records WHERE id = OLD.importRecordId);

@@ -35,6 +35,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private var lastWindow=0L
     private var modelHeld=false
     private var sensorRegistered=false
+    /** 夜里时间段内已关屏、或这一夜还在进行时才处理音频；白天不做任何窗口计算。由 pulse 每 10 秒更新。 */
+    @Volatile private var armed=false
     private var quietAt: Long?=null
     private val envelope=mutableListOf<Byte>()
     private val levels=mutableListOf<Int>()
@@ -92,7 +94,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     fun accept(pcm: ShortArray,speech: Boolean,at: Long) {
         if(!owner.settings.value.enabled)return
         if(speech && !AppGraph.playback.state.value.speakerPlaying)lastVoice=at+pcm.size/16
-        if(lowPower)return
+        if(lowPower || !armed)return
         frames.accept(pcm,speech,at)
     }
     private suspend fun pulse(at: Long) {
@@ -153,6 +155,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             owner.store.persistSession(id!!,session!!,at,if(current.confirmedAt==null)NightState.Provisional else NightState.Active)
             owner.store.setLive(NightLive(if(current.confirmedAt==null)NightState.Provisional else NightState.Active,mode,current.screenOff))
         }
+        armed=shouldSensor || session!=null
     }
     private suspend fun consume(w: NightWindow) {
         lastWindow=w.start+2_000

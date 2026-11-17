@@ -55,7 +55,7 @@ fun FolderImportSection(imports: FolderImports) {
             }
             Text("录音笔 App、录音机把录音存在哪，就选哪个文件夹。新录音会自动导入转写，原文件不动、不删；同一个录音只导入一次。",
                 style = RsType.caption, color = c.textTertiary)
-            Text("大约每 15 分钟看一次，打开涛声时也会看；录音写完一两分钟后才会导入。", style = RsType.caption, color = c.textTertiary)
+            Text("大约每 15 分钟看一次，打开声声不息时也会看；录音写完一两分钟后才会导入。", style = RsType.caption, color = c.textTertiary)
         }
     }
     adding?.let { uri -> AddFolderSheet(onDismiss = { adding = null }) { kind, existing -> imports.add(uri, kind, existing); adding = null } }
@@ -120,7 +120,7 @@ private fun EditFolderSheet(f: WatchedFolder, imports: FolderImports, onRepick: 
     var confirm by remember { mutableStateOf(false) }
     RsSheet(f.name, "已导入 ${f.imported} 个录音" + (f.lastScanAt?.let { " · ${formatStamp(it)} 看过" } ?: ""), onDismiss = onDismiss) {
         if (!f.accessible) {
-            Text("涛声没有这个文件夹的读取权限了（可能在系统里撤销了，或文件夹被删除、换了手机）。请重新选一次。", style = RsType.subhead, color = c.warning)
+            Text("声声不息没有这个文件夹的读取权限了（可能在系统里撤销了，或文件夹被删除、换了手机）。请重新选一次。", style = RsType.subhead, color = c.warning)
             ActionButton("重新选择文件夹", ActionKind.Primary) { imports.remove(f.id); onRepick() }
         }
         Text("按什么整理", style = RsType.caption, color = c.textSecondary)

@@ -108,7 +108,7 @@ class FakeSetupGuide : SetupGuide {
         SetupItem("battery", "忽略电池优化", "避免系统为省电把录音停掉", "battery" in done),
         SetupItem("autostart", "允许自启动", "被关掉后能自己重新启动", if ("autostart" in done) true else null),
         SetupItem("powerkeeper", "省电策略设为“无限制”", "小米最容易杀后台的一项", if ("powerkeeper" in done) true else null),
-        SetupItem("lock", "在最近任务里锁定回响", "多任务界面下拉回响卡片，出现小锁", if ("lock" in done) true else null),
+        SetupItem("lock", "在最近任务里锁定声声不息", "多任务界面下拉声声不息卡片，出现小锁", if ("lock" in done) true else null),
     )
 
     override fun open(key: String) {

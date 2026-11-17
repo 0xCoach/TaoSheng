@@ -76,7 +76,7 @@ internal fun skillCardCopyText(card: SkillCard): String = skillCardCopyBlocks(ca
 
 private fun copyReportText(context: android.content.Context, text: String, success: String) {
     val message = try {
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("涛声", text))
+        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("声声不息", text))
         success
     } catch (_: RuntimeException) {
         "复制失败，内容可能超出系统剪贴板容量"

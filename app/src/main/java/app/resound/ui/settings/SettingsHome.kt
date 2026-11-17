@@ -248,7 +248,7 @@ internal fun SettingsList(
                     SRow(SettingsGlyph.Up, Tints.update, "版本更新", summary, alert = if (fresh) c.accent else null) { onOpen(SettingsPage.Update) }
                 }
                 Divider()
-                SRow(SettingsGlyph.Info, Tints.about, "关于涛声", "") { onOpen(SettingsPage.About) }
+                SRow(SettingsGlyph.Info, Tints.about, "关于声声不息", "") { onOpen(SettingsPage.About) }
             }
         }
         item {

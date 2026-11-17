@@ -60,7 +60,7 @@ internal class TopicGenerator(
     private val request: suspend (String, String) -> LlmReply,
     private val hotwords: () -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
-    private val appName: String = "涛声",
+    private val appName: String = "声声不息",
 ) {
     suspend fun generate(g: TopicGroup, lines: List<TranscriptLineEntity>, unfinished: List<MemoryItemEntity>,
         ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null): TopicOutput {

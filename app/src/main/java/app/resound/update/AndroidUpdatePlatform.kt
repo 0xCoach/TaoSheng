@@ -67,7 +67,7 @@ internal class AndroidUpdatePlatform(
         internal fun validateIdentity(packageName: String?, version: Long, installed: Long, expected: Int,
             newSigners: Set<String>, currentSigners: Set<String>) {
             if (packageName != "app.resound" || version <= installed || version != expected.toLong())
-                throw UpdateFailure("安装包不适用于涛声，已删除", "package_or_version")
+                throw UpdateFailure("安装包不适用于声声不息，已删除", "package_or_version")
             if (newSigners.isEmpty() || currentSigners.isEmpty() || newSigners != currentSigners)
                 throw UpdateFailure("安装包签名不对，已删除", "signature")
         }

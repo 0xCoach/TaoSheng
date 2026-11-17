@@ -106,7 +106,7 @@ class CaptureWidget : AppWidgetProvider() {
                 WidgetToggle.StartListening -> Triple(R.drawable.ic_qa_mic, "开始聆听", service(context, CaptureService.START))
                 WidgetToggle.PauseTopic -> Triple(R.drawable.ic_qa_pause, "暂停专题", TopicActionReceiver.intent(context, "pause", topic?.id ?: 0))
                 WidgetToggle.ResumeTopic -> Triple(R.drawable.ic_qa_play, "继续专题", TopicActionReceiver.intent(context, "resume", topic?.id ?: 0))
-                WidgetToggle.OpenApp -> Triple(R.drawable.ic_qa_mic, "打开涛声", openApp(context, null))
+                WidgetToggle.OpenApp -> Triple(R.drawable.ic_qa_mic, "打开声声不息", openApp(context, null))
             }
             rv.setImageViewResource(R.id.widget_toggle, icon)
             rv.setContentDescription(R.id.widget_toggle, label)

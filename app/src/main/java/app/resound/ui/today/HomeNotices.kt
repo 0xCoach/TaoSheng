@@ -51,7 +51,7 @@ import app.resound.update.UpdatePopupRule
 import app.resound.update.UpdateState
 
 /**
- * 首页新版本提示：打开涛声发现新版本就弹出面板，在面板里直接下载、安装；
+ * 首页新版本提示：打开声声不息发现新版本就弹出面板，在面板里直接下载、安装；
  * 点“稍后”这一版 24 小时内不再弹，首页留一条小横幅随时点开。
  */
 @Composable
@@ -80,7 +80,7 @@ fun UpdatePrompt(topGap: Dp = 0.dp) {
         LifecycleResumeEffect(Unit) { resumed++; onPauseOrDispose {} }
         val canInstall = remember(resumed, state) { updater.canInstall() }
         // 下载、安装进行中划掉面板只是收起；还没开始时划掉等于“稍后”
-        RsSheet("涛声 ${displayVersion(info.versionName)} 来了", onDismiss = { if (state is UpdateState.Available) later() else open = false }) {
+        RsSheet("声声不息 ${displayVersion(info.versionName)} 来了", onDismiss = { if (state is UpdateState.Available) later() else open = false }) {
             NewVersionBody(info, state, canInstall, updater, previewLines = 5, showVersion = false,
                 allowInstall = {
                     context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
@@ -128,9 +128,9 @@ fun BackgroundLimitNotice(topGap: Dp = 0.dp) {
     val now = System.currentTimeMillis()
     if (!health.suspectedSystemRestriction || (now >= hiddenAt && now - hiddenAt < 3 * 24 * 60 * 60_000L)) return
     val body = when (diagnostics.system) {
-        BackgroundSystem.Type.Container -> "你在卓易通里用涛声。在鸿蒙设置里给卓易通开放后台权限，整理就能按时进行。"
-        BackgroundSystem.Type.Android -> "录音一直在，但系统好几个小时没让涛声在后台干活。按清单改一下设置，整理就能按时进行。"
-        else -> "把涛声的“应用启动管理”改成手动、三项全开，整理就能按时进行。"
+        BackgroundSystem.Type.Container -> "你在卓易通里用声声不息。在鸿蒙设置里给卓易通开放后台权限，整理就能按时进行。"
+        BackgroundSystem.Type.Android -> "录音一直在，但系统好几个小时没让声声不息在后台干活。按清单改一下设置，整理就能按时进行。"
+        else -> "把声声不息的“应用启动管理”改成手动、三项全开，整理就能按时进行。"
     }
     Spacer(Modifier.height(topGap))
     BackgroundLimitCard(body, onSettings = { ShellNav.openSettings(SettingsPage.Capture) }) {
@@ -147,7 +147,7 @@ internal fun BackgroundLimitCard(body: String, onSettings: () -> Unit, onHide: (
             Text("⏰", style = RsType.headline)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("系统在推迟涛声的后台整理", style = RsType.body, color = c.text)
+                Text("系统在推迟声声不息的后台整理", style = RsType.body, color = c.text)
                 Spacer(Modifier.height(4.dp))
                 Text(body, style = RsType.caption, color = c.textSecondary)
                 Spacer(Modifier.height(12.dp))
@@ -163,8 +163,8 @@ internal fun BackgroundLimitCard(body: String, onSettings: () -> Unit, onHide: (
 /** 按系统类型给“保活”提示换说法；界面只说要做什么 */
 internal fun keepAliveHint(context: Context): String =
     when ((context.applicationContext as? app.resound.ResoundApp)?.pipelineDiagnostics?.system) {
-        BackgroundSystem.Type.Container -> "你在卓易通里用涛声，要在鸿蒙设置里给卓易通开放后台权限，才能全天收音、按时整理。"
+        BackgroundSystem.Type.Container -> "你在卓易通里用声声不息，要在鸿蒙设置里给卓易通开放后台权限，才能全天收音、按时整理。"
         BackgroundSystem.Type.Huawei, BackgroundSystem.Type.Honor, BackgroundSystem.Type.Harmony ->
-            "华为、荣耀手机要把涛声的“应用启动管理”改成手动、三项全开，才能全天收音、按时整理。"
+            "华为、荣耀手机要把声声不息的“应用启动管理”改成手动、三项全开，才能全天收音、按时整理。"
         else -> "小米等手机还要打开“自启动”、把电池设为“无限制”，才能全天收音不断。"
     }

@@ -32,5 +32,5 @@ object UpdateDiagnostics {
         }
     }
     fun dump(context: Context) = context.getSharedPreferences("update-times", Context.MODE_PRIVATE)
-        .getString("runs", "").orEmpty().lineSequence().filter { it.isNotBlank() }.joinToString("\n") { "涛声更新 $it" }
+        .getString("runs", "").orEmpty().lineSequence().filter { it.isNotBlank() }.joinToString("\n") { "声声不息更新 $it" }
 }

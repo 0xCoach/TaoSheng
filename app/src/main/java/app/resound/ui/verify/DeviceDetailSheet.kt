@@ -140,7 +140,7 @@ internal fun DeviceDetailBody(d: DeviceState, inputs: DeviceInputs?, meta: Drive
                             run("正在暂停…") { conn -> val s = conn.controls.setRecording(RecordingState.Paused); live = live?.copy(status = live!!.status.copy(recording = s)); notice = "设备已确认暂停" }
                         }
                     }
-                    Text("这是设备自己的录音开关；涛声收不收这台设备的声音，在上面“录音输入”里选。", style = RsType.caption, color = c.textTertiary)
+                    Text("这是设备自己的录音开关；声声不息收不收这台设备的声音，在上面“录音输入”里选。", style = RsType.caption, color = c.textTertiary)
                 }
             }
             // 灯光

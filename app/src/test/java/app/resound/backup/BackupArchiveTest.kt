@@ -127,8 +127,8 @@ class BackupArchiveTest {
         val server = okhttp3.mockwebserver.MockWebServer()
         server.start()
         try {
-            val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "me@example.com", "password")
-            val names = listOf("回响-2026-10-22-0310.zip", "回响-2026-10-23-0310.zip")
+            val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "声声不息", "me@example.com", "password")
+            val names = listOf("声声不息-2026-10-22-0310.zip", "声声不息-2026-10-23-0310.zip")
             server.enqueue(okhttp3.mockwebserver.MockResponse().setBody(okio.Buffer().write(zip.readBytes())))
             val calls = mutableListOf<String>()
             BackupRestore.restore(context, client, names.last(), db, closeDatabase = { calls += "close"; db.close() }, restartProcess = { calls += "restart" })

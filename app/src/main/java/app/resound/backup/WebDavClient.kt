@@ -32,8 +32,8 @@ internal class WebDavClient(
     private val root = config.endpoint.toHttpUrl()
     // 云端目录和文件名用英文，避免中文在各家 WebDAV 里编码不一致；旧的中文目录只读，用于恢复以前的备份
     private val directory = folder(FOLDER)
-    private val legacyDirectory = folder("回响备份")
-    private val legacyPrefix = "回响-"
+    private val legacyDirectory = folder("声声不息备份")
+    private val legacyPrefix = "声声不息-"
     private val auth = Credentials.basic(account, password, Charsets.UTF_8)
     private fun folder(name: String) = root.newBuilder().addPathSegment(name).addPathSegment("").build()
     private fun folderOf(name: String) = if (name.startsWith(legacyPrefix)) legacyDirectory else directory

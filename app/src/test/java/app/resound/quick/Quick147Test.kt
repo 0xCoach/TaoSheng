@@ -29,8 +29,8 @@ class Quick147Test {
         assertEquals(120, paused)
         assertTrue(policy.entries(ListenState.Stopped, TopicState.None, 30, TopicKind.Call).all { it.label.length <= 10 })
         // 卡 163：通知按钮用短词，避免被截断
-        assertEquals("暂停", app.resound.capture.CaptureNotificationPolicy.ongoing("涛声", false, null, "", null, 60).toggle)
-        assertEquals("恢复", app.resound.capture.CaptureNotificationPolicy.ongoing("涛声", true, null, "", null, 60).toggle)
+        assertEquals("暂停", app.resound.capture.CaptureNotificationPolicy.ongoing("声声不息", false, null, "", null, 60).toggle)
+        assertEquals("恢复", app.resound.capture.CaptureNotificationPolicy.ongoing("声声不息", true, null, "", null, 60).toggle)
     }
 
     @Test fun runningTopicTakesPriorityOverListeningPause() {

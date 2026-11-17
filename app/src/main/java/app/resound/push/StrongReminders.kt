@@ -179,7 +179,7 @@ internal object StrongReminders {
                     else ring(context, id, body, intent.getIntExtra(EXTRA_REPEAT, 0))
                 } catch (caught: Exception) {
                     FailureNotes.record("push/StrongReminders.kt:172", caught)
-                    /* 再响失败只是少响一次，不能让涛声崩掉 */
+                    /* 再响失败只是少响一次，不能让声声不息崩掉 */
                 } finally { finished() }
             }
             else -> finished()

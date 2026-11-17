@@ -147,7 +147,7 @@ private fun ColumnScope.Welcome(onStart: () -> Unit, onRestore: () -> Unit) {
     Spacer(Modifier.height(48.dp))
     Logo()
     Spacer(Modifier.height(28.dp))
-    Text("涛声", style = RsType.title.copy(fontSize = 34.sp), color = c.text)
+    Text("声声不息", style = RsType.title.copy(fontSize = 34.sp), color = c.text)
     Spacer(Modifier.height(10.dp))
     Text("全天听你说的话，整理成一件件事和待办。", style = RsType.headline, color = c.text)
     Spacer(Modifier.height(28.dp))
@@ -209,7 +209,7 @@ private fun ColumnScope.Permissions(capture: CaptureController, onNext: () -> Un
         style = RsType.caption, color = if (metered(context)) c.warning else c.textTertiary)
     if (denied) {
         Spacer(Modifier.height(16.dp))
-        Text("没有麦克风权限，涛声就录不了音。可以再试一次；如果系统不再弹窗，请到系统设置里手动打开。", style = RsType.subhead, color = c.warning)
+        Text("没有麦克风权限，声声不息就录不了音。可以再试一次；如果系统不再弹窗，请到系统设置里手动打开。", style = RsType.subhead, color = c.warning)
         Text("去系统设置", style = RsType.subhead, color = c.accent, modifier = Modifier.padding(top = 8.dp).springClick {
             context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -324,11 +324,11 @@ private fun ColumnScope.DeepSeek(onNext: () -> Unit, onLater: () -> Unit) {
     Spacer(Modifier.height(20.dp))
     Text("配置整理模型", style = RsType.title, color = c.text)
     Spacer(Modifier.height(8.dp))
-    Text("填一个 DeepSeek 密钥，涛声就能把原话整理成一件件事、待办和每日回顾。按用量付费，日常一天大约几毛钱（以 DeepSeek 官网为准）。",
+    Text("填一个 DeepSeek 密钥，声声不息就能把原话整理成一件件事、待办和每日回顾。按用量付费，日常一天大约几毛钱（以 DeepSeek 官网为准）。",
         style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(20.dp))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        listOf("注册并登录 DeepSeek 开放平台，按提示充值少量余额", "在“API keys”里点“创建 API key”", "复制密钥，回到涛声").forEachIndexed { i, t ->
+        listOf("注册并登录 DeepSeek 开放平台，按提示充值少量余额", "在“API keys”里点“创建 API key”", "复制密钥，回到声声不息").forEachIndexed { i, t ->
             Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(24.dp).clip(CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
                     Text("${i + 1}", style = RsType.caption.copy(fontWeight = FontWeight.Bold), color = c.accent)
@@ -394,7 +394,7 @@ private fun ColumnScope.TryIt(capture: CaptureController, transcripts: Transcrip
     Spacer(Modifier.height(8.dp))
     Text("比如：“明天下午三点和老王开会。”说完停一两秒。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(28.dp))
-    // 实时音量：说话时柱子跟着跳，让人知道涛声在听
+    // 实时音量：说话时柱子跟着跳，让人知道声声不息在听
     val level by animateFloatAsState(micLevel.coerceIn(0f, 1f), tween(80), label = "level")
     Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically) {
@@ -437,7 +437,7 @@ private fun ColumnScope.Extras(onNow: () -> Unit, onSkip: () -> Unit) {
     Spacer(Modifier.height(32.dp))
     Text("基本设置好了 🎉", style = RsType.title, color = c.text)
     Spacer(Modifier.height(8.dp))
-    Text("还有几项可以让涛声更好用，要现在设置吗？以后也能在设置里找到。", style = RsType.body, color = c.textSecondary)
+    Text("还有几项可以让声声不息更好用，要现在设置吗？以后也能在设置里找到。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(24.dp))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
         Reason("🔋", "后台保活", "小米等手机还要打开自启动，全天收音才不会断。")
@@ -459,7 +459,7 @@ private fun ColumnScope.KeepAlive(onDone: () -> Unit) {
     var items by remember { mutableStateOf(setup?.items().orEmpty()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { items = setup?.items().orEmpty() }
     Spacer(Modifier.height(24.dp))
-    Text("让涛声在后台不被关掉", style = RsType.title, color = c.text)
+    Text("让声声不息在后台不被关掉", style = RsType.title, color = c.text)
     Spacer(Modifier.height(8.dp))
     Text("逐项点“去设置”，按系统页面打开后返回这里。手机型号不同，项目会略有不同。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(20.dp))
@@ -483,5 +483,5 @@ private fun ColumnScope.KeepAlive(onDone: () -> Unit) {
     Spacer(Modifier.height(12.dp))
     Text("备份、推送、足迹在今天页顶部的“继续完善”里，接着点就能设置。", style = RsType.caption, color = c.textTertiary)
     Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
-    ActionButton("进入涛声", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
+    ActionButton("进入声声不息", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
 }

@@ -67,7 +67,7 @@ private val HIGHLIGHTS = listOf(
     "☁️" to "每天自动备份到坚果云和本机",
 )
 
-/** 设置 → 关于 → 关于涛声 */
+/** 设置 → 关于 → 关于声声不息 */
 @Composable
 fun AboutPage(version: String?, bottom: Dp) {
     val c = Rs.colors
@@ -86,7 +86,7 @@ fun AboutPage(version: String?, bottom: Dp) {
                 Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
             }
             Spacer(Modifier.height(14.dp))
-            Text("涛声", style = RsType.title, color = c.text)
+            Text("声声不息", style = RsType.title, color = c.text)
             Spacer(Modifier.height(4.dp))
             Text("替你听，替你记，替你想。", style = RsType.subhead, color = c.textSecondary)
             if (version != null) {
@@ -107,7 +107,7 @@ fun AboutPage(version: String?, bottom: Dp) {
 
         if (devUnlocked && AppGraph.isUpdaterReady) PreviewCard()
 
-        AboutCard("涛声是什么") {
+        AboutCard("声声不息是什么") {
             Text("一部安卓手机就够：全天收音 → 自动转写 → 认出谁在说 → AI 整理成待办、约定和记忆。",
                 style = RsType.body, color = c.text)
             Spacer(Modifier.height(6.dp))
@@ -137,7 +137,7 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("源码公开") {
-            Text("涛声源码公开（FSL-1.1-MIT），每个版本发布两年后自动转为 MIT。代码、更新记录和问题反馈都在项目主页。", style = RsType.body, color = c.textSecondary)
+            Text("声声不息源码公开（FSL-1.1-MIT），每个版本发布两年后自动转为 MIT。代码、更新记录和问题反馈都在项目主页。", style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
             HomepageLink()
         }
@@ -245,7 +245,7 @@ fun CrashNotice(topGap: Dp = 0.dp) {
     if (at == null) return
     Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Text("涛声上次意外退出了", style = RsType.body, color = c.text)
+        Text("声声不息上次意外退出了", style = RsType.body, color = c.text)
         Spacer(Modifier.height(2.dp))
         Text("导出问题记录发给开发，方便查原因。", style = RsType.caption, color = c.textSecondary)
         Spacer(Modifier.height(10.dp))

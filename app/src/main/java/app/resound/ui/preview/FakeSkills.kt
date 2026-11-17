@@ -67,10 +67,10 @@ class FakeSkillRepository : SkillRepository {
 
     private val today = LocalDate.now()
     private val _cards = MutableStateFlow(listOf(
-        SkillCard(1, "meeting", "会议速记", "meeting", today.toKotlinLocalDate(), at(today, 10, 30), at(today, 11, 15), "回响技能框架方案评审",
+        SkillCard(1, "meeting", "会议速记", "meeting", today.toKotlinLocalDate(), at(today, 10, 30), at(today, 11, 15), "声声不息技能框架方案评审",
             "定了用统一卡片样式、支持手动生成，卡片放进记忆按天里。", meetingFields, mapOf(
-                "topic" to FieldValue(text = "回响要不要借鉴百宝箱做技能"),
-                "conclusion" to FieldValue(text = "做。卡片用回响统一样式，可以手动生成，不单独加选项卡，放进记忆按天和按类。"),
+                "topic" to FieldValue(text = "声声不息要不要借鉴百宝箱做技能"),
+                "conclusion" to FieldValue(text = "做。卡片用声声不息统一样式，可以手动生成，不单独加选项卡，放进记忆按天和按类。"),
                 "points" to FieldValue(items = listOf("技能只是说明，不含程序", "自定义分五层：开关、改要求、改卡片、复制、新建", "每个技能都能试跑预览")),
                 "actions" to FieldValue(items = listOf("Claude：做技能页和卡片显示", "Codex：技能框架后端"), checked = listOf(false, false)),
                 "people" to FieldValue(items = listOf("我", "Claude")),

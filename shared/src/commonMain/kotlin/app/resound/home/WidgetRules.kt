@@ -33,7 +33,7 @@ object WidgetRules {
             HomeCapture.InCall -> WidgetView("通话中，暂停收音", "通话结束后自动继续", false, WidgetTopicButton.StartTopic, WidgetToggle.PauseListening)
             HomeCapture.MicTaken -> WidgetView("麦克风被占用", "别的应用用完后自动继续", false, WidgetTopicButton.StartTopic, WidgetToggle.PauseListening)
             HomeCapture.Stopped -> WidgetView("没在聆听", "点右边按钮开始", false, WidgetTopicButton.StartTopic, WidgetToggle.StartListening)
-            HomeCapture.NoPermission -> WidgetView("缺少权限", "点这里打开涛声去开启", false, WidgetTopicButton.StartTopic, WidgetToggle.OpenApp)
+            HomeCapture.NoPermission -> WidgetView("缺少权限", "点这里打开声声不息去开启", false, WidgetTopicButton.StartTopic, WidgetToggle.OpenApp)
         }
     }
 }

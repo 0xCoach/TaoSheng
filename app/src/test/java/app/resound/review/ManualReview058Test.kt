@@ -41,7 +41,7 @@ class ManualReview058Test {
     }
     private fun repo(work: WorkManager? = null) = RoomReviewRepository(db.review(), db.memory(), prefs, scope,
         { LlmPreset(modelId, "测试", "https://example.invalid", "test") to key },
-        { _, _, _, _ -> calls++; reply() }, { "" }, "涛声",
+        { _, _, _, _ -> calls++; reply() }, { "" }, "声声不息",
         object : Notifier {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
                 error("手动不得推送")

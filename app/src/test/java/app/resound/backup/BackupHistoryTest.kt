@@ -144,7 +144,7 @@ class BackupHistoryTest {
     @Test fun migratesCurrentVolumesAndDeletesOnlyRecognizedLegacyAfterCommit() {
         DayVolumes.sync(context,db,disk,work(),null,time)
         val english=File(remote,"resound-2026-01-01-0310.zip").apply { writeText("old") }
-        val chinese=File(remote,"回响-2026-01-01-0310.zip").apply { writeText("old") }
+        val chinese=File(remote,"声声不息-2026-01-01-0310.zip").apply { writeText("old") }
         val unrelated=File(remote,"notes.zip").apply { writeText("keep") }
         fail="point";assertTrue(runCatching { sync() }.isFailure)
         assertTrue(english.exists());assertTrue(chinese.exists())

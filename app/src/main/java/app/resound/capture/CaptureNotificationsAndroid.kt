@@ -39,7 +39,7 @@ object CaptureNotifications {
     private fun action(context: Context, action: String): PendingIntent = PendingIntent.getForegroundService(context, action.hashCode(),
         Intent(context, CaptureService::class.java).setAction(action).putExtra("route", "notification").putExtra("minutes", pauseMinutes()), PendingIntent
             .FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-    /** 快速加待办：浮在当前界面上直接语音输入，不进入涛声主界面 */
+    /** 快速加待办：浮在当前界面上直接语音输入，不进入声声不息主界面 */
     private fun addTodo(context: Context): PendingIntent = PendingIntent.getActivity(context, 24,
         Intent(context, QuickTodoActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
@@ -68,7 +68,7 @@ object CaptureNotifications {
         .setSmallIcon(R.drawable.ic_notify).setContentTitle(notice.title)
         .setContentText(notice.text)
         .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
-        // 正在听时点通知打开涛声；暂停时照旧点一下就恢复（文案就是这么写的）
+        // 正在听时点通知打开声声不息；暂停时照旧点一下就恢复（文案就是这么写的）
         // 专题进行中点通知直接打开这场专题（大按钮记一下/暂停/结束）：系统常把常驻通知收起，按钮要长按才看得到
         .setPriority(NotificationCompat.PRIORITY_MIN).setContentIntent(when (notice.target) {
             CaptureNoticeTarget.Resume -> action(context, CaptureService.RESUME)

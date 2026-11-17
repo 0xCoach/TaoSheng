@@ -24,7 +24,7 @@ class AskParity153Test {
 
     @Test fun definitionsMatchRecordedBytes() { assertEquals(sample("definitions.json"),AskDefinitions.json()) }
     @Test fun fullSystemPromptMatchesRecordedBytes() {
-        assertEquals(sample("prompt.txt"),app.resound.digest.core.DigestPrompt.system(sample("template.md"),LocalDate(2026,11,10),"涛声").replace("{{TODAY}}","2026-11-10"))
+        assertEquals(sample("prompt.txt"),app.resound.digest.core.DigestPrompt.system(sample("template.md"),LocalDate(2026,11,10),"声声不息").replace("{{TODAY}}","2026-11-10"))
     }
     private fun system(mode: AskMode) = runBlocking {
         val engine = AskEngineCore(AskModel { messages,_,_,_->

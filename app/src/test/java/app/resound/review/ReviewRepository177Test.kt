@@ -32,7 +32,7 @@ class ReviewRepository177Test {
             val calls = mutableListOf<String>()
             val repo = RoomReviewRepository(db.review(), db.memory(), prefs, scope,
                 { LlmPreset("test", "test", "https://example.invalid", "test") to "synthetic" },
-                { _, _, _, _ -> calls += "chat"; LlmReply("""{"brief":"合成回顾","sections":[]}""", 10, 3) }, { "模板" }, "回响",
+                { _, _, _, _ -> calls += "chat"; LlmReply("""{"brief":"合成回顾","sections":[]}""", 10, 3) }, { "模板" }, "声声不息",
                 object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) { calls += "$title|$body|$deepLink|$topic" } },
                 { calls += "reschedule=$it" }, now = { at + 90_000_000 }, zone = { zone }, dailyMemory = { calls += "daily=$it" }, io = kotlinx.coroutines.Dispatchers.IO)
             val text = StringBuilder(); fun save(key: String, value: Any?) { text.appendLine("$key=$value") }

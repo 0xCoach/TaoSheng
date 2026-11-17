@@ -31,7 +31,7 @@ class UpdateAndroidTest {
             val sql = database.testSql
             sql.execSQL("CREATE TABLE update_backup_probe(value TEXT)")
             sql.execSQL("INSERT INTO update_backup_probe VALUES('before')")
-            context.getSharedPreferences("voice-input", 0).edit().putBoolean("enabled", true).putString("probe", "涛声<&").commit()
+            context.getSharedPreferences("voice-input", 0).edit().putBoolean("enabled", true).putString("probe", "声声不息<&").commit()
             val backup = PreUpdateBackup(context, database, EmptyBackup(), {})
             backup.snapshot()
             // 模拟卡 051 的单份布局，后续快照应先迁移旧数据，再按时间保留三份。
@@ -53,7 +53,7 @@ class UpdateAndroidTest {
                 copy.rawQuery("PRAGMA quick_check", null).use { cursor -> assertTrue(cursor.moveToFirst()); assertEquals("ok", cursor.getString(0)) }
             }
             val prefs = File(latest, "shared_prefs/voice-input.xml").readText()
-            assertTrue(prefs.contains("enabled")); assertTrue(prefs.contains("涛声&lt;&amp;"))
+            assertTrue(prefs.contains("enabled")); assertTrue(prefs.contains("声声不息&lt;&amp;"))
             assertFalse(File(context.filesDir, "pre-update-previous").exists())
             assertFalse(File(context.filesDir, "pre-update-staging").exists())
         } finally { database.close(); context.deleteDatabase("capture.db"); target.deleteRecursively() }

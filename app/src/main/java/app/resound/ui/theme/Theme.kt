@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * 涛声的配色：日间浅灰白底 + 白卡片 + 暖橙点缀。
+ * 声声不息的配色：日间浅灰白底 + 白卡片 + 暖橙点缀。
  * 夜间（11-12 重做）：纯黑底（OLED 不发光）+ 中性深灰卡片加极细白边；文字只用一种白，按透明度分三档；
  * 橙色只做小面积点缀。越“浮”起来的东西越亮：底 < 卡片 < 面板。
  */

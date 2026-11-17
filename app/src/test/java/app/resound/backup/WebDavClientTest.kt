@@ -15,7 +15,7 @@ class WebDavClientTest {
     private lateinit var client: WebDavClient
     @Before fun setup() {
         server = MockWebServer(); server.start()
-        client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "me@example.com", "private-password")
+        client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "声声不息", "me@example.com", "private-password")
     }
     @After fun close() { server.shutdown() }
     private fun response(vararg names: String) = MockResponse().setResponseCode(207).setBody(
@@ -23,7 +23,7 @@ class WebDavClientTest {
             "<d:response><d:href>${server.url("/dav/").newBuilder().addPathSegment(WebDavClient.FOLDER).addPathSegment(it).build().encodedPath}</d:href><d:propstat><d:prop><d:resourcetype/></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
         } + "</d:multistatus>")
     @Test fun parsesEncodedNamesAndIgnoresTemporaryFiles() {
-        server.enqueue(response("resound-2026-10-23-0310.zip", "foreign.zip", "回响-2026-10-23-0311.zip.part"))
+        server.enqueue(response("resound-2026-10-23-0310.zip", "foreign.zip", "声声不息-2026-10-23-0311.zip.part"))
         server.enqueue(MockResponse().setResponseCode(404))
         assertEquals(listOf("resound-2026-10-23-0310.zip"), client.list())
         val request = server.takeRequest()
@@ -32,16 +32,16 @@ class WebDavClientTest {
     }
     /** 坚果云等服务返回的 href 写法不一：小写百分号编码、直接中文、带域名的完整地址，都要认得 */
     @Test fun acceptsHrefVariantsFromServers() {
-        val encoded = server.url("/dav/").newBuilder().addPathSegment("回响备份").addPathSegment("回响-2026-10-24-1237-23965-abcdef12.zip").build().encodedPath
+        val encoded = server.url("/dav/").newBuilder().addPathSegment("声声不息备份").addPathSegment("声声不息-2026-10-24-1237-23965-abcdef12.zip").build().encodedPath
         fun item(href: String) = "<d:response><d:href>$href</d:href><d:propstat><d:prop><d:resourcetype/><d:getcontentlength>10</d:getcontentlength></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
         server.enqueue(MockResponse().setResponseCode(404)) // 新目录尚未建立；仍须列出旧目录。
         server.enqueue(MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'>" +
             item(encoded.lowercase()) +
-            item("/dav/回响备份/回响-2026-10-24-1238-00001-abcdef12.zip") +
+            item("/dav/声声不息备份/声声不息-2026-10-24-1238-00001-abcdef12.zip") +
             item(server.url("/dav/").toString().removeSuffix("/dav/") + "/dav/%E5%9B%9E%E5%93%8D%E5%A4%87%E4%BB%BD/%E5%9B%9E%E5%93%8D-2026-10-24-1239-00002-abcdef12.zip") +
-            item("/dav/别的目录/回响-2026-10-24-1240-00003-abcdef12.zip") +
+            item("/dav/别的目录/声声不息-2026-10-24-1240-00003-abcdef12.zip") +
             "</d:multistatus>"))
-        assertEquals(listOf("回响-2026-10-24-1237-23965-abcdef12.zip", "回响-2026-10-24-1238-00001-abcdef12.zip", "回响-2026-10-24-1239-00002-abcdef12.zip"),
+        assertEquals(listOf("声声不息-2026-10-24-1237-23965-abcdef12.zip", "声声不息-2026-10-24-1238-00001-abcdef12.zip", "声声不息-2026-10-24-1239-00002-abcdef12.zip"),
             client.list())
     }
     @Test fun missingDirectoryIsCreated() {
@@ -94,10 +94,10 @@ class WebDavClientTest {
     }
     @Test fun legacyFolderIsReadOnlyAndRecognitionIgnoresDisplayName() {
         val renamed = WebDavClient(BackupConfig(server.url("/dav/").toString()), "新名称", "test@example.com", "test")
-        assertNotNull(renamed.metadata("回响-2026-10-23-0310.zip"))
+        assertNotNull(renamed.metadata("声声不息-2026-10-23-0310.zip"))
         assertNotNull(renamed.metadata("resound-2026-10-23-0310.zip"))
         assertNull(renamed.metadata("新名称-2026-10-23-0310.zip"))
-        val legacy = "回响-2026-10-23-0310.zip"
+        val legacy = "声声不息-2026-10-23-0310.zip"
         try { renamed.delete(legacy); fail() } catch (_: IllegalArgumentException) { }
         val file = File.createTempFile("resound", ".zip")
         try {
@@ -107,7 +107,7 @@ class WebDavClientTest {
             assertEquals("legacy archive", file.readText())
             val request = server.takeRequest()
             assertEquals("GET", request.method)
-            assertEquals(listOf("dav", "回响备份", legacy), request.requestUrl!!.pathSegments)
+            assertEquals(listOf("dav", "声声不息备份", legacy), request.requestUrl!!.pathSegments)
             assertEquals(1, server.requestCount)
         } finally { file.delete() }
     }
@@ -115,9 +115,9 @@ class WebDavClientTest {
     @Test fun combinesBothFoldersButRetentionDeletesOnlyEnglishBackups() {
         val recent = "resound-2026-10-24-0310.zip"
         val old = "resound-2026-10-22-0310.zip"
-        val legacy = "回响-2026-10-23-0310.zip"
+        val legacy = "声声不息-2026-10-23-0310.zip"
         server.enqueue(response(recent, old, legacy)) // 新目录中的错放文件不能路由到旧目录去删。
-        val href = server.url("/dav/").newBuilder().addPathSegment("回响备份").addPathSegment(legacy).build().encodedPath.lowercase()
+        val href = server.url("/dav/").newBuilder().addPathSegment("声声不息备份").addPathSegment(legacy).build().encodedPath.lowercase()
         server.enqueue(MockResponse().setResponseCode(207).setBody(
             "<d:multistatus xmlns:d='DAV:'><d:response><d:href>$href</d:href>" +
                 "<d:status>HTTP/1.1 200 OK</d:status></d:response></d:multistatus>"))

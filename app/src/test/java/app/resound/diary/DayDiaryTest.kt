@@ -48,7 +48,7 @@ class DayDiaryTest {
         val runner = DigestRunner(context, db.memory(), llm, settings, { "" }, { false })
         memory = RoomMemoryRepository(db.memory(), runner, { error("禁止触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
         val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("review", 0), scope,
-            { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "回响",
+            { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "声声不息",
             object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) { error("禁止推送") } }, {}, now = app.resound.platform.SystemNow::now, zone = java.time.ZoneId::systemDefault, io = kotlinx.coroutines.Dispatchers.IO)
         diary = LocalDiaryRepository(context, memory, reviews, db.memory(), app.resound.platform.SystemZone, Dispatchers.IO)
     }
@@ -245,7 +245,7 @@ class DayDiaryTest {
         assertEquals(expected + "\n\n## 原话\n**2026-10-23 14:05 我**：先确认需求\n**2026-10-23 14:06 某人**：周三发报价", diary.markdown(date, date, true))
         assertEquals("", diary.markdown(date.plusDays(1), date.plusDays(2), true))
         // 保留真实输出，交付说明引用这份测试生成的样例。
-        File("build/outputs/diary/回响日记_2026-10-23.md").apply { parentFile!!.mkdirs(); writeText(markdown) }
+        File("build/outputs/diary/声声不息日记_2026-10-23.md").apply { parentFile!!.mkdirs(); writeText(markdown) }
         val uri = diary.exportFile(date, date, false)
         assertEquals("content", uri.scheme)
         assertEquals("${context.packageName}.files", uri.authority)

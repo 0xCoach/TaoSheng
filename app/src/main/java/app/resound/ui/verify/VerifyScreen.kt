@@ -578,10 +578,10 @@ private fun SetupSection(setup: SetupGuide) {
     Section("后台设置", trailing = {
         Text("$doneCount / ${items.size} 已完成", style = RsType.caption, color = if (doneCount == items.size) c.good else c.accent)
     }) {
-        // 卓易通里的设置要对卓易通本身做，先说清楚，免得在涛声的设置里找半天
+        // 卓易通里的设置要对卓易通本身做，先说清楚，免得在声声不息的设置里找半天
         val container = (LocalContext.current.applicationContext as? app.resound.ResoundApp)?.pipelineDiagnostics?.system ==
             app.resound.scheduling.BackgroundSystem.Type.Container
-        if (container) Text("你在鸿蒙的卓易通里用涛声，下面带“卓易通”的那项要在鸿蒙系统设置里对卓易通做。",
+        if (container) Text("你在鸿蒙的卓易通里用声声不息，下面带“卓易通”的那项要在鸿蒙系统设置里对卓易通做。",
             style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp))
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
             items.forEachIndexed { i, item ->

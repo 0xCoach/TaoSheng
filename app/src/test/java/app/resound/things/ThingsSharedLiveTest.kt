@@ -102,7 +102,7 @@ class ThingsSharedLiveTest {
                     val saved = baseline.getJSONObject(ci).getJSONArray("calls")
                     for(i in 0 until saved.length()) if(saved.getJSONObject(i).getString("kind") != "shared") calls.put(saved.getJSONObject(i).put("reusedBaseline",true))
                 } else {
-                call("old-digest",DigestPrompt.system(digestTemplate,day,"涛声"),DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text,emptyList()),emptyList(),emptyList()))
+                call("old-digest",DigestPrompt.system(digestTemplate,day,"声声不息"),DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text,emptyList()),emptyList(),emptyList()))
                 call("old-things",File(output,"old-things.md").readText().replace("{{CALENDAR}}",DigestPrompt.calendar(day)),ThingPrompt.input(lines,previous,known))
                 }
                 if(records.any { it.action in listOf("Placed","TakenAway") && it.who != null }) failures += "${case.name}: invalid borrower"

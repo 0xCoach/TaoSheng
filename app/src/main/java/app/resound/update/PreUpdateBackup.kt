@@ -86,7 +86,7 @@ internal class PreUpdateBackup(
                         writePreferences(context.getSharedPreferences(name, Context.MODE_PRIVATE).all, File(output, "$name.xml"))
                     }
             }
-            File(stage, "snapshot.txt").writeText("涛声更新前备份\nat=${System.currentTimeMillis()}\ndatabaseVersion=${CaptureDatabase.VERSION}\n")
+            File(stage, "snapshot.txt").writeText("声声不息更新前备份\nat=${System.currentTimeMillis()}\ndatabaseVersion=${CaptureDatabase.VERSION}\n")
             val latest = target.listFiles().orEmpty().filter { it.isDirectory }.maxOfOrNull { it.name.toLongOrNull() ?: 0 } ?: 0
             val published = File(target, "%019d".format(maxOf(System.currentTimeMillis(), latest + 1)))
             check(stage.renameTo(published)) { "snapshot_publish_failed" }

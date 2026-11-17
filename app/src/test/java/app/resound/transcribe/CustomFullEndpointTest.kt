@@ -64,12 +64,12 @@ class CustomFullEndpointTest {
             val s = settings(CustomEndpointMode.Full, server.url("/v1/speech_to_text").toString())
             val file = audio(context)
             try {
-                val provider = CustomAsrProvider(s) { listOf("涛声") }
+                val provider = CustomAsrProvider(s) { listOf("声声不息") }
                 provider.recognize(AsrAudio(file, "ogg", 1000), "") {}
                 assertFalse(server.takeRequest().body.readUtf8().contains("name=\"prompt\""))
                 server.enqueue(MockResponse().setBody("""{"text":"你好"}"""))
                 s.setCustomPrompt(true)
-                CustomAsrProvider(s) { listOf("涛声") }.recognize(AsrAudio(file, "ogg", 1000), "") {}
+                CustomAsrProvider(s) { listOf("声声不息") }.recognize(AsrAudio(file, "ogg", 1000), "") {}
                 assertTrue(server.takeRequest().body.readUtf8().contains("name=\"prompt\""))
             } finally { file.delete() }
         }

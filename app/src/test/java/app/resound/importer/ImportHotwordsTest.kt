@@ -201,8 +201,8 @@ class ImportHotwordsTest {
 
     @Test fun digestInputAddsScopedCorrectionWithoutChangingOriginalLines() {
         val text = "[1] 08:00:00 某人：让肖李处理"
-        val input = DigestPrompt.withHotwords(text, listOf("小李", "回响"))
-        assertTrue(input.contains("常见人名与专有名词：小李、回响"))
+        val input = DigestPrompt.withHotwords(text, listOf("小李", "声声不息"))
+        assertTrue(input.contains("常见人名与专有名词：小李、声声不息"))
         assertTrue(input.contains("只纠正这些词的同音错字，不改别的原话"))
         assertTrue(input.endsWith(text)); assertEquals(text, DigestPrompt.withHotwords(text, emptyList()))
     }

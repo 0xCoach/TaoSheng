@@ -60,7 +60,7 @@ internal object AlarmPlayer {
         }.onFailure {
             FailureNotes.record("push/AlarmPlayer.kt:49", it)
         }.getOrNull()
-        // 每一步各自兜住：铃声、震动、电源键哪一样出错都不能让整个涛声崩掉（录音也在这个进程里）
+        // 每一步各自兜住：铃声、震动、电源键哪一样出错都不能让整个声声不息崩掉（录音也在这个进程里）
         runCatching {
             vibrator(app)?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())

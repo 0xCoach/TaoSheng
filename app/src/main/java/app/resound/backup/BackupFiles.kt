@@ -15,7 +15,7 @@ import java.util.UUID
 
 /** 固定英文标识与历史前缀，完全不依赖界面名称。 */
 internal object BackupNames {
-    private val pattern = Regex("(?:resound|回响)-(\\d{4}-\\d{2}-\\d{2}-\\d{4})(?:-(\\d{5})-[a-f0-9]{8})?\\.zip(\\.enc)?")
+    private val pattern = Regex("(?:resound|声声不息)-(\\d{4}-\\d{2}-\\d{2}-\\d{4})(?:-(\\d{5})-[a-f0-9]{8})?\\.zip(\\.enc)?")
     private const val ID = "\\d{4}-\\d{2}-\\d{2}-\\d{4}-\\d{5}-[a-f0-9]{8}"
     private val modern = Regex("resound-(full|inc)-($ID)(?:__($ID))?\\.zip(\\.enc)?")
     fun create(at: Long, encrypted: Boolean, baseName: String? = null): String {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.context.DayThread200Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-17T09:35:48.574Z" hostname="CoachdeMacBook-Air.local" time="0.066">
+  <properties/>
+  <testcase name="placesIncludeRoadAndOutsideTime[jvm]" classname="app.resound.context.DayThread200Test" time="0.026"/>
+  <testcase name="contiguousPlaybackMergesButDifferentEpisodeDoesNot[jvm]" classname="app.resound.context.DayThread200Test" time="0.002"/>
+  <testcase name="togglesRemoveEntireClassesAndOverview[jvm]" classname="app.resound.context.DayThread200Test" time="0.03"/>
+  <testcase name="appStrictGapAndFiveMinutes[jvm]" classname="app.resound.context.DayThread200Test" time="0.003"/>
+  <testcase name="gapsUseUnionAndKnownPause[jvm]" classname="app.resound.context.DayThread200Test" time="0.001"/>
+  <testcase name="shortAppsSplitHoursAndLimitThree[jvm]" classname="app.resound.context.DayThread200Test" time="0.001"/>
+  <testcase name="eventContextAndOrdering[jvm]" classname="app.resound.context.DayThread200Test" time="0.002"/>
+  <testcase name="markdownGolden[jvm]" classname="app.resound.context.DayThread200Test" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

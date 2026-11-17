@@ -23,6 +23,7 @@ object PreferenceBackupPolicy {
         "llm-providers" to "模型服务商及当前选择",
         "llm-balance" to "余额阈值；排除余额缓存和已提醒标记",
         "asr-speed" to "分人和课堂模式的用户变更历史，供原录音按当时设置解释",
+        "night" to "夜里设置，含推送和第二版功能开关",
         "env-sound" to "环境音过滤选项及用户启用时间边界，避免分析启用前录音",
         "redo-choices" to "用户上次选择的识别来源和整理模型",
         "import-kinds" to "用户上次选择的导入类型",

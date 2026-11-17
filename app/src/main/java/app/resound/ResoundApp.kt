@@ -132,6 +132,7 @@ class ResoundApp : Application() {
         val envSound = app.resound.envsound.LocalEnvSoundRepository.create(this, database, scope,
             voiceprintRepository::recognizesMeBeforeTranscribe, scheduler::runNow, sharedPcm, AppGraph.platform.zone, AppGraph.platform.now::now, AppGraph.platform.dispatchers.io)
         AppGraph.envSound = envSound
+        AppGraph.night = app.resound.night.AndroidNight.create(this, database, scope, envSound)
         AppGraph.location = app.resound.location.LocationRepository.create(this, database, scope)
         AppGraph.situation = app.resound.context.LocalSituationLookup.create(database, AppGraph.location, scope, AppGraph.platform.zone, AppGraph.platform.dispatchers.io)
         val playbackPrefs = getSharedPreferences("playback-title", MODE_PRIVATE)

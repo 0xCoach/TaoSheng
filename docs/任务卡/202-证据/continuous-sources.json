@@ -1,0 +1,46 @@
+[
+  {
+    "id": "191297",
+    "author": "VlatkoBlazek",
+    "split": "tune",
+    "page": "https://freesound.org/people/VlatkoBlazek/sounds/191297/",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "preview": "https://cdn.freesound.org/previews/191/191297_3452716-hq.mp3",
+    "path": "/tmp/taosheng-202-night-eval/continuous/191297.mp3",
+    "sha256": "fbbb118b003a7a3b7a3adb2557019753f504aad780934fcbcf29d78cb423a924",
+    "bytes": 1606464
+  },
+  {
+    "id": "40967",
+    "author": "dobroide",
+    "split": "tune",
+    "page": "https://freesound.org/people/dobroide/sounds/40967/",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "preview": "https://cdn.freesound.org/previews/40/40967_8043-hq.mp3",
+    "path": "/tmp/taosheng-202-night-eval/continuous/40967.mp3",
+    "sha256": "c36f63d1f812d0eb463c94874bfb1017c6b81244155f110405b2e4771a0e82f2",
+    "bytes": 13732951
+  },
+  {
+    "id": "841772",
+    "author": "tim.kahn",
+    "split": "validation",
+    "page": "https://freesound.org/people/tim.kahn/sounds/841772/",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "preview": "https://cdn.freesound.org/previews/841/841772_7037-hq.mp3",
+    "path": "/tmp/taosheng-202-night-eval/continuous/841772.mp3",
+    "sha256": "767a4a15511fc9b1401f88c08e56d75932ce55d54717c12bfab9a6d7f869b8a3",
+    "bytes": 18930144
+  },
+  {
+    "id": "63349",
+    "author": "smidoid",
+    "split": "validation",
+    "page": "https://freesound.org/people/smidoid/sounds/63349/",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "preview": "https://cdn.freesound.org/previews/63/63349_485393-hq.mp3",
+    "path": "/tmp/taosheng-202-night-eval/continuous/63349.mp3",
+    "sha256": "825a7e4017056fb8c0274f02d4e460d0269520a72397d9be3fe41beab22391cf",
+    "bytes": 931969
+  }
+]

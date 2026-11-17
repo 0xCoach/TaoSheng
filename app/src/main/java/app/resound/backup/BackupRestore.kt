@@ -153,6 +153,7 @@ internal object BackupRestore {
         // 旧备份没有自定义模板时，也必须清掉本机的覆盖文本。
         check(File(data, BackupArchive.PROMPTS).deleteRecursively())
         check(File(data, BackupArchive.SKILLS).deleteRecursively())
+        check(File(data, "files/night").deleteRecursively())
         val volumes = File(pending, "day-volumes").isFile
         // 日卷沿用既有顺序：先恢复设置再替换数据库，journal 仍负责整体回滚。
         if (volumes) BackupSettings.apply(context, pending)

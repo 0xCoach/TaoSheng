@@ -14,6 +14,7 @@ object CaptureNotificationPolicy {
         // 通知按钮位置窄，统一用两三个字的短词，避免被截断
         toggle = if (quietName != null || paused) "恢复" else "暂停",
     )
+    fun night(notice: CaptureNotice, active: Boolean): CaptureNotice = if (active && notice.target == CaptureNoticeTarget.App) notice.copy(text = "夜里记录中") else notice
     fun clock(daysAway: Long, hourMinute: String, full: String) = when (daysAway) { 0L -> hourMinute; 1L -> "明天 $hourMinute"; else -> full }
     fun startTopic(kind: TopicKind) = QuickText.startTopic(kind)
     const val ADD_TODO = "加待办"

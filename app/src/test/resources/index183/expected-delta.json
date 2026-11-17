@@ -39,25 +39,25 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=39",
+    "newLine": "user_version=40",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"c3788a0a892eaf59e86f88c180a1fd41\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"b415736ea862366c29506ad4ced5a97f\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "c3788a0a892eaf59e86f88c180a1fd41",
+  "newIdentityHash": "b415736ea862366c29506ad4ced5a97f",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c3788a0a892eaf59e86f88c180a1fd41')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b415736ea862366c29506ad4ced5a97f')"
   ],
   "indices": [
     {
@@ -148,6 +148,48 @@
       "table": "folder_recordings",
       "row": "[\"index\",\"index_folder_recordings_folderId_documentUri\",\"folder_recordings\",\"CREATE UNIQUE INDEX `index_folder_recordings_folderId_documentUri` ON `folder_recordings` (`folderId`, `documentUri`)\"]",
       "occurrences": 1
+    },
+    {
+      "name": "index_night_clips_nightId",
+      "table": "night_clips",
+      "row": "[\"index\",\"index_night_clips_nightId\",\"night_clips\",\"CREATE INDEX `index_night_clips_nightId` ON `night_clips` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_dreams_nightId",
+      "table": "night_dreams",
+      "row": "[\"index\",\"index_night_dreams_nightId\",\"night_dreams\",\"CREATE INDEX `index_night_dreams_nightId` ON `night_dreams` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_events_nightId",
+      "table": "night_events",
+      "row": "[\"index\",\"index_night_events_nightId\",\"night_events\",\"CREATE INDEX `index_night_events_nightId` ON `night_events` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_feedback_eventId",
+      "table": "night_feedback",
+      "row": "[\"index\",\"index_night_feedback_eventId\",\"night_feedback\",\"CREATE UNIQUE INDEX `index_night_feedback_eventId` ON `night_feedback` (`eventId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_feedback_nightId",
+      "table": "night_feedback",
+      "row": "[\"index\",\"index_night_feedback_nightId\",\"night_feedback\",\"CREATE INDEX `index_night_feedback_nightId` ON `night_feedback` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_tag_links_tagId",
+      "table": "night_tag_links",
+      "row": "[\"index\",\"index_night_tag_links_tagId\",\"night_tag_links\",\"CREATE INDEX `index_night_tag_links_tagId` ON `night_tag_links` (`tagId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_nights_date",
+      "table": "nights",
+      "row": "[\"index\",\"index_nights_date\",\"nights\",\"CREATE UNIQUE INDEX `index_nights_date` ON `nights` (`date`)\"]",
+      "occurrences": 1
     }
   ],
   "tables": [
@@ -234,6 +276,147 @@
       "block": [
         "TABLE folder_recordings",
         "columns=[\"id\",\"folderId\",\"documentUri\",\"fingerprint\",\"fileName\",\"size\",\"modified\",\"startAt\",\"durationMillis\",\"number\",\"partyName\",\"direction\",\"state\",\"importRecordId\",\"createdAt\",\"kind\",\"pendingId\",\"backfill\",\"notified\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_clips",
+      "masterRows": [
+        "[\"table\",\"night_clips\",\"night_clips\",\"CREATE TABLE `night_clips` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `path` TEXT, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `confirmed` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `candidate` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_clips\",\"night_clips\",\"CREATE TABLE `night_clips` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `path` TEXT, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `confirmed` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `candidate` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_clips",
+        "columns=[\"id\",\"nightId\",\"start\",\"end\",\"path\",\"scores\",\"features\",\"confirmed\",\"expiresAt\",\"candidate\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_dreams",
+      "masterRows": [
+        "[\"table\",\"night_dreams\",\"night_dreams\",\"CREATE TABLE `night_dreams` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `at` INTEGER NOT NULL, `until` INTEGER NOT NULL, `payload` TEXT NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_dreams\",\"night_dreams\",\"CREATE TABLE `night_dreams` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `at` INTEGER NOT NULL, `until` INTEGER NOT NULL, `payload` TEXT NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_dreams",
+        "columns=[\"id\",\"nightId\",\"at\",\"until\",\"payload\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_envelope",
+      "masterRows": [
+        "[\"table\",\"night_envelope\",\"night_envelope\",\"CREATE TABLE `night_envelope` (`nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `points` BLOB NOT NULL, PRIMARY KEY(`nightId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_envelope\",\"night_envelope\",\"CREATE TABLE `night_envelope` (`nightId` INTEGER NOT NULL PRIMARY KEY, `start` INTEGER NOT NULL, `points` BLOB NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_envelope",
+        "columns=[\"nightId\",\"start\",\"points\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_events",
+      "masterRows": [
+        "[\"table\",\"night_events\",\"night_events\",\"CREATE TABLE `night_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `certainty` REAL NOT NULL, `vetoed` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_events\",\"night_events\",\"CREATE TABLE `night_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `certainty` REAL NOT NULL, `vetoed` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_events",
+        "columns=[\"id\",\"nightId\",\"start\",\"end\",\"kind\",\"payload\",\"certainty\",\"vetoed\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_feedback",
+      "masterRows": [
+        "[\"table\",\"night_feedback\",\"night_feedback\",\"CREATE TABLE `night_feedback` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `eventId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `yes` INTEGER NOT NULL, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `at` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_feedback\",\"night_feedback\",\"CREATE TABLE `night_feedback` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `eventId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `yes` INTEGER NOT NULL, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `at` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_feedback",
+        "columns=[\"id\",\"nightId\",\"eventId\",\"kind\",\"yes\",\"scores\",\"features\",\"at\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_notice",
+      "masterRows": [
+        "[\"table\",\"night_notice\",\"night_notice\",\"CREATE TABLE `night_notice` (`key` TEXT NOT NULL, `at` INTEGER NOT NULL, `muted` INTEGER NOT NULL, PRIMARY KEY(`key`))\"]",
+        "[\"table\",\"night_notice\",\"night_notice\",\"CREATE TABLE `night_notice` (`key` TEXT NOT NULL PRIMARY KEY, `at` INTEGER NOT NULL, `muted` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_notice",
+        "columns=[\"key\",\"at\",\"muted\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_personal",
+      "masterRows": [
+        "[\"table\",\"night_personal\",\"night_personal\",\"CREATE TABLE `night_personal` (`kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `trainedAt` INTEGER NOT NULL, `feedbackCount` INTEGER NOT NULL, PRIMARY KEY(`kind`))\"]",
+        "[\"table\",\"night_personal\",\"night_personal\",\"CREATE TABLE `night_personal` (`kind` TEXT NOT NULL PRIMARY KEY, `payload` TEXT NOT NULL, `trainedAt` INTEGER NOT NULL, `feedbackCount` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_personal",
+        "columns=[\"kind\",\"payload\",\"trainedAt\",\"feedbackCount\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_tag_links",
+      "masterRows": [
+        "[\"table\",\"night_tag_links\",\"night_tag_links\",\"CREATE TABLE `night_tag_links` (`nightId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`nightId`, `tagId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tagId`) REFERENCES `night_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_tag_links\",\"night_tag_links\",\"CREATE TABLE `night_tag_links` (`nightId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`nightId`,`tagId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`tagId`) REFERENCES `night_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_tag_links",
+        "columns=[\"nightId\",\"tagId\",\"state\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_tags",
+      "masterRows": [
+        "[\"table\",\"night_tags\",\"night_tags\",\"CREATE TABLE `night_tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `preset` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_tags",
+        "columns=[\"id\",\"name\",\"preset\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_weeks",
+      "masterRows": [
+        "[\"table\",\"night_weeks\",\"night_weeks\",\"CREATE TABLE `night_weeks` (`weekStart` TEXT NOT NULL, `payload` TEXT NOT NULL, `pushState` TEXT NOT NULL, PRIMARY KEY(`weekStart`))\"]",
+        "[\"table\",\"night_weeks\",\"night_weeks\",\"CREATE TABLE `night_weeks` (`weekStart` TEXT NOT NULL PRIMARY KEY, `payload` TEXT NOT NULL, `pushState` TEXT NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_weeks",
+        "columns=[\"weekStart\",\"payload\",\"pushState\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "nights",
+      "masterRows": [
+        "[\"table\",\"nights\",\"nights\",\"CREATE TABLE `nights` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `state` TEXT NOT NULL, `payload` TEXT NOT NULL, `signals` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE nights",
+        "columns=[\"id\",\"date\",\"start\",\"end\",\"state\",\"payload\",\"signals\",\"createdAt\",\"updatedAt\"]",
         ""
       ],
       "occurrences": 1

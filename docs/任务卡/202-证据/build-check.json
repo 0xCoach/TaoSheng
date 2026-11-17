@@ -1,0 +1,41 @@
+{
+  "tests": [
+    {
+      "suite": "app.resound.night.Night202AndroidTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "seconds": "2.378"
+    },
+    {
+      "suite": "app.resound.night.Night202Test",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "seconds": "0.068"
+    },
+    {
+      "suite": "app.resound.context.DayThread200Test",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "seconds": "0.066"
+    },
+    {
+      "suite": "app.resound.data.Index183ComparatorTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "seconds": "1.836"
+    }
+  ],
+  "apk": {
+    "bytes": 127153547,
+    "sha256": "f21f721662e2b987f20f77b9362378ba9622887d8ff9a427928f66320c007570"
+  },
+  "shared_boundary": "PASS",
+  "shared_check": "PASS (filtered tests)",
+  "android_build": "PASS",
+  "ios_compile": "PASS shared/devices arm64 and simulatorArm64",
+  "phone_test": false
+}

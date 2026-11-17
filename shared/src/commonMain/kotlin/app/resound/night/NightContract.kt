@@ -5,6 +5,7 @@ import app.resound.platform.FileRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.Serializable
 
 /*
  * 卡 202 夜里：界面与底层之间的约定。界面（Claude）只依赖这里的类型；底层（Codex）负责实现。
@@ -13,6 +14,7 @@ import kotlinx.datetime.LocalDate
  */
 
 /** 这一段时间用的跑法 */
+@Serializable
 enum class NightMode(val title: String) {
     /** 每个窗口都跑模型 */
     Full("完整识别"),
@@ -24,6 +26,7 @@ enum class NightMode(val title: String) {
     Off("已停止"),
 }
 
+@Serializable
 enum class NightState {
     /** 夜里时间段内，还没进入 */
     Waiting,
@@ -38,8 +41,10 @@ enum class NightState {
     Interrupted,
 }
 
+@Serializable
 enum class NightConfidence(val title: String) { Good("好"), Fair("一般"), Rough("仅供参考") }
 
+@Serializable
 enum class NightEventKind {
     Snore,
     /** 对外叫“疑似咳嗽/清嗓” */
@@ -58,8 +63,10 @@ enum class NightEventKind {
     SnoreBreak,
 }
 
+@Serializable
 enum class Feedback { None, Yes, No }
 
+@Serializable
 data class NightSettings(
     val enabled: Boolean = false,
     /** 整晚完整识别：在充电或电量 ≥ 30% 时每段都跑模型 */
@@ -80,6 +87,7 @@ data class NightSettings(
 )
 
 /** 用户改过的以用户为准；[onsetEstimated] 为 true 时界面写“约” */
+@Serializable
 data class NightTimes(
     val bedtime: Long,
     val onset: Long,
@@ -90,6 +98,7 @@ data class NightTimes(
     val editedWake: Boolean = false,
 )
 
+@Serializable
 data class NightEvent(
     val id: Long,
     val kind: NightEventKind,
@@ -113,6 +122,7 @@ data class NightEvent(
 )
 
 /** 每 [stepMillis]（5 秒）一个点，单位 dBFS 取整；三个数组等长 */
+@Serializable
 class NightEnvelope(
     val start: Long,
     val stepMillis: Long,
@@ -121,8 +131,10 @@ class NightEnvelope(
     val backgroundDb: ByteArray,
 )
 
+@Serializable
 data class NightModeSpan(val start: Long, val end: Long, val mode: NightMode)
 
+@Serializable
 data class NightSummary(
     val id: Long,
     /** 醒来那一天 */
@@ -147,6 +159,7 @@ data class NightSummary(
     val tags: List<NightTag> = emptyList(),
 )
 
+@Serializable
 data class NightDetail(
     val summary: NightSummary,
     /** 按开始时间排 */
@@ -163,6 +176,7 @@ data class NightDetail(
     val vetoed: Set<Long> = emptySet(),
 )
 
+@Serializable
 data class NightLive(val state: NightState, val mode: NightMode?, val since: Long?)
 
 interface NightRepository {
@@ -197,26 +211,34 @@ interface NightRepository {
 // ---------------- 卡 203 ----------------
 
 /** [preset] 为 true 的是预置标签，不能删 */
+@Serializable
 data class NightTag(val id: Long, val name: String, val preset: Boolean)
 
 /** 记梦：说的（segmentIds 转写后有 text）或写的 */
+@Serializable
 data class Dream(val id: Long, val nightId: Long, val at: Long, val text: String?, val segmentIds: List<Long>, val transcribing: Boolean)
 
+@Serializable
 enum class CompareMetric(val title: String) { Snore("鼾声"), Sleep("睡眠"), Latency("入睡用时"), Awake("醒来次数") }
 
 /** “标了‘侧睡’的 5 晚，鼾声中位数比其他晚少 38 分钟（可能有关，样本还少）” */
+@Serializable
 data class TagFinding(val tag: NightTag, val metric: CompareMetric, val withNights: Int, val withoutNights: Int,
     val withMedian: Long, val withoutMedian: Long, val text: String)
 
+@Serializable
 data class WeeklyReport(val weekStart: LocalDate, val nights: Int, val markdown: String,
     val finding: String?, val suggestion: String?, val polished: Boolean, val createdAt: Long)
 
+@Serializable
 enum class PersonalKind { Snore, Cough }
+@Serializable
 data class PersonalModelStatus(val kind: PersonalKind, val yes: Int, val no: Int, val active: Boolean,
     /** 交叉验证准确率 0..1；没训练过为 null */
     val accuracy: Float?, val ruleAccuracy: Float?, val trainedAt: Long?)
 
 /** 趋势图的一晚 */
+@Serializable
 data class NightPoint(val date: LocalDate, val bedtime: Long?, val onset: Long?, val wake: Long?, val sleepMillis: Long?,
     val snoreMillis: Long, val coughCount: Int, val awakeCount: Int, val snoreBreaks: Int,
     val confidence: NightConfidence?, val tags: List<String>)

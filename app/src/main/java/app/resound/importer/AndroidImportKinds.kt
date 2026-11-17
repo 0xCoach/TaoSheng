@@ -72,7 +72,7 @@ class AndroidImportKinds internal constructor(
         }
     }
     override fun records(date: kotlinx.datetime.LocalDate): Flow<List<ImportRecord>> = presented(db.imports().day(
-        date.toJavaLocalDate().atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli(), date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+        date.toJavaLocalDate().atStartOfDay(SKILL_ZONE(date.toJavaLocalDate())).toInstant().toEpochMilli(), date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE(date.toJavaLocalDate())).toInstant().toEpochMilli()
     ))
     override fun record(id: Long): Flow<ImportRecord?> = presented(db.imports().observe(id).map { listOfNotNull(it) }).map { it.firstOrNull() }
     override fun changeKind(recordId: Long, kind: ImportKind) {

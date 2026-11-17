@@ -42,9 +42,9 @@ internal class ImportSummary(
 ) {
     suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
         val promptFileName = if (record.kind == ImportKind.Call.name) callName(record.id) ?: CallNamePolicy.prompt(
-            CallFileNames.parse(record.fileName,null,null,null,kotlinx.datetime.TimeZone.of(SKILL_ZONE.id)).name) else record.fileName
+            CallFileNames.parse(record.fileName,null,null,null,kotlinx.datetime.TimeZone.of(SKILL_ZONE(record.startAt).id)).name) else record.fileName
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
-        val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()
+        val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE(record.startAt)).toLocalDate()
         val indexed = lines.associateBy { "L${it.id}" }
         val input = SkillInput("", indexed)
         val existingData = JSONArray(existing.filter { !it.deleted }.map { JSONObject().put("content", it.content).put("status", it.status).put("line", "L${it.lineId}") }).toString()

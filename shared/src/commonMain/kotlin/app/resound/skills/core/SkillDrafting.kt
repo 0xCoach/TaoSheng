@@ -20,7 +20,7 @@ object SkillDrafting {
         val id = "my_" + (clock.now() / 1000).toString(36)
         for (attempt in 0..1) {
             try {
-                val reply = selected.request(SkillDrafter.system(appName), SkillDrafter.user(conversation))
+                val reply = selected.request(SkillDrafter.system(appName, app.resound.platform.HistoricalZones.history().label(clock.now())), SkillDrafter.user(conversation))
                 withContext(NonCancellable) { usage(SkillSchedule.date(clock.now()).toString(), reply.promptTokens, reply.completionTokens) }
                 return Result.success(SkillDrafter.step(reply.content, id, mustFinish))
             } catch (e: CancellationException) { throw e }

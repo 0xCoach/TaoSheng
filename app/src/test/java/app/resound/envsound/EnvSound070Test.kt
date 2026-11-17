@@ -138,7 +138,7 @@ class EnvSound070Test {
     }
     @Test fun reviewAndWeeklyPresentationObeyToggleWithoutChangingStoredSummary() = runBlocking {
         val date=LocalDate.of(2026,10,29)
-        clock=date.atTime(10,0).atZone(app.resound.skills.SKILL_ZONE).toInstant().toEpochMilli()
+        clock=date.atTime(10,0).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
         repo.update(enabled);scores=score("Speech" to .9f,"Rain" to .4f,"Knock" to .4f)
         segment(1);runner().run()
         val id=db.memory().insertEvent(MemoryEventEntity(startAt=clock,endAt=clock+60000,scene="其他",title="事情",summary="原摘要",pointsJson="[]",peopleJson="[]",place=null,emotion=null,intensity=null,important=false,createdAt=clock,model="test"))

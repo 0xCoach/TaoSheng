@@ -10,20 +10,21 @@ import java.util.Locale
 internal class OutputTime(
     private val zone: ZoneId = ZoneId.systemDefault(),
     @Suppress("UNUSED_PARAMETER") today: LocalDate = LocalDate.now(zone),
+    private val historicalZone: (Long) -> ZoneId = { zone },
 ) {
     private val clock = DateTimeFormatter.ofPattern("HH:mm", Locale.CHINA)
     private fun date(day: LocalDate) = day.format(DateTimeFormatter.ISO_LOCAL_DATE)
     private fun eventAt(at: Long): String {
-        val t = Instant.ofEpochMilli(at).atZone(zone)
+        val t = Instant.ofEpochMilli(at).atZone(historicalZone(at))
         return "${date(t.toLocalDate())} 周${"一二三四五六日"[t.dayOfWeek.value - 1]} ${t.format(clock)}"
     }
     fun moment(at: Long): String {
-        val t = Instant.ofEpochMilli(at).atZone(zone)
+        val t = Instant.ofEpochMilli(at).atZone(historicalZone(at))
         return "${date(t.toLocalDate())} ${t.format(clock)}"
     }
     fun event(start: Long, end: Long): String {
-        val a = Instant.ofEpochMilli(start).atZone(zone)
-        val b = Instant.ofEpochMilli(end).atZone(zone)
+        val a = Instant.ofEpochMilli(start).atZone(historicalZone(start))
+        val b = Instant.ofEpochMilli(end).atZone(historicalZone(end))
         return eventAt(start) + if (a.toLocalDate() == b.toLocalDate()) "–${b.format(clock)}" else "–${eventAt(end)}"
     }
 }

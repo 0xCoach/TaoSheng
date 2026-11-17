@@ -42,13 +42,13 @@ internal suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdow
     return JSONObject(PushBodyRules.dailyMemory(date.toString(), generatedAt, markdown, element("review"),
         element("events") as kotlinx.serialization.json.JsonArray, element("items") as kotlinx.serialization.json.JsonArray,
         element("cards") as kotlinx.serialization.json.JsonArray,
-        if (lines == null) null else element("lines") as kotlinx.serialization.json.JsonArray).toString())
+        if (lines == null) null else element("lines") as kotlinx.serialization.json.JsonArray).toString()).put("utcOffset", app.resound.platform.HistoricalZones.history().let { h -> h.offset(h.zonesOn(date.toKotlinLocalDate()).first().from) })
 }
 
 internal class DailyMemorySource(context: Context, memory: MemoryRepository, private val reviews: ReviewRepository,
     private val dao: MemoryDao, private val reviewDao: ReviewDao, private val skills: SkillDao) {
     private fun window(date: LocalDate): Pair<Long, Long> {
-        val zone = ZoneId.systemDefault()
+        val zone = ZoneId.of(app.resound.platform.HistoricalZones.history().zonesOn(date.toKotlinLocalDate()).first().zoneId)
         val minutes = reviews.state.value.dailyAtMinutes
         return ReviewTime.cutoff(date.minusDays(1), minutes, zone).toInstant().toEpochMilli() to ReviewTime.cutoff(date, minutes, zone).toInstant().toEpochMilli()
     }
@@ -74,9 +74,9 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
     private val safeReviews = object : ReviewRepository by reviews {
         override fun daily(date: kotlinx.datetime.LocalDate) = flow { emit(localRecord("review", date.toEpochDays().toLong()) { reviews.daily(date).first() }) }
     }
-    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards) { date ->
-        window(date).let { (start, end) -> (start + 1) to (end + 1) }
-    }
+    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards,
+        lineWindow = { date -> window(date).let { (start, end) -> (start + 1) to (end + 1) } },
+        historicalTime = { at -> ZoneId.of(app.resound.platform.HistoricalZones.history().zoneAt(at).id) })
     suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {
         val target = date ?: latestDate(withLines) ?: return null
         val source = input(target)
@@ -86,7 +86,8 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         val lines = if (withLines) dao.diaryLines(start + 1, end + 1).filter { it.text.isNotBlank() } else null
         PushTrace.current()?.requireContent(source.events.size + source.items.size + cards.size + (if (review == null) 0 else 1) + lines.orEmpty().size)
         if (source.events.isEmpty() && source.items.isEmpty() && cards.isEmpty() && review == null && lines.isNullOrEmpty()) return null
-        val markdown = diary.markdownWithContext(target, target, withLines, lineContext)
+        val content = diary.markdownWithContext(target, target, withLines, lineContext)
+        val markdown = if (content.isBlank()) content else "本文时间为 ${app.resound.platform.HistoricalZones.history().caption(target.toKotlinLocalDate())}\n\n$content"
         if (markdown.isBlank()) return null
         val at = System.currentTimeMillis()
         val json = dailyMemoryJson(target, at, markdown, review, source, cards, lines, lineContext)

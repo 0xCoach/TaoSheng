@@ -129,6 +129,13 @@ private fun DayView(date: LocalDate, memory: MemoryRepository, onOpenEvent: (Mem
         if (loaded) Text("这一天没有屏幕时间记录", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.padding(top = 24.dp))
         return
     }
+    DayContent(date, shown, average, events, onOpenEvent)
+}
+
+/** 按日的内容（数据已读好）；宣传图渲染也用它 */
+@Composable
+internal fun DayContent(date: LocalDate, shown: ScreenDay, average: Int?, events: List<MemoryEvent>, onOpenEvent: (MemoryEvent) -> Unit) {
+    val c = Rs.colors
     Hero(shown.totalMinutes, ScreenTimeView.compare(shown.totalMinutes, average, "近 7 天平均"), average)
     val now = java.time.LocalTime.now()
     val peak = shown.byHour.indices.maxByOrNull { shown.byHour[it] } ?: 0

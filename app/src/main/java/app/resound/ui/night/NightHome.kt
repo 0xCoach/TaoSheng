@@ -61,7 +61,13 @@ fun NightHomeCard(date: LocalDate) {
     val settings by repo.settings.collectAsStateWithLifecycle()
     if (!settings.enabled) return
     val detail by remember(date) { repo.night(date.toKotlin()) }.collectAsStateWithLifecycle(initialValue = null)
-    val d = detail ?: return
+    val live by repo.live.collectAsStateWithLifecycle()
+    val d = detail
+    // 还没有“昨晚”，或这一夜还在记：只占一行，告诉用户已经打开、今晚怎么放，并留一个看趋势的入口
+    if (d == null || d.summary.state in setOf(NightState.Waiting, NightState.Provisional, NightState.Active)) {
+        if (date == LocalDate.now()) NightStatusRow(live)
+        return
+    }
     val c = Rs.colors
     val s = d.summary
     val scope = rememberCoroutineScope()
@@ -80,7 +86,6 @@ fun NightHomeCard(date: LocalDate) {
         Spacer(Modifier.height(8.dp))
         when (s.state) {
             NightState.Processing -> Text("正在整理昨晚的声音…", style = RsType.body, color = c.textSecondary)
-            NightState.Provisional, NightState.Active, NightState.Waiting -> Text("夜里记录中", style = RsType.body, color = c.textSecondary)
             else -> Text(s.sentence ?: s.sleepMillis?.let { "睡了约 ${span(it)}" } ?: "昨晚没记到完整的睡眠", style = RsType.body.copy(fontWeight = FontWeight.Medium), color = c.text)
         }
         s.times?.let { t ->
@@ -184,3 +189,22 @@ private fun Suggestions(d: NightDetail) {
 }
 
 internal fun LocalDate.toKotlin(): kotlinx.datetime.LocalDate = kotlinx.datetime.LocalDate(year, monthValue, dayOfMonth)
+
+@Composable
+private fun NightStatusRow(live: app.resound.night.NightLive) {
+    val c = Rs.colors
+    val recording = live.state == NightState.Active || live.state == NightState.Provisional
+    RsCard(padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("🌙", style = RsType.title)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(if (recording) "夜里记录中" + (live.since?.let { " · ${clock(it)} 开始" } ?: "") else "夜里记录已打开",
+                    style = RsType.body.copy(fontWeight = FontWeight.Medium), color = c.text)
+                Text(if (recording) live.mode?.title ?: "正在听" else "今晚把手机放在床头，插着电更好",
+                    style = RsType.caption, color = c.textSecondary)
+            }
+            Text("趋势 ›", style = RsType.subhead, color = c.accent, modifier = Modifier.springClick { NightUi.trendOpen = true }.padding(start = 8.dp, top = 6.dp, bottom = 6.dp))
+        }
+    }
+}

@@ -30,6 +30,7 @@ internal class SubscriptionRuntime(
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
     var reminderSettings: () -> AppointmentReminders = { AppointmentReminders() }
+    var automaticSource: (suspend (LocalDate?, Boolean) -> PushSnapshot)? = null
     var source: suspend (LocalDate?, Boolean) -> PushSnapshot = { _, _ -> throw PushFailure("记忆数据尚未就绪") }
     var screenTimeMarkdown: suspend (LocalDate) -> String? = { null }
     private val gates = ConcurrentHashMap<Long, Mutex>()
@@ -144,7 +145,7 @@ internal class SubscriptionRuntime(
                 val summaryOnly = !manual && !state.json.optBoolean("rebuilding") && (due.optBoolean("summaryBatch") || !due.has("batchAt") && due.optLong("summaryAt")
                     .let { it > 0 && it <= started } &&
                     listOf("scheduleAt", "fullAt", "changeAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } })
-                val raw = source(since, s.lines != LinesMode.Off)
+                val raw = (if (manual) source else automaticSource ?: source)(since, s.lines != LinesMode.Off)
                 val reminderDue = !manual && due.optLong("reminderAt").let { it > 0 && it <= started }
                 val reminders = if (reminderDue) SubscriptionReminders.candidates(raw, s, due.optJSONObject("reminded") ?: JSONObject(), reminderSettings(), zone(),
                     started).filter { it.at <= started } else emptyList()

@@ -36,7 +36,8 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
                 PeriodicWorkRequestBuilder<FolderImportWork>(15, TimeUnit.MINUTES)
                     .setInitialDelay(15, TimeUnit.MINUTES).build())
         }
-        internal fun notify(context: Context, id: String, name: String, count: Int) {
+        internal fun notifyBackfill(context: Context, id: String, name: String, count: Int) = notify(context,id,name,count,true)
+        internal fun notify(context: Context, id: String, name: String, count: Int, backfill: Boolean = false) {
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel("import", "导入录音", NotificationManager.IMPORTANCE_LOW))
             // 复用现有“回到今天”入口；该入口只请求切第 0 页，不打开寻物面板。
@@ -45,8 +46,8 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
             val pending = PendingIntent.getActivity(context, 117, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             try {
                 manager.notify(id, 3117, NotificationCompat.Builder(context, "import")
-                    .setSmallIcon(R.drawable.ic_notify).setContentTitle("从${name}导入了 $count 个录音")
-                    .setContentText("已加入转写整理队列").setContentIntent(pending).setAutoCancel(true).build())
+                    .setSmallIcon(R.drawable.ic_notify).setContentTitle(if (backfill) "${name}的 $count 个历史录音已转写完" else "从${name}导入了 $count 个录音")
+                    .setContentText(if (backfill) "可在时间线查看" else "已加入转写整理队列").setContentIntent(pending).setAutoCancel(true).build())
             } catch (caught: SecurityException) {
                 FailureNotes.record("importer/FolderImportWork.kt:46", caught)
                 /* 通知权限被撤回不影响已提交的导入。 */ }

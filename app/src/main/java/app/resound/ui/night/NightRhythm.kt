@@ -111,19 +111,3 @@ internal fun NightPendingLine(ui: NightRhythmUi) {
         Text("  昨晚有 ${ui.pending} 段声音等你确认 ›", style = RsType.subhead, color = Rs.colors.text)
     }
 }
-
-/** 图例：只列出现了的 */
-@Composable
-internal fun RhythmLegend(speech: Boolean, sleep: Boolean, phone: Boolean) {
-    if (!sleep && !phone) return
-    val c = Rs.colors
-    Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        @Composable fun key(color: Color, text: String) = Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(RoundedCornerShape(2.dp)).background(color))
-            Text(" $text", style = RsType.caption, color = c.textTertiary)
-        }
-        if (speech) key(c.accent, "说话")
-        if (sleep) { key(SleepColor, "睡眠"); key(SnoreColor, "鼾声") }
-        if (phone) key(app.resound.ui.today.phoneTint(c), "手机")
-    }
-}

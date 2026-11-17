@@ -188,7 +188,6 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour, onEnv, screenByHour, night?.day, onScreen) }
         if (night != null) Box(Modifier.padding(end = 6.dp)) {
             Column {
-                app.resound.ui.night.RhythmLegend(r.speechMinutes > 0, night.day != null, screenByHour?.any { it > 0 } == true)
                 app.resound.ui.night.NightPendingLine(night)
             }
         }

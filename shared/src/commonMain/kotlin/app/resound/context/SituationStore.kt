@@ -40,6 +40,15 @@ class SituationStore(
     private val appSessionsQuery = appSessions
     private val devicePlaybackQuery = devicePlayback
 
+    override suspend fun dayStays(from: Long, until: Long): List<PlaceAt> = withContext(io) {
+        if (until <= from || !available()) return@withContext emptyList()
+        try {
+            days(from, until).toList().flatMap { dayPlaces(it) }
+                .map { it.copy(start = maxOf(from, it.start), end = minOf(until, it.end)) }
+                .filter { it.end > it.start }.toList().sortedBy { it.start }
+        } catch (e: Exception) { if (permissionDenied(e)) emptyList() else throw e }
+    }
+
     override suspend fun placeDuring(start: Long, end: Long): PlaceAt? = withContext(io) {
         if (end <= start) return@withContext null
         try {

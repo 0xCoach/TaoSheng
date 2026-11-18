@@ -39,6 +39,7 @@ class BackupPrompts029Test {
     private lateinit var server: MockWebServer
     private lateinit var client: WebDavClient
     @Before fun setup() {
+        webDavPause = {}
         context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("capture.db")
         db = Room.databaseBuilder(context, CaptureDatabase::class.java, "capture.db").setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
@@ -180,7 +181,7 @@ class BackupPrompts029Test {
         repository.setEncryption("test-only"); repository.setEnabled(true)
         assertTrue(repository.state.value.encrypted)
         assertTrue(repository.runBackup(true)); assertTrue(snapshot.exists())
-        assertEquals("坚果云暂时不可用", repository.state.value.lastError)
+        assertEquals("坚果云服务器暂时出错，稍后自动重试", repository.state.value.lastError)
         assertTrue(repository.remoteBackups().getOrThrow().isEmpty())
         assertFalse(requests.any { it.method == "PUT" && WebDavClient.DIARY_FOLDER in it.requestUrl!!.pathSegments })
         remote.failBackupUploads = false

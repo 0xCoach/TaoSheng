@@ -14,6 +14,7 @@ class WebDavClientTest {
     private lateinit var server: MockWebServer
     private lateinit var client: WebDavClient
     @Before fun setup() {
+        webDavPause = {}
         server = MockWebServer(); server.start()
         client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "me@example.com", "private-password")
     }
@@ -78,8 +79,9 @@ class WebDavClientTest {
         assertEquals((1..3).map { "10-%02d-0310.zip".format(it) }.toSet(), deleted)
     }
     @Test fun fixedErrorsNeverExposeServerText() {
-        listOf(401 to "账号或应用密码不对", 507 to "坚果云空间不足", 503 to "坚果云暂时不可用").forEach { (status, expected) ->
-            server.enqueue(MockResponse().setResponseCode(status).setBody("secret diagnostic password"))
+        listOf(401 to "账号或应用密码不对", 507 to "坚果云空间不足", 503 to "坚果云服务器暂时出错，稍后自动重试", 429 to "坚果云限流（请求太频繁），稍后自动重试").forEach { (status, expected) ->
+            // 429/503 会重试 3 次，服务端一直拒绝才报错
+            repeat(if (status in setOf(429, 503)) 4 else 1) { server.enqueue(MockResponse().setResponseCode(status).setBody("secret diagnostic password")) }
             try { client.list(); fail() } catch (e: Exception) { assertEquals(expected, backupError(e).human) }
         }
         assertEquals("网络不通", backupError(IOException("private detail")).human)

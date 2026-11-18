@@ -108,9 +108,12 @@ internal object HistoryVolumes {
         }
         val refs = names.distinct().map(view::freeze)
         var uploaded = 0L
+        // 先列一次 objects 目录，不再对每个数据块单独问“在不在”（云端请求次数少一大截，减少被限流）
+        val present = runCatching { store.files("objects").map { it.path }.toSet() }.getOrNull()
         for(ref in refs.distinctBy { it.path }) {
             val source = view.staged[ref.path]
-            if(source!=null && !store.exists(ref.path)) { store.put(ref.path,source);uploaded+=source.length() }
+            val there = present?.let { ref.path in it } ?: store.exists(ref.path)
+            if(source!=null && !there) { store.put(ref.path,source);uploaded+=source.length() }
         }
         val bytes = refs.distinctBy { it.path }.sumOf { it.bytes }
         val id = UUID.randomUUID().toString().replace("-","").take(12)

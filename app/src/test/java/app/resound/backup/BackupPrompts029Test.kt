@@ -217,7 +217,8 @@ class BackupPrompts029Test {
     }
     @Test fun templatesReadDefaultsAndPersistOverridesInBackup() {
         val templates = LocalPromptTemplates(context)
-        val expectedIds = listOf("digest", "review", "ask", "things", "merge")
+        // 卡 203 新增夜里周报模板 night_week
+        val expectedIds = listOf("digest", "review", "ask", "things", "night_week", "merge")
         assertEquals(expectedIds, templates.list.value.map { it.id })
         for (id in expectedIds) {
             assertEquals(templates.defaultText(id), templates.text(id))

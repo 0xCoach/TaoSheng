@@ -15,8 +15,10 @@ internal class UpdateForegroundChecks(private val updater: UpdateEngine, private
     }
     override fun onActivityStopped(activity: Activity) { started--; changingConfiguration = activity.isChangingConfigurations }
     override fun onActivityCreated(activity: Activity, state: Bundle?) {}
-    override fun onActivityResumed(activity: Activity) {}
-    override fun onActivityPaused(activity: Activity) {}
+    override fun onActivityResumed(activity: Activity) { InstallRelay.foreground = activity }
+    override fun onActivityPaused(activity: Activity) {
+        if (InstallRelay.foreground === activity) InstallRelay.foreground = null
+    }
     override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) {}
     override fun onActivityDestroyed(activity: Activity) {}
 }

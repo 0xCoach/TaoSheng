@@ -31,6 +31,16 @@ internal class AndroidUpdatePlatform(
         if (!it.isSealed) { manager.packageInstaller.abandonSession(id); false } else true
     } ?: false
 
+    override fun endSession(id: Int) {
+        runCatching { manager.packageInstaller.abandonSession(id) }
+            .onFailure { UpdateDiagnostics.record(context, "install session=$id abandon=${it.javaClass.simpleName}") }
+        UpdateNotifications.dismissConfirmation(context)
+    }
+    override fun installedVersionCode() = manager.getPackageInfo(context.packageName, 0).longVersionCode
+    override suspend fun afterCommit(session: Int) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+        InstallRelay.openFromForeground(session)
+    }
+
     override fun install(apk: File, rememberSession: (Int) -> Unit) {
         val installer = manager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {

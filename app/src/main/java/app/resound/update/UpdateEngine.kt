@@ -24,6 +24,9 @@ internal interface UpdatePlatform {
     /** [progress]：当前步骤文字和整体进度 0..1，给更新页显示 */
     suspend fun backup(progress: (String, Float) -> Unit)
     fun install(apk: File, rememberSession: (Int) -> Unit)
+    fun endSession(id: Int) {}
+    fun installedVersionCode(): Long? = null
+    suspend fun afterCommit(session: Int): Boolean = true
     fun canInstall(): Boolean
     fun sessionExists(id: Int): Boolean
     fun notifyAvailable(info: UpdateInfo): Boolean
@@ -49,6 +52,111 @@ internal class UpdateEngine(
     private val gate = Mutex()
     private val mutable = MutableStateFlow<UpdateState>(UpdateState.Idle)
     override val state = mutable.asStateFlow()
+    private val fallback = MutableStateFlow<UpdateInfo?>(null)
+    val systemInstallerAvailable = fallback.asStateFlow()
+    private var watchdog: kotlinx.coroutines.Job? = null
+
+    private fun offerInstaller(signal: InstallSignal, reason: String) {
+        if (InstallConfirmationRule.action(signal, false) != InstallAction.OFFER_SYSTEM_INSTALLER) return
+        watchdog?.cancel()
+        store.save("fallback" to manifest!!.apk.sha256)
+        fallback.value = info()
+        mutable.value = UpdateState.Failed("可以用系统安装器安装", info())
+        log("install session=${store.long("session")} fallback=$reason")
+    }
+
+    private fun watchCommit(session: Int) {
+        watchdog?.cancel()
+        val remaining = InstallConfirmationRule.remainingMs(store.long("installStarted"), now())
+        watchdog = scope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(remaining)
+            gate.withLock {
+                if (session.toLong() == store.long("session"))
+                    offerInstaller(InstallSignal.TIMEOUT, "no_progress_30s")
+            }
+        }
+    }
+
+    suspend fun pending(session: Int): Boolean = withContext(Dispatchers.IO) {
+        gate.withLock {
+            restore()
+            if (manifest == null || session.toLong() != store.long("session")) return@withLock false
+            watchdog?.cancel()
+            log("install session=$session result=pending_user_action")
+            true
+        }
+    }
+
+    suspend fun pendingRelayIsCurrent(session: Int) = withContext(Dispatchers.IO) {
+        gate.withLock {
+            restore()
+            session >= 0 && manifest != null && session.toLong() == store.long("session")
+        }
+    }
+
+    suspend fun confirmationReturned(session: Int) = withContext(Dispatchers.IO) {
+        gate.withLock {
+            restore()
+            val release = manifest ?: return@withLock
+            if (session.toLong() != store.long("session")) return@withLock
+            if ((platform.installedVersionCode() ?: versionCode) >= release.versionCode) {
+                watchdog?.cancel()
+                store.save("session" to null, "fallback" to null)
+                fallback.value = null
+                mutable.value = UpdateState.UpToDate(now())
+                log("install session=$session result=success_on_return")
+            } else {
+                val exists = runCatching { platform.sessionExists(session) }.getOrNull()
+                offerInstaller(InstallSignal.UNRESOLVED_RETURN, "confirmation_returned_session_exists_$exists")
+            }
+        }
+    }
+
+    suspend fun unresolved(session: Int, reason: String) = withContext(Dispatchers.IO) {
+        gate.withLock {
+            restore()
+            if (manifest != null && session.toLong() == store.long("session"))
+                offerInstaller(InstallSignal.UNRESOLVED_RETURN, reason)
+        }
+    }
+
+    suspend fun handToSystem(open: suspend (File) -> Unit): Boolean = withContext(Dispatchers.IO) {
+        gate.withLock {
+            restore()
+            if (fallback.value == null) return@withLock false
+            if (!canInstall()) {
+                log("install system_installer_failure=unknown_sources_permission")
+                return@withLock false
+            }
+            try {
+                verifyReady(apkFile())
+                open(apkFile())
+                // 系统安装器已接手。原会话的迟到取消不能撤回兜底或覆盖新结果。
+                endOriginalSession()
+                log("install result=system_installer_opened")
+                true
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (e is UpdateFailure) {
+                    endOriginalSession()
+                    fallback.value = null
+                    store.save("fallback" to null, "ready" to null, "session" to null)
+                    apkFile().delete()
+                }
+                log("install system_installer_failure=${reason(e)}")
+                mutable.value = UpdateState.Failed((e as? UpdateFailure)?.human ?: "打不开系统安装器", info())
+                false
+            }
+        }
+    }
+
+    private fun endOriginalSession() {
+        val session = store.long("session").toInt()
+        watchdog?.cancel()
+        store.save("session" to null)
+        if (session > 0) platform.endSession(session)
+    }
+
     private val auto = MutableStateFlow(store.long("autoOff") != 1L)
     override val autoCheck = auto.asStateFlow()
     override fun setAutoCheck(enabled: Boolean) {
@@ -68,7 +176,7 @@ internal class UpdateEngine(
         }
     }
     private fun discardDisabledPreview() {
-        if (!preview.value && manifest?.previewSource == true && mutable.value !is UpdateState.Installing) {
+        if (fallback.value == null && !preview.value && manifest?.previewSource == true && mutable.value !is UpdateState.Installing) {
             manifest = null; patch = null
             store.save("manifest" to null, "ready" to null, "manifestPreview" to null)
             mutable.value = UpdateState.Idle
@@ -86,7 +194,7 @@ internal class UpdateEngine(
         gate.withLock {
             restore()
             discardDisabledPreview()
-            if (mutable.value is UpdateState.Installing) return@withLock
+            if (mutable.value is UpdateState.Installing || fallback.value != null) return@withLock
             // 关了自动检查：后台和启动时都不查，只认手动
             if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")
@@ -137,8 +245,9 @@ internal class UpdateEngine(
             }.getOrNull() }
         if ((seen > 0 && seen != versionCode) || (saved != null && !saved.newerThan(versionCode))) {
             directory.listFiles()?.forEach { kotlin.check(it.deleteRecursively()) }
-            store.save("manifest" to null, "ready" to null, "session" to null, "installedHash" to null)
+            store.save("manifest" to null, "ready" to null, "session" to null, "fallback" to null, "installedHash" to null)
             if (versionCode > seen) platform.afterReplacement()
+            log("install result=replacement installed=$versionCode")
             log("startup code=$versionCode cleanup=1")
         } else if (saved != null) {
             manifest = saved
@@ -149,8 +258,15 @@ internal class UpdateEngine(
                 try {
                     verifyReady(file)
                     val session = store.long("session").toInt()
-                    mutable.value = if (session > 0 && platform.sessionExists(session)) UpdateState.Installing(info(), false)
-                        else UpdateState.Ready(info())
+                    when {
+                        store.string("fallback") == saved.apk.sha256 -> offerInstaller(InstallSignal.FAILURE, "restored")
+                        session > 0 && runCatching { platform.sessionExists(session) }.getOrDefault(false) -> {
+                            mutable.value = UpdateState.Installing(info(), false)
+                            watchCommit(session)
+                        }
+                        session > 0 -> offerInstaller(InstallSignal.UNRESOLVED_RETURN, "session_missing")
+                        else -> mutable.value = UpdateState.Ready(info())
+                    }
                 } catch (e: Exception) {
                     file.delete(); store.save("ready" to null, "session" to null)
                     log("restore failure=${reason(e)}")
@@ -175,7 +291,7 @@ internal class UpdateEngine(
         gate.withLock {
             restore()
             discardDisabledPreview()
-            if (manifest == null || mutable.value is UpdateState.Ready || mutable.value is UpdateState.Installing) return@withLock
+            if (manifest == null || fallback.value != null || mutable.value is UpdateState.Ready || mutable.value is UpdateState.Installing) return@withLock
             val release = manifest!!
             val start = System.nanoTime()
             try {
@@ -270,7 +386,7 @@ internal class UpdateEngine(
         gate.withLock {
             restore()
             discardDisabledPreview()
-            if (manifest == null || (mutable.value is UpdateState.Installing && !waited) || store.string("ready") != manifest!!.apk.sha256) {
+            if (manifest == null || fallback.value != null || (mutable.value is UpdateState.Installing && !waited) || store.string("ready") != manifest!!.apk.sha256) {
                 if (waited && mutable.value is UpdateState.Installing && manifest != null) mutable.value = UpdateState.Ready(info())
                 return@withLock
             }
@@ -294,8 +410,18 @@ internal class UpdateEngine(
                 catch (e: Exception) { throw UpdateFailure("更新前备份没成功，没有安装", "backup_${reason(e)}") }
                 finally { log("install_backup reused=$reuseBackup backup_ms=$backupMs") }
                 mutable.value = UpdateState.Installing(info(), false)
-                platform.install(apkFile()) { session -> store.save("session" to session.toLong(), "installStarted" to now()) }
-                log("install incremental=${patch != null} bytes=${apkFile().length()} ms=${elapsed(start)} result=submitted")
+                try {
+                    platform.install(apkFile()) { session -> store.save("session" to session.toLong()) }
+                } catch (e: Exception) {
+                    store.save("session" to null)
+                    offerInstaller(InstallSignal.FAILURE, "submit_${reason(e)}")
+                    return@withLock
+                }
+                val session = store.long("session").toInt()
+                store.save("installStarted" to now())
+                watchCommit(session)
+                log("install incremental=${patch != null} bytes=${apkFile().length()} ms=${elapsed(start)} result=submitted session=$session")
+                if (!platform.afterCommit(session)) offerInstaller(InstallSignal.FAILURE, "relay_start_failed")
             } catch (e: CancellationException) { mutable.value = UpdateState.Ready(info()); throw e }
             catch (e: Exception) {
                 store.save("session" to null)
@@ -313,10 +439,22 @@ internal class UpdateEngine(
             if (manifest == null || session.toLong() != store.long("session")) return@withLock
             log("install session=$session status=$diagnosticStatus ms=${now() - store.long("installStarted")} result=${if (success) "success" else if (cancelled) "cancelled" else "failed"}")
             store.save("session" to null)
-            mutable.value = when {
-                success -> UpdateState.UpToDate(now())
-                cancelled -> UpdateState.Ready(info())
-                else -> UpdateState.Failed("系统没能装上：${message?.lineSequence()?.firstOrNull()?.take(160)?.takeIf { it.isNotBlank() } ?: "安装失败"}", info())
+            watchdog?.cancel()
+            val signal = when {
+                success -> InstallSignal.SUCCESS
+                cancelled -> InstallSignal.CANCELLED
+                else -> InstallSignal.FAILURE
+            }
+            when (InstallConfirmationRule.action(signal, false)) {
+                InstallAction.COMPLETE, InstallAction.READY -> {
+                    fallback.value = null
+                    store.save("fallback" to null)
+                    mutable.value = if (success) UpdateState.UpToDate(now()) else UpdateState.Ready(info())
+                }
+                else -> {
+                    offerInstaller(signal, "status_$diagnosticStatus")
+                    mutable.value = UpdateState.Failed("系统没能装上：${message?.lineSequence()?.firstOrNull()?.take(160) ?: "安装失败"}", info())
+                }
             }
         } }
 
@@ -327,6 +465,12 @@ internal class UpdateEngine(
     } } }
     override fun skip() { scope.launch(Dispatchers.IO) { gate.withLock {
         restore()
+        if (fallback.value != null) {
+            endOriginalSession()
+            store.save("fallback" to null, "ready" to null)
+            fallback.value = null
+            apkFile().delete()
+        }
         manifest?.let { store.save("skipVersion" to it.versionCode.toLong()) }
         platform.dismissNotification()
         if (mutable.value is UpdateState.Available || mutable.value is UpdateState.Failed) mutable.value = UpdateState.UpToDate(now())

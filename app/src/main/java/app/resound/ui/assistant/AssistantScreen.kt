@@ -37,7 +37,7 @@ import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.springClick
 
 /** 助手页的子页；Hub 为枢纽列表 */
-enum class AssistantPage { Hub, Ideas, Projects, Analysis, Agent, Decisions, Followups, Collect, Rules, Qa, Mcp }
+enum class AssistantPage { Hub, Ideas, Projects, Analysis, Agent, Decisions, Followups, Collect, Rules, Qa, Mcp, Review }
 
 /**
  * 助手：灵感收件箱、项目长期记忆、AI 智能分析、Agent 任务四个模块的入口。
@@ -58,6 +58,7 @@ fun AssistantScreen(bottomPadding: androidx.compose.ui.unit.Dp) {
         AssistantPage.Rules -> app.resound.ui.assistant.RulesScreen(bottomPadding) { page = 0 }
         AssistantPage.Qa -> app.resound.ui.assistant.QaScreen(bottomPadding) { page = 0 }
         AssistantPage.Mcp -> app.resound.ui.assistant.McpScreen(bottomPadding) { page = 0 }
+        AssistantPage.Review -> app.resound.ui.assistant.TranscriptReviewScreen(bottomPadding) { page = 0 }
     }
 }
 
@@ -96,6 +97,8 @@ private fun Hub(bottomPadding: androidx.compose.ui.unit.Dp, open: (AssistantPage
             EntryCard("决策", "$activeDecisions 条生效", "决定的版本历史：生效、被否决、被替代都留痕，附原话证据和否决原因") { open(AssistantPage.Decisions) }
             EntryCard("跟进", "$openFollowups 条待跟进", "主动发现说过要做但没下文的事；AI 建议单独标注，不当作你的承诺") { open(AssistantPage.Followups) }
             EntryCard("收集箱", "$inboxCount 条待处理", "分享进来的网页、文字、截图统一入库；图片本地识字，可挂灵感、项目或原话") { open(AssistantPage.Collect) }
+            val reviewCount by AppGraph.transcriptReview.observeCount().collectAsStateWithLifecycle(initialValue = 0)
+            EntryCard("复核", "$reviewCount 条待复核", "语速异常、重试过多次、说话人存疑的原话；过一眼标“已读”，听不准的回原话重转") { open(AssistantPage.Review) }
             EntryCard("规则", "条件→动作", "到点或出事时自动提醒、建待办、跑分析；对外发任务一律先经你确认") { open(AssistantPage.Rules) }
             EntryCard("MCP", "本机只读", "让电脑上的 AI 查询你的记忆：仅本机、令牌认证、可按项目限权") { open(AssistantPage.Mcp) }
         }

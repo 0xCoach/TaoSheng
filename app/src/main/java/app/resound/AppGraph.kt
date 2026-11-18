@@ -179,13 +179,15 @@ object AppGraph {
     lateinit var decisionRepo: app.resound.decision.DecisionRepository
     lateinit var followupEngine: app.resound.followup.FollowupEngine
     lateinit var captureInbox: app.resound.collect.CaptureInbox
+    lateinit var transcriptReview: app.resound.transcribe.TranscriptReviewRepository
     lateinit var workflowEngine: app.resound.rules.WorkflowEngine
     lateinit var memoryCorrector: app.resound.revise.MemoryCorrector
     lateinit var groundedQA: app.resound.qa.GroundedQA
     lateinit var mcpServer: app.resound.mcp.McpServer
     val isAssistantReady: Boolean
         get() = ::decisionRepo.isInitialized && ::followupEngine.isInitialized && ::captureInbox.isInitialized &&
-            ::workflowEngine.isInitialized && ::memoryCorrector.isInitialized && ::groundedQA.isInitialized && ::mcpServer.isInitialized
+            ::workflowEngine.isInitialized && ::memoryCorrector.isInitialized && ::groundedQA.isInitialized && ::mcpServer.isInitialized &&
+            ::transcriptReview.isInitialized
 
     lateinit var voiceprint: app.resound.voiceprint.VoiceprintRepository
     val isVoiceprintReady: Boolean get() = ::voiceprint.isInitialized

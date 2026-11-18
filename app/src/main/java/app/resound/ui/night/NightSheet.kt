@@ -72,6 +72,29 @@ internal fun NightSheet(date: LocalDate, onDismiss: () -> Unit) {
     }
 }
 
+/** 卡 208：午睡详情，和“昨晚”同样的内容；顶上一个“不是午睡”直接删掉 */
+@Composable
+internal fun NapSheet(id: Long, onDismiss: () -> Unit) {
+    val detail by remember(id) { AppGraph.night.nightById(id) }.collectAsStateWithLifecycle(initialValue = null)
+    val settings by AppGraph.night.settings.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val d = detail
+    val t = d?.summary?.times
+    RsSheet("午睡", subtitle = t?.let { "${clock(it.onset)}–${clock(it.wake)} · ${span(it.wake - it.onset)}" }, onDismiss = {
+        app.resound.ui.voiceprint.SamplePlayer.stop(); onDismiss()
+    }, fixedHeight = true, trailing = {
+        Text("不是午睡", style = RsType.subhead, color = Rs.colors.warning, modifier = Modifier.springClick {
+            scope.launch { AppGraph.night.deleteNight(id); onDismiss() }
+        }.padding(8.dp))
+    }) {
+        if (d == null) {
+            Text("这次午睡没有记录", style = RsType.body, color = Rs.colors.textSecondary, modifier = Modifier.padding(vertical = 24.dp))
+            return@RsSheet
+        }
+        NightBody(d, settings.sharedRoom, onDeleted = onDismiss)
+    }
+}
+
 @Composable
 internal fun NightBody(d: NightDetail, sharedRoom: Boolean, onDeleted: () -> Unit) {
     val c = Rs.colors

@@ -189,6 +189,7 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
         if (night != null) Box(Modifier.padding(end = 6.dp)) {
             Column {
                 app.resound.ui.night.NightPendingLine(night)
+                app.resound.ui.night.NapLines(night)
             }
         }
     }
@@ -254,7 +255,9 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                         val h = hourAt(o.x)
                         // 睡着的小时打开那一夜；其余照旧跳到时间线
                         val nd = night?.hours?.get(h)?.takeIf { it.asleep }?.date
-                        if (nd != null) openNight(nd) else if (totals[h] > 0) onHour(h)
+                        val hs = date.atStartOfDay(java.time.ZoneId.systemDefault()).plusHours(h.toLong()).toInstant().toEpochMilli()
+                        if (nd != null && app.resound.ui.night.NightUi.openNapIn(hs, hs + 3_600_000)) Unit
+                        else if (nd != null) openNight(nd) else if (totals[h] > 0) onHour(h)
                     },
                     onLongPress = { o -> hover = hourAt(o.x); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) },
                     onPress = { tryAwaitRelease(); hover = null },
@@ -461,7 +464,8 @@ private fun NightPhoneBand(date: LocalDate, screen: List<Int>?, night: app.resou
         detectTapGestures { o ->
             val at = dayStart + ((o.x / size.width) * (dayEnd - dayStart)).toLong()
             val nd = night.nightAt(at)
-            if (nd != null) openNight(nd)
+            if (nd != null && app.resound.ui.night.NightUi.openNapIn(at, at + 1)) Unit
+            else if (nd != null) openNight(nd)
             else if ((screen?.getOrNull(((o.x / size.width) * 24).toInt().coerceIn(0, 23)) ?: 0) > 0) onScreen()
         }
     }) {

@@ -47,6 +47,10 @@ internal data class NightRhythmUi(
     val pending: Int,
     val recording: Boolean,
     val since: Long?,
+    /** 卡 208：这一天的午睡（已结束的） */
+    val naps: List<app.resound.night.NightSummary> = emptyList(),
+    /** 正在记的是午睡 */
+    val napping: Boolean = false,
 )
 
 @Composable
@@ -57,6 +61,7 @@ internal fun rememberNightRhythm(date: LocalDate): NightRhythmUi? {
     if (!settings.enabled) return null
     val morning by remember(date) { repo.night(date.toKotlin()) }.collectAsStateWithLifecycle(initialValue = null)
     val evening by remember(date) { repo.night(date.plusDays(1).toKotlin()) }.collectAsStateWithLifecycle(initialValue = null)
+    val naps by remember(date) { repo.naps(date.toKotlin()) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val live by repo.live.collectAsStateWithLifecycle()
     val recording = live.state == NightState.Active || live.state == NightState.Provisional
     // 正在记的那一夜每分钟往前长一点
@@ -75,12 +80,15 @@ internal fun rememberNightRhythm(date: LocalDate): NightRhythmUi? {
             else -> null
         }
     }
-    val day = remember(morning, evening, now, hourStarts) {
-        NightDays.build(hourStarts, listOfNotNull(input(morning), input(evening)))
+    val day = remember(morning, evening, naps, now, hourStarts) {
+        val napInputs = naps.mapNotNull { n -> n.times?.takeIf { n.state !in setOf(NightState.Provisional, NightState.Active) }?.let { NightDays.Input(n.date, it.onset, it.wake, emptyList()) } }
+        NightDays.build(hourStarts, listOfNotNull(input(morning), input(evening)) + napInputs)
     }
     val last = morning?.takeIf { it.summary.state !in setOf(NightState.Provisional, NightState.Active, NightState.Waiting) }
     val pending = last?.let { d -> d.questions.count { id -> d.events.firstOrNull { it.id == id }?.feedback == Feedback.None } } ?: 0
-    return NightRhythmUi(date, day, last, pending, recording, live.since)
+    val napping = recording && live.window?.kind == app.resound.night.SleepWindowKind.Nap
+    androidx.compose.runtime.SideEffect { NightUi.shownNaps = naps }
+    return NightRhythmUi(date, day, last, pending, recording, live.since, naps.filter { it.times != null && it.state !in setOf(NightState.Provisional, NightState.Active) }, napping)
 }
 
 /** 节奏卡标题右边的小入口：没睡过“🌙 夜里”、在记“🌙 记录中”、早上“🌙 昨晚 6小时40分” */
@@ -90,6 +98,7 @@ internal fun NightChip(ui: NightRhythmUi) {
     val label = when {
         ui.last?.summary?.sleepMillis != null -> "🌙 昨晚 ${hours(ui.last.summary.sleepMillis!!)}"
         ui.last != null -> "🌙 昨晚"
+        ui.napping && ui.date == LocalDate.now() -> "🌙 午睡中"
         ui.recording && ui.date == LocalDate.now() -> "🌙 记录中"
         else -> "🌙 夜里"
     }
@@ -112,3 +121,20 @@ internal fun NightPendingLine(ui: NightRhythmUi) {
         Text("  昨晚有 ${ui.pending} 段声音等你确认 ›", style = RsType.subhead, color = Rs.colors.text)
     }
 }
+
+
+/** 卡 208：图下面每次午睡一行，点开午睡详情 */
+@Composable
+internal fun NapLines(ui: NightRhythmUi) {
+    ui.naps.forEach { n ->
+        val t = n.times ?: return@forEach
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).springClick { NightUi.openNap = n.id }.padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(SleepColor))
+            Text("  午睡 ${clock(t.onset)}–${clock(t.wake)} · ${span(t.wake - t.onset)} ›", style = RsType.subhead, color = Rs.colors.text)
+        }
+    }
+}
+
+/** 点节奏图上某个时刻：落在午睡里就返回那次午睡 */
+internal fun NightRhythmUi.napAt(at: Long): Long? = naps.firstOrNull { n -> n.times?.let { at >= it.onset && at < it.wake } == true }?.id

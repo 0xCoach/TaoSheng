@@ -1,6 +1,10 @@
 package app.resound.ui.night
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import app.resound.night.SleepWindow
+import app.resound.night.SleepWindowKind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,13 +104,7 @@ fun NightSettingsPage(bottom: Dp) {
         RsCard {
             NightSwitch("整晚完整识别", "在充电或电量 30% 以上时，整晚每段都认，最准。关掉后夜里先存下声音，充电时再认", s.fullNight) { save(s.copy(fullNight = it)) }
             Line()
-            Text("夜里从几点开始", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 10.dp))
-            Spacer(Modifier.height(8.dp))
-            Choices(listOf(20, 21, 22, 23).map { it * 60 }, s.windowStartMinute) { save(s.copy(windowStartMinute = it)) }
-            Text("到第二天几点", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 12.dp))
-            Spacer(Modifier.height(8.dp))
-            Choices(listOf(10, 11, 12, 13).map { it * 60 }, s.windowEndMinute) { save(s.copy(windowEndMinute = it)) }
-            Spacer(Modifier.height(10.dp))
+            SleepWindowsEditor(s.windows)
             Line()
             NightSwitch("同屋有人", "鼾声、咳嗽分不出是谁的，打开后写成“卧室里的鼾声”", s.sharedRoom) { save(s.copy(sharedRoom = it)) }
             Line()
@@ -177,6 +175,76 @@ fun NightSettingsPage(bottom: Dp) {
 private fun Foot() {
     Text("夜里的录音只存在手机里，推送只带文字。没确认的录音 7 天后删除，统计一直保留。结果由手机自动统计，仅供参考，不是医疗检查。",
         style = RsType.caption, color = Rs.colors.textTertiary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
+}
+
+/**
+ * 卡 208：睡眠时段列表。每条一行“名字 · 开始 – 最晚记到”，右边开关；点一行原地展开改时间。
+ * 夜里可选“自动”（按最近两周作息）；午睡默认关；“再加一段”给夜班、补觉用，最多 3 条。
+ */
+@Composable
+private fun SleepWindowsEditor(windows: List<SleepWindow>) {
+    val c = Rs.colors
+    val auto by AppGraph.night.automaticWindow.collectAsStateWithLifecycle()
+    var open by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    fun save(next: List<SleepWindow>) { error = AppGraph.night.saveWindows(next) }
+    Text("睡眠时段", style = RsType.body, color = c.text, modifier = Modifier.padding(top = 10.dp))
+    Text("起床后会自动结束，起得早不用改", style = RsType.caption, color = c.textSecondary)
+    windows.forEach { w ->
+        val shown = if (w.kind == SleepWindowKind.Night && w.auto) auto else w
+        val range = "${clockOf(shown.startMinute)} – ${if (shown.endMinute <= shown.startMinute) "次日 " else ""}${clockOf(shown.endMinute)}"
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(14.dp)).background(if (open == w.id) c.fill else androidx.compose.ui.graphics.Color.Transparent)) {
+            Row(Modifier.fillMaxWidth().springClick { open = if (open == w.id) null else w.id }.padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(w.name, style = RsType.body, color = if (w.enabled) c.text else c.textTertiary)
+                    Text(if (w.kind == SleepWindowKind.Night && w.auto) "自动 · $range" else range, style = RsType.caption, color = c.textSecondary)
+                }
+                app.resound.ui.verify.RsToggle(w.enabled) { on -> save(windows.map { if (it.id == w.id) it.copy(enabled = on) else it }) }
+            }
+            androidx.compose.animation.AnimatedVisibility(open == w.id) {
+                Column(Modifier.padding(start = 8.dp, end = 8.dp, bottom = 12.dp)) {
+                    if (w.kind == SleepWindowKind.Night) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ChoicePill("自动", w.auto, Modifier.weight(1f)) { save(windows.map { if (it.id == w.id) it.copy(auto = true) else it }) }
+                        ChoicePill("自己设", !w.auto, Modifier.weight(1f)) {
+                            save(windows.map { if (it.id == w.id) it.copy(auto = false, startMinute = shown.startMinute, endMinute = shown.endMinute) else it })
+                        }
+                    }
+                    if (w.kind == SleepWindowKind.Night && w.auto) {
+                        Text("按你最近两周的作息：$range。记满 7 晚之前先用 20:00 – 次日 12:00", style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 8.dp))
+                    } else {
+                        Text("开始", style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 8.dp))
+                        HalfHours(w.startMinute) { m -> save(windows.map { if (it.id == w.id) it.copy(startMinute = m) else it }) }
+                        Text("最晚记到", style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 8.dp))
+                        HalfHours(w.endMinute) { m -> save(windows.map { if (it.id == w.id) it.copy(endMinute = m) else it }) }
+                    }
+                    if (w.kind == SleepWindowKind.Custom) Text("删掉这一段", style = RsType.subhead, color = c.warning,
+                        modifier = Modifier.padding(top = 10.dp).springClick { open = null; save(windows.filterNot { it.id == w.id }) })
+                }
+            }
+        }
+    }
+    error?.let { Text(it, style = RsType.caption, color = c.warning, modifier = Modifier.padding(top = 6.dp)) }
+    if (windows.count { it.kind == SleepWindowKind.Custom } < 3) Text("＋ 再加一段（夜班、白天补觉）", style = RsType.subhead, color = c.accent,
+        modifier = Modifier.padding(top = 8.dp).springClick {
+            val id = "custom-" + System.currentTimeMillis()
+            save(windows + SleepWindow(id, SleepWindowKind.Custom, "补觉 ${windows.count { it.kind == SleepWindowKind.Custom } + 1}", true, false, 8 * 60, 16 * 60))
+            open = id
+        }.padding(vertical = 6.dp))
+}
+
+private fun clockOf(m: Int) = "%d:%02d".format(m / 60, m % 60)
+
+/** 半点选择：一排可横滑的胶囊，选中的滚到看得见 */
+@Composable
+private fun HalfHours(selected: Int, onPick: (Int) -> Unit) {
+    val state = androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex = (selected / 30 - 2).coerceAtLeast(0))
+    androidx.compose.foundation.lazy.LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+        items(48) { i ->
+            val m = i * 30
+            ChoicePill(clockOf(m), m == selected, Modifier.width(66.dp)) { onPick(m) }
+        }
+    }
 }
 
 @Composable

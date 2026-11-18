@@ -25,6 +25,15 @@ internal object NightUi {
     /** 打开记梦（通知“记梦”或详情里点） */
     var dreamNight by mutableStateOf<Long?>(null)
     var trendOpen by mutableStateOf(false)
+    /** 卡 208：打开某次午睡（记录 id） */
+    var openNap by mutableStateOf<Long?>(null)
+    /** 今日节奏当前显示的午睡，点图时判断落在午睡里还是夜里 */
+    var shownNaps: List<app.resound.night.NightSummary> = emptyList()
+    /** [from, until) 里有午睡就打开午睡，返回 true */
+    fun openNapIn(from: Long, until: Long): Boolean {
+        val id = shownNaps.firstOrNull { n -> n.times?.let { it.onset < until && it.wake > from } == true }?.id ?: return false
+        openNap = id; return true
+    }
 
     val ready: Boolean get() = AppGraph.isNightReady
 }
@@ -36,6 +45,7 @@ fun NightSheets() {
     NightUi.openDate?.let { NightSheet(it) { NightUi.openDate = null } }
     NightUi.dreamNight?.let { DreamSheet(it) { NightUi.dreamNight = null } }
     if (NightUi.trendOpen) NightTrendSheet { NightUi.trendOpen = false }
+    NightUi.openNap?.let { NapSheet(it) { NightUi.openNap = null } }
 }
 
 internal fun clock(at: Long): String {

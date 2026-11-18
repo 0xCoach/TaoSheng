@@ -107,6 +107,7 @@ data class AppPowerEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
 @Dao
 interface CaptureDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun segment(row: SegmentEntity)
+    @Query("SELECT path FROM segments") suspend fun segmentPaths(): List<String>
     @Insert suspend fun event(row: EventEntity)
     @Insert suspend fun heartbeat(row: HeartbeatEntity)
     @Insert suspend fun battery(row: BatteryEntity)

@@ -82,6 +82,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
                 return@launch
             }
             spool.listFiles()?.filter { it.extension == "pcm" }?.sortedBy { it.name }?.forEach { saveSafely(it) }
+            runCatching { reconcileOrphans() }.onFailure { FailureNotes.record("capture/SegmentFiles.kt:reconcile", it) }
             for (file in queue) saveSafely(file)
         }
     }
@@ -118,6 +119,34 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
             FailureNotes.record("capture/SegmentFiles.kt:113", it)
         }
     }
+    /** 已编码但未入库的孤儿音频：path 有唯一索引 + IGNORE 冲突，重放天然幂等；补登记为 Pending 等转写。 */
+    private suspend fun reconcileOrphans() {
+        val days = File(context.filesDir, "segments").listFiles() ?: return
+        val known = dao.segmentPaths().toSet()
+        val retriever = android.media.MediaMetadataRetriever()
+        var restored = 0
+        try {
+            days.filter { it.isDirectory }.forEach { day ->
+                day.listFiles().orEmpty().filter { it.extension in setOf("ogg", "m4a") && it.length() > 0 && it.absolutePath !in known }.forEach { file ->
+                    val start = file.nameWithoutExtension.substringAfter('_', "").substringBefore('_', "").toLongOrNull() ?: return@forEach
+                    runCatching {
+                        retriever.setDataSource(file.absolutePath)
+                        val duration = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                        if (duration != null && duration > 0) {
+                            dao.segment(SegmentEntity(startAt = start, endAt = start + duration, sourceId = "mic",
+                                path = file.absolutePath, sizeBytes = file.length(),
+                                separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
+                            restored++
+                        }
+                    }
+                }
+            }
+        } finally {
+            runCatching { retriever.release() }
+        }
+        if (restored > 0) android.util.Log.i("SegmentFiles", "孤儿录音段补登记 $restored 条")
+    }
+
     internal fun pendingInRange(from: Long, until: Long): Boolean = spool.listFiles().orEmpty().any { file ->
         if (file.extension !in setOf("recording", "pcm")) false else {
             val start = file.name.substringBefore('_').toLongOrNull()

@@ -131,8 +131,9 @@ private fun Stats(d: NightDetail) {
         add("睡了" to (s.sleepMillis?.let(::hours) ?: "—"))
         add("醒了" to if (s.awakeCount > 0) "${s.awakeCount} 次" else "没醒")
         add("鼾声" to if (s.snoreMillis > 0) hours(s.snoreMillis) else "没听到")
-        if (s.coughCount > 0) add("咳嗽" to "${s.coughCount} 次")
-        if (s.talkCount > 0) add("梦话" to "${s.talkCount} 段")
+        // 咳嗽、梦话固定显示，每晚格局一样；没有就写“没听到”
+        add("咳嗽" to if (s.coughCount > 0) "${s.coughCount} 次" else "没听到")
+        add("梦话" to if (s.talkCount > 0) "${s.talkCount} 段" else "没听到")
         // 中断只在出现时显示：检测会漏，不写“0 次”免得让人以为没有问题
         if (s.snoreBreaks > 0) add("鼾声中断" to "${s.snoreBreaks} 次")
     }

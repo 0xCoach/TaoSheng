@@ -1,6 +1,7 @@
 package app.resound
 
 import app.resound.data.open
+import app.resound.data.readSql
 
 import app.resound.data.retryFailed
 
@@ -226,7 +227,6 @@ class ResoundApp : Application() {
             { digestSettings.failover.hasBackup(it) },
             digestSettings.failover.request("分析", database.memory(), app.resound.usage.UsagePurpose.Analysis, llm::chatJson))
         AppGraph.analysis = analysisRepository
-        scope.launch { analysisRepository.ensureSeeded(); AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) } }
         AppGraph.agentBridge = app.resound.agent.AgentBridge(this, database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
         AppGraph.agentBridge.startDriver()
         app.resound.agent.AgentDispatchWork.schedule(this)
@@ -239,7 +239,6 @@ class ResoundApp : Application() {
             { t, b, l -> assistantNotifier.send(t, b, l) })
         AppGraph.captureInbox = app.resound.collect.CaptureInbox(this, database.captureItems(), AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
             { AppGraph.workflowEngine.emit(it) }, dbPath = { database.filePath })
-        scope.launch { AppGraph.captureInbox.reconcile() }
         AppGraph.workflowEngine = app.resound.rules.WorkflowEngine(database.workflowRules(), database.memory(), AppGraph.platform.dispatchers.io, AppGraph.platform.now,
             { t, b, l -> assistantNotifier.send(t, b, l) }, { AppGraph.analysis }, { AppGraph.agentBridge })
         AppGraph.groundedQA = app.resound.qa.GroundedQA(app.resound.search.RecordSearch(database), database.decisions(), database.ideas(),
@@ -253,9 +252,17 @@ class ResoundApp : Application() {
         if (getSharedPreferences("assistant", MODE_PRIVATE).getBoolean("mcp_enabled", false)) AppGraph.mcpServer.start()
         app.resound.followup.FollowupWork.schedule(this)
         app.resound.rules.WorkflowWork.schedule(this)
+        // 打开库与启动写任务串行在同一个不可取消协程：首连接/打开事务若在可取消调用方手里被掐断，
+        // 会泄漏成永不提交的外层事务、毒化整个连接池（真机实锤：提交返回成功但行不落盘）。
         scope.launch {
+            runCatching { database.readSql("SELECT 1") { it.step() } }
+            analysisRepository.ensureSeeded()
+            AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
             AppGraph.decisionRepo.syncFromDigest()
             AppGraph.followupEngine.scan()
+            AppGraph.captureInbox.reconcile()
+        }
+        scope.launch {
             AppGraph.followupEngine.events.collect { AppGraph.workflowEngine.emit(it) }
         }
         AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), digestSettings.providers, { b, line ->

@@ -81,11 +81,8 @@ class IdeaRepository(
 
     /** 从整理出的“灵感”提取项建卡；已有则返回旧卡。 */
     suspend fun fromItem(item: MemoryItemEntity): Long = withContext(io) {
-        dao.bySourceItem(item.id)?.id ?: dao.transaction {
-            val id = create(item.content.take(30), item.content, sourceItemId = item.id,
-                sourceLineId = item.lineId, sourceEventId = item.eventId, sourceText = item.sourceText)
-            id
-        }
+        dao.bySourceItem(item.id)?.id ?: create(item.content.take(30), item.content, sourceItemId = item.id,
+            sourceLineId = item.lineId, sourceEventId = item.eventId, sourceText = item.sourceText)
     }
 
     /** 把整理出的“灵感”提取项同步进收件箱；已删除/已合并的灵感留墓碑不再复活。返回新增数。 */

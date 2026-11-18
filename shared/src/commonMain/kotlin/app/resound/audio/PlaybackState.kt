@@ -34,9 +34,9 @@ fun speakerMedia(usage: Int, routedType: Int?, outputs: List<Int>): Boolean {
 }
 
 /** 由活动播放配置与 isMusicActive 算出播放状态；没有活动播放配置时不判在放，全 false。 */
-fun playbackState(configs: List<PlaybackConfigSnapshot>, outputs: List<Int>, musicActive: Boolean): PlaybackState =
+fun playbackState(configs: List<PlaybackConfigSnapshot>, outputs: List<Int>, musicActive: Boolean, mediaVolume: Int = 1): PlaybackState =
     PlaybackState(
         playing = configs.isNotEmpty() && musicActive,
-        speakerPlaying = configs.isNotEmpty() && musicActive
+        speakerPlaying = mediaVolume > 0 && configs.isNotEmpty() && musicActive
             && configs.any { speakerMedia(it.usage, it.routedType, outputs) },
     )

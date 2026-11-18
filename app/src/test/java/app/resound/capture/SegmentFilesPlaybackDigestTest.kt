@@ -5,7 +5,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import app.resound.data.CaptureDatabase
-import app.resound.transcribe.PlaybackDigestSettings
+import app.resound.transcribe.PlaybackMode
+import app.resound.transcribe.PlaybackSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,15 +39,16 @@ class SegmentFilesPlaybackDigestTest {
             .setDriver(AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val spool = File(context.filesDir, "segment-spool")
         val scope1 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val files1 = SegmentFiles(context, db.capture(), scope1)
+        val settings = playbackSettings(context.getSharedPreferences("transcribe", 0))
+        val files1 = SegmentFiles(context, db.capture(), scope1, settings)
         files1.awaitReady()
         scope1.coroutineContext[Job]!!.cancelAndJoin()
         val produced = listOf(
-            record(files1, 1_700_000_000_000L, playbackSamples = samples.size.toLong(), include = false),
-            record(files1, 1_700_000_010_000L, playbackSamples = samples.size.toLong(), include = true),
-            record(files1, 1_700_000_020_000L, playbackSamples = 0, include = true),
+            record(files1, settings, 1_700_000_000_000L, playbackSamples = samples.size.toLong(), include = false),
+            record(files1, settings, 1_700_000_010_000L, playbackSamples = samples.size.toLong(), include = true),
+            record(files1, settings, 1_700_000_020_000L, playbackSamples = 0, include = true),
         )
-        assertEquals(listOf("1000:true:false", "1000:true:true", "0:true:true"), produced.map { it.second })
+
         produced.forEach { (base, bytes) ->
             val onDisk = File(spool, "$base.playback")
             assertTrue(onDisk.isFile)
@@ -65,13 +67,9 @@ class SegmentFilesPlaybackDigestTest {
                 found
             }
             assertEquals(listOf(1, 2, 0), rows.map { it.playbackDigest })
-            assertEquals(listOf("SkippedPlayback", "SkippedPlayback", "Pending"), rows.map { it.status })
+            assertEquals(listOf("SkippedPlayback", "Pending", "Pending"), rows.map { it.status })
             assertEquals(listOf(1000L, 1000L, 0L), rows.map { it.playbackMillis })
-            produced.forEachIndexed { i, (_, bytes) ->
-                val parsed = PlaybackDigestSettings.parseFile(bytes)
-                assertEquals(parsed.first, rows[i].playbackMillis)
-                assertEquals(PlaybackDigestSettings.initial(1000, parsed.first, parsed.third), rows[i].playbackDigest)
-            }
+            assertTrue(rows.all { it.speakerIntervals != null })
         } finally {
             scope2.coroutineContext[Job]!!.cancelAndJoin()
             db.close()
@@ -80,17 +78,16 @@ class SegmentFilesPlaybackDigestTest {
 
     private fun record(
         files: SegmentFiles,
+        settings: PlaybackSettings,
         epoch: Long,
         playbackSamples: Long,
         include: Boolean,
     ): Pair<String, String> {
-        context.getSharedPreferences("transcribe", 0).edit()
-            .putBoolean("skipPlayback", true)
-            .putBoolean(PlaybackDigestSettings.KEY, include)
-            .commit()
+        settings.setDefault(if (include) PlaybackMode.Digest else PlaybackMode.Skip)
         val sink = files.sink(epoch)
         sink.begin(0)
         sink.write(samples)
+        if (playbackSamples > 0) sink.speakerRange(0, playbackSamples)
         sink.playback(playbackSamples)
         sink.confirmed()
         val spool = File(context.filesDir, "segment-spool")

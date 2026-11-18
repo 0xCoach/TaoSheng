@@ -55,8 +55,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
             digestSettings.skillCredentials(presetId)
         }
+        val recordings = db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct())
         val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation,
-            db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis }, db.marks()::overlapping)
+            recordings.associate { it.id to it.playbackMillis }, db.marks()::overlapping, recordings)
         val (text, indexed) = contextPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System
             .currentTimeMillis() - 60L * 86_400_000))
@@ -65,8 +66,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (events, items) = DigestPrompt.parse(reply.content, indexed, diagnostics = reply.diagnostics)
         val at = System.currentTimeMillis()
-        RedoDigest(events.map { e -> MemoryEventEntity(startAt = e.startAt, endAt = e.endAt,
-            scene = if (db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
+        RedoDigest(events.mapIndexed { eventIndex, e -> MemoryEventEntity(startAt = e.startAt, endAt = e.endAt,
+            scene = if (items.none { it.eventIndex == eventIndex && it.category in setOf("待办", "约定") } && db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
             pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(), place = e.place,
             emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = reply.actualModel ?: preset.model) to e.lineIds },
             { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,

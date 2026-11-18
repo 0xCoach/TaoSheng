@@ -139,10 +139,12 @@ object AppGraph {
     lateinit var digestProgress: kotlinx.coroutines.flow.StateFlow<app.resound.digest.DigestProgress>
     val isDigestProgressReady: Boolean get() = ::digestProgress.isInitialized
 
-    lateinit var playbackSkip: app.resound.capture.PlaybackSkipSettings
-    val isPlaybackSkipReady: Boolean get() = ::playbackSkip.isInitialized
-    lateinit var playbackDigestSettings: app.resound.transcribe.PlaybackDigestSettings
-    val isPlaybackDigestReady: Boolean get() = ::playbackDigestSettings.isInitialized
+    lateinit var playbackSentences: app.resound.transcribe.PlaybackSentences
+    lateinit var playbackSettings: app.resound.transcribe.PlaybackSettings
+    lateinit var playbackSkip: app.resound.capture.LegacyPlaybackControls
+    val playbackDigestSettings get() = playbackSkip
+    val isPlaybackSkipReady get() = ::playbackSkip.isInitialized
+    val isPlaybackDigestReady get() = isPlaybackSkipReady
 
     /** 播放状态（是否在放、是否可能外放）应用级单例；有订阅者才注册系统回调。 */
     lateinit var playback: app.resound.capture.PlaybackMonitor

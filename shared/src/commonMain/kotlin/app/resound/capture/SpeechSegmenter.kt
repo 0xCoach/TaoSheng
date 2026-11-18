@@ -8,6 +8,7 @@ class SpeechSegmenter(private val sink: Sink, private val minSpeechSamples: Int 
         fun write(samples: ShortArray)
         fun confirmed() {}
         fun playback(samples: Long) {}
+        fun speakerRange(fromSample: Long, untilSample: Long) {}
         fun end(endSample: Long, keep: Boolean)
     }
     private val preRoll = ArrayDeque<Short>()
@@ -33,7 +34,7 @@ class SpeechSegmenter(private val sink: Sink, private val minSpeechSamples: Int 
             active = true
             sink.begin(start)
             if (preRoll.isNotEmpty()) sink.write(preRoll.toShortArray())
-            playbackSamples = playbackHistory.count { it }.toLong()
+            reportPreRoll()
             sink.playback(playbackSamples)
             preRoll.clear(); playbackHistory.clear()
         }
@@ -50,7 +51,10 @@ class SpeechSegmenter(private val sink: Sink, private val minSpeechSamples: Int 
             val part = pcm.copyOfRange(offset, offset + count)
             sink.write(part)
             newSamples += count
-            if (playing) playbackSamples += count
+            if (playing) {
+                playbackSamples += count
+                sink.speakerRange(cursor, cursor + count)
+            }
             sink.playback(playbackSamples)
             trailingSpeech = if (speech) (trailingSpeech + count).coerceAtMost(CaptureTuning.PRE_ROLL_SAMPLES) else 0
             remember(part)
@@ -72,7 +76,7 @@ class SpeechSegmenter(private val sink: Sink, private val minSpeechSamples: Int 
                     voiced = tailSpeech
                     sink.begin(start)
                     sink.write(preRoll.toShortArray())
-                    playbackSamples = playbackHistory.count { it }.toLong()
+                    reportPreRoll()
                     sink.playback(playbackSamples)
                 } else if (offset < pcm.size) {
                     remember(pcm.copyOfRange(offset, pcm.size))
@@ -100,6 +104,19 @@ class SpeechSegmenter(private val sink: Sink, private val minSpeechSamples: Int 
         silence = 0
         playbackSamples = 0; newSamples = 0; continuationSegment = false; confirmed = false
         if (clearHistory) { preRoll.clear(); playbackHistory.clear(); trailingSpeech = 0 }
+    }
+
+    private fun reportPreRoll() {
+        playbackSamples = playbackHistory.count { it }.toLong()
+        var run = -1
+        playbackHistory.forEachIndexed { i, on ->
+            if (on && run < 0) run = i
+            if (!on && run >= 0) {
+                sink.speakerRange(start + run, start + i)
+                run = -1
+            }
+        }
+        if (run >= 0) sink.speakerRange(start + run, start + playbackHistory.size)
     }
 
     private fun remember(pcm: ShortArray) {

@@ -40,9 +40,10 @@ object SkillInputs {
         while (count > limit && cut < lines.size) count -= size(lines[cut++])
         return lines.drop(cut)
     }
-    fun gateLines(raw: List<TranscriptLineData>, speakers: SkillSpeakers): List<SkillGateLine> =
+    fun gateLines(raw: List<TranscriptLineData>, speakers: SkillSpeakers, events: List<MemoryEventData> = emptyList()): List<SkillGateLine> =
         raw.filter { speakers != SkillSpeakers.MeOnly || it.speakerName == "我" }
-            .map { SkillGateLine(it.startAt, speaker(it), it.voiceInputJson != null) }
+            .map { SkillGateLine(it.startAt, speaker(it), it.voiceInputJson != null,
+                events.any { event -> event.scene == "会议" && it.startAt <= event.endAt && it.endAt >= event.startAt }) }
 
     suspend fun load(dao: SkillInputStore, skill: Skill, date: LocalDate, since: Long?, until: Long): SkillInput =
         prepare(dao, skill, date, until, source(dao, skill, date, since, until))

@@ -69,6 +69,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -767,6 +768,9 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
     // 合并过的事可能跨过中间别的事（和 A 聊着、B 插了几句、又接着聊）：这种标一下“中间有插话”
     val events = entries.mapNotNull { (it as? TimelineEntry.Event)?.event }
     val interrupted = events.filter { e -> events.any { o -> o.id != e.id && o.startAt > e.startAt && o.startAt < e.endAt && o.endAt <= e.endAt } }.map { it.id }.toSet()
+    // 卡 207：会议事件旁没有会议速记卡时，下面一行说明原因、可“仍要生成”
+    val meetingCards = entries.mapNotNull { (it as? TimelineEntry.Card)?.card }.filter { it.skillId == "meeting" }
+    fun hasMinutes(e: MemoryEvent) = meetingCards.any { card -> card.at < e.endAt && (card.endAt ?: card.at) >= e.startAt }
     Column(modifier) {
         Text(if (count > 0) "$part · $count 件" else part, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
@@ -774,7 +778,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
             entries.forEachIndexed { i, e ->
                 when (e) {
                     // 多选中：点一下勾选/取消，长按 = 选到这条；左右滑暂停，避免误删
-                    is TimelineEntry.Event -> if (selection?.active == true) {
+                    is TimelineEntry.Event -> { if (selection?.active == true) {
                         val id = e.event.id
                         TimelineLine(e.event, onLongPress = { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); selection.rangeTo(id, order) },
                             modifier = Modifier.trackRow(selection, id), selected = id in selection.ids, interrupted = id in interrupted) { selection.toggle(id, order) }
@@ -782,6 +786,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                         val start = selection?.let { s -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); s.start(e.event.id) } }
                         TimelineLine(e.event, start ?: lp, interrupted = e.event.id in interrupted) { onOpen(e.event) }
                     }
+                    if (selection?.active != true && e.event.scene == "会议" && !e.event.isMedia() && !hasMinutes(e.event)) MeetingMinutesMissing(e.event) }
                     is TimelineEntry.TopicPending -> {
                         val progress by remember(e.topic.id) { app.resound.AppGraph.topics.observeProgress(e.topic.id) }
                             .collectAsStateWithLifecycle(initialValue = app.resound.topic.TopicProgress())
@@ -796,6 +801,35 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
             }
         }
+    }
+}
+
+/** 卡 207：会议没出纪要卡——说一句为什么，点“仍要生成”跳过门槛手动出卡 */
+@Composable
+private fun MeetingMinutesMissing(event: MemoryEvent) {
+    val repo = remember { (if (app.resound.AppGraph.isSkillsReady) app.resound.AppGraph.skills else null) as? app.resound.skills.LocalSkillRepository } ?: return
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    val reason by produceState<String?>(null, event.id) { value = runCatching { repo.meetingNothingReason(event.id) }.getOrNull() }
+    var busy by remember(event.id) { mutableStateOf(false) }
+    var note by remember(event.id) { mutableStateOf<String?>(null) }
+    // 还没跑过技能（也没有原因）时不打扰；有原因或刚点过才显示
+    val text = note ?: reason?.removePrefix("没出卡：")?.let { "没出纪要：$it" } ?: return
+    Row(Modifier.fillMaxWidth().padding(start = 76.dp, end = 18.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, style = RsType.caption, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        if (note == null || !busy) Text(if (busy) "生成中…" else "仍要生成", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+            modifier = Modifier.clip(CircleShape).springClick {
+                if (busy) return@springClick
+                busy = true; note = "正在生成会议纪要…"
+                scope.launch {
+                    note = when (val r = runCatching { repo.generateMeetingEvent(event.id) }.getOrElse { app.resound.skills.SkillRunResult.Failed("没生成出来") }) {
+                        is app.resound.skills.SkillRunResult.Cards -> null
+                        is app.resound.skills.SkillRunResult.Nothing -> "模型觉得不像会议：${r.reason.removePrefix("没出卡：")}"
+                        is app.resound.skills.SkillRunResult.Failed -> "没生成出来：${r.reason}"
+                    }
+                    busy = false
+                }
+            }.padding(horizontal = 10.dp, vertical = 4.dp))
     }
 }
 

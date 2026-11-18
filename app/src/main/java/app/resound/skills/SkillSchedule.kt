@@ -43,6 +43,18 @@ class SkillScheduler(private val context: Context) {
             OneTimeWorkRequestBuilder<SkillAfterDigestWork>().setInputData(workDataOf(MANUAL to manual))
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
     }
+    /** 固定首次启动的两天，断点续做时不随日期滚动。完成标记独立于可清理的运行日志。 */
+    fun backfill207() {
+        val prefs = context.getSharedPreferences("skills-backfill-207", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("done", false)) return
+        if (!prefs.contains("day")) {
+            val day = app.resound.skills.core.SkillSchedule.date(System.currentTimeMillis()).toEpochDays().toLong()
+            check(prefs.edit().putLong("day", day).commit())
+        }
+        WorkManager.getInstance(context).enqueueUniqueWork("skills-backfill-207", ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<SkillBackfill207Work>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
+    }
     companion object { const val NAME = "skills-daily"; const val AFTER_NAME = "skills-after-digest"; const val MANUAL = "manual" }
 }
 class SkillWork(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -58,5 +70,22 @@ class SkillAfterDigestWork(context: Context, params: WorkerParameters) : Corouti
     override suspend fun doWork(): Result {
         (AppGraph.skills as LocalSkillRepository).afterDigest(inputData.getBoolean(SkillScheduler.MANUAL, false))
         return Result.success()
+    }
+}
+
+/** WorkManager 提供执行机会，业务筛选、门槛、日上限由共用仓储执行。 */
+class SkillBackfill207Work(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val prefs = applicationContext.getSharedPreferences("skills-backfill-207", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("done", false)) return Result.success()
+        if (!prefs.contains("day")) return Result.failure()
+        val today = prefs.getLong("day", 0)
+        val repository = AppGraph.skills as LocalSkillRepository
+        val completed = app.resound.skills.core.MeetingBackfill207.run(today,
+            completed = { day -> prefs.getBoolean("day-$day", false) },
+            complete = { day -> prefs.edit().putBoolean("day-$day", true).commit() },
+            runDay = repository::backfillMeetings207)
+        if (!completed) return Result.retry()
+        return if (prefs.edit().putBoolean("done", true).commit()) Result.success() else Result.retry()
     }
 }

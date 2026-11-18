@@ -23,7 +23,7 @@ object SkillInputs {
   val byId = raw.associateBy { it.id }
   return Core.boundedLines(raw.map { it.snapshot() }, speakers, limit).map { byId.getValue(it.id) }
  }
- internal fun gateLines(raw: List<TranscriptLineData>, speakers: SkillSpeakers) = Core.gateLines(raw,speakers)
+ internal fun gateLines(raw: List<TranscriptLineData>, speakers: SkillSpeakers, events: List<app.resound.digest.core.MemoryEventData> = emptyList()) = Core.gateLines(raw,speakers,events)
  suspend fun load(dao: SkillDao,skill: Skill,date: LocalDate,since: Long?,until: Long) = prepare(dao,skill,date,until,source(dao,skill,date,since,until))
  internal suspend fun source(dao: SkillDao,skill: Skill,date: LocalDate,since: Long?,until: Long) = Core.source(RoomSkillInputStore(dao),skill,date.toKotlinLocalDate(),since,until)
  internal suspend fun prepare(dao: SkillDao,skill: Skill,date: LocalDate,until: Long,source: SkillSource): SkillInput {

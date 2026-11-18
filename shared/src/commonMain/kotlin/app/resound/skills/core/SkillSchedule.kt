@@ -8,6 +8,7 @@ object SkillSchedule {
     const val DAILY = "daily"
     const val AFTER = "after_digest"
     const val MANUAL = "manual"
+    const val EVENT_MANUAL = "event_manual"
     const val TRIAL = "trial"
     fun automatic(r: SkillRunData) = r.kind == DAILY || r.kind == AFTER
     fun date(at: Long): LocalDate = Instant.fromEpochMilliseconds(at).toLocalDateTime(SKILL_ZONE(at)).date

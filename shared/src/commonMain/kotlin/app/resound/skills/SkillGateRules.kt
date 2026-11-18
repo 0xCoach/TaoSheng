@@ -1,7 +1,7 @@
 package app.resound.skills
 
 /** 门槛只接收原话的基本数据；时间是同一时间轴上的毫秒，由调用方提供。 */
-data class SkillGateLine(val startAt: Long, val speaker: String, val voiceInput: Boolean)
+data class SkillGateLine(val startAt: Long, val speaker: String, val voiceInput: Boolean, val meeting: Boolean = false)
 
 data class SkillGateStats(val speakers: Int, val spanMillis: Long, val lines: Int)
 
@@ -15,7 +15,12 @@ object SkillGateRules {
 
     fun stats(gate: SkillGate, lines: List<SkillGateLine>): SkillGateStats {
         val counted = lines.filter { gate.countVoiceInput || !it.voiceInput }
-        val people = counted.map { it.speaker }.filter { it != "待确认" }.distinct().size
+        val unknown = counted.count { it.speaker == "待确认" || it.speaker.startsWith("说话人") }
+        val recognized = counted.map { if (it.speaker == "可能是我（未确认）") "我" else it.speaker }
+            .filter { it != "待确认" && !it.startsWith("说话人") }.distinct().size
+        val extra = unknown > 0 && (unknown >= 5 || unknown.toLong() * 5 >= counted.size)
+        val people = maxOf(recognized + if (extra) 1 else 0,
+            if (gate.minSpeakers >= 2 && counted.any { it.meeting }) gate.minSpeakers else 0)
         val span = if (counted.isEmpty()) 0L else counted.maxOf { it.startAt } - counted.minOf { it.startAt }
         return SkillGateStats(people, span, counted.size)
     }

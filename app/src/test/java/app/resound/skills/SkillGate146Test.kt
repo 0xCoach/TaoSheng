@@ -121,8 +121,9 @@ class SkillGate146Test {
 
     @Test fun uncertainLabelsDoNotAddPeople() = runBlocking {
         seed(40, 15, 1, unknown = true)
-        nothing(repo().runNow("meeting", day), "1 个人")
-        assertEquals(0, calls)
+        // 卡 207 裁定：uncertain:* 也参与未知声音门槛，1 人 + 39 句待确认可通过。
+        assertTrue(repo().runNow("meeting", day) is SkillRunResult.Cards)
+        assertEquals(1, calls)
     }
 
     @Test fun realMeetingUsesCompleteLinesBeforeCharacterTrimming() = runBlocking {

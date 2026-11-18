@@ -340,7 +340,7 @@ class ResoundApp : Application() {
             hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) },
             draftRequest = digestSettings.failover.request("技能生成", database.memory(), app.resound.usage.UsagePurpose.Draft, llm::chatJson), now = app.resound.AppGraph.platform.now::now, io = app.resound.AppGraph.platform.dispatchers.io)
         AppGraph.skills = skillRepository
-        scope.launch { skillRepository.reschedule() }
+        scope.launch { skillRepository.reschedule(); skillScheduler.backfill207() }
         AppGraph.review = reviews
         AppGraph.diary = app.resound.diary.LocalDiaryRepository(this, AppGraph.memory, reviews, database.memory(), AppGraph.platform.zone, AppGraph.platform.dispatchers.io,
             cards = { date -> skillRepository.cards(date).first() })

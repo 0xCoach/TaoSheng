@@ -76,7 +76,9 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         dao.clips(id).mapNotNull { it.path }.forEach { db.privacy().queueCleanup(PrivacyFileCleanup(fileRef(it).id)) };dao.delete(id);if(learned)dao.clearPersonal();NightWeekPrivacy.refresh(this,zones()) }
     suspend fun eraseRange(from: Long,until: Long) {
         for(row in dao.all()) {
-            if(row.start<until && row.end>from)erase(row.id)
+            // 活跃会话在两次落盘之间仍在录制，删除范围也要覆盖这段尾部。
+            val end = if (row.state == "Active" || row.state == "Provisional") maxOf(row.end, now()) else row.end
+            if(row.start<until && end>from)erase(row.id)
             else for(dream in dao.dreams(row.id))if(dream.at<until && maxOf(dream.until,dream.at+1)>from) {
                 dao.deleteDream(dream.id);dao.update(row.copy(updatedAt=now()))
             }

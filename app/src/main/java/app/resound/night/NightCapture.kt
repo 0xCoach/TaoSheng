@@ -22,6 +22,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private val sensor=context.getSystemService(SensorManager::class.java)
     private val gate=Mutex()
     private var id: Long?=null;private var session: NightSession?=null
+    private var writes = NightSessionWrites()
     private var processor: NightSoundProcessor?=null
     private var inference = newInferenceGate()
     private fun newInferenceGate() = NightInferenceGate { window, infer ->
@@ -181,7 +182,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             val spans=current.modes.toMutableList();val last=spans.lastOrNull()
             if(last?.mode==mode)spans[spans.lastIndex]=last.copy(end=at) else spans+=NightModeSpan(at,at,mode)
             session=current.copy(modes=spans)
-            owner.store.persistSession(id!!,session!!,at,if(current.confirmedAt==null)NightState.Provisional else NightState.Active)
+            val state = if (current.confirmedAt == null) NightState.Provisional else NightState.Active
+            writes.checkpoint(state, SystemClock.elapsedRealtime()) { owner.store.persistSession(id!!,session!!,at,state) }
             owner.store.setLive(NightLive(if(current.confirmedAt==null)NightState.Provisional else NightState.Active,mode,current.screenOff,WakeRules.pending(session!!)))
         }
         armed=shouldSensor || session!=null
@@ -232,6 +234,6 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         id?.let {owner.store.finishSession(it,session!!,at)}
         reset();NightWork.run(context)
     }
-    private fun reset() {inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
+    private fun reset() {writes=NightSessionWrites();inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
     override fun close() {sensor.unregisterListener(listener);context.unregisterReceiver(receiver);frames.close();scope.cancel();if(modelHeld) {owner.model.endNight();modelHeld=false}}
 }

@@ -21,6 +21,10 @@ class NightInsightsAndroid(private val context: Context,private val owner: Andro
     val repository=NightInsightsStore(owner.store,System::currentTimeMillis,HistoricalZones.history,share::export)
     private val dao get()=owner.store.dao
     private val json get()=owner.store.json
+    private val training = PersonalNightTraining(owner.store,NightFiles::scores) { signature ->
+        java.security.MessageDigest.getInstance("SHA-256").digest(signature.encodeToByteArray())
+            .joinToString("") { "%02x".format(it) }
+    }
     private val gate=Mutex()
     suspend fun maintain() = gate.withLock {
         repository.initialize();share.cleanup()
@@ -45,7 +49,7 @@ class NightInsightsAndroid(private val context: Context,private val owner: Andro
         if(owner.settings.value.breakReminder && SnoreBreaks.shouldRemind(rows,at,previous?.at,previous?.muted==true)) {
             rows.firstOrNull()?.let {dao.notice(NightNoticeRow("notice-night-${it.id}",at,false));dao.notice(NightNoticeRow("break",at,false))}
         }
-        train(at)
+        training.train(at,context.getSystemService(BatteryManager::class.java).isCharging)
         repository.refreshWeekPrivacy()
         if(owner.settings.value.weeklyReport)for(report in repository.weeks(at)) {
             // 先持久化唯一周请求。进程中断后不重发润色请求，保留规则稿，避免重复付费。
@@ -55,31 +59,6 @@ class NightInsightsAndroid(private val context: Context,private val owner: Andro
             repository.finishWeek(polished,state)
             if(owner.settings.value.includeInPush)NightNotifications.show(context,"night-week-${report.weekStart}","上周的夜里周报已整理好")
             owner.store.notifyChanged()
-        }
-    }
-    private suspend fun train(at: Long) {
-        val charging=context.getSystemService(BatteryManager::class.java).isCharging
-        val feedback=dao.feedback();val saved=dao.personal().first()
-        for(kind in PersonalKind.entries.filter {owner.settings.value.personalModel}) {
-            val selected=feedback.filter {it.kind==kind.name};val old=saved.firstOrNull {it.kind==kind.name}
-            if(!PersonalNightModel.due(selected.size,old?.feedbackCount ?: 0,at,old?.trainedAt,charging))continue
-            val samples=selected.mapNotNull {row->runCatching {val f=json.decodeFromString<NightFeatures>(row.features);PersonalExample(NightFiles.scores(row.scores).map(Float::toDouble)+listOf(f.rhythm,f.modulation,f.aboveBackground.toDouble()),row.yes)}.getOrNull()}
-            currentCoroutineContext().ensureActive()
-            val model=PersonalNightModel.train(samples) ?: continue
-            dao.personal(NightPersonalRow(kind.name,json.encodeToString(model),at,selected.size))
-        }
-        // 只否决规则已有事件，主动“是”优先；保留事件和录音以便纠正。
-        val models=dao.personal().first().filter {row->owner.settings.value.personalModel && feedback.count {it.kind==row.kind && it.yes}>=20 && feedback.count {it.kind==row.kind && !it.yes}>=10}.associate {it.kind to json.decodeFromString<PersonalWeights>(it.payload)}
-        for(night in dao.all()) {
-            var changed=false
-            for(row in dao.events(night.id).filter {it.kind in setOf("Snore","Cough")}) {
-                val event=json.decodeFromString<NightEvent>(row.payload);val clip=event.clipId?.let {dao.clip(it)} ?: continue
-                val feature=runCatching {json.decodeFromString<NightFeatures>(clip.features)}.getOrNull() ?: continue
-                val x=NightFiles.scores(clip.scores).map(Float::toDouble)+listOf(feature.rhythm,feature.modulation,feature.aboveBackground.toDouble())
-                val veto=event.feedback!=Feedback.Yes && !PersonalNightModel.permits(models[row.kind],x)
-                if(veto!=row.vetoed) {dao.updateEvent(row.copy(vetoed=veto));changed=true}
-            }
-            if(changed) {owner.store.recompute(night.id);owner.store.notifyChanged()}
         }
     }
     private suspend fun polish(report: WeeklyReport): WeeklyReport {

@@ -71,6 +71,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     override suspend fun deleteNight(nightId: Long)=gate.withLock { db.writeTransaction { erase(nightId) };cleanup();changed() }
     /** 调用方已有事务；删除整夜避免残留梦话或从信号重新生成隐私内容。 */
     suspend fun erase(id: Long) {
+        dao.invalidateJudgment(id)
         val learned=dao.feedback().any {it.nightId==id}
         if(dao.get(id)?.state in setOf("Active","Provisional"))dao.notice(NightNoticeRow("privacy-floor",now(),false))
         dao.clips(id).mapNotNull { it.path }.forEach { db.privacy().queueCleanup(PrivacyFileCleanup(fileRef(it).id)) };dao.delete(id);if(learned)dao.clearPersonal();NightWeekPrivacy.refresh(this,zones()) }
@@ -94,6 +95,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     /** 一夜结束：先按手机信号估出入睡/起床，整理（可能要等充电）完成前首页也能画出来 */
     suspend fun finishSession(id: Long,session: NightSession,end: Long) {
         val row=dao.get(id) ?: return;val old=summary(row)
+        dao.invalidateJudgment(id)
         val times=old.times ?: SleepEstimate.calculate(session,emptyList(),end).times
         dao.update(row.copy(end=end,state=NightState.Processing.name,signals=json.encodeToString(session),payload=json.encodeToString(old.copy(state=NightState.Processing,modes=session.modes,times=times)),updatedAt=now()))
     }

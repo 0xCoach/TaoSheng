@@ -81,6 +81,13 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Upsert suspend fun week(row: NightWeekRow)
     @Query("DELETE FROM night_weeks WHERE weekStart=:start") suspend fun deleteWeek(start: String)
     @Query("SELECT * FROM night_notice WHERE `key`=:key") suspend fun notice(key: String): NightNoticeRow?
+    @Query("""SELECT id FROM nights WHERE state='Ready' AND NOT EXISTS
+        (SELECT 1 FROM night_notice WHERE `key` = 'personal-judge:' || nights.id || ':' || :revision)""")
+    suspend fun nightsToJudge(revision: String): List<Long>
+    @Query("DELETE FROM night_notice WHERE `key` GLOB 'personal-judge:' || :id || ':*'")
+    suspend fun invalidateJudgment(id: Long)
+    @Query("SELECT DISTINCT nightId FROM night_events WHERE vetoed=1") suspend fun vetoedNights(): List<Long>
+    @Query("UPDATE night_events SET vetoed=0 WHERE nightId=:id AND vetoed=1") suspend fun clearVetoes(id: Long)
     @Upsert suspend fun notice(row: NightNoticeRow)
 }
 

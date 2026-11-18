@@ -84,6 +84,7 @@ data class NightSettings(
     val dreamPrompt: Boolean = true,
     val personalModel: Boolean = true,
     val breakReminder: Boolean = true,
+    val windows: List<SleepWindow> = SleepWindows.legacy(windowStartMinute, windowEndMinute),
 )
 
 /** 用户改过的以用户为准；[onsetEstimated] 为 true 时界面写“约” */
@@ -179,12 +180,23 @@ data class NightDetail(
 @Serializable
 data class NightLive(val state: NightState, val mode: NightMode?, val since: Long?,
     /** 记录中但已经有醒来的动作、还没重新睡着：这一刻起不再画成睡着 */
-    val awakeAt: Long? = null)
+    val awakeAt: Long? = null, val window: SleepWindow? = null)
 
 interface NightRepository {
     val settings: StateFlow<NightSettings>
     /** 打开总开关时若环境音模型未下载会自动下载 */
     fun update(settings: NightSettings)
+
+    /** 自动估出的夜里时段。 */
+    val automaticWindow: StateFlow<SleepWindow> get() = kotlinx.coroutines.flow.MutableStateFlow(SleepWindows.fallback)
+    /** 成功返回 null，否则返回可显示的原因。 */
+    fun saveWindows(windows: List<SleepWindow>): String? {
+        SleepWindows.error(windows, automaticWindow.value)?.let { return it }
+        update(settings.value.copy(windows = windows))
+        return null
+    }
+    fun naps(date: LocalDate): Flow<List<NightSummary>> = kotlinx.coroutines.flow.flowOf(emptyList())
+    fun nightById(id: Long): Flow<NightDetail?> = kotlinx.coroutines.flow.flowOf(null)
 
     /** 启用的停录规则与夜里时间段重叠时非 null，界面据此询问要不要关掉那条停录 */
     val quietConflict: StateFlow<QuietRule?>

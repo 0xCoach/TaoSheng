@@ -29,7 +29,7 @@ class NightInsightsAndroid(private val context: Context,private val owner: Andro
     suspend fun maintain() = gate.withLock {
         repository.initialize();share.cleanup()
         val at=System.currentTimeMillis();val zones=HistoricalZones.history()
-        for(row in dao.all()) {
+        for(row in dao.nightHistory()) {
             repository.refreshDreams(row.id)
             val summary=owner.store.summary(row)
             if(summary.state!=NightState.Ready)continue
@@ -44,7 +44,7 @@ class NightInsightsAndroid(private val context: Context,private val owner: Andro
                 dao.notice(NightNoticeRow("dream-${row.id}",at,false));NightNotifications.dream(context,row.id)
             }
         }
-        val rows=dao.all().map(owner.store::summary)
+        val rows=dao.nightHistory().map(owner.store::summary)
         val previous=dao.notice("break")
         if(owner.settings.value.breakReminder && SnoreBreaks.shouldRemind(rows,at,previous?.at,previous?.muted==true)) {
             rows.firstOrNull()?.let {dao.notice(NightNoticeRow("notice-night-${it.id}",at,false));dao.notice(NightNoticeRow("break",at,false))}

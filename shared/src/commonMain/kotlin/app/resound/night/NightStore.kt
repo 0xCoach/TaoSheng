@@ -1,3 +1,4 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
 package app.resound.night
 
 import app.resound.capture.QuietRule
@@ -10,7 +11,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.LocalDate
+import kotlinx.datetime.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -30,14 +31,52 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     override val settings=config.asStateFlow()
     private val status=MutableStateFlow(NightLive(NightState.Waiting,null,null))
     override val live=status.asStateFlow()
-    override val quietConflict=combine(config,quiet) { s,q->NightRules.conflict(s,q) }.stateIn(scope,SharingStarted.Eagerly,NightRules.conflict(initial,quiet.value))
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val automaticWindow = flow {
+        while (true) {
+            val at = now()
+            val history = zones()
+            val today = NightRules.date(at, history)
+            emit(today)
+            val midnight = today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(history.zoneAt(at)).toEpochMilliseconds()
+            delay((midnight - at).coerceIn(1_000L, 3_600_000L))
+        }
+    }.distinctUntilChanged().flatMapLatest { today ->
+        dao.autoSamples(today.minus(13, DateTimeUnit.DAY).toString(), today.toString())
+    }.distinctUntilChanged().map { payloads ->
+        val history = zones()
+        SleepWindows.automatic(payloads.mapNotNull { payload ->
+            val summary = json.decodeFromString<NightSummary>(payload)
+            summary.times?.takeIf { summary.confidence in setOf(NightConfidence.Good, NightConfidence.Fair) }?.let {
+                NightRules.minute(it.onset, history) to NightRules.minute(it.wake, history)
+            }
+        })
+    }.stateIn(scope, SharingStarted.Eagerly, SleepWindows.fallback)
+    override val quietConflict = combine(config, quiet, automaticWindow) { s, q, auto ->
+        NightRules.conflict(s, q, auto)
+    }.stateIn(scope, SharingStarted.Eagerly, NightRules.conflict(initial, quiet.value))
     init { if(initial.enabled)scope.launch { download() } }
-    override fun update(settings: NightSettings) { NightRules.validate(settings);saveSettings(settings);config.value=settings;changed();if(settings.enabled)scope.launch { download() } }
+    override fun update(settings: NightSettings) {
+        NightRules.validate(settings)
+        val old = config.value
+        val legacyEdit = settings.windows == old.windows &&
+            (settings.windowStartMinute != old.windowStartMinute || settings.windowEndMinute != old.windowEndMinute)
+        val windows = if (legacyEdit) settings.windows.map {
+            if (it.kind == SleepWindowKind.Night) it.copy(auto = false, startMinute = settings.windowStartMinute,
+                endMinute = settings.windowEndMinute) else it
+        } else settings.windows.toList()
+        if (windows != old.windows) SleepWindows.error(windows, automaticWindow.value)?.let { throw IllegalArgumentException(it) }
+        val night = windows.first { it.kind == SleepWindowKind.Night }
+        val next = settings.copy(windows = windows, windowStartMinute = night.startMinute, windowEndMinute = night.endMinute)
+        saveSettings(next);config.value=next;changed();if(next.enabled)scope.launch { download() }
+    }
     fun setLive(value: NightLive) {status.value=value}
     fun summary(row: NightRow)=json.decodeFromString<NightSummary>(row.payload).copy(id=row.id)
     fun session(row: NightRow)=json.decodeFromString<NightSession>(row.signals)
     override fun nights(from: LocalDate,to: LocalDate)=dao.nights(from.toString(),to.toString()).map { it.map(::summary) }
     override fun night(date: LocalDate): Flow<NightDetail?> = dao.observe().map { list->list.firstOrNull { it.date==date.toString() }?.let { detail(it.id) } }
+    override fun naps(date: LocalDate) = dao.naps(date.toString()).map { rows -> rows.map(::summary) }
+    override fun nightById(id: Long) = dao.observeId(id).map { it?.let { detail(id) } }
     suspend fun detail(id: Long): NightDetail? {
         val row=dao.get(id) ?: return null
         val clips=dao.clips(id).associateBy { it.id }
@@ -123,9 +162,9 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val times=old.times ?: SleepEstimate.calculate(session,emptyList(),end).times
         dao.update(row.copy(end=end,state=NightState.Processing.name,signals=json.encodeToString(session),payload=json.encodeToString(old.copy(state=NightState.Processing,modes=session.modes,times=times)),updatedAt=now()))
     }
-    suspend fun create(session: NightSession,date: LocalDate): Long {
+    suspend fun create(session: NightSession,date: LocalDate, window: SleepWindow = SleepWindows.fallback): Long {
         val s=NightSummary(0,date,NightState.Provisional,null,null,0,0,0,0,0,null,emptyList(),null,emptyList())
-        return dao.insert(NightRow(date=date.toString(),start=session.screenOff,end=session.lastAt,state=s.state.name,payload=json.encodeToString(s),signals=json.encodeToString(session),createdAt=now(),updatedAt=now()))
+        return dao.insert(NightRow(date=date.toString(),kind=window.recordKind,windowId=window.id,start=session.screenOff,end=session.lastAt,state=s.state.name,payload=json.encodeToString(s),signals=json.encodeToString(session),createdAt=now(),updatedAt=now()))
     }
     suspend fun addEvent(id: Long,event: NightEvent,certainty: Double=1.0): Long = dao.insertEvent(NightEventRow(nightId=id,start=event.start,end=event.end,kind=event.kind.name,payload=json.encodeToString(event),certainty=certainty,vetoed=false))
     suspend fun recompute(id: Long) {
@@ -136,8 +175,9 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
             addEvent(id,NightEvent(0,when(signal.kind) { "playback"->NightEventKind.Playback;"gap"->NightEventKind.Gap;else->NightEventKind.Turn },signal.start,signal.end,text=signal.text))
         }
         val rows=dao.events(id);val events=rows.filter { !it.vetoed }.map { json.decodeFromString<NightEvent>(it.payload).copy(id=it.id) }.filter { it.feedback!=Feedback.No }
-        val history=dao.all().map(::summary)
-        val corrections=dao.all().mapNotNull { r->val s=summary(r);val original=session(r).originalTimes;s.times?.takeIf { it.editedOnset && original!=null }?.let { it.onset-original!!.onset } }
+        val comparable = dao.all().filter { it.kind == row.kind }
+        val history=comparable.map(::summary)
+        val corrections=comparable.mapNotNull { r->val s=summary(r);val original=session(r).originalTimes;s.times?.takeIf { it.editedOnset && original!=null }?.let { it.onset-original!!.onset } }
         val sleep=SleepEstimate.calculate(session,events,row.end,NightRules.latency(corrections),old.times)
         sleep.awake.forEach { addEvent(id,NightEvent(0,NightEventKind.Awake,it.start,it.end,text="看手机或拿起手机")) }
         val (confidence,reasons)=NightPresentation.confidence(session,session.signals.filter { it.kind=="background" }.map { it.value.toInt() })

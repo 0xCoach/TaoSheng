@@ -9,7 +9,7 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
     private var best: List<Pair<NightWindow,Map<String,Float>>> = emptyList()
     private var bestEnergy=-1.0
     private val fine=ArrayDeque<SnoreLevel>()
-    private val breaks=mutableSetOf<Long>()
+    private var breaks: MutableSet<Long>? = null
     private var zeroScores: Map<String, Float>? = null
     suspend fun accept(w: NightWindow, infer: Boolean = true): Boolean {
         val scores=if (infer) owner.model.nightScores(w.pcm).also {
@@ -21,8 +21,12 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
             fine.addLast(SnoreLevel(w.start+index*500,NightFrames.db(rms)-w.background,(scores["Snoring"] ?: 0f)>=NightTuning.SNORE && detector.currentSnore!=null))
         }
         while(fine.isNotEmpty() && fine.first().at<w.start-120_000)fine.removeFirst()
-        for(span in SnoreBreaks.find(fine.toList()))if(breaks.add(span.start)) {
-            if(owner.store.dao.events(id).none {it.kind=="SnoreBreak" && it.start==span.start})owner.store.addEvent(id,NightEvent(0,NightEventKind.SnoreBreak,span.start,span.end))
+        for (span in SnoreBreaks.find(fine.toList())) {
+            val known = breaks ?: owner.store.dao.breakStarts(id).toMutableSet().also { breaks = it }
+            if (span.start in known) continue
+            val event = NightEvent(0,NightEventKind.SnoreBreak,span.start,span.end)
+            owner.store.dao.insertBreak(id,span.start,span.end,owner.store.json.encodeToString(event))
+            known.add(span.start)
         }
         recent.addLast(w to scores);while(recent.size>45)recent.removeFirst()
         val finished=detector.accept(w.start,scores,w.features)

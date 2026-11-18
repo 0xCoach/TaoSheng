@@ -62,7 +62,8 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
                     val data=NightFiles.unpack(row.points);val n=data.size/3
                     NightEnvelope(row.start,5_000,ByteArray(n) { data[it*3] },ByteArray(n) { data[it*3+1] },ByteArray(n) { data[it*3+2] })
                 },{ (AppGraph.privacy as? app.resound.privacy.RoomPrivacyActions)?.retryFileCleanup();Unit },{ DayThreadPushScheduler.refresh(context) },app.quietSchedule.rules,
-                privacyChanged = { DayThreadPushScheduler.afterDeletion(context) })
+                privacyChanged = { DayThreadPushScheduler.afterDeletion(context) },
+                log = { NightLog.add(context, it) })
             return AndroidNight(context,store,files,model).also { AppGraph.nightInsights=it.insights.repository;NightWork.schedule(context) }
         }
     }

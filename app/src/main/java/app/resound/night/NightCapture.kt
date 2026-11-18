@@ -97,7 +97,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         scope.launch {
             // 上次进程中断：保留已落盘数据，补未知缺口，交给整理；不伪造连续录音。
             for(r in owner.store.dao.all().filter { it.state in setOf("Active","Provisional") }) {
-                if(r.state=="Provisional")owner.store.deleteNight(r.id)
+                if(r.state=="Provisional")owner.store.deleteNight(r.id,"重启时清掉未确认的暂定记录")
                 else {
                     val at = System.currentTimeMillis()
                     owner.store.persistSession(r.id,owner.store.session(r).interruptedUntil(at),at,NightState.Interrupted)
@@ -178,7 +178,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                 owner.model.beginNight();modelHeld=true
             }
             NightTransition.Confirm->{session=session!!.copy(confirmedAt=at);if(s.lowBatteryReminder && !input.charging && (input.battery ?: 100)<30)NightNotifications.show(context,"night-battery-${id}","电量 ${input.battery}%，建议充电，夜里记录更完整")}
-            NightTransition.Cancel->{id?.let {owner.store.deleteNight(it)};reset()}
+            NightTransition.Cancel->{id?.let {owner.store.deleteNight(it,"暂定后又用了手机，取消")};reset()}
             NightTransition.Finish->{
                 (WakeRules.decide(session!!,at,minute) ?: WakeRules.atWindowEnd(session!!,at,minute))?.let { wake-> session=session!!.copy(signals=session!!.signals+NightSignal(at,at,"wake",wake.toDouble())) }
                 owner.store.dao.get(id!!)?.date?.let { doneDate=it }

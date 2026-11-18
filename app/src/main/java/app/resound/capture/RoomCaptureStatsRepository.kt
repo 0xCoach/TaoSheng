@@ -54,6 +54,8 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
                     val session = night.store.session(row)
                     out.appendLine("${row.date} 进入=${session.provisionalAt} 确认=${session.confirmedAt} 最后记录=${session.lastAt} 状态=${row.state} 档位=${session.modes} 推理=${session.calls}次/${session.inferenceMillis}ms 丢窗=${session.dropped} 电量=${session.startBattery}→${session.endBattery} 候选=${session.candidateBytes}字节 事件=${night.store.dao.events(row.id).size} 是=${night.store.dao.feedback().count { it.nightId==row.id && it.yes }} 不是=${night.store.dao.feedback().count { it.nightId==row.id && !it.yes }}")
                 }
+                out.appendLine("夜里删除与取消（最近 30 行）")
+                out.appendLine(app.resound.night.NightLog.dump(context))
             }
             out.appendLine(UpdateDiagnostics.dump(context))
             out.appendLine("本机备份诊断（最近 50 行）")

@@ -19,7 +19,9 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     private val saveSettings: (NightSettings)->Unit,private val download: suspend ()->Unit,
     private val now: ()->Long,private val zones: ()->ZoneHistory,private val available: suspend (String)->Boolean,
     private val fileRef: (String)->FileRef, private val decodeEnvelope: (NightEnvelopeRow)->NightEnvelope, private val cleanup: suspend ()->Unit,private val changed: ()->Unit,quiet: StateFlow<List<QuietRule>>,
-    private val privacyChanged: suspend () -> Unit = { changed() }) : NightRepository {
+    private val privacyChanged: suspend () -> Unit = { changed() },
+    /** 夜里记录被删、被取消时记一行（只记日期、入口、原因，不记内容），进问题记录 */
+    private val log: (String) -> Unit = {}) : NightRepository {
     val dao=db.night()
     val json=Json { ignoreUnknownKeys=true;encodeDefaults=true }
     val gate=Mutex()
@@ -74,7 +76,23 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
             dao.update(row.copy(payload=json.encodeToString(s.copy(times=next)),updatedAt=now()));recompute(nightId)
         };changed()
     }
-    override suspend fun deleteNight(nightId: Long)=gate.withLock { db.writeTransaction { erase(nightId) };try { privacyChanged() } finally { cleanup() } }
+    override suspend fun deleteNight(nightId: Long)=deleteNight(nightId,"删除这一夜")
+    suspend fun deleteNight(nightId: Long,why: String)=gate.withLock {
+        dao.get(nightId)?.let { log("删除 ${it.date} 状态=${it.state} 原因=$why") }
+        db.writeTransaction { erase(nightId) };try { privacyChanged() } finally { cleanup() } }
+    /**
+     * 时间线上删录音/事件时：夜里记录不删（睡眠时间、鼾声、咳嗽没有隐私问题），
+     * 只把指向已删录音的梦话去掉；已整理的夜晚重算一次数字。
+     */
+    suspend fun forgetSpeech(ranges: List<Pair<Long,Long>>) {
+        for(row in dao.all()) {
+            if(ranges.none { (from,until)-> row.start<until && row.end>from })continue
+            refreshSpeech(row.id)
+            if(row.state==NightState.Ready.name)recompute(row.id)
+            log("时间线删除与 ${row.date} 重叠：保留夜里记录，只刷新梦话")
+        }
+        changed()
+    }
     /** 调用方已有事务；删除整夜避免残留梦话或从信号重新生成隐私内容。 */
     suspend fun erase(id: Long) {
         dao.invalidateJudgment(id)
@@ -85,7 +103,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         for(row in dao.all()) {
             // 活跃会话在两次落盘之间仍在录制，删除范围也要覆盖这段尾部。
             val end = if (row.state == "Active" || row.state == "Provisional") maxOf(row.end, now()) else row.end
-            if(row.start<until && end>from)erase(row.id)
+            if(row.start<until && end>from) { log("全部清除 ${row.date}");erase(row.id) }
             else for(dream in dao.dreams(row.id))if(dream.at<until && maxOf(dream.until,dream.at+1)>from) {
                 dao.deleteDream(dream.id);dao.update(row.copy(updatedAt=now()))
             }

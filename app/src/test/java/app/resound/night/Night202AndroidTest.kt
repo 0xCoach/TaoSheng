@@ -79,6 +79,23 @@ class Night202AndroidTest {
             assertFalse(permanent.exists())
         } finally { scope.cancel(); db.close(); context.deleteDatabase("night-retention.db") }
     }
+    /** 11-18：时间线上删录音/事件不再删夜里记录，鼾声和睡眠时间保留，只刷新梦话 */
+    @Test fun timelineDeletionKeepsNightAndSnore() = runBlocking(Dispatchers.IO) {
+        val db = CaptureDatabase.open(context, "night-keep.db")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val files = NightFiles(context)
+        val logged = mutableListOf<String>()
+        val store = NightStore(db, scope, NightSettings(), {}, {}, { 1_000_000L }, { ZoneHistory(emptyList(),"UTC") },
+            files::exists, { FileRef(files.cleanupPath(it)) }, { error("unused") }, {}, {}, MutableStateFlow(emptyList()), log = { logged += it })
+        try {
+            val night = store.create(NightSession(0,0,0,9_000_000), LocalDate(2026,11,18))
+            store.addEvent(night, NightEvent(0, NightEventKind.Snore, 3_000_000, 3_060_000))
+            store.forgetSpeech(listOf(2_000_000L to 4_000_000L))
+            assertNotNull(db.night().get(night))
+            assertTrue(db.night().events(night).any { it.kind == "Snore" })
+            assertTrue(logged.single().contains("保留夜里记录"))
+        } finally { scope.cancel(); db.close(); context.deleteDatabase("night-keep.db") }
+    }
     @Test fun backupContainsOnlyConfirmedClipAndSnapshotDropsExpiredPaths()=runBlocking(Dispatchers.IO) {
         val db=CaptureDatabase.open(context,"night-backup.db")
         val dir=File(context.filesDir,"night/1").apply {mkdirs()}

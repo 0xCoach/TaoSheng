@@ -27,6 +27,10 @@ data class QaAnswer(
     val needsService: Boolean = false,
     /** 证据为空的诚实态：记录里确实没找到 */
     val noEvidence: Boolean = false,
+    /** 模型引用了不存在的出处编号、已被守卫清掉的个数（>0 界面提示） */
+    val invalidCitations: Int = 0,
+    /** 证据强度 0-3（EvidenceGuard.strength）：1 单薄、2 尚可、3 强 */
+    val evidenceLevel: Int = 0,
 )
 
 enum class QaMode(val label: String) { RecordsOnly("仅查我的记录"), RecordsPlus("记录+通用知识") }
@@ -94,7 +98,12 @@ class GroundedQA(
             else
                 "你是用户的记忆问答助手。优先用给出的资料回答并标 [#编号]；资料不足可补充通用知识，但要明确标注「补充：」，不许把补充内容伪装成记录。"
             val reply = chat(preset, key, system, "${filterNote}资料：\n$context\n\n问题：$question")
-            QaAnswer(reply.content, sources, grounded = mode.value == QaMode.RecordsOnly, noEvidence = sources.isEmpty())
+            // 证据守卫：清掉越界出处编号；证据强度随回答带出，界面如实标注。
+            val checked = EvidenceGuard.clean(reply.content, sources.size)
+            QaAnswer(checked.text, sources, grounded = mode.value == QaMode.RecordsOnly,
+                noEvidence = sources.isEmpty(), invalidCitations = checked.dropped,
+                evidenceLevel = EvidenceGuard.strength(sources.size,
+                    sources.count { it.kind == "event" }, hits.count { it.valueBonus > 0 }))
         } finally { _busy.value = false }
     }.also { _last.value = it }
 

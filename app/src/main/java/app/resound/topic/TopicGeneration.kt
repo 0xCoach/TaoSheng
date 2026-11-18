@@ -213,10 +213,16 @@ internal class TopicEngine(
                     val items = result.items.filterNot { item -> existing.any { old ->
                         old.category in setOf(item.category, "待办", "约定", "备忘") &&
                             (item.lineId != null && old.lineId == item.lineId || ImportTodoMerge.same(old.content, item.content))
-                    } }.map { item -> MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
-                        dueText = item.dueText, dueAt = item.dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now(),
-                        recordedAt = lines.firstOrNull { it.id == item.lineId }?.startAt,
-                        valueScore = app.resound.data.MemoryValueRules.itemScore(item.category, item.kind, item.dueAt, item.who, "digest")) }
+                    } }.map { item ->
+                        val recordedAt = lines.firstOrNull { it.id == item.lineId }?.startAt
+                        if (app.resound.data.TemporalGuard.dueViolated(item.dueAt, recordedAt))
+                            app.resound.diagnostics.FailureNotes.record("topic/TopicGeneration.kt:dueAt",
+                                IllegalStateException("dueAt=${item.dueAt} vs recordedAt=$recordedAt"))
+                        val dueAt = app.resound.data.TemporalGuard.sanitizeDue(item.dueAt, recordedAt)
+                        MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
+                        dueText = item.dueText, dueAt = dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now(),
+                        recordedAt = recordedAt,
+                        valueScore = app.resound.data.MemoryValueRules.itemScore(item.category, item.kind, dueAt, item.who, "digest")) }
                     db.memory().insertItems(items)
                     db.memory().assignLines(lines.map { it.id }, eventId)
                     db.memory().markDigested(lines.map { it.id }, now())

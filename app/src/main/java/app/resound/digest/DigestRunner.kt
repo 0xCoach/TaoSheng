@@ -12,6 +12,8 @@ import app.resound.data.MemoryDao
 import app.resound.data.MemoryEventEntity
 import app.resound.data.MemoryItemEntity
 import app.resound.data.MemoryValueRules
+import app.resound.data.TemporalGuard
+import app.resound.diagnostics.FailureNotes
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.PendingDigest
 import kotlinx.coroutines.CancellationException
@@ -257,14 +259,20 @@ class DigestRunner(
                 },
                 items = { ids ->
                     items.map { i ->
+                        // 录音时间取原话行；没有挂行的条目退到所属事件起点，最后才是整理时刻
+                        val recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
+                            ?: i.eventIndex?.let { events[it].startAt } ?: at
+                        // 时间守卫：期限解析明显不可能（远早于/远晚于说话时刻）时作废 dueAt，dueText 保留。
+                        if (TemporalGuard.dueViolated(i.dueAt, recordedAt))
+                            FailureNotes.record("digest/DigestRunner.kt:dueAt",
+                                IllegalStateException("dueAt=${i.dueAt} vs recordedAt=$recordedAt content=${i.content.take(20)}"))
+                        val dueAt = TemporalGuard.sanitizeDue(i.dueAt, recordedAt)
                         MemoryItemEntity(
                             eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                            dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId,
-                            // 录音时间取原话行；没有挂行的条目退到所属事件起点，最后才是整理时刻
-                            recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
-                                ?: i.eventIndex?.let { events[it].startAt } ?: at,
+                            dueText = i.dueText, dueAt = dueAt, who = i.who, lineId = i.lineId,
+                            recordedAt = recordedAt,
                             status = ItemStatus.Pending.name, createdAt = at,
-                            valueScore = MemoryValueRules.itemScore(i.category, i.kind, i.dueAt, i.who, "digest"),
+                            valueScore = MemoryValueRules.itemScore(i.category, i.kind, dueAt, i.who, "digest"),
                         )
                     }
                 },

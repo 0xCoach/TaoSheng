@@ -94,6 +94,8 @@ fun QaScreen(bottomPadding: Dp, onBack: () -> Unit) {
                         !a.grounded -> Badge("含补充内容（非全部来自你的记录）", c, warn = true)
                         else -> Badge("全部出自你的记录", c)
                     }
+                    if (a.invalidCitations > 0) { Spacer(Modifier.height(6.dp)); Badge("已剔除 ${a.invalidCitations} 处无效出处编号", c, warn = true) }
+                    if (!a.noEvidence && a.evidenceLevel == 1) { Spacer(Modifier.height(6.dp)); Badge("证据单薄，仅供参考", c, warn = true) }
                     Spacer(Modifier.height(8.dp))
                     Text(a.text, style = RsType.body, color = c.text)
                 }

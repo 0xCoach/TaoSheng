@@ -2,6 +2,7 @@ package app.resound.night
 
 import android.app.Application
 import app.resound.data.CaptureDatabase
+import app.resound.data.open
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test

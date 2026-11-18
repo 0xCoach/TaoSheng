@@ -30,22 +30,30 @@ object NightTuning {
 @Serializable data class NightSession(val screenOff: Long, val provisionalAt: Long, val confirmedAt: Long? = null,
     val lastAt: Long, val signals: List<NightSignal> = emptyList(), val modes: List<NightModeSpan> = emptyList(),
     val originalTimes: NightTimes? = null, val dropped: Int = 0, val candidateBytes: Long = 0,
-    val calls: Int = 0, val inferenceMillis: Long = 0, val startBattery: Int? = null, val endBattery: Int? = null)
+    val calls: Int = 0, val inferenceMillis: Long = 0, val startBattery: Int? = null, val endBattery: Int? = null,
+    val nap: Boolean = false, val deadline: Long? = null)
 data class NightInput(val at: Long, val minute: Int, val screenOffAt: Long?, val screenOnAt: Long?, val stillSince: Long?,
     val lastVoiceAt: Long?, val pickedUp: Boolean, val charging: Boolean, val battery: Int?, val hot: Boolean, val playback: Boolean)
 enum class NightTransition { Wait, Enter, Confirm, Cancel, Continue, Finish }
 object NightRules {
     fun inWindow(minute: Int, start: Int, end: Int): Boolean = if(start < end) minute in start until end else minute >= start || minute < end
     fun validate(s: NightSettings) { require(s.windowStartMinute in 0..1439 && s.windowEndMinute in 0..1439) }
-    fun conflict(s: NightSettings, rules: List<QuietRule>) = rules.firstOrNull { r -> r.enabled && r.days.isNotEmpty() && (0..1439).any { inWindow(it,s.windowStartMinute,s.windowEndMinute) && inWindow(it,r.startMinute,r.endMinute) } }
+    fun conflict(s: NightSettings, rules: List<QuietRule>, auto: SleepWindow = SleepWindows.fallback): QuietRule? {
+        val windows = SleepWindows.resolved(s.windows, auto).filter { it.enabled }
+        return rules.firstOrNull { rule -> rule.enabled && rule.days.isNotEmpty() && windows.any {
+            it.contains(rule.startMinute) || inWindow(it.startMinute, rule.startMinute, rule.endMinute)
+        } }
+    }
     fun mode(s: NightSettings, battery: Int?, charging: Boolean, hot: Boolean): NightMode = when {
         !s.enabled || battery != null && battery < 10 -> NightMode.Off
         battery != null && battery < 15 -> NightMode.TimesOnly
         s.fullNight && (charging || battery != null && battery >= 30) && !hot -> NightMode.Full
         else -> NightMode.Deferred
     }
-    fun transition(s: NightSettings, session: NightSession?, input: NightInput): NightTransition = with(input) {
-        val inside=s.enabled && inWindow(minute,s.windowStartMinute,s.windowEndMinute)
+    fun transition(s: NightSettings, session: NightSession?, input: NightInput): NightTransition =
+        transition(s.enabled && inWindow(input.minute,s.windowStartMinute,s.windowEndMinute), false, session, input)
+    fun transition(inside: Boolean, nap: Boolean, session: NightSession?, input: NightInput): NightTransition = with(input) {
+        if (nap) return NapRules.transition(inside, session, input)
         if (session == null) return if(inside && screenOffAt != null && (charging || stillSince != null && at-stillSince >= 600_000) && (lastVoiceAt == null || at-lastVoiceAt >= 600_000)) NightTransition.Enter else NightTransition.Wait
         if(!inside) return if(session.confirmedAt == null) NightTransition.Cancel else NightTransition.Finish
         if(session.confirmedAt == null) {
@@ -147,14 +155,14 @@ object SleepEstimate {
             quiet=maxOf(quiet,d.end)
         }
         val snore=events.filter { it.kind==NightEventKind.Snore && it.feedback!=Feedback.No }.minOfOrNull { it.start }
-        val estimatedOnset=listOfNotNull(onset,snore).minOrNull()?.coerceIn(session.screenOff,end) ?: end
+        val estimatedOnset=if (session.nap) session.provisionalAt else listOfNotNull(onset,snore).minOrNull()?.coerceIn(session.screenOff,end) ?: end
         val candidates=awake.filter { it.start>=estimatedOnset }
         val alarm=signals.lastOrNull { it.kind=="alarm" }?.value?.toLong()
         val last=candidates.lastOrNull { a->alarm!=null && abs(a.start-alarm)<=1_800_000 && signals.none { it.kind=="quiet" && it.start>=a.end && it.end-it.start>=900_000 } } ?: candidates.lastOrNull()
         // 退出由状态机确认。若最后一次醒来后重新睡满 15 分钟，不把那次当起床。
         val resumed=last!=null && signals.any { it.kind=="quiet" && it.start>=last.end && it.end-it.start>=900_000 }
         val decided=signals.lastOrNull { it.kind=="wake" }?.value?.toLong()
-        val wake=decided ?: if(last!=null && !resumed)last.start else end
+        val wake=decided ?: if (session.nap) end else if(last!=null && !resumed)last.start else end
         val estimated=NightTimes(session.screenOff,estimatedOnset,wake.coerceAtLeast(estimatedOnset),true)
         val t=estimated.copy(bedtime=edited?.takeIf { it.editedBedtime }?.bedtime ?: estimated.bedtime,
             onset=edited?.takeIf { it.editedOnset }?.onset ?: estimated.onset,wake=edited?.takeIf { it.editedWake }?.wake ?: estimated.wake,

@@ -6,10 +6,12 @@ import androidx.sqlite.execSQL
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 
-@Entity(tableName = "nights", indices = [Index(value = ["date"], unique = true)])
+@Entity(tableName = "nights", indices = [Index(value = ["date", "kind"], unique = true)])
 data class NightRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val date: String,
     val start: Long, val end: Long, val state: String, val payload: String, val signals: String,
-    val createdAt: Long, val updatedAt: Long)
+    val createdAt: Long, val updatedAt: Long,
+    @ColumnInfo(defaultValue = "'night'") val kind: String = "night",
+    @ColumnInfo(defaultValue = "'night'") val windowId: String = "night")
 @Entity(tableName = "night_events", indices = [Index("nightId")], foreignKeys = [ForeignKey(entity = NightRow::class, parentColumns = ["id"], childColumns = ["nightId"], onDelete = ForeignKey.CASCADE)])
 data class NightEventRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val nightId: Long, val start: Long, val end: Long,
     val kind: String, val payload: String, val certainty: Double, val vetoed: Boolean)
@@ -32,11 +34,16 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
 @Entity(tableName = "night_notice") data class NightNoticeRow(@PrimaryKey val key: String, val at: Long, val muted: Boolean)
 
 @Dao interface NightDao {
-    @Query("SELECT * FROM nights WHERE date >= :from AND date <= :to ORDER BY date DESC") fun nights(from: String, to: String): Flow<List<NightRow>>
-    @Query("SELECT * FROM nights ORDER BY date DESC") fun observe(): Flow<List<NightRow>>
+    @Query("SELECT * FROM nights WHERE kind = 'night' AND date >= :from AND date <= :to ORDER BY date DESC") fun nights(from: String, to: String): Flow<List<NightRow>>
+    @Query("SELECT * FROM nights WHERE kind = 'night' ORDER BY date DESC") fun observe(): Flow<List<NightRow>>
     @Query("SELECT * FROM nights ORDER BY date DESC") suspend fun all(): List<NightRow>
     @Query("SELECT * FROM nights WHERE id = :id") suspend fun get(id: Long): NightRow?
-    @Query("SELECT * FROM nights WHERE date = :date") suspend fun onDate(date: String): NightRow?
+    @Query("SELECT * FROM nights WHERE date = :date AND kind = :kind") suspend fun onDate(date: String, kind: String = "night"): NightRow?
+    @Query("SELECT * FROM nights WHERE kind='night' ORDER BY date DESC") suspend fun nightHistory(): List<NightRow>
+    @Query("SELECT payload FROM nights WHERE kind='night' AND state='Ready' AND date BETWEEN :from AND :to")
+    fun autoSamples(from: String, to: String): Flow<List<String>>
+    @Query("SELECT * FROM nights WHERE kind='nap' AND date=:date") fun naps(date: String): Flow<List<NightRow>>
+    @Query("SELECT * FROM nights WHERE id=:id") fun observeId(id: Long): Flow<NightRow?>
     @Insert suspend fun insert(row: NightRow): Long
     @Update suspend fun update(row: NightRow)
     @Query("DELETE FROM nights WHERE id = :id") suspend fun delete(id: Long)

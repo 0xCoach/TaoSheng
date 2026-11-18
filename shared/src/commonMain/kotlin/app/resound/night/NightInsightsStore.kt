@@ -84,7 +84,7 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
     override suspend fun muteBreakNotice() {dao.notice(NightNoticeRow("break",now(),true));store.notifyChanged()}
     override fun trend(from: LocalDate,to: LocalDate)=store.nights(from,to).map {n->n.sortedBy {it.date}.map {s->NightPoint(s.date,s.times?.bedtime,s.times?.onset,s.times?.wake,s.sleepMillis,s.snoreMillis,s.coughCount,s.awakeCount,s.snoreBreaks,s.confidence,s.tags.map {it.name})}}
     override suspend fun doctorReport(from: LocalDate,to: LocalDate): DoctorReport {
-        require(from<=to);val all=dao.all().map(store::summary);val nights=all.filter {it.date>=from && it.date<=to}.sortedBy {it.date}
+        require(from<=to);val all=dao.nightHistory().map(store::summary);val nights=all.filter {it.date>=from && it.date<=to}.sortedBy {it.date}
         data class Clip(val key: String,val db: Int,val ref: FileRef,val info: DoctorClip)
         val clips=mutableListOf<Clip>();val drawn=mutableListOf<DoctorNight>()
         for(n in nights) {
@@ -100,14 +100,14 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
             NightTags.findings(all,dao.tagList().map {NightTag(it.id,it.name,it.preset)}).take(3),picked.map {it.info})
     }
     suspend fun finishWeek(report: WeeklyReport,state: NightWeekState) = store.db.writeTransaction {
-        val nights=dao.all().map(store::summary)
+        val nights=dao.nightHistory().map(store::summary)
         val next=NightWeeks.build(report.weekStart,nights,NightTags.findings(nights,dao.tagList().map {NightTag(it.id,it.name,it.preset)}),zones(),report.createdAt)
         if(next==null)dao.deleteWeek(report.weekStart.toString())
         else dao.week(NightWeekRow(report.weekStart.toString(),json.encodeToString(if(next.markdown==state.ruleMarkdown)report else next),json.encodeToString(state.copy(phase="ready",ruleMarkdown=next.markdown))))
     }
     suspend fun refreshWeekPrivacy() = store.db.writeTransaction { NightWeekPrivacy.refresh(store,zones()) }
     suspend fun weeks(at: Long): List<WeeklyReport> {
-        val history=zones();val local=Instant.fromEpochMilliseconds(at).toLocalDateTime(history.zoneAt(at));val nights=dao.all().map(store::summary)
+        val history=zones();val local=Instant.fromEpochMilliseconds(at).toLocalDateTime(history.zoneAt(at));val nights=dao.nightHistory().map(store::summary)
         val existing=dao.weeks().first().map {it.weekStart}.toSet();val findings=NightTags.findings(nights,dao.tagList().map {NightTag(it.id,it.name,it.preset)})
         return NightWeeks.due(local.date,local.hour).filter {it.toString() !in existing}.mapNotNull {NightWeeks.build(it,nights,findings,history,at)}
     }
@@ -120,7 +120,7 @@ data class NightWeekState(val requestId: String,val phase: String,val ruleMarkdo
 object NightWeekPrivacy {
     suspend fun refresh(store: NightStore,zones: ZoneHistory) {
         val dao=store.dao;val json=store.json
-        val nights=dao.all().map(store::summary);val tags=dao.tagList().map {NightTag(it.id,it.name,it.preset)}
+        val nights=dao.nightHistory().map(store::summary);val tags=dao.tagList().map {NightTag(it.id,it.name,it.preset)}
         for(row in dao.weeks().first()) {
             val old=json.decodeFromString<WeeklyReport>(row.payload)
             val next=NightWeeks.build(old.weekStart,nights,NightTags.findings(nights,tags),zones,old.createdAt)

@@ -237,7 +237,7 @@ enum class PersonalKind { Snore, Cough }
 @Serializable
 data class PersonalModelStatus(val kind: PersonalKind, val yes: Int, val no: Int, val active: Boolean,
     /** 交叉验证准确率 0..1；没训练过为 null */
-    val accuracy: Float?, val ruleAccuracy: Float?, val trainedAt: Long?)
+    val accuracy: Float?, val ruleAccuracy: Float?, val trainedAt: Long?, val excludedCount: Int = 0)
 
 /** 趋势图的一晚 */
 @Serializable
@@ -272,6 +272,8 @@ interface NightInsights {
     fun weeklyReports(): Flow<List<WeeklyReport>>
 
     val personal: Flow<List<PersonalModelStatus>>
+    /** 清掉学习样本、模型和否决标记，已回答事件保留原答案。 */
+    suspend fun resetPersonal(): Unit = throw UnsupportedOperationException("此实现不支持清空个人判断")
 
     /** 之后 3 分钟内录下的人声归为这一夜的梦 */
     suspend fun startDream(nightId: Long): Dream

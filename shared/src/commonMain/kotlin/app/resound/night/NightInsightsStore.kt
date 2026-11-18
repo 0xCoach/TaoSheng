@@ -5,6 +5,7 @@ import app.resound.data.writeTransaction
 import app.resound.platform.FileRef
 import app.resound.platform.ZoneHistory
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.*
 import kotlinx.serialization.encodeToString
 import kotlin.time.Instant
@@ -35,11 +36,31 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
     }
     override fun findings(): Flow<List<TagFinding>> = combine(dao.observe(),tags) {n,t->NightTags.findings(n.map(store::summary),t)}
     override fun weeklyReports()=dao.weeks().map {rows->rows.map {json.decodeFromString<WeeklyReport>(it.payload)}}
-    override val personal=combine(dao.personal(),dao.observe(),store.settings) {rows,_,_->
-        val feedback=dao.feedback()
-        PersonalKind.entries.map {kind->val row=rows.firstOrNull {it.kind==kind.name};val model=row?.let {json.decodeFromString<PersonalWeights>(it.payload)};val f=feedback.filter {it.kind==kind.name}
-            PersonalModelStatus(kind,f.count {it.yes},f.count {!it.yes},store.settings.value.personalModel && model?.active==true && f.count {it.yes}>=20 && f.count {!it.yes}>=10,model?.accuracy,model?.ruleAccuracy,row?.trainedAt)}
+    override val personal = combine(dao.personal(), dao.observeFeedback(), dao.excludedCounts(), store.settings) { rows, feedback, counts, settings ->
+        PersonalKind.entries.map { kind ->
+            val row = rows.find { it.kind == kind.name }
+            val model = row?.let { json.decodeFromString<PersonalWeights>(it.payload) }
+            val samples = feedback.filter { it.kind == kind.name }
+            val yes = samples.count { it.yes }
+            val no = samples.size - yes
+            PersonalModelStatus(kind, yes, no, settings.personalModel && model?.active == true && yes >= 20 && no >= 10,
+                model?.accuracy, model?.ruleAccuracy, row?.trainedAt, counts.find { it.kind == kind.name }?.count ?: 0)
+        }
     }
+
+    override suspend fun resetPersonal() = store.personalGate.withLock {
+        store.db.writeTransaction {
+            dao.clearPersonal()
+            dao.clearFeedback()
+            dao.clearPersonalJudgments()
+            for (id in dao.vetoedNights()) {
+                dao.clearVetoes(id)
+                store.recompute(id)
+            }
+        }
+        store.notifyChanged()
+    }
+
     override suspend fun startDream(nightId: Long): Dream {
         require(dao.get(nightId)!=null);val at=now();val d=Dream(0,nightId,at,null,emptyList(),true)
         val id=dao.insertDream(NightDreamRow(nightId=nightId,at=at,until=at+180_000,payload=json.encodeToString(d)));touch(nightId);return d.copy(id=id)

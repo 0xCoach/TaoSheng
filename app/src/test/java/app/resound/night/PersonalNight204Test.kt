@@ -20,6 +20,44 @@ import org.robolectric.annotation.SQLiteMode
 @Config(sdk=[29],manifest=Config.NONE,application=Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class PersonalNight204Test {
+    @Test fun resetKeepsAnswersRestoresExcludedEventsAndStartsNewSamples() = runBlocking(Dispatchers.IO) {
+        val context = RuntimeEnvironment.getApplication()
+        val db = CaptureDatabase.open(context,"personal205.db")
+        val scope = CoroutineScope(SupervisorJob()+Dispatchers.Default)
+        val store = NightStore(db,scope,NightSettings(),{}, {},{100L},{ZoneHistory(emptyList(),"UTC")},
+            {true},{FileRef(it)},{error("unused")},{},{},MutableStateFlow(emptyList()))
+        val insights = NightInsightsStore(store,{100L},{ZoneHistory(emptyList(),"UTC")},{null})
+        try {
+            val night = store.create(NightSession(0,0,0,3600000), LocalDate(2026,11,18))
+            suspend fun snore(at: Long): Long {
+                val clip = store.dao.insertClip(NightClipRow(nightId=night,start=at,end=at+1000,path=null,
+                    scores=byteArrayOf(),features="{}",confirmed=false,expiresAt=0,candidate=false))
+                return store.addEvent(night,NightEvent(0,NightEventKind.Snore,at,at+1000,clipId=clip))
+            }
+            val yes = snore(0)
+            val no = snore(2000)
+            val excluded = snore(4000)
+            store.feedback(yes,Feedback.Yes)
+            store.feedback(no,Feedback.No)
+            val model = PersonalWeights(emptyList(),emptyList(),emptyList(),0.0,true,1f,.7f,1f,21,11)
+            store.dao.personal(NightPersonalRow("Snore",store.json.encodeToString(model),1,32))
+            store.dao.updateEvent(store.dao.event(excluded)!!.copy(vetoed=true))
+            store.recompute(night)
+            assertEquals(1000L,store.detail(night)!!.summary.snoreMillis)
+            assertEquals(1,insights.personal.first().first { it.kind == PersonalKind.Snore }.excludedCount)
+            insights.resetPersonal()
+            assertTrue(store.dao.personal().first().isEmpty() && store.dao.feedback().isEmpty())
+            val detail = store.detail(night)!!
+            assertTrue(detail.vetoed.isEmpty())
+            assertEquals(2000L,detail.summary.snoreMillis)
+            assertEquals(Feedback.Yes,detail.events.first { it.id == yes }.feedback)
+            assertEquals(Feedback.No,detail.events.first { it.id == no }.feedback)
+            store.feedback(no,Feedback.Yes)
+            assertEquals(no,store.dao.feedback().single().eventId)
+            assertTrue(store.dao.feedback().single().yes)
+        } finally { scope.cancel(); db.close(); context.deleteDatabase("personal205.db") }
+    }
+
     @Test fun onlyChangedNightsAreJudgedAndFlippedAnswerRetrainsWhenCharging() = runBlocking(Dispatchers.IO) {
         val context = RuntimeEnvironment.getApplication()
         val db = CaptureDatabase.open(context,"personal204.db")

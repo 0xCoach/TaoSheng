@@ -181,21 +181,14 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
             is UpdateState.Failed -> {
                 Text(state.message, style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))
-                // 个别系统（如鸿蒙卓易通）里应用内安装走不通，给一条浏览器下载的退路
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Pill("重试", filled = false) { updater.download() }
-                    Pill("用浏览器下载", filled = false) {
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_PAGE)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    }
                 }
             }
             else -> Unit
         }
     }
 }
-
-/** 魔搭发布页：国内能直接打开，正式版和预览版都在这里 */
-internal const val RELEASES_PAGE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/files"
 
 /** 细长进度条，进度变化时平滑过渡 */
 @Composable

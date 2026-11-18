@@ -17,7 +17,7 @@ android {
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 79
-        versionName = "0.4.0" + (providers.gradleProperty("previewNumber").orNull?.let {
+        versionName = "1.0.2" + (providers.gradleProperty("previewNumber").orNull?.let {
             require(it.matches(Regex("[1-9][0-9]*"))) { "previewNumber 必须为正整数" }
             "-preview.$it"
         } ?: "")

@@ -28,6 +28,10 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     @Volatile private var dropped=0
     @Volatile private var screenOff: Long?=if(power.isInteractive)null else System.currentTimeMillis()
     @Volatile private var screenOn: Long?=if(power.isInteractive)System.currentTimeMillis() else null
+    /** 解锁、拔充电线：广播里记下，pulse 时写进这一夜 */
+    private val points=kotlinx.coroutines.channels.Channel<NightSignal>(16)
+    /** 结束过的那一夜（醒来那天）：同一个早上不再重开 */
+    private var doneDate: String?=null
     @Volatile private var motion="still"
     @Volatile private var motionAt=0L
     private var stillSince: Long?=System.currentTimeMillis()
@@ -76,10 +80,14 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                 Intent.ACTION_SCREEN_OFF->{screenOff=at;screenOn=null}
                 Intent.ACTION_SCREEN_ON,Intent.ACTION_USER_PRESENT->{screenOn=screenOn ?: at;screenOff=null}
             }
+            when(intent?.action) {
+                Intent.ACTION_USER_PRESENT->points.trySend(NightSignal(at,at,"unlock"))
+                Intent.ACTION_POWER_DISCONNECTED->points.trySend(NightSignal(at,at,"unplug"))
+            }
         }
     }
     init {
-        context.registerReceiver(receiver,IntentFilter().apply {addAction(Intent.ACTION_SCREEN_OFF);addAction(Intent.ACTION_SCREEN_ON);addAction(Intent.ACTION_USER_PRESENT)})
+        context.registerReceiver(receiver,IntentFilter().apply {addAction(Intent.ACTION_SCREEN_OFF);addAction(Intent.ACTION_SCREEN_ON);addAction(Intent.ACTION_USER_PRESENT);addAction(Intent.ACTION_POWER_DISCONNECTED)})
         scope.launch {
             // 上次进程中断：保留已落盘数据，补未知缺口，交给整理；不伪造连续录音。
             for(r in owner.store.dao.all().filter { it.state in setOf("Active","Provisional") }) {
@@ -114,9 +122,12 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         val old=session
         if(old!=null) {
             val signals=old.signals.toMutableList()
-            context.getSystemService(android.app.AlarmManager::class.java).nextAlarmClock?.triggerTime?.let { alarm ->
-                if(signals.lastOrNull { it.kind=="alarm" }?.value!=alarm.toDouble())signals+=NightSignal(at,at,"alarm",alarm.toDouble())
-            }
+            val alarm=context.getSystemService(android.app.AlarmManager::class.java).nextAlarmClock?.triggerTime
+            val previous=signals.lastOrNull { it.kind=="alarm" }?.value?.toLong()
+            // 响过的闹钟换成了下一个（或没了）＝闹钟被关掉或贪睡
+            if(previous!=null && previous<=at && alarm!=previous && signals.none { it.kind=="alarm-off" && it.value==previous.toDouble() })signals+=NightSignal(at,at,"alarm-off",previous.toDouble())
+            if(alarm!=null && previous!=alarm)signals+=NightSignal(at,at,"alarm",alarm.toDouble())
+            while(true) signals+=points.tryReceive().getOrNull() ?: break
             fun span(kind: String,start: Long,end: Long,text: String?=null) {
                 val last=signals.lastOrNull { it.kind==kind }
                 if(last!=null && start<=last.end+10_000) {signals.remove(last);signals+=last.copy(end=end)} else signals+=NightSignal(start,end,kind,text=text)
@@ -131,10 +142,13 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         val floor=owner.store.dao.notice("privacy-floor")?.at ?: Long.MIN_VALUE
         lastVoice=maxOf(lastVoice,floor)
         val input=NightInput(at,minute,screenOff,screenOn,stillSince,lastVoice,picked,battery.isCharging,battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).takeIf { it>=0 },power.currentThermalStatus>=PowerManager.THERMAL_STATUS_MODERATE,AppGraph.playback.state.value.playing)
+        if(session==null)while(points.tryReceive().isSuccess) Unit
         when(NightRules.transition(s,session,input)) {
-            NightTransition.Enter->{
+            NightTransition.Enter->run enter@{
                 val date=NightRules.date(at,zones).let { if(minute>=s.windowStartMinute && s.windowEndMinute<=s.windowStartMinute)it.plus(1,DateTimeUnit.DAY) else it }
+                if(doneDate==date.toString())return@enter
                 val existing=owner.store.dao.onDate(date.toString())
+                if(!NightRules.canReopen(existing?.state?.let { runCatching { NightState.valueOf(it) }.getOrNull() })) {doneDate=date.toString();return@enter}
                 session=existing?.let(owner.store::session) ?: NightSession(maxOf(screenOff ?: at,floor),at,lastAt=at,startBattery=input.battery)
                 id=existing?.id ?: owner.store.create(session!!,date)
                 processor=NightSoundProcessor(owner,id!!) { w,scores ->
@@ -144,7 +158,11 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             }
             NightTransition.Confirm->{session=session!!.copy(confirmedAt=at);if(s.lowBatteryReminder && !input.charging && (input.battery ?: 100)<30)NightNotifications.show(context,"night-battery-${id}","电量 ${input.battery}%，建议充电，夜里记录更完整")}
             NightTransition.Cancel->{id?.let {owner.store.deleteNight(it)};reset()}
-            NightTransition.Finish->{finish(at)}
+            NightTransition.Finish->{
+                (WakeRules.decide(session!!,at,minute) ?: WakeRules.atWindowEnd(session!!,at,minute))?.let { wake-> session=session!!.copy(signals=session!!.signals+NightSignal(at,at,"wake",wake.toDouble())) }
+                owner.store.dao.get(id!!)?.date?.let { doneDate=it }
+                finish(at)
+            }
             else->Unit
         }
         if(at-lastModeAt>=300_000 || mode==NightMode.Off) {mode=NightRules.mode(s,input.battery,input.charging,input.hot);lastModeAt=at}
@@ -153,7 +171,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             if(last?.mode==mode)spans[spans.lastIndex]=last.copy(end=at) else spans+=NightModeSpan(at,at,mode)
             session=current.copy(modes=spans)
             owner.store.persistSession(id!!,session!!,at,if(current.confirmedAt==null)NightState.Provisional else NightState.Active)
-            owner.store.setLive(NightLive(if(current.confirmedAt==null)NightState.Provisional else NightState.Active,mode,current.screenOff))
+            owner.store.setLive(NightLive(if(current.confirmedAt==null)NightState.Provisional else NightState.Active,mode,current.screenOff,WakeRules.pending(session!!)))
         }
         armed=shouldSensor || session!=null
     }
@@ -199,7 +217,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     }
     private suspend fun finish(at: Long) {
         saveCandidate(candidates.finish());processor?.finish()
-        id?.let {owner.store.persistSession(it,session!!,at,NightState.Processing)}
+        id?.let {owner.store.finishSession(it,session!!,at)}
         reset();NightWork.run(context)
     }
     private fun reset() {id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}

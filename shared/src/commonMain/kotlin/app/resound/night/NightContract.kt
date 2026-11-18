@@ -177,7 +177,9 @@ data class NightDetail(
 )
 
 @Serializable
-data class NightLive(val state: NightState, val mode: NightMode?, val since: Long?)
+data class NightLive(val state: NightState, val mode: NightMode?, val since: Long?,
+    /** 记录中但已经有醒来的动作、还没重新睡着：这一刻起不再画成睡着 */
+    val awakeAt: Long? = null)
 
 interface NightRepository {
     val settings: StateFlow<NightSettings>
@@ -243,7 +245,17 @@ data class NightPoint(val date: LocalDate, val bedtime: Long?, val onset: Long?,
     val snoreMillis: Long, val coughCount: Int, val awakeCount: Int, val snoreBreaks: Int,
     val confidence: NightConfidence?, val tags: List<String>)
 
-data class DoctorReport(val from: LocalDate, val to: LocalDate, val markdown: String, val clips: List<FileRef>)
+/** 给医生的一页里画图用的一晚：鼾声和醒来的时段 */
+data class DoctorNight(val summary: NightSummary, val snore: List<NightSpan>, val awake: List<NightSpan>)
+/** 附的录音是哪一晚、几点、什么声音 */
+data class DoctorClip(val at: Long, val kind: NightEventKind)
+
+data class DoctorReport(val from: LocalDate, val to: LocalDate, val markdown: String, val clips: List<FileRef>,
+    /** 11-18：画图用，按日期升序 */
+    val nights: List<DoctorNight> = emptyList(),
+    val findings: List<TagFinding> = emptyList(),
+    /** 与 [clips] 一一对应 */
+    val clipInfo: List<DoctorClip> = emptyList())
 
 interface NightInsights {
     val tags: Flow<List<NightTag>>

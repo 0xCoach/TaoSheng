@@ -186,5 +186,31 @@ class NightShots {
     @Test fun trend7() = capture("night-trend-7") { RsCard { TrendBody(7) } }
     @Test fun trend90() = capture("night-trend-90") { RsCard { TrendBody(90) } }
     @Test fun trendDark() = capture("night-trend-dark", dark = true) { RsCard { TrendBody(7) } }
+    /** 给医生的一页：30 晚假数据，两页各画一张 */
+    @Test fun doctorPdf() {
+        val dir = System.getenv("SCREEN_SHOTS") ?: return
+        val r = Random(3); val m = 60_000L
+        val nights = (0 until 30).filter { it != 11 && it != 23 }.map { i ->
+            val d = wakeDay.minusDays((29 - i).toLong())
+            fun t(off: Long, h: Int, min: Int) = d.plusDays(off).atTime(h, min).atZone(zone).toInstant().toEpochMilli()
+            val bed = t(-1, 22 + r.nextInt(2), r.nextInt(60)); val on = bed + (10 + r.nextInt(40)) * m; val wk = t(0, 6 + r.nextInt(2), r.nextInt(60))
+            val drink = i % 6 == 2
+            val snore = (0 until (if (drink) 6 else r.nextInt(4))).map { k -> val s = on + (60 + k * 50 + r.nextInt(30)) * m; NightSpan(s, s + (8 + r.nextInt(if (drink) 25 else 10)) * m) }.filter { it.end < wk }
+            val awake = if (r.nextInt(3) == 0) listOf(on + 200 * m, on + 208 * m).let { listOf(NightSpan(it[0], it[1])) } else emptyList()
+            val sleep = wk - on - awake.sumOf { it.millis }
+            val s = NightSummary(i.toLong(), kotlinx.datetime.LocalDate(d.year, d.monthValue, d.dayOfMonth), NightState.Ready, NightTimes(bed, on, wk, true), sleep, awake.size, awake.sumOf { it.millis },
+                snore.sumOf { it.millis }, r.nextInt(3), r.nextInt(2), if (i == 5) NightConfidence.Rough else NightConfidence.Good, emptyList(), null, emptyList(), snoreBreaks = if (drink) 3 + r.nextInt(5) else r.nextInt(2))
+            DoctorNight(s, snore, awake)
+        }
+        val k = { d: java.time.LocalDate -> kotlinx.datetime.LocalDate(d.year, d.monthValue, d.dayOfMonth) }
+        val report = DoctorReport(k(wakeDay.minusDays(29)), k(wakeDay), "", emptyList(), nights,
+            listOf(TagFinding(tagList[1], CompareMetric.Snore, 5, 20, 40 * m, 12 * m, "标了‘喝酒’的 5 晚，鼾声中位数比其他 20 晚多 28 分钟（可能有关，样本还少）")),
+            listOf(DoctorClip(nights[2].snore.first().start, NightEventKind.Snore), DoctorClip(nights[8].summary.times!!.onset + 90 * m, NightEventKind.Cough)))
+        for (page in 1..2) {
+            val b = Bitmap.createBitmap(1190, 1684, Bitmap.Config.ARGB_8888)
+            Canvas(b).apply { scale(2f, 2f); DoctorPdf.draw(this, report, page) }
+            File(dir, "doctor-$page.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
     @Test fun settings() = capture("night-settings", scroll = false) { NightSettingsPage(0.dp) }
 }

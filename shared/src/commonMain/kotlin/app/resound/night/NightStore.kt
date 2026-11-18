@@ -89,6 +89,12 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     suspend fun persistSession(id: Long,session: NightSession,end: Long,state: NightState) {
         dao.get(id)?.let { dao.update(it.copy(end=end,state=state.name,signals=json.encodeToString(session),payload=json.encodeToString(summary(it).copy(state=state,modes=session.modes)),updatedAt=now())) }
     }
+    /** 一夜结束：先按手机信号估出入睡/起床，整理（可能要等充电）完成前首页也能画出来 */
+    suspend fun finishSession(id: Long,session: NightSession,end: Long) {
+        val row=dao.get(id) ?: return;val old=summary(row)
+        val times=old.times ?: SleepEstimate.calculate(session,emptyList(),end).times
+        dao.update(row.copy(end=end,state=NightState.Processing.name,signals=json.encodeToString(session),payload=json.encodeToString(old.copy(state=NightState.Processing,modes=session.modes,times=times)),updatedAt=now()))
+    }
     suspend fun create(session: NightSession,date: LocalDate): Long {
         val s=NightSummary(0,date,NightState.Provisional,null,null,0,0,0,0,0,null,emptyList(),null,emptyList())
         return dao.insert(NightRow(date=date.toString(),start=session.screenOff,end=session.lastAt,state=s.state.name,payload=json.encodeToString(s),signals=json.encodeToString(session),createdAt=now(),updatedAt=now()))
@@ -119,7 +125,8 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     suspend fun refreshSpeech(id: Long) {
         val row=dao.get(id) ?: return
         val signals=session(row).signals
-        val segments=db.capture().segments(row.start,row.end).first().filter { it.importRecordId==null }
+        val wake=signals.lastOrNull { it.kind=="wake" }?.value?.toLong() ?: row.end
+        val segments=db.capture().segments(row.start,row.end).first().filter { it.importRecordId==null && it.startAt<wake }
         val existing=dao.events(id).filter { it.kind=="SleepTalk" }
         val alive=segments.map { it.id }.toSet()
         existing.filter { json.decodeFromString<NightEvent>(it.payload).segmentId !in alive }.forEach { dao.deleteEvent(it.id) }

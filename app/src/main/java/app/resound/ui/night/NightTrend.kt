@@ -1,10 +1,18 @@
 package app.resound.ui.night
 
 import android.content.Context
-import android.graphics.pdf.PdfDocument
-import android.text.Layout
-import android.text.StaticLayout
-import android.text.TextPaint
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -131,13 +139,16 @@ internal fun TrendBody(initialDays: Int = 30) {
     Spacer(Modifier.height(16.dp))
 }
 
-/** 给医生的一页：生成文字稿预览，导出 PDF，可连同几段典型录音一起分享 */
+/** 给医生的一页：生成两页 PDF（图在前、明细在后），预览缩略图，点开看大图；可连同几段确认过的录音一起分享 */
 @Composable
 private fun DoctorPage() {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var report by remember { mutableStateOf<DoctorReport?>(null) }
+    var pdf by remember { mutableStateOf<File?>(null) }
+    var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    var open by remember { mutableStateOf<Int?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     Head("给医生的一页", "最近 30 天的作息、鼾声、咳嗽，附几段确认过的录音")
@@ -146,26 +157,27 @@ private fun DoctorPage() {
         busy = true; error = null
         scope.launch {
             val today = LocalDate.now()
-            report = runCatching { AppGraph.nightInsights.doctorReport(today.minusDays(29).toKotlin(), today.toKotlin()) }.onFailure { error = "没生成出来，稍后再试" }.getOrNull()
+            val r = runCatching { AppGraph.nightInsights.doctorReport(today.minusDays(29).toKotlin(), today.toKotlin()) }.getOrNull()
+            val made = r?.let { withContext(Dispatchers.IO) { runCatching { DoctorPdf.file(shareDir(context), it).let { f -> f to renderPages(f) } }.getOrNull() } }
+            if (made == null) error = "没生成出来，稍后再试" else { report = r; pdf = made.first; pages = made.second }
             busy = false
         }
     }
-    report?.let { r ->
-        Text(plainText(r.markdown), style = RsType.subhead, color = c.text, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.fill).padding(12.dp))
+    if (pages.isNotEmpty()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            pages.forEachIndexed { i, page ->
+                Image(page.asImageBitmap(), "第 ${i + 1} 页", contentScale = ContentScale.FillWidth,
+                    modifier = Modifier.weight(1f).aspectRatio(595f / 842f).clip(RoundedCornerShape(10.dp)).background(Color.White)
+                        .border(1.dp, c.textSecondary.copy(alpha = .15f), RoundedCornerShape(10.dp)).springClick { open = i })
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill("分享 PDF", filled = true) {
+            Pill("分享 PDF", filled = true) { pdf?.let { share(context, listOf(it), "application/pdf", "给医生的一页") } }
+            val r = report
+            if (r != null && r.clips.isNotEmpty()) Pill("连同 ${r.clips.size} 段录音", filled = false) {
                 scope.launch {
-                    val pdf = withContext(Dispatchers.IO) { runCatching { writePdf(context, r) }.getOrNull() }
-                    if (pdf == null) { error = "PDF 没生成出来"; return@launch }
-                    share(context, listOf(pdf), "application/pdf", "给医生的一页")
-                }
-            }
-            if (r.clips.isNotEmpty()) Pill("连同 ${r.clips.size} 段录音", filled = false) {
-                scope.launch {
-                    val files = withContext(Dispatchers.IO) {
-                        runCatching { listOf(writePdf(context, r)) + copyClips(context, r) }.getOrNull()
-                    }
+                    val files = withContext(Dispatchers.IO) { runCatching { listOfNotNull(pdf) + copyClips(context, r) }.getOrNull() }
                     if (files == null) { error = "文件没准备好"; return@launch }
                     share(context, files, "*/*", "给医生的一页")
                 }
@@ -173,6 +185,29 @@ private fun DoctorPage() {
         }
     }
     error?.let { Text(it, style = RsType.caption, color = c.warning, modifier = Modifier.padding(top = 6.dp)) }
+    open?.let { first ->
+        Dialog(onDismissRequest = { open = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Column(Modifier.fillMaxSize().background(Color(0xFFF3F0F8)).verticalScroll(rememberScrollState()).springClick { open = null }.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 点的那页放前面
+                (pages.drop(first) + pages.take(first)).forEach { page ->
+                    Image(page.asImageBitmap(), null, contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().aspectRatio(595f / 842f).clip(RoundedCornerShape(8.dp)).background(Color.White))
+                }
+            }
+        }
+    }
+}
+
+/** 把 PDF 每页画成图片做预览（宽 1240 像素，放大看也清楚） */
+private fun renderPages(file: File): List<Bitmap> = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+    PdfRenderer(fd).use { renderer ->
+        (0 until renderer.pageCount).map { i ->
+            renderer.openPage(i).use { page ->
+                val w = 1240; val h = w * page.height / page.width
+                Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { b -> b.eraseColor(android.graphics.Color.WHITE); page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) }
+            }
+        }
+    }
 }
 
 private fun shareDir(context: Context) = File(context.cacheDir, "night-share").apply { mkdirs() }
@@ -183,33 +218,3 @@ private fun copyClips(context: Context, r: DoctorReport): List<File> = r.clips.m
     File(shareDir(context), "睡眠录音-${i + 1}.${src.extension.ifEmpty { "ogg" }}").also { src.copyTo(it, overwrite = true) }
 }
 
-/** A4 纯文字排版：标题加粗，正文按段落换行，满页另起 */
-private fun writePdf(context: Context, r: DoctorReport): File {
-    val doc = PdfDocument()
-    val pageW = 595; val pageH = 842; val margin = 48
-    val body = TextPaint().apply { textSize = 11f; isAntiAlias = true; color = android.graphics.Color.rgb(30, 30, 30) }
-    val head = TextPaint(body).apply { textSize = 15f; isFakeBoldText = true }
-    var pageNo = 1
-    var page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, pageNo).create())
-    var y = margin.toFloat()
-    for (raw in r.markdown.lines()) {
-        val line = raw.trimEnd()
-        if (line.isBlank()) { y += 6; continue }
-        if (Regex("^\\|?\\s*-{3,}").containsMatchIn(line)) continue
-        val isHead = line.startsWith("#")
-        val text = line.trimStart('#', ' ').replace("**", "").let { if (it.startsWith("|")) it.trim('|').split("|").joinToString("    ") { s -> s.trim() } else it }
-        val layout = StaticLayout.Builder.obtain(text, 0, text.length, if (isHead) head else body, pageW - margin * 2)
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(3f, 1f).build()
-        if (y + layout.height > pageH - margin) {
-            doc.finishPage(page); pageNo++
-            page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, pageNo).create()); y = margin.toFloat()
-        }
-        page.canvas.save(); page.canvas.translate(margin.toFloat(), y); layout.draw(page.canvas); page.canvas.restore()
-        y += layout.height + if (isHead) 8 else 4
-    }
-    doc.finishPage(page)
-    val file = File(shareDir(context), "睡眠记录-${r.from}至${r.to}.pdf")
-    file.outputStream().use { doc.writeTo(it) }
-    doc.close()
-    return file
-}

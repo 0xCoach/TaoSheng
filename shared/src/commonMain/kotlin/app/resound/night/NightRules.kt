@@ -52,12 +52,11 @@ object NightRules {
             if(pickedUp || screenOnAt != null && at-screenOnAt >= 120_000) return NightTransition.Cancel
             val uninterruptedSince=maxOf(session.provisionalAt,session.signals.filter { it.kind=="screen" && it.end-it.start>60_000 }.maxOfOrNull { it.end } ?: session.provisionalAt)
             if(at-uninterruptedSince >= 1_200_000 && screenOffAt != null) return NightTransition.Confirm
-        } else if(at-session.confirmedAt >= 3*3_600_000) {
-            val awake=session.signals.lastOrNull { it.kind=="pickup" || it.kind=="screen" && it.end-it.start>=30_000 }
-            if(awake != null && at-awake.start>=1_800_000 && (screenOnAt != null || stillSince==null || stillSince<awake.start)) return NightTransition.Finish
-        }
+        } else if(at-session.confirmedAt >= 3*3_600_000 && WakeRules.decide(session,at,minute)!=null) return NightTransition.Finish
         NightTransition.Continue
     }
+    /** 这一夜结束后（整理中/已整理），同一个早上不再重新开始记录；中断的那一夜可以接着记 */
+    fun canReopen(state: NightState?) = state==null || state!=NightState.Processing && state!=NightState.Ready
     fun median(values: List<Long>): Long { require(values.isNotEmpty());val v=values.sorted();val i=v.size/2;return if(v.size%2==1)v[i] else v[i-1]+(v[i]-v[i-1])/2 }
     fun merge(spans: List<NightSpan>, gap: Long=0): List<NightSpan> {
         val out=mutableListOf<NightSpan>()
@@ -77,6 +76,60 @@ object NightMotion {
         angle>NightTuning.PICKUP_ANGLE || variance>NightTuning.PICKUP_VARIANCE && highMillis>=2_000 -> "pickup"
         angle<NightTuning.STILL_ANGLE && variance<NightTuning.STILL_VARIANCE -> "still"
         else -> "turn"
+    }
+}
+/**
+ * 起床判断（11-18）：醒来的证据是动手机——解锁、拔充电线、关闹钟、拿起、亮屏。
+ * 睡满 3 小时后，早上 10 分钟内出现两类证据就马上算起床；
+ * 零星一次（看时间、起夜），30 分钟内没重新安静满 15 分钟才算起床。起床时间取这一串动作的第一下。
+ */
+object WakeRules {
+    const val CLUSTER = 600_000L
+    const val SETTLE = 1_800_000L
+    const val RESLEEP = 900_000L
+    const val PICKUPS = 3
+    const val SCREEN = 120_000L
+    /** 早上 5 点以后才按“两类证据”立刻定；更早的醒来都要等 30 分钟看会不会接着睡 */
+    const val MORNING_MINUTE = 5 * 60
+    val POINT_KINDS = setOf("unlock", "unplug", "alarm-off", "pickup")
+    fun evidence(signals: List<NightSignal>) = signals.filter { it.kind in POINT_KINDS || it.kind=="screen" && it.end-it.start>=30_000 }.sortedBy { it.start }
+    /** 还没“重新睡着”的这一串醒来动作的第一下；没有为 null。首页柱子停在这里 */
+    fun pending(session: NightSession): Long? {
+        val after=session.confirmedAt ?: return null
+        val settled=maxOf(after,session.signals.filter { it.kind=="quiet" && it.end-it.start>=RESLEEP }.maxOfOrNull { it.end } ?: after)
+        return evidence(session.signals).firstOrNull { it.end>=settled && it.start>=after }?.start
+    }
+    /** [from] 起 10 分钟内满足几类证据 */
+    fun kinds(signals: List<NightSignal>, from: Long): Int {
+        val to=from+CLUSTER
+        val inside=signals.filter { it.start in from..to }
+        val screen=signals.filter { it.kind=="screen" }.sumOf { (minOf(it.end,to)-maxOf(it.start,from)).coerceAtLeast(0) }
+        return listOf(inside.any { it.kind=="unlock" }, inside.any { it.kind=="unplug" }, inside.any { it.kind=="alarm-off" },
+            inside.count { it.kind=="pickup" }>=PICKUPS, screen>=SCREEN).count { it }
+    }
+    /** 早上醒来后手机放着去洗漱，会像“又安静了”；不算回笼觉，往前 45 分钟内早上的动作也算这次起床 */
+    const val LOOKBACK = 2_700_000L
+    private fun morning(minute: Int) = minute>=MORNING_MINUTE && minute<15*60
+    /** 算起床就返回起床时间，否则 null。[minute] 是 [at] 的当地分钟 */
+    fun decide(session: NightSession, at: Long, minute: Int): Long? {
+        val start=pending(session) ?: return null
+        val all=evidence(session.signals)
+        val strong=morning(minute) && all.filter { it.start>=start }.any { kinds(session.signals,it.start)>=2 }
+        if(!strong && at-start<SETTLE) return null
+        return lookBack(session,start,at,minute)
+    }
+    /** 时间段结束被迫收尾时：早上最后一串动作算起床（之后手机一直放着）；早上没动过手机为 null */
+    fun atWindowEnd(session: NightSession, at: Long, minute: Int): Long? {
+        val after=session.confirmedAt ?: return null
+        val last=evidence(session.signals).lastOrNull { it.start>=after && morning(minuteOf(it.start,at,minute)) } ?: return null
+        return lookBack(session,last.start,at,minute)
+    }
+    private fun minuteOf(t: Long, at: Long, minute: Int)=((minute-((at-t)/60_000).toInt())%1440+1440)%1440
+    private fun lookBack(session: NightSession, start: Long, at: Long, minute: Int): Long {
+        val all=evidence(session.signals)
+        var wake=start
+        while(true) wake=all.firstOrNull { it.start>=wake-LOOKBACK && it.start<wake && it.start>=(session.confirmedAt ?: 0) && morning(minuteOf(it.start,at,minute)) }?.start ?: break
+        return wake
     }
 }
 data class SleepResult(val times: NightTimes,val awake: List<NightSpan>,val millis: Long,val count: Int)
@@ -100,7 +153,8 @@ object SleepEstimate {
         val last=candidates.lastOrNull { a->alarm!=null && abs(a.start-alarm)<=1_800_000 && signals.none { it.kind=="quiet" && it.start>=a.end && it.end-it.start>=900_000 } } ?: candidates.lastOrNull()
         // 退出由状态机确认。若最后一次醒来后重新睡满 15 分钟，不把那次当起床。
         val resumed=last!=null && signals.any { it.kind=="quiet" && it.start>=last.end && it.end-it.start>=900_000 }
-        val wake=if(last!=null && !resumed)last.start else end
+        val decided=signals.lastOrNull { it.kind=="wake" }?.value?.toLong()
+        val wake=decided ?: if(last!=null && !resumed)last.start else end
         val estimated=NightTimes(session.screenOff,estimatedOnset,wake.coerceAtLeast(estimatedOnset),true)
         val t=estimated.copy(bedtime=edited?.takeIf { it.editedBedtime }?.bedtime ?: estimated.bedtime,
             onset=edited?.takeIf { it.editedOnset }?.onset ?: estimated.onset,wake=edited?.takeIf { it.editedWake }?.wake ?: estimated.wake,

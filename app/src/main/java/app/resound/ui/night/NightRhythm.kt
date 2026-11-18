@@ -70,7 +70,8 @@ internal fun rememberNightRhythm(date: LocalDate): NightRhythmUi? {
         val t = d.summary.times
         return when {
             t != null && !active -> NightDays.Input(d.summary.date, t.onset, t.wake, d.events)
-            active -> (t?.onset ?: live.since ?: return null).let { NightDays.Input(d.summary.date, it, now, d.events, live = true) }
+            // 记录中：画到现在；已经有醒来的动作就停在第一下
+            active -> (t?.onset ?: live.since ?: return null).let { NightDays.Input(d.summary.date, it, live.awakeAt?.coerceAtMost(now) ?: now, d.events, live = true) }
             else -> null
         }
     }

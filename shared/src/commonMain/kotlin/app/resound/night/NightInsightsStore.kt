@@ -63,10 +63,17 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
     override suspend fun muteBreakNotice() {dao.notice(NightNoticeRow("break",now(),true));store.notifyChanged()}
     override fun trend(from: LocalDate,to: LocalDate)=store.nights(from,to).map {n->n.sortedBy {it.date}.map {s->NightPoint(s.date,s.times?.bedtime,s.times?.onset,s.times?.wake,s.sleepMillis,s.snoreMillis,s.coughCount,s.awakeCount,s.snoreBreaks,s.confidence,s.tags.map {it.name})}}
     override suspend fun doctorReport(from: LocalDate,to: LocalDate): DoctorReport {
-        require(from<=to);val nights=dao.all().map(store::summary).filter {it.date>=from && it.date<=to}
-        val clips=mutableListOf<Triple<String,Int,FileRef>>()
-        for(n in nights)for(e in store.detail(n.id)?.events.orEmpty().filter {it.feedback==Feedback.Yes && it.clipId!=null})store.audio(e.clipId!!)?.let {clips+=Triple("${n.date}:${e.kind}",e.aboveBackgroundDb ?: 0,it)}
-        return DoctorReport(from,to,NightExports.doctor(from,to,nights,zones()),(clips.sortedByDescending {it.second}.distinctBy {it.first}+clips.sortedByDescending {it.second}).map {it.third}.distinct().take(5))
+        require(from<=to);val all=dao.all().map(store::summary);val nights=all.filter {it.date>=from && it.date<=to}.sortedBy {it.date}
+        data class Clip(val key: String,val db: Int,val ref: FileRef,val info: DoctorClip)
+        val clips=mutableListOf<Clip>();val drawn=mutableListOf<DoctorNight>()
+        for(n in nights) {
+            val events=store.detail(n.id)?.events.orEmpty()
+            for(e in events.filter {it.feedback==Feedback.Yes && it.clipId!=null})store.audio(e.clipId!!)?.let {clips+=Clip("${n.date}:${e.kind}",e.aboveBackgroundDb ?: 0,it,DoctorClip(e.start,e.kind))}
+            drawn+=DoctorNight(n,events.filter {it.kind==NightEventKind.Snore && it.feedback!=Feedback.No}.map {NightSpan(it.start,it.end)},events.filter {it.kind==NightEventKind.Awake}.map {NightSpan(it.start,it.end)})
+        }
+        val picked=(clips.sortedByDescending {it.db}.distinctBy {it.key}+clips.sortedByDescending {it.db}).distinctBy {it.ref}.take(5)
+        return DoctorReport(from,to,NightExports.doctor(from,to,nights,zones()),picked.map {it.ref},drawn,
+            NightTags.findings(all,dao.tagList().map {NightTag(it.id,it.name,it.preset)}).take(3),picked.map {it.info})
     }
     suspend fun finishWeek(report: WeeklyReport,state: NightWeekState) = store.db.writeTransaction {
         val nights=dao.all().map(store::summary)

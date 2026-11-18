@@ -75,6 +75,12 @@ class ResoundApp : Application() {
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
+        scope.launch {
+            val tables = getString(R.string.capture_diagnostic_tables).split(',').toTypedArray()
+            database.invalidationTracker.addObserver(object : androidx.room.InvalidationTracker.Observer(tables) {
+                override fun onInvalidated(tables: Set<String>) = app.resound.data.captureQueryStats.invalidated(tables)
+            })
+        }
         app.resound.platform.AndroidZoneHistory(getSharedPreferences("zone-history", MODE_PRIVATE)).attach(this)
         AppGraph.quickPrefs = app.resound.quick.AndroidQuickPrefs(this)
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }

@@ -48,6 +48,8 @@ internal class LocalProblemReports(
                 (context.applicationContext as? app.resound.ResoundApp)?.let { appendLine(it.pipelineDiagnostics.dump()) }
                 appendLine("\n各线程 CPU 时间（最近 1008 次；DefaultDispatcher/IO 合并）")
                 appendLine(app.resound.capture.ThreadCpuDiagnostics.dump(context))
+                appendLine("\n数据库查询来源（最近 6 个 10 分钟）")
+                appendLine(app.resound.data.captureQueryStats.dump())
                 appendLine("\n整理与大模型诊断")
                 appendLine(runCatching { LlmProblemDiagnostics(context, memoryDao, failover).dump() }.getOrDefault("暂无"))
                 appendLine("\n环境音识别"); appendLine(envDiagnostics)

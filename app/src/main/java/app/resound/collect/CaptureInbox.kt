@@ -39,9 +39,13 @@ class CaptureInbox(
         return type.startsWith("text/") || type.startsWith("image/")
     }
 
-    /** 处理分享 Intent，返回入库条目数；sourceApp 由 Activity 的 referrer/callingActivity 传入。 */
+    /**
+     * 处理分享 Intent，返回入库条目数；sourceApp 由 Activity 的 referrer/callingActivity 传入。
+     * 收单挂到应用存活期 scope：分享后 Activity 被系统回收/界面协程取消时，
+     * 「复制文件→入库」仍要跑完，否则分享内容会静默丢失（断网复测实锤过孤儿文件）。
+     */
     @Suppress("DEPRECATION")
-    suspend fun receive(intent: Intent, sourceApp: String? = null): Int = withContext(io) {
+    suspend fun receive(intent: Intent, sourceApp: String? = null): Int = withContext(scope.coroutineContext + io) {
         var count = 0
         val app = sourceApp
         val texts = buildList {

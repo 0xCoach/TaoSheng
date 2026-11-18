@@ -92,7 +92,7 @@ internal object StrongReminders {
                 .putExtra(EXTRA_ID, id).putExtra(EXTRA_TEXT, text),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, LocalNotifier.TODO_CHANNEL)
-            .setSmallIcon(R.drawable.ic_notify).setColor(0xFFE8582A.toInt())
+            .setSmallIcon(R.drawable.ic_notify).setColor(0xFF632ACF.toInt())
             .setContentTitle(if (repeat == 0) "到点了" else "到点了 · 第 ${repeat + 1} 次提醒")
             .setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)

@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * 声声不息的配色（11-19 Memoket 紫罗兰版）：主色深紫 #632ACF→#620FF0，
- * 深色底用品牌靛黑 #0F071E；青绿 #108474 做成功态，暖橙只留录制指示（OverviewCard 自带 BrandOrange）。
+ * 深色底用品牌靛黑 #0F071E；青绿 #108474 做成功态，录制指示同色系提亮（OverviewCard 自带 BrandViolet）。
  * 越“浮”起来的东西越亮：底 < 卡片 < 面板。
  */
 @Immutable
@@ -92,7 +92,7 @@ val DarkRs = RsColors(
     textTertiary = Color(0x7AFFFFFF),  // 白 48%
     separator = Color(0x14FFFFFF),     // 白 8%
     // 深紫品牌色：夜间主题色用亮紫（#632ACF 在靛黑上太沉），大块按钮仍用主紫；
-    // 唯一的暖橙在录制指示卡（OverviewCard 自带 BrandOrange，不走主题板）。
+    // 录制指示卡同色系提亮（OverviewCard 自带 BrandViolet，不走主题板）。
     accent = Color(0xFFB89BF5),
     accentSoft = Color(0xFF2A1F42),
     good = Color(0xFF35B39A),

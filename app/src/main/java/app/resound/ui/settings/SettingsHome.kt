@@ -60,8 +60,8 @@ import app.resound.ui.voiceprint.LocalVoiceprint
 /** 各组图标色：同组相近色系，整体沉稳；组与组之间靠色相区分 */
 private object Tints {
     // 记录：暖色系
-    val capture = Color(0xFFF07B2E); val devices = Color(0xFFF2994A); val transcript = Color(0xFFE0A030)
-    val voiceprint = Color(0xFFE06A50); val env = Color(0xFFD4A017); val location = Color(0xFFC9643A)
+    val capture = Color(0xFF632ACF); val devices = Color(0xFF8B5CF0); val transcript = Color(0xFF6D4AC8)
+    val voiceprint = Color(0xFF9F7AEA); val env = Color(0xFF108474); val location = Color(0xFF4C1D95)
     // 整理：紫蓝系
     val model = Color(0xFF7C5CC4); val skills = Color(0xFF5B5BD6); val push = Color(0xFF3B82C4)
     // 数据：绿
@@ -293,7 +293,7 @@ private fun SearchField(value: String, onChange: (String) -> Unit) {
     BasicTextField(value, onChange, singleLine = true, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
-            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(if (c.isDark) c.card else Color(0xFFE9E6E1)).padding(horizontal = 12.dp, vertical = 10.dp),
+            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(if (c.isDark) c.card else Color(0xFFEFEBF8)).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 GlyphIcon(SettingsGlyph.Search, c.textTertiary, 16.dp)
                 Spacer(Modifier.width(8.dp))

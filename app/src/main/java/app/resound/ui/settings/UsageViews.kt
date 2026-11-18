@@ -61,7 +61,7 @@ private fun money(v: Double) = if (v < 0.01) "不到 1 分钱" else "约 ¥%.2f"
 
 /** 用途配色 */
 private fun purposeColor(p: UsagePurpose): Color = when (p) {
-    UsagePurpose.Digest -> Color(0xFFF07B2E)
+    UsagePurpose.Digest -> Color(0xFF632ACF)
     UsagePurpose.Ask -> Color(0xFF4F86C6)
     UsagePurpose.Review -> Color(0xFFC8624A)
     UsagePurpose.Skill -> Color(0xFF6E5FA6)

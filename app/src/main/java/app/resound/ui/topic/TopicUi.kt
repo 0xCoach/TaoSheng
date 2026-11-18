@@ -600,7 +600,7 @@ private fun MarkUndoLine(mark: Triple<Long, Long, Long>?, soft: Color, strong: C
 private fun HeroButton(text: String, primary: Boolean, modifier: Modifier, bg: Color? = null, fg: Color? = null, onClick: () -> Unit) {
     val c = Rs.colors
     val b = bg ?: c.accent
-    val f = fg ?: if (c.isDark) c.onAccent else Color(0xFFD2511F)
+    val f = fg ?: if (c.isDark) c.onAccent else Color(0xFF4A1FA8)
     Box(modifier.clip(CircleShape).background(b).springClick(onClick).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = f, maxLines = 1)
     }

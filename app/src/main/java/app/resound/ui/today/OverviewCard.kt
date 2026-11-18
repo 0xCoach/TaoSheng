@@ -208,7 +208,8 @@ private fun ColumnScope.LiveCard(
     // 屏幕窄或系统字体调大时先舍弃声波（装饰），把空间全给状态文字，避免“正在聆听”被挤成“正在…”
     val roomy = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 360 &&
         androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
-    Row(Modifier.fillMaxWidth().height(36.dp), verticalAlignment = Alignment.CenterVertically) {
+    // heightIn 而不是固定 height：右侧按钮触摸区 44dp 时行高能跟着撑开，按钮始终与状态文字垂直居中
+    Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
             // 紧凑时状态文字撑满中间，按钮自然靠右；宽松时与声波分享空档
             Row(Modifier.weight(1f, fill = !roomy).springClick {
                 if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else listenOpen = true

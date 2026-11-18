@@ -39,25 +39,25 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=40",
+    "newLine": "user_version=41",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"b415736ea862366c29506ad4ced5a97f\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"e8b94fb7d3802c498012ae642e1720ac\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "b415736ea862366c29506ad4ced5a97f",
+  "newIdentityHash": "e8b94fb7d3802c498012ae642e1720ac",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b415736ea862366c29506ad4ced5a97f')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e8b94fb7d3802c498012ae642e1720ac')"
   ],
   "indices": [
     {
@@ -189,6 +189,30 @@
       "name": "index_nights_date",
       "table": "nights",
       "row": "[\"index\",\"index_nights_date\",\"nights\",\"CREATE UNIQUE INDEX `index_nights_date` ON `nights` (`date`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_notice_1",
+      "table": "night_notice",
+      "row": "[\"index\",\"sqlite_autoindex_night_notice_1\",\"night_notice\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_personal_1",
+      "table": "night_personal",
+      "row": "[\"index\",\"sqlite_autoindex_night_personal_1\",\"night_personal\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_tag_links_1",
+      "table": "night_tag_links",
+      "row": "[\"index\",\"sqlite_autoindex_night_tag_links_1\",\"night_tag_links\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_weeks_1",
+      "table": "night_weeks",
+      "row": "[\"index\",\"sqlite_autoindex_night_weeks_1\",\"night_weeks\",null]",
       "occurrences": 1
     }
   ],
@@ -455,10 +479,10 @@
   "columnAdds": {
     "table": "segments",
     "columnsOldLine": "columns=[\"id\",\"startAt\",\"endAt\",\"sourceId\",\"path\",\"sizeBytes\",\"status\",\"attempts\",\"nextRetryAt\",\"error\",\"completedAt\",\"logId\",\"sentMillis\",\"voiceprintProcessedAt\",\"playbackMillis\",\"firstFailedAt\",\"asrSource\",\"redoPending\",\"separateSpeakers\",\"importRecordId\",\"importChannel\",\"speakerCount\"]",
-    "columnsNewLine": "columns=[\"id\",\"startAt\",\"endAt\",\"sourceId\",\"path\",\"sizeBytes\",\"status\",\"attempts\",\"nextRetryAt\",\"error\",\"completedAt\",\"logId\",\"sentMillis\",\"voiceprintProcessedAt\",\"playbackMillis\",\"firstFailedAt\",\"asrSource\",\"redoPending\",\"separateSpeakers\",\"importRecordId\",\"importChannel\",\"speakerCount\",\"playbackDigest\"]",
-    "dataSuffix": ",{\"integer\":0}]",
-    "insertSql": "ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0",
-    "masterFreshLine": "[\"table\",\"segments\",\"segments\",\"CREATE TABLE `segments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `sourceId` TEXT NOT NULL, `path` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL DEFAULT 0, `nextRetryAt` INTEGER, `error` TEXT, `completedAt` INTEGER, `logId` TEXT, `sentMillis` INTEGER NOT NULL DEFAULT 0, `voiceprintProcessedAt` INTEGER, `playbackMillis` INTEGER NOT NULL DEFAULT 0, `firstFailedAt` INTEGER, `asrSource` TEXT, `redoPending` INTEGER NOT NULL DEFAULT 0, `separateSpeakers` INTEGER, `importRecordId` INTEGER, `importChannel` INTEGER, `speakerCount` INTEGER, `playbackDigest` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`importRecordId`) REFERENCES `import_records`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )\"]"
+    "columnsNewLine": "columns=[\"id\",\"startAt\",\"endAt\",\"sourceId\",\"path\",\"sizeBytes\",\"status\",\"attempts\",\"nextRetryAt\",\"error\",\"completedAt\",\"logId\",\"sentMillis\",\"voiceprintProcessedAt\",\"playbackMillis\",\"firstFailedAt\",\"asrSource\",\"redoPending\",\"separateSpeakers\",\"importRecordId\",\"importChannel\",\"speakerCount\",\"playbackDigest\",\"speakerIntervals\"]",
+    "dataSuffix": ",{\"integer\":0},null]",
+    "insertSql": "ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0, speakerIntervals TEXT",
+    "masterFreshLine": "[\"table\",\"segments\",\"segments\",\"CREATE TABLE `segments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `sourceId` TEXT NOT NULL, `path` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL DEFAULT 0, `nextRetryAt` INTEGER, `error` TEXT, `completedAt` INTEGER, `logId` TEXT, `sentMillis` INTEGER NOT NULL DEFAULT 0, `voiceprintProcessedAt` INTEGER, `playbackMillis` INTEGER NOT NULL DEFAULT 0, `firstFailedAt` INTEGER, `asrSource` TEXT, `redoPending` INTEGER NOT NULL DEFAULT 0, `separateSpeakers` INTEGER, `importRecordId` INTEGER, `importChannel` INTEGER, `speakerCount` INTEGER, `playbackDigest` INTEGER NOT NULL DEFAULT 0, `speakerIntervals` TEXT, FOREIGN KEY(`importRecordId`) REFERENCES `import_records`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )\"]"
   },
   "triggers": [
     "[\"trigger\",\"folder_import_deleted\",\"import_records\",\"CREATE TRIGGER folder_import_deleted AFTER DELETE ON import_records BEGIN UPDATE folder_recordings SET importRecordId = NULL, state = 'Listed', pendingId = NULL, backfill = 0, notified = 1 WHERE importRecordId = OLD.id; END\"]"

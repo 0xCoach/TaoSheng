@@ -78,10 +78,12 @@ object CaptureNotifications {
             CaptureNoticeTarget.App -> openApp(context)
         })
         .apply {
+            val remember = !paused && (context.applicationContext as? app.resound.ResoundApp)?.playbackSession?.canRemember == true
+            if (remember) addAction(0, "记下外放", action(context, CaptureService.REMEMBER_PLAYBACK))
             if (topic != null) TopicNotifications.actions(this, context, topic)
             else {
                 // 顺序：加待办、开专题、暂停（暂停中为“恢复”）
-                addAction(0, CaptureNotificationPolicy.ADD_TODO, addTodo(context))
+                if (!remember) addAction(0, CaptureNotificationPolicy.ADD_TODO, addTodo(context))
                 if (!paused) addAction(0, "记一下", TopicActionReceiver.intent(context, "mark"))
                 else addAction(0, CaptureNotificationPolicy.START_TOPIC, TopicActionReceiver.intent(context, "start"))
                 addAction(0, notice.toggle, action(context, if (paused) CaptureService.RESUME else CaptureService.PAUSE))

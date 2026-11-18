@@ -18,6 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -119,12 +124,31 @@ fun NightSettingsPage(bottom: Dp) {
                 status.forEach { p ->
                     val name = if (p.kind == PersonalKind.Snore) "鼾声" else "咳嗽"
                     val line = when {
-                        p.active -> "$name：已启用 · 学了 ${p.yes + p.no} 段" + (p.accuracy?.let { " · 准确率 ${(it * 100).toInt()}%" } ?: "")
-                        p.yes < 20 || p.no < 10 -> "$name：还在学 · 是 ${p.yes}/20 · 不是 ${p.no}/10"
+                        p.active -> "$name：已启用 · 帮你排除 ${p.excludedCount} 段" + (p.accuracy?.let { " · 准确率 ${(it * 100).toInt()}%" } ?: "")
+                        p.yes < 20 || p.no < 10 -> if (p.no < 3 && p.yes >= 10) "$name：误报很少，暂时用不上" else "$name：还在学 · 是 ${p.yes}/20 · 不是 ${p.no}/10"
                         else -> "$name：学够了，但还没比默认规则准，先不启用"
                     }
                     Note(line)
                 }
+                // 卡 205：清空重学是唯一不可逆的操作，确认一次
+                var confirm by remember { mutableStateOf(false) }
+                var resetting by remember { mutableStateOf(false) }
+                val scope = rememberCoroutineScope()
+                if (status.any { it.yes + it.no > 0 }) Text("清空重学", style = RsType.subhead, color = Rs.colors.accent,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp).springClick { confirm = true }.padding(vertical = 6.dp))
+                if (confirm) androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { confirm = false },
+                    containerColor = Rs.colors.card,
+                    title = { Text("清空重学？", style = RsType.headline, color = Rs.colors.text) },
+                    text = { Text("会忘掉已经学到的分辨方法，从头再学。你点过的“是 / 不是”还在，录音不受影响。", style = RsType.body, color = Rs.colors.textSecondary) },
+                    confirmButton = { Text(if (resetting) "正在清空…" else "清空重学", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = Rs.colors.warning,
+                        modifier = Modifier.springClick {
+                            if (resetting) return@springClick
+                            resetting = true
+                            scope.launch { runCatching { AppGraph.nightInsights.resetPersonal() }; resetting = false; confirm = false }
+                        }.padding(12.dp)) },
+                    dismissButton = { Text("取消", style = RsType.body, color = Rs.colors.textSecondary, modifier = Modifier.springClick { confirm = false }.padding(12.dp)) },
+                )
             }
         }
         Label("推送")

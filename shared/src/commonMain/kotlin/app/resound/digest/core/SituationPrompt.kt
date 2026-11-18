@@ -21,7 +21,8 @@ import app.resound.screentime.NamedAppSession
  */
 class SituationPrompt(private val enabled: Boolean, private val lookup: SituationLookup?,
     /** 片段编号 → 扬声器外放毫秒数；只收手机麦克风片段。默认空表示调用方不提供（合并路径）。 */
-    private val playback: Map<Long, Long> = emptyMap()) {
+    private val playback: Map<Long, Long> = emptyMap(),
+    private val recordings: List<app.resound.data.SegmentPlayback>? = null) {
 
     /** 本批出现过「在用」项（由 [transcript] 设置；调用方先 transcript 后 system）。 */
     private var inUseSeen = false
@@ -41,7 +42,7 @@ class SituationPrompt(private val enabled: Boolean, private val lookup: Situatio
         val apps = if (lookup != null && lines.isNotEmpty())
             lookup.appSessions(lines.minOf { it.startAt }, lines.maxOf { it.endAt })
         else emptyList()
-        val playbacks = if (lookup != null && lines.any { isPlaying(it.segmentId) })
+        val playbacks = if (lookup != null && lines.isNotEmpty() && (recordings?.any { it.playbackMillis > 0 } ?: lines.any { isPlaying(it.segmentId) }))
             lookup.devicePlayback(lines.minOf { it.startAt }, lines.maxOf { it.endAt })
         else emptyList()
         for (group in groups(lines)) heading(
@@ -49,6 +50,15 @@ class SituationPrompt(private val enabled: Boolean, private val lookup: Situatio
             lines.subList(group.first, group.last + 1).maxOf { it.endAt }, lines[group.first].segmentId,
             apps, playbacks,
         )?.let { headings[group.first] = it }
+        if (recordings != null) {
+            val labels = playbackLabels(recordings, lines, playbacks)
+            lines.forEachIndexed { i, line ->
+                val label = labels[line.id]?.takeIf { it.playing } ?: return@forEachIndexed
+                val name = label.appName?.let(::singleLine) ?: "手机在外放"
+                val title = label.title?.let { "《${singleLine(it)}》" }.orEmpty()
+                headings[i] = listOfNotNull(headings[i], "【外放：$name$title】").joinToString("\n")
+            }
+        }
         if (headings.isEmpty() && (!enabled || lookup == null)) return DigestPrompt.transcript(lines, zone, unseparated)
         return DigestPrompt.transcript(lines, zone, unseparated, headings)
     }
@@ -85,7 +95,7 @@ class SituationPrompt(private val enabled: Boolean, private val lookup: Situatio
         ) else emptyList()
         val inUse = if (segmentId != null && segmentId in playback) longestApp(apps, start, end) else null
         if (inUse != null) inUseSeen = true
-        val playbackItem = if (segmentId != null && isPlaying(segmentId)) {
+        val playbackItem = if (recordings == null && segmentId != null && isPlaying(segmentId)) {
             val match = longestPlayback(playbacks, start, end)
             when {
                 match != null && match.title != null ->

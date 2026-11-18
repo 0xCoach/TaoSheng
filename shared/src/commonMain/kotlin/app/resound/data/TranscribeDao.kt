@@ -29,11 +29,15 @@ data class QueueCounts(val pending: Int, val failed: Int, val running: Boolean)
 data class VoiceprintCounts(val processed: Int, val pending: Int)
 data class AsrUsageTotals(val todayMillis: Long, val totalMillis: Long)
 /** 手机麦克风片段的外放毫秒数快照，供整理提示标注外放。 */
-data class SegmentPlayback(val id: Long, val playbackMillis: Long)
+data class SegmentPlayback(val id: Long, val playbackMillis: Long, val speakerIntervals: String? = null, val duration: Long = 0)
 
 @Dao
 abstract class TranscribeDao {
     @Transaction open suspend fun <T> transaction(block: suspend () -> T): T = block()
+    @Query("""SELECT EXISTS(SELECT 1 FROM segments WHERE (sourceId='mic' OR speakerIntervals IS NOT NULL) AND status='Done' AND playbackMillis>0
+        GROUP BY date(startAt/1000, 'unixepoch', 'localtime') HAVING SUM(playbackMillis)>1800000)""")
+    abstract fun hasHeavyPlaybackDay(): Flow<Boolean>
+
     /** 只读时间元数据；空白句子不算首次转写。 */
     @Query("SELECT MIN(startAt) FROM transcript_lines WHERE LENGTH(TRIM(text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0")
     abstract fun onboardingFirstTranscript(): Flow<Long?>
@@ -178,7 +182,7 @@ abstract class TranscribeDao {
     @Query("SELECT id FROM segments WHERE id IN (:ids) AND separateSpeakers = 0 AND (importChannel IS NULL OR speakerCount = 0)")
     abstract suspend fun unseparated(ids: List<Long>): List<Long>
     /** 外放提示只认手机麦克风片段；阈值判定在 SituationPrompt，这里不按毫秒数过滤。 */
-    @Query("SELECT id, playbackMillis FROM segments WHERE id IN (:ids) AND sourceId = 'mic'")
+    @Query("SELECT id, playbackMillis, speakerIntervals, endAt-startAt AS duration FROM segments WHERE id IN (:ids) AND (sourceId = 'mic' OR speakerIntervals IS NOT NULL)")
     abstract suspend fun playbackMillis(ids: List<Long>): List<SegmentPlayback>
     @Update abstract suspend fun update(row: SegmentEntity)
     @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun findSegment(id: Long): SegmentEntity?

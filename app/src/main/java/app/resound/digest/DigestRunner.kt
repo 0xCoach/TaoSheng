@@ -211,8 +211,9 @@ class DigestRunner(
         val batchId = identity(lines)
         var storedId = batchId
         return try {
+            val recordings = playbackMillis(lines.map { it.segmentId }.distinct())
             val contextPrompt = SituationPrompt(settings.includeSituation.value, situation,
-                playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis }, marks)
+                recordings.associate { it.id to it.playbackMillis }, marks, recordings)
             val (text, indexed) = contextPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
             val unfinished = dao.unfinishedForDigest()
             val candidates = unfinished.map { it.id }.toSet()
@@ -251,9 +252,9 @@ class DigestRunner(
             val (events, items) = DigestPrompt.parse(reply.content, indexed, diagnostics = trace)
             val at = now()
             val save: suspend () -> Unit = { dao.saveDigest(
-                events = events.map { e ->
+                events = events.mapIndexed { eventIndex, e ->
                     MemoryEventEntity(
-                        startAt = e.startAt, endAt = e.endAt, scene = if (isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
+                        startAt = e.startAt, endAt = e.endAt, scene = if (items.none { it.eventIndex == eventIndex && it.category in setOf("待办", "约定") } && isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
                         pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(),
                         place = e.place, emotion = e.emotion, intensity = e.intensity, important = e.important,
                         createdAt = at, model = actualModels[stored.id] ?: preset.model,

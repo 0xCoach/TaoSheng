@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.compose.ui.text.withStyle
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.map
@@ -828,6 +829,13 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
             app.resound.AppGraph.originalAudio.available(lines.map { it.segmentId }.filter { it > 0 }.toSet())
         }.getOrDefault(emptySet()) else emptySet()
     }
+    // 卡 205：外放期间的句子标“外放”（只标记、不过滤），有 App/节目名就带上
+    val playbackLines by androidx.compose.runtime.produceState(emptyMap<Long, app.resound.transcribe.SentencePlayback>(), lines) {
+        val source = runCatching { app.resound.AppGraph.playbackSentences }.getOrNull()
+        value = if (source == null) emptyMap() else lines.map { it.segmentId }.filter { it > 0 }.distinct().flatMap { id ->
+            runCatching { source.forSegment(id) }.getOrDefault(emptyList())
+        }.filter { it.playing }.associateBy { it.lineId }
+    }
     fun tap(line: TranscriptLine) {
         when {
             LinePlayer.currentLineId == line.id -> LinePlayer.toggle()
@@ -883,7 +891,14 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             val bg by androidx.compose.animation.animateColorAsState(if (now) c.accentSoft else Color.Transparent, label = "playing")
                             val seen = remember(line.id) { androidx.compose.foundation.relocation.BringIntoViewRequester() }
                             androidx.compose.runtime.LaunchedEffect(now) { if (now) runCatching { seen.bringIntoView() } }
-                            Text(line.text, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
+                            val heard = playbackLines[line.id]
+                            val shown = if (heard == null) androidx.compose.ui.text.AnnotatedString(line.text) else androidx.compose.ui.text.buildAnnotatedString {
+                                withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, background = c.fill)) {
+                                    append(" 外放" + (listOfNotNull(heard.appName, heard.title).firstOrNull()?.let { " · ${it.take(12)}" } ?: "") + " ")
+                                }
+                                append("  "); append(line.text)
+                            }
+                            Text(shown, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
                                 .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
                                 interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
                                 onClick = { tap(line) }, onLongClick = { menuFor = line.id },

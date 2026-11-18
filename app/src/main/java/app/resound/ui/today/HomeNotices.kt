@@ -368,3 +368,32 @@ fun ScreenTimePermissionNotice(topGap: Dp = 0.dp) {
         }
     }
 }
+
+
+/** 卡 205：外放默认也转写整理；某天外放转写超过 30 分钟时提示一次，可按 App 关。看过或关掉不再出现 */
+@Composable
+fun PlaybackHintNotice(topGap: Dp = 0.dp) {
+    val context = LocalContext.current
+    val notices = remember { app.resound.notice.RemoteNotices.get(context) }
+    val show by notices.showPlaybackHint.collectAsStateWithLifecycle(initialValue = false)
+    if (!show) return
+    val c = Rs.colors
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("🔊", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("外放的声音也在转写和整理", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("刷视频多的 App 可以单独设成不记", style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    Pill("按 App 设置", filled = true) { notices.playbackHintShown(); ShellNav.openSettings(SettingsPage.Transcript) }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("知道了", filled = false) { notices.playbackHintShown() }
+                }
+            }
+        }
+    }
+}

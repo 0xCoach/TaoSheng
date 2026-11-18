@@ -18,18 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 
-interface PlaybackSkipSettings {
-    val enabled: StateFlow<Boolean>
-    fun setEnabled(enabled: Boolean)
-}
-class AndroidPlaybackSkipSettings(context: Context) : PlaybackSkipSettings {
-    private val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
-    override val enabled = MutableStateFlow(prefs.getBoolean("skipPlayback", true))
-    override fun setEnabled(enabled: Boolean) {
-        check(prefs.edit().putBoolean("skipPlayback", enabled).commit())
-        this.enabled.value = enabled
-    }
-}
 object PlaybackPolicy {
     fun skip(durationMillis: Long, playbackMillis: Long, enabled: Boolean) =
         enabled && durationMillis > 0 && playbackMillis >= (durationMillis + 1) / 2
@@ -77,7 +65,7 @@ class PlaybackMonitor(context: Context, scope: CoroutineScope) {
         val configs = manager.activePlaybackConfigurations.map {
             PlaybackConfigSnapshot(it.audioAttributes.usage, if (Build.VERSION.SDK_INT >= 33) it.audioDeviceInfo?.type else null)
         }
-        return playbackState(configs, outputs, manager.isMusicActive)
+        return playbackState(configs, outputs, manager.isMusicActive, manager.getStreamVolume(AudioManager.STREAM_MUSIC))
     }
     private companion object { const val ACTIVE_CHECK_MS = 500L }
 }

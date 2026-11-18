@@ -277,6 +277,7 @@ fun TodayScreen(
                     WhatsNewNotice(topGap = 12.dp)
                     RemoteNoticeCards(topGap = 12.dp)
                     ScreenTimePermissionNotice(topGap = 12.dp)
+                    PlaybackHintNotice(topGap = 12.dp)
                     // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
                     StartChecklist(capture, hasKey, topGap = 20.dp)
                     app.resound.ui.onboarding.OnboardingTipCard(topGap = 12.dp)
@@ -1337,12 +1338,14 @@ object UndoBar {
     var current by mutableStateOf<Pair<String, () -> Unit>?>(null)
         private set
     private var serial = 0
-    fun show(text: String, undo: () -> Unit) { current = text to undo; serial++ }
+    private var duration = 3000L
+    /** [durationMs] 默认 3 秒；夜里标“不是”这类改动给 6 秒 */
+    fun show(text: String, durationMs: Long = 3000L, undo: () -> Unit) { duration = durationMs; current = text to undo; serial++ }
     @Composable
     fun Host(bottomPadding: Dp) {
         val c = Rs.colors
         val item = current
-        androidx.compose.runtime.LaunchedEffect(item, serial) { if (item != null) { kotlinx.coroutines.delay(3000); current = null } }
+        androidx.compose.runtime.LaunchedEffect(item, serial) { if (item != null) { kotlinx.coroutines.delay(duration); current = null } }
         Box(Modifier.fillMaxSize().padding(bottom = bottomPadding + 20.dp), contentAlignment = Alignment.BottomCenter) {
             androidx.compose.animation.AnimatedVisibility(item != null, enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
                 exit = androidx.compose.animation.fadeOut()) {

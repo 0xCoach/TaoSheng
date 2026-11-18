@@ -74,6 +74,13 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Query("SELECT * FROM night_dreams WHERE nightId=:id ORDER BY at") suspend fun dreams(id: Long): List<NightDreamRow>
     @Query("SELECT * FROM night_dreams WHERE id=:id") suspend fun dream(id: Long): NightDreamRow?
     @Query("DELETE FROM night_dreams WHERE id=:id") suspend fun deleteDream(id: Long)
+    @Query("DELETE FROM night_feedback WHERE eventId=:eventId") suspend fun removeFeedback(eventId: Long)
+    @Query("DELETE FROM night_feedback") suspend fun clearFeedback()
+    @Query("SELECT * FROM night_feedback ORDER BY at,id") fun observeFeedback(): Flow<List<NightFeedbackRow>>
+    @Query("SELECT kind, COUNT(*) AS count FROM night_events WHERE vetoed=1 GROUP BY kind")
+    fun excludedCounts(): Flow<List<ExcludedCount>>
+    @Query("DELETE FROM night_notice WHERE `key` GLOB 'personal-judge:*' OR `key`='personal-inactive'")
+    suspend fun clearPersonalJudgments()
     @Query("DELETE FROM night_personal") suspend fun clearPersonal()
     @Query("SELECT * FROM night_personal") fun personal(): Flow<List<NightPersonalRow>>
     @Upsert suspend fun personal(row: NightPersonalRow)
@@ -90,6 +97,8 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Query("UPDATE night_events SET vetoed=0 WHERE nightId=:id AND vetoed=1") suspend fun clearVetoes(id: Long)
     @Upsert suspend fun notice(row: NightNoticeRow)
 }
+
+data class ExcludedCount(val kind: String, val count: Int)
 
 /** SQL 和 Room schema 的列、约束及索引保持一致。 */
 object NightSchema {

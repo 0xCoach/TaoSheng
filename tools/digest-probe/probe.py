@@ -21,10 +21,11 @@ today, transcript, model = sys.argv[1], open(sys.argv[2], encoding='utf-8').read
 body = {"model": model, "messages": [
     {"role": "system", "content": prompt.replace('{{CALENDAR}}', calendar(today)).replace('{{APP_NAME}}', '回响')},
     {"role": "user", "content": transcript}],
-    "response_format": {"type": "json_object"}, "thinking": {"type": "disabled"}, "temperature": 0.2}
+    "response_format": {"type": "json_object"}, "thinking": {"type": "disabled"}, "temperature": 0.2, "max_tokens": 8192}
 if model.startswith('deepseek'):
     base, key = 'https://api.deepseek.com', open(os.path.expanduser('~/.config/resound/deepseek.key')).read().strip()
-    body.pop('thinking')
+    if not (model.startswith('deepseek-v4') or model == 'deepseek-flash'):
+        body.pop('thinking')
 else:
     base, key = os.environ['ARK_BASE_URL'], os.environ['ARK_API_KEY']
 req = urllib.request.Request(base + '/chat/completions', json.dumps(body).encode(),

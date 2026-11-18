@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -199,39 +200,64 @@ private fun TimesEditor(nightId: Long, t: app.resound.night.NightTimes) {
 @Composable
 private fun Events(d: NightDetail, sharedRoom: Boolean, selected: Long?, onPlay: (NightEvent) -> Unit) {
     val c = Rs.colors
-    val scope = rememberCoroutineScope()
-    val shown = d.events.filter { it.kind != NightEventKind.Turn && it.feedback != Feedback.No }
-    if (shown.isEmpty()) return
+    val all = d.events.filter { it.kind != NightEventKind.Turn }
+    // 卡 205：标了“不是”的不再消失，收在最下面一行，点开原地展开，能回听、能改回
+    val shown = all.filter { it.feedback != Feedback.No }
+    val denied = all.filter { it.feedback == Feedback.No }
+    if (shown.isEmpty() && denied.isEmpty()) return
     Head("夜里的声音和动静")
-    shown.forEach { e ->
-        val on = e.id == selected
-        val playing = e.clipId != null && app.resound.ui.voiceprint.SamplePlayer.playingKey == clipKey(e.clipId!!)
-        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(12.dp))
-            .background(if (on) c.accentSoft else Color.Transparent).padding(horizontal = 8.dp, vertical = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                app.resound.ui.verify.Dot(kindColor(e.kind), 8.dp)
-                Text("  " + clock(e.start) + if (e.end - e.start >= 60_000) "–${clock(e.end)}" else "", style = RsType.subhead, color = c.textSecondary)
-                Text("  " + kindTitle(e, sharedRoom), style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
-                if (e.clipId != null && e.audioAvailable) Text(if (playing) "■" else "▶", style = RsType.headline, color = c.accent,
-                    modifier = Modifier.springClick { onPlay(e) }.padding(horizontal = 8.dp))
-            }
-            val sub = buildList {
-                e.aboveBackgroundDb?.takeIf { it > 0 && askable(e) }?.let { add("比背景高 $it 分贝") }
-                e.text?.let { add(if (e.kind == NightEventKind.SleepTalk) "“$it”" else it) }
-                if (e.kind == NightEventKind.SleepTalk && e.text == null) add("转写中")
-                if (askable(e) && e.clipId != null && !e.audioAvailable) add("录音已过期")
-                if (e.id in d.vetoed) add("个人判断认为不是")
-            }
-            if (sub.isNotEmpty() || askable(e)) Row(Modifier.padding(start = 16.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(sub.joinToString(" · "), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
-                if (askable(e)) when (e.feedback) {
-                    Feedback.Yes -> Text("已确认 ✓", style = RsType.caption, color = c.good)
-                    else -> {
-                        Text("是", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
-                            modifier = Modifier.springClick { scope.launch { AppGraph.night.feedback(e.id, Feedback.Yes) } }.padding(horizontal = 8.dp, vertical = 4.dp))
-                        Text("不是", style = RsType.subhead, color = c.textSecondary,
-                            modifier = Modifier.springClick { scope.launch { AppGraph.night.feedback(e.id, Feedback.No) } }.padding(horizontal = 8.dp, vertical = 4.dp))
-                    }
+    shown.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay) }
+    if (denied.isNotEmpty()) {
+        var open by remember(d.summary.id) { mutableStateOf(false) }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(12.dp)).springClick { open = !open }.padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("标了不是的 ${denied.size} 条", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.weight(1f))
+            Text(if (open) "收起" else "展开", style = RsType.subhead, color = c.accent)
+        }
+        AnimatedVisibility(open) {
+            Column { denied.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay, dim = true) } }
+        }
+    }
+}
+
+@Composable
+private fun EventRow(e: NightEvent, d: NightDetail, sharedRoom: Boolean, on: Boolean, onPlay: (NightEvent) -> Unit, dim: Boolean = false) {
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    val playing = e.clipId != null && app.resound.ui.voiceprint.SamplePlayer.playingKey == clipKey(e.clipId!!)
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(12.dp))
+        .background(if (on) c.accentSoft else Color.Transparent).padding(horizontal = 8.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            app.resound.ui.verify.Dot(if (dim) c.textTertiary else kindColor(e.kind), 8.dp)
+            Text("  " + clock(e.start) + if (e.end - e.start >= 60_000) "–${clock(e.end)}" else "", style = RsType.subhead, color = c.textSecondary)
+            Text("  " + kindTitle(e, sharedRoom), style = RsType.body, color = if (dim) c.textTertiary else c.text, modifier = Modifier.weight(1f))
+            if (e.clipId != null && e.audioAvailable) Text(if (playing) "■" else "▶", style = RsType.headline, color = c.accent,
+                modifier = Modifier.springClick { onPlay(e) }.padding(horizontal = 8.dp))
+        }
+        val sub = buildList {
+            e.aboveBackgroundDb?.takeIf { it > 0 && askable(e) }?.let { add("比背景高 $it 分贝") }
+            e.text?.let { add(if (e.kind == NightEventKind.SleepTalk) "“$it”" else it) }
+            if (e.kind == NightEventKind.SleepTalk && e.text == null) add("转写中")
+            if (askable(e) && e.clipId != null && !e.audioAvailable) add("录音已过期")
+            if (e.feedback == Feedback.No && e.audioAvailable) add("录音 7 天后删")
+            if (e.id in d.vetoed) add("个人判断认为不是")
+        }
+        if (sub.isNotEmpty() || askable(e)) Row(Modifier.padding(start = 16.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(sub.joinToString(" · "), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
+            // 答案随时能改：已确认的点“改成不是”，标了不是的点“改成是”
+            if (askable(e)) when (e.feedback) {
+                Feedback.Yes -> {
+                    Text("已确认 ✓", style = RsType.caption, color = c.good)
+                    Text("改成不是", style = RsType.caption, color = c.textTertiary,
+                        modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.No) } }.padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+                Feedback.No -> Text("改成是", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                    modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.Yes) } }.padding(horizontal = 8.dp, vertical = 4.dp))
+                else -> {
+                    Text("是", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                        modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.Yes) } }.padding(horizontal = 8.dp, vertical = 4.dp))
+                    Text("不是", style = RsType.subhead, color = c.textSecondary,
+                        modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.No) } }.padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
         }

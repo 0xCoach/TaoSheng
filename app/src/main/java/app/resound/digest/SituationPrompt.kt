@@ -6,8 +6,9 @@ import app.resound.data.*
 import app.resound.context.SituationLookup
 import java.time.ZoneId
 internal class SituationPrompt(enabled: Boolean, lookup: SituationLookup?, playback: Map<Long, Long> = emptyMap(),
-    private val marks: suspend (Long, Long) -> List<app.resound.marks.MarkRow> = { _, _ -> emptyList() }) {
-    private val core = app.resound.digest.core.SituationPrompt(enabled, lookup, playback)
+    private val marks: suspend (Long, Long) -> List<app.resound.marks.MarkRow> = { _, _ -> emptyList() },
+    recordings: List<SegmentPlayback>? = null) {
+    private val core = app.resound.digest.core.SituationPrompt(enabled, lookup, playback, recordings)
     fun system(original: String) = core.system(original)
     suspend fun transcript(lines: List<TranscriptLineEntity>, unseparated: Set<Long> = emptySet(), zone: ZoneId = ZoneId.systemDefault()) =
         (core.transcript(lines.map { it.snapshot() }, unseparated, zone.sharedZone()).first +

@@ -41,18 +41,43 @@ class Night202AndroidTest {
             db.night().delete(id);assertTrue(db.night().clips(id).isEmpty())
         } finally {db.close();file.delete()}
     }
-    @Test fun feedbackRetentionAndDeletionQueueKeepEvidenceButRemoveAudio()=runBlocking(Dispatchers.IO) {
-        val db=CaptureDatabase.open(context,"night-retention.db");val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
-        val store=NightStore(db,scope,NightSettings(),{}, {},{1_000_000},{ZoneHistory(emptyList(),"UTC")},{true},{FileRef("/private/$it")},{error("unused")},{},{},MutableStateFlow(emptyList()))
+    @Test fun rejectedAudioExpiresAfterSevenDaysAndConfirmedAudioSurvives() = runBlocking(Dispatchers.IO) {
+        val db = CaptureDatabase.open(context, "night-retention.db")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val files = NightFiles(context)
+        val privacy = app.resound.privacy.RoomPrivacyActions(db)
+        val now = 1_000_000L
+        val store = NightStore(db, scope, NightSettings(), {}, {}, { now }, { ZoneHistory(emptyList(),"UTC") },
+            files::exists, { FileRef(files.cleanupPath(it)) }, { error("unused") },
+            { assertTrue(privacy.retryFileCleanup()) }, {}, MutableStateFlow(emptyList()))
         try {
-            val id=store.create(NightSession(0,0,0,1_000_000),LocalDate(2026,11,17))
-            val clip=db.night().insertClip(NightClipRow(nightId=id,start=0,end=1000,path="1/a.ogg",scores=byteArrayOf(1,2),features="{}",confirmed=false,expiresAt=1,candidate=false))
-            val event=store.addEvent(id,NightEvent(0,NightEventKind.Snore,0,1000,clipId=clip))
-            store.feedback(event,Feedback.Yes);store.expire(Long.MAX_VALUE);assertNotNull(db.night().clip(clip)!!.path)
-            store.feedback(event,Feedback.No);assertNull(db.night().clip(clip)!!.path);assertFalse(db.night().feedback().single().yes)
-            assertTrue(db.privacy().pendingCleanup().any {it.path=="/private/1/a.ogg"})
-            store.deleteNight(id);assertNull(db.night().get(id));assertTrue(db.night().feedback().isEmpty())
-        } finally {scope.cancel();db.close();context.deleteDatabase("night-retention.db")}
+            val night = store.create(NightSession(0,0,0,now), LocalDate(2026,11,17))
+            suspend fun sound(start: Long): Pair<Long, File> {
+                val path = "$night/$start-test.ogg"
+                val file = files.resolve(path).apply { parentFile!!.mkdirs(); writeBytes(byteArrayOf(1,2)) }
+                val clip = db.night().insertClip(NightClipRow(nightId=night,start=start,end=start+1000,path=path,
+                    scores=byteArrayOf(),features="{}",confirmed=false,expiresAt=1,candidate=false))
+                return store.addEvent(night,NightEvent(0,NightEventKind.Snore,start,start+1000,clipId=clip)) to file
+            }
+            val (rejected, expiring) = sound(0)
+            val (corrected, permanent) = sound(2000)
+            store.feedback(rejected, Feedback.Yes)
+            store.feedback(rejected, Feedback.No)
+            store.feedback(corrected, Feedback.No)
+            val deadline = now + 7L * 86_400_000
+            store.expire(deadline - 1)
+            assertTrue(expiring.isFile && permanent.isFile)
+            assertTrue(store.detail(night)!!.events.first { it.id == rejected }.audioAvailable)
+            assertTrue(db.privacy().pendingCleanup().isEmpty())
+            store.feedback(corrected, Feedback.Yes)
+            store.expire(deadline)
+            assertFalse(expiring.exists())
+            store.expire(Long.MAX_VALUE)
+            assertTrue(permanent.isFile)
+            assertEquals(mapOf(rejected to false, corrected to true), db.night().feedback().associate { it.eventId to it.yes })
+            store.deleteNight(night)
+            assertFalse(permanent.exists())
+        } finally { scope.cancel(); db.close(); context.deleteDatabase("night-retention.db") }
     }
     @Test fun backupContainsOnlyConfirmedClipAndSnapshotDropsExpiredPaths()=runBlocking(Dispatchers.IO) {
         val db=CaptureDatabase.open(context,"night-backup.db")

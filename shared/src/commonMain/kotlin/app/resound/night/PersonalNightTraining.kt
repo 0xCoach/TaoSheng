@@ -2,6 +2,7 @@ package app.resound.night
 
 import app.resound.data.writeTransaction
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
@@ -11,7 +12,9 @@ class PersonalNightTraining(private val store: NightStore, private val decodeSco
     private val dao get() = store.dao
     private val json get() = store.json
 
-    suspend fun train(at: Long, charging: Boolean) {
+    suspend fun train(at: Long, charging: Boolean) = store.personalGate.withLock { trainLocked(at, charging) }
+
+    private suspend fun trainLocked(at: Long, charging: Boolean) {
         val enabled = store.settings.value.personalModel
         val feedback = if (enabled) dao.feedback() else emptyList()
         val saved = if (enabled) dao.personal().first().associateBy { it.kind } else emptyMap()

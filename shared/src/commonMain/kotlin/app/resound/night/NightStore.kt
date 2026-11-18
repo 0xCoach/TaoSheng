@@ -23,6 +23,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     val dao=db.night()
     val json=Json { ignoreUnknownKeys=true;encodeDefaults=true }
     val gate=Mutex()
+    internal val personalGate = Mutex()
     private val config=MutableStateFlow(initial)
     override val settings=config.asStateFlow()
     private val status=MutableStateFlow(NightLive(NightState.Waiting,null,null))
@@ -51,15 +52,18 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
             val e=json.decodeFromString<NightEvent>(r.payload)
             val clip=e.clipId?.let { dao.clip(it) }
             if(clip!=null) {
-                if(value==Feedback.No)clip.path?.let { db.privacy().queueCleanup(PrivacyFileCleanup(fileRef(it).id)) }
-                dao.updateClip(clip.copy(path=clip.path.takeUnless { value==Feedback.No },confirmed=value==Feedback.Yes))
-                if(value!=Feedback.None)dao.feedback(NightFeedbackRow(nightId=r.nightId,eventId=r.id,kind=r.kind,yes=value==Feedback.Yes,scores=clip.scores,features=clip.features,at=now()))
+                val at = now()
+                val expires = if (value == Feedback.No) at + 7L * 86_400_000 else clip.expiresAt
+                dao.updateClip(clip.copy(confirmed = value == Feedback.Yes, expiresAt = expires))
+                if (value == Feedback.None) dao.removeFeedback(r.id)
+                else dao.feedback(NightFeedbackRow(nightId=r.nightId,eventId=r.id,kind=r.kind,yes=value==Feedback.Yes,
+                    scores=clip.scores,features=clip.features,at=at))
             }
-            dao.updateEvent(r.copy(payload=json.encodeToString(e.copy(feedback=value,audioAvailable=value!=Feedback.No && e.audioAvailable)),vetoed=if(value==Feedback.Yes)false else r.vetoed))
+            dao.updateEvent(r.copy(payload=json.encodeToString(e.copy(feedback=value)),
+                vetoed=if(value==Feedback.Yes) false else r.vetoed))
             recompute(r.nightId)
         }
-        if (value == Feedback.No) { try { privacyChanged() } finally { cleanup() } }
-        else { cleanup(); changed() }
+        if (value == Feedback.No) privacyChanged() else changed()
     }
     override suspend fun editTimes(nightId: Long,bedtime: Long?,onset: Long?,wake: Long?)=gate.withLock {
         db.writeTransaction {

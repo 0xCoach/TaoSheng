@@ -31,7 +31,9 @@ class ResoundApp : Application() {
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
-    val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
+    val playbackSession = PlaybackSession()
+    val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope, AppGraph.playbackSettings,
+        { from, until -> app.resound.screentime.PlaybackQueries(database.screenTime()).duringCapture(from, until, System.currentTimeMillis()) }, { at -> playbackSession.remembers(at) }) }
     internal lateinit var topics: app.resound.topic.TopicFeature
     private lateinit var transcribeScheduler: TranscribeScheduler
     fun rescheduleDigest(changed: Boolean = false) {
@@ -97,12 +99,9 @@ class ResoundApp : Application() {
             getSharedPreferences("usage", MODE_PRIVATE))
         AppGraph.prompts = app.resound.prompts.LocalPromptTemplates(this)
         AppGraph.inputs = inputs
-        AppGraph.playbackSkip = AndroidPlaybackSkipSettings(this)
-        val transcribePrefs = getSharedPreferences("transcribe", MODE_PRIVATE)
-        AppGraph.playbackDigestSettings = app.resound.transcribe.PlaybackDigestSettings(
-            readBoolean = { key, def -> transcribePrefs.getBoolean(key, def) },
-            saveBoolean = { key, value -> transcribePrefs.edit().putBoolean(key, value).commit() },
-        )
+        AppGraph.playbackSettings = playbackSettings(getSharedPreferences("transcribe", MODE_PRIVATE))
+        AppGraph.playbackSkip = LegacyPlaybackControls(AppGraph.playbackSettings, scope)
+        scope.launch { app.resound.notice.RemoteNotices.get(this@ResoundApp).watchPlayback(database.transcribe()) }
         AppGraph.playback = PlaybackMonitor(this, scope)
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)
@@ -146,6 +145,15 @@ class ResoundApp : Application() {
         AppGraph.playbackSink = app.resound.screentime.PlaybackRecorder(
             database.screenTime(), playbackTitleSettings) { pkgs -> app.resound.screentime.appLabels(this, pkgs) }
         AppGraph.playbackQueries = app.resound.screentime.PlaybackQueries(database.screenTime())
+        AppGraph.playbackSentences = PlaybackSentences { id ->
+            val lines = database.transcribe().linesForRedo(id)
+            if (lines.isEmpty()) emptyList() else {
+                val rows = AppGraph.situation.devicePlayback(lines.minOf { it.startAt }, lines.maxOf { it.endAt })
+                app.resound.digest.core.playbackLabels(database.transcribe().playbackMillis(listOf(id)),
+                    lines.map { it.snapshot() }, rows).values.toList()
+            }
+        }
+
         val screenPrefs = getSharedPreferences("screen-time", MODE_PRIVATE)
         val screenTimeSettings = app.resound.screentime.ScreenTimeSettings(
             readBoolean = { key, def -> screenPrefs.getBoolean(key, def) },

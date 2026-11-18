@@ -83,7 +83,7 @@ private fun AskCard(e: NightEvent) {
     val scope = rememberCoroutineScope()
     val dx = remember(e.id) { Animatable(0f) }
     val limit = with(LocalDensity.current) { 110.dp.toPx() }
-    fun answer(v: Feedback) = scope.launch { AppGraph.night.feedback(e.id, v) }
+    fun answer(v: Feedback) = scope.launch { answerWithUndo(e, v) }
     val playing = app.resound.ui.voiceprint.SamplePlayer.playingKey == e.clipId?.let(::clipKey)
     var missing by remember(e.id) { mutableStateOf(false) }
     Column(
@@ -143,3 +143,17 @@ internal fun Suggestions(d: NightDetail) {
 
 internal fun LocalDate.toKotlin(): kotlinx.datetime.LocalDate = kotlinx.datetime.LocalDate(year, monthValue, dayOfMonth)
 
+
+
+/** 撤销在页面关掉后也要能执行，不用页面的协程 */
+private val undoScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+
+/** 卡 205：点了是/不是后底部给 6 秒“撤销”，撤销就改回原来的答案 */
+internal suspend fun answerWithUndo(e: NightEvent, v: Feedback) {
+    val before = e.feedback
+    AppGraph.night.feedback(e.id, v)
+    val what = if (e.kind == NightEventKind.Snore) "鼾声" else "咳嗽"
+    app.resound.ui.today.UndoBar.show(if (v == Feedback.No) "已标为不是$what" else "已确认是$what", 6000L) {
+        undoScope.launch { AppGraph.night.feedback(e.id, before) }
+    }
+}

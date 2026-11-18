@@ -132,8 +132,21 @@ class AgentBridge(
     suspend fun resolveManually(id: Long, succeeded: Boolean, note: String = ""): Boolean = withContext(io) {
         val task = dao.task(id) ?: return@withContext false
         if (AgentTaskStatus.of(task.status) != AgentTaskStatus.Running) return@withContext false
-        dao.finishRunning(id, if (succeeded) AgentTaskStatus.Succeeded.name else AgentTaskStatus.Failed.name,
-            note, if (succeeded) null else note.ifBlank { "人工标记失败" }, now.now()) > 0
+        (dao.finishRunning(id, if (succeeded) AgentTaskStatus.Succeeded.name else AgentTaskStatus.Failed.name,
+            note, if (succeeded) null else note.ifBlank { "人工标记失败" }, now.now()) > 0)
+            .also { if (it && succeeded) writeBackSource(task) }
+    }
+
+    /** 任务拿到真实结果后的源对象回写：灵感从"待研究"推进到"研究中"（外部有回执≠已验证）。 */
+    private suspend fun writeBackSource(task: AgentTaskRow) {
+        if (!task.sourceKind.equals("idea", ignoreCase = true)) return
+        val srcId = task.sourceId ?: return
+        runCatching {
+            val ideaDao = db.ideas()
+            val idea = ideaDao.idea(srcId) ?: return@runCatching
+            if (idea.status == app.resound.inbox.IdeaStatus.Research.name)
+                ideaDao.setStatus(idea.id, app.resound.inbox.IdeaStatus.Studying.name, now.now())
+        }
     }
 
     suspend fun deleteTask(id: Long) = withContext(io) {
@@ -191,8 +204,9 @@ class AgentBridge(
                         dao.saveReceipt(id, AgentRules.receiptJson(receipt), remoteId, now.now())
                         // 服务端直接给完成状态时立即收尾；否则保持 Running 等回执 / 人工核实
                         AgentRules.mapRemoteStatus(remoteStatus)?.let { final ->
-                            dao.finishRunning(id, final.name,
-                                body.take(800), if (final == AgentTaskStatus.Failed) "服务端返回失败" else null, now.now())
+                            if (dao.finishRunning(id, final.name,
+                                body.take(800), if (final == AgentTaskStatus.Failed) "服务端返回失败" else null, now.now()) > 0
+                                && final == AgentTaskStatus.Succeeded) writeBackSource(task)
                         }
                         true
                     } else {
@@ -240,8 +254,9 @@ class AgentBridge(
                     AgentReceipt(response.code, now.now() - started, remoteStatus = remoteStatus,
                         note = body.take(400), at = now.now())), null, now.now())
                 val final = AgentRules.mapRemoteStatus(remoteStatus) ?: return@use false
-                dao.finishRunning(task.id, final.name, body.take(800),
-                    if (final == AgentTaskStatus.Failed) "服务端返回失败" else null, now.now()) > 0
+                (dao.finishRunning(task.id, final.name, body.take(800),
+                    if (final == AgentTaskStatus.Failed) "服务端返回失败" else null, now.now()) > 0)
+                    .also { if (it && final == AgentTaskStatus.Succeeded) writeBackSource(task) }
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e

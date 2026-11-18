@@ -1,6 +1,6 @@
 # 最终验收报告（M2+ FINAL-ACCEPTANCE-R1 + REAL-PAIN 深化首轮）
 
-2026-11-18 · 基线 a0a113d6 → 本轮提交（见尾部） · OPPO Find N2
+2026-11-18 · 基线 a0a113d6 → 本轮提交 **2a94901d** · OPPO Find N2
 
 ## 结论
 

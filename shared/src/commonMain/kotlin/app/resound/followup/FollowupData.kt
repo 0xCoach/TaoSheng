@@ -56,6 +56,10 @@ abstract class FollowupDao {
     @Query("SELECT * FROM followups WHERE deleted = 0 AND status = 'Open' AND nextCheckAt <= :now ORDER BY nextCheckAt ASC")
     abstract suspend fun due(now: Long): List<FollowupRow>
 
+    /** 复盘候选：反复提醒（≥minReminds 次）却一直没推进的开放项 */
+    @Query("SELECT * FROM followups WHERE deleted = 0 AND status = 'Open' AND remindCount >= :minReminds ORDER BY remindCount DESC, createdAt ASC")
+    abstract fun observeStalled(minReminds: Int): Flow<List<FollowupRow>>
+
     /** 今天已提醒过的数量：每日限频 */
     @Query("SELECT COUNT(*) FROM followups WHERE deleted = 0 AND lastRemindedAt >= :dayStart")
     abstract suspend fun remindedToday(dayStart: Long): Int

@@ -59,6 +59,7 @@ fun FollowupsScreen(bottomPadding: Dp, onBack: () -> Unit) {
     var closed by remember { mutableStateOf(false) }
     val rows by remember(closed) { if (closed) engine.observeClosed() else engine.observeOpen() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
+    val stalled by remember { engine.observeStalled() }.collectAsStateWithLifecycle(initialValue = emptyList())
     var opened by remember { mutableStateOf<FollowupRow?>(null) }
     var scanning by remember { mutableStateOf(false) }
 
@@ -79,6 +80,13 @@ fun FollowupsScreen(bottomPadding: Dp, onBack: () -> Unit) {
         }
         Spacer(Modifier.height(12.dp))
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = bottomPadding + 16.dp)) {
+            if (!closed && stalled.isNotEmpty()) item {
+                RsCard {
+                    Text("复盘：提过 ${stalled.size} 次还没推进", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+                    Spacer(Modifier.height(4.dp))
+                    Text("这些事项已反复提醒仍没下文。继续跟进、稍后再提，还是干脆放下——你定。", style = RsType.subhead, color = c.textSecondary)
+                }
+            }
             if (rows.isEmpty()) item {
                 RsCard {
                     Text(if (closed) "没有已了结的跟进" else "没有待跟进事项", style = RsType.body, color = c.text)
@@ -112,7 +120,8 @@ private fun FollowupCard(f: FollowupRow, onClick: () -> Unit) {
                     Text(kind?.label ?: f.kind, style = RsType.caption, color = if (suggestion) c.textSecondary else c.accent)
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(formatStamp(f.createdAt), style = RsType.caption, color = c.textTertiary)
+                Text(if (f.remindCount > 0) "提醒${f.remindCount}次 · ${formatStamp(f.createdAt)}" else formatStamp(f.createdAt),
+                    style = RsType.caption, color = if (f.remindCount >= 3) c.accent else c.textTertiary)
             }
         }
     }

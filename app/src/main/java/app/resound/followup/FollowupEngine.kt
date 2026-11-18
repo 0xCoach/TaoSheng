@@ -34,6 +34,9 @@ class FollowupEngine(
     fun observeClosed(): Flow<List<FollowupRow>> = dao.observeClosed()
     fun observeOpenCount(): Flow<Int> = dao.observeOpenCount()
 
+    /** 周复盘候选：反复提醒却始终没推进的项，交给用户决定继续/搁置/删除。 */
+    fun observeStalled(minReminds: Int = 3): Flow<List<FollowupRow>> = dao.observeStalled(minReminds)
+
     private fun staleTodoCutoff() = now.now() - TODO_STALE_MS
     private fun staleIdeaCutoff() = now.now() - IDEA_STALE_MS
 

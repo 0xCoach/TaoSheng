@@ -189,15 +189,18 @@ class RoomPrivacyActions(
                 }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)
             }
-            onErased()
-            onStage(EventDeletionPhase.Files)
-            if (files.isNotEmpty() || extraFiles.isNotEmpty()) runCatching { scheduleCleanup() }.onFailure {
-                FailureNotes.record("privacy/RoomPrivacyActions.kt:147", it)
+            try {
+                onErased()
+            } finally {
+                onStage(EventDeletionPhase.Files)
+                if (files.isNotEmpty() || extraFiles.isNotEmpty()) runCatching { scheduleCleanup() }.onFailure {
+                    FailureNotes.record("privacy/RoomPrivacyActions.kt:147", it)
+                }
+                for ((segment, lines) in files) {
+                    cleanup("声纹缓存删除失败") { removeFeatures(segment, lines) }
+                }
+                if (!retryFileCleanup()) throw FileCleanupPending()
             }
-            for ((segment, lines) in files) {
-                cleanup("声纹缓存删除失败") { removeFeatures(segment, lines) }
-            }
-            if (!retryFileCleanup()) throw FileCleanupPending()
             result
         }
     }

@@ -18,7 +18,8 @@ import kotlinx.serialization.json.Json
 class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initial: NightSettings,
     private val saveSettings: (NightSettings)->Unit,private val download: suspend ()->Unit,
     private val now: ()->Long,private val zones: ()->ZoneHistory,private val available: suspend (String)->Boolean,
-    private val fileRef: (String)->FileRef, private val decodeEnvelope: (NightEnvelopeRow)->NightEnvelope, private val cleanup: suspend ()->Unit,private val changed: ()->Unit,quiet: StateFlow<List<QuietRule>>) : NightRepository {
+    private val fileRef: (String)->FileRef, private val decodeEnvelope: (NightEnvelopeRow)->NightEnvelope, private val cleanup: suspend ()->Unit,private val changed: ()->Unit,quiet: StateFlow<List<QuietRule>>,
+    private val privacyChanged: suspend () -> Unit = { changed() }) : NightRepository {
     val dao=db.night()
     val json=Json { ignoreUnknownKeys=true;encodeDefaults=true }
     val gate=Mutex()
@@ -57,7 +58,8 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
             dao.updateEvent(r.copy(payload=json.encodeToString(e.copy(feedback=value,audioAvailable=value!=Feedback.No && e.audioAvailable)),vetoed=if(value==Feedback.Yes)false else r.vetoed))
             recompute(r.nightId)
         }
-        cleanup();changed()
+        if (value == Feedback.No) { try { privacyChanged() } finally { cleanup() } }
+        else { cleanup(); changed() }
     }
     override suspend fun editTimes(nightId: Long,bedtime: Long?,onset: Long?,wake: Long?)=gate.withLock {
         db.writeTransaction {
@@ -68,7 +70,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
             dao.update(row.copy(payload=json.encodeToString(s.copy(times=next)),updatedAt=now()));recompute(nightId)
         };changed()
     }
-    override suspend fun deleteNight(nightId: Long)=gate.withLock { db.writeTransaction { erase(nightId) };cleanup();changed() }
+    override suspend fun deleteNight(nightId: Long)=gate.withLock { db.writeTransaction { erase(nightId) };try { privacyChanged() } finally { cleanup() } }
     /** 调用方已有事务；删除整夜避免残留梦话或从信号重新生成隐私内容。 */
     suspend fun erase(id: Long) {
         dao.invalidateJudgment(id)
@@ -143,5 +145,6 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
             if(old==null)addEvent(id,event) else if(json.decodeFromString<NightEvent>(old.payload)!=event)dao.updateEvent(old.copy(payload=json.encodeToString(event)))
         }
     }
+    suspend fun notifyPrivacyChanged() = privacyChanged()
     fun notifyChanged()=changed()
 }

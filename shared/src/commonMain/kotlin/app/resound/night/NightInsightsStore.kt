@@ -88,11 +88,14 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
         data class Clip(val key: String,val db: Int,val ref: FileRef,val info: DoctorClip)
         val clips=mutableListOf<Clip>();val drawn=mutableListOf<DoctorNight>()
         for(n in nights) {
-            val events=store.detail(n.id)?.events.orEmpty()
+            // 只算入睡到起床之间的事件；起床以后的声音不进医生那页
+            val t=n.times
+            val events=store.detail(n.id)?.events.orEmpty().filter { e-> t==null || e.start>=t.bedtime && e.start<t.wake }
             for(e in events.filter {it.feedback==Feedback.Yes && it.clipId!=null})store.audio(e.clipId!!)?.let {clips+=Clip("${n.date}:${e.kind}",e.aboveBackgroundDb ?: 0,it,DoctorClip(e.start,e.kind))}
             drawn+=DoctorNight(n,events.filter {it.kind==NightEventKind.Snore && it.feedback!=Feedback.No}.map {NightSpan(it.start,it.end)},events.filter {it.kind==NightEventKind.Awake}.map {NightSpan(it.start,it.end)})
         }
-        val picked=(clips.sortedByDescending {it.db}.distinctBy {it.key}+clips.sortedByDescending {it.db}).distinctBy {it.ref}.take(5)
+        // 先按响度挑最典型的 5 段，再按时间排，医生看着顺
+        val picked=(clips.sortedByDescending {it.db}.distinctBy {it.key}+clips.sortedByDescending {it.db}).distinctBy {it.ref}.take(5).sortedBy {it.info.at}
         return DoctorReport(from,to,NightExports.doctor(from,to,nights,zones()),picked.map {it.ref},drawn,
             NightTags.findings(all,dao.tagList().map {NightTag(it.id,it.name,it.preset)}).take(3),picked.map {it.info})
     }

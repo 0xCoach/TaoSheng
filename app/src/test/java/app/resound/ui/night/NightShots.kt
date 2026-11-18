@@ -206,10 +206,15 @@ class NightShots {
         val report = DoctorReport(k(wakeDay.minusDays(29)), k(wakeDay), "", emptyList(), nights,
             listOf(TagFinding(tagList[1], CompareMetric.Snore, 5, 20, 40 * m, 12 * m, "标了‘喝酒’的 5 晚，鼾声中位数比其他 20 晚多 28 分钟（可能有关，样本还少）")),
             listOf(DoctorClip(nights[2].snore.first().start, NightEventKind.Snore), DoctorClip(nights[8].summary.times!!.onset + 90 * m, NightEventKind.Cough)))
-        for (page in 1..2) {
-            val b = Bitmap.createBitmap(1190, 1684, Bitmap.Config.ARGB_8888)
-            Canvas(b).apply { scale(2f, 2f); DoctorPdf.draw(this, report, page) }
-            File(dir, "doctor-$page.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // 30 天 28 晚（两页）和 30 天只有 1 晚（合成一页）各画一份
+        val one = report.copy(nights = report.nights.takeLast(1), clipInfo = report.clipInfo.take(1), findings = emptyList())
+        for ((tag, r) in listOf("many" to report, "one" to one)) {
+            val total = DoctorPdf.pages(r)
+            for (page in 1..total) {
+                val b = Bitmap.createBitmap(1190, 1684, Bitmap.Config.ARGB_8888)
+                Canvas(b).apply { scale(2f, 2f); DoctorPdf.draw(this, r, page, total) }
+                File(dir, "doctor-$tag-$page.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            }
         }
     }
     @Test fun settings() = capture("night-settings", scroll = false) { NightSettingsPage(0.dp) }

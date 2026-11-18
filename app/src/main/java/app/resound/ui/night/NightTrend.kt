@@ -135,13 +135,14 @@ internal fun TrendBody(initialDays: Int = 30) {
         reports.forEach { WeekCard(it) }
     }
     Spacer(Modifier.height(20.dp))
-    DoctorPage()
+    // 换范围就清掉旧预览，按新范围重新生成
+    androidx.compose.runtime.key(days) { DoctorPage(days) }
     Spacer(Modifier.height(16.dp))
 }
 
 /** 给医生的一页：生成两页 PDF（图在前、明细在后），预览缩略图，点开看大图；可连同几段确认过的录音一起分享 */
 @Composable
-private fun DoctorPage() {
+private fun DoctorPage(days: Int) {
     val c = Rs.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -151,13 +152,13 @@ private fun DoctorPage() {
     var open by remember { mutableStateOf<Int?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    Head("给医生的一页", "最近 30 天的作息、鼾声、咳嗽，附几段确认过的录音")
+    Head("给医生的一页", "最近 $days 天的作息、鼾声、咳嗽，附几段确认过的录音")
     if (report == null) Pill(if (busy) "生成中…" else "生成", filled = false) {
         if (busy) return@Pill
         busy = true; error = null
         scope.launch {
             val today = LocalDate.now()
-            val r = runCatching { AppGraph.nightInsights.doctorReport(today.minusDays(29).toKotlin(), today.toKotlin()) }.getOrNull()
+            val r = runCatching { AppGraph.nightInsights.doctorReport(today.minusDays(days - 1L).toKotlin(), today.toKotlin()) }.getOrNull()
             val made = r?.let { withContext(Dispatchers.IO) { runCatching { DoctorPdf.file(shareDir(context), it).let { f -> f to renderPages(f) } }.getOrNull() } }
             if (made == null) error = "没生成出来，稍后再试" else { report = r; pdf = made.first; pages = made.second }
             busy = false

@@ -25,7 +25,8 @@ internal class AndroidFolderImports(
     private val notify: (String, String, Int) -> Unit = { id, name, n -> FolderImportWork.notify(context, id, name, n) },
     private val schedule: (Boolean) -> Unit = { enabled -> FolderImportWork.schedule(context, enabled) },
 ) : FolderImports {
-    internal val recordings by lazy { AndroidFolderRecordings(context,db,scope,importer,documents,clock,state,::scanNow,newFilesPending={ pendingNewFiles }) }
+    internal val recordings by lazy { AndroidFolderRecordings(context,db,scope,importer,documents,clock,state,::scanNow,newFilesPending={ pendingNewFiles },
+        resumeQueue=::resumeQueue) }
     private val historyStore = FolderHistoryStore(db.folderRecordings())
     private data class PreviewCache(val at: Long, val files: List<FolderMediaSnapshot>)
     private val previews = mutableMapOf<String,PreviewCache>()
@@ -75,6 +76,12 @@ internal class AndroidFolderImports(
             } }
         }
         schedule(hasEnabled())
+    }
+    private fun resumeQueue() {
+        commands.trySend {
+            if (pendingNewFiles && hasEnabled()) scanLocked()
+            else if (folders.isNotEmpty()) { recordings.pump(); updateListed() }
+        }
     }
     private fun hasEnabled() = folders.any { it.folder.enabled && it.folder.accessible }
     private fun publish() { _state.value = FolderImportState(folders.map { it.folder }, scanning || importRunning, lastImported, lastImportedAt) }
@@ -177,9 +184,25 @@ internal class AndroidFolderImports(
     override fun setEnabled(id: String, enabled: Boolean) { change(id) { it.copy(enabled = enabled) } }
     private fun change(id: String, transform: (WatchedFolder) -> WatchedFolder) { commands.trySend {
         val index = folders.indexOfFirst { it.folder.id == id }
-        if (index >= 0) { folders[index] = folders[index].copy(folder = transform(folders[index].folder)); save(); schedule(hasEnabled()) }
+        if (index >= 0) {
+            val previous = folders[index]
+            val next = transform(previous.folder)
+            if (next != previous.folder) {
+                folders[index] = previous.copy(folder = next)
+                save()
+                schedule(hasEnabled())
+                if (next.enabled && next.accessible) scanLocked()
+            }
+        }
     } }
-    override fun scanNow() { commands.trySend { scanLocked() } }
+    override fun scanNow() { commands.trySend { if (hasEnabled()) scanLocked() } }
+    internal fun foreground() {
+        commands.trySend {
+            val due = folders.any { (f) -> f.enabled && f.accessible &&
+                (f.lastScanAt == null || clock() - (f.lastScanAt ?: 0L) >= 15 * 60_000L) }
+            if (hasEnabled() && (pendingNewFiles || due)) scanLocked()
+        }
+    }
     internal suspend fun scan() = withContext(Dispatchers.IO) { mutex.withLock { scanLocked() } }
     private suspend fun scanLocked() {
         pendingNewFiles = false
@@ -281,6 +304,7 @@ internal class AndroidFolderImports(
     }
     /** 复用录音服务现有心跳，不创建计时器/闹钟/额外唤醒锁。 */
     internal fun heartbeat(now: Long) {
+        if (state.value.folders.none { it.enabled && it.accessible }) return
         synchronized(this) {
             if (now - lastHeartbeat < 15 * 60_000) return
             lastHeartbeat = now

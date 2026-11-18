@@ -15,12 +15,24 @@ data class FolderRecordingRow(
     // 恢复、删除文件夹后仍保留类型；以下字段是可恢复队列的凭据，不是展示身份。
     val kind: String, val pendingId: String? = null, val backfill: Boolean = false, val notified: Boolean = false,
 )
+data class FolderRoundCounts(val total: Int, val remaining: Int)
+
+private const val IN_RANGE = "SELECT * FROM folder_recordings WHERE startAt >= :start AND startAt < :end ORDER BY startAt DESC, id DESC"
+private const val FIRST_IMPORT = "SELECT * FROM folder_recordings WHERE importRecordId = :id ORDER BY startAt DESC, id DESC LIMIT 1"
+
 @Dao
 interface FolderRecordingDao {
     @Query("SELECT * FROM folder_recordings ORDER BY startAt DESC, id DESC") fun observe(): Flow<List<FolderRecordingRow>>
     @Query("SELECT * FROM folder_recordings ORDER BY startAt DESC, id DESC") suspend fun all(): List<FolderRecordingRow>
     @Query("SELECT * FROM folder_recordings WHERE id = :id") suspend fun get(id: Long): FolderRecordingRow?
-    @Query("SELECT * FROM folder_recordings WHERE importRecordId = :id LIMIT 1") suspend fun byImport(id: Long): FolderRecordingRow?
+    @Query("""SELECT COUNT(*) AS total, COUNT(CASE WHEN r.status IS NULL OR r.status != 'Done' THEN 1 END) AS remaining
+        FROM folder_recordings f LEFT JOIN import_records r ON r.id = f.importRecordId
+        WHERE f.backfill = 1 AND f.notified = 0""")
+    fun roundCounts(): Flow<FolderRoundCounts>
+    @Query(IN_RANGE) fun observeBetween(start: Long, end: Long): Flow<List<FolderRecordingRow>>
+    @Query(IN_RANGE) suspend fun between(start: Long, end: Long): List<FolderRecordingRow>
+    @Query(FIRST_IMPORT) fun observeImport(id: Long): Flow<FolderRecordingRow?>
+    @Query(FIRST_IMPORT) suspend fun byImport(id: Long): FolderRecordingRow?
     @Query("SELECT * FROM folder_recordings WHERE folderId = :folder AND documentUri = :uri LIMIT 1") suspend fun find(folder: String, uri: String): FolderRecordingRow?
     @Insert(onConflict=OnConflictStrategy.IGNORE) suspend fun insert(row: FolderRecordingRow): Long
     @Update suspend fun update(row: FolderRecordingRow)

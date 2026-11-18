@@ -89,6 +89,17 @@ class FolderImports117Test {
         assertArrayEquals(source.bytes.getValue(original.uri), source.bytes.values.first())
     }
 
+    @Test fun newCallEntersQueueAfterTwoManualRefreshes209() = runBlocking {
+        folders.addHistory(tree, ImportKind.Call, FolderHistory.OnlyNew)
+        val call = source.file("通话.wav")
+        folders.scan()
+        assertNull(importer.next())
+        folders.scanNow()
+        withTimeout(5000) { importer.progress.first { it.queued == 1 } }
+        assertEquals(call.name, importer.next()!!.pending.info.displayName)
+        assertEquals(ImportKind.Call, importer.next()!!.kind)
+    }
+
     @Test fun changingSizeAndRecentModificationWaitForTwoStableScans() = runBlocking {
         source.file(modified = now - 1000)
         folders.addFolder(tree, ImportKind.Normal, true); folders.scan(); assertNull(importer.next())

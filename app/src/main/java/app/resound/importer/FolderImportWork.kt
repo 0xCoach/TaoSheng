@@ -55,11 +55,11 @@ class FolderImportWork(context: Context, params: WorkerParameters) : CoroutineWo
     }
 }
 
-/** 回前台也扫描一次；不修改 MainActivity，屏幕旋转不重复扫描。 */
-internal class FolderImportForeground(private val folders: FolderImports) : Application.ActivityLifecycleCallbacks {
+/** 回前台检查待稳定文件或已到期的扫描；不修改 MainActivity，屏幕旋转不重复扫描。 */
+internal class FolderImportForeground(private val folders: AndroidFolderImports) : Application.ActivityLifecycleCallbacks {
     private var started = 0
     private var changingConfiguration = false
-    override fun onActivityStarted(activity: Activity) { if (started++ == 0 && !changingConfiguration) folders.scanNow() }
+    override fun onActivityStarted(activity: Activity) { if (started++ == 0 && !changingConfiguration) folders.foreground() }
     override fun onActivityStopped(activity: Activity) { started--; changingConfiguration = activity.isChangingConfigurations }
     override fun onActivityCreated(activity: Activity, state: Bundle?) {}
     override fun onActivityResumed(activity: Activity) {}

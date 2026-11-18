@@ -48,6 +48,8 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
                     store.dao.updateClip(c.copy(path=null,candidate=false))
                 }
                 store.refreshSpeech(row.id);store.recompute(row.id);store.notifyChanged();cleanup()
+                // 夜里整理好：推一次当天文档，“昨晚”早上就能看到（只这一次，不随后续变化反复推）
+                if (row.kind == "night") (app.resound.AppGraph.push as? app.resound.push.AndroidPushChannels)?.let { runCatching { it.recordsChanged() } }
             } finally {model.endNight()}
         }
     }

@@ -140,7 +140,7 @@ class Subscription042Test {
         Server().use { f ->
             val p = prefs(); val secrets = Secrets(); val r = repo(f, secrets, p)
             val sub = subscription.copy(trigger = RecordTrigger.Manual)
-            assertEquals("先在数据备份里连接云端存储，或改为单独配置", r.saveWithSubscription(null, PushKind.MarkdownFolder, "资料", emptyMap(), sub, PushFormat.Markdown, true).exceptionOrNull()?.message)
+            assertEquals("先在备份恢复里连接云端存储，或改为单独配置", r.saveWithSubscription(null, PushKind.MarkdownFolder, "资料", emptyMap(), sub, PushFormat.Markdown, true).exceptionOrNull()?.message)
             var credentials = folder - "folder"
             val accounts = MutableStateFlow<String?>(credentials["account"])
             r.linkedCredentials = { credentials }; r.linkedAccount = accounts

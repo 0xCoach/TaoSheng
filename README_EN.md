@@ -16,7 +16,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.5.1-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.5.2-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -154,7 +154,9 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 ### Download
 
-**v0.5.1** (2026-11-18, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) — Nights: automatic sleep start / end, snoring, coughs and sleep talk, naps and custom sleep windows, a chart-based page for your doctor; phone call recordings imported automatically; the day thread; media playback transcribed by default with per-app settings; meeting notes even when attendees aren’t recognized; much lower daytime battery use; fix for the install prompt on Xiaomi / HyperOS. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#051--2026-11-18).
+**v0.5.2** (2026-11-18, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.2-arm64.apk) — Fixes local backups occasionally failing with a false “folder access expired” error; night records are now included in backups; Nutstore backups wait and retry when rate-limited; “Last night” is written to the day’s pushed document as soon as the night is processed. No database change. [Changelog (Chinese)](CHANGELOG.md#052--2026-11-18).
+
+**v0.5.1** (2026-11-18): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) — Nights: automatic sleep start / end, snoring, coughs and sleep talk, naps and custom sleep windows, a chart-based page for your doctor; phone call recordings imported automatically; the day thread; media playback transcribed by default with per-app settings; meeting notes even when attendees aren’t recognized; much lower daytime battery use; fix for the install prompt on Xiaomi / HyperOS. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#051--2026-11-18).
 
 **v0.5.0** (2026-11-17): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.0/TaoSheng-v0.5.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.0-arm64.apk) — Screen time (phone time on the home card, a phone-usage band in the day rhythm, “using … at the time” on events, day / week details); played audio is no longer written up as your own words; one-tap marks; Bluetooth mics yield to media; per-sentence timestamps and speakers for custom transcription; in-app changelog and home notices. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#050--2026-11-17).
 

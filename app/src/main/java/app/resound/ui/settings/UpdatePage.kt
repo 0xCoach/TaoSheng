@@ -29,6 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -179,7 +182,7 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
             } else {
                 Text("请在系统弹窗里点“更新”或“继续安装”", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.accent)
                 Spacer(Modifier.height(6.dp))
-                Text("这一步是系统的安全确认，涛声没法代点。没看到弹窗的话，下拉通知栏点“涛声更新等待确认”", style = RsType.caption, color = c.textTertiary)
+                Text("这一步是系统的安全确认，涛声没法代点。没看到弹窗的话，下拉通知栏点“点这里完成安装”", style = RsType.caption, color = c.textTertiary)
             }
             is UpdateState.Failed -> {
                 Text(state.message, style = RsType.subhead, color = c.warning)
@@ -193,6 +196,51 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
                 }
             }
             else -> Unit
+        }
+        InstallFallback(info, state)
+    }
+}
+
+/**
+ * 卡 206：系统安装确认没弹出来（小米等会拦后台弹窗）时的退路。
+ * 用已经合成好的完整安装包交给系统安装器，不用重新下载；小米/澎湃再给两个权限直达按钮。
+ */
+@Composable
+private fun InstallFallback(info: UpdateInfo, state: UpdateState) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val flow = remember { runCatching { app.resound.update.UpdateInstallActions.systemInstallerAvailable }.getOrNull() } ?: return
+    val ready by flow.collectAsStateWithLifecycle()
+    if (ready?.versionName != info.versionName) return
+    val activity = remember(context) { generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }.filterIsInstance<android.app.Activity>().firstOrNull() } ?: return
+    val xiaomi = remember { runCatching { app.resound.update.UpdateInstallActions.showXiaomiInstallHint }.getOrDefault(false) }
+    var handing by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf<String?>(null) }
+    Spacer(Modifier.height(14.dp))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.fill).padding(14.dp)) {
+        Text("系统确认没弹出来？", style = RsType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.text)
+        Spacer(Modifier.height(4.dp))
+        Text("用已经下载好的安装包交给系统安装，不用重新下载，数据都在", style = RsType.caption, color = c.textSecondary)
+        Spacer(Modifier.height(10.dp))
+        Pill(if (handing) "正在打开…" else "用系统安装器安装", filled = true) {
+            if (handing) return@Pill
+            handing = true; note = null
+            scope.launch {
+                val ok = runCatching { app.resound.update.UpdateInstallActions.installWithSystem(activity) }.getOrDefault(false)
+                note = if (ok) "已交给系统，按提示点“安装”即可" else "没能打开系统安装器，可以用浏览器下载完整安装包"
+                handing = false
+            }
+        }
+        note?.let { Text(it, style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 6.dp)) }
+        if (xiaomi) {
+            Spacer(Modifier.height(12.dp))
+            Text("小米、澎湃系统默认会拦后台弹出的安装确认。打开下面两项，下次就能直接弹出", style = RsType.caption, color = c.textSecondary)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill("后台弹出界面", filled = false) { app.resound.update.UpdateInstallActions.openXiaomiPermissions(activity) }
+                Pill("安装未知应用", filled = false) { app.resound.update.UpdateInstallActions.openUnknownApps(activity) }
+            }
         }
     }
 }

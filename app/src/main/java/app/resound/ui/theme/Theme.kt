@@ -14,8 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * 声声不息的配色（11-18 高对比极简版）：黑白灰为主，日间近黑当主题色、夜间近白；
- * 状态色（成功/警告/严重）保留给小圆点和状态字；唯一的暖橙留在录制指示（OverviewCard 自带 BrandOrange）。
+ * 声声不息的配色（11-19 Memoket 紫罗兰版）：主色深紫 #632ACF→#620FF0，
+ * 深色底用品牌靛黑 #0F071E；青绿 #108474 做成功态，暖橙只留录制指示（OverviewCard 自带 BrandOrange）。
  * 越“浮”起来的东西越亮：底 < 卡片 < 面板。
  */
 @Immutable
@@ -57,59 +57,58 @@ data class RsColors(
 )
 
 val LightRs = RsColors(
-    background = Color(0xFFF6F6F5),
+    background = Color(0xFFF7F6FA),
     card = Color(0xFFFFFFFF),
-    cardPressed = Color(0xFFF0F0EE),
-    text = Color(0xFF141414),
-    textSecondary = Color(0xFF6E6E6E),
-    textTertiary = Color(0xFF8E8E8E),
-    separator = Color(0xFFE9E9E7),
-    accent = Color(0xFF1B1B1B),
-    accentSoft = Color(0xFFEEEEEC),
-    good = Color(0xFF2E8B57),
+    cardPressed = Color(0xFFF3F0FA),
+    text = Color(0xFF16121F),
+    textSecondary = Color(0xFF6E6878),
+    textTertiary = Color(0xFF8E889A),
+    separator = Color(0xFFEAE7F0),
+    accent = Color(0xFF632ACF),
+    accentSoft = Color(0xFFF0EAFB),
+    good = Color(0xFF108474),
     warning = Color(0xFFB8860B),
     critical = Color(0xFFCC3333),
-    shadow = Color(0x14141414),
+    shadow = Color(0x1416121F),
     elevated = Color(0xFFFFFFFF),
-    fill = Color(0xFFF1F1EF),
+    fill = Color(0xFFF3F1F7),
     onAccent = Color(0xFFFFFFFF),
-    selected = Color(0xFF1B1B1B),
+    selected = Color(0xFF632ACF),
     onSelected = Color(0xFFFFFFFF),
-    track = Color(0xB3E9E9E7),
+    track = Color(0xB3EAE7F0),
     trackThumb = Color(0xFFFFFFFF),
     hairline = Color(0x00000000),
-    primary = Color(0xFF1B1B1B),
+    primary = Color(0xFF632ACF),
     onPrimary = Color(0xFFFFFFFF),
     isDark = false,
 )
 
 val DarkRs = RsColors(
-    background = Color(0xFF000000),
-    card = Color(0xFF1C1C1E),
-    cardPressed = Color(0xFF2C2C2E),
+    background = Color(0xFF0F071E),
+    card = Color(0xFF1C1430),
+    cardPressed = Color(0xFF2A1F42),
     text = Color(0xEBFFFFFF),          // 白 92%
     textSecondary = Color(0x99FFFFFF), // 白 60%
-    textTertiary = Color(0x7AFFFFFF),  // 白 48%（深灰卡片上对比度约 4.9）
+    textTertiary = Color(0x7AFFFFFF),  // 白 48%
     separator = Color(0x14FFFFFF),     // 白 8%
-    // 高对比极简：主题色换成近白（日间近黑），选中/按钮都是中性色；
+    // 深紫品牌色：夜间主题色用亮紫（#632ACF 在靛黑上太沉），大块按钮仍用主紫；
     // 唯一的暖橙在录制指示卡（OverviewCard 自带 BrandOrange，不走主题板）。
-    accent = Color(0xFFE8E8EA),
-    accentSoft = Color(0xFF252527),
-    // 状态色保留但调暗调淡，只用在小圆点和文字上
-    good = Color(0xFF55A86F),
+    accent = Color(0xFFB89BF5),
+    accentSoft = Color(0xFF2A1F42),
+    good = Color(0xFF35B39A),
     warning = Color(0xFFD4A65E),
     critical = Color(0xFFE0686C),
     shadow = Color(0x00000000),
-    elevated = Color(0xFF2C2C2E),
+    elevated = Color(0xFF261B3D),
     fill = Color(0x1FFFFFFF),          // 白 12%
-    onAccent = Color(0xFF1C1C1E),     // 橙底上的字用深色，对比度约 7
-    selected = Color(0xFF48484A),
-    onSelected = Color(0xEBFFFFFF),
+    onAccent = Color(0xFF1C1430),
+    selected = Color(0xFF632ACF),
+    onSelected = Color(0xFFFFFFFF),
     track = Color(0x1FFFFFFF),
-    trackThumb = Color(0xFF48484A),
+    trackThumb = Color(0xFF3A2B5C),
     hairline = Color(0x12FFFFFF),      // 白 7%
-    primary = Color(0xFFE3E3E6),       // 略灰的白：纯黑 OLED 上大块纯白会发光刺眼
-    onPrimary = Color(0xFF1C1C1E),
+    primary = Color(0xFF7B4BE0),       // 主紫提半档：深底上大色块不发闷
+    onPrimary = Color(0xFFFFFFFF),
     isDark = true,
 )
 

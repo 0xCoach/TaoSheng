@@ -63,7 +63,9 @@ class GroundedQA(
                 cal.timeInMillis
             }
             val hints = QaRules.parse(question, now.now(), dayStart)
-            val hits = search.search(question).filter { QaRules.inWindow(hints, it.at) }.take(12)
+            // 价值加权：星标/重点事件的证据排前，编号靠前优先被引用；同加成按时间倒序。
+            val hits = search.search(question).filter { QaRules.inWindow(hints, it.at) }
+                .sortedWith(compareByDescending<SearchHit> { it.valueBonus }.thenByDescending { it.at }).take(12)
             val ideaHits = ideas.search(IdeaRules.likePattern(question)).first()
                 .filter { QaRules.inWindow(hints, it.updatedAt) && (hints.statuses == null || it.status in hints.statuses!!) }.take(6)
             val decisionHits = decisions.search(IdeaRules.likePattern(question)).first()

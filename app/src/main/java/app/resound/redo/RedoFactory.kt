@@ -69,7 +69,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(), place = e.place,
             emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = reply.actualModel ?: preset.model) to e.lineIds },
             { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
+                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at,
+                recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt,
+                valueScore = app.resound.data.MemoryValueRules.itemScore(i.category, i.kind, i.dueAt, i.who, "digest")) } })
     }, merge = { events, lines, presetId ->
         val (preset, key) = synchronized(digestSettings.providers.guard) {
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
@@ -87,7 +89,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             pointsJson = JSONArray(event.points).toString(), peopleJson = JSONArray(event.people).toString(), place = event.place,
             emotion = event.emotion, intensity = event.intensity, important = event.important, createdAt = at, model = reply.actualModel ?: preset.model) to event.lineIds),
             { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
+                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at,
+                recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt,
+                valueScore = app.resound.data.MemoryValueRules.itemScore(i.category, i.kind, i.dueAt, i.who, "digest")) } })
     }, identify = identify, regenerate = { oldCards, events, lines ->
         files.reload()
         // 以候选新事件构造输入，技能结果也先暂存；失败时整个事件替换不落库。

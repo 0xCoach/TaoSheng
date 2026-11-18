@@ -152,6 +152,7 @@ class IdeaRepository(
             dueText = null, dueAt = null, who = null, lineId = idea.sourceLineId,
             recordedAt = idea.sourceLineId?.let { memory.lineStartAt(it) },
             status = "Accepted", createdAt = now.now(), origin = "idea", sourceText = idea.sourceText ?: idea.content,
+            valueScore = app.resound.data.MemoryValueRules.itemScore("待办", null, null, null, "idea"),
         )
         dao.transaction {
             val itemId = memory.addManualItem(item)

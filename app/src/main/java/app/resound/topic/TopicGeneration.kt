@@ -214,7 +214,9 @@ internal class TopicEngine(
                         old.category in setOf(item.category, "待办", "约定", "备忘") &&
                             (item.lineId != null && old.lineId == item.lineId || ImportTodoMerge.same(old.content, item.content))
                     } }.map { item -> MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
-                        dueText = item.dueText, dueAt = item.dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now()) }
+                        dueText = item.dueText, dueAt = item.dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now(),
+                        recordedAt = lines.firstOrNull { it.id == item.lineId }?.startAt,
+                        valueScore = app.resound.data.MemoryValueRules.itemScore(item.category, item.kind, item.dueAt, item.who, "digest")) }
                     db.memory().insertItems(items)
                     db.memory().assignLines(lines.map { it.id }, eventId)
                     db.memory().markDigested(lines.map { it.id }, now())

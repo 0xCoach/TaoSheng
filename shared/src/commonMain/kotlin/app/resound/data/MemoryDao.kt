@@ -67,6 +67,8 @@ data class MemoryItemEntity(
     @ColumnInfo(defaultValue = "0") val strongReminder: Boolean = false,
     /** 录音时间：这句话被说出来的时刻（取原话行 startAt），与 dueAt（提及）、createdAt（处理）分开；手打为 null。 */
     val recordedAt: Long? = null,
+    /** 内在价值分（0-100，提取时按条目自身属性算）；父事件星标加成查询时另加，见 MemoryValueRules。 */
+    @ColumnInfo(defaultValue = "0") val valueScore: Int = 0,
 )
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)

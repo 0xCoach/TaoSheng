@@ -45,14 +45,17 @@ class RoomManualTodos(
         fun rows(lineId: Long?, recordedAt: Long? = null) = drafts.map { draft ->
             require(draft.category in setOf("待办", "约定", "备忘") && draft.content.isNotBlank())
             require(draft.kind == null || draft.kind in setOf("我要做", "我答应别人", "别人答应我"))
-            MemoryItemEntity(eventId = null, category = draft.category,
-                kind = if (draft.category == "待办") draft.kind ?: "我要做" else null,
+            val kind = if (draft.category == "待办") draft.kind ?: "我要做" else null
+            val who = draft.who?.trim()?.takeIf { it.isNotEmpty() }
+            MemoryItemEntity(eventId = null, category = draft.category, kind = kind,
                 content = draft.content.trim(), dueText = draft.dueText, dueAt = draft.dueAt,
-                who = draft.who?.trim()?.takeIf { it.isNotEmpty() }, lineId = lineId,
+                who = who, lineId = lineId,
                 recordedAt = recordedAt,
                 status = "Accepted", createdAt = at, statusChangedAt = at, noMerge = true,
                 origin = if (origin == ItemOrigin.Typed) "typed" else "voice", sourceText = sourceText,
-                strongReminder = draft.strongReminder && draft.dueAt != null)
+                strongReminder = draft.strongReminder && draft.dueAt != null,
+                valueScore = app.resound.data.MemoryValueRules.itemScore(draft.category, kind, draft.dueAt, who,
+                    if (origin == ItemOrigin.Typed) "typed" else "voice"))
         }
         // 先校验（在调用线程上抛错），再到后台取这件事的第一句原话
         rows(null)

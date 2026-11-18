@@ -3,9 +3,9 @@ package app.resound.search
 import androidx.room.RoomDatabase
 import app.resound.data.readSql
 
-/** 首页“搜索记录”的一条结果：原话或整理出的事件。 */
+/** 首页“搜索记录”的一条结果：原话或整理出的事件。valueBonus 是价值加成（星标/重点），排序仍按时间。 */
 data class SearchHit(val kind: Kind, val id: Long, val at: Long, val text: String,
-                     val speaker: String? = null, val segmentId: Long? = null) {
+                     val speaker: String? = null, val segmentId: Long? = null, val valueBonus: Int = 0) {
     enum class Kind { Line, Event }
 }
 
@@ -43,7 +43,8 @@ object RecordSearchRules {
     fun eventQuery(words: List<String>): Pair<String, List<Any>> {
         val args = mutableListOf<Any>()
         val where = words.joinToString(" AND ") { clause(it, "title || ' ' || summary", "events_fts", args) }
-        return "SELECT id, startAt, title, summary FROM memory_events WHERE deleted = 0 AND $where " +
+        // 第 5 列是价值加成，与 MemoryValueRules.eventBonus 同公式。
+        return "SELECT id, startAt, title, summary, starred*${app.resound.data.MemoryValueRules.EVENT_STAR_BONUS} + important*${app.resound.data.MemoryValueRules.EVENT_IMPORTANT_BONUS} FROM memory_events WHERE deleted = 0 AND $where " +
             "ORDER BY startAt DESC, id DESC LIMIT $FETCH" to args
     }
 
@@ -86,7 +87,7 @@ class RecordSearch(private val db: RoomDatabase) {
                     val title = s.getText(2); val summary = s.getText(3)
                     if (!RecordSearchRules.contains("$title $summary", words)) continue
                     val body = if (RecordSearchRules.contains(title, words)) title else "$title：" + RecordSearchRules.snippet(summary, words)
-                    add(SearchHit(SearchHit.Kind.Event, s.getLong(0), s.getLong(1), body))
+                    add(SearchHit(SearchHit.Kind.Event, s.getLong(0), s.getLong(1), body, valueBonus = s.getLong(4).toInt()))
                 }
             }
         }

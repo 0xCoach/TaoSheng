@@ -70,7 +70,8 @@ class WorkflowEngine(
                     val title = field(json, "title") ?: rule.name
                     val id = memory.addManualItem(MemoryItemEntity(eventId = null, category = "待办", kind = "rule",
                         content = title, dueText = null, dueAt = null, who = null, lineId = null,
-                        status = "Accepted", createdAt = at, origin = "rule"))
+                        status = "Accepted", createdAt = at, origin = "rule",
+                        valueScore = app.resound.data.MemoryValueRules.itemScore("待办", "rule", null, null, "rule")))
                     log(rule.id, at, trigger, "Ok", "待办#$id", "item", id); dao.markFired(rule.id, at, dayKey(at))
                 }
                 ActionKind.Analysis -> {

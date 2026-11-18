@@ -11,6 +11,7 @@ import app.resound.appName
 import app.resound.data.MemoryDao
 import app.resound.data.MemoryEventEntity
 import app.resound.data.MemoryItemEntity
+import app.resound.data.MemoryValueRules
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.PendingDigest
 import kotlinx.coroutines.CancellationException
@@ -263,6 +264,7 @@ class DigestRunner(
                             recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
                                 ?: i.eventIndex?.let { events[it].startAt } ?: at,
                             status = ItemStatus.Pending.name, createdAt = at,
+                            valueScore = MemoryValueRules.itemScore(i.category, i.kind, i.dueAt, i.who, "digest"),
                         )
                     }
                 },

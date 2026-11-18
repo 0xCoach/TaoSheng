@@ -1,8 +1,10 @@
 package app.resound.data
 
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import java.io.File
 
 /** 只读、固定的版本差异白名单。未列入的快照（查询/引擎）仍逐字比较。 */
@@ -48,7 +50,9 @@ internal object Index183FixtureDelta {
         observed[0] = version.getString("oldLine")
 
         val identity = spec.getJSONObject("identity")
-        fun identityRow(lines: List<String>, row: String): Int {
+        val allowedNewRows = identity.optJSONArray("extraNewRows")?.let { a -> (0 until a.length()).map(a::getString).toSet() }
+            .orEmpty() + setOf(identity.getString("newRow"))
+        fun identityRow(lines: List<String>, expectedRow: String?, allowed: Set<String>): Int {
             val header = "TABLE ${identity.getString("table")}"
             assertEquals("$name 身份表次数", 1, lines.count { it == header })
             val start = lines.indexOf(header)
@@ -56,11 +60,12 @@ internal object Index183FixtureDelta {
             val end = (start + 2 until lines.size).firstOrNull { lines[it].startsWith("TABLE ") } ?: lines.size
             val rows = lines.subList(start + 2, end).filter(String::isNotEmpty)
             assertEquals("$name 身份行次数", identity.getInt("occurrences"), rows.size)
-            assertEquals("$name 身份完整行", listOf(row), rows)
+            if (expectedRow != null) assertEquals("$name 身份完整行", listOf(expectedRow), rows)
+            else assertTrue("$name 身份行不在允许集内：$rows", rows.all { it in allowed })
             return start + 2
         }
-        identityRow(expected, identity.getString("oldRow"))
-        val row = identityRow(observed, identity.getString("newRow"))
+        identityRow(expected, identity.getString("oldRow"), emptySet())
+        val row = identityRow(observed, null, allowedNewRows)
         observed[row] = identity.getString("oldRow")
 
         val indices = spec.getJSONArray("indices")
@@ -88,6 +93,59 @@ internal object Index183FixtureDelta {
                 observed.subList(at, end).clear()
             }
         }
+
+        // 存量表加列：建表语句与 columns 行都换成旧夹具对应行（按表名对齐，不把整行抄进白名单）。
+        val changedTables = spec.optJSONArray("changedTables") ?: JSONArray()
+        repeat(changedTables.length()) { n ->
+            val table = changedTables.getString(n)
+            val createPrefix = "[\"table\",\"$table\","
+            val eCreate = expected.firstOrNull { it.startsWith(createPrefix) }
+            val oAt = observed.indexOfFirst { it.startsWith(createPrefix) }
+            assertTrue("$name 新表结构未在旧夹具找到 $table", oAt < 0 || eCreate != null)
+            if (oAt >= 0 && eCreate != null) observed[oAt] = eCreate
+            val eT = expected.indexOf("TABLE $table"); val oT = observed.indexOf("TABLE $table")
+            if (eT >= 0 && oT >= 0 && eT + 1 < expected.size && oT + 1 < observed.size &&
+                expected[eT + 1].startsWith("columns=") && observed[oT + 1].startsWith("columns=")) {
+                observed[oT + 1] = expected[eT + 1]
+                // 数据行：新列值追加在行尾，按旧夹具的行宽截掉（存量行除新列外逐值相同）。
+                val eRows = expected.subList(eT + 2, blockEnd(expected, eT + 2)).filter { it.startsWith("[{") }
+                for ((k, i) in (oT + 2 until blockEnd(observed, oT + 2)).filter { observed[it].startsWith("[{") }.withIndex()) {
+                    if (k < eRows.size) observed[i] = truncateCells(observed[i], cellCount(eRows[k]))
+                }
+            }
+        }
         assertEquals(name, old, observed.joinToString("\n"))
+    }
+
+    private fun blockEnd(lines: List<String>, from: Int): Int =
+        (from until lines.size).firstOrNull { lines[it].isEmpty() || lines[it].startsWith("TABLE ") } ?: lines.size
+
+    private fun cellCount(row: String): Int {
+        var depth = 0; var inStr = false; var cells = 0
+        for (c in row) {
+            if (inStr) { if (c == '"') inStr = false; continue }
+            when (c) {
+                '"' -> inStr = true
+                '[', '{' -> depth++
+                ']', '}' -> depth--
+                ',' -> if (depth == 1) cells++
+            }
+        }
+        return cells + 1
+    }
+
+    private fun truncateCells(row: String, keep: Int): String {
+        var depth = 0; var inStr = false; var cells = 0
+        for (i in row.indices) {
+            val c = row[i]
+            if (inStr) { if (c == '"') inStr = false; continue }
+            when (c) {
+                '"' -> inStr = true
+                '[', '{' -> depth++
+                ']', '}' -> { depth--; if (depth == 0) return row }
+                ',' -> if (depth == 1) { cells++; if (cells == keep) return row.substring(0, i) + "]" }
+            }
+        }
+        return row
     }
 }

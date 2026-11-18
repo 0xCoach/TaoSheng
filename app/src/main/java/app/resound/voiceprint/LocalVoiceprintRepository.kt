@@ -1,6 +1,8 @@
 package app.resound.voiceprint
 
 import app.resound.diagnostics.FailureNotes
+import app.resound.revise.MemoryRevisionRow
+import app.resound.revise.RevisionOp
 
 import app.resound.transcribe.AsrPart
 import app.resound.transcribe.cleanupImportedAudio
@@ -272,6 +274,16 @@ class LocalVoiceprintRepository(
                         dao.saveSample(existing.copy(source = "line-review", sourceLineId = lineId, personId = personId))
                     dao.unexclude(group.segment.id, group.key)
                     dao.identity(group.lines.map { it.id }, personId, personName, 1f, true)
+                    // 说话人归属改动留痕：AI 和人都不许无痕改原话归属
+                    val revDao = db.revisions()
+                    val at = now()
+                    for (l in group.lines) {
+                        revDao.insert(MemoryRevisionRow(targetKind = "line", targetId = l.id, op = RevisionOp.Edit.name,
+                            beforeJson = """{"speaker":"${(l.speakerName ?: l.speakerTag ?: "")}"}""",
+                            afterJson = """{"speaker":"$personName"}""",
+                            extraJson = """{"personId":$personId,"kind":"speaker_assign"}""",
+                            reason = "说话人归属修改", at = at))
+                    }
                     invalidateRetained() // 后台复用缓存重打分；只重配录音还在的段，不在本次点击中遍历历史录音。
                 }
                 revision++
@@ -287,7 +299,17 @@ class LocalVoiceprintRepository(
                 dropFile(line.segmentId, key)
                 dao.removeSample(line.segmentId, key)
                 dao.exclude(VoiceprintExclusionEntity(line.segmentId, key, now()))
-                dao.identity(dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }.map { it.id }, null, null, null, true)
+                val groupLines = dao.lines(line.segmentId).filter { VoiceprintAudio.groupKey(it) == key }
+                dao.identity(groupLines.map { it.id }, null, null, null, true)
+                val revDao = db.revisions()
+                val at = now()
+                for (l in groupLines) {
+                    revDao.insert(MemoryRevisionRow(targetKind = "line", targetId = l.id, op = RevisionOp.Edit.name,
+                        beforeJson = """{"speaker":"${(l.speakerName ?: l.speakerTag ?: "")}"}""",
+                        afterJson = """{"speaker":""}""",
+                        extraJson = """{"kind":"speaker_unassign"}""",
+                        reason = "说话人归属清除", at = at))
+                }
                 invalidateRetained()
             }
             revision++

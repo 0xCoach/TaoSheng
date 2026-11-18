@@ -63,7 +63,8 @@ class McpServer(
     private fun serve(conn: java.net.Socket) {
         conn.use { s ->
             try {
-                val head = s.getInputStream().bufferedReader().let { r ->
+                // ISO-8859-1：1 字节 = 1 字符，Content-Length 字节数可直接按字符读；body 再按 UTF-8 解码
+                val head = s.getInputStream().bufferedReader(Charsets.ISO_8859_1).let { r ->
                     val sb = StringBuilder()
                     while (true) { val line = r.readLine() ?: break; if (line.isEmpty()) break; sb.append(line).append('\n'); if (sb.length > 8192) break }
                     sb.toString() to r
@@ -72,7 +73,9 @@ class McpServer(
                 val requestLine = lines.firstOrNull() ?: return@use
                 val headers = lines.drop(1).mapNotNull { val i = it.indexOf(':'); if (i > 0) it.substring(0, i).trim().lowercase() to it.substring(i + 1).trim() else null }.toMap()
                 val len = headers["content-length"]?.toIntOrNull()?.coerceIn(0, 256 * 1024) ?: 0
-                val body = CharArray(len).also { head.second.read(it, 0, len) }.concatToString()
+                val buf = CharArray(len); var off = 0
+                while (off < len) { val n = head.second.read(buf, off, len - off); if (n < 0) break; off += n }
+                val body = String(String(buf, 0, off).toByteArray(Charsets.ISO_8859_1), Charsets.UTF_8)
                 val reply = handle(requestLine, headers, body)
                 s.getOutputStream().write(reply.toByteArray(Charsets.UTF_8))
             } catch (e: Exception) { Log.w(TAG, "MCP 连接处理失败: ${e.message}") }
@@ -162,7 +165,9 @@ class McpServer(
                 (hits + ideas + decs).ifEmpty { listOf("没有匹配的记录") }.joinToString("\n")
             }
             "decision_list" -> {
-                val list = if (scopeId == null) db.decisions().observeHistory().first().take(50)
+                // observeHistory 只含非 Active：生效决策必须合并进来，否则 AI 看不到当前决定
+                val list = if (scopeId == null)
+                    (db.decisions().observeActive().first() + db.decisions().observeHistory().first()).take(50)
                 else db.decisions().observeForProject(scopeId).first()
                 list.filter { inScope(it.projectId) && (arg("status")?.let { s -> it.status == s } ?: true) }
                     .joinToString("\n") { "[#${it.id}] (${it.status}/${it.confidence}) ${it.title} — ${it.detail.take(140)}" }

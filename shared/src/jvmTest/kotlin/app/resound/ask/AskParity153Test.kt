@@ -11,7 +11,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AskParity153Test {
-    private fun sample(name: String) = javaClass.getResource("/parity153/$name")!!.readText()
+    // 录制文件在 Windows 检出会变成 CRLF：归一化后比较，与平台无关
+    private fun sample(name: String) = javaClass.getResource("/parity153/$name")!!.readText().replace("\r\n", "\n")
     private val zone = TimeZone.of("Asia/Shanghai")
     private val source = AskSource("line", 42, 1000, "我", "方案/一\n第二行")
     private fun tools(rows: List<String> = emptyList()) = AskToolsCore(object : AskToolStore {

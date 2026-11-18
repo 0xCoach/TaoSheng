@@ -93,7 +93,17 @@ class FollowupEngine(
         return sent
     }
 
-    suspend fun markDone(id: Long) = withContext(io) { dao.setStatus(id, FollowupStatus.Done.name, now.now(), now.now()) }
+    /** 标记完成并回写源对象：跟进项的"做了"要推进真实待办/灵感，不只是关掉提醒。 */
+    suspend fun markDone(id: Long) = withContext(io) {
+        val row = dao.followup(id) ?: return@withContext
+        dao.setStatus(id, FollowupStatus.Done.name, now.now(), now.now())
+        when (row.refKind) {
+            "item" -> row.refId?.let { memory.setItemStatus(it, "Done", now.now()) }
+            "idea" -> row.refId?.let { ideas.setStatus(it, IdeaStatus.Done.name, now.now()) }
+        }
+    }
+
+    /** 关闭提醒但不回写源对象："不值得提醒"≠"事不存在"，承诺/灵感本身仍保留。 */
     suspend fun dismiss(id: Long) = withContext(io) { dao.setStatus(id, FollowupStatus.Dismissed.name, now.now(), now.now()) }
     suspend fun snooze(id: Long, hours: Int = 24) = withContext(io) { dao.snooze(id, now.now() + hours * 3600_000L, now.now()) }
     suspend fun delete(id: Long) = withContext(io) { dao.delete(id, now.now()) }

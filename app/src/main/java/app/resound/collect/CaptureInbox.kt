@@ -74,14 +74,22 @@ class CaptureInbox(
         val title = if (kind == CaptureKind.Url) CollectRules.urlTitle(body) else text.trim().take(24)
         val id = dao.insert(CaptureItemRow(kind = kind.name, body = body, title = title,
             note = if (kind == CaptureKind.Url) text.trim().removePrefix(body).trim().ifEmpty { null } else null,
+            // 文本自带正文→已提取；纯 URL 只有元数据→诚实停在已保存
+            extracted = if (kind == CaptureKind.Text) ExtractState.Extracted.name else ExtractState.Saved.name,
             sourceApp = app, createdAt = now.now(), updatedAt = now.now()))
         onEvent("capture_arrived"); return 1
     }
 
     private suspend fun saveImage(uri: Uri, mime: String, app: String?): Int {
+        val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+        if (bytes == null || bytes.isEmpty()) return 0
+        // 文件名即内容指纹：同一张图再分享一次命中已有条目，不重复入库
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it) }
         val dir = File(context.filesDir, "inbox").apply { mkdirs() }
-        val target = File(dir, "cap_${now.now()}_${(0..9999).random()}.img")
-        runCatching { context.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } } }
+        val target = File(dir, "cap_$hash.img")
+        if (dao.imageAt(target.absolutePath) != null) return 0
+        if (!target.exists()) runCatching { target.writeBytes(bytes) }
         if (!target.exists() || target.length() == 0L) { target.delete(); return 0 }
         val id = dao.insert(CaptureItemRow(kind = CaptureKind.Image.name, body = target.absolutePath, title = "图片",
             mime = mime, localPath = target.absolutePath, sourceApp = app, createdAt = now.now(), updatedAt = now.now()))
@@ -90,7 +98,12 @@ class CaptureInbox(
         return 1
     }
 
-    /** 本地 ML Kit 中文识字；识别失败保持 ocrText 为 null，不阻塞入库。 */
+    /** 本地 ML Kit 中文识字；识别失败保持 ocrText 为 null，原图保留，可再点重试。 */
+    suspend fun retryOcr(id: Long) = withContext(io) {
+        val path = dao.item(id)?.takeIf { it.kind == CaptureKind.Image.name }?.localPath ?: return@withContext
+        runOcr(id, File(path))
+    }
+
     private suspend fun runOcr(id: Long, file: File) {
         runCatching {
             val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())

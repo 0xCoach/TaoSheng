@@ -21,7 +21,8 @@ class PromptParity152Test {
     private val event = MemoryEventData(2, at, at + 1000, "工作", "标题/测试", "摘要", "[\"要点\"]", "[\"小王\"]", null, null, null, true, createdAt = at, model = "test")
     private val item = MemoryItemData(3, 2, "待办", "我要做", "交报告", null, null, null, 7, "Pending", at)
     private fun same(name: String, actual: String) {
-        val expected = checkNotNull(javaClass.getResource("/parity152/$name.txt")).readText()
+        // 录制文件在 Windows 检出会变成 CRLF：归一化后比较，与平台无关
+        val expected = checkNotNull(javaClass.getResource("/parity152/$name.txt")).readText().replace("\r\n", "\n")
         assertEquals(name, expected, actual)
     }
     @Test fun digestSystem() = same("digest-system", NewDigest.system("{{APP_NAME}}\n{{CALENDAR}}", day, "声声不息"))

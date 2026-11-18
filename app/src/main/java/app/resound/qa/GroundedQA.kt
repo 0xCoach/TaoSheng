@@ -1,6 +1,7 @@
 package app.resound.qa
 
 import app.resound.platform.NowMillis
+import app.resound.qa.QaRules
 import app.resound.decision.DecisionDao
 import app.resound.digest.LlmPreset
 import app.resound.digest.LlmReply
@@ -54,9 +55,19 @@ class GroundedQA(
     suspend fun ask(question: String): QaAnswer = withContext(io) {
         _busy.value = true
         try {
-            val hits = search.search(question).take(12)
-            val ideaHits = ideas.search(IdeaRules.likePattern(question)).first().take(6)
-            val decisionHits = decisions.search(IdeaRules.likePattern(question)).first().take(6)
+            // 解析"上周/还没验证/否决过"这类回忆式问法，先限定维度再取证
+            val dayStart = run {
+                val cal = java.util.Calendar.getInstance()
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
+                cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+                cal.timeInMillis
+            }
+            val hints = QaRules.parse(question, now.now(), dayStart)
+            val hits = search.search(question).filter { QaRules.inWindow(hints, it.at) }.take(12)
+            val ideaHits = ideas.search(IdeaRules.likePattern(question)).first()
+                .filter { QaRules.inWindow(hints, it.updatedAt) && (hints.statuses == null || it.status in hints.statuses!!) }.take(6)
+            val decisionHits = decisions.search(IdeaRules.likePattern(question)).first()
+                .filter { QaRules.inWindow(hints, it.decidedAt) && (hints.statuses == null || it.status in hints.statuses!!) }.take(6)
             val sources = buildList {
                 hits.forEachIndexed { i, h ->
                     add(QaSource(size + 1, if (h.kind == SearchHit.Kind.Line) "line" else "event", h.id, h.at,
@@ -75,11 +86,12 @@ class GroundedQA(
                 return@withContext QaAnswer(body, sources, grounded = true, needsService = true, noEvidence = sources.isEmpty())
             }
             val context = sources.joinToString("\n") { "[#${it.no}] (${it.kind}#${it.id}) ${it.title}：${it.quote}" }
+            val filterNote = if (hints.active) "（已按问题限定：${QaRules.describe(hints)}）\n" else ""
             val system = if (mode.value == QaMode.RecordsOnly)
                 "你是用户的记忆问答助手。只用给出的资料回答，每条结论后用 [#编号] 标明出处；资料里没有就直说没找到，不许编造。"
             else
                 "你是用户的记忆问答助手。优先用给出的资料回答并标 [#编号]；资料不足可补充通用知识，但要明确标注「补充：」，不许把补充内容伪装成记录。"
-            val reply = chat(preset, key, system, "资料：\n$context\n\n问题：$question")
+            val reply = chat(preset, key, system, "${filterNote}资料：\n$context\n\n问题：$question")
             QaAnswer(reply.content, sources, grounded = mode.value == QaMode.RecordsOnly, noEvidence = sources.isEmpty())
         } finally { _busy.value = false }
     }.also { _last.value = it }

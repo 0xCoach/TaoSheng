@@ -49,12 +49,16 @@ class DecisionRepository(
         id to conflicts
     }
 
-    /** 从整理出的"决定"类提取项导入；同一 item 只导入一次。 */
+    /** 从整理出的"决定"类提取项导入；同一 item 只导入一次。
+     *  证据门禁：没有原话佐证的降级为"随口"；文本判定只降不升——AI 不许把讨论说成决定。 */
     suspend fun importFromItem(item: MemoryItemEntity): Long? = withContext(io) {
         val line = item.lineId?.let { memory.lineById(it) }
-        val (id, _) = create(item.content, "", null, DecisionConfidence.of(item.kind), item.createdAt,
+        val evidence = item.sourceText ?: line?.text
+        val confidence = if (evidence.isNullOrBlank()) DecisionConfidence.Tentative
+            else maxOf(DecisionRules.guessConfidence("${item.content} $evidence"), DecisionConfidence.of(item.kind))
+        val (id, _) = create(item.content, "", null, confidence, item.createdAt,
             sourceLineId = item.lineId, sourceItemId = item.id, sourceEventId = item.eventId,
-            sourceText = item.sourceText ?: line?.text)
+            sourceText = evidence)
         dao.setProject(id, null, now.now())
         id
     }

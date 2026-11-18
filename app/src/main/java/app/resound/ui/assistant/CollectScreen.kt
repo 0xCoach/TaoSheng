@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ import app.resound.AppGraph
 import app.resound.collect.CaptureItemRow
 import app.resound.collect.CaptureKind
 import app.resound.collect.CollectStatus
+import app.resound.collect.ExtractState
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.Pill
@@ -50,6 +52,7 @@ import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.formatStamp
 import app.resound.ui.verify.springClick
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private fun kindOf(r: CaptureItemRow) = CaptureKind.entries.firstOrNull { it.name == r.kind }
 
@@ -104,7 +107,9 @@ private fun CollectCard(r: CaptureItemRow, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(if (r.title.isNotBlank()) r.title else r.body.take(60), style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 2)
                 Spacer(Modifier.height(4.dp))
-                Text(r.body.take(90), style = RsType.caption, color = c.textTertiary, maxLines = 2)
+                Text(
+                    if (r.kind == CaptureKind.Image.name) r.ocrText?.take(90) ?: "本机原图（点开回看）" else r.body.take(90),
+                    style = RsType.caption, color = c.textTertiary, maxLines = 2)
                 r.note?.let { Spacer(Modifier.height(4.dp)); Text("备注：$it", style = RsType.caption, color = c.textSecondary) }
             }
             Spacer(Modifier.width(10.dp))
@@ -130,12 +135,14 @@ private fun CollectSheet(r: CaptureItemRow, inbox: app.resound.collect.CaptureIn
 
     ModalBottomSheet(onDismissRequest = onClose) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("${kindOf(r)?.label ?: r.kind} · ${formatStamp(r.createdAt)}${r.sourceApp?.let { " · 来自 $it" } ?: ""}", style = RsType.caption, color = c.textTertiary)
-            RsCard(padding = PaddingValues(12.dp)) { Text(r.body, style = RsType.body, color = c.text) }
+            Text("${kindOf(r)?.label ?: r.kind} · ${ExtractState.of(r.extracted).label} · ${formatStamp(r.createdAt)}${r.sourceApp?.let { " · 来自 $it" } ?: ""}", style = RsType.caption, color = c.textTertiary)
             if (r.kind == CaptureKind.Image.name) {
+                InboxImage(r.localPath)
                 Text(
                     r.ocrText?.let { "本地识字结果：\n$it" } ?: "本地识字：没有识别出文字（或尚未识别）",
                     style = RsType.subhead, color = c.textSecondary)
+            } else {
+                RsCard(padding = PaddingValues(12.dp)) { Text(r.body, style = RsType.body, color = c.text) }
             }
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.track).padding(horizontal = 12.dp, vertical = 8.dp)) {
                 BasicTextField(note, { note = it }, Modifier.fillMaxWidth(),
@@ -163,9 +170,31 @@ private fun CollectSheet(r: CaptureItemRow, inbox: app.resound.collect.CaptureIn
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (r.kind == CaptureKind.Image.name && r.ocrText == null) {
+                    Pill("重试识字", filled = false) { scope.launch { inbox.retryOcr(r.id); onClose() } }
+                }
                 Pill("归档", filled = false) { scope.launch { inbox.archive(r.id); onClose() } }
                 Pill("删除", filled = false) { scope.launch { inbox.delete(r.id); onClose() } }
             }
         }
+    }
+}
+
+/** 收集箱图片：私有目录里的本机原图，解码失败如实显示。 */
+@Composable
+private fun InboxImage(path: String?) {
+    val c = Rs.colors
+    val bitmap by androidx.compose.runtime.produceState<android.graphics.Bitmap?>(null, path) {
+        value = withContext(kotlinx.coroutines.Dispatchers.IO) {
+            path?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it) }.getOrNull() }
+        }
+    }
+    if (bitmap != null) {
+        androidx.compose.foundation.Image(
+            bitmap = bitmap!!.asImageBitmap(), contentDescription = "原图",
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+            contentScale = androidx.compose.ui.layout.ContentScale.FillWidth)
+    } else {
+        Text(if (path == null) "没有原图" else "原图读取失败", style = RsType.subhead, color = c.textSecondary)
     }
 }

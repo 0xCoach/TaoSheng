@@ -14,9 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * 声声不息的配色：日间浅灰白底 + 白卡片 + 暖橙点缀。
- * 夜间（11-12 重做）：纯黑底（OLED 不发光）+ 中性深灰卡片加极细白边；文字只用一种白，按透明度分三档；
- * 橙色只做小面积点缀。越“浮”起来的东西越亮：底 < 卡片 < 面板。
+ * 声声不息的配色（11-18 高对比极简版）：黑白灰为主，日间近黑当主题色、夜间近白；
+ * 状态色（成功/警告/严重）保留给小圆点和状态字；唯一的暖橙留在录制指示（OverviewCard 自带 BrandOrange）。
+ * 越“浮”起来的东西越亮：底 < 卡片 < 面板。
  */
 @Immutable
 data class RsColors(
@@ -57,28 +57,28 @@ data class RsColors(
 )
 
 val LightRs = RsColors(
-    background = Color(0xFFF4F2EF),
+    background = Color(0xFFF6F6F5),
     card = Color(0xFFFFFFFF),
-    cardPressed = Color(0xFFF7F4F0),
-    text = Color(0xFF1D1B19),
-    textSecondary = Color(0xFF7D7770),
-    textTertiary = Color(0xFF8A847C),
-    separator = Color(0xFFECE8E3),
-    accent = Color(0xFFF07B2E),
-    accentSoft = Color(0xFFFDEBDD),
-    good = Color(0xFF34A853),
-    warning = Color(0xFFE6A23C),
-    critical = Color(0xFFE5484D),
-    shadow = Color(0x14583A1C),
+    cardPressed = Color(0xFFF0F0EE),
+    text = Color(0xFF141414),
+    textSecondary = Color(0xFF6E6E6E),
+    textTertiary = Color(0xFF8E8E8E),
+    separator = Color(0xFFE9E9E7),
+    accent = Color(0xFF1B1B1B),
+    accentSoft = Color(0xFFEEEEEC),
+    good = Color(0xFF2E8B57),
+    warning = Color(0xFFB8860B),
+    critical = Color(0xFFCC3333),
+    shadow = Color(0x14141414),
     elevated = Color(0xFFFFFFFF),
-    fill = Color(0xFFF4F2EF),
+    fill = Color(0xFFF1F1EF),
     onAccent = Color(0xFFFFFFFF),
-    selected = Color(0xFFF07B2E),
+    selected = Color(0xFF1B1B1B),
     onSelected = Color(0xFFFFFFFF),
-    track = Color(0xB3ECE8E3),
+    track = Color(0xB3E9E9E7),
     trackThumb = Color(0xFFFFFFFF),
     hairline = Color(0x00000000),
-    primary = Color(0xFFF07B2E),
+    primary = Color(0xFF1B1B1B),
     onPrimary = Color(0xFFFFFFFF),
     isDark = false,
 )
@@ -91,10 +91,10 @@ val DarkRs = RsColors(
     textSecondary = Color(0x99FFFFFF), // 白 60%
     textTertiary = Color(0x7AFFFFFF),  // 白 48%（深灰卡片上对比度约 4.9）
     separator = Color(0x14FFFFFF),     // 白 8%
-    // 夜间（11-13 调整）：底、卡片、主要按钮仍是黑白灰；主题橙回到“小面积点缀”——链接字、进度、指示点、
-    // 滑动操作、快速定位滑块等。橙色比日间略亮略淡，在纯黑上清楚又不刺眼。
-    accent = Color(0xFFF08A4B),
-    accentSoft = Color(0xFF3A2A20),   // 橙色约 16% 压在深灰卡片上的实色（不用半透明，避免再改透明度时出错）
+    // 高对比极简：主题色换成近白（日间近黑），选中/按钮都是中性色；
+    // 唯一的暖橙在录制指示卡（OverviewCard 自带 BrandOrange，不走主题板）。
+    accent = Color(0xFFE8E8EA),
+    accentSoft = Color(0xFF252527),
     // 状态色保留但调暗调淡，只用在小圆点和文字上
     good = Color(0xFF55A86F),
     warning = Color(0xFFD4A65E),

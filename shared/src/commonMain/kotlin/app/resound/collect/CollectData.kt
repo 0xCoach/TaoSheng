@@ -33,6 +33,8 @@ data class CaptureItemRow(
     val lineId: Long? = null,
     /** 见 CollectStatus：Inbox / Linked / Archived */
     val status: String = CollectStatus.Inbox.name,
+    /** 见 ExtractState：Saved(只有元数据) / Extracted(拿到正文) / Analyzed(已转知识条目)。纯 URL 诚实停在 Saved。 */
+    @ColumnInfo(defaultValue = "Saved") val extracted: String = ExtractState.Saved.name,
     val createdAt: Long,
     val updatedAt: Long,
     @ColumnInfo(defaultValue = "0") val deleted: Boolean = false,
@@ -58,6 +60,10 @@ abstract class CaptureItemDao {
     @Query("SELECT * FROM capture_items WHERE deleted = 0 AND kind = :kind AND body = :body LIMIT 1")
     abstract suspend fun sameBody(kind: String, body: String): CaptureItemRow?
 
+    /** 图片按内容指纹（文件名即 sha256）去重：同图重复分享不重复入库 */
+    @Query("SELECT * FROM capture_items WHERE deleted = 0 AND kind = 'Image' AND localPath = :path LIMIT 1")
+    abstract suspend fun imageAt(path: String): CaptureItemRow?
+
     @Query("""SELECT * FROM capture_items WHERE deleted = 0
         AND (title LIKE :pattern ESCAPE '\' OR body LIKE :pattern ESCAPE '\' OR ocrText LIKE :pattern ESCAPE '\' OR note LIKE :pattern ESCAPE '\')
         ORDER BY createdAt DESC, id DESC LIMIT 200""")
@@ -66,10 +72,12 @@ abstract class CaptureItemDao {
     @Query("UPDATE capture_items SET status = :status, updatedAt = :at WHERE id = :id AND deleted = 0")
     abstract suspend fun setStatus(id: Long, status: String, at: Long): Int
 
-    @Query("UPDATE capture_items SET ocrText = :ocrText, updatedAt = :at WHERE id = :id")
+    /** OCR 成功即拿到正文——同时把提取状态推进到 Extracted */
+    @Query("UPDATE capture_items SET ocrText = :ocrText, extracted = 'Extracted', updatedAt = :at WHERE id = :id")
     abstract suspend fun setOcr(id: Long, ocrText: String?, at: Long)
 
-    @Query("UPDATE capture_items SET ideaId = :ideaId, status = 'Linked', updatedAt = :at WHERE id = :id")
+    /** 转成灵感/知识条目——提取状态推进到 Analyzed */
+    @Query("UPDATE capture_items SET ideaId = :ideaId, status = 'Linked', extracted = 'Analyzed', updatedAt = :at WHERE id = :id")
     abstract suspend fun linkIdea(id: Long, ideaId: Long, at: Long)
 
     @Query("UPDATE capture_items SET projectId = :projectId, status = 'Linked', updatedAt = :at WHERE id = :id")
@@ -93,7 +101,7 @@ object CaptureItemSchema {
         db.execSQL("""CREATE TABLE IF NOT EXISTS capture_items (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             kind TEXT NOT NULL, body TEXT NOT NULL, title TEXT NOT NULL, mime TEXT, localPath TEXT,
             ocrText TEXT, sourceApp TEXT, note TEXT, ideaId INTEGER, projectId INTEGER, lineId INTEGER,
-            status TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL,
+            status TEXT NOT NULL, extracted TEXT NOT NULL DEFAULT 'Saved', createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL,
             deleted INTEGER NOT NULL DEFAULT 0)""")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_capture_items_kind ON capture_items(kind)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_capture_items_status ON capture_items(status)")
@@ -116,6 +124,15 @@ enum class CollectStatus(val label: String) {
 
     companion object {
         fun of(name: String?) = entries.firstOrNull { it.name == name } ?: Inbox
+    }
+}
+
+/** 内容提取深度：已保存(只有元数据) → 已提取(拿到正文) → 已分析(转成可检索知识条目)。 */
+enum class ExtractState(val label: String) {
+    Saved("已保存"), Extracted("已提取"), Analyzed("已分析");
+
+    companion object {
+        fun of(name: String?) = entries.firstOrNull { it.name == name } ?: Saved
     }
 }
 

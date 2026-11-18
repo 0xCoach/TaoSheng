@@ -11,7 +11,7 @@ import random, subprocess
 from pathlib import Path
 r = random.Random(51)
 old = bytes(r.randrange(256) for _ in range(98304))
-new = old[32768:65536] + b'TaoSheng update fixture\n' + bytes((v + 1) % 256 for v in old[:32768]) + old[65536:] + b'new tail\n'
+new = old[32768:65536] + b'soundsound update fixture\n' + bytes((v + 1) % 256 for v in old[:32768]) + old[65536:] + b'new tail\n'
 Path('old.bin').write_bytes(old)
 Path('new.bin').write_bytes(new)
 subprocess.run(['bsdiff', 'old.bin', 'new.bin', 'update.patch'], check=True)

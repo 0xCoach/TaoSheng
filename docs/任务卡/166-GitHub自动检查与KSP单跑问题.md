@@ -10,7 +10,7 @@
    - 失败时上传 `app/build/reports/tests` 与 `shared/build/reports/tests` 作为产物。
    - 不需要任何密钥；`ThingsSharedLiveTest` 等需要真实服务商的测试本来就按条件跳过，确认它们在 CI 里会跳过而不是失败。
    - Android SDK：用 runner 自带或 `android-actions/setup-android`；`local.properties` 不提交，CI 里按需生成 `sdk.dir`。
-2. `ios.yml`（macos-latest，只在 `shared/`、`devices/`、`tools/check_ios.sh`、Gradle 文件变化时触发）：跑 `zsh tools/check_ios.sh`（脚本会自己找 `/Applications/Xcode*.app`；若 runner 上路径不同，给脚本加一个读环境变量 `TAOSHENG_XCODE` 的覆盖入口，默认行为不变）。
+2. `ios.yml`（macos-latest，只在 `shared/`、`devices/`、`tools/check_ios.sh`、Gradle 文件变化时触发）：跑 `zsh tools/check_ios.sh`（脚本会自己找 `/Applications/Xcode*.app`；若 runner 上路径不同，给脚本加一个读环境变量 `soundsound_XCODE` 的覆盖入口，默认行为不变）。
 
 动作版本一律写死到具体版本号（不写 `@main`）。在 README（中英文各一句）说明“提交前会自动检查共用边界、iOS 编译与单测”，并在 `AGENTS.md` 提一句 CI 存在。
 
@@ -25,7 +25,7 @@
 
 ## 测试与 Gradle 注意
 - 本地验证：`./gradlew :app:kspDebugKotlin`（clean 后单跑）通过；`:shared:check :app:compileDebugKotlin` 通过；两个检查脚本通过。
-- 另一张卡（164）同时在跑。**不要 `./gradlew --stop`**；gradlew 加 `-Dorg.gradle.daemon.registry.base=/tmp/taosheng-166-gradle -PskipSigningSecrets=true`。清理只能清本工作目录（`~/Developer/TaoSheng-166`）的 build，不清全局缓存。
+- 另一张卡（164）同时在跑。**不要 `./gradlew --stop`**；gradlew 加 `-Dorg.gradle.daemon.registry.base=/tmp/soundsound-166-gradle -PskipSigningSecrets=true`。清理只能清本工作目录（`~/Developer/soundsound-166`）的 build，不清全局缓存。
 
 ## 交付
-分支 `codex/166-ci-ksp`（从 main 193ccad，`~/Developer/TaoSheng-166`），中文提交，不推送，不操作手机。写 `docs/任务卡/166-交付说明.md`。编译前 `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`。
+分支 `codex/166-ci-ksp`（从 main 193ccad，`~/Developer/soundsound-166`），中文提交，不推送，不操作手机。写 `docs/任务卡/166-交付说明.md`。编译前 `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`。

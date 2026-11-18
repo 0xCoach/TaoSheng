@@ -88,7 +88,7 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:processDebugJavaRes UP-TO-DATE
 
 > Task :app:compileDebugUnitTestKotlin FAILED
-e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/topic/TopicRepository177Test.kt:100:21 Unresolved reference 'insertCard'.
+e: file:///Users/coach/Developer/soundsound-177/app/src/test/java/app/resound/topic/TopicRepository177Test.kt:100:21 Unresolved reference 'insertCard'.
 
 FAILURE: Build failed with an exception.
 

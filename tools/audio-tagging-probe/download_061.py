@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """只下载公开数据；8 GB 累计传输上限；断点用已完成文件 SHA256 验证。"""
 import argparse, hashlib, json, pathlib, urllib.request, time
-P=argparse.ArgumentParser(); P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio'); a=P.parse_args()
+P=argparse.ArgumentParser(); P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio'); a=P.parse_args()
 r=a.root; r.mkdir(parents=True,exist_ok=True); ledger=r/'download-ledger.json'
 log=json.loads(ledger.read_text()) if ledger.exists() else {'bytes':0,'files':{}}
 def save(): ledger.write_text(json.dumps(log,indent=2))

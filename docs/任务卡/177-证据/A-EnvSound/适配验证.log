@@ -140,7 +140,7 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
 
 > Task :shared:lintReportDebug
-Wrote HTML report to file:///Users/coach/Developer/TaoSheng-177/shared/build/reports/lint-results-debug.html
+Wrote HTML report to file:///Users/coach/Developer/soundsound-177/shared/build/reports/lint-results-debug.html
 
 > Task :shared:lintDebug
 > Task :shared:lint

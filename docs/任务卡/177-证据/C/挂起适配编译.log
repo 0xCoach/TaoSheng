@@ -132,13 +132,13 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :app:javaPreCompileDebug UP-TO-DATE
 
 > Task :shared:lintReportDebug
-Wrote HTML report to file:///Users/coach/Developer/TaoSheng-177/shared/build/reports/lint-results-debug.html
+Wrote HTML report to file:///Users/coach/Developer/soundsound-177/shared/build/reports/lint-results-debug.html
 
 > Task :shared:lintDebug
 > Task :shared:lint
 
 > Task :shared:compileTestKotlinJvm
-w: file:///Users/coach/Developer/TaoSheng-177/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/soundsound-177/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
 
 > Task :shared:compileJvmTestJava NO-SOURCE
 > Task :shared:jvmTestClasses
@@ -147,8 +147,8 @@ w: file:///Users/coach/Developer/TaoSheng-177/shared/src/jvmTest/kotlin/app/reso
 > Task :shared:check
 
 > Task :app:compileDebugKotlin FAILED
-e: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/diary/LocalDiaryRepository.kt:66:63 Suspension functions can only be called within coroutine body.
-e: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/push/SubscriptionRuntime.kt:231:31 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/soundsound-177/app/src/main/java/app/resound/diary/LocalDiaryRepository.kt:66:63 Suspension functions can only be called within coroutine body.
+e: file:///Users/coach/Developer/soundsound-177/app/src/main/java/app/resound/push/SubscriptionRuntime.kt:231:31 Suspend function 'suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String>' can only be called from a coroutine or another suspend function.
 
 FAILURE: Build failed with an exception.
 

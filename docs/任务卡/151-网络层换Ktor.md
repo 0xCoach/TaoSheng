@@ -23,7 +23,7 @@
 ## 要做的
 
 ### 1. 依赖与门禁
-- shared commonMain 加 `io.ktor:ktor-client-core`、`ktor-client-websockets`（版本选与 Kotlin 2.2.20 兼容的最新稳定 3.x，交付说明写清版本和理由）；androidMain 加 `ktor-client-okhttp`；iOS 目标开启时 iosMain 加 `ktor-client-darwin`（`taosheng.ios=true` 才配置）。jvmTest 加 `ktor-client-mock`。
+- shared commonMain 加 `io.ktor:ktor-client-core`、`ktor-client-websockets`（版本选与 Kotlin 2.2.20 兼容的最新稳定 3.x，交付说明写清版本和理由）；androidMain 加 `ktor-client-okhttp`；iOS 目标开启时 iosMain 加 `ktor-client-darwin`（`soundsound.ios=true` 才配置）。jvmTest 加 `ktor-client-mock`。
 - `tools/check_shared.py` 白名单加入这几个坐标（只加这些）。
 
 ### 2. 共用网络层（`shared/src/commonMain/kotlin/app/resound/net/`）
@@ -55,4 +55,4 @@
 - 不改界面（`ui/`）、数据库、不升其他依赖版本。
 
 ## 交付
-分支 `codex/151-ktor-network`（已从 main 55953d8 建好，工作目录 `~/Developer/TaoSheng-151`），中文提交，不推送，不操作手机。写 `docs/任务卡/151-交付说明.md`：依赖版本、超时等设置对照表、搬了什么、对照测试清单与结果、开关键名、对不齐的地方、真机需要注意的、遗留问题、进度统计（`python3 tools/ios_progress.py`）。编译前 `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`；Gradle 异常先 `./gradlew --stop` 再试，仍不行写进交付说明，不清缓存。
+分支 `codex/151-ktor-network`（已从 main 55953d8 建好，工作目录 `~/Developer/soundsound-151`），中文提交，不推送，不操作手机。写 `docs/任务卡/151-交付说明.md`：依赖版本、超时等设置对照表、搬了什么、对照测试清单与结果、开关键名、对不齐的地方、真机需要注意的、遗留问题、进度统计（`python3 tools/ios_progress.py`）。编译前 `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`；Gradle 异常先 `./gradlew --stop` 再试，仍不行写进交付说明，不清缓存。

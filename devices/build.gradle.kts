@@ -12,8 +12,8 @@ kotlin {
     jvm {
         compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     }
-    // 与 shared 相同：装好 Xcode 后用 -Ptaosheng.ios=true 打开 iOS 编译检查
-    if (providers.gradleProperty("taosheng.ios").orNull == "true") {
+    // 与 shared 相同：装好 Xcode 后用 -Psoundsound.ios=true 打开 iOS 编译检查
+    if (providers.gradleProperty("soundsound.ios").orNull == "true") {
         iosArm64()
         iosSimulatorArm64()
     }

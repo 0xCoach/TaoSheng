@@ -104,45 +104,45 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:kspDebugKotlinAndroid
 
 > Task :shared:compileCommonMainKotlinMetadata FAILED
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:33:9 Unresolved reference 'onChanged'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:45:52 Variable expected.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:45:118 Syntax error: Expecting '"'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:46:5 Syntax error: Expecting ')'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:46:9 Unresolved reference 'customEndpoint'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:46:24 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:33:9 Unresolved reference 'onChanged'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:45:52 Variable expected.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:45:118 Syntax error: Expecting '"'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:46:5 Syntax error: Expecting ')'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:46:9 Unresolved reference 'customEndpoint'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:46:24 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
 expect fun MatchGroupCollection.get(name: String): MatchGroup?
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:47:9 This variable must either have an explicit type or be initialized.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:47:21 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:49:5 Modifier 'private' is not applicable to 'local variable'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:51:9 This variable must either have an explicit type or be initialized.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:51:28 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:53:5 Modifier 'private' is not applicable to 'local variable'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:53:33 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:53:50 Unresolved reference 'readBoolean'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:54:38 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:55:106 Unresolved reference 'onChanged'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:58:34 Unresolved reference '_realtime'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:59:40 Unresolved reference 'onChanged'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:60:262 Unresolved reference 'onChanged'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:66:25 Unresolved reference 'onChanged'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:5 Modifier 'private' is not applicable to 'local variable'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:29 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:29 Inapplicable candidate(s): fun <T> MutableStateFlow(value: T): MutableStateFlow<T>
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:46 Unresolved reference 'readInt'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:70 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:77 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:114 Inapplicable candidate(s): fun <K> ELVIS_CALL(x: K?, y: K): K
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:75:37 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:77:5 Modifier 'private' is not applicable to 'local variable'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:77:29 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:77:46 Unresolved reference 'readBoolean'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:78:30 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:79:94 Unresolved reference 'onChanged'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:80:5 Modifier 'private' is not applicable to 'local variable'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:80:25 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:80:42 Unresolved reference 'readBoolean'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:81:26 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:93:2 Syntax error: Missing '}.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:47:9 This variable must either have an explicit type or be initialized.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:47:21 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:49:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:51:9 This variable must either have an explicit type or be initialized.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:51:28 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:53:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:53:33 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:53:50 Unresolved reference 'readBoolean'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:54:38 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:55:106 Unresolved reference 'onChanged'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:58:34 Unresolved reference '_realtime'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:59:40 Unresolved reference 'onChanged'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:60:262 Unresolved reference 'onChanged'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:66:25 Unresolved reference 'onChanged'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:29 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:29 Inapplicable candidate(s): fun <T> MutableStateFlow(value: T): MutableStateFlow<T>
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:46 Unresolved reference 'readInt'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:70 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:77 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:74:114 Inapplicable candidate(s): fun <K> ELVIS_CALL(x: K?, y: K): K
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:75:37 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:77:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:77:29 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:77:46 Unresolved reference 'readBoolean'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:78:30 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:79:94 Unresolved reference 'onChanged'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:80:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:80:25 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:80:42 Unresolved reference 'readBoolean'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:81:26 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/transcribe/TranscribePreferenceStore.kt:93:2 Syntax error: Missing '}.
 
 > Task :shared:copyRoomSchemas NO-SOURCE
 

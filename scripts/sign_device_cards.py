@@ -23,7 +23,7 @@ def load_key(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("table", type=Path)
-    parser.add_argument("--key", type=Path, default=Path.home() / ".config/taosheng/cards-signing.key")
+    parser.add_argument("--key", type=Path, default=Path.home() / ".config/soundsound/cards-signing.key")
     parser.add_argument("--public-key-out", type=Path, help="首次初始化时写入 App 公钥文件；已有不同公钥时拒绝覆盖")
     args = parser.parse_args()
     data = args.table.read_bytes()

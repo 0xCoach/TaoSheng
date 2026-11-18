@@ -163,7 +163,7 @@ FAILURE: Build failed with an exception.
 
 * What went wrong:
 Execution failed for task ':app:testDebugUnitTest'.
-> There were failing tests. See the report at: file:///Users/coach/Developer/TaoSheng-177/app/build/reports/tests/testDebugUnitTest/index.html
+> There were failing tests. See the report at: file:///Users/coach/Developer/soundsound-177/app/build/reports/tests/testDebugUnitTest/index.html
 
 * Try:
 > Run with --scan to get full insights.

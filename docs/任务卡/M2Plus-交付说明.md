@@ -1,7 +1,7 @@
 # M2+ 竞品对标七能力——交付说明
 
-任务：TAOSHENG-M2-PLUS-COMPETITOR-UPGRADE（在 M0–M2 基础上增量实现，非新建项目）。
-基线：TaoSheng v0.4.0，分支 `dev/m0-m1-m2`，数据库 35→36。
+任务：soundsound-M2-PLUS-COMPETITOR-UPGRADE（在 M0–M2 基础上增量实现，非新建项目）。
+基线：soundsound v0.4.0，分支 `dev/m0-m1-m2`，数据库 35→36。
 
 ## 一、做了什么
 

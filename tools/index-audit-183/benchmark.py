@@ -16,7 +16,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = Path(os.environ.get('TAOSHENG_INDEX_AUDIT_OUT', str(ROOT / 'docs/任务卡/183-证据')))
+OUT = Path(os.environ.get('soundsound_INDEX_AUDIT_OUT', str(ROOT / 'docs/任务卡/183-证据')))
 WORK = ROOT / 'app/build/index183'
 BASE = 'df43e70'
 AT = 1_700_000_000_000

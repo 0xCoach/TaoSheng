@@ -1,6 +1,6 @@
 # 卡 125 · Wi-Fi 设备接入（局域网）与 FoloToy
 
-- 工作目录 `~/Developer/TaoSheng-125`，分支 `codex/125-wifi-devices`（从 `plan/0221` 拉出）。**不改 `ui/`、`MainActivity.kt`、版本号**。
+- 工作目录 `~/Developer/soundsound-125`，分支 `codex/125-wifi-devices`（从 `plan/0221` 拉出）。**不改 `ui/`、`MainActivity.kt`、版本号**。
 - 版本：0.2.21（不急，做稳）。与卡 119（蓝牙接入）、122（收拢）并行：不要改蓝牙连接代码；共用的录音输入接入点等 119 合并后由 Claude 收拢，你在交付说明里写清楚。
 
 ## 背景

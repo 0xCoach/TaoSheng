@@ -60,7 +60,7 @@
 > Task :app:kspDebugUnitTestKotlin
 
 > Task :app:compileDebugUnitTestKotlin FAILED
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/digest/ManualTodo054Test.kt:258:146 Unresolved reference 'getColumnIndexOrThrow'.
+e: file:///Users/coach/Developer/soundsound-175/app/src/test/java/app/resound/digest/ManualTodo054Test.kt:258:146 Unresolved reference 'getColumnIndexOrThrow'.
 
 FAILURE: Build failed with an exception.
 

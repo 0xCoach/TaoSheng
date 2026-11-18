@@ -18,7 +18,7 @@
 
 ```sh
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21
-./gradlew -Dorg.gradle.daemon.registry.base=/tmp/taosheng-175-gradle -PskipSigningSecrets=true \
+./gradlew -Dorg.gradle.daemon.registry.base=/tmp/soundsound-175-gradle -PskipSigningSecrets=true \
   :app:testDebugUnitTest --tests app.resound.data.Driver175FixturesTest
 ```
 

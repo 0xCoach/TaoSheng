@@ -230,7 +230,7 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :app:createReleaseApkListingFileRedirect UP-TO-DATE
 > Task :app:assembleRelease
 
-[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-177/build/reports/problems/problems-report.html
+[Incubating] Problems report is available at: file:///Users/coach/Developer/soundsound-177/build/reports/problems/problems-report.html
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
 

@@ -104,9 +104,9 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:kspDebugKotlinAndroid
 
 > Task :shared:compileCommonMainKotlinMetadata FAILED
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/skills/SkillStoreRepository.kt:90:67 No value passed for parameter 'moment'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/skills/SkillStoreRepository.kt:90:67 No value passed for parameter 'event'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/skills/SkillStoreRepository.kt:90:67 No value passed for parameter 'decimal'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/skills/SkillStoreRepository.kt:90:67 No value passed for parameter 'moment'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/skills/SkillStoreRepository.kt:90:67 No value passed for parameter 'event'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/skills/SkillStoreRepository.kt:90:67 No value passed for parameter 'decimal'.
 
 > Task :shared:copyRoomSchemas NO-SOURCE
 

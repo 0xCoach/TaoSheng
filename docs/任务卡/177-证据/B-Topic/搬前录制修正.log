@@ -88,7 +88,7 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:processDebugJavaRes UP-TO-DATE
 
 > Task :app:compileDebugUnitTestKotlin
-w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/topic/TopicRepository177Test.kt:40:55 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///Users/coach/Developer/soundsound-177/app/src/test/java/app/resound/topic/TopicRepository177Test.kt:40:55 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
 
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :app:processDebugUnitTestJavaRes UP-TO-DATE

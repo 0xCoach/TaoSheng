@@ -1,9 +1,9 @@
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:8: Cannot find external content entity class.
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:10: Cannot find external content entity class.
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:12: Cannot find external content entity class.
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:8: Cannot find external content entity class.
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:10: Cannot find external content entity class.
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:12: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:8: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:10: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:12: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:8: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:10: Cannot find external content entity class.
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/search/SearchIndex.kt:12: Cannot find external content entity class.
 
 FAILURE: Build completed with 2 failures.
 

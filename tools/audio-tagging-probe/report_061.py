@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """从冻结参数和统计生成中文研究报告，不运行模型、不更改参数。"""
 import argparse,csv,json,pathlib,collections,hashlib
-P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio');a=P.parse_args();R=a.root;O=R/'results';repo=pathlib.Path(__file__).resolve().parents[2]
+P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio');a=P.parse_args();R=a.root;O=R/'results';repo=pathlib.Path(__file__).resolve().parents[2]
 f=json.loads((O/'frozen-config.json').read_text());t=json.loads((O/'tune-summary.json').read_text());v=json.loads((O/'validation-summary.json').read_text());dry=json.loads((O/'dry-replay-exploration.json').read_text());manifest=json.loads((R/'manifest.json').read_text());chosen=f['chosen'];c=f['configs'][chosen];s=v['validation'][chosen];p=v['phone'][chosen]
 L=[]
 def line(x=''):L.append(x)
@@ -18,7 +18,7 @@ line('# 061 · 环境音识别评测与调优报告')
 line('\n日期：2026-10-29。研究评测，仅本机运行；未改 App、未连接手机、未提交 Git。\n')
 line(f'**结论：本轮调参选择 `{chosen}`，但没有足够证据证明可默认自动跳过录音。无配乐外放人声的真实场景漏洞未补上。** 环境标签可作为候选提示；外放自动过滤、重要声音通知均建议默认关闭。')
 line('\n## 1. 数据与许可\n')
-line('所有数据和逐条结果保存在 `~/Datasets/taosheng-audio/`，不在仓库中。下载脚本记录累计传输与 SHA-256，主下载 2,057,977,699 字节（2.058 GB），另有不足 1 MB 的目录及注释文本；远低于 8 GB。未下载 MUSAN 11 GB 全集。')
+line('所有数据和逐条结果保存在 `~/Datasets/soundsound-audio/`，不在仓库中。下载脚本记录累计传输与 SHA-256，主下载 2,057,977,699 字节（2.058 GB），另有不足 1 MB 的目录及注释文本；远低于 8 GB。未下载 MUSAN 11 GB 全集。')
 line()
 table(['来源','许可与原始出处','本轮使用'],[
  ['ESC-50','[官方许可](https://github.com/karolpiczak/ESC-50/blob/master/LICENSE)：整体 CC BY-NC 3.0，逐条来源/作者另列','下载 2,000 条；选取 23 类 × 40 = 920 条原始音频，每条 5 秒'],

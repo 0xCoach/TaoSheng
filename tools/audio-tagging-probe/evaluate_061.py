@@ -3,7 +3,7 @@
 import argparse,csv,hashlib,json,pathlib,time,math,subprocess
 import numpy as np,soundfile as sf,sherpa_onnx
 from scipy.signal import resample_poly
-P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio');P.add_argument('--models',type=pathlib.Path,default=pathlib.Path.home()/'.claude/jobs/3b8dcfaa/tmp/at');a=P.parse_args();R=a.root
+P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio');P.add_argument('--models',type=pathlib.Path,default=pathlib.Path.home()/'.claude/jobs/3b8dcfaa/tmp/at');a=P.parse_args();R=a.root
 manifest=json.loads((R/'manifest.json').read_text());out=R/'results';out.mkdir(exist_ok=True)
 def read(p):
  try:x,s=sf.read(p,dtype='float32',always_2d=True);x=x.mean(axis=1)

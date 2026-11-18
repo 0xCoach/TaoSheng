@@ -84,9 +84,9 @@
 > Task :app:kspDebugUnitTestKotlin
 
 > Task :app:compileDebugUnitTestKotlin FAILED
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:127:19 Suspend function 'suspend fun pending(model: String): List<EmbeddingStore.Document>' can only be called from a coroutine or another suspend function.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:230:63 Suspend function 'suspend fun pending(model: String): List<EmbeddingStore.Document>' can only be called from a coroutine or another suspend function.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:241:31 Suspend function 'suspend fun pending(model: String): List<EmbeddingStore.Document>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/soundsound-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:127:19 Suspend function 'suspend fun pending(model: String): List<EmbeddingStore.Document>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/soundsound-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:230:63 Suspend function 'suspend fun pending(model: String): List<EmbeddingStore.Document>' can only be called from a coroutine or another suspend function.
+e: file:///Users/coach/Developer/soundsound-175/app/src/test/java/app/resound/search/SearchUpgradeTest.kt:241:31 Suspend function 'suspend fun pending(model: String): List<EmbeddingStore.Document>' can only be called from a coroutine or another suspend function.
 
 FAILURE: Build failed with an exception.
 

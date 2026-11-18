@@ -10,7 +10,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = "603620df99969ad8aa7c63db6c0dba49a3da58af"
-OUT = Path(os.environ.get('TAOSHENG_INDEX_AUDIT_OUT', str(ROOT / "docs/任务卡/183-证据")))
+OUT = Path(os.environ.get('soundsound_INDEX_AUDIT_OUT', str(ROOT / "docs/任务卡/183-证据")))
 FIXTURES = ROOT / "app/src/test/resources/driver175"
 SCHEMAS = ROOT / "shared/schemas/app.resound.data.CaptureDatabase"
 

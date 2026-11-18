@@ -1,6 +1,6 @@
 # 卡 121 · 远程参数表（说明卡下发、官方签名）与 FoloToy 说明卡
 
-- 工作目录 `~/Developer/TaoSheng-121`，分支 `codex/121-remote-cards`（从 `plan/0221` 拉出）。**不改 `ui/`、`MainActivity.kt`、`devices/DeviceContract.kt`**。
+- 工作目录 `~/Developer/soundsound-121`，分支 `codex/121-remote-cards`（从 `plan/0221` 拉出）。**不改 `ui/`、`MainActivity.kt`、`devices/DeviceContract.kt`**。
 - 版本：0.2.21。与卡 118、120 并行。安全相关，务必稳。
 
 ## 必读
@@ -13,7 +13,7 @@
 
 ### 1. 参数表格式与签名
 - 一个 JSON 文件 `device-cards.json`：`{"version": 整数, "issuedAt": "...", "cards": [说明卡…]}`，外加同名签名文件 `device-cards.json.sig`。
-- 签名用 **Ed25519**：App 里内置公钥；私钥只在负责人电脑上（`~/.config/taosheng/cards-signing.key`，不进仓库，权限 600）。
+- 签名用 **Ed25519**：App 里内置公钥；私钥只在负责人电脑上（`~/.config/soundsound/cards-signing.key`，不进仓库，权限 600）。
 - 写一个签名脚本 `scripts/sign_device_cards.py`：读私钥、签名、输出 `.sig`；私钥不存在时生成一对并打印公钥（**生成后提醒负责人备份私钥**）。交付说明里写清负责人要做的步骤。
 - App 验签失败、版本号比本地旧、JSON 解析失败：一律不用，保留旧的，记问题记录。
 

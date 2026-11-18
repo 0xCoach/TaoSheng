@@ -30,11 +30,11 @@ class ThingsSharedLiveTest {
     private data class Expected(val line: Int,val action: String,val location: String?=null)
     private data class Case(val name: String,val lines: List<String>,val expected: List<Expected>,val previous: String?=null)
     @Test fun liveExtractionAndTokenComparison()=runBlocking {
-        assumeTrue(System.getenv("TAOSHENG_LIVE_THINGS")=="1")
+        assumeTrue(System.getenv("soundsound_LIVE_THINGS")=="1")
         val key=File(System.getProperty("user.home"),".config/resound/deepseek.key").readText().trim()
         val context=RuntimeEnvironment.getApplication()
         val output=File("build/things-live").apply { mkdirs() }
-        val baseline = if (System.getenv("TAOSHENG_LIVE_REUSE_BASELINE") == "1") JSONObject(File(output,"initial-results.json").readText()).getJSONArray("cases") else null
+        val baseline = if (System.getenv("soundsound_LIVE_REUSE_BASELINE") == "1") JSONObject(File(output,"initial-results.json").readText()).getJSONArray("cases") else null
         val report=JSONArray()
         val failures=mutableListOf<String>()
         val cases=listOf(

@@ -6,5 +6,5 @@ DONE
 补充二范围：安卓380项、shared JVM223项全部执行通过，0失败0跳过；MinIO两项已补真实临时服务验证。
 共用边界、shared:check、安卓编译/发布构建、iOS双目标编译通过。
 本次无SQL/界面/流水线/契约签名/依赖改动。
-已核实并关闭仅属于本卡专用注册目录的空闲Gradle进程，删除并逐一检查 `build/`、`app/build/`、`shared/build/`、`devices/build/` 和 `/tmp/taosheng-190-gradle` 均不存在。没有使用 --stop；MinIO临时容器与本次新拉取镜像也已删除。
+已核实并关闭仅属于本卡专用注册目录的空闲Gradle进程，删除并逐一检查 `build/`、`app/build/`、`shared/build/`、`devices/build/` 和 `/tmp/soundsound-190-gradle` 均不存在。没有使用 --stop；MinIO临时容器与本次新拉取镜像也已删除。
 未推送、未操作手机；真实同机/换机Keystore与设备验收由负责人执行。

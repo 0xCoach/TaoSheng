@@ -20,11 +20,11 @@
 
 ## 产物
 
-- 文件：TaoSheng-v0.2.7-arm64.apk
+- 文件：soundsound-v0.2.7-arm64.apk
 - 大小：94913212 字节
 - SHA-256：`a6187852873df0ed92c96ee7dc7d96ba97e7c2d281c1cb2b6f45aec0d3b8c60e`
 - 证书 SHA-256：`7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`
-- 计划发布地址：https://github.com/0xCoach/TaoSheng/releases/tag/v0.2.7
+- 计划发布地址：https://github.com/0xCoach/soundsound/releases/tag/v0.2.7
 
 ## 安装与边界
 

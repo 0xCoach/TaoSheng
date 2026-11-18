@@ -2,7 +2,7 @@
 """只读 tune 分数选配置并冻结；--validate 才读取验证分数生成统计。"""
 import argparse,csv,json,pathlib,hashlib,datetime
 import numpy as np
-P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio');P.add_argument('--validate',action='store_true');a=P.parse_args();R=a.root;O=R/'results'
+P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio');P.add_argument('--validate',action='store_true');a=P.parse_args();R=a.root;O=R/'results'
 for model in ['zipformer','ced-small','ced-mini']:
  assert (O/(model+'.csv')).is_file() and (O/(model+'-provenance.json')).is_file(), 'complete all three models before tuning'
 M={r['id']:r for r in json.loads((R/'manifest.json').read_text())};F=json.loads((O/'features.json').read_text())

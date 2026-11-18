@@ -78,14 +78,14 @@
 > Task :app:kspDebugKotlin
 
 > Task :app:compileDebugKotlin FAILED
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:16:16 Conflicting import: imported name 'File' is ambiguous.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:18:16 Conflicting import: imported name 'File' is ambiguous.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:19:25 Unresolved reference 'checkpointOutputStream'.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:9 Unresolved reference 'FileOutputStream'.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:34 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:34 Cannot infer type for type parameter 'R'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:40 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:139:77 Unresolved reference 'fd'.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:16:16 Conflicting import: imported name 'File' is ambiguous.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:18:16 Conflicting import: imported name 'File' is ambiguous.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:19:25 Unresolved reference 'checkpointOutputStream'.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:9 Unresolved reference 'FileOutputStream'.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:34 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:34 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:124:40 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-175/app/src/main/java/app/resound/update/PreUpdateBackup.kt:139:77 Unresolved reference 'fd'.
 
 FAILURE: Build failed with an exception.
 

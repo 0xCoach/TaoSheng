@@ -1,8 +1,15 @@
 package app.resound.update
 
-/** 首页新版本弹窗：同一版本点了“稍后”24 小时内不再自动弹；换了更新的版本立刻再弹。 */
+/**
+ * 新版本提示的"稍后"节流：同一版本静默一个时间窗；出现更新版本立即再提示；
+ * 设备时钟回拨视为窗口已过（宁可多弹一次，不漏提醒）。
+ */
 object UpdatePopupRule {
-    const val SNOOZE_MILLIS = 24 * 60 * 60_000L
-    fun autoOpen(versionCode: Int, snoozedVersion: Int, snoozedAt: Long, now: Long): Boolean =
-        versionCode > snoozedVersion || now - snoozedAt >= SNOOZE_MILLIS || now < snoozedAt
+    private const val WINDOW_MS = 86_400_000L
+
+    fun autoOpen(versionCode: Int, snoozedVersion: Int, snoozedAt: Long, now: Long): Boolean {
+        if (versionCode > snoozedVersion) return true
+        val elapsed = now - snoozedAt
+        return elapsed < 0 || elapsed >= WINDOW_MS
+    }
 }

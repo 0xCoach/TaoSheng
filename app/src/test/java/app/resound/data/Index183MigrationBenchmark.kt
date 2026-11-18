@@ -25,7 +25,7 @@ import java.io.File
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class Index183MigrationBenchmark {
     @Test fun twoSizeRoomMigrations() = runBlocking(Dispatchers.IO) {
-        assumeTrue(System.getenv("TAOSHENG_183_MIGRATION_BENCHMARK") == "1")
+        assumeTrue(System.getenv("soundsound_183_MIGRATION_BENCHMARK") == "1")
         val context = RuntimeEnvironment.getApplication()
         val schema = JSONObject(File("../shared/schemas/app.resound.data.CaptureDatabase/33.json").readText()).getJSONObject("database")
         val seeds = JSONObject(File("src/test/resources/index183/synthetic-seeds.json").readText())

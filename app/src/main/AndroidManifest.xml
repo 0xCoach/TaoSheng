@@ -124,6 +124,8 @@
             </intent-filter>
         </receiver>
         <receiver android:name=".capture.CaptureResumeReceiver" android:exported="false" />
+        <activity android:name=".update.InstallRelayActivity" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <receiver android:name=".update.UpdateInstallReceiver" android:exported="false" />
         <receiver android:name=".update.UpdateReplacedReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>

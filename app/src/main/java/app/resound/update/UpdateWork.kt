@@ -1,6 +1,7 @@
 package app.resound.update
 
-import app.resound.diagnostics.FailureNotes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -65,23 +66,33 @@ class UpdateInstallReceiver : BroadcastReceiver() {
         val session = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
         if (session < 0 || AndroidUpdateStore(context).long("session") != session.toLong()) return
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
-        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            @Suppress("DEPRECATION") val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-            if (confirm != null) {
-                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                // 若系统限制后台弹窗，通知仍能让用户进入系统确认页。
-                UpdateNotifications.confirmation(context, confirm)
-                runCatching { context.startActivity(confirm) }.onFailure {
-                    FailureNotes.record("update/UpdateWork.kt:72", it)
-                }
-                UpdateDiagnostics.record(context, "install session=$session result=pending_user_action")
-                return
-            }
-        }
         val pending = goAsync()
         (context.applicationContext as ResoundApp).scope.launch {
             try {
-                UpdateNotifications.dismissConfirmation(context)
+                val engine = AppGraph.updater as UpdateEngine
+                if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                    if (!engine.pending(session)) return@launch
+                    @Suppress("DEPRECATION")
+                    val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+                    if (confirm == null) {
+                        engine.unresolved(session, "confirmation_missing")
+                        return@launch
+                    }
+                    withContext(Dispatchers.Main) {
+                        InstallRelay.pending.value = session to confirm
+                        val foreground = InstallRelay.foreground is InstallRelayActivity
+                        if (InstallConfirmationRule.action(InstallSignal.PENDING, foreground) == InstallAction.NOTIFY) {
+                            val posted = UpdateNotifications.confirmation(context, InstallRelay.intent(context, session, confirm))
+                            UpdateDiagnostics.record(context, "install session=$session confirmation_notification=$posted")
+                            if (!posted) engine.unresolved(session, "notification_blocked")
+                        }
+                    }
+                    return@launch
+                }
+                withContext(Dispatchers.Main) {
+                    if (InstallRelay.pending.value?.first == session) InstallRelay.pending.value = null
+                    UpdateNotifications.dismissConfirmation(context)
+                }
                 (AppGraph.updater as UpdateEngine).installResult(session,
                     success = status == PackageInstaller.STATUS_SUCCESS,
                     cancelled = status == PackageInstaller.STATUS_FAILURE_ABORTED,

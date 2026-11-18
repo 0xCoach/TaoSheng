@@ -144,6 +144,60 @@ class UpdateEngineTest {
         }
     }
 
+    @Test fun fallbackRechecksAssembledFileBeforeSharing() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest()
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("update.patch").readBytes())))
+                updater.checkNow()
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                updater.installResult(51, diagnosticStatus = 2)
+                assertEquals(release.versionCode, updater.systemInstallerAvailable.value?.versionCode)
+                val apk = File(temporary.root, "update/${release.apk.sha256}.apk")
+                assertTrue(updater.handToSystem { assertEquals(apk, it) })
+                apk.writeBytes(apk.readBytes().apply { this[0] = this[0].inc() })
+                assertFalse(updater.handToSystem { fail("校验失败的包不能交给系统") })
+                assertEquals(2, server.requestCount)
+            } finally { scope.cancel() }
+        }
+    }
+
+    @Test fun unresolvedReturnSurvivesRestartAndIgnoresOldCancellationAfterHandoff() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val store = MemoryUpdateStore()
+            try {
+                val updater = engine(server, scope, platform, store)
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow()
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                assertTrue(updater.pending(51))
+                updater.confirmationReturned(51)
+                val restarted = engine(server, scope, platform, store)
+                restarted.checkNow(startup = true)
+                assertTrue(restarted.handToSystem { assertTrue(it.isFile) })
+                restarted.installResult(51, cancelled = true)
+                assertEquals(release.versionCode, restarted.systemInstallerAvailable.value?.versionCode)
+                assertEquals(2, server.requestCount)
+            } finally { scope.cancel() }
+        }
+    }
+
     private fun engine(server: MockWebServer, scope: CoroutineScope, platform: FakePlatform, store: MemoryUpdateStore,
         space: () -> Long = { Long.MAX_VALUE / 2 }) = UpdateEngine(25, "0.2.10", fixture("old.bin"),
         File(temporary.root, "update"), scope, store, remote(server), platform, { println(it) }, space)

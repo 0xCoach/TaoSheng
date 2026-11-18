@@ -259,6 +259,9 @@ class DigestRunner(
                         MemoryItemEntity(
                             eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
                             dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId,
+                            // 录音时间取原话行；没有挂行的条目退到所属事件起点，最后才是整理时刻
+                            recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
+                                ?: i.eventIndex?.let { events[it].startAt } ?: at,
                             status = ItemStatus.Pending.name, createdAt = at,
                         )
                     }

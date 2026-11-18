@@ -43,6 +43,7 @@ data class MemoryItemEntity(
     val category: String,
     val kind: String?,
     val content: String,
+    /** 提及时间：话里说的期限（“明天交”→明天），来自提取。 */
     val dueText: String?,
     val dueAt: Long?,
     val who: String?,
@@ -64,6 +65,8 @@ data class MemoryItemEntity(
     val sourceText: String? = null,
     /** 到点强提醒：弹出、响铃、震动（用户在待办卡或编辑里打开） */
     @ColumnInfo(defaultValue = "0") val strongReminder: Boolean = false,
+    /** 录音时间：这句话被说出来的时刻（取原话行 startAt），与 dueAt（提及）、createdAt（处理）分开；手打为 null。 */
+    val recordedAt: Long? = null,
 )
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)
@@ -296,6 +299,9 @@ abstract class MemoryDao {
 
     @Query("SELECT id FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id LIMIT 1")
     abstract suspend fun firstEventLineId(eventId: Long): Long?
+
+    @Query("SELECT startAt FROM transcript_lines WHERE id = :lineId")
+    abstract suspend fun lineStartAt(lineId: Long): Long?
 
     @Query("SELECT * FROM transcript_lines WHERE segmentId = (SELECT segmentId FROM transcript_lines WHERE id = :lineId) ORDER BY startAt, id")
     abstract suspend fun segmentLinesOf(lineId: Long): List<TranscriptLineEntity>

@@ -150,6 +150,7 @@ class IdeaRepository(
             eventId = idea.sourceEventId, category = "待办", kind = null,
             content = "研究灵感：${idea.title.ifBlank { idea.content.take(60) }}",
             dueText = null, dueAt = null, who = null, lineId = idea.sourceLineId,
+            recordedAt = idea.sourceLineId?.let { memory.lineStartAt(it) },
             status = "Accepted", createdAt = now.now(), origin = "idea", sourceText = idea.sourceText ?: idea.content,
         )
         dao.transaction {

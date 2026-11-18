@@ -200,6 +200,10 @@ abstract class MemoryDao {
     @Query("UPDATE memory_items SET strongReminder = :on WHERE id = :id")
     abstract suspend fun setStrongReminder(id: Long, on: Boolean)
 
+    /** 撤销删除：把软删除的提取项恢复回来（配合 memory_revisions 的 Undo） */
+    @Query("UPDATE memory_items SET deleted = 0 WHERE id = :id AND deleted = 1")
+    abstract suspend fun restoreItem(id: Long): Int
+
     @Query("""UPDATE memory_items SET deleted = 1, doneHintLineId = NULL, doneHintAt = NULL
         WHERE id = :id""")
     abstract suspend fun deleteItem(id: Long)

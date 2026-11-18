@@ -89,13 +89,14 @@ class IdeaRepository(
     }
 
     /** 把整理出的“灵感”提取项同步进收件箱；已删除/已合并的灵感留墓碑不再复活。返回新增数。 */
-    suspend fun syncFromDigest(): Int = withContext(io) {
+    suspend fun syncFromDigest(onEvent: suspend (key: String) -> Unit = {}): Int = withContext(io) {
         var added = 0
         val items = memory.inspirationItems()
         for (item in items) {
             if (dao.anyBySourceItem(item.id) != null) continue
             runCatching { fromItem(item); added++ }.onFailure { FailureNotes.record("inbox/IdeaRepository.kt:sync", it) }
         }
+        if (added > 0) onEvent("idea_created")
         added
     }
 

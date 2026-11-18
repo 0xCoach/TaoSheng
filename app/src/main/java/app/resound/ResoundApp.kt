@@ -213,7 +213,7 @@ class ResoundApp : Application() {
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
-        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io, database.revisions())
         AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers
@@ -226,10 +226,37 @@ class ResoundApp : Application() {
             { digestSettings.failover.hasBackup(it) },
             digestSettings.failover.request("分析", database.memory(), app.resound.usage.UsagePurpose.Analysis, llm::chatJson))
         AppGraph.analysis = analysisRepository
-        scope.launch { analysisRepository.ensureSeeded(); AppGraph.ideas.syncFromDigest() }
+        scope.launch { analysisRepository.ensureSeeded(); AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) } }
         AppGraph.agentBridge = app.resound.agent.AgentBridge(this, database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
         AppGraph.agentBridge.startDriver()
         app.resound.agent.AgentDispatchWork.schedule(this)
+        // M2+：第二大脑扩展——决策/跟进/收集箱/规则/纠错/问答/MCP
+        val assistantNotifier = app.resound.push.LocalNotifier(this)
+        AppGraph.memoryCorrector = app.resound.revise.MemoryCorrector(database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now)
+        AppGraph.decisionRepo = app.resound.decision.DecisionRepository(database.decisions(), database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now)
+        AppGraph.followupEngine = app.resound.followup.FollowupEngine(database.followups(), database.ideas(), database.memory(),
+            AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
+            { t, b, l -> assistantNotifier.send(t, b, l) })
+        AppGraph.captureInbox = app.resound.collect.CaptureInbox(this, database.captureItems(), AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
+            { AppGraph.workflowEngine.emit(it) })
+        AppGraph.workflowEngine = app.resound.rules.WorkflowEngine(database.workflowRules(), database.memory(), AppGraph.platform.dispatchers.io, AppGraph.platform.now,
+            { t, b, l -> assistantNotifier.send(t, b, l) }, { AppGraph.analysis }, { AppGraph.agentBridge })
+        AppGraph.groundedQA = app.resound.qa.GroundedQA(app.resound.search.RecordSearch(database), database.decisions(), database.ideas(),
+            AppGraph.platform.dispatchers.io, AppGraph.platform.now,
+            { digestSettings.skillCredentials(null) }, digestSettings::canUseWithoutKey, { digestSettings.failover.hasBackup(it) },
+            digestSettings.failover.request("记忆问答", database.memory(), app.resound.usage.UsagePurpose.Ask, llm::chatJson))
+        val mcpSecrets = app.resound.digest.SecretStore(this, "mcp-secrets", "resound-mcp-aes-v1")
+        AppGraph.mcpServer = app.resound.mcp.McpServer(database, app.resound.search.RecordSearch(database),
+            { id -> runCatching { mcpSecrets.read("mcp_$id") }.getOrNull() },
+            { AppGraph.projects.active().first() })
+        if (getSharedPreferences("assistant", MODE_PRIVATE).getBoolean("mcp_enabled", false)) AppGraph.mcpServer.start()
+        app.resound.followup.FollowupWork.schedule(this)
+        app.resound.rules.WorkflowWork.schedule(this)
+        scope.launch {
+            AppGraph.decisionRepo.syncFromDigest()
+            AppGraph.followupEngine.scan()
+            AppGraph.followupEngine.events.collect { AppGraph.workflowEngine.emit(it) }
+        }
         AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), digestSettings.providers, { b, line ->
             app.resound.push.LocalNotifier(this, app.resound.push.LocalNotifier.BALANCE_CHANNEL).send(
                 if (b.available) "整理模型余额不足 ¥%.2f".format(b.total) else "整理模型余额已用完",

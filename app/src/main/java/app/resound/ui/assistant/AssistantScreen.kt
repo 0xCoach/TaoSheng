@@ -36,8 +36,8 @@ import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsCard
 import app.resound.ui.verify.springClick
 
-/** 助手页的子页；none 为枢纽列表 */
-enum class AssistantPage { Hub, Ideas, Projects, Analysis, Agent }
+/** 助手页的子页；Hub 为枢纽列表 */
+enum class AssistantPage { Hub, Ideas, Projects, Analysis, Agent, Decisions, Followups, Collect, Rules, Qa, Mcp }
 
 /**
  * 助手：灵感收件箱、项目长期记忆、AI 智能分析、Agent 任务四个模块的入口。
@@ -52,6 +52,12 @@ fun AssistantScreen(bottomPadding: androidx.compose.ui.unit.Dp) {
         AssistantPage.Projects -> app.resound.ui.projects.ProjectScreen(bottomPadding) { page = 0 }
         AssistantPage.Analysis -> app.resound.ui.analysis.AnalysisScreen(bottomPadding) { page = 0 }
         AssistantPage.Agent -> app.resound.ui.agent.AgentScreen(bottomPadding) { page = 0 }
+        AssistantPage.Decisions -> app.resound.ui.assistant.DecisionsScreen(bottomPadding) { page = 0 }
+        AssistantPage.Followups -> app.resound.ui.assistant.FollowupsScreen(bottomPadding) { page = 0 }
+        AssistantPage.Collect -> app.resound.ui.assistant.CollectScreen(bottomPadding) { page = 0 }
+        AssistantPage.Rules -> app.resound.ui.assistant.RulesScreen(bottomPadding) { page = 0 }
+        AssistantPage.Qa -> app.resound.ui.assistant.QaScreen(bottomPadding) { page = 0 }
+        AssistantPage.Mcp -> app.resound.ui.assistant.McpScreen(bottomPadding) { page = 0 }
     }
 }
 
@@ -81,6 +87,18 @@ private fun Hub(bottomPadding: androidx.compose.ui.unit.Dp, open: (AssistantPage
         EntryCard("分析", if (runs.isEmpty()) "还没有分析" else "最近：${runs.first().let { app.resound.analysis.AnalysisType.of(it.type).label }}",
             "对一段录音、一条灵感、一个项目或一整天发起深度分析，结果可追溯来源") { open(AssistantPage.Analysis) }
         EntryCard("任务", "${tasks.size} 个进行中", "把灵感派给外部 AI 执行：深度研究、市场调研、写需求、生成草稿") { open(AssistantPage.Agent) }
+
+        if (AppGraph.isAssistantReady) {
+            val openFollowups by AppGraph.followupEngine.observeOpenCount().collectAsStateWithLifecycle(initialValue = 0)
+            val activeDecisions by AppGraph.decisionRepo.observeActiveCount().collectAsStateWithLifecycle(initialValue = 0)
+            val inboxCount by AppGraph.captureInbox.observeInboxCount().collectAsStateWithLifecycle(initialValue = 0)
+            EntryCard("问答", "带出处", "跨项目问你的记录；每条结论标来源编号，没证据明说，不编造回忆") { open(AssistantPage.Qa) }
+            EntryCard("决策", "$activeDecisions 条生效", "决定的版本历史：生效、被否决、被替代都留痕，附原话证据和否决原因") { open(AssistantPage.Decisions) }
+            EntryCard("跟进", "$openFollowups 条待跟进", "主动发现说过要做但没下文的事；AI 建议单独标注，不当作你的承诺") { open(AssistantPage.Followups) }
+            EntryCard("收集箱", "$inboxCount 条待处理", "分享进来的网页、文字、截图统一入库；图片本地识字，可挂灵感、项目或原话") { open(AssistantPage.Collect) }
+            EntryCard("规则", "条件→动作", "到点或出事时自动提醒、建待办、跑分析；对外发任务一律先经你确认") { open(AssistantPage.Rules) }
+            EntryCard("MCP", "本机只读", "让电脑上的 AI 查询你的记忆：仅本机、令牌认证、可按项目限权") { open(AssistantPage.Mcp) }
+        }
 
         if (!AppGraph.isLlmProvidersReady || AppGraph.llmProviders.saved.value.isEmpty()) {
             RsCard(padding = PaddingValues(16.dp)) {

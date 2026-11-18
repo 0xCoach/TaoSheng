@@ -175,6 +175,18 @@ object AppGraph {
     lateinit var agentBridge: app.resound.agent.AgentBridge
     val isAgentReady: Boolean get() = ::agentBridge.isInitialized
 
+    // M2+：第二大脑扩展
+    lateinit var decisionRepo: app.resound.decision.DecisionRepository
+    lateinit var followupEngine: app.resound.followup.FollowupEngine
+    lateinit var captureInbox: app.resound.collect.CaptureInbox
+    lateinit var workflowEngine: app.resound.rules.WorkflowEngine
+    lateinit var memoryCorrector: app.resound.revise.MemoryCorrector
+    lateinit var groundedQA: app.resound.qa.GroundedQA
+    lateinit var mcpServer: app.resound.mcp.McpServer
+    val isAssistantReady: Boolean
+        get() = ::decisionRepo.isInitialized && ::followupEngine.isInitialized && ::captureInbox.isInitialized &&
+            ::workflowEngine.isInitialized && ::memoryCorrector.isInitialized && ::groundedQA.isInitialized && ::mcpServer.isInitialized
+
     lateinit var voiceprint: app.resound.voiceprint.VoiceprintRepository
     val isVoiceprintReady: Boolean get() = ::voiceprint.isInitialized
 

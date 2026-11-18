@@ -74,7 +74,17 @@ class MainActivity : ComponentActivity() {
         intent?.getStringExtra(app.resound.transcribe.EXTRA_EXPORT_JOB)?.let { app.resound.ui.transcript.ExportUi.openJob = it }
         // 点“重做完成”通知：打开结果面板（可撤销）
         intent?.getStringExtra(app.resound.redo.EXTRA_REDO_JOB)?.let { app.resound.ui.redo.RedoUi.openJob = it }
-        lifecycleScope.launch { receiveSharedAudio(intent) }
+        // 分享先路由：文字/链接/图片进统一收集箱，音频走原有导入通道；收集箱先判，避免录音导入抢先把 action 置空
+        val toInbox = AppGraph.isAssistantReady && AppGraph.captureInbox.accepts(intent)
+        lifecycleScope.launch {
+            if (toInbox) {
+                if (AppGraph.captureInbox.receive(requireNotNull(intent), referrer?.host ?: callingActivity?.packageName) > 0) {
+                    tabRequest = 4 to System.nanoTime() // 第 5 页“助手”
+                }
+            } else {
+                receiveSharedAudio(intent)
+            }
+        }
         // 卡 147/148：长按快捷开关。专题开关 → 进行中打开那场专题，否则打开“开始专题”（上次的类型）；聆听开关 → 录音与后台页
         if (intent?.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") {
             @Suppress("DEPRECATION")

@@ -62,6 +62,11 @@ abstract class IdeaDao {
     @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND status = :status ORDER BY updatedAt DESC, id DESC")
     abstract fun observeByStatus(status: String): Flow<List<IdeaRow>>
 
+    @Query("""SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL
+        ORDER BY CASE status WHEN 'Research' THEN 0 WHEN 'Studying' THEN 1 WHEN 'Verified' THEN 2 WHEN 'Done' THEN 3 ELSE 4 END,
+        updatedAt DESC, id DESC""")
+    abstract suspend fun activeList(): List<IdeaRow>
+
     @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND projectId = :projectId ORDER BY updatedAt DESC, id DESC")
     abstract fun observeForProject(projectId: Long): Flow<List<IdeaRow>>
 

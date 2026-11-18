@@ -82,7 +82,7 @@ fun IdeaScreen(bottomPadding: Dp, onBack: () -> Unit) {
             Pill(if (syncing) "同步中…" else "同步提取", filled = false) {
                 if (!syncing) scope.launch {
                     syncing = true
-                    val n = repo.syncFromDigest()
+                    val n = repo.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
                     syncing = false
                     Toast.makeText(context, if (n > 0) "新收入 $n 条灵感" else "没有新的灵感提取项", Toast.LENGTH_SHORT).show()
                 }

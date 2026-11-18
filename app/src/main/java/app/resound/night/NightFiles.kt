@@ -31,6 +31,8 @@ class NightFiles(private val context: Context) {
         fun scores(scores: Map<String,Float>): ByteArray { val bytes=Json.encodeToString(scores.toSortedMap().values.toList()).encodeToByteArray();val out=java.io.ByteArrayOutputStream();DeflaterOutputStream(out).use { it.write(bytes) };return out.toByteArray() }
         fun scores(bytes: ByteArray): List<Float> = if(bytes.isEmpty())emptyList() else Json.decodeFromString(InflaterInputStream(bytes.inputStream()).use { it.readBytes().decodeToString() })
         fun envelope(points: ByteArray): ByteArray { val out=java.io.ByteArrayOutputStream();DeflaterOutputStream(out).use { it.write(points) };return out.toByteArray() }
-        fun unpack(bytes: ByteArray)=InflaterInputStream(bytes.inputStream()).use { it.readBytes() }
+        // 0 不是合法 zlib 头。进行中以该字节标记原始三元组，中断后同样可读。
+        fun unpack(bytes: ByteArray) = if (bytes.firstOrNull() == 0.toByte()) bytes.copyOfRange(1,bytes.size)
+            else InflaterInputStream(bytes.inputStream()).use { it.readBytes() }
     }
 }

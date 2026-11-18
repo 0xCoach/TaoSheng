@@ -52,6 +52,8 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Update suspend fun updateClip(row: NightClipRow)
     @Upsert suspend fun envelope(row: NightEnvelopeRow)
     @Query("SELECT * FROM night_envelope WHERE nightId = :id") suspend fun envelope(id: Long): NightEnvelopeRow?
+    @Query("UPDATE night_envelope SET points = CAST(points || :tail AS BLOB) WHERE nightId = :id")
+    suspend fun appendEnvelope(id: Long, tail: ByteArray)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun feedback(row: NightFeedbackRow)
     @Query("SELECT * FROM night_feedback ORDER BY at,id") suspend fun feedback(): List<NightFeedbackRow>
     @Query("SELECT * FROM night_tags ORDER BY preset DESC,id") fun tags(): Flow<List<NightTagRow>>

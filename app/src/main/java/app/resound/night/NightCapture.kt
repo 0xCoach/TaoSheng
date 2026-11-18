@@ -50,10 +50,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     /** 夜里时间段内已关屏、或这一夜还在进行时才处理音频；白天不做任何窗口计算。由 pulse 每 10 秒更新。 */
     @Volatile private var armed=false
     private var quietAt: Long?=null
-    private val envelope=mutableListOf<Byte>()
+    private var envelope: NightEnvelopeWriter? = null
     private val levels=mutableListOf<Int>()
-    private var envelopeStart=0L
-    private var envelopeAt=0L
     private var lastModeAt=0L
     @Volatile private var mode=NightMode.Off
     @Volatile private var lowPower=false
@@ -161,7 +159,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                 id=existing?.id ?: owner.store.create(session!!,date)
                 processor=NightSoundProcessor(owner,id!!) { w,scores ->
                     if(w.features.aboveBackground>=15 && (scores["Snoring"] ?: 0f)<NightTuning.SNORE && !AppGraph.playback.state.value.playing)session=session?.let {it.copy(signals=it.signals+NightSignal(w.start,w.start+2_000,"loud"))}
-                };envelope.clear();envelopeStart=at;envelopeAt=at
+                }
+                envelope=NightEnvelopeWriter(owner.store.db,id!!,at)
                 owner.model.beginNight();modelHeld=true
             }
             NightTransition.Confirm->{session=session!!.copy(confirmedAt=at);if(s.lowBatteryReminder && !input.charging && (input.battery ?: 100)<30)NightNotifications.show(context,"night-battery-${id}","电量 ${input.battery}%，建议充电，夜里记录更完整")}
@@ -206,8 +205,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             }
             if(levels.size>=10) {
                 val point=levels.take(10);repeat(10) { levels.removeAt(0) }
-                envelope+=point.max().toByte();envelope+=NightRules.median(point.map(Int::toLong)).toByte();envelope+=w.background.toByte();envelopeAt+=5_000
-                owner.store.dao.envelope(NightEnvelopeRow(id!!,envelopeStart,NightFiles.envelope(envelope.toByteArray())))
+                envelope?.append(point.max().toByte(),NightRules.median(point.map(Int::toLong)).toByte(),w.background.toByte())
                 signals+=NightSignal(w.start,w.start+2_000,"background",w.background.toDouble())
             }
         }
@@ -231,9 +229,10 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private suspend fun finish(at: Long) {
         inference.flush()
         saveCandidate(candidates.finish());processor?.finish()
+        envelope?.finish()
         id?.let {owner.store.finishSession(it,session!!,at)}
         reset();NightWork.run(context)
     }
-    private fun reset() {writes=NightSessionWrites();inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
+    private fun reset() {envelope=null;writes=NightSessionWrites();inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
     override fun close() {sensor.unregisterListener(listener);context.unregisterReceiver(receiver);frames.close();scope.cancel();if(modelHeld) {owner.model.endNight();modelHeld=false}}
 }

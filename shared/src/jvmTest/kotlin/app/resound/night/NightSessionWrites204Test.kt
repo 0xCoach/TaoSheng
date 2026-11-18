@@ -13,6 +13,9 @@ class NightSessionWrites204Test {
             writes.checkpoint(state, at) { snapshots += at }
         }
         assertEquals(listOf(0L,60_000L,90_000L,150_000L),snapshots)
-        assertEquals(20_000L,170_000 - snapshots.last())
+        val saved = NightSession(0,0,90_000,snapshots.last())
+        val resumed = saved.interruptedUntil(170_000).interruptedUntil(190_000)
+        assertEquals(listOf(NightSignal(150_000,190_000,"gap",text="没有记录")),resumed.signals)
+        assertEquals(190_000L,resumed.lastAt)
     }
 }

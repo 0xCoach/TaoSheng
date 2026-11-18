@@ -98,11 +98,22 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             // 上次进程中断：保留已落盘数据，补未知缺口，交给整理；不伪造连续录音。
             for(r in owner.store.dao.all().filter { it.state in setOf("Active","Provisional") }) {
                 if(r.state=="Provisional")owner.store.deleteNight(r.id)
-                else owner.store.persistSession(r.id,owner.store.session(r).let { it.copy(signals=it.signals+NightSignal(it.lastAt,System.currentTimeMillis(),"gap",text="没有记录")) },System.currentTimeMillis(),NightState.Interrupted)
+                else {
+                    val at = System.currentTimeMillis()
+                    owner.store.persistSession(r.id,owner.store.session(r).interruptedUntil(at),at,NightState.Interrupted)
+                }
+            }
+            // 恢复完成后才允许首个 pulse 重开这一夜，避免旧检查点覆盖新会话。
+            launch {
+                while (isActive) {
+                    try { gate.withLock { pulse(System.currentTimeMillis()) } }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { app.resound.diagnostics.FailureNotes.record("night/signals",e) }
+                    delay(10_000)
+                }
             }
             for(w in frames.windows)try { gate.withLock { consume(w) } } catch(e: CancellationException) { throw e } catch(e: Exception) { dropped++;app.resound.diagnostics.FailureNotes.record("night/window",e) }
         }
-        scope.launch {while(isActive) {try { gate.withLock { pulse(System.currentTimeMillis()) } } catch(e: CancellationException) { throw e } catch(e: Exception) { app.resound.diagnostics.FailureNotes.record("night/signals",e) };delay(10_000)}}
     }
     fun captureState(reason: String?) {gapReason=reason}
     fun accept(pcm: ShortArray,speech: Boolean,at: Long) {
@@ -155,7 +166,10 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                 if(doneDate==date.toString())return@enter
                 val existing=owner.store.dao.onDate(date.toString())
                 if(!NightRules.canReopen(existing?.state?.let { runCatching { NightState.valueOf(it) }.getOrNull() })) {doneDate=date.toString();return@enter}
-                session=existing?.let(owner.store::session) ?: NightSession(maxOf(screenOff ?: at,floor),at,lastAt=at,startBattery=input.battery)
+                session=existing?.let { row ->
+                    val saved=owner.store.session(row)
+                    if(row.state==NightState.Interrupted.name) saved.interruptedUntil(at) else saved
+                } ?: NightSession(maxOf(screenOff ?: at,floor),at,lastAt=at,startBattery=input.battery)
                 id=existing?.id ?: owner.store.create(session!!,date)
                 processor=NightSoundProcessor(owner,id!!) { w,scores ->
                     if(w.features.aboveBackground>=15 && (scores["Snoring"] ?: 0f)<NightTuning.SNORE && !AppGraph.playback.state.value.playing)session=session?.let {it.copy(signals=it.signals+NightSignal(w.start,w.start+2_000,"loud"))}

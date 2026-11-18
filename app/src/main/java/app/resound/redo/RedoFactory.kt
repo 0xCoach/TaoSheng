@@ -98,7 +98,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             val start = date.atStartOfDay(SKILL_ZONE(date)).toInstant().toEpochMilli()
             val end = date.plusDays(1).atStartOfDay(SKILL_ZONE(date)).toInstant().toEpochMilli()
             val raw = lines.filter { it.startAt < end && it.endAt > start }
-            val gateLines = SkillInputs.gateLines(raw.map { it.snapshot() }, skill.scope.speakers)
+            val gateLines = SkillInputs.gateLines(raw.map { it.snapshot() }, skill.scope.speakers, events.map { it.first.snapshot() })
             val gateFailure = SkillGateRules.failure(skill.gate, gateLines)
             if (gateFailure != null) {
                 UpdateDiagnostics.record(context, "重做技能 ${skill.id}：$gateFailure")
@@ -118,7 +118,11 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
                 .id), date), SkillInputs.user(input, hotwords()))
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
             val rows = SkillOutput.parse(reply.content, skill, date, input, System.currentTimeMillis(), false).rows
-            val accepted = rows.filter { SkillGateRules.cardFailure(skill.gate, gateLines, it.at, it.endAt) == null }
+            val timed = rows.map { row ->
+                if (skill.gate == null) row else app.resound.skills.core.SkillCardTiming.complete(
+                    row.snapshot(), raw.map { it.snapshot() }, events.map { it.first.snapshot() }).android()
+            }
+            val accepted = timed.filter { SkillGateRules.cardFailure(skill.gate, gateLines, it.at, it.endAt) == null }
             if (accepted.size < rows.size) UpdateDiagnostics.record(context,
                 "重做技能 ${skill.id}：门槛复核丢弃 ${rows.size - accepted.size} 张")
             accepted.take(skill.maxCardsPerDay)

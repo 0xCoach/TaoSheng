@@ -1,6 +1,7 @@
 package app.resound.skills
 
 import app.resound.platform.NowMillis
+import app.resound.digest.snapshot
 import app.resound.skills.core.SkillDrafting
 import app.resound.skills.core.SkillExecution
 
@@ -96,6 +97,36 @@ class SkillStoreRepository(
         beforeWeeklyReview = beforeWeeklyReview,
         running = { id,active -> running.value = if(active) running.value + id else running.value - id },
     )
+    /** scene 必须仍为会议；事件时间为 Unix 毫秒，原话按开始时间落在闭区间内选入。 */
+    suspend fun generateMeetingEvent(eventId: Long): SkillRunResult {
+        val event = dao.meetingEvent(eventId)?.snapshot()?.takeIf { it.scene == "会议" }
+            ?: return SkillRunResult.Failed("会议事件不存在")
+        return execution.run("meeting", CoreSchedule.date(event.startAt), CoreSchedule.EVENT_MANUAL,
+            sourceOverride = meetingSource(event), skipGate = true).result
+    }
+
+    /** 返回此事件最近一次 Nothing 的完整说明；旧版没有事件记录时返回 null。 */
+    suspend fun meetingNothingReason(eventId: Long): String? {
+        if (dao.meetingEvent(eventId)?.scene != "会议") return null
+        return dao.runsOf("meeting:event:$eventId").lastOrNull { it.kind == "event_nothing" }?.result
+    }
+
+    private suspend fun meetingSource(event: app.resound.digest.core.MemoryEventData): SkillSource =
+        SkillSource(listOf(event), dao.lines(event.startAt, event.endAt + 1).map { it.snapshot() })
+
+    /** 同一归属日合为一次，保留普通门槛、技能开关、删除保护及每日卡片上限。 */
+    suspend fun backfillMeetings207(date: LocalDate) {
+        val existing = dao.dayRows("meeting", date.toEpochDay())
+        val events = dao.events(date.startMillis(), date.endMillis(), -1, now()).map { it.snapshot() }
+            .filter { event -> event.scene == "会议" && existing.none { row ->
+                row.at <= event.endAt && (row.endAt ?: row.at) >= event.startAt
+            } }
+        if (events.isEmpty()) return
+        val lines = events.flatMap { meetingSource(it).lines }.distinctBy { it.id }
+        execution.run("meeting", date, CoreSchedule.AFTER, skipGap = true,
+            sourceOverride = SkillSource(events, lines))
+    }
+
     suspend fun runDue() = execution.runDue()
     suspend fun afterDigest(manual: Boolean = false) = execution.afterDigest(manual)
     private suspend fun run(id: String,date: LocalDate,kind: String,promptOverride: String? = null,background: Boolean = false,canRetry: Boolean = true) =

@@ -40,14 +40,22 @@ internal class BackupScheduler(private val context: Context) {
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
                 .build())
     }
+    /**
+     * 手动“立即备份”：正在跑就不打断；只是排着等重试（失败后会退避几分钟到几小时）就取消等待、马上开始。
+     * 原先一律 KEEP，排着重试时再点完全没反应。
+     */
+    private fun policy(name: String): ExistingWorkPolicy {
+        val running = runCatching { manager.getWorkInfosForUniqueWork(name).get(2, TimeUnit.SECONDS).any { it.state == WorkInfo.State.RUNNING } }.getOrDefault(true)
+        return if (running) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.REPLACE
+    }
     fun runNow() {
-        manager.enqueueUniqueWork(IMMEDIATE, ExistingWorkPolicy.KEEP,
+        manager.enqueueUniqueWork(IMMEDIATE, policy(IMMEDIATE),
             OneTimeWorkRequestBuilder<BackupWork>().setConstraints(Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES).build())
     }
     fun runLocalNow() {
-        manager.enqueueUniqueWork(LOCAL_IMMEDIATE, ExistingWorkPolicy.KEEP,
+        manager.enqueueUniqueWork(LOCAL_IMMEDIATE, policy(LOCAL_IMMEDIATE),
             OneTimeWorkRequestBuilder<BackupWork>().setInputData(workDataOf("local" to true)).build())
     }
     fun cancelCloud() { manager.cancelUniqueWork(PERIODIC); manager.cancelUniqueWork(IMMEDIATE) }

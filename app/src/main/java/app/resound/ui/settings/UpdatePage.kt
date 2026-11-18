@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -107,6 +111,35 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
                         style = RsType.caption, color = c.textTertiary)
                 }
                 app.resound.ui.skills.Toggle(auto) { updater.setAutoCheck(it) }
+            }
+        }
+
+        val prefs = remember { context.getSharedPreferences("app-update", android.content.Context.MODE_PRIVATE) }
+        var url by remember { mutableStateOf(prefs.getString("manifestUrl", "").orEmpty()) }
+        var savedUrl by remember { mutableStateOf(prefs.getString("manifestUrl", "").orEmpty()) }
+        val saved = savedUrl == url.trim()
+        RsCard {
+            Text("更新地址", style = RsType.body, color = c.text)
+            Spacer(Modifier.height(2.dp))
+            Text("指向 update.json 的完整地址（https://…/update.json），安装包与它放同一目录；留空则不检查更新",
+                style = RsType.caption, color = c.textTertiary)
+            Spacer(Modifier.height(8.dp))
+            BasicTextField(url, { url = it }, singleLine = true, textStyle = RsType.body.copy(color = c.text),
+                cursorBrush = SolidColor(c.accent), modifier = Modifier.fillMaxWidth(),
+                decorationBox = { inner ->
+                    Row(Modifier.clip(RoundedCornerShape(12.dp)).background(if (c.isDark) c.card else Color(0xFFEFEBF8))
+                        .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
+                            if (url.isEmpty()) Text("https://example.com/release/update.json", style = RsType.body, color = c.textTertiary)
+                            inner()
+                        }
+                    }
+                })
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Pill(if (saved) "已保存" else "保存", filled = false) {
+                    if (prefs.edit().putString("manifestUrl", url.trim()).commit()) savedUrl = url.trim()
+                }
             }
         }
     }

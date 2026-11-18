@@ -13,18 +13,19 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 internal class UpdateRemote(
-    private val sources: List<UpdateSource> = UpdateSources.official,
+    private val sources: () -> List<UpdateSource> = { emptyList() },
     private val log: (String) -> Unit = {},
     private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS).build(),
-    private val previewSources: List<UpdateSource> = UpdateSources.preview,
+    private val previewSources: () -> List<UpdateSource> = { emptyList() },
 ) {
     private val checks = client.newBuilder().callTimeout(15, TimeUnit.SECONDS).build()
+    internal fun hasSources() = sources().isNotEmpty()
     fun check(previewEnabled: Boolean = false): UpdateManifest {
-        val official = runCatching { checkChannel(sources, false) }.onFailure {
+        val official = runCatching { checkChannel(sources(), false) }.onFailure {
             FailureNotes.record("update/UpdateRemote.kt:22", it)
         }.getOrNull()
-        val preview = if (previewEnabled) runCatching { checkChannel(previewSources, true) }.onFailure {
+        val preview = if (previewEnabled) runCatching { checkChannel(previewSources(), true) }.onFailure {
             FailureNotes.record("update/UpdateRemote.kt:23", it)
         }.getOrNull() else null
         return listOfNotNull(official, preview).maxByOrNull { it.versionCode }
@@ -95,7 +96,7 @@ internal class UpdateRemote(
         }
 
     fun download(asset: UpdateAsset, version: String, target: File, incremental: Boolean, previewSource: Boolean = "-preview." in version, progress: (Long) -> Unit) {
-        val downloadSources = if (previewSource) previewSources else sources
+        val downloadSources = if (previewSource) previewSources() else sources()
         if (target.length() > asset.size) kotlin.check(target.delete())
         repeat(2) { integrityAttempt ->
             try {

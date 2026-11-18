@@ -145,8 +145,12 @@ class UpdateEngineTest {
     }
 
     private fun engine(server: MockWebServer, scope: CoroutineScope, platform: FakePlatform, store: MemoryUpdateStore,
-        space: () -> Long = { Long.MAX_VALUE / 2 }) = UpdateEngine(25, "0.2.10", fixture("old.bin"),
-        File(temporary.root, "update"), scope, store, remote(server), platform, { println(it) }, space)
+        space: () -> Long = { Long.MAX_VALUE / 2 }): UpdateEngine {
+        // 生产默认关自动检查；测试默认打开，让 checkNow() 走真实检查路径。
+        if (store.long("autoOn") == 0L) store.save("autoOn" to 1L)
+        return UpdateEngine(25, "0.2.10", fixture("old.bin"),
+            File(temporary.root, "update"), scope, store, remote(server), platform, { println(it) }, space)
+    }
 }
 
 internal suspend fun UpdateEngine.awaitState(predicate: (UpdateState) -> Boolean): UpdateState =

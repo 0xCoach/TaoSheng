@@ -87,8 +87,12 @@ internal class UpdateEngine(
             restore()
             discardDisabledPreview()
             if (mutable.value is UpdateState.Installing) return@withLock
-            // 个人分支默认已关自动检查（见 auto 初始化）；手动检查仍可走上游源，
-            // 平台层校验签名不一致的安装包会直接判"不适用"并删除
+            // 自建分支：没配置更新地址就不查任何源；手动点检查给一句实话
+            if (!remote.hasSources()) {
+                if (manual) mutable.value = UpdateState.Failed("还没有配置更新地址", null)
+                return@withLock
+            }
+            // 个人分支默认已关自动检查（见 auto 初始化）；平台层校验签名不一致的安装包会直接判"不适用"并删除
             // 关了自动检查：后台和启动时都不查，只认手动
             if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")
@@ -132,6 +136,8 @@ internal class UpdateEngine(
     private fun restore() {
         if (restored) return
         kotlin.check(directory.isDirectory || directory.mkdirs())
+        // 没有配置更新源时清掉历史缓存的 manifest（上游版本残留），避免恢复出陈旧的“有新版本”
+        if (!remote.hasSources()) store.save("manifest" to null, "ready" to null, "manifestPreview" to null)
         val seen = store.long("installedVersion")
         val saved = store.string("manifest")?.let { runCatching { UpdateManifest.parse(it).let { release -> release.copy(previewSource = store.long(
             "manifestPreview") == 1L || release.preview) } }.onFailure {

@@ -63,7 +63,7 @@ class UpdateRemoteTest {
             first.enqueue(MockResponse().setBody("{\"versionCode\":26}"))
             second.enqueue(MockResponse().setBody(fixtureManifest().json()))
             val logs = mutableListOf<String>()
-            val remote = UpdateRemote(listOf(source(first, "modelscope"), source(second, "github")), logs::add)
+            val remote = UpdateRemote({ listOf(source(first, "modelscope"), source(second, "github")) }, logs::add)
             val manifest = remote.check()
             assertEquals(26, manifest.versionCode)
             assertTrue(logs[0].contains("source=modelscope"))
@@ -111,5 +111,5 @@ class UpdateRemoteTest {
 internal fun source(server: MockWebServer, name: String = "test") = UpdateSource(name, server.url("/update.json").toString()) {
     version, file -> server.url("/v$version/$file").toString()
 }
-internal fun remote(server: MockWebServer) = UpdateRemote(listOf(source(server)), log = { println(it) }, client = OkHttpClient.Builder()
-    .readTimeout(3, TimeUnit.SECONDS).build(), previewSources = emptyList())
+internal fun remote(server: MockWebServer) = UpdateRemote({ listOf(source(server)) }, log = { println(it) }, client = OkHttpClient.Builder()
+    .readTimeout(3, TimeUnit.SECONDS).build(), previewSources = { emptyList() })

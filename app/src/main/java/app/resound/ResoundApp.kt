@@ -238,7 +238,8 @@ class ResoundApp : Application() {
             AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
             { t, b, l -> assistantNotifier.send(t, b, l) })
         AppGraph.captureInbox = app.resound.collect.CaptureInbox(this, database.captureItems(), AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
-            { AppGraph.workflowEngine.emit(it) })
+            { AppGraph.workflowEngine.emit(it) }, dbPath = { database.filePath })
+        scope.launch { AppGraph.captureInbox.reconcile() }
         AppGraph.workflowEngine = app.resound.rules.WorkflowEngine(database.workflowRules(), database.memory(), AppGraph.platform.dispatchers.io, AppGraph.platform.now,
             { t, b, l -> assistantNotifier.send(t, b, l) }, { AppGraph.analysis }, { AppGraph.agentBridge })
         AppGraph.groundedQA = app.resound.qa.GroundedQA(app.resound.search.RecordSearch(database), database.decisions(), database.ideas(),

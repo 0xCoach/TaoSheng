@@ -92,4 +92,25 @@ class CaptureInboxSurviveTest {
         assertEquals(1, rowCount())
         assertTrue(File(ctx.filesDir, "inbox").listFiles()!!.single().name.startsWith("cap_"))
     }
+
+    /** spool 对账：insert 被外层事务吞掉（独立连接读不到）留下的票，对账时必须重插补行。 */
+    @Test fun spoolReconcileReinserts() = runTest {
+        val d = StandardTestDispatcher(testScheduler)
+        val inbox = CaptureInbox(ctx, db.captureItems(), d,
+            CoroutineScope(SupervisorJob() + d), NowMillis { now })
+        val spool = File(ctx.filesDir, "capture-spool").apply { mkdirs() }
+        File(spool, "lost.json").writeText(org.json.JSONObject()
+            .put("kind", "Url").put("body", "https://lost.example/a").put("title", "lost.example")
+            .put("extracted", "Saved").put("createdAt", now).put("updatedAt", now).toString())
+        inbox.reconcile()
+        assertEquals(1, rowCount())
+        assertEquals(0, spool.listFiles()!!.size) // 票结清
+        // 已有行时再对账：识别为已入库，不产生重复
+        File(spool, "lost2.json").writeText(org.json.JSONObject()
+            .put("kind", "Url").put("body", "https://lost.example/a").put("title", "lost.example")
+            .put("extracted", "Saved").put("createdAt", now).put("updatedAt", now).toString())
+        inbox.reconcile()
+        assertEquals(1, rowCount())
+        assertEquals(0, spool.listFiles()!!.size)
+    }
 }

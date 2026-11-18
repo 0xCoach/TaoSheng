@@ -12,7 +12,11 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
     private val correction by lazy { LocalHotwordCorrection(context, hotwords) }
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult {
         val requested=settings.backend.value
-        val language=settings.language.value
+        // “自动识别”跟随客户端当前语言（含 App 单独设的语言）；映射不到才交给模型自检
+        val language=settings.language.value.let {
+            if (it!=LocalAsrLanguage.Auto) it else
+                LocalAsrLanguage.fromLocaleTag(context.resources.configuration.locales.let { l -> if (l.isEmpty) "" else l[0].toLanguageTag() }) ?: it
+        }
         // 检查结果按“App 版本 + 模型文件”记住：通过过就直接用，没通过过就直接走 CPU；重新选 NPU 或升级后才再查
         val key=LocalModels.npuCheckKey(context)
         val checked=settings.npuCheck(key)

@@ -48,7 +48,7 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
         require(dao.get(nightId)!=null && text.isNotBlank());val at=now();val d=Dream(0,nightId,at,text.trim(),emptyList(),false)
         val id=dao.insertDream(NightDreamRow(nightId=nightId,at=at,until=at,payload=json.encodeToString(d)));touch(nightId);store.notifyChanged();return d.copy(id=id)
     }
-    override suspend fun deleteDream(dreamId: Long) {val d=dao.dream(dreamId) ?: return;dao.deleteDream(dreamId);touch(d.nightId);store.notifyChanged()}
+    override suspend fun deleteDream(dreamId: Long) {val d=dao.dream(dreamId) ?: return;dao.deleteDream(dreamId);touch(d.nightId);store.notifyPrivacyChanged()}
     suspend fun refreshDreams(nightId: Long) {
         for(row in dao.dreams(nightId).filter {it.until>it.at}) {
             val segments=store.db.capture().segments(row.at,row.until).first().filter {it.importRecordId==null && it.startAt>=row.at && it.startAt<row.until}

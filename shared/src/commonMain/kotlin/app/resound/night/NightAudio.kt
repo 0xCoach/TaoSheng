@@ -55,6 +55,7 @@ class NightDetector {
     private var snore: NightSpan?=null
     val currentSnore get()=snore
     private var cough: NightSpan?=null
+    val detecting get() = snore != null || cough != null
     fun accept(at: Long,scores: Map<String,Float>,features: NightFeatures): List<Pair<NightEventKind,NightSpan>> {
         val result=mutableListOf<Pair<NightEventKind,NightSpan>>()
         while(positive.isNotEmpty() && positive.first()<at-28_000)positive.removeFirst()

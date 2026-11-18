@@ -4,7 +4,7 @@ import kotlin.math.*
 
 data class PersonalExample(val features: List<Double>,val yes: Boolean)
 @Serializable data class PersonalWeights(val mean: List<Double>,val scale: List<Double>,val weights: List<Double>,val intercept: Double,
-    val active: Boolean,val accuracy: Float,val ruleAccuracy: Float,val recall: Float,val yes: Int,val no: Int)
+    val active: Boolean,val accuracy: Float,val ruleAccuracy: Float,val recall: Float,val yes: Int,val no: Int, val answers: Map<Long,Boolean>? = null)
 object PersonalNightModel {
     fun probability(model: PersonalWeights,x: List<Double>): Double {
         require(x.size==model.weights.size)
@@ -12,7 +12,7 @@ object PersonalNightModel {
         return 1/(1+exp(-z.coerceIn(-40.0,40.0)))
     }
     fun permits(model: PersonalWeights?,features: List<Double>)=model==null || !model.active || probability(model,features)>=.5
-    fun due(count: Int,lastCount: Int,at: Long,trainedAt: Long?,charging: Boolean)=charging && (count-lastCount>=10 || trainedAt==null || at-trainedAt>=7*86_400_000L)
+    fun due(count: Int,lastCount: Int,at: Long,trainedAt: Long?,charging: Boolean,answerChanged: Boolean = false)=charging && (answerChanged || count-lastCount>=10 || trainedAt==null || at-trainedAt>=7*86_400_000L)
     private fun fit(rows: List<PersonalExample>): PersonalWeights {
         val n=rows.first().features.size
         require(rows.all { it.features.size==n && it.features.all(Double::isFinite) })

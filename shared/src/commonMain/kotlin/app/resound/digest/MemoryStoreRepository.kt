@@ -47,6 +47,7 @@ class MemoryStoreRepository(
     private val codec: MemoryLegacyCodec,
     private val dueDate: (Long) -> MemoryDueDate,
     private val readVoiceInput: (String?) -> VoiceInputMeta?,
+    private val onEventDeleted: suspend () -> Unit = {},
 ) : MemoryRepository {
 
     override fun events(date: LocalDate): Flow<List<MemoryEvent>> = events(date, TimeZone.of(zoneProvider.zoneId()))
@@ -172,7 +173,7 @@ class MemoryStoreRepository(
 
     override fun setImportant(eventId: Long, important: Boolean) = setStarred(eventId, important)
 
-    override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
+    override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId); onEventDeleted() } }
 
     private val pendingCount = dao.observeUndigestedCount().shareIn(scope, SharingStarted.Eagerly, replay = 1)
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

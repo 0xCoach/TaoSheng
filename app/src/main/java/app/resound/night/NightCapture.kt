@@ -22,7 +22,15 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private val sensor=context.getSystemService(SensorManager::class.java)
     private val gate=Mutex()
     private var id: Long?=null;private var session: NightSession?=null
+    private var writes = NightSessionWrites()
     private var processor: NightSoundProcessor?=null
+    private var inference = newInferenceGate()
+    private fun newInferenceGate() = NightInferenceGate { window, infer ->
+        val started = SystemClock.elapsedRealtime()
+        val protect = processor?.accept(window, infer) == true
+        if (infer) session = session?.let { it.copy(calls=it.calls+1, inferenceMillis=it.inferenceMillis+SystemClock.elapsedRealtime()-started) }
+        protect
+    }
     private val candidates=NightCandidates()
     private var frames=NightFrames { dropped++ }
     @Volatile private var dropped=0
@@ -42,10 +50,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     /** 夜里时间段内已关屏、或这一夜还在进行时才处理音频；白天不做任何窗口计算。由 pulse 每 10 秒更新。 */
     @Volatile private var armed=false
     private var quietAt: Long?=null
-    private val envelope=mutableListOf<Byte>()
+    private var envelope: NightEnvelopeWriter? = null
     private val levels=mutableListOf<Int>()
-    private var envelopeStart=0L
-    private var envelopeAt=0L
     private var lastModeAt=0L
     @Volatile private var mode=NightMode.Off
     @Volatile private var lowPower=false
@@ -92,11 +98,22 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             // 上次进程中断：保留已落盘数据，补未知缺口，交给整理；不伪造连续录音。
             for(r in owner.store.dao.all().filter { it.state in setOf("Active","Provisional") }) {
                 if(r.state=="Provisional")owner.store.deleteNight(r.id)
-                else owner.store.persistSession(r.id,owner.store.session(r).let { it.copy(signals=it.signals+NightSignal(it.lastAt,System.currentTimeMillis(),"gap",text="没有记录")) },System.currentTimeMillis(),NightState.Interrupted)
+                else {
+                    val at = System.currentTimeMillis()
+                    owner.store.persistSession(r.id,owner.store.session(r).interruptedUntil(at),at,NightState.Interrupted)
+                }
+            }
+            // 恢复完成后才允许首个 pulse 重开这一夜，避免旧检查点覆盖新会话。
+            launch {
+                while (isActive) {
+                    try { gate.withLock { pulse(System.currentTimeMillis()) } }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { app.resound.diagnostics.FailureNotes.record("night/signals",e) }
+                    delay(10_000)
+                }
             }
             for(w in frames.windows)try { gate.withLock { consume(w) } } catch(e: CancellationException) { throw e } catch(e: Exception) { dropped++;app.resound.diagnostics.FailureNotes.record("night/window",e) }
         }
-        scope.launch {while(isActive) {try { gate.withLock { pulse(System.currentTimeMillis()) } } catch(e: CancellationException) { throw e } catch(e: Exception) { app.resound.diagnostics.FailureNotes.record("night/signals",e) };delay(10_000)}}
     }
     fun captureState(reason: String?) {gapReason=reason}
     fun accept(pcm: ShortArray,speech: Boolean,at: Long) {
@@ -149,11 +166,15 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                 if(doneDate==date.toString())return@enter
                 val existing=owner.store.dao.onDate(date.toString())
                 if(!NightRules.canReopen(existing?.state?.let { runCatching { NightState.valueOf(it) }.getOrNull() })) {doneDate=date.toString();return@enter}
-                session=existing?.let(owner.store::session) ?: NightSession(maxOf(screenOff ?: at,floor),at,lastAt=at,startBattery=input.battery)
+                session=existing?.let { row ->
+                    val saved=owner.store.session(row)
+                    if(row.state==NightState.Interrupted.name) saved.interruptedUntil(at) else saved
+                } ?: NightSession(maxOf(screenOff ?: at,floor),at,lastAt=at,startBattery=input.battery)
                 id=existing?.id ?: owner.store.create(session!!,date)
                 processor=NightSoundProcessor(owner,id!!) { w,scores ->
                     if(w.features.aboveBackground>=15 && (scores["Snoring"] ?: 0f)<NightTuning.SNORE && !AppGraph.playback.state.value.playing)session=session?.let {it.copy(signals=it.signals+NightSignal(w.start,w.start+2_000,"loud"))}
-                };envelope.clear();envelopeStart=at;envelopeAt=at
+                }
+                envelope=NightEnvelopeWriter(owner.store.db,id!!,at)
                 owner.model.beginNight();modelHeld=true
             }
             NightTransition.Confirm->{session=session!!.copy(confirmedAt=at);if(s.lowBatteryReminder && !input.charging && (input.battery ?: 100)<30)NightNotifications.show(context,"night-battery-${id}","电量 ${input.battery}%，建议充电，夜里记录更完整")}
@@ -165,12 +186,17 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             }
             else->Unit
         }
-        if(at-lastModeAt>=300_000 || mode==NightMode.Off) {mode=NightRules.mode(s,input.battery,input.charging,input.hot);lastModeAt=at}
+        if(at-lastModeAt>=300_000 || mode==NightMode.Off) {
+            val next = NightRules.mode(s,input.battery,input.charging,input.hot)
+            if (mode == NightMode.Full && next != mode && id?.let { owner.store.dao.get(it) } != null) inference.flush()
+            mode=next;lastModeAt=at
+        }
         session?.let { current->
             val spans=current.modes.toMutableList();val last=spans.lastOrNull()
             if(last?.mode==mode)spans[spans.lastIndex]=last.copy(end=at) else spans+=NightModeSpan(at,at,mode)
             session=current.copy(modes=spans)
-            owner.store.persistSession(id!!,session!!,at,if(current.confirmedAt==null)NightState.Provisional else NightState.Active)
+            val state = if (current.confirmedAt == null) NightState.Provisional else NightState.Active
+            writes.checkpoint(state, SystemClock.elapsedRealtime()) { owner.store.persistSession(id!!,session!!,at,state) }
             owner.store.setLive(NightLive(if(current.confirmedAt==null)NightState.Provisional else NightState.Active,mode,current.screenOff,WakeRules.pending(session!!)))
         }
         armed=shouldSensor || session!=null
@@ -193,14 +219,13 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             }
             if(levels.size>=10) {
                 val point=levels.take(10);repeat(10) { levels.removeAt(0) }
-                envelope+=point.max().toByte();envelope+=NightRules.median(point.map(Int::toLong)).toByte();envelope+=w.background.toByte();envelopeAt+=5_000
-                owner.store.dao.envelope(NightEnvelopeRow(id!!,envelopeStart,NightFiles.envelope(envelope.toByteArray())))
+                envelope?.append(point.max().toByte(),NightRules.median(point.map(Int::toLong)).toByte(),w.background.toByte())
                 signals+=NightSignal(w.start,w.start+2_000,"background",w.background.toDouble())
             }
         }
         session=session!!.copy(signals=signals)
         when(mode) {
-            NightMode.Full->{val start=SystemClock.elapsedRealtime();processor?.accept(w);session=session!!.copy(calls=session!!.calls+1,inferenceMillis=session!!.inferenceMillis+SystemClock.elapsedRealtime()-start)}
+            NightMode.Full->inference.offer(w)
             NightMode.Deferred->candidates.accept(w).forEach {saveCandidate(it)}
             else->Unit
         }
@@ -216,10 +241,12 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         session=session!!.copy(candidateBytes=session!!.candidateBytes+size)
     }
     private suspend fun finish(at: Long) {
+        inference.flush()
         saveCandidate(candidates.finish());processor?.finish()
+        envelope?.finish()
         id?.let {owner.store.finishSession(it,session!!,at)}
         reset();NightWork.run(context)
     }
-    private fun reset() {id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
+    private fun reset() {envelope=null;writes=NightSessionWrites();inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
     override fun close() {sensor.unregisterListener(listener);context.unregisterReceiver(receiver);frames.close();scope.cancel();if(modelHeld) {owner.model.endNight();modelHeld=false}}
 }

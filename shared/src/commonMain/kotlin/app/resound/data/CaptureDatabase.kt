@@ -450,7 +450,11 @@ abstract class CaptureDatabase : RoomDatabase() {
         val MIGRATION_36_37 = object : Migration(36, 37) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 // 收集箱内容提取深度：已保存/已提取/已分析，历史行按 OCR 结果回填
-                db.execSQL("ALTER TABLE capture_items ADD COLUMN extracted TEXT NOT NULL DEFAULT 'Saved'")
+                // v35→36 建表时按当前 schema 已含 extracted 列，这里只在列缺失时补建
+                val hasExtracted = db.prepare("SELECT 1 FROM pragma_table_info('capture_items') WHERE name = 'extracted'").use { it.step() }
+                if (!hasExtracted) {
+                    db.execSQL("ALTER TABLE capture_items ADD COLUMN extracted TEXT NOT NULL DEFAULT 'Saved'")
+                }
                 db.execSQL("UPDATE capture_items SET extracted = 'Extracted' WHERE ocrText IS NOT NULL AND ocrText != '' OR kind = 'Text'")
                 db.execSQL("UPDATE capture_items SET extracted = 'Analyzed' WHERE ideaId IS NOT NULL")
             }

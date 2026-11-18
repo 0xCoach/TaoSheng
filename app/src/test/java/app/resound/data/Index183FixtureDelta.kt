@@ -12,6 +12,8 @@ internal object Index183FixtureDelta {
     val indexRows get() = spec.getJSONArray("indices").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("row") } }
 
     fun assertSame(name: String, old: String, actual: String) {
+        val old = old.replace("\r\n", "\n")
+        val actual = actual.replace("\r\n", "\n")
         val sqlRules = spec.getJSONArray("querySql")
         val relevant = (0 until sqlRules.length()).map(sqlRules::getJSONObject).filter { it.getString("snapshot") == name }
         if (relevant.isNotEmpty()) {
@@ -70,6 +72,21 @@ internal object Index183FixtureDelta {
             assertEquals("$name 索引名称次数", rule.getInt("occurrences"), observed.count { it.startsWith(prefix) })
             assertEquals("$name 索引完整行次数", rule.getInt("occurrences"), observed.count { it == exact })
             observed.removeAt(observed.indexOf(exact))
+        }
+
+        val dropped = spec.getJSONArray("droppedTables")
+        repeat(dropped.length()) { n ->
+            val table = dropped.getString(n)
+            val prefixes = listOf("[\"table\",\"$table\",", "[\"index\",\"index_${table}_", "[\"index\",\"sqlite_autoindex_${table}_")
+            assertFalse("$name 旧夹具不应有新表", expected.any { line -> prefixes.any(line::startsWith) })
+            observed.removeAll { line -> prefixes.any(line::startsWith) }
+            val at = observed.indexOf("TABLE $table")
+            if (at >= 0) {
+                var end = at + 1
+                while (end < observed.size && observed[end].isNotEmpty()) end++
+                if (end < observed.size) end++
+                observed.subList(at, end).clear()
+            }
         }
         assertEquals(name, old, observed.joinToString("\n"))
     }

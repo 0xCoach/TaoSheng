@@ -12,7 +12,7 @@ import java.io.File
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class Index183ComparatorTest {
     private val name = "queries-seed.txt"
-    private val old get() = File("src/test/resources/driver175/$name").readText()
+    private val old get() = File("src/test/resources/driver175/$name").readText().replace("\r\n", "\n")
     /** 仅为反例构建合法输入；真实Room快照由原175的全部重放和新迁移用例校验。 */
     private fun allowed(): String {
         val rows = old.split('\n').toMutableList()
@@ -44,9 +44,9 @@ class Index183ComparatorTest {
     }
     @Test fun wrongMissingOrDuplicateVersionAndWrongIdentityFail() {
         val actual = allowed()
-        rejected(actual.replaceFirst("user_version=34", "user_version=35"))
+        rejected(actual.replaceFirst("user_version=${CaptureDatabase.VERSION}", "user_version=${CaptureDatabase.VERSION + 1}"))
         rejected(actual.substringAfter('\n'))
-        rejected("user_version=34\n$actual")
+        rejected("user_version=${CaptureDatabase.VERSION - 1}\n$actual")
         val identity = Index183FixtureDelta.spec.getJSONObject("identity")
         rejected(actual.replace(identity.getString("newRow"), identity.getString("oldRow")))
         rejected(actual.replace(identity.getString("newRow"), identity.getString("newRow") + "\n" + identity.getString("newRow")))
@@ -57,7 +57,7 @@ class Index183ComparatorTest {
         rejected(actual.replaceFirst("交通发票1", "被改动的一句话"))
     }
     @Test fun sqlDeltaIsLimitedToNamedCasesAndNeverChangesArgumentsOrResults() {
-        val original = File("src/test/resources/driver175/queries.txt").readText()
+        val original = File("src/test/resources/driver175/queries.txt").readText().replace("\r\n", "\n")
         val lines = original.split('\n').toMutableList()
         val rules = Index183FixtureDelta.spec.getJSONArray("querySql")
         repeat(rules.length()) { i ->

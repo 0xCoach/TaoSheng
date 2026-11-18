@@ -47,6 +47,8 @@ class Health147Test {
             HealthWatchdogEvent(at + 1200, "Recovered", null), HealthWatchdogEvent(at + 1201, "ServiceStarted", null))
         val interruptions = HealthWatchdogRules.interruptions(events, healthy.now, false)
         assertEquals(listOf(at), interruptions)
+        assertEquals(listOf(at to InterruptionKind.AbnormalStop),
+            HealthWatchdogRules.interruptionsWithKind(events, healthy.now, false))
         assertEquals(HealthFacts(0, 1, 101 * DAY), HealthRules.report(healthy.copy(
             interruptionsToday = interruptions.size, lastInterruptionDay = interruptions.last() / DAY)).facts)
     }
@@ -60,6 +62,8 @@ class Health147Test {
         val otherApp = ordinary + listOf(event(30, "MicBusy", "别的应用在用麦克风"), event(35, "MicReleased"),
             event(40, "MicBusy", "别的应用在用麦克风"), event(46, "MicReleased"))
         assertEquals(listOf(base + 40 * 60_000), HealthWatchdogRules.interruptions(otherApp, healthy.now, false))
+        assertEquals(listOf(base + 40 * 60_000 to InterruptionKind.MicBusy),
+            HealthWatchdogRules.interruptionsWithKind(otherApp, healthy.now, false))
         assertTrue(HealthRules.report(healthy.copy(listen = ListenState.Paused)).issues.isEmpty())
         assertTrue(HealthRules.report(healthy.copy(listen = ListenState.Stopped, inQuietPeriod = true)).issues.isEmpty())
         assertTrue(HealthRules.report(healthy.copy(listen = ListenState.Stopped, manualPausedUntil = healthy.now + 60_000)).issues.isEmpty())

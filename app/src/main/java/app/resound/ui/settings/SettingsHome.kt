@@ -343,7 +343,17 @@ private fun HealthCard(r: HealthReport, capture: CaptureController, onOpen: (Set
                 val f = r.facts
                 val facts = listOfNotNull(
                     f.stableDays?.let { "连续稳定 $it 天" },
-                    f.interruptionsToday?.let { "今天中断 $it 次" },
+                    f.interruptionsToday?.let { n ->
+                        val kinds = f.interruptionKindsToday
+                        if (n > 0 && kinds.isNotEmpty()) {
+                            val parts = listOfNotNull(
+                                kinds[app.resound.health.InterruptionKind.MicBusy]?.let { "被抢占 $it" },
+                                kinds[app.resound.health.InterruptionKind.Killed]?.let { "进程被杀 $it" },
+                                kinds[app.resound.health.InterruptionKind.AbnormalStop]?.let { "异常停止 $it" },
+                            ).joinToString("·")
+                            "今天中断 $n 次（$parts）"
+                        } else "今天中断 $n 次"
+                    },
                     f.nextBackupAt?.let { "下次备份 " + nextBackupText(it) },
                 ).joinToString(" · ")
                 Row(verticalAlignment = Alignment.CenterVertically) {

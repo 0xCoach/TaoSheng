@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 
 enum class HealthSeverity { Warning, Critical }
 
+/** 中断归因：MicBusy 麦克风被别应用抢占超 5 分钟；Killed 进程被系统回收；AbnormalStop 异常停止需手动恢复。 */
+enum class InterruptionKind { MicBusy, Killed, AbnormalStop }
+
 /** 点“去处理”后去哪里；界面按它跳转或直接执行 */
 enum class HealthFix {
     /** 关闭系统省电策略（电池优化） */
@@ -49,6 +52,8 @@ data class HealthFacts(
     val interruptionsToday: Int?,
     /** 下次自动备份时刻（毫秒）；没开备份为 null */
     val nextBackupAt: Long?,
+    /** 今天的中断按原因归类计数（见 InterruptionKind），供「中断 N 次」拆解展示；拿不到为空表 */
+    val interruptionKindsToday: Map<InterruptionKind, Int> = emptyMap(),
 )
 
 data class HealthReport(

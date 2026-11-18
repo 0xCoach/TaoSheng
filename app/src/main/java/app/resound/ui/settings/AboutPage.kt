@@ -78,8 +78,7 @@ fun AboutPage(version: String?, bottom: Dp) {
         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(76.dp).shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(RoundedCornerShape(20.dp))) {
-                Image(painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
-                Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
+                Image(painterResource(R.drawable.ic_fg), null, Modifier.fillMaxSize())
             }
             Spacer(Modifier.height(14.dp))
             Text("声声不息", style = RsType.title, color = c.text)

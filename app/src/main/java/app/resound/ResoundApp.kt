@@ -192,6 +192,10 @@ class ResoundApp : Application() {
             recentFiles = { from, until, block -> segmentFiles.withRecentDeletion(from, until, block) },
             voiceprintGuard = { block -> voiceprintRepository.withPrivacyDeletion(block) },
             removeFeatures = voiceprintRepository::removeFeatures,
+            onErased = {
+                if (AppGraph.isPushReady) (AppGraph.push as? app.resound.push.AndroidPushChannels)?.privacyChanges?.trySend(Unit)
+                app.resound.push.DayThreadPushScheduler.afterDeletion(this)
+            },
             scheduleCleanup = { app.resound.privacy.PrivacyCleanupWorker.enqueue(this) },
             archiveFiles = { from,until,block ->
                 check(::cardDevices.isInitialized) { "设备归档尚未就绪，请稍后重试" }
@@ -280,7 +284,8 @@ class ResoundApp : Application() {
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
-        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io,
+            onEventDeleted = { app.resound.push.DayThreadPushScheduler.afterDeletion(this) })
         AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers

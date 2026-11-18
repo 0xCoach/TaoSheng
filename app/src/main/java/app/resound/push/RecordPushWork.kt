@@ -60,9 +60,16 @@ internal fun AndroidPushChannels.attachSubscriptions(context: Context, database:
     }
     scope.launch(Dispatchers.IO) {
         restoreSubscriptions()
-        // Room 在事务提交后才通知，覆盖整理完成、状态/标星、软删除及“这段别记”。启动也校对一次。
-        database.invalidationTracker.createFlow("memory_events", "memory_items", "transcript_lines", "skill_cards", "reviews", "segments", emitInitialState = true)
-            .debounce(1000)
-            .collect { recordsChanged(); phoneReminders?.refresh(); DayThreadPushScheduler.refresh(context) }
+        observeRecordPush(database)
+    }
+}
+
+@OptIn(FlowPreview::class)
+internal suspend fun AndroidPushChannels.observeRecordPush(database: CaptureDatabase) {
+    val records = database.invalidationTracker.createFlow("memory_events", "memory_items", "transcript_lines",
+        "skill_cards", "reviews", emitInitialState = true).map { Unit }
+    merge(records, privacyChanges.receiveAsFlow()).debounce(1000).collect {
+        recordsChanged()
+        phoneReminders?.refresh()
     }
 }

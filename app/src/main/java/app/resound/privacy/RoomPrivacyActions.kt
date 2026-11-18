@@ -34,6 +34,7 @@ class RoomPrivacyActions(
     private val scheduleCleanup: () -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
     private val archiveFiles: suspend (Long,Long,suspend (List<String>) -> ForgetResult) -> ForgetResult = { _,_,block -> block(emptyList()) },
+    private val onErased: suspend () -> Unit = {},
 ) : PrivacyActions, SegmentDeleter {
     private val gate = Mutex()
     private val dao = db.privacy()
@@ -188,6 +189,7 @@ class RoomPrivacyActions(
                 }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)
             }
+            onErased()
             onStage(EventDeletionPhase.Files)
             if (files.isNotEmpty() || extraFiles.isNotEmpty()) runCatching { scheduleCleanup() }.onFailure {
                 FailureNotes.record("privacy/RoomPrivacyActions.kt:147", it)

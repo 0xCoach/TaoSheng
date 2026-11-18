@@ -56,6 +56,7 @@ class AndroidPushChannels internal constructor(
     internal fun recordAudio(channel: PushChannel, count: Int) {
         record(channel, PushMessage("上传录音 $count 段", "", null, null, System.currentTimeMillis()), Result.success(Unit), emptyList())
     }
+    internal val privacyChanges = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
     internal var phoneReminders: PhoneReminders? = null
     internal var memoryDocument: suspend (java.time.LocalDate?, Boolean, Boolean) -> PushMessage? = { _, _, _ -> null }
 

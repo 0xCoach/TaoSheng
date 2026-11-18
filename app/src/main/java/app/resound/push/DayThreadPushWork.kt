@@ -23,12 +23,18 @@ class DayThreadPushWork(context: Context, params: WorkerParameters) : CoroutineW
 }
 
 internal object DayThreadPushScheduler {
-    fun refresh(context: Context) {
-        WorkManager.getInstance(context).enqueueUniqueWork("push-day-thread-refresh", ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<DayThreadPushWork>().setInputData(workDataOf("refresh" to true))
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
+    // 正在发送的旧任务可能已读过快照。追加一次保证本次提交的删除也会被看见。
+    suspend fun afterDeletion(context: Context) {
+        WorkManager.getInstance(context).enqueueUniqueWork("push-day-thread-privacy",
+            ExistingWorkPolicy.APPEND_OR_REPLACE, refreshRequest()).await()
     }
+    fun refresh(context: Context) {
+        WorkManager.getInstance(context).enqueueUniqueWork("push-day-thread-refresh", ExistingWorkPolicy.KEEP, refreshRequest())
+    }
+    private fun refreshRequest() = OneTimeWorkRequestBuilder<DayThreadPushWork>().setInputData(workDataOf("refresh" to true))
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
+
     fun plan(context: Context, next: Boolean = false) {
         val now = ZonedDateTime.now()
         var target = now.toLocalDate().atTime(4, 0).atZone(now.zone)

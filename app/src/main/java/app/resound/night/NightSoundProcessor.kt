@@ -10,8 +10,11 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
     private var bestEnergy=-1.0
     private val fine=ArrayDeque<SnoreLevel>()
     private val breaks=mutableSetOf<Long>()
-    suspend fun accept(w: NightWindow) {
-        val scores=owner.model.nightScores(w.pcm)
+    private var zeroScores: Map<String, Float>? = null
+    suspend fun accept(w: NightWindow, infer: Boolean = true): Boolean {
+        val scores=if (infer) owner.model.nightScores(w.pcm).also {
+            if (zeroScores == null) zeroScores = it.mapValues { 0f }
+        } else checkNotNull(zeroScores)
         evidence(w,scores)
         repeat(4) {index ->
             val rms=kotlin.math.sqrt((index*8000 until (index+1)*8000).sumOf {val x=w.pcm[it]/32768.0;x*x}/8000)
@@ -29,6 +32,7 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
             val energy=range.sumOf { it.first.pcm.sumOf { v->v.toDouble()*v } }/range.sumOf { it.first.pcm.size }.coerceAtLeast(1)
             if(energy>bestEnergy) {bestEnergy=energy;best=range}
         }
+        return detector.detecting || (scores["Snoring"] ?: 0f) >= NightTuning.SNORE || (scores["Cough"] ?: 0f) >= NightTuning.COUGH
     }
     suspend fun finish() {for((kind,span) in detector.finish())save(kind,span)}
     private suspend fun save(kind: NightEventKind,span: NightSpan) {

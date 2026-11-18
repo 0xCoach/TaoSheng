@@ -23,6 +23,13 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private val gate=Mutex()
     private var id: Long?=null;private var session: NightSession?=null
     private var processor: NightSoundProcessor?=null
+    private var inference = newInferenceGate()
+    private fun newInferenceGate() = NightInferenceGate { window, infer ->
+        val started = SystemClock.elapsedRealtime()
+        val protect = processor?.accept(window, infer) == true
+        if (infer) session = session?.let { it.copy(calls=it.calls+1, inferenceMillis=it.inferenceMillis+SystemClock.elapsedRealtime()-started) }
+        protect
+    }
     private val candidates=NightCandidates()
     private var frames=NightFrames { dropped++ }
     @Volatile private var dropped=0
@@ -165,7 +172,11 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             }
             else->Unit
         }
-        if(at-lastModeAt>=300_000 || mode==NightMode.Off) {mode=NightRules.mode(s,input.battery,input.charging,input.hot);lastModeAt=at}
+        if(at-lastModeAt>=300_000 || mode==NightMode.Off) {
+            val next = NightRules.mode(s,input.battery,input.charging,input.hot)
+            if (mode == NightMode.Full && next != mode && id?.let { owner.store.dao.get(it) } != null) inference.flush()
+            mode=next;lastModeAt=at
+        }
         session?.let { current->
             val spans=current.modes.toMutableList();val last=spans.lastOrNull()
             if(last?.mode==mode)spans[spans.lastIndex]=last.copy(end=at) else spans+=NightModeSpan(at,at,mode)
@@ -200,7 +211,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         }
         session=session!!.copy(signals=signals)
         when(mode) {
-            NightMode.Full->{val start=SystemClock.elapsedRealtime();processor?.accept(w);session=session!!.copy(calls=session!!.calls+1,inferenceMillis=session!!.inferenceMillis+SystemClock.elapsedRealtime()-start)}
+            NightMode.Full->inference.offer(w)
             NightMode.Deferred->candidates.accept(w).forEach {saveCandidate(it)}
             else->Unit
         }
@@ -216,10 +227,11 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         session=session!!.copy(candidateBytes=session!!.candidateBytes+size)
     }
     private suspend fun finish(at: Long) {
+        inference.flush()
         saveCandidate(candidates.finish());processor?.finish()
         id?.let {owner.store.finishSession(it,session!!,at)}
         reset();NightWork.run(context)
     }
-    private fun reset() {id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
+    private fun reset() {inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
     override fun close() {sensor.unregisterListener(listener);context.unregisterReceiver(receiver);frames.close();scope.cancel();if(modelHeld) {owner.model.endNight();modelHeld=false}}
 }

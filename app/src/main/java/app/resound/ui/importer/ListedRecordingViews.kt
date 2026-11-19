@@ -42,13 +42,15 @@ internal fun ListedLine(r: FolderRecording) {
             val direction = when (r.call?.direction) { CallDirection.Incoming -> "呼入"; CallDirection.Outgoing -> "呼出"; null -> null }
             val minutes = (r.durationMillis / 60_000).coerceAtLeast(1)
             val number = r.call?.number?.takeIf { r.call.fileName != null }
-            val status = when (r.state) { ListedState.Missing -> "原文件不在了"; ListedState.Queued -> "排队转写中"; ListedState.Imported -> "已转写"; else -> "未转写" }
+            val status = when (r.state) { ListedState.Missing -> r.problem ?: "原文件不在了"; ListedState.Queued -> "排队转写中"; ListedState.Imported -> "已转写"; else -> "未转写" }
             Text(listOfNotNull(direction, "$minutes 分钟", number, status).joinToString(" · "), style = RsType.caption,
                 color = if (r.state == ListedState.Missing) c.warning else c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (r.state == ListedState.Listed) {
+        // 卡 210：失败（授权丢了的除外，要先去重新授权）也能直接重试
+        val retry = r.state == ListedState.Missing && r.problem != null && r.problem != "文件夹需要重新授权" && r.problem != "原文件不在了"
+        if (r.state == ListedState.Listed || retry) {
             Spacer(Modifier.width(8.dp))
-            Text("转写", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+            Text(if (retry) "重试" else "转写", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
                 modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick { AppGraph.folderRecordings.transcribe(listOf(r.id)) }
                     .padding(horizontal = 14.dp, vertical = 6.dp))
         }

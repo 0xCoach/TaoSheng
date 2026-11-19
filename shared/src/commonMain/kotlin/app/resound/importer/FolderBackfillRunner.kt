@@ -14,6 +14,8 @@ class FolderBackfillRunner(
     private val newId: () -> String, private val probe: suspend (FolderRecordingRow) -> FolderQueueProbe,
     private val enqueue: suspend (FolderRecordingRow,String,String) -> Boolean,
     private val complete: (String,Int) -> Unit,
+    /** 卡 210：读文件或入队失败时交给平台记下原因（原先一律当成“原文件不在了”且不留痕） */
+    private val failed: (FolderRecordingRow, Exception) -> Unit = { _, _ -> },
 ) {
     private val gate = Mutex()
     suspend fun transcribe(ids: List<Long>) = gate.withLock { FolderHistoryStore(dao).transcribe(ids) }
@@ -54,8 +56,11 @@ class FolderBackfillRunner(
             admissionId = id
             if (!enqueue(row,id,file.fingerprint)) dao.update(row.copy(state="Listed",pendingId=null))
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
-            if (admissionId == null || !pendingExists(admissionId)) dao.update(row.copy(state="Missing",pendingId=null))
+        catch (e: Exception) {
+            if (admissionId == null || !pendingExists(admissionId)) {
+                dao.update(row.copy(state="Missing",pendingId=null))
+                failed(row, e)
+            }
         }
     }
 }

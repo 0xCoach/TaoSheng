@@ -126,6 +126,8 @@ data class FolderRecording(
     val state: ListedState,
     /** 已导入时对应的导入记录 id */
     val importRecordId: Long?,
+    /** 卡 210：点“转写”失败的原因（如“文件夹需要重新授权”“暂不支持这种格式”）；没失败为 null */
+    val problem: String? = null,
 )
 
 data class BackfillState(

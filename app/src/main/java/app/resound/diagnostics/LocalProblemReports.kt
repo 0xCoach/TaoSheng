@@ -58,7 +58,7 @@ internal class LocalProblemReports(
                 appendLine("\n文件夹导入失败（最近 30 条，不含文件名）"); appendLine(app.resound.importer.FolderImportProblems.dump(context))
                 appendLine("\n更新诊断（下载安装最近 80 行 + 检查最近 6 次）")
                 appendLine(UpdateDiagnostics.dump(context))
-                appendLine("\n本机备份诊断（最近 50 行）"); appendLine(app.resound.backup.BackupDiagnostics.dump(context))
+                appendLine("\n备份诊断（最近 50 行，含成功耗时）"); appendLine(app.resound.backup.BackupDiagnostics.dump(context))
                 appendLine("\n新手上手（仅本地计数与耗时）")
                 appendLine(app.resound.onboarding.LocalOnboarding.diagnostics(context.getSharedPreferences("onboarding", Context.MODE_PRIVATE)))
             }

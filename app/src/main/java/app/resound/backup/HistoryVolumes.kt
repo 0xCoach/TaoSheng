@@ -62,10 +62,15 @@ internal object HistoryVolumes {
             if(path.endsWith(".enc") && !BackupEncryption.isEncrypted(target))throw BackupFailure("加密备份格式不正确")
             return true
         }
+        /** 卡 210：objects 目录一次列清；原先每个日分卷各问一次存储（几百天就几百次，本机慢、坚果云易限流）。
+         * 列出来是空的但恢复点有引用时不信清单，退回逐个查询，免得误判全部重传 */
+        private val listed: Set<String>? by lazy {
+            runCatching { store.files("objects").map { it.path }.toSet() }.getOrNull()?.takeIf { it.isNotEmpty() || entries.isEmpty() }
+        }
         override fun exists(path: String): Boolean {
             if(path in deleted)return false
             val ref = entries[path] ?: return legacyFallback && store.exists(path)
-            return ref.path in staged || store.exists(ref.path)
+            return ref.path in staged || listed?.contains(ref.path) ?: store.exists(ref.path)
         }
         override fun put(path: String, source: File) {
             require(legacyVolumePath(path))

@@ -29,6 +29,15 @@ object BackupDiagnostics {
             FailureNotes.record("backup/BackupDiagnostics.kt:21", it)
         }
     }
+    /** 卡 210：成功也记一行耗时，“备份很慢”才查得到慢在哪 */
+    internal fun success(context: Context, step: String, startedNanos: Long, summary: BackupSummary) {
+        runCatching {
+            val prefs = context.getSharedPreferences("backup-diagnostics", Context.MODE_PRIVATE)
+            val lines = prefs.getString("runs", "").orEmpty().lines().filter { it.isNotBlank() }
+            val line = "${System.currentTimeMillis()} $step ok ms=${(System.nanoTime() - startedNanos) / 1_000_000} days=${summary.days} uploaded=${summary.lastUploadBytes ?: 0} total=${summary.bytes}"
+            prefs.edit().putString("runs", (lines + line).takeLast(50).joinToString("\n")).commit()
+        }
+    }
     fun dump(context: Context): String = context.getSharedPreferences("backup-diagnostics", Context.MODE_PRIVATE)
         .getString("runs", "").orEmpty()
 }

@@ -180,7 +180,9 @@ class AndroidBackupRepository internal constructor(
                 val client = client()
                 client.ensureDirectory()
                 ensureActive()
+                val started = System.nanoTime()
                 val summary = HistoryVolumes.sync(context, database, client.volumes(), workspace, backupPassphrase(), state.value.keep)
+                BackupDiagnostics.success(context, "cloud", started, summary)
                 check(prefs.edit().putLong("lastAt", summary.lastAt!!).putLong("lastBytes", summary.lastUploadBytes!!)
                     .putInt("count", summary.days).remove("error").commit())
                 LocalOnboarding.backupSucceeded(context)
@@ -290,7 +292,9 @@ class AndroidBackupRepository internal constructor(
         val result = localOperation {
             val store = localVolumes()
             withWorkspace { work ->
+                val started = System.nanoTime()
                 val summary = HistoryVolumes.sync(context, database, store, work, backupPassphrase(), local.value.keep)
+                BackupDiagnostics.success(context, "local", started, summary)
                 check(prefs.edit().putLong("localLastAt", summary.lastAt!!).putLong("localLastBytes", summary.lastUploadBytes!!)
                     .putInt("localCount", summary.days).commit())
                 LocalOnboarding.backupSucceeded(context)

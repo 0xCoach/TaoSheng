@@ -36,6 +36,7 @@ class BackupHistoryTest {
     private lateinit var store: VolumeStore
     private var time = LocalDate.parse("2026-10-24").atStartOfDay(DayVolumeRows.zone).toInstant().toEpochMilli()
     private val writes = mutableListOf<String>()
+    private val existsCalls = mutableListOf<String>()
     private var fail = ""
     private fun work() = File(root,UUID.randomUUID().toString()).apply { mkdirs() }
     @Before fun setup() {
@@ -51,6 +52,7 @@ class BackupHistoryTest {
                 if(fail=="point" && historyPath(path) || fail=="object" && objectPath(path))throw BackupFailure("模拟中断",true)
                 writes+=path;disk.put(path,source)
             }
+            override fun exists(path:String):Boolean { existsCalls+=path;return disk.exists(path) }
         }
         add(1,time,"before");add(2,time-86400000L,"unchanged")
     }
@@ -89,7 +91,8 @@ class BackupHistoryTest {
         assertEquals(result.lastUploadBytes,HistoryVolumes.summary(store,work(),null)!!.lastUploadBytes)
         // 卡 210：概况带最早一天，界面写“记录跨 N 天（最早某年某月）”
         assertEquals("2026-10-23",result.firstDay);assertEquals("2026-10-23",HistoryVolumes.summary(store,work(),null)!!.firstDay)
-        writes.clear();sync();assertEquals(1,writes.count(::objectPath)) // 无变化只写状态
+        writes.clear();existsCalls.clear();sync();assertEquals(1,writes.count(::objectPath)) // 无变化只写状态
+        assertTrue("日分卷不再逐个查询存储（卡 210）",existsCalls.none(::objectPath))
     }
 
     @Test fun interruptedObjectsAndCheckpointNeverChangeCommittedHistoryAndRetryWorks() {

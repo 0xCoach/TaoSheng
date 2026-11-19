@@ -197,6 +197,9 @@ class MainActivity : ComponentActivity() {
                                         Box(Modifier.weight(1f)) { VerifyScreen(capture, stats, setup, bottom) }
                                         app.resound.capture.KnockSettingsSection(bottom)
                                     }
+                                    SettingsPage.Account -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 0.dp, end = 0.dp, top = 8.dp, bottom = bottom + 24.dp)) {
+                                        app.resound.auth.MyAccountSection()
+                                    }
                                     SettingsPage.Devices -> app.resound.ui.verify.DevicesPage(bottom)
                                     SettingsPage.Advanced -> app.resound.ui.verify.AdvancedPage(stats, bottom)
                                     SettingsPage.Transcript -> TranscriptScreen(transcripts, transcribeSettings, bottom)
@@ -209,7 +212,6 @@ class MainActivity : ComponentActivity() {
                                             Box(Modifier.settingsAnchor("digest-timing", "conversation-gap", "thinking", "context")) { app.resound.ui.settings.DigestTimingCard(it) }
                                         }
                                         app.resound.digest.QuietDigestSection { memory.runNow() }
-                                        app.resound.auth.MyAccountSection()
                                         // 余额已并入服务商卡片；没有服务商列表时仍用单独的余额卡
                                         if (!AppGraph.isLlmProvidersReady && AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)

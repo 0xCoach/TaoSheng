@@ -30,6 +30,19 @@ class SceneEngineTest {
         assertEquals(SceneSource.Manual, p.source)
     }
 
+    @Test fun topicPauseFreezesUntilResumed() {
+        val d = SceneEngine.decide(signals { copy(topicPaused = true, meetingActive = true) })
+        val p = pause(d)
+        assertEquals(Long.MAX_VALUE, p.until)
+        assertEquals("专题暂停", p.label)
+        assertEquals(SceneSource.Manual, p.source)
+        assertEquals(RecordingScene.Paused, d.scene)
+        assertEquals("专题暂停中", d.reason)
+        // 隐私仍优先于专题
+        val d2 = SceneEngine.decide(signals { copy(topicPaused = true, privacyPaused = true) })
+        assertEquals(RecordingScene.PrivacyPaused, d2.scene)
+    }
+
     @Test fun manualPauseStillApplies() {
         val d = SceneEngine.decide(signals { copy(manualPausedUntil = now + 30 * 60_000) })
         val p = pause(d)

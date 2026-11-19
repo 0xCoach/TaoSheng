@@ -66,6 +66,8 @@ private object Tints {
     val model = Color(0xFF7C5CC4); val skills = Color(0xFF5B5BD6); val push = Color(0xFF3B82C4)
     // 数据：绿
     val backup = Color(0xFF34A853)
+    // 账号：紫
+    val account = Color(0xFF7B61E8)
     // 通用：灰系
     val look = Color(0xFF8E8E93); val update = Color(0xFF7A8794); val about = Color(0xFF9A8F86); val advanced = Color(0xFF636366)
 }
@@ -134,6 +136,23 @@ internal fun SettingsList(
         }
         // ---------- 体检 ----------
         report?.let { r -> item { HealthCard(r, capture, onOpen) } }
+
+        // ---------- 账号 ----------
+        if (AppGraph.isAuthReady) item {
+            GroupSection("账号") {
+                val authStatus = AppGraph.auth.status.collectAsStateWithLifecycle().value
+                val accountLine = when (authStatus) {
+                    app.resound.auth.AuthStatus.Authorized -> AppGraph.auth.store.username ?: "已授权"
+                    app.resound.auth.AuthStatus.Authenticated -> "已登录 · 等待授权凭证"
+                    app.resound.auth.AuthStatus.Expired -> "授权已过期"
+                    app.resound.auth.AuthStatus.Disabled -> "账号已停用"
+                    app.resound.auth.AuthStatus.Locked -> "隐私锁已启用"
+                    else -> "未登录"
+                }
+                SRow(SettingsGlyph.People, Tints.account, "账号与会员", accountLine,
+                    alert = if (authStatus == app.resound.auth.AuthStatus.Expired || authStatus == app.resound.auth.AuthStatus.Disabled) c.warning else null) { onOpen(SettingsPage.Account) }
+            }
+        }
 
         // ---------- 记录 ----------
         item {

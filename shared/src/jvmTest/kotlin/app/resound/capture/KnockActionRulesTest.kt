@@ -19,4 +19,10 @@ class KnockActionRulesTest {
         assertEquals(Action.Resume, KnockActionRules.decide(serviceAlive = true, enabled = true, manualPaused = true, privacyPaused = false))
         assertEquals(Action.Pause, KnockActionRules.decide(serviceAlive = true, enabled = true, manualPaused = false, privacyPaused = false))
     }
+
+    @Test fun `专题暂停时敲敲被拦截`() {
+        // 专题暂停=录音冻结：敲敲既不能单独恢复，也不再叠一层手动暂停
+        assertEquals(Action.Blocked, KnockActionRules.decide(serviceAlive = true, enabled = true, manualPaused = false, privacyPaused = false, topicPaused = true))
+        assertEquals(Action.Blocked, KnockActionRules.decide(serviceAlive = true, enabled = true, manualPaused = true, privacyPaused = false, topicPaused = true))
+    }
 }

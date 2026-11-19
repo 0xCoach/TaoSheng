@@ -67,12 +67,14 @@ class AndroidScene(
         val thermal = runCatching {
             context.getSystemService(PowerManager::class.java).currentThermalStatus
         }.getOrDefault(PowerManager.THERMAL_STATUS_NONE)
-        val meeting = AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, at)
+        val topic = if (AppGraph.isTopicsReady) AppGraph.topics.current.value else null
+        val meeting = topic != null && TopicPolicy.overridesQuiet(topic, at)
         val quiet = (AppGraph.quietSchedule as? AndroidQuietSchedule)?.refresh().takeUnless { meeting }
         val resource = (percent != null && percent < 20 && charging == false) || thermal >= PowerManager.THERMAL_STATUS_MODERATE
         return SceneSignals(now = at,
             manualPausedUntil = prefs.getLong("manualPausedUntil", 0),
             privacyPaused = prefs.getBoolean(KEY_PRIVACY, false),
+            topicPaused = topic?.status == app.resound.topic.TopicStatus.Paused,
             quietEndsAt = quiet?.endsAt, quietName = quiet?.rule?.name,
             meetingActive = meeting,
             micBusyReason = busyDetail.takeIf { state == CaptureState.MicBusy },

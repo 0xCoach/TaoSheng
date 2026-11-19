@@ -18,7 +18,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import java.io.File
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 class ResoundApp : Application() {
     private lateinit var watchdogPreferences: android.content.SharedPreferences.OnSharedPreferenceChangeListener
@@ -179,9 +181,11 @@ class ResoundApp : Application() {
                     (!settings.wifiOnly.value || network.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
             }
         }
+        // 专题已暂停：录音停，转写也一起冻结（专题继续/结束自动恢复）
+        val topicPaused = { AppGraph.isTopicsReady && AppGraph.topics.current.value?.status == app.resound.topic.TopicStatus.Paused }
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
-            sourceReady = { src -> settings.ready(src) && AppGraph.membership.allowTranscribe() }, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
+            sourceReady = { src -> settings.ready(src) && AppGraph.membership.allowTranscribe() && !topicPaused() }, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             recordTiming = { PipelineTimes.recordSegment(this, it) },
             defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers, topicTraining = database.topics()::trainingAt,
             beforeTranscribe = envSound::beforeTranscribe,
@@ -197,7 +201,7 @@ class ResoundApp : Application() {
                 }
             },
             afterImport = { voiceprintRepository.cleanupAudio() },
-            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value && AppGraph.membership.allowTranscribe() }, networkAllowed = {
+            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value && AppGraph.membership.allowTranscribe() && !topicPaused() }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
                 val network = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
@@ -235,6 +239,11 @@ class ResoundApp : Application() {
             transcribe = scheduler::runNow, ready = { scheduler.runDigestNow(); voiceprintRepository.cleanupAudio() })
         topics = app.resound.topic.TopicFeature.create(this, database, digestSettings, llm, hotwords::merged)
         AppGraph.topics = topics.repository
+        // 专题暂停 = 录音与转写一起冻结：状态一变就让录音服务重新核对指令（恢复/结束/到期自动解冻）
+        scope.launch {
+            AppGraph.topics.current.map { it?.status }.distinctUntilChanged()
+                .collect { CaptureService.recheck() }
+        }
         val redoEngine = app.resound.redo.createRedoEngine(this, database, asrChooser, settings, digestSettings, llm,
             hotwords::merged, { AppGraph.prompts.text("digest") }, { AppGraph.prompts.text("merge") },
             { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork, situation = AppGraph.situation)

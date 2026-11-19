@@ -26,6 +26,8 @@ data class SceneSignals(
     val manualPausedUntil: Long = 0,
     /** 隐私暂停：任何自动规则（闹钟、蓝牙重连、停录时段结束）都不得恢复 */
     val privacyPaused: Boolean = false,
+    /** 专题已暂停：录音与转写随专题一起冻结，直到专题继续/结束/到期 */
+    val topicPaused: Boolean = false,
     /** 当前停录时段窗口截止；不在时段内为 null */
     val quietEndsAt: Long? = null,
     val quietName: String? = null,
@@ -62,6 +64,7 @@ object SceneEngine {
     fun decide(s: SceneSignals): SceneDecision {
         val directive: CaptureDirective = when {
             s.privacyPaused -> CaptureDirective.Pause(Long.MAX_VALUE, RecordingScene.PrivacyPaused.label, SceneSource.Manual)
+            s.topicPaused -> CaptureDirective.Pause(Long.MAX_VALUE, "专题暂停", SceneSource.Manual)
             s.manualPausedUntil > s.now -> CaptureDirective.Pause(s.manualPausedUntil, null, SceneSource.Manual)
             s.meetingActive -> CaptureDirective.Record
             s.quietEndsAt != null && s.quietEndsAt > s.now ->
@@ -79,7 +82,7 @@ object SceneEngine {
         }
         val reason = when (scene) {
             RecordingScene.PrivacyPaused -> "已停止采集；需要你亲手恢复"
-            RecordingScene.Paused -> "定时暂停中"
+            RecordingScene.Paused -> (directive as? CaptureDirective.Pause)?.label?.let { "${it}中" } ?: "定时暂停中"
             RecordingScene.QuietHours -> s.quietName?.let { "停录时段：$it" }
             RecordingScene.MicInterrupted -> s.micBusyReason?.let { "麦克风被占用：$it" } ?: "麦克风被占用"
             RecordingScene.ResourceLimited -> "资源受限，重计算任务延后；录音照常"

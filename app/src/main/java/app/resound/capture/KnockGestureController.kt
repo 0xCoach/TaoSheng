@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.core.content.ContextCompat
+import app.resound.AppGraph
 import app.resound.diagnostics.FailureNotes
 
 /**
@@ -79,6 +80,7 @@ class KnockGestureController(
             enabled = p.getBoolean("enabled", false),
             manualPaused = p.getLong("manualPausedUntil", 0) > System.currentTimeMillis(),
             privacyPaused = p.getBoolean(AndroidScene.KEY_PRIVACY, false),
+            topicPaused = AppGraph.isTopicsReady && AppGraph.topics.current.value?.status == app.resound.topic.TopicStatus.Paused,
         )
         when (action) {
             KnockActionRules.Action.Blocked -> { buzz(longArrayOf(0, 400)); return } // 隐私暂停：敲敲不解锁

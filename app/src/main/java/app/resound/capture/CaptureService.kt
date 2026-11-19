@@ -232,6 +232,7 @@ class CaptureService : Service() {
         releaseWakeLock()
         store.prefs.edit().putLong("pausedUntil", until).putString("quietName", quietName).commit()
         store.event(WatchdogEventType.Paused, when {
+            until == Long.MAX_VALUE && quietName != null -> "专题暂停（恢复专题后继续）"
             until == Long.MAX_VALUE -> "隐私暂停（需手动恢复）"
             quietName == null -> "暂停至 $until"
             else -> "停录时段：$quietName，至 ${java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}"

@@ -32,10 +32,12 @@ object PreferenceBackupPolicy {
         "location" to "定位和地点解析开关",
         "quick_prefs" to "快捷暂停时长和课堂类型",
         "device-ui" to "用户确认过的关灯提示",
+        "assistant" to "助手与本地 MCP 服务开关",
     )
     val secretPrefs = setOf(
         "transcribe", "digest-secrets", "push-secrets", "backup-secrets",
         "transcribe-header-secrets", "location-secrets", "backup-encryption-secrets",
+        "agent-secrets", "mcp-secrets",
     )
     val excluded = mapOf(
         "onboarding" to "首次转写、向导计时、诊断计数及提示已读均是本机引导状态，沿用既有不备份约定",
@@ -80,6 +82,8 @@ object PreferenceBackupPolicy {
         "backup-secrets" -> key in setOf("password", "webDavPassword", "s3Secret")
         "location-secrets" -> key == "amap"
         "backup-encryption-secrets" -> key == "passphrase"
+        "agent-secrets" -> key.startsWith("endpoint-")
+        "mcp-secrets" -> key.startsWith("mcp_")
         else -> false
     }
 

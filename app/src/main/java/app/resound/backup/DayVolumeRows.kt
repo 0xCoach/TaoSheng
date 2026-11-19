@@ -26,9 +26,15 @@ internal object DayVolumeRows {
         "app_power" to "at", "battery" to "at", "heartbeats" to "at", "watchdog" to "at", "env_sounds" to "startAt",
         // 足迹（PR #19）：定位点按天分卷
         "location_points" to "at",
+        // M2+/R4 记忆与任务表（087 审计补齐）：带语义时间戳的按天分卷
+        "ideas" to "createdAt", "project_marks" to "at", "analysis_runs" to "createdAt",
+        "agent_tasks" to "createdAt", "decisions" to "decidedAt", "followups" to "createdAt",
+        "capture_items" to "createdAt", "rule_runs" to "at", "memory_revisions" to "at",
+        "scene_sessions" to "startedAt",
     )
     val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples",
-        "voiceprint_exclusions", "location_places")
+        "voiceprint_exclusions", "location_places", "projects", "project_links", "analysis_templates",
+        "agent_endpoints", "workflow_rules", "mcp_clients")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()
     fun canonical(value: Any?): String = when (value) {

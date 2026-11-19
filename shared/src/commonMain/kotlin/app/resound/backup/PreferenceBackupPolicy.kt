@@ -50,6 +50,7 @@ object PreferenceBackupPolicy {
         "ask-compatibility" to "服务端能力探测缓存和失败冷却",
         "ask-suggestions" to "问答推荐缓存",
         "backup-diagnostics" to "本机备份诊断",
+        "folder-import-problems" to "卡 210：文件夹录音转写失败的诊断行（不含文件名），只进问题记录，不备份",
         "diary-sync" to "日记上传失败状态",
         "digest-state" to "进行中整理和防重复付费状态，不属于用户设置",
         "export-jobs" to "导出任务队列及进度",

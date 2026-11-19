@@ -251,6 +251,15 @@ export async function handleMembership(req, env, H) {
     await audit(env, null, "admin.codes_activate", cid, req);
     return json({ ok: true });
   }
+  if (req.method === "GET" && /^\/console\/api\/codes\/batches\/[^/]+\/codes$/.test(path)) {
+    const cid = path.split("/")[5];
+    const r = await env.DB.prepare(
+      "SELECT id,status,redeemed_by,redeemed_at FROM redeem_codes WHERE campaign_id=? ORDER BY created_at LIMIT 20000").bind(cid).all();
+    const names = {};
+    for (const u of (await env.DB.prepare("SELECT id,username FROM users").all()).results) names[u.id] = u.username;
+    return json({ codes: r.results.map(c => ({ id: c.id, status: c.status,
+      redeemed_by: names[c.redeemed_by] || c.redeemed_by || null, redeemed_at: c.redeemed_at })) });
+  }
   if (req.method === "POST" && /^\/console\/api\/codes\/batches\/[^/]+\/disable$/.test(path)) {
     const cid = path.split("/")[5];
     await env.DB.batch([
@@ -377,9 +386,14 @@ $("panel").innerHTML=\`<div class="card">账期 <b>\${j.month}</b> · Free 额�
 <p><input id="au" placeholder="用户ID"><input id="am" placeholder="调整分钟(+/-)" style="width:110px"><input id="ar" placeholder="原因"><button class="pri" onclick="adjust()">调整额度</button></p><div id="amsg"></div></div>\`}
 async function adjust(){try{const j=await api("/usage/adjustments","POST",{user_id:$("au").value,month:new Date().toISOString().slice(0,7),minutes:Number($("am").value),reason:$("ar").value});$("amsg").innerHTML='<span class="ok">已调整</span>';usage()}catch(e){$("amsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 async function codes(){const j=await api("/codes/batches");
-$("panel").innerHTML=\`<div class="card"><table><tr><th>批次</th><th>天数</th><th>状态</th><th>数量</th><th></th></tr>\${j.batches.map(c=>\`<tr><td>\${c.name}</td><td>\${c.grant_days}</td><td>\${c.status}</td><td>\${JSON.stringify(c.counts)}</td><td>\${c.status=="draft"?'<button onclick="actBatch(\\''+c.id+'\\')">启用</button>':""}\${c.status=="active"?'<button onclick="disBatch(\\''+c.id+'\\')">停用</button>':""}</td></tr>\`).join("")}</table>
-<p><input id="bn" placeholder="批次名"><input id="bc" placeholder="数量" value="100" style="width:70px"><input id="bd" placeholder="天数" value="30" style="width:70px"><button class="pri" onclick="mkBatch()">生成兑换码</button></p><pre id="bcodes"></pre></div>\`}
-async function mkBatch(){try{const j=await api("/codes/batches","POST",{name:$("bn").value,count:Number($("bc").value),grant_days:Number($("bd").value)});$("bcodes").textContent="⚠ 明文仅此一次，请立即导出保存：\\n"+j.codes.join("\\n")}catch(e){alert(e.message)}}
+$("panel").innerHTML=\`<div class="card"><table><tr><th>批次</th><th>天数</th><th>状态</th><th>数量</th><th></th></tr>\${j.batches.map(c=>\`<tr><td>\${c.name}</td><td>\${c.grant_days}</td><td>\${c.status}</td><td>\${JSON.stringify(c.counts)}</td><td>\${c.status=="draft"?'<button onclick="actBatch(\\''+c.id+'\\')">启用</button>':""}\${c.status=="active"?'<button onclick="disBatch(\\''+c.id+'\\')">停用</button>':""}<button onclick="viewCodes(\\''+c.id+'\\',\\''+c.name+'\\')">码表</button></td></tr>\`).join("")}</table>
+<p><input id="bn" placeholder="批次名"><input id="bc" placeholder="数量" value="100" style="width:70px"><input id="bd" placeholder="天数" value="30" style="width:70px"><button class="pri" onclick="mkBatch()">生成兑换码</button></p>
+<div id="newcodes" style="display:none"><p class="err"><b>明文码仅此一次显示，立即导出：</b><button onclick="dlCodes()">下载 .txt</button><button onclick="cpCodes()">复制</button></p><pre id="bcodes"></pre></div><pre id="codetable"></pre></div>\`}
+let lastCodes=[];
+async function mkBatch(){try{const j=await api("/codes/batches","POST",{name:$("bn").value,count:Number($("bc").value),grant_days:Number($("bd").value)});lastCodes=j.codes;$("newcodes").style.display="";$("bcodes").textContent=j.codes.join("\\n")}catch(e){alert(e.message)}}
+function dlCodes(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([lastCodes.join("\\n")],{type:"text/plain"}));a.download="redeem-codes.txt";a.click()}
+function cpCodes(){navigator.clipboard.writeText(lastCodes.join("\\n"))}
+async function viewCodes(id,name){const j=await api("/codes/batches/"+id+"/codes");$("codetable").textContent="批次 "+name+" 码状态（服务端只存哈希，明文不可回看）：\\n"+j.codes.map(c=>c.id.slice(0,8)+"  "+c.status+(c.redeemed_by?"  <- "+c.redeemed_by+" @ "+ts(c.redeemed_at):"")).join("\\n")}
 async function actBatch(id){await api("/codes/batches/"+id+"/activate","POST",{});codes()}
 async function disBatch(id){if(!confirm("停用批次：未核销码全部作废？"))return;await api("/codes/batches/"+id+"/disable","POST",{});codes()}
 async function audit(){const j=await api("/audit");

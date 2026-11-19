@@ -84,7 +84,8 @@ fun QuietDigestSection(onDigestNow: () -> Unit = {}) {
                 QuietDigestRules.State.NoContent -> "没有待整理的新内容"
                 QuietDigestRules.State.AuthRequired -> "需要登录授权"
                 QuietDigestRules.State.AiNotConfigured -> "未配置 AI 服务"
-                QuietDigestRules.State.Disabled -> "已关闭"
+                // 此行只在开关开启时渲染；Disabled 只会出现在刚拨开关、watcher 还没重估的过渡瞬间
+                QuietDigestRules.State.Disabled -> "已开启"
             }, style = RsType.caption, color = c.textSecondary)
             if (lastRun > 0) {
                 Spacer(Modifier.height(4.dp))

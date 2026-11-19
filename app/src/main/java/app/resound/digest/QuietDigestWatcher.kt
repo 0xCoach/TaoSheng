@@ -14,6 +14,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 安静自动整理：录音服务健康聆听中、距最近人声片段结束超过阈值 → 触发一次整理。
@@ -37,8 +39,22 @@ class QuietDigestWatcher(
     /** 设置页展示：当前等待原因/最近触发结果。 */
     val uiState = _state.asStateFlow()
     @Volatile private var job: kotlinx.coroutines.Job? = null
+    private val tickLock = Mutex()
+    // 设置页拨开关/改时长要立即重估，否则要等下一个 60s tick，界面会先显示一行"已关闭"
+    private val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key in setOf("quietDigestEnabled", "quietThresholdMin", "quietCooldownMin")) {
+            scope.launch {
+                try { tick() }
+                catch (e: CancellationException) { throw e }
+                catch (t: Throwable) {
+                    app.resound.diagnostics.FailureNotes.record("digest/QuietDigestWatcher.kt:prefChange", t)
+                }
+            }
+        }
+    }
 
     fun start() {
+        settings.registerOnSharedPreferenceChangeListener(prefListener)
         if (job?.isActive == true) return
         job = scope.launch {
             while (true) {
@@ -52,9 +68,14 @@ class QuietDigestWatcher(
         }
     }
 
-    fun stop() { job?.cancel(); job = null; _state.value = State.Disabled }
+    fun stop() {
+        settings.unregisterOnSharedPreferenceChangeListener(prefListener)
+        job?.cancel(); job = null; _state.value = State.Disabled
+    }
 
-    internal suspend fun tick() {
+    internal suspend fun tick() = tickLock.withLock { tickLocked() }
+
+    private suspend fun tickLocked() {
         if (!settings.getBoolean("quietDigestEnabled", false)
             && state.getLong("quietPendingAt", 0L) <= 0L) {
             _state.value = State.Disabled; return

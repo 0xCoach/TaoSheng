@@ -110,6 +110,7 @@ fun VerifyScreen(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val order = buildList {
         add(listOf("permissions", "pause-length", "playback"))
+        add(listOf("knock"))
         if (g.isQuietScheduleReady) add(listOf("quiet"))
         if (g.isSceneReady) add(listOf("scene"))
         if (g.isInputsReady) add(listOf("input"))
@@ -127,6 +128,7 @@ fun VerifyScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item { Box(Modifier.settingsAnchor("permissions", "pause-length", "playback")) { StatusCard(capture) } }
+        item { KnockSection() }
         if (g.isQuietScheduleReady) item { Box(Modifier.settingsAnchor("quiet")) { QuietSection(g.quietSchedule) } }
         if (g.isSceneReady) item { Box(Modifier.settingsAnchor("scene")) { SceneSection(g.scene) } }
         if (g.isInputsReady) item { Box(Modifier.settingsAnchor("input")) { InputSection(g.inputs) } }
@@ -138,7 +140,6 @@ fun VerifyScreen(
         if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
         item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }
         item { LinkRow("运行记录与诊断", "统计 · 守护 · 麦克风占用") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Advanced) } }
-        item { KnockSection() }
     }
 }
 

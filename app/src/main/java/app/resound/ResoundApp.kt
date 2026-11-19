@@ -76,6 +76,13 @@ class ResoundApp : Application() {
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
         AppGraph.quickPrefs = app.resound.quick.AndroidQuickPrefs(this)
+        // AUTH：门禁先于一切受保护组件装配——服务/Worker/MCP 都可能先于界面启动
+        val authStore = app.resound.auth.AuthStore(this)
+        runCatching { assets.open("auth-license-public-key.hex").use { it.readBytes() } }
+            .onSuccess { app.resound.auth.LicenseVerifier.install(it) }
+        authStore.refreshStatus()
+        val authApi = app.resound.auth.AuthApi({ authStore.serverUrl })
+        AppGraph.auth = app.resound.auth.AuthGate(authStore, authApi)
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }
         AppGraph.asrSpeed = asrSpeed
         // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴
@@ -102,6 +109,8 @@ class ResoundApp : Application() {
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)
         AppGraph.capture = controller
+        // AUTH：登出/会话失效 → 立即停止录音（controller.stop 只在服务活着时发 STOP，安全收尾）
+        AppGraph.auth.onSessionCleared = { controller.stop() }
         AppGraph.quietSchedule = quietSchedule
         AppGraph.scene = scene
         AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)

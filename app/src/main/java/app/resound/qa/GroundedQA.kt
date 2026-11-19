@@ -1,5 +1,7 @@
 package app.resound.qa
 
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.platform.NowMillis
 import app.resound.qa.QaRules
 import app.resound.decision.DecisionDao
@@ -57,6 +59,10 @@ class GroundedQA(
     val busy = _busy.asStateFlow()
 
     suspend fun ask(question: String): QaAnswer = withContext(io) {
+        // AUTH：问答检索个人记忆，未授权直接拒答（界面另有登录引导）。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.AiAnalysis)) {
+            return@withContext QaAnswer("需要登录并获得 AI 分析授权后才能提问。", emptyList(), grounded = true, needsService = true)
+        }
         _busy.value = true
         try {
             // 解析"上周/还没验证/否决过"这类回忆式问法，先限定维度再取证

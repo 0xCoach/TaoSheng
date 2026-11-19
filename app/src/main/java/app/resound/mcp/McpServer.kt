@@ -1,6 +1,8 @@
 package app.resound.mcp
 
 import android.util.Log
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.data.CaptureDatabase
 import app.resound.inbox.IdeaRules
 import app.resound.search.RecordSearch
@@ -100,6 +102,10 @@ class McpServer(
             tokenStore(it.id) == token
         } ?: return respond(401, rpcError(null, -32001, "令牌无效")).let { out.toString() }
         kotlinx.coroutines.runBlocking { db.mcpClients().touch(client.id, System.currentTimeMillis()) }
+        // AUTH：配对令牌有效还需账号被授予 MCP 能力（服务端能力列表控制）。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.McpAccess)) {
+            return respond(401, rpcError(null, -32001, "账号未授权 MCP 访问")).let { out.toString() }
+        }
         val req = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return respond(400, rpcError(null, -32700, "JSON 解析失败")).let { out.toString() }
         val id = req["id"] ?: JsonPrimitive(null as String?)

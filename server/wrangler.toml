@@ -1,0 +1,20 @@
+name = "soundsound-auth"
+main = "src/worker.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "soundsound-auth"
+database_id = "REPLACE_WITH_D1_ID"
+
+# Secrets (wrangler secret put):
+#   ADMIN_TOKEN         管理员令牌（创建/停用账号用）
+#   LICENSE_PRIVATE_KEY ECDSA P-256 PKCS8 PEM base64，离线授权/JWT 签名私钥（公钥随 App 分发）
+#   LICENSE_PUBLIC_JWK  与私钥配对的 JWK JSON（服务端验签用）
+
+[vars]
+ACCESS_TTL_SECONDS = 900
+REFRESH_TTL_SECONDS = 2592000          # 30 天
+OFFLINE_LICENSE_DAYS = 7               # 离线授权有效期，可配置策略
+LOGIN_RATE_LIMIT = 8                   # 每账号+IP 每窗口允许失败次数
+LOGIN_RATE_WINDOW_SECONDS = 600

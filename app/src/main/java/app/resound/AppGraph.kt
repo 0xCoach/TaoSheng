@@ -188,6 +188,9 @@ object AppGraph {
     lateinit var memoryCorrector: app.resound.revise.MemoryCorrector
     lateinit var groundedQA: app.resound.qa.GroundedQA
     lateinit var mcpServer: app.resound.mcp.McpServer
+    // AUTH：登录与授权门禁（最先装配，CaptureService/Worker/MCP 都可能在界面前启动）
+    lateinit var auth: app.resound.auth.AuthGate
+    val isAuthReady: Boolean get() = ::auth.isInitialized
     val isAssistantReady: Boolean
         get() = ::decisionRepo.isInitialized && ::followupEngine.isInitialized && ::captureInbox.isInitialized &&
             ::workflowEngine.isInitialized && ::memoryCorrector.isInitialized && ::groundedQA.isInitialized && ::mcpServer.isInitialized &&

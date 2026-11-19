@@ -1,5 +1,7 @@
 package app.resound.agent
 
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.data.CaptureDatabase
 import app.resound.digest.SecretStore
 import app.resound.diagnostics.FailureNotes
@@ -184,6 +186,11 @@ class AgentBridge(
         withContext(io) {
             val at = now.now()
             val task = dao.task(id) ?: return@withContext false
+            // AUTH：未授权 Agent 访问不出网；任务挂起待授权后重试，不算失败。
+            if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.AgentAccess)) {
+                dao.scheduleRetry(id, "账号未授权 Agent 访问", null, at)
+                return@withContext false
+            }
             if (dao.claimForSend(id, at) == 0) return@withContext false
             val endpoint = task.endpointId?.let { dao.endpoint(it) }
             if (endpoint == null || !endpoint.enabled) {

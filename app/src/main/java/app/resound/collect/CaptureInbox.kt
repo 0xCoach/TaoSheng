@@ -1,5 +1,7 @@
 package app.resound.collect
 
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.platform.NowMillis
 import android.content.Context
 import android.content.Intent
@@ -49,6 +51,8 @@ class CaptureInbox(
      */
     @Suppress("DEPRECATION")
     suspend fun receive(intent: Intent, sourceApp: String? = null): Int = scope.async(io) {
+        // AUTH：系统分享入口同样过门禁——未授权不写个人数据。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.ReadPersonalData)) return@async 0
         var count = 0
         val app = sourceApp
         val texts = buildList {

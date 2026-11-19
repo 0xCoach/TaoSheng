@@ -2,6 +2,7 @@ package app.resound.capture
 
 import app.resound.digest.DigestMode
 import app.resound.AppGraph
+import app.resound.auth.Capability
 
 import android.app.*
 import android.content.Intent
@@ -100,6 +101,18 @@ class CaptureService : Service() {
         val command = intent ?: Intent().setAction(START).putExtra("route", "system-sticky")
         // 停止也不创建新的录音会话。
         if (command.action == STOP) { commands.trySend(Command(command)); return START_NOT_STICKY }
+        // AUTH：所有进入录音动作的入口（界面/磁贴/通知/Widget/场景/快捷指令）统一在这里拦。
+        // 已初始化（正在录）时走正常 STOP 通道安全收尾——当前片段写完、心跳归档；
+        // 未初始化时绝不为此新建录音会话。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.RecordAudio)) {
+            if (initialized) commands.trySend(Command(Intent().setAction(STOP).putExtra("route", "auth-expired")))
+            else {
+                controller.update(CaptureState.Stopped)
+                store.prefs.edit().putBoolean("enabled", false).commit()
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
         if (!CaptureNotifications.permitted(this)) {
             controller.update(CaptureState.NoPermission)
             stopSelf(); return START_NOT_STICKY

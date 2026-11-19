@@ -1,5 +1,7 @@
 package app.resound.backup
 
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.diagnostics.FailureNotes
 
 import app.resound.diary.DiaryRepository
@@ -142,6 +144,10 @@ class AndroidBackupRepository internal constructor(
     internal suspend fun runBackup(periodic: Boolean): Boolean = withContext(Dispatchers.IO) {
         gate.withLock {
             if (periodic && !state.value.enabled) return@withLock false
+            // AUTH：备份/导出带走个人数据，未授权不上传（定期与手动同闸）。
+            if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.ExportBackup)) {
+                error("账号未授权导出备份"); return@withLock false
+            }
             refresh(true)
             val workspace = File(context.cacheDir, "backup-${UUID.randomUUID()}")
             try {
@@ -269,6 +275,10 @@ class AndroidBackupRepository internal constructor(
         return (result.exceptionOrNull() as? BackupFailure)?.retryable == true
     }
     override suspend fun exportTo(target: Uri): Result<Unit> = localOperation(folderOperation = false) {
+        // AUTH：导出个人数据需要授权。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.ExportBackup)) {
+            throw BackupFailure("账号未授权导出备份", retryable = false)
+        }
         withWorkspace { work ->
             val file = File(work, "export.zip")
             DayVolumes.export(context, database, work, file, backupPassphrase())

@@ -38,9 +38,10 @@ class WebDavClientTest {
         server.enqueue(MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'>" +
             item(encoded.lowercase()) +
             item("/dav/声声不息备份/声声不息-2026-10-24-1238-00001-abcdef12.zip") +
-            item(server.url("/dav/").toString().removeSuffix("/dav/") + "/dav/%E5%9B%9E%E5%93%8D%E5%A4%87%E4%BB%BD/%E5%9B%9E%E5%93%8D-2026-10-24-1239-00002-abcdef12.zip") +
+            item(server.url("/dav/").toString().removeSuffix("/dav/") + "/dav/%E5%A3%B0%E5%A3%B0%E4%B8%8D%E6%81%AF%E5%A4%87%E4%BB%BD/%E5%A3%B0%E5%A3%B0%E4%B8%8D%E6%81%AF-2026-10-24-1239-00002-abcdef12.zip") +
             item("/dav/别的目录/声声不息-2026-10-24-1240-00003-abcdef12.zip") +
             "</d:multistatus>"))
+        server.enqueue(MockResponse().setResponseCode(404)) // 回响备份目录不存在
         assertEquals(listOf("声声不息-2026-10-24-1237-23965-abcdef12.zip", "声声不息-2026-10-24-1238-00001-abcdef12.zip", "声声不息-2026-10-24-1239-00002-abcdef12.zip"),
             client.list())
     }
@@ -121,8 +122,9 @@ class WebDavClientTest {
         server.enqueue(MockResponse().setResponseCode(207).setBody(
             "<d:multistatus xmlns:d='DAV:'><d:response><d:href>$href</d:href>" +
                 "<d:status>HTTP/1.1 200 OK</d:status></d:response></d:multistatus>"))
+        server.enqueue(MockResponse().setResponseCode(404)) // 回响备份目录不存在
         assertEquals(listOf(recent, legacy, old), client.backups().map { it.name })
-        server.takeRequest(); server.takeRequest()
+        server.takeRequest(); server.takeRequest(); server.takeRequest() // 新、声声不息、回响三个目录各一次 PROPFIND
         server.enqueue(response(recent, old, legacy))
         server.enqueue(MockResponse().setResponseCode(204))
         assertEquals(1, client.retain(1))
@@ -130,7 +132,7 @@ class WebDavClientTest {
         val deleted = server.takeRequest()
         assertEquals("DELETE", deleted.method)
         assertEquals(listOf("dav", WebDavClient.FOLDER, old), deleted.requestUrl!!.pathSegments)
-        assertEquals(4, server.requestCount)
+        assertEquals(5, server.requestCount)
     }
 
 }

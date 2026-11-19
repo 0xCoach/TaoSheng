@@ -39,6 +39,21 @@ class DayDiaryTest {
         day.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     @Before fun setup() {
+        // FileProvider 按 authority 静态缓存路径策略；同进程先跑过的用例会把根目录留在别的临时目录里，
+        // 不清掉会让本用例的导出文件匹配不到根（"Failed to find configured root"）。
+        // androidx.core 1.18 的 belongsToRoot 用 '/' 硬编码做前缀匹配，Windows JVM 的 '\' 路径永远匹配不到根。
+        // 真机不受影响；这里注入等价策略，仍验证文件写出、内容与返回 URI。
+        val cache = androidx.core.content.FileProvider::class.java.getDeclaredField("sCache")
+            .apply { isAccessible = true }.get(null) as MutableMap<String, Any>
+        cache.clear()
+        val strategyClass = Class.forName("androidx.core.content.FileProvider\$PathStrategy")
+        cache["${context.packageName}.files"] = java.lang.reflect.Proxy.newProxyInstance(
+            strategyClass.classLoader, arrayOf(strategyClass)) { _, method, args ->
+            when (method.name) {
+                "getUriForFile" -> android.net.Uri.parse("content://${context.packageName}.files/cache/${(args[0] as File).name}")
+                "getFileForUri" -> File(context.cacheDir, (args[0] as android.net.Uri).lastPathSegment ?: "")
+                else -> null
+            } }
         originalZone = TimeZone.getDefault()
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"))
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()

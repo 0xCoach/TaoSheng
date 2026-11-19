@@ -76,7 +76,7 @@ class ProblemReportsTest {
             context.getSharedPreferences("llm-providers", 0).edit().putString("saved",
                 """[{"id":"test","name":"测试","model":"test","baseUrl":"https://example.com/v1?key=$key","headers":{"X-Private-Header":"private-header-value"}}]""").commit()
             val file = reports.export()
-            assertTrue(file.canonicalPath.startsWith(context.cacheDir.canonicalPath + "/"))
+            assertTrue(file.canonicalFile.toPath().startsWith(context.cacheDir.canonicalFile.toPath()))
             val text = file.readText()
             assertTrue(text.contains("预览通道=true")); assertTrue(text.contains("步骤=12"))
             assertTrue(text.contains("step=54")); assertFalse(text.contains("step=0\n"))

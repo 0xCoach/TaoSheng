@@ -23,7 +23,7 @@ object ModelVerification {
         val model=File(dir,spec.modelName);val tokens=File(dir,"tokens.txt")
         val data=JSONObject().put("sha256",spec.modelHash).put("bytes",model.length()).put("modified",model.lastModified())
             .put("tokensBytes",tokens.length()).put("tokensModified",tokens.lastModified())
-        val temp=File(dir,"verified.tmp");temp.writeText(data.toString());check(temp.renameTo(File(dir,"verified")))
+        val temp=File(dir,"verified.tmp");temp.writeText(data.toString());app.resound.util.atomicReplace(temp,File(dir,"verified"))
     }
     fun ensure(dir: File, spec: ModelSpec): Boolean {
         if (matches(dir,spec)) return true

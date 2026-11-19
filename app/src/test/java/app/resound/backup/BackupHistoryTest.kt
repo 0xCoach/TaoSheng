@@ -40,7 +40,8 @@ class BackupHistoryTest {
     private fun work() = File(root,UUID.randomUUID().toString()).apply { mkdirs() }
     @Before fun setup() {
         context=RuntimeEnvironment.getApplication()
-        root=File(context.cacheDir,"history-tests").apply { deleteRecursively();mkdirs() }
+        // 目录名保持短：长测试方法名叠加深层暂存库路径会让 sqlite 超过 Windows MAX_PATH。
+        root=File(context.cacheDir,"h").apply { deleteRecursively();mkdirs() }
         remote=File(root,"remote").apply { mkdirs() };disk=DirectoryVolumeStore(remote)
         (BackupSettings.prefs+BackupSettings.stores.keys+"backup-encryption-secrets").forEach { context.getSharedPreferences(it,0).edit().clear().commit() }
         File(context.applicationInfo.dataDir,BackupArchive.FEATURES).deleteRecursively()

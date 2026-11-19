@@ -208,7 +208,7 @@ class KtorParity151Test {
                 val expected="--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\nContent-Length: 3\r\n\r\nasr\r\n" +
                     "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${audio.file.name}\"\r\nContent-Type: audio/ogg\r\nContent-Length: 3\r\n\r\n" +
                     "\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\nContent-Length: 4\r\n\r\njson\r\n" +
-                    "--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\nContent-Length: 27\r\n\r\n可能出现的词：声声不息\r\n--BOUNDARY--\r\n"
+                    "--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\nContent-Length: 33\r\n\r\n可能出现的词：声声不息\r\n--BOUNDARY--\r\n"
                 assertEquals(expected,r.body.clone().readUtf8().replace(boundary,"BOUNDARY"))
                 assertEquals(r.bodySize.toString(),r.getHeader("Content-Length"))
             } finally { audio.file.delete() }

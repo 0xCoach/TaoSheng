@@ -27,7 +27,7 @@ class SampleAudioStore(private val dir: File?) {
         if (pcm.isEmpty()) return
         check(target.parentFile!!.isDirectory || target.parentFile!!.mkdirs())
         val tmp = File(target.path + ".tmp")
-        try { writeWav(tmp, pcm); check(tmp.renameTo(target)) }
+        try { writeWav(tmp, pcm); app.resound.util.atomicReplace(tmp, target) }
         finally { tmp.delete(); changed() }
     }
     @Synchronized fun delete(name: String) {

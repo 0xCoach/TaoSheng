@@ -16,6 +16,12 @@ object NightTuning {
     const val SNORE = .10f
     const val COUGH = .50f
     const val CANDIDATE_DB = 6
+    // 卡 210：整夜最响的几下。至少比背景高 15 分贝才算，留 3 段；彼此隔 15 秒以上；存峰值前 6 秒到后约 8 秒
+    const val LOUD_MIN_DB = 15
+    const val LOUD_KEEP = 3
+    const val LOUD_GAP = 15_000L
+    const val LOUD_BEFORE = 6_000L
+    const val LOUD_AFTER = 10_000L
     const val CANDIDATE_LIMIT = 60L * 1024 * 1024
     const val STILL_ANGLE = 5.0
     const val PICKUP_ANGLE = 30.0

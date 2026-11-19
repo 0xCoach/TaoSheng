@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -117,18 +120,20 @@ internal fun NightBody(d: NightDetail, sharedRoom: Boolean, onDeleted: () -> Uni
     Suggestions(d)
     Spacer(Modifier.height(14.dp))
     Stats(d)
+    // 卡 210：声音详情图可放大；列表点哪一条，图就移到哪
+    val zoom = s.times?.let { t -> rememberNightZoom(s.id, t.bedtime, t.wake) }
     s.times?.let { t ->
         Spacer(Modifier.height(16.dp))
         TimesEditor(s.id, t)
-        Spacer(Modifier.height(16.dp))
-        NightMap(t.bedtime, t.wake, d.envelope, d.events, selected, height = 120.dp, onPick = ::play)
+        Spacer(Modifier.height(12.dp))
+        NightSoundDetail(s.id, zoom!!, d.envelope, d.events, selected, onPlay = ::play)
         Spacer(Modifier.height(6.dp))
         MapLegend(d.events, sharedRoom)
-        Text("点地图上的彩色条可以回听", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 4.dp))
+        Text("点圆点回听 · 双指或双击放大 · 长按看几点几分多响", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 4.dp))
         playError?.let { Text(it, style = RsType.caption, color = c.warning) }
     }
     Spacer(Modifier.height(18.dp))
-    Events(d, sharedRoom, selected, ::play)
+    Events(d, sharedRoom, selected, ::play) { e -> selected = e.id; zoom?.focus(e) }
     Spacer(Modifier.height(18.dp))
     Tags(d)
     Spacer(Modifier.height(18.dp))
@@ -221,8 +226,9 @@ private fun TimesEditor(nightId: Long, t: app.resound.night.NightTimes) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Events(d: NightDetail, sharedRoom: Boolean, selected: Long?, onPlay: (NightEvent) -> Unit) {
+internal fun Events(d: NightDetail, sharedRoom: Boolean, selected: Long?, onPlay: (NightEvent) -> Unit, onFocus: (NightEvent) -> Unit) {
     val c = Rs.colors
     val all = d.events.filter { it.kind != NightEventKind.Turn }
     // 卡 205：标了“不是”的不再消失，收在最下面一行，点开原地展开，能回听、能改回
@@ -230,58 +236,115 @@ private fun Events(d: NightDetail, sharedRoom: Boolean, selected: Long?, onPlay:
     val denied = all.filter { it.feedback == Feedback.No }
     if (shown.isEmpty() && denied.isEmpty()) return
     Head("夜里的声音和动静")
-    shown.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay) }
-    if (denied.isNotEmpty()) {
-        var open by remember(d.summary.id) { mutableStateOf(false) }
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(12.dp)).springClick { open = !open }.padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Text("标了不是的 ${denied.size} 条", style = RsType.subhead, color = c.textTertiary, modifier = Modifier.weight(1f))
-            Text(if (open) "收起" else "展开", style = RsType.subhead, color = c.accent)
+    // 卡 210：要你确认的放最上面、默认展开；其余按类别一行，点开原地展开
+    val pending = shown.filter { askable(it) && it.feedback == Feedback.None && it.id !in d.vetoed }
+    if (pending.isNotEmpty()) Group(d.summary.id, "pending", c.accent, "待确认", "${pending.size} 条", openAtFirst = true) {
+        pending.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay, onFocus) }
+    }
+    val order = listOf(NightEventKind.Snore, NightEventKind.SnoreBreak, NightEventKind.Cough, NightEventKind.SleepTalk,
+        NightEventKind.Loud, NightEventKind.Awake, NightEventKind.Playback, NightEventKind.Gap)
+    for (kind in order) {
+        val list = shown.filter { it.kind == kind && it !in pending }
+        if (list.isEmpty()) continue
+        Group(d.summary.id, kind.name, kindColor(kind), groupTitle(kind, sharedRoom), groupSummary(kind, list, d)) {
+            if (kind == NightEventKind.SnoreBreak) FlowRow(Modifier.padding(start = 8.dp, top = 4.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // 中断很多时一条一行太长：排成时间小胶囊，点了图移过去
+                list.forEach { e ->
+                    val on = e.id == selected
+                    Text(clock(e.start), style = RsType.subhead, color = if (on) c.onAccent else c.text,
+                        modifier = Modifier.clip(CircleShape).springClick { onFocus(e) }.background(if (on) c.critical else c.fill)
+                            .padding(horizontal = 12.dp, vertical = 7.dp))
+                }
+            } else list.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay, onFocus) }
         }
-        AnimatedVisibility(open) {
-            Column { denied.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay, dim = true) } }
-        }
+    }
+    if (denied.isNotEmpty()) Group(d.summary.id, "denied", c.textTertiary, "标了不是的", "${denied.size} 条") {
+        denied.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay, onFocus, dim = true) }
     }
 }
 
+/** 一类一行：色点、名称、次数/时长，点了原地展开 */
 @Composable
-private fun EventRow(e: NightEvent, d: NightDetail, sharedRoom: Boolean, on: Boolean, onPlay: (NightEvent) -> Unit, dim: Boolean = false) {
+private fun Group(night: Long, key: String, color: Color, title: String, summary: String, openAtFirst: Boolean = false, content: @Composable () -> Unit) {
+    val c = Rs.colors
+    var open by remember(night, key) { mutableStateOf(openAtFirst) }
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 180f else 0f, label = "group")
+    Column(Modifier.fillMaxWidth().animateContentSize()) {
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(12.dp)).springClick { open = !open }
+            .padding(horizontal = 8.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            app.resound.ui.verify.Dot(color, 8.dp)
+            Text("  $title", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+            Text("  $summary", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f), maxLines = 1)
+            Text("⌄", style = RsType.headline, color = c.textTertiary, modifier = Modifier.graphicsLayer { rotationZ = turn })
+        }
+        AnimatedVisibility(open) { Column { content() } }
+    }
+}
+
+private fun groupTitle(kind: NightEventKind, sharedRoom: Boolean) = when (kind) {
+    NightEventKind.Snore -> if (sharedRoom) "卧室里的鼾声" else "鼾声"
+    NightEventKind.Cough -> "咳嗽/清嗓"
+    NightEventKind.SleepTalk -> "梦话和人声"
+    NightEventKind.Loud -> "最响的几下"
+    NightEventKind.Awake -> "醒来"
+    NightEventKind.Playback -> "手机在放声音"
+    NightEventKind.Gap -> "没有记录"
+    NightEventKind.SnoreBreak -> "鼾声中断"
+    NightEventKind.Turn -> "翻身"
+}
+
+private fun groupSummary(kind: NightEventKind, list: List<NightEvent>, d: NightDetail): String = when (kind) {
+    NightEventKind.Snore -> "${list.size} 段 · 共 ${span(app.resound.night.NightRules.merge(list.map { app.resound.night.NightSpan(it.start, it.end) }).sumOf { it.millis })}"
+    NightEventKind.SnoreBreak -> "${list.size} 次" + (d.summary.sleepMillis?.takeIf { it > 0 }?.let { " · 每小时 %.1f 次".format(list.size * 3_600_000.0 / it) } ?: "")
+    NightEventKind.Cough, NightEventKind.Awake -> "${list.size} 次"
+    NightEventKind.Loud -> "${list.size} 下 · 最响比背景高 ${list.maxOf { it.aboveBackgroundDb ?: 0 }} 分贝"
+    else -> "${list.size} 段"
+}
+
+/** 一条：左边圆形播放键，中间时间和说明，右边“是/不是”——两类按钮左右分开，不会点错 */
+@Composable
+private fun EventRow(e: NightEvent, d: NightDetail, sharedRoom: Boolean, on: Boolean, onPlay: (NightEvent) -> Unit, onFocus: (NightEvent) -> Unit, dim: Boolean = false) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     val playing = e.clipId != null && app.resound.ui.voiceprint.SamplePlayer.playingKey == clipKey(e.clipId!!)
-    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(12.dp))
-        .background(if (on) c.accentSoft else Color.Transparent).padding(horizontal = 8.dp, vertical = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            app.resound.ui.verify.Dot(if (dim) c.textTertiary else kindColor(e.kind), 8.dp)
-            Text("  " + clock(e.start) + if (e.end - e.start >= 60_000) "–${clock(e.end)}" else "", style = RsType.subhead, color = c.textSecondary)
-            Text("  " + kindTitle(e, sharedRoom), style = RsType.body, color = if (dim) c.textTertiary else c.text, modifier = Modifier.weight(1f))
-            if (e.clipId != null && e.audioAvailable) Text(if (playing) "■" else "▶", style = RsType.headline, color = c.accent,
-                modifier = Modifier.springClick { onPlay(e) }.padding(horizontal = 8.dp))
+    val tint = if (dim) c.textTertiary else kindColor(e.kind)
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(12.dp))
+        .background(if (on) c.accentSoft else Color.Transparent).springClick { onFocus(e) }.padding(horizontal = 6.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        if (e.clipId != null && e.audioAvailable) Box(Modifier.size(40.dp).clip(CircleShape).background(tint.copy(alpha = .16f)).springClick { onPlay(e) },
+            contentAlignment = Alignment.Center) {
+            Text(if (playing) "■" else "▶", style = RsType.body, color = tint)
+        } else Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { app.resound.ui.verify.Dot(tint, 8.dp) }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(clock(e.start) + if (e.end - e.start >= 60_000) "–${clock(e.end)}" else "", style = RsType.subhead, color = c.textSecondary)
+                Text("  " + kindTitle(e, sharedRoom), style = RsType.body, color = if (dim) c.textTertiary else c.text, maxLines = 1)
+            }
+            val sub = buildList {
+                e.aboveBackgroundDb?.takeIf { it > 0 && (askable(e) || e.kind == NightEventKind.Loud) }?.let { add("比背景高 $it 分贝") }
+                e.text?.let { add(if (e.kind == NightEventKind.SleepTalk) "“$it”" else it) }
+                if (e.kind == NightEventKind.SleepTalk && e.text == null) add("转写中")
+                if ((askable(e) || e.kind == NightEventKind.Loud) && e.clipId != null && !e.audioAvailable) add("录音已过期")
+                if ((e.feedback == Feedback.No || e.kind == NightEventKind.Loud) && e.audioAvailable) add("录音 7 天后删")
+                if (e.id in d.vetoed) add("个人判断认为不是")
+            }
+            if (sub.isNotEmpty()) Text(sub.joinToString(" · "), style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
         }
-        val sub = buildList {
-            e.aboveBackgroundDb?.takeIf { it > 0 && askable(e) }?.let { add("比背景高 $it 分贝") }
-            e.text?.let { add(if (e.kind == NightEventKind.SleepTalk) "“$it”" else it) }
-            if (e.kind == NightEventKind.SleepTalk && e.text == null) add("转写中")
-            if (askable(e) && e.clipId != null && !e.audioAvailable) add("录音已过期")
-            if (e.feedback == Feedback.No && e.audioAvailable) add("录音 7 天后删")
-            if (e.id in d.vetoed) add("个人判断认为不是")
-        }
-        if (sub.isNotEmpty() || askable(e)) Row(Modifier.padding(start = 16.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(sub.joinToString(" · "), style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
-            // 答案随时能改：已确认的点“改成不是”，标了不是的点“改成是”
-            if (askable(e)) when (e.feedback) {
-                Feedback.Yes -> {
+        // 答案随时能改：已确认的点“改成不是”，标了不是的点“改成是”
+        if (askable(e)) {
+            Spacer(Modifier.width(8.dp))
+            when (e.feedback) {
+                Feedback.Yes -> Column(horizontalAlignment = Alignment.End) {
                     Text("已确认 ✓", style = RsType.caption, color = c.good)
                     Text("改成不是", style = RsType.caption, color = c.textTertiary,
-                        modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.No) } }.padding(horizontal = 8.dp, vertical = 4.dp))
+                        modifier = Modifier.clip(CircleShape).springClick { scope.launch { answerWithUndo(e, Feedback.No) } }.padding(horizontal = 8.dp, vertical = 8.dp))
                 }
-                Feedback.No -> Text("改成是", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
-                    modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.Yes) } }.padding(horizontal = 8.dp, vertical = 4.dp))
-                else -> {
-                    Text("是", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
-                        modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.Yes) } }.padding(horizontal = 8.dp, vertical = 4.dp))
-                    Text("不是", style = RsType.subhead, color = c.textSecondary,
-                        modifier = Modifier.springClick { scope.launch { answerWithUndo(e, Feedback.No) } }.padding(horizontal = 8.dp, vertical = 4.dp))
+                Feedback.No -> Pill("改成是", filled = false) { scope.launch { answerWithUndo(e, Feedback.Yes) } }
+                else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill("不是", filled = false) { scope.launch { answerWithUndo(e, Feedback.No) } }
+                    Pill("是", filled = true) { scope.launch { answerWithUndo(e, Feedback.Yes) } }
                 }
             }
         }

@@ -86,6 +86,7 @@ internal fun kindColor(kind: NightEventKind): Color {
         NightEventKind.Awake -> c.textSecondary
         NightEventKind.Playback -> c.textTertiary
         NightEventKind.Gap, NightEventKind.Turn -> c.separator
+        NightEventKind.Loud -> c.accent
     }
 }
 
@@ -99,6 +100,7 @@ internal fun kindTitle(e: NightEvent, sharedRoom: Boolean): String = when (e.kin
     NightEventKind.Gap -> "没有记录"
     NightEventKind.Turn -> "翻身"
     NightEventKind.SnoreBreak -> "鼾声中断"
+    NightEventKind.Loud -> "很响的一下"
 }
 
 /** 鼾声、咳嗽有片段，才问“是不是” */

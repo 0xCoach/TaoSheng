@@ -10,6 +10,9 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
     private var bestEnergy=-1.0
     private val fine=ArrayDeque<SnoreLevel>()
     private var breaks: MutableSet<Long>? = null
+    /** 卡 210：整夜最响的几下；挂起的那一下要等后文，所以按起点留着窗口 */
+    private var loud: LoudPicker? = null
+    private val loudWindows = HashMap<Long,NightWindow>()
     private var zeroScores: Map<String, Float>? = null
     suspend fun accept(w: NightWindow, infer: Boolean = true): Boolean {
         val scores=if (infer) owner.model.nightScores(w.pcm).also {
@@ -29,6 +32,7 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
             known.add(span.start)
         }
         recent.addLast(w to scores);while(recent.size>45)recent.removeFirst()
+        keepLoudest(w,fine.toList().takeLast(4).maxOf { it.aboveBackground })
         val finished=detector.accept(w.start,scores,w.features)
         for((kind,span) in finished)save(kind,span)
         if(detector.currentSnore!=null) {
@@ -38,7 +42,35 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
         }
         return detector.detecting || (scores["Snoring"] ?: 0f) >= NightTuning.SNORE || (scores["Cough"] ?: 0f) >= NightTuning.COUGH
     }
-    suspend fun finish() {for((kind,span) in detector.finish())save(kind,span)}
+    suspend fun finish() {for((kind,span) in detector.finish())save(kind,span);loud?.flush()?.let { commitLoud(it.first,it.second) }}
+    /** 比已留的都响就等后文够了再存前后约 15 秒；只留最响几段，挤掉的连录音一起删 */
+    private suspend fun keepLoudest(w: NightWindow,db: Int) {
+        val picker=loud ?: LoudPicker(owner.store.dao.events(id).filter { it.kind==NightEventKind.Loud.name }.map { row->
+            LoudPicker.Pick(row.id,row.start,owner.store.json.decodeFromString<NightEvent>(row.payload).aboveBackgroundDb ?: 0) }).also { loud=it }
+        if(db>=NightTuning.LOUD_MIN_DB)loudWindows[w.start]=w
+        picker.offer(w.start,db)?.let { (at,d)-> commitLoud(at,d) }
+        loudWindows.keys.removeAll { it<w.start-NightTuning.LOUD_AFTER-NightTuning.LOUD_GAP }
+    }
+    private suspend fun commitLoud(at: Long,db: Int) {
+        val picker=loud ?: return
+        val data=recent.filter { it.first.start>=at-NightTuning.LOUD_BEFORE && it.first.start<=at+NightTuning.LOUD_AFTER-2_000 }
+        val peak=loudWindows[at] ?: data.firstOrNull { it.first.start==at }?.first ?: return
+        if(data.isEmpty())return
+        val pcm=ShortArray(data.sumOf { it.first.pcm.size });var offset=0;data.forEach { it.first.pcm.copyInto(pcm,offset);offset+=it.first.pcm.size }
+        val start=data.first().first.start
+        val path=owner.files.encode(id,start,pcm)
+        val scores=(data.firstOrNull { it.first.start==at } ?: data.first()).second
+        val clip=owner.store.dao.insertClip(NightClipRow(nightId=id,start=start,end=start+pcm.size/16,path=path,scores=NightFiles.scores(scores),features=owner.store.json.encodeToString(peak.features),confirmed=false,expiresAt=at+7*86_400_000L,candidate=false))
+        val event=owner.store.addEvent(id,NightEvent(0,NightEventKind.Loud,at,at+2_000,db,clipId=clip,audioAvailable=true))
+        val drop=picker.kept(event,at,db)
+        for(old in drop) {
+            val row=owner.store.dao.event(old) ?: continue
+            owner.store.dao.deleteEvent(old)
+            owner.store.json.decodeFromString<NightEvent>(row.payload).clipId?.let { owner.store.dao.clip(it) }?.let { c->
+                c.path?.let { owner.store.db.privacy().queueCleanup(app.resound.data.PrivacyFileCleanup(owner.files.cleanupPath(it))) };owner.store.dao.updateClip(c.copy(path=null)) }
+        }
+        if(drop.isNotEmpty())owner.cleanup()
+    }
     private suspend fun save(kind: NightEventKind,span: NightSpan) {
         val dao=owner.store.dao
         if(dao.events(id).any { it.kind==kind.name && it.start==span.start && it.end==span.end })return

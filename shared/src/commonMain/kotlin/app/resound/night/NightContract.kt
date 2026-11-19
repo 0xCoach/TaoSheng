@@ -61,6 +61,8 @@ enum class NightEventKind {
     Turn,
     /** 卡 203：鼾声中断（不写医学词） */
     SnoreBreak,
+    /** 卡 210：整夜最响的几下（不论是什么声音），留 15 秒录音供回听；不进统计 */
+    Loud,
 }
 
 @Serializable

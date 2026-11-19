@@ -20,6 +20,7 @@ object NightThreads {
                 NightEventKind.Playback->"手机在放声音"
                 NightEventKind.Turn->"疑似翻身"
                 NightEventKind.SnoreBreak->"鼾声中断"
+                NightEventKind.Loud->"很响的一下"
             }
             NightThreadEvent(e.kind.name,zones.iso(e.start),zones.iso(e.end),title,e.aboveBackgroundDb)
         }

@@ -22,6 +22,9 @@ object NightTuning {
     const val LOUD_GAP = 15_000L
     const val LOUD_BEFORE = 6_000L
     const val LOUD_AFTER = 10_000L
+    // 卡 210：鼾声中断的回听片段：安静开始前 5 秒到那一声后 8 秒
+    const val BREAK_BEFORE = 5_000L
+    const val BREAK_AFTER = 8_000L
     const val CANDIDATE_LIMIT = 60L * 1024 * 1024
     const val STILL_ANGLE = 5.0
     const val PICKUP_ANGLE = 30.0

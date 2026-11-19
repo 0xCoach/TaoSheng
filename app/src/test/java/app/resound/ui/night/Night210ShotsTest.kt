@@ -45,7 +45,7 @@ class Night210ShotsTest {
             NightEvent(1, NightEventKind.Snore, at(600), at(1500), 22, clipId = 11, audioAvailable = true, feedback = Feedback.Yes),
             NightEvent(2, NightEventKind.Snore, at(2400), at(2900), 18, clipId = 12, audioAvailable = true),
             NightEvent(3, NightEventKind.Cough, at(2000), at(2002), 25, clipId = 13, audioAvailable = true),
-            NightEvent(4, NightEventKind.SnoreBreak, at(900), at(903)),
+            NightEvent(4, NightEventKind.SnoreBreak, at(900), at(903), clipId = 15, audioAvailable = true),
             NightEvent(5, NightEventKind.SnoreBreak, at(1100), at(1104)),
             NightEvent(6, NightEventKind.SnoreBreak, at(1300), at(1302)),
             NightEvent(7, NightEventKind.Loud, at(3100), at(3100) + 2_000, 46, clipId = 14, audioAvailable = true),
@@ -87,6 +87,7 @@ class Night210ShotsTest {
             compose.runOnUiThread { zoom.whole() }
             shot("${mode.name}-1整夜")
             compose.onNodeWithText("鼾声中断", substring = true).performClick()
+            settle(); compose.onNodeWithText("▶ ", substring = true).performClick()
             shot("${mode.name}-2展开中断")
             compose.onNodeWithText("最响 ", substring = true).performClick()
             shot("${mode.name}-3最响放大")

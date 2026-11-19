@@ -10,6 +10,8 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
     private var bestEnergy=-1.0
     private val fine=ArrayDeque<SnoreLevel>()
     private var breaks: MutableSet<Long>? = null
+    /** 卡 210：中断要等后文（鼾声回来）够了再存整段录音，供人工回听确认 */
+    private val breakClips = mutableListOf<NightSpan>()
     /** 卡 210：整夜最响的几下；挂起的那一下要等后文，所以按起点留着窗口 */
     private var loud: LoudPicker? = null
     private val loudWindows = HashMap<Long,NightWindow>()
@@ -30,8 +32,10 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
             val event = NightEvent(0,NightEventKind.SnoreBreak,span.start,span.end)
             owner.store.dao.insertBreak(id,span.start,span.end,owner.store.json.encodeToString(event))
             known.add(span.start)
+            breakClips+=span
         }
-        recent.addLast(w to scores);while(recent.size>45)recent.removeFirst()
+        breakClips.filter { w.start>=it.end+NightTuning.BREAK_AFTER }.forEach { saveBreakClip(it);breakClips.remove(it) }
+        recent.addLast(w to scores);while(recent.size>60)recent.removeFirst()  // 卡 210：中断整段最长约 76 秒，留 2 分钟
         keepLoudest(w,fine.toList().takeLast(4).maxOf { it.aboveBackground })
         val finished=detector.accept(w.start,scores,w.features)
         for((kind,span) in finished)save(kind,span)
@@ -42,7 +46,26 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
         }
         return detector.detecting || (scores["Snoring"] ?: 0f) >= NightTuning.SNORE || (scores["Cough"] ?: 0f) >= NightTuning.COUGH
     }
-    suspend fun finish() {for((kind,span) in detector.finish())save(kind,span);loud?.flush()?.let { commitLoud(it.first,it.second) }}
+    /** 安静前 [NightTuning.BREAK_BEFORE] 到那一声后 [NightTuning.BREAK_AFTER]：存成片段挂到这次中断上 */
+    private suspend fun saveBreakClip(span: NightSpan) {
+        val data=recent.filter { it.first.start+2_000>span.start-NightTuning.BREAK_BEFORE && it.first.start<span.end+NightTuning.BREAK_AFTER }
+        if(data.isEmpty())return
+        val dao=owner.store.dao
+        val row=dao.events(id).firstOrNull { it.kind==NightEventKind.SnoreBreak.name && it.start==span.start } ?: return
+        val event=owner.store.json.decodeFromString<NightEvent>(row.payload)
+        if(event.clipId!=null)return
+        val pcm=ShortArray(data.sumOf { it.first.pcm.size });var offset=0;data.forEach { it.first.pcm.copyInto(pcm,offset);offset+=it.first.pcm.size }
+        val start=data.first().first.start
+        val path=owner.files.encode(id,start,pcm)
+        val loudest=data.maxBy { it.first.features.aboveBackground }
+        val clip=dao.insertClip(NightClipRow(nightId=id,start=start,end=start+pcm.size/16,path=path,scores=NightFiles.scores(loudest.second),
+            features=owner.store.json.encodeToString(loudest.first.features),confirmed=false,expiresAt=span.end+7*86_400_000L,candidate=false))
+        dao.updateEvent(row.copy(payload=owner.store.json.encodeToString(event.copy(clipId=clip,audioAvailable=true))))
+    }
+    suspend fun finish() {
+        breakClips.forEach { saveBreakClip(it) };breakClips.clear()
+        for((kind,span) in detector.finish())save(kind,span);loud?.flush()?.let { commitLoud(it.first,it.second) }
+    }
     /** 比已留的都响就等后文够了再存前后约 15 秒；只留最响几段，挤掉的连录音一起删 */
     private suspend fun keepLoudest(w: NightWindow,db: Int) {
         val picker=loud ?: LoudPicker(owner.store.dao.events(id).filter { it.kind==NightEventKind.Loud.name }.map { row->

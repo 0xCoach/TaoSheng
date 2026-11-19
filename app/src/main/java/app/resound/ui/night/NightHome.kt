@@ -152,7 +152,7 @@ private val undoScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Sup
 internal suspend fun answerWithUndo(e: NightEvent, v: Feedback) {
     val before = e.feedback
     AppGraph.night.feedback(e.id, v)
-    val what = if (e.kind == NightEventKind.Snore) "鼾声" else "咳嗽"
+    val what = when (e.kind) { NightEventKind.Snore -> "鼾声"; NightEventKind.SnoreBreak -> "鼾声中断"; else -> "咳嗽" }
     app.resound.ui.today.UndoBar.show(if (v == Feedback.No) "已标为不是$what" else "已确认是$what", 6000L) {
         undoScope.launch { AppGraph.night.feedback(e.id, before) }
     }

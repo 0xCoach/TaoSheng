@@ -249,14 +249,16 @@ internal fun Events(d: NightDetail, sharedRoom: Boolean, selected: Long?, onPlay
         Group(d.summary.id, kind.name, kindColor(kind), groupTitle(kind, sharedRoom), groupSummary(kind, list, d)) {
             if (kind == NightEventKind.SnoreBreak) FlowRow(Modifier.padding(start = 8.dp, top = 4.dp, bottom = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                // 中断很多时一条一行太长：排成时间小胶囊，点了图移过去
+                // 中断很多时一条一行太长：排成时间小胶囊；点了图移过去，有录音就直接放（卡 210：人工回听确认）
                 list.forEach { e ->
                     val on = e.id == selected
-                    Text(clock(e.start), style = RsType.subhead, color = if (on) c.onAccent else c.text,
-                        modifier = Modifier.clip(CircleShape).springClick { onFocus(e) }.background(if (on) c.critical else c.fill)
+                    val audio = e.clipId != null && e.audioAvailable
+                    Text((if (audio) "▶ " else "") + clock(e.start), style = RsType.subhead, color = if (on) c.onAccent else c.text,
+                        modifier = Modifier.clip(CircleShape).springClick { onFocus(e); if (audio) onPlay(e) }.background(if (on) c.critical else c.fill)
                             .padding(horizontal = 12.dp, vertical = 7.dp))
                 }
             } else list.forEach { e -> EventRow(e, d, sharedRoom, e.id == selected, onPlay, onFocus) }
+            if (kind == NightEventKind.SnoreBreak) list.firstOrNull { it.id == selected }?.let { BreakCheck(it) }
         }
     }
     if (denied.isNotEmpty()) Group(d.summary.id, "denied", c.textTertiary, "标了不是的", "${denied.size} 条") {
@@ -279,6 +281,29 @@ private fun Group(night: Long, key: String, color: Color, title: String, summary
             Text("⌄", style = RsType.headline, color = c.textTertiary, modifier = Modifier.graphicsLayer { rotationZ = turn })
         }
         AnimatedVisibility(open) { Column { content() } }
+    }
+}
+
+/** 卡 210：选中的那次中断，听完可以说是不是；没存录音的（旧版本记的）说明一下 */
+@Composable
+private fun BreakCheck(e: NightEvent) {
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    Row(Modifier.fillMaxWidth().padding(start = 8.dp, top = 2.dp, bottom = 8.dp).clip(RoundedCornerShape(12.dp)).background(c.fill)
+        .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val hasAudio = e.clipId != null && e.audioAvailable
+        Text(when {
+            !hasAudio && e.clipId == null -> "${clock(e.start)} 这次没存录音（新版本起每次中断都会存）"
+            !hasAudio -> "${clock(e.start)} 录音已过期"
+            else -> "${clock(e.start)} 这段是鼾声中断吗？"
+        }, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
+        if (hasAudio) when (e.feedback) {
+            Feedback.Yes -> Text("已确认 ✓", style = RsType.caption, color = c.good)
+            else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill("不是", filled = false) { scope.launch { answerWithUndo(e, Feedback.No) } }
+                Pill("是", filled = true) { scope.launch { answerWithUndo(e, Feedback.Yes) } }
+            }
+        }
     }
 }
 
@@ -332,8 +357,8 @@ private fun EventRow(e: NightEvent, d: NightDetail, sharedRoom: Boolean, on: Boo
             }
             if (sub.isNotEmpty()) Text(sub.joinToString(" · "), style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
         }
-        // 答案随时能改：已确认的点“改成不是”，标了不是的点“改成是”
-        if (askable(e)) {
+        // 答案随时能改：已确认的点“改成不是”，标了不是的点“改成是”（卡 210：有录音的中断也能改）
+        if (askable(e) || (e.kind == NightEventKind.SnoreBreak && e.clipId != null)) {
             Spacer(Modifier.width(8.dp))
             when (e.feedback) {
                 Feedback.Yes -> Column(horizontalAlignment = Alignment.End) {

@@ -99,6 +99,18 @@ async function effectiveCaps(env, user) {
     return [...new Set([...base, ...r.results.map(x => x.capability)])];
   } catch { return base; } // entitlements 表未迁移时退化为静态能力
 }
+// 凭证内携带真实 Pro 到期：客户端离线也要按会员到期结束权益，
+// 不能让 7 天离线凭证把已到期的 Pro 续命。expires_at IS NULL = 不限期 → -1 哨兵。
+async function effectiveProUntil(env, user) {
+  try {
+    const r = await env.DB.prepare(
+      "SELECT expires_at FROM entitlements WHERE user_id=? AND capability='pro' AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>?)")
+      .bind(user.id, nowS()).all();
+    if (!r.results.length) return null;
+    if (r.results.some(x => x.expires_at == null)) return -1;
+    return Math.max(...r.results.map(x => x.expires_at));
+  } catch { return null; }
+}
 async function issueSession(env, user, deviceId, deviceName) {
   const sid = uuid();
   const refresh = b64u(crypto.getRandomValues(new Uint8Array(32)));
@@ -109,7 +121,7 @@ async function issueSession(env, user, deviceId, deviceName) {
     .bind(sid, user.id, deviceId, deviceName || null, refreshHash, nowS(), exp, nowS()).run();
   const lic = await signLicense(env, {
     v: 1, sub: user.id, name: user.username, dev: deviceId,
-    caps: await effectiveCaps(env, user),
+    caps: await effectiveCaps(env, user), pro_until: await effectiveProUntil(env, user),
     iat: nowS(), exp: nowS() + Number(env.OFFLINE_LICENSE_DAYS) * 86400,
   });
   await env.DB.prepare("INSERT INTO licenses(id,user_id,device_id,payload,signature,issued_at,expires_at) VALUES(?,?,?,?,?,?,?)")
@@ -235,7 +247,7 @@ export default {
           .bind(await sha256b64(refresh), exp, nowS(), sess.id).run();
         const lic = await signLicense(env, {
           v: 1, sub: user.id, name: user.username, dev: sess.device_id,
-          caps: await effectiveCaps(env, user),
+          caps: await effectiveCaps(env, user), pro_until: await effectiveProUntil(env, user),
           iat: nowS(), exp: nowS() + Number(env.OFFLINE_LICENSE_DAYS) * 86400,
         });
         await env.DB.prepare("INSERT INTO licenses(id,user_id,device_id,payload,signature,issued_at,expires_at) VALUES(?,?,?,?,?,?,?)")

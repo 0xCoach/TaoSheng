@@ -85,9 +85,11 @@ export async function handleMembership(req, env, H) {
     if (!a) return err("unauthorized", 401);
     const b = await req.json().catch(() => ({}));
     if (!b.code) return err("code required");
-    // 幂等：同一 request_id 重试返回原结果，不重复发权益
-    if (b.request_id) {
-      const dup = await env.DB.prepare("SELECT * FROM redeem_records WHERE request_id=?").bind(String(b.request_id)).first();
+    // 幂等键按账号隔离：request_id 存为 user:id 复合串——同账号重试返回原结果，
+    // 不同账号撞 id 不互相串号（request_id 列全局 UNIQUE，复合键天然兼容）。
+    const rid = b.request_id ? `${a.user.id}:${String(b.request_id)}` : null;
+    if (rid) {
+      const dup = await env.DB.prepare("SELECT * FROM redeem_records WHERE request_id=?").bind(rid).first();
       if (dup) return json({ ok: true, granted_days: dup.granted_days, pro_until: (await membershipView(env, a.user.id, H)).pro_until, duplicated: true });
     }
     const code = await env.DB.prepare("SELECT * FROM redeem_codes WHERE code_hash=?").bind(await sha256b64(normalizeCode(b.code))).first();
@@ -107,7 +109,7 @@ export async function handleMembership(req, env, H) {
     if (!claim.meta.changes) return err("code already redeemed", 409);
     const granted = await grantPro(env, a.user.id, campaign.grant_days, `redeem:${code.id}`, nowS, uuid);
     await env.DB.prepare("INSERT INTO redeem_records(id,code_id,campaign_id,user_id,request_id,granted_days,at) VALUES(?,?,?,?,?,?,?)")
-      .bind(uuid(), code.id, campaign.id, a.user.id, b.request_id ? String(b.request_id) : null, campaign.grant_days, nowS()).run();
+      .bind(uuid(), code.id, campaign.id, a.user.id, rid, campaign.grant_days, nowS()).run();
     await audit(env, a.user.id, "redeem.ok", `${campaign.id}/${code.id}+${campaign.grant_days}d`, req);
     return json({ ok: true, granted_days: campaign.grant_days, pro_until: granted });
   }
@@ -363,10 +365,12 @@ button.pri{background:#5b3ba8;color:#fff;border-color:#5b3ba8}.card{background:#
 <script>
 let csrf="";const $=id=>document.getElementById(id);
 const api=async(p,m,b)=>{const r=await fetch("/console/api"+p,{method:m||"GET",headers:{"content-type":"application/json","x-csrf":csrf},body:b?JSON.stringify(b):undefined});
-if(r.status===401){showLogin();throw 0}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j};
+if(r.status===401||r.status===403){sessionExpired();throw 0}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j};
+// 会话失效/越权：立即清掉已渲染的敏感数据与 csrf，强制回登录页
+function sessionExpired(){csrf="";lastCodes=[];const p=$("panel");if(p)p.innerHTML="";const n=$("newcodes");if(n)n.style.display="none";const bc=$("bcodes");if(bc)bc.textContent="";const ct=$("codetable");if(ct)ct.textContent="";$("lerr").textContent="会话已失效，请重新登录";showLogin()}
 function showLogin(){$("login").style.display="";$("main").style.display="none"}
 async function login(){try{const r=await fetch("/console/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:$("tok").value})});
-if(!r.ok){$("lerr").textContent="令牌错误";return}const j=await r.json();csrf=j.csrf;$("login").style.display="none";$("main").style.display="";tab("overview")}catch(e){$("lerr").textContent=e.message}}
+if(!r.ok){sessionExpired();$("lerr").textContent="令牌错误";return}const j=await r.json();csrf=j.csrf;$("lerr").textContent="";$("login").style.display="none";$("main").style.display="";tab("overview")}catch(e){$("lerr").textContent=e.message}}
 async function logout(){await api("/session",null,"DELETE").catch(()=>{});csrf="";showLogin()}
 function tab(name,btn){[...document.querySelectorAll("nav button")].forEach(b=>b.classList.remove("on"));if(btn)btn.classList.add("on");({overview,users,members,usage,codes,audit})[name]()}
 const ts=t=>t?new Date(t*1000).toLocaleString():"—";

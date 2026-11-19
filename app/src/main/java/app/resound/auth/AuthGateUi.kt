@@ -252,7 +252,7 @@ private fun MembershipCard() {
                     msg = when (val r = AppGraph.auth.redeem(code.trim())) {
                         is AuthGate.RedeemOutcome.Ok ->
                             if (r.duplicated) "该码你已兑换过（${r.grantedDays} 天）"
-                            else { AppGraph.membership.sync(); tick++; "兑换成功：Pro +${r.grantedDays} 天" }
+                            else { code = ""; AppGraph.membership.sync(); tick++; "兑换成功：Pro +${r.grantedDays} 天" }
                         is AuthGate.RedeemOutcome.Invalid -> "兑换码无效"
                         is AuthGate.RedeemOutcome.Rejected -> "兑换失败：${r.msg}"
                         is AuthGate.RedeemOutcome.Offline -> "网络不通，兑换需要联网"

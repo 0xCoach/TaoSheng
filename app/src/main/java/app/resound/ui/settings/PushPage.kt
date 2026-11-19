@@ -500,7 +500,13 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
     }
     if (!caps.records || (sub.records.isEmpty() && sub.lines == LinesMode.Off)) return
 
-    Block("什么时候推", "摘要生成后自动推、提醒到点推；下面只管整理结果和原话") {
+    // 卡 210：同步文件夹、Notion 的摘要也按间隔合并推，免得每出一张卡就连一次云端
+    val document = caps.folder || (caps.incremental && app.resound.push.PushFormat.Json !in caps.formats)
+    Block("什么时候推", when {
+        !document -> "摘要生成后自动推、提醒到点推；下面只管整理结果和原话"
+        sub.trigger is RecordTrigger.OnChange -> "摘要和整理结果、原话一起按下面的间隔合并推（避免云端限流）；提醒到点推"
+        else -> "摘要至少隔 15 分钟合并推（避免云端限流）、提醒到点推；下面只管整理结果和原话"
+    }) {
     val ti = when (sub.trigger) { is RecordTrigger.OnChange -> 0; is RecordTrigger.Schedule -> 1; RecordTrigger.Manual -> 2 }
     app.resound.ui.skills.Segments(listOf("有新内容就推", "按时间推", "只手动"), ti) {
         onChange(sub.copy(trigger = when (it) {

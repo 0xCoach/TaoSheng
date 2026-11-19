@@ -84,7 +84,7 @@ internal class SubscriptionRuntime(
         change(id) { it.remove("batchAt"); it.remove("changeAt"); it.remove("lastPushAt") }
     }
     private fun hasRecords(s: PushSubscription) = SubscriptionPlan.hasRecords(s)
-    private fun JSONObject.times() = (SubscriptionPlan.deadlines + "lastRecordsAt").filter { has(it) }.associateWith { optLong(it) }
+    private fun JSONObject.times() = (SubscriptionPlan.deadlines + "lastRecordsAt" + "lastSummaryAt").filter { has(it) }.associateWith { optLong(it) }
     private fun JSONObject.applyTimes(edits: Map<String, Long?>) {
         edits.forEach { (key, value) -> if (value == null) remove(key) else put(key, value) }
     }
@@ -138,7 +138,7 @@ internal class SubscriptionRuntime(
                     state.files.keys().asSequence().toList().forEach { state.files.remove(it) }
                     state.records.keys().asSequence().toList().forEach { state.records.remove(it) }
                     state.templates.keys().asSequence().toList().forEach { state.templates.remove(it) }
-                    state.json.remove("dayThreads"); state.json.remove("dayThreadInitialized"); state.json.remove("since"); state.json.remove("temporary"); state.json.remove("rebuilding")
+                    state.json.remove("dayThreads"); state.json.remove("dayThreadInitialized"); state.json.remove("since"); state.json.remove("temporary"); state.json.remove("rebuilding"); state.json.remove("directoriesReady")
                 }
                 state.json.put("destination", identity); state.save()
                 val today = day(started, zone())

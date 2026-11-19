@@ -37,6 +37,8 @@ class McpServer(
     private var socket: ServerSocket? = null
     private var scope: CoroutineScope? = null
     @Volatile var running = false; private set
+    /** 实际绑定端口（测试用：传 0 绑随机端口后从这里取） */
+    val boundPort: Int? get() = socket?.localPort
     private val json = Json { ignoreUnknownKeys = true }
 
     fun start(port: Int = 7391) {
@@ -165,11 +167,10 @@ class McpServer(
                 (hits + ideas + decs).ifEmpty { listOf("没有匹配的记录") }.joinToString("\n")
             }
             "decision_list" -> {
-                // observeHistory 只含非 Active：生效决策必须合并进来，否则 AI 看不到当前决定
-                val list = if (scopeId == null)
-                    (db.decisions().observeActive().first() + db.decisions().observeHistory().first()).take(50)
-                else db.decisions().observeForProject(scopeId).first()
-                list.filter { inScope(it.projectId) && (arg("status")?.let { s -> it.status == s } ?: true) }
+                // observeHistory 只含非 Active：生效决策必须合并进来，否则 AI 看不到当前决定。
+                // 统一走 inScope：限定客户端可见本项目+全局决策（projectId=null 属全局）
+                (db.decisions().observeActive().first() + db.decisions().observeHistory().first()).take(50)
+                    .filter { inScope(it.projectId) && (arg("status")?.let { s -> it.status == s } ?: true) }
                     .joinToString("\n") { "[#${it.id}] (${it.status}/${it.confidence}) ${it.title} — ${it.detail.take(140)}" }
                     .ifEmpty { "没有匹配的决策" }
             }
@@ -188,7 +189,16 @@ class McpServer(
                     .joinToString("\n") { "[idea#${it.id}] (${it.status}) ${it.title}" }
                     .ifEmpty { "没有匹配的灵感" }
             }
-            "followup_list" -> db.followups().observeOpen().first().take(30)
+            "followup_list" -> db.followups().observeOpen().first().filter { row ->
+                // followups 无 projectId：按 ref 归因——指向越权项目的跟进不返回
+                val refId = row.refId
+                if (scopeId == null || refId == null) true else when (row.refKind) {
+                    "idea" -> db.ideas().idea(refId)?.let { inScope(it.projectId) } ?: true
+                    "decision" -> db.decisions().decision(refId)?.let { inScope(it.projectId) } ?: true
+                    "capture" -> db.captureItems().item(refId)?.let { inScope(it.projectId) } ?: true
+                    else -> true
+                }
+            }.take(30)
                 .joinToString("\n") { "[followup#${it.id}] (${it.kind}) ${it.title} 下次检查=${it.nextCheckAt}" }
                 .ifEmpty { "没有待跟进事项" }
             "capture_list" -> db.captureItems().observeAll().first().take(30)

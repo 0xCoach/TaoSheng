@@ -46,6 +46,19 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     )
     private val localPrefs = context.getSharedPreferences("local-asr", Context.MODE_PRIVATE)
     private val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
+    /** #52：豆包接入方式。true = 火山方舟 Agent Plan（套餐专属地址与 Key），Key 与普通 API 分开存 */
+    private val _plan = MutableStateFlow(prefs.getBoolean("doubaoPlan", false))
+    val doubaoPlan = _plan.asStateFlow()
+    fun setDoubaoPlan(on: Boolean) {
+        check(prefs.edit().putBoolean("doubaoPlan", on).commit()) { "保存失败，请重试" }
+        _plan.value = on
+        refreshReady(); onChanged()
+    }
+    private fun keyFieldFor(source: TranscribeSource) = when {
+        source == TranscribeSource.Custom -> "customEncryptedKey"
+        _plan.value -> "planEncryptedKey"
+        else -> "encryptedKey"
+    }
     private val preferences = TranscribePreferenceStore(prefs::getString, prefs::getBoolean, prefs::getInt, prefs::contains,
         { key, value -> prefs.edit().putString(key, value).commit() },
         { key, value -> prefs.edit().putBoolean(key, value).commit() },
@@ -101,7 +114,8 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     }
     fun identity() = "${source.value}:${backend.value}:${endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource
         .Local) "" else readKey())}:${keyFingerprint(org.json.JSONArray(headers(source.value.name).map { listOf(it.name, it.value) }).toString())}" +
-        if (source.value == TranscribeSource.Local) ":${language.value.code}" else ""
+        (if (source.value == TranscribeSource.Local) ":${language.value.code}" else "") +
+        if (source.value == TranscribeSource.Doubao && _plan.value) ":plan" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
         TranscribeSource.Local -> modelReady(if (backend.value == LocalBackend.Npu && LocalModels.npuSupported()) backend.value else LocalBackend.Cpu)
@@ -113,7 +127,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         }.getOrDefault(false)
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
-    private fun keyField() = if(source.value==TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey"
+    private fun keyField() = keyFieldFor(source.value)
     fun refreshReady() { _ready.value=if(source.value==TranscribeSource.Local) {
         if(backend.value==LocalBackend.Npu && LocalModels.npuSupported()) modelReady(LocalBackend.Npu)
         else modelReady(LocalBackend.Cpu)
@@ -149,7 +163,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     @Synchronized
     internal fun readKey(): String = readKey(source.value)
     @Synchronized internal fun readKey(source: TranscribeSource): String {
-        val encoded = prefs.getString(if (source == TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey", null) ?: return ""
+        val encoded = prefs.getString(keyFieldFor(source), null) ?: return ""
         val bytes = Base64.decode(encoded, Base64.NO_WRAP)
         require(bytes.size > 12)
         return Cipher.getInstance("AES/GCM/NoPadding").run {

@@ -19,8 +19,11 @@ class DoubaoAsrProvider(
         .readTimeout(0,TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),
     private val headers: () -> List<HeaderEntry> = { emptyList() },
     private val hotwords: () -> List<String> = { emptyList() },
+    /** #52：选了 Agent Plan 时连套餐专属地址；失败照常报错，不退回按量接口 */
+    private val plan: () -> Boolean = { false },
 ) : AsrProvider {
     override suspend fun recognize(audio: AsrAudio,key: String,beforeAudio: suspend () -> Unit): AsrResult {
+        val config = if (plan()) config.plan() else config
         return DoubaoConcurrency.global.withPermit {
             try {
                 withContext(Dispatchers.IO) {

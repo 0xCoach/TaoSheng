@@ -409,10 +409,11 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
     val local = source == TranscribeSource.Local
     val interval by settings.intervalMinutes.collectAsStateWithLifecycle()
     val wifiOnly by settings.wifiOnly.collectAsStateWithLifecycle()
-    var editing by remember(source) { mutableStateOf(false) }
-    var input by remember(source) { mutableStateOf("") }
+    val plan = advanced?.doubaoPlan?.collectAsStateWithLifecycle()?.value == true && source == TranscribeSource.Doubao
+    var editing by remember(source, plan) { mutableStateOf(false) }
+    var input by remember(source, plan) { mutableStateOf("") }
     var testing by remember { mutableStateOf(false) }
-    var testResult by remember(source) { mutableStateOf<Result<String>?>(null) }
+    var testResult by remember(source, plan) { mutableStateOf<Result<String>?>(null) }
 
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
         if (advanced != null) {
@@ -430,8 +431,19 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
             // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
             if (!local) app.resound.ui.settings.TranscribeHeaders(source)
         }
+        // #52：豆包接入方式。Agent Plan 走火山方舟套餐专属地址与 Key，两种 Key 分开存，切换不用重填
+        if (advanced != null && source == TranscribeSource.Doubao) {
+            Text("接入方式", style = RsType.body, color = c.text)
+            Spacer(Modifier.height(8.dp))
+            Choice(listOf(false, true), plan, { if (it) "Agent Plan" else "普通 API" }) { advanced.setDoubaoPlan(it) }
+            Spacer(Modifier.height(6.dp))
+            Text(if (plan) "用火山方舟 Agent Plan 套餐里的豆包语音识别 2.0，填订阅页的专属 API Key。只连套餐地址，失败不会改走按量计费；" +
+                    "套餐额度用完后，若开了超额后付费会自动按量计费，实际扣费以方舟控制台为准。"
+                else "火山引擎豆包语音控制台的 API Key，按用量计费。", style = RsType.caption, color = c.textTertiary)
+            Divider()
+        }
         if (!local && source != TranscribeSource.Custom) {
-        Text(if(source == TranscribeSource.Custom) "自定义服务密钥" else "豆包语音密钥", style = RsType.body, color = c.text)
+        Text(if (plan) "Agent Plan 专属 API Key" else "豆包语音密钥", style = RsType.body, color = c.text)
         Spacer(Modifier.height(8.dp))
         if (hasKey && !editing) {
             Row(verticalAlignment = Alignment.CenterVertically) {

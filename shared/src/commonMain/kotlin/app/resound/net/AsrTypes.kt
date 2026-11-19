@@ -19,6 +19,8 @@ data class DoubaoConfig(
     /** 073 负责人定案默认增量；内部诊断/回退可显式传 false，界面不另加开关。 */
     val incrementalResults: Boolean = true,
 ) {
+    /** #52：火山方舟 Agent Plan 走套餐专属地址（路径多一段 plan/），请求头、资源编号与收发协议不变 */
+    fun plan(): DoubaoConfig = copy(url = url.replace("/api/v3/sauc/", "/api/v3/plan/sauc/"))
     // 短段保留原有 90 秒余量；5 分钟段为 480 秒，单请求不超过 Worker 的 10 分钟窗口。
     fun timeoutFor(durationMillis: Long): Long = timeoutMillis
         ?: maxOf(90_000L, 30_000L + durationMillis.coerceAtLeast(0) * 3 / 2)

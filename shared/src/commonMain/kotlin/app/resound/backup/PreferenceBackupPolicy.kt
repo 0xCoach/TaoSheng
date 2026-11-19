@@ -78,7 +78,7 @@ object PreferenceBackupPolicy {
         "update-times" to "更新检查和安装诊断",
     )
     val backedUp: Set<String> get() = settings.keys + secretPrefs
-    val asrKeys = setOf("encryptedKey", "customEncryptedKey")
+    val asrKeys = setOf("encryptedKey", "customEncryptedKey", "planEncryptedKey")
 
     /** 只解密生产代码使用的凭据键；容器内其他元数据不是密文，不能尝试 Base64 解码。 */
     fun secret(store: String, key: String): Boolean = when (store) {

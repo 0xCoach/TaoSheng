@@ -57,7 +57,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 ## ✨ Highlights
 
 1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected; dedicated recorders such as Omi and the Anker / Feishu D3200 can be paired too (beta, see #27).
-2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud, or any custom ASR (OpenAI-compatible, or a full request URL); when your server returns segments and speakers, lines get their own timestamps and speaker labels.
+2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan), or any custom ASR (OpenAI-compatible, or a full request URL); when your server returns segments and speakers, lines get their own timestamps and speaker labels.
 3. **⏱ Automatic transcribe + digest on your schedule** — every 15–720 minutes; review and skill times are configurable.
 4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker; every voiceprint sample can be played back or deleted.
 5. **✅ Todos extracted automatically** — and marked done when you later say "sent it".

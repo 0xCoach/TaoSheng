@@ -194,7 +194,7 @@ internal object BackupRestore {
             while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
                 if (parser.eventType != org.xmlpull.v1.XmlPullParser.START_TAG) continue
                 val name = parser.getAttributeValue(null, "name") ?: continue
-                if (!replace && name in setOf("encryptedKey", "customEncryptedKey")) continue
+                if (!replace && name in app.resound.backup.PreferenceBackupPolicy.asrKeys) continue
                 // 导入旧 XML 也过滤运行字段；本机 journal 回滚不经过此过滤，仍完整还原。
                 if (configurationOnly && !BackupSettings.setting(source.nameWithoutExtension, name)) continue
                 val value = parser.getAttributeValue(null, "value")

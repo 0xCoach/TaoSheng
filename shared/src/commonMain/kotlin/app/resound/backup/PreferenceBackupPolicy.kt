@@ -33,6 +33,7 @@ object PreferenceBackupPolicy {
         "quick_prefs" to "快捷暂停时长和课堂类型",
         "device-ui" to "用户确认过的关灯提示",
         "assistant" to "助手与本地 MCP 服务开关",
+        "auth" to "授权服务地址、隐私锁选择和本机数据归属；会话令牌、设备号、凭证和运行态不随包走",
     )
     val secretPrefs = setOf(
         "transcribe", "digest-secrets", "push-secrets", "backup-secrets",
@@ -69,6 +70,7 @@ object PreferenceBackupPolicy {
         "transcribe-queue" to "上次转写运行时间与错误",
         "update-popup" to "当前版本更新弹窗去重时间，真正的跳过/稍后设置在 app-update",
         "update-times" to "更新检查和安装诊断",
+        "auth-secrets" to "设备会话令牌与签名凭证密文绑定本机 Keystore/设备号，换机必须重新登录，备份毫无意义",
     )
     val backedUp: Set<String> get() = settings.keys + secretPrefs
     val asrKeys = setOf("encryptedKey", "customEncryptedKey")
@@ -112,6 +114,8 @@ object PreferenceBackupPolicy {
             "local-asr" -> key !in setOf("actual", "npuCheck") && !key.startsWith("download-")
             "llm-balance" -> !key.startsWith("cached") && !key.startsWith("alerted")
             "folder-imports" -> key == "folders"
+            // AUTH：只带用户选择与数据归属；会话/设备号/凭证/锁态/远端快照是本机状态。
+            "auth" -> key in setOf("server_url", "privacy_lock", "lock_after_min", "bound_account_id")
             else -> true
         }
     }

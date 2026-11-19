@@ -2,6 +2,14 @@ name = "soundsound-auth"
 main = "src/worker.js"
 compatibility_date = "2026-11-01"
 
+# workers.dev 在国内被上游 DNS 投毒（alidns DoH 也返回假 IP，Wi-Fi/蜂窝同病）；
+# 自有域名走正常 Cloudflare 解析，子域名独立托管 auth 不影响主站 gdfactory.cn。
+# workers.dev 原地址保留可用（双通道）。
+workers_dev = true
+routes = [
+  { pattern = "soundsound.gdfactory.cn", custom_domain = true }
+]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "soundsound-auth"

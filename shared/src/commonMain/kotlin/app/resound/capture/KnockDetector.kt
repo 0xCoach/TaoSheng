@@ -32,6 +32,9 @@ class KnockDetector(
     private var counted = 0
     private var lastFireAt = Long.MIN_VALUE
 
+    /** 诊断计数：凑满敲数但被冷却期拦下的次数（只增不减，供验收统计误触发抑制情况）。 */
+    var cooldownFiltered = 0; private set
+
     /**
      * 喂一个采样。[at] 单调毫秒（elapsedRealtime）。
      * 返回 true = 本采样凑满敲击次数，触发一次。
@@ -47,8 +50,9 @@ class KnockDetector(
             if (at - lastSpikeAt > tapGapMs) counted = 0
             lastSpikeAt = at; counted++
             // 用加法比较：at - MIN_VALUE 会溢出，导致首次永不触发。
-            if (counted >= tapsRequired && at > lastFireAt + cooldownMs) {
-                lastFireAt = at; counted = 0; return true
+            if (counted >= tapsRequired) {
+                if (at > lastFireAt + cooldownMs) { lastFireAt = at; counted = 0; return true }
+                cooldownFiltered++
             }
         }
         return false

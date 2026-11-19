@@ -23,7 +23,7 @@ class KnockGestureController(
     private val context: Context,
     private val store: CaptureStore,
 ) {
-    private val sensor = KnockSensor(context) { onKnock() }
+    private val sensor = KnockSensor(context) { latencyMs -> onKnock(latencyMs) }
     private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     @Volatile private var foregroundActivities = 0
 
@@ -73,8 +73,10 @@ class KnockGestureController(
         }
     }
 
-    private fun onKnock() {
+    private fun onKnock(latencyMs: Long) {
         val p = store.prefs
+        KnockDiag.lastLatencyMs = latencyMs
+        KnockDiag.onFire(p.getInt(KEY_TAPS, 2))
         val action = KnockActionRules.decide(
             serviceAlive = CaptureService.alive,
             enabled = p.getBoolean("enabled", false),
@@ -82,18 +84,27 @@ class KnockGestureController(
             privacyPaused = p.getBoolean(AndroidScene.KEY_PRIVACY, false),
             topicPaused = AppGraph.isTopicsReady && AppGraph.topics.current.value?.status == app.resound.topic.TopicStatus.Paused,
         )
+        KnockDiag.lastAction = action.name
         // 启动/恢复也要过录音授权闸：预查一次，会被拒就给"拒绝"振，不派发注定失败的启动
         if (action == KnockActionRules.Action.Start || action == KnockActionRules.Action.Resume) {
             if (AppGraph.isAuthReady && !AppGraph.auth.allowed(app.resound.auth.Capability.RecordAudio)) {
+                KnockDiag.authDenied.incrementAndGet()
+                KnockDiag.lastAction = "${action.name}/Denied"
+                android.util.Log.i("KnockDiag", "knock ${action.name} auth-denied ${KnockDiag.summary(android.os.SystemClock.elapsedRealtime())}")
                 buzz(longArrayOf(0, 80, 80, 80, 80, 500)); return
             }
         }
         when (action) {
-            KnockActionRules.Action.Blocked -> { buzz(longArrayOf(0, 400)); return } // 隐私暂停：敲敲不解锁
+            KnockActionRules.Action.Blocked -> { // 隐私/主题暂停：敲敲不解锁
+                KnockDiag.privacyBlocked.incrementAndGet()
+                android.util.Log.i("KnockDiag", "knock Blocked ${KnockDiag.summary(android.os.SystemClock.elapsedRealtime())}")
+                buzz(longArrayOf(0, 400)); return
+            }
             KnockActionRules.Action.Start -> buzz(longArrayOf(0, 300))                // 单长振=开始干活
             KnockActionRules.Action.Resume -> buzz(longArrayOf(0, 120, 140, 120))     // 双短振=回来了
             KnockActionRules.Action.Pause -> buzz(longArrayOf(0, 250, 160, 250))      // 双长振=停下了
         }
+        android.util.Log.i("KnockDiag", "knock $action ${KnockDiag.summary(android.os.SystemClock.elapsedRealtime())}")
         val serviceAction = when (action) {
             KnockActionRules.Action.Start -> CaptureService.START
             KnockActionRules.Action.Resume -> CaptureService.RESUME

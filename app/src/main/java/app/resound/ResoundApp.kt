@@ -76,6 +76,7 @@ class ResoundApp : Application() {
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
+        app.resound.diagnostics.RenderHeartbeat.install(this) // R4.4 黑屏冻结取证
         app.resound.backup.BackupRestore.applyPending(this)
         AppGraph.quickPrefs = app.resound.quick.AndroidQuickPrefs(this)
         // AUTH：门禁先于一切受保护组件装配——服务/Worker/MCP 都可能先于界面启动

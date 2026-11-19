@@ -139,7 +139,9 @@ class AuthStore(context: Context) {
     }
 
     companion object {
-        /** 默认授权服务；用户可在设置里改回自建地址。 */
-        const val DEFAULT_SERVER_URL = "https://soundsound-auth.kan831019.workers.dev"
+        /** 默认授权服务；用户可在设置里改回自建地址。
+         *  2026-11-19 起默认自有域名：*.workers.dev 在国内遭上游 DNS 投毒（alidns DoH 亦返回假 IP），
+         *  soundsound.gdfactory.cn 走正常 Cloudflare 解析，Wi-Fi 直连实测 TLS+API 正常。 */
+        const val DEFAULT_SERVER_URL = "https://soundsound.gdfactory.cn"
     }
 }

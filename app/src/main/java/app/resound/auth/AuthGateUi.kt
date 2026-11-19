@@ -1,7 +1,9 @@
 ﻿package app.resound.auth
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,7 +63,8 @@ private fun BindSheet(reason: String, onCancel: () -> Unit) {
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
         if (res.resultCode == android.app.Activity.RESULT_OK) doBind() else error = "未通过机主验证"
     }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // 键盘顶起/小屏时按钮必须可达：列可滚动 + imePadding 把内容抬到键盘上方（实测登录按钮曾被键盘顶出可视区）。
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("确认本机数据归属", style = MaterialTheme.typography.titleLarge)
         Text(reason.ifBlank { "本机有历史数据未归属。验证机主身份并备份成功后，将绑定到当前账号。" },
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -92,7 +95,8 @@ private fun LoginSheet(reason: String, onCancel: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // 键盘顶起/小屏时按钮必须可达：列可滚动 + imePadding 把内容抬到键盘上方（实测登录按钮曾被键盘顶出可视区）。
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("登录后使用", style = MaterialTheme.typography.titleLarge)
         Text(reason.ifBlank { "此操作需要账号授权" }, style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

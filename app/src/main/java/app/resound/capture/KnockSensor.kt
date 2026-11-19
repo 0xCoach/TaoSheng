@@ -16,7 +16,7 @@ import android.hardware.SensorManager
  */
 class KnockSensor(
     context: Context,
-    private val onKnock: () -> Unit,
+    private val onKnock: (latencyMs: Long) -> Unit,
 ) : SensorEventListener {
     private val manager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val sensor: Sensor? = manager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
@@ -42,11 +42,21 @@ class KnockSensor(
         detector = KnockDetector(taps, sensitivity)
         // FASTEST + 100ms 攒批上限：抓真实峰顶；线性加速度是虚拟传感器无 FIFO，该参数被忽略。
         listening = manager.registerListener(this, s, SensorManager.SENSOR_DELAY_FASTEST, 100_000)
+        if (listening) {
+            KnockDiag.registerCount.incrementAndGet()
+            KnockDiag.listening = true
+            if (KnockDiag.windowStart == 0L)
+                KnockDiag.windowStart = android.os.SystemClock.elapsedRealtime()
+            android.util.Log.i("KnockDiag", "sensor register taps=$taps sens=$sensitivity type=${s.type} ${KnockDiag.summary(android.os.SystemClock.elapsedRealtime())}")
+        }
     }
 
     fun stop() {
         if (!listening) return
         manager.unregisterListener(this); listening = false
+        KnockDiag.unregisterCount.incrementAndGet()
+        KnockDiag.listening = false
+        android.util.Log.i("KnockDiag", "sensor unregister ${KnockDiag.summary(android.os.SystemClock.elapsedRealtime())}")
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -56,6 +66,7 @@ class KnockSensor(
         val x = event.values[0]; val y = event.values[1]; val z = event.values[2]
         val mag = kotlin.math.sqrt(x * x + y * y + z * z)
         val at = event.timestamp / 1_000_000L
+        KnockDiag.sensorEvents.incrementAndGet()
         // 诊断：按"凸起簇"记峰值——尖峰过去 150ms 无后续则落一条 peak 日志，看真实峰顶分布。
         val dev = mag - restMag
         if (dev > 4f) {
@@ -64,10 +75,12 @@ class KnockSensor(
         } else if (joltPeak > 0f && at - joltPeakAt > 150) {
             android.util.Log.i("KnockSensor", "jolt peak=%.1f".format(joltPeak))
             joltPeak = 0f
+            KnockDiag.joltPeaks.incrementAndGet()
         }
         if (detector.onSample(at, x, y, z)) {
+            KnockDiag.detectorCooldownFiltered = detector.cooldownFiltered
             android.util.Log.i("KnockSensor", "knock detected")
-            onKnock()
+            onKnock(android.os.SystemClock.elapsedRealtime() - at)
         }
     }
 

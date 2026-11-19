@@ -2,6 +2,7 @@ package app.resound.capture
 
 import app.resound.digest.DigestMode
 import app.resound.AppGraph
+import app.resound.auth.AuthGate
 import app.resound.auth.Capability
 
 import android.app.*
@@ -37,6 +38,10 @@ class CaptureService : Service() {
     private var capture: Job? = null
     private var resumeTimer: Job? = null
     private var heartbeat: Job? = null
+    /** 试用到期精确任务：心跳只是兜底，到点用单调延迟的 RECHECK 触发收尾（delay 用单调时钟，改系统时间不影响）。 */
+    private var trialExpiryJob: Job? = null
+    /** 试用计量的单调时钟锚点——改系统时间不 inflate/deflate 已用量。 */
+    private var intervalStartElapsed = 0L
     private var initialized = false
     private var normalStop = false
     private val beatMutex = Mutex()
@@ -153,7 +158,7 @@ class CaptureService : Service() {
             normalStop = true
             store.prefs.edit().putBoolean("enabled", false).putBoolean("unclean", false).putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
             transition(CaptureState.Stopped)
-            heartbeat?.cancel()
+            heartbeat?.cancel(); trialExpiryJob?.cancel()
             releaseWakeLock()
             stopLocation()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -171,7 +176,7 @@ class CaptureService : Service() {
                 store.event(WatchdogEventType.Recovered, "恢复途径=${intent.getStringExtra("route") ?: "unknown"}")
             }
             store.prefs.edit().putBoolean("enabled", true).putBoolean("unclean", true).putLong("heartbeat", now).commit()
-            initialized = true; intervalStart = now
+            initialized = true; intervalStart = now; intervalStartElapsed = SystemClock.elapsedRealtime()
             store.event(WatchdogEventType.ServiceStarted, "启动途径=${intent.getStringExtra("route")}")
             store.sampleBattery(); samplePower()
             CaptureWatchdog.schedule(this)
@@ -402,8 +407,11 @@ class CaptureService : Service() {
         }
     }
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy
+    /** 试用累计口径：只算真正收音的 Listening/Recording（MicBusy 让麦不计）。 */
+    private fun accrues(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording
     private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null, quietName: String? = null) {
-        if (initialized && running(state) != running(next)) beat()
+        // MicBusy 边界也要补拍：让麦期间不累计试用，到期任务须挂起重排，不能照跑。
+        if (initialized && (running(state) != running(next) || accrues(state) != accrues(next))) beat()
         state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
     }
     private fun folderImports() = if (AppGraph.isFolderImportReady)
@@ -412,24 +420,38 @@ class CaptureService : Service() {
         val now = System.currentTimeMillis()
         store.dao.heartbeat(HeartbeatEntity(at = now, intervalStart = minOf(intervalStart, now), running = running(state), session = session))
         // 试用计量：心跳间隔即真实在录时长（仅真正收音的 Listening/Recording 累计，MicBusy 不计）；
-        // 间隔粒度为 HEARTBEAT_MS，状态切换也会触发 beat，误差不超过一个心跳周期。
-        if ((state == CaptureState.Listening || state == CaptureState.Recording) && AppGraph.isAuthReady) {
+        // 状态切换也会触发 beat，误差不超过一个心跳周期。
+        // 增量用 elapsedRealtime 单调时钟：改系统时间不能让已用量涨水或清零。
+        if (accrues(state) && AppGraph.isAuthReady) {
             val s = AppGraph.auth.store
             if (s.boundAccountId == null && s.sessionAccountId == null)
-                s.guestTrialUsedMs = s.guestTrialUsedMs + (now - intervalStart).coerceAtLeast(0)
+                s.guestTrialUsedMs = s.guestTrialUsedMs + (SystemClock.elapsedRealtime() - intervalStartElapsed).coerceAtLeast(0)
         }
-        intervalStart = now
+        intervalStart = now; intervalStartElapsed = SystemClock.elapsedRealtime()
         store.prefs.edit().putLong("heartbeat", now).commit()
+        scheduleTrialExpiry()
         folderImports()?.heartbeat(now)
         (applicationContext as app.resound.ResoundApp).let { application ->
             application.pipelineDiagnostics.heartbeat(AppGraph.digestTiming.mode.value == DigestMode.Interval)
             application.pipelineScheduler.trigger("心跳")
         }
     }
+    /** 精确试用到期：心跳只是兜底，按真实剩余量排一个单调延迟 RECHECK——到点走授权复核正常收尾（保留片段）。 */
+    private fun scheduleTrialExpiry() {
+        trialExpiryJob?.cancel(); trialExpiryJob = null
+        if (!AppGraph.isAuthReady || !accrues(state)) return
+        val s = AppGraph.auth.store
+        if (s.boundAccountId != null || s.sessionAccountId != null) return // 只给游客排期
+        val remaining = (AuthGate.GUEST_TRIAL_MS - s.guestTrialUsedMs).coerceAtLeast(0)
+        trialExpiryJob = scope.launch {
+            delay(remaining)
+            commands.send(Command(Intent().setAction(RECHECK).putExtra("route", "trial-expiry")))
+        }
+    }
     private suspend fun fail(detail: String) {
         if (initialized) { beat(); store.event(WatchdogEventType.ServiceStopped, "$detail；等待手动恢复，保留未正常停止标记") }
         if (state != CaptureState.NoPermission) { state = CaptureState.Stopped; controller.update(state) }
-        releaseWakeLock(); heartbeat?.cancel()
+        releaseWakeLock(); heartbeat?.cancel(); trialExpiryJob?.cancel()
         CaptureNotifications.interrupted(this)
         stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
     }

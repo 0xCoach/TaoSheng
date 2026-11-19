@@ -209,13 +209,9 @@ private fun ColumnScope.LiveCard(
     val roomy = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 360 &&
         androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
     // heightIn 而不是固定 height：右侧按钮触摸区 44dp 时行高能跟着撑开，按钮始终与状态文字垂直居中
-    // 行内只有一个 pill 时不铺声波，让它撑满剩余宽度：状态文字与按钮两边对齐
-    // （专题进行中是 ★+⏸+结束 三控件，本就占满右侧，保留声波）
-    val stretchPill = controls == HomeControls.StartListening || controls == HomeControls.GrantPermission ||
-        controls == HomeControls.TopicAndPause || controls == HomeControls.TopicAndResume
     Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
             // 紧凑时状态文字撑满中间，按钮自然靠右；宽松时与声波分享空档
-            Row(Modifier.then(if (stretchPill) Modifier else Modifier.weight(1f, fill = !roomy)).springClick {
+            Row(Modifier.weight(1f, fill = !roomy).springClick {
                 if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else listenOpen = true
             }, verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (active || topic != null) ink.dot else ink.dot.copy(alpha = 0.45f)))
@@ -227,7 +223,7 @@ private fun ColumnScope.LiveCard(
             }
             // 声波只在状态文字和按钮之间的空档里，两头淡出，不压字和按钮；专题进行中不放（那一行按钮多）
             // 平时和专题进行中都显示声波；空档不够时自动变窄
-            if (roomy && controls != HomeControls.None && !stretchPill) BreathingWave(micLevel, active, recording,
+            if (roomy && controls != HomeControls.None) BreathingWave(micLevel, active, recording,
                 Modifier.weight(1f).padding(horizontal = 8.dp).height(22.dp)
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
                     .drawWithContent {
@@ -235,20 +231,20 @@ private fun ColumnScope.LiveCard(
                         drawRect(Brush.horizontalGradient(0f to Color.Transparent, 0.2f to Color.Black, 0.8f to Color.Black, 1f to Color.Transparent),
                             blendMode = BlendMode.DstIn)
                     }, tint = ink.wave)
-            else if (roomy && !stretchPill) Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+            else if (roomy) Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
             else Spacer(Modifier.width(8.dp))
             fun buzz() = haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             when (controls) {
                 HomeControls.TopicAndPause, HomeControls.TopicAndResume -> {
-                    CardPill("◉ 专题", ink, modifier = Modifier.weight(1f)) { buzz(); app.resound.ui.topic.TopicUi.starting =
+                    CardPill("◉ 专题", ink) { buzz(); app.resound.ui.topic.TopicUi.starting =
                         if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else app.resound.topic.TopicKind.Meeting }
                     Spacer(Modifier.width(8.dp))
                     if (controls == HomeControls.TopicAndPause) RoundKey(ink, filled = false, glyph = Glyph.Pause, label = "暂停") {
                         buzz(); capture.pause(lastPause); onPaused(lastPause)
                     } else RoundKey(ink, filled = true, glyph = Glyph.Play, label = "现在恢复") { buzz(); capture.resume() }
                 }
-                HomeControls.StartListening -> CardPill("开始聆听", ink, filled = true, modifier = Modifier.weight(1f)) { buzz(); capture.start() }
-                HomeControls.GrantPermission -> CardPill("去开启", ink, filled = true, modifier = Modifier.weight(1f)) {
+                HomeControls.StartListening -> CardPill("开始聆听", ink, filled = true) { buzz(); capture.start() }
+                HomeControls.GrantPermission -> CardPill("去开启", ink, filled = true) {
                     app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Capture)
                 }
                 HomeControls.TopicRunning -> {
@@ -482,14 +478,13 @@ private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String,
 }
 
 @Composable
-private fun CardPill(text: String, ink: CardInk, filled: Boolean = false, modifier: Modifier = Modifier, danger: Boolean = false, onClick: () -> Unit) {
+private fun CardPill(text: String, ink: CardInk, filled: Boolean = false, danger: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
     val bg by animateColorAsState(when { danger -> c.critical; filled -> ink.primary; else -> ink.pill }, label = "cardPill")
-    Box(modifier.heightIn(min = 44.dp).clip(CircleShape).background(bg).springClick(onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.heightIn(min = 44.dp).springClick(onClick), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.Medium),
             color = when { danger -> Color.White; filled -> ink.primaryText; else -> ink.pillText }, maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
+            modifier = Modifier.clip(CircleShape).background(bg).padding(horizontal = 12.dp, vertical = 7.dp))
     }
 }
 

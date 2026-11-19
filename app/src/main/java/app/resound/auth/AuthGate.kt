@@ -2,6 +2,8 @@
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 
 /**
@@ -161,14 +163,23 @@ class AuthGate(
      * 带令牌的调用统一入口：access 过期(15min TTL)时静默用 refresh 续期并重试一次；
      * refresh 也被拒则 invalidate 会话。各业务调用不再各自处理令牌老化。
      */
+    /** 轮换式 refresh token 是一次性的：并发 authed 调用必须串行刷新，否则后到者拿已轮换的旧票换票被拒→误登出。 */
+    private val refreshMutex = Mutex()
+
     private suspend fun authed(call: suspend (String) -> AuthApi.Result): AuthApi.Result? {
         val token = store.accessToken
         if (token.isEmpty()) return null
         val r = call(token)
-        if (r is AuthApi.Result.Denied && r.code == 401 && refreshNow() == RefreshOutcome.Refreshed) {
+        if (r is AuthApi.Result.Denied && r.code == 401 && refreshIfNeeded(token) == RefreshOutcome.Refreshed) {
             return store.accessToken.takeIf { it.isNotEmpty() && it != token }?.let { call(it) } ?: r
         }
         return r
+    }
+
+    /** 401 触发的去重刷新：锁内再看一眼——并发者若已换到新令牌直接复用，只有持票者真正发 /auth/refresh。 */
+    private suspend fun refreshIfNeeded(failedToken: String): RefreshOutcome = refreshMutex.withLock {
+        if (store.accessToken != failedToken && store.accessToken.isNotEmpty()) RefreshOutcome.Refreshed
+        else refreshLocked()
     }
 
     /** 登录账号可见的设备会话列表（设备管理）。 */
@@ -248,8 +259,10 @@ class AuthGate(
         data class Error(val msg: String) : LoginOutcome()
     }
 
-    /** 联网刷新一次：网络失败不降级现有凭证（离线授权照常到期前可用）。 */
-    suspend fun refreshNow(): RefreshOutcome {
+    /** 联网刷新一次：网络失败不降级现有凭证（离线授权照常到期前可用）。入口串行化，防并发双刷。 */
+    suspend fun refreshNow(): RefreshOutcome = refreshMutex.withLock { refreshLocked() }
+
+    private suspend fun refreshLocked(): RefreshOutcome {
         val refresh = store.refreshToken
         if (refresh.isEmpty()) return RefreshOutcome.NoSession
         return when (val r = api.refresh(refresh)) {

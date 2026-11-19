@@ -28,7 +28,9 @@ fun AuthLoginHost() {
     if (!AppGraph.isAuthReady) return
     val req by AppGraph.auth.loginRequested.collectAsState()
     req?.let { r ->
-        ModalBottomSheet(onDismissRequest = { AppGraph.auth.dismissLogin() }) {
+        // 跳过半展开：内容三字段+按钮在小屏/折叠屏上半展开会被底栏截断。
+        ModalBottomSheet(onDismissRequest = { AppGraph.auth.dismissLogin() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             if (AppGraph.auth.store.sessionAccountId != null)
                 BindSheet(reason = r.reason, onCancel = { AppGraph.auth.dismissLogin() })
             else
@@ -135,6 +137,8 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
     val store = AppGraph.auth.store
     val scope = rememberCoroutineScope()
     var rev by remember { mutableStateOf(0) } // 绑定/登出后强制重读归属标志
+    // 页面外层无 Surface：LocalContentColor 默认黑，未显式着色的标题/正文会黑到看不见——统一补上。
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("我的账号", style = MaterialTheme.typography.titleMedium)
         Text(
@@ -200,6 +204,7 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
             }
         }
         if (showDevices) AuthDevicesList()
+    }
     }
 }
 

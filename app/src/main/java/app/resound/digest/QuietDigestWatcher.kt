@@ -48,13 +48,31 @@ class QuietDigestWatcher(
     fun stop() { job?.cancel(); job = null; _state.value = State.Disabled }
 
     internal suspend fun tick() {
+        // PENDING 恢复：上次触发后进程被杀/AI 失败 → lastRunAt 没追上 pendingAt → 未消费，重试；
+        // 追上了才提升为冷却锚点 lastQuietDigestAt。失败不再被"乐观冷却"永久吞掉。
+        val pendingAt = state.getLong("quietPendingAt", 0L)
+        if (pendingAt > 0) {
+            val lastRun = state.getLong("lastRunAt", 0L)
+            if (lastRun >= pendingAt) {
+                state.edit().putLong("lastQuietDigestAt", pendingAt).remove("quietPendingAt").apply()
+            } else if (System.currentTimeMillis() - pendingAt >= RETRY_MS) {
+                state.edit().putLong("quietPendingAt", System.currentTimeMillis()).apply() // 重试节流
+                val i = collect()
+                _state.value = if (i.authAllowed && i.aiReady && !i.digestRunning && i.hasUndigested) {
+                    scheduler.runDigestNow(); State.Trigger
+                } else QuietDigestRules.evaluate(i)
+                return
+            }
+        }
         val s = QuietDigestRules.evaluate(collect())
         _state.value = s
         if (s != State.Trigger) return
-        // 先记录再触发：进程在整理中途被杀时，下次评估仍在冷却内，不会重复发起同一批。
-        state.edit().putLong("lastQuietDigestAt", System.currentTimeMillis()).apply()
+        // 记 PENDING 再派发：任务创建≠成功；成功以 DigestRunner 写 lastRunAt 为准，水位只认落库。
+        state.edit().putLong("quietPendingAt", System.currentTimeMillis()).apply()
         scheduler.runDigestNow()
     }
+
+    companion object { private const val RETRY_MS = 15 * 60_000L }
 
     private suspend fun collect(): QuietDigestRules.Input {
         val cs = AppGraph.capture?.status?.value

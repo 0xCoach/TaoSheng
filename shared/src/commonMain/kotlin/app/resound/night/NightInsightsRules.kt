@@ -73,7 +73,10 @@ object SnoreBreaks {
         val out=mutableListOf<NightSpan>();var i=0
         while(i<points.size) {
             val first=points[i]
-            if(first.aboveBackground>3 || (maxOf(0,i-(30_000/step).toInt()) until i).none {points[it].snore}) {i++;continue}
+            // 只认安静真正开始的那一格：前一格要在缓冲里、相连且不安静。
+            // 缓冲从前面滑出去时，不能把安静段中间的某一格当成新的起点，否则一次中断会被记成好几条（卡 210）。
+            val realStart=i>0 && points[i-1].aboveBackground>3 && first.at-points[i-1].at==step
+            if(first.aboveBackground>3 || !realStart || (maxOf(0,i-(30_000/step).toInt()) until i).none {points[it].snore}) {i++;continue}
             var end=i
             while(end<points.size && points[end].aboveBackground<=3 && (end==i || points[end].at-points[end-1].at==step))end++
             val quiet=(end-i)*step
@@ -85,6 +88,9 @@ object SnoreBreaks {
         }
         return out
     }
+    /** 早期版本会把同一次中断记成多条：结束时刻（那一声爆响）相同的只留最早开始的一条，返回该删掉的 */
+    fun duplicates(spans: List<Pair<Long,NightSpan>>): List<Long> =
+        spans.groupBy { it.second.end }.values.flatMap { same-> same.sortedWith(compareBy({ it.second.start },{ it.first })).drop(1).map { it.first } }
     const val NOTICE="最近几晚鼾声中断比较多，如果白天也常犯困，可以找医生做一次睡眠检查。"
     fun shouldRemind(nights: List<NightSummary>,at: Long,lastAt: Long?,muted: Boolean): Boolean = !muted && (lastAt==null || at-lastAt>=30*86_400_000L) && nights.sortedByDescending {it.date}.take(7).count {it.confidence in setOf(NightConfidence.Good,NightConfidence.Fair) && (it.sleepMillis ?: 0)>0 && it.snoreBreaks*3_600_000.0/it.sleepMillis!!>=5}>=3
 }

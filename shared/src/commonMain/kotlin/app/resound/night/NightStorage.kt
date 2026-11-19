@@ -51,10 +51,10 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Query("SELECT * FROM night_events WHERE id = :id") suspend fun event(id: Long): NightEventRow?
     @Query("SELECT start FROM night_events WHERE nightId = :id AND kind = 'SnoreBreak'")
     suspend fun breakStarts(id: Long): List<Long>
-    // 即时任务与周期任务可重叠；单条语句兜住两个处理器同时遇到新中断的竞争。
+    // 即时任务与周期任务可重叠；单条语句兜住两个处理器同时遇到新中断的竞争。同一声爆响（结束时刻相同）只算一次。
     @Query("""INSERT INTO night_events(nightId,start,end,kind,payload,certainty,vetoed)
         SELECT :id,:start,:end,'SnoreBreak',:payload,1,0 WHERE NOT EXISTS
-        (SELECT 1 FROM night_events WHERE nightId=:id AND start=:start AND kind='SnoreBreak')""")
+        (SELECT 1 FROM night_events WHERE nightId=:id AND kind='SnoreBreak' AND (start=:start OR end=:end))""")
     suspend fun insertBreak(id: Long,start: Long,end: Long,payload: String)
     @Insert suspend fun insertEvent(row: NightEventRow): Long
     @Update suspend fun updateEvent(row: NightEventRow)

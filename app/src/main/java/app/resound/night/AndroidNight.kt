@@ -23,6 +23,11 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
         for(row in store.dao.all().filter { it.state=="Ready" && System.currentTimeMillis()-it.end<3*86_400_000L }) {
             store.refreshSpeech(row.id);store.recompute(row.id)
         }
+        // 卡 210：更早的夜晚只在有重复鼾声中断时重算一次（合并后就不再触发）
+        for(row in store.dao.all().filter { it.state=="Ready" && System.currentTimeMillis()-it.end>=3*86_400_000L }) {
+            val breaks=store.dao.events(row.id).filter { it.kind=="SnoreBreak" }.map { it.id to NightSpan(it.start,it.end) }
+            if(SnoreBreaks.duplicates(breaks).isNotEmpty())store.recompute(row.id)
+        }
         for(row in store.dao.all().filter { it.state==NightState.Processing.name || it.state==NightState.Interrupted.name }) {
             val candidates=store.dao.clips(row.id).filter { it.candidate && it.path!=null }
             if(candidates.isNotEmpty() && !(battery.isCharging || !power.isInteractive && battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)>=40))continue

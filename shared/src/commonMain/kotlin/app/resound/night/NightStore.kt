@@ -171,6 +171,8 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val row=dao.get(id) ?: return;val old=summary(row);val session=session(row)
         val generated = setOf("Awake","Playback","Gap","Turn")
         dao.events(id).filter { it.kind in generated }.forEach { dao.deleteEvent(it.id) }
+        // 卡 210：旧版本把同一次鼾声中断记成多条，重算时合并
+        SnoreBreaks.duplicates(dao.events(id).filter { it.kind=="SnoreBreak" }.map { it.id to NightSpan(it.start,it.end) }).forEach { dao.deleteEvent(it) }
         session.signals.filter { it.kind in setOf("playback","gap","turn") && (it.kind!="gap" || it.end-it.start>=300_000) }.forEach { signal ->
             addEvent(id,NightEvent(0,when(signal.kind) { "playback"->NightEventKind.Playback;"gap"->NightEventKind.Gap;else->NightEventKind.Turn },signal.start,signal.end,text=signal.text))
         }

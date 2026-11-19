@@ -15,8 +15,9 @@ No hardware to buy. No account. Your data stays on your phone.
 ![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
+[![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.5.2-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.5.3-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -36,11 +37,17 @@ No hardware to buy. No account. Your data stays on your phone.
 
 > The app UI is currently in Chinese only.
 
-## 💡 Why
+## 💡 Why TaoSheng
 
 You say thousands of sentences a day. How many do you remember?
 
-Existing options either need a dedicated recorder (Omi, AI pendants, recording cards) or send all your audio to someone else's server. **TaoSheng uses the phone you already carry.** It quietly listens in the background, records only when someone is speaking, transcribes in batches, recognizes who said what, and lets an LLM organize it into events. When you need something, just ask — every answer links back to the original words.
+- Things you promised in a meeting, forgotten the moment you walk out;
+- A phone number or a time a friend mentioned in passing, gone two days later;
+- An idea you've said out loud several times but never written down.
+
+Existing options either need a dedicated recorder (Omi, AI pendants, recording cards) or send all your audio to someone else's server.
+
+**TaoSheng's idea is simple: you already carry a phone, and it already has a microphone.** It quietly listens in the background and records only when someone is speaking; every so often it transcribes, recognizes who said what, and lets an LLM organize it into events. When you need something, just type a question — every answer links back to the original words.
 
 ## 🧵 You're one string away from an AI pendant
 
@@ -54,230 +61,344 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 
 <sub>Bluetooth earbuds record through the call channel, so quality is a bit lower than the phone mic — fine in quiet rooms. If the earbuds die or disconnect, TaoSheng switches back to the phone mic automatically.</sub>
 
+---
+
 ## ✨ Highlights
 
-1. **🎙 No hardware needed** — the phone mic is enough; lavalier / Bluetooth mics are auto-detected; dedicated recorders such as Omi and the Anker / Feishu D3200 can be paired too (beta, see #27).
-2. **📴 Fully offline transcription** — on-device SenseVoice (Snapdragon NPU), or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan), or any custom ASR (OpenAI-compatible, or a full request URL); when your server returns segments and speakers, lines get their own timestamps and speaker labels.
-3. **⏱ Automatic transcribe + digest on your schedule** — every 15–720 minutes; review and skill times are configurable.
-4. **🧑‍🤝‍🧑 Voiceprint, multiple speakers** — recognizes you and people you know; segments meetings by speaker; every voiceprint sample can be played back or deleted.
-5. **✅ Todos extracted automatically** — and marked done when you later say "sent it".
-6. **🃏 Daily cards & custom skills** — meeting notes, check-in, weekly review, mood diary; add your own with JSON + a prompt. Meeting notes now come out even when attendees aren’t recognized; a meeting without notes shows why, with “Generate anyway”.
-7. **💬 Ask anything, with citations** — what you said or promised on any day, linked to the original lines.
-8. **🤖 Feed your agent** — daily transcripts + digests (Markdown + JSON) pushed as diffs to 10 channels; tap “Copy for agent” on a sync folder and paste it into Claude Code, Codex or another command-running agent so it can read your memory folder directly (read-only).
-9. **☁️ Daily backup to the cloud and local** — Nutstore, any WebDAV (Nextcloud, Synology…) or S3-compatible storage (Aliyun, Tencent, R2, AWS, MinIO…); incremental, 3 / 7 / 30-day versions, optional passphrase encryption, one-tap restore with settings and keys.
-10. **🧠 Bring your own LLM** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with one-tap switching and balance alerts, or any OpenAI-compatible endpoint (with custom request headers; OpenCode Go built in), including LAN self-hosted.
-11. **🛟 Automatic fallback** — if the main model is down, rate-limited, out of credit or its key fails, the next configured model takes over (on by default).
-12. **🔒 Always on, even when locked, digests on time** — foreground service + watchdog; while recording, TaoSheng checks its own schedule and runs transcription and digests itself instead of relying only on system background jobs, so phones with strict background limits (e.g. HarmonyOS) stay on time; Huawei / Honor / HarmonyOS (including the Zhuoyitong compatibility layer) get dedicated keep-alive guidance; if the system interrupts on-device transcription, it resumes where it stopped instead of starting over.
-13. **🔋 Records only speech** — on-device VAD; ~0.5% battery per hour in testing.
-14. **📺 Media playback is kept, never mistaken for you** — speech recorded while the phone plays video or podcasts is transcribed and digested by default; lines during playback are tagged “playback” and written up as “heard while watching …”, never turned into your to-dos. Switch to transcribe-only or skip, globally or per app (e.g. skip short-video apps). Yields the mic to calls.
-15. **⌨️ Remembers keyboard dictation** (optional) with chat context.
-16. **🌙 Daily & weekly reviews**, pushed to you.
-17. **🔁 Repeated ideas merged** ("mentioned N times").
-18. **🔤 Hotwords**, **📂 audio import** (share to TaoSheng, or watch a folder such as your recorder app's and import new recordings automatically), **🗂 timeline scrubbing & stars**.
-19. **🔐 Privacy first** — no account, keys in Keystore, original audio auto-deleted after 3 days by default (1–365 days, starred kept), never hidden from people around you.
-20. **🔍 Find things** — where you put the keys, who borrowed the power bank: placements, loans and returns are tracked and searchable.
-21. **⏰ Alarm-style to-do reminders** — add by typing or voice; keeps ringing, full-screen on the lock screen.
-22. **🎧 Playback & export** — lyric-style subtitle player; merge segments into one M4A with transcript and subtitles, or export only the summary, todos and/or transcript as TXT or Markdown.
-23. **📝 Imported recordings get notes** — meeting / training / call·interview / normal, each with its own summary.
-24. **🔊 Ambient sound tags** (9 kinds: music, keyboard, rain, pets…), **📋 one-tap report copying** (full, by module, or free selection), **🏫 class mode & quiet hours**.
-25. **⬆️ In-app updates, announced on the home screen** — a new version pops up on the home screen and installs from the same panel; small delta patches first, ModelScope mirror in China; the pre-update backup runs right after download, so "Install" goes straight to the system prompt.
-26. **📍 Footprint** — records where you've been alongside capture; named places, "home" detection, a day timeline with the events that happened at each stop, optional daily footprint push. Locations stay on the phone.
-27. **📡 Dedicated recorders (beta)** — device cards and plugins support devices such as Omi, ADeus and the Anker / Feishu D3200. Live capture, offline transfer and controls depend on the device and driver. The contributor verified the 0.3.1 D3200 fixes on realme Android (firmware 04.92 / case 1.2.2); the official build has not been re-verified on hardware. Version 0.3.0 removes the legacy built-in Sonicloud adapter; Sonicloud users should defer this upgrade.
-28. **🧭 Sound, place and ambience linked** — events show where you were ("📍 at the office"); Ask can filter by place ("what did we discuss at the office last week?"); optionally let the digest consider place and ambient sounds (off by default).
-29. **🚀 Three-minute onboarding** — a first-run wizard explains each permission before asking, prepares on-device ASR in the background, walks you through getting a DeepSeek key (auto-detected from the clipboard) and lets you try one sentence end to end; everything else is suggested only when it becomes relevant.
-30. **📱 Home-screen widget & quick voice to-dos** — see listening and topic status, add a to-do by voice, start a topic, pause or resume, from the widget, notification or app-icon shortcut.
-31. **🎙️ Topic mode & long meetings** — meeting, training, call·interview, voice script or normal sessions with scheduling, pause and after-the-fact selection; long meetings are summarized in resumable parts; topic records can be searched, filtered and deleted.
-32. **🔎 Search everywhere** — search lines, events, to-dos, memories, found things, topics, reviews and Ask history across all dates, from the home screen or the To-dos / Memory pages; results are grouped by type with counts, date filters and endless loading (tap a line to jump to that moment); search settings by everyday words such as “battery”.
-33. **📅 To-dos on a calendar** — a week strip (expandable to a month) with dots for busy and overdue days; an agenda from today, later items grouped into “next week” / months, undated ones under “anytime”; move all overdue to today in one tap, confirm pending items inline, and add a to-do to an empty day by voice. “Add to phone calendar” opens the system calendar prefilled (no calendar permission needed).
-34. **📜 Changelog in the app** — after an update, the home screen shows “Updated to X · see what’s new” once; Settings → Updates → Changelog lists every release offline, with the current one expanded.
-35. **📍 Mark moments** — tap “Mark” from the notification, launcher shortcut, widget or player; the minutes around it (2 min before / 1 min after by default) are summarized in more detail with key quotes, flagged on the timeline, and their audio kept like starred items.
-36. **🎧 Bluetooth mics yield to media** — when recording with a DJI Mic or Bluetooth headset, playing a video or music hands the mic back so sound plays normally; recording continues on the phone mic and switches back a few seconds after playback stops.
-37. **🌗 Refreshed home screen & dark mode** — listening, pause and topic controls in one place; a true-black dark theme with orange accents and better large-font layouts.
-38. **📱 Screen time** — today's phone time sits in the recording card; a phone-usage band runs under the speech bars on the same 24-hour axis (press an hour for “talk 12 min · phone 22 min”), and events show “using WeChat 6 min” at the time. Tap through for day / week views with real app icons, hourly breakdown with that hour's events, comparison with the 7-day average, and played shows. Optional daily push; Ask can answer “what was I using this afternoon”. On by default — a home card links straight to the two system permissions; turn it off any time. Data stays on the phone and is cleared by “don't keep this” and privacy deletion.
-39. **📞 Phone calls, captured** — turn on your phone's built-in automatic call recording, then pick “Call recordings” under auto-import folders: TaoSheng shows the steps for your phone brand and opens the picker right at the recordings folder. Each call is transcribed into a call note a few minutes after hanging up, with the other party and time read from the file name, and you can search by name or the last digits of the number. For recordings already in the folder, choose only new, last 7 days, last 30 days, or list all (shown on the timeline, transcribed when you tap). Multiple folders supported. Contacts are never read and numbers are never sent to any model.
-40. **🌙 Nights: sleep, snoring, sleep talk — and naps** — turn on “Night” in Settings and leave the phone by the bed; it starts on its own once you fall asleep and ends when you unlock, unplug or dismiss the alarm in the morning. The day rhythm draws the hours you slept; open “Last night” for when you went to bed, roughly fell asleep and got up, how often you woke, and one line comparing it with your usual. A whole-night sound map marks snoring, coughs and sleep talk — tap to replay; pinch or double-tap to zoom down to 10 minutes per screen (5-second bars), long-press to read the exact time and how far above background it was, jump to the night’s loudest moment, and replay the 3 loudest clips kept each night. The event list folds by type, with clips awaiting your answer on top. Up to 3 uncertain clips are offered for a quick yes / no (change your answer any time, 6-second undo). Sleep windows follow your last two weeks automatically or can be set by hand; add a nap window or extra windows for night shifts. Tag nights to see what helps; weekly reports, trends and a chart-based one-page PDF for your doctor (7 / 30 / 90 days). Deleting timeline items never removes night records. Audio stays on the phone and unconfirmed clips are deleted after 7 days and confirmed ones after 90; for reference only, not a medical test.
-41. **🧵 Day thread** — every early morning the previous day is finalized into a “day thread” (where you were, who you talked to, what you used, how you slept) at the top of the pushed daily document, refreshed for 3 days if late data arrives; privacy deletions apply at any time. Times carry their UTC offset, so travel doesn’t scramble them.
+### 🎙️ Round-the-clock capture (from daytime talk to sleep talk)
+- **No hardware, every source and every call** — the phone mic works out of the box; lavalier mics, Bluetooth earbuds and DJI Mic switch automatically when plugged in or out (a Bluetooth mic yields to video playback and recording continues on the phone mic); dedicated recorders such as Omi, ADeus ESP32-C3 and the Anker / Feishu D3200 are supported (beta); your phone's own call recordings are imported automatically (party and time recognized; contacts are never read and numbers are never sent to any model).
+- **Offline transcription + on-device voiceprints** — fully offline SenseVoice (Snapdragon NPU), or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan), or any custom OpenAI-compatible ASR (per-sentence timestamps and speakers, tap to replay); on-device voiceprints tell you apart from people you know — long-press a line once and pick "who is this?"; hotword correction and voiceprint sample management.
+- **Nights: sleep, snoring and sleep talk** — leave the phone by the bed and it starts once you fall asleep, ending when you unlock, unplug or dismiss the alarm (naps, night shifts and daytime sleep windows too); a whole-night sound map marks snoring, coughs and sleep talk (sleep talk becomes text, tap to replay, swipe to correct so it learns), pinch or double-tap to zoom down to 5-second bars, long-press to read the exact time and loudness, jump to the night's loudest moment and replay it; snore pauses can be replayed and confirmed by ear; tag nights to compare what helps, and get a chart-based one-page PDF for your doctor over 7 / 30 / 90 days (for reference only, not a medical test).
+- **Footprint + screen time + ambience, stitched into a "day thread"** — where you went (footprint), which apps you used (screen-time band), what the phone played aloud (tagged "playback", never mistaken for your own words) and 9 kinds of ambient sound; every early morning the day is finalized into a "day thread" at the top of your pushed document, robust to time-zone changes.
+
+### 🧠 AI digest, to-dos and instant recall
+- **To-dos extracted automatically + calendar + alarm-style reminders** — promises in your words become to-dos and are marked done when you later say "sent it"; add to-dos by voice from the notification, a long-press on the app icon or the widget; week / month calendar, move all overdue to today in one tap, add to the phone calendar, and full-screen lock-screen alarms.
+- **Ask + global search, every answer cited** — ask "what did I promise Wang at the office last week?", "who borrowed the power bank?", "what was I scrolling this afternoon?"; filter by place and time, tap any answer back to the original lines; one search box across lines, events, to-dos, found things, topics and reviews on every date; repeated ideas are merged with a count.
+- **Topic recording, marks and automatic reviews** — start a meeting, training, call·interview or voice-script session in one tap (schedule, pause, pick afterwards, long meetings summarized in resumable parts, notes even when attendees aren't recognized); tap "📍 Mark" while recording or playing back to get the moments around it written up in more detail with the audio kept; daily / weekly reviews and skill cards are generated automatically.
+
+### 🔒 Privacy first, steady and frugal in the background
+- **Your data stays 100% yours** — no account, no server of ours; keys in the system Keystore; location, screen time, sleep audio and call numbers stay on the phone; original audio is deleted after 3 days by default (1–365 days, starred kept; sleep clips after 7 days unconfirmed or 90 days confirmed); "forget the last N minutes" and "don't keep this" erase everything, screen time included.
+- **Records only speech, ~0.5% battery per hour in testing** — on-device Silero VAD, silence is never recorded; a foreground service with watchdog checks and digests on your schedule (15–720 minutes) with keep-alive guidance for Huawei, Honor and HarmonyOS (including the Zhuoyitong layer); interrupted on-device transcription resumes where it stopped.
+- **Bring your own model + automatic failover** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with balance checks and low-balance alerts, custom request headers (OpenCode Go built in) and LAN self-hosted models for a fully local pipeline; with several models configured, a dead, offline or out-of-credit main model fails over seamlessly.
+
+### 🤖 Built for geeks and AI agents
+- **"Copy for agent" + incremental push to 10 channels** — the day thread, transcripts and digests (Markdown + JSON) are pushed as diffs to 10 channels, merged on your chosen interval and never touching the cloud when nothing changed; tap "Copy for agent" on a sync folder and paste it into Claude Code, Codex or similar to give it read-only access to your memory folder — delete the cloud-drive app password to revoke it any time.
+- **Your own skills + encrypted incremental backup** — meeting notes, end-of-day check-in, weekly review and mood diary out of the box; write a JSON + prompt to add your own; back up to Nutstore, WebDAV (Nextcloud, Synology…) or S3-compatible storage (Aliyun, Tencent, R2…) with passphrase encryption and 3 / 7 / 30-day versions; restore everything, settings and keys included, on a new phone.
+
+<details>
+<summary><b>📦 More details (keyboard dictation, imports, playback & export, widget…)</b></summary>
+
+- **More sources, finer control**
+  - **Keyboard dictation remembered (optional)** — when you dictate with your keyboard's voice input, the chat context is recorded too, so it knows which lines are yours and which are the other person's; screenshots are read in memory only and discarded.
+  - **External recordings become notes** — "Share to TaoSheng" or watch a folder (originals untouched, no duplicates; take only new, last 7 days, last 30 days or everything), transcribed as meeting / training / call·interview / normal with notes; failed transcriptions say why and can be retried, and deleting an import only removes TaoSheng's copy and results.
+  - **Playback and quiet hours** — sound the phone plays is transcribed and digested by default with its source noted; switch to transcribe-only or skip, globally or per app (e.g. skip short-video apps); set quiet hours such as nights.
+- **Playback, timeline and export**
+  - **Lyric-style player and exports** — speed control and tap-a-line replay; merge segments into one M4A with transcript and subtitles (preview before saving), or export summaries and to-dos as TXT / Markdown.
+  - **Timeline and copying** — scrub the timeline, swipe left to star, right to delete, edit in batches; copy daily / weekly reports in full, by module or by free selection with formatting and checkboxes preserved.
+- **Shortcuts and polish**
+  - **Three-minute onboarding** — each permission is explained before it's asked; on-device models prepare in the background; get a DeepSeek key in one tap (auto-detected from the clipboard) and see results from one sentence.
+  - **"TaoSheng quick" widget** — see listening and topic status, add to-dos, start a topic, pause / resume; during a topic it becomes a "Mark" button.
+  - **Settings search and visual details** — search settings by everyday words such as "battery"; a health check; true-black dark mode and large-font layouts; in-app delta updates (ModelScope mirror in China; a new version is downloaded and backed up in the background first, then one tap installs) and an offline changelog.
+
+</details>
+
+### 📸 Screenshots
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/capture.jpg"></td>
-<td width="50%"><img src="docs/media/people.jpg"></td>
+<td width="50%"><img src="docs/media/capture.jpg" alt="All-day capture"></td>
+<td width="50%"><img src="docs/media/people.jpg" alt="Knows who's talking"></td>
 </tr>
 <tr>
-<td><b>🎙 Always listening, even when locked</b><br>Foreground service + watchdog. Records only when someone speaks (on-device Silero VAD), so it stays battery-friendly.</td>
-<td><b>🧑‍🤝‍🧑 Knows who's talking</b><br>On-device voiceprint recognizes you and the people you know. Long-press any line and pick "who is this?" to teach it a new voice.</td>
+<td><b>🎙 Always listening, even when locked</b><br>Foreground service + watchdog, restarted if the system kills it. Records only when someone speaks, so it stays battery-friendly.</td>
+<td><b>🧑‍🤝‍🧑 Knows who's talking</b><br>On-device voiceprint recognizes you and the people you know. Long-press any line and pick "who is this?" once to teach it a voice.</td>
 </tr>
 <tr>
-<td><img src="docs/media/organize.jpg"></td>
-<td><img src="docs/media/ask.jpg"></td>
+<td><img src="docs/media/organize.jpg" alt="AI digest"></td>
+<td><img src="docs/media/ask.jpg" alt="Ask"></td>
 </tr>
 <tr>
-<td><b>🧠 AI turns talk into things</b><br>Events, todos, appointments, decisions and ideas — sorted on a timeline.</td>
+<td><b>🧠 AI turns talk into things</b><br>Events, todos, appointments, decisions and ideas — sorted on a timeline, key facts at a glance.</td>
 <td><b>💬 Ask, with citations</b><br>"What did I promise Wang last week?" An LLM with query tools searches your memory and cites the exact lines.</td>
 </tr>
 <tr>
-<td><img src="docs/media/skills.jpg"></td>
-<td><img src="docs/media/agent.jpg"></td>
+<td><img src="docs/media/skills.jpg" alt="Skill cards"></td>
+<td><img src="docs/media/agent.jpg" alt="Feed your agent"></td>
 </tr>
 <tr>
-<td><b>🃏 Skill cards</b><br>Meeting notes, end-of-day check-in, weekly review, mood diary. Each skill is a JSON + prompt you can write yourself.</td>
-<td><b>🤖 Feed your own agent</b><br>Daily memory as Markdown + JSON, pushed as diffs (added / changed / deleted).</td>
+<td><b>🃏 Skill cards</b><br>Meeting notes, end-of-day check-in, weekly review, mood diary… each skill is a prompt you can write yourself.</td>
+<td><b>🤖 Feed your own agent</b><br>Daily memory as Markdown + JSON, pushed as diffs (added / changed / deleted) for your own AI to work with.</td>
 </tr>
 <tr>
-<td><img src="docs/media/review.jpg"></td>
-<td><img src="docs/media/backup.jpg"></td>
+<td><img src="docs/media/review.jpg" alt="Daily review"></td>
+<td><img src="docs/media/backup.jpg" alt="Automatic backup"></td>
 </tr>
 <tr>
-<td><b>🌙 Daily & weekly reviews</b><br>Generated every night at 22:00 and every Sunday.</td>
-<td><b>☁️ Daily incremental backup</b><br>Local + Nutstore / WebDAV / S3, 3 / 7 / 30-day versions, one-tap restore on a new phone.</td>
+<td><b>🌙 Daily & weekly reviews</b><br>Every night at 22:00: a one-line summary, what mattered, to-dos, things to watch, ideas and energy; a weekly review on Sundays.</td>
+<td><b>☁️ Daily incremental backup</b><br>Local + Nutstore / WebDAV / S3, 3 / 7 / 30-day versions; restore everything on a new phone, settings and keys included.</td>
 </tr>
 </table>
 
-### More
+### 📤 Push channels
 
-- 📺 Skips transcription while the phone is playing video/music
-- 🎧 Auto-switches to lavalier / Bluetooth mics, falls back when unplugged
-- 🤝 Yields the mic to calls and voice messages
-- 📂 Import audio files via "Share to TaoSheng"
-- ⌨️ Optional: remembers what you dictate with your keyboard's voice input, plus the on-screen chat context (OCR in memory only)
-- ☁️ Cloud ASR (Doubao), 📱 **on-device ASR** (SenseVoice on Snapdragon NPU — offline, free), or any custom endpoint
-- 🔤 Hotwords for names and jargon
-- 👥 Multi-speaker segmentation for meetings
-- ✅ Todos: pending / in progress / done — say "sent it" and it knows the task is done
-- 🔁 Repeated ideas merged into one ("mentioned N times")
-- 📣 10 push channels: PushPlus, WeCom, ServerChan, Feishu, DingTalk, Telegram, Email, Notion, sync folder (Nutstore / WebDAV / S3, works with Obsidian), custom webhook
-- 🔐 No account, no server of ours; API keys in Android Keystore; original audio auto-deleted after 3 days by default (adjustable); "forget the last N minutes"
-- 👀 Never hidden: persistent notification and the system mic indicator stay visible
-- 🔧 Every model is swappable — any OpenAI-compatible LLM, including self-hosted
+PushPlus · WeCom bot · ServerChan · Feishu · DingTalk · Telegram · Email · Notion · sync folder (Nutstore / WebDAV / S3, works with Obsidian) · custom webhook
+
+What can be pushed: daily reviews, to-do reminders, newly digested events, skill cards and the daily memory document (with transcripts), as plain text, Markdown or JSON.
+
+---
 
 ## 🚀 Getting started
 
+### You need
+
+| Need | Notes |
+| --- | --- |
+| Android phone | Android 10+, arm64. Developed and tested on Xiaomi 14 Pro (HyperOS 3) |
+| Transcription | One of: a [Doubao Speech](https://www.volcengine.com/product/voice-tech) API key (or a Volcengine Ark Agent Plan dedicated key); **on-device ASR** (the model downloads on first use); or a custom ASR service |
+| LLM | An API key for any OpenAI-compatible endpoint, [DeepSeek](https://platform.deepseek.com/) by default |
+| Optional | Nutstore, WebDAV or S3 storage (backup) and any push channel |
+
 ### Download
 
-**v0.5.2** (2026-11-18, latest): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.2-arm64.apk) — Fixes local backups occasionally failing with a false “folder access expired” error; night records are now included in backups; Nutstore backups wait and retry when rate-limited; “Last night” is written to the day’s pushed document as soon as the night is processed. No database change. [Changelog (Chinese)](CHANGELOG.md#052--2026-11-18).
+| Version | Date | Download | Notes |
+| --- | --- | --- | --- |
+| **v0.5.3** (latest) | 2026-11-19 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.3-arm64.apk) | Zoomable night sound map with the 3 loudest clips kept and snore pauses you can replay and confirm; new versions are prepared in the background and install in one tap; Doubao via a Volcengine Ark Agent Plan; Nutstore pushes merged on your interval and faster backups; much smaller problem reports. No database change. [Changelog (Chinese)](CHANGELOG.md#053--2026-11-19) |
+| **v0.5.2** | 2026-11-18 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.2-arm64.apk) | Fixes local backups occasionally failing with a false "folder access expired" error; night records included in backups; Nutstore backups wait and retry when rate-limited; "Last night" written to the day's pushed document as soon as the night is processed. No database change. [Changelog (Chinese)](CHANGELOG.md#052--2026-11-18) |
+| **v0.5.1** | 2026-11-18 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) | Nights (automatic sleep start / end, snoring, coughs and sleep talk, naps and custom windows, a page for your doctor); phone call recordings imported automatically; the day thread; playback transcribed by default with per-app settings; meeting notes even when attendees aren't recognized; much lower daytime battery use; Xiaomi install-prompt fix. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#051--2026-11-18) |
 
-**v0.5.1** (2026-11-18): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) — Nights: automatic sleep start / end, snoring, coughs and sleep talk, naps and custom sleep windows, a chart-based page for your doctor; phone call recordings imported automatically; the day thread; media playback transcribed by default with per-app settings; meeting notes even when attendees aren’t recognized; much lower daytime battery use; fix for the install prompt on Xiaomi / HyperOS. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#051--2026-11-18).
+<details>
+<summary><b>📜 Earlier versions (v0.5.0 – v0.2.0)</b></summary>
 
-**v0.5.0** (2026-11-17): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.0/TaoSheng-v0.5.0-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.0-arm64.apk) — Screen time (phone time on the home card, a phone-usage band in the day rhythm, “using … at the time” on events, day / week details); played audio is no longer written up as your own words; one-tap marks; Bluetooth mics yield to media; per-sentence timestamps and speakers for custom transcription; in-app changelog and home notices. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#050--2026-11-17).
+| Version | Date | Download | Notes |
+| --- | --- | --- | --- |
+| **v0.5.0** | 2026-11-17 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.0/TaoSheng-v0.5.0-arm64.apk) | Screen time (phone time on the home card, a phone-usage band in the day rhythm, "using … at the time" on events, day / week details); played audio no longer written up as your own words; one-tap marks; Bluetooth mics yield to media; per-sentence timestamps and speakers for custom transcription; in-app changelog and home notices. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#050--2026-11-17) |
+| **v0.4.2** | 2026-11-16 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.2/TaoSheng-v0.4.2-arm64.apk) | To-dos on a calendar (week strip, move overdue to today, pending shown dashed, later items grouped); add to the phone calendar in one tap; custom transcription no longer times out while uploading on slow links. [Changelog (Chinese)](CHANGELOG.md#042--2026-11-16) |
+| **v0.4.1** | 2026-11-16 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) | On-device transcription resumes after interruptions; search extended to to-dos, memories, found things, topics, reviews and Ask; "Copy for agent" on sync folders; wake-word note; back-to-top on the transcript page. [Changelog (Chinese)](CHANGELOG.md#041--2026-11-16) |
+| **v0.4.0** | 2026-11-16 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) | On-time background digests while recording, with Huawei / Honor keep-alive guidance; home-screen search and new-version prompt; provider switching takes effect immediately; more settings restored from backups; license changed to FSL-1.1-MIT. [Changelog (Chinese)](CHANGELOG.md#040--2026-11-16) |
+| **v0.3.1** | 2026-11-14 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) | Missed scheduled digests caught up and retried; D3200 lights-off capture and transfer fixes; update download stability. [Changelog (Chinese)](CHANGELOG.md#031--2026-11-14) |
+| **v0.3.0** | 2026-11-13 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) | New interface and dark mode, voice to-dos, home-screen widget, resumable long-meeting summaries, settings search and health check, less background work. Back up before upgrading; legacy Sonicloud support removed. [Changelog (Chinese)](CHANGELOG.md#030--2026-11-13) |
+| **v0.2.22** | 2026-11-11 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) | Topic recording (meeting, training, call, voice script; becomes one event with minutes); Ask works with any model; digest no longer stalls when a batch is rejected. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#0222--2026-11-11) |
+| **v0.2.21** | 2026-11-10 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) | Footprint linked with sound and ambience; dedicated recorders (beta); three-minute onboarding; lower battery use for on-device ASR when locked; pre-update backup moved earlier; LLM diagnostics in problem reports. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#0221--2026-11-10) |
+| **v0.2.20** | 2026-11-10 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/TaoSheng-v0.2.20-arm64.apk) | Fixes the microphone "silently dead" bug; Bluetooth recording yields the mic to voice keyboards; backup to WebDAV or S3; text-only / Markdown export; folder auto-import; push line breaks; custom request headers and OpenCode Go. [Changelog (Chinese)](CHANGELOG.md#0220--2026-11-10) |
+| **v0.2.19** | 2026-11-08 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk) | Digests no longer chop conversations into fragments; optional "think before digesting"; merge selected events; per-batch re-digest progress and a full-day re-digest crash fix. [Changelog (Chinese)](CHANGELOG.md#0219--2026-11-08) |
+| **v0.2.18** | 2026-11-08 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) | Voiceprint sample management (play back, delete, clear sample audio); custom ASR accepts a full request URL. [Changelog (Chinese)](CHANGELOG.md#0218--2026-11-08) |
+| **v0.2.17** | 2026-11-07 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) | Automatic fallback to backup models; reviews no longer fail on busy days; passphrase field for encrypted restores; local backup folder permissions on more systems (e.g. HarmonyOS). [Changelog (Chinese)](CHANGELOG.md#0217--2026-11-07) |
+| **v0.2.16** | 2026-11-03 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) | Fixes deletion delays from long statistics transactions; lighter snapshots and media matching; deletion progress and duplicate-operation protection. [Changelog (Chinese)](CHANGELOG.md#0216--2026-11-03) |
+| **v0.2.15** | 2026-11-02 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) | Item tracking shares digest requests; redesigned reports with full / module / free-text copying; cited follow-ups fixed; quiet capture and playback fixes; on-device language choice; deletion and backup reliability. [Changelog (Chinese)](CHANGELOG.md#0215--2026-11-02) |
+| **v0.2.14** | 2026-10-30 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk) (~98 MB) | Faster transcription with far less traffic; class mode and a speaker-separation switch; imported recordings typed with automatic notes; multiple providers with balance alerts; to-dos show and play the original words; easier ambient-sound tags; proper formatting in Ask, and more |
+| **v0.2.13** | 2026-10-29 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/TaoSheng-v0.2.13-arm64.apk) (~97 MB) | Recording export (merged M4A + transcript + subtitles); new player; redesigned day rhythm; timeline filters and batch actions; hotwords for on-device ASR; quiet hours; LAN self-hosted models; fixes for false push errors and more |
+| **v0.2.12** | 2026-10-28 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) | To-dos by typing or voice; alarm-style reminders with a settings checklist; digest at set times; model check explains each feature |
+| **v0.2.11** | 2026-10-28 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.11/TaoSheng-v0.2.11-arm64.apk) (~91 MB) | In-app updates with small delta patches and a backup before installing; dictation keeps context for every message; "About TaoSheng" |
+| **v0.2.9** | 2026-10-27 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.9/TaoSheng-v0.2.9-arm64.apk) (~91 MB) | Background recording CPU cut by about two thirds; realtime on-device transcription; separate transcription and digest settings; first-run checklist; large-font, small-screen and foldable layouts; ML Kit telemetry removed |
+| **v0.2.8** | 2026-10-27 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.8/TaoSheng-v0.2.8-arm64.apk) (~91 MB) | On-device models download from a ModelScope mirror first, with resume, fallback sources and integrity checks |
+| **v0.2.7** | 2026-10-27 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.7/TaoSheng-v0.2.7-arm64.apk) (~91 MB) | ONNX Runtime 1.25.1, fixing a SIGILL crash on some Oryon devices when listening starts |
+| **v0.2.6** | 2026-10-26 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.6/TaoSheng-v0.2.6-arm64.apk) (~88 MB) | Step-by-step digest progress on the home screen; timely digests for long conversations; adjustable digest timing; faster voiceprint labeling; one-time NPU check; retryable model downloads |
+| **v0.2.1** | 2026-10-26 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.1/TaoSheng-v0.2.1-arm64.apk) (~88 MB) | Playback detection fix; "don't transcribe while playing audio" switch |
+| **v0.2.0** | 2026-10-26 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.0/TaoSheng-v0.2.0-arm64.apk) (~88 MB) | First public build (early preview) |
 
-**v0.4.2** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.2/TaoSheng-v0.4.2-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.4.2-arm64.apk) — To-dos on a calendar (week strip, move overdue to today, pending shown dashed, later items grouped); add a to-do to the phone calendar in one tap; custom transcription no longer times out while uploading on slow links. [Changelog (Chinese)](CHANGELOG.md#042--2026-11-16).
+</details>
 
-**v0.4.1** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) — On-device transcription resumes after interruptions (long recordings on HarmonyOS); search extended to to-dos, memories, found things, topics, reviews and Ask; “Copy for agent” on sync folders; wake-word note for Xiaomi / Meizu; back-to-top on the transcript page. [Changelog (Chinese)](CHANGELOG.md#041--2026-11-16).
+- 64-bit Android only (arm64-v8a — nearly every phone from recent years), Android 10 or later.
+- Open the downloaded APK on your phone to install; allow "unknown sources" when asked.
+- All releases and notes: [Releases](https://github.com/0xCoach/TaoSheng/releases).
+- SHA-256 checksums for the latest release: [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/latest/download/SHA256SUMS).
+- Official signing certificate SHA-256: `7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`. Only trust APKs with this signature; modified builds from elsewhere may have been tampered with.
 
-**v0.4.0** (2026-11-16): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.0/TaoSheng-v0.4.0-arm64.apk) — On-time background digests while recording (for HarmonyOS and other strict phones) with Huawei / Honor keep-alive guidance; home-screen search and new-version prompt; switching model providers takes effect immediately; more settings restored from backups; license changed to FSL-1.1-MIT. [Changelog (Chinese)](CHANGELOG.md#040--2026-11-16).
+### First run (about 3 minutes)
 
-**v0.3.1** (2026-11-14): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.1/TaoSheng-v0.3.1-arm64.apk) — Missed scheduled digests are caught up and retried; D3200 lights-off capture and transfer fixes; update download stability. [Changelog (Chinese)](CHANGELOG.md#031--2026-11-14).
+A first-run wizard walks you through it:
 
-**v0.3.0** (2026-11-13): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.3.0/TaoSheng-v0.3.0-arm64.apk) — New interface, voice to-dos, home-screen widget, resumable long-meeting summaries and reduced background work. Back up before upgrading; legacy Sonicloud support removed. [Changelog (Chinese)](CHANGELOG.md#030--2026-11-13).
+1. **Permissions** — microphone, notifications and battery whitelist, each explained before the system prompt; the on-device ASR model (about 170–330 MB) downloads in the background, with a warning on mobile data.
+2. **Digest model** — tap "Get a DeepSeek key", create and copy a key on the web page, and TaoSheng detects and tests it when you come back; or skip for now, or switch to another provider / custom endpoint later in Settings → 整理模型 (digest model).
+3. **Say something** — once the model is ready, speak a sentence and see the transcript and the events / to-dos it produces.
+4. **Everything else (optional)** — the wizard offers keep-alive, backup, push and footprint at the end. On Xiaomi / HyperOS enable autostart and set battery to unrestricted; on Huawei, Honor and HarmonyOS set TaoSheng to manual in app launch management with all three switches on (inside Zhuoyitong, apply it to Zhuoyitong itself); Settings → 录音管理 (recording) guides you step by step.
+5. **(Optional) enroll your voice** — Settings → 人物声纹 (voiceprints) → 我 (me): read three short passages and TaoSheng will know which lines are yours.
 
-**v0.2.22** (2026-11-11): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.22/TaoSheng-v0.2.22-arm64.apk) — Topic recording: start a meeting, training, call or voice-script session (pause, schedule, or mark it afterwards); it becomes one event with minutes when it ends. Ask now works with any model (Gemini tool-call compatibility, app-side lookup fallback). Digest no longer stalls when a batch is rejected. Database upgrade: direct downgrade is unsupported. [Detailed changelog (Chinese)](CHANGELOG.md#0222--2026-11-11).
-
-**v0.2.21** (2026-11-10): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.21/TaoSheng-v0.2.21-arm64.apk) — Footprint, linked with sound and ambience (events show where you were; Ask by place); dedicated recorders (beta); a three-minute first-run wizard; lower background battery use for on-device ASR; pre-update backup moved before install; LLM diagnostics in problem reports. Database upgrade: direct downgrade is unsupported. [Detailed changelog (Chinese)](CHANGELOG.md#0221--2026-11-10).
-
-**v0.2.20** (2026-11-10): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.20/TaoSheng-v0.2.20-arm64.apk) — fixes the microphone "silently dead" bug that lost hours of recording; Bluetooth recording now yields the mic to voice keyboards; cloud backup to WebDAV or S3; export text only, as TXT or Markdown; auto-import from a folder; push line breaks fixed; custom request headers and OpenCode Go. [Detailed changelog (Chinese)](CHANGELOG.md#0220--2026-11-10).
-
-**v0.2.19** (2026-11-08): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.19/TaoSheng-v0.2.19-arm64.apk) — digests no longer chop one conversation into many fragments; new optional "think before digesting" switch; merge several selected events into one; re-digest shows per-batch progress and no longer crashes on a full day. [Detailed changelog (Chinese)](CHANGELOG.md#0219--2026-11-08). No new database migration.
-
-**v0.2.18** (2026-11-08): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.18/TaoSheng-v0.2.18-arm64.apk) — voiceprint sample management: play back or delete each person's samples, clear stored sample audio in one tap; custom ASR accepts a full request URL. [Detailed changelog (Chinese)](CHANGELOG.md#0218--2026-11-08). No new database migration.
-
-**v0.2.17** (2026-11-07): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.17/TaoSheng-v0.2.17-arm64.apk) — automatic fallback to backup models; reviews no longer fail on busy days (input limit now follows each model's context window); passphrase field shown whenever an encrypted backup needs it; local backup folder permissions work with more file pickers (e.g. HarmonyOS). [Detailed changelog (Chinese)](CHANGELOG.md#0217--2026-11-07). No new database migration.
-
-**v0.2.16** (2026-11-03): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.16/TaoSheng-v0.2.16-arm64.apk) — fixes deletion delays caused by long-running seven-day statistics transactions; reads compact snapshots, optimizes media interval matching, and adds deletion progress and duplicate-operation protection. Validated on a phone with synthetic workloads and actual history reads; user deletion retest passed. [Detailed changelog (Chinese)](CHANGELOG.md#0216--2026-11-03). No new database migration from 0.2.15.
-
-**v0.2.15** (2026-11-02): [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.15/TaoSheng-v0.2.15-arm64.apk) — item tracking shares timeline extraction; redesigned reports with full, module and free-text copying; verified sources for follow-up questions; quieter external-mic detection and playback routing fixes; on-device language selection; deletion and backup reliability improvements. [Detailed changelog (Chinese)](CHANGELOG.md#0215--2026-11-02). Back up before upgrading from 0.2.14 or earlier: the database format changes and direct downgrade is unsupported.
-
-**v0.2.14** (2026-10-30): [TaoSheng-v0.2.14-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.14/TaoSheng-v0.2.14-arm64.apk) (~98 MB) — faster transcription (quicker Doubao, far less traffic); class mode and a speaker-separation switch; imported recordings typed as meeting / training / call·interview / normal with automatic notes; multiple model providers with one-tap switching and balance alerts; to-dos show the original words and play the audio; easier ambient-sound tags; proper formatting in Ask, and more.
-
-**v0.2.13** (2026-10-29): [TaoSheng-v0.2.13-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.13/TaoSheng-v0.2.13-arm64.apk) (~97 MB) — export recordings (merge segments into one M4A with transcript and subtitles, preview before saving, runs in the background); new player (lyric-style subtitles, previous/next segment, speed); redesigned daily rhythm; timeline filters and batch actions; hotword correction for on-device transcription; recording quiet hours; LAN self-hosted models; fixes for false push errors and more.
-
-**v0.2.12** (2026-10-28): [TaoSheng-v0.2.12-arm64.apk](https://github.com/0xCoach/TaoSheng/releases/download/v0.2.12/TaoSheng-v0.2.12-arm64.apk) (~96 MB) — add to-dos by typing or voice; alarm-style strong reminders (keeps ringing, full-screen on the lock screen, volume = snooze, power = stop, with a settings checklist); digest at set times; model check reports each feature with a reason (e.g. “model does not support tool calls”) · [all releases](https://github.com/0xCoach/TaoSheng/releases)
+Switching phones? Tap "换手机了？从备份恢复" (restore from backup) on the first page of the wizard.
 
 > **Voice assistant wake word not responding while recording?** On many phones (e.g. Xiaomi, Meizu) the system pauses wake-word listening whenever an app is recording; this is a hardware limitation. While TaoSheng records, wake your assistant by **long-pressing the power button** instead.
 
-arm64 Android 10+ only. SHA-256: see the release attachment [SHA256SUMS](https://github.com/0xCoach/TaoSheng/releases/latest/download/SHA256SUMS). Official signing certificate SHA-256: `7c11f9afc2cdfc8ba334a7bba69b005aecc609d81fcd12d01bcec2752f496b07`.
+### Everyday use
+
+| Tab | What it does |
+| --- | --- |
+| **今天 Today** | Listening status, the day rhythm, to-dos awaiting confirmation and events in time order; scrub the timeline; search lines and events with the magnifier |
+| **问问 Ask** | Type a question — "what did I promise this week?", "what's Wang's phone number?" — answers cite the original lines |
+| **记忆 Memory** | Daily journal, key facts, starred items ★, ideas and skill cards |
+| **待办 To-dos** | Pending / in progress / done; swipe left to star, right to delete |
+| **设置 Settings** | Four groups: **Capture** (recording management — original-audio retention, recording export, folder auto-import, keep-alive guide; external devices; transcription; voiceprints) · **Digest** (digest model, skills, push channels) · **Context** (ambient sound, screen time, footprint, night sleep) · **General** (backup & restore, updates, advanced diagnostics, about); export a problem report from advanced diagnostics when something goes wrong |
+
+---
+
+## 📡 Hardware integration
+
+Besides the phone, recorder pods, recording cards and open-source pendants can feed TaoSheng, reusing the same transcription, digest, to-do and memory features.
+
+- **Supported today** — ordinary Bluetooth earbuds and wired / USB mics go through the system audio input; dedicated devices connect through device cards or driver plugins per their protocol. Device cards for Omi and ADeus ESP32-C3 and a beta driver for the Anker / Feishu D3200 are available. Live capture, offline transfer and controls differ by device (0.3.0 removed the legacy built-in Sonicloud adapter; Sonicloud users should defer upgrading).
+- **D3200** — the driver covers live capture, offline transfer, recording control, and battery / storage for the pod and case. A contributor verified the 0.3.1 fixes on realme Android with firmware 04.92 / case 1.2.2; the official build has not been re-verified on hardware, and other firmware needs separate testing.
+- **One adaptation spec** — TaoSheng publishes a spec for device cards and driver plugins. Vendors and developers who follow it reuse device management, transcription, digest and memory instead of rebuilding them; device-specific logic stays in its own module, keeping the core untouched. Protocol docs, SDKs, firmware details and test units are welcome.
+
+[Device capabilities and integration guide (Chinese)](docs/硬件接入与协议适配.md) · [Adaptation spec (Chinese)](docs/taoecho/README.md) · [Plugin submission and hardware acceptance (Chinese)](docs/taoecho/插件提交清单.md) · [Start a discussion on GitHub](https://github.com/0xCoach/TaoSheng/issues/new)
+
+---
+
+## 🏗 Architecture & development
+
+```mermaid
+flowchart LR
+    A[Phone mic / external mic<br>imports / voice input] --> B[Speech detection<br>Silero VAD · on-device]
+    B --> C[Speech segments<br>Opus on the phone]
+    C --> D[ASR<br>Doubao / on-device SenseVoice / custom]
+    D --> E[Speaker ID<br>CAM++ voiceprint · on-device]
+    E --> F[LLM digest<br>events · to-dos · memory]
+    F --> G[Today / Ask / Memory / To-dos]
+    F --> H[Daily reviews · skill cards]
+    H --> I[10 push channels<br>your agent]
+    F --> J[Incremental backup<br>local + cloud]
+```
+
+| Part | Technology |
+| --- | --- |
+| UI | Kotlin · Jetpack Compose · light warm-orange theme + dark mode |
+| Storage | Room (SQLite + FTS4 full-text search) · on-device vector search |
+| Shared code | Kotlin Multiplatform: business rules, database and networking (Ktor) live in `shared`, ready for a future iOS app |
+| Background | Foreground service (runs due transcription and digests itself while recording) + WorkManager and alarm fallback + watchdog · accessibility service (dictation, optional) |
+| On-device models | Silero VAD · CAM++ voiceprint · SenseVoice (sherpa-onnx + Qualcomm QNN NPU) · pyannote segmentation |
+| Cloud | Doubao streaming ASR 2.0 (pay-as-you-go API / Volcengine Ark Agent Plan) · custom ASR · DeepSeek and a dozen other providers / any OpenAI-compatible endpoint |
+
+```text
+shared/   Kotlin Multiplatform: database & queries, networking, digest and Ask rules, scheduling rules
+devices/  Dedicated recorders: device cards, driver plugins and protocols
+app/src/main/java/app/resound/
+├── capture/     capture service, speech segmentation, watchdog, dictation
+├── audio/       audio sources (phone / external mic), encoding
+├── transcribe/  cloud / on-device / custom ASR, hotwords, transcription & digest scheduling
+├── voiceprint/  voiceprint extraction, speaker ID and sample management
+├── digest/      LLM digest into events and memory
+├── ask/         "Ask": LLM + query tools + cited lines
+├── review/      daily / weekly reviews
+├── skills/      skill-card framework
+├── topic/       topic recording and minutes
+├── push/        ten push channels
+├── backup/      incremental backup & restore (local + Nutstore / WebDAV / S3)
+├── privacy/     deletion and privacy switches
+└── ui/          every screen
+```
+
+### Write your own skill
+
+Skills live in `app/src/main/assets/skills/<name>/` and consist of two files:
+
+- `skill.json` — name, when it runs (daily at a time / after each digest), whose words from which time range, and the card's fields (text, bullets, checklist, tags, quotes…)
+- `prompt.md` — the prompt given to the LLM
+
+Start from the bundled [`meeting`](app/src/main/assets/skills/meeting) skill (meeting notes).
 
 ### Build from source
 
-Run local checks before submitting; GitHub Actions checks shared-code boundaries, Android compilation and unit tests on main pushes and PRs, plus iOS compilation when shared code or build configuration changes.
-
-
-**You need:** Android 10+ (arm64; developed on Xiaomi 14 Pro / HyperOS 3), an ASR option (Doubao Speech API key, or on-device ASR), and an OpenAI-compatible LLM API key (DeepSeek by default).
+Run local checks before submitting; on pushes to main and on PRs, GitHub Actions checks shared-code boundaries, Android compilation and unit tests, plus iOS compilation when shared code or build configuration changes.
 
 ```bash
 git clone https://github.com/0xCoach/TaoSheng.git
 cd TaoSheng
-# Requires JDK 21 + Android SDK (compileSdk 36)
-# Set JAVA_HOME to your local JDK 21; keep machine paths out of gradle.properties
+
+# Requires JDK 21 and Android SDK Platform 36; point JAVA_HOME at your local JDK 21
 echo "sdk.dir=/path/to/android-sdk" > local.properties
+
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-First run:
-1. Grant mic & notification permissions, whitelist battery, enable autostart (the in-app guide walks you through it on Xiaomi, Huawei, Honor and HarmonyOS).
-2. Settings → 语音转写 (transcription): paste your Doubao key or choose local. Settings → 整理模型 (LLM): pick DeepSeek or a custom endpoint.
-3. Settings → 人物声纹 → 我: read three short passages to enroll your voice.
-4. Turn on listening on the Today tab and live your day.
-5. Optional: backup (备份恢复) and push channels (推送通道).
+Windows PowerShell:
 
-## 🏗 How it works
-
-```mermaid
-flowchart LR
-    A[Phone mic / external mic<br>imports / voice input] --> B[Silero VAD<br>on-device]
-    B --> C[Speech segments<br>Opus]
-    C --> D[ASR<br>Doubao / SenseVoice / custom]
-    D --> E[Voiceprint<br>CAM++ on-device]
-    E --> F[LLM digest<br>events · todos · memory]
-    F --> G[Today / Ask / Memory / Todos]
-    F --> H[Reviews · skill cards]
-    H --> I[10 push channels<br>your agent]
-    F --> J[Incremental backup]
+```powershell
+$env:JAVA_HOME = 'C:\Users\you\.jdks\your-jdk-21'
+.\gradlew.bat assembleDebug
 ```
 
-Kotlin · Jetpack Compose · Kotlin Multiplatform shared module (business rules, database, Ktor networking — groundwork for iOS) · Room (SQLite + FTS4) · foreground-service scheduling with WorkManager / alarm fallback · sherpa-onnx · Qualcomm QNN · Silero VAD · CAM++ · SenseVoice · pyannote.
+In Android Studio, set the Gradle JDK to **JDK 21** and install Android SDK Platform 36. The SDK path goes in the git-ignored `local.properties`; keep machine-specific JDK paths out of the shared `gradle.properties`.
 
-## 🤖 Built by AI
+> You can also open the project in Android Studio and press Run.
+>
+> **Crash fix for some Oryon devices**: since v0.2.7 the official `onnxruntime-android:1.25.1` fixes a `SIGILL` caused by older builds dispatching SME2 kernels on devices that only support SME1. No binary patch is used any more. Test builds with the same dependency were verified by users on OPPO Find N6 and Xiaomi pandora (25098PN5AC); reports from other devices are welcome.
 
-Almost all code was written by AI: **Claude** did architecture, contracts and every screen; **Codex** did capture, ASR, database, push and backup. The human wrote requirements and tested on a real phone. Nearly two hundred task cards and delivery notes are public in [`docs/任务卡/`](docs/任务卡).
+---
+
+## 🤖 An app written by AI
+
+Almost all of TaoSheng's code was written by AI: **Claude** did architecture, contracts and every screen; **Codex** did capture, ASR, database, push, backup and the rest of the plumbing. The human did one thing — wrote requirements, tested on a real phone and said what was wrong.
+
+More than two hundred task cards and their delivery notes are public in [`docs/任务卡/`](docs/任务卡) (Chinese), including the pitfalls (an Android regex stricter than the desktop one crashing the app at launch, Nutstore returning 503 after too many requests). Start there to see how AI-driven development moves forward step by step.
 
 ## 🗺 Roadmap
 
-Done: always-on capture, cloud / on-device ASR, voiceprints, AI digest / Ask / reviews / skills, 10 push channels, incremental backup (Nutstore / WebDAV / S3), dictation capture, footprint with sound–place linking, dedicated recorders (beta), first-run wizard, the [website](https://www.taosheng.app), on-time background digests, resumable on-device transcription, search across everything, copy-for-agent memory access, core code moved into a cross-platform shared module.
+**Done:**
 
-Next:
+- [x] All-day capture, speech detection, background keep-alive
+- [x] Cloud / on-device ASR, hotwords
+- [x] On-device voiceprints, multi-speaker segmentation
+- [x] AI digest, Ask, daily / weekly reviews, skill cards
+- [x] Ten push channels, incremental backup & restore (Nutstore / WebDAV / S3)
+- [x] Dictation capture (with WeChat screenshot OCR)
+- [x] Footprint, with sound, place and ambience linked
+- [x] Dedicated recorders (device cards + file plugins, beta)
+- [x] First-run wizard, three minutes to get going
+- [x] Website [www.taosheng.app](https://www.taosheng.app)
+- [x] On-time background digests on HarmonyOS and similar phones, home search and update prompts
+- [x] Core code moved into a cross-platform shared module, groundwork for iOS
+- [x] Resumable on-device transcription, search across everything, copy-for-agent memory access
+- [x] To-do calendar, add to the phone calendar in one tap
+- [x] Screen time and playback attribution, marks, Bluetooth mics yielding to media
+- [x] Night sleep and naps, call-recording import, the day thread
+- [x] Zoomable night sound map with snore-pause replay, Doubao via Agent Plan, updates prepared before prompting
+
+**Next:**
 
 - [ ] Keep improving recording, transcription and AI digest
 - [ ] Improve onboarding and documentation
 - [ ] Explore ready-to-use, pay-as-you-go AI services
-- [ ] Gradually support ESP32-based and other recorders, and explore an open device integration protocol
-- [ ] Work toward Google Play release and explore an iOS version
+- [ ] Gradually support ESP32-based and other recorders, and explore an open integration protocol
+- [ ] Work toward a Google Play release and explore an iOS version
 
-*Progress and supported features will depend on development and testing.*
+*Progress and supported features depend on actual development and testing.*
 
 ## ⚠️ Please note
 
-TaoSheng is a personal memory tool. Recording conversations is regulated in many places — follow your local laws and tell people around you when required. The persistent notification and mic indicator are intentional; please don't turn this into covert recording software. Background behavior varies widely across brands; when filing an issue, attach the problem report exported from Settings → Advanced & Diagnostics.
+- TaoSheng is a **personal memory tool**. Recording and keeping other people's conversations is regulated in many countries and regions — follow your local laws and tell people around you when required.
+- The persistent notification and the system mic indicator are intentional; TaoSheng **will not and should not be turned into covert recording software**.
+- This is an early build tested mainly on a Xiaomi 14 Pro; background policies vary widely across brands (HarmonyOS environments such as Zhuoyitong are especially strict). Issues describing your device are welcome — attach the problem report exported from advanced diagnostics.
+- Cloud ASR and LLMs are billed by their providers to your own account; on-device ASR saves the transcription cost.
 
 ## 🙏 Acknowledgements
 
+### Contributors
+
 - [@feitian124](https://github.com/feitian124) — helped build the TaoSheng website and added the star-history chart in [PR #27](https://github.com/0xCoach/TaoSheng/pull/27).
-- [@ethansunqing](https://github.com/ethansunqing) — reported and diagnosed the OPPO Find N6 SIGILL crash, contributed the initial binary patch in [PR #1](https://github.com/0xCoach/TaoSheng/pull/1), and verified the official ONNX Runtime 1.25.1 upgrade on the device; proposed one-tap marks while recording or playing back in [#44](https://github.com/0xCoach/TaoSheng/issues/44), which became “Mark” in 0.5.0.
-- [@brookDeng](https://github.com/brookDeng) — independently diagnosed the crash on Xiaomi pandora (25098PN5AC) and verified the test APK upgrade, data preservation, and foreground/background listening.
-- [@aadnapp](https://github.com/aadnapp) — contributed an Android 9 compatibility proposal, a manual microphone-release implementation, and on-device test feedback in [PR #7](https://github.com/0xCoach/TaoSheng/pull/7), helping evaluate support for older Android versions.
-- [@JunWeiUp](https://github.com/JunWeiUp) — contributed on-device voiceprint sample management in [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) (sample playback and deletion, sample-audio cleanup and storage stats, backup exclusion), after proposing a self-hosted async speech service integration in [PR #8](https://github.com/0xCoach/TaoSheng/pull/8).
+- [@ethansunqing](https://github.com/ethansunqing) — reported and diagnosed the OPPO Find N6 SIGILL crash, contributed the initial binary patch in [PR #1](https://github.com/0xCoach/TaoSheng/pull/1), and verified the ONNX Runtime 1.25.1 upgrade on the device; proposed one-tap marks while recording or playing back in [#44](https://github.com/0xCoach/TaoSheng/issues/44), which became "Mark" in 0.5.0.
+- [@brookDeng](https://github.com/brookDeng) — independently diagnosed the crash on Xiaomi pandora (25098PN5AC) and verified the test build upgrade, data preservation, and foreground/background listening.
+- [@aadnapp](https://github.com/aadnapp) — contributed an Android 9 compatibility proposal, a manual microphone-release implementation and on-device test feedback in [PR #7](https://github.com/0xCoach/TaoSheng/pull/7), helping evaluate support for older Android versions.
+- [@JunWeiUp](https://github.com/JunWeiUp) — contributed on-device voiceprint sample management in [PR #9](https://github.com/0xCoach/TaoSheng/pull/9) (sample playback and deletion, sample-audio cleanup and storage stats, backup exclusion), after proposing a self-hosted async speech service integration in [PR #8](https://github.com/0xCoach/TaoSheng/pull/8); contributed **Footprint** in [PR #19](https://github.com/0xCoach/TaoSheng/pull/19): all-day location history, place names and home detection, a day timeline, manual place editing and the daily footprint push, verified through long-term daily use.
 - [@SoukNow](https://github.com/SoukNow) — contributed full request URL support for custom transcription in [PR #10](https://github.com/0xCoach/TaoSheng/pull/10) and merging selected events in [PR #11](https://github.com/0xCoach/TaoSheng/pull/11).
-- [@JunWeiUp](https://github.com/JunWeiUp) — contributed **Footprint** in [PR #19](https://github.com/0xCoach/TaoSheng/pull/19): all-day location history, place names and home detection, a day timeline, manual place editing and the daily footprint push, verified through long-term daily use.
 - [@sheacoding](https://github.com/sheacoding) — explored Sonicloud recorder-card support end to end in [PR #14](https://github.com/0xCoach/TaoSheng/pull/14)–[#16](https://github.com/0xCoach/TaoSheng/pull/16) (live capture, Bluetooth file import, Wi-Fi transfer), which led to TaoSheng's generic dedicated-recorder architecture; also removed machine-specific JDK paths and added the Windows build entry in [PR #13](https://github.com/0xCoach/TaoSheng/pull/13).
-- [@a327173196](https://github.com/a327173196) — carefully diagnosed local backup and background transcription on HarmonyOS compatibility layers in [#20](https://github.com/0xCoach/TaoSheng/issues/20) and [#21](https://github.com/0xCoach/TaoSheng/issues/21), proposed LLM diagnostics in problem reports ([#25](https://github.com/0xCoach/TaoSheng/issues/25)), and pinpointed delayed background jobs with host logs in [#35](https://github.com/0xCoach/TaoSheng/issues/35), which led to on-time background digests in 0.4.0; proposed per-sentence timestamps and speakers for custom transcription with real response samples in [#48](https://github.com/0xCoach/TaoSheng/issues/48).
-- [@xhp1211](https://github.com/xhp1211) — fixed D3200 lights-off capture and transfer lifecycle with real replay and on-device acceptance in [PR #39](https://github.com/0xCoach/TaoSheng/pull/39); improved D3200 archives, Wi-Fi transfer and privacy deletion in [PR #42](https://github.com/0xCoach/TaoSheng/pull/42).
+- [@a327173196](https://github.com/a327173196) — carefully diagnosed local backup and background transcription on HarmonyOS compatibility layers in [#20](https://github.com/0xCoach/TaoSheng/issues/20), [#21](https://github.com/0xCoach/TaoSheng/issues/21), [#25](https://github.com/0xCoach/TaoSheng/issues/25) and [#35](https://github.com/0xCoach/TaoSheng/issues/35), proposed LLM diagnostics in problem reports, and pinpointed delayed background jobs with host logs, which led to on-time background digests in 0.4.0; proposed per-sentence timestamps and speakers for custom transcription with real response samples in [#48](https://github.com/0xCoach/TaoSheng/issues/48).
+- [@xhp1211](https://github.com/xhp1211) — fixed D3200 lights-off capture and the transfer lifecycle with real replay and on-device acceptance in [PR #39](https://github.com/0xCoach/TaoSheng/pull/39); improved D3200 archives, Wi-Fi transfer and privacy deletion in [PR #42](https://github.com/0xCoach/TaoSheng/pull/42).
 - [@zj1123581321](https://github.com/zj1123581321) — proposed screen time and playback attribution in [#41](https://github.com/0xCoach/TaoSheng/issues/41), then contributed device-playback detection and attribution (played content is no longer written up as your own experience), screen-time collection, the daily push and Ask's app-usage lookup in [PR #47](https://github.com/0xCoach/TaoSheng/pull/47) and [PR #50](https://github.com/0xCoach/TaoSheng/pull/50), with complete privacy deletion and a lock-screen fix verified on a Xiaomi 14.
 - [@coaskyridi](https://github.com/coaskyridi) — reported frequent timeouts when uploading long audio over slow links in [#46](https://github.com/0xCoach/TaoSheng/issues/46), which led to longer custom-transcription limits in 0.4.2.
 - [@nickcheng](https://github.com/nickcheng) — fixed model checks being rejected for OpenAI gpt-6 models in [PR #49](https://github.com/0xCoach/TaoSheng/pull/49).
+- [@eightHundreds](https://github.com/eightHundreds) — proposed connecting Doubao speech recognition through a Volcengine Ark Agent Plan in [#52](https://github.com/0xCoach/TaoSheng/issues/52), with the official interface differences, which became the "access mode" option in 0.5.3.
 - [@4965898](https://github.com/4965898) — requested home-screen keyword search and reported provider switching needing a restart in [#34](https://github.com/0xCoach/TaoSheng/issues/34).
 - [@BulbLi](https://github.com/BulbLi) — requested OpenCode Go and custom request headers in [#18](https://github.com/0xCoach/TaoSheng/issues/18).
 
-[Omi](https://github.com/BasedHardware/omi) · [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) · [Silero VAD](https://github.com/snakers4/silero-vad) · [3D-Speaker / CAM++](https://github.com/modelscope/3D-Speaker) · [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) · [pyannote](https://github.com/pyannote/pyannote-audio). Third-party sources and licenses: [`docs/third-party/`](docs/third-party).
+### Open-source projects and components
+
+- [Omi](https://github.com/BasedHardware/omi) — open-source AI wearable that inspired TaoSheng
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache-2.0) — runtime for on-device ASR, segmentation and voiceprints
+- [Silero VAD](https://github.com/snakers4/silero-vad) (MIT) — speech detection
+- [CAM++ / 3D-Speaker](https://github.com/modelscope/3D-Speaker) (Apache-2.0) — voiceprint model
+- [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) — on-device ASR model (downloaded at runtime under its original license)
+- [pyannote segmentation](https://github.com/pyannote/pyannote-audio) (MIT) — multi-speaker segmentation
+
+Third-party sources and licenses: [`docs/third-party/`](docs/third-party). The Qualcomm QNN runtime comes from the official sherpa-onnx release and follows Qualcomm's original license.
 
 ## 📄 License
 
@@ -287,6 +408,12 @@ Source-available under [FSL-1.1-MIT](LICENSE.md) © 2026 0xCoach
 - Each version automatically becomes available under the [MIT](https://opensource.org/license/mit) license two years after its release.
 - Versions **up to and including v0.3.1** were released under MIT and remain so; contributions merged under MIT are listed in [NOTICE.md](NOTICE.md).
 - See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing; first-time pull requests require signing the [CLA](CLA.md).
+
+<div align="center">
+
+If TaoSheng is useful to you, a ⭐ helps more people find it.
+
+</div>
 
 ## ⭐ Star history
 

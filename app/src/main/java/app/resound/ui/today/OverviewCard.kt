@@ -209,8 +209,10 @@ private fun ColumnScope.LiveCard(
     val roomy = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 360 &&
         androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
     // heightIn 而不是固定 height：右侧按钮触摸区 44dp 时行高能跟着撑开，按钮始终与状态文字垂直居中
-    // 只有单个 pill 的状态（没在聆听/缺权限）不铺声波：pill 撑满剩余宽度，状态文字与按钮两边对齐
-    val stretchPill = controls == HomeControls.StartListening || controls == HomeControls.GrantPermission
+    // 行内只有一个 pill 时不铺声波，让它撑满剩余宽度：状态文字与按钮两边对齐
+    // （专题进行中是 ★+⏸+结束 三控件，本就占满右侧，保留声波）
+    val stretchPill = controls == HomeControls.StartListening || controls == HomeControls.GrantPermission ||
+        controls == HomeControls.TopicAndPause || controls == HomeControls.TopicAndResume
     Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
             // 紧凑时状态文字撑满中间，按钮自然靠右；宽松时与声波分享空档
             Row(Modifier.then(if (stretchPill) Modifier else Modifier.weight(1f, fill = !roomy)).springClick {
@@ -238,7 +240,7 @@ private fun ColumnScope.LiveCard(
             fun buzz() = haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             when (controls) {
                 HomeControls.TopicAndPause, HomeControls.TopicAndResume -> {
-                    CardPill("◉ 专题", ink) { buzz(); app.resound.ui.topic.TopicUi.starting =
+                    CardPill("◉ 专题", ink, modifier = Modifier.weight(1f)) { buzz(); app.resound.ui.topic.TopicUi.starting =
                         if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else app.resound.topic.TopicKind.Meeting }
                     Spacer(Modifier.width(8.dp))
                     if (controls == HomeControls.TopicAndPause) RoundKey(ink, filled = false, glyph = Glyph.Pause, label = "暂停") {

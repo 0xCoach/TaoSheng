@@ -210,6 +210,11 @@ class CaptureService : Service() {
         }
     }
     private suspend fun reconcilePause() {
+        // 授权失效兜底：心跳 RECHECK 周期内复查——试用耗尽/凭证过期时正常收尾停录（保留已录片段），
+        // 修掉"授权只在入口拦、已录会话永不复核"的缺口。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.RecordAudio)) {
+            handle(Intent().setAction(STOP).putExtra("route", "auth-expired")); return
+        }
         val at = System.currentTimeMillis()
         val decision = app.scene.decide(at)
         app.scene.track(decision, at)
@@ -406,6 +411,13 @@ class CaptureService : Service() {
     private suspend fun beat() = beatMutex.withLock {
         val now = System.currentTimeMillis()
         store.dao.heartbeat(HeartbeatEntity(at = now, intervalStart = minOf(intervalStart, now), running = running(state), session = session))
+        // 试用计量：心跳间隔即真实在录时长（仅真正收音的 Listening/Recording 累计，MicBusy 不计）；
+        // 间隔粒度为 HEARTBEAT_MS，状态切换也会触发 beat，误差不超过一个心跳周期。
+        if ((state == CaptureState.Listening || state == CaptureState.Recording) && AppGraph.isAuthReady) {
+            val s = AppGraph.auth.store
+            if (s.boundAccountId == null && s.sessionAccountId == null)
+                s.guestTrialUsedMs = s.guestTrialUsedMs + (now - intervalStart).coerceAtLeast(0)
+        }
         intervalStart = now
         store.prefs.edit().putLong("heartbeat", now).commit()
         folderImports()?.heartbeat(now)

@@ -58,6 +58,11 @@ class AuthStore(context: Context) {
         get() = prefs.getBoolean("owner_verified", false)
         set(v) { prefs.edit().putBoolean("owner_verified", v).apply() }
 
+    /** 游客试用已用录音毫秒：心跳按真实在录时长累计，登出/切号不清零（防登出重置刷试用）。 */
+    var guestTrialUsedMs: Long
+        get() = prefs.getLong("guest_trial_ms", 0L)
+        set(v) { prefs.edit().putLong("guest_trial_ms", v).apply() }
+
     var accessToken: String
         get() = if (secrets.has("access")) secrets.read("access") else ""
         private set(v) { if (v.isEmpty()) secrets.remove("access") else secrets.write("access", v) }

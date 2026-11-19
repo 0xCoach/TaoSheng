@@ -36,10 +36,13 @@ class AuthGate(
 
     /** 数据层/服务层门禁：同步、无副作用。 */
     fun require(cap: Capability): AuthDecision {
-        // 老装升级不锁死：本机已有数据、从未绑定、当前无会话 → 按"本机所有者"放行
-        // （即 AUTH 引入前的原行为）。已绑定后，游客/他号立刻受 decide() 全面拦截。
-        if (store.boundAccountId == null && store.sessionAccountId == null && store.hasLocalData)
-            return AuthDecision(true, AuthStatus.Authorized, "本机所有者（数据未绑定，登录确认归属后启用隔离）")
+        // 未登录 = 免费试用：本机数据未绑定时，累计录音 GUEST_TRIAL_MS 内放行；
+        // 试用耗尽后一切受保护能力转拒绝——数据跟账号走，不存在"手机主人"这个永久身份。
+        if (store.boundAccountId == null && store.sessionAccountId == null) {
+            return if (store.guestTrialUsedMs < GUEST_TRIAL_MS)
+                AuthDecision(true, AuthStatus.Authorized, "免费试用中")
+            else AuthDecision(false, AuthStatus.Guest, "免费试用已用完（录音 ${GUEST_TRIAL_MS / 60000} 分钟），注册/登录后每月免费 1800 分钟")
+        }
         // 有数据未绑定但已登录账号：必须通过设备凭据验证机主身份——登录不等于本机数据所有者。
         if (store.boundAccountId == null && store.sessionAccountId != null && store.hasLocalData && !store.ownerVerified)
             return AuthDecision(false, AuthStatus.Expired, "本机数据待归属确认：验证机主身份后绑定")
@@ -295,5 +298,7 @@ class AuthGate(
     companion object {
         /** 归属确认"暂不"后的静默期：期内被拦动作只拒绝、不再弹窗（账号页入口仍在）。 */
         const val BIND_DECLINE_COOLDOWN_MS = 24L * 60 * 60 * 1000
+        /** 游客免费试用额度：累计录音 10 分钟，用完必须注册授权。 */
+        const val GUEST_TRIAL_MS = 10L * 60 * 1000
     }
 }

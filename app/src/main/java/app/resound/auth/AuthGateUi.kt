@@ -11,6 +11,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.resound.AppGraph
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.longOrNull
 
 /**
  * AUTH 界面（待 Claude 审核接管）：登录面板 + 账号区。
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
  * 取消登录只关掉面板，游客浏览不受影响；登录成功 AuthGate 自动回放被拦动作。
  */
 
-/** 挂一次即可：观察 loginRequested，弹统一登录面板。 */
+/** 挂一次即可：观察 loginRequested，弹统一登录面板；已登录但未归属时弹归属确认。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthLoginHost() {
@@ -26,9 +27,61 @@ fun AuthLoginHost() {
     val req by AppGraph.auth.loginRequested.collectAsState()
     req?.let { r ->
         ModalBottomSheet(onDismissRequest = { AppGraph.auth.dismissLogin() }) {
-            LoginSheet(reason = r.reason, onCancel = { AppGraph.auth.dismissLogin() })
+            if (AppGraph.auth.store.sessionAccountId != null)
+                BindSheet(reason = r.reason, onCancel = { AppGraph.auth.dismissLogin() })
+            else
+                LoginSheet(reason = r.reason, onCancel = { AppGraph.auth.dismissLogin() })
         }
     }
+}
+
+/** 归属确认面板：系统凭据验证机主 → 备份验证 → 绑定 → 回放被拦动作。 */
+@Composable
+private fun BindSheet(reason: String, onCancel: () -> Unit) {
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val doBind: () -> Unit = {
+        AppGraph.auth.markOwnerVerified(); busy = true
+        scope.launch {
+            when (AppGraph.auth.bindLocalData()) {
+                is AuthGate.BindOutcome.Bound, is AuthGate.BindOutcome.AlreadyBound ->
+                    AppGraph.auth.afterAuthSuccess()
+                is AuthGate.BindOutcome.BackupUnavailable ->
+                    error = "还没有可用备份：请先在「备份」里选本机文件夹或配置云备份，再绑定"
+                is AuthGate.BindOutcome.BackupFailed ->
+                    error = "备份未完成，归属未变更；请检查备份后重试"
+                else -> error = "绑定失败，数据未变更"
+            }
+            busy = false
+        }
+    }
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
+        if (res.resultCode == android.app.Activity.RESULT_OK) doBind() else error = "未通过机主验证"
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("确认本机数据归属", style = MaterialTheme.typography.titleLarge)
+        Text(reason.ifBlank { "本机有历史数据未归属。验证机主身份并备份成功后，将绑定到当前账号。" },
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+            TextButton(onClick = onCancel, enabled = !busy) { Text("暂不") }
+            Button(enabled = !busy, onClick = { startOwnerCredential(context, launcher, doBind) }) {
+                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("验证机主并绑定")
+            }
+        }
+    }
+}
+
+/** 发起系统设备凭据验证；无锁屏（无法验证）按机主在场处理——直接进入绑定。 */
+private fun startOwnerCredential(context: android.content.Context,
+                                 launcher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>,
+                                 onVerified: () -> Unit) {
+    val km = context.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+    val intent = runCatching { km.createConfirmDeviceCredentialIntent("声声不息", "验证机主身份以确认数据归属") }.getOrNull()
+    if (intent != null) launcher.launch(intent) else onVerified()
 }
 
 @Composable
@@ -70,12 +123,14 @@ private fun LoginSheet(reason: String, onCancel: () -> Unit) {
     }
 }
 
-/** 设置页「我的账号」：状态 / 设备管理 / 退出。 */
+/** 设置页「我的账号」：状态 / 数据归属 / 设备管理 / 退出。 */
 @Composable
 fun MyAccountSection(onManageDevices: () -> Unit = {}) {
     if (!AppGraph.isAuthReady) return
     val status by AppGraph.auth.status.collectAsState()
+    val store = AppGraph.auth.store
     val scope = rememberCoroutineScope()
+    var rev by remember { mutableStateOf(0) } // 绑定/登出后强制重读归属标志
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("我的账号", style = MaterialTheme.typography.titleMedium)
         Text(
@@ -90,12 +145,95 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
             style = MaterialTheme.typography.bodyMedium,
             color = if (status == AuthStatus.Authorized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        @Suppress("UNUSED_EXPRESSION") rev
+        val bound = store.boundAccountId
+        val loggedIn = store.sessionAccountId != null
+        // 数据归属：未绑定且有历史数据 → 提示确认归属；绑定错号 → 明确提示隔离中。
+        if (bound == null && loggedIn && store.hasLocalData) {
+            Text("本机有历史数据尚未归属。确认后只有本账号能读取，其他账号登录本机将被隔离。",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            var bindNote by remember { mutableStateOf<String?>(null) }
+            var busy by remember { mutableStateOf(false) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val doBind: () -> Unit = {
+                AppGraph.auth.markOwnerVerified(); busy = true
+                scope.launch {
+                    bindNote = when (AppGraph.auth.bindLocalData()) {
+                        is AuthGate.BindOutcome.Bound -> { rev++; "已绑定：本机数据归属当前账号" }
+                        is AuthGate.BindOutcome.AlreadyBound -> { rev++; "已是本账号数据" }
+                        is AuthGate.BindOutcome.BoundToOther -> "已归属其他账号，未变更"
+                        is AuthGate.BindOutcome.BackupUnavailable -> "还没有可用备份：请先在「备份」里选本机文件夹或配置云备份"
+                        is AuthGate.BindOutcome.BackupFailed -> "备份未完成，归属未变更；请检查备份后重试"
+                        else -> "绑定失败，数据未变更"
+                    }
+                    busy = false
+                }
+            }
+            val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
+                if (res.resultCode == android.app.Activity.RESULT_OK) doBind() else bindNote = "未通过机主验证"
+            }
+            TextButton(enabled = !busy, onClick = { startOwnerCredential(context, launcher, doBind) }) {
+                Text(if (busy) "绑定中…" else "绑定本机数据到此账号")
+            }
+            bindNote?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+                color = if (it.startsWith("已绑定")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+        } else if (bound != null && loggedIn && bound != store.sessionAccountId) {
+            Text("本机数据已归属另一账号——当前账号的录音与个人数据访问被隔离。",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        } else if (bound != null && loggedIn) {
+            Text("本机数据已归属当前账号", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        var showDevices by remember { mutableStateOf(false) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (status == AuthStatus.Guest) {
                 TextButton(onClick = { AppGraph.auth.requestLogin(Capability.ReadPersonalData, "登录后使用全部功能") }) { Text("登录") }
             } else {
-                TextButton(onClick = onManageDevices) { Text("设备管理") }
-                TextButton(onClick = { scope.launch { AppGraph.auth.logout() } }) { Text("退出登录") }
+                TextButton(onClick = { showDevices = !showDevices; onManageDevices() }) { Text("设备管理") }
+                TextButton(onClick = { scope.launch { AppGraph.auth.logout(); rev++ } }) { Text("退出登录") }
+            }
+        }
+        if (showDevices) AuthDevicesList()
+    }
+}
+
+/** 设备会话列表：拉取 /auth/devices，支持撤销单个会话（踢下线）。 */
+@Composable
+private fun AuthDevicesList() {
+    val scope = rememberCoroutineScope()
+    var devices by remember { mutableStateOf<List<kotlinx.serialization.json.JsonObject>?>(null) }
+    var note by remember { mutableStateOf<String?>(null) }
+    var refreshKey by remember { mutableStateOf(0) }
+    LaunchedEffect(refreshKey) {
+        note = null
+        when (val r = AppGraph.auth.devices()) {
+            is AuthApi.Result.Ok -> devices = runCatching {
+                r.body["sessions"]?.let { it as? kotlinx.serialization.json.JsonArray }
+                    ?.mapNotNull { it as? kotlinx.serialization.json.JsonObject }
+                    ?.filter { (it["revoked_at"] as? kotlinx.serialization.json.JsonPrimitive)?.longOrNull == null }
+            }.getOrNull() ?: emptyList()
+            is AuthApi.Result.Denied -> note = "无权查看设备（${r.code}）"
+            is AuthApi.Result.Network -> note = "网络不通，稍后重试"
+            null -> note = "未登录"
+        }
+    }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("登录设备", style = MaterialTheme.typography.labelLarge)
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+        devices?.takeIf { it.isEmpty() }?.let { Text("没有其他登录设备", style = MaterialTheme.typography.bodySmall) }
+            ?: if (devices == null && note == null) Text("加载中…", style = MaterialTheme.typography.bodySmall) else Unit
+        devices?.forEach { d ->
+            // worker /auth/devices 返回 sessions[]：id, device_id, device_name, created_at, last_seen_at, revoked_at
+            val sid = d["id"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.content ?: return@forEach
+            val name = d["device_name"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.content ?: "未知设备"
+            val current = d["device_id"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.content ==
+                AppGraph.auth.store.deviceId
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(name + if (current) "（本机）" else "", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                if (!current) TextButton(onClick = { scope.launch {
+                    AppGraph.auth.revokeDevice(sid); refreshKey++
+                } }) { Text("踢下线") }
             }
         }
     }

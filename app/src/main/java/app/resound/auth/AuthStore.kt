@@ -35,6 +35,29 @@ class AuthStore(context: Context) {
         get() = prefs.getString("bound_account_id", null)?.takeIf { it.isNotEmpty() }
         private set(v) { prefs.edit().putString("bound_account_id", v ?: "").apply() }
 
+    /** 归属确认时刻（审计用）。 */
+    var boundAt: Long
+        get() = prefs.getLong("bound_at", 0L)
+        set(v) { prefs.edit().putLong("bound_at", v).apply() }
+
+    /** 用户在归属确认中点了"暂不"——不反复弹窗，账号页仍保留绑定入口。 */
+    var bindDeclinedAt: Long
+        get() = prefs.getLong("bind_declined_at", 0L)
+        set(v) { prefs.edit().putLong("bind_declined_at", v).apply() }
+
+    /**
+     * 本机是否已有历史数据（启动时探测一次）：true → 未绑定时按"本机所有者"放行（老装升级不锁死）；
+     * false → 全新装，游客一律需登录。查询失败时按 true 处理（宁可放开也不锁死机主）。
+     */
+    var hasLocalData: Boolean
+        get() = prefs.getBoolean("has_local_data", false)
+        set(v) { prefs.edit().putBoolean("has_local_data", v).apply() }
+
+    /** 本机所有者已通过设备解锁/凭据验证过——未绑定阶段对"登录账号"的放行前置条件。 */
+    var ownerVerified: Boolean
+        get() = prefs.getBoolean("owner_verified", false)
+        set(v) { prefs.edit().putBoolean("owner_verified", v).apply() }
+
     var accessToken: String
         get() = if (secrets.has("access")) secrets.read("access") else ""
         private set(v) { if (v.isEmpty()) secrets.remove("access") else secrets.write("access", v) }
@@ -89,10 +112,10 @@ class AuthStore(context: Context) {
         accessToken = access; refreshToken = refresh; licensePayload = license; refreshStatus()
     }
 
-    /** 绑定本机数据到当前账号（首个登录账号经确认后调用）。 */
+    /** 绑定本机数据到当前账号（经用户确认或空设备自动）。 */
     fun bindCurrent(): Boolean {
         val id = sessionAccountId ?: return false
-        if (boundAccountId == null) { boundAccountId = id; return true }
+        if (boundAccountId == null) { boundAccountId = id; boundAt = System.currentTimeMillis(); return true }
         return boundAccountId == id
     }
 

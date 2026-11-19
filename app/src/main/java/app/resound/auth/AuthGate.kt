@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
  * 判定依据 = 已验签凭证 + 绑定关系 + 时刻；网络只用于登录/刷新，不影响判定。
  */
 class AuthGate(
-    private val store: AuthStore,
+    val store: AuthStore,
     private val api: AuthApi,
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
@@ -36,6 +36,13 @@ class AuthGate(
 
     /** 数据层/服务层门禁：同步、无副作用。 */
     fun require(cap: Capability): AuthDecision {
+        // 老装升级不锁死：本机已有数据、从未绑定、当前无会话 → 按"本机所有者"放行
+        // （即 AUTH 引入前的原行为）。已绑定后，游客/他号立刻受 decide() 全面拦截。
+        if (store.boundAccountId == null && store.sessionAccountId == null && store.hasLocalData)
+            return AuthDecision(true, AuthStatus.Authorized, "本机所有者（数据未绑定，登录确认归属后启用隔离）")
+        // 有数据未绑定但已登录账号：必须通过设备凭据验证机主身份——登录不等于本机数据所有者。
+        if (store.boundAccountId == null && store.sessionAccountId != null && store.hasLocalData && !store.ownerVerified)
+            return AuthDecision(false, AuthStatus.Expired, "本机数据待归属确认：验证机主身份后绑定")
         val lic = store.licensePayload
         return AuthGateRules.decide(cap, lic, store.boundAccountId, store.sessionAccountId, store.deviceId, now())
             .let { d ->
@@ -81,8 +88,66 @@ class AuthGate(
         if (!LicenseVerifier.verify(session.licenseRaw.toByteArray(Charsets.UTF_8), session.licenseSig)) return false
         val payload = runCatching { json.decodeFromString(LicensePayload.serializer(), session.licenseRaw) }.getOrNull() ?: return false
         store.saveLogin(session.accountId, session.username, session.access, session.refresh, payload)
+        // 空设备（无历史数据）：登录即绑定，账号即机主；有数据则必须走确认归属。
+        if (store.boundAccountId == null && !store.hasLocalData) store.bindCurrent()
         return true
     }
+
+    sealed class BindOutcome {
+        object Bound : BindOutcome()               // 绑定成功，归属生效
+        object AlreadyBound : BindOutcome()        // 已归属本账号
+        object BoundToOther : BindOutcome()        // 已归属其他账号——拒绝接管
+        object NotLoggedIn : BindOutcome()
+        /** 没有任何可用备份通道（本机文件夹未选、云端未配置）——先解决备份再绑定 */
+        object BackupUnavailable : BindOutcome()
+        /** 备份任务未在时限内成功——归属变更被拒绝，数据原样保留 */
+        object BackupFailed : BindOutcome()
+    }
+
+    /**
+     * 确认将本机历史数据归属到当前登录账号（数据层绑定，唯一入口）。
+     * 硬门槛：必须先有一份真实成功的备份（本机文件夹或云端任一），且能验证完成；
+     * 备份不可用时拒绝绑定——归属一旦绑定，其他账号立刻被隔离，出错没有回头路。
+     */
+    suspend fun bindLocalData(): BindOutcome {
+        if (store.sessionAccountId == null) return BindOutcome.NotLoggedIn
+        val bound = store.boundAccountId
+        if (bound != null) return if (bound == store.sessionAccountId) BindOutcome.AlreadyBound else BindOutcome.BoundToOther
+        if (!app.resound.AppGraph.isBackupReady) return BindOutcome.BackupUnavailable
+        val backup = app.resound.AppGraph.backup
+        val startedAt = System.currentTimeMillis()
+        // 已有成功备份就直接用；否则触发本机+云端两条路，等任一新备份落盘。
+        val local = backup.local.value
+        val cloud = backup.state.value
+        val hasUsableBackup = (local.lastAt != null && local.lastError == null && local.folderAccess != app.resound.backup.LocalFolderAccess.Unsupported) ||
+                (cloud.lastBackupAt != null && cloud.lastError == null)
+        if (!hasUsableBackup) {
+            if (local.folder == null && !(cloud.hasPassword || cloud.account != null)) return BindOutcome.BackupUnavailable
+            runCatching { backup.backupLocalNow() }
+            runCatching { backup.backupNow() }
+            val deadline = startedAt + 90_000L
+            var ok = false
+            while (System.currentTimeMillis() < deadline) {
+                val l = backup.local.value; val c = backup.state.value
+                if (((l.lastAt ?: 0L) > startedAt && l.lastError == null) ||
+                        ((c.lastBackupAt ?: 0L) > startedAt && c.lastError == null)) { ok = true; break }
+                kotlinx.coroutines.delay(1_000)
+            }
+            if (!ok) return BindOutcome.BackupFailed
+        }
+        return if (store.bindCurrent()) { store.refreshStatus(); BindOutcome.Bound } else BindOutcome.BoundToOther
+    }
+
+    /** 设备凭据验证通过（由 UI 层在完成系统解锁验证后调用）。 */
+    fun markOwnerVerified() { store.ownerVerified = true }
+
+    /** 登录账号可见的设备会话列表（设备管理）。 */
+    suspend fun devices(): AuthApi.Result? =
+        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.devices(it) }
+
+    /** 撤销一个设备会话（踢下线）。 */
+    suspend fun revokeDevice(sessionId: String): AuthApi.Result? =
+        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.revoke(sessionId, it) }
 
     /** 登录：网络/密码错/需激活/停用分别归类；成功后恢复被拦动作由 UI 层调 afterAuthSuccess。 */
     suspend fun login(username: String, password: String, deviceName: String, activationCode: String = ""): LoginOutcome {

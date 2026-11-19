@@ -24,12 +24,14 @@ class KnockSensor(
 
     val available: Boolean get() = accel != null
 
+    /** 设置变更即时生效：已在监听也重建判定器（灵敏度变了也要换）。 */
     fun updateConfig(taps: Int, sensitivity: Int) {
-        if (detector.tapsRequired != taps) detector = KnockDetector(taps, sensitivity)
+        detector = KnockDetector(taps, sensitivity)
     }
 
     fun start(taps: Int, sensitivity: Int) {
-        if (listening || accel == null) return
+        if (listening) { updateConfig(taps, sensitivity); return } // 已在监听：即时应用新配置
+        if (accel == null) return
         detector = KnockDetector(taps, sensitivity)
         // maxReportLatency 200ms：允许硬件 FIFO 攒批，息屏轻 Doze 下仍能（延迟地）送达。
         listening = manager.registerListener(this, accel, SensorManager.SENSOR_DELAY_GAME, 200_000)

@@ -228,3 +228,34 @@
 6. P1-8 ~ P1-12（反馈、布局、设备管理、真机走通登录）
 7. 重跑全量回归，更新第 6 节
 8. 之后才进入 R4.3 会员后台（4.4）→ 背敲 v2 → 会议/办公/灵感/项目分析（4.7）
+
+---
+
+## 8. R4.2-FIX 第一批修复记录（本次工作树，未提交——本机无 git.exe）
+
+修复基线：`3d873a37` 之后的工作树。验证：`:shared:jvmTest` 通过（含新增用例）；`:app:testDebugUnitTest` BUILD SUCCESSFUL（Robolectric 全量）；`tools/check_shared.py` 本机无 Python 未跑——新增 shared 文件均为纯 Kotlin、零 android/java 引用，规则实质满足。真机项一律不标 PASS。
+
+| 条目 | 状态 | 修复方式 | 验证 |
+|---|---|---|---|
+| P0-1 | ✅ 已修 | `DigestRunner.record()` 新增 `lastSuccessAt`（仅 error==null 时写）；Watcher 用 `resolvePending(pendingAt, lastSuccessAt, now, RETRY)` 判定，失败不消费 pending，≥15min 重试 | 新增 4 例 PENDING 测试（QuietDigestRulesTest） |
+| P0-2 | ✅ 已修 | Watcher 触发改 `scheduler.runNow()`（MODE_FULL + manual=false + force=false）：走自动管线，`resolveInFlight` 防重复付费保护完整生效；不再打 MANUAL_DIGEST 标签 | 代码核对：manual=false → 未确认结果保护不放行 |
+| P0-3 | ✅ 已修 | ① 新 shared 规则 `KnockActionRules`：privacyPaused → Blocked；② 控制器命中时震动提示后直接返回；③ `CaptureService` RESUME 不再清 `KEY_PRIVACY`——任何路径的 RESUME 都不能解除隐私锁，唯一出口是 PRIVACY(on=false) | KnockActionRulesTest 3 例 |
+| P0-4 | ✅ 已修（代码层，待真机验收） | `acceptLogin` 空设备自动绑定；`AuthGate.bindLocalData()` 为唯一绑定入口（先尽力本地备份再 `bindCurrent()`）；MyAccountSection 增加归属确认弹窗与"数据已归属他号→隔离中"提示 | A绑→退→B登→全能力被拒 由 decide() 既有机理保证，真机待验 |
+| P0-5 | ✅ 已修（代码层，待真机验收） | `AuthStore.hasLocalData` 启动探测一次（查不出按"有"处理，不锁机主）；`require()` 无绑定+无会话+有数据 → "本机所有者"放行=AUTH 引入前行为；绑定后游客/他号立即被拦 | 升级路径真机 E2E 待验 |
+| P0-6 | ✅ 已执行 | `dev-admin` 已停用（disabled_at 写入）、会话与凭证全部撤销、audit_log 已留痕（wrangler d1 直改，4 语句执行成功）。**遗留**：生产签名密钥轮换+客户端公钥更新仍需发版前完成 | wrangler 返回 changes=1×4 |
+| P1-1 | ✅ | tick 循环体 try/catch，异常记 FailureNotes | 编译+测试 |
+| P1-2 | ✅ | 开关关闭且无 pending → 立即返回不查库；`undigestedLines()` 改 `undigestedCount()`，新增 `pendingDigestCount()` | 编译 |
+| P1-3 | ✅ | pending 在重试窗口内 → Hold 直接 return，不重复派发 | resolvePending 测试 |
+| P1-4 | ✅ | 重试走 `retryAllowed()`：仍检查开关/授权/AI/隐私暂停/积压/在途整理，只放宽安静与聆听条件 | 代码核对 |
+| P1-5 | ✅ | privacyPaused 改读 `AndroidScene.KEY_PRIVACY` | 编译 |
+| P1-6 | ✅ | `KnockSensor.start()` 已在监听→`updateConfig()` 重建 detector，即时生效 | 编译 |
+| P1-7 | ✅（缓解） | 仅 `CaptureService.alive || App前台` 才挂传感器（ActivityLifecycleCallbacks 计数）；"未录后台敲敲"如实仍不支持——磁贴兜底 | 编译；真机待验 |
+| P1-8 | ✅ | 震动反馈：启动/恢复=1 短振，暂停=2 短振，被拦（隐私暂停）=长振 | 编译；真机待验 |
+| P1-9 | ✅ | `KnockSettingsSection(bottom)` 传底栏高度 | 编译；截图待真机 |
+| P1-10 | ✅ | 设备管理展开 `/auth/devices` 列表+单会话踢下线（AuthDevicesList） | 编译；接口格式真机待验 |
+| P1-11 | 🧪 代码路径存在 | 未改动；登录后回放链路仍需真机验证 | 待真机 |
+| P1-12 | ✅ | 授权拒绝与通知权限拒绝两个分支都先 `startForegroundWithLocation()` 再 stopSelf | 编译；崩溃路径真机待验 |
+| P1-13 | ✅ 本轮已重跑 | shared jvmTest + app testDebugUnitTest BUILD SUCCESSFUL | 本节下方 |
+| P1-14 | ✅ | `resolvePending`（4 例）+ `KnockActionRules`（3 例）已在 shared 覆盖；Watcher 主体仍依赖 Android prefs/DB，未完全抽纯 | 测试通过 |
+
+**仍遗留**：① Watcher 进程被杀→重启恢复的完整 E2E（Robolectric 覆盖不到 WorkManager）需真机；② P0-4/P0-5 归属流程真机验收；③ 隐私暂停下点"恢复"不再生效，需从隐私开关解除（硬锁设计，真机确认 UI 引导）；④ 生产密钥轮换未做；⑤ R4.3 未开始。

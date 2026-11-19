@@ -380,7 +380,10 @@ class DigestRunner(
     private fun clearFailures(firstLineId: Long) = prefs.edit().remove("fail-$firstLineId").apply()
 
     private fun record(at: Long?, error: String?) {
-        prefs.edit().putLong("lastRunAt", at ?: prefs.getLong("lastRunAt", 0)).putString("lastError", error).apply()
+        // lastSuccessAt 只在真正收尾（error=null）写：失败/中断不能推进成功水位，
+        // 否则安静整理的 pending 会被误判为已消费 → 漏整理。
+        prefs.edit().putLong("lastRunAt", at ?: prefs.getLong("lastRunAt", 0)).putString("lastError", error)
+            .apply { if (error == null && at != null) putLong("lastSuccessAt", at) }.apply()
         _last.value = (at ?: _last.value.first) to error
     }
 

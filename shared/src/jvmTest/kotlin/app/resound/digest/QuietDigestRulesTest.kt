@@ -50,4 +50,17 @@ class QuietDigestRulesTest {
         assertEquals(State.Running, QuietDigestRules.evaluate(base().copy(digestRunning = true)))
         assertEquals(State.Disabled, QuietDigestRules.evaluate(base().copy(enabled = false)))
     }
+
+    // ---- PENDING 恢复：失败不被当成成功，窗口内不重复派发 ----
+
+    @Test fun `整理成功后才提升为冷却锚点`() {
+        // 成功追平 pending → 消费进冷却
+        assertEquals(QuietDigestRules.Pending.Promote, QuietDigestRules.resolvePending(1_000L, 1_000L, 2_000L, 900_000L))
+        // 失败（lastSuccessAt 没追上）→ 不消费
+        assertEquals(QuietDigestRules.Pending.Hold, QuietDigestRules.resolvePending(1_000L, 500L, 2_000L, 900_000L))
+        // 失败且超重试窗 → 允许重试
+        assertEquals(QuietDigestRules.Pending.Retry, QuietDigestRules.resolvePending(1_000L, 500L, 1_000_000L, 900_000L))
+        // 无 pending → Hold
+        assertEquals(QuietDigestRules.Pending.Hold, QuietDigestRules.resolvePending(0L, 0L, 1_000_000L, 900_000L))
+    }
 }

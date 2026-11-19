@@ -58,4 +58,18 @@ object QuietDigestRules {
 
     /** 只有这个状态才允许发起一次自动整理。 */
     fun shouldTrigger(i: Input): Boolean = evaluate(i) == State.Trigger
+
+    /** PENDING 任务状态：派发前持久化；只有整理真正成功（lastSuccessAt 追平）才消费进冷却。 */
+    enum class Pending { Promote, Retry, Hold }
+
+    /**
+     * @param pendingAt 上次触发落账时刻（0=无待办）
+     * @param lastSuccessAt DigestRunner 只在 Done/NothingToDo（成功收尾）时写的时刻——失败不写
+     */
+    fun resolvePending(pendingAt: Long, lastSuccessAt: Long, now: Long, retryMs: Long): Pending = when {
+        pendingAt <= 0L -> Pending.Hold
+        lastSuccessAt >= pendingAt -> Pending.Promote
+        now - pendingAt >= retryMs -> Pending.Retry
+        else -> Pending.Hold // 窗口内：上次触发仍在途/刚失败不久，不重复派发
+    }
 }

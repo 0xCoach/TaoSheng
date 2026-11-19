@@ -83,6 +83,15 @@ class ResoundApp : Application() {
         authStore.refreshStatus()
         val authApi = app.resound.auth.AuthApi({ authStore.serverUrl })
         AppGraph.auth = app.resound.auth.AuthGate(authStore, authApi)
+        // 老装升级不锁死：本机是否已有历史数据——同步用文件存在性先判（不依赖异步 DB 查询，
+        // 否则首个 require() 抢在探测前会把老用户判成全新装而拒绝），异步再复核补正。
+        if (authStore.boundAccountId == null && !authStore.hasLocalData) {
+            authStore.hasLocalData = runCatching {
+                java.io.File(filesDir, "segments").list()?.isNotEmpty() == true ||
+                        getDatabasePath("capture.db").exists()
+            }.getOrDefault(true)
+            scope.launch { if (database.capture().latestSpeechEndAt() != null) authStore.hasLocalData = true }
+        }
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }
         AppGraph.asrSpeed = asrSpeed
         // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴

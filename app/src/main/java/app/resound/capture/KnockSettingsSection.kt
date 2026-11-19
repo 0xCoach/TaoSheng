@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.LocalContext
  * 如实提示：进程活着才监听；息屏+Doze 可能延迟；录音/暂停中（服务前台）敲敲暂停-恢复可靠。
  */
 @Composable
-fun KnockSettingsSection() {
+fun KnockSettingsSection(bottomPadding: androidx.compose.ui.unit.Dp = 0.dp) {
     val context = LocalContext.current
     // 通过 ResoundApp 的 store 读写——与 KnockGestureController 同一组键。
     val store = remember { (context.applicationContext as app.resound.ResoundApp).store }
@@ -21,7 +21,7 @@ fun KnockSettingsSection() {
     var taps by remember { mutableStateOf(store.prefs.getInt(KnockGestureController.KEY_TAPS, 2)) }
     var sensitivity by remember { mutableStateOf(store.prefs.getInt(KnockGestureController.KEY_SENSITIVITY, 1)) }
 
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(16.dp).padding(bottom = bottomPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("敲敲控制", style = MaterialTheme.typography.titleMedium)

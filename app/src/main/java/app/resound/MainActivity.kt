@@ -195,7 +195,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Capture -> Column {
                                         // VerifyScreen 内部 LazyColumn，敲敲设置固定钉在页底，不嵌进它的滚动里
                                         Box(Modifier.weight(1f)) { VerifyScreen(capture, stats, setup, bottom) }
-                                        app.resound.capture.KnockSettingsSection()
+                                        app.resound.capture.KnockSettingsSection(bottom)
                                     }
                                     SettingsPage.Devices -> app.resound.ui.verify.DevicesPage(bottom)
                                     SettingsPage.Advanced -> app.resound.ui.verify.AdvancedPage(stats, bottom)

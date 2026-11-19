@@ -236,6 +236,7 @@ abstract class MemoryDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: LlmUsageV2Entity)
     @Query("SELECT * FROM digest_pending") abstract suspend fun pendingDigests(): List<PendingDigest>
+    @Query("SELECT COUNT(*) FROM digest_pending") abstract suspend fun pendingDigestCount(): Int
     @Query("SELECT * FROM digest_pending WHERE id = :id") abstract suspend fun pendingDigest(id: String): PendingDigest?
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertPendingDigest(row: PendingDigest): Long
     @Query("DELETE FROM digest_pending WHERE id = :id") abstract suspend fun removePendingDigest(id: String)

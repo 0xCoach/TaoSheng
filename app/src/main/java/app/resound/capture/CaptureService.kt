@@ -109,12 +109,15 @@ class CaptureService : Service() {
             else {
                 controller.update(CaptureState.Stopped)
                 store.prefs.edit().putBoolean("enabled", false).commit()
+                // startForegroundService 契约：必须尽快 startForeground，否则系统判超时崩溃。
+                runCatching { startForegroundWithLocation() }
                 stopSelf()
             }
             return START_NOT_STICKY
         }
         if (!CaptureNotifications.permitted(this)) {
             controller.update(CaptureState.NoPermission)
+            runCatching { startForegroundWithLocation() }
             stopSelf(); return START_NOT_STICKY
         }
         try {
@@ -191,7 +194,9 @@ class CaptureService : Service() {
                 reconcilePause()
             }
             RESUME -> {
-                store.prefs.edit().putLong("manualPausedUntil", 0).putBoolean(AndroidScene.KEY_PRIVACY, false).commit()
+                // 隐私暂停是硬锁：RESUME（背敲/磁贴/通知/Widget/快捷指令）只解手动暂停，
+                // 绝不顺带清 KEY_PRIVACY——解除隐私暂停只能走 PRIVACY(on=false) 的明确开关。
+                store.prefs.edit().putLong("manualPausedUntil", 0).commit()
                 app.quietSchedule.resume()
                 reconcilePause()
             }

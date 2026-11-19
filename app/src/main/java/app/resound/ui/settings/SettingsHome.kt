@@ -150,10 +150,11 @@ internal fun SettingsList(
                 }
                 SRow(SettingsGlyph.Mic, Tints.capture, "录音与后台", captureLine,
                     alert = if (status.state == CaptureState.Stopped || status.state == CaptureState.NoPermission) c.critical else null) { onOpen(SettingsPage.Capture) }
-                if (AppGraph.isDevicesReady) {
-                    Divider()
-                    SRow(SettingsGlyph.Device, Tints.devices, "外接设备", app.resound.ui.verify.devicesSummary()) { onOpen(SettingsPage.Devices) }
-                }
+                // 外接设备驱动均未真机验证（D3200 社区试用/ESP32-C3/Omi 未验证），入口先隐藏；恢复时取消注释即可
+                // if (AppGraph.isDevicesReady) {
+                //     Divider()
+                //     SRow(SettingsGlyph.Device, Tints.devices, "外接设备", app.resound.ui.verify.devicesSummary()) { onOpen(SettingsPage.Devices) }
+                // }
                 Divider()
                 val asr = transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings
                 val asrSource = asr?.source?.collectAsStateWithLifecycle()?.value?.title ?: "豆包"

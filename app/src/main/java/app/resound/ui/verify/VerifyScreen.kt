@@ -130,9 +130,10 @@ fun VerifyScreen(
         if (g.isQuietScheduleReady) item { Box(Modifier.settingsAnchor("quiet")) { QuietSection(g.quietSchedule) } }
         if (g.isSceneReady) item { Box(Modifier.settingsAnchor("scene")) { SceneSection(g.scene) } }
         if (g.isInputsReady) item { Box(Modifier.settingsAnchor("input")) { InputSection(g.inputs) } }
-        if (g.isDevicesReady) item {
-            LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }
-        }
+        // 外接设备驱动均未真机验证，入口先隐藏（与设置首页同步）；恢复时取消注释即可
+        // if (g.isDevicesReady) item {
+        //     LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }
+        // }
         if (g.isVoiceInputReady) item { Box(Modifier.settingsAnchor("voice-input")) { VoiceInputSection(g.voiceInput) } }
         if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
         item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }

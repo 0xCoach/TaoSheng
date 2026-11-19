@@ -108,6 +108,9 @@ data class AppPowerEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
 interface CaptureDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun segment(row: SegmentEntity)
     @Query("SELECT path FROM segments") suspend fun segmentPaths(): List<String>
+    /** 时刻 at 所在（或之前最近）的片段，记灵感等"当前片段"关联用 */
+    @Query("SELECT * FROM segments WHERE startAt <= :at ORDER BY startAt DESC LIMIT 1")
+    suspend fun segmentAt(at: Long): SegmentEntity?
     @Insert suspend fun event(row: EventEntity)
     @Insert suspend fun heartbeat(row: HeartbeatEntity)
     @Insert suspend fun battery(row: BatteryEntity)
@@ -139,7 +142,7 @@ interface CaptureDao {
     IdeaRow::class, ProjectRow::class, ProjectLinkRow::class, ProjectMarkRow::class,
     AnalysisTemplateRow::class, AnalysisRunRow::class, AgentEndpointRow::class, AgentTaskRow::class,
     DecisionRow::class, FollowupRow::class, CaptureItemRow::class,
-    WorkflowRuleRow::class, RuleRunRow::class, MemoryRevisionRow::class, McpClientRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
+    WorkflowRuleRow::class, RuleRunRow::class, MemoryRevisionRow::class, McpClientRow::class, SceneSessionRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
 @ConstructedBy(CaptureDatabaseConstructor::class)
 abstract class CaptureDatabase : RoomDatabase() {
     /** 由安卓装配入口传入；内存测试库为 null，不从底层连接反查路径。 */
@@ -174,9 +177,10 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun workflowRules(): WorkflowRuleDao
     abstract fun revisions(): MemoryRevisionDao
     abstract fun mcpClients(): McpClientDao
+    abstract fun sceneSessions(): SceneSessionDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 40
+        const val VERSION = 41
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -487,11 +491,20 @@ abstract class CaptureDatabase : RoomDatabase() {
                     + CASE WHEN origin IS NOT NULL AND origin != 'digest' THEN 10 ELSE 0 END)""")
             }
         }
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS scene_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    kind TEXT NOT NULL, source TEXT NOT NULL, startedAt INTEGER NOT NULL, endedAt INTEGER, reason TEXT)""")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_scene_sessions_startedAt ON scene_sessions(startedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_scene_sessions_kind ON scene_sessions(kind)")
+            }
+        }
+
         val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-            MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
-            MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27,
-            MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35,
-            MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40)
+            MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
+            MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
+            MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
+            MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41)
     }
 }
 

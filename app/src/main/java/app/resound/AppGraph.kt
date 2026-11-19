@@ -88,6 +88,10 @@ object AppGraph {
     lateinit var quietSchedule: app.resound.capture.QuietSchedule
     val isQuietScheduleReady: Boolean get() = ::quietSchedule.isInitialized
 
+    // R4：场景感知录音
+    lateinit var scene: app.resound.capture.AndroidScene
+    val isSceneReady: Boolean get() = ::scene.isInitialized
+
     lateinit var problemReports: app.resound.diagnostics.ProblemReports
     val isProblemReportsReady: Boolean get() = ::problemReports.isInitialized
 

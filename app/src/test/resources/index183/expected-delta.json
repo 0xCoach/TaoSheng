@@ -39,28 +39,29 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=40",
+    "newLine": "user_version=41",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"f27344c0a85c121d43747ee0c2fb62a9\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"5438724529150bca1eabdb742cd747d6\"}]",
     "extraNewRows": [
-      "[{\"integer\":42},{\"text\":\"7ef33a13e9b405d05b6ef5e03862e32a\"}]"
+      "[{\"integer\":42},{\"text\":\"7ef33a13e9b405d05b6ef5e03862e32a\"}]",
+      "[{\"integer\":42},{\"text\":\"f27344c0a85c121d43747ee0c2fb62a9\"}]"
     ],
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "f27344c0a85c121d43747ee0c2fb62a9",
+  "newIdentityHash": "5438724529150bca1eabdb742cd747d6",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f27344c0a85c121d43747ee0c2fb62a9')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5438724529150bca1eabdb742cd747d6')"
   ],
   "changedTables": [
     "memory_items",
@@ -81,6 +82,7 @@
     "project_marks",
     "projects",
     "rule_runs",
+    "scene_sessions",
     "workflow_rules"
   ],
   "indices": [

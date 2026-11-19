@@ -111,6 +111,7 @@ fun VerifyScreen(
     val order = buildList {
         add(listOf("permissions", "pause-length", "playback"))
         if (g.isQuietScheduleReady) add(listOf("quiet"))
+        if (g.isSceneReady) add(listOf("scene"))
         if (g.isInputsReady) add(listOf("input"))
         if (g.isDevicesReady) add(emptyList())
         if (g.isVoiceInputReady) add(listOf("voice-input"))
@@ -127,6 +128,7 @@ fun VerifyScreen(
     ) {
         item { Box(Modifier.settingsAnchor("permissions", "pause-length", "playback")) { StatusCard(capture) } }
         if (g.isQuietScheduleReady) item { Box(Modifier.settingsAnchor("quiet")) { QuietSection(g.quietSchedule) } }
+        if (g.isSceneReady) item { Box(Modifier.settingsAnchor("scene")) { SceneSection(g.scene) } }
         if (g.isInputsReady) item { Box(Modifier.settingsAnchor("input")) { InputSection(g.inputs) } }
         if (g.isDevicesReady) item {
             LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }

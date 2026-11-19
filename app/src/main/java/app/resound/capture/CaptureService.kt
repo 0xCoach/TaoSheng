@@ -2,7 +2,6 @@ package app.resound.capture
 
 import app.resound.digest.DigestMode
 import app.resound.AppGraph
-import app.resound.topic.TopicPolicy
 
 import android.app.*
 import android.content.Intent
@@ -179,16 +178,25 @@ class CaptureService : Service() {
                 reconcilePause()
             }
             RESUME -> {
-                store.prefs.edit().putLong("manualPausedUntil", 0).commit()
+                store.prefs.edit().putLong("manualPausedUntil", 0).putBoolean(AndroidScene.KEY_PRIVACY, false).commit()
                 app.quietSchedule.resume()
+                reconcilePause()
+            }
+            PRIVACY -> {
+                val on = intent.getBooleanExtra("on", false)
+                store.prefs.edit().putBoolean(AndroidScene.KEY_PRIVACY, on)
+                    .putLong("manualPausedUntil", if (on) Long.MAX_VALUE else 0L).commit()
                 reconcilePause()
             }
             else -> reconcilePause()
         }
     }
     private suspend fun reconcilePause() {
-        val plan = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh().takeUnless { AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, System.currentTimeMillis()) })
-        if (plan != null) pauseUntil(plan.until, plan.quietName)
+        val at = System.currentTimeMillis()
+        val decision = app.scene.decide(at)
+        app.scene.track(decision, at)
+        val plan = decision.directive
+        if (plan is CaptureDirective.Pause) pauseUntil(plan.until, plan.label)
         else if (playbackHeld) {
             capture?.cancelAndJoin(); capture = null
             releaseWakeLock()
@@ -205,8 +213,11 @@ class CaptureService : Service() {
         transition(CaptureState.Paused, until, quietName = quietName)
         releaseWakeLock()
         store.prefs.edit().putLong("pausedUntil", until).putString("quietName", quietName).commit()
-        val clock = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
-        store.event(WatchdogEventType.Paused, if (quietName == null) "暂停至 $until" else "停录时段：$quietName，至 $clock")
+        store.event(WatchdogEventType.Paused, when {
+            until == Long.MAX_VALUE -> "隐私暂停（需手动恢复）"
+            quietName == null -> "暂停至 $until"
+            else -> "停录时段：$quietName，至 ${java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}"
+        })
         val manager = getSystemService(AlarmManager::class.java)
         if (until != Long.MAX_VALUE) {
             try {
@@ -391,7 +402,7 @@ class CaptureService : Service() {
         CaptureNotifications.interrupted(this)
         stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
     }
-    private fun plannedPause() = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh().takeUnless { AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, System.currentTimeMillis()) }) != null
+    private fun plannedPause() = app.scene.decide(System.currentTimeMillis()).pausing
     private fun alarmIntent() = PendingIntent.getBroadcast(this, 10, Intent(this, CaptureResumeReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun cancelAlarm() { getSystemService(AlarmManager::class.java).cancel(alarmIntent()) }
     private fun refreshNotification(paused: Boolean) {
@@ -470,6 +481,8 @@ class CaptureService : Service() {
             done.await()
         }
         const val RECHECK = "app.resound.capture.RECHECK"
+        /** R4 隐私暂停：extra "on"=true 进入（不自动恢复），false 恢复 */
+        const val PRIVACY = "app.resound.capture.PRIVACY"
         /** 规则改动、心跳和系统广播只通知已有服务，绝不在后台新建麦克风前台服务。 */
         /** 课堂模式开关或到点后刷新常驻通知的文字与按钮 */
         internal fun refreshOngoing() { instance?.let { it.refreshNotification(it.store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()) } }

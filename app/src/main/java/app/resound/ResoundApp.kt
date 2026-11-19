@@ -30,6 +30,12 @@ class ResoundApp : Application() {
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
+    /** R4 场景感知：决策/隐私暂停/场景会话；决策输出仍走既有暂停通道 */
+    val scene by lazy {
+        app.resound.capture.AndroidScene(this, store.prefs,
+            sessionDao = { database.sceneSessions() }, captureDao = { database.capture() },
+            ideas = { if (AppGraph.isIdeasReady) AppGraph.ideas else null }, battery = { store.battery() })
+    }
     val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
     internal lateinit var topics: app.resound.topic.TopicFeature
     private lateinit var transcribeScheduler: TranscribeScheduler
@@ -97,6 +103,7 @@ class ResoundApp : Application() {
         controller = AndroidCaptureController(this, store)
         AppGraph.capture = controller
         AppGraph.quietSchedule = quietSchedule
+        AppGraph.scene = scene
         AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)
         val settings = AndroidTranscribeSettings(this)
         val scheduler = TranscribeScheduler(this, settings)

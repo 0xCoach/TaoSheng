@@ -80,6 +80,10 @@ abstract class IdeaDao {
     @Query("SELECT * FROM ideas WHERE sourceLineId = :lineId AND deleted = 0 AND mergedInto IS NULL")
     abstract suspend fun bySourceLine(lineId: Long): List<IdeaRow>
 
+    /** 同一音频片段在窗口内已建过灵感：快捷"记灵感"的幂等依据 */
+    @Query("SELECT * FROM ideas WHERE sourceSegmentId = :segmentId AND createdAt > :since AND deleted = 0 LIMIT 1")
+    abstract suspend fun bySourceSegmentWindow(segmentId: Long, since: Long): IdeaRow?
+
     /** 指纹精确命中：完全重复 */
     @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND fingerprint = :fingerprint AND id != :excludeId")
     abstract suspend fun sameFingerprint(fingerprint: String, excludeId: Long = 0): List<IdeaRow>

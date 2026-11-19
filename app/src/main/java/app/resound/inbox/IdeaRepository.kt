@@ -79,6 +79,20 @@ class IdeaRepository(
         }
     }
 
+    /**
+     * 快捷“记灵感”：按下那一刻记下时间点并关联当前音频片段。
+     * 同一片段 60 秒内的重复动作返回已有卡（幂等），片段可能还没转写——原文后补。
+     */
+    suspend fun markMoment(segmentId: Long?, at: Long, note: String? = null): Long = withContext(io) {
+        if (segmentId != null) dao.bySourceSegmentWindow(segmentId, at - 60_000)?.let { return@withContext it.id }
+        val clock = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault())
+            .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+        val body = note?.takeIf { it.isNotBlank() } ?: "标记时刻 $clock（待转写）"
+        // 没有片段可关联时也靠指纹去重：一分钟内的重复点按返回同一条
+        dao.sameFingerprint(IdeaRules.fingerprint(body)).firstOrNull { it.createdAt > at - 60_000 }?.let { return@withContext it.id }
+        create(title = "", content = body, sourceSegmentId = segmentId)
+    }
+
     /** 从整理出的“灵感”提取项建卡；已有则返回旧卡。 */
     suspend fun fromItem(item: MemoryItemEntity): Long = withContext(io) {
         dao.bySourceItem(item.id)?.id ?: create(item.content.take(30), item.content, sourceItemId = item.id,

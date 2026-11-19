@@ -108,6 +108,8 @@ data class AppPowerEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
 interface CaptureDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun segment(row: SegmentEntity)
     @Query("SELECT path FROM segments") suspend fun segmentPaths(): List<String>
+    /** 最近一段已保存人声片段的结束时刻；安静自动整理用此判定"安静了多久" */
+    @Query("SELECT MAX(endAt) FROM segments WHERE importRecordId IS NULL") suspend fun latestSpeechEndAt(): Long?
     /** 时刻 at 所在（或之前最近）的片段，记灵感等"当前片段"关联用 */
     @Query("SELECT * FROM segments WHERE startAt <= :at ORDER BY startAt DESC LIMIT 1")
     suspend fun segmentAt(at: Long): SegmentEntity?

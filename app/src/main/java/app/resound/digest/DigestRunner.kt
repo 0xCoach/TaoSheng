@@ -119,6 +119,12 @@ class DigestRunner(
         }
     }
 
+    /** 与 runOutcome 入口同一口径：大模型/密钥配置是否能发起整理。安静自动整理据此判断 AI_NOT_CONFIGURED。 */
+    fun ready(): Boolean {
+        val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
+        return key.isNotBlank() || settings.canUseWithoutKey(preset) || settings.failover.hasBackup(preset)
+    }
+
     private fun needsUser(reason: String, at: Long? = now()): DigestOutcome.NeedsUser {
         record(at, reason)
         return DigestOutcome.NeedsUser(reason)

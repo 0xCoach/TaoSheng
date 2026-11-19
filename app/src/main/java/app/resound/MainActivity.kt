@@ -192,7 +192,11 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
-                                    SettingsPage.Capture -> VerifyScreen(capture, stats, setup, bottom)
+                                    SettingsPage.Capture -> Column {
+                                        // VerifyScreen 内部 LazyColumn，敲敲设置固定钉在页底，不嵌进它的滚动里
+                                        Box(Modifier.weight(1f)) { VerifyScreen(capture, stats, setup, bottom) }
+                                        app.resound.capture.KnockSettingsSection()
+                                    }
                                     SettingsPage.Devices -> app.resound.ui.verify.DevicesPage(bottom)
                                     SettingsPage.Advanced -> app.resound.ui.verify.AdvancedPage(stats, bottom)
                                     SettingsPage.Transcript -> TranscriptScreen(transcripts, transcribeSettings, bottom)
@@ -204,6 +208,8 @@ class MainActivity : ComponentActivity() {
                                         (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let {
                                             Box(Modifier.settingsAnchor("digest-timing", "conversation-gap", "thinking", "context")) { app.resound.ui.settings.DigestTimingCard(it) }
                                         }
+                                        app.resound.digest.QuietDigestSection { memory.runNow() }
+                                        app.resound.auth.MyAccountSection()
                                         // 余额已并入服务商卡片；没有服务商列表时仍用单独的余额卡
                                         if (!AppGraph.isLlmProvidersReady && AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)
@@ -228,6 +234,7 @@ class MainActivity : ComponentActivity() {
                     tabRequest,
                 )
                 app.resound.ui.importer.ImportHost()
+                app.resound.auth.AuthLoginHost()
                 openCardId?.let { id ->
                     val repo = remember { app.resound.ui.skills.skillRepo() }
                     val card by remember(id) { repo.card(id) }.collectAsStateWithLifecycle(initialValue = null)

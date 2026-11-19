@@ -155,6 +155,7 @@ object AppGraph {
     val isBackupReady: Boolean get() = ::backup.isInitialized
 
     lateinit var capture: CaptureController
+    var quietDigest: app.resound.digest.QuietDigestWatcher? = null
     lateinit var stats: CaptureStatsRepository
     lateinit var setup: SetupGuide
 

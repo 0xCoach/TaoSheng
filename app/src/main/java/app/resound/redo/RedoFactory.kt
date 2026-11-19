@@ -29,6 +29,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         val timing = SegmentTimings(segment.id, source, segment.endAt - segment.startAt)
         withContext(timing) {
         if (!network(source)) throw AsrException(AsrError.Network)
+        // 额度门：重做与常规转写同一规则——Free 超额即拦，不丢原音频
+        if (!app.resound.AppGraph.membership.allowTranscribe()) throw AsrException(AsrError.Quota)
         val began = System.currentTimeMillis()
         val key = settings.credential(source)
         var sent = 0L; var error: AsrError? = null; var outcome = "Failed"; var log: String? = null
@@ -43,6 +45,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
             log = TranscribePolicy.safeLogId(result.logId, key)
             chooser.record(source, segment.endAt - segment.startAt, System.currentTimeMillis() - began)
+            // 与常规转写同一记账：seg:<id> 幂等，重转不重复计
+            app.resound.AppGraph.membership.recordSuccess(segment.id, segment.endAt - segment.startAt)
+            runCatching { app.resound.AppGraph.membership.flush() }
             result
         } catch (e: CancellationException) { error = AsrError.Interrupted; throw e }
         catch (e: AsrException) { error = e.type; throw e }

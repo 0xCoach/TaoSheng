@@ -1,5 +1,6 @@
 package app.resound.auth
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** 统一身份状态：游客 / 已登录 / 已授权 / 授权失效 / 账号停用 / 本地隐私锁。 */
@@ -25,6 +26,8 @@ data class LicensePayload(
     val name: String,         // 用户名
     val dev: String,          // 设备 id
     val caps: List<String>,
+    /** 真实 Pro 到期（秒）：会员权益不被凭证有效期延长；null=无 Pro/旧凭证；-1=不限期 */
+    @SerialName("pro_until") val proUntil: Long? = null,
     val iat: Long,            // 签发（秒）
     val exp: Long,            // 到期（秒）
 )

@@ -10,6 +10,16 @@ class AuthGateRulesTest {
     private val lic = LicensePayload(v = 1, sub = "u1", name = "a", dev = "dev-1",
         caps = listOf("RECORD_AUDIO", "READ_PERSONAL_DATA"), iat = 100, exp = 800)
 
+    @Test fun proUntilSerializesAndDefaults() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val withUntil = json.decodeFromString(LicensePayload.serializer(),
+            """{"v":1,"sub":"u1","name":"a","dev":"d","caps":["pro"],"pro_until":1234,"iat":1,"exp":2}""")
+        assertEquals(1234L, withUntil.proUntil)
+        val legacy = json.decodeFromString(LicensePayload.serializer(),
+            """{"v":1,"sub":"u1","name":"a","dev":"d","caps":["pro"],"iat":1,"exp":2}""")
+        assertEquals(null, legacy.proUntil)
+    }
+
     @Test fun guestDenied() {
         val d = AuthGateRules.decide(Capability.RecordAudio, null, null, null, "dev-1", 500)
         assertFalse(d.allowed); assertEquals(AuthStatus.Guest, d.status)

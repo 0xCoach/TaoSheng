@@ -52,8 +52,11 @@ class MembershipState(context: Context, private val store: AuthStore, private va
         get() = prefs.getLong("last_sync_at", 0L)
         private set(v) { prefs.edit().putLong("last_sync_at", v).apply() }
 
-    /** 未上报的用量队列：JSON 数组 [{id,minutes,month}]。持久化，断网/杀进程不丢。 */
-    private var pending: MutableList<AuthApi.UsageItem>
+    /** 队列条目：acct=记账时登录账号；只能由同账号会话上报，切号不得代传。 */
+    private data class PendingEntry(val id: String, val minutes: Double, val month: String, val acct: String)
+
+    /** 未上报的用量队列：JSON 数组 [{id,minutes,month,acct}]。持久化，断网/杀进程不丢。 */
+    private var pending: MutableList<PendingEntry>
         get() = prefs.getString("pending", "[]")?.let {
             runCatching {
                 json.parseToJsonElement(it).let { el ->
@@ -62,35 +65,40 @@ class MembershipState(context: Context, private val store: AuthStore, private va
                         val id = o["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                         val minutes = o["minutes"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
                         val month = o["month"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                        AuthApi.UsageItem(id, minutes, month)
+                        // 老条目无 acct：迁移时记到当前会话账号（升级期同一账号场景为主）
+                        PendingEntry(id, minutes, month,
+                            o["acct"]?.jsonPrimitive?.contentOrNull ?: (store.sessionAccountId ?: ""))
                     }?.toMutableList()
                 }
             }.getOrNull()
         } ?: mutableListOf()
         set(v) {
             prefs.edit().putString("pending", v.joinToString(",", "[", "]") {
-                """{"id":"${it.id}","minutes":${it.minutes},"month":"${it.month}"}"""
+                """{"id":"${it.id}","minutes":${it.minutes},"month":"${it.month}","acct":"${it.acct}"}"""
             }).apply()
         }
 
     /** UTC 月份（与服务端 usage 账期一致）。 */
     fun currentMonth(): String = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString().take(7)
 
-    /** 当前账号是否 Pro：凭证能力行或服务端视图任一为准（凭证含 pro 时离线也成立）。 */
+    /** 当前账号是否 Pro：离线凭证携带真实 pro_until——到期即落 Free，不被 7 天凭证续命。 */
     fun isPro(): Boolean {
-        if (store.licensePayload?.caps?.contains("pro") == true) {
-            // 凭证过期与否由门禁管；这里只判断权益存在
-            val until = cachedView?.proUntil
-            if (until == null || until > System.currentTimeMillis() / 1000) return true
+        val nowS = System.currentTimeMillis() / 1000
+        val lic = store.licensePayload
+        if (lic != null && lic.exp >= nowS && "pro" in lic.caps) {
+            val until = lic.proUntil
+            if (until == null || until < 0 || until > nowS) return true
+            // pro_until 已过 → 权益按真实到期结束
         }
         val v = cachedView ?: return false
-        return v.plan == "pro" && (v.proUntil == null || v.proUntil > System.currentTimeMillis() / 1000)
+        return v.plan == "pro" && (v.proUntil == null || v.proUntil < 0 || v.proUntil > nowS)
     }
 
-    /** 本月已用分钟 = 服务端缓存 + 本地未上报（重试期不重复计：pending 只算一次）。 */
+    /** 本月已用分钟 = 服务端缓存 + 本账号本地未上报（pending 只算一次，切号不混计）。 */
     fun usedMinutes(): Double =
         (cachedView?.takeIf { it.month == currentMonth() }?.used ?: 0.0) +
-            pending.filter { it.month == currentMonth() }.sumOf { it.minutes }
+            pending.filter { it.month == currentMonth() && it.acct == (store.sessionAccountId ?: "") }
+                .sumOf { it.minutes }
 
     fun freeLimit(): Double = cachedView?.takeIf { it.month == currentMonth() }?.limit ?: 1800.0
     fun remainingMinutes(): Double = (freeLimit() - usedMinutes()).coerceAtLeast(0.0)
@@ -98,24 +106,30 @@ class MembershipState(context: Context, private val store: AuthStore, private va
     /** Free 超额即暂停新转写（录音不受影响）；Pro 或额度余量内放行。 */
     fun allowTranscribe(): Boolean = isPro() || usedMinutes() < freeLimit()
 
-    /** 转写成功后记账：片段 id 天然幂等（重转/重试用同 id，服务端去重）。 */
-    fun recordSuccess(segmentId: Long, durationMillis: Long) {
+    /** 转写成功后记账：设备号+片段 id 联合幂等——多设备本地段号可能相同，带 deviceId 防互相吞账；
+     *  重转/重试用同 id，服务端按 (user_id,id) 去重；记账绑定当前账号。 */
+    fun recordSuccess(segmentId: Long, durationMillis: Long) =
+        recordUsage("seg:${store.deviceId}:$segmentId", durationMillis)
+
+    /** 非片段来源（密钥测试等）记账：itemId 由各路径保证唯一。 */
+    fun recordUsage(itemId: String, durationMillis: Long) {
         if (durationMillis <= 0) return
-        val item = AuthApi.UsageItem("seg:$segmentId", durationMillis / 60000.0, currentMonth())
+        val entry = PendingEntry(itemId, durationMillis / 60000.0, currentMonth(), store.sessionAccountId ?: "")
         synchronized(this) {
             val list = pending
-            if (list.none { it.id == item.id }) { list.add(item); pending = list }
+            if (list.none { it.id == entry.id }) { if (list.size < 2000) list.add(entry); pending = list }
         }
     }
 
-    /** 联网上报 pending；服务端去重后返回最新视图，全部出列并刷新缓存。 */
+    /** 联网上报 pending（只发当前账号条目，切号不代传）；服务端去重后返回最新视图。 */
     suspend fun flush(): Boolean {
-        val batch = pending.take(500)
+        val acct = store.sessionAccountId ?: return false // 未登录不上报
+        val batch = pending.filter { it.acct == acct }.take(500)
         if (batch.isEmpty()) { sync(); return true }
-        return when (val r = gate.reportUsage(batch)) {
+        return when (val r = gate.reportUsage(batch.map { AuthApi.UsageItem(it.id, it.minutes, it.month) })) {
             is AuthApi.Result.Ok -> {
                 val sent = batch.map { it.id }.toSet()
-                pending = pending.filter { it.id !in sent }.toMutableList()
+                pending = pending.filter { it.id !in sent || it.acct != acct }.toMutableList()
                 applyView(r.body)
                 true
             }

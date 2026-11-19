@@ -34,6 +34,7 @@ class TranscribeRunner(
     private val endBatch: () -> Unit = {},
     private val sharedPcm: SharedPcmFiles? = null,
     private val afterSegment: suspend (SegmentEntity) -> Unit = {},
+    private val afterTest: suspend (durationMillis: Long) -> Unit = {},
     private val recordSpeed: (TranscribeSource?, Long, Long) -> Unit = { _, _, _ -> },
     private val topicTraining: suspend (Long) -> Boolean = { false },
 ) {
@@ -200,6 +201,7 @@ class TranscribeRunner(
             }
             result = if (response.sentences.isEmpty()) "Empty" else "Done"
             logId = TranscribePolicy.safeLogId(response.logId, credential)
+            if (result in setOf("Done", "Empty")) afterTest(audio.durationMillis)
             // 云端文字可能回显凭证：测试返回界面的内容额外去除密钥及其组成部分。
             var text = response.sentences.joinToString("") { it.text }
             (listOf(credential) + credential.split('-')).filter { it.isNotEmpty() }.forEach {

@@ -201,6 +201,7 @@ class ResoundApp : Application() {
                 }
             },
             afterImport = { voiceprintRepository.cleanupAudio() },
+            afterTest = { millis -> AppGraph.membership.recordUsage("test:${java.util.UUID.randomUUID()}", millis) },
             updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value && AppGraph.membership.allowTranscribe() && !topicPaused() }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)

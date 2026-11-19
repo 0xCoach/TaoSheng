@@ -114,8 +114,13 @@ class AndroidTodoVoiceInput internal constructor(
                 currentCoroutineContext().ensureActive()
                 val wav = File.createTempFile("todo-voice-", ".wav", cacheDir).also { file = it }
                 writeTodoWav(wav, samples)
-                val result = provider.recognize(AsrAudio(wav, "wav", samples.size * 1000L / 16_000, separateSpeakers = false), credential()) {}
+                // 与常规转写同一额度门：Free 超额即拦，Pro 放行
+                if (!app.resound.AppGraph.membership.allowTranscribe()) throw AsrException(AsrError.Quota)
+                val duration = samples.size * 1000L / 16_000
+                val result = provider.recognize(AsrAudio(wav, "wav", duration, separateSpeakers = false), credential()) {}
                 val text = result.sentences.joinToString("\n") { it.text.trim() }.trim()
+                // 语音输入也计转写时长：wav 临时文件名天然唯一，无需重试去重
+                app.resound.AppGraph.membership.recordUsage("voice:${app.resound.AppGraph.auth.store.deviceId}:${wav.name}", duration)
                 if (text.isEmpty()) VoiceNoteResult.Empty else VoiceNoteResult.Text(text)
             }
         } catch (caught: TimeoutCancellationException) {
@@ -206,4 +211,5 @@ private fun voiceFailure(error: AsrError): String = when (error) {
     AsrError.Protocol -> "没能读懂识别结果"
     AsrError.LocalEngine, AsrError.Speakers -> "本机识别失败"
     AsrError.Interrupted -> "语音识别已中断"
+    AsrError.Quota -> "本月免费转写额度已用完"
 }

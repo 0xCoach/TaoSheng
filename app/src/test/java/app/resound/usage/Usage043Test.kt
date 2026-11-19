@@ -36,6 +36,9 @@ import java.time.ZoneId
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class Usage043Test {
+    // 卡 200 起技能按设备历史时区划日；本测试数据按北京时间构造，固定时区，免得 CI（UTC）上会议落到前一天
+    @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+    @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val day = LocalDate.of(2026, 10, 24)
     private val zone = ZoneId.of("Asia/Shanghai")

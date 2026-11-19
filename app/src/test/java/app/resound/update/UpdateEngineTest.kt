@@ -81,6 +81,8 @@ class UpdateEngineTest {
                 assertEquals(fixtureManifest().apk.sha256, store.string("preBackupFor"))
                 assertTrue(store.long("preBackupAt") > 0)
                 assertTrue(states.any { it is UpdateState.Installing && !it.backingUp })
+                // 用户在确认窗口里取消（确认窗口弹出过），不属于“秒中止”，不自动重提（卡 210）
+                assertTrue(engine.pending(51))
                 engine.installResult(51, cancelled = true)
                 assertTrue(engine.state.value is UpdateState.Ready)
                 val restarted = engine(server, scope, platform, store)
@@ -224,6 +226,56 @@ class UpdateEngineTest {
         }
     }
 
+    /** 卡 210：提交后几秒内被系统中止、确认窗口没出现过 → 自动重提，并要求系统弹确认 */
+    @Test fun quickAbortWithoutConfirmationRetriesWithRequiredAction() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow(manual = true)
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                platform.nextSession = 52
+                updater.installResult(51, cancelled = true, diagnosticStatus = 3)
+                withTimeout(5000) { while (platform.installs < 2) delay(20) }
+                assertEquals(listOf(false, true), platform.requireActions)
+                assertNull(updater.systemInstallerAvailable.value)
+                // 第二次弹出了确认、用户取消：不再自动重提
+                assertTrue(updater.pending(52))
+                updater.installResult(52, cancelled = true, diagnosticStatus = 3)
+                delay(200); assertEquals(2, platform.installs)
+            } finally { scope.cancel() }
+        }
+    }
+
+    /** 卡 210：自动检查发现新版本，能后台准备就先下载、备份，好了才发“已准备好”通知 */
+    @Test fun automaticCheckPreparesThenNotifiesReady() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform().apply { prepare = true }
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow()
+                withTimeout(5000) { while (!updater.prepared.value || platform.readyNotifications == 0) delay(20) }
+                assertTrue(updater.state.value is UpdateState.Ready)
+                assertEquals(1, platform.backups)
+                assertEquals(0, platform.notifications)
+                assertEquals(1, platform.readyNotifications)
+            } finally { scope.cancel() }
+        }
+    }
+
     private fun engine(server: MockWebServer, scope: CoroutineScope, platform: FakePlatform, store: MemoryUpdateStore,
         space: () -> Long = { Long.MAX_VALUE / 2 }) = UpdateEngine(25, "0.2.10", fixture("old.bin"),
         File(temporary.root, "update"), scope, store, remote(server), platform, { println(it) }, space)
@@ -253,7 +305,16 @@ internal class FakePlatform : UpdatePlatform {
         duringBackup()
         if (backupFails) error("snapshot_failed")
     }
-    override fun install(apk: File, rememberSession: (Int) -> Unit) { rememberSession(51); installs++; submitted.complete(Unit) }
+    val requireActions = mutableListOf<Boolean>()
+    var nextSession = 51
+    override fun install(apk: File, requireUserAction: Boolean, rememberSession: (Int) -> Unit) {
+        requireActions += requireUserAction; rememberSession(nextSession); installs++; submitted.complete(Unit)
+    }
+    /** 卡 210：测试可开后台自动准备，并数“已准备好”通知 */
+    var prepare = false
+    var readyNotifications = 0
+    override fun canPrepare(bytes: Long) = prepare
+    override fun notifyReady(info: UpdateInfo): Boolean { readyNotifications++; return true }
     override fun canInstall() = true
     override fun sessionExists(id: Int) = false
     override fun notifyAvailable(info: UpdateInfo): Boolean { notifications++; return true }

@@ -23,7 +23,12 @@ internal interface UpdatePlatform {
     fun verify(apk: File, manifest: UpdateManifest)
     /** [progress]：当前步骤文字和整体进度 0..1，给更新页显示 */
     suspend fun backup(progress: (String, Float) -> Unit)
-    fun install(apk: File, rememberSession: (Int) -> Unit)
+    /** requireUserAction：明确要求系统弹确认（卡 210：小米等会把“免确认”提交秒中止） */
+    fun install(apk: File, requireUserAction: Boolean, rememberSession: (Int) -> Unit)
+    /** 卡 210：能否在后台把这个大小的更新包下好（WiFi，或差异包够小） */
+    fun canPrepare(bytes: Long): Boolean = false
+    /** 卡 210：下载和备份都好了再通知 */
+    fun notifyReady(info: UpdateInfo): Boolean = notifyAvailable(info)
     fun endSession(id: Int) {}
     fun installedVersionCode(): Long? = null
     suspend fun afterCommit(session: Int): Boolean = true
@@ -53,6 +58,10 @@ internal class UpdateEngine(
     private val mutable = MutableStateFlow<UpdateState>(UpdateState.Idle)
     override val state = mutable.asStateFlow()
     private val fallback = MutableStateFlow<UpdateInfo?>(null)
+    /** 卡 210：后台自动准备（下载 + 更新前备份）进行中为 false；首页横幅/弹窗等它好了再出 */
+    private val _prepared = MutableStateFlow(true)
+    override val prepared = _prepared.asStateFlow()
+    @Volatile private var autoPreparing = false
     val systemInstallerAvailable = fallback.asStateFlow()
     private var watchdog: kotlinx.coroutines.Job? = null
 
@@ -82,6 +91,7 @@ internal class UpdateEngine(
             restore()
             if (manifest == null || session.toLong() != store.long("session")) return@withLock false
             watchdog?.cancel()
+            store.save("pendingSeen" to session.toLong(), "autoRetry" to null)
             log("install session=$session result=pending_user_action")
             true
         }
@@ -224,7 +234,12 @@ internal class UpdateEngine(
                     patch = result.patchFor(installedHash())
                     store.save("manifest" to result.json(), "manifestPreview" to if (result.previewSource) 1L else 0L, "incremental" to if (patch != null) 1L else 0L)
                     mutable.value = UpdateState.Available(info())
-                    notifyOnce()
+                    // 卡 210：能后台准备就先下载、备份好再通知；不能（用流量且只有大包）照旧提醒
+                    if (!manual && platform.canPrepare(info().downloadBytes)) {
+                        autoPreparing = true; _prepared.value = false
+                        log("prepare auto bytes=${info().downloadBytes}")
+                        download()
+                    } else notifyOnce()
                 }
             } catch (e: CancellationException) { mutable.value = previous; throw e }
             catch (e: Exception) {
@@ -304,7 +319,9 @@ internal class UpdateEngine(
         gate.withLock {
             restore()
             discardDisabledPreview()
-            if (manifest == null || fallback.value != null || mutable.value is UpdateState.Ready || mutable.value is UpdateState.Installing) return@withLock
+            if (manifest == null || fallback.value != null || mutable.value is UpdateState.Ready || mutable.value is UpdateState.Installing) {
+                finishPreparing(mutable.value is UpdateState.Ready); return@withLock
+            }
             val release = manifest!!
             val start = System.nanoTime()
             try {
@@ -348,8 +365,14 @@ internal class UpdateEngine(
                 mutable.value = UpdateState.Ready(info())
                 platform.dismissNotification()
                 log("ready incremental=${patch != null} bytes=${target.length()} ms=${elapsed(start)} result=ok")
-            } catch (e: CancellationException) { mutable.value = UpdateState.Available(info()); throw e }
-            catch (e: Exception) { fail(e, UPDATE_NETWORK_ERROR, start); return@withLock }
+            } catch (e: CancellationException) { mutable.value = UpdateState.Available(info()); finishPreparing(false); throw e }
+            catch (e: Exception) {
+                if (autoPreparing) {
+                    log("prepare auto ms=${elapsed(start)} failure=${reason(e)}")
+                    mutable.value = UpdateState.Available(info()); finishPreparing(false)
+                } else fail(e, UPDATE_NETWORK_ERROR, start)
+                return@withLock
+            }
             // Ready 已发布，但继续持有 gate；此时点安装会等待本次备份，不会重复启动。
             val backupStart = System.nanoTime()
             preBackupRunning = true
@@ -363,7 +386,7 @@ internal class UpdateEngine(
             } catch (e: Exception) {
                 // 安装包已校验完成；备份失败不撤销 Ready，安装时按原流程重试。
                 log("pre_backup ms=${elapsed(backupStart)} failure=${reason(e)}")
-            } finally { preBackupRunning = false }
+            } finally { preBackupRunning = false; finishPreparing(true) }
         }
     } }
 
@@ -429,7 +452,7 @@ internal class UpdateEngine(
                 finally { log("install_backup reused=$reuseBackup backup_ms=$backupMs") }
                 mutable.value = UpdateState.Installing(info(), false)
                 try {
-                    platform.install(apkFile()) { session -> store.save("session" to session.toLong()) }
+                    platform.install(apkFile(), store.long("requireUserAction") == 1L) { session -> store.save("session" to session.toLong()) }
                 } catch (e: Exception) {
                     store.save("session" to null)
                     offerInstaller(InstallSignal.FAILURE, "submit_${reason(e)}")
@@ -450,11 +473,26 @@ internal class UpdateEngine(
 
     /** receiver 在进程被重建后也可调用；旧会话回调不会覆盖新会话。 */
     suspend fun installResult(session: Int, success: Boolean = false, cancelled: Boolean = false,
-        message: String? = null, diagnosticStatus: Int = 0) =
+        message: String? = null, diagnosticStatus: Int = 0) {
+        if (installResultLocked(session, success, cancelled, message, diagnosticStatus)) install()
+    }
+    /** 返回 true 表示要自动重提一次 */
+    private suspend fun installResultLocked(session: Int, success: Boolean, cancelled: Boolean,
+        message: String?, diagnosticStatus: Int): Boolean =
         withContext(Dispatchers.IO) { gate.withLock {
             restore()
             discardDisabledPreview()
-            if (manifest == null || session.toLong() != store.long("session")) return@withLock
+            if (manifest == null || session.toLong() != store.long("session")) return@withLock false
+            // 卡 210：提交后几秒内被系统中止、确认窗口从没出现（日志里前两次都这样，第三次才弹出）：
+            // 自动再提一次，并改为明确要求系统弹确认；最多两次，避免死循环
+            val retries = store.long("autoRetry")
+            if (cancelled && store.long("pendingSeen") != session.toLong() && now() - store.long("installStarted") in 0 until 5_000 && retries < 2) {
+                watchdog?.cancel()
+                store.save("session" to null, "requireUserAction" to 1L, "autoRetry" to retries + 1)
+                log("install session=$session status=$diagnosticStatus aborted_without_confirmation retry=${retries + 1}")
+                mutable.value = UpdateState.Ready(info())
+                return@withLock true
+            }
             log("install session=$session status=$diagnosticStatus ms=${now() - store.long("installStarted")} result=${if (success) "success" else if (cancelled) "cancelled" else "failed"}")
             store.save("session" to null)
             watchdog?.cancel()
@@ -474,6 +512,7 @@ internal class UpdateEngine(
                     mutable.value = UpdateState.Failed("系统没能装上：${message?.lineSequence()?.firstOrNull()?.take(160) ?: "安装失败"}", info())
                 }
             }
+            false
         } }
 
     override fun later() { scope.launch(Dispatchers.IO) { gate.withLock {
@@ -494,11 +533,17 @@ internal class UpdateEngine(
         if (mutable.value is UpdateState.Available || mutable.value is UpdateState.Failed) mutable.value = UpdateState.UpToDate(now())
     } } }
     override fun canInstall() = platform.canInstall()
-    private fun notifyOnce() {
+    private fun notifyOnce(ready: Boolean = false) {
         val info = info()
         if (store.long("notifiedVersion") >= info.versionCode ||
             (store.long("laterVersion") == info.versionCode.toLong() && now() < store.long("laterUntil"))) return
-        if (platform.notifyAvailable(info)) store.save("notifiedVersion" to info.versionCode.toLong())
+        if (if (ready) platform.notifyReady(info) else platform.notifyAvailable(info)) store.save("notifiedVersion" to info.versionCode.toLong())
+    }
+    /** 卡 210：后台自动准备结束（成功就发“已准备好”，失败退回普通提醒） */
+    private fun finishPreparing(ok: Boolean) {
+        if (!autoPreparing) return
+        autoPreparing = false; _prepared.value = true
+        notifyOnce(ready = ok)
     }
     private fun fail(e: Exception, default: String, start: Long) {
         log("update ms=${elapsed(start)} failure=${reason(e)}")

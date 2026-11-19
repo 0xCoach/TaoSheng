@@ -9,6 +9,7 @@ import app.resound.backup.BackupRepository
 import app.resound.backup.BackupState
 import app.resound.data.CaptureDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,11 +70,34 @@ class UpdateAndroidTest {
     }
 }
 
-private class EmptyBackup : BackupRepository {
-    override val state = MutableStateFlow(BackupState(false, null, false, false, null, null, null, null))
+
+/** 卡 210：云端 6 小时内成功备份过，更新前不再等它 */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29], manifest = Config.NONE, application = Application::class)
+@SQLiteMode(SQLiteMode.Mode.NATIVE)
+class PreUpdateRecent210Test {
+    @Test fun recentCloudBackupIsSkipped() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase("recent210.db")
+        val database = Room.databaseBuilder(context, CaptureDatabase::class.java, "recent210.db").setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
+        try {
+            val logs = mutableListOf<String>()
+            val recent = EmptyBackup(BackupState(true, "me@example.invalid", true, false, System.currentTimeMillis() - 3_600_000L, 1, 1, null))
+            val steps = mutableListOf<String>()
+            PreUpdateBackup(context, database, recent, { logs += it }).run { step, _ -> steps += step }
+            assertEquals(0, recent.cloudRuns)
+            assertTrue(logs.any { "skipped_recent" in it && "cloud=true" in it })
+            assertEquals("最近已备份，这次跳过", steps.last())
+        } finally { database.close(); context.deleteDatabase("recent210.db"); File(context.filesDir, "pre-update").deleteRecursively() }
+    }
+}
+
+private class EmptyBackup(state: BackupState = BackupState(false, null, false, false, null, null, null, null)) : BackupRepository {
+    var cloudRuns = 0
+    override val state = MutableStateFlow(state)
     override fun saveCredentials(account: String, appPassword: String) {}
     override fun clearCredentials() {}
     override fun setEnabled(enabled: Boolean) {}
-    override fun backupNow() {}
+    override fun backupNow() { cloudRuns++ }
     override suspend fun test() = Result.success("ok")
 }

@@ -18,8 +18,9 @@ internal object UpdateNotifications {
     private const val AVAILABLE = 510
     private const val CONFIRM = 511
     private const val VOICE = 512
-    fun available(context: Context, info: UpdateInfo): Boolean = post(context, AVAILABLE,
-        "涛声 ${info.versionName.replace("-preview.", " 预览版 ")} 可以更新", info.notes.lineSequence().firstOrNull().orEmpty(),
+    fun available(context: Context, info: UpdateInfo, ready: Boolean = false): Boolean = post(context, AVAILABLE,
+        "涛声 ${info.versionName.replace("-preview.", " 预览版 ")} " + if (ready) "已准备好" else "可以更新",
+        if (ready) "已下载并备份好数据，点一下安装" else info.notes.lineSequence().firstOrNull().orEmpty(),
         Intent(context, MainActivity::class.java).putExtra(EXTRA_OPEN_UPDATE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
 

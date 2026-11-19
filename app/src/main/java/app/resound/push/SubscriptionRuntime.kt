@@ -107,11 +107,19 @@ internal class SubscriptionRuntime(
                 FailureNotes.record("push/SubscriptionRuntime.kt:98", it)
             }.onFailure { update(id, false, Result.failure(PushFailure("调度保存失败，请重试"))) } }
     }
+    private val THROTTLE_MS = 10 * 60_000L
     suspend fun scheduled(id: Long): Boolean {
         queued.remove(id)
         if (channelById(id)?.enabled != true) return false
         if ((deadline(id) ?: Long.MAX_VALUE) > now()) { plan(id, true); return false }
-        return run(id, manual = false).isFailure.also { if (it) queued[id] = 0L }
+        val result = run(id, manual = false)
+        // 卡 210：被坚果云等限流时不按 30 秒起的指数退避猛试（日志里 17:59/18:01/18:05 连撞），隔 10 分钟再续传
+        if (result.exceptionOrNull()?.message?.let { "限流" in it || "太频繁" in it } == true) {
+            change(id) { it.put("batchAt", now() + THROTTLE_MS) }
+            plan(id, true)
+            return false
+        }
+        return result.isFailure.also { if (it) queued[id] = 0L }
     }
     suspend fun run(id: Long, rebuild: Boolean = false, manual: Boolean = true, dayFinal: Boolean = false): Result<String> = withContext(Dispatchers.IO) {
         gates.getOrPut(id) { Mutex() }.withLock {

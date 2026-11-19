@@ -29,10 +29,16 @@ internal class PreUpdateBackup(
         progress("正在保存本机数据", 0.05f)
         try { snapshot(); log("backup_private ms=${elapsed(start)} result=ok") }
         catch (e: Exception) { log("backup_private ms=${elapsed(start)} failure=${reason(e)}"); throw e }
-        val local = backup.local.value.folder != null
-        val cloud = backup.state.value.account != null && backup.state.value.hasPassword
+        // 卡 210：本机文件夹 / 云端 6 小时内成功备份过就跳过（升级出问题靠上面的本机快照；这两处防的是卸载重装，几小时内的差别不值得每次等几分钟）
+        val now = System.currentTimeMillis()
+        fun recent(at: Long?) = at != null && now - at in 0 until RECENT
+        val localRecent = backup.local.value.folder != null && recent(backup.local.value.lastAt)
+        val cloudRecent = backup.state.value.account != null && backup.state.value.hasPassword && recent(backup.state.value.lastBackupAt)
+        val local = backup.local.value.folder != null && !localRecent
+        val cloud = backup.state.value.account != null && backup.state.value.hasPassword && !cloudRecent
+        if (localRecent || cloudRecent) log("backup_optional skipped_recent local=$localRecent cloud=$cloudRecent")
         val total = listOf(local, cloud).count { it }
-        if (total == 0) { progress("备份完成", 1f); return }
+        if (total == 0) { progress(if (localRecent || cloudRecent) "最近已备份，这次跳过" else "备份完成", 1f); return }
         val done = java.util.concurrent.atomic.AtomicInteger(0)
         fun waiting() = listOfNotNull("本机文件夹".takeIf { local }, "云端存储".takeIf { cloud }).joinToString("和")
         progress("正在备份到${waiting()}（最多 3 分钟）", 0.3f)
@@ -52,6 +58,8 @@ internal class PreUpdateBackup(
         }
         if (completed == null) log("backup_optional ms=${elapsed(start)} failure=timeout")
     }
+
+    private companion object { const val RECENT = 6 * 60 * 60 * 1000L }
 
     internal fun snapshot() {
         val stage = File(context.filesDir, "pre-update-staging")

@@ -63,6 +63,9 @@ fun UpdatePrompt(topGap: Dp = 0.dp) {
     if (!AppGraph.isUpdaterReady) return
     val updater = AppGraph.updater
     val state by updater.state.collectAsStateWithLifecycle()
+    // 卡 210：后台还在下载、备份时首页不出横幅也不弹窗，准备好了再说
+    val prepared by updater.prepared.collectAsStateWithLifecycle()
+    if (!prepared) return
     val info = state.info() ?: return
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("update-popup", Context.MODE_PRIVATE) }

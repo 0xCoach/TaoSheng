@@ -930,25 +930,25 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             val heard = playbackLines[line.id]
                             if (editing == line.id) {
                                 LineEditor(draft, { draft = it }, saving, onCancel = { editing = null }, onSave = { saveEdit(line) })
-                                return@forEach
-                            }
-                            val shown = androidx.compose.ui.text.buildAnnotatedString {
-                                if (heard != null) {
-                                    withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, background = c.fill)) {
-                                        append(" 外放" + (listOfNotNull(heard.appName, heard.title).firstOrNull()?.let { " · ${it.take(12)}" } ?: "") + " ")
+                            } else {
+                                val shown = androidx.compose.ui.text.buildAnnotatedString {
+                                    if (heard != null) {
+                                        withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, background = c.fill)) {
+                                            append(" 外放" + (listOfNotNull(heard.appName, heard.title).firstOrNull()?.let { " · ${it.take(12)}" } ?: "") + " ")
+                                        }
+                                        append("  ")
                                     }
-                                    append("  ")
+                                    append(line.text)
+                                    // 卡 211：人工改过的句子末尾标一下
+                                    if (line.edited) withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize)) { append("  已修正") }
                                 }
-                                append(line.text)
-                                // 卡 211：人工改过的句子末尾标一下
-                                if (line.edited) withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize)) { append("  已修正") }
+                                Text(shown, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
+                                    .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
+                                    interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
+                                    onClick = { tap(line) }, onLongClick = { menuFor = line.id },
+                                ).padding(vertical = 2.dp, horizontal = if (now) 6.dp else 0.dp))
+                                line.voiceInput?.let { VoiceInputContext(it) }
                             }
-                            Text(shown, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
-                                .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
-                                interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
-                                onClick = { tap(line) }, onLongClick = { menuFor = line.id },
-                            ).padding(vertical = 2.dp, horizontal = if (now) 6.dp else 0.dp))
-                            line.voiceInput?.let { VoiceInputContext(it) }
                         }
                     }
                 }

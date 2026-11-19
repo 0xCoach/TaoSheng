@@ -27,9 +27,9 @@ class LineEdit211Test {
                 TranscriptLineEntity(1, 1, 1000, 2000, "明天找张薇开会", null, originalText = "明天找张维开会"),
                 TranscriptLineEntity(2, 1, 2000, 3000, "好的", null)))
             assertEquals(0, db.transcribe().editedLineCount(listOf(1)))
-            assertEquals(1, db.transcribe().editLineText(1, "明天找张伟开会", 500))
+            assertEquals(1, db.transcribe().editLineText(1, "明天找张伟\n\n开会", 500))
             val line = db.transcribe().exportSegments(listOf(1)).single().lines.first { it.id == 1L }
-            assertEquals("明天找张伟开会", line.text)
+            assertEquals("明天找张伟\n\n开会", line.text)
             assertNull(line.originalText)
             assertEquals(500L, line.textEditedAt)
             assertEquals(1, db.transcribe().editedLineCount(listOf(1)))

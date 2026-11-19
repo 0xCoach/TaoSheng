@@ -210,8 +210,9 @@ private fun ColumnScope.LiveCard(
         androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
     // heightIn 而不是固定 height：右侧按钮触摸区 44dp 时行高能跟着撑开，按钮始终与状态文字垂直居中
     Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
-            // 紧凑时状态文字撑满中间，按钮自然靠右；宽松时与声波分享空档
-            Row(Modifier.weight(1f, fill = !roomy).springClick {
+            // 宽松时状态行按内容宽，声波 weight(1f) 独占剩余空档、按钮贴右缘；
+            // 紧凑时不给声波，状态行 weight 撑满中间同样把按钮顶到右缘
+            Row(Modifier.then(if (roomy) Modifier else Modifier.weight(1f)).springClick {
                 if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else listenOpen = true
             }, verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (active || topic != null) ink.dot else ink.dot.copy(alpha = 0.45f)))
@@ -239,9 +240,9 @@ private fun ColumnScope.LiveCard(
                     CardPill("◉ 专题", ink) { buzz(); app.resound.ui.topic.TopicUi.starting =
                         if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else app.resound.topic.TopicKind.Meeting }
                     Spacer(Modifier.width(8.dp))
-                    if (controls == HomeControls.TopicAndPause) RoundKey(ink, filled = false, glyph = Glyph.Pause, label = "暂停") {
+                    if (controls == HomeControls.TopicAndPause) RoundKey(ink, filled = false, glyph = Glyph.Pause, label = "暂停", end = true) {
                         buzz(); capture.pause(lastPause); onPaused(lastPause)
-                    } else RoundKey(ink, filled = true, glyph = Glyph.Play, label = "现在恢复") { buzz(); capture.resume() }
+                    } else RoundKey(ink, filled = true, glyph = Glyph.Play, label = "现在恢复", end = true) { buzz(); capture.resume() }
                 }
                 HomeControls.StartListening -> CardPill("开始聆听", ink, filled = true) { buzz(); capture.start() }
                 HomeControls.GrantPermission -> CardPill("去开启", ink, filled = true) {
@@ -431,9 +432,9 @@ private fun Stat(parts: List<NumberPart>, label: String, ink: CardInk, dim: Bool
 
 private enum class Glyph { Pause, Play, Star }
 
-/** 圆形按键：画出来 34dp，可点区域按 44dp 留足 */
+/** 圆形按键：画出来 34dp，可点区域按 44dp 留足；行末的按键让可视圆贴右缘，与下方 pill 按钮右缘对齐 */
 @Composable
-private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String, accent: Boolean = false, badge: Int = 0, onClick: () -> Unit) {
+private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String, accent: Boolean = false, badge: Int = 0, end: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
     val bg = when {
         filled -> ink.primary
@@ -445,7 +446,7 @@ private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String,
         accent && c.isDark -> BrandViolet
         else -> ink.pillText
     }
-    Box(Modifier.size(44.dp).springClick(onClick).semanticsLabel(label), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(44.dp).springClick(onClick).semanticsLabel(label), contentAlignment = if (end) Alignment.CenterEnd else Alignment.Center) {
         Box(Modifier.size(34.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Canvas(Modifier.size(12.dp)) {
                 val w = size.width; val h = size.height

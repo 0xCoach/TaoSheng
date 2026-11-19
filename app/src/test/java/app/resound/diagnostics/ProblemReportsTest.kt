@@ -69,7 +69,8 @@ class ProblemReportsTest {
                 .putLong("count_wizard_shown", 2)
                 .putLong(app.resound.onboarding.LocalOnboarding.ELAPSED, 1500).commit()
             assertEquals(2000L, reports.lastCrashAt.value)
-            repeat(55) { UpdateDiagnostics.record(context, "step=$it") }
+            // 卡 210：下载安装步骤保留最近 80 行（例行检查另存）
+            repeat(85) { UpdateDiagnostics.record(context, "step=$it") }
             LlmDiagnostics(context).start("整理", app.resound.digest.LlmPreset("fixture", "测试服务商", "https://example.com/v1", "model")).also {
                 it.content("测试原话不能导出"); it.complete()
             }
@@ -79,7 +80,7 @@ class ProblemReportsTest {
             assertTrue(file.canonicalPath.startsWith(context.cacheDir.canonicalPath + "/"))
             val text = file.readText()
             assertTrue(text.contains("预览通道=true")); assertTrue(text.contains("步骤=12"))
-            assertTrue(text.contains("step=54")); assertFalse(text.contains("step=0\n"))
+            assertTrue(text.contains("step=84")); assertFalse(text.contains("step=0\n"))
             assertFalse(text.contains(key)); assertFalse(text.contains(hex)); assertFalse(text.contains("不要导出"))
             assertTrue(text.contains("整理与大模型诊断")); assertTrue(text.contains("最近大模型响应摘要"))
             assertFalse(text.contains("测试原话不能导出")); assertFalse(text.contains("private-header-value"))

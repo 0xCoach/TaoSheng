@@ -72,11 +72,14 @@ class Night202AndroidTest {
             store.feedback(corrected, Feedback.Yes)
             store.expire(deadline)
             assertFalse(expiring.exists())
-            store.expire(Long.MAX_VALUE)
+            // 卡 210：确认过的不按 7 天删，录下满 90 天才删
+            store.expire(2000 + 89L * 86_400_000)
             assertTrue(permanent.isFile)
+            store.expire(2000 + 90L * 86_400_000)
+            assertFalse(permanent.exists())
             assertEquals(mapOf(rejected to false, corrected to true), db.night().feedback().associate { it.eventId to it.yes })
             store.deleteNight(night)
-            assertFalse(permanent.exists())
+            assertNull(db.night().get(night))
         } finally { scope.cancel(); db.close(); context.deleteDatabase("night-retention.db") }
     }
     /** 11-18：时间线上删录音/事件不再删夜里记录，鼾声和睡眠时间保留，只刷新梦话 */

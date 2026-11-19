@@ -15,7 +15,9 @@ data class TranscriptLineEntity(@PrimaryKey(autoGenerate = true) val id: Long = 
     @ColumnInfo(defaultValue = "0") val speakerManual: Boolean = false,
     val voiceInputJson: String? = null, val voiceInputPendingUntil: Long? = null,
     /** 本地同音纠正前的整句；未纠正为 null。 */
-    val originalText: String? = null)
+    val originalText: String? = null,
+    /** 卡 211：人工修改文字的时间；没改过为 null。重新转写会生成新行，自然回到机器结果 */
+    val textEditedAt: Long? = null)
 @Entity(tableName = "asr_usage")
 data class AsrUsageEntity(@PrimaryKey val day: String, val sentMillis: Long)
 /** 严格只存元数据；禁止异常原文、识别原文或请求头。 */
@@ -191,6 +193,12 @@ abstract class TranscribeDao {
     @Query("SELECT * FROM segments WHERE id = :id") abstract suspend fun segment(id: Long): SegmentEntity
     @Query("DELETE FROM transcript_lines WHERE segmentId = :id") abstract suspend fun deleteLines(id: Long)
     @Insert abstract suspend fun insertLines(lines: List<TranscriptLineEntity>)
+    /** 卡 211：人工修改一句原话：直接替换文字，清掉同音纠正前的旧句，记下修改时间；全文索引由触发器跟上 */
+    @Query("UPDATE transcript_lines SET text = :text, originalText = NULL, textEditedAt = :at WHERE id = :id")
+    abstract suspend fun editLineText(id: Long, text: String, at: Long): Int
+    /** 卡 211：这些录音段里人工改过几句（重新转写会覆盖它们） */
+    @Query("SELECT COUNT(*) FROM transcript_lines WHERE segmentId IN (:segmentIds) AND textEditedAt IS NOT NULL")
+    abstract suspend fun editedLineCount(segmentIds: List<Long>): Int
     @Query("SELECT * FROM transcript_lines WHERE segmentId = :id ORDER BY startAt, id")
     abstract suspend fun linesForRedo(id: Long): List<TranscriptLineEntity>
     @Query("UPDATE memory_items SET lineId = :replacement WHERE lineId = :old")

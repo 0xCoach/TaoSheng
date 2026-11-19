@@ -9,6 +9,9 @@ import java.io.File
 /** 只读、固定的版本差异白名单。未列入的快照（查询/引擎）仍逐字比较。 */
 internal object Index183FixtureDelta {
     val spec: JSONObject by lazy { JSONObject(File("src/test/resources/index183/expected-delta.json").readText()) }
+    /** 已有表新增列：原来只登记 segments；卡 211 起 columnAddsMore 继续登记其他表（如 transcript_lines） */
+    val columnAdds: List<JSONObject> get() = listOf(spec.getJSONObject("columnAdds")) +
+        (spec.optJSONArray("columnAddsMore")?.let { a -> (0 until a.length()).map(a::getJSONObject) } ?: emptyList())
     private val snapshots get() = spec.getJSONArray("snapshots").let { a -> (0 until a.length()).map(a::getString).toSet() }
     val indexRows get() = spec.getJSONArray("indices").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("row") } }
     val tableMasterRows get() = spec.getJSONArray("tables").let { a -> (0 until a.length()).map { n -> a.getJSONObject(n).getJSONArray("masterRows").getString(0) } }
@@ -96,40 +99,42 @@ internal object Index183FixtureDelta {
             repeat(block.size) { observed.removeAt(at) }
         }
         // 已存在表加列：master 旧行取自旧夹具，新行必须等于「旧行+迁移插入」或「新装形态」，再还原回旧行。
-        val add = spec.getJSONObject("columnAdds")
-        val masterPrefix = "[\"table\",\"${add.getString("table")}\""
-        val masterOld = expected.first { it.startsWith(masterPrefix) }
-        assertEquals("$name segments master旧行次数", 1, expected.count { it.startsWith(masterPrefix) })
-        val fkAt = masterOld.indexOf(", FOREIGN KEY(")
-        val cut = if (fkAt < 0) masterOld.lastIndexOf(')') else fkAt
-        val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
-        val migrated = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
-        assertEquals("$name segments master新行次数", 1, observed.count { it.startsWith(masterPrefix) })
-        val masterNews = observed.filter { it.startsWith(masterPrefix) }
-        assertEquals("$name segments master新行次数", 1, masterNews.size)
-        val masterNew = masterNews.single()
-        assertTrue("$name segments master新行=旧行+迁移插入或新装形态", masterNew == migrated || masterNew == add.getString("masterFreshLine"))
-        observed[observed.indexOfFirst { it.startsWith(masterPrefix) }] = masterOld
-        val columnsOld = add.getString("columnsOldLine")
-        val columnsNew = add.getString("columnsNewLine")
-        assertEquals("$name segments columns旧行次数", 1, expected.count { it == columnsOld })
-        assertEquals("$name segments columns新行次数", 1, observed.count { it == columnsNew })
-        observed[observed.indexOf(columnsNew)] = columnsOld
-        val suffix = add.getString("dataSuffix")
-        fun block(lines: List<String>): List<String> {
-            val at = lines.indexOf("TABLE ${add.getString("table")}")
-            val end = (at + 2 until lines.size).firstOrNull { lines[it].isEmpty() || lines[it].startsWith("TABLE ") } ?: lines.size
-            return lines.subList(at + 2, end)
+        for (add in columnAdds) {
+            val masterPrefix = "[\"table\",\"${add.getString("table")}\""
+            val masterOld = expected.first { it.startsWith(masterPrefix) }
+            assertEquals("$name ${add.getString("table")} master旧行次数", 1, expected.count { it.startsWith(masterPrefix) })
+            val fkAt = masterOld.indexOf(", FOREIGN KEY(")
+            val cut = if (fkAt < 0) masterOld.lastIndexOf(')') else fkAt
+            val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
+            val migrated = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
+            assertEquals("$name ${add.getString("table")} master新行次数", 1, observed.count { it.startsWith(masterPrefix) })
+            val masterNews = observed.filter { it.startsWith(masterPrefix) }
+            assertEquals("$name ${add.getString("table")} master新行次数", 1, masterNews.size)
+            val masterNew = masterNews.single()
+            val appended = masterOld.substring(0, masterOld.lastIndexOf(')')) + inserted + masterOld.substring(masterOld.lastIndexOf(')'))
+            assertTrue("$name ${add.getString("table")} master新行=旧行+迁移插入或新装形态", masterNew == migrated || masterNew == appended || masterNew == add.getString("masterFreshLine"))
+            observed[observed.indexOfFirst { it.startsWith(masterPrefix) }] = masterOld
+            val columnsOld = add.getString("columnsOldLine")
+            val columnsNew = add.getString("columnsNewLine")
+            assertEquals("$name ${add.getString("table")} columns旧行次数", 1, expected.count { it == columnsOld })
+            assertEquals("$name ${add.getString("table")} columns新行次数", 1, observed.count { it == columnsNew })
+            observed[observed.indexOf(columnsNew)] = columnsOld
+            val suffix = add.getString("dataSuffix")
+            fun block(lines: List<String>): List<String> {
+                val at = lines.indexOf("TABLE ${add.getString("table")}")
+                val end = (at + 2 until lines.size).firstOrNull { lines[it].isEmpty() || lines[it].startsWith("TABLE ") } ?: lines.size
+                return lines.subList(at + 2, end)
+            }
+            val dataAt = observed.indexOf("TABLE ${add.getString("table")}")
+            val dataEnd = (dataAt + 2 until observed.size).firstOrNull { observed[it].isEmpty() || observed[it].startsWith("TABLE ") } ?: observed.size
+            val oldData = block(expected)
+            assertEquals("$name ${add.getString("table")}数据行数", oldData.size, dataEnd - dataAt - 2)
+            for (k in dataAt + 2 until dataEnd) {
+                assertTrue("$name ${add.getString("table")}数据行=旧行+新列默认值", observed[k].endsWith(suffix))
+                observed[k] = observed[k].removeSuffix(suffix) + "]"
+            }
+            assertEquals("$name ${add.getString("table")}数据行=旧行+新列默认值", oldData.sorted(), observed.subList(dataAt + 2, dataEnd).sorted())
         }
-        val dataAt = observed.indexOf("TABLE ${add.getString("table")}")
-        val dataEnd = (dataAt + 2 until observed.size).firstOrNull { observed[it].isEmpty() || observed[it].startsWith("TABLE ") } ?: observed.size
-        val oldData = block(expected)
-        assertEquals("$name segments数据行数", oldData.size, dataEnd - dataAt - 2)
-        for (k in dataAt + 2 until dataEnd) {
-            assertTrue("$name segments数据行=旧行+新列默认值", observed[k].endsWith(suffix))
-            observed[k] = observed[k].removeSuffix(suffix) + "]"
-        }
-        assertEquals("$name segments数据行=旧行+新列默认值", oldData.sorted(), observed.subList(dataAt + 2, dataEnd).sorted())
         assertEquals(name, old, observed.joinToString("\n"))
     }
 }

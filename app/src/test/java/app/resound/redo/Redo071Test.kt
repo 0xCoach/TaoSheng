@@ -101,6 +101,17 @@ class Redo071Test {
         assertTrue(e.undo("one").isSuccess)
         assertEquals("旧原话", db.transcribe().exportSegments(listOf(1)).single().lines.single().text)
     }
+    /** 卡 211：人工改过的句子，重新转写前计数提醒；重转后回到机器识别的结果 */
+    @Test fun retranscribeCountsAndReplacesManuallyEditedLines() = runBlocking {
+        seed(); val e = engine()
+        db.transcribe().editLineText(1, "人工改过的原话", 50)
+        val request = RedoRequest(segmentIds = listOf(1), scope = RedoScope.TranscribeOnly)
+        assertEquals(1, e.estimate(request).editedLines)
+        assertEquals(0, e.estimate(RedoRequest(eventIds = listOf(1), scope = RedoScope.DigestOnly)).editedLines)
+        run(e, request = request)
+        val line = db.transcribe().exportSegments(listOf(1)).single().lines.single()
+        assertEquals("新原话", line.text); assertNull(line.textEditedAt)
+    }
     @Test fun undoRestoresEventsItemsAndSecondRunInvalidatesFirst() = runBlocking {
         seed(); val e = engine(); run(e)
         val newId = db.redoData().events(0, 10000).single().id

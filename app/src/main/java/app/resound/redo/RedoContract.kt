@@ -71,6 +71,8 @@ data class RedoEstimate(
     val mergeGapMillis: Long? = null,
     /** 合并时：原话太长，一次读不完 */
     val mergeTooLong: Boolean = false,
+    /** 卡 211：要重新转写的录音里人工改过几句（重转会覆盖） */
+    val editedLines: Int = 0,
 )
 
 sealed interface RedoJobState {

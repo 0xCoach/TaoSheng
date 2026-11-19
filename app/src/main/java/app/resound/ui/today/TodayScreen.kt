@@ -1373,8 +1373,12 @@ object UndoBar {
         private set
     private var serial = 0
     private var duration = 3000L
+    /** 卡 211：按钮文字，默认“撤销”；改原话后是“重新整理” */
+    private var action by mutableStateOf("撤销")
     /** [durationMs] 默认 3 秒；夜里标“不是”这类改动给 6 秒 */
-    fun show(text: String, durationMs: Long = 3000L, undo: () -> Unit) { duration = durationMs; current = text to undo; serial++ }
+    fun show(text: String, durationMs: Long = 3000L, actionLabel: String = "撤销", undo: () -> Unit) {
+        duration = durationMs; action = actionLabel; current = text to undo; serial++
+    }
     @Composable
     fun Host(bottomPadding: Dp) {
         val c = Rs.colors
@@ -1388,7 +1392,7 @@ object UndoBar {
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(shown.first, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.background)
                     Spacer(Modifier.width(10.dp))
-                    Text("撤销", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                    Text(action, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
                         modifier = Modifier.clip(CircleShape).springClick { shown.second(); current = null }.padding(horizontal = 12.dp, vertical = 6.dp))
                 }
             }

@@ -39,25 +39,25 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=42",
+    "newLine": "user_version=43",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"d619c03fbeadd2062cfd189fd8b90025\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"81934afdffc83e90a17a227aa89bf6b0\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "d619c03fbeadd2062cfd189fd8b90025",
+  "newIdentityHash": "81934afdffc83e90a17a227aa89bf6b0",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd619c03fbeadd2062cfd189fd8b90025')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '81934afdffc83e90a17a227aa89bf6b0')"
   ],
   "indices": [
     {
@@ -486,5 +486,16 @@
   },
   "triggers": [
     "[\"trigger\",\"folder_import_deleted\",\"import_records\",\"CREATE TRIGGER folder_import_deleted AFTER DELETE ON import_records BEGIN UPDATE folder_recordings SET importRecordId = NULL, state = 'Listed', pendingId = NULL, backfill = 0, notified = 1 WHERE importRecordId = OLD.id; END\"]"
+  ],
+  "columnAddsMore": [
+    {
+      "table": "transcript_lines",
+      "columnsOldLine": "columns=[\"id\",\"segmentId\",\"startAt\",\"endAt\",\"text\",\"speakerTag\",\"speakerName\",\"eventId\",\"digestedAt\",\"speakerScore\",\"speakerPersonId\",\"speakerManual\",\"voiceInputJson\",\"voiceInputPendingUntil\",\"originalText\"]",
+      "columnsNewLine": "columns=[\"id\",\"segmentId\",\"startAt\",\"endAt\",\"text\",\"speakerTag\",\"speakerName\",\"eventId\",\"digestedAt\",\"speakerScore\",\"speakerPersonId\",\"speakerManual\",\"voiceInputJson\",\"voiceInputPendingUntil\",\"originalText\",\"textEditedAt\"]",
+      "dataSuffix": ",null]",
+      "insertSql": "ALTER TABLE transcript_lines ADD COLUMN `textEditedAt` INTEGER",
+      "masterFreshLine": "[\"table\",\"transcript_lines\",\"transcript_lines\",\"CREATE TABLE `transcript_lines` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `segmentId` INTEGER NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `text` TEXT NOT NULL, `speakerTag` TEXT, `speakerName` TEXT, `eventId` INTEGER, `digestedAt` INTEGER, `speakerScore` REAL, `speakerPersonId` INTEGER, `speakerManual` INTEGER NOT NULL DEFAULT 0, `voiceInputJson` TEXT, `voiceInputPendingUntil` INTEGER, `originalText` TEXT, `textEditedAt` INTEGER, FOREIGN KEY(`segmentId`) REFERENCES `segments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+      "note": "卡 211：原话人工修改时间"
+    }
   ]
 }

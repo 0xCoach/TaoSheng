@@ -174,6 +174,7 @@ fun RedoSheet(eventIds: List<Long> = emptyList(), segmentIds: List<Long> = empty
             val warn = buildList {
                 if (needsAsr && e.expiredSegments > 0) add(if (segmentsOnly) "其中 ${e.expiredSegments} 段原声已过期，只能保留原来的文字"
                     else "其中 ${e.expiredEvents} 件事的原声已过期，只能重新整理")
+                if (needsAsr && e.editedLines > 0) add("其中 ${e.editedLines} 句原话你手动改过，重新转写会换回机器识别的结果")
                 if (scope != RedoScope.TranscribeOnly && e.editedEvents > 0) add("${e.editedEvents} 件事你手动改过，${if (merge) "合并" else "重做"}会覆盖你的修改")
                 if (merge && (e.mergeGapMillis ?: 0) >= MERGE_MAX_GAP_MS) add("有两件事相隔 ${(e.mergeGapMillis ?: 0) / 60_000} 分钟，超过 ${MERGE_MAX_GAP_MS / 60_000} 分钟的不能合并")
                 if (merge && e.mergeTooLong) add("这几件事的原话太多，一次合并不完，少选几件再试")

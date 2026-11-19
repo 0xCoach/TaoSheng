@@ -90,9 +90,10 @@ internal class RedoEngine(
         val duration = available.sumOf { (it.segment.endAt - it.segment.startAt).coerceAtLeast(0) }
         val asr = if (!request.scope.transcribes) AsrEstimate(0, 0.0) else chooser.estimate(duration, request.asr ?: chooser.lastChoice.value)
         val expired = s.events.count { event -> s.segments.none { File(it.segment.path).isFile && overlap(event.startAt, event.endAt, it.segment.startAt, it.segment.endAt) > 0 } }
+        val editedLines = if (!request.scope.transcribes) 0 else s.segments.map { it.segment.id }.chunked(500).sumOf { db.transcribe().editedLineCount(it) }
         return RedoEstimate(s.events.size, s.segments.size, duration, expired, s.segments.size - available.size,
             s.events.count { it.editedAt != null }, asr.etaMillis?.let { it + if (request.scope == RedoScope.TranscribeOnly) 0 else 15_000L * s.ranges.size },
-            if (request.scope == RedoScope.TranscribeOnly) asr.costYuan else null)
+            if (request.scope == RedoScope.TranscribeOnly) asr.costYuan else null, editedLines = editedLines)
     }
     private fun selectors(s: RedoSelection, scope: RedoScope): Map<String, String> = linkedMapOf<String, String>().apply {
         if (scope != RedoScope.TranscribeOnly) {

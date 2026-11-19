@@ -69,6 +69,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.border
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -833,6 +835,12 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     var menuFor by remember { mutableStateOf<Long?>(null) }
     var assignFor by remember { mutableStateOf<Long?>(null) }
     var hotwordFrom by remember { mutableStateOf<String?>(null) }
+    // 卡 211：原地修改一句原话；改完已整理过的句子提示“重新整理这件事”
+    var editing by remember { mutableStateOf<Long?>(null) }
+    var draft by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    var redoEvent by remember { mutableStateOf<Long?>(null) }
+    val editScope = rememberCoroutineScope()
     val playSource = LocalPlaySource.current
     // 哪些录音段还有原声：有的在时间旁显示 ▶，点句子就从这句播起
     val playable by androidx.compose.runtime.produceState(emptySet<Long>(), lines) {
@@ -855,6 +863,23 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
         }
     }
     hotwordFrom?.let { text -> AddHotwordSheet(text) { hotwordFrom = null } }
+    redoEvent?.let { id -> app.resound.ui.redo.RedoSheet(eventIds = listOf(id)) { redoEvent = null } }
+    fun saveEdit(line: TranscriptLine) {
+        val text = draft.trim()
+        if (text.isEmpty() || saving) return
+        if (text == line.text) { editing = null; return }
+        saving = true
+        editScope.launch {
+            val ok = runCatching { app.resound.AppGraph.transcripts.editLine(line.id, text) }.getOrDefault(false)
+            saving = false
+            if (!ok) { Toast.makeText(context, "没改成，请再试一次", Toast.LENGTH_SHORT).show(); return@launch }
+            editing = null
+            LinePlayer.replaceText(line.id, text)
+            val event = line.eventId
+            if (event != null) app.resound.ui.today.UndoBar.show("原话已修改", 6000L, "重新整理") { redoEvent = event }
+            else Toast.makeText(context, "原话已修改，之后整理会用新的文字", Toast.LENGTH_SHORT).show()
+        }
+    }
     androidx.compose.foundation.text.selection.DisableSelection {
         assignFor?.let { id -> voiceprint?.let { app.resound.ui.voiceprint.AssignPersonDialog(it, id) { assignFor = null } } }
     }
@@ -903,11 +928,20 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             val seen = remember(line.id) { androidx.compose.foundation.relocation.BringIntoViewRequester() }
                             androidx.compose.runtime.LaunchedEffect(now) { if (now) runCatching { seen.bringIntoView() } }
                             val heard = playbackLines[line.id]
-                            val shown = if (heard == null) androidx.compose.ui.text.AnnotatedString(line.text) else androidx.compose.ui.text.buildAnnotatedString {
-                                withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, background = c.fill)) {
-                                    append(" 外放" + (listOfNotNull(heard.appName, heard.title).firstOrNull()?.let { " · ${it.take(12)}" } ?: "") + " ")
+                            if (editing == line.id) {
+                                LineEditor(draft, { draft = it }, saving, onCancel = { editing = null }, onSave = { saveEdit(line) })
+                                return@forEach
+                            }
+                            val shown = androidx.compose.ui.text.buildAnnotatedString {
+                                if (heard != null) {
+                                    withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, background = c.fill)) {
+                                        append(" 外放" + (listOfNotNull(heard.appName, heard.title).firstOrNull()?.let { " · ${it.take(12)}" } ?: "") + " ")
+                                    }
+                                    append("  ")
                                 }
-                                append("  "); append(line.text)
+                                append(line.text)
+                                // 卡 211：人工改过的句子末尾标一下
+                                if (line.edited) withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize)) { append("  已修正") }
                             }
                             Text(shown, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
                                 .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
@@ -925,6 +959,10 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             clipboard.setText(androidx.compose.ui.text.AnnotatedString(selected.text))
                             menuFor = null
                             Toast.makeText(context, "已复制这段原话", Toast.LENGTH_SHORT).show()
+                        })
+                        // 卡 211：认错的字直接改；视同一次只换原话的重新转写，事件不自动变
+                        DropdownMenuItem(text = { Text("修改文字", style = RsType.body, color = c.text) }, onClick = {
+                            draft = selected.text; editing = selected.id; menuFor = null
                         })
                         if (selected.segmentId in playable) DropdownMenuItem(text = { Text("从这里播放", style = RsType.body, color = c.text) }, onClick = {
                             LinePlayer.play(context, lines, lines.indexOf(selected), playSource); menuFor = null
@@ -1084,5 +1122,26 @@ private fun DeleteSegmentsSheet(count: Int, onConfirm: suspend () -> Unit, onDis
         }
         failure?.let { Text(it, color = Rs.colors.critical, style = RsType.subhead) }
         app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary, enabled = !busy) { onDismiss() }
+    }
+}
+
+/** 卡 211：原地改一句原话。多行输入，下面“取消 / 保存”；空着不能保存 */
+@Composable
+internal fun LineEditor(value: String, onChange: (String) -> Unit, saving: Boolean, onCancel: () -> Unit, onSave: () -> Unit) {
+    val c = Rs.colors
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        androidx.compose.foundation.text.BasicTextField(value, onChange, textStyle = RsType.body.copy(color = c.text),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus).clip(RoundedCornerShape(10.dp)).background(c.fill)
+                .border(1.dp, c.accent.copy(alpha = 0.5f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp))
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("改完之后，已整理的事件不会自动变", style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+            Pill("取消", filled = false, onClick = onCancel)
+            Spacer(Modifier.width(8.dp))
+            Pill(if (saving) "保存中" else "保存", filled = value.isNotBlank() && !saving) { if (value.isNotBlank()) onSave() }
+        }
     }
 }

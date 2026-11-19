@@ -124,6 +124,23 @@ fun AboutPage(version: String?, bottom: Dp) {
                 style = RsType.body, color = c.text)
         }
 
+        AboutCard("开源许可") {
+            var show by remember { mutableStateOf(false) }
+            val notices = remember(show) {
+                if (show) runCatching {
+                    context.assets.open("THIRD_PARTY_NOTICES.md").bufferedReader().use { it.readText() }
+                }.getOrNull() else null
+            }
+            Text("基于上游开源项目涛声 TaoSheng 开发；包含 sherpa-onnx、ONNX Runtime、Silero VAD 等第三方组件。",
+                style = RsType.body, color = c.textSecondary)
+            Spacer(Modifier.height(12.dp))
+            Pill(if (show) "收起声明" else "查看完整声明", filled = false) { show = !show }
+            if (notices != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(notices, style = RsType.caption, color = c.textTertiary)
+            }
+        }
+
         AboutCard("问题反馈") {
             Text("遇到闪退或功能不对，在“高级与诊断”导出问题记录发给开发。",
                 style = RsType.body, color = c.textSecondary)

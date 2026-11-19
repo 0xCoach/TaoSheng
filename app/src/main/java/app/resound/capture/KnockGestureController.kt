@@ -82,11 +82,17 @@ class KnockGestureController(
             privacyPaused = p.getBoolean(AndroidScene.KEY_PRIVACY, false),
             topicPaused = AppGraph.isTopicsReady && AppGraph.topics.current.value?.status == app.resound.topic.TopicStatus.Paused,
         )
+        // 启动/恢复也要过录音授权闸：预查一次，会被拒就给"拒绝"振，不派发注定失败的启动
+        if (action == KnockActionRules.Action.Start || action == KnockActionRules.Action.Resume) {
+            if (AppGraph.isAuthReady && !AppGraph.auth.allowed(app.resound.auth.Capability.RecordAudio)) {
+                buzz(longArrayOf(0, 80, 80, 80, 80, 500)); return
+            }
+        }
         when (action) {
             KnockActionRules.Action.Blocked -> { buzz(longArrayOf(0, 400)); return } // 隐私暂停：敲敲不解锁
-            KnockActionRules.Action.Start -> buzz(longArrayOf(0, 80))
-            KnockActionRules.Action.Resume -> buzz(longArrayOf(0, 80))
-            KnockActionRules.Action.Pause -> buzz(longArrayOf(0, 80, 150, 80))
+            KnockActionRules.Action.Start -> buzz(longArrayOf(0, 300))                // 单长振=开始干活
+            KnockActionRules.Action.Resume -> buzz(longArrayOf(0, 120, 140, 120))     // 双短振=回来了
+            KnockActionRules.Action.Pause -> buzz(longArrayOf(0, 250, 160, 250))      // 双长振=停下了
         }
         val serviceAction = when (action) {
             KnockActionRules.Action.Start -> CaptureService.START

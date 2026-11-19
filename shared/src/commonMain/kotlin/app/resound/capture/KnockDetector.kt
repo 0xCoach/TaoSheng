@@ -18,10 +18,10 @@ class KnockDetector(
 
     /** 敲击判定的模长增量（m/s²）。阈值高于放口袋/走路的低频晃动，低于真敲手机的尖峰。 */
     private val spikeAbove = when (sensitivity) { 0 -> 14f; 1 -> 10f; else -> 7f }
-    /** 相邻敲击的最大间隔；两敲超过它就重新开始计数。 */
-    private val tapGapMs = 550L
-    /** 同一次敲击的余震抑制窗口——低于这个间隔的尖峰不另计。 */
-    private val refractoryMs = 90L
+    /** 相邻敲击的最大间隔；两敲超过它就重新开始计数。放宽到 800ms 容错慢敲节奏。 */
+    private val tapGapMs = 800L
+    /** 同一次敲击的余震/指节回弹抑制窗口——高采样率下回弹小峰也会过阈值，放宽到 180ms。 */
+    private val refractoryMs = 180L
     /** 触发后的冷却时间。 */
     private val cooldownMs = 1500L
     /** 基线跟踪速度：越小越慢，保证手正常握持变化不会被当敲击。 */

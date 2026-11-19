@@ -34,10 +34,10 @@ class KnockDetectorTest {
         val d = KnockDetector(tapsRequired = 2)
         calm(d, 0, 2000)
         knock(d, 2000)
-        calm(d, 2020, 2700)
-        // 距上一敲 700ms > 550ms 窗口 → 重新计数，这一敲只是第 1 下
-        assertFalse(knock(d, 2700))
-        assertTrue(knock(d, 2900))
+        calm(d, 2020, 3100)
+        // 距上一敲 1100ms > 800ms 窗口 → 重新计数，这一敲只是第 1 下
+        assertFalse(knock(d, 3100))
+        assertTrue(knock(d, 3300))
     }
 
     @Test fun refractoryMergesAftershock() {

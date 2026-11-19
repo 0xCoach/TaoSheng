@@ -5,7 +5,7 @@ compatibility_date = "2026-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "soundsound-auth"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "7949eb2a-a699-4048-ae01-ea92386c5548"
 
 # Secrets (wrangler secret put):
 #   ADMIN_TOKEN         管理员令牌（创建/停用账号用）

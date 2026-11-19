@@ -19,7 +19,7 @@ class AuthStore(context: Context) {
         ?: java.util.UUID.randomUUID().toString().also { prefs.edit().putString("device_id", it).apply() }
 
     var serverUrl: String
-        get() = prefs.getString("server_url", "") ?: ""
+        get() = prefs.getString("server_url", null)?.takeIf { it.isNotBlank() } ?: DEFAULT_SERVER_URL
         set(v) { prefs.edit().putString("server_url", v.trim().trimEnd('/')).apply() }
 
     var sessionAccountId: String?
@@ -108,5 +108,10 @@ class AuthStore(context: Context) {
     fun invalidate() {
         sessionAccountId = null; accessToken = ""; refreshToken = ""; licensePayload = null
         refreshStatus()
+    }
+
+    companion object {
+        /** 默认授权服务；用户可在设置里改回自建地址。 */
+        const val DEFAULT_SERVER_URL = "https://soundsound-auth.kan831019.workers.dev"
     }
 }

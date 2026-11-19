@@ -243,10 +243,13 @@ internal class FakePlatform : UpdatePlatform {
     var backups = 0
     var backupFails = false
     var duringBackup: suspend () -> Unit = {}
+    /** 卡 210：测试从外面报备份进度 */
+    @Volatile var lastProgress: ((String, Float) -> Unit)? = null
     val submitted = CompletableDeferred<Unit>()
     override fun verify(apk: File, manifest: UpdateManifest) {}
     override suspend fun backup(progress: (String, Float) -> Unit) {
         backups++
+        lastProgress = progress
         duringBackup()
         if (backupFails) error("snapshot_failed")
     }

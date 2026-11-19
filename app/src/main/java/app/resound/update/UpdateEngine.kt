@@ -354,7 +354,8 @@ internal class UpdateEngine(
             val backupStart = System.nanoTime()
             preBackupRunning = true
             try {
-                backupReady { _, _ -> }
+                // 卡 210：有人在等着安装时把备份进度报给界面（原先界面一直停在“正在保存本机数据”像卡住）
+                backupReady { step, p -> if (installWaiting) mutable.value = UpdateState.Installing(info(), true, step, p) }
                 log("pre_backup ms=${elapsed(backupStart)} result=ok")
             } catch (e: CancellationException) {
                 log("pre_backup ms=${elapsed(backupStart)} result=cancelled")
@@ -392,11 +393,13 @@ internal class UpdateEngine(
 
     /** 下载后的后台备份进行中；此时点安装要等它，先把界面切到“正在保存”，免得像没点上 */
     @Volatile private var preBackupRunning = false
+    @Volatile private var installWaiting = false
 
     override fun install() { scope.launch(Dispatchers.IO) {
         val waited = preBackupRunning && mutable.value is UpdateState.Ready
-        if (waited) mutable.value = UpdateState.Installing(info(), true, "正在保存本机数据", 0f)
+        if (waited) { installWaiting = true; mutable.value = UpdateState.Installing(info(), true, "正在保存本机数据", 0f) }
         gate.withLock {
+            installWaiting = false
             restore()
             discardDisabledPreview()
             if (manifest == null || fallback.value != null || (mutable.value is UpdateState.Installing && !waited) || store.string("ready") != manifest!!.apk.sha256) {

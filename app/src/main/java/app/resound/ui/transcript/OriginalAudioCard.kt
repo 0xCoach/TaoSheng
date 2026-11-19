@@ -46,22 +46,24 @@ import kotlinx.coroutines.launch
 
 /** 状态卡里的一行：保留几天 · 重点是否长期保留 · 占用；点开在面板里改 */
 @Composable
-internal fun OriginalAudioRow(audio: OriginalAudio) {
+internal fun OriginalAudioRow(audio: OriginalAudio, first: Boolean = false) {
     val days by audio.retentionDays.collectAsStateWithLifecycle()
     val keepStarred by audio.keepStarred.collectAsStateWithLifecycle()
     val usage by audio.usage().collectAsStateWithLifecycle(initialValue = null)
     var open by remember { mutableStateOf(false) }
-    SettingLine("原声", "保留 $days 天" + (if (keepStarred) " · 重点长期保留" else "") + (usage?.takeIf { it.bytes > 0 }?.let { " · 占用 ${formatBytes(it.bytes)}" } ?: "")) { open = true }
+    SettingLine("原声", first = first, value = "保留 $days 天" + (if (keepStarred) " · 重点长期保留" else "") + (usage?.takeIf { it.bytes > 0 }?.let { " · 占用 ${formatBytes(it.bytes)}" } ?: "")) { open = true }
     if (open) RsSheet("原声", usage?.let(::usageLine), onDismiss = { open = false }) { OriginalAudioSettings(audio) }
 }
 
 /** 一行设置：左边固定宽的灰色小标签，右边内容，最后 ›；上方一条细分隔线 */
 @Composable
-internal fun SettingLine(label: String, value: String, onClick: () -> Unit) {
+internal fun SettingLine(label: String, value: String, first: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
-    Spacer(Modifier.height(12.dp))
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
-    Row(Modifier.fillMaxWidth().springClick(onClick).padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    if (!first) {
+        Spacer(Modifier.height(12.dp))
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
+    }
+    Row(Modifier.fillMaxWidth().springClick(onClick).padding(top = if (first) 4.dp else 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.width(64.dp))
         Text(value, style = RsType.subhead, color = c.textSecondary, maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))

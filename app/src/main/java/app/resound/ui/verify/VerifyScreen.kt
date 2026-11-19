@@ -126,6 +126,9 @@ fun VerifyScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item { Box(Modifier.settingsAnchor("permissions", "pause-length", "playback")) { StatusCard(capture) } }
+        // 卡 210：录音存多久、打包导出属于录音本身，从“语音转写”挪来
+        if (app.resound.AppGraph.isOriginalAudioReady || app.resound.AppGraph.isRecordingPackerReady)
+            item { Box(Modifier.settingsAnchor("audio-retention", "recording-pack")) { RecordingStoreSection() } }
         if (g.isQuietScheduleReady) item { Box(Modifier.settingsAnchor("quiet")) { QuietSection(g.quietSchedule) } }
         if (g.isInputsReady) item { Box(Modifier.settingsAnchor("input")) { InputSection(g.inputs) } }
         if (g.isDevicesReady) item {
@@ -768,4 +771,16 @@ fun formatBytes(b: Long): String = when {
     b >= 1_000_000_000 -> String.format(Locale.CHINA, "%.1f GB", b / 1e9)
     b >= 1_000_000 -> String.format(Locale.CHINA, "%.1f MB", b / 1e6)
     else -> String.format(Locale.CHINA, "%.0f KB", b / 1e3)
+}
+
+/** 卡 210：录音存放——原声保留几天、打包导出 */
+@Composable
+private fun RecordingStoreSection() {
+    Section("录音存放") {
+        RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
+            val audio = app.resound.AppGraph.isOriginalAudioReady
+            if (audio) app.resound.ui.transcript.OriginalAudioRow(app.resound.AppGraph.originalAudio, first = true)
+            app.resound.ui.transcript.RecordingPackRow(first = !audio)
+        }
+    }
 }

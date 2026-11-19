@@ -211,7 +211,7 @@ interface NightRepository {
     /** 醒来那天的一夜；没有为 null */
     fun night(date: LocalDate): Flow<NightDetail?>
 
-    /** “不是”：事件从统计去掉、录音立即删除、分数留作反馈；“是”：片段长期保存 */
+    /** “不是”：事件从统计去掉、录音立即删除、分数留作反馈；“是”：片段保留到录下后 90 天（卡 210） */
     suspend fun feedback(eventId: Long, value: Feedback)
 
     /** 传 null 的项不改；改完重算并触发线索重写 */

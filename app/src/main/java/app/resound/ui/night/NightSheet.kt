@@ -353,6 +353,8 @@ private fun EventRow(e: NightEvent, d: NightDetail, sharedRoom: Boolean, on: Boo
                 if (e.kind == NightEventKind.SleepTalk && e.text == null) add("转写中")
                 if ((askable(e) || e.kind == NightEventKind.Loud) && e.clipId != null && !e.audioAvailable) add("录音已过期")
                 if ((e.feedback == Feedback.No || e.kind == NightEventKind.Loud) && e.audioAvailable) add("录音 7 天后删")
+                if (e.feedback == Feedback.Yes && e.audioAvailable && e.clipId != null) java.time.Instant.ofEpochMilli(e.start + 90L * 86_400_000)
+                    .atZone(java.time.ZoneId.systemDefault()).let { add("录音留到 ${it.monthValue}月${it.dayOfMonth}日") }
                 if (e.id in d.vetoed) add("个人判断认为不是")
             }
             if (sub.isNotEmpty()) Text(sub.joinToString(" · "), style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))

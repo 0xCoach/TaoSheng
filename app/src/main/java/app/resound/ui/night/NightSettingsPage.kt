@@ -173,7 +173,7 @@ fun NightSettingsPage(bottom: Dp) {
 
 @Composable
 private fun Foot() {
-    Text("夜里的录音只存在手机里，推送只带文字。没确认的录音 7 天后删除，统计一直保留。结果由手机自动统计，仅供参考，不是医疗检查。",
+    Text("夜里的录音只存在手机里，推送只带文字。没确认的录音 7 天后删除，确认过的留 90 天，统计一直保留。结果由手机自动统计，仅供参考，不是医疗检查。",
         style = RsType.caption, color = Rs.colors.textTertiary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
 }
 

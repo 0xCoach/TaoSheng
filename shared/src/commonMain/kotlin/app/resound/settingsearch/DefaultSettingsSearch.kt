@@ -42,6 +42,8 @@ internal object SettingsIndex {
             item("语音输入记录", "voice-input", "输入法 无障碍 微信打字 口述")
             item("外放跳过", "playback", "听歌 看视频 扬声器 外放不录")
             item("文件夹导入", "folder-import", "自动导入 导入录音 外部录音 通话录音 电话录音 录音笔")
+            item("原声保留", "audio-retention", "录音保留 音频删除 存多久 空间")
+            item("录音包导出", "recording-pack", "导出录音 打包 压缩包 原始录音 下载 备份录音")
         }
         page("Transcript", "语音转写", "原话与转写 文字 识别 听写 转文字") {
             item("转写服务", "asr", "豆包 SenseVoice 本地转写 云端转写")
@@ -49,7 +51,6 @@ internal object SettingsIndex {
             item("转写间隔", "asr-interval", "多久转一次 实时转写 等文字 转写时间")
             item("失败重试", "retry", "没转成 转写失败 重转 卡住")
             item("热词识别", "hotwords", "热词 纠错 错字 人名 术语")
-            item("原声保留", "audio-retention", "录音保留 音频删除 存多久 空间")
             item("区分说话人", "speakers", "多人分段 谁说的 分人 说话人")
             item("记录播放标题", "playback-title", "播放标题 节目名 通知使用权 外放来源")
         }

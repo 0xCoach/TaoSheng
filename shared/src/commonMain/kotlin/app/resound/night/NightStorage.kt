@@ -61,7 +61,9 @@ data class NightDreamRow(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     @Query("DELETE FROM night_events WHERE id = :id") suspend fun deleteEvent(id: Long)
     @Query("SELECT * FROM night_clips WHERE nightId = :id ORDER BY start") suspend fun clips(id: Long): List<NightClipRow>
     @Query("SELECT * FROM night_clips WHERE id = :id") suspend fun clip(id: Long): NightClipRow?
-    @Query("SELECT * FROM night_clips WHERE path IS NOT NULL AND confirmed = 0 AND expiresAt <= :at") suspend fun expired(at: Long): List<NightClipRow>
+    // 卡 210：没确认的到期删；确认过的最多留 90 天（从录下那刻算，覆盖“给医生的一页”最长范围）
+    @Query("""SELECT * FROM night_clips WHERE path IS NOT NULL AND
+        ((confirmed = 0 AND expiresAt <= :at) OR (confirmed = 1 AND start <= :at - 7776000000))""") suspend fun expired(at: Long): List<NightClipRow>
     @Insert suspend fun insertClip(row: NightClipRow): Long
     @Update suspend fun updateClip(row: NightClipRow)
     @Upsert suspend fun envelope(row: NightEnvelopeRow)

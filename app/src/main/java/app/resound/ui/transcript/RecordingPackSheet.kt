@@ -46,15 +46,15 @@ import app.resound.ui.verify.formatBytes
 import app.resound.ui.verify.formatDuration
 import java.time.LocalDate
 
-/** 原话页状态卡里的一行：“录音包 · 把手机里的原始录音打包导出 ›” */
+/** 录音管理“录音存放”里的一行：“录音包 · 把手机里的原始录音打包导出 ›” */
 @Composable
-internal fun RecordingPackRow() {
+internal fun RecordingPackRow(first: Boolean = false) {
     if (!AppGraph.isRecordingPackerReady) return
     val packer = AppGraph.recordingPacker
     val current by packer.current.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     val st = current?.second
-    SettingLine("录音包", when (st) {
+    SettingLine("录音包", first = first, value = when (st) {
         is RecordingPackState.Running -> "正在打包 ${(st.fraction * 100).toInt()}%"
         else -> "把手机里的原始录音打包导出"
     }) { open = true }

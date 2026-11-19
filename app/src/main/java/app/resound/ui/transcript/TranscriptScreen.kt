@@ -156,7 +156,7 @@ fun TranscriptScreen(
     val searchAnchor = app.resound.ui.settings.SettingsHighlight.anchor
     LaunchedEffect(searchAnchor) {
         when (searchAnchor) {
-            "asr", "local-model", "asr-interval", "retry", "audio-retention", "speakers" -> listState.animateScrollToItem(1)
+            "asr", "local-model", "asr-interval", "retry", "speakers" -> listState.animateScrollToItem(1)
             "hotwords" -> if (app.resound.AppGraph.isHotwordsReady) listState.animateScrollToItem(2)
         }
     }
@@ -192,11 +192,10 @@ fun TranscriptScreen(
         item {
             QueueCard(repo, hasKey, realtime, local, settingsShown = true, footer = {
                 if (app.resound.AppGraph.isUsageReady) app.resound.ui.settings.AsrUsageRow(app.resound.AppGraph.usage)
-                if (app.resound.AppGraph.isOriginalAudioReady) OriginalAudioRow(app.resound.AppGraph.originalAudio)
-                RecordingPackRow()
+                // 卡 210：原声保留、录音包挪到“录音管理 → 录音存放”
             }) { settingsOpen = !settingsOpen }
         }
-        item(key = "settings") { Box(Modifier.settingsAnchor("asr", "local-model", "asr-interval", "retry", "audio-retention", "speakers")) { SettingsCard(settings, onSaved = {}) } }
+        item(key = "settings") { Box(Modifier.settingsAnchor("asr", "local-model", "asr-interval", "retry", "speakers")) { SettingsCard(settings, onSaved = {}) } }
         // 热词并进本页（原来是设置首页单独一行）
         if (app.resound.AppGraph.isHotwordsReady) item(key = "hotwords") { Box(Modifier.settingsAnchor("hotwords")) { HotwordCard(app.resound.AppGraph.hotwords) } }
         item {

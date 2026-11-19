@@ -1,4 +1,4 @@
-// soundsound-auth — Cloudflare Workers + D1
+﻿// soundsound-auth — Cloudflare Workers + D1
 // 账号/密码认证 + 会话管理 + ECDSA 签名离线授权凭证 + 审计。
 // 不保存音频/转写/记忆/用户 AI Key；只保存账号、会话、授权与审计。
 import { handleMembership } from "./membership.js";
@@ -88,6 +88,17 @@ async function jwtVerifyWithPublic(env, token) {
 }
 
 // ---------- 会话/授权签发 ----------
+// 离线凭证能力 = 账号静态 capabilities ∪ entitlements 有效权益（含 pro）。
+// 这样 Pro 授予/兑换后，下一次签发的离线凭证立刻带 pro，客户端可离线判定。
+async function effectiveCaps(env, user) {
+  const base = JSON.parse(user.capabilities || "[]");
+  try {
+    const r = await env.DB.prepare(
+      "SELECT DISTINCT capability FROM entitlements WHERE user_id=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>?)")
+      .bind(user.id, nowS()).all();
+    return [...new Set([...base, ...r.results.map(x => x.capability)])];
+  } catch { return base; } // entitlements 表未迁移时退化为静态能力
+}
 async function issueSession(env, user, deviceId, deviceName) {
   const sid = uuid();
   const refresh = b64u(crypto.getRandomValues(new Uint8Array(32)));
@@ -98,7 +109,7 @@ async function issueSession(env, user, deviceId, deviceName) {
     .bind(sid, user.id, deviceId, deviceName || null, refreshHash, nowS(), exp, nowS()).run();
   const lic = await signLicense(env, {
     v: 1, sub: user.id, name: user.username, dev: deviceId,
-    caps: JSON.parse(user.capabilities || "[]"),
+    caps: await effectiveCaps(env, user),
     iat: nowS(), exp: nowS() + Number(env.OFFLINE_LICENSE_DAYS) * 86400,
   });
   await env.DB.prepare("INSERT INTO licenses(id,user_id,device_id,payload,signature,issued_at,expires_at) VALUES(?,?,?,?,?,?,?)")
@@ -203,7 +214,7 @@ export default {
         await env.DB.prepare("DELETE FROM login_attempts WHERE key=?").bind(`${b.username}|${ip}`).run();
         await audit(env, user.id, "login.ok", b.device_id, req);
         return json({
-          account: { id: user.id, username: user.username, capabilities: JSON.parse(user.capabilities || "[]") },
+          account: { id: user.id, username: user.username, capabilities: await effectiveCaps(env, user) },
           access_token: issued.access, refresh_token: issued.refresh,
           license: issued.license, offline_days: Number(env.OFFLINE_LICENSE_DAYS),
         });
@@ -224,7 +235,7 @@ export default {
           .bind(await sha256b64(refresh), exp, nowS(), sess.id).run();
         const lic = await signLicense(env, {
           v: 1, sub: user.id, name: user.username, dev: sess.device_id,
-          caps: JSON.parse(user.capabilities || "[]"),
+          caps: await effectiveCaps(env, user),
           iat: nowS(), exp: nowS() + Number(env.OFFLINE_LICENSE_DAYS) * 86400,
         });
         await env.DB.prepare("INSERT INTO licenses(id,user_id,device_id,payload,signature,issued_at,expires_at) VALUES(?,?,?,?,?,?,?)")
@@ -232,7 +243,7 @@ export default {
         const access = await jwtSign(env, { sub: user.id, jti: sess.id, iat: nowS(), exp: nowS() + Number(env.ACCESS_TTL_SECONDS) });
         await audit(env, user.id, "refresh.ok", sess.device_id, req);
         return json({ access_token: access, refresh_token: refresh, license: lic,
-          account: { id: user.id, username: user.username, capabilities: JSON.parse(user.capabilities || "[]") } });
+          account: { id: user.id, username: user.username, capabilities: await effectiveCaps(env, user) } });
       }
 
       // ---- 登出 ----
@@ -250,7 +261,7 @@ export default {
         const a = await authed(env, req);
         if (!a) return err("unauthorized", 401);
         return json({ account: { id: a.user.id, username: a.user.username, status: a.user.status,
-          capabilities: JSON.parse(a.user.capabilities || "[]") }, session: { id: a.session.id, device_id: a.session.device_id } });
+          capabilities: await effectiveCaps(env, a.user) }, session: { id: a.session.id, device_id: a.session.device_id } });
       }
 
       // ---- 设备会话列表/撤销 ----

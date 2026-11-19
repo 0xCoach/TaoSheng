@@ -192,6 +192,9 @@ object AppGraph {
     // AUTH：登录与授权门禁（最先装配，CaptureService/Worker/MCP 都可能在界面前启动）
     lateinit var auth: app.resound.auth.AuthGate
     val isAuthReady: Boolean get() = ::auth.isInitialized
+    // 会员与用量：跟随 auth 装配
+    lateinit var membership: app.resound.auth.MembershipState
+    val isMembershipReady: Boolean get() = ::membership.isInitialized
     val isAssistantReady: Boolean
         get() = ::decisionRepo.isInitialized && ::followupEngine.isInitialized && ::captureInbox.isInitialized &&
             ::workflowEngine.isInitialized && ::memoryCorrector.isInitialized && ::groundedQA.isInitialized && ::mcpServer.isInitialized &&

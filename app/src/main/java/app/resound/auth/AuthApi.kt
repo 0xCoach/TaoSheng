@@ -72,6 +72,32 @@ class AuthApi(
     suspend fun revoke(sessionId: String, accessToken: String) =
         call("POST", "/auth/devices/revoke", """{"session_id":"${sessionId}"}""", bearer = accessToken)
 
+    /** 会员视图：套餐 / 能力行 / 本月用量。 */
+    suspend fun membership(accessToken: String) = call("GET", "/auth/membership", bearer = accessToken)
+
+    /** 兑换码核销；request_id 供服务端幂等去重（网络重试不重复发权益）。 */
+    suspend fun redeem(code: String, requestId: String, accessToken: String) =
+        call("POST", "/auth/redeem", Json.encodeToString(
+            kotlinx.serialization.json.buildJsonObject {
+                put("code", kotlinx.serialization.json.JsonPrimitive(code))
+                put("request_id", kotlinx.serialization.json.JsonPrimitive(requestId))
+            }), bearer = accessToken)
+
+    /** 成功转写时长上报；items 服务端按 id 去重，重传安全。 */
+    suspend fun reportUsage(items: List<UsageItem>, accessToken: String) =
+        call("POST", "/auth/usage", Json.encodeToString(
+            kotlinx.serialization.json.buildJsonObject {
+                put("items", kotlinx.serialization.json.JsonArray(items.map {
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("id", kotlinx.serialization.json.JsonPrimitive(it.id))
+                        put("minutes", kotlinx.serialization.json.JsonPrimitive(it.minutes))
+                        put("month", kotlinx.serialization.json.JsonPrimitive(it.month))
+                    }
+                }))
+            }), bearer = accessToken)
+
+    data class UsageItem(val id: String, val minutes: Double, val month: String)
+
     /** 从登录/刷新响应里解出账号、token、凭证。 */
     fun parseSession(obj: kotlinx.serialization.json.JsonObject): ParsedSession? = runCatching {
         val account = obj["account"]!!.jsonObject

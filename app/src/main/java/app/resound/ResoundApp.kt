@@ -1,4 +1,4 @@
-package app.resound
+﻿package app.resound
 
 import app.resound.data.open
 import app.resound.data.readSql
@@ -83,6 +83,7 @@ class ResoundApp : Application() {
         authStore.refreshStatus()
         val authApi = app.resound.auth.AuthApi({ authStore.serverUrl })
         AppGraph.auth = app.resound.auth.AuthGate(authStore, authApi)
+        AppGraph.membership = app.resound.auth.MembershipState(this, authStore, AppGraph.auth)
         // 老装升级不锁死：本机是否已有历史数据——同步用文件存在性先判（不依赖异步 DB 查询，
         // 否则首个 require() 抢在探测前会把老用户判成全新装而拒绝），异步再复核补正。
         if (authStore.boundAccountId == null && !authStore.hasLocalData) {
@@ -180,12 +181,15 @@ class ResoundApp : Application() {
         }
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState, deferAudioCleanup = true,
-            sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
+            sourceReady = { src -> settings.ready(src) && AppGraph.membership.allowTranscribe() }, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             recordTiming = { PipelineTimes.recordSegment(this, it) },
             defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers, topicTraining = database.topics()::trainingAt,
             beforeTranscribe = envSound::beforeTranscribe,
             beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
             afterSegment = { segment ->
+                // 成功转写记账（片段 id 幂等；断网持久化，联网去重上报）
+                AppGraph.membership.recordSuccess(segment.id, (segment.endAt - segment.startAt).coerceAtLeast(0))
+                scope.launch { runCatching { AppGraph.membership.flush() } }
                 if (database.transcribe().segment(segment.id).let { it.separateSpeakers != false || (it.importChannel != null && it.speakerCount != 0) }) {
                     PipelineProgress.stage(PipelineProgress.Stage.Voiceprint)
                     try { voiceprintRepository.runSegment(segment.id) }
@@ -193,7 +197,7 @@ class ResoundApp : Application() {
                 }
             },
             afterImport = { voiceprintRepository.cleanupAudio() },
-            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
+            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value && AppGraph.membership.allowTranscribe() }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
                 val network = connectivity.getNetworkCapabilities(connectivity.activeNetwork)

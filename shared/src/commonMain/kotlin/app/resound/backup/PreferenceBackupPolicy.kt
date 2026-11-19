@@ -71,6 +71,7 @@ object PreferenceBackupPolicy {
         "update-popup" to "当前版本更新弹窗去重时间，真正的跳过/稍后设置在 app-update",
         "update-times" to "更新检查和安装诊断",
         "auth-secrets" to "设备会话令牌与签名凭证密文绑定本机 Keystore/设备号，换机必须重新登录，备份毫无意义",
+        "membership" to "会员视图缓存与待上报用量队列是本机运行状态；换机不应携带旧设备未上报时长",
     )
     val backedUp: Set<String> get() = settings.keys + secretPrefs
     val asrKeys = setOf("encryptedKey", "customEncryptedKey")

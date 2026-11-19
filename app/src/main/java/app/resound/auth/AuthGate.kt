@@ -149,6 +149,50 @@ class AuthGate(
     suspend fun revokeDevice(sessionId: String): AuthApi.Result? =
         store.accessToken.takeIf { it.isNotEmpty() }?.let { api.revoke(sessionId, it) }
 
+    /** 会员视图（套餐/能力/本月用量）。 */
+    suspend fun membership(): AuthApi.Result? =
+        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.membership(it) }
+
+    /** 用量上报（服务端按 id 去重）。 */
+    suspend fun reportUsage(items: List<AuthApi.UsageItem>): AuthApi.Result? =
+        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.reportUsage(items, it) }
+
+    /**
+     * 兑换码核销。request_id 取「账号+规范化码」的确定性值：
+     * 同一账号对同一码的重试天然幂等，响应丢失后重试不会重复发权益。
+     */
+    suspend fun redeem(code: String): RedeemOutcome {
+        val token = store.accessToken
+        if (token.isEmpty()) return RedeemOutcome.NeedLogin
+        val norm = code.uppercase().filter { it.isLetterOrDigit() }
+        if (norm.length < 8) return RedeemOutcome.Invalid
+        val requestId = "r:${store.sessionAccountId}:$norm".let {
+            java.security.MessageDigest.getInstance("SHA-256").digest(it.toByteArray())
+                .joinToString("") { b -> "%02x".format(b) }.take(32)
+        }
+        return when (val r = api.redeem(code, requestId, token)) {
+            is AuthApi.Result.Ok -> RedeemOutcome.Ok(
+                grantedDays = r.body["granted_days"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() } ?: 0,
+                proUntil = r.body["pro_until"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toLongOrNull() },
+                duplicated = r.body["duplicated"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content == "true" } == true,
+            )
+            is AuthApi.Result.Denied -> when (r.code) {
+                401 -> RedeemOutcome.NeedLogin
+                404 -> RedeemOutcome.Invalid
+                else -> RedeemOutcome.Rejected(r.message)
+            }
+            is AuthApi.Result.Network -> RedeemOutcome.Offline
+        }
+    }
+
+    sealed class RedeemOutcome {
+        data class Ok(val grantedDays: Int, val proUntil: Long?, val duplicated: Boolean) : RedeemOutcome()
+        object Invalid : RedeemOutcome()
+        data class Rejected(val msg: String) : RedeemOutcome()
+        object Offline : RedeemOutcome()
+        object NeedLogin : RedeemOutcome()
+    }
+
     /** 登录：网络/密码错/需激活/停用分别归类；成功后恢复被拦动作由 UI 层调 afterAuthSuccess。 */
     suspend fun login(username: String, password: String, deviceName: String, activationCode: String = ""): LoginOutcome {
         val r = api.login(username, password, store.deviceId, deviceName, activationCode)

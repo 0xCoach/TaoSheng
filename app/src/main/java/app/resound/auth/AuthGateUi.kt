@@ -1,4 +1,4 @@
-package app.resound.auth
+﻿package app.resound.auth
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -185,6 +185,7 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
             Text("本机数据已归属当前账号", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (loggedIn) MembershipCard()
         var showDevices by remember { mutableStateOf(false) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (status == AuthStatus.Guest) {
@@ -195,6 +196,73 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
             }
         }
         if (showDevices) AuthDevicesList()
+    }
+}
+
+/** 会员中心：套餐 / 本月额度 / 兑换码。数据来自服务端视图或受约束的离线缓存。 */
+@Composable
+private fun MembershipCard() {
+    val scope = rememberCoroutineScope()
+    var tick by remember { mutableStateOf(0) } // sync/redeem 后强制重读
+    var syncNote by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务，显示为离线缓存"
+        runCatching { AppGraph.membership.flush() }
+        tick++
+    }
+    @Suppress("UNUSED_EXPRESSION") tick
+    val view = AppGraph.membership.cachedView
+    val pro = AppGraph.membership.isPro()
+    val used = AppGraph.membership.usedMinutes()
+    val limit = AppGraph.membership.freeLimit()
+    val remaining = AppGraph.membership.remainingMinutes()
+    val fmt = { m: Double -> if (m >= 60) "%.1f 小时".format(m / 60) else "%.0f 分钟".format(m) }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        HorizontalDivider()
+        Text("会员", style = MaterialTheme.typography.labelLarge)
+        if (pro) {
+            val until = view?.proUntil?.let { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(it * 1000)) }
+            Text("Pro 会员" + (until?.let { " · 到期 $it" } ?: ""), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary)
+            Text("本地转写不限时长", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text("免费版 · 每月 ${fmt(limit)} 转写额度", style = MaterialTheme.typography.bodyMedium)
+            Text("本月已用 ${fmt(used)} · 剩余 ${fmt(remaining)}", style = MaterialTheme.typography.bodySmall,
+                color = if (remaining <= 0.0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+            if (remaining <= 0.0) Text("免费额度已用完：新转写已暂停，录音与保存不受影响；下月恢复或兑换 Pro",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+        AppGraph.membership.lastSyncAt.takeIf { it > 0 }?.let {
+            Text("上次同步 " + java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it)),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        syncNote?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        var code by remember { mutableStateOf("") }
+        var msg by remember { mutableStateOf<String?>(null) }
+        var busy by remember { mutableStateOf(false) }
+        OutlinedTextField(code, { code = it; msg = null }, Modifier.fillMaxWidth(),
+            label = { Text("兑换码") }, singleLine = true)
+        msg?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+            color = if (it.startsWith("兑换成功")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(enabled = !busy && code.isNotBlank(), onClick = {
+                busy = true; msg = null
+                scope.launch {
+                    msg = when (val r = AppGraph.auth.redeem(code.trim())) {
+                        is AuthGate.RedeemOutcome.Ok ->
+                            if (r.duplicated) "该码你已兑换过（${r.grantedDays} 天）"
+                            else { AppGraph.membership.sync(); tick++; "兑换成功：Pro +${r.grantedDays} 天" }
+                        is AuthGate.RedeemOutcome.Invalid -> "兑换码无效"
+                        is AuthGate.RedeemOutcome.Rejected -> "兑换失败：${r.msg}"
+                        is AuthGate.RedeemOutcome.Offline -> "网络不通，兑换需要联网"
+                        is AuthGate.RedeemOutcome.NeedLogin -> "请先登录"
+                    }
+                    busy = false
+                }
+            }) { Text(if (busy) "兑换中…" else "兑换") }
+            TextButton(onClick = { scope.launch { syncNote = null; if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务"; tick++ } }) { Text("刷新") }
+        }
     }
 }
 

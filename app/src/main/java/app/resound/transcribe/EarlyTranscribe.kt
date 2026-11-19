@@ -44,5 +44,7 @@ object PipelineTimes {
     fun dump(context: Context): String =
         context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString(KEY, "")!!
             .lines().filter { it.isNotBlank() }.joinToString("\n") { "流水线 $it" } + "\n" +
-            context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString("segments073", "").orEmpty() + "\n" + TranscribePowerDiagnostics.dump(context)
+            // 卡 210：导出只写最近 60 段（原先 300 段整段写出）
+            context.getSharedPreferences("pipeline-times", Context.MODE_PRIVATE).getString("segments073", "").orEmpty()
+                .lines().filter { it.isNotBlank() }.takeLast(60).joinToString("\n") + "\n" + TranscribePowerDiagnostics.dump(context)
 }

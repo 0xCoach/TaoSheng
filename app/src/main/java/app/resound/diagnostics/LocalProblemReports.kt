@@ -32,7 +32,7 @@ internal class LocalProblemReports(
     override suspend fun export(): File = withContext(Dispatchers.IO) {
         @Suppress("DEPRECATION") val installed = context.packageManager.getPackageInfo(context.packageName, 0)
         val at = Instant.now()
-        val diagnostics = stats.exportDiagnostics()
+        val diagnostics = stats.exportDiagnostics(includeUpdate = false)
         val envDiagnostics = if (app.resound.AppGraph.isEnvSoundReady)
             (app.resound.AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.diagnostics().orEmpty() else ""
         val content = try {

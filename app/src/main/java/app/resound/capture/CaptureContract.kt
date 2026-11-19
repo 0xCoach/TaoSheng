@@ -108,7 +108,8 @@ interface CaptureStatsRepository {
     fun watchdogEvents(date: LocalDate): Flow<List<WatchdogEvent>>
 
     /** 把最近几天的守护记录和统计导出成一个文本文件，方便发给开发排查 */
-    suspend fun exportDiagnostics(): File
+    /** includeUpdate=false：嵌进问题记录时用，问题记录自己带更新诊断（卡 210 去重） */
+    suspend fun exportDiagnostics(includeUpdate: Boolean = true): File
 }
 
 /** 小米设置引导中的一项 */

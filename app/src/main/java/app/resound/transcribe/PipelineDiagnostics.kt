@@ -68,7 +68,7 @@ internal class PipelineDiagnostics(private val context: Context) {
         val bucket = runCatching { context.getSystemService(UsageStatsManager::class.java).appStandbyBucket }.getOrNull()
         val battery = runCatching { context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName) }.getOrNull()
         "系统=${system.label} 信号=$signals 待机分组=$bucket 忽略电池优化=$battery 最近系统周期派发=${periodicAt.value}\n" +
-            BackgroundRecords.summary(current) + "\n" + current.joinToString("\n") {
+            BackgroundRecords.summary(current) + "\n" + current.filterIndexed { i, r -> r.result != "成功" || i >= current.size - 30 }.joinToString("\n") {
                 "时间=${it.at} 来源=${it.source} 模式=${it.mode} 等锁=${it.lockWaitMillis}ms 应到=${it.dueAt} 结果=${it.result} 耗时=${it.durationMillis}ms " +
                     listOf("转写", "声纹", "整理").joinToString(" ") { stage -> "$stage=${it.stages[stage] ?: 0}ms" } +
                     " 原因=${it.reason}"

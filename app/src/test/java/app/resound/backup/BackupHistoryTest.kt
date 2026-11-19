@@ -87,6 +87,8 @@ class BackupHistoryTest {
         val saved=restored(old.name);assertEquals("before",title(saved));assertEquals("after",title(restored(points.first().name)))
         assertEquals("old",JSONObject(File(saved,"settings.json").readText()).getJSONObject("ui").getJSONObject("theme").getString("value"))
         assertEquals(result.lastUploadBytes,HistoryVolumes.summary(store,work(),null)!!.lastUploadBytes)
+        // 卡 210：概况带最早一天，界面写“记录跨 N 天（最早某年某月）”
+        assertEquals("2026-10-23",result.firstDay);assertEquals("2026-10-23",HistoryVolumes.summary(store,work(),null)!!.firstDay)
         writes.clear();sync();assertEquals(1,writes.count(::objectPath)) // 无变化只写状态
     }
 

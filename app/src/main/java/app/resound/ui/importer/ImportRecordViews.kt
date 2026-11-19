@@ -192,7 +192,10 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
                     if (ok) onDismiss()
                 }
             }
-            Text("录音、原话、整理出的事和待办、纪要会一起删除，无法恢复。", style = RsType.caption, color = c.textTertiary)
+            // 卡 210：删的只是涛声里的副本和结果；文件夹（如通话录音）只有读权限，原录音从不动，删后回到“未转写”可再转
+            val fromFolder by remember(r.id) { AppGraph.folderRecordings.byImport(r.id) }.collectAsStateWithLifecycle(initialValue = null)
+            Text(if (fromFolder != null) "原话、整理出的事和待办、纪要会删除，涛声里存的录音副本也删掉。手机里的原录音不动，这条会回到“未转写”，想要可以再转。"
+                else "涛声里存的录音、原话、整理出的事和待办、纪要会一起删除，无法恢复；你分享进来的原文件不受影响。", style = RsType.caption, color = c.textTertiary)
         }
     }
 }

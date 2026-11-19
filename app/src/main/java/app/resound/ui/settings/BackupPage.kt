@@ -248,11 +248,12 @@ private fun RestoreSheet(b: app.resound.backup.RemoteBackup, restore: suspend (S
 }
 
 
-/** 概况一句话：共几天 · 合计多大 · 上次几点、传了多少 */
+/** 概况一句话：记录跨几天（最早哪月）· 合计多大 · 上次几点、传了多少 */
 private fun summaryLine(sum: app.resound.backup.BackupSummary?, lastAt: Long?, lastBytes: Long?): String {
     val success = latestBackupSuccess(sum, lastAt, lastBytes)
     return listOfNotNull(
-        sum?.let { "共 ${it.days} 天的记录" }, sum?.let { "合计 ${formatBytes(it.bytes)}" },
+        sum?.let { s -> "记录跨 ${s.days} 天" + (s.firstDay?.let { d -> runCatching { java.time.LocalDate.parse(d) }.getOrNull() }
+            ?.let { "（最早 ${it.year}年${it.monthValue}月）" } ?: "") }, sum?.let { "合计 ${formatBytes(it.bytes)}" },
         success.at?.let { "最近成功 ${dateTime(it)}" }, success.uploadedBytes?.let { "传了 ${formatBytes(it)}" },
     ).joinToString(" · ")
 }

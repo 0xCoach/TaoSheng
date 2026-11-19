@@ -30,3 +30,5 @@ tools/things-probe/__pycache__/
 
 # AUTH dev-only signing key (never commit)
 server/.dev/
+
+server/.wrangler/

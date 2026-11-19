@@ -375,11 +375,15 @@ async function logout(){await api("/session",null,"DELETE").catch(()=>{});csrf="
 function tab(name,btn){[...document.querySelectorAll("nav button")].forEach(b=>b.classList.remove("on"));if(btn)btn.classList.add("on");({overview,users,members,usage,codes,audit})[name]()}
 const ts=t=>t?new Date(t*1000).toLocaleString():"—";
 async function overview(){const j=await api("/overview");$("panel").innerHTML=\`<div class="card">用户 <b>\${j.users}</b> · 在期 Pro <b>\${j.pro}</b> · 可兑码 <b>\${j.codes_active}</b> · 已兑 <b>\${j.codes_redeemed}</b></div>\`}
+const CAP_CN={pro:"Pro 会员",local_asr_minutes:"本机转写时长",cross_meeting_tracking:"跨会议跟踪",advanced_project_analysis:"高级项目分析",agent_workflow:"Agent 工作流"};
+const STATUS_CN={active:"正常",disabled:"已停用",invited:"待激活"};
+const entText=e=>{const m=/^([^→]+)→?(\d+)?$/.exec(e);if(!m)return e;const n=CAP_CN[m[1]]||m[1];return n+(m[2]?" · 至 "+new Date(m[2]*1000).toLocaleDateString():" · 不限期")};
 async function users(){const j=await api("/users");
-$("panel").innerHTML=\`<div class="card"><table><tr><th>用户名</th><th>状态</th><th>权益</th><th>注册</th><th></th></tr>\${j.users.map(u=>\`<tr><td>\${u.username}</td><td>\${u.status}</td><td>\${(u.entitlements||[]).join("<br>")}</td><td>\${ts(u.created_at)}</td><td>\${u.status=="disabled"?"":'<button onclick="disableUser(\\''+u.id+'\\')">停用</button>'}</td></tr>\`).join("")}</table>
+$("panel").innerHTML=\`<div class="card"><table><tr><th>用户名</th><th>状态</th><th>权益</th><th>注册</th><th></th></tr>\${j.users.map(u=>\`<tr><td>\${u.username}</td><td>\${STATUS_CN[u.status]||u.status}</td><td>\${(u.entitlements||[]).map(e=>u.status=="disabled"?'<span style="color:#999">'+entText(e)+"（随停用不生效）</span>":entText(e)).join("<br>")||"—"}</td><td>\${ts(u.created_at)}</td><td>\${u.status=="disabled"?'<button onclick="enableUser(\\''+u.id+'\\')">启用</button>':'<button onclick="disableUser(\\''+u.id+'\\')">停用</button>'}</td></tr>\`).join("")}</table>
 <p><input id="nu" placeholder="用户名"><input id="np" type="password" placeholder="密码"><button class="pri" onclick="createUser()">创建账号</button></p><div id="umsg"></div></div>\`}
 async function createUser(){try{const j=await api("/users","POST",{username:$("nu").value,password:$("np").value});$("umsg").innerHTML='<span class="ok">已创建 '+j.username+'</span>';users()}catch(e){$("umsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 async function disableUser(id){if(!confirm("停用该账号并撤销其全部会话？"))return;await api("/users/"+id,"PATCH",{disabled:true});users()}
+async function enableUser(id){await api("/users/"+id,"PATCH",{disabled:false});users()}
 async function members(){const j=await api("/memberships");
 $("panel").innerHTML=\`<div class="card"><table><tr><th>用户</th><th>能力</th><th>来源</th><th>到期</th><th>状态</th><th></th></tr>\${j.entitlements.map(e=>\`<tr><td>\${e.username||e.user_id.slice(0,8)}</td><td>\${e.capability}</td><td>\${e.source}</td><td>\${e.expires_at?ts(e.expires_at):"不限期"}</td><td>\${e.revoked_at?"已撤销":""}</td><td>\${e.revoked_at?"":'<button onclick="revokeEnt(\\''+e.id+'\\')">撤销</button>'}</td></tr>\`).join("")}</table>
 <p><input id="mu" placeholder="用户名"><input id="md" placeholder="天数" value="30" style="width:60px"><button class="pri" onclick="grantPro()">授予 Pro</button></p><div id="mmsg"></div></div>\`}

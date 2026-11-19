@@ -111,6 +111,8 @@ class ResoundApp : Application() {
         AppGraph.capture = controller
         // AUTH：登出/会话失效 → 立即停止录音（controller.stop 只在服务活着时发 STOP，安全收尾）
         AppGraph.auth.onSessionCleared = { controller.stop() }
+        // 敲敲手势：开设置后监听加速度计；敲 N 下=录中暂停/停中恢复/未录启动
+        app.resound.capture.KnockGestureController(this, store).start()
         AppGraph.quietSchedule = quietSchedule
         AppGraph.scene = scene
         AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)

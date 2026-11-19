@@ -199,8 +199,8 @@ class McpServer(
                 val kind = arg("kind") ?: return err("缺少 kind")
                 val rid = arg("id")?.toLongOrNull() ?: return err("缺少 id")
                 when (kind) {
-                    "idea" -> db.ideas().idea(rid)?.let { "${it.title}\n${it.content}" } ?: "不存在"
-                    "decision" -> db.decisions().decision(rid)?.let { "(${it.status}) ${it.title}\n${it.detail}" } ?: "不存在"
+                    "idea" -> db.ideas().idea(rid)?.takeIf { inScope(it.projectId) }?.let { "${it.title}\n${it.content}" } ?: "不存在"
+                    "decision" -> db.decisions().decision(rid)?.takeIf { inScope(it.projectId) }?.let { "(${it.status}) ${it.title}\n${it.detail}" } ?: "不存在"
                     else -> "不支持的 kind：$kind（支持 idea/decision）"
                 }
             }

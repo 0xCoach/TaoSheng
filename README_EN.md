@@ -66,39 +66,81 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 ## ✨ Highlights
 
 ### 🎙️ Round-the-clock capture (from daytime talk to sleep talk)
-- **No hardware, every source and every call** — the phone mic works out of the box; lavalier mics, Bluetooth earbuds and DJI Mic switch automatically when plugged in or out (a Bluetooth mic yields to video playback and recording continues on the phone mic); dedicated recorders such as Omi, ADeus ESP32-C3 and the Anker / Feishu D3200 are supported (beta); your phone's own call recordings are imported automatically (party and time recognized; contacts are never read and numbers are never sent to any model).
-- **Offline transcription + on-device voiceprints** — fully offline SenseVoice (Snapdragon NPU), or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan), or any custom OpenAI-compatible ASR (per-sentence timestamps and speakers, tap to replay); on-device voiceprints tell you apart from people you know — long-press a line once and pick "who is this?"; hotword correction and voiceprint sample management.
-- **Nights: sleep, snoring and sleep talk** — leave the phone by the bed and it starts once you fall asleep, ending when you unlock, unplug or dismiss the alarm (naps, night shifts and daytime sleep windows too); a whole-night sound map marks snoring, coughs and sleep talk (sleep talk becomes text, tap to replay, swipe to correct so it learns), pinch or double-tap to zoom down to 5-second bars, long-press to read the exact time and loudness, jump to the night's loudest moment and replay it; snore pauses can be replayed and confirmed by ear; tag nights to compare what helps, and get a chart-based one-page PDF for your doctor over 7 / 30 / 90 days (for reference only, not a medical test).
-- **Footprint + screen time + ambience, stitched into a "day thread"** — where you went (footprint), which apps you used (screen-time band), what the phone played aloud (tagged "playback", never mistaken for your own words) and 9 kinds of ambient sound; every early morning the day is finalized into a "day thread" at the top of your pushed document, robust to time-zone changes.
+
+- 📱 **No hardware, every source and every call**<br>
+  The phone mic works out of the box; lavalier mics, Bluetooth earbuds and DJI Mic switch automatically when plugged in or out (a Bluetooth mic yields to video playback and recording continues on the phone mic); dedicated recorders such as Omi, ADeus ESP32-C3 and the Anker / Feishu D3200 are supported (beta); your phone's own call recordings are imported automatically (party and time recognized; contacts are never read and numbers are never sent to any model).
+
+- 🗣️ **Offline transcription + on-device voiceprints**<br>
+  Fully offline SenseVoice (Snapdragon NPU), or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan), or any custom OpenAI-compatible ASR (per-sentence timestamps and speakers, tap to replay); on-device voiceprints tell you apart from people you know — long-press a line once and pick "who is this?"; hotword correction and voiceprint sample management.
+
+- 🌙 **Nights: sleep, snoring and sleep talk**<br>
+  Leave the phone by the bed and it starts once you fall asleep, ending when you unlock, unplug or dismiss the alarm (naps, night shifts and daytime sleep windows too); a whole-night sound map marks snoring, coughs and sleep talk (sleep talk becomes text, tap to replay, swipe to correct so it learns), pinch or double-tap to zoom down to 5-second bars, long-press to read the exact time and loudness, jump to the night's loudest moment and replay it; snore pauses can be replayed and confirmed by ear; tag nights to compare what helps, and get a chart-based one-page PDF for your doctor over 7 / 30 / 90 days (for reference only, not a medical test).
+
+- 🧭 **Footprint + screen time + ambience, stitched into a "day thread"**<br>
+  Where you went (footprint), which apps you used (screen-time band), what the phone played aloud (tagged "playback", never mistaken for your own words) and 9 kinds of ambient sound; every early morning the day is finalized into a "day thread" at the top of your pushed document, robust to time-zone changes.
 
 ### 🧠 AI digest, to-dos and instant recall
-- **To-dos extracted automatically + calendar + alarm-style reminders** — promises in your words become to-dos and are marked done when you later say "sent it"; add to-dos by voice from the notification, a long-press on the app icon or the widget; week / month calendar, move all overdue to today in one tap, add to the phone calendar, and full-screen lock-screen alarms.
-- **Ask + global search, every answer cited** — ask "what did I promise Wang at the office last week?", "who borrowed the power bank?", "what was I scrolling this afternoon?"; filter by place and time, tap any answer back to the original lines; one search box across lines, events, to-dos, found things, topics and reviews on every date; repeated ideas are merged with a count.
-- **Topic recording, marks and automatic reviews** — start a meeting, training, call·interview or voice-script session in one tap (schedule, pause, pick afterwards, long meetings summarized in resumable parts, notes even when attendees aren't recognized); tap "📍 Mark" while recording or playing back to get the moments around it written up in more detail with the audio kept; daily / weekly reviews and skill cards are generated automatically.
+
+- ✅ **To-dos extracted automatically + calendar + alarm-style reminders**<br>
+  Promises in your words become to-dos and are marked done when you later say "sent it"; add to-dos by voice from the notification, a long-press on the app icon or the widget; week / month calendar, move all overdue to today in one tap, add to the phone calendar, and full-screen lock-screen alarms.
+
+- 🔍 **Ask + global search, every answer cited**<br>
+  Ask "what did I promise Wang at the office last week?", "who borrowed the power bank?", "what was I scrolling this afternoon?"; filter by place and time, tap any answer back to the original lines; one search box across lines, events, to-dos, found things, topics and reviews on every date; repeated ideas are merged with a count.
+
+- 📌 **Topic recording, marks and automatic reviews**<br>
+  Start a meeting, training, call·interview or voice-script session in one tap (schedule, pause, pick afterwards, long meetings summarized in resumable parts, notes even when attendees aren't recognized); tap "📍 Mark" while recording or playing back to get the moments around it written up in more detail with the audio kept; daily / weekly reviews and skill cards are generated automatically.
 
 ### 🔒 Privacy first, steady and frugal in the background
-- **Your data stays 100% yours** — no account, no server of ours; keys in the system Keystore; location, screen time, sleep audio and call numbers stay on the phone; original audio is deleted after 3 days by default (1–365 days, starred kept; sleep clips after 7 days unconfirmed or 90 days confirmed); "forget the last N minutes" and "don't keep this" erase everything, screen time included.
-- **Records only speech, ~0.5% battery per hour in testing** — on-device Silero VAD, silence is never recorded; a foreground service with watchdog checks and digests on your schedule (15–720 minutes) with keep-alive guidance for Huawei, Honor and HarmonyOS (including the Zhuoyitong layer); interrupted on-device transcription resumes where it stopped.
-- **Bring your own model + automatic failover** — a dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with balance checks and low-balance alerts, custom request headers (OpenCode Go built in) and LAN self-hosted models for a fully local pipeline; with several models configured, a dead, offline or out-of-credit main model fails over seamlessly.
+
+- 🛡️ **Your data stays 100% yours**<br>
+  No account, no server of ours; keys in the system Keystore; location, screen time, sleep audio and call numbers stay on the phone; original audio is deleted after 3 days by default (1–365 days, starred kept; sleep clips after 7 days unconfirmed or 90 days confirmed); "forget the last N minutes" and "don't keep this" erase everything, screen time included.
+
+- 🔋 **Records only speech, ~0.5% battery per hour in testing**<br>
+  On-device Silero VAD, silence is never recorded; a foreground service with watchdog checks and digests on your schedule (15–720 minutes) with keep-alive guidance for Huawei, Honor and HarmonyOS (including the Zhuoyitong layer); interrupted on-device transcription resumes where it stopped.
+
+- 🔀 **Bring your own model + automatic failover**<br>
+  A dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with balance checks and low-balance alerts, custom request headers (OpenCode Go built in) and LAN self-hosted models for a fully local pipeline; with several models configured, a dead, offline or out-of-credit main model fails over seamlessly.
 
 ### 🤖 Built for geeks and AI agents
-- **"Copy for agent" + incremental push to 10 channels** — the day thread, transcripts and digests (Markdown + JSON) are pushed as diffs to 10 channels, merged on your chosen interval and never touching the cloud when nothing changed; tap "Copy for agent" on a sync folder and paste it into Claude Code, Codex or similar to give it read-only access to your memory folder — delete the cloud-drive app password to revoke it any time.
-- **Your own skills + encrypted incremental backup** — meeting notes, end-of-day check-in, weekly review and mood diary out of the box; write a JSON + prompt to add your own; back up to Nutstore, WebDAV (Nextcloud, Synology…) or S3-compatible storage (Aliyun, Tencent, R2…) with passphrase encryption and 3 / 7 / 30-day versions; restore everything, settings and keys included, on a new phone.
+
+- 📤 **"Copy for agent" + incremental push to 10 channels**<br>
+  The day thread, transcripts and digests (Markdown + JSON) are pushed as diffs to 10 channels, merged on your chosen interval and never touching the cloud when nothing changed; tap "Copy for agent" on a sync folder and paste it into Claude Code, Codex or similar to give it read-only access to your memory folder — delete the cloud-drive app password to revoke it any time.
+
+- 🧩 **Your own skills + encrypted incremental backup**<br>
+  Meeting notes, end-of-day check-in, weekly review and mood diary out of the box; write a JSON + prompt to add your own; back up to Nutstore, WebDAV (Nextcloud, Synology…) or S3-compatible storage (Aliyun, Tencent, R2…) with passphrase encryption and 3 / 7 / 30-day versions; restore everything, settings and keys included, on a new phone.
 
 <details>
 <summary><b>📦 More details (keyboard dictation, imports, playback & export, widget…)</b></summary>
 
-- **More sources, finer control**
-  - **Keyboard dictation remembered (optional)** — when you dictate with your keyboard's voice input, the chat context is recorded too, so it knows which lines are yours and which are the other person's; screenshots are read in memory only and discarded.
-  - **External recordings become notes** — "Share to TaoSheng" or watch a folder (originals untouched, no duplicates; take only new, last 7 days, last 30 days or everything), transcribed as meeting / training / call·interview / normal with notes; failed transcriptions say why and can be retried, and deleting an import only removes TaoSheng's copy and results.
-  - **Playback and quiet hours** — sound the phone plays is transcribed and digested by default with its source noted; switch to transcribe-only or skip, globally or per app (e.g. skip short-video apps); set quiet hours such as nights.
-- **Playback, timeline and export**
-  - **Lyric-style player and exports** — speed control and tap-a-line replay; merge segments into one M4A with transcript and subtitles (preview before saving), or export summaries and to-dos as TXT / Markdown.
-  - **Timeline and copying** — scrub the timeline, swipe left to star, right to delete, edit in batches; copy daily / weekly reports in full, by module or by free selection with formatting and checkboxes preserved.
-- **Shortcuts and polish**
-  - **Three-minute onboarding** — each permission is explained before it's asked; on-device models prepare in the background; get a DeepSeek key in one tap (auto-detected from the clipboard) and see results from one sentence.
-  - **"TaoSheng quick" widget** — see listening and topic status, add to-dos, start a topic, pause / resume; during a topic it becomes a "Mark" button.
-  - **Settings search and visual details** — search settings by everyday words such as "battery"; a health check; true-black dark mode and large-font layouts; in-app delta updates (ModelScope mirror in China; a new version is downloaded and backed up in the background first, then one tap installs) and an offline changelog.
+- 📥 **More sources, finer control**
+
+  - **Keyboard dictation remembered (optional)**<br>
+    When you dictate with your keyboard's voice input, the chat context is recorded too, so it knows which lines are yours and which are the other person's; screenshots are read in memory only and discarded.
+
+  - **External recordings become notes**<br>
+    "Share to TaoSheng" or watch a folder (originals untouched, no duplicates; take only new, last 7 days, last 30 days or everything), transcribed as meeting / training / call·interview / normal with notes; failed transcriptions say why and can be retried, and deleting an import only removes TaoSheng's copy and results.
+
+  - **Playback and quiet hours**<br>
+    Sound the phone plays is transcribed and digested by default with its source noted; switch to transcribe-only or skip, globally or per app (e.g. skip short-video apps); set quiet hours such as nights.
+
+- ⏯️ **Playback, timeline and export**
+
+  - **Lyric-style player and exports**<br>
+    Speed control and tap-a-line replay; merge segments into one M4A with transcript and subtitles (preview before saving), or export summaries and to-dos as TXT / Markdown.
+
+  - **Timeline and copying**<br>
+    Scrub the timeline, swipe left to star, right to delete, edit in batches; copy daily / weekly reports in full, by module or by free selection with formatting and checkboxes preserved.
+
+- ⚡ **Shortcuts and polish**
+
+  - **Three-minute onboarding**<br>
+    Each permission is explained before it's asked; on-device models prepare in the background; get a DeepSeek key in one tap (auto-detected from the clipboard) and see results from one sentence.
+
+  - **"TaoSheng quick" widget**<br>
+    See listening and topic status, add to-dos, start a topic, pause / resume; during a topic it becomes a "Mark" button.
+
+  - **Settings search and visual details**<br>
+    Search settings by everyday words such as "battery"; a health check; true-black dark mode and large-font layouts; in-app delta updates (ModelScope mirror in China; a new version is downloaded and backed up in the background first, then one tap installs) and an offline changelog.
 
 </details>
 

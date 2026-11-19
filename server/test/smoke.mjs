@@ -1,6 +1,7 @@
 // 冒烟测试：内存 D1 shim 跑 worker.js 全路由，验证 auth 闭环 + ECDSA 凭证可被 SPKI 公钥验签。
 // 运行: node server/test/smoke.mjs   (Node >= 20, 无需 wrangler/D1)
 import { readFileSync } from "fs";
+import { createPublicKey, createVerify } from "crypto";
 
 const { subtle } = crypto;
 const b64 = (buf) => Buffer.from(buf).toString("base64");
@@ -92,16 +93,19 @@ const login = await tj("登录返回 account/token/license", await call("/auth/l
 
 // 3. 凭证验签（模拟安卓 LicenseVerifier：SPKI DER + SHA256withECDSA + DER 签名 base64）
 const spkiDer = readFileSync(new URL("../../app/src/main/assets/auth-license-public-key.hex", import.meta.url));
-const pubKey = await subtle.importKey("spki", spkiDer, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+const pubKey = createPublicKey({ key: spkiDer, format: "der", type: "spki" });
 const payload = JSON.parse(login.license.payload);
-const sigOk = await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pubKey, ub64(login.license.signature), new TextEncoder().encode(login.license.payload));
+// 同安卓口径 = Java SHA256withECDSA 期望 DER 签名；Node createVerify 对 EC 默认吃 DER
+const verifyDer = (payloadText, sigB64) => createVerify("SHA256")
+  .update(new TextEncoder().encode(payloadText)).verify(pubKey, Buffer.from(sigB64, "base64"));
+const sigOk = verifyDer(login.license.payload, login.license.signature);
 t("license ECDSA 验签通过(同安卓口径)", sigOk);
 const payloadOk = payload.sub === login.account.id && payload.dev === "dev-1" && payload.v === 1
   && payload.caps.includes("RECORD_AUDIO") && payload.caps.includes("MCP_ACCESS")
   && payload.exp - payload.iat === 7 * 86400;
 t("license payload 字段/能力/7天期", payloadOk);
 const forged = JSON.stringify({ ...payload, caps: [...payload.caps, "ADMIN"] });
-t("篡改 payload 验签失败", !(await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pubKey, ub64(login.license.signature), new TextEncoder().encode(forged))));
+t("篡改 payload 验签失败", !verifyDer(forged, login.license.signature));
 
 // 4. access token 状态
 const st = await j(await call("/auth/status", { headers: { authorization: "Bearer " + login.access_token } }));

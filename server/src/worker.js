@@ -51,11 +51,24 @@ async function licenseKey(env) {
     { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   return _licKey;
 }
+// WebCrypto ECDSA 输出 IEEE-P1363 裸签名（r||s，64 字节）；Java 端验签要 DER。
+function p1363ToDer(sig) {
+  const b = new Uint8Array(sig);
+  if (b.length !== 64) return b; // 非 P-256 长度原样返回，验签端自会拒绝
+  const int = (x) => {
+    let i = 0;
+    while (i < x.length - 1 && x[i] === 0 && !(x[i + 1] & 0x80)) i++;
+    const v = x.slice(i);
+    return v[0] & 0x80 ? Uint8Array.from([0, ...v]) : v;
+  };
+  const rd = int(b.slice(0, 32)), sd = int(b.slice(32, 64));
+  return Uint8Array.from([0x30, 4 + rd.length + sd.length, 0x02, rd.length, ...rd, 0x02, sd.length, ...sd]);
+}
 async function signLicense(env, payloadObj) {
   const payload = JSON.stringify(payloadObj);
   const key = await licenseKey(env);
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(payload));
-  return { payload, signature: b64(sig) };
+  return { payload, signature: b64(p1363ToDer(sig)) };
 }
 
 // ---------- Access Token：ES256 JWT，jti=session.id ----------

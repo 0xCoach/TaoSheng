@@ -24,11 +24,14 @@ class MembershipState(context: Context, private val store: AuthStore, private va
         val month: String, val used: Double, val limit: Double, val remaining: Double,
     )
 
-    /** 最近一次服务端会员视图（离线时界面展示用）。 */
+    /** 最近一次服务端会员视图（离线时界面展示用）。视图与拉取时的账号绑定——换号不继承上一账号的套餐/额度缓存。 */
     var cachedView: View?
         get() = prefs.getString("view", null)?.let {
             runCatching {
                 val o = json.parseToJsonElement(it).jsonObject
+                // 视图归属校验：无 acct 的旧缓存归属不可考——不继承给任何当前账号
+                val acct = o["acct"]?.jsonPrimitive?.contentOrNull ?: return null
+                if (acct != (store.sessionAccountId ?: "")) return null
                 View(
                     plan = o["plan"]?.jsonPrimitive?.content ?: "free",
                     proUntil = o["pro_until"]?.jsonPrimitive?.longOrNull,
@@ -43,7 +46,7 @@ class MembershipState(context: Context, private val store: AuthStore, private va
         }
         private set(v) {
             prefs.edit().putString("view", v?.let {
-                """{"plan":"${it.plan}","pro_until":${it.proUntil ?: "null"},"month":"${it.month}","used":${it.used},"limit":${it.limit},"remaining":${it.remaining},"capabilities":${it.capabilities.joinToString(",", "[", "]") { c -> "\"$c\"" }}}"""
+                """{"plan":"${it.plan}","pro_until":${it.proUntil ?: "null"},"month":"${it.month}","used":${it.used},"limit":${it.limit},"remaining":${it.remaining},"acct":"${store.sessionAccountId ?: ""}","capabilities":${it.capabilities.joinToString(",", "[", "]") { c -> "\"$c\"" }}}"""
             }).apply()
         }
 

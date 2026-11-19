@@ -56,18 +56,31 @@ class AuthGate(
     /** 快捷判断（服务/Worker/后台路径用）。 */
     fun allowed(cap: Capability): Boolean = require(cap).allowed
 
+    /** 归属类硬阻断：待确认(已登录+有数据+未绑定+未验机主) 或 数据已归他号——重弹登录面板也解决不了。 */
+    private fun ownershipIssue() = when {
+        store.boundAccountId == null && store.sessionAccountId != null &&
+            store.hasLocalData && !store.ownerVerified -> true
+        store.boundAccountId != null && store.boundAccountId != store.sessionAccountId -> true
+        else -> false
+    }
+
     /** UI 门禁：通过返回 true；未通过则登记待恢复动作并请求登录。 */
     fun requireOrPrompt(cap: Capability, action: () -> Unit): Boolean {
         val d = require(cap)
         if (d.allowed) return true
+        // 归属问题被"暂不"过：冷却期内不再自动弹（账号页仍保留绑定/隔离说明），动作照常拒绝。
+        if (ownershipIssue() && System.currentTimeMillis() - store.bindDeclinedAt < BIND_DECLINE_COOLDOWN_MS) return false
         if (d.status != AuthStatus.Disabled && d.status != AuthStatus.Expired) pendingAction = action
         else pendingAction = null
         _loginRequested.value = LoginRequest(cap, d.reason)
         return false
     }
 
-    /** 登录面板关闭（取消）：清待恢复动作与请求。 */
-    fun dismissLogin() { pendingAction = null; _loginRequested.value = null }
+    /** 登录面板关闭（取消/暂不）：清待恢复动作与请求；归属确认场景记冷却起点。 */
+    fun dismissLogin() {
+        pendingAction = null; _loginRequested.value = null
+        if (ownershipIssue()) store.bindDeclinedAt = System.currentTimeMillis()
+    }
 
     /** 登录/刷新成功后：恢复被拦动作。 */
     fun afterAuthSuccess() {
@@ -141,36 +154,45 @@ class AuthGate(
     /** 设备凭据验证通过（由 UI 层在完成系统解锁验证后调用）。 */
     fun markOwnerVerified() { store.ownerVerified = true }
 
+    /**
+     * 带令牌的调用统一入口：access 过期(15min TTL)时静默用 refresh 续期并重试一次；
+     * refresh 也被拒则 invalidate 会话。各业务调用不再各自处理令牌老化。
+     */
+    private suspend fun authed(call: suspend (String) -> AuthApi.Result): AuthApi.Result? {
+        val token = store.accessToken
+        if (token.isEmpty()) return null
+        val r = call(token)
+        if (r is AuthApi.Result.Denied && r.code == 401 && refreshNow() == RefreshOutcome.Refreshed) {
+            return store.accessToken.takeIf { it.isNotEmpty() && it != token }?.let { call(it) } ?: r
+        }
+        return r
+    }
+
     /** 登录账号可见的设备会话列表（设备管理）。 */
-    suspend fun devices(): AuthApi.Result? =
-        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.devices(it) }
+    suspend fun devices(): AuthApi.Result? = authed { api.devices(it) }
 
     /** 撤销一个设备会话（踢下线）。 */
-    suspend fun revokeDevice(sessionId: String): AuthApi.Result? =
-        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.revoke(sessionId, it) }
+    suspend fun revokeDevice(sessionId: String): AuthApi.Result? = authed { api.revoke(sessionId, it) }
 
     /** 会员视图（套餐/能力/本月用量）。 */
-    suspend fun membership(): AuthApi.Result? =
-        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.membership(it) }
+    suspend fun membership(): AuthApi.Result? = authed { api.membership(it) }
 
     /** 用量上报（服务端按 id 去重）。 */
-    suspend fun reportUsage(items: List<AuthApi.UsageItem>): AuthApi.Result? =
-        store.accessToken.takeIf { it.isNotEmpty() }?.let { api.reportUsage(items, it) }
+    suspend fun reportUsage(items: List<AuthApi.UsageItem>): AuthApi.Result? = authed { api.reportUsage(items, it) }
 
     /**
      * 兑换码核销。request_id 取「账号+规范化码」的确定性值：
      * 同一账号对同一码的重试天然幂等，响应丢失后重试不会重复发权益。
      */
     suspend fun redeem(code: String): RedeemOutcome {
-        val token = store.accessToken
-        if (token.isEmpty()) return RedeemOutcome.NeedLogin
+        if (store.accessToken.isEmpty()) return RedeemOutcome.NeedLogin
         val norm = code.uppercase().filter { it.isLetterOrDigit() }
         if (norm.length < 8) return RedeemOutcome.Invalid
         val requestId = "r:${store.sessionAccountId}:$norm".let {
             java.security.MessageDigest.getInstance("SHA-256").digest(it.toByteArray())
                 .joinToString("") { b -> "%02x".format(b) }.take(32)
         }
-        return when (val r = api.redeem(code, requestId, token)) {
+        return when (val r = authed { api.redeem(code, requestId, it) }) {
             is AuthApi.Result.Ok -> RedeemOutcome.Ok(
                 grantedDays = r.body["granted_days"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() } ?: 0,
                 proUntil = r.body["pro_until"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toLongOrNull() },
@@ -182,6 +204,7 @@ class AuthGate(
                 else -> RedeemOutcome.Rejected(r.message)
             }
             is AuthApi.Result.Network -> RedeemOutcome.Offline
+            null -> RedeemOutcome.NeedLogin
         }
     }
 
@@ -268,4 +291,9 @@ class AuthGate(
     }
 
     enum class RefreshOutcome { Refreshed, NoSession, SessionGone, Offline, Failed }
+
+    companion object {
+        /** 归属确认"暂不"后的静默期：期内被拦动作只拒绝、不再弹窗（账号页入口仍在）。 */
+        const val BIND_DECLINE_COOLDOWN_MS = 24L * 60 * 60 * 1000
+    }
 }

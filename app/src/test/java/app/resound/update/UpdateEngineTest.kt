@@ -170,6 +170,32 @@ class UpdateEngineTest {
         }
     }
 
+    /** 卡 210：进了“用系统安装器”退路后点“重试”，原先被忽略；现在应重新提交安装且不重新下载 */
+    @Test fun retryFromFallbackReinstallsWithoutDownloading() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow()
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                updater.installResult(51, diagnosticStatus = 2)
+                assertNotNull(updater.systemInstallerAvailable.value)
+                updater.download()
+                withTimeout(5000) { while (platform.installs < 2) delay(20) }
+                assertNull(updater.systemInstallerAvailable.value)
+                assertEquals(2, server.requestCount)
+            } finally { scope.cancel() }
+        }
+    }
+
     @Test fun unresolvedReturnSurvivesRestartAndIgnoresOldCancellationAfterHandoff() = runBlocking {
         MockWebServer().use { server ->
             server.start()

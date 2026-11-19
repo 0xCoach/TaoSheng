@@ -288,6 +288,19 @@ internal class UpdateEngine(
     }
 
     override fun download() { scope.launch(Dispatchers.IO) {
+        // 卡 210：安装没成（进了“用系统安装器”退路）时点“重试”，原先会被下面的条件直接忽略，怎么点都没反应。
+        // 安装包还在就清掉旧会话、重新走一次安装，不重新下载。
+        val retryInstall = gate.withLock {
+            restore()
+            val release = manifest
+            if (release == null || fallback.value == null || store.string("ready") != release.apk.sha256) return@withLock false
+            endOriginalSession()
+            store.save("fallback" to null); fallback.value = null
+            mutable.value = UpdateState.Ready(info())
+            log("install retry_from_fallback")
+            true
+        }
+        if (retryInstall) { install(); return@launch }
         gate.withLock {
             restore()
             discardDisabledPreview()
@@ -388,9 +401,11 @@ internal class UpdateEngine(
             discardDisabledPreview()
             if (manifest == null || fallback.value != null || (mutable.value is UpdateState.Installing && !waited) || store.string("ready") != manifest!!.apk.sha256) {
                 if (waited && mutable.value is UpdateState.Installing && manifest != null) mutable.value = UpdateState.Ready(info())
+                // 被忽略的点击也要留痕，否则“点了没反应”查不出原因
+                log("install ignored manifest=${manifest != null} fallback=${fallback.value != null} state=${mutable.value::class.simpleName} ready_match=${manifest?.let { store.string("ready") == it.apk.sha256 }}")
                 return@withLock
             }
-            if (!canInstall()) { mutable.value = UpdateState.Ready(info()); return@withLock }
+            if (!canInstall()) { mutable.value = UpdateState.Ready(info()); log("install ignored unknown_sources_permission"); return@withLock }
             val start = System.nanoTime()
             try {
                 try { verifyReady(apkFile()) }

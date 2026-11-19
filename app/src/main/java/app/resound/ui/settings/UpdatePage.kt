@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -147,10 +148,15 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
                 modifier = Modifier.padding(top = 6.dp).springClick { open = !open })
         }
         Spacer(Modifier.height(16.dp))
+        // 卡 210：点了“立即更新”（或“重试”“去允许”）且还停在这里，下载好、权限到位就自动接着安装，不用再点“安装”
+        var proceed by rememberSaveable(info.versionName) { mutableStateOf(false) }
+        LaunchedEffect(state, canInstall, proceed) {
+            if (proceed && state is UpdateState.Ready && canInstall) { proceed = false; updater.install() }
+        }
         when (state) {
             is UpdateState.Available -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Pill("立即更新", filled = true) { updater.download() }
+                    Pill("立即更新", filled = true) { proceed = true; updater.download() }
                     Pill("稍后", filled = false, onClick = onLater)
                     Spacer(Modifier.weight(1f))
                     Text("跳过这个版本", style = RsType.subhead, color = c.textTertiary,
@@ -160,7 +166,7 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
             is UpdateState.Downloading -> {
                 Progress(if (state.totalBytes > 0) state.doneBytes.toFloat() / state.totalBytes else 0f)
                 Spacer(Modifier.height(8.dp))
-                Text("已下载 ${formatBytes(state.doneBytes)} / ${formatBytes(state.totalBytes)}", style = RsType.caption, color = c.textTertiary)
+                Text("已下载 ${formatBytes(state.doneBytes)} / ${formatBytes(state.totalBytes)}" + if (proceed) " · 下载完自动安装" else "", style = RsType.caption, color = c.textTertiary)
             }
             is UpdateState.Assembling -> Text("正在准备安装包…", style = RsType.subhead, color = c.textSecondary)
             is UpdateState.Ready -> if (canInstall) {
@@ -170,7 +176,7 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
             } else {
                 Text("需要先允许涛声安装应用", style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))
-                Pill("去允许", filled = true, onClick = allowInstall)
+                Pill("去允许", filled = true) { proceed = true; allowInstall() }
             }
             is UpdateState.Installing -> if (state.backingUp) {
                 // 备份分步显示：本机快照很快，本机文件夹 / 坚果云备份最多等 3 分钟
@@ -189,7 +195,7 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
                 Spacer(Modifier.height(8.dp))
                 // 个别系统（如鸿蒙卓易通）里应用内安装走不通，给一条浏览器下载的退路
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Pill("重试", filled = false) { updater.download() }
+                    Pill("重试", filled = false) { proceed = true; updater.download() }
                     Pill("用浏览器下载", filled = false) {
                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_PAGE)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                     }

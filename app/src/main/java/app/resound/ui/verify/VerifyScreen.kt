@@ -138,6 +138,7 @@ fun VerifyScreen(
         if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
         item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }
         item { LinkRow("运行记录与诊断", "统计 · 守护 · 麦克风占用") { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Advanced) } }
+        item { KnockSection() }
     }
 }
 

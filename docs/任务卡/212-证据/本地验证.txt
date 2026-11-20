@@ -1,0 +1,39 @@
+卡 212 本地验证（2026-11-20）
+
+边界检查：python3 tools/check_shared.py 通过
+共用检查：:shared:check 通过；临时 init script 仅选择本卡相关测试
+Android：:app:compileDebugKotlin、:app:assembleRelease 通过
+iOS：tools/check_ios.sh 通过，shared + devices，iosArm64 + iosSimulatorArm64
+所有 Gradle：--offline -Dorg.gradle.daemon.registry.base=/tmp/taosheng-212-gradle -PskipSigningSecrets=true
+iOS 原脚本通过当前 shell 函数给 ./gradlew 补 --offline，脚本本身未修改。
+没有访问真实转写服务、GitHub 议题或手机；无推送。
+新增 15 个用例；限定范围去重 99 个，全部通过；未运行全量。
+最终用例 JUnit 执行时间合计 31.812 秒（不含编译）。
+首次失败已修复：新列插入表级主键前的冻结比较形态、重复迁移时列防重；原 driver175 夹具不变。
+接口切换清除验证结论的 3 个用例已在最终代码复测。
+
+构建输出：app-release.apk；109121841 字节
+SHA256：9450d9cc4ad4dd13a5d8fa3b442ac8e9c37fb944d3bcf70a1eb9518c0ab9a48e
+ZIP 完整性、AndroidManifest.xml、classes.dex 验证通过。
+使用 skipSigningSecrets；仅验证编译产物，不作为正式发布签名或安装验收。
+验证后按卡片要求删除各模块 build 目录及隔离 Gradle registry，APK 不留在工作区。
+
+各测试类最终结果：
+app.resound.backup.Backup212Test: 1 passed
+app.resound.backup.BackupAudit087Test: 3 passed
+app.resound.backup.PreferenceBackup190Test: 9 passed
+app.resound.data.Driver175FixturesTest: 9 passed
+app.resound.data.Index183ComparatorTest: 5 passed
+app.resound.data.Index183MigrationTest: 3 passed
+app.resound.digest.ManualTodo054Test: 13 passed
+app.resound.net.CustomAsrFormats196Test: 4 passed
+app.resound.net.CustomTranscription196Test: 5 passed
+app.resound.net.Qwen212Test: 8 passed
+app.resound.redo.Redo071Test: 16 passed
+app.resound.search.SearchHistory212Test: 1 passed
+app.resound.transcribe.Asr212Test: 3 passed
+app.resound.transcribe.CustomFormats196Test: 2 passed
+app.resound.transcribe.CustomSettings212Test: 2 passed
+app.resound.transcribe.TranscribePersistenceTest: 12 passed
+app.resound.transcribe.TranscribeSettings177Test: 1 passed
+app.resound.usage.UsageRepository177Test: 2 passed

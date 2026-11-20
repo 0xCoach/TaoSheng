@@ -11,6 +11,7 @@ internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = f
     val host = runCatching { io.ktor.http.Url(preset.baseUrl).host.lowercase() }.getOrDefault("")
     val model = preset.model.lowercase()
     val stream = body.optBoolean("stream")
+    val fixedThinking = FIXED_THINKING_RULES.firstOrNull { it.host == host && model.startsWith(it.modelPrefix) }
     fun noThinking() { body.put("thinking", Obj().put("type", "disabled")) }
     fun completionLimit(limit: Int) { body.remove("max_tokens"); body.put("max_completion_tokens", limit) }
     fun think() { body.put("thinking", Obj().put("type", "enabled")); body.put("max_tokens", NetLlmClient.THINKING_JSON_OUTPUT_TOKENS) }
@@ -34,10 +35,11 @@ internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = f
             completionLimit(if (stream) 1800 else NetLlmClient.MAX_JSON_OUTPUT_TOKENS)
         }
         // GLM-5.3 只有思考模式（官方不能关），照旧开启并放宽上限
-        host == "open.bigmodel.cn" && model.startsWith("glm-5.3") -> {
+        fixedThinking != null -> {
             body.put("temperature", 1.0).put("top_p", 0.95)
                 .put("thinking", Obj().put("type", "enabled").put("clear_thinking", false))
                 .put("max_tokens", maxOf(16_384, NetLlmClient.THINKING_JSON_OUTPUT_TOKENS))
+            if (adaptiveJson && !thinking) body.put("reasoning_effort", fixedThinking.lowEffort)
             if (stream) body.put("tool_stream", true)
         }
         // 其余 GLM-4.5 及以上（4.5/4.6/4.7…，含中转）：照“整理前先思考”开关走，以前没处理，默认在思考
@@ -78,3 +80,7 @@ internal fun isGlmHybridReasoning(model: String): Boolean {
     val minor = m.groupValues[2].toIntOrNull() ?: 0
     return major > 4 || (major == 4 && minor >= 5)
 }
+
+/** 仅登记官方域名上实测确认的“只能思考、可调强度”能力；中转地址不继承。 */
+private data class FixedThinkingRule(val host: String, val modelPrefix: String, val lowEffort: String)
+private val FIXED_THINKING_RULES = listOf(FixedThinkingRule("open.bigmodel.cn", "glm-5.3", "low"))

@@ -122,7 +122,7 @@ class ResoundApp : Application() {
         val scheduler = TranscribeScheduler(this, settings)
         transcribeScheduler = scheduler
         segmentFiles.onSaved = {
-            // 专题结束时可能还没自然分片/编码完；最后一段落盘后也立即转写，不等定时批次。
+            // 会中和结束后的专题段录完就转；仍使用调度器原有网络约束。
             if (database.topics().pendingAudio() > 0) scheduler.runNow()
             else scheduler.segmentSaved(database.transcribe().pendingMillis())
         }
@@ -252,6 +252,7 @@ class ResoundApp : Application() {
             beforeTranscribe = envSound::beforeTranscribe,
             beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
             afterSegment = { segment ->
+                app.resound.topic.TopicWork.enqueue(this)
                 if (database.transcribe().segment(segment.id).let { it.separateSpeakers != false || (it.importChannel != null && it.speakerCount != 0) }) {
                     PipelineProgress.stage(PipelineProgress.Stage.Voiceprint)
                     try { voiceprintRepository.runSegment(segment.id) }

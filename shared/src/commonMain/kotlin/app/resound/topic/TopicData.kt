@@ -45,12 +45,12 @@ data class TopicSegmentProgress(val id: Long, val status: String, val voiceprint
 interface TopicDao {
     @Transaction @Query("SELECT * FROM topics WHERE status IN ('Running', 'Paused') ORDER BY createdAt, id LIMIT 1")
     fun observeCurrent(): Flow<TopicGroup?>
-    @Query("SELECT id FROM topics WHERE status IN ('Ended', 'Summarizing') ORDER BY id")
+    @Query("SELECT id FROM topics WHERE status IN ('Running', 'Paused', 'Ended', 'Summarizing') ORDER BY id")
     fun observePendingIds(): Flow<List<Long>>
     // 先取相关时段，再走已有时间索引，避免 ORDER BY id 诱导扫描全部 segments。
     @Query("""SELECT DISTINCT s.id, s.status, s.voiceprintProcessedAt FROM topic_spans ts
         CROSS JOIN segments s INDEXED BY index_segments_startAt
-        WHERE ts.topicId IN (:ids) AND s.startAt < ts.endAt AND s.endAt > ts.startAt ORDER BY s.id""")
+        WHERE ts.topicId IN (:ids) AND s.startAt < COALESCE(ts.endAt, 9223372036854775807) AND s.endAt > ts.startAt ORDER BY s.id""")
     fun observeProgress(ids: List<Long>): Flow<List<TopicSegmentProgress>>
     /** 与 TopicEngine 的 Done 补整理判断一致；保留补落盘、恢复转写和新原话的唤醒。 */
     @Query("""SELECT t.id FROM topics t WHERE t.status = 'Done' AND EXISTS (
@@ -81,7 +81,7 @@ interface TopicDao {
     @Query("""SELECT DISTINCT l.* FROM topic_spans ts
         CROSS JOIN transcript_lines l INDEXED BY index_transcript_lines_startAt
         CROSS JOIN segments s ON s.id = l.segmentId
-        WHERE ts.topicId = :id AND l.startAt >= ts.startAt AND l.startAt < ts.endAt
+        WHERE ts.topicId = :id AND l.startAt >= ts.startAt AND l.startAt < COALESCE(ts.endAt, 9223372036854775807)
         AND s.status = 'Done' AND l.voiceInputPendingUntil IS NULL ORDER BY l.startAt, l.id""") suspend fun lines(id: Long): List<TranscriptLineEntity>
     @Query("""SELECT s.* FROM segments s WHERE EXISTS (SELECT 1 FROM topic_spans ts
         WHERE ts.topicId = :id AND s.startAt < COALESCE(ts.endAt, :now) AND s.endAt > ts.startAt) ORDER BY s.startAt, s.id""")
@@ -104,7 +104,7 @@ interface TopicDao {
     suspend fun prioritize(ids: List<Long>)
     @Query("""SELECT COUNT(*) FROM segments s WHERE s.status = 'Pending' AND EXISTS
         (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId
-        WHERE t.status IN ('Ended', 'Summarizing', 'Done') AND s.startAt < ts.endAt AND s.endAt > ts.startAt)""")
+        WHERE t.status IN ('Running', 'Paused', 'Ended', 'Summarizing', 'Done') AND s.startAt < COALESCE(ts.endAt, 9223372036854775807) AND s.endAt > ts.startAt)""")
     suspend fun pendingAudio(): Int
 }
 

@@ -5,7 +5,7 @@ import app.resound.topic.core.TopicRulesRepository
 import app.resound.platform.NowMillis
 import app.resound.platform.ZoneProvider
 import kotlinx.coroutines.CoroutineScope
-class RoomTopicRepository private constructor(private val core: TopicRulesRepository) : TopicRepository by core {
+class RoomTopicRepository private constructor(private val core: TopicRulesRepository) : TopicRepository by core, app.resound.topic.core.TopicBlockActions by core {
  constructor(db: CaptureDatabase, scope: CoroutineScope,
   now: NowMillis, zone: ZoneProvider,
   quiet: (Long,Long) -> Boolean = { _,_ -> false }, recordingEnabled: () -> Boolean = { true },

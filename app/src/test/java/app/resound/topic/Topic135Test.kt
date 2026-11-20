@@ -68,7 +68,8 @@ class Topic135Test {
             .put("conclusion", "约定提交").put("actions", JSONArray().put("提交报告")))))
         .put("todos", JSONArray()).toString(), 10, 10)
     private fun generator(request: suspend (String, String) -> LlmReply = { system, user ->
-        if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user)
+        if (system == app.resound.topic.core.TopicBlockGenerator.NORMAL_SUMMARY) LlmReply("{\"summary\":\"已确定下一步\"}", 1, 1)
+        else if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user)
     }) = TopicGenerator({ "输出 events、items JSON，事件含 from、to、title、summary。" }, ::template, request,
         hotwords = { listOf("涛声") }, now = { time })
     private fun engine(generator: TopicGenerator = generator(), ready: (Long) -> Unit = {}) = TopicEngine(db, repo, generator, now = { time }, ready = ready)
@@ -265,14 +266,17 @@ class Topic135Test {
         time = start + 200_000; repo.pause(); repo.mark(); time += 1000; repo.resume()
         time = start + 602_000; repo.end()
         val calls = mutableListOf<Pair<String, String>>()
-        val generator = generator { system, user -> calls += system to user; if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user) }
+        val generator = generator { system, user -> calls += system to user; if (system == app.resound.topic.core.TopicBlockGenerator.NORMAL_SUMMARY) LlmReply("{\"summary\":\"已确定下一步\"}", 1, 1)
+        else if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user) }
         var recording = true
-        val engine = TopicEngine(db, repo, generator, voiceprintReady = { true }, recordingPending = { _, _ -> recording }, now = { time })
+        val checkpoints = MemoryTopicCheckpoints()
+        val engine = TopicEngine(db, repo, generator, voiceprintReady = { true }, recordingPending = { _, _ -> recording }, now = { time }, checkpoints = checkpoints)
         assertTrue(engine.run()); assertTrue(calls.isEmpty())
         recording = false
         val firstSegment = db.transcribe().segment(1)
         db.transcribe().update(firstSegment.copy(voiceprintProcessedAt = null))
-        assertTrue(engine.run()); assertTrue(calls.isEmpty())
+        assertTrue(engine.run())
+        assertEquals(app.resound.topic.core.TopicBlockState.Waiting, checkpoints.read(id)!!.blocks[0]!!.state)
         db.transcribe().update(firstSegment)
         engine.run()
         val topic = db.topics().get(id)!!; assertEquals("Done", topic.row.status)
@@ -281,7 +285,10 @@ class Topic135Test {
         assertEquals(time, event.endAt)
         assertEquals(1, db.testSql.query("SELECT COUNT(*) FROM memory_events").use { it.moveToFirst(); it.getInt(0) })
         assertTrue(calls.count { !it.first.contains("必须恰好输出一张") } >= 2)
-        assertTrue(calls.filter { it.first.contains("必须恰好输出一张") }.all { it.second.contains("用户打点区间") && it.second.contains("★ 重点") && it.second.contains("项目例会") })
+        val summaries = calls.filter { it.first.contains("必须恰好输出一张") }
+        assertTrue(summaries.all { it.second.contains("项目例会") })
+        assertTrue(summaries.any { it.second.contains("用户打点区间") && it.second.contains("★ 重点") })
+        assertFalse(summaries.last { it.second.contains("按时间合成以下分块结果") }.second.contains("[L"))
         assertEquals("import_meeting", db.skills().card(topic.row.cardId!!).first()!!.skillId)
         assertEquals(601, db.memory().eventLines(event.id).first().size)
     }
@@ -359,28 +366,97 @@ class Topic135Test {
     @Test fun twoHourMeetingContinuesAfterRestartWithoutRepeatingCompletedBlocks() = runBlocking {
         val checkpoints = TopicCheckpointFiles(context)
         checkpoints.remove(1)
+        repo = RoomTopicRepository(db, scope, { time }, { "Asia/Shanghai" }, checkpoints = checkpoints)
         val start = time
         val id = repo.start(TopicKind.Meeting, "两小时会议", null).topicId!!
-        repeat(32) { n -> line(n + 1L, start + n * 225_000L, "第${n}段讨论。" + "会议内容".repeat(if (n == 0) 800 else 80)) }
+        repeat(32) { n -> line(n + 1L, start + n * 225_000L, "第${n}段讨论。" + "会议内容".repeat(80)) }
         time += 2 * 3600_000L; repo.end()
-        var fail = true; var firstNoteCalls = 0
+        var fail = true
+        val inputs = mutableListOf<Pair<String, String>>()
         val gen = generator { system, user ->
-            if (system.contains("必须恰好输出一张")) {
-                if (user.contains("第 1/")) firstNoteCalls++
-                if (fail && user.contains("第 2/")) throw LlmException(LlmError.Network)
-                cardReply()
-            } else digestReply(user)
+            inputs += system to user
+            if (fail && user.contains("第8段讨论") && system.contains("必须恰好输出一张")) throw LlmException(LlmError.Network)
+            if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user)
         }
         TopicEngine(db, repo, gen, now = { time }, checkpoints = checkpoints).run()
-        assertEquals("Failed", db.topics().get(id)!!.row.status)
-        assertTrue(checkpoints.read(id)!!.progress.notes.isNotEmpty())
-        fail = false; repo.regenerate(id)
-        val restoredStore = TopicCheckpointFiles(context)
-        TopicEngine(db, repo, gen, now = { time }, checkpoints = restoredStore).run()
         assertEquals("Done", db.topics().get(id)!!.row.status)
-        assertEquals(1, firstNoteCalls)
+        assertTrue(checkpoints.read(id)!!.progress.blocksFailed > 0)
+        val successfulFirst = inputs.filter { it.second.contains("第0段讨论") }.toList()
+        fail = false; repo.retryFailedBlocks(id)
+        val before = inputs.size
+        TopicEngine(db, repo, gen, now = { time }, checkpoints = TopicCheckpointFiles(context)).run()
+        assertEquals("Done", db.topics().get(id)!!.row.status)
+        assertTrue(inputs.drop(before).none { it in successfulFirst })
         assertEquals(32, db.memory().eventLines(db.topics().get(id)!!.row.eventId!!).first().size)
         checkpoints.remove(id)
+    }
+
+    @Test fun liveMeetingWritesOnlyBlockFilesAndEndUsesOnlyTailAndOneSummary() = runBlocking {
+        val checkpoints = MemoryTopicCheckpoints()
+        repo = RoomTopicRepository(db, scope, { time }, { "Asia/Shanghai" }, checkpoints = checkpoints)
+        val start = time
+        val id = repo.start(TopicKind.Meeting, "会中整理", 60).topicId!!
+        line(1, start + 1000)
+        var calls = 0
+        val gen = generator { system, user -> calls++; if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user) }
+        val engine = TopicEngine(db, repo, gen, now = { time }, checkpoints = checkpoints)
+        time = start + 9 * 60_000
+        engine.run()
+        assertEquals("Running", db.topics().get(id)!!.row.status)
+        assertNull(db.topics().get(id)!!.row.eventId)
+        assertTrue(db.memory().unfinishedForDigest().isEmpty())
+        assertEquals(1, checkpoints.read(id)!!.progress.blocksDone)
+        assertEquals(2, calls)
+        repo.pause(); engine.run(); assertEquals(2, calls)
+        repo.resume(); line(2, start + 10 * 60_000)
+        time = start + 12 * 60_000; repo.end(); engine.run()
+        assertEquals("Done", db.topics().get(id)!!.row.status)
+        assertEquals(5, calls)
+        repo.retryFailedBlocks(id); engine.run(); assertEquals(5, calls)
+        repo.regenerate(id); assertNull(checkpoints.read(id)); engine.run(); assertEquals(10, calls)
+        repo.delete(id); assertNull(checkpoints.read(id))
+    }
+
+    @Test fun liveTopicsLeadQueueAndSummarizeNowCanSkipRecordingStillBeingSaved() = runBlocking {
+        val checkpoints = MemoryTopicCheckpoints()
+        repo = RoomTopicRepository(db, scope, { time }, { "Asia/Shanghai" }, checkpoints = checkpoints)
+        line(1, time - 500_000, status = "Pending")
+        val id = repo.start(TopicKind.Meeting, "先整理", 60).topicId!!
+        line(2, time, status = "Pending")
+        time += 1001 // 模拟录音已经落盘，查询时刻应晚于片段起点。
+        assertEquals(listOf(2L, 1L), db.transcribe().candidates(time).map { it.id })
+        assertEquals(1, db.topics().pendingAudio())
+        time += 1000; repo.end()
+        val engine = TopicEngine(db, repo, generator(), recordingPending = { _, _ -> true }, now = { time }, checkpoints = checkpoints)
+        assertTrue(engine.run()); assertEquals("Ended", db.topics().get(id)!!.row.status)
+        repo.summarizeNow(id); engine.run()
+        val row = db.topics().get(id)!!.row
+        assertEquals("Done", row.status)
+        assertTrue(db.memory().event(row.eventId!!)!!.summary.contains("这段没整理"))
+        assertEquals(app.resound.topic.core.TopicBlockState.Skipped, checkpoints.read(id)!!.blocks.values.single().state)
+        repo.retryFailedBlocks(id)
+        assertEquals(app.resound.topic.core.TopicBlockState.Waiting, checkpoints.read(id)!!.blocks.values.single().state)
+    }
+
+    @Test fun sourceChangingDuringFinalSummaryOnlyRebuildsChangedBlock() = runBlocking {
+        val checkpoints = MemoryTopicCheckpoints()
+        val start = time
+        val id = repo.start(TopicKind.Meeting, "并发改字", 60).topicId!!
+        repeat(10) { i -> line(i + 1L, start + (i / 5) * 10 * 60_000 + i % 5 * 1000) }
+        time = start + 18 * 60_000; repo.end()
+        var changed = false; var calls = 0
+        val gen = generator { system, user ->
+            calls++
+            if (!changed && user.contains("按时间合成以下分块结果")) {
+                changed = true; db.transcribe().editLineText(2, "改为周五提交", time)
+            }
+            if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user)
+        }
+        val engine = TopicEngine(db, repo, gen, now = { time }, checkpoints = checkpoints)
+        assertTrue(engine.run()); assertEquals("Ended", db.topics().get(id)!!.row.status)
+        assertEquals(5, calls)
+        engine.run(); assertEquals("Done", db.topics().get(id)!!.row.status)
+        assertEquals(8, calls)
     }
 
     @Test fun failedRegenerationKeepsPreviousFinishedEvent() = runBlocking {
@@ -396,23 +472,25 @@ class Topic135Test {
         assertTrue(db.memory().event(db.topics().get(id)!!.row.eventId!!)!!.starred)
     }
 
-    @Test fun checkpointCannotExposeResultsAfterSourceChangedOrDeleted() = runBlocking {
-        var source: String? = "original"
-        val files = TopicCheckpointFiles(context) { source }
-        files.write(999, TopicCheckpoint("original", progress = TopicProgress(notes = mapOf("one" to "分段内容"))))
-        source = "edited"
+    @Test fun checkpointRetainsBlocksAcrossSourceChangesButRejectsStaleRevisionAndDeletion() = runBlocking {
+        var revision: Long? = 1
+        val files = TopicCheckpointFiles(context) { revision }
+        files.remove(999)
+        files.write(999, TopicCheckpoint(format = 3, revision = 1, progress = TopicProgress(notes = mapOf("one" to "分段内容"))))
+        revision = 2
+        assertEquals("分段内容", files.read(999)!!.progress.notes["one"])
+        try { files.write(999, TopicCheckpoint(format = 3, revision = 1)); fail("旧任务不能覆盖") } catch (_: TopicException) { }
+        files.write(999, TopicCheckpoint(format = 3, revision = 2))
+        revision = null; files.retain(emptySet())
         assertNull(files.read(999))
-        files.write(999, TopicCheckpoint("edited"))
-        source = null
-        assertNull(files.read(999))
-        try { files.write(999, TopicCheckpoint("edited")); fail("已删除来源不能写回") } catch (_: TopicException) { }
+        try { files.write(999, TopicCheckpoint(format = 3, revision = 2)); fail("已删除来源不能写回") } catch (_: TopicException) { }
     }
 
     @Test fun failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult() = runBlocking {
         line(1, time - 1000); val id = ended()
         engine(generator { _, _ -> throw IllegalStateException("不能写进错误的原话和名字") }).run()
         assertEquals("Failed", db.topics().get(id)!!.row.status)
-        assertEquals("本地处理未完成，请重试", db.topics().get(id)!!.row.error)
+        assertEquals("全部时间块整理失败，请重试失败块", db.topics().get(id)!!.row.error)
         repo.regenerate(id)
         engine(generator { _, user -> repo.cancel(id); digestReply(user) }).run()
         assertEquals("Cancelled", db.topics().get(id)!!.row.status)
@@ -439,8 +517,11 @@ class Topic135Test {
         val start = time; val id = repo.start(TopicKind.Normal, null, 15).topicId!!
         repeat(40) { i -> line(i + 1L, start + i * 1000) }; time += 42_000; repo.end()
         var calls = 0
-        engine(generator { _, user -> calls++; if (calls == 1) LlmReply("{\"events\":[", 1, 1) else digestReply(user) }).run()
-        assertEquals(3, calls); assertEquals("Done", db.topics().get(id)!!.row.status)
+        engine(generator { system, user -> calls++
+            if (system == app.resound.topic.core.TopicBlockGenerator.NORMAL_SUMMARY) LlmReply("{\"summary\":\"已确定下一步\"}", 1, 1)
+            else if (calls == 1) LlmReply("{\"events\":[", 1, 1) else digestReply(user)
+        }).run()
+        assertEquals(4, calls); assertEquals("Done", db.topics().get(id)!!.row.status)
         assertEquals(40, db.memory().eventLines(db.topics().get(id)!!.row.eventId!!).first().size)
     }
 }

@@ -395,8 +395,9 @@ export async function handleAi(req, env, H) {
       return json({ ok: true });
     }
     if (req.method === "DELETE" && !op) {
-      await env.DB.prepare("UPDATE ai_provider_configs SET status='disabled',is_default=0,updated_at=? WHERE id=?").bind(t2, id).run();
-      await audit(env, null, "admin.ai_provider_disable", id, req);
+      // 真删除：停用/启用由 toggle 负责；删=连密钥配置一起移除（用量记录保留 provider_id 引用不受影响）
+      await env.DB.prepare("DELETE FROM ai_provider_configs WHERE id=?").bind(id).run();
+      await audit(env, null, "admin.ai_provider_delete", id, req);
       return json({ ok: true });
     }
     if (req.method === "POST" && op === "default") {

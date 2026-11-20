@@ -454,7 +454,7 @@ async function aiAdd(){try{await api("/ai/providers","POST",{name:$("pn").value,
 async function aiTest(id,btn){btn.disabled=true;try{const j=await api("/ai/providers/"+id+"/test","POST",{});alert(j.ok?"连接成功 "+j.ms+"ms":"失败："+j.error)}finally{btn.disabled=false}}
 async function aiDefault(id){await api("/ai/providers/"+id+"/default","POST",{});aioff()}
 async function aiToggle(id){await api("/ai/providers/"+id+"/toggle","POST",{});aioff()}
-async function aiDel(id){if(!confirm("停用该服务商？"))return;await api("/ai/providers/"+id,"DELETE");aioff()}
+async function aiDel(id){if(!confirm("彻底删除该服务商及其密钥配置？不可恢复（临时停用请用「停用」）"))return;await api("/ai/providers/"+id,"DELETE");aioff()}
 async function aiAdjust(){try{await api("/ai/users/adjust","POST",{user_id:$("aju").value,points:+$("ajp").value,reason:$("ajr").value});$("amsg").innerHTML='<span class="ok">已调整</span>';aioff()}catch(e){$("amsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 // 启动恢复：sad Cookie 还在 12h 有效期内时直接取回 csrf 进主界面，刷新不再掉登录
 (async()=>{try{const r=await fetch("/console/api/session");if(!r.ok)return;const j=await r.json();csrf=j.csrf;$("login").style.display="none";$("main").style.display="";tab("overview")}catch(e){}})();

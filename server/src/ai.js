@@ -366,7 +366,7 @@ export async function handleAi(req, env, H) {
     const b = await req.json().catch(() => ({}));
     const cfg = await settings(env);
     if (!b.name || !b.api_base || !b.model) return err("name/api_base/model required");
-    if (!hostAllowed(String(b.api_base), cfg.allowed_hosts)) return err("api_base 不在允许域名内（SSRF 防护）", 403);
+    if (!hostAllowed(String(b.api_base), cfg.allowed_hosts)) return err("api_base 不在允许域名内（SSRF 防护；请先在下方「点数规则-允许域名」加入该域名并保存）", 403);
     const id = uuid();
     const keyEnc = b.api_key ? await encKey(env, String(b.api_key)) : "";
     await env.DB.prepare(
@@ -385,7 +385,7 @@ export async function handleAi(req, env, H) {
     if (req.method === "PATCH" && !op) {
       const b = await req.json().catch(() => ({}));
       const cfg = await settings(env);
-      if (b.api_base && !hostAllowed(String(b.api_base), cfg.allowed_hosts)) return err("api_base 不在允许域名内（SSRF 防护）", 403);
+      if (b.api_base && !hostAllowed(String(b.api_base), cfg.allowed_hosts)) return err("api_base 不在允许域名内（SSRF 防护；请先在下方「点数规则-允许域名」加入该域名并保存）", 403);
       const keyEnc = b.api_key ? await encKey(env, String(b.api_key)) : row.api_key_enc;
       await env.DB.prepare("UPDATE ai_provider_configs SET name=?,api_base=?,model=?,api_key_enc=?,max_input_tokens=?,max_output_tokens=?,cost_meta=?,updated_at=? WHERE id=?")
         .bind(b.name ?? row.name, (b.api_base ?? row.api_base).replace(/\/+$/, ""), b.model ?? row.model, keyEnc,

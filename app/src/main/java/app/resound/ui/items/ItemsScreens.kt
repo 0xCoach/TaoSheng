@@ -107,7 +107,7 @@ private class Tab(val name: String, val grouping: Grouping, val source: (MemoryR
 private val MEMORY_TABS = listOf(Tab("重点", Grouping.Mentioned) { flowOf(emptyList()) }, Tab("寻物", Grouping.Mentioned) { flowOf(emptyList()) }) + listOf("灵感", "关键信息", "决定", "知识").map { cat -> Tab(cat, Grouping.Mentioned) { it.items(setOf(cat), null) } } +
     Tab("卡片", Grouping.Mentioned) { flowOf(emptyList()) }
 
-private enum class TodoTab(val title: String) { Pending("待确认"), Ongoing("进行中"), Done("已完成") }
+private enum class TodoTab(val title: String) { Today("今日"), Pending("待确认"), Ongoing("进行中"), Done("已完成") }
 
 private val TASKS = setOf("待办", "约定", "备忘")
 
@@ -132,7 +132,8 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
     LaunchedEffect(pendingItems, ongoingItems, doneItems) {
         val p = pendingItems; val o = ongoingItems; val d = doneItems
         if (decided || p == null || o == null || d == null) return@LaunchedEffect
-        tabIndex = when { p.isNotEmpty() -> 0; o.isNotEmpty() -> 1; d.isNotEmpty() -> 2; else -> 1 }
+        // 有待确认才跳到待确认，否则停在「今日」工作页
+        tabIndex = if (p.isNotEmpty()) 1 else 0
         pager.scrollToPage(tabIndex); decided = true
     }
     LaunchedEffect(pager.currentPage) { if (decided) tabIndex = pager.currentPage }
@@ -159,7 +160,24 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
             prefs.edit().putLong("strongSetupShown", today).apply(); setupSheet = true
         }
     }
-    val counts = listOf(pendingItems?.size, ongoingItems?.size, null)
+    val counts = listOf(null, pendingItems?.size, ongoingItems?.size, null)
+    // 「今日」工作页的数据：待跟进、会议任务、今日完成、工作总结卡
+    val workFollowups by remember { if (app.resound.AppGraph.isAssistantReady) app.resound.AppGraph.followupEngine.observeOpen() else flowOf(emptyList()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+    val workTopics by remember { if (app.resound.AppGraph.isTopicsReady) app.resound.AppGraph.topics.observeHistory() else flowOf(emptyList()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+    val workSkills = remember { app.resound.ui.skills.skillRepo() }
+    val workCards by remember(today) { workSkills.cards(today.toKotlinLocalDate()) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val todayStart = remember(today) { today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+    val dueWork = ongoingItems.orEmpty().filter { it.dueAt?.let { at -> at < todayStart + 86_400_000L } == true }.sortedBy { it.dueAt }
+    val meetingNames = remember(workTopics) {
+        workTopics.filter { it.eventId != null && it.kind in setOf(app.resound.topic.TopicKind.Meeting, app.resound.topic.TopicKind.Training, app.resound.topic.TopicKind.Call) }
+            .associate { it.eventId!! to (it.name ?: it.kind.title) }
+    }
+    val meetingTasks = ongoingItems.orEmpty().filter { it.eventId in meetingNames.keys }
+    val doneToday = doneItems.orEmpty().filter { (it.doneAt ?: it.statusChangedAt ?: 0L) >= todayStart }
+    var summaryBusy by remember { mutableStateOf<String?>(null) }
+    var openedCard by remember { mutableStateOf<app.resound.skills.SkillCard?>(null) }
 
     Box(Modifier.fillMaxSize()) {
         app.resound.ui.ScrollToTopOnReselect(listStates[pager.currentPage])
@@ -176,7 +194,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
             androidx.compose.foundation.pager.HorizontalPager(pager, Modifier.fillMaxSize().graphicsLayer { alpha = if (decided) 1f else 0f },
                 beyondViewportPageCount = 1, key = { TodoTab.entries[it].name }) { page ->
                 val tab = TodoTab.entries[page]
-                val list = when (tab) { TodoTab.Pending -> pendingItems; TodoTab.Ongoing -> ongoingItems; TodoTab.Done -> doneItems }
+                val list = when (tab) { TodoTab.Today -> null; TodoTab.Pending -> pendingItems; TodoTab.Ongoing -> ongoingItems; TodoTab.Done -> doneItems }
                 val listState = listStates[page]
                 // 随时做的：拖动时先在本地挪，松手再存；数据库发回新顺序后以它为准
                 var order by remember(list, tab) { mutableStateOf(if (tab == TodoTab.Ongoing) list.orEmpty().filter { it.dueAt == null } else emptyList()) }
@@ -190,6 +208,27 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 100.dp)) {
                     if (list != null && list.isEmpty() && tab != TodoTab.Done) item { Empty(emptyText(tab.title)) }
                     when (tab) {
+                        TodoTab.Today -> todayWork(
+                            dueWork = dueWork, meetingTasks = meetingTasks, meetingNames = meetingNames,
+                            followups = workFollowups, doneToday = doneToday, cards = workCards, summaryBusy = summaryBusy,
+                            swipe = swipe, onToggle = toggle, onBell = bell,
+                            onFollowupDone = { f -> scope.launch { app.resound.AppGraph.followupEngine.markDone(f.id) } },
+                            onRunSummary = { skillId ->
+                                scope.launch {
+                                    summaryBusy = skillId
+                                    val r = runCatching { workSkills.runNow(skillId, today.toKotlinLocalDate()) }.getOrNull()
+                                    summaryBusy = null
+                                    android.widget.Toast.makeText(bellContext, when (r) {
+                                        is app.resound.skills.SkillRunResult.Cards -> "已生成 ${r.cards.size} 张卡"
+                                        is app.resound.skills.SkillRunResult.Nothing -> r.reason
+                                        is app.resound.skills.SkillRunResult.Failed -> r.reason
+                                        null -> "生成失败，稍后再试"
+                                    }, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onOpenCard = { openedCard = it },
+                            onOpen = { opened = it },
+                        )
                         TodoTab.Pending -> {
                             val cutoff = System.currentTimeMillis() - 3 * 86_400_000L
                             val recent = list.orEmpty().filter { it.at >= cutoff }
@@ -273,6 +312,7 @@ fun TodoScreen(memory: MemoryRepository, bottomPadding: Dp) {
         ScrollTopButton(listStates[pager.currentPage], bottomPadding, lift = 76.dp)
     }
     opened?.let { item -> ItemSheet(item, memory, onOpenEvent = null) { opened = null } }
+    openedCard?.let { card -> app.resound.ui.skills.SkillCardSheet(card, workSkills) { openedCard = null } }
     if (reminders) ReminderSheet(memory) { reminders = false }
     if (setupSheet) StrongSetupSheet { setupSheet = false }
 }
@@ -282,6 +322,129 @@ private class RowSwipe(val label: (MemoryItem) -> String, val left: (MemoryItem)
     @Composable
     fun wrap(item: MemoryItem, content: @Composable () -> Unit) =
         app.resound.ui.today.SwipeRow(item.id, label(item), { left(item) }, { delete(item) }, content = content)
+}
+
+/** 「今日」工作页：今日待办 + 待跟进 + 会议任务 + 今日完成 + 工作总结，一屏看全。 */
+private fun androidx.compose.foundation.lazy.LazyListScope.todayWork(
+    dueWork: List<MemoryItem>, meetingTasks: List<MemoryItem>, meetingNames: Map<Long, String>,
+    followups: List<app.resound.followup.FollowupRow>, doneToday: List<MemoryItem>,
+    cards: List<app.resound.skills.SkillCard>, summaryBusy: String?, swipe: RowSwipe,
+    onToggle: (MemoryItem) -> Unit, onBell: (MemoryItem, Boolean) -> Unit,
+    onFollowupDone: (app.resound.followup.FollowupRow) -> Unit,
+    onRunSummary: (String) -> Unit, onOpenCard: (app.resound.skills.SkillCard) -> Unit,
+    onOpen: (MemoryItem) -> Unit,
+) {
+    item(key = "wHead") {
+        val c = Rs.colors
+        RsCard(Modifier.padding(bottom = 14.dp), padding = PaddingValues(14.dp)) {
+            Text("今天要推进的", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+            Spacer(Modifier.height(6.dp))
+            Text("${dueWork.size} 件待办 · ${followups.size} 条待跟进 · ${meetingTasks.size} 件会议任务 · 已完成 ${doneToday.size} 件",
+                style = RsType.subhead, color = c.textSecondary)
+        }
+    }
+    item(key = "wDueHead") {
+        val c = Rs.colors
+        Text("今日待办", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+    }
+    if (dueWork.isEmpty()) {
+        item(key = "wDueEmpty") { Hint("没有截止今天的事——随时做的在“进行中”") }
+    } else item(key = "wDueCard") {
+        val c = Rs.colors
+        RsCard(Modifier.padding(bottom = 16.dp), padding = PaddingValues(vertical = 2.dp)) {
+            dueWork.forEachIndexed { i, item ->
+                swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { onToggle(item) }, onBell = { onBell(item, it) }) { onOpen(item) } }
+                if (i != dueWork.lastIndex) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+            }
+        }
+    }
+    if (followups.isNotEmpty()) {
+        item(key = "wFuHead") {
+            val c = Rs.colors
+            Text("待跟进 · ${followups.size}", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 10.dp))
+        }
+        items(followups.take(6), key = { "fu${it.id}" }) { f ->
+            val c = Rs.colors
+            val kind = app.resound.followup.FollowupKind.entries.firstOrNull { it.name == f.kind }
+            RsCard(Modifier.padding(bottom = 10.dp), padding = PaddingValues(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(f.title, style = RsType.body.copy(fontWeight = FontWeight.Medium), color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(4.dp))
+                        Text(buildString {
+                            append(kind?.label ?: f.kind)
+                            if (f.remindCount > 0) append(" · 提醒${f.remindCount}次")
+                            if (kind == app.resound.followup.FollowupKind.Suggestion) append(" · 系统建议，不是承诺")
+                        }, style = RsType.caption, color = c.textTertiary)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Pill("完成", filled = true) { onFollowupDone(f) }
+                }
+            }
+        }
+    }
+    if (meetingTasks.isNotEmpty()) {
+        item(key = "wMeetHead") {
+            val c = Rs.colors
+            Text("会议任务 · ${meetingTasks.size}", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 10.dp))
+        }
+        meetingTasks.groupBy { it.eventId }.forEach { (eid, group) ->
+            item(key = "wMeet$eid") {
+                val c = Rs.colors
+                Column(Modifier.padding(bottom = 14.dp)) {
+                    Text("来自「${meetingNames[eid] ?: "会议"}」", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
+                    RsCard(padding = PaddingValues(vertical = 2.dp)) {
+                        group.forEachIndexed { i, item ->
+                            swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { onToggle(item) }, onBell = { onBell(item, it) }) { onOpen(item) } }
+                            if (i != group.lastIndex) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (doneToday.isNotEmpty()) {
+        item(key = "wDoneHead") {
+            val c = Rs.colors
+            Text("今天完成 ${doneToday.size} 件", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+        }
+        item(key = "wDoneCard") {
+            val c = Rs.colors
+            RsCard(Modifier.padding(bottom = 16.dp), padding = PaddingValues(vertical = 2.dp)) {
+                doneToday.forEachIndexed { i, item ->
+                    swipe.wrap(item) { ItemRow(item, checkable = true, onToggle = { onToggle(item) }) { onOpen(item) } }
+                    if (i != doneToday.lastIndex) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+                }
+            }
+        }
+    }
+    item(key = "wReport") {
+        val c = Rs.colors
+        val eveningCard = cards.firstOrNull { it.skillId == "evening_note" }
+        val weeklyCard = cards.firstOrNull { it.skillId == "weekly" }
+        RsCard(Modifier.padding(bottom = 16.dp), padding = PaddingValues(14.dp)) {
+            Text("工作总结", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+            Spacer(Modifier.height(6.dp))
+            if (eveningCard != null) {
+                Text(eveningCard.title.ifBlank { "收工打卡" }, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (eveningCard.summary.isNotBlank()) Text(eveningCard.summary, style = RsType.subhead, color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(6.dp))
+                Text("查看 ›", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent, modifier = Modifier.springClick { onOpenCard(eveningCard) })
+            } else {
+                Text("收工打卡：把今天的记录整理成一段总结，明天接着干", style = RsType.subhead, color = c.textSecondary)
+            }
+            weeklyCard?.let { w ->
+                Spacer(Modifier.height(6.dp))
+                Text("本周回顾 · ${w.title.ifBlank { w.skillName }} ›", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                    modifier = Modifier.springClick { onOpenCard(w) })
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill(if (summaryBusy == "evening_note") "生成中…" else "生成今日总结", filled = true) { if (summaryBusy == null) onRunSummary("evening_note") }
+                Pill(if (summaryBusy == "weekly") "生成中…" else "本周回顾", filled = false) { if (summaryBusy == null) onRunSummary("weekly") }
+            }
+        }
+    }
 }
 
 /** 记忆：按天（日期条 + 当天日记，可导出）· 按类（重点 · 寻物 · 灵感 · 关键信息 · 决定 · 知识 · 卡片）。openReview 不为空时跳到那天并打开回顾 */

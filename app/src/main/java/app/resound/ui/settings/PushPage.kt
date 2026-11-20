@@ -380,6 +380,8 @@ private fun kindColor(k: PushKind) = when (k) {
     PushKind.Email -> Color(0xFFD0743C)
     PushKind.Notion -> Color(0xFF5F5A54)
     PushKind.MarkdownFolder -> Color(0xFF7C5CC4)
+    // 卡 214：新种类（手机里的文件夹等）先走兜底色，界面细节由 Claude 随后补
+    else -> Color(0xFF5E8C61)
 }
 
 

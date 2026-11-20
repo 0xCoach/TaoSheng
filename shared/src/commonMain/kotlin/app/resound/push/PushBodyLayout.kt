@@ -31,7 +31,7 @@ object PushBodyLayout {
         // https://core.telegram.org/bots/api#html-style
         PushKind.Telegram -> body
         // SMTP 已逐行生成 HTML 的 <br>/块元素；文档通道不走消息转换。
-        PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder -> body
+        PushKind.Email, PushKind.Notion, PushKind.LocalFolder, PushKind.MarkdownFolder -> body
     }
 
     private val heading = Regex("^ {0,3}#{1,6}(?:[ \\t]+|$)")

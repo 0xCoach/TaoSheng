@@ -20,14 +20,14 @@ class RecordPushWork(context: Context, params: WorkerParameters) : CoroutineWork
 internal class RecordPushScheduler(private val context: Context) {
     fun enqueue(id: Long, at: Long, continuation: Boolean) {
         WorkManager.getInstance(context).enqueueUniqueWork("push-subscription-$id",
-            if (continuation) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.REPLACE, request(id, at)).result.get()
+            if (continuation) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.REPLACE, request(id, at, AppGraph.isPushReady && (AppGraph.push as? AndroidPushChannels)?.channels?.value?.find { it.id == id }?.kind == PushKind.LocalFolder)).result.get()
     }
     fun cancel(id: Long) { WorkManager.getInstance(context).cancelUniqueWork("push-subscription-$id") }
     companion object {
-        fun request(id: Long, at: Long) = OneTimeWorkRequestBuilder<RecordPushWork>()
+        fun request(id: Long, at: Long, local: Boolean = false) = OneTimeWorkRequestBuilder<RecordPushWork>()
             .setInputData(workDataOf("channelId" to id)).addTag("push-subscription")
             .setInitialDelay((at - System.currentTimeMillis()).coerceAtLeast(0), TimeUnit.MILLISECONDS)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(if (local) NetworkType.NOT_REQUIRED else NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
     }
 }

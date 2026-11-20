@@ -12,6 +12,7 @@ object PushFieldRules {
         PushKind.Email -> listOf(f("host", "SMTP 服务器", "如 smtp.qq.com"), f("port", "端口", "默认 465；587 使用 STARTTLS"), f("account", "账号", "完整邮箱地址"), f("password", "授权码",
             "邮箱设置中开启 SMTP 后获取", true), f("to", "收件人", "一个邮箱地址"))
         PushKind.Notion -> listOf(f("token", "Integration Token", "数据库需共享给此 Integration", true), f("databaseId", "数据库 ID", "32 位 ID 或数据库链接"))
+        PushKind.LocalFolder -> listOf(f("treeUri", "文件夹", "通过系统文件夹选择器取得持久授权"), f("displayName", "文件夹名称", "系统显示名"))
         PushKind.MarkdownFolder -> listOf(f("url", "WebDAV 地址", "默认 https://dav.jianguoyun.com/dav/"), f("account", "账号", "填坚果云账号即可，Obsidian 用 Remotely Save 等插件同步这个文件夹"),
             f("password", "应用密码", "坚果云安全选项中添加应用", true), f("folder", "文件夹", "默认 Resound-Memory；用 Obsidian 可改成库里的文件夹"))
     }

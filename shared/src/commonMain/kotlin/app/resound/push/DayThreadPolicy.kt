@@ -7,5 +7,5 @@ object DayThreadPolicy {
     fun dates(today: LocalDate, hour: Int, first: Boolean): List<LocalDate> =
         if (hour < 4) emptyList() else (1..if (first) 7 else 3).map { today.minus(it, DateTimeUnit.DAY) }
     fun mutable(date: LocalDate, today: LocalDate) = date < today && date >= today.minus(3, DateTimeUnit.DAY)
-    fun eligible(kind: PushKind, s: PushSubscription) = kind in setOf(PushKind.MarkdownFolder, PushKind.Notion, PushKind.Webhook) && s.records.isNotEmpty()
+    fun eligible(kind: PushKind, s: PushSubscription) = kind in setOf(PushKind.LocalFolder, PushKind.MarkdownFolder, PushKind.Notion, PushKind.Webhook) && s.records.isNotEmpty()
 }

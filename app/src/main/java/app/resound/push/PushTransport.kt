@@ -57,14 +57,17 @@ internal data class PushMessage(val title: String, val body: String, val topic: 
 
 /** 不跟随跳转，不保留原始异常及响应。所有多步骤请求也走同一安全 HTTP 层。 */
 internal class PushTransport(private val client: OkHttpClient = OkHttpClient(), private val smtp: SmtpSender = SmtpSender(),
-    private val now: () -> Long = System::currentTimeMillis) {
+    private val now: () -> Long = System::currentTimeMillis,
+    private val localFolder: (Map<String, String>) -> LocalFolderStorage = { throw PushFailure("文件夹不可用，请重新选择") }) {
     private val http = PushHttp(client)
     private val notion = NotionPush(http)
     private val folder = MarkdownFolderPush(http)
     internal fun syncFolder(values: Map<String, String>, state: PushSyncState, files: Map<String, String>, category: Boolean, now: Long, limit: Int = 20): SyncBatch {
         return classified(values) {
-            PushFields.validate(PushKind.MarkdownFolder, values)
-            FolderSync(linkedS3(values, client)?.let { S3FolderRemote(it, values.getValue("folder")) } ?: FolderRemote(values, http), state).run(files, category, now, limit)
+            val local = values["treeUri"] != null
+            PushFields.validate(if (local) PushKind.LocalFolder else PushKind.MarkdownFolder, values)
+            val remote = if (local) localFolder(values) else linkedS3(values, client)?.let { S3FolderRemote(it, values.getValue("folder")) } ?: FolderRemote(values, http)
+            FolderSync(remote, state).run(files, category, now, limit)
         }
     }
     internal fun deleteNotionDay(values: Map<String, String>, date: String) {
@@ -171,7 +174,7 @@ internal class PushTransport(private val client: OkHttpClient = OkHttpClient(), 
                         .apply { if (markdown) put("parse_mode", "HTML") }.body()
                 }
             }
-            PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder -> throw PushFailure("该通道需要多步发送")
+            PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder, PushKind.LocalFolder -> throw PushFailure("该通道需要多步发送")
         }
         return builder.post(body).build()
     }
@@ -181,6 +184,7 @@ internal class PushTransport(private val client: OkHttpClient = OkHttpClient(), 
             when (kind) {
                 PushKind.Email -> { PushTrace.current()?.stage = "发送"; smtp.send(values, format, message) }
                 PushKind.Notion -> notion.send(values, format, message)
+                PushKind.LocalFolder -> localFolder(values).send(format, message)
                 PushKind.MarkdownFolder -> linkedS3(values, client)?.let { S3FolderRemote(it, values.getValue("folder")).send(format, message) } ?: folder.send(values, format, message)
                 else -> {
                     val response = http.context(kind, values).execute(request(kind, format, values, message), readBody = kind != PushKind.Webhook)

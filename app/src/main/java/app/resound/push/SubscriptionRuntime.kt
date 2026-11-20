@@ -151,7 +151,7 @@ internal class SubscriptionRuntime(
                 state.json.put("destination", identity); state.save()
                 val today = day(started, zone())
                 val since = state.since(s, today, rebuild)
-                if (rebuild && channel.kind == PushKind.MarkdownFolder) { state.json.put("rebuilding", true); state.save() }
+                if (rebuild && channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) { state.json.put("rebuilding", true); state.save() }
                 val summaryOnly = !dayFinal && !manual && !state.json.optBoolean("rebuilding") && (due.optBoolean("summaryBatch") || !due.has("batchAt") && due.optLong("summaryAt")
                     .let { it > 0 && it <= started } &&
                     listOf("scheduleAt", "fullAt", "changeAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } })
@@ -163,7 +163,7 @@ internal class SubscriptionRuntime(
                 if (reminders.isNotEmpty()) {
                     sendReminders(channel, values, reminders, state, started)
                     val sentDaily = state.templates.optString(MemoryFolder.dailyPath(today))
-                    val reachedDocument = channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.Notion) ||
+                    val reachedDocument = channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder, PushKind.Notion) ||
                         reminders.all { it.text in sentDaily }
                     if (reachedDocument) change(id) { j ->
                         val sent = j.optJSONObject("reminded") ?: JSONObject()
@@ -187,7 +187,7 @@ internal class SubscriptionRuntime(
                 val preparedDays = dayThreadSource?.let { loader -> prepareDayThreads(files, state, channel, raw, today,
                     Instant.ofEpochMilli(started).atZone(zone()).hour, historical, loader) }.orEmpty()
                 if (dayThreadSource == null) applyScreenTime(files, s, today)
-                val nightWeeks = if(channel.kind in setOf(PushKind.MarkdownFolder,PushKind.Webhook)) nightWeekSource() else emptyList()
+                val nightWeeks = if(channel.kind in setOf(PushKind.MarkdownFolder,PushKind.LocalFolder,PushKind.Webhook)) nightWeekSource() else emptyList()
                 val weekFiles = nightWeeks.associate { app.resound.night.NightWeeks.path(it.weekStart) to it.markdown }
                 val oldWeeks = state.json.optJSONObject("nightWeeks") ?: JSONObject()
                 val removedWeeks = oldWeeks.keys().asSequence().filter { old -> nightWeeks.none { it.weekStart.toString()==old } }.toList()
@@ -206,7 +206,7 @@ internal class SubscriptionRuntime(
                 val description = when {
                     dayFinal && channel.kind == PushKind.Webhook -> "已检查每日线索"
                     reminderOnly -> "推了 ${reminders.size} 条提醒"
-                    channel.kind == PushKind.MarkdownFolder -> {
+                    channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder) -> {
                         // 摘要即时推只刷新已有记录中的摘要，不提前发送尚未到触发点的整理结果。
                         val outgoing = files
                         val batch = transport.syncFolder(values, state, outgoing, s.layout == FolderLayout.ByCategory, started, if (reminders.isNotEmpty()) 18 else 20)
@@ -245,7 +245,7 @@ internal class SubscriptionRuntime(
                         transport.send(channel.kind,PushFormat.Json,values,PushMessage("夜里周报已移除","",PushTopic.DailyMemory,null,started,memory=JSONObject().put("type","night_week").put("weekStart",key).put("deleted",true))).getOrThrow()
                         oldWeeks.remove(key);state.save()
                     }
-                } else if(channel.kind==PushKind.MarkdownFolder) {
+                } else if(channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) {
                     for(report in nightWeeks)if(state.templates.optString(app.resound.night.NightWeeks.path(report.weekStart))==report.markdown)oldWeeks.put(report.weekStart.toString(),sha256(report.markdown))
                     removedWeeks.filter {state.templates.optString(app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(it))).isEmpty()}.forEach {oldWeeks.remove(it)}
                     state.json.put("nightWeeks",oldWeeks);state.save()
@@ -284,7 +284,7 @@ internal class SubscriptionRuntime(
             finally { update(id, false) }
             PushDiagnostics.record(prefs, channel, PushTopic.DailyMemory, result, trace)
             update(id, false, result)
-            log(channel, (if (channel.kind == PushKind.MarkdownFolder) "同步文件夹 · " else "推送订阅 · ") + (result.getOrNull() ?: "失败"), result.map { Unit })
+            log(channel, (if (channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) "同步文件夹 · " else "推送订阅 · ") + (result.getOrNull() ?: "失败"), result.map { Unit })
             if (result.isSuccess && !dayFinal) { if (manual) queued.remove(id); plan(id, !manual) }
             else if (manual) { change(id) { it.put("batchAt", now() + 30_000) }; plan(id) }
             result
@@ -293,7 +293,7 @@ internal class SubscriptionRuntime(
     }
     private suspend fun sendReminders(channel: PushChannel, values: Map<String, String>, reminders: List<SubscriptionReminder>, state: PushSyncState, at: Long) {
         val body = reminders.joinToString("\n") { "- ${it.text}" }
-        if (channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.Notion)) {
+        if (channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder, PushKind.Notion)) {
             for (reminder in reminders) {
                 transport.send(channel.kind, channel.format, values,
                     PushMessage("待办提醒", reminder.text, PushTopic.TodoReminder, null, at)).getOrThrow()
@@ -313,7 +313,7 @@ internal class SubscriptionRuntime(
         files.keys.toList().filter { it.startsWith("daily/") }.forEach { files[it] = replaceScreenTimeSection(files.getValue(it), null) }
         files[path] = files.getValue(path).substringBefore("<!-- resound:reminders -->").trimEnd() +
             "\n\n<!-- resound:reminders -->\n## 提醒\n$body\n"
-        if (channel.kind == PushKind.MarkdownFolder) {
+        if (channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) {
             if ("README.md" !in files) files["README.md"] = MemoryFolder(date, zone()).generate(PushSnapshot(), channel.subscription).getValue("README.md")
             // 这里只改当天一份文件，其余模板原样保留。
             transport.syncFolder(values, state, files, channel.subscription.layout == FolderLayout.ByCategory, at)

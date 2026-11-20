@@ -20,6 +20,7 @@ internal class S3Client(
     private val settings: S3Settings, private val access: String, private val secret: String,
     client: OkHttpClient = OkHttpClient(), private val now: () -> Instant = Instant::now,
     private val pageSize: Int = 1000,
+    private val cancellation: kotlinx.coroutines.Job? = null,
 ) : RemoteStore {
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false)
         .callTimeout(10, TimeUnit.MINUTES).build()
@@ -34,6 +35,7 @@ internal class S3Client(
             (prefix + key).split('/').forEach { addEncodedPathSegment(S3Signing.encode(it)) }
         }
     }.build()
+    @OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
     private fun request(method: String, target: HttpUrl, body: RequestBody? = null, hash: String = S3Signing.hash(byteArrayOf()),
                         missing: Boolean = false, headers: Map<String, String> = emptyMap()): Response {
         val raw = Request.Builder().url(target).method(method, body).apply { headers.forEach { (k, v) -> header(k, v) } }.build()
@@ -41,7 +43,9 @@ internal class S3Client(
         val payload = if (settings.presetId == "obs" || endpoint.host.endsWith(".myhuaweicloud.com")) {
             require(endpoint.isHttps) { "OBS V4 请使用 HTTPS" }; "UNSIGNED-PAYLOAD"
         } else hash
-        val response = client.newCall(S3Signing.sign(raw, settings.region, access, secret, payload, now())).execute()
+        val call = client.newCall(S3Signing.sign(raw, settings.region, access, secret, payload, now()))
+        val handle = cancellation?.invokeOnCompletion(onCancelling = true, invokeImmediately = true) { if (it != null) call.cancel() }
+        val response = try { call.execute() } finally { handle?.dispose() }
         if (response.isSuccessful) return response
         val code = runCatching { xml(response.peekBody(65536).byteStream()).firstOrNull { it.first == "Code" }?.second }.onFailure {
             FailureNotes.record("backup/S3Client.kt:44", it)
@@ -60,6 +64,7 @@ internal class S3Client(
         checkSize(source.length())
         request("PUT", url(key), source.asRequestBody(), BackupArchive.sha(source)).close()
     }
+    internal fun objectLength(key: String): Long? = request("HEAD", url(key)).use { it.header("Content-Length")?.toLongOrNull() }
     internal fun putText(key: String, value: String, headers: Map<String, String> = emptyMap()) {
         val bytes = value.toByteArray(Charsets.UTF_8); checkSize(bytes.size.toLong())
         request("PUT", url(key), bytes.toRequestBody(), S3Signing.hash(bytes), headers = headers).close()

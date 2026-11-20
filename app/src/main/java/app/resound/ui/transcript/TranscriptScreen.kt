@@ -572,7 +572,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
             }
         }
     }
-    Text(if(supported) "从官方 GitHub 下载，建议连 WiFi。CPU 模型作备用，NPU 识别不可用时自动改用。" else "从官方 GitHub 下载，建议连 WiFi。",style=RsType.caption,color=c.textTertiary)
+    if(supported) Text("CPU 模型作备用，NPU 识别不可用时自动改用。",style=RsType.caption,color=c.textTertiary)
 }
 
 /** 进度文字只在任务真的在跑时才可信；排队时说明在等什么，没任务时把过时的“下载 45%”改成可重试 */

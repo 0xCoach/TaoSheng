@@ -123,7 +123,18 @@ class AndroidLlmProviders internal constructor(
     }
     internal fun listen(listener: (String?) -> Unit) = synchronized(guard) { listeners += listener }
     /** 官方 AI 就绪态变化后重发列表（hasKey 只随 publish 重算）。 */
-    internal fun refreshOfficial() = synchronized(guard) { publish(saved.value, activeId.value, null) }
+    internal fun refreshOfficial() = synchronized(guard) {
+        val wasReady = saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true
+        publish(saved.value, activeId.value, null)
+        // 登录授权就绪瞬间：当前服务商没填密钥不可用，默认切到官方 AI——
+        // 只在 false→true 沿触发，用户之后手动选回其他服务商不被覆盖。
+        if (!wasReady && officialReady()) {
+            val cur = selected()
+            if (cur.id != OFFICIAL_PROVIDER_ID && !cur.hasKey && !cur.preset().allowsEmptyKey() && !hasHeaderAuth(cur.id)) {
+                activate(OFFICIAL_PROVIDER_ID)
+            }
+        }
+    }
     private fun publish(list: List<SavedProvider>, active: String, changed: String?) {
         changed?.let(askCompatibility::changed)
         _saved.value = withOfficial(list).map { it.copy(hasKey = if (it.id == OFFICIAL_PROVIDER_ID) officialReady() else keys.has(it.id)) }

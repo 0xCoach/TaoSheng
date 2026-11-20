@@ -85,7 +85,15 @@ fun ProvidersCard(providers: LlmProviders) {
         saved.forEachIndexed { i, p ->
             if (i > 0) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
             val on = p.id == active
-            Row(Modifier.fillMaxWidth().springClick { if (!on) providers.activate(p.id) }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().springClick {
+                if (!on) {
+                    // 官方 AI 未就绪（未登录授权）时点一下不是选中一个用不了的条目，而是发起登录；
+                    // 授权成功后 officialReady 翻转，refreshOfficial 会自动把它设为当前。
+                    if (p.id == OFFICIAL_PROVIDER_ID && !p.hasKey)
+                        app.resound.AppGraph.auth.requestLogin(app.resound.auth.Capability.AiAnalysis, "官方 AI 需要登录授权后使用")
+                    else providers.activate(p.id)
+                }
+            }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(20.dp).clip(CircleShape).then(if (on) Modifier.background(c.accent) else Modifier.border(1.5.dp, c.separator, CircleShape)),
                     contentAlignment = Alignment.Center) {
                     if (on) Box(Modifier.size(8.dp).clip(CircleShape).background(c.onAccent))

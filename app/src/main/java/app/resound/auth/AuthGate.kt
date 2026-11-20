@@ -273,6 +273,35 @@ class AuthGate(
         data class Error(val msg: String) : LoginOutcome()
     }
 
+    /** 自助注册：注册即 Free 并直接落会话（服务端响应体与登录相同），成功后同走 afterAuthSuccess 回放。 */
+    suspend fun register(username: String, password: String, deviceName: String): RegisterOutcome {
+        val r = api.register(username, password, store.deviceId, deviceName)
+        return when (r) {
+            is AuthApi.Result.Ok -> {
+                val s = api.parseSession(r.body)
+                if (s != null && acceptLogin(s)) RegisterOutcome.Ok else RegisterOutcome.Error("授权凭证验签失败")
+            }
+            is AuthApi.Result.Denied -> when {
+                r.code == 409 -> RegisterOutcome.UsernameTaken
+                r.code == 429 -> RegisterOutcome.RateLimited
+                r.code == 403 -> RegisterOutcome.Closed
+                r.code == 400 -> RegisterOutcome.Invalid(r.message)
+                else -> RegisterOutcome.Error(r.message)
+            }
+            is AuthApi.Result.Network -> RegisterOutcome.Offline
+        }
+    }
+
+    sealed class RegisterOutcome {
+        object Ok : RegisterOutcome()
+        object UsernameTaken : RegisterOutcome()   // 账号名已占用
+        object RateLimited : RegisterOutcome()     // IP 注册频率超限
+        object Closed : RegisterOutcome()          // 服务端关闭了自助注册
+        object Offline : RegisterOutcome()
+        data class Invalid(val msg: String) : RegisterOutcome()  // 参数校验失败（服务端规则）
+        data class Error(val msg: String) : RegisterOutcome()
+    }
+
     /** 联网刷新一次：网络失败不降级现有凭证（离线授权照常到期前可用）。入口串行化，防并发双刷。 */
     suspend fun refreshNow(): RefreshOutcome = refreshMutex.withLock { refreshLocked() }
 

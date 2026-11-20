@@ -107,35 +107,67 @@ private fun LoginSheet(reason: String, onCancel: () -> Unit) {
     var code by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var registerMode by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // 键盘顶起/小屏时按钮必须可达：列可滚动 + imePadding 把内容抬到键盘上方（实测登录按钮曾被键盘顶出可视区）。
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("登录后使用", style = MaterialTheme.typography.titleLarge)
-        Text(reason.ifBlank { "此操作需要账号授权" }, style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+        // 登录 / 注册 页签：自助注册即 Free，注册成功直接落会话并回放被拦动作。
+        TabRow(selectedTabIndex = if (registerMode) 1 else 0, containerColor = MaterialTheme.colorScheme.surface) {
+            Tab(selected = !registerMode, onClick = { registerMode = false; error = null }, text = { Text("登录") })
+            Tab(selected = registerMode, onClick = { registerMode = true; error = null }, text = { Text("注册") })
+        }
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(if (registerMode) "注册 Free 账号" else "登录后使用", style = MaterialTheme.typography.titleLarge)
+        Text(reason.ifBlank { if (registerMode) "注册即得免费版：每月 30 小时转写 + 100 官方 AI 点" else "此操作需要账号授权" },
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(user, { user = it; error = null }, Modifier.fillMaxWidth(), label = { Text("账号") }, singleLine = true)
         OutlinedTextField(pass, { pass = it; error = null }, Modifier.fillMaxWidth(), label = { Text("密码") },
             singleLine = true, visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-        OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text("激活码（首次登录如需）") }, singleLine = true)
+        var pass2 by remember { mutableStateOf("") }
+        if (registerMode) {
+            OutlinedTextField(pass2, { pass2 = it; error = null }, Modifier.fillMaxWidth(), label = { Text("确认密码") },
+                singleLine = true, visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+        } else {
+            OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text("激活码（首次登录如需）") }, singleLine = true)
+        }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
             TextButton(onClick = onCancel, enabled = !busy) { Text("取消") }
-            Button(enabled = !busy && user.isNotBlank() && pass.isNotBlank(), onClick = {
+            Button(enabled = !busy && user.isNotBlank() && pass.isNotBlank() && (!registerMode || pass2.isNotBlank()), onClick = {
+                if (registerMode && pass != pass2) { error = "两次输入的密码不一致"; return@Button }
                 busy = true
                 scope.launch {
-                    when (val o = AppGraph.auth.login(user.trim(), pass, android.os.Build.MODEL ?: "android", code.trim())) {
-                        is AuthGate.LoginOutcome.Ok -> AppGraph.auth.afterAuthSuccess()
-                        is AuthGate.LoginOutcome.BadCredentials -> error = "账号或密码错误"
-                        is AuthGate.LoginOutcome.NeedActivation -> error = "需要激活码，请向管理员索取"
-                        is AuthGate.LoginOutcome.Disabled -> error = "账号已被停用"
-                        is AuthGate.LoginOutcome.RateLimited -> error = "尝试太频繁，请稍后再试"
-                        is AuthGate.LoginOutcome.Offline -> error = "网络不通，登录需要联网"
-                        is AuthGate.LoginOutcome.Error -> error = o.msg
+                    if (registerMode) {
+                        when (val o = AppGraph.auth.register(user.trim(), pass, android.os.Build.MODEL ?: "android")) {
+                            is AuthGate.RegisterOutcome.Ok -> AppGraph.auth.afterAuthSuccess()
+                            is AuthGate.RegisterOutcome.UsernameTaken -> error = "账号名已被占用，换一个试试"
+                            is AuthGate.RegisterOutcome.RateLimited -> error = "注册太频繁，请稍后再试"
+                            is AuthGate.RegisterOutcome.Closed -> error = "暂未开放自助注册"
+                            is AuthGate.RegisterOutcome.Offline -> error = "网络不通，注册需要联网"
+                            is AuthGate.RegisterOutcome.Invalid -> error = when {
+                                o.msg.contains("username") -> "账号名需 3~24 位字母、数字、下划线或连字符"
+                                o.msg.contains("password") -> "密码至少 8 位"
+                                else -> o.msg
+                            }
+                            is AuthGate.RegisterOutcome.Error -> error = o.msg
+                        }
+                    } else {
+                        when (val o = AppGraph.auth.login(user.trim(), pass, android.os.Build.MODEL ?: "android", code.trim())) {
+                            is AuthGate.LoginOutcome.Ok -> AppGraph.auth.afterAuthSuccess()
+                            is AuthGate.LoginOutcome.BadCredentials -> error = "账号或密码错误"
+                            is AuthGate.LoginOutcome.NeedActivation -> error = "需要激活码，请向管理员索取"
+                            is AuthGate.LoginOutcome.Disabled -> error = "账号已被停用"
+                            is AuthGate.LoginOutcome.RateLimited -> error = "尝试太频繁，请稍后再试"
+                            is AuthGate.LoginOutcome.Offline -> error = "网络不通，登录需要联网"
+                            is AuthGate.LoginOutcome.Error -> error = o.msg
+                        }
                     }
                     busy = false
                 }
-            }) { if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("登录") }
+            }) { if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(if (registerMode) "注册并登录" else "登录") }
+        }
         }
     }
 }

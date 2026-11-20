@@ -65,6 +65,16 @@ class AuthApi(
                 if (activationCode.isNotEmpty()) put("activation_code", kotlinx.serialization.json.JsonPrimitive(activationCode))
             }))
 
+    /** 自助注册：注册即 Free；返回与登录相同的会话体，客户端按登录成功同一路径落库。 */
+    suspend fun register(username: String, password: String, deviceId: String, deviceName: String) =
+        call("POST", "/auth/register", Json.encodeToString(
+            kotlinx.serialization.json.buildJsonObject {
+                put("username", kotlinx.serialization.json.JsonPrimitive(username))
+                put("password", kotlinx.serialization.json.JsonPrimitive(password))
+                put("device_id", kotlinx.serialization.json.JsonPrimitive(deviceId))
+                put("device_name", kotlinx.serialization.json.JsonPrimitive(deviceName))
+            }))
+
     suspend fun refresh(refreshToken: String) =
         call("POST", "/auth/refresh", """{"refresh_token":"${refreshToken}"}""")
 

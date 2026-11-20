@@ -60,6 +60,18 @@ class Stmt {
     }
     if (s.includes("INSERT INTO ai_usage_ledger")) return I("ai_usage_ledger", ["id", "user_id", "period_id", "request_id", "kind", "delta", "actor", "at"]);
     if (s.includes("INSERT INTO ai_point_adjustments")) return I("ai_point_adjustments", ["id", "user_id", "period_id", "points", "reason", "actor", "at"]);
+    if (s.includes("UPDATE sessions SET refresh_hash=?")) {
+      const r = this._row("sessions", x => x.id === a[5]); if (!r) return 0;
+      r.refresh_hash = a[0]; r.prev_refresh_hash = a[1]; r.prev_valid_until = a[2]; r.expires_at = a[3]; r.last_seen_at = a[4]; return 1;
+    }
+    if (s.includes("INSERT OR REPLACE INTO login_attempts")) {
+      // SQL: VALUES(?,1,?) —— count 是字面量 1，bind 只有 key+reset_at
+      const i = T.login_attempts.findIndex(x => x.key === a[0]);
+      const r = { key: a[0], count: 1, reset_at: a[1] };
+      if (i >= 0) T.login_attempts[i] = r; else T.login_attempts.push(r); return 1;
+    }
+    if (s.includes("UPDATE login_attempts SET count=?")) { const r = this._row("login_attempts", x => x.key === a[1]); if (r) r.count = a[0]; return r ? 1 : 0; }
+    if (s.includes("DELETE FROM login_attempts")) { const i = T.login_attempts.findIndex(x => x.key === a[0]); if (i >= 0) T.login_attempts.splice(i, 1); return i >= 0 ? 1 : 0; }
     if (s.includes("INSERT INTO ai_provider_configs")) return I("ai_provider_configs", ["id", "name", "api_base", "model", "api_key_enc", "max_input_tokens", "max_output_tokens", "cost_meta", "status", "is_default", "created_at", "updated_at"]);
     if (s.includes("UPDATE ai_provider_configs SET is_default=0")) { let n = 0; for (const r of T.ai_provider_configs) if (r.is_default) { r.is_default = 0; n++; } return n; }
     if (s.includes("UPDATE ai_provider_configs SET is_default=1")) { const r = this._row("ai_provider_configs", x => x.id === a[1]); if (r) { r.is_default = 1; r.status = "active"; r.updated_at = a[0]; } return r ? 1 : 0; }
@@ -77,6 +89,8 @@ class Stmt {
     if (s.includes("FROM users WHERE id=?")) return this._row("users", x => x.id === a[0]) || null;
     if (s.includes("FROM sessions WHERE id=?")) return this._row("sessions", x => x.id === a[0] && !x.revoked_at) || null;
     if (s.includes("FROM sessions WHERE refresh_hash=?")) return this._row("sessions", x => x.refresh_hash === a[0] && !x.revoked_at) || null;
+    if (s.includes("FROM sessions WHERE prev_refresh_hash=?")) return this._row("sessions", x => x.prev_refresh_hash === a[0] && !x.revoked_at && x.prev_valid_until > a[1]) || null;
+    if (s.includes("FROM login_attempts WHERE key=?")) return this._row("login_attempts", x => x.key === a[0]) || null;
     if (s.includes("MAX(expires_at)")) {
       const rows = this._rows("entitlements", x => x.user_id === a[0] && x.capability === "pro" && !x.revoked_at && (x.expires_at == null || x.expires_at > a[1]));
       return rows.length ? { e: Math.max(...rows.map(r => r.expires_at ?? Infinity)) } : { e: null };

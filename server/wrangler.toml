@@ -26,3 +26,7 @@ REFRESH_TTL_SECONDS = 2592000          # 30 天
 OFFLINE_LICENSE_DAYS = 7               # 离线授权有效期，可配置策略
 LOGIN_RATE_LIMIT = 8                   # 每账号+IP 每窗口允许失败次数
 LOGIN_RATE_WINDOW_SECONDS = 600
+OPEN_REGISTRATION = "1"                # 自助注册开关；"0" 即关（防滥用应急）
+REGISTER_RATE_LIMIT = 5                # 每 IP 每小时最多注册账号数
+REGISTER_RATE_WINDOW_SECONDS = 3600
+REFRESH_GRACE_SECONDS = 60             # refresh 轮换宽限：防响应丢失误登出

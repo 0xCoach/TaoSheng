@@ -280,19 +280,54 @@ export default {
         });
       }
 
-      // ---- 刷新（旋转 refresh token）----
+      // ---- 自助注册：注册即 Free（默认能力集），签发与登录相同的会话+离线凭证 ----
+      if (req.method === "POST" && path === "/auth/register") {
+        if (String(env.OPEN_REGISTRATION || "1") !== "1") return err("registration closed", 403);
+        const b = await req.json();
+        const username = String(b.username || "").trim();
+        if (!/^[A-Za-z0-9_][A-Za-z0-9_-]{2,23}$/.test(username)) return err("username invalid");
+        if (typeof b.password !== "string" || b.password.length < 8) return err("password too short");
+        if (b.password.length > 128) return err("password too long");
+        if (!b.device_id) return err("device_id required");
+        const ip = req.headers.get("CF-Connecting-IP") || "";
+        const rl = await rateLimit(env, `reg|${ip}`, Number(env.REGISTER_RATE_LIMIT || 5), Number(env.REGISTER_RATE_WINDOW_SECONDS || 3600));
+        if (rl.blocked) { await audit(env, null, "register.rate_limited", username, req); return err("too many attempts", 429); }
+        const exists = await env.DB.prepare("SELECT id FROM users WHERE username=?").bind(username).first();
+        if (exists) return err("username taken", 409);
+        const id = uuid();
+        const capsJson = JSON.stringify(CAPS_DEFAULT);
+        await env.DB.prepare(
+          "INSERT INTO users(id,username,pass_hash,status,capabilities,activation_code,created_at) VALUES(?,?,?,?,?,?,?)")
+          .bind(id, username, await hashPassword(b.password), "active", capsJson, null, nowS()).run();
+        const user = { id, username, capabilities: capsJson };
+        const issued = await issueSession(env, user, b.device_id, b.device_name);
+        await audit(env, id, "register.ok", b.device_id, req);
+        return json({
+          account: { id, username, capabilities: await effectiveCaps(env, user) },
+          access_token: issued.access, refresh_token: issued.refresh,
+          license: issued.license, offline_days: Number(env.OFFLINE_LICENSE_DAYS),
+        });
+      }
+
+      // ---- 刷新（旋转 refresh token；旧票在宽限期内仍可换一次，防丢包误登出）----
       if (req.method === "POST" && path === "/auth/refresh") {
         const b = await req.json();
         if (!b.refresh_token) return err("refresh_token required");
         const rh = await sha256b64(b.refresh_token);
-        const sess = await env.DB.prepare("SELECT * FROM sessions WHERE refresh_hash=? AND revoked_at IS NULL").bind(rh).first();
+        let sess = await env.DB.prepare("SELECT * FROM sessions WHERE refresh_hash=? AND revoked_at IS NULL").bind(rh).first();
+        if (!sess) {
+          // 上轮轮换后响应丢失：旧票宽限期内重放，返回新的轮换结果（不视为盗用）。
+          const prev = await env.DB.prepare("SELECT * FROM sessions WHERE prev_refresh_hash=? AND revoked_at IS NULL AND prev_valid_until>?")
+            .bind(rh, nowS()).first();
+          if (prev) sess = prev;
+        }
         if (!sess || sess.expires_at < nowS()) return err("invalid refresh token", 401);
         const user = await env.DB.prepare("SELECT * FROM users WHERE id=? AND status='active'").bind(sess.user_id).first();
         if (!user) return err("account disabled", 403);
         const refresh = b64u(crypto.getRandomValues(new Uint8Array(32)));
         const exp = nowS() + Number(env.REFRESH_TTL_SECONDS);
-        await env.DB.prepare("UPDATE sessions SET refresh_hash=?, expires_at=?, last_seen_at=? WHERE id=?")
-          .bind(await sha256b64(refresh), exp, nowS(), sess.id).run();
+        await env.DB.prepare("UPDATE sessions SET refresh_hash=?, prev_refresh_hash=?, prev_valid_until=?, expires_at=?, last_seen_at=? WHERE id=?")
+          .bind(await sha256b64(refresh), rh, nowS() + Number(env.REFRESH_GRACE_SECONDS || 60), exp, nowS(), sess.id).run();
         const lic = await signLicense(env, {
           v: 1, sub: user.id, name: user.username, dev: sess.device_id,
           caps: await effectiveCaps(env, user), pro_until: await effectiveProUntil(env, user),

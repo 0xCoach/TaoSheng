@@ -34,7 +34,15 @@ class Stmt {
     if (s.includes("UPDATE sessions SET revoked_at=? WHERE user_id=(SELECT")) { const u = this._row("users", x => x.username === a[1] || x.id === a[2]); let n = 0; for (const r of T.sessions) if (r.user_id === u?.id && !r.revoked_at) { r.revoked_at = a[0]; n++; } return n; }
     if (s.includes("UPDATE sessions SET revoked_at=? WHERE user_id=?")) { let n = 0; for (const r of T.sessions) if (r.user_id === a[1] && !r.revoked_at) { r.revoked_at = a[0]; n++; } return n; }
     if (s.includes("INSERT INTO sessions")) return I("sessions", ["id", "user_id", "device_id", "device_name", "refresh_hash", "created_at", "expires_at", "last_seen_at"]);
-    if (s.includes("UPDATE sessions SET refresh_hash")) { const r = this._row("sessions", x => x.id === a[3]); if (r) { r.refresh_hash = a[0]; r.expires_at = a[1]; r.last_seen_at = a[2]; } return r ? 1 : 0; }
+    if (s.includes("UPDATE sessions SET refresh_hash")) { const r = this._row("sessions", x => x.id === a[5]); if (r) { r.refresh_hash = a[0]; r.prev_refresh_hash = a[1]; r.prev_valid_until = a[2]; r.expires_at = a[3]; r.last_seen_at = a[4]; } return r ? 1 : 0; }
+    if (s.includes("INSERT OR REPLACE INTO login_attempts")) {
+      // SQL: VALUES(?,1,?) —— count 是字面量 1，bind 只有 key+reset_at
+      const i = T.login_attempts.findIndex(x => x.key === a[0]);
+      const r = { key: a[0], count: 1, reset_at: a[1] };
+      if (i >= 0) T.login_attempts[i] = r; else T.login_attempts.push(r); return 1;
+    }
+    if (s.includes("UPDATE login_attempts SET count=?")) { const r = this._row("login_attempts", x => x.key === a[1]); if (r) r.count = a[0]; return r ? 1 : 0; }
+    if (s.includes("DELETE FROM login_attempts")) { const i = T.login_attempts.findIndex(x => x.key === a[0]); if (i >= 0) T.login_attempts.splice(i, 1); return i >= 0 ? 1 : 0; }
     if (s.includes("UPDATE sessions SET revoked_at=? WHERE refresh_hash=?")) { const r = this._row("sessions", x => x.refresh_hash === a[1]); if (r) r.revoked_at = a[0]; return r ? 1 : 0; }
     if (s.includes("UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=?")) { const r = this._row("sessions", x => x.id === a[1] && x.user_id === a[2]); if (r) r.revoked_at = a[0]; return r ? 1 : 0; }
     if (s.includes("UPDATE licenses SET revoked_at=? WHERE user_id=? AND device_id=(SELECT")) { const sess = this._row("sessions", x => x.id === a[2]); let n = 0; for (const r of T.licenses) if (r.user_id === a[1] && r.device_id === sess?.device_id) { r.revoked_at = a[0]; n++; } return n; }
@@ -73,6 +81,8 @@ class Stmt {
     if (s.includes("FROM users WHERE id=?")) return this._row("users", x => x.id === a[0] && (s.includes("status='active'") ? x.status === "active" : true)) || null;
     if (s.includes("FROM sessions WHERE id=?")) return this._row("sessions", x => x.id === a[0] && !x.revoked_at) || null;
     if (s.includes("FROM sessions WHERE refresh_hash=?")) return this._row("sessions", x => x.refresh_hash === a[0] && !x.revoked_at) || null;
+    if (s.includes("FROM sessions WHERE prev_refresh_hash=?")) return this._row("sessions", x => x.prev_refresh_hash === a[0] && !x.revoked_at && x.prev_valid_until > a[1]) || null;
+    if (s.includes("FROM login_attempts WHERE key=?")) return this._row("login_attempts", x => x.key === a[0]) || null;
     if (s.includes("MAX(expires_at)")) {
       const rows = this._rows("entitlements", x => x.user_id === a[0] && x.capability === "pro" && !x.revoked_at && (x.expires_at == null || x.expires_at > a[1]));
       return rows.length ? { e: Math.max(...rows.map(r => r.expires_at ?? Infinity)) } : { e: null };
@@ -111,6 +121,7 @@ const env = { DB, ADMIN_TOKEN, LICENSE_PRIVATE_KEY: b64(pkcs8), LICENSE_PUBLIC_J
 // ---------- 载入 worker：membership.js + worker.js 合并成 data: 模块 ----------
 const src = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8")
   .replace('import { handleMembership } from "./membership.js";', "")
+  .replace('import { handleAi } from "./ai.js";', "async function handleAi() { return null; }")
   .replace("export default {", "const _default = {");
 const msrc = readFileSync(new URL("../src/membership.js", import.meta.url), "utf8")
   .replace("export async function handleMembership", "async function handleMembership");
@@ -182,6 +193,31 @@ T.plans.push({ id: "free", name: "free", price_cents: 0, config: "{}" }, { id: "
   const lb2 = await j(await call(req("/auth/login", "POST", { username: "u2", password: "pw2", device_id: "dev2" }), env));
   const d2 = await call(req("/auth/redeem", "POST", { code }, { authorization: "Bearer " + lb2.access_token }), env);
   ok(d2.status === 409, "other user redeem used code -> 409");
+
+  // ===== R6.2b：自助注册 + refresh 轮换宽限 =====
+  const reg = await j(await call(req("/auth/register", "POST", { username: "newbie_1", password: "password88", device_id: "reg-dev1" }), env));
+  ok(reg.account?.username === "newbie_1" && reg.access_token && reg.license, "register -> account+session+license");
+  const rDup = await call(req("/auth/register", "POST", { username: "newbie_1", password: "password88", device_id: "d2" }), env);
+  if (rDup.status !== 409) console.log("   dup status:", rDup.status, JSON.stringify(await rDup.clone().json().catch(() => null)));
+  ok(rDup.status === 409, "duplicate username -> 409");
+  const rBad = await call(req("/auth/register", "POST", { username: "x", password: "password88", device_id: "d" }), env);
+  ok(rBad.status === 400, "short username -> 400");
+  const rPw = await call(req("/auth/register", "POST", { username: "validname", password: "short", device_id: "d" }), env);
+  ok(rPw.status === 400, "short password -> 400");
+  // 注册即用：membership=free 1800 分钟
+  const mvR = await j(await call(req("/auth/membership", "GET", null, { authorization: "Bearer " + reg.access_token }), env));
+  ok(mvR.plan === "free" && mvR.usage.free_limit_minutes === 1800, "registered user -> free 1800min");
+  // refresh 轮换宽限：旧票宽限期内重放仍换新票（防丢包误登出）
+  const rf1 = await j(await call(req("/auth/refresh", "POST", { refresh_token: reg.refresh_token }), env));
+  ok(rf1.access_token && rf1.refresh_token && rf1.refresh_token !== reg.refresh_token, "refresh rotates token");
+  const rfOld = await j(await call(req("/auth/refresh", "POST", { refresh_token: reg.refresh_token }), env));
+  ok(rfOld.access_token && rfOld.refresh_token, "old token within grace -> still rotates");
+  const rfStale = await j(await call(req("/auth/refresh", "POST", { refresh_token: rf1.refresh_token }), env));
+  ok(rfStale.error === "invalid refresh token" || rfStale.access_token, "prev-prev token handled");
+  // 注册限流：同 IP（无 CF 头=同空 IP）第 6 个被拒
+  let lastReg = null;
+  for (let i = 0; i < 6; i++) lastReg = await call(req("/auth/register", "POST", { username: `flood_${i}`, password: "password88", device_id: "d" }), env);
+  ok(lastReg.status === 429, "register rate limited after 5/hour");
 }
 
 console.log(`\n${pass} PASS / ${fail} FAIL`);

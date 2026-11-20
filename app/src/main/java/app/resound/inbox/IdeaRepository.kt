@@ -105,8 +105,27 @@ class IdeaRepository(
             sourceLineId = item.lineId, sourceEventId = item.eventId, sourceText = item.sourceText)
     }
 
+    /** “记灵感”打点时片段还没转写：转写完成后把原话补回内容和来源（只动“待转写”占位卡）。 */
+    suspend fun backfillTranscribed(): Int = withContext(io) {
+        var filled = 0
+        for (idea in dao.pendingTranscriptBackfill()) {
+            val segmentId = idea.sourceSegmentId ?: continue
+            val lines = db.transcribe().linesForRedo(segmentId)
+            val text = lines.joinToString(" ") { it.text.trim() }.trim().take(300)
+            if (text.isEmpty()) continue
+            dao.update(idea.copy(title = text.take(30), content = text, sourceText = text,
+                sourceLineId = lines.firstOrNull()?.id,
+                fingerprint = IdeaRules.fingerprint(text), updatedAt = now.now()))
+            dao.insertEntry(IdeaEntryRow(ideaId = idea.id, kind = "Line", text = text, origin = "System",
+                sourceLineId = lines.firstOrNull()?.id, sourceSegmentId = segmentId, at = now.now()))
+            filled++
+        }
+        filled
+    }
+
     /** 把整理出的“灵感”提取项同步进收件箱；已删除/已合并的灵感留墓碑不再复活。返回新增数。 */
     suspend fun syncFromDigest(onEvent: suspend (key: String) -> Unit = {}): Int = withContext(io) {
+        runCatching { backfillTranscribed() }
         var added = 0
         val items = memory.inspirationItems()
         for (item in items) {

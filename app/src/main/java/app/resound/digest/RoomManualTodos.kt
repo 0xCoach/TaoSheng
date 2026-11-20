@@ -20,6 +20,8 @@ class RoomManualTodos(
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val timeoutMillis: Long = 20_000,
     private val hasBackup: (LlmPreset) -> Boolean = { false },
+    /** 落库后的钩子（如把新增的“灵感”类条目同步进灵感箱）；在同一后台任务里有序执行 */
+    private val afterAdd: suspend () -> Unit = {},
 ) : ManualTodos {
     override suspend fun draft(text: String): TodoDrafts {
         val fallback = TodoDrafts(listOf(TodoDraft("待办", "我要做", text, null, null, null)), false)
@@ -43,7 +45,7 @@ class RoomManualTodos(
         require(drafts.size in 1..5)
         val at = now()
         fun rows(lineId: Long?, recordedAt: Long? = null) = drafts.map { draft ->
-            require(draft.category in setOf("待办", "约定", "备忘") && draft.content.isNotBlank())
+            require(draft.category in setOf("待办", "约定", "备忘", "灵感") && draft.content.isNotBlank())
             require(draft.kind == null || draft.kind in setOf("我要做", "我答应别人", "别人答应我"))
             val kind = if (draft.category == "待办") draft.kind ?: "我要做" else null
             val who = draft.who?.trim()?.takeIf { it.isNotEmpty() }
@@ -62,6 +64,7 @@ class RoomManualTodos(
         scope.launch(Dispatchers.IO) {
             val lid = fromEventId?.let { dao.firstEventLineId(it) }
             dao.addManualItems(rows(lid, lid?.let { dao.lineStartAt(it) }))
+            runCatching { afterAdd() }.onFailure { FailureNotes.record("digest/RoomManualTodos.kt:afterAdd", it) }
         }
     }
 }

@@ -76,7 +76,8 @@ private fun QuickTodoFlow(onClose: () -> Unit) {
     result?.let { (drafts, origin, source) ->
         DraftSheet(drafts, source, onDismiss = onClose) { confirmed ->
             todos.add(confirmed, origin, source)
-            toast("已添加 ${confirmed.size} 条待办")
+            val ideas = confirmed.count { it.category == "灵感" }
+            toast(if (ideas > 0) "已添加，其中 $ideas 条进灵感箱" else "已添加 ${confirmed.size} 条待办")
             onClose()
         }
         return

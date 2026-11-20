@@ -1256,6 +1256,22 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                 Text("意思很像的想法会自动并成一条。并错了就点“拆开”，以后不会再并。", style = RsType.caption, color = c.textTertiary,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
+            // 这条被人工改过的历史：接受/忽略/完成/编辑/删除都留痕（memory_revisions）
+            if (app.resound.AppGraph.isReady) {
+                val revs by remember(item.id) { app.resound.AppGraph.memoryCorrector.history("item", item.id) }.collectAsStateWithLifecycle(initialValue = emptyList())
+                if (revs.isNotEmpty()) {
+                    SheetSection("修订记录")
+                    RsCard(padding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
+                        revs.take(6).forEachIndexed { i, r ->
+                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${friendlyDate(r.at)} ${app.resound.revise.RevisionOp.of(r.op).label}${r.reason?.let { " · $it" } ?: ""}",
+                                    style = RsType.caption, color = c.textSecondary)
+                            }
+                            if (i != revs.take(6).lastIndex) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(22.dp))
             if (item.status == ItemStatus.Pending) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

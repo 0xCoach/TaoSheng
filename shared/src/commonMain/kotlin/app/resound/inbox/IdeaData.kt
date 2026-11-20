@@ -114,6 +114,10 @@ abstract class IdeaDao {
     @Query("SELECT * FROM ideas WHERE sourceSegmentId = :segmentId AND createdAt > :since AND deleted = 0 LIMIT 1")
     abstract suspend fun bySourceSegmentWindow(segmentId: Long, since: Long): IdeaRow?
 
+    /** “记灵感”占位卡：片段转写完成后待补原话的（sourceText 为空且关联了片段；只认自动占位文案，不覆盖用户写的内容）。 */
+    @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND sourceText IS NULL AND sourceSegmentId IS NOT NULL AND content LIKE '标记时刻%'")
+    abstract suspend fun pendingTranscriptBackfill(): List<IdeaRow>
+
     /** 指纹精确命中：完全重复 */
     @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND fingerprint = :fingerprint AND id != :excludeId")
     abstract suspend fun sameFingerprint(fingerprint: String, excludeId: Long = 0): List<IdeaRow>

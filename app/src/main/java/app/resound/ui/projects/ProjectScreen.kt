@@ -640,6 +640,7 @@ private fun ReportSheet(run: AnalysisRunRow, onClose: () -> Unit) {
                 style = RsType.subhead, color = c.textTertiary)
             if (sources.isNotEmpty()) Text("来源依据 ${sources.size} 条：${sources.groupBy { it.first }.entries.joinToString("、") { "${it.key}×${it.value.size}" }}",
                 style = RsType.caption, color = c.textTertiary)
+            if (r.resultText.isNotBlank()) app.resound.ui.ReportCopyActions(text = { app.resound.analysis.AnalysisContract.displayText(r.resultText) })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill("重新生成", filled = false) {
                     scope.launch {

@@ -106,7 +106,10 @@ fun BoxScope.AddTodoHost(bottomPadding: Dp) {
         DraftSheet(drafts, source, onDismiss = { result = null }) { confirmed ->
             todos.add(confirmed, origin, source)
             result = null
-            Toast.makeText(context, "已添加 ${confirmed.size} 条到进行中", Toast.LENGTH_SHORT).show()
+            val ideas = confirmed.count { it.category == "灵感" }
+            Toast.makeText(context,
+                if (ideas > 0) "已添加，其中 $ideas 条进灵感箱" else "已添加 ${confirmed.size} 条到进行中",
+                Toast.LENGTH_SHORT).show()
         }
     }
 }
@@ -316,8 +319,8 @@ private class DraftState(d: TodoDraft) {
     }
 }
 
-/** 类型一行点选：待办的三种 + 约定 + 备忘 */
-private val TYPES = listOf("我要做" to "待办", "我答应别人" to "待办", "别人答应我" to "待办", "约定" to "约定", "备忘" to "备忘")
+/** 类型一行点选：待办的三种 + 约定 + 备忘 + 灵感（灵感条落 memory_items 后由灵感箱同步收编） */
+private val TYPES = listOf("我要做" to "待办", "我答应别人" to "待办", "别人答应我" to "待办", "约定" to "约定", "备忘" to "备忘", "灵感" to "灵感")
 
 /** 确认待办卡：每张可改、可删，确认后一起加进“进行中” */
 @OptIn(ExperimentalLayoutApi::class)

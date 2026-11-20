@@ -84,6 +84,14 @@ private fun copyReportText(context: android.content.Context, text: String, succe
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }
 
+private fun shareReportText(context: android.content.Context, text: String) {
+    runCatching {
+        context.startActivity(android.content.Intent.createChooser(
+            android.content.Intent(android.content.Intent.ACTION_SEND)
+                .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, text), "分享"))
+    }.onFailure { Toast.makeText(context, "没有可用来分享的应用", Toast.LENGTH_SHORT).show() }
+}
+
 private data class ReportCopySelection(val text: String, val blocks: List<ReportCopyBlock>)
 
 /** 所有报告共用：一键完整复制、按模块多选、只读全文自由选字；不静默截断。 */
@@ -97,6 +105,7 @@ internal fun ReportCopyActions(blocks: () -> List<ReportCopyBlock> = { emptyList
                 copyReportText(context, text(), "已复制全部内容")
             }
             ActionButton("选择部分内容", ActionKind.Secondary, Modifier.weight(1f)) { selecting = ReportCopySelection(text(), blocks()) }
+            ActionButton("分享", ActionKind.Secondary) { shareReportText(context, text()) }
         }
     }
     selecting?.let { document ->

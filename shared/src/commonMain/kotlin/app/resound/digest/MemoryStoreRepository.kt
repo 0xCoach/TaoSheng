@@ -201,7 +201,12 @@ class MemoryStoreRepository(
         }.flowOn(io)
     }
 
-    override fun setItemStatus(id: Long, status: ItemStatus) { scope.launch { dao.setItemStatus(id, status.name, now.now()) } }
+    override fun setItemStatus(id: Long, status: ItemStatus) { scope.launch {
+        val before = dao.itemIncludingDeleted(id)
+        dao.setItemStatus(id, status.name, now.now())
+        if (before != null && before.status != status.name) revise("item", id, app.resound.revise.RevisionOp.Edit,
+            snap(before.content, before.status), snap(before.content, status.name))
+    } }
 
     override fun setImportant(eventId: Long, important: Boolean) = setStarred(eventId, important)
 

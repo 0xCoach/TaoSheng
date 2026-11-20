@@ -36,3 +36,5 @@ server/.wrangler/
 server/.dev.vars
 
 .backup/
+
+dist/

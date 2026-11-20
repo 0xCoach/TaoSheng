@@ -75,4 +75,25 @@ class IdeaAppendTest {
         repo.dismissDuplicate(a, b)
         assertTrue(repo.duplicatesOf(a).none { it.id == b })
     }
+
+    @Test fun markMomentBackfillsTranscriptWhenLinesArrive() = runBlocking {
+        // 记灵感时片段还没转写：只有占位文字和片段号
+        val seg = 7L
+        db.capture().segment(app.resound.data.SegmentEntity(seg, now - 3000, now, "mic", "s.ogg", 1, "Done"))
+        val id = repo.markMoment(seg, now)
+        assertTrue(db.ideas().idea(id)!!.content.contains("待转写"))
+        assertNull(db.ideas().idea(id)!!.sourceText)
+        // 片段转写完成：还没有原话时不回填，有了就补内容+来源+轨迹
+        assertEquals(0, repo.backfillTranscribed())
+        db.transcribe().insertLines(listOf(
+            app.resound.data.TranscriptLineEntity(11, seg, now - 2500, now - 2000, "做个共享充电宝", null, "我"),
+            app.resound.data.TranscriptLineEntity(12, seg, now - 1500, now - 500, "在写字楼铺点位", null, "我")))
+        assertEquals(1, repo.backfillTranscribed())
+        val idea = db.ideas().idea(id)!!
+        assertTrue(idea.content.contains("共享充电宝"))
+        assertEquals(11L, idea.sourceLineId); assertNotNull(idea.sourceText)
+        assertTrue(repo.entries(id).first().any { it.kind == "Line" && it.origin == "System" })
+        // 幂等：回填后不再处理
+        assertEquals(0, repo.backfillTranscribed())
+    }
 }

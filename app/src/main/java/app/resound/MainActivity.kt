@@ -118,6 +118,16 @@ class MainActivity : ComponentActivity() {
         val open = intent?.getStringExtra("open")
         // 寻物“已记”通知：回到今天，确认卡就在待确认里
         if (open == "things_pending") { tabRequest = 0 to System.nanoTime(); return }
+        // 待办到期/强提醒通知：直达待办页
+        if (open == "todos") { tabRequest = 2 to System.nanoTime(); return }
+        // 跟进/规则引擎提醒：直达助手里对应子页
+        if (open == "followups" || open == "rules") {
+            tabRequest = 1 to System.nanoTime()
+            app.resound.ui.ShellNav.assistantPage.value =
+                if (open == "followups") app.resound.ui.assistant.AssistantPage.Followups.ordinal
+                else app.resound.ui.assistant.AssistantPage.Rules.ordinal
+            return
+        }
         if (open != "review" && open != "day") return
         dayOnly = open == "day"
         openReview = intent.getStringExtra("date")?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()

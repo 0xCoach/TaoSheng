@@ -195,6 +195,36 @@ class ManualTodo054Test {
         assertFalse(service(this, key = "").draft("买牛奶").parsed)
     }
 
+    @Test fun addAcceptsIdeaCategoryAndRunsAfterAddInOrder() = runBlocking {
+        var calledWithRows = false
+        coroutineScope {
+            RoomManualTodos(dao, this, { preset to "test" }, { _, _, _, _ -> error("不应调用") }, {}, { date }, { at }, zone, 20_000,
+                afterAdd = { calledWithRows = dao.inspirationItems().isNotEmpty() })
+                .add(listOf(TodoDraft("灵感", null, "做个共享充电宝的点子", null, null, null)), ItemOrigin.Voice, "说的原话")
+        }
+        assertTrue(calledWithRows)
+        val row = dao.inspirationItems().single()
+        assertEquals("灵感", row.category); assertEquals("Accepted", row.status); assertEquals("voice", row.origin)
+        assertNull(row.kind)
+    }
+
+    @Test fun setItemStatusWritesRevision() = runBlocking {
+        dao.insertItems(listOf(item()))
+        val runner = DigestRunner(context, dao, LlmClient(), AndroidDigestSettings(context, LlmClient()), { "" }, { false })
+        // 独立作用域：仓储会向 scope 挂 Eagerly 常驻收集器，不能挂 runBlocking 自身否则永不返回
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repo = RoomMemoryRepository(dao, runner, {}, scope, zoneProvider = app.resound.platform.ZoneProvider { "UTC" },
+                now = app.resound.platform.NowMillis { at }, io = Dispatchers.IO, revisions = db.revisions())
+            repo.setItemStatus(1, ItemStatus.Done)
+            withTimeout(3000) { while (db.revisions().history("item", 1).first().isEmpty()) delay(10) }
+            val revs = db.revisions().history("item", 1).first()
+            assertEquals(1, revs.size)
+            assertTrue(revs.single().beforeJson.contains("Accepted") && revs.single().afterJson.contains("Done"))
+            assertEquals("Done", dao.itemIncludingDeleted(1)!!.status)
+        } finally { scope.cancel() }
+    }
+
     private class Controller : CaptureController {
         override val status = MutableStateFlow(CaptureStatus(CaptureState.Listening, 0))
         var resumes = 0
@@ -218,6 +248,10 @@ class ManualTodo054Test {
     }
 
     @Test fun voiceFailureRestoresCaptureAndDeletesWavWithoutDiarization() = runBlocking {
+        // finish() 会先过会员额度门；测试环境补上 AppGraph.membership
+        if (!app.resound.AppGraph.isMembershipReady) app.resound.AppGraph.membership =
+            app.resound.auth.MembershipState(context, app.resound.auth.AuthStore(context),
+                app.resound.auth.AuthGate(app.resound.auth.AuthStore(context), app.resound.auth.AuthApi({ "" })))
         val controller = Controller(); val mic = Microphone()
         val provider = object : AsrProvider {
             override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult {

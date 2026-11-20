@@ -215,7 +215,9 @@ private fun ColumnScope.Permissions(capture: CaptureController, onNext: () -> Un
         })
     }
     Spacer(Modifier.weight(1f).heightIn(min = 32.dp))
-    ActionButton(if (denied) "再试一次" else "允许并继续", ActionKind.Primary, Modifier.fillMaxWidth()) {
+    Text("授权后立刻开始全天聆听；通知栏常驻录音状态，主页和通知里随时能暂停、删除。", style = RsType.caption, color = c.textTertiary)
+    Spacer(Modifier.height(12.dp))
+    ActionButton(if (denied) "再试一次" else "允许并开始聆听", ActionKind.Primary, Modifier.fillMaxWidth()) {
         if (micGranted() && capture.status.value.state != CaptureState.NoPermission) {
             capture.start(); app.resound.ui.today.prepareLocalAsr(context, settings); askBattery()
             if (batteryOk()) onNext()

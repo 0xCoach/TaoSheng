@@ -99,7 +99,7 @@ internal object StrongReminders {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setFullScreenIntent(full, true)
             // 响着时划不掉，只能点按钮（或按电源键、音量键）
             .setOngoing(true).setOnlyAlertOnce(true)
-            .setContentIntent(full).setDeleteIntent(broadcast(context, ACTION_STOP, id))
+            .setContentIntent(open).setDeleteIntent(broadcast(context, ACTION_STOP, id))
             .addAction(0, "5 分钟后", broadcast(context, ACTION_SNOOZE, id))
             .addAction(0, "已完成", broadcast(context, ACTION_DONE, id))
             .addAction(0, "不再响", broadcast(context, ACTION_STOP, id))

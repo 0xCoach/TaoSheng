@@ -142,11 +142,37 @@ private fun DecisionSheet(d: DecisionRow, repo: app.resound.decision.DecisionRep
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var reason by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf(false) }
+    var editTitle by remember(d.id) { mutableStateOf(d.title) }
+    var editDetail by remember(d.id) { mutableStateOf(d.detail) }
     val evidence by remember(d.id) { kotlinx.coroutines.flow.flow { emit(repo.evidence(d)) } }.collectAsStateWithLifecycle(initialValue = null)
     val revisions by remember(d.id) { repo.revisionsOf(d.id) }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     androidx.compose.material3.ModalBottomSheet(onDismissRequest = onClose) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (editing) {
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.track).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    BasicTextField(editTitle, { editTitle = it }, Modifier.fillMaxWidth(),
+                        textStyle = RsType.title.copy(color = c.text),
+                        decorationBox = { inner -> if (editTitle.isEmpty()) Text("决定", style = RsType.title, color = c.textTertiary); inner() })
+                }
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.track).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    BasicTextField(editDetail, { editDetail = it }, Modifier.fillMaxWidth(),
+                        textStyle = RsType.body.copy(color = c.text),
+                        decorationBox = { inner -> if (editDetail.isEmpty()) Text("补充说明（可留空）", style = RsType.body, color = c.textTertiary); inner() })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Pill("保存修改", filled = true) {
+                        val t = editTitle.trim()
+                        if (t.isNotEmpty()) scope.launch {
+                            if (repo.edit(d.id, t, editDetail.trim(), reason.ifBlank { null })) {
+                                Toast.makeText(context, "已修改并留痕", Toast.LENGTH_SHORT).show(); onClose()
+                            }
+                        }
+                    }
+                    Pill("取消", filled = false) { editing = false }
+                }
+            } else {
             Text(d.title, style = RsType.title, color = c.text)
             if (d.detail.isNotBlank()) Text(d.detail, style = RsType.body, color = c.textSecondary)
             Text("决定时间 ${formatStamp(d.decidedAt)} · 置信度 ${app.resound.decision.DecisionConfidence.of(d.confidence).label}", style = RsType.caption, color = c.textTertiary)
@@ -180,10 +206,12 @@ private fun DecisionSheet(d: DecisionRow, repo: app.resound.decision.DecisionRep
                             if (repo.withdraw(d.id, reason.ifBlank { null })) { Toast.makeText(context, "已撤回并留痕", Toast.LENGTH_SHORT).show(); onClose() }
                         }
                     }
+                    Pill("编辑", filled = false) { editing = true }
                     Pill("删除", filled = false) {
                         scope.launch { repo.delete(d.id); onClose() }
                     }
                 }
+            }
             }
         }
     }

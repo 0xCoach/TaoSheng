@@ -46,6 +46,11 @@ enum class AssistantPage { Hub, Ideas, Projects, Analysis, Agent, Decisions, Fol
 @Composable
 fun AssistantScreen(bottomPadding: androidx.compose.ui.unit.Dp) {
     var page by rememberSaveable { mutableIntStateOf(0) }
+    // 通知/外部入口要求直接进某个子页（如跟进提醒 → 跟进列表）
+    val pending by app.resound.ui.ShellNav.assistantPage.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(pending) {
+        pending?.let { if (it in AssistantPage.entries.indices) page = it; app.resound.ui.ShellNav.assistantPage.value = null }
+    }
     when (AssistantPage.entries[page]) {
         AssistantPage.Hub -> Hub(bottomPadding) { page = it.ordinal }
         AssistantPage.Ideas -> app.resound.ui.inbox.IdeaScreen(bottomPadding) { page = 0 }

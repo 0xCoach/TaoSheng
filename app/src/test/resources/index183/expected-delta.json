@@ -39,32 +39,34 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=41",
+    "newLine": "user_version=43",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"5438724529150bca1eabdb742cd747d6\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"94b5510dec2a98b991d7fed931a0aa48\"}]",
     "extraNewRows": [
       "[{\"integer\":42},{\"text\":\"7ef33a13e9b405d05b6ef5e03862e32a\"}]",
-      "[{\"integer\":42},{\"text\":\"f27344c0a85c121d43747ee0c2fb62a9\"}]"
+      "[{\"integer\":42},{\"text\":\"f27344c0a85c121d43747ee0c2fb62a9\"}]",
+      "[{\"integer\":42},{\"text\":\"5438724529150bca1eabdb742cd747d6\"}]"
     ],
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "5438724529150bca1eabdb742cd747d6",
+  "newIdentityHash": "94b5510dec2a98b991d7fed931a0aa48",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5438724529150bca1eabdb742cd747d6')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '94b5510dec2a98b991d7fed931a0aa48')"
   ],
   "changedTables": [
     "memory_items",
+    "topics",
     "transcript_lines"
   ],
   "droppedTables": [
@@ -75,6 +77,7 @@
     "capture_items",
     "decisions",
     "followups",
+    "idea_entries",
     "ideas",
     "mcp_clients",
     "memory_revisions",
@@ -86,6 +89,12 @@
     "workflow_rules"
   ],
   "indices": [
+    {
+      "name": "index_topics_seriesKey",
+      "table": "topics",
+      "row": "[\"index\",\"index_topics_seriesKey\",\"topics\",\"CREATE INDEX index_topics_seriesKey ON topics(seriesKey)\"]",
+      "occurrences": 1
+    },
     {
       "name": "index_segments_status_voiceprintProcessedAt",
       "table": "segments",

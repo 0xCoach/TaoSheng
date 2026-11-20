@@ -332,7 +332,8 @@ class ResoundApp : Application() {
             { digestSettings.skillCredentials(null) }, digestSettings.failover.request("手动待办", database.memory(), app.resound.usage.UsagePurpose.Digest, todoLlm::chatJson), { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                     reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
-            }, hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) })
+            }, hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) },
+            afterAdd = { if (AppGraph.isIdeasReady) AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) } })
         AppGraph.todoVoice = AndroidTodoVoiceInput(controller, scope, cacheDir,
             ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential)
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }

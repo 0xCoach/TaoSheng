@@ -10,7 +10,7 @@ object PushFieldRules {
         PushKind.Feishu, PushKind.DingTalk -> listOf(f("webhook", "机器人地址", "群自定义机器人的 HTTPS Webhook", true), f("signSecret", "签名密钥", "可选", true))
         PushKind.Telegram -> listOf(f("token", "Bot Token", "从 BotFather 获取", true), f("chatId", "Chat ID", "数字、负数或 @用户名"), f("baseUrl", "接口地址", "可选，默认 https://api.telegram.org"))
         PushKind.Email -> listOf(f("host", "SMTP 服务器", "如 smtp.qq.com"), f("port", "端口", "默认 465；587 使用 STARTTLS"), f("account", "账号", "完整邮箱地址"), f("password", "授权码",
-            "邮箱设置中开启 SMTP 后获取", true), f("to", "收件人", "一个邮箱地址"))
+            "QQ/163 在邮箱设置里开启 SMTP 后获取授权码；Gmail 用应用专用密码；Outlook 个人邮箱暂不支持", true), f("to", "收件人", "一个邮箱地址"))
         PushKind.Notion -> listOf(f("token", "Integration Token", "数据库需共享给此 Integration", true), f("databaseId", "数据库 ID", "32 位 ID 或数据库链接"))
         PushKind.MarkdownFolder -> listOf(f("url", "WebDAV 地址", "默认 https://dav.jianguoyun.com/dav/"), f("account", "账号", "填坚果云账号即可，Obsidian 用 Remotely Save 等插件同步这个文件夹"),
             f("password", "应用密码", "坚果云安全选项中添加应用", true), f("folder", "文件夹", "默认 Resound-Memory；用 Obsidian 可改成库里的文件夹"))

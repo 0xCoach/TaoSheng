@@ -36,6 +36,7 @@ internal class RecordingAudioPush(
     }
     private fun active(c: PushChannel) = c.enabled && channels.capabilities(c.kind).audio && c.subscription.audio != AudioPush.Off
     fun channelNames() = channels.channels.value.filter(::active).map { it.name }
+    fun anyActive() = channels.channels.value.any(::active)
     private fun destination(c: PushChannel): String? = try { channels.resolveAudio(c.id)?.second?.let(::folderIdentity) }
         catch (_: Exception) { null }
     /** 切换目的地后不复用凭据；旧路径留在历史里供以后隐私删除使用。 */
@@ -341,7 +342,8 @@ internal fun attachRecordingArchive(context: Context, database: CaptureDatabase,
         merge(database.invalidationTracker.createFlow("segments", "transcript_lines", "memory_events", "env_sounds", "import_records").map { Unit },
             channelFlow { channels.channels.map { list -> BackgroundRefreshPolicy.audioNeedsTick(list) }
                 .refreshWhileNeeded(60_000) { send(Unit) } })
-            .conflate().collect { audio.refresh(); delay(DATA_REFRESH_GAP_MILLIS) }
+            // 没开推录音时，录音/转写变动不影响保留核算（设置变化那一路已经清过状态），不必每分钟逐个检查全部录音文件。
+            .conflate().collect { if (audio.anyActive()) { audio.refresh(); delay(DATA_REFRESH_GAP_MILLIS) } }
     }
     RecordingAudioSweepWorker.schedule(context, channels.channels.value)
 }

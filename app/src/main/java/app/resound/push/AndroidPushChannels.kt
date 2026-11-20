@@ -121,8 +121,8 @@ class AndroidPushChannels internal constructor(
     }
     override suspend fun rebuild(id: Long) = subscriptions.run(id, rebuild = true)
     override fun status(id: Long): Flow<PushChannelStatus> = subscriptions.status(id)
-    internal suspend fun recordsChanged() {
-        val snapshot = if (channels.value.any { it.enabled && it.subscription.reminders }) (subscriptions.automaticSource ?: subscriptions.source)(null, false) else null
+    internal suspend fun recordsChanged(reminders: Boolean = true) {
+        val snapshot = if (reminders && channels.value.any { it.enabled && it.subscription.reminders }) (subscriptions.automaticSource ?: subscriptions.source)(null, false) else null
         channels.value.forEach { channel ->
             subscriptions.changed(channel)
             if (snapshot != null) subscriptions.reminderSchedule(channel, snapshot)

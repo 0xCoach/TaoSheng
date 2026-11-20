@@ -67,9 +67,16 @@ internal fun AndroidPushChannels.attachSubscriptions(context: Context, database:
 @OptIn(FlowPreview::class)
 internal suspend fun AndroidPushChannels.observeRecordPush(database: CaptureDatabase) {
     val records = database.invalidationTracker.createFlow("memory_events", "memory_items", "transcript_lines",
-        "skill_cards", "reviews", emitInitialState = true).map { Unit }
-    merge(records, privacyChanges.receiveAsFlow()).debounce(1000).collect {
-        recordsChanged()
-        phoneReminders?.refresh()
-    }
+        "skill_cards", "reviews", emitInitialState = true).map { false }
+    // 提醒只看事件和待办；每句新转写都会改 transcript_lines，录音时约每分钟一次，
+    // 旧做法每次都把全部历史读两遍来算提醒。原话变了只需让推送按计划更新。
+    val reminderTables = database.invalidationTracker.createFlow("memory_events", "memory_items", "folder_recordings",
+        emitInitialState = true).map { true }
+    val reminders = java.util.concurrent.atomic.AtomicBoolean(false)
+    merge(records, reminderTables, privacyChanges.receiveAsFlow().map { true })
+        .onEach { if (it) reminders.set(true) }.debounce(1000).collect {
+            val refresh = reminders.getAndSet(false)
+            recordsChanged(refresh)
+            if (refresh) phoneReminders?.refresh()
+        }
 }

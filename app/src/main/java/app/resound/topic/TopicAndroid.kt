@@ -39,7 +39,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
         fun create(app: ResoundApp, db: CaptureDatabase, settings: AndroidDigestSettings, llm: LlmClient,
             hotwords: () -> List<String>): TopicFeature {
             val checkpoints = TopicCheckpointFiles(app) { id ->
-                db.topics().get(id)?.takeIf { it.row.status != "Cancelled" }?.let { topicSource(it, db.topics().lines(id)) }
+                db.topics().get(id)?.takeIf { it.row.status != "Cancelled" }?.row?.revision
             }
             val repository = RoomTopicRepository(db, app.scope, AppGraph.platform.now, AppGraph.platform.zone, quiet = { start, end ->
                 val rules = app.quietSchedule.rules.value
@@ -70,6 +70,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                 CaptureService.refreshOngoing()
                 ClassModeTileService.refresh(app)
                 TopicNotifications.clearObsolete(app, repository.current.value)
+                TopicWork.enqueue(app)
             }
             repository.onEnded = { app.runTranscriptionNow(); TopicWork.enqueue(app) }
             repository.onReminder = { id, type -> TopicNotifications.show(app, id, type) }
@@ -82,7 +83,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                 repository.current.map { BackgroundRefreshPolicy.topicNeedsTick(it?.status) }
                     .refreshWhileNeeded(60_000) {
                         repository.tick()
-                        if (db.topics().all().any { it.row.status == "Ended" }) TopicWork.enqueue(app)
+                        TopicWork.enqueue(app)
                     }
             }
             app.scope.launch {
@@ -97,6 +98,9 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                 db.topics().observeLateTranscriptIds().distinctUntilChanged().collect { ids ->
                     if (ids.isNotEmpty()) { checkpoints.refresh(ids.toSet()); TopicWork.enqueue(app) }
                 }
+            }
+            app.scope.launch {
+                db.invalidationTracker.createFlow("transcript_lines").collect { TopicWork.enqueue(app) }
             }
             return TopicFeature(repository, engine)
         }
@@ -243,11 +247,15 @@ class TopicWork(context: Context, params: WorkerParameters) : CoroutineWorker(co
     }
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (caught: Exception) {
-                FailureNotes.record("topic/TopicAndroid.kt:229", caught)
-                }
             val app = applicationContext as ResoundApp
-            if (app.voiceprintRepository.withStableResults { app.topics.engine.run() }) Result.retry() else Result.success()
+            val activeOnly = inputData.getBoolean("activeOnly", false)
+            val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
+            val online = cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+            if (app.topics.engine.run(activeOnly, online) {
+                try { setForeground(getForegroundInfo()) } catch (e: CancellationException) { throw e } catch (caught: Exception) {
+                    FailureNotes.record("topic/TopicAndroid:foreground", caught)
+                }
+            }) Result.retry() else Result.success()
         } catch (e: CancellationException) { throw e }
         catch (caught: Exception) {
             FailureNotes.record("topic/TopicAndroid.kt:233", caught)
@@ -255,9 +263,25 @@ class TopicWork(context: Context, params: WorkerParameters) : CoroutineWorker(co
     }
     companion object {
         fun enqueue(context: Context) {
-            WorkManager.getInstance(context).enqueueUniqueWork("topic-summaries", ExistingWorkPolicy.APPEND_OR_REPLACE,
-                OneTimeWorkRequestBuilder<TopicWork>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
+            val app = context.applicationContext as ResoundApp
+            app.scope.launch {
+                val rows = app.database.topics().all()
+                for (activeOnly in listOf(true, false)) {
+                    val needed = rows.any { if (activeOnly) it.row.status in setOf("Running", "Paused")
+                        else it.row.status in setOf("Ended", "Summarizing", "Done") }
+                    if (!needed) continue
+                    val manager = WorkManager.getInstance(context)
+                    val name = if (activeOnly) "topic-blocks-live" else "topic-summaries"
+                    val work = manager.getWorkInfosForUniqueWork(name).get()
+                    val running = work.any { it.state == WorkInfo.State.RUNNING }
+                    if (running && work.any { it.state in setOf(WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED) }) continue
+                    manager.enqueueUniqueWork(name,
+                        if (running) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.REPLACE,
+                        OneTimeWorkRequestBuilder<TopicWork>().setInputData(workDataOf("activeOnly" to activeOnly))
+                            // 无网络时也运行轻量检查，发布等待原因与 30 分钟停滞提示。
+                            .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS).build())
+                }
+            }
         }
     }
 }

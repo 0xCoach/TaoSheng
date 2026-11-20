@@ -62,7 +62,7 @@ class AuthGate(
     fun allowed(cap: Capability): Boolean = require(cap).allowed
 
     /** 归属类硬阻断：待确认(已登录+有数据+未绑定+未验机主) 或 数据已归他号——重弹登录面板也解决不了。 */
-    private fun ownershipIssue() = when {
+    fun ownershipIssue() = when {
         store.boundAccountId == null && store.sessionAccountId != null &&
             store.hasLocalData && !store.ownerVerified -> true
         store.boundAccountId != null && store.boundAccountId != store.sessionAccountId -> true
@@ -74,17 +74,20 @@ class AuthGate(
         val d = require(cap)
         if (d.allowed) return true
         // 归属问题被"暂不"过：冷却期内不再自动弹（账号页仍保留绑定/隔离说明），动作照常拒绝。
-        if (ownershipIssue() && System.currentTimeMillis() - store.bindDeclinedAt < BIND_DECLINE_COOLDOWN_MS) return false
-        if (d.status != AuthStatus.Disabled && d.status != AuthStatus.Expired) pendingAction = action
+        // 冷却只适用于"已登录的归属确认"；未登录/会话失效时必须始终能弹登录——
+        // 否则登出态取消一次面板，所有受保护入口会静默失效 24 小时（无提示无跳转）。
+        if (store.sessionAccountId != null && ownershipIssue() &&
+            System.currentTimeMillis() - store.bindDeclinedAt < BIND_DECLINE_COOLDOWN_MS) return false
+        if (d.status != AuthStatus.Disabled) pendingAction = action
         else pendingAction = null
         _loginRequested.value = LoginRequest(cap, d.reason)
         return false
     }
 
-    /** 登录面板关闭（取消/暂不）：清待恢复动作与请求；归属确认场景记冷却起点。 */
+    /** 登录面板关闭（取消/暂不）：清待恢复动作与请求；仅已登录的归属确认"暂不"才记冷却。 */
     fun dismissLogin() {
         pendingAction = null; _loginRequested.value = null
-        if (ownershipIssue()) store.bindDeclinedAt = System.currentTimeMillis()
+        if (store.sessionAccountId != null && ownershipIssue()) store.bindDeclinedAt = System.currentTimeMillis()
     }
 
     /** 登录/刷新成功后：恢复被拦动作。 */
@@ -106,6 +109,8 @@ class AuthGate(
         if (!LicenseVerifier.verify(session.licenseRaw.toByteArray(Charsets.UTF_8), session.licenseSig)) return false
         val payload = runCatching { json.decodeFromString(LicensePayload.serializer(), session.licenseRaw) }.getOrNull() ?: return false
         store.saveLogin(session.accountId, session.username, session.access, session.refresh, payload)
+        // 新会话不继承旧"暂不"冷却：换号/重新登录后归属确认应可再次提示。
+        store.bindDeclinedAt = 0
         // 空设备（无历史数据）：登录即绑定，账号即机主；有数据则必须走确认归属。
         if (store.boundAccountId == null && !store.hasLocalData) store.bindCurrent()
         return true

@@ -93,7 +93,9 @@ data class PushSubscription(
     val audioWifiOnly: Boolean = true,
     val audioText: AudioText = AudioText.Daily,
     val audioChargingOnly: Boolean = false,
-    val audioCalls: Boolean = true,
+    val audioCalls: Boolean = false,
+    /** 卡 214：隐私删除时同时删掉本通道里推过的那段录音（默认关=只推不删，列进“需要你自己删”清单） */
+    val audioPrivacyDelete: Boolean = false,
     val audioImports: Boolean = false,
     /** 每日足迹：默认不推（位置敏感） */
     val footprint: Boolean = false,

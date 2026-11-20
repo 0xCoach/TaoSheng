@@ -10,13 +10,21 @@ internal object UpdateSources {
     // 设备参数表仍读上游仓库的公开数据文件（与版本更新无关）。
     const val MODELSCOPE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/"
 
-    /** 自建分支不再查上游发布：更新源只在更新页配置 manifest 地址；安装包放在 update.json 同目录。 */
+    /** 更新检查固定走自有域名；manifest 由 Worker 从 app_release 表下发，安装包经 /release/<file> 302 到真实托管地址。 */
+    const val RELEASE_BASE = "https://soundsound.gdfactory.cn/release"
+
+    /** manifestUrl 偏好保留为隐藏覆盖入口（界面不再暴露）；为空时查正式通道。 */
     fun configured(url: String?): List<UpdateSource> {
         val clean = url?.trim().orEmpty()
-        if (!clean.startsWith("https://") && !clean.startsWith("http://")) return emptyList()
-        val base = clean.substringBeforeLast('/')
-        return listOf(UpdateSource("custom", clean) { _, file -> "$base/$file" })
+        if (clean.startsWith("https://") || clean.startsWith("http://")) {
+            val base = clean.substringBeforeLast('/')
+            return listOf(UpdateSource("custom", clean) { _, file -> "$base/$file" })
+        }
+        return listOf(UpdateSource("release", "$RELEASE_BASE/update.json") { _, file -> "$RELEASE_BASE/$file" })
     }
+
+    fun preview(): List<UpdateSource> =
+        listOf(UpdateSource("preview", "$RELEASE_BASE/preview.json") { _, file -> "$RELEASE_BASE/$file" })
 }
 
 internal data class UpdateSource(val name: String, val manifestUrl: String, val artifactUrl: (String, String) -> String)

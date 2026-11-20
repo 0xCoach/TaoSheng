@@ -1,17 +1,27 @@
 ﻿package app.resound.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.resound.AppGraph
+import app.resound.ui.theme.Rs
+import app.resound.ui.theme.RsType
+import app.resound.ui.verify.RsCard
+import app.resound.ui.verify.springClick
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.longOrNull
 
@@ -129,7 +139,46 @@ private fun LoginSheet(reason: String, onCancel: () -> Unit) {
     }
 }
 
-/** 设置页「我的账号」：状态 / 数据归属 / 设备管理 / 退出。 */
+/** 胶囊按钮：filled=主色实心（主操作），danger=红调（退出类），默认浅紫底紫字（次操作）。 */
+@Composable
+private fun AccPill(text: String, filled: Boolean = false, danger: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    val c = Rs.colors
+    val bg = if (!enabled) c.track else when {
+        filled -> c.accent
+        danger -> c.critical.copy(alpha = 0.10f)
+        else -> c.accentSoft
+    }
+    val fg = if (!enabled) c.textTertiary else when {
+        filled -> c.onAccent
+        danger -> c.critical
+        else -> c.accent
+    }
+    Box(Modifier.then(if (enabled) Modifier.springClick(onClick) else Modifier)
+        .clip(CircleShape).background(bg).padding(horizontal = 16.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center) {
+        Text(text, style = RsType.subhead, color = fg)
+    }
+}
+
+/** 圆角填充底输入框，与项目设置项同款。 */
+@Composable
+private fun AccField(value: String, placeholder: String, onChange: (String) -> Unit) {
+    val c = Rs.colors
+    BasicTextField(value, onChange, singleLine = true,
+        textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
+        modifier = Modifier.fillMaxWidth(),
+        decorationBox = { inner ->
+            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(c.fill)
+                .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    if (value.isEmpty()) Text(placeholder, style = RsType.body, color = c.textTertiary)
+                    inner()
+                }
+            }
+        })
+}
+
+/** 设置页「账号与会员」：账号卡（状态/归属/设备/退出）+ 会员卡（套餐/兑换）。 */
 @Composable
 fun MyAccountSection(onManageDevices: () -> Unit = {}) {
     if (!AppGraph.isAuthReady) return
@@ -137,73 +186,84 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
     val store = AppGraph.auth.store
     val scope = rememberCoroutineScope()
     var rev by remember { mutableStateOf(0) } // 绑定/登出后强制重读归属标志
+    val c = Rs.colors
+    @Suppress("UNUSED_EXPRESSION") rev
+    val bound = store.boundAccountId
+    val loggedIn = store.sessionAccountId != null
     // 页面外层无 Surface：LocalContentColor 默认黑，未显式着色的标题/正文会黑到看不见——统一补上。
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("我的账号", style = MaterialTheme.typography.titleMedium)
-        Text(
-            when (status) {
-                AuthStatus.Guest -> "游客模式——录音与个人数据需要登录授权"
-                AuthStatus.Authenticated -> "已登录——等待授权凭证"
-                AuthStatus.Authorized -> "已授权——离线期内可正常使用"
-                AuthStatus.Expired -> "授权已过期——联网后自动续期"
-                AuthStatus.Disabled -> "账号已停用"
-                AuthStatus.Locked -> "隐私锁已启用"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (status == AuthStatus.Authorized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        @Suppress("UNUSED_EXPRESSION") rev
-        val bound = store.boundAccountId
-        val loggedIn = store.sessionAccountId != null
-        // 数据归属：未绑定且有历史数据 → 提示确认归属；绑定错号 → 明确提示隔离中。
-        if (bound == null && loggedIn && store.hasLocalData) {
-            Text("本机有历史数据尚未归属。确认后只有本账号能读取，其他账号登录本机将被隔离。",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            var bindNote by remember { mutableStateOf<String?>(null) }
-            var busy by remember { mutableStateOf(false) }
-            val context = androidx.compose.ui.platform.LocalContext.current
-            val doBind: () -> Unit = {
-                AppGraph.auth.markOwnerVerified(); busy = true
-                scope.launch {
-                    bindNote = when (AppGraph.auth.bindLocalData()) {
-                        is AuthGate.BindOutcome.Bound -> { rev++; "已绑定：本机数据归属当前账号" }
-                        is AuthGate.BindOutcome.AlreadyBound -> { rev++; "已是本账号数据" }
-                        is AuthGate.BindOutcome.BoundToOther -> "已归属其他账号，未变更"
-                        is AuthGate.BindOutcome.BackupUnavailable -> "还没有可用备份：请先在「备份」里选本机文件夹或配置云备份"
-                        is AuthGate.BindOutcome.BackupFailed -> "备份未完成，归属未变更；请检查备份后重试"
-                        else -> "绑定失败，数据未变更"
+    CompositionLocalProvider(LocalContentColor provides c.text) {
+    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        RsCard {
+            Text("我的账号", style = RsType.section, color = c.textSecondary)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                when (status) {
+                    AuthStatus.Guest -> "游客模式——录音与个人数据需要登录授权"
+                    AuthStatus.Authenticated -> "已登录——等待授权凭证"
+                    AuthStatus.Authorized -> "已授权——离线期内可正常使用"
+                    AuthStatus.Expired -> "授权已过期——联网后自动续期"
+                    AuthStatus.Disabled -> "账号已停用"
+                    AuthStatus.Locked -> "隐私锁已启用"
+                },
+                style = RsType.body,
+                color = if (status == AuthStatus.Authorized) c.accent else c.textSecondary,
+            )
+            // 数据归属：未绑定且有历史数据 → 提示确认归属；绑定错号 → 明确提示隔离中。
+            if (bound == null && loggedIn && store.hasLocalData) {
+                Spacer(Modifier.height(8.dp))
+                Text("本机有历史数据尚未归属。确认后只有本账号能读取，其他账号登录本机将被隔离。",
+                    style = RsType.caption, color = c.textSecondary)
+                var bindNote by remember { mutableStateOf<String?>(null) }
+                var busy by remember { mutableStateOf(false) }
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val doBind: () -> Unit = {
+                    AppGraph.auth.markOwnerVerified(); busy = true
+                    scope.launch {
+                        bindNote = when (AppGraph.auth.bindLocalData()) {
+                            is AuthGate.BindOutcome.Bound -> { rev++; "已绑定：本机数据归属当前账号" }
+                            is AuthGate.BindOutcome.AlreadyBound -> { rev++; "已是本账号数据" }
+                            is AuthGate.BindOutcome.BoundToOther -> "已归属其他账号，未变更"
+                            is AuthGate.BindOutcome.BackupUnavailable -> "还没有可用备份：请先在「备份」里选本机文件夹或配置云备份"
+                            is AuthGate.BindOutcome.BackupFailed -> "备份未完成，归属未变更；请检查备份后重试"
+                            else -> "绑定失败，数据未变更"
+                        }
+                        busy = false
                     }
-                    busy = false
+                }
+                val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
+                    if (res.resultCode == android.app.Activity.RESULT_OK) doBind() else bindNote = "未通过机主验证"
+                }
+                Spacer(Modifier.height(10.dp))
+                AccPill(if (busy) "绑定中…" else "绑定本机数据到此账号", filled = true, enabled = !busy) {
+                    startOwnerCredential(context, launcher, doBind)
+                }
+                bindNote?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, style = RsType.caption,
+                        color = if (it.startsWith("已绑定") || it.startsWith("已是")) c.accent else c.critical)
+                }
+            } else if (bound != null && loggedIn && bound != store.sessionAccountId) {
+                Spacer(Modifier.height(6.dp))
+                Text("本机数据已归属另一账号——当前账号的录音与个人数据访问被隔离。",
+                    style = RsType.caption, color = c.critical)
+            } else if (bound != null && loggedIn) {
+                Spacer(Modifier.height(6.dp))
+                Text("本机数据已归属当前账号", style = RsType.caption, color = c.textSecondary)
+            }
+            var showDevices by remember { mutableStateOf(false) }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (status == AuthStatus.Guest) {
+                    AccPill("登录", filled = true) { AppGraph.auth.requestLogin(Capability.ReadPersonalData, "登录后使用全部功能") }
+                } else {
+                    AccPill(if (showDevices) "收起设备" else "设备管理") { showDevices = !showDevices; onManageDevices() }
+                    AccPill("退出登录", danger = true) { scope.launch { AppGraph.auth.logout(); rev++ } }
                 }
             }
-            val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
-                if (res.resultCode == android.app.Activity.RESULT_OK) doBind() else bindNote = "未通过机主验证"
-            }
-            TextButton(enabled = !busy, onClick = { startOwnerCredential(context, launcher, doBind) }) {
-                Text(if (busy) "绑定中…" else "绑定本机数据到此账号")
-            }
-            bindNote?.let { Text(it, style = MaterialTheme.typography.bodySmall,
-                color = if (it.startsWith("已绑定")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-        } else if (bound != null && loggedIn && bound != store.sessionAccountId) {
-            Text("本机数据已归属另一账号——当前账号的录音与个人数据访问被隔离。",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-        } else if (bound != null && loggedIn) {
-            Text("本机数据已归属当前账号", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (showDevices) AuthDevicesList()
         }
         if (loggedIn) MembershipCard()
-        var showDevices by remember { mutableStateOf(false) }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (status == AuthStatus.Guest) {
-                TextButton(onClick = { AppGraph.auth.requestLogin(Capability.ReadPersonalData, "登录后使用全部功能") }) { Text("登录") }
-            } else {
-                TextButton(onClick = { showDevices = !showDevices; onManageDevices() }) { Text("设备管理") }
-                TextButton(onClick = { scope.launch { AppGraph.auth.logout(); rev++ } }) { Text("退出登录") }
-            }
-        }
-        if (showDevices) AuthDevicesList()
     }
     }
 }
@@ -211,6 +271,7 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
 /** 会员中心：套餐 / 本月额度 / 兑换码。数据来自服务端视图或受约束的离线缓存。 */
 @Composable
 private fun MembershipCard() {
+    val c = Rs.colors
     val scope = rememberCoroutineScope()
     var tick by remember { mutableStateOf(0) } // sync/redeem 后强制重读
     var syncNote by remember { mutableStateOf<String?>(null) }
@@ -226,36 +287,47 @@ private fun MembershipCard() {
     val limit = AppGraph.membership.freeLimit()
     val remaining = AppGraph.membership.remainingMinutes()
     val fmt = { m: Double -> if (m >= 60) "%.1f 小时".format(m / 60) else "%.0f 分钟".format(m) }
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        HorizontalDivider()
-        Text("会员", style = MaterialTheme.typography.labelLarge)
+    RsCard {
+        Text("会员", style = RsType.section, color = c.textSecondary)
+        Spacer(Modifier.height(10.dp))
         if (pro) {
             val until = view?.proUntil?.let { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(it * 1000)) }
-            Text("Pro 会员" + (until?.let { " · 到期 $it" } ?: ""), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary)
-            Text("本地转写不限时长", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Pro 会员" + (until?.let { " · 到期 $it" } ?: ""), style = RsType.body, color = c.accent)
+            Spacer(Modifier.height(4.dp))
+            Text("本地转写不限时长", style = RsType.caption, color = c.textSecondary)
         } else {
-            Text("免费版 · 每月 ${fmt(limit)} 转写额度", style = MaterialTheme.typography.bodyMedium)
-            Text("本月已用 ${fmt(used)} · 剩余 ${fmt(remaining)}", style = MaterialTheme.typography.bodySmall,
-                color = if (remaining <= 0.0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-            if (remaining <= 0.0) Text("免费额度已用完：新转写已暂停，录音与保存不受影响；下月恢复或兑换 Pro",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text("免费版 · 每月 ${fmt(limit)} 转写额度", style = RsType.body, color = c.text)
+            Spacer(Modifier.height(4.dp))
+            Text("本月已用 ${fmt(used)} · 剩余 ${fmt(remaining)}", style = RsType.caption,
+                color = if (remaining <= 0.0) c.critical else c.textSecondary)
+            if (remaining <= 0.0) {
+                Spacer(Modifier.height(4.dp))
+                Text("免费额度已用完：新转写已暂停，录音与保存不受影响；下月恢复或兑换 Pro",
+                    style = RsType.caption, color = c.critical)
+            }
         }
         AppGraph.membership.lastSyncAt.takeIf { it > 0 }?.let {
+            Spacer(Modifier.height(4.dp))
             Text("上次同步 " + java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it)),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = RsType.caption, color = c.textTertiary)
         }
-        syncNote?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        syncNote?.let {
+            Spacer(Modifier.height(4.dp))
+            Text(it, style = RsType.caption, color = c.textSecondary)
+        }
         var code by remember { mutableStateOf("") }
         var msg by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf(false) }
-        OutlinedTextField(code, { code = it; msg = null }, Modifier.fillMaxWidth(),
-            label = { Text("兑换码") }, singleLine = true)
-        msg?.let { Text(it, style = MaterialTheme.typography.bodySmall,
-            color = if (it.startsWith("兑换成功")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(enabled = !busy && code.isNotBlank(), onClick = {
+        Spacer(Modifier.height(12.dp))
+        AccField(code, "兑换码") { code = it; msg = null }
+        msg?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, style = RsType.caption,
+                color = if (it.startsWith("兑换成功")) c.accent else c.critical)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AccPill(if (busy) "兑换中…" else "兑换", filled = true, enabled = !busy && code.isNotBlank()) {
                 busy = true; msg = null
                 scope.launch {
                     msg = when (val r = AppGraph.auth.redeem(code.trim())) {
@@ -269,8 +341,8 @@ private fun MembershipCard() {
                     }
                     busy = false
                 }
-            }) { Text(if (busy) "兑换中…" else "兑换") }
-            TextButton(onClick = { scope.launch { syncNote = null; if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务"; tick++ } }) { Text("刷新") }
+            }
+            AccPill("刷新") { scope.launch { syncNote = null; if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务"; tick++ } }
         }
     }
 }
@@ -278,6 +350,7 @@ private fun MembershipCard() {
 /** 设备会话列表：拉取 /auth/devices，支持撤销单个会话（踢下线）。 */
 @Composable
 private fun AuthDevicesList() {
+    val c = Rs.colors
     val scope = rememberCoroutineScope()
     var devices by remember { mutableStateOf<List<kotlinx.serialization.json.JsonObject>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
@@ -295,22 +368,29 @@ private fun AuthDevicesList() {
             null -> note = "未登录"
         }
     }
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("登录设备", style = MaterialTheme.typography.labelLarge)
-        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-        devices?.takeIf { it.isEmpty() }?.let { Text("没有其他登录设备", style = MaterialTheme.typography.bodySmall) }
-            ?: if (devices == null && note == null) Text("加载中…", style = MaterialTheme.typography.bodySmall) else Unit
+    Column(Modifier.fillMaxWidth().padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("登录设备", style = RsType.section, color = c.textSecondary)
+        note?.let { Text(it, style = RsType.caption, color = c.critical) }
+        devices?.takeIf { it.isEmpty() }?.let { Text("没有其他登录设备", style = RsType.caption, color = c.textSecondary) }
+            ?: if (devices == null && note == null) Text("加载中…", style = RsType.caption, color = c.textTertiary) else Unit
         devices?.forEach { d ->
             // worker /auth/devices 返回 sessions[]：id, device_id, device_name, created_at, last_seen_at, revoked_at
             val sid = d["id"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.content ?: return@forEach
             val name = d["device_name"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.content ?: "未知设备"
+            val lastSeen = d["last_seen_at"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.longOrNull
             val current = d["device_id"]?.let { it as? kotlinx.serialization.json.JsonPrimitive }?.content ==
                 AppGraph.auth.store.deviceId
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(name + if (current) "（本机）" else "", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                if (!current) TextButton(onClick = { scope.launch {
+                Column(Modifier.weight(1f)) {
+                    Text(name + if (current) "（本机）" else "", style = RsType.body, color = c.text)
+                    lastSeen?.let {
+                        Text("最近活跃 " + java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it * 1000)),
+                            style = RsType.caption, color = c.textTertiary)
+                    }
+                }
+                if (!current) AccPill("踢下线") { scope.launch {
                     AppGraph.auth.revokeDevice(sid); refreshKey++
-                } }) { Text("踢下线") }
+                } }
             }
         }
     }

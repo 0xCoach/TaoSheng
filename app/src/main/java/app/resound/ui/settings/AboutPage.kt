@@ -106,7 +106,7 @@ fun AboutPage(version: String?, bottom: Dp) {
             Text("一部安卓手机就够：全天收音 → 自动转写 → 认出谁在说 → AI 整理成待办、约定和记忆；分享进来的链接和截图也统一收进收集箱。",
                 style = RsType.body, color = c.text)
             Spacer(Modifier.height(6.dp))
-            Text("说过的、决定过的、要做的事，都能查得到、推得动。不用买硬件，不用注册账号，数据只在你自己手机里。", style = RsType.body, color = c.textSecondary)
+            Text("说过的、决定过的、要做的事，都能查得到、推得动。不用买硬件，声音和记忆都在你自己手机里。", style = RsType.body, color = c.textSecondary)
         }
 
         AboutCard("主要能做什么") {
@@ -120,11 +120,11 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("隐私") {
-            Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；录音转写后 24 小时自动删除。",
+            Text("录音和转写只存在这台手机里；服务器只管登录和会员，不存你的声音。",
                 style = RsType.body, color = c.text)
         }
 
-        AboutCard("开源许可") {
+        if (devUnlocked) AboutCard("开源许可") {
             var show by remember { mutableStateOf(false) }
             val notices = remember(show) {
                 if (show) runCatching {

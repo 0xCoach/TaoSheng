@@ -184,6 +184,25 @@ export default {
       if (mr) return mr;
       if (req.method === "GET" && path === "/") return Response.redirect(new URL("/console", req.url), 302);
 
+      // ---- 应用更新（公开只读）：manifest 按通道下发，安装包文件 302 到真实托管地址 ----
+      if (req.method === "GET" && (path === "/release/update.json" || path === "/release/preview.json")) {
+        const ch = path.endsWith("preview.json") ? "preview" : "stable";
+        const row = await env.DB.prepare("SELECT manifest FROM app_release WHERE channel=?").bind(ch).first();
+        if (!row) return err("no release", 404);
+        return new Response(row.manifest, {
+          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-cache" } });
+      }
+      if (req.method === "GET" && path.startsWith("/release/")) {
+        const name = decodeURIComponent(path.slice("/release/".length));
+        if (!name || name.length > 180 || name.includes("..") || name.includes("/")) return err("not found", 404);
+        const rows = await env.DB.prepare("SELECT files FROM app_release").all();
+        for (const r of rows.results) {
+          const files = JSON.parse(r.files || "{}");
+          if (files[name]) return Response.redirect(files[name], 302);
+        }
+        return err("not found", 404);
+      }
+
       // ---- 管理端（ADMIN_TOKEN）----
       if (path.startsWith("/admin/")) {
         const tok = req.headers.get("Authorization") || "";
@@ -213,6 +232,17 @@ export default {
         if (req.method === "GET" && path === "/admin/accounts") {
           const r = await env.DB.prepare("SELECT id,username,status,capabilities,created_at,disabled_at FROM users").all();
           return json({ accounts: r.results });
+        }
+        // 发布应用更新：{channel:'stable'|'preview', manifest:{versionCode,versionName,notes,apk:{file,sha256,size},patches:[…]}, files:{文件名:下载地址}}
+        if (req.method === "POST" && path === "/admin/release") {
+          const b = await req.json();
+          const ch = b.channel === "preview" ? "preview" : "stable";
+          const m = b.manifest;
+          if (!m || !Number.isInteger(m.versionCode) || typeof m.versionName !== "string" || !m.apk) return err("manifest required");
+          await env.DB.prepare("INSERT OR REPLACE INTO app_release(channel,manifest,files,updated_at) VALUES(?,?,?,?)")
+            .bind(ch, JSON.stringify(m), JSON.stringify(b.files || {}), nowS()).run();
+          await audit(env, null, "admin.release", `${ch}:${m.versionName}`, req);
+          return json({ ok: true, channel: ch, version: m.versionName });
         }
         return err("not found", 404);
       }

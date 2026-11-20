@@ -40,6 +40,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
                     db.transcribe().reserveAudio(LocalDate.now().toString(), sent, segment.id)
                 }
             }
+            withContext(NonCancellable) { db.transcribe().recordTokens(LocalDate.now().toString(), result.inputTokens, result.outputTokens) }
             outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
             log = TranscribePolicy.safeLogId(result.logId, key)
             chooser.record(source, segment.endAt - segment.startAt, System.currentTimeMillis() - began)

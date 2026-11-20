@@ -320,7 +320,8 @@ class ResoundApp : Application() {
                     reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
             }, hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) })
         AppGraph.todoVoice = AndroidTodoVoiceInput(controller, scope, cacheDir,
-            ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential)
+            ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential,
+            recordTokens = { result -> database.transcribe().recordTokens(java.time.LocalDate.now().toString(), result.inputTokens, result.outputTokens) })
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }
         digestSettings.onIntervalChanged = { scheduler.scheduleDigest() }
         val reviewScheduler = app.resound.review.ReviewScheduler(this)

@@ -42,8 +42,8 @@ class Index183ComparatorTest {
             val table = add.getString("table")
             val masterOld = rows.first { it.startsWith("[\"table\",\"$table\"") }
             val masterAt = rows.indexOf(masterOld)
-            val fkAt = masterOld.indexOf(", FOREIGN KEY(")
-            val cut = if (fkAt < 0) masterOld.lastIndexOf(')') else fkAt
+            val constraintAt = listOf(", FOREIGN KEY(", ", PRIMARY KEY(").map { masterOld.indexOf(it) }.filter { it >= 0 }.minOrNull()
+            val cut = constraintAt ?: masterOld.lastIndexOf(')')
             val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
             rows[masterAt] = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
             rows[rows.indexOf(add.getString("columnsOldLine"))] = add.getString("columnsNewLine")

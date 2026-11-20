@@ -19,7 +19,9 @@ data class TranscriptLineEntity(@PrimaryKey(autoGenerate = true) val id: Long = 
     /** 卡 211：人工修改文字的时间；没改过为 null。重新转写会生成新行，自然回到机器结果 */
     val textEditedAt: Long? = null)
 @Entity(tableName = "asr_usage")
-data class AsrUsageEntity(@PrimaryKey val day: String, val sentMillis: Long)
+data class AsrUsageEntity(@PrimaryKey val day: String, val sentMillis: Long,
+    @ColumnInfo(defaultValue = "0") val inputTokens: Long = 0,
+    @ColumnInfo(defaultValue = "0") val outputTokens: Long = 0)
 /** 严格只存元数据；禁止异常原文、识别原文或请求头。 */
 @Entity(tableName = "asr_attempts")
 data class AsrAttemptEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val segmentId: Long?,
@@ -221,6 +223,14 @@ abstract class TranscribeDao {
         insertUsage(AsrUsageEntity(day, 0))
         addUsage(day, millis)
         if (segmentId != null) addSegmentUsage(segmentId, millis)
+    }
+    @Query("UPDATE asr_usage SET inputTokens = inputTokens + :input, outputTokens = outputTokens + :output WHERE day = :day")
+    abstract suspend fun addTokens(day: String, input: Long, output: Long)
+    @Transaction
+    open suspend fun recordTokens(day: String, input: Long?, output: Long?) {
+        if (input == null && output == null) return
+        insertUsage(AsrUsageEntity(day, 0))
+        addTokens(day, (input ?: 0).coerceAtLeast(0), (output ?: 0).coerceAtLeast(0))
     }
     @Insert abstract suspend fun attempt(row: AsrAttemptEntity)
     @Query("SELECT * FROM asr_attempts ORDER BY id DESC LIMIT 20") abstract suspend fun recentAttempts(): List<AsrAttemptEntity>

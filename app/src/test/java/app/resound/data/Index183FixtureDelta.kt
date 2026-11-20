@@ -103,8 +103,8 @@ internal object Index183FixtureDelta {
             val masterPrefix = "[\"table\",\"${add.getString("table")}\""
             val masterOld = expected.first { it.startsWith(masterPrefix) }
             assertEquals("$name ${add.getString("table")} master旧行次数", 1, expected.count { it.startsWith(masterPrefix) })
-            val fkAt = masterOld.indexOf(", FOREIGN KEY(")
-            val cut = if (fkAt < 0) masterOld.lastIndexOf(')') else fkAt
+            val constraintAt = listOf(", FOREIGN KEY(", ", PRIMARY KEY(").map { masterOld.indexOf(it) }.filter { it >= 0 }.minOrNull()
+            val cut = constraintAt ?: masterOld.lastIndexOf(')')
             val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
             val migrated = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
             assertEquals("$name ${add.getString("table")} master新行次数", 1, observed.count { it.startsWith(masterPrefix) })

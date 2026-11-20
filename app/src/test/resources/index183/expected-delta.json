@@ -39,25 +39,25 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=43",
+    "newLine": "user_version=44",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"81934afdffc83e90a17a227aa89bf6b0\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"f3a59463fda32166a86b20a4d1cf6695\"}]",
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "81934afdffc83e90a17a227aa89bf6b0",
+  "newIdentityHash": "f3a59463fda32166a86b20a4d1cf6695",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '81934afdffc83e90a17a227aa89bf6b0')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f3a59463fda32166a86b20a4d1cf6695')"
   ],
   "indices": [
     {
@@ -496,6 +496,15 @@
       "insertSql": "ALTER TABLE transcript_lines ADD COLUMN `textEditedAt` INTEGER",
       "masterFreshLine": "[\"table\",\"transcript_lines\",\"transcript_lines\",\"CREATE TABLE `transcript_lines` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `segmentId` INTEGER NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `text` TEXT NOT NULL, `speakerTag` TEXT, `speakerName` TEXT, `eventId` INTEGER, `digestedAt` INTEGER, `speakerScore` REAL, `speakerPersonId` INTEGER, `speakerManual` INTEGER NOT NULL DEFAULT 0, `voiceInputJson` TEXT, `voiceInputPendingUntil` INTEGER, `originalText` TEXT, `textEditedAt` INTEGER, FOREIGN KEY(`segmentId`) REFERENCES `segments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
       "note": "卡 211：原话人工修改时间"
+    },
+    {
+      "table": "asr_usage",
+      "columnsOldLine": "columns=[\"day\",\"sentMillis\"]",
+      "columnsNewLine": "columns=[\"day\",\"sentMillis\",\"inputTokens\",\"outputTokens\"]",
+      "dataSuffix": ",{\"integer\":0},{\"integer\":0}]",
+      "insertSql": "ALTER TABLE asr_usage ADD COLUMN inputTokens INTEGER NOT NULL DEFAULT 0, outputTokens INTEGER NOT NULL DEFAULT 0",
+      "masterFreshLine": "[\"table\",\"asr_usage\",\"asr_usage\",\"CREATE TABLE `asr_usage` (`day` TEXT NOT NULL, `sentMillis` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL DEFAULT 0, `outputTokens` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`day`))\"]",
+      "note": "卡 212：转写 token 用量，旧数据默认 0"
     }
   ]
 }

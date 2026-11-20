@@ -12,7 +12,7 @@ class RoomUsageQueries(private val memory: MemoryDao, private val transcribe: Tr
     }
 
     fun asr(from: LocalDate, to: LocalDate) = transcribe.usageBetween(from.toString(), to.toString()).map { rows ->
-        rows.map { AsrUsageRow(LocalDate.parse(it.day), it.sentMillis) }
+        rows.map { AsrUsageRow(LocalDate.parse(it.day), it.sentMillis, it.inputTokens, it.outputTokens) }
     }
 
 }

@@ -23,6 +23,7 @@ class DecisionRepository(
     private val revisions: MemoryRevisionDao,
     private val io: CoroutineDispatcher,
     private val now: NowMillis,
+    private val projects: app.resound.projects.ProjectDao? = null,
 ) {
     fun observeActive(): Flow<List<DecisionRow>> = dao.observeActive()
     fun observeHistory(): Flow<List<DecisionRow>> = dao.observeHistory()
@@ -56,10 +57,12 @@ class DecisionRepository(
         val evidence = item.sourceText ?: line?.text
         val confidence = if (evidence.isNullOrBlank()) DecisionConfidence.Tentative
             else maxOf(DecisionRules.guessConfidence("${item.content} $evidence"), DecisionConfidence.of(item.kind))
-        val (id, _) = create(item.content, "", null, confidence, item.createdAt,
+        // 项目归属随条目/事件的项目关联走，不再一律清空——决定要能上得了项目。
+        val projectId = projects?.linksForRef(app.resound.projects.ProjectRefKind.Item.name, item.id)?.firstOrNull()?.projectId
+            ?: item.eventId?.let { projects?.linksForRef(app.resound.projects.ProjectRefKind.Event.name, it)?.firstOrNull()?.projectId }
+        val (id, _) = create(item.content, "", projectId, confidence, item.createdAt,
             sourceLineId = item.lineId, sourceItemId = item.id, sourceEventId = item.eventId,
             sourceText = evidence)
-        dao.setProject(id, null, now.now())
         id
     }
 

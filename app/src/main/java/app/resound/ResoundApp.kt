@@ -232,7 +232,13 @@ class ResoundApp : Application() {
         digestRunner = DigestRunner(this, database.memory(), llm, digestSettings, { AppGraph.prompts.text("digest") }, situation = AppGraph.situation, thingExtraction = thingExtraction, networkAllowed = {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        }, unseparated = database.transcribe()::unseparated, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual -> app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual) })
+        }, unseparated = database.transcribe()::unseparated, isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual ->
+            app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual)
+            // 整理出新事件后立刻同步下游记忆，不等下次启动或手动“同步提取”。
+            AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
+            AppGraph.decisionRepo.syncFromDigest()
+            AppGraph.followupEngine.scan()
+            AppGraph.workflowEngine.emit(app.resound.rules.RuleEvent.DigestDone.key) })
         AppGraph.quietDigest = app.resound.digest.QuietDigestWatcher(this, scope, database, scheduler, digestRunner).also { it.start() }
         AppGraph.importKinds = app.resound.importer.AndroidImportKinds.create(this, database,
             AppGraph.importer as app.resound.importer.AndroidAudioImporter, scope, digestSettings, llm,
@@ -276,7 +282,7 @@ class ResoundApp : Application() {
         // M2+：第二大脑扩展——决策/跟进/收集箱/规则/纠错/问答/MCP
         val assistantNotifier = app.resound.push.LocalNotifier(this)
         AppGraph.memoryCorrector = app.resound.revise.MemoryCorrector(database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now)
-        AppGraph.decisionRepo = app.resound.decision.DecisionRepository(database.decisions(), database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now)
+        AppGraph.decisionRepo = app.resound.decision.DecisionRepository(database.decisions(), database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now, database.projects())
         AppGraph.followupEngine = app.resound.followup.FollowupEngine(database.followups(), database.ideas(), database.memory(),
             AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
             { t, b, l -> assistantNotifier.send(t, b, l) })

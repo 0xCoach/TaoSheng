@@ -72,4 +72,17 @@ class DecisionEvidenceGateTest {
         val id = repo.importFromItem(item(sourceText = "下周三发版本"))!!
         assertEquals(DecisionConfidence.Likely.name, db.decisions().decision(id)!!.confidence)
     }
+
+    @Test fun importInheritsProjectLinkAndLeavesUnlinkedNull() = runBlocking {
+        val linked = DecisionRepository(db.decisions(), db.memory(), db.revisions(),
+            Dispatchers.Unconfined, NowMillis { now }, db.projects())
+        val pid = db.projects().insert(app.resound.projects.ProjectRow(name = "项目X", createdAt = now, updatedAt = now))
+        db.projects().insertLink(app.resound.projects.ProjectLinkRow(projectId = pid,
+            refKind = app.resound.projects.ProjectRefKind.Item.name, refId = 7, createdAt = now))
+        val decided = item(sourceText = "我们决定就用方案A，不做别的了")
+        val linkedId = linked.importFromItem(decided.copy(id = 7))!!
+        val plainId = linked.importFromItem(decided.copy(id = 8))!!
+        assertEquals(pid, db.decisions().decision(linkedId)!!.projectId)
+        assertNull(db.decisions().decision(plainId)!!.projectId)
+    }
 }

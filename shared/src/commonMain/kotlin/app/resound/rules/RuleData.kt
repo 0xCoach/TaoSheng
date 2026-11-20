@@ -108,7 +108,8 @@ enum class RuleEvent(val label: String, val key: String) {
     IdeaCreated("新灵感进收件箱", "idea_created"),
     CaptureArrived("收集箱新条目", "capture_arrived"),
     DigestDone("每日整理完成", "digest_done"),
-    FollowupDue("跟进项到期", "followup_due");
+    FollowupDue("跟进项到期", "followup_due"),
+    TopicDone("专题纪要完成", "topic_done");
 
     companion object {
         fun of(key: String?) = entries.firstOrNull { it.key == key }

@@ -8,10 +8,10 @@ import app.resound.data.writeTransaction
 import kotlinx.coroutines.flow.map
 fun TopicRow.snapshot() = app.resound.topic.core.TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt,
     plannedEndAt = plannedEndAt, repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride,
-    retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
+    retainedItemIds = retainedItemIds, starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt, seriesKey = seriesKey)
 fun app.resound.topic.core.TopicRow.android() = TopicRow(id = id, kind = kind, name = name, status = status, createdAt = createdAt, plannedStartAt = plannedStartAt, plannedEndAt = plannedEndAt,
     repeatRule = repeatRule, eventId = eventId, cardId = cardId, error = error, revision = revision, quietOverride = quietOverride, retainedItemIds = retainedItemIds,
-    starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt)
+    starred = starred, quietNotifiedAfter = quietNotifiedAfter, endingNotifiedAt = endingNotifiedAt, seriesKey = seriesKey)
 fun TopicSpanRow.snapshot() = app.resound.topic.core.TopicSpanRow(id = id, topicId = topicId, startAt = startAt, endAt = endAt)
 fun app.resound.topic.core.TopicSpanRow.android() = TopicSpanRow(id = id, topicId = topicId, startAt = startAt, endAt = endAt)
 fun TopicMarkRow.snapshot() = app.resound.topic.core.TopicMarkRow(id = id, topicId = topicId, at = at)

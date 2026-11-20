@@ -89,7 +89,7 @@ class TopicRulesRepository(
             checkConflict(from, end ?: from + TopicPolicy.MAX_DURATION)
             val override = quiet(at, end ?: from + TopicPolicy.MAX_DURATION)
             val id = dao.insert(TopicRow(kind = kind.name, name = name.clean(), status = "Running", createdAt = at,
-                plannedEndAt = end, quietOverride = override))
+                plannedEndAt = end, quietOverride = override, seriesKey = TopicPolicy.seriesKey(name)))
             dao.span(TopicSpanRow(topicId = id, startAt = from))
             StartResult(id, override, !recordingEnabled())
         } }
@@ -147,6 +147,7 @@ class TopicRulesRepository(
             val regenerate = g.row.status in setOf("Ended", "Summarizing", "Done", "Failed")
             val row = if (regenerate) releaseGenerated(g) else g.row
             dao.update(row.copy(kind = kind.name, name = name.clean(), revision = row.revision + 1,
+                seriesKey = TopicPolicy.seriesKey(name),
                 status = if (regenerate) "Ended" else row.status, error = null))
             regenerate
         }
@@ -168,7 +169,8 @@ class TopicRulesRepository(
     } }
     private suspend fun insertSchedule(kind: String, name: String?, start: Long, end: Long, repeat: Int?): Long {
         val id = dao.insert(TopicRow(kind = kind, name = name, status = "Scheduled", createdAt = now(),
-            plannedStartAt = start, plannedEndAt = end, repeatRule = repeat, quietOverride = quiet(start, end)))
+            plannedStartAt = start, plannedEndAt = end, repeatRule = repeat, quietOverride = quiet(start, end),
+            seriesKey = TopicPolicy.seriesKey(name)))
         dao.span(TopicSpanRow(topicId = id, startAt = start, endAt = end))
         return id
     }
@@ -212,7 +214,8 @@ class TopicRulesRepository(
             val events = p.events.map { it.id }
             val retained = dao.eventItems(events).filter(TopicPolicy::changed).map { it.id }
             val id = dao.insert(TopicRow(kind = kind.name, name = name.clean(), status = "Ended", createdAt = now(),
-                retainedItemIds = JSONArray(retained).toString(), starred = p.starredEventCount > 0))
+                retainedItemIds = JSONArray(retained).toString(), starred = p.starredEventCount > 0,
+                seriesKey = TopicPolicy.seriesKey(name)))
             dao.span(TopicSpanRow(topicId = id, startAt = p.startAt, endAt = p.endAt))
             dao.attachItems(retained, null)
             dao.releaseEvents(events)

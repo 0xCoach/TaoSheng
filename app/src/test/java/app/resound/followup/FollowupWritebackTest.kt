@@ -89,6 +89,25 @@ class FollowupWritebackTest {
         assertEquals(1, db.followups().observeOpen().first().size)
     }
 
+    @Test fun scanRegistersAcceptedCommitmentImmediately() = runBlocking {
+        // 刚结束的会议提取出的"约定"不必等一天就登记为承诺；同事件的新鲜待办仍按落后规则不登记。
+        db.memory().insertEvent(MemoryEventEntity(id = 11, startAt = now - 1000, endAt = now - 999,
+            scene = "其他", title = "事件", summary = "", pointsJson = "[]", peopleJson = "[]",
+            place = null, emotion = null, intensity = null, important = false, createdAt = now - 900, model = "test"))
+        db.memory().insertItems(listOf(
+            MemoryItemEntity(id = 11, eventId = 11, category = "约定", kind = "我答应别人",
+                content = "周五前把方案发给客户", dueText = "周五", dueAt = null, who = "我",
+                lineId = null, status = "Accepted", createdAt = now - 500),
+            MemoryItemEntity(id = 12, eventId = 11, category = "待办", kind = null,
+                content = "新鲜待办", dueText = null, dueAt = null, who = null,
+                lineId = null, status = "Accepted", createdAt = now - 500)))
+        engine.scan()
+        val open = db.followups().observeOpen().first()
+        assertEquals(1, open.size)
+        assertEquals(FollowupKind.Commitment.name, open.single().kind)
+        assertEquals(11L, open.single().refId)
+    }
+
     @Test fun stalledListPicksRepeatedlyRemindedOpenItems() = runBlocking {
         db.followups().insert(followup("item", 1).copy(remindCount = 4))
         db.followups().insert(followup("item", 2).copy(remindCount = 1))

@@ -22,9 +22,12 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import app.resound.digest.snapshot
 import app.resound.skills.android
+import app.resound.topic.core.MeetingOpenItem
+import app.resound.topic.core.MeetingSeriesRules
 import app.resound.topic.core.TopicProcessingSession
 import app.resound.topic.core.TopicProcessingRules
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 internal data class TopicOutput(val event: MemoryEventEntity, val items: List<DigestPrompt.ParsedItem>, val card: SkillCardRow?)
 
@@ -63,7 +66,8 @@ internal class TopicGenerator(
     private val appName: String = "声声不息",
 ) {
     suspend fun generate(g: TopicGroup, lines: List<TranscriptLineEntity>, unfinished: List<MemoryItemEntity>,
-        ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null): TopicOutput {
+        ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null,
+        previousContext: String = ""): TopicOutput {
         val row = g.row
         val words = (hotwords() + TopicPolicy.words(row.name)).distinct()
         val kind = TopicKind.valueOf(row.kind)
@@ -112,7 +116,8 @@ internal class TopicGenerator(
                 summary.generate(ImportRecordRow(id = row.id, pendingId = "topic:${row.id}", fileName = row.name ?: kind.title,
                     kind = kind.name, startAt = start, endAt = end, byChannel = false),
                     if (kind == TopicKind.Training) acceptedLines.map { it.copy(speakerName = null, speakerTag = null) } else acceptedLines,
-                    unfinished + ignored, extraContext = DigestPrompt.withHotwords(context(g, acceptedLines), words)).card
+                    unfinished + ignored, extraContext = listOf(previousContext,
+                        DigestPrompt.withHotwords(context(g, acceptedLines), words)).filter { it.isNotBlank() }.joinToString("\n\n")).card
                     .copy(entity = "topic:${row.id}")
             }
         }
@@ -197,7 +202,19 @@ internal class TopicEngine(
                 val retained = dao.items(g.row.retainedIds()).filterNot { it.deleted }
                 val unfinished = (db.memory().unfinishedForDigest() + retained.filter { it.status !in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
-                val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), session)
+                // 同系列上一次纪要：结论/决定/行动项 + 仍未闭环的待办与约定，注入本场资料区。
+                val previousBlock = g.row.seriesKey?.takeIf { g.row.kind != "Normal" && g.row.kind != "Script" }
+                    ?.let { key -> dao.previousDone(g.row.kind, key, g.row.id) }
+                    ?.let { prev ->
+                        val card = prev.cardId?.let { db.skills().card(it).first() }
+                        val open = prev.eventId?.let { eid -> dao.eventItems(listOf(eid)) }.orEmpty()
+                            .filter { !it.deleted && it.category in setOf("待办", "约定") && it.status in setOf("Pending", "Accepted") }
+                            .map { MeetingOpenItem(it.kind ?: it.category, it.who, it.content, it.dueText) }
+                        val prevStart = dao.get(prev.id)?.spans?.minOfOrNull { it.startAt } ?: prev.createdAt
+                        val date = Instant.ofEpochMilli(prevStart).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                        MeetingSeriesRules.previousContext(prev.name, date, card?.valuesJson, open)
+                    } ?: ""
+                val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), session, previousBlock)
                 val saved = db.writeTransaction {
                     val latest = dao.get(g.row.id) ?: return@writeTransaction false
                     if (latest.row.revision != revision || latest.row.status != "Summarizing") return@writeTransaction false

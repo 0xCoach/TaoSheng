@@ -182,7 +182,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun sceneSessions(): SceneSessionDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 41
+        const val VERSION = 42
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -502,11 +502,25 @@ abstract class CaptureDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                // 同系列会议回链：seriesKey 缺失才补列，保证迁移可重复执行。
+                val hasSeries = db.prepare("SELECT 1 FROM pragma_table_info('topics') WHERE name = 'seriesKey'").use { it.step() }
+                if (!hasSeries) {
+                    db.execSQL("ALTER TABLE topics ADD COLUMN seriesKey TEXT")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_topics_seriesKey ON topics(seriesKey)")
+                }
+                // 与 TopicPolicy.seriesKey 同口径：去空白小写；匿名专题保持 NULL。
+                db.execSQL("""UPDATE topics SET seriesKey = REPLACE(REPLACE(LOWER(TRIM(name)), ' ', ''), '　', '')
+                    WHERE name IS NOT NULL AND TRIM(name) != ''""")
+            }
+        }
+
         val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
             MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
             MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
             MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
-            MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41)
+            MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42)
     }
 }
 

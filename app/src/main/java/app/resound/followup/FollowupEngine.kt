@@ -56,9 +56,18 @@ class FollowupEngine(
     suspend fun scan(): Int = withContext(io) {
         val at = now.now()
         dao.reopenSnoozed(at, at, at)
-        // 落后待办：接受状态、没完成、创建超过一天
+        // 已接受的约定立刻登记为承诺跟进——会议闭环不等一天；待办/备忘仍按落后一天发现。
+        for (item in memory.itemsBetween(0, at).first()
+            .filter { it.category == "约定" && it.status == "Accepted" && it.doneAt == null }) {
+            if (dao.openByRef("item", item.id) != null) continue
+            dao.insert(FollowupRow(kind = FollowupKind.Commitment.name, refKind = "item", refId = item.id,
+                title = item.content.take(80), detail = item.dueText ?: "",
+                sourceText = item.sourceText, sourceLineId = item.lineId,
+                createdAt = item.createdAt, nextCheckAt = at, updatedAt = at))
+        }
+        // 落后待办：接受状态、没完成、所在事件超过一天
         val staleTodos = memory.itemsBetween(0, staleTodoCutoff()).first()
-            .filter { it.category in listOf("待办", "约定", "备忘") && it.status == "Accepted" && it.doneAt == null }
+            .filter { it.category in listOf("待办", "备忘") && it.status == "Accepted" && it.doneAt == null }
         for (item in staleTodos) {
             if (dao.openByRef("item", item.id) != null) continue
             dao.insert(FollowupRow(kind = FollowupKind.Todo.name, refKind = "item", refId = item.id,

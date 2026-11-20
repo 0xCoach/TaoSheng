@@ -391,26 +391,26 @@ function sessionExpired(){csrf="";lastCodes=[];const p=$("panel");if(p)p.innerHT
 function showLogin(){$("login").style.display="";$("main").style.display="none"}
 async function login(){try{const r=await fetch("/console/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:$("tok").value})});
 if(!r.ok){sessionExpired();$("lerr").textContent="令牌错误";return}const j=await r.json();csrf=j.csrf;$("lerr").textContent="";$("login").style.display="none";$("main").style.display="";tab("overview")}catch(e){$("lerr").textContent=e.message}}
-async function logout(){await api("/session",null,"DELETE").catch(()=>{});csrf="";showLogin()}
+async function logout(){await api("/session","DELETE").catch(()=>{});csrf="";showLogin()}
 function tab(name,btn){[...document.querySelectorAll("nav button")].forEach(b=>b.classList.remove("on"));if(btn)btn.classList.add("on");({overview,users,members,usage,codes,audit,aioff})[name]()}
 const ts=t=>t?new Date(t*1000).toLocaleString():"—";
 async function overview(){const j=await api("/overview");$("panel").innerHTML=\`<div class="card">用户 <b>\${j.users}</b> · 在期 Pro <b>\${j.pro}</b> · 可兑码 <b>\${j.codes_active}</b> · 已兑 <b>\${j.codes_redeemed}</b></div>\`}
 const CAP_CN={pro:"Pro 会员",local_asr_minutes:"本机转写时长",cross_meeting_tracking:"跨会议跟踪",advanced_project_analysis:"高级项目分析",agent_workflow:"Agent 工作流"};
 const STATUS_CN={active:"正常",disabled:"已停用",invited:"待激活"};
-const entText=e=>{const m=/^([^→]+)→?(\d+)?$/.exec(e);if(!m)return e;const n=CAP_CN[m[1]]||m[1];return n+(m[2]?" · 至 "+new Date(m[2]*1000).toLocaleDateString():" · 不限期")};
+const entText=e=>{const m=/^([^→]+)→?(\\d+)?$/.exec(e);if(!m)return e;const n=CAP_CN[m[1]]||m[1];return n+(m[2]?" · 至 "+new Date(m[2]*1000).toLocaleDateString():" · 不限期")};
 async function users(){const j=await api("/users");
 $("panel").innerHTML=\`<div class="card"><table><tr><th>用户名</th><th>状态</th><th>权益</th><th>注册</th><th></th></tr>\${j.users.map(u=>\`<tr><td>\${u.username}</td><td>\${STATUS_CN[u.status]||u.status}</td><td>\${(u.entitlements||[]).map(e=>u.status=="disabled"?'<span style="color:#999">'+entText(e)+"（随停用不生效）</span>":entText(e)).join("<br>")||"—"}</td><td>\${ts(u.created_at)}</td><td>\${u.status=="disabled"?'<button onclick="enableUser(\\''+u.id+'\\')">启用</button>':'<button onclick="disableUser(\\''+u.id+'\\')">停用</button>'}<button onclick="resetPw(\\''+u.id+'\\',\\''+u.username+'\\')">重置密码</button><button onclick="delUser(\\''+u.id+'\\',\\''+u.username+'\\')">删除</button></td></tr>\`).join("")}</table>
 <p><input id="nu" placeholder="用户名"><input id="np" type="password" placeholder="密码"><button class="pri" onclick="createUser()">创建账号</button></p><div id="umsg"></div></div>\`}
 async function createUser(){try{const j=await api("/users","POST",{username:$("nu").value,password:$("np").value});$("umsg").innerHTML='<span class="ok">已创建 '+j.username+'</span>';users()}catch(e){$("umsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 async function disableUser(id){if(!confirm("停用该账号并撤销其全部会话？"))return;await api("/users/"+id,"PATCH",{disabled:true});users()}
 async function resetPw(id,name){const p=prompt("为用户 "+name+" 设置新密码（8-128 位）：");if(p==null)return;if(p.length<8||p.length>128)return alert("密码需 8-128 位");await api("/users/"+id+"/reset_password","POST",{password:p});alert("已重置，请把新密码告知用户")}
-async function delUser(id,name){if(!confirm("彻底删除用户 "+name+" 及其会话/权益/点数记录？不可恢复！"))return;await api("/users/"+id,null,"DELETE");users()}
+async function delUser(id,name){if(!confirm("彻底删除用户 "+name+" 及其会话/权益/点数记录？不可恢复！"))return;await api("/users/"+id,"DELETE");users()}
 async function enableUser(id){await api("/users/"+id,"PATCH",{disabled:false});users()}
 async function members(){const j=await api("/memberships");
 $("panel").innerHTML=\`<div class="card"><table><tr><th>用户</th><th>能力</th><th>来源</th><th>到期</th><th>状态</th><th></th></tr>\${j.entitlements.map(e=>\`<tr><td>\${e.username||e.user_id.slice(0,8)}</td><td>\${e.capability}</td><td>\${e.source}</td><td>\${e.expires_at?ts(e.expires_at):"不限期"}</td><td>\${e.revoked_at?"已撤销":""}</td><td>\${e.revoked_at?"":'<button onclick="revokeEnt(\\''+e.id+'\\')">撤销</button>'}</td></tr>\`).join("")}</table>
 <p><input id="mu" placeholder="用户名"><input id="md" placeholder="天数" value="30" style="width:60px"><button class="pri" onclick="grantPro()">授予 Pro</button></p><div id="mmsg"></div></div>\`}
 async function grantPro(){try{const j=await api("/memberships","POST",{username:$("mu").value,capability:"pro",days:Number($("md").value)});$("mmsg").innerHTML='<span class="ok">已授予，到期 '+ts(j.pro_until)+'</span>';members()}catch(e){$("mmsg").innerHTML='<span class="err">'+e.message+'</span>'}}
-async function revokeEnt(id){if(!confirm("撤销该权益？"))return;await api("/memberships/"+id,null,"DELETE");members()}
+async function revokeEnt(id){if(!confirm("撤销该权益？"))return;await api("/memberships/"+id,"DELETE");members()}
 async function usage(){const j=await api("/usage");
 $("panel").innerHTML=\`<div class="card">账期 <b>\${j.month}</b> · Free 额度 \${j.limit} 分钟<table><tr><th>用户</th><th>已用(分钟)</th></tr>\${j.usage.map(u=>\`<tr><td>\${u.username||u.user_id.slice(0,8)}</td><td>\${u.minutes}</td></tr>\`).join("")}</table>
 <p><input id="au" placeholder="用户ID"><input id="am" placeholder="调整分钟(+/-)" style="width:110px"><input id="ar" placeholder="原因"><button class="pri" onclick="adjust()">调整额度</button></p><div id="amsg"></div></div>\`}
@@ -449,11 +449,11 @@ $("panel").innerHTML='<div class="card"><b>运营控制</b> · 官方 AI：<b>'+
 +'<p><input id="aju" placeholder="用户ID"><input id="ajp" placeholder="点数(+/-)" style="width:80px"><input id="ajr" placeholder="原因"><button class="pri" onclick="aiAdjust()">调整</button><span id="amsg"></span></p></div>';
 const w=await api("/ai/users");const el=$("aiusers");if(el)el.innerHTML='<table><tr><th>用户</th><th>计划</th><th>额度</th><th>已用</th><th>预留</th><th>剩余</th><th>周期止</th></tr>'+w.periods.map(p=>'<tr><td>'+esc(p.username||p.user_id.slice(0,8))+'</td><td>'+p.plan+'</td><td>'+p.granted+'</td><td>'+p.used+'</td><td>'+p.reserved+'</td><td>'+p.remaining+'</td><td>'+ts(p.period_end)+'</td></tr>').join("")+"</table>"}
 async function aiRules(patch){await api("/ai/rules","PATCH",patch);aioff()}
-async function aiSaveRules(){try{const hosts=$("rah").value.split(/[\s,]+/).filter(Boolean);await api("/ai/rules","PATCH",{free_monthly_points:+$("rf").value,pro_period_points:+$("rp").value,task_point_cap:+$("rc").value,max_input_tokens:+$("ri").value,max_output_tokens:+$("ro").value,free_daily_tasks:+$("rfd").value,pro_daily_tasks:+$("rpd").value,auto_period_points:+$("rap").value,auto_daily_points:+$("rad").value,budget_daily_milli:+$("rbd").value,budget_monthly_milli:+$("rbm").value,...(hosts.length?{allowed_hosts:hosts}:{})});$("rmsg").innerHTML='<span class="ok">已保存</span>'}catch(e){$("rmsg").innerHTML='<span class="err">'+e.message+'</span>'}}
+async function aiSaveRules(){try{const hosts=$("rah").value.split(/[\\s,]+/).filter(Boolean);await api("/ai/rules","PATCH",{free_monthly_points:+$("rf").value,pro_period_points:+$("rp").value,task_point_cap:+$("rc").value,max_input_tokens:+$("ri").value,max_output_tokens:+$("ro").value,free_daily_tasks:+$("rfd").value,pro_daily_tasks:+$("rpd").value,auto_period_points:+$("rap").value,auto_daily_points:+$("rad").value,budget_daily_milli:+$("rbd").value,budget_monthly_milli:+$("rbm").value,...(hosts.length?{allowed_hosts:hosts}:{})});$("rmsg").innerHTML='<span class="ok">已保存</span>'}catch(e){$("rmsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 async function aiAdd(){try{await api("/ai/providers","POST",{name:$("pn").value,api_base:$("pb").value,model:$("pm2").value,api_key:$("pk").value||undefined});aioff()}catch(e){$("pmsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 async function aiTest(id,btn){btn.disabled=true;try{const j=await api("/ai/providers/"+id+"/test","POST",{});alert(j.ok?"连接成功 "+j.ms+"ms":"失败："+j.error)}finally{btn.disabled=false}}
 async function aiDefault(id){await api("/ai/providers/"+id+"/default","POST",{});aioff()}
 async function aiToggle(id){await api("/ai/providers/"+id+"/toggle","POST",{});aioff()}
-async function aiDel(id){if(!confirm("停用该服务商？"))return;await api("/ai/providers/"+id,null,"DELETE");aioff()}
+async function aiDel(id){if(!confirm("停用该服务商？"))return;await api("/ai/providers/"+id,"DELETE");aioff()}
 async function aiAdjust(){try{await api("/ai/users/adjust","POST",{user_id:$("aju").value,points:+$("ajp").value,reason:$("ajr").value});$("amsg").innerHTML='<span class="ok">已调整</span>';aioff()}catch(e){$("amsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 <\/script></body></html>`;

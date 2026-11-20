@@ -78,7 +78,23 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         }, ::validateEndpoint,
         { api -> !prefs.getString(CustomAsrSettings.keyField(api), null).isNullOrBlank() ||
             runCatching { headers(TranscribeSource.Custom.name).any { it.value.isNotBlank() } }.getOrDefault(false) },
-        { refreshReady(); onChanged() })
+        { refreshReady(); onChanged() },
+        { api -> verifiedPrefs.getString(api.name, null)?.split('|', limit = 2)?.takeIf { it.size == 2 && it[1] == verifiedFingerprint(api) }
+            ?.let { saved -> CustomCapability.entries.firstOrNull { it.name == saved[0] } } },
+        { api, capability -> verifiedPrefs.edit().apply {
+            if (capability == null) remove(api.name) else putString(api.name, "${capability.name}|${verifiedFingerprint(api)}") }.apply() })
+    /** 卡 212：测试通过的结论按配置指纹存本机，不备份；换配置、换密钥、恢复到新手机都会读回“未验证”。 */
+    private val verifiedPrefs get() = context.getSharedPreferences("custom-asr-verified", Context.MODE_PRIVATE)
+    private fun verifiedFingerprint(api: CustomAsrApi): String = runCatching {
+        val qwen = api == CustomAsrApi.Qwen
+        val parts = listOf(prefs.getString(if (qwen) "qwenEndpoint" else "endpoint", CustomAsrSettings.QWEN_ENDPOINT.takeIf { qwen } ?: "").orEmpty(),
+            prefs.getString(if (qwen) "qwenModel" else "model", CustomAsrSettings.QWEN_MODEL.takeIf { qwen } ?: "").orEmpty(),
+            if (qwen) CustomEndpointMode.Full.name else prefs.getString("endpointMode", CustomEndpointMode.Auto.name).orEmpty(),
+            if (qwen) "" else prefs.getString("customSpeakerFormat", CustomSpeakerFormat.Auto.name).orEmpty(),
+            prefs.getString(CustomAsrSettings.keyField(api), "").orEmpty(),
+            org.json.JSONArray(headers(TranscribeSource.Custom.name).map { listOf(it.name, it.value) }).toString())
+        keyFingerprint(parts.joinToString("\u0000"))
+    }.getOrDefault("")
     val customApi get() = customSettings.api
     val customSpeakerFormat get() = customSettings.speakerFormat
     val customKeyState get() = customSettings.keyState

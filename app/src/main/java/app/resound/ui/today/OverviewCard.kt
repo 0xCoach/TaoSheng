@@ -321,10 +321,14 @@ private fun ColumnScope.LiveCard(
         val saved by p.saved.collectAsStateWithLifecycle(); val id by p.activeId.collectAsStateWithLifecycle(); saved.firstOrNull { it.id == id }
     } else null
     val model = HomeRules.modelButton(provider?.name, hasKey, quotaOrAuth)
+    // #56：待转写又转不了（未配置、鉴权失败等）时，这行字可点，直接去“语音转写”测试，不让人误找整理模型
+    val transcribeStuck = stage == null && !queue.running && !digest.running && toTranscribe > 0 && queue.lastError != null
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).then(if (transcribeStuck) Modifier.springClick {
+            app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript) } else Modifier)) {
         Text(
             when {
+                transcribeStuck -> "$toTranscribe 段待转写 · ${queue.lastError} · 去语音转写测试 ›"
                 stage != null -> stageLine(pipeline, queue.runDone, queue.runTotal)
                 digest.running -> "按已保存的原话计数"
                 queue.running -> "正在转写录音…"

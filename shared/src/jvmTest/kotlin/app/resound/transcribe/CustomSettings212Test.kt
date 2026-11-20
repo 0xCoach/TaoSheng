@@ -26,8 +26,9 @@ class CustomSettings212Test {
         settings.save("https://qwen.invalid/full", "qwen", CustomEndpointMode.Auto); settings.setPrompt(false)
         settings.setApi(CustomAsrApi.OpenAi)
         assertEquals("open", settings.model); assertEquals("https://open.invalid", settings.endpoint)
-        assertNull(settings.capability.value)
-        assertEquals(CustomKeyState.Saved, settings.keyState.value)
+        // 配置没变：切回来仍是已验证，不用重测
+        assertEquals(CustomCapability.TextOnly, settings.capability.value)
+        assertEquals(CustomKeyState.Verified, settings.keyState.value)
         settings.setApi(CustomAsrApi.Qwen); assertEquals("qwen", settings.model); assertFalse(settings.customPrompt.value)
     }
     @Test fun changedConfigAndStaleTestsCannotRestoreVerification() {
@@ -40,5 +41,20 @@ class CustomSettings212Test {
         settings.setSpeakerFormat(CustomSpeakerFormat.Diarized); assertNull(settings.capability.value)
         settings.tested(settings.testTicket(), CustomCapability.Speakers)
         settings.invalidateAll(); assertNull(settings.capability.value)
+    }
+    @Test fun verificationSurvivesRestartUntilPlatformFingerprintChanges() {
+        val stored = mutableMapOf<CustomAsrApi, CustomCapability>()
+        var fingerprintMatches = true
+        fun make() = CustomAsrSettings({ k,d -> values[k] ?: d }, { k,d -> values[k]?.toBoolean() ?: d },
+            { k,v -> values[k] = v }, { k,v -> values[k] = v.toString() }, { _,_,_,_ -> }, { _,_ -> }, keys::contains, {},
+            { api -> stored[api]?.takeIf { fingerprintMatches } }, { api, c -> if (c == null) stored.remove(api) else stored[api] = c })
+        keys += CustomAsrApi.OpenAi
+        val first = make(); first.refresh()
+        first.tested(first.testTicket(), CustomCapability.TimedText)
+        val again = make(); again.refresh()
+        assertEquals(CustomKeyState.Verified, again.keyState.value)
+        fingerprintMatches = false
+        val changed = make(); changed.refresh()
+        assertEquals(CustomKeyState.Saved, changed.keyState.value)
     }
 }

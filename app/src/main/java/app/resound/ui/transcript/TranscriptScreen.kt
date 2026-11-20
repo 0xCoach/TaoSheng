@@ -64,6 +64,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -424,12 +425,7 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
             Choice(TranscribeSource.entries.toList(), source, { it.title }) { advanced.setSource(it) }
             Divider()
             if (local) LocalModelOptions(advanced)
-            if (source == TranscribeSource.Custom) {
-                CustomModelForm(advanced.customEndpoint,advanced.customModel,hasKey,
-                    "自定义音频转写服务",advanced::fetchModels,advanced::saveCustomAll,
-                    app.resound.ui.settings.EndpointModeUi(advanced.customEndpointMode,advanced.customPrompt,advanced::setCustomPrompt,advanced::saveCustomAll))
-
-            }
+            if (source == TranscribeSource.Custom) CustomTranscribeForm(advanced, hasKey)
             // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
             if (!local) app.resound.ui.settings.TranscribeHeaders(source)
         }
@@ -1144,4 +1140,44 @@ internal fun LineEditor(value: String, onChange: (String) -> Unit, saving: Boole
             Pill(if (saving) "保存中" else "保存", filled = value.isNotBlank() && !saving) { if (value.isNotBlank()) onSave() }
         }
     }
+}
+
+/** 卡 212：自定义转写分两种接口格式，各存一套地址、模型、密钥；OpenAI 兼容可选说话人格式 */
+@Composable
+private fun CustomTranscribeForm(advanced: app.resound.transcribe.AndroidTranscribeSettings, hasKey: Boolean) {
+    val c = Rs.colors
+    val api by advanced.customApi.collectAsStateWithLifecycle()
+    val keyState by advanced.customKeyState.collectAsStateWithLifecycle()
+    val capability by advanced.customCapability.collectAsStateWithLifecycle()
+    val speaker by advanced.customSpeakerFormat.collectAsStateWithLifecycle()
+    val qwen = api == app.resound.transcribe.CustomAsrApi.Qwen
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("接口格式", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+        app.resound.ui.skills.Segments(listOf("OpenAI 兼容", "阿里百炼"), if (qwen) 1 else 0) {
+            advanced.setCustomApi(if (it == 1) app.resound.transcribe.CustomAsrApi.Qwen else app.resound.transcribe.CustomAsrApi.OpenAi)
+        }
+    }
+    Spacer(Modifier.height(14.dp))
+    // 换接口时整张表单按那一套的已存值重新载入，输入框里没保存的内容不带过去
+    key(api) {
+        CustomModelForm(advanced.customEndpoint, advanced.customModel, hasKey,
+            if (qwen) "阿里云百炼千问录音识别（qwen-audio-3.1-asr-flash 等），每段最长 5 分钟，自带说话人区分。" else "自定义音频转写服务（OpenAI 兼容）",
+            advanced::fetchModels, advanced::saveCustomAll,
+            app.resound.ui.settings.EndpointModeUi(advanced.customEndpointMode, advanced.customPrompt, advanced::setCustomPrompt,
+                advanced::saveCustomAll, keyState, capability, qwen))
+    }
+    if (!qwen) {
+        Spacer(Modifier.height(16.dp))
+        val diarized = speaker == app.resound.transcribe.CustomSpeakerFormat.Diarized
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("说话人", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+            app.resound.ui.skills.Segments(listOf("自动", "分说话人"), if (diarized) 1 else 0) {
+                advanced.setCustomSpeakerFormat(if (it == 1) app.resound.transcribe.CustomSpeakerFormat.Diarized else app.resound.transcribe.CustomSpeakerFormat.Auto)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(if (diarized) "要 diarized_json 格式，需模型支持（如 OpenAI 的 gpt-4o-transcribe-diarize），不支持时会提示改回自动。"
+            else "按服务默认格式返回；多数模型只出文字，带逐句时间。", style = RsType.caption, color = c.textTertiary)
+    }
+    Spacer(Modifier.height(4.dp))
 }

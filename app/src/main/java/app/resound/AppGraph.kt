@@ -14,6 +14,7 @@ import app.resound.transcribe.TranscriptRepository
  */
 object AppGraph {
     lateinit var searchHistory: app.resound.search.SearchHistory
+    val isSearchHistoryReady: Boolean get() = ::searchHistory.isInitialized
     lateinit var marks: app.resound.marks.MarkRepository
     lateinit var markSettings: app.resound.marks.AndroidMarkSettings
     lateinit var platform: app.resound.platform.PlatformServices

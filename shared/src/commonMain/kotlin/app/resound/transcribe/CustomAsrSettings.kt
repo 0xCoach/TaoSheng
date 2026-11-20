@@ -9,7 +9,8 @@ enum class CustomKeyState { None, Saved, Verified }
 enum class CustomCapability { Speakers, TimedText, TextOnly }
 data class CustomSaveResult(val keySaved: Boolean, val keyState: CustomKeyState)
 
-/** 两套配置共用规则；密钥加解密、持久化和地址校验由平台注入。验证只留本次进程，不进备份。 */
+/** 两套配置共用规则；密钥加解密、持久化和地址校验由平台注入。
+ * 验证结论存本机（不进备份），平台按“地址+模型+写法+说话人格式+密钥+请求头”的指纹存取，任一项变了读回为空。 */
 class CustomAsrSettings(
     private val read: (String, String?) -> String?,
     private val readBoolean: (String, Boolean) -> Boolean,
@@ -19,6 +20,8 @@ class CustomAsrSettings(
     private val validate: (String, CustomEndpointMode) -> Unit,
     private val hasCredential: (CustomAsrApi) -> Boolean,
     private val changed: () -> Unit,
+    private val loadVerified: (CustomAsrApi) -> CustomCapability? = { null },
+    private val saveVerified: (CustomAsrApi, CustomCapability?) -> Unit = { _, _ -> },
 ) {
     private inline fun <reified T : Enum<T>> enum(key: String, default: T): T =
         enumValues<T>().firstOrNull { it.name == read(key, null) } ?: default
@@ -46,7 +49,6 @@ class CustomAsrSettings(
         // 接口格式变化即清除当前验证结论；两套配置和密钥仍各自保留。
         revision++
         _api.value = value; _mode.value = mode(); _prompt.value = prompt()
-        verified.remove(value)
         refresh(); changed()
     }
     fun setSpeakerFormat(value: CustomSpeakerFormat) {
@@ -71,15 +73,15 @@ class CustomAsrSettings(
         if (different) invalidate(api.value) else refresh()
         changed()
     }
-    fun invalidate(api: CustomAsrApi) { revision++; verified.remove(api); refresh() }
-    fun invalidateAll() { revision++; verified.clear(); refresh() }
+    fun invalidate(api: CustomAsrApi) { revision++; verified.remove(api); saveVerified(api, null); refresh() }
+    fun invalidateAll() { revision++; verified.clear(); CustomAsrApi.entries.forEach { saveVerified(it, null) }; refresh() }
     fun testTicket() = revision to api.value
     fun tested(ticket: Pair<Long, CustomAsrApi>, capability: CustomCapability) {
         if (ticket != testTicket()) return
-        verified[ticket.second] = capability; refresh()
+        verified[ticket.second] = capability; saveVerified(ticket.second, capability); refresh()
     }
     fun refresh() {
-        _capability.value = verified[api.value]
+        _capability.value = verified[api.value] ?: loadVerified(api.value)?.also { verified[api.value] = it }
         _keyState.value = when {
             _capability.value != null -> CustomKeyState.Verified
             hasCredential(api.value) -> CustomKeyState.Saved

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.resound.ui.verify.RsCard
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -147,6 +149,10 @@ fun RecordSearchSheet(search: RecordSearch, initialKind: SearchKind? = null, onD
     var failed by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<SearchDetail?>(null) }
     val scroll = rememberScrollState()
+    // #55：最近搜索（最多 10 条）。打字停住 1.5 秒且有结果、或点开了一条结果，才记一条，不记半截词
+    val history = if (AppGraph.isSearchHistoryReady) AppGraph.searchHistory else null
+    val recent = history?.items?.collectAsStateWithLifecycle()?.value.orEmpty()
+    val keep: (String) -> Unit = { q -> if (history != null && q.isNotBlank()) scope.launch { history.add(q) } }
 
     LaunchedEffect(query, kind, range) {
         failed = false; next = null; loadingMore = false
@@ -165,6 +171,7 @@ fun RecordSearchSheet(search: RecordSearch, initialKind: SearchKind? = null, onD
                 hits = page?.hits.orEmpty(); next = page?.nextOffset
             }
             scroll.scrollTo(0)
+            if (counts.values.any { it > 0 }) { delay(1_500); keep(query) }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
             app.resound.diagnostics.FailureNotes.record("ui/today/RecordSearchSheet.kt:search", e)
@@ -192,7 +199,7 @@ fun RecordSearchSheet(search: RecordSearch, initialKind: SearchKind? = null, onD
     val calls = if (AppGraph.isCallRecordingReady && kind == null && query.isNotBlank()) remember(query) { AppGraph.folderRecordings.search(query.trim()) }
         .collectAsStateWithLifecycle(initialValue = emptyList()).value.filter { it.call != null }.take(20) else emptyList()
 
-    val open: (ExpandedSearchHit) -> Unit = { hit -> scope.launch { openHit(hit, zone, onDismiss) { detail = it } } }
+    val open: (ExpandedSearchHit) -> Unit = { hit -> keep(query); scope.launch { openHit(hit, zone, onDismiss) { detail = it } } }
 
     when (val d = detail) {
         is SearchDetail.Item -> if (AppGraph.isMemoryReady) ItemSheet(d.item, AppGraph.memory,
@@ -225,6 +232,8 @@ fun RecordSearchSheet(search: RecordSearch, initialKind: SearchKind? = null, onD
                 }
             }
             when {
+                query.isBlank() && recent.isNotEmpty() && history != null -> RecentSearches(recent, { query = it },
+                    { q -> scope.launch { history.remove(q) } }, { scope.launch { history.clear() } })
                 query.isBlank() -> Hint("例如：合同、老王 周五、报销。所有日期都会搜到")
                 failed -> Hint("搜索没有完成，请稍后再试")
                 list == null -> Hint("正在查…")
@@ -435,4 +444,30 @@ private fun dayLabel(day: LocalDate): String {
     val prefix = when (day) { today -> "今天 · "; today.minusDays(1) -> "昨天 · "; else -> "" }
     val pattern = if (day.year == today.year) "M月d日 EEEE" else "yyyy年M月d日 EEEE"
     return prefix + day.format(DateTimeFormatter.ofPattern(pattern, Locale.CHINA))
+}
+
+/** 最近搜索：胶囊排开，点字再搜，点 × 删这一条；右上角“全部清除” */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecentSearches(items: List<String>, onPick: (String) -> Unit, onRemove: (String) -> Unit, onClear: () -> Unit) {
+    val c = Rs.colors
+    Column(Modifier.animateContentSize().padding(top = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("最近搜索", style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.textSecondary,
+                modifier = Modifier.weight(1f).padding(start = 4.dp))
+            Text("全部清除", style = RsType.subhead, color = c.accent,
+                modifier = Modifier.clip(CircleShape).springClick(onClick = onClear).padding(horizontal = 10.dp, vertical = 6.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.forEach { q ->
+                Row(Modifier.clip(CircleShape).background(c.fill), verticalAlignment = Alignment.CenterVertically) {
+                    Text(q, style = RsType.subhead, color = c.text, maxLines = 1,
+                        modifier = Modifier.springClick { onPick(q) }.padding(start = 14.dp, end = 4.dp, top = 7.dp, bottom = 7.dp))
+                    Text("×", style = RsType.subhead, color = c.textTertiary,
+                        modifier = Modifier.springClick { onRemove(q) }.padding(start = 4.dp, end = 12.dp, top = 7.dp, bottom = 7.dp))
+                }
+            }
+        }
+    }
 }

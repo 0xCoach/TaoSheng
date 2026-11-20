@@ -10,7 +10,6 @@ import app.resound.AppGraph
 import app.resound.data.CaptureDatabase
 import app.resound.push.*
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -20,96 +19,236 @@ import kotlinx.coroutines.sync.withLock
 internal class RecordingAudioPush(
     private val context: Context,
     private val channels: AndroidPushChannels,
-    private val load: suspend () -> List<RecordingSource>,
+    private val source: suspend () -> List<RecordingSource>,
+    private val remoteFactory: ((PushChannel, Map<String, String>) -> RecordingRemote)? = null,
+    private val enqueueDeletes: (() -> Unit)? = null,
 ) {
-    private val locks = ConcurrentHashMap<Long, Mutex>()
-    private val configured = ConcurrentHashMap<Long, PushChannel>()
+    // 同一把协程锁覆盖上传、核对凭据、隐私删除日志和保留快照。
+    private val gate = Mutex()
+    private val configured = mutableMapOf<Long, PushChannel>()
     private val revision = MutableStateFlow(0L)
-    private fun state(id: Long) = RecordingUploadState(File(context.filesDir, "recording-uploads/$id.json"))
-    private fun active(c: PushChannel) = c.enabled && c.kind == PushKind.MarkdownFolder && c.subscription.audio != AudioPush.Off
+    private val directory = File(context.filesDir, "recording-uploads")
+    private fun state(id: Long) = RecordingUploadState(File(directory, "$id.json"))
+    private fun journal() = RecordingUploadState(File(directory, "pending-deletes.json"))
+    private suspend fun load(): List<RecordingSource> {
+        val removed = journal().tombstones
+        return source().filterNot { removed.has(it.id.toString()) }
+    }
+    private fun active(c: PushChannel) = c.enabled && channels.capabilities(c.kind).audio && c.subscription.audio != AudioPush.Off
+    fun channelNames() = channels.channels.value.filter(::active).map { it.name }
+    private fun destination(c: PushChannel): String? = try { channels.resolveAudio(c.id)?.second?.let(::folderIdentity) }
+        catch (_: Exception) { null }
+    /** 切换目的地后不复用凭据；旧路径留在历史里供以后隐私删除使用。 */
+    private fun prepare(c: PushChannel, state: RecordingUploadState, identity: String) {
+        val previous = state.json.optString("destination")
+        val legacyS3 = previous.isBlank() && channels.resolveAudio(c.id)?.second?.get("cloudKind") == "S3"
+        if ((previous.isNotBlank() && previous != identity) || legacyS3) {
+            val history = state.json.optJSONArray("history") ?: org.json.JSONArray()
+            history.put(org.json.JSONObject().put("destination", previous).put("records", org.json.JSONObject(state.records.toString())))
+            state.json.put("history", history)
+            state.records.keys().asSequence().toList().forEach { state.records.remove(it) }
+            state.dailyHash.keys().asSequence().toList().forEach { state.dailyHash.remove(it) }
+            state.json.remove("since")
+        }
+        state.json.put("destination", identity).put("channelName", c.name); state.save()
+    }
+    private suspend fun protection(rows: List<RecordingSource>, without: Long? = null): Set<Long> {
+        val today = java.time.LocalDate.now()
+        val configured = channels.channels.value.filter { active(it) && it.id != without }.map { c ->
+            val state = state(c.id)
+            val identity = destination(c)
+            if (identity != null) prepare(c, state, identity)
+            RecordingChannel(c.id, c.subscription, state.since(c.subscription, today)?.toString(),
+                if (identity == null) emptySet() else state.successful())
+        }
+        return RecordingKeepRules.held(rows.map { it.keep() }, configured, today.toString())
+    }
+    suspend fun protectedIds(): Set<Long> = gate.withLock { protection(load()) }
+    suspend fun offPreview(id: Long): Int {
+        (AppGraph.originalAudio as? app.resound.transcribe.LocalOriginalAudio)?.refreshHeld()
+        return gate.withLock {
+        val rows = load()
+        val lost = protection(rows) - protection(rows, id)
+        // 只计当前已到期且满足原声清理条件的失保护段。
+        rows.count { it.id in lost && it.id in (AppGraph.originalAudio as? app.resound.transcribe.LocalOriginalAudio)?.heldIds.orEmpty() }
+    } }
     fun status(id: Long): Flow<AudioPushStatus> = combine(channels.channels, revision) { list, _ -> list.find { it.id == id } }
-        .map { channel ->
-            if (channel == null || !active(channel)) AudioPushStatus(0, 0, 0, null, null, null)
-            else locks.getOrPut(id) { Mutex() }.withLock { state(id).status(load(), channel.subscription, System.currentTimeMillis()) }
-        }.flowOn(Dispatchers.IO)
-    suspend fun refresh() {
-        val list = channels.channels.value
-        RecordingAudioSweepWorker.schedule(context, list)
-        (configured.keys - list.map { it.id }.toSet()).forEach { id ->
-            WorkManager.getInstance(context).cancelUniqueWork("recording-upload-$id"); configured.remove(id)
-        }
-        val rows = if (list.any(::active)) load() else emptyList()
-        for (channel in list) {
-            val id = channel.id
-            if (active(channel)) {
-                locks.getOrPut(id) { Mutex() }.withLock { diagnostic(id, state(id), rows) }
-                enqueue(channel)
-            } else { WorkManager.getInstance(context).cancelUniqueWork("recording-upload-$id"); configured.remove(id) }
-        }
-        revision.value++
-    }
-    private fun enqueue(c: PushChannel) {
-        WorkManager.getInstance(context).enqueueUniqueWork("recording-upload-${c.id}", if (configured.put(c.id, c)?.let { it != c } == true) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
-            request(c.id, c.subscription.audioWifiOnly))
-    }
-    suspend fun run(id: Long): Boolean = withContext(Dispatchers.IO) { locks.getOrPut(id) { Mutex() }.withLock {
-        val pair = try { channels.resolveAudio(id) } catch (caught: Exception) {
-            FailureNotes.record("recordings/RecordingAudioPush.kt:54", caught)
+        .map { c -> gate.withLock {
+            if (c == null || !active(c)) AudioPushStatus(0, 0, 0, null, null, null)
+            else {
+                val rows = load(); val state = state(id)
+                destination(c)?.let { prepare(c, state, it) }
+                val current = state.status(rows, c.subscription, System.currentTimeMillis())
+                val held = protection(rows)
+                val expired = (AppGraph.originalAudio as? app.resound.transcribe.LocalOriginalAudio)?.heldIds.orEmpty()
+                current.copy(held = state.candidates(rows, c.subscription, java.time.LocalDate.now()).count { it.id in held && it.id in expired },
+                    quotaHint = state.json.optString("quotaHint").takeIf { it.isNotBlank() && state.json.optString("quotaMonth") == java.time.LocalDate.now().toString().take(7) })
+            }
+        } }.flowOn(Dispatchers.IO)
 
-            val state = state(id); state.json.put("error", "云端存储未连接或通道配置冲突，请检查推送设置"); state.save()
-            diagnostic(id, state, load()); revision.value++; return@withLock true
+    val pendingDeletes: Flow<List<PendingRemoteDelete>> = revision.map { gate.withLock { pending(journal()) } }.flowOn(Dispatchers.IO)
+    private fun pending(j: RecordingUploadState) = j.records.keys().asSequence().map { key -> j.records.getJSONObject(key).let {
+        PendingRemoteDelete(it.getString("channelName"), it.getString("path"), it.getLong("channelId"))
+    } }.toList().distinct()
+    suspend fun dismiss(channelId: Long, path: String) = gate.withLock {
+        val j = journal()
+        j.records.keys().asSequence().toList().filter { key -> j.records.getJSONObject(key).let { it.getLong("channelId") == channelId && it.getString("path") == path } }
+            .forEach { j.records.remove(it) }
+        j.save(); revision.value++
+    }
+    suspend fun withPrivacy(ids: List<Long>, block: suspend () -> app.resound.privacy.ForgetResult): app.resound.privacy.ForgetResult = gate.withLock {
+        val j = journal()
+        ids.forEach { j.tombstones.put(it.toString(), true) }
+        // 包括已删通道的 JSON：没有凭据也保留待删路径供用户手动处理。
+        directory.listFiles().orEmpty().filter { it.nameWithoutExtension.toLongOrNull() != null && it.extension == "json" }.forEach { file ->
+            val id = file.nameWithoutExtension.toLong(); val state = state(id)
+            val c = channels.channels.value.find { it.id == id }
+            val identity = state.json.optString("destination").ifBlank { c?.let(::destination).orEmpty() }
+            fun queue(records: org.json.JSONObject, destination: String) {
+                val rows = records.keys().asSequence().mapNotNull { key -> key.toLongOrNull()?.let { id ->
+                    val record = records.getJSONObject(key)
+                    PublishedRecording(id, record.getString("path"), record.optString("temporary").takeIf { it.isNotEmpty() })
+                } }.toList()
+                val dailyDays = state.dailyHash.keys().asSequence().toSet() + state.dirtyDays.keys().asSequence().toSet() +
+                    if ((state.json.optJSONArray("history")?.length() ?: 0) > 0) rows.map { it.path.split('/').getOrElse(1) { "" } } else emptyList()
+                for (plan in RecordingPrivacyPlan.create(ids.toSet(), rows, dailyDays.toSet(),
+                    if (c?.kind == PushKind.LocalFolder) state.dirtyDays.keys().asSequence().toSet() else emptySet())) {
+                    val key = sha256("$id|$destination|${plan.path}")
+                    j.records.put(key, org.json.JSONObject().put("channelId", id)
+                        .put("channelName", c?.name ?: state.json.optString("channelName", "已删除通道"))
+                        .put("path", plan.path).put("destination", destination).put("segment", plan.segment))
+                    state.dirtyDays.put(plan.day, true)
+                }
+            }
+            queue(state.records, identity)
+            state.json.optJSONArray("history")?.let { a -> repeat(a.length()) { val h = a.getJSONObject(it); queue(h.getJSONObject("records"), h.optString("destination")) } }
+            // 先持久化清单再标脏，任意一步中断都可重试。
+            j.save(); state.save()
         }
-        val (channel, values) = pair ?: return@withLock false
-        if (!active(channel)) return@withLock false
+        j.save()
+        try { block() } finally { revision.value++; scheduleDeletes() }
+    }
+    private suspend fun remote(c: PushChannel, values: Map<String, String>): RecordingRemote {
+        remoteFactory?.let { return it(c, values) }
+        if (c.kind == PushKind.LocalFolder) {
+            val store = LocalFolderStorage(context, values.getValue("treeUri"))
+            return object : RecordingRemote {
+                override suspend fun audio(path: String, file: File) { val coroutine = currentCoroutineContext(); store.audio(path, file) { coroutine.ensureActive() } }
+                override suspend fun text(path: String, content: String) = store.text(path, content)
+                override suspend fun delete(path: String) = store.delete(path)
+            }
+        }
+        return linkedS3(values, cancellation = currentCoroutineContext().job)?.let { s3 ->
+            val store = S3FolderRemote(s3, values.getValue("folder"))
+            object : RecordingRemote {
+                override suspend fun audio(path: String, file: File) { currentCoroutineContext().ensureActive(); store.audio(path, file); currentCoroutineContext().ensureActive() }
+                override suspend fun text(path: String, content: String) = store.text(path, content)
+                override suspend fun delete(path: String) = store.delete(path)
+            }
+        } ?: RecordingDav(values)
+    }
+    suspend fun retryDeletes(): Boolean = gate.withLock {
+        val j = journal(); var retry = false
+        for (key in j.records.keys().asSequence().toList()) {
+            val item = j.records.getJSONObject(key)
+            try {
+                val pair = channels.resolveAudio(item.getLong("channelId")) ?: continue
+                if (!RecordingPrivacyPlan.mayRetry(item.getString("destination"), folderIdentity(pair.second))) continue
+                val path = item.getString("path")
+                if (!recordingPath(path, text = true)) continue
+                val state = state(pair.first.id)
+                val day = path.split('/')[1]
+                val remote = remote(pair.first, pair.second)
+                if (path == RecordingKeepRules.dailyPath(day)) {
+                    val content = RecordingKeepRules.dailyText(day, load().filter { it.day.toString() == day && it.completed && state.uploaded(it.id) }.map {
+                        state.path(it).getString("path").substringAfterLast('/') to it.dailyLines
+                    })
+                    remote.text(path, content)
+                    state.dailyHash.put(day, sha256(content)); state.dirtyDays.remove(day)
+                } else remote.delete(path)
+                // 先保存状态，再移除完成凭据；进程中断只会幂等重做这个精确文件。
+                state.save(); j.records.remove(key); j.save()
+                fun removeFinished(records: org.json.JSONObject) {
+                    records.keys().asSequence().toList().filter { j.tombstones.has(it) }.forEach { segment ->
+                        val audio = records.getJSONObject(segment).getString("path")
+                        if (j.records.keys().asSequence().none { j.records.getJSONObject(it).let { r ->
+                                r.getLong("channelId") == pair.first.id && r.getString("path") in RecordingPrivacyRules.files(audio) } }) records.remove(segment)
+                    }
+                }
+                removeFinished(state.records)
+                state.json.optJSONArray("history")?.let { a -> repeat(a.length()) { removeFinished(a.getJSONObject(it).getJSONObject("records")) } }
+                state.save()
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { retry = true }
+        }
+        revision.value++; retry
+    }
+    private fun scheduleDeletes() {
+        enqueueDeletes?.let { it(); return }
+        if (journal().records.length() > 0) WorkManager.getInstance(context).enqueueUniqueWork("recording-privacy-deletes", ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<RecordingRemoteDeleteWorker>()
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
+    }
+    suspend fun refresh() {
+        gate.withLock {
+            val list = channels.channels.value
+            RecordingAudioSweepWorker.schedule(context, list)
+            (configured.keys - list.filter(::active).map { it.id }.toSet()).forEach { id ->
+                WorkManager.getInstance(context).cancelUniqueWork("recording-upload-$id"); configured.remove(id)
+            }
+            list.filter(::active).forEach { c ->
+                val state = state(c.id); destination(c)?.let { prepare(c, state, it) }
+                state.since(c.subscription, java.time.LocalDate.now())
+                WorkManager.getInstance(context).enqueueUniqueWork("recording-upload-${c.id}",
+                    if (configured.put(c.id, c)?.let { it != c } == true) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, request(c))
+            }
+            scheduleDeletes(); revision.value++
+        }
+        (AppGraph.originalAudio as? app.resound.transcribe.LocalOriginalAudio)?.refreshHeld()
+        RecordingKeepNotice(context).show(AppGraph.originalAudio.heldSummary.value)
+    }
+    suspend fun run(id: Long): Boolean = withContext(Dispatchers.IO) { gate.withLock {
         val state = state(id)
         try {
-            val identity = folderIdentity(values)
-            // 老版录音状态没有目的地；首次借用 S3 时不能沿用坚果云的成功标记。
-            if (state.json.has("destination") && state.json.optString("destination") != identity ||
-                !state.json.has("destination") && values["cloudKind"] == "S3") {
-                state.records.keys().asSequence().toList().forEach { state.records.remove(it) }
-                state.json.remove("since")
-            }
-            state.json.put("destination", identity); state.save()
+            val (channel, values) = channels.resolveAudio(id) ?: return@withLock false
+            if (!active(channel)) return@withLock false
+            prepare(channel, state, folderIdentity(values))
+            // 清单处理完成前不重建日文件，避免先重建再被迟到的删除任务删掉。
+            val pending = journal().records
+            if (pending.keys().asSequence().any { pending.getJSONObject(it).let { row -> row.getLong("channelId") == id && row.optString("destination") == folderIdentity(values) } }) { scheduleDeletes(); return@withLock true }
             val rows = load()
-            val before = state.status(rows, channel.subscription, System.currentTimeMillis()).uploaded
-            try {
-                RecordingUploader(state, linkedS3(values)?.let { s3 ->
-                    val remote = S3FolderRemote(s3, values.getValue("folder"))
-                    object : RecordingRemote {
-                        override suspend fun audio(path: String, file: File) = remote.audio(path, file)
-                        override suspend fun text(path: String, content: String) = remote.text(path, content)
-                    }
-                } ?: RecordingDav(values)).run(rows, channel.subscription, System.currentTimeMillis()) {
-                    channels.channels.value.find { it.id == id } == channel
-                }
-            } finally {
-                val after = state.status(rows, channel.subscription, System.currentTimeMillis()).uploaded
-                if (after > before) channels.recordAudio(channel, after - before)
+            val count = RecordingUploader(state, remote(channel, values)).run(rows, channel.subscription, System.currentTimeMillis()) {
+                channels.channels.value.find { it.id == id } == channel
             }
-            if (state.status(rows, channel.subscription, System.currentTimeMillis()).pending > 0) {
-                WorkManager.getInstance(context).enqueueUniqueWork("recording-upload-$id", ExistingWorkPolicy.APPEND_OR_REPLACE,
-                    request(id, channel.subscription.audioWifiOnly))
-            }
+            if (count > 0) channels.recordAudio(channel, count)
+            val status = state.status(rows, channel.subscription, System.currentTimeMillis())
+            val month = java.time.LocalDate.now().toString().take(7)
+            if (state.json.optString("quotaMonth") != month) { state.json.remove("quotaHint") }
+            val hint = RecordingKeepRules.quotaHint(channel.kind == PushKind.MarkdownFolder && values["cloudKind"] != "S3" &&
+                values["url"].orEmpty().ifBlank { "https://dav.jianguoyun.com/dav/" }.contains("jianguoyun", true), status.bytesThisMonth)
+            if (hint != null && state.json.optString("quotaMonth") != month) state.json.put("quotaMonth", month).put("quotaHint", hint)
+            state.save()
+            if (status.pending > 0) WorkManager.getInstance(context).enqueueUniqueWork("recording-upload-$id", ExistingWorkPolicy.APPEND_OR_REPLACE, request(channel))
             false
         } catch (e: CancellationException) { throw e }
-        catch (caught: Exception) {
-            FailureNotes.record("recordings/RecordingAudioPush.kt:92", caught)
-            true }
-        finally { revision.value++; diagnostic(id, state, load()) }
+        catch (e: Exception) {
+            state.json.put("error", if (e is PushFailure) e.message else "录音推送失败，请检查文件夹或网络后重试"); state.save(); true
+        } finally { revision.value++ }
     } }
-    private fun diagnostic(id: Long, state: RecordingUploadState, rows: List<RecordingSource>) {
-        // 只输出计数与固定错误，不含通道名/账号/文件内容。
-        val s = channels.channels.value.find { it.id == id }?.subscription ?: return
-        val summary = state.status(rows, s, System.currentTimeMillis())
-        context.getSharedPreferences("push", Context.MODE_PRIVATE).edit()
-            .putString("audio-diagnostic-$id", "已传=${summary.uploaded} 待传=${summary.pending} 本月字节=${summary.bytesThisMonth} 最近错误=${summary.lastError ?: "无"}").apply()
-    }
     companion object {
-        fun request(id: Long, wifi: Boolean) = OneTimeWorkRequestBuilder<RecordingAudioPushWorker>()
-            .setInputData(workDataOf("id" to id, "wifi" to wifi))
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(if (wifi) NetworkType.UNMETERED else NetworkType.CONNECTED).build())
+        fun request(c: PushChannel) = request(c.id, c.subscription.audioWifiOnly, c.subscription.audioChargingOnly, c.kind == PushKind.LocalFolder)
+        fun request(id: Long, wifi: Boolean, charging: Boolean = false, local: Boolean = false) = OneTimeWorkRequestBuilder<RecordingAudioPushWorker>()
+            .setInputData(workDataOf("id" to id, "wifi" to wifi, "charging" to charging, "local" to local))
+            .setConstraints(Constraints.Builder().setRequiresCharging(charging)
+                .setRequiredNetworkType(if (local) NetworkType.NOT_REQUIRED else if (wifi) NetworkType.UNMETERED else NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
+    }
+}
+internal fun recordingPath(path: String, text: Boolean = false) = RecordingPrivacyRules.owned(path, text)
+class RecordingRemoteDeleteWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val audio = (AppGraph.push as? AndroidPushChannels)?.audioPush ?: return@withContext Result.retry()
+        if (audio.retryDeletes()) Result.retry() else { audio.refresh(); Result.success() }
     }
 }
 class RecordingAudioPushWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -119,6 +258,8 @@ class RecordingAudioPushWorker(context: Context, params: WorkerParameters) : Cor
         val channel = (AppGraph.push as AndroidPushChannels).channels.value.find { it.id == inputData.getLong("id", -1) }
             ?: return Result.success()
         if (channel.subscription.audioWifiOnly && !inputData.getBoolean("wifi", true)) return Result.success()
+        if (channel.subscription.audioChargingOnly && !inputData.getBoolean("charging", false)) return Result.success()
+        if (channel.kind != PushKind.LocalFolder && inputData.getBoolean("local", false)) return Result.success()
         return if (push.run(channel.id)) Result.retry() else Result.success()
     }
 }
@@ -128,10 +269,11 @@ class RecordingAudioPushWorker(context: Context, params: WorkerParameters) : Cor
 internal fun attachRecordingArchive(context: Context, database: CaptureDatabase, channels: AndroidPushChannels, scope: CoroutineScope) {
     val sources = RecordingSources(database, File(context.filesDir, "segments"))
     AppGraph.recordingPacker = AndroidRecordingPacker(context, sources::load, scope, metadata = sources::metadata)
-    val audio = RecordingAudioPush(context, channels, sources::load)
+    val pushSources = RecordingSources(database, File(context.filesDir, "segments"), includeImports = true)
+    val audio = RecordingAudioPush(context, channels, pushSources::load)
     channels.audioPush = audio
     scope.launch(Dispatchers.IO) {
-        merge(channels.channels.map { Unit }, database.invalidationTracker.createFlow("segments", "transcript_lines", "memory_events", "env_sounds").map { Unit },
+        merge(channels.channels.map { Unit }, database.invalidationTracker.createFlow("segments", "transcript_lines", "memory_events", "env_sounds", "import_records").map { Unit },
             channelFlow { channels.channels.map { list -> BackgroundRefreshPolicy.audioNeedsTick(list) }
                 .refreshWhileNeeded(60_000) { send(Unit) } })
             .debounce(1000).collect { audio.refresh() }

@@ -202,7 +202,12 @@ class ResoundApp : Application() {
         }
         val originalAudio = LocalOriginalAudio(database.transcribe(), getSharedPreferences("transcribe", MODE_PRIVATE), scope,
             guard = { block -> voiceprintRepository.withAudioCleanup(block) },
-            playback = PlaybackCaptureHold(scope, CaptureService::playbackHold))
+            playback = PlaybackCaptureHold(scope, CaptureService::playbackHold),
+            protection = {
+                check(AppGraph.isPushReady) { "录音保留尚未就绪" }
+                checkNotNull((AppGraph.push as? app.resound.push.AndroidPushChannels)?.audioPush).protectedIds()
+            },
+            keepChannels = { if (AppGraph.isPushReady) (AppGraph.push as? app.resound.push.AndroidPushChannels)?.audioPush?.channelNames().orEmpty() else emptyList() })
         AppGraph.originalAudio = originalAudio
         voiceprintRepository.cleanupOriginalAudio = originalAudio::cleanup
         val privacyActions = app.resound.privacy.RoomPrivacyActions(database,
@@ -210,6 +215,9 @@ class ResoundApp : Application() {
             recentFiles = { from, until, block -> segmentFiles.withRecentDeletion(from, until, block) },
             voiceprintGuard = { block -> voiceprintRepository.withPrivacyDeletion(block) },
             removeFeatures = voiceprintRepository::removeFeatures,
+            recordingPrivacy = { ids, block ->
+                checkNotNull((AppGraph.push as? app.resound.push.AndroidPushChannels)?.audioPush).withPrivacy(ids, block)
+            },
             onErased = {
                 if (AppGraph.isPushReady) (AppGraph.push as? app.resound.push.AndroidPushChannels)?.privacyChanges?.trySend(Unit)
                 app.resound.push.DayThreadPushScheduler.afterDeletion(this)

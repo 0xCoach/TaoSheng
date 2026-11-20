@@ -35,6 +35,7 @@ class RoomPrivacyActions(
     private val now: () -> Long = System::currentTimeMillis,
     private val archiveFiles: suspend (Long,Long,suspend (List<String>) -> ForgetResult) -> ForgetResult = { _,_,block -> block(emptyList()) },
     private val onErased: suspend () -> Unit = {},
+    private val recordingPrivacy: suspend (List<Long>, suspend () -> ForgetResult) -> ForgetResult = { _, block -> block() },
 ) : PrivacyActions, SegmentDeleter {
     private val gate = Mutex()
     private val dao = db.privacy()
@@ -119,9 +120,10 @@ class RoomPrivacyActions(
             onStage(EventDeletionPhase.WaitingForDatabase)
             val files = mutableListOf<Pair<SegmentEntity, List<TranscriptLineEntity>>>()
             val nightSpeech = mutableListOf<Pair<Long, Long>>()
-            val result = db.writeTransaction {
+            val selected = select()
+            val result = recordingPrivacy(selected.map { it.id }) { db.writeTransaction {
                 onStage(EventDeletionPhase.Records)
-                val segments = select()
+                val segments = selected
                 val explicitRange = explicitEvent?.let { db.memory().event(it) }?.let { it.startAt to it.endAt }
                 for (path in extraFiles.distinct()) dao.queueCleanup(PrivacyFileCleanup(path))
                 val events = mutableSetOf<Long>()
@@ -193,7 +195,7 @@ class RoomPrivacyActions(
                     else db.screenTime().deleteUnreferencedNames()
                 }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)
-            }
+            } }
             if (nightSpeech.isNotEmpty() && app.resound.AppGraph.isNightReady) runCatching {
                 (app.resound.AppGraph.night as? app.resound.night.AndroidNight)?.store?.forgetSpeech(nightSpeech)
             }.onFailure { FailureNotes.record("privacy/night-speech", it) }

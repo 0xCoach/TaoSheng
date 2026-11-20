@@ -90,6 +90,15 @@ class DecisionRepository(
         true
     }
 
+    /** 确认仍有效：用户看过这条决定、认可它仍然是当前立场。只留痕不改状态。 */
+    suspend fun reaffirm(id: Long): Boolean = withContext(io) {
+        val d = dao.decision(id) ?: return@withContext false
+        if (d.status != DecisionStatus.Active.name || d.deleted) return@withContext false
+        dao.update(d.copy(updatedAt = now.now()))
+        log(id, RevisionOp.Edit, d.title, d.title, reason = "确认仍有效")
+        true
+    }
+
     /** 撤回：本人表示这条不算数了（区分于被替代）。 */
     suspend fun withdraw(id: Long, reason: String? = null): Boolean = withContext(io) {
         if (dao.setStatus(id, DecisionStatus.Withdrawn.name, now.now()) == 0) return@withContext false

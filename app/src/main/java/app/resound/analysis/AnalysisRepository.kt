@@ -50,11 +50,15 @@ class AnalysisRepository(
         return key.isNotBlank() || canUseWithoutKey(preset) || hasBackup(preset)
     }
 
-    /** 首次装配时种下内置模板；用户可另存副本修改，内置的不可删。 */
+    /** 种下内置模板：首次全种，之后只补缺的（升级新增的类型）。同名内置行不重复插。 */
     suspend fun ensureSeeded() = withContext(io) {
-        if (dao.builtinCount() == 0) AnalysisContract.builtinTemplates(now.now()).forEach { dao.insertTemplate(it) }
+        val existing = dao.builtinNames().toSet()
+        AnalysisContract.builtinTemplates(now.now()).filter { it.name !in existing }.forEach { dao.insertTemplate(it) }
         Unit
     }
+
+    /** 进程被杀会留下永远是 Running 的假活运行：启动时统一判失败，界面不再卡“分析中”。 */
+    suspend fun recoverStaleRunning() = withContext(io) { dao.failStaleRunning("应用重启，分析中断", now.now()) }
 
     suspend fun saveTemplate(id: Long?, type: AnalysisType, name: String, system: String, user: String): Result<Long> =
         withContext(io) {
@@ -129,15 +133,39 @@ class AnalysisRepository(
         return AnalysisMaterial(body, "", "[{\"kind\":\"Idea\",\"id\":$ideaId}]")
     }
 
-    private suspend fun projectMaterial(projectId: Long): AnalysisMaterial {
+    /**
+     * 项目材料：记忆/决定/灵感/关联记录/待办与跟进 全量取证。
+     * windowStart 非空时只收该时点之后发生的（阶段报告"本周/本月"窗口）；
+     * 当前仍生效的决定与未闭环事项不受窗口限制——报告需要看到当下状态。
+     */
+    private suspend fun projectMaterial(projectId: Long, windowStart: Long? = null): AnalysisMaterial {
         val projects = db.projects()
         val project = projects.project(projectId) ?: return AnalysisMaterial("（项目不存在或已删除）", "", "[]")
-        val marks = projects.marks(projectId)
+        val marks = projects.marks(projectId).filter { !it.deleted && (windowStart == null || it.at >= windowStart) }
         val links = projects.links(projectId)
+        val decisions = db.decisions().forProject(projectId)
+        val inWindowDecisions = decisions.filter { windowStart == null || it.decidedAt >= windowStart || it.updatedAt >= windowStart }
+        val linkedIdeas = links.filter { it.refKind == "Idea" }.mapNotNull { db.ideas().idea(it.refId) }
+        val ideas = (db.ideas().forProject(projectId) + linkedIdeas).distinctBy { it.id }
+            .filter { !it.deleted && it.mergedInto == null }
+        val ideaIds = ideas.map { it.id }
+        val ideaEntries = if (ideaIds.isEmpty()) emptyList()
+            else db.ideas().entriesFor(ideaIds).filter { windowStart == null || it.at >= windowStart }
+        val eventIds = links.filter { it.refKind == "Event" }.map { it.refId }
+        val linkedItems = links.filter { it.refKind == "Item" }
+            .mapNotNull { memory.itemIncludingDeleted(it.refId) }.filter { !it.deleted && it.mergedInto == null }
+        val viaEvents = if (eventIds.isEmpty()) emptyList() else memory.itemsForEvents(eventIds)
+        val items = (linkedItems + viaEvents).distinctBy { it.id }
+            .filter { windowStart == null || it.createdAt >= windowStart || it.status != "Done" && it.status != "Ignored" }
+        val fups = db.followups().observeOpen().first() + db.followups().observeClosed().first()
+        val projectFollowups = app.resound.projects.ProjectActivity.attributedFollowups(fups,
+            items.map { it.id }.toSet(), ideaIds.toSet(), decisions.map { it.id }.toSet())
         val sources = mutableListOf<String>()
         val body = buildString {
             appendLine("项目 #${project.id}《${project.name}》（${if (project.status == "Archived") "已归档" else "进行中"}）")
             if (project.note.isNotBlank()) appendLine("说明：${project.note}")
+            appendLine("数据范围：${if (windowStart != null) "${stamp(windowStart)} 至今" else "全部记录"}")
+
             if (marks.isNotEmpty()) {
                 appendLine("--- 项目记忆 ---")
                 marks.take(40).forEach { m ->
@@ -147,12 +175,51 @@ class AnalysisRepository(
                         (m.reason?.let { "（原因：$it）" } ?: ""))
                 }
             }
+            if (decisions.isNotEmpty()) {
+                appendLine("--- 决定（含历史演变） ---")
+                decisions.take(30).forEach { d ->
+                    if (d in inWindowDecisions || d.status == "Active") {
+                        sources += "{\"kind\":\"Decision\",\"id\":${d.id}}"
+                        appendLine("[${stamp(d.decidedAt)}] 【${app.resound.decision.DecisionStatus.of(d.status).label}/${app.resound.decision.DecisionConfidence.of(d.confidence).label}】${d.title}" +
+                            (if (d.detail.isNotBlank()) "：${d.detail}" else "") +
+                            (d.supersededBy?.let { "（已被决定 #$it 替代）" } ?: "") +
+                            (d.rejectedReason?.let { "（否决原因：$it）" } ?: "") +
+                            (d.sourceText?.let { "\n  原话：“${it.take(120)}”" } ?: ""))
+                    }
+                }
+            }
+            if (ideas.isNotEmpty()) {
+                appendLine("--- 关联灵感及发展 ---")
+                ideas.take(20).forEach { i ->
+                    sources += "{\"kind\":\"Idea\",\"id\":${i.id}}"
+                    appendLine("[${stamp(i.updatedAt)}] ${i.title.ifBlank { i.content.take(40) }}（${app.resound.inbox.IdeaStatus.of(i.status).label}）")
+                }
+                ideaEntries.filter { it.kind != "Seed" }.take(20).forEach { e ->
+                    sources += "{\"kind\":\"IdeaEntry\",\"id\":${e.id}}"
+                    appendLine("  [${stamp(e.at)}] 轨迹·${e.kind}：${e.text.take(120)}")
+                }
+            }
             if (links.isNotEmpty()) {
                 appendLine("--- 关联记录 ---")
                 links.take(30).forEach { l ->
+                    sources += "{\"kind\":\"${l.refKind}\",\"id\":${l.refId}}"
                     appendLine("· ${app.resound.projects.ProjectRefKind.of(l.refKind)?.label ?: l.refKind} #${l.refId}" +
                         (l.note?.let { "（$it）" } ?: ""))
                     appendLine("  ${resolveRef(l.refKind, l.refId).take(300)}")
+                }
+            }
+            if (items.isNotEmpty()) {
+                appendLine("--- 待办与约定 ---")
+                items.take(40).forEach { i ->
+                    sources += "{\"kind\":\"Item\",\"id\":${i.id}}"
+                    appendLine("· [${i.status}] ${i.content}${i.dueText?.let { "（$it）" } ?: ""}${i.doneAt?.let { "（完成于 ${stamp(it)}）" } ?: ""}")
+                }
+            }
+            if (projectFollowups.isNotEmpty()) {
+                appendLine("--- 跟进与承诺 ---")
+                projectFollowups.take(20).forEach { f ->
+                    sources += "{\"kind\":\"Followup\",\"id\":${f.id}}"
+                    appendLine("· [${f.status}] ${f.title}${f.remindCount.let { if (it > 0) "（提醒过 $it 次仍未闭环）" else "" }}")
                 }
             }
         }
@@ -208,25 +275,37 @@ class AnalysisRepository(
             AnalysisTarget.Line -> lineMaterial(targetId)
             AnalysisTarget.Event -> eventMaterial(targetId)
             AnalysisTarget.Idea -> ideaMaterial(targetId)
-            AnalysisTarget.Project -> projectMaterial(targetId)
+            AnalysisTarget.Project -> projectMaterial(targetId, null)
             AnalysisTarget.Day -> dayMaterial(targetId)
         }
         if (m.content.length <= cap) m else m.copy(content = m.content.take(cap) + "\n（材料过长已截断）")
     }
 
+    private suspend fun material(target: AnalysisTarget, targetId: Long, windowStart: Long?): AnalysisMaterial =
+        if (target == AnalysisTarget.Project && windowStart != null) withContext(io) {
+            val m = projectMaterial(targetId, windowStart)
+            if (m.content.length <= 60_000) m else m.copy(content = m.content.take(60_000) + "\n（材料过长已截断）")
+        } else material(target, targetId)
+
     // ---------- 运行 ----------
 
-    /** 创建运行并入队执行；未配置模型时运行落为 Failed（错误提示“未配置模型服务”），材料与提示词仍落库可导出。 */
+    /**
+     * 创建运行并入队执行；未配置模型时运行落为 Failed（错误提示“未配置模型服务”），材料与提示词仍落库可导出。
+     * 防重复付费：同目标同类型有在途运行（Pending/Running）时直接返回那条，不再发起新调用。
+     * windowStart 仅对项目生效：阶段报告的数据窗口起点，并写入模板名留痕（“阶段报告·近7天”）。
+     */
     suspend fun start(target: AnalysisTarget, targetId: Long, type: AnalysisType,
-        templateId: Long? = null, projectId: Long? = null): Long = withContext(io) {
+        templateId: Long? = null, projectId: Long? = null, windowStart: Long? = null): Long = withContext(io) {
+        dao.activeRun(target.name, targetId, type.name)?.let { return@withContext it.id }
         val template = (templateId?.let { dao.template(it) } ?: dao.templatesOf(type.name).firstOrNull())
-        val material = material(target, targetId)
+        val material = material(target, targetId, windowStart)
         val userPrompt = template?.let { AnalysisContract.render(it.userTemplate, material.content, material.context) }
             ?: material.content
+        val windowLabel = windowStart?.let { "·自${stamp(it)}" } ?: ""
         val run = dao.insertRun(
             AnalysisRunRow(
                 targetKind = target.name, targetId = targetId, type = type.name,
-                templateId = template?.id, templateName = template?.name ?: "默认",
+                templateId = template?.id, templateName = (template?.name ?: "默认") + windowLabel,
                 promptText = userPrompt, status = AnalysisStatus.Pending.name,
                 sourcesJson = material.sourcesJson, projectId = projectId,
                 createdAt = now.now(),

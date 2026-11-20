@@ -58,6 +58,15 @@ abstract class DecisionDao {
     @Query("SELECT * FROM decisions WHERE deleted = 0 AND projectId = :projectId ORDER BY decidedAt DESC, id DESC")
     abstract fun observeForProject(projectId: Long): Flow<List<DecisionRow>>
 
+    @Query("SELECT * FROM decisions WHERE deleted = 0 AND projectId = :projectId ORDER BY decidedAt DESC, id DESC")
+    abstract suspend fun forProject(projectId: Long): List<DecisionRow>
+
+    /** 关联回填：把某事件/提取项产出的旧决定收进项目——只填 NULL，绝不覆盖已有归属 */
+    @Query("UPDATE decisions SET projectId = :projectId, updatedAt = :at WHERE deleted = 0 AND projectId IS NULL AND sourceEventId = :eventId")
+    abstract suspend fun adoptForEvent(projectId: Long, eventId: Long, at: Long): Int
+    @Query("UPDATE decisions SET projectId = :projectId, updatedAt = :at WHERE deleted = 0 AND projectId IS NULL AND sourceItemId = :itemId")
+    abstract suspend fun adoptForItem(projectId: Long, itemId: Long, at: Long): Int
+
     /** 由某条提取项导入过的决定（判重，含墓碑防复活） */
     @Query("SELECT * FROM decisions WHERE sourceItemId = :itemId LIMIT 1")
     abstract suspend fun bySourceItem(itemId: Long): DecisionRow?

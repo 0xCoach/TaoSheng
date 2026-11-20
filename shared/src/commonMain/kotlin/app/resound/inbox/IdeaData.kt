@@ -93,6 +93,13 @@ abstract class IdeaDao {
     @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND projectId = :projectId ORDER BY updatedAt DESC, id DESC")
     abstract fun observeForProject(projectId: Long): Flow<List<IdeaRow>>
 
+    @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND projectId = :projectId ORDER BY updatedAt DESC, id DESC")
+    abstract suspend fun forProject(projectId: Long): List<IdeaRow>
+
+    /** 关联回填：link() 时把 ideas.projectId 一并写上（只填 NULL），与灵感页双写口径一致 */
+    @Query("UPDATE ideas SET projectId = :projectId, updatedAt = :at WHERE id = :id AND deleted = 0 AND projectId IS NULL")
+    abstract suspend fun adoptForProject(projectId: Long, id: Long, at: Long): Int
+
     @Query("SELECT * FROM ideas WHERE deleted = 0 AND mergedInto IS NULL AND sourceItemId = :itemId LIMIT 1")
     abstract suspend fun bySourceItem(itemId: Long): IdeaRow?
 
@@ -151,6 +158,9 @@ abstract class IdeaDao {
 
     @Query("SELECT * FROM idea_entries WHERE ideaId = :ideaId ORDER BY at, id")
     abstract fun observeEntries(ideaId: Long): Flow<List<IdeaEntryRow>>
+
+    @Query("SELECT * FROM idea_entries WHERE ideaId IN (:ideaIds) ORDER BY at, id")
+    abstract suspend fun entriesFor(ideaIds: List<Long>): List<IdeaEntryRow>
 
     @Query("SELECT COUNT(*) FROM ideas WHERE deleted = 0 AND mergedInto IS NULL")
     abstract fun observeCount(): Flow<Int>

@@ -139,7 +139,7 @@ private fun RunCard(run: AnalysisRunRow, onClick: () -> Unit) {
                     style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
                 Text(
                     when (st) {
-                        AnalysisStatus.Succeeded -> run.resultText.take(80)
+                        AnalysisStatus.Succeeded -> app.resound.analysis.AnalysisContract.displayText(run.resultText).take(80)
                         AnalysisStatus.Failed -> run.error ?: "失败"
                         else -> "进行中…"
                     }, style = RsType.caption, color = c.textSecondary, maxLines = 2)
@@ -177,7 +177,7 @@ private fun RunSheet(opened: AnalysisRunRow, repo: AnalysisRepository, onClose: 
             if (cur.status == AnalysisStatus.Succeeded.name) RsCard(padding = PaddingValues(14.dp)) {
                 Text("结果", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
                 Spacer(Modifier.height(6.dp))
-                Text(cur.resultText, style = RsType.subhead, color = c.textSecondary)
+                Text(app.resound.analysis.AnalysisContract.displayText(cur.resultText), style = RsType.subhead, color = c.textSecondary)
             } else if (cur.status == AnalysisStatus.Failed.name) RsCard(padding = PaddingValues(14.dp)) {
                 Text(if (cur.error?.contains("未配置模型服务") == true) "等待配置服务" else "分析失败", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
                 Spacer(Modifier.height(6.dp))

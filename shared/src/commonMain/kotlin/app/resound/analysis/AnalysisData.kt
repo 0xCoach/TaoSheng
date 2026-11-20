@@ -4,6 +4,7 @@ import androidx.room.*
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.contentOrNull
 
 /** 分析目标：单条录音 / 一条原话 / 一件整理出的事 / 一条灵感 / 一个项目 / 一天全部记录。 */
 enum class AnalysisTarget(val label: String) {
@@ -14,7 +15,8 @@ enum class AnalysisTarget(val label: String) {
 /** 分析类型。 */
 enum class AnalysisType(val label: String) {
     DeepResearch("深度研究"), Brainstorm("头脑风暴整理"), Business("商业机会分析"),
-    Product("产品需求拆解"), ActionPlan("行动计划"), Summary("信息总结"), Compare("历史观点对比");
+    Product("产品需求拆解"), ActionPlan("行动计划"), Summary("信息总结"), Compare("历史观点对比"),
+    PhaseReport("阶段报告");
     companion object { fun of(name: String?) = entries.firstOrNull { it.name == name } ?: Summary }
 }
 
@@ -75,6 +77,8 @@ abstract class AnalysisDao {
     @Query("SELECT * FROM analysis_templates WHERE id = :id") abstract suspend fun template(id: Long): AnalysisTemplateRow?
     @Query("SELECT COUNT(*) FROM analysis_templates WHERE builtin = 1")
     abstract suspend fun builtinCount(): Int
+    @Query("SELECT name FROM analysis_templates WHERE builtin = 1 AND deleted = 0")
+    abstract suspend fun builtinNames(): List<String>
 
     // ---------- 运行 ----------
     @Insert abstract suspend fun insertRun(row: AnalysisRunRow): Long
@@ -89,6 +93,12 @@ abstract class AnalysisDao {
     abstract fun observeRunsForProject(projectId: Long): Flow<List<AnalysisRunRow>>
     @Query("SELECT * FROM analysis_runs WHERE status = 'Running'")
     abstract suspend fun running(): List<AnalysisRunRow>
+    /** 同目标同类型的在途运行：防止连点重复发起付费模型调用 */
+    @Query("SELECT * FROM analysis_runs WHERE targetKind = :kind AND targetId = :targetId AND type = :type AND status IN ('Pending','Running') ORDER BY createdAt DESC LIMIT 1")
+    abstract suspend fun activeRun(kind: String, targetId: Long, type: String): AnalysisRunRow?
+    /** 进程被杀留下的 Running 假活：启动时统一判失败 */
+    @Query("UPDATE analysis_runs SET status = 'Failed', error = :error, finishedAt = :at WHERE status = 'Running'")
+    abstract suspend fun failStaleRunning(error: String, at: Long): Int
     @Query("UPDATE analysis_runs SET status = 'Failed', error = :error, finishedAt = :at WHERE id = :id AND status IN ('Pending','Running')")
     abstract suspend fun failRun(id: Long, error: String, at: Long): Int
     @Query("DELETE FROM analysis_runs WHERE id = :id") abstract suspend fun deleteRun(id: Long)
@@ -149,6 +159,35 @@ object AnalysisContract {
                 "请总结以下内容：要点列表、关键结论、提到的待办与约定、值得记住的事实。控制在 600 字以内。\n\n{{content}}", 0),
             t(AnalysisType.Compare, "默认·观点对比", baseSystem,
                 "请对比材料中不同时期的观点：哪些一致、哪些变了、变化的可能原因、当前倾向是什么。引用原话注明时间。\n\n{{content}}", 0),
+            t(AnalysisType.PhaseReport, "默认·项目阶段报告", baseSystem,
+                "请根据材料生成本项目的阶段报告，按这个结构分节：1) 项目总体情况；2) 本期已完成事项；3) 新增决定与变更（旧方案→新方案要注明依据）；4) 未完成任务和承诺；5) 风险与待确认问题；6) 下一阶段建议行动；7) 来源依据（列出材料中的编号）。只写材料里有的事实，材料不足的小节写“暂无记录”。输出 JSON：{\"report\":\"报告正文，分节用 ## 标题和 - 列表。\"}\n\n{{content}}", 0),
         )
+    }
+
+    /**
+     * 报告显示文本：模型调用统一要求 JSON 输出，模型可能把正文包进
+     * {"report":"…"} / {"messages":[{"content":"…"}]} 这类信封——展示时剥掉，剥不了就原样显示。
+     * resultText 仍按原始返回落库留档，这里只处理呈现。
+     */
+    fun displayText(raw: String): String {
+        val t = raw.trim()
+        if (!t.startsWith("{") && !t.startsWith("[")) return raw
+        val root = runCatching { app.resound.platform.SharedJson.parseToJsonElement(t) }.getOrNull() ?: return raw
+        fun leaf(el: kotlinx.serialization.json.JsonElement?, depth: Int, longOnly: Boolean): String? {
+            if (el == null || depth > 4) return null
+            return when (el) {
+                is kotlinx.serialization.json.JsonPrimitive ->
+                    el.contentOrNull?.takeIf { it.isNotBlank() && (!longOnly || it.length >= 60) }
+                is kotlinx.serialization.json.JsonArray -> el.firstOrNull()?.let { leaf(it, depth + 1, longOnly) }
+                is kotlinx.serialization.json.JsonObject -> {
+                    for (k in arrayOf("report", "content", "text", "result", "answer", "summary", "output", "body", "reply")) {
+                        leaf(el[k], depth + 1, longOnly = false)?.let { return it }
+                    }
+                    el.values.firstNotNullOfOrNull { leaf(it, depth + 1, longOnly) }
+                }
+                else -> null
+            }
+        }
+        return leaf(root, 0, longOnly = true) ?: raw
     }
 }

@@ -1055,6 +1055,11 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             }
             if (confirmDelete) Text(if (forget) "删除事件、原话和录音；已确认寻物记录、回顾和问问历史保留。无法恢复。" else "会从时间线里删掉这件事。",
                 style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 6.dp))
+            // 挂到项目：这场会的待办、约定、决定会随它自动归入项目
+            if (app.resound.AppGraph.isProjectsReady) androidx.compose.foundation.text.selection.DisableSelection {
+                Spacer(Modifier.height(12.dp))
+                app.resound.ui.projects.ProjectLinkSection(app.resound.projects.ProjectRefKind.Event, event.id)
+            }
             // 专题：这件事是专题合成的就能看纪要；否则可事后设为专题（可连带前后几件）
             if (app.resound.AppGraph.isTopicsReady) androidx.compose.foundation.text.selection.DisableSelection {
                 val day = remember(event.id) { java.time.Instant.ofEpochMilli(event.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
@@ -1268,6 +1273,10 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                 }
             }
             if (task) Text("删除只删这一条，那件事和原话都还在。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+            if (task && app.resound.AppGraph.isProjectsReady) androidx.compose.foundation.text.selection.DisableSelection {
+                Spacer(Modifier.height(12.dp))
+                app.resound.ui.projects.ProjectLinkSection(app.resound.projects.ProjectRefKind.Item, item.id)
+            }
         }
         }
     }

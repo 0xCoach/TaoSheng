@@ -300,6 +300,13 @@ abstract class MemoryDao {
     @Query("SELECT * FROM memory_items WHERE deleted = 0 AND mergedInto IS NULL AND eventId IN (SELECT id FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end)")
     abstract fun itemsBetween(start: Long, end: Long): Flow<List<MemoryItemEntity>>
 
+    /** 一批事件的提取项：项目聚合（挂了会议→其待办/约定自动归入项目）用。 */
+    @Transaction
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.eventId IN (:eventIds)
+        ORDER BY i.createdAt DESC, i.id DESC""")
+    abstract suspend fun itemsForEvents(eventIds: List<Long>): List<MemoryItemEntity>
+
     @Query("SELECT id FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id LIMIT 1")
     abstract suspend fun firstEventLineId(eventId: Long): Long?
 

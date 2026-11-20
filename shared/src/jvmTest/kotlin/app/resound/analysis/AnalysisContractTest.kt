@@ -22,4 +22,18 @@ class AnalysisContractTest {
         assertEquals(AnalysisType.entries.size, templates.size)
         templates.forEach { assertTrue(AnalysisContract.templateValid(it.userTemplate)) }
     }
+    @Test fun displayTextUnwrapsModelEnvelopes() {
+        // 报告形
+        assertEquals("正文一", AnalysisContract.displayText("""{"report":"正文一"}"""))
+        // messages 信封形
+        assertEquals("正文二", AnalysisContract.displayText("""{"messages":[{"content":"正文二"}]}"""))
+        // 任意嵌套里取第一个字符串叶
+        assertEquals("正文三", AnalysisContract.displayText("""{"data":{"content":"正文三"}}"""))
+        // 非 JSON 原样返回
+        val plain = "就是一段正文"
+        assertEquals(plain, AnalysisContract.displayText(plain))
+        // 无正文键的 JSON 原样返回
+        val meta = """{"a":1,"b":2}"""
+        assertEquals(meta, AnalysisContract.displayText(meta))
+    }
 }

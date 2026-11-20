@@ -292,6 +292,7 @@ class ResoundApp : Application() {
         AppGraph.workflowEngine = app.resound.rules.WorkflowEngine(database.workflowRules(), database.memory(), AppGraph.platform.dispatchers.io, AppGraph.platform.now,
             { t, b, l -> assistantNotifier.send(t, b, l) }, { AppGraph.analysis }, { AppGraph.agentBridge })
         AppGraph.groundedQA = app.resound.qa.GroundedQA(app.resound.search.RecordSearch(database), database.decisions(), database.ideas(),
+            database.projects(), database.memory(), database.followups(),
             AppGraph.platform.dispatchers.io, AppGraph.platform.now,
             { digestSettings.skillCredentials(null) }, digestSettings::canUseWithoutKey, { digestSettings.failover.hasBackup(it) },
             digestSettings.failover.request("记忆问答", database.memory(), app.resound.usage.UsagePurpose.Ask, llm::chatJson))
@@ -307,6 +308,7 @@ class ResoundApp : Application() {
         scope.launch {
             runCatching { database.readSql("SELECT 1") { it.step() } }
             analysisRepository.ensureSeeded()
+            analysisRepository.recoverStaleRunning()
             AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
             AppGraph.decisionRepo.syncFromDigest()
             AppGraph.followupEngine.scan()

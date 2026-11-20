@@ -44,11 +44,11 @@ private val ruleTitle = mapOf(PlaybackOverride.Default to "跟默认", PlaybackO
  * 只标记不过滤：外放期间的句子在原话里带“外放”，整理时写成“看/听 ×× 时听到”。
  */
 @Composable
-internal fun PlaybackSkipCard(local: Boolean) {
+internal fun PlaybackSkipCard(local: Boolean, topDivider: Boolean = true) {
     val settings = remember { runCatching { app.resound.AppGraph.playbackSettings }.getOrNull() } ?: return
     val prefs by settings.preferences.collectAsStateWithLifecycle()
     val c = Rs.colors
-    if (!local) Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
+    if (!local && topDivider) Box(Modifier.padding(vertical = 16.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
     Text("外放的声音", style = RsType.body, color = c.text)
     Text(
         when (prefs.mode) {

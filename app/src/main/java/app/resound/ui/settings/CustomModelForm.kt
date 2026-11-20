@@ -31,7 +31,11 @@ import kotlinx.coroutines.launch
  * [qwen] 为千问接口：只按完整地址请求，不拉取模型、不切写法，热词开关常显。 */
 internal class EndpointModeUi(val initial: CustomEndpointMode, val prompt: kotlinx.coroutines.flow.StateFlow<Boolean>,
     val setPrompt: (Boolean) -> Unit, val save: (String, String, String, CustomEndpointMode) -> CustomSaveResult?,
-    val keyState: CustomKeyState? = null, val capability: CustomCapability? = null, val qwen: Boolean = false)
+    val keyState: CustomKeyState? = null, val capability: CustomCapability? = null, val qwen: Boolean = false,
+    /** 放在保存按钮上面的额外设置（如说话人格式） */
+    val beforeButtons: (@Composable () -> Unit)? = null,
+    /** 测试：和保存放在同一排；保存成功后自动测一次。testStatus 显示在按钮下面 */
+    val test: (() -> Unit)? = null, val testing: Boolean = false, val testStatus: (@Composable () -> Unit)? = null)
 
 /** 测试通过后告诉用户这个模型能做到哪一步 */
 internal fun capabilityText(c: CustomCapability) = when (c) {
@@ -110,7 +114,7 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
             Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                 val (dot,line)=when(keyState){
                     CustomKeyState.None->null to (if(qwen)"还没保存密钥" else "还没保存密钥，本地服务可不填")
-                    CustomKeyState.Saved->c.warning to "已保存，未验证 · 点下面的「测试」确认"
+                    CustomKeyState.Saved->c.warning to "已保存，未验证 · 点「测试」确认"
                     CustomKeyState.Verified->c.good to ("已验证"+(modes?.capability?.let{" · "+capabilityText(it)}?:""))
                 }
                 if(dot!=null){app.resound.ui.verify.Dot(dot,6.dp);Spacer(Modifier.width(6.dp))}
@@ -141,6 +145,7 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
                 app.resound.ui.skills.Toggle(prompt){modes.setPrompt(it)}
             }
         }
+        modes?.beforeButtons?.let { Spacer(Modifier.height(16.dp)); it() }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             if(!full && !qwen) Pill(if(fetching)"拉取中…" else "拉取模型",filled=false) {
@@ -163,11 +168,15 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
                             saved.keyState==CustomKeyState.None->"地址和模型已保存，还没保存密钥"
                             else->"地址和模型已保存，沿用原密钥"
                         }
+                        // 保存成功顺带测一次，结果直接显示在下面
+                        if(saved!=null) modes?.test?.invoke()
                     }
                     catch(e:Exception){error=true;message=e.message ?: "保存失败"}
                 }
             }
+            modes?.test?.let { run -> Pill(if(modes.testing)"测试中…" else "测试",filled=false) { if(!modes.testing) run() } }
         }
+        modes?.testStatus?.let { Spacer(Modifier.height(8.dp)); it() }
         if(message.isNotBlank()){Spacer(Modifier.height(8.dp));Text(message,style=RsType.caption,color=if(error)c.critical else c.textSecondary)}
         Spacer(Modifier.height(6.dp))
         Text("密钥仅保存在手机安全区，不回显。模型列表不代表服务已通过测试。",style=RsType.caption,color=c.textTertiary)

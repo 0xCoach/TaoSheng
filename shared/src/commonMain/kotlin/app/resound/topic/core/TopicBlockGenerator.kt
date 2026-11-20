@@ -34,12 +34,17 @@ class TopicBlockGenerator(
     private fun prior(lines: List<TranscriptLineData>) = if (lines.isEmpty()) "" else
         "前情（仅供理解，不要提取，不属于本块，不引用这些句子）：\n" + lines.joinToString("\n") { "${DigestPrompt.speaker(it)}：${it.text}" }
     private fun parseCard(text: String, kind: TopicKind, g: TopicGroup, lines: List<TranscriptLineData>): SkillCardData {
-        val skill = summaryTemplate(kind).first
+        // 汇总阶段只读分块结果、没有原话编号，原话引用字段在这里必然为空；
+        // 不能因此丢卡，引用随后由 TopicFactMerge 从各分块合并回来。
+        val skill = summaryTemplate(kind).first.let { s -> if (lines.isNotEmpty()) s else
+            s.copy(fields = s.fields.map { if (it.type == FieldType.Quotes) it.copy(required = false) else it }) }
         val json = Obj(text)
         require(json.getJSONArray("cards").length() == 1)
         json.getJSONArray("cards").getJSONObject(0).put("at", "00:00").put("end", Obj.NULL).put("entity", "topic:${g.row.id}")
         return SkillOutput.parse(json.toString(), skill, date(g.spans.first().startAt),
-            SkillInput("", lines.associateBy { "L${it.id}" }), now(), true).rows.single()
+            SkillInput("", lines.associateBy { "L${it.id}" }), now(), true).rows.singleOrNull()
+            // 卡被规则过滤（必填项为空、缺标题等）属于模型回答不合格，交给格式重试，不能落成“本地处理未完成”。
+            ?: throw SkillFormatException()
     }
     private fun summarySystem(kind: TopicKind, g: TopicGroup): String = summaryTemplate(kind).let { (skill, instructions) ->
         SkillPrompt.system(skill, instructions, date(g.spans.first().startAt), appName) + "\n必须恰好输出一张 cards，不可空卡。只整理本块资料；前情仅供理解，不要提取。保留决定、约定、行动及依据，不新增事实。"

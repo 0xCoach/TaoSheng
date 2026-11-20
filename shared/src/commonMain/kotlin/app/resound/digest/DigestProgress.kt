@@ -19,7 +19,9 @@ data class DigestProgress(
     fun detail(now: Long): String {
         if (batch == 0) return "正在统计待整理原话…"
         val elapsed = ((finishedAt ?: now) - batchStartedAt).coerceAtLeast(0)
-        return "第 $batch/$batches 批 · 等待模型 ${formatElapsed(elapsed)}"
+        val receiving = formatLlmReceiveProgress(reasoningChars, contentChars)
+            ?: return "第 $batch/$batches 批 · 等待模型 ${formatElapsed(elapsed)}"
+        return "第 $batch/$batches 批 · ${formatElapsed(elapsed)} · $receiving"
     }
     val completion: String? get() = finishedAt?.takeIf { total > 0 && done == total }?.let {
         "本轮整理完成 · 用时 ${formatElapsed(it - startedAt)}"

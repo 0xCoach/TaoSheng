@@ -34,6 +34,8 @@ class DigestProgressTest {
         assertEquals("本轮整理完成 · 用时 1.26 秒",finished.completion)
         assertEquals("第 1/1 批 · 等待模型 1.26 秒",finished.detail(9000))
         assertNull(progress.copy(finishedAt=2260).completion)
+        assertEquals("第 1/1 批 · 1.25 秒 · 模型思考中 · 已收到 3,200 字",progress.copy(reasoningChars=3200).detail(2259))
+        assertEquals("第 1/1 批 · 1.25 秒 · 正在写结果 · 已收到 180 字",progress.copy(reasoningChars=3200,contentChars=180).detail(2259))
     }
     @Test fun countsOnlySavedBatchesAndFinishesAtTotal() = runBlocking {
         val db = db()

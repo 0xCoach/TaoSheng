@@ -186,7 +186,7 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
             }
             if (finish == "length") throw truncated(tokens)
             if (finish == null) throw NetLlmException(NetLlmError.Network, detail = "模型响应中断，稍后重试", usage = tokens)
-            if (finish != "stop") throw NetLlmException(NetLlmError.Format, usage = tokens)
+            // 各家结束标记不统一（stop/eos/end_turn…），除截断外交给后面的 JSON 校验判断内容是否完整。
             return NetReply(text.toString(), tokens?.promptTokens ?: 0, tokens?.completionTokens ?: 0)
         } finally { trace?.content(text.toString()) }
     }

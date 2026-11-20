@@ -86,7 +86,29 @@ class ResoundApp : Application() {
         authStore.refreshStatus()
         val authApi = app.resound.auth.AuthApi({ authStore.serverUrl })
         AppGraph.auth = app.resound.auth.AuthGate(authStore, authApi)
+        AppGraph.officialAi = app.resound.auth.OfficialAi(this, AppGraph.auth, authStore)
         AppGraph.membership = app.resound.auth.MembershipState(this, authStore, AppGraph.auth)
+        // 官方 AI 桥：服务端点数制网关；错误全部 terminal——点数不足/需同意/服务异常不自动切 BYOK
+        val officialBridge: app.resound.digest.OfficialBridge = { kind, system, user ->
+            when (val out = AppGraph.officialAi.generate(kind, system, user)) {
+                is app.resound.auth.OfficialAi.GenOutcome.Ok ->
+                    app.resound.digest.LlmReply(out.content, 0, 0, actualModel = "official")
+                is app.resound.auth.OfficialAi.GenOutcome.Denied -> throw when (out.code) {
+                    "CONSENT_REQUIRED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Auth, detail = "请先在设置里同意使用声声不息官方 AI", terminal = true)
+                    "QUOTA_EXHAUSTED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Quota, detail = "官方 AI 点数已用完，请等下周期或升级 Pro", terminal = true)
+                    "RATE_LIMITED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.RateLimit, detail = "官方 AI 请求过于频繁，请稍后再试", terminal = true)
+                    "REQUEST_TOO_LARGE" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Format, detail = "内容超出官方 AI 单次上限", terminal = true)
+                    "TASK_FAILED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Format, detail = "官方 AI 处理失败（未扣点）", terminal = true)
+                    "UNKNOWN_PROVIDER_OUTCOME" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Network, detail = "官方服务响应超时，结果待确认（未扣点）", terminal = true)
+                    "PROVIDER_UNAVAILABLE" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Server, detail = "官方 AI 服务暂不可用", terminal = true)
+                    else -> app.resound.digest.LlmException(app.resound.digest.LlmError.Server, detail = "官方 AI 出错（${out.code}）", terminal = true)
+                }
+                is app.resound.auth.OfficialAi.GenOutcome.Network ->
+                    throw app.resound.digest.LlmException(app.resound.digest.LlmError.Network, detail = "网络连接失败", terminal = true)
+                app.resound.auth.OfficialAi.GenOutcome.NeedLogin ->
+                    throw app.resound.digest.LlmException(app.resound.digest.LlmError.Auth, detail = "请登录后使用声声不息官方 AI", terminal = true)
+            }
+        }
         // 老装升级不锁死：本机是否已有历史数据——同步用文件存在性先判（不依赖异步 DB 查询，
         // 否则首个 require() 抢在探测前会把老用户判成全新装而拒绝），异步再复核补正。
         if (authStore.boundAccountId == null && !authStore.hasLocalData) {
@@ -220,12 +242,15 @@ class ResoundApp : Application() {
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
         val serviceHeaders = app.resound.digest.ServiceHeaders(this)
-        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this))
+        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this), official = officialBridge)
         val digestSettings = AndroidDigestSettings(this, llm) { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
         }
         AppGraph.llmFailover = digestSettings.failover
+        digestSettings.providers.officialReady = { AppGraph.officialAi.ready() }
+        AppGraph.officialAi.onStatusChanged = { digestSettings.providers.refreshOfficial() }
+        scope.launch { runCatching { AppGraph.officialAi.refreshStatus() } }
         val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things
         val skillScheduler = app.resound.skills.SkillScheduler(this)
@@ -327,7 +352,7 @@ class ResoundApp : Application() {
         digestSettings.timing.onChanged = scheduler::timingChanged
         // 独立 20 秒 HTTP 上限也覆盖响应体读取；不改变日常整理的长请求上限。
         val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
-            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = serviceHeaders::forPreset)
+            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = serviceHeaders::forPreset, official = officialBridge)
         AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
             { digestSettings.skillCredentials(null) }, digestSettings.failover.request("手动待办", database.memory(), app.resound.usage.UsagePurpose.Digest, todoLlm::chatJson), { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,

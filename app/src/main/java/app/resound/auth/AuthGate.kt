@@ -194,6 +194,15 @@ class AuthGate(
     /** 用量上报（服务端按 id 去重）。 */
     suspend fun reportUsage(items: List<AuthApi.UsageItem>): AuthApi.Result? = authed { api.reportUsage(items, it) }
 
+    // ---------- R6.2 官方 AI：全部走统一 authed 通道（401 自动串行换票重试），未登录返回 null ----------
+    suspend fun officialStatus(): AuthApi.Result? = authed { api.officialStatus(it) }
+    suspend fun officialQuota(): AuthApi.Result? = authed { api.officialQuota(it) }
+    suspend fun officialUsage(limit: Int = 20): AuthApi.Result? = authed { api.officialUsage(limit, it) }
+    suspend fun officialEstimate(taskType: String, chars: Int): AuthApi.Result? = authed { api.officialEstimate(taskType, chars, it) }
+    suspend fun officialConsent(version: Int): AuthApi.Result? = authed { api.officialConsent(version, it) }
+    suspend fun officialGenerate(requestId: String, taskType: String, system: String, user: String, maxOutput: Int = 0): AuthApi.Result? =
+        authed { api.officialGenerate(requestId, taskType, system, user, maxOutput, it) }
+
     /**
      * 兑换码核销。request_id 取「账号+规范化码」的确定性值：
      * 同一账号对同一码的重试天然幂等，响应丢失后重试不会重复发权益。

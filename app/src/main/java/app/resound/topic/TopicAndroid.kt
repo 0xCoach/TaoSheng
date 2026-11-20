@@ -52,7 +52,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                     app.assets.open("skills/$id/prompt.md").bufferedReader().use { it.readText() }
             }, request = { system, user ->
                 val (preset, key) = settings.skillCredentials(null)
-                if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+                if (preset.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
                 val reply = settings.failover.request("专题整理", db.memory(), UsagePurpose.Digest, settings.digestRequest(llm))(preset, key, system, user)
                 withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
                 reply

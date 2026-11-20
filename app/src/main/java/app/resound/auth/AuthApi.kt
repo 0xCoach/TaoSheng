@@ -22,6 +22,10 @@ class AuthApi(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val io = Dispatchers.IO
+    /** 官方生成服务端处理最长 55s；读超时留余量，避免长任务被本地掐断后重试。 */
+    private val longReadClient: OkHttpClient by lazy {
+        client.newBuilder().readTimeout(90, TimeUnit.SECONDS).callTimeout(100, TimeUnit.SECONDS).build()
+    }
 
     sealed class Result {
         data class Ok(val body: kotlinx.serialization.json.JsonObject) : Result()
@@ -29,7 +33,7 @@ class AuthApi(
         data class Network(val message: String) : Result()
     }
 
-    private suspend fun call(method: String, path: String, body: String? = null, bearer: String = ""): Result = withContext(io) {
+    private suspend fun call(method: String, path: String, body: String? = null, bearer: String = "", http: OkHttpClient? = null): Result = withContext(io) {
         val base = baseUrl().trimEnd('/')
         if (base.isEmpty()) return@withContext Result.Denied(0, "未配置授权服务地址")
         val url = "$base$path"
@@ -38,7 +42,7 @@ class AuthApi(
             if (body != null) post(body.toRequestBody("application/json".toMediaType())) else get()
         }.build()
         try {
-            client.newCall(req).execute().use { r ->
+            (http ?: client).newCall(req).execute().use { r ->
                 val text = r.body?.string().orEmpty()
                 val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
                 when {
@@ -82,6 +86,29 @@ class AuthApi(
                 put("code", kotlinx.serialization.json.JsonPrimitive(code))
                 put("request_id", kotlinx.serialization.json.JsonPrimitive(requestId))
             }), bearer = accessToken)
+
+    // ---------- R6.2 官方 AI（点数制，密钥/模型只在服务端；App 不接触底层服务商） ----------
+    suspend fun officialStatus(accessToken: String) = call("GET", "/ai/official/status", bearer = accessToken)
+    suspend fun officialQuota(accessToken: String) = call("GET", "/ai/official/quota", bearer = accessToken)
+    suspend fun officialUsage(limit: Int, accessToken: String) = call("GET", "/ai/official/usage?limit=$limit", bearer = accessToken)
+    suspend fun officialConsent(version: Int, accessToken: String) =
+        call("POST", "/ai/official/consent", """{"version":$version}""", bearer = accessToken)
+    suspend fun officialEstimate(taskType: String, chars: Int, accessToken: String) =
+        call("POST", "/ai/official/estimate", Json.encodeToString(
+            kotlinx.serialization.json.buildJsonObject {
+                put("task_type", kotlinx.serialization.json.JsonPrimitive(taskType))
+                put("chars", kotlinx.serialization.json.JsonPrimitive(chars))
+            }), bearer = accessToken)
+    /** requestId 为内容散列幂等键：同内容重试/丢失响应重发不重复扣点。 */
+    suspend fun officialGenerate(requestId: String, taskType: String, system: String, user: String, maxOutput: Int, accessToken: String) =
+        call("POST", "/ai/official/generate", Json.encodeToString(
+            kotlinx.serialization.json.buildJsonObject {
+                put("request_id", kotlinx.serialization.json.JsonPrimitive(requestId))
+                put("task_type", kotlinx.serialization.json.JsonPrimitive(taskType))
+                put("system", kotlinx.serialization.json.JsonPrimitive(system))
+                put("user", kotlinx.serialization.json.JsonPrimitive(user))
+                if (maxOutput > 0) put("max_output_tokens", kotlinx.serialization.json.JsonPrimitive(maxOutput))
+            }), bearer = accessToken, http = longReadClient)
 
     /** 成功转写时长上报；items 服务端按 id 去重，重传安全。 */
     suspend fun reportUsage(items: List<UsageItem>, accessToken: String) =

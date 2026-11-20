@@ -2,6 +2,7 @@
 // 账号/密码认证 + 会话管理 + ECDSA 签名离线授权凭证 + 审计。
 // 不保存音频/转写/记忆/用户 AI Key；只保存账号、会话、授权与审计。
 import { handleMembership } from "./membership.js";
+import { handleAi } from "./ai.js";
 
 const CAPS_DEFAULT = ["RECORD_AUDIO", "READ_PERSONAL_DATA", "AI_ANALYSIS", "EXPORT_BACKUP", "AGENT_ACCESS", "MCP_ACCESS"];
 const PBKDF2_ITER = 100000;
@@ -178,6 +179,10 @@ export default {
     const url = new URL(req.url);
     const path = url.pathname;
     try {
+      // ---- R6.2：官方 AI 网关与点数（/ai/official/* 与 /console/api/ai/*；先匹配，/console/api/* 会被会员模块 404 必须先走）----
+      const ar = await handleAi(req, env,
+        { json, err, timingSafeEq, uuid, nowS, sha256b64, hashPassword, audit, authed, CAPS_DEFAULT });
+      if (ar) return ar;
       // ---- R4.3：管理台页面/会员/用量/兑换码（先匹配，不命中再走原认证路由）----
       const mr = await handleMembership(req, env,
         { json, err, timingSafeEq, uuid, nowS, sha256b64, hashPassword, audit, authed, CAPS_DEFAULT });

@@ -3,6 +3,7 @@ package app.resound.analysis
 import app.resound.data.CaptureDatabase
 import app.resound.digest.LlmPreset
 import app.resound.digest.LlmReply
+import app.resound.digest.OFFICIAL_PROVIDER_ID
 import kotlinx.coroutines.CoroutineDispatcher
 import app.resound.platform.NowMillis
 import app.resound.platform.ZoneProvider
@@ -47,7 +48,7 @@ class AnalysisRepository(
     /** 模型是否可用（含备用链路与免密钥端点），驱动“等待配置服务”提示。 */
     fun llmReady(): Boolean {
         val (preset, key) = credentials()
-        return key.isNotBlank() || canUseWithoutKey(preset) || hasBackup(preset)
+        return preset.id == OFFICIAL_PROVIDER_ID || key.isNotBlank() || canUseWithoutKey(preset) || hasBackup(preset)
     }
 
     /** 种下内置模板：首次全种，之后只补缺的（升级新增的类型）。同名内置行不重复插。 */
@@ -319,7 +320,7 @@ class AnalysisRepository(
         scope.launch {
             val run = dao.run(runId) ?: return@launch
             val (preset, key) = credentials()
-            if (key.isBlank() && !canUseWithoutKey(preset) && !hasBackup(preset)) {
+            if (preset.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !canUseWithoutKey(preset) && !hasBackup(preset)) {
                 dao.failRun(runId, "未配置模型服务：到“设置 → 模型与整理时间”添加服务商，或导出材料到其他 AI 应用", now.now())
                 return@launch
             }

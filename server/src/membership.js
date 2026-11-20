@@ -360,7 +360,7 @@ button.pri{background:#5b3ba8;color:#fff;border-color:#5b3ba8}.card{background:#
 <div id="main" style="display:none"><nav>
 <button onclick="tab('overview',this)">总览</button><button onclick="tab('users',this)">用户</button>
 <button onclick="tab('members',this)">会员权益</button><button onclick="tab('usage',this)">用量</button>
-<button onclick="tab('codes',this)">兑换码</button><button onclick="tab('audit',this)">审计</button>
+<button onclick="tab('codes',this)">兑换码</button><button onclick="tab('aioff',this)">官方AI</button><button onclick="tab('audit',this)">审计</button>
 <button onclick="logout()">退出</button></nav><div id="panel">加载中…</div></div></div>
 <script>
 let csrf="";const $=id=>document.getElementById(id);
@@ -372,7 +372,7 @@ function showLogin(){$("login").style.display="";$("main").style.display="none"}
 async function login(){try{const r=await fetch("/console/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:$("tok").value})});
 if(!r.ok){sessionExpired();$("lerr").textContent="令牌错误";return}const j=await r.json();csrf=j.csrf;$("lerr").textContent="";$("login").style.display="none";$("main").style.display="";tab("overview")}catch(e){$("lerr").textContent=e.message}}
 async function logout(){await api("/session",null,"DELETE").catch(()=>{});csrf="";showLogin()}
-function tab(name,btn){[...document.querySelectorAll("nav button")].forEach(b=>b.classList.remove("on"));if(btn)btn.classList.add("on");({overview,users,members,usage,codes,audit})[name]()}
+function tab(name,btn){[...document.querySelectorAll("nav button")].forEach(b=>b.classList.remove("on"));if(btn)btn.classList.add("on");({overview,users,members,usage,codes,audit,aioff})[name]()}
 const ts=t=>t?new Date(t*1000).toLocaleString():"—";
 async function overview(){const j=await api("/overview");$("panel").innerHTML=\`<div class="card">用户 <b>\${j.users}</b> · 在期 Pro <b>\${j.pro}</b> · 可兑码 <b>\${j.codes_active}</b> · 已兑 <b>\${j.codes_redeemed}</b></div>\`}
 const CAP_CN={pro:"Pro 会员",local_asr_minutes:"本机转写时长",cross_meeting_tracking:"跨会议跟踪",advanced_project_analysis:"高级项目分析",agent_workflow:"Agent 工作流"};
@@ -406,4 +406,31 @@ async function actBatch(id){await api("/codes/batches/"+id+"/activate","POST",{}
 async function disBatch(id){if(!confirm("停用批次：未核销码全部作废？"))return;await api("/codes/batches/"+id+"/disable","POST",{});codes()}
 async function audit(){const j=await api("/audit");
 $("panel").innerHTML='<div class="card"><table><tr><th>时间</th><th>用户</th><th>事件</th><th>详情</th></tr>'+j.audit.map(a=>\`<tr><td>\${ts(a.at)}</td><td>\${a.username||""}</td><td>\${a.event}</td><td>\${a.detail||""}</td></tr>\`).join("")+"</table></div>"}
+// ---------- R6.2 官方 AI ----------
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function aioff(){const j=await api("/ai/providers");const rr=await api("/ai/rules");const r=rr.rules;const u=await api("/ai/usage");
+$("panel").innerHTML='<div class="card"><b>运营控制</b> · 官方 AI：<b>'+(r.enabled?"已启用":"已停用")+'</b>'+(r.paused?' <span class="err">[已暂停]</span>':"")+(rr.key_configured?"":' <span class="err">AI_KEY_SECRET 未配置，密钥将无法保存</span>')
++'<button class="pri" onclick="aiRules({enabled:'+!r.enabled+'})">'+(r.enabled?"停用服务":"启用服务")+'</button> '
++'<button onclick="aiRules({paused:'+!r.paused+'})">'+(r.paused?"恢复运行":"一键暂停")+'</button></div>'
++'<div class="card"><b>服务商</b><table><tr><th>名称</th><th>API Base</th><th>模型</th><th>密钥</th><th>状态</th><th>操作</th></tr>'
++j.providers.map(p=>'<tr><td>'+esc(p.name)+(p.is_default?" ★默认":"")+'</td><td>'+esc(p.api_base)+'</td><td>'+esc(p.model)+'</td><td>'+(p.has_key?"已加密存储":"未配置")+'</td><td>'+p.status+'</td><td>'
++'<button onclick="aiTest(\''+p.id+'\',this)">测试</button><button onclick="aiDefault(\''+p.id+'\')">设默认</button><button onclick="aiToggle(\''+p.id+'\')">'+(p.status=="active"?"停用":"启用")+'</button><button onclick="aiDel(\''+p.id+'\')">删</button></td></tr>').join("")
++'</table><p><input id="pn" placeholder="名称"><input id="pb" placeholder="API Base (https://…)"><input id="pm2" placeholder="模型 ID"><input id="pk" type="password" placeholder="API Key（只写不读）"><button class="pri" onclick="aiAdd()">新增</button><span id="pmsg"></span></p></div>'
++'<div class="card"><b>点数规则</b><br>Free 每月 <input id="rf" value="'+r.free_monthly_points+'" style="width:70px"> · Pro 每周期 <input id="rp" value="'+r.pro_period_points+'" style="width:70px"> · 单任务上限 <input id="rc" value="'+r.task_point_cap+'" style="width:60px">'
++' · 输入/输出 <input id="ri" value="'+r.max_input_tokens+'" style="width:80px">/<input id="ro" value="'+r.max_output_tokens+'" style="width:70px"> · 每日任务 F/P <input id="rfd" value="'+r.free_daily_tasks+'" style="width:50px">/<input id="rpd" value="'+r.pro_daily_tasks+'" style="width:50px">'
++' · 自动整理 周期/日 <input id="rap" value="'+r.auto_period_points+'" style="width:60px">/<input id="rad" value="'+r.auto_daily_points+'" style="width:50px"> · 预算毫分 日/月 <input id="rbd" value="'+r.budget_daily_milli+'" style="width:90px">/<input id="rbm" value="'+r.budget_monthly_milli+'" style="width:90px">'
++'<button class="pri" onclick="aiSaveRules()">保存</button><span id="rmsg"></span></div>'
++'<div class="card"><b>用量与成本</b> · 账号 <b>'+u.users+'</b> · 用过官方AI <b>'+u.ai_users+'</b> · 成功 <b>'+u.success+'</b> · 失败 <b>'+u.failed+'</b> · 入/出 Token <b>'+u.input_tokens+'</b>/<b>'+u.output_tokens+'</b> · 总扣点 <b>'+u.points+'</b> · 成本(毫分) <b>'+u.cost_milli+'</b>'
++'<table><tr><th>用户</th><th>任务数</th><th>扣点</th><th>成本</th></tr>'+u.top_users.map(x=>'<tr><td>'+esc(x.username||x.user_id.slice(0,8))+'</td><td>'+x.n+'</td><td>'+x.p+'</td><td>'+x.c+'</td></tr>').join("")+'</table></div>'
++'<div class="card"><b>用户点数</b><div id="aiusers">加载中…</div>'
++'<p><input id="aju" placeholder="用户ID"><input id="ajp" placeholder="点数(+/-)" style="width:80px"><input id="ajr" placeholder="原因"><button class="pri" onclick="aiAdjust()">调整</button><span id="amsg"></span></p></div>';
+const w=await api("/ai/users");const el=$("aiusers");if(el)el.innerHTML='<table><tr><th>用户</th><th>计划</th><th>额度</th><th>已用</th><th>预留</th><th>剩余</th><th>周期止</th></tr>'+w.periods.map(p=>'<tr><td>'+esc(p.username||p.user_id.slice(0,8))+'</td><td>'+p.plan+'</td><td>'+p.granted+'</td><td>'+p.used+'</td><td>'+p.reserved+'</td><td>'+p.remaining+'</td><td>'+ts(p.period_end)+'</td></tr>').join("")+"</table>"}
+async function aiRules(patch){await api("/ai/rules","PATCH",patch);aioff()}
+async function aiSaveRules(){try{await api("/ai/rules","PATCH",{free_monthly_points:+$("rf").value,pro_period_points:+$("rp").value,task_point_cap:+$("rc").value,max_input_tokens:+$("ri").value,max_output_tokens:+$("ro").value,free_daily_tasks:+$("rfd").value,pro_daily_tasks:+$("rpd").value,auto_period_points:+$("rap").value,auto_daily_points:+$("rad").value,budget_daily_milli:+$("rbd").value,budget_monthly_milli:+$("rbm").value});$("rmsg").innerHTML='<span class="ok">已保存</span>'}catch(e){$("rmsg").innerHTML='<span class="err">'+e.message+'</span>'}}
+async function aiAdd(){try{await api("/ai/providers","POST",{name:$("pn").value,api_base:$("pb").value,model:$("pm2").value,api_key:$("pk").value||undefined});aioff()}catch(e){$("pmsg").innerHTML='<span class="err">'+e.message+'</span>'}}
+async function aiTest(id,btn){btn.disabled=true;try{const j=await api("/ai/providers/"+id+"/test","POST",{});alert(j.ok?"连接成功 "+j.ms+"ms":"失败："+j.error)}finally{btn.disabled=false}}
+async function aiDefault(id){await api("/ai/providers/"+id+"/default","POST",{});aioff()}
+async function aiToggle(id){await api("/ai/providers/"+id+"/toggle","POST",{});aioff()}
+async function aiDel(id){if(!confirm("停用该服务商？"))return;await api("/ai/providers/"+id,null,"DELETE");aioff()}
+async function aiAdjust(){try{await api("/ai/users/adjust","POST",{user_id:$("aju").value,points:+$("ajp").value,reason:$("ajr").value});$("amsg").innerHTML='<span class="ok">已调整</span>';aioff()}catch(e){$("amsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 <\/script></body></html>`;

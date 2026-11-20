@@ -7,6 +7,7 @@ import app.resound.qa.QaRules
 import app.resound.decision.DecisionDao
 import app.resound.digest.LlmPreset
 import app.resound.digest.LlmReply
+import app.resound.digest.OFFICIAL_PROVIDER_ID
 import app.resound.inbox.IdeaDao
 import app.resound.inbox.IdeaRules
 import app.resound.search.RecordSearch
@@ -100,7 +101,7 @@ class GroundedQA(
                 return@withContext QaAnswer("记录里没找到相关内容。可以换个说法再搜，或切到「记录+通用知识」模式。", emptyList(), grounded = true, noEvidence = true)
             }
             val (preset, key) = credentials()
-            if (key.isBlank() && !canUseWithoutKey(preset) && !hasBackup(preset)) {
+            if (preset.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !canUseWithoutKey(preset) && !hasBackup(preset)) {
                 val body = if (sources.isEmpty()) "等待配置服务：到「设置 → 模型与整理时间」填好模型就能问。" else
                     "等待配置服务。先给你按关键词搜到的 ${sources.size} 条出处，填好模型可让 AI 综合回答。"
                 return@withContext QaAnswer(body, sources, grounded = true, needsService = true, noEvidence = sources.isEmpty())

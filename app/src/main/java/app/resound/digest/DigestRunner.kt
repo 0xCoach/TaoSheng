@@ -88,7 +88,12 @@ class DigestRunner(
         probe = null
         try {
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset))
+            // 官方条目不持本地密钥：其就绪态经 providers 条目的 hasKey 下发（登录+开启+已同意）
+            val officialReadyNow = preset.id == OFFICIAL_PROVIDER_ID &&
+                settings.providers.saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true
+            if (preset.id == OFFICIAL_PROVIDER_ID && !officialReadyNow && !settings.failover.hasBackup(preset))
+                return needsUser("声声不息官方 AI 未就绪，请先登录并完成同意，或检查官方点数", null)
+            if (preset.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset))
                 return needsUser("还没填写大模型密钥", null)
             replayUnsavedReply()
             val undigested = dao.undigestedLines()
@@ -97,7 +102,11 @@ class DigestRunner(
                 return needsUser("上次整理结果未能保存，已暂停自动请求；请检查存储后点“现在整理”重试")
             appendReadyChunks(chunks, undigested, forceNow)
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
-            val result = runBatches(chunks, preset, key) { madeEvents = true }
+            // 安静后自动整理走 auto_digest：服务端仅 Pro 放行且有独立周期/每日点数上限（计入总池）
+            val autoQuiet = !manual && prefs.getLong("quietPendingAt", 0L) > 0L
+            val result = if (autoQuiet) kotlinx.coroutines.withContext(LlmTaskKind("auto_digest")) {
+                runBatches(chunks, preset, key) { madeEvents = true }
+            } else runBatches(chunks, preset, key) { madeEvents = true }
             currentCoroutineContext().ensureActive()
             if (result == DigestOutcome.Done || result == DigestOutcome.NothingToDo) record(now(), null)
             return result
@@ -122,6 +131,9 @@ class DigestRunner(
     /** 与 runOutcome 入口同一口径：大模型/密钥配置是否能发起整理。安静自动整理据此判断 AI_NOT_CONFIGURED。 */
     fun ready(): Boolean {
         val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
+        if (preset.id == OFFICIAL_PROVIDER_ID)
+            return settings.providers.saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true ||
+                settings.failover.hasBackup(preset)
         return key.isNotBlank() || settings.canUseWithoutKey(preset) || settings.failover.hasBackup(preset)
     }
 

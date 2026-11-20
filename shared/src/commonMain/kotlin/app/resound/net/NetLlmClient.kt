@@ -19,7 +19,7 @@ interface NetworkTrace {
     fun content(text: String)
     fun finishReason(reason: String?)
 }
-enum class NetLlmError { Auth, Quota, RateLimit, Network, Server, Format }
+enum class NetLlmError { Auth, Quota, RateLimit, Network, Server, Format, TooSlow, Truncated }
 data class NetReply(val content: String, val promptTokens: Long, val completionTokens: Long)
 data class NetToolCall(val id: String, val name: String, val arguments: String, val extraContent: String?)
 data class NetStreamReply(val content: String, val calls: List<NetToolCall>, val reasoningContent: String?)
@@ -29,15 +29,28 @@ class NetLlmException(val type: NetLlmError, val status: Int = 0, val detail: St
 }
 /** client 和已校验的候选地址由平台装配；不会读取设置、时钟、密钥或创建平台实现。 */
 class NetLlmClient(private val client: HttpClient, private val bases: List<String>,
-    private val callTimeout: Long, private val networkError: (Throwable) -> String) {
+    private val callTimeout: Long, private val streamSupport: JsonStreamSupport? = null, private val networkError: (Throwable) -> String) {
     suspend fun chat(preset: LlmPreset, key: String, headers: List<HeaderEntry>, system: String, user: String,
+        thinking: Boolean, trace: NetworkTrace?): NetReply {
+        val body = Obj().put("model", preset.model).put("messages", Arr()
+            .put(Obj().put("role", "system").put("content", system))
+            .put(Obj().put("role", "user").put("content", user)))
+            .put("response_format", Obj().put("type", "json_object"))
+            .put("temperature", 0.2).put("max_tokens", MAX_JSON_OUTPUT_TOKENS)
+        // 先按 JSON 用途配置选项，再启用传输流式，避免套用问问的小输出上限。
+        applyNetOptions(preset, body, thinking)
+        return JsonLlmReceive(client, bases, streamSupport, networkError)
+            .chat(preset, networkHeaders(key, headers), body, trace)
+    }
+    /** 既有轻量检测探针保留原来的非流式与 deadline。 */
+    suspend fun probe(preset: LlmPreset, key: String, headers: List<HeaderEntry>, system: String, user: String,
         thinking: Boolean, trace: NetworkTrace?): NetReply = deadline {
         val body = Obj().put("model", preset.model).put("messages", Arr()
             .put(Obj().put("role", "system").put("content", system))
             .put(Obj().put("role", "user").put("content", user)))
             .put("response_format", Obj().put("type", "json_object"))
             .put("temperature", 0.2).put("max_tokens", MAX_JSON_OUTPUT_TOKENS)
-        applyNetOptions(preset, body, thinking)
+        applyNetOptions(preset, body, thinking, adaptiveJson = false)
         val selectedHeaders = networkHeaders(key, headers)
         try {
             for ((index, base) in bases.withIndex()) {
@@ -70,7 +83,7 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
             .put("stream", true).put("stream_options", Obj().put("include_usage", true))
             .put("temperature", 0.2).put("max_tokens", 4096)
         if (toolArray.length() > 0) body.put("tools", toolArray).put("tool_choice", if (allowTools) "auto" else "none")
-        applyNetOptions(preset, body)
+        applyNetOptions(preset, body, adaptiveJson = false)
         val selectedHeaders = networkHeaders(key, headers)
         try {
             for ((index, base) in bases.withIndex()) {

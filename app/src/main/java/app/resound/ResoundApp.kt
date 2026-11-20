@@ -278,7 +278,8 @@ class ResoundApp : Application() {
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
         val serviceHeaders = app.resound.digest.ServiceHeaders(this)
-        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this))
+        val jsonStreamSupport = app.resound.digest.AndroidJsonStreamSupport(this)
+        val llm = LlmClient(streamSupport = jsonStreamSupport, requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this))
         val digestSettings = AndroidDigestSettings(this, llm) { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
@@ -324,9 +325,8 @@ class ResoundApp : Application() {
         AppGraph.digestTiming = digestSettings.timing
         scheduler.digestTiming = digestSettings.timing
         digestSettings.timing.onChanged = scheduler::timingChanged
-        // 独立 20 秒 HTTP 上限也覆盖响应体读取；不改变日常整理的长请求上限。
-        val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
-            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = serviceHeaders::forPreset)
+        // 手动待办仍由业务层的 20 秒 deadline 取消；JSON 传输统一使用自适应接收。
+        val todoLlm = LlmClient(requestHeaders = serviceHeaders::forPreset, streamSupport = jsonStreamSupport)
         AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
             { digestSettings.skillCredentials(null) }, digestSettings.failover.request("手动待办", database.memory(), app.resound.usage.UsagePurpose.Digest, todoLlm::chatJson), { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,

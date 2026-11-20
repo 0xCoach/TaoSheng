@@ -66,7 +66,7 @@ class NightInsightsAndroid(private val context: Context,private val owner: Andro
         val settings=AppGraph.digestSettings as? AndroidDigestSettings ?: return report
         if(!settings.hasKey.value)return report // 此入口已经包含 canUseWithoutKey / 提供方鉴权判断。
         return try {
-            val client=LlmClient(requestHeaders=settings.providers::requestHeaders)
+            val client=LlmClient(requestHeaders=settings.providers::requestHeaders, streamSupport=settings.jsonStreamSupport)
             val prompt=AppGraph.prompts.text("night_week")
             val response=settings.failover.chat("夜里周报",settings.preset,settings.readKey(),prompt,report.markdown,settings.digestRequest(client))
             owner.store.db.memory().addUsage(java.time.LocalDate.now().toString(),response.promptTokens,response.completionTokens,app.resound.usage.UsagePurpose.Review)

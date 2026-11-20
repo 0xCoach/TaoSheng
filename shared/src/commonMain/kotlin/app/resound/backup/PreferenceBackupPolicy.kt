@@ -44,6 +44,8 @@ object PreferenceBackupPolicy {
         "transcribe-header-secrets", "location-secrets", "backup-encryption-secrets",
     )
     val excluded = mapOf(
+        "llm-batch-budget" to "每个模型的批次预算、成功计数与慢模型提示，本机自适应状态，不备份",
+        "llm-stream-support" to "按服务商和模型记忆的 JSON 流式兼容能力，本机状态，不备份",
         "night-log" to "夜里记录删除与取消的诊断行，只进问题记录，不备份",
         "skills-backfill-207" to "升级后会议纪要补跑的完成凭据，本机一次性状态，不备份",
         "custom-asr-formats" to "自定义转写格式能力缓存，30 天重新探测，不备份",

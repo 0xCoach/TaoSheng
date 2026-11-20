@@ -7,7 +7,7 @@ import app.resound.digest.LlmPreset
  * [thinking]：整理时用户打开了“整理前先思考”。只对能明确开关思考的模型生效（DeepSeek 系、火山方舟、智谱 GLM-4.5 及以上、
  * 硅基流动这两个），打开时放宽输出上限（思考过程也算输出），关闭时明确关掉；其他模型照旧。
  */
-internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = false) {
+internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = false, adaptiveJson: Boolean = true) {
     val host = runCatching { io.ktor.http.Url(preset.baseUrl).host.lowercase() }.getOrDefault("")
     val model = preset.model.lowercase()
     val stream = body.optBoolean("stream")

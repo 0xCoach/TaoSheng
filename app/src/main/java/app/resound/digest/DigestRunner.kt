@@ -172,7 +172,7 @@ class DigestRunner(
             when (val error = if (refreshed.isEmpty()) null else digest(refreshed, preset, key, onEvents)) {
                 null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
                 LlmError.Auth, LlmError.Quota -> return needsUser(failureDetail ?: error.human)
-                LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format -> {
+                LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format, LlmError.TooSlow, LlmError.Truncated -> {
                     val reason = failureDetail ?: error.human
                     record(now(), reason)
                     return if (retryFailure) DigestOutcome.Retryable(reason) else DigestOutcome.NeedsUser(reason)
@@ -341,7 +341,7 @@ class DigestRunner(
     /** 发一句很短的测试话，分清是内容被拒还是配置被拒；网络等暂时问题返回 null，按原错误稍后重试。 */
     private suspend fun configAccepts(preset: LlmPreset, key: String): Boolean? {
         probe?.let { return it }
-        val result = try { request(preset, key, PROBE_SYSTEM, PROBE_USER); true }
+        val result = try { kotlinx.coroutines.withContext(app.resound.net.LlmProbeRequest()) { request(preset, key, PROBE_SYSTEM, PROBE_USER) }; true }
             catch (e: CancellationException) { throw e }
             catch (e: LlmException) { if (e.rejected) false else null }
             catch (_: Exception) { null }

@@ -23,7 +23,7 @@ import java.time.LocalDate
 
 internal fun createThings(context: Context, db: CaptureDatabase, scope: CoroutineScope, settings: AndroidDigestSettings,
     template: () -> String): Pair<RoomThingRepository, DigestThingExtraction> {
-    val manualClient = LlmClient(okhttp3.OkHttpClient.Builder().callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = settings.providers::requestHeaders)
+    val manualClient = LlmClient(requestHeaders = settings.providers::requestHeaders, streamSupport = settings.jsonStreamSupport)
     suspend fun detect(lines: List<TranscriptLineEntity>, known: List<Thing>): List<ThingProposal> {
         val preset = settings.preset; val key = settings.readKey()
         if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)

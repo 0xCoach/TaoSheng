@@ -16,6 +16,7 @@ class AndroidDigestSettings internal constructor(
 ) : DigestSettings {
     constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
         this(context, client, AndroidLlmProviders(context, client, recordUsage), recordUsage)
+    val jsonStreamSupport = AndroidJsonStreamSupport(context)
     val failover = LlmFailover(context, providers)
     val failoverEnabled get() = failover.enabled
     fun setFailoverEnabled(enabled: Boolean) = failover.setEnabled(enabled)
@@ -85,7 +86,7 @@ class AndroidDigestSettings internal constructor(
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
-            val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
+            val reply = client.probeJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
             failover.clear(selected.id)
             val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.onFailure {
@@ -113,7 +114,7 @@ class AndroidDigestSettings internal constructor(
         if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return Result.success(ModelCheck(
             json = { system, user ->
-                client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
+                client.probeJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
             },
             toolResult = { reason ->
                 if (reason == null) compatibility.passed(selected, generation)

@@ -60,5 +60,34 @@ class TopicSeriesMigrationTest {
         assertEquals(CaptureDatabase.VERSION, version)
         val hasSeries = d.readSql("SELECT 1 FROM pragma_table_info('topics') WHERE name = 'seriesKey'") { it.step() }
         assertTrue(hasSeries)
+        assertTrue(d.readSql("SELECT 1 FROM pragma_table_info('topics') WHERE name = 'seriesId'") { it.step() })
+        assertTrue(d.readSql("SELECT 1 FROM pragma_table_info('ideas') WHERE name = 'noMergeIdsJson'") { it.step() })
+        assertTrue(d.readSql("SELECT 1 FROM sqlite_master WHERE type='table' AND name='idea_entries'") { it.step() })
+    }
+
+    /** v42→v43：idea_entries 建表、ideas.noMergeIdsJson、topics.seriesId；重复执行不炸。 */
+    @Test fun migration42to43AddsIdeaEntriesAndSeriesId() = runBlocking<Unit>(Dispatchers.IO) {
+        context.deleteDatabase(name)
+        val file = context.getDatabasePath(name)
+        file.parentFile?.mkdirs()
+        AndroidSQLiteDriver().open(file.path).use { conn ->
+            conn.execSQL("""CREATE TABLE topics (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                kind TEXT NOT NULL, name TEXT, status TEXT NOT NULL, createdAt INTEGER NOT NULL,
+                plannedStartAt INTEGER, plannedEndAt INTEGER, repeatRule INTEGER, eventId INTEGER, cardId INTEGER,
+                error TEXT, revision INTEGER NOT NULL, quietOverride INTEGER NOT NULL, retainedItemIds TEXT NOT NULL,
+                starred INTEGER NOT NULL, quietNotifiedAfter INTEGER, endingNotifiedAt INTEGER, seriesKey TEXT)""")
+            conn.execSQL("""CREATE TABLE ideas (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                title TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, category TEXT NOT NULL,
+                tagsJson TEXT NOT NULL, fingerprint TEXT NOT NULL, sourceItemId INTEGER, sourceLineId INTEGER,
+                sourceSegmentId INTEGER, sourceEventId INTEGER, sourceText TEXT, sourceItemIdsJson TEXT NOT NULL,
+                mergedInto INTEGER, projectId INTEGER, convertedKind TEXT, convertedId INTEGER,
+                createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, statusChangedAt INTEGER, deleted INTEGER NOT NULL DEFAULT 0)""")
+            val migration = CaptureDatabase.MIGRATIONS.single { it.startVersion == 42 }
+            repeat(2) { migration.migrate(conn) }
+            assertTrue(conn.prepare("SELECT 1 FROM pragma_table_info('topics') WHERE name='seriesId'").use { it.step() })
+            assertTrue(conn.prepare("SELECT 1 FROM pragma_table_info('ideas') WHERE name='noMergeIdsJson'").use { it.step() })
+            assertTrue(conn.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='idea_entries'").use { it.step() })
+        }
+        file.delete()
     }
 }

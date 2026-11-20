@@ -18,6 +18,8 @@ data class TopicRow(
     val quietNotifiedAfter: Long? = null, val endingNotifiedAt: Long? = null,
     /** 同系列归组键（名字去空白小写）；匿名专题为 null，不参与系列跟进。 */
     val seriesKey: String? = null,
+    /** 周期排期链锚：链上首场的专题 id；不同排期链同名也不串场。手动/单次专题为 null。 */
+    val seriesId: Long? = null,
 )
 @Entity(tableName = "topic_spans", indices = [Index("topicId"), Index("startAt")], foreignKeys = [
     ForeignKey(entity = TopicRow::class, parentColumns = ["id"], childColumns = ["topicId"], onDelete = ForeignKey.CASCADE)])
@@ -108,9 +110,12 @@ interface TopicDao {
         (SELECT 1 FROM topic_spans ts JOIN topics t ON t.id = ts.topicId
         WHERE t.status IN ('Ended', 'Summarizing', 'Done') AND s.startAt < ts.endAt AND s.endAt > ts.startAt)""")
     suspend fun pendingAudio(): Int
-    /** 同系列上一次已出纪要的专题；按建表次序回链，重生成旧场不会引用后来的会议。 */
-    @Query("SELECT * FROM topics WHERE seriesKey = :key AND kind = :kind AND status = 'Done' AND id < :id ORDER BY id DESC LIMIT 1")
-    suspend fun previousDone(kind: String, key: String, id: Long): TopicRow?
+    /** 同系列上一次已出纪要的专题；按建表次序回链，重生成旧场不会引用后来的会议。
+     *  排期链成员只回链同链（seriesId 或自身是锚）；散列专题才按名归组，且不与任何链串场。 */
+    @Query("""SELECT * FROM topics WHERE status = 'Done' AND id < :id AND kind = :kind AND (
+        (:root IS NOT NULL AND (seriesId = :root OR id = :root))
+        OR (:root IS NULL AND seriesId IS NULL AND seriesKey = :key)) ORDER BY id DESC LIMIT 1""")
+    suspend fun previousDone(kind: String, key: String, id: Long, root: Long?): TopicRow?
 }
 
 internal object TopicSchema {
@@ -119,7 +124,7 @@ internal object TopicSchema {
             kind TEXT NOT NULL, name TEXT, status TEXT NOT NULL, createdAt INTEGER NOT NULL,
             plannedStartAt INTEGER, plannedEndAt INTEGER, repeatRule INTEGER, eventId INTEGER, cardId INTEGER,
             error TEXT, revision INTEGER NOT NULL, quietOverride INTEGER NOT NULL, retainedItemIds TEXT NOT NULL,
-            starred INTEGER NOT NULL, quietNotifiedAfter INTEGER, endingNotifiedAt INTEGER, seriesKey TEXT)""")
+            starred INTEGER NOT NULL, quietNotifiedAfter INTEGER, endingNotifiedAt INTEGER, seriesKey TEXT, seriesId INTEGER)""")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_topics_status ON topics(status)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_topics_createdAt ON topics(createdAt)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_topics_seriesKey ON topics(seriesKey)")

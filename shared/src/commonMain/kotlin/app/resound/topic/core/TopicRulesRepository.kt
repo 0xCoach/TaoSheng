@@ -167,10 +167,10 @@ class TopicRulesRepository(
         checkConflict(startAt, endAt, repeat = repeatDays)
         insertSchedule(kind.name, name.clean(), startAt, endAt, TopicPolicy.mask(repeatDays))
     } }
-    private suspend fun insertSchedule(kind: String, name: String?, start: Long, end: Long, repeat: Int?): Long {
+    private suspend fun insertSchedule(kind: String, name: String?, start: Long, end: Long, repeat: Int?, seriesId: Long? = null): Long {
         val id = dao.insert(TopicRow(kind = kind, name = name, status = "Scheduled", createdAt = now(),
             plannedStartAt = start, plannedEndAt = end, repeatRule = repeat, quietOverride = quiet(start, end),
-            seriesKey = TopicPolicy.seriesKey(name)))
+            seriesKey = TopicPolicy.seriesKey(name), seriesId = seriesId))
         dao.span(TopicSpanRow(topicId = id, startAt = start, endAt = end))
         return id
     }
@@ -316,7 +316,10 @@ class TopicRulesRepository(
                     val next = TopicPolicy.next(start, TopicPolicy.days(g.row.repeatRule), maxOf(at, start), zone())
                     if (next != null) {
                         checkConflict(next, next + end - start, g.row.id, TopicPolicy.days(g.row.repeatRule))
-                        insertSchedule(g.row.kind, g.row.name, next, next + end - start, g.row.repeatRule)
+                        // 续场继承链锚（锚定本链首场）；首场尚未锚定时先自锚，避免落入散列同名归组。
+                        val anchor = g.row.seriesId ?: g.row.id
+                        if (g.row.seriesId == null) dao.update(get(g.row.id).row.copy(seriesId = anchor))
+                        insertSchedule(g.row.kind, g.row.name, next, next + end - start, g.row.repeatRule, seriesId = anchor)
                     }
                     g = get(g.row.id)
                 }

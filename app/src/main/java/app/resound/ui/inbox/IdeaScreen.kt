@@ -159,7 +159,10 @@ private fun IdeaSheet(opened: IdeaRow, repo: IdeaRepository, onClose: () -> Unit
     var source by remember { mutableStateOf<String?>(null) }
     val projects by (if (AppGraph.isProjectsReady) AppGraph.projects.active() else kotlinx.coroutines.flow.flowOf(emptyList()))
         .collectAsStateWithLifecycle(initialValue = emptyList())
+    val entries by repo.entries(opened.id).collectAsStateWithLifecycle(initialValue = emptyList())
     var confirmDelete by remember { mutableStateOf(false) }
+    var appendText by remember { mutableStateOf("") }
+    var listening by remember { mutableStateOf(false) }
     LaunchedEffect(opened.id) {
         dups = repo.duplicatesOf(opened.id)
         source = repo.sourceText(opened)
@@ -188,15 +191,76 @@ private fun IdeaSheet(opened: IdeaRow, repo: IdeaRepository, onClose: () -> Unit
                     }
                 }
             }
+            val trail = entries.filter { it.kind != "Seed" }
+            if (trail.isNotEmpty()) {
+                RsCard(padding = PaddingValues(14.dp)) {
+                    Text("发展轨迹", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+                    trail.forEach { e ->
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.Top) {
+                            Box(Modifier.padding(top = 5.dp).size(6.dp).clip(CircleShape).background(
+                                if (e.origin == "User") c.accent else c.textTertiary))
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(e.text, style = RsType.subhead, color = c.textSecondary, maxLines = 3)
+                                Text(formatStamp(e.at) + when (e.kind) {
+                                    "Note" -> " · 补充"; "Line" -> " · 原话补充"; "Status" -> " · 状态"
+                                    "Merged" -> " · 合并"; "Todo" -> " · 转待办"; "Project" -> " · 转项目"
+                                    else -> ""
+                                } + if (e.origin == "Digest") " · AI整理" else "", style = RsType.caption, color = c.textTertiary)
+                            }
+                        }
+                    }
+                }
+            }
+            RsCard(padding = PaddingValues(14.dp)) {
+                Text("继续补充", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+                Spacer(Modifier.height(8.dp))
+                Field("补充这个想法（语音或文字，逐条保留）", appendText, lines = 2) { appendText = it }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill("保存补充", filled = true) {
+                        if (appendText.isBlank()) return@Pill
+                        scope.launch {
+                            repo.append(current.id, appendText)
+                            appendText = ""
+                        }
+                    }
+                    if (AppGraph.isTodoVoiceReady) {
+                        Pill(if (listening) "说完，点这里" else "语音补充", filled = listening) {
+                            scope.launch {
+                                if (!listening) {
+                                    listening = AppGraph.todoVoice.start()
+                                    if (!listening) Toast.makeText(context, "麦克风暂时用不了", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    listening = false
+                                    when (val r = AppGraph.todoVoice.finish()) {
+                                        is app.resound.digest.VoiceNoteResult.Text -> {
+                                            repo.append(current.id, r.text)
+                                            Toast.makeText(context, "已记下这次补充", Toast.LENGTH_SHORT).show()
+                                        }
+                                        is app.resound.digest.VoiceNoteResult.Failed -> Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                                        else -> {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             dups?.takeIf { it.isNotEmpty() }?.let { list ->
                 RsCard(padding = PaddingValues(14.dp)) {
-                    Text("疑似重复 ${list.size} 条", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+                    Text("相关灵感 ${list.size} 条", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
                     list.take(3).forEach { d ->
                         Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(d.title, style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f), maxLines = 1)
                             Pill("并入本条", filled = false) {
                                 scope.launch { repo.merge(d.id, current.id); dups = repo.duplicatesOf(current.id) }
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Pill("不相关", filled = false) {
+                                scope.launch { repo.dismissDuplicate(current.id, d.id); dups = repo.duplicatesOf(current.id) }
                             }
                         }
                     }
@@ -223,6 +287,9 @@ private fun IdeaSheet(opened: IdeaRow, repo: IdeaRepository, onClose: () -> Unit
                 if (current.convertedKind == null) {
                     Pill("转待办", filled = true) {
                         scope.launch { repo.convertToTodo(current.id); Toast.makeText(context, "已转成待办", Toast.LENGTH_SHORT).show() }
+                    }
+                    if (AppGraph.isProjectsReady && current.projectId == null) Pill("转为新项目", filled = false) {
+                        scope.launch { repo.convertToProject(current.id); Toast.makeText(context, "已建项目并关联", Toast.LENGTH_SHORT).show() }
                     }
                     if (AppGraph.isAgentReady) Pill("派任务", filled = false) {
                         scope.launch {

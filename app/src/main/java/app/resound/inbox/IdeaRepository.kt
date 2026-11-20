@@ -50,7 +50,7 @@ class IdeaRepository(
         sourceText: String? = null,
     ): Long = withContext(io) {
         val body = content.ifBlank { title }
-        dao.insert(
+        val id = dao.insert(
             IdeaRow(
                 title = title.ifBlank { body.take(30) },
                 content = body,
@@ -67,6 +67,12 @@ class IdeaRepository(
                 updatedAt = now.now(),
             ),
         )
+        // 种子条：发展轨迹的起点；整理产生的与用户手动建的分开标注。
+        dao.insertEntry(IdeaEntryRow(ideaId = id, kind = "Seed", text = body,
+            origin = if (sourceItemId != null) "Digest" else "User",
+            sourceLineId = sourceLineId, sourceSegmentId = sourceSegmentId, sourceItemId = sourceItemId,
+            at = now.now()))
+        id
     }
 
     /** 从一句原话手动标记灵感；同一句话不重复建。 */
@@ -115,7 +121,41 @@ class IdeaRepository(
         val idea = dao.idea(id) ?: return@withContext false
         val from = IdeaStatus.of(idea.status)
         if (!IdeaStatus.canMove(from, status)) return@withContext false
-        dao.setStatus(id, status.name, now.now()) > 0
+        val moved = dao.setStatus(id, status.name, now.now()) > 0
+        if (moved) dao.insertEntry(IdeaEntryRow(ideaId = id, kind = "Status",
+            text = "状态：${from.label} → ${status.label}", origin = "System", at = now.now()))
+        moved
+    }
+
+    /** 发展轨迹：追加、状态变化、合并、转化，按时间排列，各自带来源。 */
+    fun entries(id: Long): Flow<List<IdeaEntryRow>> = dao.observeEntries(id)
+
+    /** 追加一条补充：原文/语音转写/笔记均可；独立成行，不改灵感本体，不覆盖历史。 */
+    suspend fun append(id: Long, text: String, sourceLineId: Long? = null, sourceSegmentId: Long? = null,
+        sourceItemId: Long? = null, origin: String = "User"): Long = withContext(io) {
+        val trimmed = text.trim()
+        require(trimmed.isNotEmpty()) { "补充内容不能为空" }
+        dao.idea(id) ?: return@withContext 0L
+        dao.transaction {
+            dao.insertEntry(IdeaEntryRow(ideaId = id, kind = if (sourceLineId != null) "Line" else "Note",
+                text = trimmed, origin = origin,
+                sourceLineId = sourceLineId, sourceSegmentId = sourceSegmentId, sourceItemId = sourceItemId,
+                at = now.now()))
+            dao.touch(id, now.now())
+        }
+        id
+    }
+
+    /** 把一句原话补进已有灵感：快照句子文本，来源指回原句与片段。 */
+    suspend fun appendFromLine(id: Long, lineId: Long): Boolean = withContext(io) {
+        val line = memory.lineById(lineId) ?: return@withContext false
+        append(id, line.text, sourceLineId = lineId, sourceSegmentId = line.segmentId) > 0
+    }
+
+    /** 用户判定“不相关”：持久记录，之后不再出现在疑似重复里。 */
+    suspend fun dismissDuplicate(id: Long, otherId: Long) = withContext(io) {
+        val idea = dao.idea(id) ?: return@withContext
+        dao.setNoMergeIds(id, idsJson((idList(idea.noMergeIdsJson) + otherId).distinct()), now.now())
     }
 
     suspend fun update(id: Long, title: String, content: String, category: String, tags: List<String>) = withContext(io) {
@@ -132,15 +172,18 @@ class IdeaRepository(
         )
     }
 
-    /** 疑似重复：指纹相同 + 前缀相似的活跃灵感 */
+    /** 疑似重复：指纹相同 + 前缀相似的活跃灵感；用户标过“不相关”的不再出现。 */
     suspend fun duplicatesOf(id: Long): List<IdeaRow> = withContext(io) {
         val idea = dao.idea(id) ?: return@withContext emptyList()
         val exact = dao.sameFingerprint(idea.fingerprint, id)
         val near = dao.similar(IdeaRules.prefixPattern(idea.content), id)
-        (exact + near).distinctBy { it.id }.filter { IdeaRules.isDuplicate(idea.fingerprint, it.fingerprint) || exact.contains(it) }
+        val dismissed = idList(idea.noMergeIdsJson).toSet()
+        (exact + near).distinctBy { it.id }
+            .filter { it.id !in dismissed }
+            .filter { IdeaRules.isDuplicate(idea.fingerprint, it.fingerprint) || exact.contains(it) }
     }
 
-    /** 把 source 合并进 target：聚合来源项，source 不再单列。 */
+    /** 把 source 合并进 target：聚合来源项，source 不再单列；target 轨迹记下这次并入。 */
     suspend fun merge(sourceId: Long, targetId: Long) = withContext(io) {
         val source = dao.idea(sourceId) ?: return@withContext
         val target = dao.idea(targetId) ?: return@withContext
@@ -149,6 +192,9 @@ class IdeaRepository(
                 listOfNotNull(source.sourceItemId, target.sourceItemId)).distinct()
             dao.updateSourceItems(targetId, idsJson(merged), now.now())
             dao.mergeInto(sourceId, targetId, now.now())
+            dao.insertEntry(IdeaEntryRow(ideaId = targetId, kind = "Merged",
+                text = "并入「${source.title.ifBlank { source.content.take(30) }}」：${source.content.take(80)}",
+                origin = "User", at = now.now()))
         }
     }
 
@@ -157,9 +203,10 @@ class IdeaRepository(
     suspend fun markConverted(id: Long, kind: String, convertedId: Long) =
         withContext(io) { dao.markConverted(id, kind, convertedId, now.now()) }
 
-    /** 灵感转待办：写进整理条目（Accepted 状态，进“进行中”），返回新条目 id。 */
+    /** 灵感转待办：写进整理条目（Accepted 状态，进“进行中”），返回条目 id；已转过直接返回原条目，不重复建。 */
     suspend fun convertToTodo(id: Long): Long = withContext(io) {
         val idea = dao.idea(id) ?: return@withContext 0L
+        idea.convertedId?.takeIf { idea.convertedKind == "Todo" }?.let { return@withContext it }
         val item = MemoryItemEntity(
             eventId = idea.sourceEventId, category = "待办", kind = null,
             content = "研究灵感：${idea.title.ifBlank { idea.content.take(60) }}",
@@ -171,7 +218,27 @@ class IdeaRepository(
         dao.transaction {
             val itemId = memory.addManualItem(item)
             dao.markConverted(id, "Todo", itemId, now.now())
+            dao.insertEntry(IdeaEntryRow(ideaId = id, kind = "Todo",
+                text = "转为待办：${item.content}", origin = "User", at = now.now()))
             itemId
+        }
+    }
+
+    /** 灵感转新项目：建 ProjectRow 并互挂 project_links；已转过返回原项目，不重复建。 */
+    suspend fun convertToProject(id: Long): Long = withContext(io) {
+        val idea = dao.idea(id) ?: return@withContext 0L
+        idea.convertedId?.takeIf { idea.convertedKind == "Project" }?.let { return@withContext it }
+        val name = idea.title.ifBlank { idea.content.take(30) }
+        dao.transaction {
+            val projectId = db.projects().insert(app.resound.projects.ProjectRow(
+                name = name, note = idea.content, createdAt = now.now(), updatedAt = now.now()))
+            db.projects().insertLink(app.resound.projects.ProjectLinkRow(projectId = projectId,
+                refKind = app.resound.projects.ProjectRefKind.Idea.name, refId = id, createdAt = now.now()))
+            dao.markConverted(id, "Project", projectId, now.now())
+            dao.setProject(id, projectId, now.now())
+            dao.insertEntry(IdeaEntryRow(ideaId = id, kind = "Project",
+                text = "转为项目：$name", origin = "User", at = now.now()))
+            projectId
         }
     }
 

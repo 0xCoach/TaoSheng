@@ -141,7 +141,7 @@ interface CaptureDao {
     AskConversationEntity::class, AskMessageEntity::class, ReviewEntity::class, LineFts::class, EventFts::class,
     ItemFts::class, EmbeddingEntity::class,
     PendingDigest::class, EnvSoundRow::class, SkillCardRow::class, SkillRunRow::class, LocationPoint::class, PlaceRow::class,
-    IdeaRow::class, ProjectRow::class, ProjectLinkRow::class, ProjectMarkRow::class,
+    IdeaRow::class, app.resound.inbox.IdeaEntryRow::class, ProjectRow::class, ProjectLinkRow::class, ProjectMarkRow::class,
     AnalysisTemplateRow::class, AnalysisRunRow::class, AgentEndpointRow::class, AgentTaskRow::class,
     DecisionRow::class, FollowupRow::class, CaptureItemRow::class,
     WorkflowRuleRow::class, RuleRunRow::class, MemoryRevisionRow::class, McpClientRow::class, SceneSessionRow::class], version = CaptureDatabase.VERSION, exportSchema = true)
@@ -182,7 +182,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun sceneSessions(): SceneSessionDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 42
+        const val VERSION = 43
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -516,11 +516,30 @@ abstract class CaptureDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_42_43 = object : Migration(42, 43) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                // 灵感发展轨迹表 + “不相关”标记 + 周期会议链锚；全部幂等，可重复执行。
+                val hasEntries = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='idea_entries'").use { it.step() }
+                if (!hasEntries) {
+                    db.execSQL("""CREATE TABLE idea_entries (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        ideaId INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL, origin TEXT NOT NULL,
+                        sourceLineId INTEGER, sourceSegmentId INTEGER, sourceItemId INTEGER, at INTEGER NOT NULL,
+                        FOREIGN KEY(ideaId) REFERENCES ideas(id) ON UPDATE NO ACTION ON DELETE CASCADE)""")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_idea_entries_ideaId ON idea_entries(ideaId)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_idea_entries_at ON idea_entries(at)")
+                }
+                val hasNoMerge = db.prepare("SELECT 1 FROM pragma_table_info('ideas') WHERE name = 'noMergeIdsJson'").use { it.step() }
+                if (!hasNoMerge) db.execSQL("ALTER TABLE ideas ADD COLUMN noMergeIdsJson TEXT NOT NULL DEFAULT '[]'")
+                val hasSeriesId = db.prepare("SELECT 1 FROM pragma_table_info('topics') WHERE name = 'seriesId'").use { it.step() }
+                if (!hasSeriesId) db.execSQL("ALTER TABLE topics ADD COLUMN seriesId INTEGER")
+            }
+        }
+
         val MIGRATIONS get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
             MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
             MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
             MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
-            MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42)
+            MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_37_38, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43)
     }
 }
 

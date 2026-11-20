@@ -203,8 +203,8 @@ internal class TopicEngine(
                 val unfinished = (db.memory().unfinishedForDigest() + retained.filter { it.status !in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
                 // 同系列上一次纪要：结论/决定/行动项 + 仍未闭环的待办与约定，注入本场资料区。
-                val previousBlock = g.row.seriesKey?.takeIf { g.row.kind != "Normal" && g.row.kind != "Script" }
-                    ?.let { key -> dao.previousDone(g.row.kind, key, g.row.id) }
+                val previousBlock = g.row.takeIf { it.kind != "Normal" && it.kind != "Script" && (it.seriesId != null || it.seriesKey != null) }
+                    ?.let { dao.previousDone(g.row.kind, g.row.seriesKey ?: "", g.row.id, g.row.seriesId) }
                     ?.let { prev ->
                         val card = prev.cardId?.let { db.skills().card(it).first() }
                         val open = prev.eventId?.let { eid -> dao.eventItems(listOf(eid)) }.orEmpty()

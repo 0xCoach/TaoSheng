@@ -38,10 +38,33 @@ data class IdeaRow(
     /** 转化去向：Todo / Project / null */
     val convertedKind: String? = null,
     val convertedId: Long? = null,
+    /** 用户标记过“不相关”的疑似重复灵感编号；不再出现在相关建议里 */
+    @ColumnInfo(defaultValue = "[]") val noMergeIdsJson: String = "[]",
     val createdAt: Long,
     val updatedAt: Long,
     val statusChangedAt: Long? = null,
     @ColumnInfo(defaultValue = "0") val deleted: Boolean = false,
+)
+
+/**
+ * 灵感发展轨迹：每一次追加、状态变化、合并、转化都是独立一行，
+ * 各自保留来源（原话/片段/提取项）、时间与原始文本——不覆盖、不合并旧内容。
+ */
+@Entity(tableName = "idea_entries", indices = [Index("ideaId"), Index("at")], foreignKeys = [
+    ForeignKey(entity = IdeaRow::class, parentColumns = ["id"], childColumns = ["ideaId"], onDelete = ForeignKey.CASCADE)])
+data class IdeaEntryRow(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val ideaId: Long,
+    /** Seed / Note / Line / Merged / Status / Todo / Project */
+    val kind: String,
+    /** 本条追加的原始文本或事件描述快照 */
+    val text: String,
+    /** 产生方：User / Digest / System——AI 整理结果与用户原话分开保存 */
+    val origin: String,
+    val sourceLineId: Long? = null,
+    val sourceSegmentId: Long? = null,
+    val sourceItemId: Long? = null,
+    val at: Long,
 )
 
 @Dao
@@ -118,6 +141,17 @@ abstract class IdeaDao {
     @Query("UPDATE ideas SET deleted = 1, updatedAt = :at WHERE id = :id")
     abstract suspend fun delete(id: Long, at: Long)
 
+    @Query("UPDATE ideas SET noMergeIdsJson = :ids, updatedAt = :at WHERE id = :id")
+    abstract suspend fun setNoMergeIds(id: Long, ids: String, at: Long)
+
+    @Query("UPDATE ideas SET updatedAt = :at WHERE id = :id")
+    abstract suspend fun touch(id: Long, at: Long)
+
+    @Insert abstract suspend fun insertEntry(row: IdeaEntryRow): Long
+
+    @Query("SELECT * FROM idea_entries WHERE ideaId = :ideaId ORDER BY at, id")
+    abstract fun observeEntries(ideaId: Long): Flow<List<IdeaEntryRow>>
+
     @Query("SELECT COUNT(*) FROM ideas WHERE deleted = 0 AND mergedInto IS NULL")
     abstract fun observeCount(): Flow<Int>
 }
@@ -129,7 +163,14 @@ object IdeaSchema {
             tagsJson TEXT NOT NULL, fingerprint TEXT NOT NULL, sourceItemId INTEGER, sourceLineId INTEGER,
             sourceSegmentId INTEGER, sourceEventId INTEGER, sourceText TEXT, sourceItemIdsJson TEXT NOT NULL,
             mergedInto INTEGER, projectId INTEGER, convertedKind TEXT, convertedId INTEGER,
+            noMergeIdsJson TEXT NOT NULL DEFAULT '[]',
             createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, statusChangedAt INTEGER, deleted INTEGER NOT NULL DEFAULT 0)""")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS idea_entries (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            ideaId INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL, origin TEXT NOT NULL,
+            sourceLineId INTEGER, sourceSegmentId INTEGER, sourceItemId INTEGER, at INTEGER NOT NULL,
+            FOREIGN KEY(ideaId) REFERENCES ideas(id) ON UPDATE NO ACTION ON DELETE CASCADE)""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_idea_entries_ideaId ON idea_entries(ideaId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_idea_entries_at ON idea_entries(at)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_ideas_status ON ideas(status)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_ideas_createdAt ON ideas(createdAt)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_ideas_projectId ON ideas(projectId)")

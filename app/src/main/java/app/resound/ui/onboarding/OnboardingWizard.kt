@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -133,11 +135,8 @@ private fun Dots(current: Int, total: Int, modifier: Modifier) {
 
 @Composable
 private fun Logo() {
-    val heights = listOf(14, 26, 38, 22, 32, 16)
-    Box(Modifier.size(84.dp).clip(RoundedCornerShape(24.dp)).background(Rs.colors.accent), contentAlignment = Alignment.Center) {
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-            heights.forEach { Box(Modifier.width(5.dp).height(it.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color.White)) }
-        }
+    Box(Modifier.size(84.dp).clip(RoundedCornerShape(24.dp))) {
+        Image(painterResource(app.resound.R.drawable.ic_fg), null, Modifier.fillMaxSize())
     }
 }
 

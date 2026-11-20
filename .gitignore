@@ -34,3 +34,5 @@ server/.dev/
 server/.wrangler/
 
 server/.dev.vars
+
+.backup/

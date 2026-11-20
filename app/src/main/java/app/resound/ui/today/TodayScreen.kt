@@ -273,6 +273,7 @@ fun TodayScreen(
                     app.resound.ui.settings.CrashNotice(topGap = 20.dp)
                     UpdatePrompt(topGap = 16.dp)
                     BackgroundLimitNotice(topGap = 12.dp)
+                    HeldRecordingsNotice(topGap = 12.dp)
                     val captureStatus by capture.status.collectAsStateWithLifecycle()
                     WakeWordNotice(captureStatus.state == CaptureState.Listening || captureStatus.state == CaptureState.Recording, topGap = 12.dp)
                     WhatsNewNotice(topGap = 12.dp)

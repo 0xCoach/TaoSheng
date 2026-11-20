@@ -105,6 +105,8 @@ fun PushPage(repo: PushChannels, bottomPadding: Dp) {
                 }
             }
         }
+        // 卡 214：隐私删除后还留在推送文件夹里的文件（没开同步删除，或没删成），请用户自己去删
+        item { LeftoverFiles(repo) }
         if (logs.isNotEmpty()) {
             item { Text("最近推送", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
             item {
@@ -132,7 +134,7 @@ private fun ChannelRow(ch: PushChannel, onToggle: (Boolean) -> Unit, onOpen: () 
         Column(Modifier.weight(1f)) {
             Text(ch.name, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                subscriptionLine(ch.subscription),
+                subscriptionLine(ch.subscription) + " → " + destinationName(ch),
                 style = RsType.caption, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
@@ -220,7 +222,8 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                 ?: "备份恢复里还没连接云端存储，先去连接，或改为单独配置（单独配置只支持 WebDAV）",
                 style = RsType.caption, color = if (linkedAccount == null) c.critical else c.textSecondary)
         }
-        fields.filter { !(folderKind && linked && it.key != "folder") }.forEach { f ->
+        if (kind == PushKind.LocalFolder) LocalFolderPicker(values)
+        fields.filter { kind != PushKind.LocalFolder && !(folderKind && linked && it.key != "folder") }.forEach { f ->
             Label(f.label)
             Field(values[f.key] ?: "", if (ch != null && f.secret) "已保存，留空表示不改" else f.hint, f.secret) { values[f.key] = it.trim() }
         }
@@ -245,8 +248,21 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
         // 新建时：保存后自动发一条测试；编辑时可单独测试
         // 新建时至少要填第一项（token / 地址）；其余项可选
         val needFirst = !(kind == PushKind.MarkdownFolder && linked)
-        val canSave = name.isNotBlank() && !busy && (ch != null || !needFirst || fields.firstOrNull()?.let { (values[it.key] ?: "").isNotBlank() } != false)
-        ActionButton(if (busy) "正在保存…" else if (ch == null) "保存并测试" else "保存", ActionKind.Primary, enabled = canSave) {
+        val canSave = name.isNotBlank() && !busy && (kind != PushKind.LocalFolder || !values["treeUri"].isNullOrBlank()) &&
+            (ch != null || !needFirst || fields.firstOrNull()?.let { (values[it.key] ?: "").isNotBlank() } != false)
+        // 卡 214：关掉推录音（或删通道）前，算一下有多少段到期录音会失去保护
+        var offWarn by remember { mutableStateOf<Int?>(null) }
+        offWarn?.takeIf { it > 0 }?.let { n ->
+            Text("关掉推录音后，有 $n 段还没推上去的到期录音会按原声保留规则删除，找不回来。再点一次确认。", style = RsType.subhead, color = c.critical)
+        }
+        ActionButton(if (busy) "正在保存…" else if (ch == null) "保存并测试" else if ((offWarn ?: 0) > 0) "仍然保存" else "保存", ActionKind.Primary, enabled = canSave) {
+            val turningOff = ch != null && ch.subscription.audio != app.resound.push.AudioPush.Off && sub.audio == app.resound.push.AudioPush.Off
+            if (turningOff && offWarn == null) {
+                busy = true
+                scope.launch { offWarn = runCatching { repo.audioOffPreview(ch!!.id) }.getOrDefault(0); busy = false
+                    if (offWarn == 0) offWarn = -1 }
+                return@ActionButton
+            }
             busy = true; result = null
             scope.launch {
                 val saved = repo.saveWithSubscription(ch?.id, kind, name.trim(), values.toMap(), sub, format, kind == PushKind.MarkdownFolder && linked)
@@ -266,6 +282,8 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                     Text("录音：已传 ${s.uploaded} 段" + (if (s.pending > 0) "，待传 ${s.pending} 段" else "") +
                         " · 本月 ${app.resound.ui.verify.formatBytes(s.bytesThisMonth)}" + month,
                         style = RsType.caption, color = if (s.monthlyEstimateBytes?.let { it > 900L * 1024 * 1024 } == true) c.warning else c.textSecondary)
+                    if (s.held > 0) Text("有 ${s.held} 段到期录音在等这个通道推上去，推好前不会删", style = RsType.caption, color = c.warning)
+                    s.quotaHint?.let { Text(it, style = RsType.caption, color = c.warning) }
                     s.lastError?.let { Text(it, style = RsType.caption, color = c.critical) }
                 }
             }
@@ -285,8 +303,14 @@ private fun ChannelSheet(repo: PushChannels, ch: PushChannel?, onDismiss: () -> 
                 busy = true; result = null
                 scope.launch { result = repo.test(ch.id); busy = false }
             }
+            var deleteLoss by remember { mutableStateOf(0) }
+            if (confirmDelete && deleteLoss > 0) Text("删掉后，有 $deleteLoss 段还没推上去的到期录音会按原声保留规则删除，找不回来。",
+                style = RsType.subhead, color = c.critical)
             ActionButton(if (confirmDelete) "确定删除？再点一次" else "删除这个通道", ActionKind.Danger) {
-                if (!confirmDelete) confirmDelete = true else { repo.delete(ch.id); onDismiss() }
+                if (!confirmDelete) {
+                    confirmDelete = true
+                    if (ch.subscription.audio != app.resound.push.AudioPush.Off) scope.launch { deleteLoss = runCatching { repo.audioOffPreview(ch.id) }.getOrDefault(0) }
+                } else { repo.delete(ch.id); onDismiss() }
             }
         }
     }
@@ -343,13 +367,13 @@ private fun Switch(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.ve
 
 private val KIND_GROUPS = listOf(
     "消息推送" to listOf(PushKind.PushPlus, PushKind.WeCom, PushKind.ServerChan, PushKind.Feishu, PushKind.DingTalk, PushKind.Telegram),
-    "资料（可推整理结果，给智能体读）" to listOf(PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder),
+    "资料（可推整理结果、录音，给智能体读）" to listOf(PushKind.Email, PushKind.Notion, PushKind.MarkdownFolder, PushKind.LocalFolder),
     "自定义" to listOf(PushKind.Webhook),
 )
 
 private fun shortName(k: PushKind) = when (k) {
     PushKind.WeCom -> "企业微信"; PushKind.Feishu -> "飞书"; PushKind.DingTalk -> "钉钉"
-    PushKind.MarkdownFolder -> "同步文件夹"; PushKind.Webhook -> "自定义接口"; else -> k.title
+    PushKind.MarkdownFolder -> "网盘文件夹"; PushKind.LocalFolder -> "手机文件夹"; PushKind.Webhook -> "自定义接口"; else -> k.title
 }
 
 /** 类型小方块：选中时底色换成该通道的颜色 */
@@ -380,19 +404,31 @@ private fun kindColor(k: PushKind) = when (k) {
     PushKind.Email -> Color(0xFFD0743C)
     PushKind.Notion -> Color(0xFF5F5A54)
     PushKind.MarkdownFolder -> Color(0xFF7C5CC4)
-    // 卡 214：新种类（手机里的文件夹等）先走兜底色，界面细节由 Claude 随后补
-    else -> Color(0xFF5E8C61)
+    PushKind.LocalFolder -> Color(0xFF5E8C61)
 }
 
 
 private const val NUTSTORE_DAV = "https://dav.jianguoyun.com/dav/"
 
-/** 列表里一行概括订阅：如“摘要 · 提醒 · 整理结果 5 类 · 有新内容就推 · 增量” */
+/** 卡 214：列表里写清“推到哪”：坚果云 / S3 / 手机文件夹名 / 通道类型 */
+private fun destinationName(ch: PushChannel): String = when (ch.kind) {
+    PushKind.LocalFolder -> ch.plainValues["displayName"]?.takeIf { it.isNotBlank() } ?: "手机文件夹"
+    PushKind.MarkdownFolder -> when {
+        ch.plainValues["cloudKind"] == "S3" -> "S3"
+        ch.useLinkedNutstore -> "备份的云端"
+        ch.plainValues["url"].orEmpty().contains("jianguoyun") -> "坚果云"
+        else -> "WebDAV"
+    }
+    else -> shortName(ch.kind)
+}
+
+/** 列表里一行概括订阅：如“摘要 · 提醒 · 整理结果 5 类 · 录音 + 逐字稿 · 有新内容就推 · 增量” */
 private fun subscriptionLine(s: PushSubscription): String = buildList {
     if (s.summaries) add("摘要")
     if (s.reminders) add("提醒")
     if (s.records.isNotEmpty()) add("整理结果 ${s.records.size} 类")
     if (s.lines != LinesMode.Off) add("原话")
+    if (s.audio != app.resound.push.AudioPush.Off) add(if (s.audioText != app.resound.push.AudioText.None) "录音 + 逐字稿" else "录音")
     if (s.records.isNotEmpty() || s.lines != LinesMode.Off) {
         add(when (val t = s.trigger) {
             is RecordTrigger.OnChange -> "有新内容就推"
@@ -433,6 +469,8 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
     val templates = buildList {
         add("手机通知" to PushSubscription.PhoneNotice)
         if (caps.records) { add("给智能体用" to PushSubscription.ForAgents); add("完整归档" to PushSubscription.FullArchive) }
+        // 卡 214：不同通道推不同内容——空间小的只推文字，空间大的长期保留录音
+        if (caps.audio) { add("只推文字" to app.resound.push.PushTemplates.textOnly()); add("长期保留录音" to app.resound.push.PushTemplates.keepRecordings()) }
     }
     if (templates.size > 1) Block("一键模板", "选了再细调，所有设置都能改") {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -490,14 +528,31 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
         }
     }
     // 卡 072：推录音（原始 OGG），只有坚果云同步文件夹能收文件
-    if (caps.audio) Block("推录音", "原始录音放进这个文件夹的“录音/日期/”下；只传不删，手机上的录音过期了云端照样保留") {
+    if (caps.audio) Block("推录音", "原始录音放进这个文件夹的“录音/日期/”下。推出去的文件由你自己管理；开着推录音时，手机上没推上去的录音到期也不删") {
         app.resound.ui.skills.Segments(app.resound.push.AudioPush.entries.map { it.title }, sub.audio.ordinal) { onChange(sub.copy(audio = app.resound.push.AudioPush.entries[it])) }
         if (sub.audio != app.resound.push.AudioPush.Off) {
             Text(if (sub.audio == app.resound.push.AudioPush.Speech) "转写好后再传，没人说话的、媒体、转写为空的不传" else "录下就传，包括没人说话的片段",
                 style = RsType.caption, color = c.textTertiary)
-            ToggleRow("附上原话", "每段录音配一个同名文字文件", sub.audioWithText) { onChange(sub.copy(audioWithText = it)) }
+            SubLabel("逐字稿")
+            val texts = listOf(app.resound.push.AudioText.Daily to "每天一份", app.resound.push.AudioText.PerSegment to "每段一份",
+                app.resound.push.AudioText.Both to "都要", app.resound.push.AudioText.None to "不要")
+            app.resound.ui.skills.Segments(texts.map { it.second }, texts.indexOfFirst { it.first == sub.audioText }.coerceAtLeast(0)) {
+                onChange(sub.copy(audioText = texts[it].first))
+            }
+            Text(when (sub.audioText) {
+                app.resound.push.AudioText.Daily -> "每天一个“日期 逐字稿.txt”，标出每句对应哪个录音文件；文件少，好翻"
+                app.resound.push.AudioText.PerSegment -> "每段录音配一个同名 txt"
+                app.resound.push.AudioText.Both -> "每天一份，外加每段一个同名 txt"
+                app.resound.push.AudioText.None -> "只推录音，不带文字"
+            }, style = RsType.caption, color = c.textTertiary)
             ToggleRow("只在连 WiFi 时传", "用流量时先攒着，连上 WiFi 再传", sub.audioWifiOnly) { onChange(sub.copy(audioWifiOnly = it)) }
-            Text("“全部录音”一天几十 MB，坚果云免费版每月只能上传 1 GB，可能超；建议选“只推人声”。", style = RsType.caption, color = c.warning)
+            ToggleRow("只在充电时传", "录音多时更省电，一般晚上充电时传完", sub.audioChargingOnly) { onChange(sub.copy(audioChargingOnly = it)) }
+            ToggleRow("推通话录音", "系统通话录音手机里本来就有，一般不用推", sub.audioCalls) { onChange(sub.copy(audioCalls = it)) }
+            ToggleRow("推导入的录音", "导入的原文件你手里本来就有，一般不用推", sub.audioImports) { onChange(sub.copy(audioImports = it)) }
+            ToggleRow("隐私删除时，同时删掉这里的文件", "默认不删：推出去的文件由你自己管理。打开后，只在你做隐私删除时删，删前核对是同一个文件；到期清理不会删",
+                sub.audioPrivacyDelete) { onChange(sub.copy(audioPrivacyDelete = it)) }
+            Text("“全部录音”一天几十 MB；坚果云免费版每月只能上传约 1 GB，建议选“只推人声”，或把录音推到 S3、手机文件夹。",
+                style = RsType.caption, color = c.warning)
         }
     }
     if (!caps.records || (sub.records.isEmpty() && sub.lines == LinesMode.Off)) return
@@ -611,5 +666,76 @@ private fun ToggleRow(title: String, desc: String, on: Boolean, enabled: Boolean
             Text(desc, style = RsType.caption, color = c.textSecondary)
         }
         Switch(on) { if (enabled) onChange(it) }
+    }
+}
+
+/** 卡 214：选手机里的文件夹（SAF），拿持久读写授权；只存树地址和给人看的名字 */
+@Composable
+private fun LocalFolderPicker(values: MutableMap<String, String>) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    var error by remember { mutableStateOf<String?>(null) }
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(app.resound.backup.LocalBackupFolderContract()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        error = runCatching {
+            context.contentResolver.takePersistableUriPermission(uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            values["treeUri"] = uri.toString(); values["displayName"] = folderLabel(uri)
+        }.exceptionOrNull()?.let { "这个文件夹不能长期写入，换一个试试" }
+    }
+    Label("存到哪个文件夹")
+    val chosen = values["displayName"]?.takeIf { it.isNotBlank() && !values["treeUri"].isNullOrBlank() }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(chosen ?: "还没选", style = RsType.body, color = if (chosen != null) c.text else c.textTertiary, modifier = Modifier.weight(1f),
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Pill(if (chosen != null) "换一个" else "选文件夹", filled = chosen == null) { pick.launch(null) }
+    }
+    error?.let { Text(it, style = RsType.caption, color = c.critical) }
+    Text("可以选 SD 卡、U 盘，或网盘 App 会自动同步的文件夹。不需要联网，录音写完会逐个核对。", style = RsType.caption, color = c.textTertiary)
+}
+
+/** 树地址 → “内部存储/Music/涛声”“SD 卡/涛声” 这样的名字 */
+private fun folderLabel(uri: android.net.Uri): String = runCatching {
+    val id = android.provider.DocumentsContract.getTreeDocumentId(uri)
+    val volume = id.substringBefore(':'); val path = id.substringAfter(':', "")
+    val root = if (volume.equals("primary", true)) "内部存储" else if (volume.matches(Regex("[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}"))) "SD 卡/U 盘" else volume
+    if (path.isBlank()) root else "$root/$path"
+}.getOrDefault("手机文件夹")
+
+/** 卡 214：隐私删除后还留在推送文件夹里的文件；可复制路径，自己删完点“已处理” */
+@Composable
+private fun LeftoverFiles(repo: PushChannels) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val items by repo.pendingRemoteDeletes.collectAsStateWithLifecycle(initialValue = emptyList())
+    if (items.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    RsCard(padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
+        Row(Modifier.fillMaxWidth().springClick { open = !open }, verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("${items.size} 个文件还留在推送的文件夹里", style = RsType.body, color = c.text)
+                Text("你做了隐私删除，但这些文件推出去了（没开同步删除，或还没删成）。需要的话自己去删。", style = RsType.caption, color = c.textSecondary)
+            }
+            Text(if (open) "收起" else "查看", style = RsType.subhead, color = c.accent, modifier = Modifier.padding(start = 8.dp))
+        }
+        if (open) {
+            Spacer(Modifier.height(8.dp))
+            items.forEach { d ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(d.path, style = RsType.subhead, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(d.channelName, style = RsType.caption, color = c.textTertiary)
+                    }
+                    Text("已处理", style = RsType.subhead, color = c.accent,
+                        modifier = Modifier.clip(CircleShape).springClick { scope.launch { repo.dismissRemoteDelete(d.channelId, d.path) } }.padding(8.dp))
+                }
+            }
+            ActionButton("复制全部路径", ActionKind.Secondary) {
+                val text = items.joinToString("\n") { "${it.channelName}：${it.path}" }
+                context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("待删文件", text))
+                android.widget.Toast.makeText(context, "已复制 ${items.size} 个路径", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

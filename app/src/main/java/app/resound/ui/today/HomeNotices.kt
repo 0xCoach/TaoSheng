@@ -49,6 +49,7 @@ import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.Pill
 import app.resound.ui.verify.RsCard
+import kotlinx.coroutines.launch
 import app.resound.ui.verify.RsSheet
 import app.resound.ui.verify.springClick
 import app.resound.update.UpdatePopupRule
@@ -395,6 +396,42 @@ fun PlaybackHintNotice(topGap: Dp = 0.dp) {
                     Pill("按 App 设置", filled = true) { notices.playbackHintShown(); ShellNav.openSettings(SettingsPage.Transcript) }
                     Spacer(Modifier.width(8.dp))
                     Pill("知道了", filled = false) { notices.playbackHintShown() }
+                }
+            }
+        }
+    }
+}
+
+/** 卡 214：开着推录音、到期录音推不上去被扣满 7 天时提醒；“不等了，直接删”要再点一次 */
+@Composable
+fun HeldRecordingsNotice(topGap: Dp = 0.dp) {
+    if (!AppGraph.isOriginalAudioReady) return
+    val audio = AppGraph.originalAudio
+    val held by audio.heldSummary.collectAsStateWithLifecycle()
+    if (!held.remind || held.segments == 0) return
+    val c = Rs.colors
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var armed by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("📦", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("有 ${held.days} 天录音还没推上去", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("到期了但还没推到网盘或文件夹，先留在手机里（${app.resound.ui.verify.formatBytes(held.bytes)}）。去看看是哪里出错，或者不要了直接删。",
+                    style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill("去看看", filled = true) { ShellNav.openSettings(SettingsPage.Push) }
+                    Pill(if (busy) "正在删除…" else if (armed) "找不回来，再点一次" else "不等了，直接删", filled = false) {
+                        if (busy) return@Pill
+                        if (!armed) { armed = true; scope.launch { kotlinx.coroutines.delay(3_000); armed = false }; return@Pill }
+                        busy = true
+                        scope.launch { runCatching { audio.releaseHeld() }; busy = false; armed = false }
+                    }
                 }
             }
         }

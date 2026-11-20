@@ -107,6 +107,11 @@ class MainActivity : ComponentActivity() {
             openCardId = (intent.data?.getQueryParameter("id") ?: intent.getStringExtra("id"))?.toLongOrNull()
             return
         }
+        // 卡 214：“录音还没推上去、手机空间不足”通知 → 推送通道
+        if (intent?.getStringExtra("open") == "push") {
+            app.resound.ui.ShellNav.openSettings(SettingsPage.Push)
+            return
+        }
         if (intent?.getBooleanExtra(app.resound.update.EXTRA_OPEN_UPDATE, false) == true) {
             app.resound.ui.ShellNav.openSettings(SettingsPage.Update)
             return

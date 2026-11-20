@@ -146,6 +146,15 @@ class ResoundApp : Application() {
         AppGraph.capture = controller
         // AUTH：登出/会话失效 → 立即停止录音（controller.stop 只在服务活着时发 STOP，安全收尾）
         AppGraph.auth.onSessionCleared = { controller.stop() }
+        // AUTH：服务端判失效（refresh 401-403）→ 系统通知栏主动告知；点开 App 登录面板已在等（loginRequested 已置位）。
+        AppGraph.auth.onSessionExpired = { reason ->
+            scope.launch {
+                runCatching {
+                    app.resound.push.LocalNotifier(this@ResoundApp, app.resound.push.LocalNotifier.AUTH_CHANNEL)
+                        .send("登录授权已失效", "$reason。录音与个人数据已暂停，重新登录后恢复。", null)
+                }
+            }
+        }
         // 敲敲手势：开设置后监听加速度计；敲 N 下=录中暂停/停中恢复/未录启动
         app.resound.capture.KnockGestureController(this, store).start()
         AppGraph.quietSchedule = quietSchedule

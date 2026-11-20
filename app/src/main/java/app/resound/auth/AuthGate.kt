@@ -36,6 +36,20 @@ class AuthGate(
     /** 登出/失效时立即停止录音与敏感后台任务——由 AppGraph 装配时挂上 CaptureController。 */
     var onSessionCleared: (() -> Unit)? = null
 
+    /** 会话被服务端判失效时的系统级提示回调（App 装配层挂通知栏）；reason 为给用户看的原因。 */
+    var onSessionExpired: ((String) -> Unit)? = null
+
+    /**
+     * 服务端拒绝会话（refresh 401-403 等）：清本地会话 + 停止敏感任务 + 立即请求登录面板 + 通知。
+     * 不这么做的话用户只能在下次点受保护入口时撞墙——失效本身不可见，表现为"点什么都没反应"。
+     */
+    private fun expireSession(reason: String) {
+        store.invalidate()
+        onSessionCleared?.invoke()
+        _loginRequested.value = LoginRequest(Capability.ReadPersonalData, reason)
+        onSessionExpired?.invoke(reason)
+    }
+
     /** 数据层/服务层门禁：同步、无副作用。 */
     fun require(cap: Capability): AuthDecision {
         // 未登录 = 免费试用：本机数据未绑定时，累计录音 GUEST_TRIAL_MS 内放行；
@@ -319,7 +333,7 @@ class AuthGate(
                 } else RefreshOutcome.Failed
             }
             is AuthApi.Result.Denied -> {
-                if (r.code in 401..403) { store.invalidate(); onSessionCleared?.invoke(); RefreshOutcome.SessionGone }
+                if (r.code in 401..403) { expireSession("登录授权已过期，请重新登录"); RefreshOutcome.SessionGone }
                 else RefreshOutcome.Failed
             }
             is AuthApi.Result.Network -> RefreshOutcome.Offline
@@ -335,7 +349,7 @@ class AuthGate(
                 store.remoteStatus = "active"; store.refreshStatus(); RefreshOutcome.Refreshed
             }
             is AuthApi.Result.Denied -> {
-                if (r.code in 401..403) { store.remoteStatus = "disabled"; store.refreshStatus(); onSessionCleared?.invoke(); RefreshOutcome.SessionGone }
+                if (r.code in 401..403) { store.remoteStatus = "disabled"; expireSession("账号已停用或会话被撤销，请重新登录"); RefreshOutcome.SessionGone }
                 else RefreshOutcome.Failed
             }
             is AuthApi.Result.Network -> RefreshOutcome.Offline

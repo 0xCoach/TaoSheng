@@ -51,4 +51,22 @@ class AuthGatePromptTest {
         assertFalse(gate.requireOrPrompt(Capability.RecordAudio) {})
         assertNull("冷却期内不再自动弹", gate.loginRequested.value)
     }
+
+    /**
+     * 回归：服务端判会话失效 → 立即主动发登录请求 + 触发系统级通知回调，
+     * 不再静默清会话等用户点入口撞墙。SecretStore 依赖 AndroidKeyStore，单测环境
+     * 无法注入真 token，故直接驱动 expireSession 验证其提示副作用（401 路径在服务端测试覆盖）。
+     */
+    @Test fun expiredSessionPromptsLoginImmediately() {
+        inject(accountId = "u1")
+        val (store, gate) = newGate()
+        var notified: String? = null
+        gate.onSessionExpired = { notified = it }
+        AuthGate::class.java.getDeclaredMethod("expireSession", String::class.java)
+            .apply { isAccessible = true }.invoke(gate, "登录授权已过期，请重新登录")
+        assertNull("会话必须被清", store.sessionAccountId)
+        assertNotNull("失效瞬间必须主动发登录请求", gate.loginRequested.value)
+        assertTrue(gate.loginRequested.value?.reason?.contains("重新登录") == true)
+        assertNotNull("必须触发系统级通知回调", notified)
+    }
 }

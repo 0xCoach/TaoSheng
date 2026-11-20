@@ -30,6 +30,11 @@ class AuthStore(context: Context) {
         get() = prefs.getString("username", null)?.takeIf { it.isNotEmpty() }
         private set(v) { prefs.edit().putString("username", v ?: "").apply() }
 
+    /** 账号注册时间（服务端 users.created_at，秒）；0=未知（老会话未带该字段）。 */
+    var accountCreatedAt: Long
+        get() = prefs.getLong("account_created_at", 0L)
+        set(v) { prefs.edit().putLong("account_created_at", v).apply() }
+
     /** 本机数据归属账号：首个登录账号确认迁移后写入；写死后不可被其他账号接管。 */
     var boundAccountId: String?
         get() = prefs.getString("bound_account_id", null)?.takeIf { it.isNotEmpty() }
@@ -107,8 +112,9 @@ class AuthStore(context: Context) {
         }
     }
 
-    fun saveLogin(accountId: String, name: String, access: String, refresh: String, license: LicensePayload) {
+    fun saveLogin(accountId: String, name: String, access: String, refresh: String, license: LicensePayload, createdAt: Long = 0L) {
         sessionAccountId = accountId; username = name
+        if (createdAt > 0) accountCreatedAt = createdAt
         accessToken = access; refreshToken = refresh; licensePayload = license
         remoteStatus = "active"; refreshStatus()
     }
@@ -126,7 +132,7 @@ class AuthStore(context: Context) {
 
     /** 登出：清会话与凭证；不删本地数据、不动绑定。 */
     fun logout() {
-        sessionAccountId = null; username = null
+        sessionAccountId = null; username = null; accountCreatedAt = 0
         accessToken = ""; refreshToken = ""; licensePayload = null
         remoteStatus = "active"; lockedUntilNextUnlock = false
         refreshStatus()
@@ -134,7 +140,8 @@ class AuthStore(context: Context) {
 
     /** 账号被停用/凭证失效时清理会话（保留绑定信息供说明）。 */
     fun invalidate() {
-        sessionAccountId = null; accessToken = ""; refreshToken = ""; licensePayload = null
+        sessionAccountId = null; username = null; accountCreatedAt = 0
+        accessToken = ""; refreshToken = ""; licensePayload = null
         refreshStatus()
     }
 

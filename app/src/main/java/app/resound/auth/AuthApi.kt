@@ -7,6 +7,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.longOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -144,6 +145,7 @@ class AuthApi(
         ParsedSession(
             accountId = account["id"]!!.jsonPrimitive.content,
             username = account["username"]!!.jsonPrimitive.content,
+            createdAt = account["created_at"]?.jsonPrimitive?.longOrNull ?: 0L,
             access = obj["access_token"]!!.jsonPrimitive.content,
             refresh = obj["refresh_token"]!!.jsonPrimitive.content,
             licenseRaw = payloadStr, licenseSig = sig,
@@ -151,7 +153,7 @@ class AuthApi(
     }.getOrNull()
 
     data class ParsedSession(
-        val accountId: String, val username: String,
+        val accountId: String, val username: String, val createdAt: Long,
         val access: String, val refresh: String,
         val licenseRaw: String, val licenseSig: String,
     )

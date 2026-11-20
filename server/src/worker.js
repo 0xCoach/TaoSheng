@@ -274,7 +274,7 @@ export default {
         await env.DB.prepare("DELETE FROM login_attempts WHERE key=?").bind(`${b.username}|${ip}`).run();
         await audit(env, user.id, "login.ok", b.device_id, req);
         return json({
-          account: { id: user.id, username: user.username, capabilities: await effectiveCaps(env, user) },
+          account: { id: user.id, username: user.username, created_at: user.created_at, capabilities: await effectiveCaps(env, user) },
           access_token: issued.access, refresh_token: issued.refresh,
           license: issued.license, offline_days: Number(env.OFFLINE_LICENSE_DAYS),
         });
@@ -299,11 +299,11 @@ export default {
         await env.DB.prepare(
           "INSERT INTO users(id,username,pass_hash,status,capabilities,activation_code,created_at) VALUES(?,?,?,?,?,?,?)")
           .bind(id, username, await hashPassword(b.password), "active", capsJson, null, nowS()).run();
-        const user = { id, username, capabilities: capsJson };
+        const user = { id, username, capabilities: capsJson, created_at: nowS() };
         const issued = await issueSession(env, user, b.device_id, b.device_name);
         await audit(env, id, "register.ok", b.device_id, req);
         return json({
-          account: { id, username, capabilities: await effectiveCaps(env, user) },
+          account: { id, username, created_at: nowS(), capabilities: await effectiveCaps(env, user) },
           access_token: issued.access, refresh_token: issued.refresh,
           license: issued.license, offline_days: Number(env.OFFLINE_LICENSE_DAYS),
         });
@@ -338,7 +338,7 @@ export default {
         const access = await jwtSign(env, { sub: user.id, jti: sess.id, iat: nowS(), exp: nowS() + Number(env.ACCESS_TTL_SECONDS) });
         await audit(env, user.id, "refresh.ok", sess.device_id, req);
         return json({ access_token: access, refresh_token: refresh, license: lic,
-          account: { id: user.id, username: user.username, capabilities: await effectiveCaps(env, user) } });
+          account: { id: user.id, username: user.username, created_at: user.created_at, capabilities: await effectiveCaps(env, user) } });
       }
 
       // ---- 登出 ----
@@ -355,7 +355,7 @@ export default {
       if (req.method === "GET" && path === "/auth/status") {
         const a = await authed(env, req);
         if (!a) return err("unauthorized", 401);
-        return json({ account: { id: a.user.id, username: a.user.username, status: a.user.status,
+        return json({ account: { id: a.user.id, username: a.user.username, status: a.user.status, created_at: a.user.created_at,
           capabilities: await effectiveCaps(env, a.user) }, session: { id: a.session.id, device_id: a.session.device_id } });
       }
 

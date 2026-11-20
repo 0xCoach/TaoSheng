@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -219,6 +220,7 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
     val store = AppGraph.auth.store
     val scope = rememberCoroutineScope()
     var rev by remember { mutableStateOf(0) } // 绑定/登出后强制重读归属标志
+    var acctTick by remember { mutableStateOf(0) } // 会员视图同步后重读账号类型
     val c = Rs.colors
     @Suppress("UNUSED_EXPRESSION") rev
     val bound = store.boundAccountId
@@ -241,6 +243,20 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
                 style = RsType.body,
                 color = if (status == AuthStatus.Authorized) c.accent else c.textSecondary,
             )
+            // 用户信息：用户名 / 用户类型 / 注册时间
+            if (loggedIn) {
+                @Suppress("UNUSED_EXPRESSION") acctTick
+                Spacer(Modifier.height(8.dp))
+                val fmtDate = { s: Long -> java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(s * 1000)) }
+                val plan = if (AppGraph.isMembershipReady && AppGraph.membership.isPro()) {
+                    val until = AppGraph.membership.cachedView?.proUntil
+                    "Pro 会员" + (until?.let { " · 至 ${fmtDate(it)}" } ?: "")
+                } else "免费版"
+                Text(store.username.orEmpty() + " · " + plan, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.text)
+                if (store.accountCreatedAt > 0) {
+                    Text("注册于 " + fmtDate(store.accountCreatedAt), style = RsType.caption, color = c.textTertiary)
+                }
+            }
             // 数据归属：未绑定且有历史数据 → 提示确认归属；绑定错号 → 明确提示隔离中。
             if (bound == null && loggedIn && store.hasLocalData) {
                 Spacer(Modifier.height(8.dp))
@@ -296,14 +312,14 @@ fun MyAccountSection(onManageDevices: () -> Unit = {}) {
             }
             if (showDevices) AuthDevicesList()
         }
-        if (loggedIn) MembershipCard()
+        if (loggedIn) MembershipCard(onSynced = { acctTick++ })
     }
     }
 }
 
 /** 会员中心：套餐 / 本月额度 / 兑换码。数据来自服务端视图或受约束的离线缓存。 */
 @Composable
-private fun MembershipCard() {
+private fun MembershipCard(onSynced: (() -> Unit)? = null) {
     val c = Rs.colors
     val scope = rememberCoroutineScope()
     var tick by remember { mutableStateOf(0) } // sync/redeem 后强制重读
@@ -312,6 +328,7 @@ private fun MembershipCard() {
         if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务，显示为离线缓存"
         runCatching { AppGraph.membership.flush() }
         tick++
+        onSynced?.invoke()
     }
     @Suppress("UNUSED_EXPRESSION") tick
     val view = AppGraph.membership.cachedView
@@ -366,7 +383,7 @@ private fun MembershipCard() {
                     msg = when (val r = AppGraph.auth.redeem(code.trim())) {
                         is AuthGate.RedeemOutcome.Ok ->
                             if (r.duplicated) "该码你已兑换过（${r.grantedDays} 天）"
-                            else { code = ""; AppGraph.membership.sync(); tick++; "兑换成功：Pro +${r.grantedDays} 天" }
+                            else { code = ""; AppGraph.membership.sync(); tick++; onSynced?.invoke(); "兑换成功：Pro +${r.grantedDays} 天" }
                         is AuthGate.RedeemOutcome.Invalid -> "兑换码无效"
                         is AuthGate.RedeemOutcome.Rejected -> "兑换失败：${r.msg}"
                         is AuthGate.RedeemOutcome.Offline -> "网络不通，兑换需要联网"
@@ -375,7 +392,7 @@ private fun MembershipCard() {
                     busy = false
                 }
             }
-            AccPill("刷新") { scope.launch { syncNote = null; if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务"; tick++ } }
+            AccPill("刷新") { scope.launch { syncNote = null; if (!AppGraph.membership.sync()) syncNote = "无法连接授权服务"; tick++; onSynced?.invoke() } }
         }
     }
 }

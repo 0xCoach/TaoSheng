@@ -122,7 +122,7 @@ class AuthGate(
     fun acceptLogin(session: AuthApi.ParsedSession): Boolean {
         if (!LicenseVerifier.verify(session.licenseRaw.toByteArray(Charsets.UTF_8), session.licenseSig)) return false
         val payload = runCatching { json.decodeFromString(LicensePayload.serializer(), session.licenseRaw) }.getOrNull() ?: return false
-        store.saveLogin(session.accountId, session.username, session.access, session.refresh, payload)
+        store.saveLogin(session.accountId, session.username, session.access, session.refresh, payload, session.createdAt)
         // 新会话不继承旧"暂不"冷却：换号/重新登录后归属确认应可再次提示。
         store.bindDeclinedAt = 0
         // 空设备（无历史数据）：登录即绑定，账号即机主；有数据则必须走确认归属。

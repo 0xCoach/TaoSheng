@@ -46,7 +46,8 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
                         else { body.put("stream", false); body.remove("stream_options") }
                         val result = idle(if (streaming) IDLE_MS else PLAIN_IDLE_MS) { tick ->
                             client.preparePost("$base/chat/completions") {
-                                wireHeaders(headers); contentType(ContentType.Application.Json); setBody(body.toString())
+                                // 与其余请求一致：显式 UTF-8，按字节发，个别服务不写字符集会把中文读乱。
+                                wireHeaders(headers); contentType(ContentType.parse("application/json; charset=utf-8")); setBody(body.toString().encodeToByteArray())
                                 // 总上限由外层统一覆盖路径探测和回退；socket 由字节级 watchdog 负责。
                                 timeout { requestTimeoutMillis = Long.MAX_VALUE; socketTimeoutMillis = Long.MAX_VALUE; connectTimeoutMillis = 15_000 }
                             }.execute { response ->
@@ -59,6 +60,9 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
                                     receiveSse(response.bodyAsChannel(), tick, trace, progress)
                                 } else {
                                     val raw = receiveText(response.bodyAsChannel(), tick)
+                                    // 有的中转把流式内容标成 application/json：按内容认出“data:”分段，仍按流式解析。
+                                    if (status in 200..299 && streaming && raw.trimStart().startsWith("data:"))
+                                        return@execute receiveSse(ByteReadChannel(raw.encodeToByteArray()), tick, trace, progress)
                                     if (streaming && status in 400..499 && status != 429 && rejectsStream(raw)) {
                                         support?.rememberNonStreaming(preset)
                                         streaming = false; retry = true

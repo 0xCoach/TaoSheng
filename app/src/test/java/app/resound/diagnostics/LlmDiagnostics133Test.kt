@@ -68,14 +68,19 @@ class LlmDiagnostics133Test {
     }
 
     @Test fun requestRecordsTruncationNonJsonAndHttpErrorWithoutChangingResult() = runBlocking {
-        val reply = client(response = envelope("不是JSON $original", "length")).chatJson(preset, "sk-private-key", original, original)
+        // 卡 218：输出被截断（finish_reason=length）直接报 Truncated，交给调用方切小重试，不再把半截内容当结果。
+        val cut = runCatching { client(response = envelope("不是JSON $original", "length")).chatJson(preset, "sk-private-key", original, original) }.exceptionOrNull()
+        assertEquals(LlmError.Truncated, (cut as LlmException).type)
+        val row = diagnostics.rows().last()
+        assertEquals(200, row.getInt("http")); assertTrue(row.getBoolean("truncated"))
+        assertEquals("Truncated", row.getString("error")); assertTrue(row.getLong("elapsedMs") >= 0)
+        val reply = client(response = envelope("不是JSON $original", "stop")).chatJson(preset, "sk-private-key", original, original)
         assertEquals("不是JSON $original", reply.content)
         val parse = runCatching { DigestPrompt.parse(reply.content, lines, diagnostics = reply.diagnostics) }.exceptionOrNull()
         assertEquals(LlmError.Format, (parse as LlmException).type)
-        val row = diagnostics.rows().last()
-        assertEquals(200, row.getInt("http")); assertTrue(row.getBoolean("truncated"))
-        assertFalse(row.getBoolean("json")); assertEquals("Format", row.getString("error"))
-        assertEquals(reply.content.length, row.getInt("chars")); assertTrue(row.getLong("elapsedMs") >= 0)
+        val plain = diagnostics.rows().last()
+        assertFalse(plain.getBoolean("json")); assertEquals("Format", plain.getString("error"))
+        assertEquals(reply.content.length, plain.getInt("chars"))
         val error = runCatching { client(401, "{\"error\":\"$original\"}").chatJson(preset, "secret", "s", "u") }.exceptionOrNull()
         assertEquals(LlmError.Auth, (error as LlmException).type)
         assertEquals("Auth", diagnostics.rows().last().getString("error"))

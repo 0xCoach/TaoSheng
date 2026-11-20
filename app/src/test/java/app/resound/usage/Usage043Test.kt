@@ -201,6 +201,7 @@ class Usage043Test {
         withTimeout(5000) { repo().llm(today.toKotlinLocalDate(), today.toKotlinLocalDate()).first { it.sumOf { r -> r.calls } == 1 } }
         ask.ask("今天做了什么？")
         val row = withTimeout(5000) { repo().llm(today.toKotlinLocalDate(), today.toKotlinLocalDate()).first { it.sumOf { r -> r.calls } == 2 } }.single()
-        assertEquals(UsagePurpose.Ask, row.purpose); assertEquals(30L, row.promptTokens); assertEquals(3L, row.completionTokens)
+        // 卡 218 起推荐问题也走流式接收，这里的假服务对流式请求统一回 20/2。
+        assertEquals(UsagePurpose.Ask, row.purpose); assertEquals(40L, row.promptTokens); assertEquals(4L, row.completionTokens)
     }
 }

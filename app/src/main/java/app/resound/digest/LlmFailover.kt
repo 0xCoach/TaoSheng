@@ -90,7 +90,8 @@ class LlmFailover(
     }, NowMillis(now), LlmInputBudget::inputChars,
         classify = { e -> when (e) {
             is LlmInputLimitException -> FailoverFailure(reason(e), capacity = true)
-            is LlmException -> FailoverFailure(reason(e), format = e.type == LlmError.Format,
+            // 先让业务切小同一批，不冷却或切换模型掩盖自适应错误。
+            is LlmException -> if (e.type in setOf(LlmError.TooSlow, LlmError.Truncated)) null else FailoverFailure(reason(e), format = e.type == LlmError.Format,
                 rejected = e.rejected, longCooling = e.type in setOf(LlmError.Auth, LlmError.Quota))
             else -> null
         } },

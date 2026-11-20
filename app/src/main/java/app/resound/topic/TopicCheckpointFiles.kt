@@ -68,7 +68,8 @@ internal fun topicFailure(e: Throwable): TopicFailure = when (e) {
     is TopicRequestBudgetExceeded -> TopicFailure(TopicFailureKind.Permanent, "本轮请求达到上限，已保存进度，请稍后继续")
     is LlmInputLimitException -> TopicFailure(TopicFailureKind.Capacity, "本段内容超过模型容量，请换模型后继续")
     is LlmException -> when {
-        e.truncated -> TopicFailure(TopicFailureKind.Capacity, "模型输出未完成")
+        e.type == LlmError.TooSlow -> TopicFailure(TopicFailureKind.Capacity, e.detail)
+        e.type == LlmError.Truncated || e.truncated -> TopicFailure(TopicFailureKind.Capacity, "模型输出未完成")
         e.type == LlmError.Format -> TopicFailure(TopicFailureKind.Format, "模型回答格式或字段不符合要求")
         e.rejected -> TopicFailure(TopicFailureKind.Capacity, "模型拒收本段内容")
         e.type.retryable -> TopicFailure(TopicFailureKind.Temporary, e.type.human)

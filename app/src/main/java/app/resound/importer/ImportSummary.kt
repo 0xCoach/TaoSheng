@@ -104,7 +104,9 @@ internal class ImportSummary(
                 }
                 ask(text)
             }
-            leaves += session?.splitRead(chunk, read) ?: listOf(read(chunk))
+            leaves += session?.splitRead(chunk, read) ?: splitTopicRead(chunk, {
+                it is LlmException && it.type in setOf(LlmError.Format, LlmError.TooSlow, LlmError.Truncated)
+            }, read)
             session?.advance()
         }
         // 没有可转写原话仍保存一份明确说明的纪要，不伪造会议内容。

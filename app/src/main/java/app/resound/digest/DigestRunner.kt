@@ -289,7 +289,7 @@ class DigestRunner(
         } catch (e: LlmException) {
             diagnostics.error(e.type, now())
             failureDetail = e.detail
-            if (e.type == LlmError.Format) {
+            if (e.type in setOf(LlmError.Format, LlmError.TooSlow, LlmError.Truncated)) {
                 dao.removePendingDigest(storedId)
                 actualModels.remove(storedId)
                 splitForRetry(lines)?.let { (first, second) ->

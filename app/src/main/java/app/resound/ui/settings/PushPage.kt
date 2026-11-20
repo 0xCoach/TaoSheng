@@ -725,7 +725,8 @@ private fun LeftoverFiles(repo: PushChannels) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(d.path, style = RsType.subhead, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(d.channelName, style = RsType.caption, color = c.textTertiary)
+                        Text(d.channelName + if (d.manual) " · 需要你自己删" else " · 正在删，稍后自动重试", style = RsType.caption,
+                            color = if (d.manual) c.warning else c.textTertiary)
                     }
                     Text("已处理", style = RsType.subhead, color = c.accent,
                         modifier = Modifier.clip(CircleShape).springClick { scope.launch { repo.dismissRemoteDelete(d.channelId, d.path) } }.padding(8.dp))

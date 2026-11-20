@@ -256,11 +256,11 @@ class ResoundApp : Application() {
                 }
             })
         transcribeRunner.localResume = app.resound.transcribe.local.LocalResumeQueue(this)
-        settings.testKey = { key ->
+        settings.testWithCapability = { key, capability ->
             val file = File.createTempFile("asr-test-", ".ogg", cacheDir)
             try {
                 assets.open("asr-test.ogg").use { input -> file.outputStream().use { input.copyTo(it) } }
-                transcribeRunner.test(AsrAudio(file, "ogg", 3007), key)
+                transcribeRunner.test(AsrAudio(file, "ogg", 3007), key) { result -> result.customCapability?.let(capability) }
             } finally { file.delete() }
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }

@@ -9,7 +9,12 @@ import java.time.format.DateTimeFormatter
 import java.util.zip.*
 import kotlinx.coroutines.*
 
-internal data class RecordingSource(override val row: SegmentWithLines, override val excluded: Boolean = false, override val eventTitle: String? = null) : RecordingSourceFields {
+internal data class RecordingSource(override val row: SegmentWithLines, override val excluded: Boolean = false, override val eventTitle: String? = null, val call: Boolean = false) : RecordingSourceFields {
+    fun keep(expiresAt: Long = Long.MAX_VALUE) = KeepRecording(id, day.toString(), file.length(), expiresAt, excluded, speech, call, row.segment.sourceId == "import")
+    val dailyLines get() = row.lines.filter { it.text.isNotBlank() }.sortedWith(compareBy({ it.startAt }, { it.id })).joinToString("\n") {
+        val clock = Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+        "[$clock] ${RecordingTextRules.speakerLabel(it.speakerName, it.speakerTag)}：${it.text}"
+    }
     val id get() = row.segment.id
     val file get() = File(row.segment.path)
     val day get() = Instant.ofEpochMilli(row.segment.startAt).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -22,13 +27,15 @@ internal data class RecordingSource(override val row: SegmentWithLines, override
     val speech get() = RecordingTextRules.speech(this)
 }
 
-internal class RecordingSources(database: CaptureDatabase, root: File) {
+internal class RecordingSources(private val database: CaptureDatabase, root: File, includeImports: Boolean = false) {
     private val queries = RecordingSourceQueries(database) {
-        val base = root.canonicalPath + File.separator
-        val accept: (String) -> Boolean = { path -> File(path).extension.equals("ogg", true) && File(path).canonicalPath.startsWith(base) }
+        val bases = listOfNotNull(root, if (includeImports) File(root.parentFile, "import-segments") else null).map { it.canonicalPath + File.separator }
+        val accept: (String) -> Boolean = { path -> File(path).extension.lowercase() in (if (includeImports) setOf("ogg", "m4a") else setOf("ogg")) && bases.any { File(path).canonicalPath.startsWith(it) } }
         accept
     }
-    suspend fun load() = queries.load().map { RecordingSource(it.row, it.excluded, it.eventTitle) }
+    suspend fun load() = queries.load().map {
+        RecordingSource(it.row, it.excluded, it.eventTitle, it.row.segment.importRecordId?.let { id -> database.imports().get(id)?.kind == "Call" } == true)
+    }
     suspend fun metadata(exclusions: Boolean) = queries.metadata(exclusions).map { RecordingSource(it.row, it.excluded, it.eventTitle) }
 }
 

@@ -23,6 +23,30 @@ import java.util.TimeZone
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class RecordingSources177Test {
+    @Test fun card214IncludesCallAndOrdinaryImportsOnlyForPushSources() = runBlocking {
+        val context: Context = RuntimeEnvironment.getApplication()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
+        val parent = File(context.cacheDir, "sources214").apply { mkdirs() }
+        val root = File(parent, "segments").apply { mkdirs() }
+        val imports = File(parent, "import-segments").apply { mkdirs() }
+        try {
+            val at = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val call = db.imports().insert(app.resound.importer.ImportRecordRow(pendingId="call",fileName="call",kind="Call",startAt=at,endAt=at+1000,byChannel=false))
+            for (id in 1L..2L) {
+                val file = File(imports, "$id.${if(id==1L) "ogg" else "m4a"}").apply { writeText("audio") }
+                db.capture().segment(SegmentEntity(id,at,at+1000,"import",file.path,5,"Done",importRecordId=if(id==1L)call else null))
+            }
+            assertTrue(RecordingSources(db,root).load().isEmpty())
+            val rows = RecordingSources(db,root,includeImports=true).load()
+            assertEquals(listOf(1L,2L), rows.map { it.id }); assertTrue(rows.first().call)
+            val state = RecordingUploadState(File(parent,"state.json"))
+            val s = app.resound.push.PushSubscription(audio=app.resound.push.AudioPush.All)
+            assertEquals(listOf(1L), state.candidates(rows,s,LocalDate.now()).map { it.id })
+            assertEquals(listOf(1L,2L), state.candidates(rows,s.copy(audioImports=true),LocalDate.now()).map { it.id })
+            assertTrue(state.path(rows.last()).getString("path").endsWith(".m4a"))
+        } finally { db.close(); parent.deleteRecursively() }
+    }
+
     @Test fun loadMetadataNamesSelectionAndEstimateMatchOldRepository() = runBlocking {
         val context: Context = RuntimeEnvironment.getApplication()
         val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()

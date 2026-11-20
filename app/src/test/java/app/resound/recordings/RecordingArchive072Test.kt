@@ -67,7 +67,7 @@ class RecordingArchive072Test {
         val rows = listOf(source(1), source(2, status = "Pending"), source(3, excluded = true), source(4, text = ""), source(5, day = today.minusDays(31)))
         val state = RecordingUploadState(File(root, "state.json"))
         assertEquals(listOf(1L), state.candidates(rows, PushSubscription(audio = AudioPush.Speech), today).map { it.id })
-        assertEquals(listOf(1L, 2L, 4L), state.candidates(rows, PushSubscription(audio = AudioPush.All), today).map { it.id })
+        assertEquals(listOf(1L, 2L, 4L), state.candidates(rows, PushSubscription(audio = AudioPush.All, audioText = AudioText.PerSegment), today).map { it.id })
     }
     private class Remote : RecordingRemote {
         val audio = mutableListOf<String>(); val text = mutableListOf<String>()
@@ -76,7 +76,7 @@ class RecordingArchive072Test {
     }
     @Test fun acknowledgementSurvivesRestartDeletionAndTextRedo() = runBlocking {
         val row = source(1); val remote = Remote(); val file = File(root, "state.json")
-        val sub = PushSubscription(audio = AudioPush.All)
+        val sub = PushSubscription(audio = AudioPush.All, audioText = AudioText.PerSegment)
         RecordingUploader(RecordingUploadState(file), remote).run(listOf(row), sub, now)
         row.file.delete()
         val changed = row.copy(row = row.row.copy(lines = row.row.lines.map { it.copy(text = "修正后的原话") }))
@@ -92,7 +92,7 @@ class RecordingArchive072Test {
     @Test fun allPushesBeforeTranscriptAndLaterAddsText() = runBlocking {
         val row = source(1, status = "Pending", text = ""); val remote = Remote()
         val state = RecordingUploadState(File(root, "state.json")); val uploader = RecordingUploader(state, remote)
-        val sub = PushSubscription(audio = AudioPush.All)
+        val sub = PushSubscription(audio = AudioPush.All, audioText = AudioText.PerSegment)
         uploader.run(listOf(row), sub, now)
         assertEquals(1, remote.audio.size); assertTrue(remote.text.isEmpty())
         uploader.run(listOf(source(1)), sub, now)
@@ -103,21 +103,23 @@ class RecordingArchive072Test {
         assertEquals(AudioPush.Off, Subscriptions.read(json).audio)
         val context = RuntimeEnvironment.getApplication() as Context
         val channels = AndroidPushChannels(context)
-        PushKind.entries.forEach { assertEquals(it == PushKind.MarkdownFolder, channels.capabilities(it).audio) }
+        PushKind.entries.forEach { assertEquals(it in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder), channels.capabilities(it).audio) }
         val value = PushSubscription(audio = AudioPush.All, audioWithText = false, audioWifiOnly = false)
         assertEquals(value, Subscriptions.read(Subscriptions.json(value)))
         assertEquals(AudioPush.Off, Subscriptions.tighten(value, channels.capabilities(PushKind.Webhook)).audio)
     }
     @Test fun fakeDavWritesOggAndTextWithoutDeleteAndMapsErrors() = runBlocking {
         MockWebServer().use { server ->
-            server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(201) }
+            server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) =
+                if (request.method == "PROPFIND") MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d=\"DAV:\"><d:response><d:propstat><d:prop><d:getcontentlength>5</d:getcontentlength></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>")
+                else MockResponse().setResponseCode(201) }
             server.start()
             val remote = RecordingDav(mapOf("url" to server.url("/dav/").toString(), "folder" to "涛声", "account" to "fake", "password" to "fake"))
             val row = source(1)
             remote.audio("录音/$today/${row.stem}.ogg", row.file)
             remote.text("录音/$today/${row.stem}.txt", row.text)
             val requests = (1..server.requestCount).map { server.takeRequest() }
-            assertEquals(listOf("MKCOL", "MKCOL", "MKCOL", "PUT", "PUT"), requests.map { it.method })
+            assertEquals(listOf("MKCOL", "MKCOL", "MKCOL", "PUT", "PROPFIND", "MOVE", "PUT"), requests.map { it.method })
             assertEquals("OGG-1", requests[3].body.readUtf8())
             for ((code, expected) in listOf(401 to "坚果云账号或应用密码不对", 507 to "坚果云本月上传流量用完了")) {
                 server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(code) }

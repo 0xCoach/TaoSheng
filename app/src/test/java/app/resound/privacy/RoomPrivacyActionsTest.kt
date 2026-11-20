@@ -44,6 +44,20 @@ class RoomPrivacyActionsTest {
     private fun item(id: Long, event: Long, line: Long?) = MemoryItemEntity(id, event, "Memo", null, "条目", null, null, null, line, "Pending", now)
     private fun count(table: String): Int = db.testSql.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); it.getInt(0) }
 
+    @Test fun card214JournalsIdsBeforeDatabaseErasureForAllEntryPoints() = runBlocking {
+        val seen = mutableListOf<Long>()
+        val actions = RoomPrivacyActions(db, now = { now }, recordingPrivacy = { ids, block ->
+            ids.forEach { assertNotNull(db.privacy().segment(it)); seen += it }
+            block()
+        })
+        segment(1, now-1000); actions.deleteRecent(1)
+        segment(2, 100); actions.deleteRange(0, 1000)
+        segment(3, 100); actions.forgetSegment(3)
+        segment(4, 100); actions.deleteSegments(listOf(4))
+        assertEquals(listOf(1L,2L,3L,4L), seen)
+        assertEquals(0, count("segments"))
+    }
+
     @Test fun fileRemovalFailureIsPersistedAndRetriedAfterRecreation() = runBlocking {
         val path = File(directory, "blocked.ogg").apply { mkdirs() }
         File(path, "payload").writeText("synthetic audio") // 非空目录确定性模拟无法删除的路径。

@@ -88,6 +88,8 @@ internal object RecordingUploadErrors {
 internal interface RecordingRemote {
     suspend fun audio(path: String, file: File)
     suspend fun text(path: String, content: String)
+    /** 仅文件确认不存在时返回 null；权限、网络及缺失长度必须抛错。 */
+    suspend fun size(path: String): Long?
     suspend fun delete(path: String) { error("删除未实现") }
 }
 internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = OkHttpClient()) : RecordingRemote {
@@ -102,7 +104,7 @@ internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = 
         parts.forEach { addPathSegment(it) }
     }.build()
     @OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
-    private suspend fun execute(request: Request, allowed: Set<Int> = emptySet()): String {
+    private suspend fun execute(request: Request, allowed: Set<Int> = emptySet()): String? {
         var body = ""
         currentCoroutineContext().ensureActive()
         val call = client.newCall(request)
@@ -112,6 +114,7 @@ internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = 
             if (!response.isSuccessful && response.code !in allowed) throw PushFailure(RecordingUploadErrors.status(response.code, response.peekBody(8192).string()))
             if (request.method in setOf("MOVE", "DELETE") && response.code !in setOf(200, 201, 204, 404))
                 throw PushFailure("远端文件操作尚未确认完成，稍后自动重试")
+            if (request.method == "PROPFIND" && response.code == 404) return null
             if (request.method == "PROPFIND") body = response.peekBody(65536).string()
         } } finally { handle.dispose() }
         currentCoroutineContext().ensureActive()
@@ -129,11 +132,14 @@ internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = 
     override suspend fun audio(path: String, file: File) {
         val part = path.substringBeforeLast('/') + "/." + path.substringAfterLast('/') + ".part"
         put(part, file.asRequestBody((if (file.extension == "m4a") "audio/mp4" else "audio/ogg").toMediaType()))
-        val xml = execute(Request.Builder().url(url(folder + part.split('/'))).header("Authorization", auth).header("Depth", "0")
-            .method("PROPFIND", "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:getcontentlength/></d:prop></d:propfind>".toRequestBody("application/xml".toMediaType())).build())
-        if (davLength(xml) != file.length()) throw PushFailure("录音大小核对失败，稍后自动重试")
+        if (size(part) != file.length()) throw PushFailure("录音大小核对失败，稍后自动重试")
         execute(Request.Builder().url(url(folder + part.split('/'))).header("Authorization", auth)
             .header("Destination", url(folder + path.split('/')).toString()).header("Overwrite", "T").method("MOVE", null).build())
+    }
+    override suspend fun size(path: String): Long? {
+        val xml = execute(Request.Builder().url(url(folder + path.split('/'))).header("Authorization", auth).header("Depth", "0")
+            .method("PROPFIND", "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:getcontentlength/></d:prop></d:propfind>".toRequestBody("application/xml".toMediaType())).build(), setOf(404)) ?: return null
+        return davLength(xml) ?: throw PushFailure("远端未返回文件大小，稍后自动重试")
     }
     override suspend fun delete(path: String) {
         execute(Request.Builder().url(url(folder + path.split('/'))).header("Authorization", auth).delete().build(), setOf(404))
@@ -172,7 +178,7 @@ internal class RecordingUploader(private val state: RecordingUploadState, privat
                     record.put("temporary", RecordingPrivacyRules.partPath(path)); state.save()
                     remote.audio(path, row.file)
                     record.remove("temporary")
-                    record.put("audio", true).put("verified", 1); state.account(bytes, now); state.save(); uploaded++
+                    record.put("audio", true).put("verified", 1).put("bytes", bytes); state.account(bytes, now); state.save(); uploaded++
                 }
                 if (RecordingKeepRules.perSegment(s) && row.completed && record.optString("textHash") != sha256(row.text)) {
                     if (!allowed()) break

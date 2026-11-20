@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.recordings.Recording214Test" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:54:13.563Z" hostname="CoachdeMacBook-Air.local" time="2.134">
+  <properties/>
+  <testcase name="localConflictAndChargingConstraints" classname="app.resound.recordings.Recording214Test" time="1.728"/>
+  <testcase name="privacyPersistsExactFilesAndRetriesAfterRestartWithoutReupload" classname="app.resound.recordings.Recording214Test" time="0.102"/>
+  <testcase name="privacyPartlyManualJournalNeverDeletesItsSiblingAfterRestart" classname="app.resound.recordings.Recording214Test" time="0.048"/>
+  <testcase name="verificationFailureNeverAcknowledgesAndRetryUsesSamePath" classname="app.resound.recordings.Recording214Test" time="0.028"/>
+  <testcase name="privacyTextFailureResumesAfterAudioWasDeleted" classname="app.resound.recordings.Recording214Test" time="0.028"/>
+  <testcase name="dailyWaitsUntilTomorrowAndRewritesAfterEditWithoutAudio" classname="app.resound.recordings.Recording214Test" time="0.023"/>
+  <testcase name="davUsesPartPropfindAndMoveAndRejectsMissingOrWrongLength" classname="app.resound.recordings.Recording214Test" time="0.063"/>
+  <testcase name="privacyMismatchAndLegacyWithoutBytesBecomeManualTogether" classname="app.resound.recordings.Recording214Test" time="0.036"/>
+  <testcase name="privacyMissingRemoteCompletesWithoutDeletingFiles" classname="app.resound.recordings.Recording214Test" time="0.024"/>
+  <testcase name="deletedChannelKeepsPendingListUntilUserDismisses" classname="app.resound.recordings.Recording214Test" time="0.021"/>
+  <testcase name="privacyOffPersistsManualSkipsDeletionAndStillRewritesDaily" classname="app.resound.recordings.Recording214Test" time="0.031"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

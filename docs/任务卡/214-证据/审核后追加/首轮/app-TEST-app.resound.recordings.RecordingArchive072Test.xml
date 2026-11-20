@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.recordings.RecordingArchive072Test" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:53:20.963Z" hostname="CoachdeMacBook-Air.local" time="0.682">
+  <properties/>
+  <testcase name="customTimeRangeFiltersBySegmentStart" classname="app.resound.recordings.RecordingArchive072Test" time="0.026"/>
+  <testcase name="rebuildWhitelistCannotDeleteRecordingsOrUserNotes" classname="app.resound.recordings.RecordingArchive072Test" time="0.025"/>
+  <testcase name="speechFilteringAndFirstEnableRange" classname="app.resound.recordings.RecordingArchive072Test" time="0.025"/>
+  <testcase name="acknowledgementSurvivesRestartDeletionAndTextRedo" classname="app.resound.recordings.RecordingArchive072Test" time="0.043"/>
+  <testcase name="allPushesBeforeTranscriptAndLaterAddsText" classname="app.resound.recordings.RecordingArchive072Test" time="0.081"/>
+  <testcase name="wifiConstraintsAreIndependentFromTextPush" classname="app.resound.recordings.RecordingArchive072Test" time="0.026"/>
+  <testcase name="cancellationDeletesMediaStorePartialAndPersistsCancelled" classname="app.resound.recordings.RecordingArchive072Test" time="0.194"/>
+  <testcase name="legacySubscriptionsAndCapabilitiesStayOffOutsideFolder" classname="app.resound.recordings.RecordingArchive072Test" time="0.036"/>
+  <testcase name="fakeDavWritesOggAndTextWithoutDeleteAndMapsErrors" classname="app.resound.recordings.RecordingArchive072Test" time="0.139"/>
+  <testcase name="twoDaysZipStoresOriginalsAndTextWithCollisionNames" classname="app.resound.recordings.RecordingArchive072Test" time="0.035"/>
+  <testcase name="estimateAndSkipMediaOnlyCountExistingOriginals" classname="app.resound.recordings.RecordingArchive072Test" time="0.048"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

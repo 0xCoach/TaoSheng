@@ -43,3 +43,15 @@ object RecordingDailyRules {
         }
     }
 }
+
+/** 文件已不存在时直接完成；有文件但没有旧凭据时不能猜测归属。 */
+enum class RecordingDeleteCheck { Delete, Missing, MissingBytes, SizeMismatch }
+object RecordingPrivacyDeleteRules {
+    fun manual(enabled: Boolean, temporary: Boolean) = !enabled || temporary
+    fun check(bytes: Long?, remoteBytes: Long?): RecordingDeleteCheck = when {
+        bytes == null || bytes < 0 -> RecordingDeleteCheck.MissingBytes
+        remoteBytes == null -> RecordingDeleteCheck.Missing
+        bytes != remoteBytes -> RecordingDeleteCheck.SizeMismatch
+        else -> RecordingDeleteCheck.Delete
+    }
+}

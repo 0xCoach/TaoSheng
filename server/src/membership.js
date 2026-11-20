@@ -165,6 +165,26 @@ export async function handleMembership(req, env, H) {
     await audit(env, id, b.disabled ? "admin.disable" : "admin.enable", "", req);
     return json({ changed: r.meta.changes });
   }
+  if (req.method === "POST" && path.match(/^\/console\/api\/users\/[^/]+\/reset_password$/)) {
+    const id = path.split("/")[4];
+    const b = await req.json();
+    if (!b.password || b.password.length < 8 || b.password.length > 128) return err("password length 8-128");
+    const r = await env.DB.prepare("UPDATE users SET pass_hash=? WHERE id=?").bind(await hashPassword(b.password), id).run();
+    if (!r.meta.changes) return err("user not found", 404);
+    await env.DB.prepare("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL").bind(nowS(), id).run();
+    await audit(env, id, "admin.reset_password", "", req);
+    return json({ ok: true });
+  }
+  if (req.method === "DELETE" && path.match(/^\/console\/api\/users\/[^/]+$/)) {
+    const id = path.split("/").pop();
+    for (const t of ["sessions", "licenses", "entitlements", "usage_ledger", "quota_adjustments", "redeem_records", "ai_quota_periods", "ai_usage_requests", "ai_usage_ledger", "ai_point_adjustments", "ai_consents"]) {
+      await env.DB.prepare(`DELETE FROM ${t} WHERE user_id=?`).bind(id).run();
+    }
+    const r = await env.DB.prepare("DELETE FROM users WHERE id=?").bind(id).run();
+    if (!r.meta.changes) return err("user not found", 404);
+    await audit(env, id, "admin.delete_user", "", req);
+    return json({ ok: true });
+  }
 
   if (path === "/console/api/memberships") {
     if (req.method === "GET") {
@@ -379,10 +399,12 @@ const CAP_CN={pro:"Pro 会员",local_asr_minutes:"本机转写时长",cross_meet
 const STATUS_CN={active:"正常",disabled:"已停用",invited:"待激活"};
 const entText=e=>{const m=/^([^→]+)→?(\d+)?$/.exec(e);if(!m)return e;const n=CAP_CN[m[1]]||m[1];return n+(m[2]?" · 至 "+new Date(m[2]*1000).toLocaleDateString():" · 不限期")};
 async function users(){const j=await api("/users");
-$("panel").innerHTML=\`<div class="card"><table><tr><th>用户名</th><th>状态</th><th>权益</th><th>注册</th><th></th></tr>\${j.users.map(u=>\`<tr><td>\${u.username}</td><td>\${STATUS_CN[u.status]||u.status}</td><td>\${(u.entitlements||[]).map(e=>u.status=="disabled"?'<span style="color:#999">'+entText(e)+"（随停用不生效）</span>":entText(e)).join("<br>")||"—"}</td><td>\${ts(u.created_at)}</td><td>\${u.status=="disabled"?'<button onclick="enableUser(\\''+u.id+'\\')">启用</button>':'<button onclick="disableUser(\\''+u.id+'\\')">停用</button>'}</td></tr>\`).join("")}</table>
+$("panel").innerHTML=\`<div class="card"><table><tr><th>用户名</th><th>状态</th><th>权益</th><th>注册</th><th></th></tr>\${j.users.map(u=>\`<tr><td>\${u.username}</td><td>\${STATUS_CN[u.status]||u.status}</td><td>\${(u.entitlements||[]).map(e=>u.status=="disabled"?'<span style="color:#999">'+entText(e)+"（随停用不生效）</span>":entText(e)).join("<br>")||"—"}</td><td>\${ts(u.created_at)}</td><td>\${u.status=="disabled"?'<button onclick="enableUser(\\''+u.id+'\\')">启用</button>':'<button onclick="disableUser(\\''+u.id+'\\')">停用</button>'}<button onclick="resetPw(\\''+u.id+'\\',\\''+u.username+'\\')">重置密码</button><button onclick="delUser(\\''+u.id+'\\',\\''+u.username+'\\')">删除</button></td></tr>\`).join("")}</table>
 <p><input id="nu" placeholder="用户名"><input id="np" type="password" placeholder="密码"><button class="pri" onclick="createUser()">创建账号</button></p><div id="umsg"></div></div>\`}
 async function createUser(){try{const j=await api("/users","POST",{username:$("nu").value,password:$("np").value});$("umsg").innerHTML='<span class="ok">已创建 '+j.username+'</span>';users()}catch(e){$("umsg").innerHTML='<span class="err">'+e.message+'</span>'}}
 async function disableUser(id){if(!confirm("停用该账号并撤销其全部会话？"))return;await api("/users/"+id,"PATCH",{disabled:true});users()}
+async function resetPw(id,name){const p=prompt("为用户 "+name+" 设置新密码（8-128 位）：");if(p==null)return;if(p.length<8||p.length>128)return alert("密码需 8-128 位");await api("/users/"+id+"/reset_password","POST",{password:p});alert("已重置，请把新密码告知用户")}
+async function delUser(id,name){if(!confirm("彻底删除用户 "+name+" 及其会话/权益/点数记录？不可恢复！"))return;await api("/users/"+id,null,"DELETE");users()}
 async function enableUser(id){await api("/users/"+id,"PATCH",{disabled:false});users()}
 async function members(){const j=await api("/memberships");
 $("panel").innerHTML=\`<div class="card"><table><tr><th>用户</th><th>能力</th><th>来源</th><th>到期</th><th>状态</th><th></th></tr>\${j.entitlements.map(e=>\`<tr><td>\${e.username||e.user_id.slice(0,8)}</td><td>\${e.capability}</td><td>\${e.source}</td><td>\${e.expires_at?ts(e.expires_at):"不限期"}</td><td>\${e.revoked_at?"已撤销":""}</td><td>\${e.revoked_at?"":'<button onclick="revokeEnt(\\''+e.id+'\\')">撤销</button>'}</td></tr>\`).join("")}</table>

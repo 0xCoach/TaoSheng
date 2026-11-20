@@ -43,6 +43,9 @@ class Stmt {
     }
     if (s.includes("UPDATE login_attempts SET count=?")) { const r = this._row("login_attempts", x => x.key === a[1]); if (r) r.count = a[0]; return r ? 1 : 0; }
     if (s.includes("DELETE FROM login_attempts")) { const i = T.login_attempts.findIndex(x => x.key === a[0]); if (i >= 0) T.login_attempts.splice(i, 1); return i >= 0 ? 1 : 0; }
+    if (s.includes("UPDATE users SET pass_hash=?")) { const r = this._row("users", x => x.id === a[1]); if (r) r.pass_hash = a[0]; return r ? 1 : 0; }
+    if (s.includes("DELETE FROM users WHERE id=?")) { const i = T.users.findIndex(x => x.id === a[0]); if (i >= 0) T.users.splice(i, 1); return i >= 0 ? 1 : 0; }
+    if (s.match(/^DELETE FROM (\w+) WHERE user_id=\?$/)) { const t = s.match(/^DELETE FROM (\w+) WHERE user_id=\?$/)[1]; if (!T[t]) return 0; const before = T[t].length; T[t] = T[t].filter(x => x.user_id !== a[0]); return before - T[t].length; }
     if (s.includes("UPDATE sessions SET revoked_at=? WHERE refresh_hash=?")) { const r = this._row("sessions", x => x.refresh_hash === a[1]); if (r) r.revoked_at = a[0]; return r ? 1 : 0; }
     if (s.includes("UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=?")) { const r = this._row("sessions", x => x.id === a[1] && x.user_id === a[2]); if (r) r.revoked_at = a[0]; return r ? 1 : 0; }
     if (s.includes("UPDATE licenses SET revoked_at=? WHERE user_id=? AND device_id=(SELECT")) { const sess = this._row("sessions", x => x.id === a[2]); let n = 0; for (const r of T.licenses) if (r.user_id === a[1] && r.device_id === sess?.device_id) { r.revoked_at = a[0]; n++; } return n; }
@@ -234,8 +237,6 @@ T.plans.push({ id: "free", name: "free", price_cents: 0, config: "{}" }, { id: "
     .map((c, i) => { const id = `ent-lc-${i}`; T.entitlements.push({ id, user_id: uidLc, capability: c, source: "test", starts_at: nowS(), expires_at: nowS() + 30 * 86400, meta: null, created_at: nowS(), revoked_at: null }); return id });
   const rfLc = await j(await call(req("/auth/refresh", "POST", { refresh_token: lc.refresh_token }), env));
   lcCaps = JSON.parse(rfLc.license.payload).caps;
-  if (!(lcCaps.includes("local_asr_minutes") && JSON.parse(rfLc.license.payload).pro_until > nowS()))
-    console.log("   L3 dbg:", JSON.stringify(lcCaps), "pro_until:", JSON.parse(rfLc.license.payload).pro_until, "ents:", T.entitlements.filter(e => e.user_id === uidLc).map(e => e.capability + "@" + e.expires_at).join(","));
   ok(lcCaps.includes("local_asr_minutes") && JSON.parse(rfLc.license.payload).pro_until > nowS(), "L3 Pro 后 license 含 pro 能力+pro_until");
   mvLc = await j(await call(req("/auth/membership", "GET", null, { authorization: "Bearer " + rfLc.access_token }), env));
   ok(mvLc.plan === "pro", "L4 membership 视图切 Pro");
@@ -256,6 +257,19 @@ T.plans.push({ id: "free", name: "free", price_cents: 0, config: "{}" }, { id: "
   T.users.find(u => u.id === uidLc).status = "active";
   const lgRe = await call(req("/auth/login", "POST", { username: "life_cycle", password: "password88", device_id: "lc-dev" }), env);
   ok(lgRe.status === 200, "L9 恢复后可重新登录");
+  // 管理台重置密码 → 旧密码失效、新密码可登、会话全部撤销
+  const rs = await call(req(`/console/api/users/${uidLc}/reset_password`, "POST", { password: "newpass123" }, ah), env);
+  ok(rs.status === 200, "L10a 管理台重置密码");
+  const lgOld = await call(req("/auth/login", "POST", { username: "life_cycle", password: "password88", device_id: "lc-dev" }), env);
+  ok(lgOld.status === 401, "L10b 旧密码已失效");
+  const lgNew = await call(req("/auth/login", "POST", { username: "life_cycle", password: "newpass123", device_id: "lc-dev" }), env);
+  ok(lgNew.status === 200, "L10c 新密码可登录");
+  ok(T.sessions.filter(s => s.user_id === uidLc && !s.revoked_at).length === 1, "L10d 重置后旧会话已撤销（仅新登录会话）");
+  // 管理台删除用户 → 账号与关联数据清除、登录 401
+  const dl = await call(req(`/console/api/users/${uidLc}`, "DELETE", null, ah), env);
+  ok(dl.status === 200 && !T.users.find(u => u.id === uidLc) && !T.sessions.find(s => s.user_id === uidLc) && !T.entitlements.find(e => e.user_id === uidLc), "L11a 删除用户清除关联数据");
+  const lgDel = await call(req("/auth/login", "POST", { username: "life_cycle", password: "newpass123", device_id: "lc-dev" }), env);
+  ok(lgDel.status === 401, "L11b 删除后登录 401");
 }
 
 console.log(`\n${pass} PASS / ${fail} FAIL`);

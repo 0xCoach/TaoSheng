@@ -17,7 +17,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.5.3-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.5.4-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.4/TaoSheng-v0.5.4-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -75,7 +75,8 @@
 **🗣️ 离线转写 + 本机声纹认人**
 
 - 可选 SenseVoice 本地完全离线识别，骁龙 NPU 加速
-- 也支持豆包云端（普通 API，或火山方舟 Agent Plan 套餐的专属 Key）和自定义 OpenAI 兼容接口，可逐句看时间和说话人、点一下回听
+- 也支持豆包云端（普通 API，或火山方舟 Agent Plan 套餐的专属 Key）、阿里百炼千问（自带说话人区分）和自定义 OpenAI 兼容接口，可逐句看时间和说话人、点一下回听
+- 识别错的原话长按就能直接改，标“已修正”，需要时一键重新整理
 - 本机声纹自动区分“我”和熟人，长按原话选一次“这是谁”就能学会
 - 支持热词纠错和声纹样本管理
 
@@ -119,7 +120,7 @@
 **📌 专题录音、随时打点与自动回顾**
 
 - 会议、培训、通话·访谈、口播稿一键开始；支持预约、暂停和事后补选
-- 长会议分段续做，认不出参会人也能出纪要
+- 边开边整理：每 10 分钟一块，录完就整理，会后很快出纪要；哪块变了只重做那一块，认不出参会人也能出纪要
 - 录音或回放时点“📍记一下”随时打点，前后的内容整理得更细，重点原声保留
 - 每天 / 每周自动生成回顾和任务卡
 
@@ -144,6 +145,7 @@
 - 内置 DeepSeek、豆包、通义、Kimi、智谱等十多家服务商，可查余额、低额提醒
 - 支持自定义请求头（内置 OpenCode Go）和局域网自建模型，全链路可以完全本地运行
 - 配置多个模型时，主模型断网、宕机或欠费，自动无缝切到备用
+- 慢模型、思考模型也能整理完：边生成边接收、显示已收到多少字，太久没动静自动把一批切小，并按模型记住每批多大合适
 
 ### 🤖 为极客和 AI Agent 而生
 
@@ -153,6 +155,7 @@
 - 按你设的间隔合并推送，没有变化时不连云端
 - 在同步文件夹点一下“复制给智能体”，粘贴给 Claude Code、Codex 等，它就能只读你的个人记忆库
 - 删掉网盘应用密码，随时收回权限
+- 录音可长期保留：推到网盘或手机文件夹（SD 卡、U 盘），没推上去的到期也不删，每天附一份逐字稿；推出去的文件由你自己管理
 
 **🧩 技能随你定义 & 加密增量备份**
 
@@ -248,15 +251,16 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.5.3**（最新） | 2026-11-19 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.3-arm64.apk) | 睡眠声音图可放大细看、留最响 3 段、鼾声中断可回听确认；新版本后台准备好再提醒、点一下就装；豆包可用火山方舟 Agent Plan；坚果云推送按间隔合并、备份提速；问题记录瘦身。不改数据库。[详细更新日志](CHANGELOG.md#053--2026-11-19) |
+| **v0.5.4**（最新） | 2026-11-21 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.4/TaoSheng-v0.5.4-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.4-arm64.apk) | 原话可以手改；专题边开边整理、长会议很快出纪要；录音可长期保留（推到网盘或手机文件夹）；新增千问转写；慢模型、思考模型也能整理完；更省电。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#054--2026-11-21) |
+| **v0.5.3** | 2026-11-19 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.3-arm64.apk) | 睡眠声音图可放大细看、留最响 3 段、鼾声中断可回听确认；新版本后台准备好再提醒、点一下就装；豆包可用火山方舟 Agent Plan；坚果云推送按间隔合并、备份提速；问题记录瘦身。不改数据库。[详细更新日志](CHANGELOG.md#053--2026-11-19) |
 | **v0.5.2** | 2026-11-18 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.2-arm64.apk) | 本机备份偶尔误报“授权已失效”的修复；夜间睡眠数据进备份；坚果云被限流时自动等待重试；夜里整理好就把“昨晚”写进当天推送文档。不改数据库。[详细更新日志](CHANGELOG.md#052--2026-11-18) |
-| **v0.5.1** | 2026-11-18 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) | 夜间睡眠（自动起止、鼾声 / 咳嗽 / 梦话、午睡与自定义时段、给医生的一页）；通话录音自动导入；一天的线索；外放默认也转写整理、可按 App 设置；会议纪要认不出人也能出；白天耗电大幅下降；小米升级安装确认修复。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#051--2026-11-18) |
 
 <details>
-<summary><b>📜 展开查看历史版本（v0.5.0 ～ v0.2.0）</b></summary>
+<summary><b>📜 展开查看历史版本（v0.5.1 ～ v0.2.0）</b></summary>
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
+| **v0.5.1** | 2026-11-18 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) | 夜间睡眠（自动起止、鼾声 / 咳嗽 / 梦话、午睡与自定义时段、给医生的一页）；通话录音自动导入；一天的线索；外放默认也转写整理、可按 App 设置；会议纪要认不出人也能出；白天耗电大幅下降；小米升级安装确认修复。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#051--2026-11-18) |
 | **v0.5.0** | 2026-11-17 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.0/TaoSheng-v0.5.0-arm64.apk) | 屏幕时间（录音卡用时、节奏图手机色带、事件“当时在用”、按日 / 按周详情）；外放内容不再当成你说的；随时打点；蓝牙麦放视频自动让出；自定义转写逐句时间与说话人；App 内更新日志与首页通知。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#050--2026-11-17) |
 | **v0.4.2** | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.2/TaoSheng-v0.4.2-arm64.apk) | 待办按日历看（周条、过期一键改到今天、待确认虚线、一周后合并）；一键加到手机日历；自定义转写慢速网络不再上传超时。[详细更新日志](CHANGELOG.md#042--2026-11-16) |
 | **v0.4.1** | 2026-11-16 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) | 本地转写被打断后接着转，改善鸿蒙长录音；搜索扩展到待办、记忆、寻物、专题、回顾、问问；同步文件夹“复制给智能体”；语音助手唤醒说明；原话页回到顶部。[详细更新日志](CHANGELOG.md#041--2026-11-16) |
@@ -436,6 +440,7 @@ $env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
 - [x] 屏幕时间与外放归属、随时打点、蓝牙麦让出
 - [x] 夜间睡眠与午睡、通话录音导入、一天的线索
 - [x] 睡眠声音细看与鼾声中断回听、豆包 Agent Plan、更新准备好再提醒
+- [x] 原话手改、专题边开边整理、录音长期保留、千问转写、大模型调用自适应
 
 **下一步：**
 
@@ -471,6 +476,11 @@ $env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
 - [@coaskyridi](https://github.com/coaskyridi)：在 [#46](https://github.com/0xCoach/TaoSheng/issues/46) 中反馈慢速链路下长音频分段转写频繁超时，促成 0.4.2 放宽自定义转写的上传与等待时限。
 - [@nickcheng](https://github.com/nickcheng)：在 [PR #49](https://github.com/0xCoach/TaoSheng/pull/49) 中修复 OpenAI gpt-6 系列模型检测被拒。
 - [@eightHundreds](https://github.com/eightHundreds)：在 [#52](https://github.com/0xCoach/TaoSheng/issues/52) 中提出豆包语音识别接入火山方舟 Agent Plan，并给出官方接口差异，促成 0.5.3 的“接入方式”。
+- [@4965898](https://github.com/4965898)：在 [#55](https://github.com/0xCoach/TaoSheng/issues/55) 中提出修改转写内容，促成 0.5.4 的原话手改，并帮忙测出闪退。
+- [@ethansunqing](https://github.com/ethansunqing)：在 [#60](https://github.com/0xCoach/TaoSheng/issues/60) 中报告长会议一直“整理中”，促成 0.5.4 的专题边开边整理。
+- [@Robs87](https://github.com/Robs87)：在 [#58](https://github.com/0xCoach/TaoSheng/issues/58) 中报告一直未整理，促成 0.5.4 的大模型调用自适应。
+- [@dinorah3a-code](https://github.com/dinorah3a-code)：在 [#59](https://github.com/0xCoach/TaoSheng/issues/59) 中详细排查魅族夜里记录不生效，促成 0.5.4 的修复。
+- [@Frank528](https://github.com/Frank528)：在 [#56](https://github.com/0xCoach/TaoSheng/issues/56) 中指出密钥“已保存”状态容易误会，促成 0.5.4 的密钥三种状态。
 - [@4965898](https://github.com/4965898)：在 [#34](https://github.com/0xCoach/TaoSheng/issues/34) 中提出首页关键词搜索，并反馈切换服务商需重启才生效的问题。
 - [@BulbLi](https://github.com/BulbLi)：在 [#18](https://github.com/0xCoach/TaoSheng/issues/18) 中提出接入 OpenCode Go 与自定义请求头。
 

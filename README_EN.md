@@ -17,7 +17,7 @@ No hardware to buy. No account. Your data stays on your phone.
 ![On-device](https://img.shields.io/badge/VAD%20%2F%20voiceprint-on--device-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v0.5.3-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v0.5.4-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.4/TaoSheng-v0.5.4-arm64.apk)
 
 [简体中文](README.md) | English
 
@@ -77,7 +77,8 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 **🗣️ Offline transcription + on-device voiceprints**
 
 - Fully offline SenseVoice on the phone, accelerated by the Snapdragon NPU
-- Or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan) and any custom OpenAI-compatible ASR, with per-sentence times and speakers and tap-to-replay
+- Or Doubao cloud (pay-as-you-go API, or the dedicated key of a Volcengine Ark Agent Plan), Alibaba Bailian Qwen (with speaker separation) and any custom OpenAI-compatible ASR, with per-sentence times and speakers and tap-to-replay
+- Long-press a misheard sentence to fix it in place; it's marked "corrected" and can be re-digested in one tap
 - On-device voiceprints tell you apart from people you know — long-press a line once and pick "who is this?"
 - Hotword correction and voiceprint sample management
 
@@ -121,7 +122,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 **📌 Topic recording, marks and automatic reviews**
 
 - Start a meeting, training, call·interview or voice-script session in one tap; schedule, pause or pick it afterwards
-- Long meetings are summarized in resumable parts, with notes even when attendees aren't recognized
+- Digest as you go: meetings are processed in 10-minute blocks while still running, so notes arrive soon after the end; only a changed block is redone, and notes come out even when attendees aren't recognized
 - Tap "📍 Mark" while recording or playing back: the moments around it are written up in more detail and the key audio is kept
 - Daily / weekly reviews and skill cards are generated automatically
 
@@ -146,6 +147,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 - A dozen built-in providers (DeepSeek, Doubao, Qwen, Kimi, GLM…) with balance checks and low-balance alerts
 - Custom request headers (OpenCode Go built in) and LAN self-hosted models for a fully local pipeline
 - With several models configured, a dead, offline or out-of-credit main model fails over seamlessly
+- Slow and reasoning models finish too: replies stream in with a live character count, a stalled batch is split smaller, and each model's comfortable batch size is learned
 
 ### 🤖 Built for geeks and AI agents
 
@@ -155,6 +157,7 @@ TaoSheng can use the phone mic or any Bluetooth audio input as its source. Hang 
 - Pushes are merged on your chosen interval and never touch the cloud when nothing changed
 - Tap "Copy for agent" on a sync folder and paste it into Claude Code, Codex or similar to give it read-only access to your memory folder
 - Delete the cloud-drive app password to revoke access any time
+- Keep recordings long-term: push audio to a cloud drive or a phone folder (SD card, USB drive), unpushed audio is never expired, with a daily transcript file; pushed files are yours to manage
 
 **🧩 Your own skills + encrypted incremental backup**
 
@@ -250,15 +253,16 @@ What can be pushed: daily reviews, to-do reminders, newly digested events, skill
 
 | Version | Date | Download | Notes |
 | --- | --- | --- | --- |
-| **v0.5.3** (latest) | 2026-11-19 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.3-arm64.apk) | Zoomable night sound map with the 3 loudest clips kept and snore pauses you can replay and confirm; new versions are prepared in the background and install in one tap; Doubao via a Volcengine Ark Agent Plan; Nutstore pushes merged on your interval and faster backups; much smaller problem reports. No database change. [Changelog (Chinese)](CHANGELOG.md#053--2026-11-19) |
+| **v0.5.4** (latest) | 2026-11-21 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.4/TaoSheng-v0.5.4-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.4-arm64.apk) | Edit transcript sentences; topics digest as you go so long meetings get notes quickly; keep recordings long-term (cloud drive or phone folder); Qwen ASR; slow and reasoning models finish digests; lower background power. Database upgrade, no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#054--2026-11-21) |
+| **v0.5.3** | 2026-11-19 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.3/TaoSheng-v0.5.3-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.3-arm64.apk) | Zoomable night sound map with the 3 loudest clips kept and snore pauses you can replay and confirm; new versions are prepared in the background and install in one tap; Doubao via a Volcengine Ark Agent Plan; Nutstore pushes merged on your interval and faster backups; much smaller problem reports. No database change. [Changelog (Chinese)](CHANGELOG.md#053--2026-11-19) |
 | **v0.5.2** | 2026-11-18 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.2/TaoSheng-v0.5.2-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.2-arm64.apk) | Fixes local backups occasionally failing with a false "folder access expired" error; night records included in backups; Nutstore backups wait and retry when rate-limited; "Last night" written to the day's pushed document as soon as the night is processed. No database change. [Changelog (Chinese)](CHANGELOG.md#052--2026-11-18) |
-| **v0.5.1** | 2026-11-18 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) | Nights (automatic sleep start / end, snoring, coughs and sleep talk, naps and custom windows, a page for your doctor); phone call recordings imported automatically; the day thread; playback transcribed by default with per-app settings; meeting notes even when attendees aren't recognized; much lower daytime battery use; Xiaomi install-prompt fix. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#051--2026-11-18) |
 
 <details>
-<summary><b>📜 Earlier versions (v0.5.0 – v0.2.0)</b></summary>
+<summary><b>📜 Earlier versions (v0.5.1 – v0.2.0)</b></summary>
 
 | Version | Date | Download | Notes |
 | --- | --- | --- | --- |
+| **v0.5.1** | 2026-11-18 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.1/TaoSheng-v0.5.1-arm64.apk) · [ModelScope mirror](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.1-arm64.apk) | Nights (automatic sleep start / end, snoring, coughs and sleep talk, naps and custom windows, a page for your doctor); phone call recordings imported automatically; the day thread; playback transcribed by default with per-app settings; meeting notes even when attendees aren't recognized; much lower daytime battery use; Xiaomi install-prompt fix. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#051--2026-11-18) |
 | **v0.5.0** | 2026-11-17 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.0/TaoSheng-v0.5.0-arm64.apk) | Screen time (phone time on the home card, a phone-usage band in the day rhythm, "using … at the time" on events, day / week details); played audio no longer written up as your own words; one-tap marks; Bluetooth mics yield to media; per-sentence timestamps and speakers for custom transcription; in-app changelog and home notices. Database upgrade; no direct downgrade. [Changelog (Chinese)](CHANGELOG.md#050--2026-11-17) |
 | **v0.4.2** | 2026-11-16 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.2/TaoSheng-v0.4.2-arm64.apk) | To-dos on a calendar (week strip, move overdue to today, pending shown dashed, later items grouped); add to the phone calendar in one tap; custom transcription no longer times out while uploading on slow links. [Changelog (Chinese)](CHANGELOG.md#042--2026-11-16) |
 | **v0.4.1** | 2026-11-16 | [GitHub APK](https://github.com/0xCoach/TaoSheng/releases/download/v0.4.1/TaoSheng-v0.4.1-arm64.apk) | On-device transcription resumes after interruptions; search extended to to-dos, memories, found things, topics, reviews and Ask; "Copy for agent" on sync folders; wake-word note; back-to-top on the transcript page. [Changelog (Chinese)](CHANGELOG.md#041--2026-11-16) |
@@ -439,6 +443,7 @@ More than two hundred task cards and their delivery notes are public in [`docs/�
 - [x] Screen time and playback attribution, marks, Bluetooth mics yielding to media
 - [x] Night sleep and naps, call-recording import, the day thread
 - [x] Zoomable night sound map with snore-pause replay, Doubao via Agent Plan, updates prepared before prompting
+- [x] Editable transcripts, digest-as-you-go topics, long-term recording retention, Qwen ASR, adaptive LLM calls
 
 **Next:**
 
@@ -474,6 +479,11 @@ More than two hundred task cards and their delivery notes are public in [`docs/�
 - [@coaskyridi](https://github.com/coaskyridi) — reported frequent timeouts when uploading long audio over slow links in [#46](https://github.com/0xCoach/TaoSheng/issues/46), which led to longer custom-transcription limits in 0.4.2.
 - [@nickcheng](https://github.com/nickcheng) — fixed model checks being rejected for OpenAI gpt-6 models in [PR #49](https://github.com/0xCoach/TaoSheng/pull/49).
 - [@eightHundreds](https://github.com/eightHundreds) — proposed connecting Doubao speech recognition through a Volcengine Ark Agent Plan in [#52](https://github.com/0xCoach/TaoSheng/issues/52), with the official interface differences, which became the "access mode" option in 0.5.3.
+- [@4965898](https://github.com/4965898) — asked for editable transcripts in [#55](https://github.com/0xCoach/TaoSheng/issues/55) and helped catch a crash, which became transcript editing in 0.5.4.
+- [@ethansunqing](https://github.com/ethansunqing) — reported long meetings stuck "digesting" in [#60](https://github.com/0xCoach/TaoSheng/issues/60), which led to digest-as-you-go topics in 0.5.4.
+- [@Robs87](https://github.com/Robs87) — reported digests never finishing in [#58](https://github.com/0xCoach/TaoSheng/issues/58), which led to adaptive LLM calls in 0.5.4.
+- [@dinorah3a-code](https://github.com/dinorah3a-code) — traced night capture not starting on Meizu in detail in [#59](https://github.com/0xCoach/TaoSheng/issues/59), fixed in 0.5.4.
+- [@Frank528](https://github.com/Frank528) — pointed out the misleading "saved" key state in [#56](https://github.com/0xCoach/TaoSheng/issues/56), which became the three key states in 0.5.4.
 - [@4965898](https://github.com/4965898) — requested home-screen keyword search and reported provider switching needing a restart in [#34](https://github.com/0xCoach/TaoSheng/issues/34).
 - [@BulbLi](https://github.com/BulbLi) — requested OpenCode Go and custom request headers in [#18](https://github.com/0xCoach/TaoSheng/issues/18).
 

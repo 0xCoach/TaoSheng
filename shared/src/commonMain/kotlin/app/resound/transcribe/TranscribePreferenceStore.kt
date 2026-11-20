@@ -19,9 +19,6 @@ class TranscribePreferenceStore(
     private val readLocalString: (String, String?) -> String?,
     private val saveLocalString: (String, String) -> Unit,
     private val clearNpuCheck: () -> Unit,
-    private val saveCustomFields: (String, String, CustomEndpointMode) -> Boolean,
-    private val validateEndpoint: (String, CustomEndpointMode) -> Unit,
-    private val saveKey: (String) -> Unit,
     private val sourceChanged: () -> Unit, private val refreshReady: () -> Unit,
 ) {
     private val _source = MutableStateFlow(runCatching { TranscribeSource.valueOf(readString("source", "Doubao")!!) }.onFailure {
@@ -51,37 +48,12 @@ class TranscribePreferenceStore(
         else -> null
     }
     fun recordNpuCheck(key: String, ok: Boolean) { saveLocalString("npuCheck", "${if (ok) "pass" else "fail"}:$key") }
-    val customEndpoint get() = readString("endpoint", "")!!
-    val customModel get() = readString("model", "")!!
-    /** 自定义地址的写法：自动补路径（OpenAI 兼容）或按填写的原样请求（MiniMax 等）。 */
-    private val _endpointMode = MutableStateFlow(runCatching { CustomEndpointMode.valueOf(readString("endpointMode", CustomEndpointMode.Auto.name)!!) }.onFailure {
-        FailureNotes.record("transcribe/TranscribePreferenceStore.kt:51", it)
-    }.getOrDefault(CustomEndpointMode.Auto))
-    val endpointMode = _endpointMode.asStateFlow()
-    val customEndpointMode get() = _endpointMode.value
-    /** 完整地址模式下要不要同时发热词（prompt）：MiniMax 等不认这个参数，默认不发。 */
-    private val _customPrompt = MutableStateFlow(readBoolean("customPrompt", false))
-    val customPrompt = _customPrompt.asStateFlow()
-    fun setCustomPrompt(on: Boolean) { check(saveBoolean("customPrompt", on)); _customPrompt.value = on; onChanged() }
     fun setLocalStatus(value: String) { _localStatus.value=value;saveLocalString("actual", value) }
     fun setSource(value: TranscribeSource) { saveString("source", value.name);_source.value=value
         if(!contains("realtime"))_realtime.value=value==TranscribeSource.Local
         sourceChanged();refreshReady();onChanged() }
     fun setBackend(value: LocalBackend) { saveString("backend", value.name);_backend.value=value;clearNpuCheck();setLocalStatus(if(value==LocalBackend
         .Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
-    fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = _endpointMode.value) {
-        validateEndpoint(endpoint, mode)
-        require(model.trim().isNotEmpty()) { "请填写模型名" }
-        saveCustomFields(endpoint.trim(), model.trim(), mode)
-        _endpointMode.value=mode
-        refreshReady(); onChanged()
-    }
-    fun saveCustomAll(endpoint: String, model: String, key: String, mode: CustomEndpointMode = _endpointMode.value) {
-        validateEndpoint(endpoint, mode)
-        require(model.trim().isNotEmpty()) { "请填写或选择模型" }
-        if(key.isNotBlank()) saveKey(key)
-        saveCustom(endpoint,model,mode)
-    }
     private val _interval = MutableStateFlow(readInt("interval", 30).takeIf { it in MIN_INTERVAL..MAX_INTERVAL } ?: 30)
     val intervalMinutes = _interval.asStateFlow()
     /** 实时转写：录完一段就转。没手动设过时，本机默认开、云端默认关（云端每段都上传，更耗电和流量） */

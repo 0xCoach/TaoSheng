@@ -58,8 +58,8 @@ class TranscribeSettings177Test {
         out += "invalid=${runCatching { s.setIntervalMinutes(-1) }.exceptionOrNull()?.message}"
         val before = changed; fail = true
         out += "wifiFailure=${runCatching { s.setWifiOnly(true) }.isFailure}/${s.wifiOnly.value}/unchanged=${before == changed}"
-        // 旧 saveCustom 忽略 commit 返回值；保留这一既有行为，不在搬家时顺手修正。
-        s.saveCustom("https://example.invalid/new", "new-model", CustomEndpointMode.Auto)
+        // 卡 212：保存失败必须报错，不能发布未落盘的配置。
+        assertTrue(runCatching { s.saveCustom("https://example.invalid/new", "new-model", CustomEndpointMode.Auto) }.isFailure)
         out += "customFailedCommit=${s.customEndpointMode}/${s.customEndpoint}/${s.customModel}"
         fail = false
         val again = AndroidTranscribeSettings(wrapped)

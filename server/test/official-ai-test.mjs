@@ -132,6 +132,7 @@ class Stmt {
     if (s.includes("r.user_id,u.username")) { const g = {}; for (const r of this._rows("ai_usage_requests", x => x.status === "settled")) { const k = r.user_id; g[k] = g[k] || { user_id: k, n: 0, p: 0, c: 0 }; g[k].n++; g[k].p += r.points; g[k].c += r.cost_milli; } return { results: Object.values(g).map(x => ({ user_id: x.user_id, username: this._row("users", u => u.id === x.user_id)?.username, n: x.n, p: x.p, c: x.c })) }; }
     if (s.includes("FROM ai_quota_periods q LEFT JOIN users")) return { results: this._rows("ai_quota_periods").sort((x, y) => y.period_start - x.period_start).slice(0, 300).map(q => ({ ...q, username: this._row("users", u => u.id === q.user_id)?.username })) };
     if (s.includes("FROM ai_usage_requests")) { const uid = s.includes("WHERE user_id=?") ? a[0] : null; return { results: this._rows("ai_usage_requests", x => !uid || x.user_id === uid).sort((x, y) => y.created_at - x.created_at).slice(0, 100) }; }
+    if (s.includes("SELECT expires_at FROM entitlements WHERE user_id=? AND capability='pro'")) return { results: this._rows("entitlements", x => x.user_id === a[0] && x.capability === "pro" && !x.revoked_at && (x.expires_at == null || x.expires_at > a[1])).map(x => ({ expires_at: x.expires_at })) };
     if (s.includes("SELECT DISTINCT capability")) return { results: [...new Set(this._rows("entitlements", x => x.user_id === a[0] && !x.revoked_at && (x.expires_at == null || x.expires_at > a[1])).map(x => x.capability))].map(c => ({ capability: c })) };
     if (s.includes("FROM login_attempts") || s.includes("FROM usage_ledger") || s.includes("redeem")) return { results: [] };
     throw new Error("shim all: " + s);
@@ -278,6 +279,15 @@ T.entitlements.find(e => e.id === "e1").starts_at = pstart;
 T.entitlements.find(e => e.id === "e1").expires_at = pstart + 30 * 86400;
 T.ai_quota_periods = T.ai_quota_periods.filter(p => !(p.user_id === uid && p.plan === "pro"));
 // 恢复 pro 期（quota 会重建）
+await j(await call(req("/ai/official/quota", "GET", null, authH), env));
+
+// ===== 9.5 Pro 到期 → 回 Free 点数（生命周期回归）=====
+const eRow = T.entitlements.find(e => e.id === "e1");
+const keepStart = eRow.starts_at, keepExp = eRow.expires_at;
+eRow.expires_at = nowS() - 60;
+qb = await j(await call(req("/ai/official/quota", "GET", null, authH), env));
+ok(qb.plan === "free" && qb.granted === 100, "Pro 到期后点数回 Free 档（每月 100）");
+eRow.starts_at = keepStart; eRow.expires_at = keepExp;
 await j(await call(req("/ai/official/quota", "GET", null, authH), env));
 
 // ===== 10. 管理分析 + 请求记录 =====

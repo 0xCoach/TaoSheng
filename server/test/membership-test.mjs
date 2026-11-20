@@ -102,6 +102,7 @@ class Stmt {
     if (s.includes("DISTINCT capability")) return { results: [...new Set(this._rows("entitlements", x => x.user_id === a[0] && !x.revoked_at && (x.expires_at == null || x.expires_at > a[1])).map(e => e.capability))].map(c => ({ capability: c })) };
     if (s.includes("SELECT id,device_id,device_name")) return { results: this._rows("sessions", x => x.user_id === a[0]) };
     if (s.includes("SELECT user_id,capability,expires_at FROM entitlements")) return { results: this._rows("entitlements", x => !x.revoked_at && (x.expires_at == null || x.expires_at > a[0])) };
+    if (s.includes("SELECT expires_at FROM entitlements WHERE user_id=? AND capability='pro'")) return { results: this._rows("entitlements", x => x.user_id === a[0] && x.capability === "pro" && !x.revoked_at && (x.expires_at == null || x.expires_at > a[1])).map(e => ({ expires_at: e.expires_at })) };
     if (s.includes("SELECT id,username,status,capabilities")) return { results: this._rows("users") };
     if (s.includes("redeem_codes GROUP BY")) return { results: [] };
     if (s.includes("FROM redeem_campaigns")) return { results: this._rows("redeem_campaigns") };
@@ -218,6 +219,43 @@ T.plans.push({ id: "free", name: "free", price_cents: 0, config: "{}" }, { id: "
   let lastReg = null;
   for (let i = 0; i < 6; i++) lastReg = await call(req("/auth/register", "POST", { username: `flood_${i}`, password: "password88", device_id: "d" }), env);
   ok(lastReg.status === 429, "register rate limited after 5/hour");
+
+  // ===== R6.3c 生命周期回归：注册Free → Pro → 到期回Free → 停用 的权限与提示 =====
+  T.login_attempts.length = 0; // 上一段限流用例已把 reg| 计数打满，回归段重新计数
+  const nowS = () => Math.floor(Date.now() / 1000);
+  const lc = await j(await call(req("/auth/register", "POST", { username: "life_cycle", password: "password88", device_id: "lc-dev" }), env));
+  let lcCaps = JSON.parse(lc.license.payload).caps;
+  ok(lcCaps.length === 6 && !lcCaps.includes("local_asr_minutes"), "L1 注册即 Free：license 仅基础 6 能力");
+  let mvLc = await j(await call(req("/auth/membership", "GET", null, { authorization: "Bearer " + lc.access_token }), env));
+  ok(mvLc.plan === "free" && mvLc.pro_until == null, "L2 Free 无 pro_until");
+  // 授予 Pro（与 grantPro 同构：pro + 4 项 pro 能力各一条权益行）
+  const uidLc = lc.account.id;
+  const entIds = ["pro", "local_asr_minutes", "cross_meeting_tracking", "advanced_project_analysis", "agent_workflow"]
+    .map((c, i) => { const id = `ent-lc-${i}`; T.entitlements.push({ id, user_id: uidLc, capability: c, source: "test", starts_at: nowS(), expires_at: nowS() + 30 * 86400, meta: null, created_at: nowS(), revoked_at: null }); return id });
+  const rfLc = await j(await call(req("/auth/refresh", "POST", { refresh_token: lc.refresh_token }), env));
+  lcCaps = JSON.parse(rfLc.license.payload).caps;
+  if (!(lcCaps.includes("local_asr_minutes") && JSON.parse(rfLc.license.payload).pro_until > nowS()))
+    console.log("   L3 dbg:", JSON.stringify(lcCaps), "pro_until:", JSON.parse(rfLc.license.payload).pro_until, "ents:", T.entitlements.filter(e => e.user_id === uidLc).map(e => e.capability + "@" + e.expires_at).join(","));
+  ok(lcCaps.includes("local_asr_minutes") && JSON.parse(rfLc.license.payload).pro_until > nowS(), "L3 Pro 后 license 含 pro 能力+pro_until");
+  mvLc = await j(await call(req("/auth/membership", "GET", null, { authorization: "Bearer " + rfLc.access_token }), env));
+  ok(mvLc.plan === "pro", "L4 membership 视图切 Pro");
+  // Pro 到期 → 回 Free
+  entIds.forEach(id => { T.entitlements.find(e => e.id === id).expires_at = nowS() - 60; });
+  const rfLc2 = await j(await call(req("/auth/refresh", "POST", { refresh_token: rfLc.refresh_token }), env));
+  lcCaps = JSON.parse(rfLc2.license.payload).caps;
+  ok(lcCaps.length === 6 && !lcCaps.includes("local_asr_minutes") && JSON.parse(rfLc2.license.payload).pro_until == null, "L5 Pro 到期 license 回基础 6 能力");
+  mvLc = await j(await call(req("/auth/membership", "GET", null, { authorization: "Bearer " + rfLc2.access_token }), env));
+  ok(mvLc.plan === "free" && mvLc.usage.free_limit_minutes === 1800, "L6 到期后回到 Free 1800 分钟");
+  // 停用 → 登录/刷新一律拒，提示明确
+  T.users.find(u => u.id === uidLc).status = "disabled";
+  const rfDis = await call(req("/auth/refresh", "POST", { refresh_token: rfLc2.refresh_token }), env);
+  ok(rfDis.status === 403, "L7 停用后 refresh -> 403");
+  const lgDis = await call(req("/auth/login", "POST", { username: "life_cycle", password: "password88", device_id: "lc-dev" }), env);
+  ok(lgDis.status === 403 && (await lgDis.json()).error === "account disabled", "L8 停用后 login -> 403 account disabled");
+  // 恢复 → 又能登录（管理台启用路径）
+  T.users.find(u => u.id === uidLc).status = "active";
+  const lgRe = await call(req("/auth/login", "POST", { username: "life_cycle", password: "password88", device_id: "lc-dev" }), env);
+  ok(lgRe.status === 200, "L9 恢复后可重新登录");
 }
 
 console.log(`\n${pass} PASS / ${fail} FAIL`);

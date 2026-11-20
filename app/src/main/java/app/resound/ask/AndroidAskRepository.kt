@@ -16,7 +16,9 @@ import app.resound.data.CaptureDatabase
 import app.resound.digest.AndroidDigestSettings
 import app.resound.digest.DigestPrompt
 import app.resound.digest.LlmClient
+import app.resound.digest.LlmPreset
 import app.resound.digest.LlmError
+import app.resound.digest.OFFICIAL_PROVIDER_ID
 import app.resound.digest.LlmException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -44,6 +46,15 @@ fun createAskRepository(
         { name, from, to -> if (AppGraph.isSituationReady) AppGraph.situation.staysAt(name, from, to) else places.staysAt(name, from, to) },
         { from, to -> places.placesDuring(from, to) })
     val changes = AskChanges(database, onChanged = { EmbeddingScheduler.enqueue(context) })
+    // 与 DigestRunner 同一口径：官方条目没有本地密钥，用条目的 hasKey 作就绪标记；普通服务商才查密钥/免密/备用。
+    fun gateOfficialOrKey(preset: LlmPreset, key: String) {
+        if (preset.id == OFFICIAL_PROVIDER_ID) {
+            val ready = settings.providers.saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true
+            if (!ready && !settings.failover.hasBackup(preset))
+                throw LlmException(LlmError.Auth, detail = "声声不息官方 AI 未就绪，请先登录并完成同意")
+        } else if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset))
+            throw LlmException(LlmError.Auth)
+    }
     val suggestions = AskSuggestions(
         context.getSharedPreferences("ask-suggestions", Context.MODE_PRIVATE),
         hasKey = { settings.hasKey.value || settings.failover.hasBackup(settings.preset) },
@@ -57,7 +68,7 @@ fun createAskRepository(
         },
         generate = { recent ->
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+            gateOfficialOrKey(preset, key)
             var prompt = 0L; var completion = 0L; var received = false
             try {
                 val reply = withTimeout(90_000) {
@@ -80,7 +91,7 @@ fun createAskRepository(
         val (preset, key, generations) = synchronized(settings.providers.guard) {
             Triple(settings.preset, readKey(), settings.providers.saved.value.associate { it.id to compatibility.generation(it.id) })
         }
-        if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+        gateOfficialOrKey(preset, key)
         val session = LlmFailover.StreamSession(preset, key).also { it.askFallback = true }
         fun generation() = generations[session.primary.id] ?: -1L
         var prefetching = false

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,7 +69,10 @@ fun ProvidersCard(providers: LlmProviders) {
     val checker = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance else null
     val balance = checker?.state?.collectAsStateWithLifecycle()?.value
     val threshold = checker?.threshold?.collectAsStateWithLifecycle()?.value ?: 0.0
+    // 每次进本页补拉一次官方状态：登录时刻若弱网失败，这里给二次机会（不抛错，失败静默保持现状）。
+    LaunchedEffect(Unit) { app.resound.AppGraph.officialAi.refreshStatus() }
     var editingLine by remember { mutableStateOf(false) }
+    var officialConsent by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
     var checkResult by remember(active) { mutableStateOf<Result<List<app.resound.digest.ModelCheckItem>>?>(null) }
@@ -87,11 +91,13 @@ fun ProvidersCard(providers: LlmProviders) {
             val on = p.id == active
             Row(Modifier.fillMaxWidth().springClick {
                 if (!on) {
-                    // 官方 AI 未就绪（未登录授权）时点一下不是选中一个用不了的条目，而是发起登录；
-                    // 授权成功后 officialReady 翻转，refreshOfficial 会自动把它设为当前。
-                    if (p.id == OFFICIAL_PROVIDER_ID && !p.hasKey)
-                        app.resound.AppGraph.auth.requestLogin(app.resound.auth.Capability.AiAnalysis, "官方 AI 需要登录授权后使用")
-                    else providers.activate(p.id)
+                    // 官方 AI 未就绪时分流：游客→登录；已登录未同意→同意页（同意后即可用）。
+                    // 授权/同意成功后 officialReady 翻转，refreshOfficial 自动把它设为当前。
+                    if (p.id == OFFICIAL_PROVIDER_ID && !p.hasKey) {
+                        if (app.resound.AppGraph.auth.status.value == app.resound.auth.AuthStatus.Guest)
+                            app.resound.AppGraph.auth.requestLogin(app.resound.auth.Capability.AiAnalysis, "官方 AI 需要登录授权后使用")
+                        else officialConsent = true
+                    } else providers.activate(p.id)
                 }
             }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(20.dp).clip(CircleShape).then(if (on) Modifier.background(c.accent) else Modifier.border(1.5.dp, c.separator, CircleShape)),
@@ -103,7 +109,9 @@ fun ProvidersCard(providers: LlmProviders) {
                     Text(p.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val rank = backups.indexOf(p.id)
                     Text(p.model + when {
-                        p.id == OFFICIAL_PROVIDER_ID -> if (p.hasKey) " · 点数制·登录即用" else " · 登录授权后可用"
+                        p.id == OFFICIAL_PROVIDER_ID -> if (p.hasKey) " · 点数制·登录即用"
+                            else if (app.resound.AppGraph.auth.status.value == app.resound.auth.AuthStatus.Guest) " · 登录授权后可用"
+                            else " · 同意后即可用"
                         !p.hasKey -> " · 未填密钥"
                         failoverOn && rank in 0..1 -> " · 备用 ${rank + 1}"
                         else -> ""
@@ -188,6 +196,7 @@ fun ProvidersCard(providers: LlmProviders) {
         Text("密钥分开保存在手机安全区里，不会显示。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
     }
     if (editingLine && checker != null) ThresholdSheet(threshold, { checker.setThreshold(it); editingLine = false }) { editingLine = false }
+    if (officialConsent) OfficialConsentSheet { officialConsent = false }
     if (adding) AddProviderSheet(providers, onPicked = { t -> adding = false; editing = draft(t) }) { adding = false }
     editing?.let { p -> ProviderSheet(providers, p, isNew = saved.none { it.id == p.id }, isActive = p.id == active) { editing = null } }
 }
@@ -215,6 +224,30 @@ private fun InlineKeyFill(providers: LlmProviders, p: SavedProvider) {
                     "可以用了"
                 }
                 busy = false
+            }
+        }
+    }
+}
+
+/** 已登录未同意时点官方条目：官方服务说明 + 一键同意；同意后服务端与本地同时记账，就绪沿自动设为当前 */
+@Composable
+private fun OfficialConsentSheet(onDismiss: () -> Unit) {
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    RsSheet("声声不息官方 AI", "点数制，登录即用，不用自己填密钥。", onDismiss = { if (!busy) onDismiss() }) {
+        Text("开启后，整理、问问、回顾等内容会发送到声声不息服务端，由官方配置的大模型处理并按点数计费；你的原始音频不离开手机。", style = RsType.body, color = c.textSecondary)
+        Text("随时可以换回自己配置的服务商，官方 AI 用不用由你决定。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp))
+        error?.let { Text(it, style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 10.dp)) }
+        ActionButton(if (busy) "开启中…" else "同意并启用", ActionKind.Primary,
+            Modifier.fillMaxWidth().padding(top = 16.dp), enabled = !busy) {
+            busy = true; error = null
+            scope.launch {
+                val r = runCatching { app.resound.AppGraph.officialAi.consent() }.getOrNull()
+                busy = false
+                if (r is app.resound.auth.AuthApi.Result.Ok) onDismiss()
+                else error = "没能连上服务，稍后再试"
             }
         }
     }

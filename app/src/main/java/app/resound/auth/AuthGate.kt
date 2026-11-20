@@ -39,6 +39,9 @@ class AuthGate(
     /** 会话被服务端判失效时的系统级提示回调（App 装配层挂通知栏）；reason 为给用户看的原因。 */
     var onSessionExpired: ((String) -> Unit)? = null
 
+    /** 登录/注册成功后的装配回调（AppGraph 挂：刷新官方 AI 状态→可能自动选中官方条目）。 */
+    var onAuthSuccess: (() -> Unit)? = null
+
     /**
      * 服务端拒绝会话（refresh 401-403 等）：清本地会话 + 停止敏感任务 + 立即请求登录面板 + 通知。
      * 不这么做的话用户只能在下次点受保护入口时撞墙——失效本身不可见，表现为"点什么都没反应"。
@@ -108,6 +111,7 @@ class AuthGate(
     fun afterAuthSuccess() {
         _loginRequested.value = null
         val a = pendingAction; pendingAction = null; a?.invoke()
+        onAuthSuccess?.invoke()
     }
 
     /** 验签并保存授权凭证；验签失败返回 false。 */

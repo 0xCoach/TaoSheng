@@ -50,8 +50,15 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
         val r = gate.officialConsent(version)
         if (r is AuthApi.Result.Ok) {
             prefs.edit().putInt("consentVersion", version).apply()
-            status = status?.copy(consented = true)
-            onStatusChanged(status)
+            val cur = status
+            if (cur == null) {
+                // 登录时的状态拉取若失败（弱网/冷启动），同意后必须补拉一次，
+                // 否则 ready() 永远 false、官方条目停在「同意后即可用」形成死锁。
+                refreshStatus()
+            } else {
+                status = cur.copy(consented = true)
+                onStatusChanged(status)
+            }
         }
         r
     }

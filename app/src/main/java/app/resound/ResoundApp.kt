@@ -259,6 +259,10 @@ class ResoundApp : Application() {
         AppGraph.llmFailover = digestSettings.failover
         digestSettings.providers.officialReady = { AppGraph.officialAi.ready() }
         AppGraph.officialAi.onStatusChanged = { digestSettings.providers.refreshOfficial() }
+        // 登录成功即刷新官方 AI 状态：已同意用户本轮就能自动选中官方（否则要等下次启动）。
+        AppGraph.auth.onAuthSuccess = { scope.launch { AppGraph.officialAi.refreshStatus() } }
+        // 登出/失效：重发布服务商列表，官方条目回到「登录授权后可用」。
+        AppGraph.auth.onSessionCleared = { controller.stop(); digestSettings.providers.refreshOfficial() }
         scope.launch { runCatching { AppGraph.officialAi.refreshStatus() } }
         val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things

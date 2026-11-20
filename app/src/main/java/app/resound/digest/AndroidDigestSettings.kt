@@ -16,6 +16,9 @@ class AndroidDigestSettings internal constructor(
 ) : DigestSettings {
     constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
         this(context, client, AndroidLlmProviders(context, client, recordUsage), recordUsage)
+    private val adaptivePrefs = context.getSharedPreferences("llm-batch-budget", Context.MODE_PRIVATE)
+    val batchBudget = LlmBatchBudget(AndroidLlmAdaptiveStore(adaptivePrefs, "budget:"))
+    val slowStreak = LlmSlowStreak(AndroidLlmAdaptiveStore(adaptivePrefs, "slow:"))
     val jsonStreamSupport = AndroidJsonStreamSupport(context)
     val failover = LlmFailover(context, providers)
     val failoverEnabled get() = failover.enabled

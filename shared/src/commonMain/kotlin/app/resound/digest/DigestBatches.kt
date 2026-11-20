@@ -9,13 +9,14 @@ object DigestBatches {
         /** 每句除正文外的编号、时间、说话人（如“[123] 12:34:56 说话人1：”）约 20 字，留点余量 */
         const val LINE_OVERHEAD_CHARS = 30
 
-        fun <T> batches(lines: List<T>, text: (T) -> String): List<List<T>> {
+        fun <T> batches(lines: List<T>, maxChars: Int = MAX_BATCH_CHARS, text: (T) -> String): List<List<T>> {
+            require(maxChars > 0)
             val chunks = mutableListOf<MutableList<T>>()
             var chars = 0
             for (line in lines) {
                 val size = text(line).length + LINE_OVERHEAD_CHARS
                 if (size > MAX_BATCH_CHARS) throw DigestBatchLimitException()
-                if (chunks.isEmpty() || chunks.last().size >= MAX_LINES || chars + size > MAX_BATCH_CHARS) {
+                if (chunks.isEmpty() || chunks.last().size >= MAX_LINES || chars + size > maxChars) {
                     chunks += mutableListOf<T>(); chars = 0
                 }
                 chunks.last() += line; chars += size

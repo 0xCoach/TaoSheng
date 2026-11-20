@@ -96,7 +96,7 @@ class DigestRunner(
             val chunks = verifiedPendingChunks(preset)
             if (!resolveInFlight(undigested, manual))
                 return needsUser("上次整理结果未能保存，已暂停自动请求；请检查存储后点“现在整理”重试")
-            appendReadyChunks(chunks, undigested, forceNow)
+            appendReadyChunks(chunks, undigested, forceNow, preset)
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
             val result = runBatches(chunks, preset, key) { madeEvents = true }
             currentCoroutineContext().ensureActive()
@@ -152,11 +152,11 @@ class DigestRunner(
     }
 
     private suspend fun appendReadyChunks(chunks: MutableList<List<TranscriptLineEntity>>,
-                                          undigested: List<TranscriptLineEntity>, force: Boolean) {
+                                          undigested: List<TranscriptLineEntity>, force: Boolean, preset: LlmPreset) {
         val replayIds = chunks.flatten().map { it.id }.toSet()
         for (session in sessions(undigested.filterNot { it.id in replayIds }, gapMillis())) {
             val ready = if (closed(session, force)) session else settledPrefix(session)
-            chunks.addAll(batches(ready))
+            chunks.addAll(DigestBatches.batches(ready, settings.batchBudget.current(preset, settings.deepThinking.value)) { it.text })
         }
     }
 
@@ -210,7 +210,17 @@ class DigestRunner(
         retryFailure = true
         val batchId = identity(lines)
         var storedId = batchId
+        var usedPreset = preset
+        var requested = false
         return try {
+            // 当前轮后续批次也读取最新预算；已经付费并缓存的结果必须直接重放。
+            if (cached(lines, preset) == null) {
+                val resized = DigestBatches.batches(lines, settings.batchBudget.current(preset, settings.deepThinking.value)) { it.text }
+                if (resized.size > 1) {
+                    for (part in resized) digest(part, preset, key, onEvents)?.let { return it }
+                    return null
+                }
+            }
             val recordings = playbackMillis(lines.map { it.segmentId }.distinct())
             val contextPrompt = SituationPrompt(settings.includeSituation.value, situation,
                 recordings.associate { it.id to it.playbackMillis }, marks, recordings)
@@ -227,7 +237,27 @@ class DigestRunner(
                 val user = (thingBatch?.input?.let { "$it\n\n以下为本次新原话与整理参考：\n" } ?: "") + input
                 check(prefs.edit().putString("inflight", batchId).putString("inflight-lines", lines.joinToString(",") { it.id.toString() }).commit())
                 val received = try {
-                    settings.failover.chat("整理", preset, key, system, user, request) { usage ->
+                    val adaptiveRequest: suspend (LlmPreset, String, String, String) -> LlmReply = { p, secret, a, b ->
+                        usedPreset = p; requested = true
+                        var thinkingChars = 0
+                        try {
+                            val reply = kotlinx.coroutines.withContext(app.resound.net.LlmReceiveProgress { reasoning, content ->
+                                thinkingChars = reasoning
+                            }) { request(p, secret, a, b) }
+                            thinkingChars = maxOf(thinkingChars, reply.reasoningChars)
+                            settings.slowStreak.result(p, false)
+                            reply
+                        } catch (e: LlmException) {
+                            if (thinkingChars > 0) settings.batchBudget.observedThinking(p, settings.deepThinking.value)
+                            settings.batchBudget.failed(p, e.type in setOf(LlmError.TooSlow, LlmError.Truncated))
+                            val hint = settings.slowStreak.result(p, e.type == LlmError.TooSlow)
+                            if (hint != null) throw LlmException(e.type, e.status, hint, e.usage, e.truncated)
+                            throw e
+                        } finally {
+                            if (thinkingChars > 0) settings.batchBudget.observedThinking(p, settings.deepThinking.value)
+                        }
+                    }
+                    settings.failover.chat("整理", preset, key, system, user, adaptiveRequest) { usage ->
                         dao.addUsage(LocalDate.now().toString(), usage.promptTokens, usage.completionTokens, app.resound.usage.UsagePurpose.Digest)
                     }.also { actualModels[batchId] = it.actualModel ?: preset.model
                         it.diagnostics?.let { trace -> responseTraces[batchId] = trace } }
@@ -281,6 +311,7 @@ class DigestRunner(
             if (events.isNotEmpty()) onEvents()
             runCatching { app.resound.search.EmbeddingScheduler.enqueue(appContext) }
             clearFailures(lines.first().id)
+            if (requested) settings.batchBudget.succeeded(usedPreset)
             null
         } catch (e: CancellationException) {
             throw e
@@ -289,6 +320,7 @@ class DigestRunner(
         } catch (e: LlmException) {
             diagnostics.error(e.type, now())
             failureDetail = e.detail
+            if (e.type == LlmError.Format) settings.batchBudget.failed(usedPreset, shrink = false)
             if (e.type in setOf(LlmError.Format, LlmError.TooSlow, LlmError.Truncated)) {
                 dao.removePendingDigest(storedId)
                 actualModels.remove(storedId)

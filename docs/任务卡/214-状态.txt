@@ -1,1 +1,1 @@
-DONE：卡214全部非界面完成；69个相关用例通过，Debug/Release与iOS共用模块编译通过。未改界面和数据库，未联网访问真实服务、未操作手机、未推送。通知open=push导航及其他界面接入由Claude完成，真机待负责人验收。
+DONE：审核后追加第2条非界面改动完成：按通道控制隐私远端删除、bytes核对、manual清单与重试/续做；修正audioCalls默认false相关旧用例。新增5个用例，28个相关用例通过；共用边界、shared:check、Debug/Release及iOS共用模块编译通过。交付说明已追加，证据保存在214-证据/审核后追加。未改ui/MainActivity、数据库或tools/check_ios.sh；未访问真实服务、未操作手机、未推送；真机待负责人验收。

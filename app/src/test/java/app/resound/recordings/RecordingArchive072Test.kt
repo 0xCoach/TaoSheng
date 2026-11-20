@@ -71,6 +71,7 @@ class RecordingArchive072Test {
     }
     private class Remote : RecordingRemote {
         val audio = mutableListOf<String>(); val text = mutableListOf<String>()
+        override suspend fun size(path: String): Long? = error("本用例不应查询大小")
         override suspend fun audio(path: String, file: File) { audio += path }
         override suspend fun text(path: String, content: String) { text += content }
     }

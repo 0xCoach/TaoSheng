@@ -21,6 +21,7 @@ internal class S3FolderRemote(private val s3: S3Client, private val folder: Stri
     override fun directories(path: String) {} // S3 无实体目录。
     override fun put(path: String, content: String, state: PushSyncState) = s3.putText(key(path), content)
     override fun delete(path: String) = s3.deleteObject(key(path))
+    fun size(path: String): Long? = s3.objectLength(key(path))
     fun audio(path: String, file: File) {
         s3.putObject(key(path), file)
         if (s3.objectLength(key(path)) != file.length()) throw PushFailure("录音大小核对失败，稍后自动重试")

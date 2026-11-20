@@ -1,0 +1,19 @@
+{
+  "baseline": "5949b6659353572f35e1a3fcadc526e3121ca06e",
+  "forbiddenChanges": [],
+  "changedFiles": [
+    "app/src/main/java/app/resound/backup/S3Client.kt",
+    "app/src/main/java/app/resound/push/LocalFolderStorage.kt",
+    "app/src/main/java/app/resound/push/S3FolderRemote.kt",
+    "app/src/main/java/app/resound/recordings/RecordingAudioPush.kt",
+    "app/src/main/java/app/resound/recordings/RecordingUpload.kt",
+    "app/src/test/java/app/resound/push/LocalFolder214Test.kt",
+    "app/src/test/java/app/resound/recordings/Recording214Test.kt",
+    "app/src/test/java/app/resound/recordings/RecordingArchive072Test.kt",
+    "\"docs/\\344\\273\\273\\345\\212\\241\\345\\215\\241/214-\\344\\272\\244\\344\\273\\230\\350\\257\\264\\346\\230\\216.md\"",
+    "\"docs/\\344\\273\\273\\345\\212\\241\\345\\215\\241/214-\\347\\212\\266\\346\\200\\201.txt\"",
+    "shared/src/commonMain/kotlin/app/resound/push/PushContract.kt",
+    "shared/src/commonMain/kotlin/app/resound/recordings/RecordingPrivacyRules.kt",
+    "shared/src/jvmTest/kotlin/app/resound/recordings/RecordingKeep214Test.kt"
+  ]
+}

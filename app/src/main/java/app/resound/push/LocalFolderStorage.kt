@@ -3,6 +3,7 @@ package app.resound.push
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import android.provider.DocumentsContract.Document as DocumentColumns
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -12,6 +13,7 @@ import java.security.MessageDigest
 internal interface FolderDocuments {
     fun directories(path: String)
     fun write(path: String): OutputStream
+    fun size(path: String): Long?
     fun read(path: String): InputStream?
     fun delete(path: String)
     fun rename(from: String, to: String)
@@ -46,6 +48,32 @@ internal class SafFolderDocuments(private val context: Context, tree: String) : 
         check(file.isFile)
         return checkNotNull(context.contentResolver.openInputStream(file.uri))
     }
+    override fun size(path: String): Long? {
+        val parts = path.split('/')
+        require(parts.none { it.isBlank() || it == "." || it == ".." || '\\' in it })
+        var document = root().uri
+        // DocumentFile 的 findFile/length 会吞查询错误；直接查询，区分缺文件与权限/存储失败。
+        for ((index, name) in parts.withIndex()) {
+            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(document,
+                android.provider.DocumentsContract.getDocumentId(document))
+            var found: Uri? = null
+            context.contentResolver.query(children, arrayOf(DocumentColumns.COLUMN_DOCUMENT_ID, DocumentColumns.COLUMN_DISPLAY_NAME,
+                DocumentColumns.COLUMN_MIME_TYPE, DocumentColumns.COLUMN_SIZE), null, null, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(1) != name) continue
+                    found = android.provider.DocumentsContract.buildDocumentUriUsingTree(document, cursor.getString(0))
+                    if (index == parts.lastIndex) {
+                        check(cursor.getString(2) != DocumentColumns.MIME_TYPE_DIR && !cursor.isNull(3))
+                        return cursor.getLong(3).also { check(it >= 0) }
+                    }
+                    check(cursor.getString(2) == DocumentColumns.MIME_TYPE_DIR)
+                    break
+                }
+            } ?: error("无法查询文件夹")
+            document = found ?: return null
+        }
+        return null
+    }
     override fun delete(path: String) {
         val (dir, name) = parent(path, false)
         dir?.findFile(name)?.let { check(it.isFile && it.delete()) }
@@ -66,6 +94,7 @@ internal class LocalFolderStorage(private val docs: FolderDocuments) : FolderSto
     override fun directories(path: String) = available { docs.directories(path) }
     override fun delete(path: String) = available { docs.delete(path) }
     override fun put(path: String, content: String, state: PushSyncState) = text(path, content)
+    fun size(path: String): Long? = available { docs.size(path) }
     fun audio(path: String, file: File, checkActive: () -> Unit = {}) = writeVerified(path, { file.inputStream() }, checkActive)
     fun text(path: String, content: String) = writeVerified(path, { content.byteInputStream(Charsets.UTF_8) })
     private fun writeVerified(path: String, source: () -> InputStream, checkActive: () -> Unit = {}) = available {

@@ -88,7 +88,7 @@ internal class RecordingAudioPush(
 
     val pendingDeletes: Flow<List<PendingRemoteDelete>> = revision.map { gate.withLock { pending(journal()) } }.flowOn(Dispatchers.IO)
     private fun pending(j: RecordingUploadState) = j.records.keys().asSequence().map { key -> j.records.getJSONObject(key).let {
-        PendingRemoteDelete(it.getString("channelName"), it.getString("path"), it.getLong("channelId"))
+        PendingRemoteDelete(it.getString("channelName"), it.getString("path"), it.getLong("channelId"), it.optBoolean("manual"))
     } }.toList().distinct()
     suspend fun dismiss(channelId: Long, path: String) = gate.withLock {
         val j = journal()
@@ -114,9 +114,15 @@ internal class RecordingAudioPush(
                 for (plan in RecordingPrivacyPlan.create(ids.toSet(), rows, dailyDays.toSet(),
                     if (c?.kind == PushKind.LocalFolder) state.dirtyDays.keys().asSequence().toSet() else emptySet())) {
                     val key = sha256("$id|$destination|${plan.path}")
+                    val record = records.getJSONObject(plan.segment.toString())
+                    val daily = plan.path == RecordingKeepRules.dailyPath(plan.day)
+                    val manual = !daily && RecordingPrivacyDeleteRules.manual(c?.subscription?.audioPrivacyDelete == true, plan.path.endsWith(".part"))
                     j.records.put(key, org.json.JSONObject().put("channelId", id)
                         .put("channelName", c?.name ?: state.json.optString("channelName", "已删除通道"))
-                        .put("path", plan.path).put("destination", destination).put("segment", plan.segment))
+                        .put("path", plan.path).put("destination", destination).put("segment", plan.segment)
+                        .put("audioPath", record.getString("path")).put("bytes", record.opt("bytes"))
+                        .put("manual", manual || j.records.optJSONObject(key)?.optBoolean("manual") == true)
+                        .put("audioDeleteVerified", j.records.optJSONObject(key)?.optBoolean("audioDeleteVerified") == true))
                     state.dirtyDays.put(plan.day, true)
                 }
             }
@@ -135,6 +141,7 @@ internal class RecordingAudioPush(
             return object : RecordingRemote {
                 override suspend fun audio(path: String, file: File) { val coroutine = currentCoroutineContext(); store.audio(path, file) { coroutine.ensureActive() } }
                 override suspend fun text(path: String, content: String) = store.text(path, content)
+                override suspend fun size(path: String): Long? = store.size(path)
                 override suspend fun delete(path: String) = store.delete(path)
             }
         }
@@ -143,49 +150,103 @@ internal class RecordingAudioPush(
             object : RecordingRemote {
                 override suspend fun audio(path: String, file: File) { currentCoroutineContext().ensureActive(); store.audio(path, file); currentCoroutineContext().ensureActive() }
                 override suspend fun text(path: String, content: String) = store.text(path, content)
+                override suspend fun size(path: String): Long? = store.size(path)
                 override suspend fun delete(path: String) = store.delete(path)
             }
         } ?: RecordingDav(values)
     }
     suspend fun retryDeletes(): Boolean = gate.withLock {
         val j = journal(); var retry = false
+        val attempted = mutableSetOf<String>()
         for (key in j.records.keys().asSequence().toList()) {
-            val item = j.records.getJSONObject(key)
+            if (!attempted.add(key)) continue
+            val item = j.records.optJSONObject(key) ?: continue
+            if (item.optBoolean("manual")) continue
             try {
-                val pair = channels.resolveAudio(item.getLong("channelId")) ?: continue
-                if (!RecordingPrivacyPlan.mayRetry(item.getString("destination"), folderIdentity(pair.second))) continue
+                val channelId = item.getLong("channelId")
+                val channel = channels.channels.value.find { it.id == channelId }
                 val path = item.getString("path")
                 if (!recordingPath(path, text = true)) continue
-                val state = state(pair.first.id)
                 val day = path.split('/')[1]
+                val daily = path == RecordingKeepRules.dailyPath(day)
+                if (!daily && RecordingPrivacyDeleteRules.manual(channel?.subscription?.audioPrivacyDelete == true, path.endsWith(".part"))) {
+                    item.put("manual", true); j.save(); continue
+                }
+                if (!daily && (!item.has("bytes") || item.isNull("bytes") || item.optLong("bytes", -1) < 0 ||
+                        !RecordingPrivacyRules.owned(item.optString("audioPath")))) {
+                    item.put("manual", true)
+                    FailureNotes.note("recordings/privacyDelete/MissingBytes")
+                    j.save(); continue
+                }
+                val pair = channels.resolveAudio(channelId) ?: continue
+                if (!RecordingPrivacyPlan.mayRetry(item.getString("destination"), folderIdentity(pair.second))) continue
+                val state = state(channelId)
                 val remote = remote(pair.first, pair.second)
-                if (path == RecordingKeepRules.dailyPath(day)) {
+                val completedKeys: List<String>
+                if (daily) {
                     val content = RecordingKeepRules.dailyText(day, load().filter { it.day.toString() == day && it.completed && state.uploaded(it.id) }.map {
                         state.path(it).getString("path").substringAfterLast('/') to it.dailyLines
                     })
                     remote.text(path, content)
                     state.dailyHash.put(day, sha256(content)); state.dirtyDays.remove(day)
-                } else remote.delete(path)
+                    completedKeys = listOf(key)
+                } else {
+                    // 新清单自带原音频和大小；旧清单没有凭据时转人工，绝不直接删 txt。
+                    val audio = item.optString("audioPath")
+                    val group = j.records.keys().asSequence().filter { candidate ->
+                        j.records.getJSONObject(candidate).let { row ->
+                            row.getLong("channelId") == channelId && row.optString("destination") == item.optString("destination") &&
+                                row.optString("audioPath") == audio && row.getString("path") in RecordingPrivacyRules.files(audio)
+                        }
+                    }.toList().ifEmpty { listOf(key) }
+                    attempted.addAll(group)
+                    if (group.any { j.records.getJSONObject(it).optBoolean("manual") }) {
+                        group.forEach { j.records.getJSONObject(it).put("manual", true) }; j.save(); continue
+                    }
+                    val bytes = if (item.has("bytes") && !item.isNull("bytes")) item.getLong("bytes") else null
+                    val check = if (bytes == null || !RecordingPrivacyRules.owned(audio)) RecordingDeleteCheck.MissingBytes
+                        else RecordingPrivacyDeleteRules.check(bytes, remote.size(audio))
+                    when (check) {
+                        RecordingDeleteCheck.MissingBytes, RecordingDeleteCheck.SizeMismatch -> {
+                            group.forEach { j.records.getJSONObject(it).put("manual", true) }
+                            FailureNotes.note("recordings/privacyDelete/$check")
+                            j.save(); continue
+                        }
+                        RecordingDeleteCheck.Delete -> {
+                            // 核对凭据先落盘；删音频后即使进程中断，也能继续处理同名 txt。
+                            group.forEach { j.records.getJSONObject(it).put("audioDeleteVerified", true) }; j.save()
+                            remote.delete(audio)
+                        }
+                        RecordingDeleteCheck.Missing -> Unit
+                    }
+                    if (check == RecordingDeleteCheck.Delete || item.optBoolean("audioDeleteVerified")) {
+                        val text = RecordingPrivacyRules.textPath(audio)
+                        if (group.any { j.records.getJSONObject(it).getString("path") == text }) remote.delete(text)
+                    }
+                    completedKeys = group
+                }
                 // 先保存状态，再移除完成凭据；进程中断只会幂等重做这个精确文件。
-                state.save(); j.records.remove(key); j.save()
+                state.save(); completedKeys.forEach { j.records.remove(it) }; j.save()
                 fun removeFinished(records: org.json.JSONObject) {
                     records.keys().asSequence().toList().filter { j.tombstones.has(it) }.forEach { segment ->
                         val audio = records.getJSONObject(segment).getString("path")
                         if (j.records.keys().asSequence().none { j.records.getJSONObject(it).let { r ->
-                                r.getLong("channelId") == pair.first.id && r.getString("path") in RecordingPrivacyRules.files(audio) } }) records.remove(segment)
+                                r.getLong("channelId") == channelId && r.getString("path") in RecordingPrivacyRules.files(audio) } }) records.remove(segment)
                     }
                 }
                 removeFinished(state.records)
                 state.json.optJSONArray("history")?.let { a -> repeat(a.length()) { removeFinished(a.getJSONObject(it).getJSONObject("records")) } }
                 state.save()
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { retry = true }
+            catch (e: Exception) { FailureNotes.record("recordings/privacyDelete/retry", e); retry = true }
         }
         revision.value++; retry
     }
     private fun scheduleDeletes() {
+        val records = journal().records
+        if (records.keys().asSequence().none { !records.getJSONObject(it).optBoolean("manual") }) return
         enqueueDeletes?.let { it(); return }
-        if (journal().records.length() > 0) WorkManager.getInstance(context).enqueueUniqueWork("recording-privacy-deletes", ExistingWorkPolicy.KEEP,
+        WorkManager.getInstance(context).enqueueUniqueWork("recording-privacy-deletes", ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<RecordingRemoteDeleteWorker>()
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
     }
@@ -215,7 +276,7 @@ internal class RecordingAudioPush(
             prepare(channel, state, folderIdentity(values))
             // 清单处理完成前不重建日文件，避免先重建再被迟到的删除任务删掉。
             val pending = journal().records
-            if (pending.keys().asSequence().any { pending.getJSONObject(it).let { row -> row.getLong("channelId") == id && row.optString("destination") == folderIdentity(values) } }) { scheduleDeletes(); return@withLock true }
+            if (pending.keys().asSequence().any { pending.getJSONObject(it).let { row -> !row.optBoolean("manual") && row.getLong("channelId") == id && row.optString("destination") == folderIdentity(values) } }) { scheduleDeletes(); return@withLock true }
             val rows = load()
             val count = RecordingUploader(state, remote(channel, values)).run(rows, channel.subscription, System.currentTimeMillis()) {
                 channels.channels.value.find { it.id == id } == channel

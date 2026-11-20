@@ -64,7 +64,11 @@ internal class S3Client(
         checkSize(source.length())
         request("PUT", url(key), source.asRequestBody(), BackupArchive.sha(source)).close()
     }
-    internal fun objectLength(key: String): Long? = request("HEAD", url(key)).use { it.header("Content-Length")?.toLongOrNull() }
+    internal fun objectLength(key: String): Long? = request("HEAD", url(key), missing = true).use {
+        if (it.code == 404) { checkBucket(); null }
+        else it.header("Content-Length")?.toLongOrNull()?.takeIf { length -> length >= 0 }
+            ?: throw BackupFailure("S3 未返回文件大小，稍后自动重试")
+    }
     internal fun putText(key: String, value: String, headers: Map<String, String> = emptyMap()) {
         val bytes = value.toByteArray(Charsets.UTF_8); checkSize(bytes.size.toLong())
         request("PUT", url(key), bytes.toRequestBody(), S3Signing.hash(bytes), headers = headers).close()

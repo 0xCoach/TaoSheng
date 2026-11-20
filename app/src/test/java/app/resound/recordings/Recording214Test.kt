@@ -33,9 +33,12 @@ class Recording214Test {
     }
     private open class Remote: RecordingRemote {
         val texts = mutableMapOf<String,String>(); var audio=0; val deleted = mutableListOf<String>(); var failDelete=false
+        var length:Long?=5; var sizeCalls=0; var failTextDelete=false
+        override suspend fun size(path:String):Long? { sizeCalls++; if(failDelete) error("offline"); return length }
         override suspend fun audio(path:String,file:File) { audio++ }
         override suspend fun text(path:String,content:String) { if(failDelete) error("offline"); texts[path]=content }
-        override suspend fun delete(path:String) { if(failDelete) error("offline"); deleted+=path }
+        override suspend fun delete(path:String) { if(failDelete || failTextDelete && path.endsWith(".txt")) error("offline"); deleted+=path
+            if (path.endsWith(".ogg")) length=null }
     }
     @Test fun dailyWaitsUntilTomorrowAndRewritesAfterEditWithoutAudio() = runBlocking {
         val row = row(); val state=RecordingUploadState(File(root,"state.json")); val remote=Remote()
@@ -51,13 +54,14 @@ class Recording214Test {
         uploader.run(listOf(changed),sub,now)
         assertEquals(1,remote.audio); assertTrue(remote.texts.values.single().contains("我：修改"))
         assertEquals(1,state.records.getJSONObject("1").getInt("verified"))
+        assertEquals(5L,state.records.getJSONObject("1").getLong("bytes"))
     }
     @Test fun davUsesPartPropfindAndMoveAndRejectsMissingOrWrongLength() = runBlocking {
-        val calls=mutableListOf<Request>(); var length:String?="5"
+        val calls=mutableListOf<Request>(); var length:String?="5"; var responseCode:Int?=null
         val client=OkHttpClient.Builder().addInterceptor { chain ->
             val request=chain.request(); calls+=request
             val xml="<d:multistatus xmlns:d=\"DAV:\"><d:response><d:propstat><d:prop>${length?.let { "<d:getcontentlength>$it</d:getcontentlength>" }.orEmpty()}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>"
-            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(if(request.method=="PROPFIND")207 else 201).message("fake").apply { if(request.method == "HEAD" && length != null) header("Content-Length", length!!) }.body(xml.toResponseBody()).build()
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(responseCode ?: if(request.method=="PROPFIND")207 else 201).message("fake").apply { if(request.method == "HEAD" && length != null) header("Content-Length", length!!) }.body(xml.toResponseBody()).build()
         }.build()
         val remote=RecordingDav(mapOf("url" to "https://example.invalid/dav/","folder" to "archive","account" to "test","password" to "test"),client)
         val row=row(); val path="录音/$day/${row.stem}.ogg"
@@ -70,6 +74,22 @@ class Recording214Test {
         calls.clear(); length="5"; s3.audio(path,row.file)
         assertEquals(listOf("PUT","HEAD"),calls.map { it.method })
         for (bad in listOf(null,"4")) { length=bad; assertTrue(runCatching { s3.audio(path,row.file) }.isFailure) }
+        for (bad in listOf(null,"-1")) {
+            length=bad
+            assertTrue(runCatching { remote.size(path) }.isFailure)
+            assertTrue(runCatching { s3.size(path) }.isFailure)
+        }
+        responseCode=404; assertNull(remote.size(path))
+        // S3 的对象 404 还须确认桶可访问。
+        val missingClient=OkHttpClient.Builder().addInterceptor { chain ->
+            val request=chain.request(); calls+=request
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+                .code(if(request.url.encodedPath.endsWith("/")) 200 else 404).message("fake").body("".toResponseBody()).build()
+        }.build()
+        val missingS3=S3FolderRemote(app.resound.backup.S3Client(app.resound.backup.S3Settings("custom", "https://example.invalid", "region", "bucket", "", true), "test", "test", missingClient), "archive")
+        assertNull(missingS3.size(path))
+        responseCode=403
+        assertTrue(runCatching { remote.size(path) }.isFailure); assertTrue(runCatching { s3.size(path) }.isFailure)
         assertFalse(calls.any { it.method=="GET" })
     }
     @Test fun verificationFailureNeverAcknowledgesAndRetryUsesSamePath() = runBlocking {
@@ -90,17 +110,18 @@ class Recording214Test {
     @Test fun privacyPersistsExactFilesAndRetriesAfterRestartWithoutReupload() = runBlocking {
         val channels=channels()
         val id=channels.saveWithSubscription(null,PushKind.LocalFolder,"手机",mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder"),
-            PushSubscription(audio=AudioPush.All),PushFormat.Markdown,false).getOrThrow()
+            PushSubscription(audio=AudioPush.All,audioPrivacyDelete=true),PushFormat.Markdown,false).getOrThrow()
         val row=row(); val file=File(context.filesDir,"recording-uploads/$id.json")
-        val state=RecordingUploadState(file); val record=state.path(row); record.put("audio",true); state.dailyHash.put(day.toString(),"old-content"); state.save()
+        val state=RecordingUploadState(file); val record=state.path(row); record.put("audio",true).put("bytes",5L); state.dailyHash.put(day.toString(),"old-content"); state.save()
         val remote=Remote().apply { failDelete=true }
         fun runtime()=RecordingAudioPush(context,channels,{listOf(row)},{_,_->remote},{})
         val runtime=runtime()
         runtime.withPrivacy(listOf(1)) { app.resound.privacy.ForgetResult(1,0,0,0) }
         assertEquals(3,runtime.pendingDeletes.first().size); assertTrue(runtime.retryDeletes())
+        assertTrue(runtime.pendingDeletes.first().none { it.manual })
         val restored=runtime(); assertEquals(3,restored.pendingDeletes.first().size)
         channels.saveWithSubscription(id,PushKind.LocalFolder,"手机",mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder"),
-            PushSubscription(audio=AudioPush.Off),PushFormat.Markdown,false).getOrThrow()
+            PushSubscription(audio=AudioPush.Off,audioPrivacyDelete=true),PushFormat.Markdown,false).getOrThrow()
         remote.failDelete=false; assertFalse(restored.retryDeletes())
         assertEquals(RecordingPrivacyRules.files(record.getString("path")).toSet(),remote.deleted.toSet())
         assertTrue(restored.pendingDeletes.first().isEmpty()); assertEquals(0,RecordingUploadState(file).records.length())
@@ -112,8 +133,66 @@ class Recording214Test {
         state.path(row()).put("audio",true); state.save()
         val runtime=RecordingAudioPush(context,channels,{emptyList()},enqueueDeletes={})
         runtime.withPrivacy(listOf(1)){app.resound.privacy.ForgetResult(1,0,0,0)}
-        assertFalse(runtime.retryDeletes()); val pending=runtime.pendingDeletes.first(); assertEquals(2,pending.size)
+        assertFalse(runtime.retryDeletes()); val pending=runtime.pendingDeletes.first(); assertEquals(2,pending.size); assertTrue(pending.all { it.manual })
         pending.forEach { runtime.dismiss(it.channelId,it.path) }; assertTrue(runtime.pendingDeletes.first().isEmpty())
+    }
+    private suspend fun privacyFixture(enabled:Boolean, bytes:Long?=5, daily:Boolean=false): Triple<RecordingAudioPush,Remote,Long> {
+        val channels=channels()
+        val id=channels.saveWithSubscription(null,PushKind.LocalFolder,"手机",mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder"),
+            PushSubscription(audio=AudioPush.All,audioPrivacyDelete=enabled,backfillDays=null),PushFormat.Markdown,false).getOrThrow()
+        val row=row(); val state=RecordingUploadState(File(context.filesDir,"recording-uploads/$id.json"))
+        state.path(row).put("audio",true).put("bytes",bytes)
+        if(daily) state.dailyHash.put(day.toString(),"old")
+        state.save()
+        val remote=Remote()
+        val runtime=RecordingAudioPush(context,channels,{listOf(row)},{_,_->remote},{})
+        runtime.withPrivacy(listOf(1)){app.resound.privacy.ForgetResult(1,0,0,0)}
+        return Triple(runtime,remote,id)
+    }
+    @Test fun privacyOffPersistsManualSkipsDeletionAndStillRewritesDaily() = runBlocking {
+        val (runtime,remote,id)=privacyFixture(false,daily=true)
+        assertEquals(2,runtime.pendingDeletes.first().count { it.manual })
+        assertFalse(runtime.retryDeletes()); assertTrue(remote.deleted.isEmpty()); assertEquals(0,remote.sizeCalls)
+        assertEquals("\uFEFF$day 逐字稿\n",remote.texts[RecordingKeepRules.dailyPath(day.toString())])
+        assertFalse(runtime.run(id)) // 人工清单不阻塞后续上传/逐字稿任务。
+        val pending=runtime.pendingDeletes.first(); assertEquals(2,pending.size); assertTrue(pending.all { it.manual })
+        val stored=RecordingUploadState(File(context.filesDir,"recording-uploads/pending-deletes.json"))
+        assertTrue(stored.records.keys().asSequence().all { stored.records.getJSONObject(it).getBoolean("manual") })
+        pending.forEach { runtime.dismiss(it.channelId,it.path) }; assertTrue(runtime.pendingDeletes.first().isEmpty())
+    }
+    @Test fun privacyMismatchAndLegacyWithoutBytesBecomeManualTogether() = runBlocking {
+        for(bytes in listOf(4L,null)) {
+            File(context.filesDir,"recording-uploads").deleteRecursively()
+            val (runtime,remote,_)=privacyFixture(true,bytes)
+            assertFalse(runtime.retryDeletes()); assertTrue(remote.deleted.isEmpty())
+            val pending=runtime.pendingDeletes.first(); assertEquals(2,pending.size); assertTrue(pending.all { it.manual })
+            val probes=remote.sizeCalls
+            assertFalse(runtime.retryDeletes()); assertEquals(probes,remote.sizeCalls)
+            pending.forEach { runtime.dismiss(it.channelId,it.path) }; assertTrue(runtime.pendingDeletes.first().isEmpty())
+        }
+    }
+    @Test fun privacyMissingRemoteCompletesWithoutDeletingFiles() = runBlocking {
+        val (runtime,remote,id)=privacyFixture(true)
+        remote.length=null
+        assertFalse(runtime.retryDeletes()); assertTrue(runtime.pendingDeletes.first().isEmpty()); assertTrue(remote.deleted.isEmpty())
+        assertEquals(0,RecordingUploadState(File(context.filesDir,"recording-uploads/$id.json")).records.length())
+    }
+    @Test fun privacyTextFailureResumesAfterAudioWasDeleted() = runBlocking {
+        val (runtime,remote,_)=privacyFixture(true)
+        remote.failTextDelete=true
+        assertTrue(runtime.retryDeletes()); assertEquals(1,remote.deleted.size); assertTrue(remote.deleted.single().endsWith(".ogg"))
+        assertTrue(runtime.pendingDeletes.first().none { it.manual })
+        remote.failTextDelete=false
+        assertFalse(runtime.retryDeletes()); assertEquals(2,remote.deleted.size); assertTrue(remote.deleted.last().endsWith(".txt"))
+        assertTrue(runtime.pendingDeletes.first().isEmpty())
+    }
+    @Test fun privacyPartlyManualJournalNeverDeletesItsSiblingAfterRestart() = runBlocking {
+        val (runtime,remote,_)=privacyFixture(true)
+        // 模拟关开关时只来得及把一项标为人工就中断，随后用户重新打开开关。
+        val journal=RecordingUploadState(File(context.filesDir,"recording-uploads/pending-deletes.json"))
+        journal.records.getJSONObject(journal.records.keys().next()).put("manual",true); journal.save()
+        assertFalse(runtime.retryDeletes()); assertTrue(remote.deleted.isEmpty()); assertEquals(0,remote.sizeCalls)
+        assertTrue(runtime.pendingDeletes.first().all { it.manual })
     }
     @Test fun localConflictAndChargingConstraints() = runBlocking {
         val channels=channels(); val values=mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder")

@@ -1,0 +1,48 @@
+{
+  "uniqueTests": 28,
+  "failures": 0,
+  "errors": 0,
+  "suites": [
+    {
+      "name": "app.resound.recordings.RecordingKeep214Test",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-20T03:50:02.958Z",
+      "hostname": "CoachdeMacBook-Air.local",
+      "time": "0.16"
+    },
+    {
+      "name": "app.resound.recordings.RecordingArchive072Test",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-20T03:53:20.963Z",
+      "hostname": "CoachdeMacBook-Air.local",
+      "time": "0.682"
+    },
+    {
+      "name": "app.resound.recordings.Recording214Test",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-20T03:54:13.563Z",
+      "hostname": "CoachdeMacBook-Air.local",
+      "time": "2.134"
+    },
+    {
+      "name": "app.resound.push.LocalFolder214Test",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-11-20T03:53:17.038Z",
+      "hostname": "CoachdeMacBook-Air.local",
+      "time": "0.045"
+    }
+  ],
+  "allRunsTestSeconds": 6.201
+}

@@ -139,7 +139,7 @@ enum class AudioPush(val title: String) {
 
 enum class AudioText { Daily, PerSegment, Both, None }
 
-data class PendingRemoteDelete(val channelName: String, val path: String, val channelId: Long = 0)
+data class PendingRemoteDelete(val channelName: String, val path: String, val channelId: Long = 0, val manual: Boolean = false)
 
 /** 卡 072：某通道推录音的情况，通道详情里显示 */
 data class AudioPushStatus(

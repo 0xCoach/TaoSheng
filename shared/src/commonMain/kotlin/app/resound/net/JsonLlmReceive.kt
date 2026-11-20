@@ -59,7 +59,7 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
                                     receiveSse(response.bodyAsChannel(), tick, trace, progress)
                                 } else {
                                     val raw = receiveText(response.bodyAsChannel(), tick)
-                                    if (streaming && status in 400..499 && raw.contains("stream", ignoreCase = true)) {
+                                    if (streaming && status in 400..499 && status != 429 && rejectsStream(raw)) {
                                         support?.rememberNonStreaming(preset)
                                         streaming = false; retry = true
                                         return@execute null
@@ -197,3 +197,14 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
         detail = "回答没写完就被截断了，正在尝试缩小每批内容", usage = usage, truncated = true)
     companion object { const val IDLE_MS = 90_000L; const val PLAIN_IDLE_MS = 300_000L; const val TOTAL_MS = 600_000L }
 }
+
+/**
+ * 服务明确拒绝 stream 参数才记成“不支持流式”。中转常见的 “upstream error / upstream_error” 也含 stream，
+ * 偶发一次就永久关掉流式会让这个模型再也看不到接收进度。
+ */
+internal fun rejectsStream(raw: String): Boolean {
+    val text = raw.replace(Regex("(?i)up_?stream"), "")
+    return Regex("(?i)(\\bstream\\b|\"stream\"|'stream'|stream_options)").containsMatchIn(text) &&
+        Regex("(?i)unsupported|not support|invalid|unknown|unrecognized|not allowed|not permitted|extra|不支持|无效|未知").containsMatchIn(text)
+}
+

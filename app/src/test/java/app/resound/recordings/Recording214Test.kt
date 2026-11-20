@@ -107,26 +107,23 @@ class Recording214Test {
         context.getSharedPreferences("214outbox",0),object:PushSecrets {
             override fun read(ref:String)=""; override fun write(ref:String,value:String){}; override fun remove(ref:String){}
         },PushTransport(),{},stateDirectory=File(root,"push"))
-    @Test fun privacyPersistsExactFilesAndRetriesAfterRestartWithoutReupload() = runBlocking {
+    @Test fun privacyNeverDeletesRemoteEvenWithOldSwitchOn() = runBlocking {
+        // 远端文件一律不自动删：旧设置 audioPrivacyDelete=true 也只列清单，不探测、不删除；逐字稿在下次上传时重写。
         val channels=channels()
         val id=channels.saveWithSubscription(null,PushKind.LocalFolder,"手机",mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder"),
-            PushSubscription(audio=AudioPush.All,audioPrivacyDelete=true),PushFormat.Markdown,false).getOrThrow()
+            PushSubscription(audio=AudioPush.All,audioPrivacyDelete=true,backfillDays=null),PushFormat.Markdown,false).getOrThrow()
         val row=row(); val file=File(context.filesDir,"recording-uploads/$id.json")
-        val state=RecordingUploadState(file); val record=state.path(row); record.put("audio",true).put("bytes",5L); state.dailyHash.put(day.toString(),"old-content"); state.save()
-        val remote=Remote().apply { failDelete=true }
-        fun runtime()=RecordingAudioPush(context,channels,{listOf(row)},{_,_->remote},{})
-        val runtime=runtime()
+        val state=RecordingUploadState(file); state.path(row).put("audio",true).put("bytes",5L); state.dailyHash.put(day.toString(),"old-content"); state.save()
+        val remote=Remote()
+        val runtime=RecordingAudioPush(context,channels,{listOf(row)},{_,_->remote},{})
         runtime.withPrivacy(listOf(1)) { app.resound.privacy.ForgetResult(1,0,0,0) }
-        assertEquals(3,runtime.pendingDeletes.first().size); assertTrue(runtime.retryDeletes())
-        assertTrue(runtime.pendingDeletes.first().none { it.manual })
-        val restored=runtime(); assertEquals(3,restored.pendingDeletes.first().size)
-        channels.saveWithSubscription(id,PushKind.LocalFolder,"手机",mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder"),
-            PushSubscription(audio=AudioPush.Off,audioPrivacyDelete=true),PushFormat.Markdown,false).getOrThrow()
-        remote.failDelete=false; assertFalse(restored.retryDeletes())
-        assertEquals(RecordingPrivacyRules.files(record.getString("path")).toSet(),remote.deleted.toSet())
-        assertTrue(restored.pendingDeletes.first().isEmpty()); assertEquals(0,RecordingUploadState(file).records.length())
+        val pending=runtime.pendingDeletes.first(); assertEquals(3,pending.size); assertTrue(pending.all { it.manual })
+        assertFalse(runtime.retryDeletes()); assertTrue(remote.deleted.isEmpty()); assertEquals(0,remote.sizeCalls)
+        assertFalse(runtime.run(id))
+        assertTrue(remote.deleted.isEmpty())
         assertEquals("\uFEFF$day 逐字稿\n", remote.texts[RecordingKeepRules.dailyPath(day.toString())])
-        assertTrue(restored.protectedIds().isEmpty())
+        assertEquals(3,runtime.pendingDeletes.first().size)
+        assertTrue(runtime.protectedIds().isEmpty())
     }
     @Test fun deletedChannelKeepsPendingListUntilUserDismisses() = runBlocking {
         val channels=channels(); val state=RecordingUploadState(File(context.filesDir,"recording-uploads/99.json"))
@@ -151,11 +148,11 @@ class Recording214Test {
     }
     @Test fun privacyOffPersistsManualSkipsDeletionAndStillRewritesDaily() = runBlocking {
         val (runtime,remote,id)=privacyFixture(false,daily=true)
-        assertEquals(2,runtime.pendingDeletes.first().count { it.manual })
+        assertEquals(3,runtime.pendingDeletes.first().count { it.manual }) // 录音、同名 txt、当天逐字稿
         assertFalse(runtime.retryDeletes()); assertTrue(remote.deleted.isEmpty()); assertEquals(0,remote.sizeCalls)
-        assertEquals("\uFEFF$day 逐字稿\n",remote.texts[RecordingKeepRules.dailyPath(day.toString())])
         assertFalse(runtime.run(id)) // 人工清单不阻塞后续上传/逐字稿任务。
-        val pending=runtime.pendingDeletes.first(); assertEquals(2,pending.size); assertTrue(pending.all { it.manual })
+        assertEquals("\uFEFF$day 逐字稿\n",remote.texts[RecordingKeepRules.dailyPath(day.toString())])
+        val pending=runtime.pendingDeletes.first(); assertEquals(3,pending.size); assertTrue(pending.all { it.manual })
         val stored=RecordingUploadState(File(context.filesDir,"recording-uploads/pending-deletes.json"))
         assertTrue(stored.records.keys().asSequence().all { stored.records.getJSONObject(it).getBoolean("manual") })
         pending.forEach { runtime.dismiss(it.channelId,it.path) }; assertTrue(runtime.pendingDeletes.first().isEmpty())
@@ -171,20 +168,28 @@ class Recording214Test {
             pending.forEach { runtime.dismiss(it.channelId,it.path) }; assertTrue(runtime.pendingDeletes.first().isEmpty())
         }
     }
-    @Test fun privacyMissingRemoteCompletesWithoutDeletingFiles() = runBlocking {
-        val (runtime,remote,id)=privacyFixture(true)
-        remote.length=null
-        assertFalse(runtime.retryDeletes()); assertTrue(runtime.pendingDeletes.first().isEmpty()); assertTrue(remote.deleted.isEmpty())
-        assertEquals(0,RecordingUploadState(File(context.filesDir,"recording-uploads/$id.json")).records.length())
-    }
-    @Test fun privacyTextFailureResumesAfterAudioWasDeleted() = runBlocking {
-        val (runtime,remote,_)=privacyFixture(true)
-        remote.failTextDelete=true
-        assertTrue(runtime.retryDeletes()); assertEquals(1,remote.deleted.size); assertTrue(remote.deleted.single().endsWith(".ogg"))
-        assertTrue(runtime.pendingDeletes.first().none { it.manual })
-        remote.failTextDelete=false
-        assertFalse(runtime.retryDeletes()); assertEquals(2,remote.deleted.size); assertTrue(remote.deleted.last().endsWith(".txt"))
+    @Test fun privacyRollsBackWhenLocalDeleteFails() = runBlocking {
+        val channels=channels()
+        val id=channels.saveWithSubscription(null,PushKind.LocalFolder,"手机",mapOf("treeUri" to "content://test/tree/folder","displayName" to "folder"),
+            PushSubscription(audio=AudioPush.All,backfillDays=null),PushFormat.Markdown,false).getOrThrow()
+        val row=row(); val state=RecordingUploadState(File(context.filesDir,"recording-uploads/$id.json"))
+        state.path(row).put("audio",true).put("bytes",5L); state.save()
+        val before=File(context.filesDir,"recording-uploads/$id.json").readText()
+        val runtime=RecordingAudioPush(context,channels,{listOf(row)},{_,_->Remote()},{})
+        val failure=runCatching { runtime.withPrivacy(listOf(1)) { error("数据库写入失败") } }.exceptionOrNull()
+        assertEquals("数据库写入失败", failure?.message)
+        // 本地没删成：不留删除标记和清单，录音照旧在推送和保护的视野里。
         assertTrue(runtime.pendingDeletes.first().isEmpty())
+        assertFalse(File(context.filesDir,"recording-uploads/pending-deletes.json").exists())
+        assertEquals(before, File(context.filesDir,"recording-uploads/$id.json").readText())
+    }
+    @Test fun legacyAutoDeleteEntriesBecomeManual() = runBlocking {
+        // 旧版本留下的“正在删”条目：不再去删远端，转成“需要你自己删”。
+        val (runtime,remote,_)=privacyFixture(true)
+        val journal=RecordingUploadState(File(context.filesDir,"recording-uploads/pending-deletes.json"))
+        journal.records.keys().asSequence().forEach { journal.records.getJSONObject(it).put("manual",false) }; journal.save()
+        assertFalse(runtime.retryDeletes()); assertTrue(remote.deleted.isEmpty()); assertEquals(0,remote.sizeCalls)
+        val pending=runtime.pendingDeletes.first(); assertEquals(2,pending.size); assertTrue(pending.all { it.manual })
     }
     @Test fun privacyPartlyManualJournalNeverDeletesItsSiblingAfterRestart() = runBlocking {
         val (runtime,remote,_)=privacyFixture(true)

@@ -125,6 +125,12 @@ class DigestRunner(
         return DigestOutcome.NeedsUser(reason)
     }
 
+    /** 按这一轮预计实际用的模型分批：主模型冷却、实际走备用模型时，用两者中较小的预算。 */
+    private suspend fun batchChars(preset: LlmPreset): Int {
+        val primary = settings.batchBudget.current(preset, settings.deepThinking.value)
+        val actual = settings.failover.expected(preset)
+        return if (actual.id == preset.id) primary else minOf(primary, settings.batchBudget.current(actual, settings.deepThinking.value))
+    }
     private suspend fun replayUnsavedReply() {
         // rememberDigest 可能返回 false（来源已删除）；必须等调用完成后才能清内存与在途状态。
         unsavedReply?.let { dao.rememberDigest(it); unsavedReply = null; clearInFlight() }
@@ -156,7 +162,7 @@ class DigestRunner(
         val replayIds = chunks.flatten().map { it.id }.toSet()
         for (session in sessions(undigested.filterNot { it.id in replayIds }, gapMillis())) {
             val ready = if (closed(session, force)) session else settledPrefix(session)
-            chunks.addAll(DigestBatches.batches(ready, settings.batchBudget.current(preset, settings.deepThinking.value)) { it.text })
+            chunks.addAll(DigestBatches.batches(ready, batchChars(preset)) { it.text })
         }
     }
 
@@ -215,7 +221,7 @@ class DigestRunner(
         return try {
             // 当前轮后续批次也读取最新预算；已经付费并缓存的结果必须直接重放。
             if (cached(lines, preset) == null) {
-                val resized = DigestBatches.batches(lines, settings.batchBudget.current(preset, settings.deepThinking.value)) { it.text }
+                val resized = DigestBatches.batches(lines, batchChars(preset)) { it.text }
                 if (resized.size > 1) {
                     for (part in resized) digest(part, preset, key, onEvents)?.let { return it }
                     return null
@@ -259,9 +265,9 @@ class DigestRunner(
                             if (thinkingChars > 0) settings.batchBudget.observedThinking(p, settings.deepThinking.value)
                         }
                     }
-                    settings.failover.chat("整理", preset, key, system, user, adaptiveRequest) { usage ->
+                    kotlinx.coroutines.withContext(LlmSplitsOnSlow) { settings.failover.chat("整理", preset, key, system, user, adaptiveRequest) { usage ->
                         dao.addUsage(LocalDate.now().toString(), usage.promptTokens, usage.completionTokens, app.resound.usage.UsagePurpose.Digest)
-                    }.also { actualModels[batchId] = it.actualModel ?: preset.model
+                    } }.also { actualModels[batchId] = it.actualModel ?: preset.model
                         it.diagnostics?.let { trace -> responseTraces[batchId] = trace } }
                 } catch (e: LlmException) { clearInFlight(); throw e }
                 catch (e: LlmInputLimitException) { clearInFlight(); throw e }

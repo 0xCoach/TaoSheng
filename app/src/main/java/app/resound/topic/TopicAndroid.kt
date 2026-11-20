@@ -96,7 +96,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             }
             app.scope.launch {
                 db.topics().observeLateTranscriptIds().distinctUntilChanged().collect { ids ->
-                    if (ids.isNotEmpty()) { checkpoints.refresh(ids.toSet()); TopicWork.enqueue(app) }
+                    if (ids.isNotEmpty()) { checkpoints.refresh(ids.toSet()); TopicWork.enqueue(app, lateDone = true) }
                 }
             }
             app.scope.launch {
@@ -262,13 +262,14 @@ class TopicWork(context: Context, params: WorkerParameters) : CoroutineWorker(co
             Result.retry() }
     }
     companion object {
-        fun enqueue(context: Context) {
+        /** [lateDone]：有已完成专题收到新原话时才为它们排会后整理；否则只要存在已完成专题，每句转写都会白跑一轮。 */
+        fun enqueue(context: Context, lateDone: Boolean = false) {
             val app = context.applicationContext as ResoundApp
             app.scope.launch {
                 val rows = app.database.topics().all()
                 for (activeOnly in listOf(true, false)) {
                     val needed = rows.any { if (activeOnly) it.row.status in setOf("Running", "Paused")
-                        else it.row.status in setOf("Ended", "Summarizing", "Done") }
+                        else it.row.status in setOf("Ended", "Summarizing") || lateDone && it.row.status == "Done" }
                     if (!needed) continue
                     val manager = WorkManager.getInstance(context)
                     val name = if (activeOnly) "topic-blocks-live" else "topic-summaries"

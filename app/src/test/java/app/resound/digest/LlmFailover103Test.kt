@@ -79,6 +79,28 @@ class LlmFailover103Test {
         assertEquals(primary.model, charged.first().actualModel)
         assertTrue(failover.latestSwitch.value!!.actualModel.contains(b.model))
     }
+    @Test fun slowSwitchesToBackupUnlessCallerSplitsItself1120() = runBlocking {
+        val b = backup()
+        val seen = mutableListOf<String>()
+        val call: suspend (LlmPreset, String, String, String) -> LlmReply = { p, _, _, _ ->
+            seen += p.model
+            if (p.model == primary.model) throw LlmException(LlmError.TooSlow) else reply
+        }
+        // 回顾、技能、问问：太慢照常切备用模型。
+        assertEquals(b.model, chat(call).actualModel ?: b.model)
+        assertEquals(listOf(primary.model, b.model), seen)
+        // 整理这类会自己切小的调用：先交给调用方切小，不切换、不冷却。
+        failover.clear(primary.id); seen.clear()
+        val e = runCatching { withContext(LlmSplitsOnSlow) { chat(call) } }.exceptionOrNull() as LlmException
+        assertEquals(LlmError.TooSlow, e.type); assertEquals(listOf(primary.model), seen)
+    }
+    @Test fun expectedModelFollowsCoolingPrimary1120() = runBlocking {
+        val b = backup()
+        assertEquals(primary.id, failover.expected(primary).id)
+        val c = client { model -> if (model == primary.model) 503 to "{}" else 200 to """{"choices":[{"message":{"content":"{}"}}]}""" }
+        chat(c::chatJson)
+        assertEquals(b.id, failover.expected(primary).id)
+    }
     @Test fun quotaAndAuthSwitchButFormatAndCancellationDoNot() = runBlocking {
         backup()
         for (status in listOf(402, 401, 429)) {

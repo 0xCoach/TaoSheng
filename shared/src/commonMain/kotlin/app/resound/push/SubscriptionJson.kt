@@ -44,7 +44,7 @@ object SubscriptionJson {
             }, j.flag("incremental"), j.number("fullCheckAt"), FolderLayout.valueOf(j.text("layout")), j.number("rangeDays"),
             j.flag("excludeMedia"), j.number("backfillDays"), lineContext = j.flag("lineContext", true),
             audio = AudioPush.entries.find { it.name == j["audio"]?.jsonPrimitive?.content } ?: AudioPush.Off,
-            audioText = j["audioText"]?.jsonPrimitive?.content?.let { AudioText.valueOf(it) }
+            audioText = j["audioText"]?.jsonPrimitive?.content?.let { v -> AudioText.entries.find { it.name == v } }
                 ?: if (j.flag("audioWithText", true)) AudioText.PerSegment else AudioText.None,
             audioChargingOnly = j.flag("audioChargingOnly", false),
             audioCalls = j.flag("audioCalls", false), audioPrivacyDelete = j.flag("audioPrivacyDelete", false), audioImports = j.flag("audioImports", false),

@@ -18,6 +18,7 @@ import java.time.ZoneId
 import app.resound.digest.snapshot
 import app.resound.skills.android
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 internal data class TopicOutput(val event: MemoryEventEntity, val items: List<DigestPrompt.ParsedItem>, val card: SkillCardRow?)
 
@@ -58,8 +59,12 @@ internal class TopicEngine(
     /** 普通 Worker 处理会中；前台 Worker 只处理会后，避免长任务挡住会中入口。 */
     suspend fun run(activeOnly: Boolean? = null, network: Boolean = true, foreground: suspend () -> Unit = {}): Boolean = gate.withLock {
         var pending = false
+        // 已完成的专题只在有新原话（未整理或未归到本专题事件）时才补整理；改字、认人不自动重做、不覆盖已有纪要，
+        // 需要时由用户点“重新整理”（会把状态改回 Ended）。与 observeLateTranscriptIds 同一条规则，一次查出。
+        val late = dao.observeLateTranscriptIds().first().toSet()
         for (initial in dao.all().filter { it.row.status in setOf("Running", "Paused", "Ended", "Summarizing", "Done") &&
             (activeOnly == null || app.resound.topic.core.TopicBlocks.active(it.row.status) == activeOnly) }) {
+            if (initial.row.status == "Done" && initial.row.id !in late) continue
             val g = dao.get(initial.row.id) ?: continue
             val revision = g.row.revision
             val active = app.resound.topic.core.TopicBlocks.active(g.row.status)
@@ -67,8 +72,8 @@ internal class TopicEngine(
             try {
                 val lines = dao.lines(g.row.id)
                 val checkpoint = checkpoints.read(g.row.id)
-                // 旧版已完成专题没有块缓存，不因升级或无关转写自动重做整段历史。
-                if (g.row.status == "Done" && checkpoint?.format != 3 && lines.none { it.eventId != g.row.eventId || it.digestedAt == null }) continue
+                // 已完成专题：没有新原话就不动（新旧版都一样），不因升级、改字或认人自动重做整段。
+                if (g.row.status == "Done" && lines.none { it.eventId != g.row.eventId || it.digestedAt == null }) continue
                 val source = topicSource(g, lines)
                 val blocks = app.resound.topic.core.TopicBlocks.timeline(g.snapshot(), now())
                 val contexts = blocks.associate { it.index to generator.context(it, lines.filter { l -> it.contains(l.startAt) }) }

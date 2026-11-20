@@ -105,7 +105,7 @@ fun PushPage(repo: PushChannels, bottomPadding: Dp) {
                 }
             }
         }
-        // 卡 214：隐私删除后还留在推送文件夹里的文件（没开同步删除，或没删成），请用户自己去删
+        // 卡 214：隐私删除后还留在推送文件夹里的文件（涛声不删远端文件），请用户自己去删
         item { LeftoverFiles(repo) }
         if (logs.isNotEmpty()) {
             item { Text("最近推送", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
@@ -549,8 +549,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
             ToggleRow("只在充电时传", "录音多时更省电，一般晚上充电时传完", sub.audioChargingOnly) { onChange(sub.copy(audioChargingOnly = it)) }
             ToggleRow("推通话录音", "系统通话录音手机里本来就有，一般不用推", sub.audioCalls) { onChange(sub.copy(audioCalls = it)) }
             ToggleRow("推导入的录音", "导入的原文件你手里本来就有，一般不用推", sub.audioImports) { onChange(sub.copy(audioImports = it)) }
-            ToggleRow("隐私删除时，同时删掉这里的文件", "默认不删：推出去的文件由你自己管理。打开后，只在你做隐私删除时删，删前核对是同一个文件；到期清理不会删",
-                sub.audioPrivacyDelete) { onChange(sub.copy(audioPrivacyDelete = it)) }
+            Text("推出去的文件由你自己管理，涛声不会去删。做隐私删除时，会列出这里需要你自己删的文件。", style = RsType.caption, color = c.textTertiary)
             Text("“全部录音”一天几十 MB；坚果云免费版每月只能上传约 1 GB，建议选“只推人声”，或把录音推到 S3、手机文件夹。",
                 style = RsType.caption, color = c.warning)
         }
@@ -715,7 +714,7 @@ private fun LeftoverFiles(repo: PushChannels) {
         Row(Modifier.fillMaxWidth().springClick { open = !open }, verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("${items.size} 个文件还留在推送的文件夹里", style = RsType.body, color = c.text)
-                Text("你做了隐私删除，但这些文件推出去了（没开同步删除，或还没删成）。需要的话自己去删。", style = RsType.caption, color = c.textSecondary)
+                Text("你做了隐私删除，但这些文件之前已经推出去了。涛声不会删远端的文件，需要的话自己去删。", style = RsType.caption, color = c.textSecondary)
             }
             Text(if (open) "收起" else "查看", style = RsType.subhead, color = c.accent, modifier = Modifier.padding(start = 8.dp))
         }
@@ -725,7 +724,7 @@ private fun LeftoverFiles(repo: PushChannels) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(d.path, style = RsType.subhead, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(d.channelName + if (d.manual) " · 需要你自己删" else " · 正在删，稍后自动重试", style = RsType.caption,
+                        Text(d.channelName + " · 需要你自己删", style = RsType.caption,
                             color = if (d.manual) c.warning else c.textTertiary)
                     }
                     Text("已处理", style = RsType.subhead, color = c.accent,

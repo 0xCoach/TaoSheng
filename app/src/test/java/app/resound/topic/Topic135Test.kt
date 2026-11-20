@@ -459,6 +459,29 @@ class Topic135Test {
         assertEquals(8, calls)
     }
 
+    @Test fun finishedTopicIsNotRegeneratedWhenALineIsEdited1121() = runBlocking {
+        // 改字框写着“改完之后，已整理的事件不会自动变”：已完成专题改字后后台不得自动重做、覆盖纪要。
+        val checkpoints = MemoryTopicCheckpoints()
+        repo = RoomTopicRepository(db, scope, { time }, { "Asia/Shanghai" }, checkpoints = checkpoints)
+        val start = time
+        val id = repo.start(TopicKind.Meeting, "改字不重做", 60).topicId!!
+        line(1, start + 1000); line(2, start + 2000)
+        time = start + 5 * 60_000; repo.end()
+        var calls = 0
+        val gen = generator { system, user -> calls++; if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user) }
+        val engine = TopicEngine(db, repo, gen, now = { time }, checkpoints = checkpoints)
+        engine.run()
+        val done = db.topics().get(id)!!.row
+        assertEquals("Done", done.status); val before = calls
+        db.transcribe().editLineText(2, "改成周五", time)
+        engine.run()
+        assertEquals(before, calls)
+        assertEquals(done.eventId, db.topics().get(id)!!.row.eventId)
+        assertEquals("Done", db.topics().get(id)!!.row.status)
+        // 用户点“重新整理”才重做。
+        repo.regenerate(id); engine.run(); assertTrue(calls > before)
+    }
+
     @Test fun failedRegenerationKeepsPreviousFinishedEvent() = runBlocking {
         line(1, time - 1000); val id = ended()
         engine().run(); val old = db.topics().get(id)!!.row.eventId!!

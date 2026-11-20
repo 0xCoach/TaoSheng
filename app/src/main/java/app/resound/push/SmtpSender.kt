@@ -184,7 +184,8 @@ internal class SmtpSender(private val sockets: SmtpSockets = SmtpSockets(), priv
 
 /** 把 SMTP 的拒绝码翻成人话；带上服务器原话（去掉账号密码），限流和密码错分开说 */
 internal object SmtpReplies {
-    private val limited = Regex("frequen|too many|limit|rate|频繁|频率|稍后", RegexOption.IGNORE_CASE)
+    // 按整词匹配：“separate”“generate”里的 rate 不能把授权码错误误判成限流。
+    private val limited = Regex("\\bfrequen\\w*|\\btoo many\\b|\\brate[ -]?limit\\w*|\\blimit(ed|s)?\\b|\\brate\\b|频繁|频率|稍后", RegexOption.IGNORE_CASE)
     fun failure(code: Int, server: String, values: Map<String, String>): String {
         val reason = server.replace(Regex("\\s+"), " ").trim().take(80).let { r ->
             listOfNotNull(values["account"], values["password"]).filter { it.isNotBlank() }.fold(r) { acc, v -> acc.replace(v, "***") } }

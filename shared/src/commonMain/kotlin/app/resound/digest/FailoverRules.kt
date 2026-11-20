@@ -21,7 +21,9 @@ class FailoverRules(private val store: FailoverStore, private val now: NowMillis
     private val exhausted: (Exception, String) -> Exception) {
     suspend fun <T> execute(primary: LlmPreset, candidates: List<FailoverCandidate>, enabled: Boolean,
         canSwitch: () -> Boolean, switched: (LlmPreset, String) -> Unit,
+        classifyHere: ((Exception) -> FailoverFailure?)? = null,
         call: suspend (FailoverCandidate) -> T): Pair<T, LlmPreset> {
+        val classify = classifyHere ?: this.classify
         fun ordered(list: List<FailoverCandidate>): List<FailoverCandidate> {
             if (!enabled) return list
             val cooling = store.coolingSnapshot(list.map { it.preset.id })

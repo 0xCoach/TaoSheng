@@ -88,7 +88,8 @@ internal class ImportSummary(
                 try { parse(text); reply?.diagnostics?.parsed(empty = false) }
                 catch (e: LlmException) { reply?.diagnostics?.parsed(empty = text.isBlank(), error = e.type); throw e }
             }
-            val call: suspend (String, String) -> String = { a, b -> request(a, b).also { reply = it }.content }
+            // 这里会把太慢/截断的一块切小重试（splitRead / splitTopicRead），先不切备用模型。
+            val call: suspend (String, String) -> String = { a, b -> kotlinx.coroutines.withContext(app.resound.digest.LlmSplitsOnSlow) { request(a, b) }.also { reply = it }.content }
             val content = session?.request(system, user, call, validate, ::preview) ?: call(system, user)
             return parse(content)
         }

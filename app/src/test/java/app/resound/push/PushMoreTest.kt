@@ -197,6 +197,8 @@ class PushMoreTest {
         val limited = SmtpReplies.failure(535, "Login fail. login frequency limited. fake-password", mapOf("password" to "fake-password"))
         assertTrue(limited.contains("限制登录频率")); assertFalse(limited.contains("fake-password"))
         assertTrue(SmtpReplies.failure(535, "Error: authentication failed", emptyMap()).contains("授权码"))
+        // “separate / generate”里的 rate 不能把授权码错误误判成限流。
+        assertTrue(SmtpReplies.failure(535, "Authentication failed: please use authorization code (separate password)", emptyMap()).contains("授权码"))
     }
 
     @Test fun notionDiscoversTitleArchivesPreviousDayAndBatchesBlocksWithCache() = runBlocking {

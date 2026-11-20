@@ -88,13 +88,7 @@ class LlmFailover(
             if ((generations[id] ?: 0) == generation) cooling[id] = value
         }
     }, NowMillis(now), LlmInputBudget::inputChars,
-        classify = { e -> when (e) {
-            is LlmInputLimitException -> FailoverFailure(reason(e), capacity = true)
-            // 先让业务切小同一批，不冷却或切换模型掩盖自适应错误。
-            is LlmException -> if (e.type in setOf(LlmError.TooSlow, LlmError.Truncated)) null else FailoverFailure(reason(e), format = e.type == LlmError.Format,
-                rejected = e.rejected, longCooling = e.type in setOf(LlmError.Auth, LlmError.Quota))
-            else -> null
-        } },
+        classify = { e -> classify(e, splits = true) },
         safeCoolingError = { e -> (e as LlmException).let { LlmException(it.type, it.status, it.detail) } },
         exhausted = { e, suffix -> when (e) {
             is LlmException -> LlmException(e.type, e.status, e.detail + suffix)
@@ -102,13 +96,30 @@ class LlmFailover(
             else -> e
         } })
 
+    private fun classify(e: Exception, splits: Boolean): FailoverFailure? = when (e) {
+        is LlmInputLimitException -> FailoverFailure(reason(e), capacity = true)
+        // 会自己切小的调用：先让业务切小同一批，不冷却或切换模型掩盖自适应错误；其余功能照常切备用模型。
+        is LlmException -> if (splits && e.type in setOf(LlmError.TooSlow, LlmError.Truncated)) null else FailoverFailure(reason(e), format = e.type == LlmError.Format,
+            rejected = e.rejected, longCooling = e.type in setOf(LlmError.Auth, LlmError.Quota))
+        else -> null
+    }
+    /** 这一轮预计实际会用哪个模型：主模型冷却中时是第一个没冷却的备用模型，用于按它的批次预算分批。 */
+    fun expected(primary: LlmPreset): LlmPreset {
+        if (!enabled.value || synchronized(this) { cooling[primary.id]?.until?.let { it > now() } } != true) return primary
+        val backups = synchronized(providers.guard) {
+            providers.saved.value.filter { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }.map { it.preset() }
+        }
+        return synchronized(this) { backups.take(2).firstOrNull { (cooling[it.id]?.until ?: 0) <= now() } } ?: primary
+    }
     private suspend fun <T> execute(feature: String, primary: LlmPreset, key: String,
         canSwitch: () -> Boolean = { true }, call: suspend (LlmPreset, String) -> T): Pair<T, LlmPreset> {
         val on = enabled.value && canSwitch()
+        val context = kotlin.coroutines.coroutineContext
+        val splits = context[LlmSplitsOnSlow.Key] != null || context[app.resound.topic.core.TopicRequestContext] != null
         return rules.execute(primary, candidates(primary, key, on), on, canSwitch, switched = { p, reason ->
             recent.value = LlmSwitch(now(), feature, primary.name + " / " + primary.model, p.name + " / " + p.model, reason)
             recent.value?.let { diagnostics.switched(it.at, it.originalModel, it.actualModel, it.reason) }
-        }) { candidate ->
+        }, classifyHere = { e -> classify(e, splits) }) { candidate ->
             val p = candidate.preset
             val trace = runCatching { diagnostics.start(feature, p) }.onFailure {
                 FailureNotes.record("digest/LlmFailover.kt:108", it)

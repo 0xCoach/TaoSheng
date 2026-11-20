@@ -87,8 +87,21 @@ object TopicBlocks {
         return TopicBlockReadiness(waiting, voices, recording, block.closed && !recording && waiting.isEmpty() && voiceReady,
             overlapping.filter { it.status == "Done" && it.voiceprintPending > 0 }.map { it.id }.toSet())
     }
-    fun <T> summaryGroups(parts: List<T>, text: (T) -> String): List<List<T>> =
-        if (parts.sumOf { text(it).length } <= SUMMARY_CHARS) listOf(parts) else parts.chunked(6)
+    /**
+     * 汇总分组：按字数把一组装到约 [SUMMARY_CHARS] 再开下一组，而不是固定每 6 份一组。
+     * 两小时培训有几十张分块卡，固定 6 份会连调十几次模型（串行，每次都要思考）；按字数装满通常 3～4 次。
+     * 每组至少两份（只剩最后一份时除外），保证逐层合并一定收敛。
+     */
+    fun <T> summaryGroups(parts: List<T>, text: (T) -> String): List<List<T>> {
+        if (parts.sumOf { text(it).length } <= SUMMARY_CHARS) return listOf(parts)
+        val groups = mutableListOf<MutableList<T>>(); var chars = 0
+        for (part in parts) {
+            val size = text(part).length
+            if (groups.isEmpty() || groups.last().size >= 2 && chars + size > SUMMARY_CHARS) { groups += mutableListOf<T>(); chars = 0 }
+            groups.last() += part; chars += size
+        }
+        return groups
+    }
     fun stalled(progress: TopicProgress, now: Long) = now - progress.lastProgressAt >= STALL
 }
 

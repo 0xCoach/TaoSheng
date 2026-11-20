@@ -112,12 +112,14 @@ class TopicBlockGenerator(
         } }
         suspend fun ask(parts: List<String>): String = session.request(system,
             "专题：${g.row.name ?: kind.title}\n按时间合成以下分块结果。只读取这些结果，保留结论变化及全部行动，不新增事实。\n" + parts.joinToString("\n\n"), request, ::validate)
-        session.phase("汇总纪要", 1)
+        fun long(level: List<String>) = level.size > 6 && level.sumOf { it.length } > TopicBlocks.SUMMARY_CHARS
+        // 进度按预计调用次数显示：第一层分组数 + 最后一次合成（更长的会议可能再多一层）。
+        session.phase("汇总纪要", if (long(chunks)) TopicBlocks.summaryGroups(chunks) { it }.count { it.size > 1 } + 1 else 1)
         val raw = if (chunks.isEmpty()) null else {
-            // 小于 12000 字一次；超长每 6 份为一组。特别长的会议继续六路收敛，避免无界上下文。
+            // 小于 12000 字一次；超长按字数装满一组（约 12000 字）再合并，逐层收敛，避免无界上下文。
             var level = chunks
-            while (level.size > 6 && level.sumOf { it.length } > TopicBlocks.SUMMARY_CHARS) {
-                level = level.chunked(6).map { if (it.size == 1) it.single() else ask(it) }
+            while (long(level)) {
+                level = TopicBlocks.summaryGroups(level) { it }.map { if (it.size == 1) it.single() else ask(it).also { session.advance() } }
             }
             ask(level)
         }

@@ -70,17 +70,20 @@ internal class TopicEngine(
                 // 旧版已完成专题没有块缓存，不因升级或无关转写自动重做整段历史。
                 if (g.row.status == "Done" && checkpoint?.format != 3 && lines.none { it.eventId != g.row.eventId || it.digestedAt == null }) continue
                 val source = topicSource(g, lines)
-                val segments = dao.segments(g.row.id, now())
-                val recognize = voiceprintReady()
-                val segmentStates = segments.map { segment -> app.resound.topic.core.TopicBlockSegment(
-                    segment.id, segment.startAt, segment.endAt, segment.status,
-                    if (recognize && segment.status == "Done") db.memory().voiceprintPending(listOf(segment.id)) else 0) }
-                val retained = dao.items(g.row.retainedIds()).filterNot { it.deleted }
-                val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val blocks = app.resound.topic.core.TopicBlocks.timeline(g.snapshot(), now())
                 val contexts = blocks.associate { it.index to generator.context(it, lines.filter { l -> it.contains(l.startAt) }) }
                 val inputKey = topicHash(source + generator.blocks.promptKey(g.snapshot()) + generator.blocks.words(g.snapshot()).toString() + contexts.toString())
                 if (g.row.status == "Done" && checkpoint?.progress?.finished == true && checkpoint.source == inputKey) continue
+                // 已完成且输入没变的专题到此跳过；逐段认人状态、保留项等只在真要整理时才读（每段转写完都会触发一轮，旧做法每次把所有已完成专题逐段查一遍）。
+                val segments = dao.segments(g.row.id, now())
+                val recognize = voiceprintReady()
+                // 认人待处理一次查出，不逐段查。
+                val voicePending = if (!recognize) emptySet() else segments.filter { it.status == "Done" }.map { it.id }
+                    .chunked(400).flatMap { db.memory().voiceprintPendingIds(it) }.toSet()
+                val segmentStates = segments.map { segment -> app.resound.topic.core.TopicBlockSegment(
+                    segment.id, segment.startAt, segment.endAt, segment.status, if (segment.id in voicePending) 1 else 0) }
+                val retained = dao.items(g.row.retainedIds()).filterNot { it.deleted }
+                val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
                 processor = app.resound.topic.core.TopicBlockProcessor(g.row.id, checkpoints, generator.blocks, ::topicHash, ::topicFailure, ::delay, now,
                     { java.time.Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) })
                 var announced = false

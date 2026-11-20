@@ -73,7 +73,9 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             }
         }
     }
-    suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String> {
+    suspend fun generate(input: PushSnapshot, s: PushSubscription): Map<String, String> =
+        EnvSoundPresentation.prefetched(input.events.minOfOrNull { it.startAt }, input.events.maxOfOrNull { it.endAt }) { generateFiles(input, s) }
+    private suspend fun generateFiles(input: PushSnapshot, s: PushSubscription): Map<String, String> {
         val data = input.validated()
         val files = sortedMapOf<String, String>()
         val events = data.events.filter { RecordKind.Timeline in s.records || (RecordKind.Starred in s.records && it.starred) }

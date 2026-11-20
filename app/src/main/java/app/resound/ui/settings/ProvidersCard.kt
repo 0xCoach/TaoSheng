@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.resound.digest.LlmProviders
+import app.resound.digest.OFFICIAL_PROVIDER_ID
 import app.resound.digest.ProviderTemplate
 import app.resound.digest.SavedProvider
 import app.resound.ui.theme.Rs
@@ -94,6 +95,7 @@ fun ProvidersCard(providers: LlmProviders) {
                     Text(p.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val rank = backups.indexOf(p.id)
                     Text(p.model + when {
+                        p.id == OFFICIAL_PROVIDER_ID -> if (p.hasKey) " · 点数制·登录即用" else " · 登录授权后可用"
                         !p.hasKey -> " · 未填密钥"
                         failoverOn && rank in 0..1 -> " · 备用 ${rank + 1}"
                         else -> ""
@@ -118,9 +120,12 @@ fun ProvidersCard(providers: LlmProviders) {
                         // 移到前一个备用之前；列表里夹着的当前模型不影响备用次序。
                         providers.move(p.id, saved.indexOfFirst { it.id == backups[rank - 1] })
                     }.padding(horizontal = 8.dp, vertical = 6.dp))
-                Text("编辑", style = RsType.subhead, color = c.accent,
+                // 官方 AI 条目由服务端下发（登录授权→点数），不在本地编辑密钥
+                if (p.id != OFFICIAL_PROVIDER_ID) Text("编辑", style = RsType.subhead, color = c.accent,
                     modifier = Modifier.clip(CircleShape).springClick { editing = p }.padding(horizontal = 10.dp, vertical = 6.dp))
             }
+            // DeepSeek 未填密钥：行内直接给密钥框，不用点开编辑页
+            if (!p.hasKey && p.templateId == "deepseek") InlineKeyFill(providers, p)
         }
         if (saved.any { it.id == active && it.hasKey }) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 32.dp, bottom = 8.dp)) {
@@ -177,6 +182,34 @@ fun ProvidersCard(providers: LlmProviders) {
     if (editingLine && checker != null) ThresholdSheet(threshold, { checker.setThreshold(it); editingLine = false }) { editingLine = false }
     if (adding) AddProviderSheet(providers, onPicked = { t -> adding = false; editing = draft(t) }) { adding = false }
     editing?.let { p -> ProviderSheet(providers, p, isNew = saved.none { it.id == p.id }, isActive = p.id == active) { editing = null } }
+}
+
+/** DeepSeek 无密钥时的行内密钥填写：粘贴 → 测试 → 保存并启用，不离开本页 */
+@Composable
+private fun InlineKeyFill(providers: LlmProviders, p: SavedProvider) {
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    var key by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<Result<String>?>(null) }
+    Column(Modifier.padding(start = 32.dp, top = 2.dp, bottom = 8.dp)) {
+        SheetInput(key, "粘贴 API Key（sk- 开头）") { key = it.trim(); result = null }
+        result?.let { r -> Text(r.fold({ "✓ $it" }, { it.message ?: "没连上，请检查密钥和余额" }), style = RsType.caption,
+            color = if (r.isSuccess) c.good else c.critical, modifier = Modifier.padding(top = 6.dp)) }
+        ActionButton(if (busy) "正在测试…" else "保存并测试", ActionKind.Primary,
+            Modifier.fillMaxWidth().padding(top = 10.dp), enabled = !busy && key.isNotBlank()) {
+            busy = true; result = null
+            scope.launch {
+                result = runCatching {
+                    providers.test(null, p.baseUrl, p.model, key).getOrThrow()
+                    providers.save(p.id, "deepseek", p.name, p.baseUrl, p.model, key, p.balanceUrl, p.balancePath)
+                    providers.activate(p.id)
+                    "可以用了"
+                }
+                busy = false
+            }
+        }
+    }
 }
 
 /** 模板转成一条待保存的服务商（id 为空串表示新建） */

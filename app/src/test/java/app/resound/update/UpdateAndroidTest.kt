@@ -60,12 +60,18 @@ class UpdateAndroidTest {
     }
 
     @Test fun validatesPackageVersionAndCurrentSigningCertificates() {
-        fun verify(name: String = "app.resound", version: Long = 26, signers: Set<String> = setOf("current")) =
-            AndroidUpdatePlatform.validateIdentity(name, version, 25, 26, signers, setOf("current"))
+        fun verify(name: String = "app.resound", version: Long = 26, signers: Set<String> = setOf("current"),
+            newHistory: Set<String> = emptySet()) =
+            AndroidUpdatePlatform.validateIdentity(name, version, 25, 26, signers, setOf("current"), newHistory)
         verify()
         assertEquals("安装包签名不对，已删除", assertThrows(UpdateFailure::class.java) { verify(signers = setOf("other")) }.human)
         assertThrows(UpdateFailure::class.java) { verify(name = "app.other") }
         assertThrows(UpdateFailure::class.java) { verify(version = 25) }
+        // v3 签名轮换：新 signer ≠ 旧 signer 但 lineage 含旧证书 → 放行；无 lineage 或链中无旧证书 → 拒绝
+        verify(signers = setOf("release"), newHistory = setOf("current", "release"))
+        assertEquals("安装包签名不对，已删除", assertThrows(UpdateFailure::class.java) {
+            verify(signers = setOf("release"), newHistory = setOf("release")) }.human)
+        assertThrows(UpdateFailure::class.java) { verify(signers = setOf("release"), newHistory = setOf("unrelated")) }
     }
 }
 

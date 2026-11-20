@@ -46,6 +46,9 @@ internal object LegacySubscriptions154 {
         }).put("incremental", s.incremental).put("fullCheckAt", s.fullCheckAt ?: JSONObject.NULL)
         .put("layout", s.layout.name).put("rangeDays", s.rangeDays ?: JSONObject.NULL).put("excludeMedia", s.excludeMedia)
         .put("backfillDays", s.backfillDays ?: JSONObject.NULL).put("lineContext", s.lineContext)
+        // 卡 214 新增字段
+        .put("audioText", s.audioText.name).put("audioChargingOnly", s.audioChargingOnly)
+        .put("audioCalls", s.audioCalls).put("audioPrivacyDelete", s.audioPrivacyDelete).put("audioImports", s.audioImports)
         .put("audio", s.audio.name).put("audioWithText", s.audioWithText).put("audioWifiOnly", s.audioWifiOnly)
         .put("footprint", s.footprint).put("footprintAt", s.footprintAt)
         .put("screenTime", s.screenTime).put("screenTimeAt", s.screenTimeAt)

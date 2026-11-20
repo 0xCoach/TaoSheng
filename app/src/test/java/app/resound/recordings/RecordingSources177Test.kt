@@ -40,7 +40,7 @@ class RecordingSources177Test {
             val rows = RecordingSources(db,root,includeImports=true).load()
             assertEquals(listOf(1L,2L), rows.map { it.id }); assertTrue(rows.first().call)
             val state = RecordingUploadState(File(parent,"state.json"))
-            val s = app.resound.push.PushSubscription(audio=app.resound.push.AudioPush.All)
+            val s = app.resound.push.PushSubscription(audio=app.resound.push.AudioPush.All, audioCalls=true) // 11-20 起通话默认不推，这里显式打开
             assertEquals(listOf(1L), state.candidates(rows,s,LocalDate.now()).map { it.id })
             assertEquals(listOf(1L,2L), state.candidates(rows,s.copy(audioImports=true),LocalDate.now()).map { it.id })
             assertTrue(state.path(rows.last()).getString("path").endsWith(".m4a"))

@@ -47,6 +47,7 @@ object PreferenceBackupPolicy {
         "night-log" to "夜里记录删除与取消的诊断行，只进问题记录，不备份",
         "skills-backfill-207" to "升级后会议纪要补跑的完成凭据，本机一次性状态，不备份",
         "custom-asr-formats" to "自定义转写格式能力缓存，30 天重新探测，不备份",
+        "recording-keep" to "长期保留录音的提醒节奏（空间不足通知每天一次、坚果云额度每月一次），本机状态，不备份",
         "custom-asr-verified" to "自定义转写测试通过的结论，按配置指纹存本机，恢复后需重新测试，不备份",
         "onboarding" to "首次转写、向导计时、诊断计数及提示已读均是本机引导状态，沿用既有不备份约定",
         "ask-compatibility" to "服务端能力探测缓存和失败冷却",

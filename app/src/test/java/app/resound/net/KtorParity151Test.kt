@@ -202,7 +202,7 @@ class KtorParity151Test {
             try {
                 var count=0
                 val b=CustomAsrProvider(settings){listOf("涛声")}.recognize(audio,""){count++}
-                assertEquals(AsrResult(listOf(AsrSentence(0,1200,"你好",null)),1200,null),b);assertEquals(1,count)
+                assertEquals(AsrResult(listOf(AsrSentence(0,1200,"你好",null)),1200,null,customCapability=app.resound.transcribe.CustomCapability.TimedText),b);assertEquals(1,count)
                 val r=s.takeRequest(); request(r,"POST","/speech?x=1")
                 val boundary=r.getHeader("Content-Type")!!.substringAfter("boundary=")
                 val expected="--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\nContent-Length: 3\r\n\r\nasr\r\n" +

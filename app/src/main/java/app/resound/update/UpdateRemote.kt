@@ -22,12 +22,16 @@ internal class UpdateRemote(
     private val checks = client.newBuilder().callTimeout(15, TimeUnit.SECONDS).build()
     internal fun hasSources() = sources().isNotEmpty()
     fun check(previewEnabled: Boolean = false): UpdateManifest {
+        // 稳定与预览并行请求，避免两个串行 HTTPS 叠加；预览通道用户每次检查少等一倍
+        val previewTask = if (previewEnabled) java.util.concurrent.CompletableFuture.supplyAsync {
+            runCatching { checkChannel(previewSources(), true) }.onFailure {
+                FailureNotes.record("update/UpdateRemote.kt:23", it)
+            }.getOrNull()
+        } else null
         val official = runCatching { checkChannel(sources(), false) }.onFailure {
             FailureNotes.record("update/UpdateRemote.kt:22", it)
         }.getOrNull()
-        val preview = if (previewEnabled) runCatching { checkChannel(previewSources(), true) }.onFailure {
-            FailureNotes.record("update/UpdateRemote.kt:23", it)
-        }.getOrNull() else null
+        val preview = previewTask?.get()
         return listOfNotNull(official, preview).maxByOrNull { it.versionCode }
             ?: throw UpdateFailure(UPDATE_NETWORK_ERROR, "sources_exhausted")
     }

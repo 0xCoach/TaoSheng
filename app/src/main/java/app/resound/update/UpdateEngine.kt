@@ -64,7 +64,7 @@ internal class UpdateEngine(
         reschedule(auto.value, enabled)
         scope.launch(Dispatchers.IO) {
             gate.withLock { restore(); discardDisabledPreview() }
-            if (enabled) checkNow()
+            if (enabled) checkNow(manual = true)
         }
     }
     private fun discardDisabledPreview() {
@@ -97,6 +97,8 @@ internal class UpdateEngine(
             if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")
             if (startup && !preview.value && last > 0 && now() - last in 0 until HOUR) return@withLock
+            // 开页等自动触发在短时间内只查一次；手动“检查更新”与启动检查（含预览通道每次启动必查的约定）不受限
+            if (!manual && !startup && last > 0 && now() - last in 0 until SHORT_GAP) return@withLock
             val previous = mutable.value
             mutable.value = UpdateState.Checking
             store.save("lastCheck" to now())
@@ -350,5 +352,5 @@ internal class UpdateEngine(
         log("update ms=${elapsed(start)} failure=${reason(e)}")
         mutable.value = UpdateState.Failed((e as? UpdateFailure)?.human ?: default, manifest?.let { info() })
     }
-    companion object { private const val HOUR = 60 * 60 * 1000L }
+    companion object { private const val HOUR = 60 * 60 * 1000L; private const val SHORT_GAP = 10 * 60 * 1000L }
 }

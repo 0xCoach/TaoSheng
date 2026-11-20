@@ -29,9 +29,12 @@ data class AudioUsage(
 )
 
 /** 清除或缩短保留时长前的预估 / 实际结果 */
-data class AudioTrim(val bytes: Long, val days: Int, val segments: Int, val keptPending: Int)
+data class AudioTrim(val bytes: Long, val days: Int, val segments: Int, val keptPending: Int, val unpushed: Int = 0)
 
 interface OriginalAudio {
+    val heldSummary: StateFlow<app.resound.recordings.HeldSummary> get() = kotlinx.coroutines.flow.MutableStateFlow(app.resound.recordings.HeldSummary())
+    val keepStatus: StateFlow<app.resound.recordings.KeepStatus> get() = kotlinx.coroutines.flow.MutableStateFlow(app.resound.recordings.KeepStatus())
+    suspend fun releaseHeld(): AudioTrim = AudioTrim(0, 0, 0, 0)
     val retentionDays: StateFlow<Int>
     /** 改短时调用前界面先用 [previewTrim] 给出提示；改后立即按新规则清理 */
     fun setRetentionDays(days: Int)

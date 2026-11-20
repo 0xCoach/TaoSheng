@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 enum class PushKind(val title: String) {
     // 顺序即界面顺序（按名字存储，调顺序不影响已存的通道）：消息推送 → 文档与笔记 → 自定义接口放最后
     PushPlus("PushPlus"), WeCom("企业微信机器人"), ServerChan("Server酱"), Feishu("飞书机器人"), DingTalk("钉钉机器人"), Telegram("Telegram"),
-    Email("邮件"), Notion("Notion"), MarkdownFolder("坚果云同步文件夹"),
+    Email("邮件"), Notion("Notion"), MarkdownFolder("同步到网盘文件夹（坚果云 / WebDAV / S3）"), LocalFolder("手机里的文件夹"),
     Webhook("自定义接口（Webhook）"),
 }
 
@@ -91,6 +91,10 @@ data class PushSubscription(
     val audioWithText: Boolean = true,
     /** 只在连 WiFi 时推录音 */
     val audioWifiOnly: Boolean = true,
+    val audioText: AudioText = AudioText.Daily,
+    val audioChargingOnly: Boolean = false,
+    val audioCalls: Boolean = true,
+    val audioImports: Boolean = false,
     /** 每日足迹：默认不推（位置敏感） */
     val footprint: Boolean = false,
     /** 每天几点推足迹（一天里的分钟数） */
@@ -131,6 +135,10 @@ enum class AudioPush(val title: String) {
     All("全部录音"),
 }
 
+enum class AudioText { Daily, PerSegment, Both, None }
+
+data class PendingRemoteDelete(val channelName: String, val path: String, val channelId: Long = 0)
+
 /** 卡 072：某通道推录音的情况，通道详情里显示 */
 data class AudioPushStatus(
     val uploaded: Int,
@@ -141,6 +149,8 @@ data class AudioPushStatus(
     val monthlyEstimateBytes: Long?,
     val lastAt: Long?,
     val lastError: String?,
+    val quotaHint: String? = null,
+    val held: Int = 0,
 )
 
 /** 推送状态，通道详情里显示 */
@@ -157,6 +167,9 @@ data class PushLog(val id: Long, val channelId: Long, val channelName: String, v
 
 interface PushChannels {
     val channels: Flow<List<PushChannel>>
+    suspend fun audioOffPreview(id: Long): Int = 0
+    val pendingRemoteDeletes: Flow<List<PendingRemoteDelete>> get() = kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun dismissRemoteDelete(channelId: Long, path: String) {}
 
     fun fields(kind: PushKind): List<PushField>
 

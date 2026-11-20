@@ -21,6 +21,8 @@ object SubscriptionJson {
         put("incremental", s.incremental); put("fullCheckAt", s.fullCheckAt?.let(::JsonPrimitive) ?: JsonNull)
         put("layout", s.layout.name); put("rangeDays", s.rangeDays?.let(::JsonPrimitive) ?: JsonNull); put("excludeMedia", s.excludeMedia)
         put("backfillDays", s.backfillDays?.let(::JsonPrimitive) ?: JsonNull); put("lineContext", s.lineContext)
+        put("audioText", s.audioText.name); put("audioChargingOnly", s.audioChargingOnly)
+        put("audioCalls", s.audioCalls); put("audioImports", s.audioImports)
         put("audio", s.audio.name); put("audioWithText", s.audioWithText); put("audioWifiOnly", s.audioWifiOnly)
         put("footprint", s.footprint); put("footprintAt", s.footprintAt)
         put("screenTime", s.screenTime); put("screenTimeAt", s.screenTimeAt)
@@ -42,6 +44,10 @@ object SubscriptionJson {
             }, j.flag("incremental"), j.number("fullCheckAt"), FolderLayout.valueOf(j.text("layout")), j.number("rangeDays"),
             j.flag("excludeMedia"), j.number("backfillDays"), lineContext = j.flag("lineContext", true),
             audio = AudioPush.entries.find { it.name == j["audio"]?.jsonPrimitive?.content } ?: AudioPush.Off,
+            audioText = j["audioText"]?.jsonPrimitive?.content?.let { AudioText.valueOf(it) }
+                ?: if (j.flag("audioWithText", true)) AudioText.PerSegment else AudioText.None,
+            audioChargingOnly = j.flag("audioChargingOnly", false),
+            audioCalls = j.flag("audioCalls", true), audioImports = j.flag("audioImports", false),
             audioWithText = j.flag("audioWithText", true), audioWifiOnly = j.flag("audioWifiOnly", true),
             footprint = j.flag("footprint", false), footprintAt = (runCatching { j.number("footprintAt") }.onFailure {
                 FailureNotes.record("push/SubscriptionJson.kt:43", it)

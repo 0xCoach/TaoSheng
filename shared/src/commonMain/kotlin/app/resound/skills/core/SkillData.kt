@@ -4,7 +4,8 @@ import kotlinx.datetime.LocalDate
 import app.resound.net.Obj as JSONObject
 import app.resound.net.Arr as JSONArray
 
-data class SkillCardData(
+@kotlinx.serialization.Serializable
+    data class SkillCardData(
     val id: Long = 0,
     val skillId: String, val skillVersion: Int, val skillName: String, val icon: String,
     val date: Long, val entity: String, val at: Long, val endAt: Long?, val title: String, val summary: String,

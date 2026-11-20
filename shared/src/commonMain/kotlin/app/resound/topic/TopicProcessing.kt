@@ -6,12 +6,24 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import app.resound.topic.core.TopicBlockCache
+import app.resound.topic.core.TopicBlockNote
 
-/** 派生缓存不替代原话；source 改变即作废。平台提供原子存储，iOS 可用同一协议。 */
+/** 派生缓存不替代原话。format=3 按块保存；source 用于完成快检；entries 供块内请求断点使用。 */
 @Serializable data class TopicCheckpoint(val source: String = "", val entries: Map<String, String> = emptyMap(),
-    val progress: TopicProgress = TopicProgress())
+    val progress: TopicProgress = TopicProgress(),
+    val format: Int = 0, val revision: Long = 0,
+    val blocks: Map<Int, TopicBlockCache> = emptyMap(),
+    val summaryKey: String = "", val summary: String? = null,
+    val summaryEntries: Map<String, String> = emptyMap(),
+    val skipWaiting: Boolean = false, val completedSegments: Set<Long> = emptySet(),
+    val endedAt: Long? = null, val generationStartedAt: Long? = null)
 @Serializable data class TopicProgress(val phase: String = "", val completed: Int = 0, val total: Int = 0,
-    val notes: Map<String, String> = emptyMap(), val error: String? = null, val finished: Boolean = false, val draft: String? = null) {
+    val notes: Map<String, String> = emptyMap(), val error: String? = null, val finished: Boolean = false, val draft: String? = null,
+    val blocksTotal: Int = 0, val blocksDone: Int = 0, val blocksFailed: Int = 0,
+    val waitingTranscribe: Int = 0, val waitingVoiceprint: Int = 0, val waitingNetwork: Boolean = false,
+    val lastProgressAt: Long = 0, val organizedUntil: Long? = null,
+    val blockNotes: List<TopicBlockNote> = emptyList(), val stalledReason: String? = null) {
     val readableNotes: List<String> get() {
         val summaries = notes.filterKeys { it.startsWith("整理纪要:") }
         val extracts = notes.filterKeys { it.startsWith("提取要点:") }

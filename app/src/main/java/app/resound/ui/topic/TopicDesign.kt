@@ -204,7 +204,7 @@ import java.time.ZoneId
     }
 }
 
-@Composable internal fun TopicProgressContent(progress: TopicProgress, error: String?, busy: Boolean, retry: () -> Unit, summarizeNow: (() -> Unit)? = null) {
+@Composable internal fun TopicProgressContent(progress: TopicProgress, error: String?, busy: Boolean, summarizeNow: (() -> Unit)? = null, retry: () -> Unit) {
     val c = Rs.colors
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // 卡 217：按 10 分钟时间块整理，说清楚整理到哪、在等什么

@@ -424,8 +424,8 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
             t.status == TopicStatus.Scheduled -> HeroNote("到点自动开始、自动结束" + (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(DayOfWeek.valueOf(it.name)) } else "")) {
                 ActionButton("取消这次预约", ActionKind.Danger) { scope.launch { if (guarded(context) { AppGraph.topics.cancelSchedule(t.id) }) onDismiss() } }
             }
-            t.status == TopicStatus.Failed -> TopicProgressContent(progress, progress.error ?: t.error, busy, retry, summarizeNow)
-            t.status == TopicStatus.Summarizing || t.status == TopicStatus.Ended -> TopicProgressContent(progress, null, busy, retry, summarizeNow)
+            t.status == TopicStatus.Failed -> TopicProgressContent(progress, progress.error ?: t.error, busy, summarizeNow, retry)
+            t.status == TopicStatus.Summarizing || t.status == TopicStatus.Ended -> TopicProgressContent(progress, null, busy, summarizeNow, retry)
             t.status == TopicStatus.Done && t.kind != TopicKind.Normal -> HeroNote("还没有纪要") {
                 ActionButton("生成纪要", ActionKind.Primary, enabled = !busy) { scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } } }
             }

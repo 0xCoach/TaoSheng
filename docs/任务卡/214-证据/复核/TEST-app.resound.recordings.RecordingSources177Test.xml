@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.recordings.RecordingSources177Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:03:50.229Z" hostname="CoachdeMacBook-Air.local" time="0.243">
+  <properties/>
+  <testcase name="card214IncludesCallAndOrdinaryImportsOnlyForPushSources" classname="app.resound.recordings.RecordingSources177Test" time="0.243"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

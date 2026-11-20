@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.privacy.RoomPrivacyActionsTest" tests="22" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:00:38.969Z" hostname="CoachdeMacBook-Air.local" time="7.719">
+  <properties/>
+  <testcase name="deleteAllStopsFloorAtNowAndLaterEventsCanBePulled" classname="app.resound.privacy.RoomPrivacyActionsTest" time="5.647"/>
+  <testcase name="deleteRangeRemovesScreenEventsAndRaisesFloorSoPullStartsAfterIt" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.121"/>
+  <testcase name="forgetEventWithoutAudioClearsScreenSessionsEventsAndPlayback" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.159"/>
+  <testcase name="forgetEventRemovesAudioSamplesExclusionsAndFeaturesButKeepsEnrollment" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.176"/>
+  <testcase name="deletedQueuedAndInflightSegmentsCannotBeTranscribedOrRecreatedByOldResults" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.149"/>
+  <testcase name="recentDeletesWholeEventAndItsUnlinkedItems" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.07"/>
+  <testcase name="deleteWithoutPriorPullStateStillLeavesFloor" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.055"/>
+  <testcase name="forgetSegmentRemovesEmptyEventsAndPreservesOtherEventLines" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.083"/>
+  <testcase name="deleteRangeThenQueryDoesNotReplayForgottenWindow" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.061"/>
+  <testcase name="segmentDeletionClearsPlaybackAndGaps" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.063"/>
+  <testcase name="rangeDeletesOnlyInsideAndKeepsRecordingWhenRangeIsPast" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.105"/>
+  <testcase name="batchDeletionPreservesPlaybackBetweenSegments" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.078"/>
+  <testcase name="inFlightPullAfterDeleteDoesNotRewriteForgottenEvents" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.07"/>
+  <testcase name="eventDeletionClearsOnlyItsSegmentsPlaybackAndGaps" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.095"/>
+  <testcase name="fileRemovalFailureIsPersistedAndRetriedAfterRecreation" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.072"/>
+  <testcase name="deleteRangeRemovesInsidePlaybackAndTruncatesLeftCrossing" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.07"/>
+  <testcase name="overlappingRangeDeletesKeepProtectionOnUncoveredPrefix" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.04"/>
+  <testcase name="card214JournalsIdsBeforeDatabaseErasureForAllEntryPoints" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.062"/>
+  <testcase name="recentKeepsCrossingEventAndDeletesSourceItemsAndPendingAudio" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.062"/>
+  <testcase name="sequentialBatchDeletionWorksBeyondFiveEvents" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.355"/>
+  <testcase name="rangeWithoutAudioClearsPlaybackAndBothGapSources" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.079"/>
+  <testcase name="partialDeleteDropsUnreferencedNamesOnly" classname="app.resound.privacy.RoomPrivacyActionsTest" time="0.036"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,18 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        if (project.name == 'shared') filter { includeTestsMatching 'app.resound.recordings.RecordingKeep214Test' }
+        if (project.name == 'app') filter {
+            includeTestsMatching 'app.resound.recordings.Recording214Test'
+            includeTestsMatching 'app.resound.recordings.RecordingArchive072Test'
+            includeTestsMatching 'app.resound.recordings.RecordingSources177Test'
+            includeTestsMatching 'app.resound.push.LocalFolder214Test'
+            includeTestsMatching 'app.resound.push.PushLocal067Test'
+            includeTestsMatching 'app.resound.push.PushMoreTest'
+            includeTestsMatching 'app.resound.privacy.RoomPrivacyActionsTest'
+            includeTestsMatching 'app.resound.transcribe.OriginalAudio062Test.retentionProtectsRecentStarredAndPending'
+            includeTestsMatching 'app.resound.transcribe.OriginalAudio062Test.previewAndClearAgreeAndKeepStarredAndPending'
+            includeTestsMatching 'app.resound.transcribe.OriginalAudio062Test.clearRangeOnlyRemovesAudioInsideRange'
+            includeTestsMatching 'app.resound.transcribe.OriginalAudio062Test.card214*'
+        }
+    }
+}

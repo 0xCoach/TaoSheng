@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.recordings.RecordingKeep214Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:12:15.386Z" hostname="CoachdeMacBook-Air.local" time="0.077">
+  <properties/>
+  <testcase name="summaryCountsExpiredDaysAndSevenDaysAfterExpiry[jvm]" classname="app.resound.recordings.RecordingKeep214Test" time="0.039"/>
+  <testcase name="privacyNamesAndQuotaAreStrict[jvm]" classname="app.resound.recordings.RecordingKeep214Test" time="0.017"/>
+  <testcase name="retentionUsesScopeAndAnyVerifiedDestination[jvm]" classname="app.resound.recordings.RecordingKeep214Test" time="0.002"/>
+  <testcase name="defaultsMigrationSourcesAndTemplates[jvm]" classname="app.resound.recordings.RecordingKeep214Test" time="0.016"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

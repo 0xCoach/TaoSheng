@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.transcribe.OriginalAudio062Test" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:00:48.880Z" hostname="CoachdeMacBook-Air.local" time="0.197">
+  <properties/>
+  <testcase name="previewAndClearAgreeAndKeepStarredAndPending" classname="app.resound.transcribe.OriginalAudio062Test" time="0.073"/>
+  <testcase name="clearRangeOnlyRemovesAudioInsideRange" classname="app.resound.transcribe.OriginalAudio062Test" time="0.035"/>
+  <testcase name="card214HoldsExpiredAndReleasePreservesPendingAndManualPreviewCounts" classname="app.resound.transcribe.OriginalAudio062Test" time="0.05"/>
+  <testcase name="retentionProtectsRecentStarredAndPending" classname="app.resound.transcribe.OriginalAudio062Test" time="0.039"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             if (toInbox) {
                 if (AppGraph.captureInbox.receive(requireNotNull(intent), referrer?.host ?: callingActivity?.packageName) > 0) {
-                    tabRequest = 4 to System.nanoTime() // 第 5 页“助手”
+                    tabRequest = 1 to System.nanoTime() // 第 2 页“助手”
                 }
             } else {
                 receiveSharedAudio(intent)
@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
         if (open != "review" && open != "day") return
         dayOnly = open == "day"
         openReview = intent.getStringExtra("date")?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
-        tabRequest = 2 to System.nanoTime() // 第 3 页“记忆”
+        tabRequest = 3 to System.nanoTime() // 第 4 页“记忆”
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -167,13 +167,13 @@ class MainActivity : ComponentActivity() {
                 else AppShell(
                     listOf(
                         "今天" to { TodayScreen(capture, stats, transcripts, memory, digestSettings, mode, setMode, ShellBottomPadding) },
-                        "问问" to { AskScreen(ask, ShellBottomPadding) },
+                        "助手" to { app.resound.ui.assistant.AssistantScreen(ShellBottomPadding) },
+                        "待办" to { TodoScreen(memory, ShellBottomPadding) },
                         "记忆" to {
                             MemoryScreen(memory, if (AppGraph.isReviewReady) AppGraph.review else null, transcripts,
                                 if (AppGraph.isDiaryReady) AppGraph.diary else null, openReview, { openReview = null }, ShellBottomPadding, showReview = !dayOnly)
                         },
-                        "待办" to { TodoScreen(memory, ShellBottomPadding) },
-                        "助手" to { app.resound.ui.assistant.AssistantScreen(ShellBottomPadding) },
+                        "问问" to { AskScreen(ask, ShellBottomPadding) },
                         "设置" to {
                             SettingsScreen(capture, transcribeSettings, digestSettings, mode, setMode, ShellBottomPadding) { page, bottom ->
                                 when (page) {

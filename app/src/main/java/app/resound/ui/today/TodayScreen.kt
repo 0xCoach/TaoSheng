@@ -1046,7 +1046,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                         app.resound.ask.AskSource("event", event.id, event.startAt, event.title, event.summary),
                         "关于“${event.title}”，还有哪些细节？",
                     )
-                    onClose(); app.resound.ui.ShellNav.go(1)
+                    onClose(); app.resound.ui.ShellNav.go(4)
                 }
                 ActionChip(if (confirmDelete) "确认删除" else "删除", if (confirmDelete) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
                     if (!confirmDelete) { confirmDelete = true; return@ActionChip }

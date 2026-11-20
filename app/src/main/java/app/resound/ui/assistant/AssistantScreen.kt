@@ -41,7 +41,7 @@ enum class AssistantPage { Hub, Ideas, Projects, Analysis, Agent, Decisions, Fol
 
 /**
  * 助手：灵感收件箱、项目长期记忆、AI 智能分析、Agent 任务四个模块的入口。
- * 底栏第 5 页；子页在同一页签内全屏切换，返回回到枢纽。
+ * 底栏第 2 页；子页在同一页签内全屏切换，返回回到枢纽。
  */
 @Composable
 fun AssistantScreen(bottomPadding: androidx.compose.ui.unit.Dp) {

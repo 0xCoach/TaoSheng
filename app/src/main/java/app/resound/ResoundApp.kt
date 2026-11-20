@@ -75,6 +75,10 @@ class ResoundApp : Application() {
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
         app.resound.backup.BackupRestore.applyPending(this)
+        val searchHistoryPrefs = getSharedPreferences("search-history", MODE_PRIVATE)
+        AppGraph.searchHistory = app.resound.search.SearchHistory(
+            { searchHistoryPrefs.getString("items", null) },
+            { check(searchHistoryPrefs.edit().putString("items", it).commit()) { "搜索历史保存失败" } })
         scope.launch {
             val tables = getString(R.string.capture_diagnostic_tables).split(',').toTypedArray()
             database.invalidationTracker.addObserver(object : androidx.room.InvalidationTracker.Observer(tables) {

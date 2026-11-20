@@ -13,6 +13,7 @@ import app.resound.transcribe.TranscriptRepository
  * 底层实现完成前，界面用 ui/preview 里的假数据开发。
  */
 object AppGraph {
+    lateinit var searchHistory: app.resound.search.SearchHistory
     lateinit var marks: app.resound.marks.MarkRepository
     lateinit var markSettings: app.resound.marks.AndroidMarkSettings
     lateinit var platform: app.resound.platform.PlatformServices

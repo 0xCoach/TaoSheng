@@ -1,0 +1,15 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        filter {
+            if (project.name == 'shared') {
+                includeTestsMatching('app.resound.net.LlmAdaptive218Test.budget*')
+                includeTestsMatching('app.resound.net.LlmAdaptive218Test.speedCheck*')
+            }
+            if (project.name == 'app') {
+                ['LlmSpeed218Test', 'DigestSplitRetryTest', 'DigestRejected134Test', 'LlmProviders076Test'].each {
+                    includeTestsMatching('app.resound.digest.' + it)
+                }
+            }
+        }
+    }
+}

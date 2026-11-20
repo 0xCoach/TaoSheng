@@ -167,7 +167,7 @@ class DigestRunner(
                 record(now(), "等待网络")
                 return DigestOutcome.Retryable("等待网络")
             }
-            _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed())
+            _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed(), reasoningChars = 0, contentChars = 0)
             val refreshed = dao.refreshLines(chunk.map { it.id })
             when (val error = if (refreshed.isEmpty()) null else digest(refreshed, preset, key, onEvents)) {
                 null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
@@ -240,9 +240,11 @@ class DigestRunner(
                     val adaptiveRequest: suspend (LlmPreset, String, String, String) -> LlmReply = { p, secret, a, b ->
                         usedPreset = p; requested = true
                         var thinkingChars = 0
+                        _progress.value = _progress.value.copy(reasoningChars = 0, contentChars = 0)
                         try {
                             val reply = kotlinx.coroutines.withContext(app.resound.net.LlmReceiveProgress { reasoning, content ->
                                 thinkingChars = reasoning
+                                _progress.value = _progress.value.copy(reasoningChars = reasoning, contentChars = content)
                             }) { request(p, secret, a, b) }
                             thinkingChars = maxOf(thinkingChars, reply.reasoningChars)
                             settings.slowStreak.result(p, false)

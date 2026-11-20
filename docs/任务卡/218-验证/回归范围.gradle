@@ -1,0 +1,24 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        filter {
+            if (project.name == 'shared') {
+                includeTestsMatching('app.resound.digest.*')
+                includeTestsMatching('app.resound.topic.*')
+                includeTestsMatching('app.resound.net.KtorMock151Test')
+                includeTestsMatching('app.resound.net.LlmAdaptive218Test.ninetySeconds*')
+            }
+            if (project.name == 'app') {
+                [ 'DigestAudit087Test', 'DigestOutcome189Test', 'DigestSplitRetryTest', 'DigestProgressTest',
+                  'DigestBudget088Test', 'DigestRejected134Test', 'LlmProviders076Test', 'LlmCancellationAudit087Test',
+                  'LlmFailover103Test', 'ModelCheck*', 'LlmStream136Test'].each {
+                    includeTestsMatching('app.resound.digest.' + it)
+                }
+                includeTestsMatching('app.resound.topic.Topic135Test')
+                includeTestsMatching('app.resound.topic.TopicRepository177Test')
+                includeTestsMatching('app.resound.topic.TopicAdaptive218Test')
+                includeTestsMatching('app.resound.importer.ImportKinds077Test')
+                includeTestsMatching('app.resound.backup.PreferenceBackup190Test')
+            }
+        }
+    }
+}

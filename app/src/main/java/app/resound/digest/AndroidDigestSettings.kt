@@ -115,7 +115,7 @@ class AndroidDigestSettings internal constructor(
         }
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
-        return Result.success(ModelCheck(
+        val checks = ModelCheck(
             json = { system, user ->
                 client.probeJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
             },
@@ -128,7 +128,19 @@ class AndroidDigestSettings internal constructor(
                 try { client.streamChat(selected, key, messages, tools, {}, { p, c -> prompt = p; completion = c }) }
                 finally { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(LlmReply("", prompt, completion)) } }
             },
-        ).run().map { it.copy(lastAskFailure = compatibility.state(selected).lastFailure) })
+        ).run().map { it.copy(lastAskFailure = compatibility.state(selected).lastFailure) }
+        // 独立于兼容性探针，不修改批次预算；失败只影响这一项。
+        val speed = LlmSpeedCheck.run(android.os.SystemClock::elapsedRealtime, { system, user ->
+            try {
+                val reply = client.chatJson(selected, key, system, user, thinking = preferences.deepThinking.value)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
+                LlmSpeedCheck.Reply(reply.content, reply.reasoningChars)
+            } catch (e: LlmException) {
+                e.usage?.let { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
+                throw e
+            }
+        }, { (it as? LlmException)?.detail ?: "请稍后重试" })
+        return Result.success(checks + ModelCheckItem(LlmSpeedCheck.FEATURE, speed.ok, speed.detail))
     }
 
     companion object {

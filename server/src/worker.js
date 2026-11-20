@@ -175,6 +175,10 @@ async function rateLimit(env, key, limit, window) {
 
 // ---------- 路由 ----------
 export default {
+  /** 定时探活：保住 Worker 实例与 D1 连接温热，管理台/登录首击不吃十几秒冷启动。 */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(env.DB.prepare("SELECT 1").first().catch(() => null));
+  },
   async fetch(req, env) {
     const url = new URL(req.url);
     const path = url.pathname;

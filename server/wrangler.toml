@@ -10,6 +10,8 @@ routes = [
   { pattern = "soundsound.gdfactory.cn", custom_domain = true }
 ]
 
+# 注：免费版 5 个 cron 名额已用尽，无法加自探活；worker.scheduled handler 保留备用。
+
 [[d1_databases]]
 binding = "DB"
 database_name = "soundsound-auth"

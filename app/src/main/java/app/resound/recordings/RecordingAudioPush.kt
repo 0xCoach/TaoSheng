@@ -63,7 +63,8 @@ internal class RecordingAudioPush(
         }
         return RecordingKeepRules.held(rows.map { it.keep() }, configured, today.toString())
     }
-    suspend fun protectedIds(): Set<Long> = gate.withLock { protection(load()) }
+    // 没有开启推录音的渠道时不需要逐段读取全部录音和原话。
+    suspend fun protectedIds(): Set<Long> = if (channels.channels.value.none(::active)) emptySet() else gate.withLock { protection(load()) }
     suspend fun offPreview(id: Long): Int {
         (AppGraph.originalAudio as? app.resound.transcribe.LocalOriginalAudio)?.refreshHeld()
         return gate.withLock {
@@ -327,17 +328,20 @@ class RecordingAudioPushWorker(context: Context, params: WorkerParameters) : Cor
 
 /** 装配入口仅在 ResoundApp 调用一次。Room 通知 + 周期校对覆盖落盘、转写、重转和原声过期。 */
 @OptIn(FlowPreview::class)
+private const val DATA_REFRESH_GAP_MILLIS = 60_000L
 internal fun attachRecordingArchive(context: Context, database: CaptureDatabase, channels: AndroidPushChannels, scope: CoroutineScope) {
     val sources = RecordingSources(database, File(context.filesDir, "segments"))
     AppGraph.recordingPacker = AndroidRecordingPacker(context, sources::load, scope, metadata = sources::metadata)
     val pushSources = RecordingSources(database, File(context.filesDir, "segments"), includeImports = true)
     val audio = RecordingAudioPush(context, channels, pushSources::load)
     channels.audioPush = audio
+    // 设置变化立即生效；录音、转写带来的数据变动很频繁，合并成最多每分钟一次。
+    scope.launch(Dispatchers.IO) { channels.channels.debounce(1000).collect { audio.refresh() } }
     scope.launch(Dispatchers.IO) {
-        merge(channels.channels.map { Unit }, database.invalidationTracker.createFlow("segments", "transcript_lines", "memory_events", "env_sounds", "import_records").map { Unit },
+        merge(database.invalidationTracker.createFlow("segments", "transcript_lines", "memory_events", "env_sounds", "import_records").map { Unit },
             channelFlow { channels.channels.map { list -> BackgroundRefreshPolicy.audioNeedsTick(list) }
                 .refreshWhileNeeded(60_000) { send(Unit) } })
-            .debounce(1000).collect { audio.refresh() }
+            .conflate().collect { audio.refresh(); delay(DATA_REFRESH_GAP_MILLIS) }
     }
     RecordingAudioSweepWorker.schedule(context, channels.channels.value)
 }

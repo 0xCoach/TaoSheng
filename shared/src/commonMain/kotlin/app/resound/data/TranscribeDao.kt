@@ -72,9 +72,12 @@ abstract class TranscribeDao {
 
     @Transaction
     @Query("SELECT * FROM segments") abstract suspend fun allAudio(): List<SegmentEntity>
-    @Query("""SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM memory_events e
-        WHERE e.starred = 1 AND e.deleted = 0 AND s.startAt < e.endAt AND s.endAt > e.startAt)
-        OR EXISTS (SELECT 1 FROM marks m WHERE s.startAt < m.at + m.afterMillis AND s.endAt > m.at - m.beforeMillis)""")
+    // 先取少量收藏事件/标记，再逐个对录音段做区间比对（CROSS JOIN 固定外层顺序）。
+    // 旧写法让每段录音去扫全部事件，几万段时一次要 8 秒，且推录音每次刷新都会调用。
+    @Query("""SELECT DISTINCT s.id FROM (
+        SELECT startAt AS a, endAt AS b FROM memory_events WHERE starred = 1 AND deleted = 0
+        UNION ALL SELECT at - beforeMillis AS a, at + afterMillis AS b FROM marks
+    ) k CROSS JOIN segments s WHERE s.startAt < k.b AND s.endAt > k.a""")
     abstract suspend fun starredAudio(): List<Long>
 
     @Query("SELECT EXISTS(SELECT 1 FROM segments WHERE path IN (:ogg, :m4a))")

@@ -81,7 +81,10 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val row=dao.get(id) ?: return null
         val clips=dao.clips(id).associateBy { it.id }
         val rows=dao.events(id)
-        val events=rows.map { r->json.decodeFromString<NightEvent>(r.payload).copy(id=r.id,audioAvailable=clips[json.decodeFromString<NightEvent>(r.payload).clipId]?.path?.let { available(it) }==true) }
+        val all=rows.map { r->json.decodeFromString<NightEvent>(r.payload).copy(id=r.id,audioAvailable=clips[json.decodeFromString<NightEvent>(r.payload).clipId]?.path?.let { available(it) }==true) }
+        // 卡 213：起床后、入睡前、醒着时的“很响的一下”不显示
+        val times=summary(row).times;val awake=all.filter { it.kind==NightEventKind.Awake }.map { NightSpan(it.start,it.end) }
+        val events=all.filter { NightRules.loudWhileAsleep(it,times,awake) }
         val tagLinks=dao.tagLinks(id);val tagList=dao.tagList();val suggested=tagList.filter {t->tagLinks.any {it.tagId==t.id && it.state=="suggested"}}.map {NightTag(it.id,it.name,it.preset)}
         val dreams=dao.dreams(id).map {json.decodeFromString<Dream>(it.payload).copy(id=it.id)}
         val notice=if(settings.value.breakReminder && dao.notice("break")?.muted!=true && dao.notice("notice-night-$id")!=null)SnoreBreaks.NOTICE else null

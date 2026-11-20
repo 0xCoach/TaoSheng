@@ -89,6 +89,9 @@ class LoudPicker(existing: List<Pick>) {
         return due
     }
 
+    /** 卡 213：亮屏了——挂着的那一下若离现在不到 [NightTuning.LOUD_AWAKE_MARGIN]，多半是起身拿手机的声音，作废 */
+    fun awake(at: Long) { pending?.let { if (at - it.first < NightTuning.LOUD_AWAKE_MARGIN) pending = null } }
+
     /** 一夜结束时把还挂着的交出去 */
     fun flush(): Pair<Long, Int>? = pending.also { pending = null }
 

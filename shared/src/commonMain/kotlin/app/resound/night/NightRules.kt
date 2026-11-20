@@ -22,6 +22,8 @@ object NightTuning {
     const val LOUD_GAP = 15_000L
     const val LOUD_BEFORE = 6_000L
     const val LOUD_AFTER = 10_000L
+    /** 卡 213：醒着（亮屏、拿起）前后这么久的声音不算“睡着时最响” */
+    const val LOUD_AWAKE_MARGIN = 30_000L
     // 卡 210：鼾声中断的回听片段：安静开始前 5 秒到那一声后 8 秒
     const val BREAK_BEFORE = 5_000L
     const val BREAK_AFTER = 8_000L
@@ -75,6 +77,14 @@ object NightRules {
     /** 这一夜结束后（整理中/已整理），同一个早上不再重新开始记录；中断的那一夜可以接着记 */
     fun canReopen(state: NightState?) = state==null || state!=NightState.Processing && state!=NightState.Ready
     fun median(values: List<Long>): Long { require(values.isNotEmpty());val v=values.sorted();val i=v.size/2;return if(v.size%2==1)v[i] else v[i-1]+(v[i]-v[i-1])/2 }
+    /** 卡 213：“最响的几下”只算睡着时——入睡到起床之间，且不在醒着前后 [NightTuning.LOUD_AWAKE_MARGIN] 内。
+     * 显示时筛，不删数据：改了入睡/起床时间会跟着变。还没算出时间（夜里进行中）时不筛。 */
+    fun loudWhileAsleep(e: NightEvent, times: NightTimes?, awake: List<NightSpan>): Boolean {
+        if (e.kind != NightEventKind.Loud || times == null) return true
+        if (e.start < times.onset || e.start >= times.wake) return false
+        val m = NightTuning.LOUD_AWAKE_MARGIN
+        return awake.none { e.start >= it.start - m && e.start < it.end + m }
+    }
     fun merge(spans: List<NightSpan>, gap: Long=0): List<NightSpan> {
         val out=mutableListOf<NightSpan>()
         spans.sortedBy { it.start }.forEach { n -> val last=out.lastOrNull();if(last!=null && n.start-last.end<=gap)out[out.lastIndex]=NightSpan(last.start,maxOf(last.end,n.end)) else out+=n }

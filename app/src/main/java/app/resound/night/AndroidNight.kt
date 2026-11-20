@@ -31,7 +31,8 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
         for(row in store.dao.all().filter { it.state==NightState.Processing.name || it.state==NightState.Interrupted.name }) {
             val candidates=store.dao.clips(row.id).filter { it.candidate && it.path!=null }
             if(candidates.isNotEmpty() && !(battery.isCharging || !power.isInteractive && battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)>=40))continue
-            val processor=NightSoundProcessor(this,row.id)
+            // 卡 213：事后补做时“现在亮不亮屏”与当晚无关，不按亮屏剔除，靠显示时按醒来时段筛
+            val processor=NightSoundProcessor(this,row.id,screenOn={ false })
             model.beginNight()
             try {
                 val seen=mutableSetOf<Long>()

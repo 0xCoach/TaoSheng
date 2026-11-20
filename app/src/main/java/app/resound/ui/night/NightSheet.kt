@@ -311,7 +311,7 @@ private fun groupTitle(kind: NightEventKind, sharedRoom: Boolean) = when (kind) 
     NightEventKind.Snore -> if (sharedRoom) "卧室里的鼾声" else "鼾声"
     NightEventKind.Cough -> "咳嗽/清嗓"
     NightEventKind.SleepTalk -> "梦话和人声"
-    NightEventKind.Loud -> "最响的几下"
+    NightEventKind.Loud -> "睡着时最响的几下"
     NightEventKind.Awake -> "醒来"
     NightEventKind.Playback -> "手机在放声音"
     NightEventKind.Gap -> "没有记录"
@@ -323,7 +323,7 @@ private fun groupSummary(kind: NightEventKind, list: List<NightEvent>, d: NightD
     NightEventKind.Snore -> "${list.size} 段 · 共 ${span(app.resound.night.NightRules.merge(list.map { app.resound.night.NightSpan(it.start, it.end) }).sumOf { it.millis })}"
     NightEventKind.SnoreBreak -> "${list.size} 次" + (d.summary.sleepMillis?.takeIf { it > 0 }?.let { " · 每小时 %.1f 次".format(list.size * 3_600_000.0 / it) } ?: "")
     NightEventKind.Cough, NightEventKind.Awake -> "${list.size} 次"
-    NightEventKind.Loud -> "${list.size} 下 · 最响比背景高 ${list.maxOf { it.aboveBackgroundDb ?: 0 }} 分贝"
+    NightEventKind.Loud -> "${list.size} 下 · 不一定是鼾声 · 最响比背景高 ${list.maxOf { it.aboveBackgroundDb ?: 0 }} 分贝"
     else -> "${list.size} 段"
 }
 
@@ -445,7 +445,7 @@ private fun ShareLoudest(nightId: Long) {
     var pending by remember { mutableStateOf<File?>(null) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("最响的 15 秒", style = RsType.body, color = c.text)
+            Text("最响的 15 秒鼾声", style = RsType.body, color = c.text)
             Text("发给自己或家人听听", style = RsType.caption, color = c.textSecondary)
         }
         Pill(if (state == "making") "准备中…" else "分享", filled = false) {

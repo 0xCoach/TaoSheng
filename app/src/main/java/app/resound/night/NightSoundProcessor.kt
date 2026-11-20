@@ -3,7 +3,11 @@ package app.resound.night
 import kotlinx.serialization.encodeToString
 
 /** 同一串行消费者调用，模型和编码不在麦克风读取协程里运行。 */
-class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,private val evidence: (NightWindow,Map<String,Float>)->Unit = { _,_-> }) {
+class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,
+    private val screenOn: () -> Boolean = { owner.context.getSystemService(android.os.PowerManager::class.java)?.isInteractive == true },
+    private val evidence: (NightWindow,Map<String,Float>)->Unit = { _,_-> }) {
+    /** 卡 213：最近一次亮屏的窗口起点；亮屏中和熄屏后 30 秒内的声音不参加“最响”评选 */
+    private var lastAwake = Long.MIN_VALUE / 2
     private val detector=NightDetector()
     private val recent=ArrayDeque<Pair<NightWindow,Map<String,Float>>>()
     private var best: List<Pair<NightWindow,Map<String,Float>>> = emptyList()
@@ -70,8 +74,11 @@ class NightSoundProcessor(private val owner: AndroidNight,private val id: Long,p
     private suspend fun keepLoudest(w: NightWindow,db: Int) {
         val picker=loud ?: LoudPicker(owner.store.dao.events(id).filter { it.kind==NightEventKind.Loud.name }.map { row->
             LoudPicker.Pick(row.id,row.start,owner.store.json.decodeFromString<NightEvent>(row.payload).aboveBackgroundDb ?: 0) }).also { loud=it }
-        if(db>=NightTuning.LOUD_MIN_DB)loudWindows[w.start]=w
-        picker.offer(w.start,db)?.let { (at,d)-> commitLoud(at,d) }
+        if(screenOn()) { lastAwake=w.start; picker.awake(w.start) }
+        val asleep=w.start-lastAwake>=NightTuning.LOUD_AWAKE_MARGIN
+        if(asleep && db>=NightTuning.LOUD_MIN_DB)loudWindows[w.start]=w
+        // 醒着时喂 0：不参评，但让挂着的那一下按时交出去
+        picker.offer(w.start,if(asleep)db else 0)?.let { (at,d)-> commitLoud(at,d) }
         loudWindows.keys.removeAll { it<w.start-NightTuning.LOUD_AFTER-NightTuning.LOUD_GAP }
     }
     private suspend fun commitLoud(at: Long,db: Int) {

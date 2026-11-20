@@ -72,3 +72,25 @@ class LoudPicker210Test {
         assertEquals(listOf(4L), picker.kept(5, 305_000, 28))   // 相隔 5 秒，替换更轻的那下
     }
 }
+
+class Loud213Test {
+    private fun loud(at: Long) = NightEvent(1, NightEventKind.Loud, at, at + 2_000, 30)
+    @Test fun onlyLoudWhileAsleepIsShown() {
+        val times = NightTimes(bedtime = 0, onset = 1_000_000, wake = 9_000_000, onsetEstimated = false)
+        val awake = listOf(NightSpan(5_000_000, 5_120_000))
+        assertTrue(NightRules.loudWhileAsleep(loud(3_000_000), times, awake))
+        assertFalse("起床后", NightRules.loudWhileAsleep(loud(9_000_000), times, awake))
+        assertFalse("入睡前", NightRules.loudWhileAsleep(loud(500_000), times, awake))
+        assertFalse("醒着前 30 秒内", NightRules.loudWhileAsleep(loud(4_980_000), times, awake))
+        assertFalse("醒着后 30 秒内", NightRules.loudWhileAsleep(loud(5_140_000), times, awake))
+        assertTrue("还没算出时间不筛", NightRules.loudWhileAsleep(loud(9_000_000), null, awake))
+    }
+    @Test fun screenOnCancelsRecentPending() {
+        val picker = LoudPicker(emptyList())
+        assertNull(picker.offer(0, 30))
+        picker.awake(10_000)
+        assertNull(picker.flush())
+        assertNull(picker.offer(100_000, 30)); picker.awake(200_000)
+        assertEquals(100_000L to 30, picker.flush())
+    }
+}

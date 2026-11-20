@@ -50,6 +50,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
             if (app.resound.AppGraph.isNightReady) {
                 val night = app.resound.AppGraph.night as? app.resound.night.AndroidNight
                 out.appendLine("夜里（门槛待真机校准）")
+                out.appendLine(app.resound.night.NightCaptureState.describe())
                 night?.store?.dao?.all()?.take(30)?.forEach { row ->
                     val session = night.store.session(row)
                     out.appendLine("${row.date} 进入=${session.provisionalAt} 确认=${session.confirmedAt} 最后记录=${session.lastAt} 状态=${row.state} 档位=${session.modes} 推理=${session.calls}次/${session.inferenceMillis}ms 丢窗=${session.dropped} 电量=${session.startBattery}→${session.endBattery} 候选=${session.candidateBytes}字节 事件=${night.store.dao.events(row.id).size} 是=${night.store.dao.feedback().count { it.nightId==row.id && it.yes }} 不是=${night.store.dao.feedback().count { it.nightId==row.id && !it.yes }}")

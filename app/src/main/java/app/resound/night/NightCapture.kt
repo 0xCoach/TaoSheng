@@ -104,13 +104,15 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private suspend fun runPulse() {
         try { gate.withLock { pulse(System.currentTimeMillis()) } }
         catch (e: CancellationException) { throw e }
-        catch (e: Exception) { app.resound.diagnostics.FailureNotes.record("night/signals",e) }
+        // #59：Error 也只记下、不让主循环静默死掉
+        catch (e: Throwable) { app.resound.diagnostics.FailureNotes.record("night/signals",e); NightCaptureState.update { it.copy(lastError = e.javaClass.simpleName) } }
     }
     init {
         context.registerReceiver(receiver,IntentFilter().apply {addAction(Intent.ACTION_SCREEN_OFF);addAction(Intent.ACTION_SCREEN_ON);addAction(Intent.ACTION_USER_PRESENT);addAction(Intent.ACTION_POWER_DISCONNECTED)})
         scope.launch {
             // 上次进程中断：保留已落盘数据，补未知缺口，交给整理；不伪造连续录音。
-            for(r in owner.store.dao.all().filter { it.state in setOf("Active","Provisional") }) {
+            // #59：恢复出错只记下，不能拖死后面的主循环
+            try { for(r in owner.store.dao.all().filter { it.state in setOf("Active","Provisional") }) {
                 if(r.state=="Provisional")owner.store.deleteNight(r.id,"重启时清掉未确认的暂定记录")
                 else if (r.kind == "nap") {
                     // 重启期间的解锁无法回放，只保留上一个检查点前确认的午睡。
@@ -120,7 +122,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                     val at = minOf(System.currentTimeMillis(), owner.store.session(r).deadline ?: Long.MAX_VALUE)
                     owner.store.persistSession(r.id,owner.store.session(r).interruptedUntil(at),at,NightState.Interrupted)
                 }
-            }
+            } } catch (e: CancellationException) { throw e } catch (e: Throwable) { app.resound.diagnostics.FailureNotes.record("night/recover", e) }
             // 恢复完成后才允许首个 pulse 重开这一夜，避免旧检查点覆盖新会话。
             launch {
                 while (isActive) {
@@ -139,6 +141,10 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         frames.accept(pcm,speech,at)
     }
     private suspend fun pulse(at: Long) {
+        // #59：部分系统（如魅族）不把亮屏/熄屏广播送到，涛声就一直以为屏幕亮着、夜里不开始。每次直接问一下系统兜底。
+        val interactive=power.isInteractive
+        if(!interactive && screenOff==null) { screenOn?.let { points.trySend(NightSignal(it, at, "screen")) }; screenOff=at; screenOn=null; NightCaptureState.update { it.copy(polledScreenOff = it.polledScreenOff + 1) } }
+        else if(interactive && screenOff!=null) { screenOn=at; screenOff=null }
         val s=owner.settings.value
         if(s.enabled && !previouslyEnabled)lastVoice=at
         previouslyEnabled=s.enabled
@@ -151,8 +157,13 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         val shouldSensor = screenOff != null && selected != null && (session != null || key != completed)
         if(shouldSensor!=sensorRegistered) {
             if (shouldSensor) { stillSince = at; motion = "still" }
-            if(shouldSensor)sensor.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensor.registerListener(listener,it,200_000,if (selected?.kind == SleepWindowKind.Nap) 0 else 30_000_000) } else sensor.unregisterListener(listener)
-            sensorRegistered=shouldSensor
+            sensorRegistered = if (shouldSensor) {
+                val accelerometer = sensor.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+                // #59：没有加速度计或注册被拒时不当成已注册，下次再试；只按“静止”处理，夜里照常记录
+                val ok = accelerometer != null && sensor.registerListener(listener,accelerometer,200_000,if (selected?.kind == SleepWindowKind.Nap) 0 else 30_000_000)
+                if (!ok) app.resound.diagnostics.FailureNotes.record("night/sensor", IllegalStateException(if (accelerometer == null) "no accelerometer" else "register refused"))
+                ok
+            } else { sensor.unregisterListener(listener); false }
         }
         val motionEvents=buildList {while(true) {val event=motions.tryReceive().getOrNull() ?: break;add(event)}}
         val picked=motionEvents.any { it.kind=="pickup" }
@@ -242,6 +253,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             owner.store.setLive(NightLive(if(current.confirmedAt==null)NightState.Provisional else NightState.Active,mode,if (nap) current.provisionalAt else current.screenOff,if (nap) NapRules.wake(current) else WakeRules.pending(current),activeWindow))
         }
         armed=shouldSensor || session!=null
+        NightCaptureState.update { it.copy(lastPulseAt = at, screenOff = screenOff != null, window = selected?.name, shouldSensor = shouldSensor,
+            sensorRegistered = sensorRegistered, session = session?.let { if (it.confirmedAt == null) "暂定" else "进行中" }, mode = mode.name) }
     }
     private suspend fun consume(w: NightWindow) {
         lastWindow=w.start+2_000
@@ -291,4 +304,18 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     }
     private fun reset() {activeWindow=null;candidates.finish();levels.clear();lastWindow=0L;envelope=null;writes=NightSessionWrites();inference=newInferenceGate();id=null;session=null;processor=null;quietAt=null;if(modelHeld) {owner.model.endNight();modelHeld=false};owner.store.setLive(NightLive(NightState.Waiting,null,null))}
     override fun close() {sensor.unregisterListener(listener);context.unregisterReceiver(receiver);frames.close();scope.cancel();if(modelHeld) {owner.model.endNight();modelHeld=false}}
+}
+
+/** #59：夜里主循环的实时状态，写进“问题记录”，下次一眼看出卡在哪一步 */
+internal object NightCaptureState {
+    data class Snapshot(val startedAt: Long = System.currentTimeMillis(), val lastPulseAt: Long? = null, val screenOff: Boolean? = null,
+        val window: String? = null, val shouldSensor: Boolean = false, val sensorRegistered: Boolean = false, val session: String? = null,
+        val mode: String? = null, val polledScreenOff: Int = 0, val lastError: String? = null)
+    @Volatile var value = Snapshot(); private set
+    @Synchronized fun update(change: (Snapshot) -> Snapshot) { value = change(value) }
+    fun describe(): String = value.let { v ->
+        "夜里实时状态：启动=${v.startedAt} 上次检查=${v.lastPulseAt ?: "从未"} 屏幕=${when (v.screenOff) { true -> "关"; false -> "开"; null -> "未知" }} " +
+            "时段=${v.window ?: "不在时段内"} 应开传感器=${v.shouldSensor} 已注册=${v.sensorRegistered} 这一夜=${v.session ?: "无"} 档位=${v.mode} " +
+            "靠查询补到熄屏=${v.polledScreenOff}次 最近错误=${v.lastError ?: "无"}"
+    }
 }

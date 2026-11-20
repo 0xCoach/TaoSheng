@@ -18,7 +18,7 @@ fun customMultipart(audio: AudioUpload, model: String, prompt: String?, boundary
     val mime = when(audio.format) { "ogg" -> "audio/ogg"; "wav" -> "audio/wav"; else -> "audio/mp4" }
     val prefix = (field("model", model) + "--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${quote(audio
         .name)}\"\r\nContent-Type: $mime\r\nContent-Length: ${audio.size}\r\n\r\n").encodeToByteArray()
-    val suffix = ("\r\n" + field("response_format", responseFormat) + (prompt?.takeIf { it.isNotEmpty() }?.let { field("prompt", it) } ?: "") + "--$boundary--\r\n").encodeToByteArray()
+    val suffix = ("\r\n" + field("response_format", responseFormat) + (if (responseFormat == "diarized_json") field("chunking_strategy", "auto") else "") + (prompt?.takeUnless { responseFormat == "diarized_json" }?.takeIf { it.isNotEmpty() }?.let { field("prompt", it) } ?: "") + "--$boundary--\r\n").encodeToByteArray()
     return object : OutgoingContent.WriteChannelContent() {
         override val contentType = ContentType.parse("multipart/form-data; boundary=$boundary")
         override val contentLength = prefix.size.toLong() + audio.size + suffix.size
@@ -31,10 +31,11 @@ fun customMultipart(audio: AudioUpload, model: String, prompt: String?, boundary
 }
 suspend fun customRecognize(client: HttpClient, urls: List<String>, key: String, headers: List<HeaderEntry>,
     audio: AudioUpload, duration: Long, model: String, prompt: String?, boundary: String, beforeAudio: suspend () -> Unit,
-    separateSpeakers: Boolean = true, formats: CustomAsrFormats? = null): AsrResult {
+    separateSpeakers: Boolean = true, formats: CustomAsrFormats? = null,
+    speakerFormat: CustomSpeakerFormat = CustomSpeakerFormat.Auto): AsrResult {
     if (urls.isEmpty() || model.isBlank()) throw AsrException(AsrError.Protocol)
     for (url in urls) {
-        var format = formats?.format(url) ?: "verbose_json"
+        var format = if (speakerFormat == CustomSpeakerFormat.Diarized) "diarized_json" else formats?.format(url) ?: "verbose_json"
         var fallback = false
         while (true) {
             beforeAudio()
@@ -45,6 +46,8 @@ suspend fun customRecognize(client: HttpClient, urls: List<String>, key: String,
             }.execute { r ->
                 val code = r.status.value
                 if (code in setOf(401,403)) throw AsrException(AsrError.Auth, detail = "鉴权失败，请检查密钥")
+                if (format == "diarized_json" && code in 400..499 && code != 429)
+                    throw AsrException(AsrError.Protocol, detail = "这个模型不支持分说话人，请把说话人改成自动")
                 if (format == "verbose_json" && code in 400..499 && code != 429) {
                     val errorBody = r.limitedText(1_000_000, "识别响应不完整或格式异常")
                     if (CustomAsrFormats.shouldFallback(code, errorBody)) {
@@ -64,7 +67,11 @@ suspend fun customRecognize(client: HttpClient, urls: List<String>, key: String,
                         FailureNotes.record("net/NetCustomAsr.kt:parse", caught)
                         throw AsrException(AsrError.Protocol)
                     }
-                AsrResult(sentences, duration, null)
+                AsrResult(sentences, duration, null, customCapability = when (format) {
+                    "diarized_json" -> CustomCapability.Speakers
+                    "verbose_json" -> CustomCapability.TimedText
+                    else -> CustomCapability.TextOnly
+                })
             }
             if (retry) { format = "json"; fallback = true; continue }
             if (result != null) {

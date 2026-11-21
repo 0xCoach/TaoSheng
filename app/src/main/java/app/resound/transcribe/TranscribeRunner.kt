@@ -108,6 +108,7 @@ class TranscribeRunner(
                         dao.reserveAudio(today(), reserved, candidate.id)
                     }
                     val result = if (selected == TranscribeSource.Local) heavy.withLock { recognize() } else recognize()
+                    withContext(NonCancellable) { dao.recordTokens(today(), result.inputTokens, result.outputTokens) }
                     recordSpeed(selected, (candidate.endAt - candidate.startAt).coerceAtLeast(0), (now() - began).coerceAtLeast(1))
                     logId = TranscribePolicy.safeLogId(result.logId, credential)
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
@@ -186,7 +187,7 @@ class TranscribeRunner(
         }
     }
     private enum class RoundDecision { Continue, Stop, Retry }
-    suspend fun test(audio: AsrAudio, credential: String): Result<String> = gate.withLock {
+    suspend fun test(audio: AsrAudio, credential: String, onResult: (AsrResult) -> Unit = {}): Result<String> = gate.withLock {
         val began = now()
         var reserved = 0L
         var result = "Failed"
@@ -197,6 +198,8 @@ class TranscribeRunner(
                 reserved = audio.durationMillis
                 dao.reserveAudio(today(), reserved, null)
             }
+            withContext(NonCancellable) { dao.recordTokens(today(), response.inputTokens, response.outputTokens) }
+            onResult(response)
             result = if (response.sentences.isEmpty()) "Empty" else "Done"
             logId = TranscribePolicy.safeLogId(response.logId, credential)
             if (result in setOf("Done", "Empty")) afterTest(audio.durationMillis)

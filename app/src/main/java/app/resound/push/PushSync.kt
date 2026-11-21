@@ -106,18 +106,31 @@ internal class FolderSync(private val remote: FolderStorage, private val state: 
         // 本地指纹表也按白名单校验，避免恢复/损坏状态把删除扩大到用户目录。
         fun owned(path: String): Boolean = path in setOf("README.md", "recent-days-index.md", "starred-highlights.md", "todos-and-appointments.md", "ideas.md", "decisions-and-facts.md") ||
             path.matches(Regex("(?:daily|transcripts)/[0-9]{4}-[0-9]{2}/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z]{3}_(?:daily-record|transcript)\\.md")) ||
+            path.matches(Regex("周报/[0-9]{4}-W(?:0[1-9]|[1-4][0-9]|5[0-3])[.]md")) ||
             path.matches(Regex("weekly/[0-9]{4}-W[0-9]{2}_[0-9]{4}-[0-9]{4}_weekly-review\\.md")) ||
             path.matches(Regex("archive/[0-9]{4}/(?:ideas|decisions-and-facts)\\.md"))
     }
     fun run(files: Map<String, String>, category: Boolean, now: Long, limit: Int = 20): SyncBatch {
         require(files.keys.all(::owned))
         require(limit in 1..20)
+        // 卡 210：没东西要传/删、目录也建过，就不连云端（原先每次先建目录，“更新 0 个文件”也要发好几次请求，容易被坚果云限流）
+        val idle = state.json.optString("temporary").isEmpty() && !state.json.optBoolean("rebuilding") && state.json.optBoolean("directoriesReady") &&
+            state.files.keys().asSequence().none { PushTrace.current()?.skipped.isNullOrEmpty() && owned(it) && it !in files } &&
+            files.all { (path, content) -> state.files.optJSONObject(path)?.optString("sourceHash") == sha256(content) }
+        if (idle) return SyncBatch(0, 0, false)
+        return try { sync(files, category, now, limit) } catch (e: Exception) {
+            // 出错后下次重新建目录，远端文件夹被删也能自己补回
+            state.json.remove("directoriesReady"); state.save(); throw e
+        }
+    }
+    private fun sync(files: Map<String, String>, category: Boolean, now: Long, limit: Int): SyncBatch {
         state.json.optString("temporary").takeIf { it.isNotEmpty() }?.let { part ->
             if (owned(part.substringBefore(".part-")) && part.substringAfter(".part-", "").matches(Regex("[a-f0-9-]+"))) remote.delete(part)
             state.json.remove("temporary"); state.save()
         }
         remote.directories()
         if (category) remote.directories("inbox") // my-notes 永不创建、访问或删除。
+        state.json.put("directoriesReady", true); state.save()
         var deleted = 0; var updated = 0
         val rebuilding = state.json.optBoolean("rebuilding")
         val stale = state.files.keys().asSequence().toList().filter { PushTrace.current()?.skipped.isNullOrEmpty() && owned(it) && (rebuilding || it !in files) }

@@ -81,6 +81,7 @@ object DigestPrompt {
     fun speaker(line: TranscriptLineData): String =
         line.speakerName ?: line.speakerTag?.toIntOrNull()?.let { "说话人${it + 1}" } ?: line.speakerTag?.let { if (it.startsWith("uncertain:")) "身份待确认" else "说话人$it" } ?: "某人"
 
+    @kotlinx.serialization.Serializable
     data class ParsedEvent(
         val lineIds: List<Long>,
         val startAt: Long,
@@ -96,6 +97,7 @@ object DigestPrompt {
         val important: Boolean,
     )
 
+    @kotlinx.serialization.Serializable
     data class ParsedItem(
         /** 属于第几个事件（parse 结果里的下标） */
         val eventIndex: Int,

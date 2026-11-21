@@ -32,7 +32,7 @@ internal class LocalProblemReports(
     override suspend fun export(): File = withContext(Dispatchers.IO) {
         @Suppress("DEPRECATION") val installed = context.packageManager.getPackageInfo(context.packageName, 0)
         val at = Instant.now()
-        val diagnostics = stats.exportDiagnostics()
+        val diagnostics = stats.exportDiagnostics(includeUpdate = false)
         val envDiagnostics = if (app.resound.AppGraph.isEnvSoundReady)
             (app.resound.AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.diagnostics().orEmpty() else ""
         val content = try {
@@ -48,14 +48,17 @@ internal class LocalProblemReports(
                 (context.applicationContext as? app.resound.ResoundApp)?.let { appendLine(it.pipelineDiagnostics.dump()) }
                 appendLine("\n各线程 CPU 时间（最近 1008 次；DefaultDispatcher/IO 合并）")
                 appendLine(app.resound.capture.ThreadCpuDiagnostics.dump(context))
+                appendLine("\n数据库查询来源（最近 6 个 10 分钟）")
+                appendLine(app.resound.data.captureQueryStats.dump())
                 appendLine("\n整理与大模型诊断")
                 appendLine(runCatching { LlmProblemDiagnostics(context, memoryDao, failover).dump() }.getOrDefault("暂无"))
                 appendLine("\n环境音识别"); appendLine(envDiagnostics)
                 appendLine("\n推送诊断")
                 appendLine(app.resound.push.PushDiagnostics.dump(context.getSharedPreferences("push", Context.MODE_PRIVATE)))
-                appendLine("\n更新诊断（最近 50 行）")
-                appendLine(UpdateDiagnostics.dump(context).lines().takeLast(50).joinToString("\n"))
-                appendLine("\n本机备份诊断（最近 50 行）"); appendLine(app.resound.backup.BackupDiagnostics.dump(context))
+                appendLine("\n文件夹导入失败（最近 30 条，不含文件名）"); appendLine(app.resound.importer.FolderImportProblems.dump(context))
+                appendLine("\n更新诊断（下载安装最近 80 行 + 检查最近 6 次）")
+                appendLine(UpdateDiagnostics.dump(context))
+                appendLine("\n备份诊断（最近 50 行，含成功耗时）"); appendLine(app.resound.backup.BackupDiagnostics.dump(context))
                 appendLine("\n新手上手（仅本地计数与耗时）")
                 appendLine(app.resound.onboarding.LocalOnboarding.diagnostics(context.getSharedPreferences("onboarding", Context.MODE_PRIVATE)))
             }

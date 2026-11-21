@@ -31,12 +31,23 @@ internal class AndroidUpdatePlatform(
         if (!it.isSealed) { manager.packageInstaller.abandonSession(id); false } else true
     } ?: false
 
-    override fun install(apk: File, rememberSession: (Int) -> Unit) {
+    override fun endSession(id: Int) {
+        runCatching { manager.packageInstaller.abandonSession(id) }
+            .onFailure { UpdateDiagnostics.record(context, "install session=$id abandon=${it.javaClass.simpleName}") }
+        UpdateNotifications.dismissConfirmation(context)
+    }
+    override fun installedVersionCode() = manager.getPackageInfo(context.packageName, 0).longVersionCode
+    override suspend fun afterCommit(session: Int) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+        InstallRelay.openFromForeground(session)
+    }
+
+    override fun install(apk: File, requireUserAction: Boolean, rememberSession: (Int) -> Unit) {
         val installer = manager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName("app.resound")
             setSize(apk.length())
-            if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(if (requireUserAction) PackageInstaller.SessionParams.USER_ACTION_REQUIRED
+                else PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         }
         val id = installer.createSession(params)
         try {
@@ -57,6 +68,14 @@ internal class AndroidUpdatePlatform(
              installer.abandonSession(id) }; throw e }
     }
     override fun notifyAvailable(info: UpdateInfo) = UpdateNotifications.available(context, info)
+    override fun notifyReady(info: UpdateInfo) = UpdateNotifications.available(context, info, ready = true)
+    /** 卡 210：WiFi（不计流量）随便下；用流量时只自动下 20 MB 以内的差异包 */
+    override fun canPrepare(bytes: Long): Boolean {
+        val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
+        val caps = connectivity.getNetworkCapabilities(connectivity.activeNetwork) ?: return false
+        val unmetered = caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        return unmetered || bytes in 1..20L * 1024 * 1024
+    }
     override fun dismissNotification() = UpdateNotifications.dismiss(context)
     override fun afterReplacement() = VoiceInputAfterUpdateWork.schedule(context)
 

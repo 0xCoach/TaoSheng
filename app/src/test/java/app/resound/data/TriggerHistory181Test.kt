@@ -34,7 +34,7 @@ class TriggerHistory181Test {
         "search_item_insert", "search_item_update", "search_item_delete",
     )
     private val thingNames = setOf("things_line_deleted", "things_event_hidden", "things_event_deleted")
-    private val allNames = searchNames + thingNames + setOf("import_segment_deleted", "digest_pending_source_deleted")
+    private val allNames = searchNames + thingNames + setOf("import_segment_deleted", "digest_pending_source_deleted", "folder_import_deleted")
     private val history = JSONArray(javaClass.getResource("/trigger-audit-181/history.json")!!.readText())
     private val freshTriggers by lazy {
         val name = "trigger-181-fresh.db"

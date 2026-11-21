@@ -1,0 +1,339 @@
+{
+  "首次自适应": [
+    {
+      "name": "app.resound.net.LlmAdaptive218Test",
+      "tests": "9",
+      "failures": "1",
+      "errors": "0",
+      "time": "0.351"
+    }
+  ],
+  "共用回归": [
+    {
+      "name": "app.resound.topic.TopicProcessingTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.01"
+    },
+    {
+      "name": "app.resound.topic.TopicObservation182Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.016"
+    },
+    {
+      "name": "app.resound.digest.core.MergePrompt105Test",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.006"
+    },
+    {
+      "name": "app.resound.topic.TopicBlocks217Test",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.144"
+    },
+    {
+      "name": "app.resound.digest.AppPlaybackPromptTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.005"
+    },
+    {
+      "name": "app.resound.net.KtorMock151Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.025"
+    },
+    {
+      "name": "app.resound.digest.core.ReviewPromptTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.002"
+    },
+    {
+      "name": "app.resound.digest.core.DigestPromptTest",
+      "tests": "15",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.086"
+    },
+    {
+      "name": "app.resound.net.LlmAdaptive218Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.273"
+    },
+    {
+      "name": "app.resound.digest.core.PromptParity152Test",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.028"
+    },
+    {
+      "name": "app.resound.digest.DigestSplitTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.002"
+    },
+    {
+      "name": "app.resound.digest.RulesParity152Test",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.013"
+    },
+    {
+      "name": "app.resound.topic.TopicDelete179Test",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.024"
+    }
+  ],
+  "安卓回归": [
+    {
+      "name": "app.resound.topic.TopicRepository177Test",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.266"
+    },
+    {
+      "name": "app.resound.digest.LlmFailover103Test",
+      "tests": "15",
+      "failures": "0",
+      "errors": "0",
+      "time": "10.419"
+    },
+    {
+      "name": "app.resound.digest.LlmCancellationAudit087Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.026"
+    },
+    {
+      "name": "app.resound.digest.ModelCheckTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.013"
+    },
+    {
+      "name": "app.resound.importer.ImportKinds077Test",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "time": "1.878"
+    },
+    {
+      "name": "app.resound.digest.DigestOutcome189Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.215"
+    },
+    {
+      "name": "app.resound.digest.DigestRejected134Test",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.65"
+    },
+    {
+      "name": "app.resound.backup.PreferenceBackup190Test",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "time": "12.078"
+    },
+    {
+      "name": "app.resound.digest.ModelCheck136Test",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.017"
+    },
+    {
+      "name": "app.resound.digest.DigestAudit087Test",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "1.405"
+    },
+    {
+      "name": "app.resound.digest.LlmStream136Test",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.051"
+    },
+    {
+      "name": "app.resound.topic.Topic135Test",
+      "tests": "23",
+      "failures": "0",
+      "errors": "0",
+      "time": "9.567"
+    },
+    {
+      "name": "app.resound.digest.DigestBudget088Test",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.768"
+    },
+    {
+      "name": "app.resound.topic.TopicAdaptive218Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.02"
+    },
+    {
+      "name": "app.resound.digest.DigestSplitRetryTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.875"
+    },
+    {
+      "name": "app.resound.digest.DigestProgressTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.748"
+    },
+    {
+      "name": "app.resound.digest.LlmProviders076Test",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "time": "1.546"
+    }
+  ],
+  "最终修改共用复测": [
+    {
+      "name": "app.resound.net.LlmAdaptive218Test",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.158"
+    }
+  ],
+  "最终修改安卓复测首轮": [
+    {
+      "name": "app.resound.digest.LlmSpeed218Test",
+      "tests": "1",
+      "failures": "1",
+      "errors": "0",
+      "time": "0.237"
+    },
+    {
+      "name": "app.resound.digest.DigestRejected134Test",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "6.831"
+    },
+    {
+      "name": "app.resound.digest.DigestSplitRetryTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.851"
+    },
+    {
+      "name": "app.resound.digest.LlmProviders076Test",
+      "tests": "14",
+      "failures": "1",
+      "errors": "0",
+      "time": "5.474"
+    }
+  ],
+  "检测夹具修复与参数复测": [
+    {
+      "name": "app.resound.digest.LlmSpeed218Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.362"
+    },
+    {
+      "name": "app.resound.digest.LlmProviders076Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "3.974"
+    }
+  ],
+  "并发收尾修复前": [
+    {
+      "name": "app.resound.net.LlmAdaptive218Test",
+      "tests": "1",
+      "failures": "1",
+      "errors": "0",
+      "time": "0.259"
+    }
+  ],
+  "并发收尾根因": "ClosedReceiveChannelException：监视协程尚未退出时关闭了 tick channel",
+  "收尾修复后共用接收复测": [
+    {
+      "name": "app.resound.net.LlmAdaptive218Test",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "time": "1.373"
+    }
+  ],
+  "收尾修复后安卓复测": [
+    {
+      "name": "app.resound.digest.LlmCancellationAudit087Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "3.727"
+    },
+    {
+      "name": "app.resound.digest.LlmSpeed218Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "8.584"
+    },
+    {
+      "name": "app.resound.digest.LlmProviders076Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "time": "13.715"
+    }
+  ],
+  "最终Release产物": {
+    "path": "app/build/outputs/apk/release/app-release.apk",
+    "bytes": 109613533,
+    "sha256": "1bc66918b0d61a1adb168ade279f95c0d1e25a2e7bc9a80cf93d3d553ed223aa",
+    "zip": "完整性通过",
+    "signing": "skipSigningSecrets=true，仅构建验证，不用于发布"
+  },
+  "最终检查": {
+    "shared边界": "通过",
+    "sharedCheck": "通过（限定测试范围）",
+    "appCompileDebugKotlin": "通过",
+    "appAssembleRelease": "通过",
+    "iOS": "shared + devices，iosArm64 + iosSimulatorArm64 编译通过",
+    "真实服务与设备": "未访问真实模型服务，未操作手机",
+    "新增用例": 15,
+    "JUnit累计秒数": 93.072
+  }
+}

@@ -97,6 +97,12 @@ class MainActivity : ComponentActivity() {
             } else app.resound.ui.ShellNav.openSettings(SettingsPage.Capture)
             return
         }
+        // 卡 203：起床后“要记一下梦吗？”通知 → 回到今天并打开记梦
+        if (intent?.action == "app.resound.action.RECORD_DREAM") {
+            intent.getLongExtra("nightId", 0L).takeIf { it > 0 }?.let { app.resound.ui.night.NightUi.dreamNight = it }
+            tabRequest = 0 to System.nanoTime()
+            return
+        }
         if (intent?.getStringExtra("open") == "deleteRecent") {
             _privacyRequest.value = "deleteRecent"
             return
@@ -109,6 +115,11 @@ class MainActivity : ComponentActivity() {
         }
         if (intent?.getStringExtra("open") == "card") {
             openCardId = (intent.data?.getQueryParameter("id") ?: intent.getStringExtra("id"))?.toLongOrNull()
+            return
+        }
+        // 卡 214：“录音还没推上去、手机空间不足”通知 → 推送通道
+        if (intent?.getStringExtra("open") == "push") {
+            app.resound.ui.ShellNav.openSettings(SettingsPage.Push)
             return
         }
         if (intent?.getBooleanExtra(app.resound.update.EXTRA_OPEN_UPDATE, false) == true) {
@@ -236,6 +247,7 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.EnvSound -> if (AppGraph.isEnvSoundReady) app.resound.ui.envsound.EnvSoundPage(AppGraph.envSound, bottom)
                                     SettingsPage.Location -> if (AppGraph.isLocationReady) app.resound.ui.location.LocationPage(AppGraph.location, bottom)
                                     SettingsPage.ScreenTime -> if (AppGraph.isScreenTimeReady) app.resound.ui.screentime.ScreenTimePage(AppGraph.screenTimeSettings, bottom)
+                                    SettingsPage.Night -> if (AppGraph.isNightReady) app.resound.ui.night.NightSettingsPage(bottom)
                                     SettingsPage.Push -> if (AppGraph.isPushReady) app.resound.ui.settings.PushPage(AppGraph.push, bottom)
                                     SettingsPage.Review -> if (AppGraph.isReviewReady) ReviewSettingsPage(AppGraph.review, bottom)
                                     SettingsPage.Backup -> if (AppGraph.isBackupReady) BackupPage(AppGraph.backup, bottom)

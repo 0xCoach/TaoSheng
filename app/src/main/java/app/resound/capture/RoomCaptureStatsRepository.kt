@@ -38,7 +38,7 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
         return queries.dayStats(a, b).map { DayStats(date, it.segmentCount, it.speechMillis, it.runningMillis,
             it.killedCount, it.recoveredCount, it.gapMillis, it.dischargePerHour, it.storageBytes, it.appPowerPerHour) }
     }
-    override suspend fun exportDiagnostics(): File = withContext(Dispatchers.IO) {
+    override suspend fun exportDiagnostics(includeUpdate: Boolean): File = withContext(Dispatchers.IO) {
         val file = File(context.cacheDir, "resound-diagnostics-${System.currentTimeMillis()}.txt")
         file.bufferedWriter().use { out ->
             out.appendLine("${context.appName}运行记录；最近3个自然日（本地时区）；${Instant.now()}")
@@ -47,9 +47,23 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
             out.appendLine(FailureNotes.dump())
             out.appendLine(OggGuard.describe())
             out.appendLine(PipelineTimes.dump(context))
-            out.appendLine(UpdateDiagnostics.dump(context))
-            out.appendLine("本机备份诊断（最近 50 行）")
-            out.appendLine(BackupDiagnostics.dump(context))
+            if (app.resound.AppGraph.isNightReady) {
+                val night = app.resound.AppGraph.night as? app.resound.night.AndroidNight
+                out.appendLine("夜里（门槛待真机校准）")
+                out.appendLine(app.resound.night.NightCaptureState.describe())
+                night?.store?.dao?.all()?.take(30)?.forEach { row ->
+                    val session = night.store.session(row)
+                    out.appendLine("${row.date} 进入=${session.provisionalAt} 确认=${session.confirmedAt} 最后记录=${session.lastAt} 状态=${row.state} 档位=${session.modes} 推理=${session.calls}次/${session.inferenceMillis}ms 丢窗=${session.dropped} 电量=${session.startBattery}→${session.endBattery} 候选=${session.candidateBytes}字节 事件=${night.store.dao.events(row.id).size} 是=${night.store.dao.feedback().count { it.nightId==row.id && it.yes }} 不是=${night.store.dao.feedback().count { it.nightId==row.id && !it.yes }}")
+                }
+                out.appendLine("夜里删除与取消（最近 30 行）")
+                out.appendLine(app.resound.night.NightLog.dump(context))
+            }
+            // 卡 210：问题记录自己带更新诊断和备份诊断，嵌进去时不再重复一份
+            if (includeUpdate) {
+                out.appendLine(UpdateDiagnostics.dump(context))
+                out.appendLine("备份诊断（最近 50 行）")
+                out.appendLine(BackupDiagnostics.dump(context))
+            }
             out.appendLine(VoiceInputTrace.dump())
             val diarySync = context.getSharedPreferences("diary-sync", Context.MODE_PRIVATE)
             if (diarySync.contains("lastFailureAt")) out.appendLine(
@@ -71,16 +85,26 @@ class RoomCaptureStatsRepository(private val context: Context, private val dao: 
                 val date = LocalDate.now().minusDays(offset.toLong())
                 val (a, b) = bounds(date)
                 out.appendLine("\n${dayStats(date).first()}")
-                dao.events(a, b).first().forEach { out.appendLine("守护 ${it.copy(detail = null)}") }
+                // 卡 210：问题记录原先 1 MB 多，近四成是每分钟一条的心跳原文。只留有用的：
+                // 心跳只写条数和缺口；麦克风被占/释放（每天几百次）写次数和总时长，原文只留最近 6 条；
+                // 自身耗电原始计数只留今天最近 6 条（汇总已在上面 DayStats）；电量每小时一条
+                val events = dao.events(a, b).first()
+                val (mic, other) = events.partition { it.type == "MicBusy" || it.type == "MicReleased" }
+                other.forEach { out.appendLine("守护 ${it.copy(detail = null)}") }
+                if (mic.isNotEmpty()) {
+                    var busyMs = 0L; var since: Long? = null
+                    mic.sortedBy { it.at }.forEach { e -> if (e.type == "MicBusy") since = since ?: e.at else since?.let { busyMs += e.at - it; since = null } }
+                    out.appendLine("守护 麦克风被其他应用占用 ${mic.count { it.type == "MicBusy" }} 次，合计约 ${busyMs / 60_000} 分钟；最近几条：")
+                    mic.sortedBy { it.at }.takeLast(6).forEach { out.appendLine("守护 ${it.copy(detail = null)}") }
+                }
                 val beats = dao.heartbeats(a, b).first()
-                beats.forEachIndexed { index, beat ->
-                    out.appendLine("心跳 $beat")
-                    val prev = beats.getOrNull(index - 1)
-                    if (prev != null && beat.at - prev.at > CaptureTuning.HEARTBEAT_MS * 2)
+                out.appendLine("心跳 ${beats.size} 条（原文不再导出，只列缺口）")
+                beats.zipWithNext().forEach { (prev, beat) ->
+                    if (beat.at - prev.at > CaptureTuning.HEARTBEAT_MS * 2)
                         out.appendLine("心跳缺口 ${prev.at}..${beat.at}，${beat.at - prev.at}ms（含暂停/休眠，不能单凭此判定被杀）")
                 }
-                dao.appPowerSamples(a, b).first().forEach { out.appendLine("自身耗电原始计数 $it") }
-                dao.batteries(a, b).first().forEach { out.appendLine("电量 $it") }
+                if (offset == 0) dao.appPowerSamples(a, b).first().takeLast(6).forEach { out.appendLine("自身耗电原始计数 $it") }
+                dao.batteries(a, b).first().groupBy { it.at / 3_600_000 }.values.map { it.first() }.forEach { out.appendLine("电量 $it") }
             }
         }
         file

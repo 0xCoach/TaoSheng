@@ -68,7 +68,7 @@ class ScreenTimePushTest {
         coverageUntil = t(22, 0),
         gaps = listOf(
             CoverageGap(GapCode.COVERAGE_LAG, SCREEN_SOURCE, t(21, 0), t(22, 0), "等待下一次采集"),
-            CoverageGap(GapCode.NOTIFICATION_ACCESS_MISSING, PLAYBACK_SOURCE, t(0, 0), t(22, 0), "设置 → 通知使用权 → 涛声 开启"),
+            CoverageGap(GapCode.NOTIFICATION_ACCESS_MISSING, PLAYBACK_SOURCE, t(0, 0), t(22, 0), "设置 → 通知使用权 → 声声不息 开启"),
         ),
         devicePlayback = listOf(
             DevicePlayback("app.podcast.cosmos", "小宇宙", "271.两眼一抹黑，试试也不亏", "…", t(8, 2, 10), t(8, 47, 55)),
@@ -78,7 +78,7 @@ class ScreenTimePushTest {
     @Test fun webhookJsonMatchesSampleBytesAndHeaders() = runBlocking {
         val message = buildScreenTimeMessage(date, at, zone, ScreenTimeReader { _, _ -> sampleResult() })!!
         val request = transport.request(PushKind.Webhook, PushFormat.Json, mapOf("url" to "https://example.com/hook"), message)
-        val expected = """{"title":"今日屏幕时间 3 小时 12 分","body":"哔哩哔哩 192 分\n设备播放记录：\n小宇宙《271.两眼一抹黑，试试也不亏》 46 分\n部分时段没有数据：等待下一次采集；设置 → 通知使用权 → 涛声 开启","topic":"ScreenTime","deepLink":null,"at":1794657600000,"screenTime":{"schemaVersion":1,"date":"2026-11-14","coverageUntil":"2026-11-14T22:00:00+08:00","totalMinutes":192,"apps":[{"package":"tv.danmaku.bili","name":"哔哩哔哩","minutes":192}],"timeline":[{"package":"tv.danmaku.bili","name":"哔哩哔哩","start":"2026-11-14T17:11:46+08:00","end":"2026-11-14T20:23:46+08:00"}],"devicePlayback":[{"package":"app.podcast.cosmos","name":"小宇宙","title":"271.两眼一抹黑，试试也不亏","subtitle":"…","start":"2026-11-14T08:02:10+08:00","end":"2026-11-14T08:47:55+08:00"}],"gaps":[{"code":"coverage_lag","source":"screen","from":"2026-11-14T21:00:00+08:00","until":"2026-11-14T22:00:00+08:00","fix":"等待下一次采集"},{"code":"notification_access_missing","source":"playback","from":"2026-11-14T00:00:00+08:00","until":"2026-11-14T22:00:00+08:00","fix":"设置 → 通知使用权 → 涛声 开启"}]},"type":"screen_time","version":1,"app":"resound"}"""
+        val expected = """{"title":"今日屏幕时间 3 小时 12 分","body":"哔哩哔哩 192 分\n设备播放记录：\n小宇宙《271.两眼一抹黑，试试也不亏》 46 分\n部分时段没有数据：等待下一次采集；设置 → 通知使用权 → 声声不息 开启","topic":"ScreenTime","deepLink":null,"at":1794657600000,"screenTime":{"schemaVersion":1,"date":"2026-11-14","coverageUntil":"2026-11-14T22:00:00+08:00","totalMinutes":192,"apps":[{"package":"tv.danmaku.bili","name":"哔哩哔哩","minutes":192}],"timeline":[{"package":"tv.danmaku.bili","name":"哔哩哔哩","start":"2026-11-14T17:11:46+08:00","end":"2026-11-14T20:23:46+08:00"}],"devicePlayback":[{"package":"app.podcast.cosmos","name":"小宇宙","title":"271.两眼一抹黑，试试也不亏","subtitle":"…","start":"2026-11-14T08:02:10+08:00","end":"2026-11-14T08:47:55+08:00"}],"gaps":[{"code":"coverage_lag","source":"screen","from":"2026-11-14T21:00:00+08:00","until":"2026-11-14T22:00:00+08:00","fix":"等待下一次采集"},{"code":"notification_access_missing","source":"playback","from":"2026-11-14T00:00:00+08:00","until":"2026-11-14T22:00:00+08:00","fix":"设置 → 通知使用权 → 声声不息 开启"}]},"type":"screen_time","version":1,"app":"resound"}"""
         assertEquals(expected, request.text())
         assertEquals("screen_time", request.header("X-Resound-Type"))
         assertEquals("2026-11-14", request.header("X-Resound-Date"))
@@ -134,7 +134,7 @@ class ScreenTimePushTest {
                 PushSubscription(summaries = false, screenTime = true, screenTimeAt = 22 * 60), PushFormat.Json, false).getOrThrow()
             val unauthorized = ScreenTimeResult(
                 enabled = true, sessions = emptyList(), coverageUntil = null,
-                gaps = listOf(CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, t(0, 0), t(22, 0), "设置 → 使用情况访问 → 涛声 开启")),
+                gaps = listOf(CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, t(0, 0), t(22, 0), "设置 → 使用情况访问 → 声声不息 开启")),
             )
             val after = t(22, 1)
             repo.screenTimeMessage = { d -> buildScreenTimeMessage(d, after, zone, ScreenTimeReader { _, _ -> unauthorized }) }
@@ -217,7 +217,7 @@ class ScreenTimePushTest {
             val daily = dav.files.filterKeys { it.contains("daily-record") }.values.single()
             assertTrue(daily.contains("开会"))
             assertTrue(daily.contains("<!-- resound:reminders -->"))
-            assertTrue(daily.contains("新屏幕时间"))
+            assertFalse(daily.contains(SCREEN_TIME_MARKER))
             val reminded = JSONObject(prefs.getString("subscription-1", "{}")!!).optJSONObject("reminded")
             assertTrue(reminded != null && reminded.length() > 0)
             assertTrue(reminded!!.keys().asSequence().any { it.startsWith("item:1:") })
@@ -245,9 +245,9 @@ class ScreenTimePushTest {
             server.enqueue(MockResponse().setResponseCode(204))
             runtime.run(1).getOrThrow()
             val first = JSONObject(server.takeRequest(2, TimeUnit.SECONDS)!!.body.readUtf8()).getString("markdown")
-            assertTrue(first.contains("<!-- resound:screen-time -->"))
-            assertTrue(first.contains("## 屏幕时间"))
-            assertTrue(first.contains("哔哩哔哩 192 分"))
+            assertFalse(first.contains("<!-- resound:screen-time -->"))
+            assertFalse(first.contains("## 屏幕时间"))
+            assertFalse(first.contains("哔哩哔哩 192 分"))
             ch = ch.copy(subscription = openSub.copy(screenTime = false), topics = Subscriptions.topics(openSub.copy(screenTime = false)))
             server.enqueue(MockResponse().setResponseCode(204))
             runtime.run(1).getOrThrow()
@@ -342,7 +342,8 @@ class ScreenTimePushTest {
             assertFalse(uploaded.contains("哔哩哔哩"))
             assertFalse(uploaded.contains("271.两眼一抹黑"))
             assertFalse(uploaded.contains(SCREEN_TIME_MARKER))
-            assertTrue(yesterday in asked)
+            // 卡 200：屏幕时间已并入“一天的线索”，每日文档不再单独取屏幕时间正文
+            assertTrue(asked.isEmpty())
         } finally { dav.close() }
     }
 

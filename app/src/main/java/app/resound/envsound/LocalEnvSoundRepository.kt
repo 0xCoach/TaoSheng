@@ -32,6 +32,9 @@ class LocalEnvSoundRepository(
     private val zoneProvider: ZoneProvider,
     io: CoroutineDispatcher,
 ) : EnvSoundRepository {
+    var nightScores: suspend (ShortArray) -> Map<String, Float> = { error("环境音模型尚未装配") }
+    var beginNight: () -> Unit = {}
+    var endNight: () -> Unit = {}
     var beginBatch: () -> Unit = {}
     var endBatch: () -> Unit = {}
     private val dao = db.envSound()
@@ -50,6 +53,7 @@ class LocalEnvSoundRepository(
     internal suspend fun eventSound(id: Long) = store.eventSound(id)
     @Synchronized override fun update(settings: EnvSoundSettings) = store.update(settings)
     @Synchronized override fun downloadModel() = store.downloadModel()
+    @Synchronized fun downloadForNight() = store.downloadForNight()
     override fun flagged(date: kotlinx.datetime.LocalDate) = store.flagged(date)
     override fun eventSounds(date: kotlinx.datetime.LocalDate) = store.eventSounds(date)
     override fun eventsWith(tag: EnvTag?, sound: SpecialSound?) = store.eventsWith(tag, sound)
@@ -106,6 +110,9 @@ class LocalEnvSoundRepository(
                 phase = { PipelineProgress.detail(it) }, log = record, extractGaps = gaps::extract)
             return LocalEnvSoundRepository(db,context.getSharedPreferences("env-sound",0),scope,model.state,model::download,
                 { file -> withContext(dispatcher) { analysis.analyze(file) } },schedule,record,zoneProvider = zoneProvider, now = now, io = io).also { repo ->
+                repo.nightScores = { pcm -> withContext(dispatcher) { check(model.checkReady()); model.infer(pcm) } }
+                repo.beginNight = model::beginBatch
+                repo.endNight = model::endBatch
                 repo.beginBatch = { model.beginBatch(); gaps.beginBatch() }
                 repo.endBatch = { try { gaps.endBatch() } finally { model.endBatch() } }
                 scope.launch { model.checkReady(); if(repo.settings.value.enabled) repo.downloadModel() }

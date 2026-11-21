@@ -29,7 +29,10 @@ internal class SubscriptionRuntime(
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
+    var dayThreadSource: (suspend (LocalDate, PushSnapshot, PushSubscription, app.resound.platform.ZoneHistory, Boolean) -> DayThreadSource)? = null
+    var nightWeekSource: suspend () -> List<app.resound.night.WeeklyReport> = ::currentNightWeeks
     var reminderSettings: () -> AppointmentReminders = { AppointmentReminders() }
+    var automaticSource: (suspend (LocalDate?, Boolean) -> PushSnapshot)? = null
     var source: suspend (LocalDate?, Boolean) -> PushSnapshot = { _, _ -> throw PushFailure("记忆数据尚未就绪") }
     var screenTimeMarkdown: suspend (LocalDate) -> String? = { null }
     private val gates = ConcurrentHashMap<Long, Mutex>()
@@ -81,7 +84,7 @@ internal class SubscriptionRuntime(
         change(id) { it.remove("batchAt"); it.remove("changeAt"); it.remove("lastPushAt") }
     }
     private fun hasRecords(s: PushSubscription) = SubscriptionPlan.hasRecords(s)
-    private fun JSONObject.times() = (SubscriptionPlan.deadlines + "lastRecordsAt").filter { has(it) }.associateWith { optLong(it) }
+    private fun JSONObject.times() = (SubscriptionPlan.deadlines + "lastRecordsAt" + "lastSummaryAt").filter { has(it) }.associateWith { optLong(it) }
     private fun JSONObject.applyTimes(edits: Map<String, Long?>) {
         edits.forEach { (key, value) -> if (value == null) remove(key) else put(key, value) }
     }
@@ -104,13 +107,21 @@ internal class SubscriptionRuntime(
                 FailureNotes.record("push/SubscriptionRuntime.kt:98", it)
             }.onFailure { update(id, false, Result.failure(PushFailure("调度保存失败，请重试"))) } }
     }
+    private val THROTTLE_MS = 10 * 60_000L
     suspend fun scheduled(id: Long): Boolean {
         queued.remove(id)
         if (channelById(id)?.enabled != true) return false
         if ((deadline(id) ?: Long.MAX_VALUE) > now()) { plan(id, true); return false }
-        return run(id, manual = false).isFailure.also { if (it) queued[id] = 0L }
+        val result = run(id, manual = false)
+        // 卡 210：被坚果云等限流时不按 30 秒起的指数退避猛试（日志里 17:59/18:01/18:05 连撞），隔 10 分钟再续传
+        if (result.exceptionOrNull()?.message?.let { "限流" in it || "太频繁" in it } == true) {
+            change(id) { it.put("batchAt", now() + THROTTLE_MS) }
+            plan(id, true)
+            return false
+        }
+        return result.isFailure.also { if (it) queued[id] = 0L }
     }
-    suspend fun run(id: Long, rebuild: Boolean = false, manual: Boolean = true): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun run(id: Long, rebuild: Boolean = false, manual: Boolean = true, dayFinal: Boolean = false): Result<String> = withContext(Dispatchers.IO) {
         gates.getOrPut(id) { Mutex() }.withLock {
           PushTrace.run { trace ->
             val channel = channelById(id) ?: return@run Result.failure(PushFailure("通道不存在，请重新打开"))
@@ -135,24 +146,24 @@ internal class SubscriptionRuntime(
                     state.files.keys().asSequence().toList().forEach { state.files.remove(it) }
                     state.records.keys().asSequence().toList().forEach { state.records.remove(it) }
                     state.templates.keys().asSequence().toList().forEach { state.templates.remove(it) }
-                    state.json.remove("since"); state.json.remove("temporary"); state.json.remove("rebuilding")
+                    state.json.remove("dayThreads"); state.json.remove("dayThreadInitialized"); state.json.remove("since"); state.json.remove("temporary"); state.json.remove("rebuilding"); state.json.remove("directoriesReady")
                 }
                 state.json.put("destination", identity); state.save()
                 val today = day(started, zone())
                 val since = state.since(s, today, rebuild)
-                if (rebuild && channel.kind == PushKind.MarkdownFolder) { state.json.put("rebuilding", true); state.save() }
-                val summaryOnly = !manual && !state.json.optBoolean("rebuilding") && (due.optBoolean("summaryBatch") || !due.has("batchAt") && due.optLong("summaryAt")
+                if (rebuild && channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) { state.json.put("rebuilding", true); state.save() }
+                val summaryOnly = !dayFinal && !manual && !state.json.optBoolean("rebuilding") && (due.optBoolean("summaryBatch") || !due.has("batchAt") && due.optLong("summaryAt")
                     .let { it > 0 && it <= started } &&
                     listOf("scheduleAt", "fullAt", "changeAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } })
-                val raw = source(since, s.lines != LinesMode.Off)
-                val reminderDue = !manual && due.optLong("reminderAt").let { it > 0 && it <= started }
+                val raw = (if (manual) source else automaticSource ?: source)(since, s.lines != LinesMode.Off)
+                val reminderDue = !dayFinal && !manual && due.optLong("reminderAt").let { it > 0 && it <= started }
                 val reminders = if (reminderDue) SubscriptionReminders.candidates(raw, s, due.optJSONObject("reminded") ?: JSONObject(), reminderSettings(), zone(),
                     started).filter { it.at <= started } else emptyList()
-                val reminderOnly = reminderDue && listOf("scheduleAt", "fullAt", "changeAt", "summaryAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } }
+                val reminderOnly = !dayFinal && reminderDue && listOf("scheduleAt", "fullAt", "changeAt", "summaryAt", "batchAt").none { due.optLong(it).let { at -> at > 0 && at <= started } }
                 if (reminders.isNotEmpty()) {
                     sendReminders(channel, values, reminders, state, started)
                     val sentDaily = state.templates.optString(MemoryFolder.dailyPath(today))
-                    val reachedDocument = channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.Notion) ||
+                    val reachedDocument = channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder, PushKind.Notion) ||
                         reminders.all { it.text in sentDaily }
                     if (reachedDocument) change(id) { j ->
                         val sent = j.optJSONObject("reminded") ?: JSONObject()
@@ -164,13 +175,38 @@ internal class SubscriptionRuntime(
                 val data = raw.select(s, since, today, zone())
                 val generator = MemoryFolder(today, zone())
                 val files = (if (summaryOnly) summaryFiles(data, s, state, generator) else generator.generate(data, s)).toMutableMap()
-                applyScreenTime(files, s, today)
+                // 封存日仍使用完整来源清理正文，不因订阅滚动范围丢掉旧线索或恢复旧事件。
+                if (state.json.optJSONObject("dayThreads")?.length()?.let { it > 0 } == true) {
+                    val archive = generator.generate(raw.select(s.copy(rangeDays = null), null, today, zone()), s)
+                    state.json.getJSONObject("dayThreads").keys().asSequence().forEach { date ->
+                        val path = MemoryFolder.dailyPath(LocalDate.parse(date))
+                        if (path !in files && path in archive) files[path] = archive.getValue(path)
+                    }
+                }
+                val historical = app.resound.platform.HistoricalZones.history()
+                val preparedDays = dayThreadSource?.let { loader -> prepareDayThreads(files, state, channel, raw, today,
+                    Instant.ofEpochMilli(started).atZone(zone()).hour, historical, loader) }.orEmpty()
+                if (dayThreadSource == null) applyScreenTime(files, s, today)
+                val nightWeeks = if(channel.kind in setOf(PushKind.MarkdownFolder,PushKind.LocalFolder,PushKind.Webhook)) nightWeekSource() else emptyList()
+                val weekFiles = nightWeeks.associate { app.resound.night.NightWeeks.path(it.weekStart) to it.markdown }
+                val oldWeeks = state.json.optJSONObject("nightWeeks") ?: JSONObject()
+                val removedWeeks = oldWeeks.keys().asSequence().filter { old -> nightWeeks.none { it.weekStart.toString()==old } }.toList()
+                weekFiles.forEach { (path,body) -> files[path]=body }
+                removedWeeks.forEach { start -> files[app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(start))]="" }
+
+                if (dayFinal) {
+                    val finalized = preparedDays.map { MemoryFolder.dailyPath(it.date) }.toSet() + weekFiles.keys + removedWeeks.map { app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(it)) }
+                    val output = state.templates.keys().asSequence().associateWith { state.templates.getString(it) }.toMutableMap()
+                    files.filterKeys { it in finalized || it == "README.md" }.forEach { (path, body) -> output[path] = body }
+                    files.clear(); files.putAll(output)
+                }
                 val current = RecordDelta.records(data, s)
-                if (!reminderOnly) trace.requireContent(if (summaryOnly) current.keys.count { it.startsWith("card:") || it.startsWith("review:") } else current.size)
+                if (!reminderOnly && !dayFinal && nightWeeks.isEmpty() && removedWeeks.isEmpty()) trace.requireContent(if (summaryOnly) current.keys.count { it.startsWith("card:") || it.startsWith("review:") } else current.size)
                 val full = !s.incremental || rebuild || due.optLong("fullAt").let { it > 0 && it <= started }
                 val description = when {
+                    dayFinal && channel.kind == PushKind.Webhook -> "已检查每日线索"
                     reminderOnly -> "推了 ${reminders.size} 条提醒"
-                    channel.kind == PushKind.MarkdownFolder -> {
+                    channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder) -> {
                         // 摘要即时推只刷新已有记录中的摘要，不提前发送尚未到触发点的整理结果。
                         val outgoing = files
                         val batch = transport.syncFolder(values, state, outgoing, s.layout == FolderLayout.ByCategory, started, if (reminders.isNotEmpty()) 18 else 20)
@@ -193,11 +229,42 @@ internal class SubscriptionRuntime(
                             sendDocuments(channel, values, data, s, files, state, false, started).also { RecordDelta.acknowledge(current, state) }
                         }
                     }
-                    channel.kind in setOf(PushKind.Notion, PushKind.Telegram, PushKind.Email) -> sendDocuments(channel, values, data, s, files, state, channel
-                        .kind == PushKind.Notion && s.incremental && !rebuild, started)
+                    channel.kind in setOf(PushKind.Notion, PushKind.Telegram, PushKind.Email) -> sendDocuments(channel, values, if (dayFinal) PushSnapshot() else data, s, files, state, channel
+                        .kind == PushKind.Notion && (dayFinal || s.incremental && !rebuild), started)
                     else -> throw PushFailure("这个通道只支持摘要和提醒")
                 }
-                change(id) { j ->
+                if(channel.kind==PushKind.Webhook) {
+                    for(report in nightWeeks) {
+                        val key=report.weekStart.toString();val payload=nightWeekPayload(report);val hash=sha256(payload.toString())
+                        if(oldWeeks.optString(key)!=hash) {
+                            transport.send(channel.kind,PushFormat.Json,values,PushMessage("夜里周报 · $key","",PushTopic.DailyMemory,null,started,memory=payload)).getOrThrow()
+                            oldWeeks.put(key,hash);state.json.put("nightWeeks",oldWeeks);state.save()
+                        }
+                    }
+                    for(key in removedWeeks) {
+                        transport.send(channel.kind,PushFormat.Json,values,PushMessage("夜里周报已移除","",PushTopic.DailyMemory,null,started,memory=JSONObject().put("type","night_week").put("weekStart",key).put("deleted",true))).getOrThrow()
+                        oldWeeks.remove(key);state.save()
+                    }
+                } else if(channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) {
+                    for(report in nightWeeks)if(state.templates.optString(app.resound.night.NightWeeks.path(report.weekStart))==report.markdown)oldWeeks.put(report.weekStart.toString(),sha256(report.markdown))
+                    removedWeeks.filter {state.templates.optString(app.resound.night.NightWeeks.path(kotlinx.datetime.LocalDate.parse(it))).isEmpty()}.forEach {oldWeeks.remove(it)}
+                    state.json.put("nightWeeks",oldWeeks);state.save()
+                }
+                for (prepared in preparedDays) {
+                    val path = MemoryFolder.dailyPath(prepared.date)
+                    if (channel.kind == PushKind.Webhook) {
+                        val previousHash = state.json.optJSONObject("dayThreads")?.optJSONObject(prepared.date.toString())?.optString("hash")
+                        if (previousHash != prepared.hash) {
+                            transport.send(channel.kind, PushFormat.Json, values, PushMessage("一天的线索 · ${prepared.date}", "", PushTopic.DailyMemory, null, started,
+                                memory = dayThreadPayload(prepared.thread, historical))).getOrThrow()
+                            acknowledgeDay(state, prepared, started)
+                        }
+                    } else if (dayThreadSection(state.templates.optString(path)) == prepared.section) acknowledgeDay(state, prepared, started)
+                }
+                if (preparedDays.isNotEmpty() && preparedDays.all { state.json.optJSONObject("dayThreads")?.optJSONObject(it.date.toString())?.optString("hash") == it.hash }) {
+                    state.json.put("dayThreadInitialized", true); state.save()
+                }
+                if (!dayFinal) change(id) { j ->
                     j.applyTimes(SubscriptionPlan.completed(s, j.times(), due.times(), started, more, summaryOnly, reminderOnly, NowMillis(now)) { zone().id })
                     if (more) j.put("summaryBatch", summaryOnly) else j.remove("summaryBatch")
                 }
@@ -208,7 +275,8 @@ internal class SubscriptionRuntime(
                         .count { it.type == "daily" && it.startDate == date.toString() })
                 }
                 state.json.put("summaryCounts", summaryCounts); state.save()
-                reminderSchedule(channel, raw)
+                if (!dayFinal) reminderSchedule(channel, raw)
+                if (dayFinal && more) throw PushFailure("每日线索尚有文件待写，稍后继续")
                 Result.success(trace.success(description + if (more) "，余下文件已排队" else ""))
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { if (trace.exception.isEmpty()) trace.exception = e.javaClass.simpleName; Result.failure(PushFailure(if (e is PushFailure) e
@@ -216,8 +284,8 @@ internal class SubscriptionRuntime(
             finally { update(id, false) }
             PushDiagnostics.record(prefs, channel, PushTopic.DailyMemory, result, trace)
             update(id, false, result)
-            log(channel, (if (channel.kind == PushKind.MarkdownFolder) "同步文件夹 · " else "推送订阅 · ") + (result.getOrNull() ?: "失败"), result.map { Unit })
-            if (result.isSuccess) { if (manual) queued.remove(id); plan(id, !manual) }
+            log(channel, (if (channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) "同步文件夹 · " else "推送订阅 · ") + (result.getOrNull() ?: "失败"), result.map { Unit })
+            if (result.isSuccess && !dayFinal) { if (manual) queued.remove(id); plan(id, !manual) }
             else if (manual) { change(id) { it.put("batchAt", now() + 30_000) }; plan(id) }
             result
           }
@@ -225,7 +293,7 @@ internal class SubscriptionRuntime(
     }
     private suspend fun sendReminders(channel: PushChannel, values: Map<String, String>, reminders: List<SubscriptionReminder>, state: PushSyncState, at: Long) {
         val body = reminders.joinToString("\n") { "- ${it.text}" }
-        if (channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.Notion)) {
+        if (channel.kind !in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder, PushKind.Notion)) {
             for (reminder in reminders) {
                 transport.send(channel.kind, channel.format, values,
                     PushMessage("待办提醒", reminder.text, PushTopic.TodoReminder, null, at)).getOrThrow()
@@ -241,10 +309,11 @@ internal class SubscriptionRuntime(
         val files = state.templates.keys().asSequence().associateWith { state.templates.getString(it) }.toMutableMap()
         val base = files[path] ?: MemoryFolder.card("每日记录", "$date", "提醒", "$date · 提醒", reminders.size, "")
         files[path] = base
-        applyScreenTime(files, channel.subscription, date)
+        // 提醒仅追加当天正文，已定稿的历史线索原样保留。
+        files.keys.toList().filter { it.startsWith("daily/") }.forEach { files[it] = replaceScreenTimeSection(files.getValue(it), null) }
         files[path] = files.getValue(path).substringBefore("<!-- resound:reminders -->").trimEnd() +
             "\n\n<!-- resound:reminders -->\n## 提醒\n$body\n"
-        if (channel.kind == PushKind.MarkdownFolder) {
+        if (channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) {
             if ("README.md" !in files) files["README.md"] = MemoryFolder(date, zone()).generate(PushSnapshot(), channel.subscription).getValue("README.md")
             // 这里只改当天一份文件，其余模板原样保留。
             transport.syncFolder(values, state, files, channel.subscription.layout == FolderLayout.ByCategory, at)
@@ -285,6 +354,7 @@ internal class SubscriptionRuntime(
                 }
             }
             val payload = JSONObject().put("type", "daily_memory").put("version", 1).put("app", "resound").put("date", date).put("generatedAt", at)
+                .put("utcOffset", app.resound.platform.HistoricalZones.history().let { h -> h.offset(h.zonesOn(kotlinx.datetime.LocalDate.parse(date)).first().from) })
                 .put("markdown", body.replace(MemoryFolder.UPDATED, MemoryFolder.updatedText(at)))
                 .put("data", JSONObject().apply {
                     listOf("event" to "events", "item" to "items", "card" to "cards", "review" to "reviews", "line" to "lines").forEach { (kind, key) ->
@@ -308,19 +378,8 @@ internal class SubscriptionRuntime(
         return "更新 $count 天的文档"
     }
     private suspend fun applyScreenTime(files: MutableMap<String, String>, s: PushSubscription, today: LocalDate) {
-        val todayPath = MemoryFolder.dailyPath(today)
-        val paths = files.keys.filter { it.startsWith("daily/") && SCREEN_TIME_MARKER in files.getValue(it) }.toMutableSet()
-        paths += todayPath
-        for (path in paths) {
-            val date = LocalDate.parse(path.substringAfterLast('/').take(10))
-            val markdown = if (s.screenTime) screenTimeMarkdown(date) else null
-            val existing = files[path]
-            if (markdown == null) {
-                if (existing != null) files[path] = replaceScreenTimeSection(existing, null)
-                continue
-            }
-            val base = existing ?: MemoryFolder.card("每日记录", "$date", "屏幕时间", "$date · 屏幕时间", 0, "")
-            files[path] = replaceScreenTimeSection(base, markdown)
+        files.keys.toList().filter { it.startsWith("daily/") }.forEach { path ->
+            files[path] = replaceScreenTimeSection(files.getValue(path), null)
         }
     }
 }

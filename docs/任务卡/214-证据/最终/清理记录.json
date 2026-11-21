@@ -1,0 +1,10 @@
+{
+  "removed": [
+    "/Users/coach/Developer/TaoSheng-214/build",
+    "/Users/coach/Developer/TaoSheng-214/app/build",
+    "/Users/coach/Developer/TaoSheng-214/shared/build",
+    "/Users/coach/Developer/TaoSheng-214/devices/build",
+    "/private/tmp/taosheng-214-gradle"
+  ],
+  "gradleStopUsed": false
+}

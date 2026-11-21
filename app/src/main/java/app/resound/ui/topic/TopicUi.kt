@@ -18,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import app.resound.topic.TopicProgress
+import app.resound.topic.core.retryFailedBlocks
+import app.resound.topic.core.summarizeNow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -336,7 +338,7 @@ private fun TopicHistory(records: List<Topic>, open: (Long) -> Unit) {
         progress = { t -> remember(t.id) { AppGraph.topics.observeProgress(t.id) }.collectAsStateWithLifecycle(initialValue = TopicProgress()).value },
         busyIds = retrying, open = open, retry = { id ->
             retrying = retrying + id
-            scope.launch { try { guarded(context) { AppGraph.topics.regenerate(id) } } finally { retrying = retrying - id } }
+            scope.launch { try { guarded(context) { AppGraph.topics.retryFailedBlocks(id) } } finally { retrying = retrying - id } }
         }, managing = managing, setManaging = { managing = it }, delete = { id ->
             scope.launch { if (guarded(context) { AppGraph.topics.delete(id) }) Toast.makeText(context, "专题已删除", Toast.LENGTH_SHORT).show() }
         })
@@ -387,7 +389,14 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
     val retry: () -> Unit = {
         if (!actionBusy) {
             actionBusy = true
-            scope.launch { try { guarded(context) { AppGraph.topics.regenerate(t.id) } } finally { actionBusy = false } }
+            // 卡 217：“继续整理/补上”只补缺块，保留已整理好的；“全部重新生成”在“⋯”里
+            scope.launch { try { guarded(context) { AppGraph.topics.retryFailedBlocks(t.id) } } finally { actionBusy = false } }
+        }
+    }
+    val summarizeNow: () -> Unit = {
+        if (!actionBusy) {
+            actionBusy = true
+            scope.launch { try { guarded(context) { AppGraph.topics.summarizeNow(t.id) } } finally { actionBusy = false } }
         }
     }
 
@@ -415,13 +424,13 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
 
         // ② 主角区
         when {
-            live -> LiveHero(t, tl?.includedMs ?: 0L)
+            live -> { LiveHero(t, tl?.includedMs ?: 0L); LiveBlocks(progress) }
             t.status == TopicStatus.Done && card != null -> TopicCompletedContent(card)
             t.status == TopicStatus.Scheduled -> HeroNote("到点自动开始、自动结束" + (if (t.repeat.isNotEmpty()) " · 每周" + t.repeat.sorted().joinToString("、") { weekName(DayOfWeek.valueOf(it.name)) } else "")) {
                 ActionButton("取消这次预约", ActionKind.Danger) { scope.launch { if (guarded(context) { AppGraph.topics.cancelSchedule(t.id) }) onDismiss() } }
             }
-            t.status == TopicStatus.Failed -> TopicProgressContent(progress, progress.error ?: t.error, busy, retry)
-            t.status == TopicStatus.Summarizing || t.status == TopicStatus.Ended -> TopicProgressContent(progress, null, busy, retry)
+            t.status == TopicStatus.Failed -> TopicProgressContent(progress, progress.error ?: t.error, busy, summarizeNow, retry)
+            t.status == TopicStatus.Summarizing || t.status == TopicStatus.Ended -> TopicProgressContent(progress, null, busy, summarizeNow, retry)
             t.status == TopicStatus.Done && t.kind != TopicKind.Normal -> HeroNote("还没有纪要") {
                 ActionButton("生成纪要", ActionKind.Primary, enabled = !busy) { scope.launch { guarded(context) { AppGraph.topics.regenerate(t.id) } } }
             }
@@ -866,4 +875,15 @@ fun TopicCreateSheet(from: MemoryEvent?, onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+/** 卡 217：开会中每满 10 分钟就整理那一块；这里显示整理到几点，可展开看前面的要点 */
+@Composable
+private fun LiveBlocks(progress: TopicProgress) {
+    val c = Rs.colors
+    val until = progress.organizedUntil
+    if (until == null && progress.blockNotes.none { it.state == app.resound.topic.core.TopicBlockState.Done }) return
+    Spacer(Modifier.height(8.dp))
+    until?.let { Text("边开边整理：已整理到 ${formatClock(it)}，结束后很快出纪要", style = RsType.caption, color = c.textSecondary) }
+    TopicBlockNotes(progress.blockNotes, collapsedTitle = "已整理的要点")
 }

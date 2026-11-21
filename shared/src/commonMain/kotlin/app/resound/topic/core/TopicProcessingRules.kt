@@ -138,11 +138,16 @@ class TopicProcessingSession(private val id: Long, private val source: String, p
         throw requireNotNull(last)
     }
     /** 按原话边界拆分；认证错误不拆、不重试；子块成功结果仍可在下一轮复用。 */
-    suspend fun <T, R> splitRead(lines: List<T>, read: suspend (List<T>) -> R): List<R> = try { listOf(read(lines)) }
-        catch (e: CancellationException) { throw e }
-        catch (e: Exception) {
-            if (classify(e).kind !in setOf(TopicFailureKind.Format, TopicFailureKind.Capacity) || lines.size < 2) throw e
-            val mid = lines.size / 2
-            splitRead(lines.take(mid), read) + splitRead(lines.drop(mid), read)
-        }
+    suspend fun <T, R> splitRead(lines: List<T>, read: suspend (List<T>) -> R): List<R> =
+        splitTopicRead(lines, { classify(it).kind in setOf(TopicFailureKind.Format, TopicFailureKind.Capacity) }, read)
 }
+
+/** 无检查点的导入兼容入口也使用同样的二分规则；最小一行失败原样上抛，不吞来源。 */
+suspend fun <T, R> splitTopicRead(lines: List<T>, canSplit: (Exception) -> Boolean, read: suspend (List<T>) -> R): List<R> =
+    try { listOf(read(lines)) }
+    catch (e: CancellationException) { throw e }
+    catch (e: Exception) {
+        if (!canSplit(e) || lines.size < 2) throw e
+        val mid = lines.size / 2
+        splitTopicRead(lines.take(mid), canSplit, read) + splitTopicRead(lines.drop(mid), canSplit, read)
+    }

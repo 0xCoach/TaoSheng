@@ -14,7 +14,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
+import app.resound.transcribe.CustomCapability
 import app.resound.transcribe.CustomEndpointMode
+import app.resound.transcribe.CustomKeyState
+import app.resound.transcribe.CustomSaveResult
 import app.resound.transcribe.EndpointKind
 import app.resound.transcribe.OpenAiEndpoint
 import app.resound.transcribe.RemoteModels
@@ -24,9 +27,22 @@ import app.resound.ui.verify.springClick
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
-/** 自定义转写才有：地址写法（自动匹配 / 完整地址）与完整地址下是否附带热词 */
+/** 自定义转写才有：地址写法（自动匹配 / 完整地址）、是否附带热词、密钥三态与测试结论（卡 212）。
+ * [qwen] 为千问接口：只按完整地址请求，不拉取模型、不切写法，热词开关常显。 */
 internal class EndpointModeUi(val initial: CustomEndpointMode, val prompt: kotlinx.coroutines.flow.StateFlow<Boolean>,
-    val setPrompt: (Boolean) -> Unit, val save: (String, String, String, CustomEndpointMode) -> Unit)
+    val setPrompt: (Boolean) -> Unit, val save: (String, String, String, CustomEndpointMode) -> CustomSaveResult?,
+    val keyState: CustomKeyState? = null, val capability: CustomCapability? = null, val qwen: Boolean = false,
+    /** 放在保存按钮上面的额外设置（如说话人格式） */
+    val beforeButtons: (@Composable () -> Unit)? = null,
+    /** 测试：和保存放在同一排；保存成功后自动测一次。testStatus 显示在按钮下面 */
+    val test: (() -> Unit)? = null, val testing: Boolean = false, val testStatus: (@Composable () -> Unit)? = null)
+
+/** 测试通过后告诉用户这个模型能做到哪一步 */
+internal fun capabilityText(c: CustomCapability) = when (c) {
+    CustomCapability.Speakers -> "能分说话人"
+    CustomCapability.TimedText -> "只出文字，带逐句时间"
+    CustomCapability.TextOnly -> "只出文字"
+}
 
 /** 沿用原密钥输入框，不引入另一套 Material 文本框外观。 */
 @Composable
@@ -56,12 +72,14 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
     var error by remember {mutableStateOf(false)}
     var mode by remember {mutableStateOf(modes?.initial ?: CustomEndpointMode.Auto)}
     val full=mode==CustomEndpointMode.Full
+    val qwen=modes?.qwen==true
+    val keyState=modes?.keyState
     Column(Modifier.animateContentSize()) {
         Text(description,style=RsType.caption,color=c.textSecondary)
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
             Text("服务地址",style=RsType.body,color=c.text,modifier=Modifier.weight(1f))
-            if(modes!=null) app.resound.ui.skills.Segments(listOf("自动匹配","完整地址"),if(full)1 else 0) {
+            if(modes!=null && !qwen) app.resound.ui.skills.Segments(listOf("自动匹配","完整地址"),if(full)1 else 0) {
                 mode=if(it==1)CustomEndpointMode.Full else CustomEndpointMode.Auto;message="";models=emptyList()
             }
         }
@@ -74,7 +92,7 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
             full && runCatching{app.resound.transcribe.fullEndpoint(endpoint)}.isFailure->EndpointKind.Invalid
             else->OpenAiEndpoint.kind(endpoint)
         }}
-        val tip=if(full)"按填写的地址请求，可带参数。" else "可填根地址或带 /v1 的地址。"
+        val tip=when{qwen->"已预填北京地域地址，一般不用改。";full->"按填写的地址请求，可带参数。";else->"可填根地址或带 /v1 的地址。"}
         when(kind) {
             EndpointKind.LocalHttp->Text("局域网连接 · $tip",style=RsType.caption,color=c.textSecondary)
             EndpointKind.PublicHttp->Text("未加密的公网连接，密钥和内容可能被截获，建议只在内网使用。",style=RsType.caption,color=c.warning)
@@ -85,15 +103,29 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
         Row(verticalAlignment=androidx.compose.ui.Alignment.Bottom) {
             Text("API Key",style=RsType.body,color=c.text)
             Spacer(Modifier.width(6.dp))
-            Text("可选",style=RsType.caption,color=c.textTertiary)
+            if(!qwen) Text("可选",style=RsType.caption,color=c.textTertiary)
         }
         Spacer(Modifier.height(8.dp))
-        SettingsInput(key,{key=it.trim()},if(hasKey)"已保存，留空沿用" else "本地模型不需要可留空",Modifier.fillMaxWidth(),secret=true)
+        // #56：密钥框只看“真的存了密钥”，不再把“地址和模型已保存”当成密钥已保存
+        val keySaved=if(keyState!=null) keyState!=CustomKeyState.None else hasKey
+        SettingsInput(key,{key=it.trim()},when{keySaved->"已保存，留空沿用";qwen->"填写百炼控制台的 API Key";else->"本地模型不需要可留空"},Modifier.fillMaxWidth(),secret=true)
+        if(keyState!=null) {
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                val (dot,line)=when(keyState){
+                    CustomKeyState.None->null to (if(qwen)"还没保存密钥" else "还没保存密钥，本地服务可不填")
+                    CustomKeyState.Saved->c.warning to "已保存，未验证 · 点「测试」确认"
+                    CustomKeyState.Verified->c.good to ("已验证"+(modes?.capability?.let{" · "+capabilityText(it)}?:""))
+                }
+                if(dot!=null){app.resound.ui.verify.Dot(dot,6.dp);Spacer(Modifier.width(6.dp))}
+                Text(line,style=RsType.caption,color=when(keyState){CustomKeyState.Verified->c.good;CustomKeyState.Saved->c.textSecondary;else->c.textTertiary})
+            }
+        }
         Spacer(Modifier.height(16.dp))
         Text("模型",style=RsType.body,color=c.text)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-            SettingsInput(model,{model=it.trim()},if(full)"填写模型名" else "拉取后选择，或手动填写",Modifier.weight(1f))
+            SettingsInput(model,{model=it.trim()},if(full||qwen)"填写模型名" else "拉取后选择，或手动填写",Modifier.weight(1f))
             if(models.isNotEmpty()) Box {
                 Text("⌄",style=RsType.headline,color=c.accent,modifier=Modifier.springClick{menu=true}.padding(12.dp))
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false},containerColor=c.card,modifier=Modifier.heightIn(max=300.dp)) {
@@ -101,21 +133,22 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
                 }
             }
         }
-        if(modes!=null && full) {
+        if(modes!=null && (full || qwen)) {
             val prompt by modes.prompt.collectAsStateWithLifecycle()
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("附带热词",style=RsType.body,color=c.text)
-                    Text("服务支持时打开，人名和专有名词更准。",style=RsType.caption,color=c.textTertiary)
+                    Text(if(qwen)"把热词表发给千问，人名和专有名词更准。" else "服务支持时打开，人名和专有名词更准。",style=RsType.caption,color=c.textTertiary)
                 }
                 Spacer(Modifier.width(12.dp))
                 app.resound.ui.skills.Toggle(prompt){modes.setPrompt(it)}
             }
         }
+        modes?.beforeButtons?.let { Spacer(Modifier.height(16.dp)); it() }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            if(!full) Pill(if(fetching)"拉取中…" else "拉取模型",filled=false) {
+            if(!full && !qwen) Pill(if(fetching)"拉取中…" else "拉取模型",filled=false) {
                 if(!fetching){fetching=true;error=false;scope.launch {
                     try{val result=fetch(endpoint,key);endpoint=result.base;models=result.ids;menu=true;message="找到 ${models.size} 个模型，请选择后保存"}
                     catch(e:CancellationException){throw e}
@@ -125,11 +158,25 @@ internal fun CustomModelForm(initialEndpoint:String,initialModel:String,hasKey:B
             }
             Pill("保存",filled=kind!=null && kind!=EndpointKind.Invalid && model.isNotBlank()) {
                 if(!fetching){error=false
-                    try{val withKey=key.isNotBlank() || hasKey;if(modes!=null)modes.save(endpoint,model,key,mode) else save(endpoint,model,key);key="";message=if(withKey)"地址、密钥和模型已保存" else "地址和模型已保存"}
+                    try{
+                        val withKey=key.isNotBlank() || hasKey
+                        val saved=if(modes!=null)modes.save(endpoint,model,key,mode) else {save(endpoint,model,key);null}
+                        key=""
+                        message=when{
+                            saved==null->if(withKey)"地址、密钥和模型已保存" else "地址和模型已保存"
+                            saved.keySaved->"已保存，点下面的「测试」确认能用"
+                            saved.keyState==CustomKeyState.None->"地址和模型已保存，还没保存密钥"
+                            else->"地址和模型已保存，沿用原密钥"
+                        }
+                        // 保存成功顺带测一次，结果直接显示在下面
+                        if(saved!=null) modes?.test?.invoke()
+                    }
                     catch(e:Exception){error=true;message=e.message ?: "保存失败"}
                 }
             }
+            modes?.test?.let { run -> Pill(if(modes.testing)"测试中…" else "测试",filled=false) { if(!modes.testing) run() } }
         }
+        modes?.testStatus?.let { Spacer(Modifier.height(8.dp)); it() }
         if(message.isNotBlank()){Spacer(Modifier.height(8.dp));Text(message,style=RsType.caption,color=if(error)c.critical else c.textSecondary)}
         Spacer(Modifier.height(6.dp))
         Text("密钥仅保存在手机安全区，不回显。模型列表不代表服务已通过测试。",style=RsType.caption,color=c.textTertiary)

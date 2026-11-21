@@ -42,13 +42,13 @@ internal suspend fun dailyMemoryJson(date: LocalDate, generatedAt: Long, markdow
     return JSONObject(PushBodyRules.dailyMemory(date.toString(), generatedAt, markdown, element("review"),
         element("events") as kotlinx.serialization.json.JsonArray, element("items") as kotlinx.serialization.json.JsonArray,
         element("cards") as kotlinx.serialization.json.JsonArray,
-        if (lines == null) null else element("lines") as kotlinx.serialization.json.JsonArray).toString())
+        if (lines == null) null else element("lines") as kotlinx.serialization.json.JsonArray).toString()).put("utcOffset", app.resound.platform.HistoricalZones.history().let { h -> h.offset(h.zonesOn(date.toKotlinLocalDate()).first().from) })
 }
 
 internal class DailyMemorySource(context: Context, memory: MemoryRepository, private val reviews: ReviewRepository,
     private val dao: MemoryDao, private val reviewDao: ReviewDao, private val skills: SkillDao) {
     private fun window(date: LocalDate): Pair<Long, Long> {
-        val zone = ZoneId.systemDefault()
+        val zone = ZoneId.of(app.resound.platform.HistoricalZones.history().zonesOn(date.toKotlinLocalDate()).first().zoneId)
         val minutes = reviews.state.value.dailyAtMinutes
         return ReviewTime.cutoff(date.minusDays(1), minutes, zone).toInstant().toEpochMilli() to ReviewTime.cutoff(date, minutes, zone).toInstant().toEpochMilli()
     }
@@ -74,9 +74,9 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
     private val safeReviews = object : ReviewRepository by reviews {
         override fun daily(date: kotlinx.datetime.LocalDate) = flow { emit(localRecord("review", date.toEpochDays().toLong()) { reviews.daily(date).first() }) }
     }
-    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards) { date ->
-        window(date).let { (start, end) -> (start + 1) to (end + 1) }
-    }
+    private val diary = LocalDiaryRepository(context, windowMemory, safeReviews, dao, SystemZone, kotlinx.coroutines.Dispatchers.IO, ::cards,
+        lineWindow = { date -> window(date).let { (start, end) -> (start + 1) to (end + 1) } },
+        historicalTime = { at -> ZoneId.of(app.resound.platform.HistoricalZones.history().zoneAt(at).id) })
     suspend fun load(date: LocalDate?, withLines: Boolean, lineContext: Boolean = true): PushMessage? {
         val target = date ?: latestDate(withLines) ?: return null
         val source = input(target)
@@ -84,14 +84,26 @@ internal class DailyMemorySource(context: Context, memory: MemoryRepository, pri
         val cards = cards(target)
         val (start, end) = window(target)
         val lines = if (withLines) dao.diaryLines(start + 1, end + 1).filter { it.text.isNotBlank() } else null
-        PushTrace.current()?.requireContent(source.events.size + source.items.size + cards.size + (if (review == null) 0 else 1) + lines.orEmpty().size)
-        if (source.events.isEmpty() && source.items.isEmpty() && cards.isEmpty() && review == null && lines.isNullOrEmpty()) return null
-        val markdown = diary.markdownWithContext(target, target, withLines, lineContext)
+        val night = lastNight(target)
+        PushTrace.current()?.requireContent(source.events.size + source.items.size + cards.size + (if (review == null) 0 else 1) + lines.orEmpty().size + (if (night == null) 0 else 1))
+        if (source.events.isEmpty() && source.items.isEmpty() && cards.isEmpty() && review == null && lines.isNullOrEmpty() && night == null) return null
+        val content = diary.markdownWithContext(target, target, withLines, lineContext)
+        // 当天的“昨晚”：醒来整理好就写进当天文档开头；隔天凌晨定稿后由“一天的线索”接管，这里不再重复
+        val body = listOfNotNull(night, content.takeIf { it.isNotBlank() }).joinToString("\n\n")
+        val markdown = if (body.isBlank()) body else "本文时间为 ${app.resound.platform.HistoricalZones.history().caption(target.toKotlinLocalDate())}\n\n$body"
         if (markdown.isBlank()) return null
         val at = System.currentTimeMillis()
         val json = dailyMemoryJson(target, at, markdown, review, source, cards, lines, lineContext)
         return PushMessage("每日记忆文档 · $target", review?.pushBody(PushFormat.Text) ?: "$target 的记忆文档", PushTopic.DailyMemory,
             "resound://review?open=review&date=$target", at, memory = json)
+    }
+    /** 只给“今天”加：昨晚整理好（Ready）且开着“推送里包含夜里”时返回“## 昨晚”一节 */
+    private suspend fun lastNight(target: LocalDate): String? {
+        if (target != LocalDate.now() || !app.resound.AppGraph.isNightReady) return null
+        val owner = app.resound.AppGraph.night as? app.resound.night.AndroidNight ?: return null
+        val row = owner.store.dao.onDate(target.toString())?.takeIf { it.state == app.resound.night.NightState.Ready.name } ?: return null
+        val detail = owner.store.detail(row.id) ?: return null
+        return runCatching { app.resound.night.NightThreads.build(detail, owner.settings.value, app.resound.platform.HistoricalZones.history())?.markdown }.getOrNull()
     }
     private suspend fun latestDate(withLines: Boolean): LocalDate? {
         val zone = ZoneId.systemDefault()

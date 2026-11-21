@@ -101,6 +101,25 @@ class UpdatePreBackupTest {
         }
     }
 
+    /** 卡 210：自动安装在等后台备份时，界面要跟着备份进度走，不能一直停在“正在保存本机数据” */
+    @Test fun waitingInstallShowsPreBackupProgress() = runBlocking {
+        scenario {
+            val entered = CompletableDeferred<Unit>()
+            val releaseBackup = CompletableDeferred<Unit>()
+            platform.duringBackup = { entered.complete(Unit); releaseBackup.await() }
+            download()
+            withTimeout(5000) { entered.await() }
+            engine.install()
+            withTimeout(5000) { while ((engine.state.value as? UpdateState.Installing)?.backingUp != true) delay(10) }
+            platform.lastProgress!!("正在备份到云端存储（最多 3 分钟）", 0.6f)
+            val shown = engine.state.value as UpdateState.Installing
+            assertEquals("正在备份到云端存储（最多 3 分钟）", shown.step); assertEquals(0.6f, shown.progress)
+            releaseBackup.complete(Unit)
+            awaitInstall()
+            assertEquals(1, platform.installs)
+        }
+    }
+
     @Test fun cancelledPreBackupKeepsReadyWithoutRecordingSuccess() = runBlocking {
         scenario {
             platform.duringBackup = { throw CancellationException("cancel_backup") }

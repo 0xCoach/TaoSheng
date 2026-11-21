@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.importer.CallRecording199Test" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-17T04:22:34.145Z" hostname="CoachdeMacBook-Air.local" time="0.061">
+  <properties/>
+  <testcase name="supportedDatePartsAndInvalidDates[jvm]" classname="app.resound.importer.CallRecording199Test" time="0.061"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

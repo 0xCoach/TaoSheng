@@ -22,7 +22,7 @@ class TopicRulesRepository(
     private val quiet: (Long, Long) -> Boolean = { _, _ -> false },
     private val recordingEnabled: () -> Boolean = { true },
     private val checkpoints: TopicCheckpointStore = MemoryTopicCheckpoints(),
-) : TopicRepository {
+) : TopicRepository, TopicBlockActions {
     private fun now() = clock.now()
     private fun zone() = TimeZone.of(zones.zoneId())
     private val gate = Mutex()
@@ -291,9 +291,28 @@ class TopicRulesRepository(
         edit {
             val g = get(topicId)
             requireTopic(g.row.status in setOf("Ended", "Summarizing", "Done", "Failed"), "请先结束专题再重新生成")
-            // 重试失败保留校验通过的块；主动重做已完成专题重新计算，旧成果直到新结果提交才替换。
-            if (g.row.status == "Done") checkpoints.remove(topicId)
+            // 主动重新生成始终清空全部块与汇总；补缺走独立入口。
+            checkpoints.remove(topicId)
             dao.update(g.row.copy(status = "Ended", revision = g.row.revision + 1, error = null))
+        }
+        onEnded(topicId)
+    }
+
+    override suspend fun summarizeNow(topicId: Long) = resumeBlocks(topicId, true)
+    override suspend fun retryFailedBlocks(topicId: Long) = resumeBlocks(topicId, false)
+    private suspend fun resumeBlocks(topicId: Long, skipWaiting: Boolean) {
+        edit {
+            val g = get(topicId)
+            requireTopic(g.row.status in setOf("Ended", "Summarizing", "Done", "Failed"), "请先结束专题")
+            val revision = g.row.revision + 1
+            dao.update(g.row.copy(status = "Ended", revision = revision, error = null))
+            val old = checkpoints.read(topicId)?.takeIf { it.format == 3 } ?: TopicCheckpoint(format = 3)
+            checkpoints.write(topicId, old.copy(revision = revision, skipWaiting = skipWaiting,
+                generationStartedAt = null, endedAt = now(),
+                blocks = old.blocks.mapValues { (_, block) ->
+                    if (!skipWaiting && block.state in setOf(TopicBlockState.Failed, TopicBlockState.Skipped))
+                        block.copy(state = TopicBlockState.Waiting, error = null) else block
+                }, progress = old.progress.copy(error = null, stalledReason = null, lastProgressAt = now(), finished = false)))
         }
         onEnded(topicId)
     }

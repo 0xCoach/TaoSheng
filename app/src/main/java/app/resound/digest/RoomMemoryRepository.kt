@@ -20,6 +20,7 @@ class RoomMemoryRepository(
     reminderSettings: AndroidAppointmentSettings? = null, eventChanged: () -> Unit = {},
     zoneProvider: ZoneProvider, now: NowMillis, io: CoroutineDispatcher,
     revisions: app.resound.revise.MemoryRevisionDao? = null,
+    onEventDeleted: suspend () -> Unit = {},
 ) : MemoryRepository by MemoryStoreRepository(dao, runner.running, runner.last, runNowAction, scope,
     reminderSettings?.state, reminderSettings?.let { it::set }, eventChanged, zoneProvider, now, io,
     { Instant.ofEpochMilli(now.now()).atZone(ZoneId.of(zoneProvider.zoneId())).toLocalDate().toString() }, AndroidMemoryLegacyCodec, { at ->
@@ -27,7 +28,7 @@ class RoomMemoryRepository(
         MemoryDueDate(date.toLocalDate().atStartOfDay(date.zone).toInstant().toEpochMilli(),
             date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
             date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
-    }, VoiceInputMetadata::read, revisions)
+    }, VoiceInputMetadata::read, revisions, onEventDeleted)
 
 private object AndroidMemoryLegacyCodec : MemoryLegacyCodec {
     override fun strings(text: String): List<String> = JSONArray(text).let { a -> (0 until a.length()).map { a.getString(it) } }

@@ -19,7 +19,7 @@ import java.util.UUID
 
 internal data class ImportEntry(val pending: PendingImport, val startAt: Long? = null, val cancelled: Boolean = false, val asr: TranscribeSource? = null,
     val kind: ImportKind? = null, val source: String = "", val dual: Boolean? = null, val channels: Int = 1, val recordKey: String? = null,
-    val recordName: String? = null, val recordStart: Long? = null, val recordEnd: Long? = null, val fingerprint: String? = null)
+    val recordName: String? = null, val recordStart: Long? = null, val recordEnd: Long? = null, val fingerprint: String? = null, val backfill: Boolean = false)
 
 /** 文件先落盘，再提交确认信息；队列与确认列表同一次 commit，避免进程死亡丢掉授权内容。 */
 class AndroidAudioImporter internal constructor(
@@ -42,7 +42,7 @@ class AndroidAudioImporter internal constructor(
                 item.optString("kind").takeIf { it.isNotBlank() }?.let(ImportKind::valueOf), item.optString("source"),
                 if (item.isNull("dual")) null else item.getBoolean("dual"), item.optInt("channels", 1), item.optString("recordKey").takeIf { it.isNotBlank() },
                 item.optString("recordName").takeIf { it.isNotBlank() }, if (item.isNull("recordStart")) null else item.getLong("recordStart"),
-                if (item.isNull("recordEnd")) null else item.getLong("recordEnd"), item.optString("fingerprint").takeIf { it.isNotBlank() })
+                if (item.isNull("recordEnd")) null else item.getLong("recordEnd"), item.optString("fingerprint").takeIf { it.isNotBlank() }, item.optBoolean("backfill"))
         }.filter { runCatching { UUID.fromString(it.pending.id) }.onFailure {
             FailureNotes.record("importer/AndroidAudioImporter.kt:44", it)
         }.isSuccess }.toMutableList()
@@ -73,7 +73,7 @@ class AndroidAudioImporter internal constructor(
         val array = JSONArray(entries.map { row -> JSONObject().apply {
             put("id", row.pending.id); put("name", row.pending.info.displayName); put("duration", row.pending.info.durationMillis)
             put("suggested", row.pending.info.suggestedStartAt ?: JSONObject.NULL)
-            put("fingerprint", row.fingerprint ?: "")
+            put("fingerprint", row.fingerprint ?: ""); put("backfill",row.backfill)
             put("recordKey", row.recordKey ?: ""); put("recordName", row.recordName ?: ""); put("recordStart", row.recordStart ?: JSONObject.NULL); put("recordEnd", row.recordEnd ?: JSONObject.NULL)
             put("kind", row.kind?.name ?: ""); put("source", row.source); put("dual", row.dual ?: JSONObject.NULL); put("channels", row.channels)
             put("start", row.startAt ?: JSONObject.NULL); put("cancelled", row.cancelled); put("asr", row.asr?.name ?: "")
@@ -118,10 +118,10 @@ class AndroidAudioImporter internal constructor(
         }
     }
     /** 自动导入只提交已确认条目，不经过 pending，和分享共用一个持久队列。 */
-    internal suspend fun receiveFolder(document: FolderDocument, kind: ImportKind, expected: String, unchanged: () -> Boolean = { true }): Boolean =
+    internal suspend fun receiveFolder(document: FolderDocument, kind: ImportKind, expected: String, startOverride: Long? = null, pendingId: String? = null, allowSeen: Boolean = false, backfill: Boolean = false, unchanged: () -> Boolean = { true }): Boolean =
         withContext(Dispatchers.IO) { admission.withLock {
-            if (fingerprints?.contains(expected) == true || queuedFingerprint(expected)) return@withLock false
-            val id = UUID.randomUUID().toString()
+            if ((!allowSeen && fingerprints?.contains(expected) == true) || queuedFingerprint(expected)) return@withLock false
+            val id = pendingId ?: UUID.randomUUID().toString()
             val target = file(id)
             var saved = false
             try {
@@ -139,12 +139,15 @@ class AndroidAudioImporter internal constructor(
                 if (target.length() != document.size || audioFingerprint(target) != expected || !unchanged())
                     throw ImportFailure("文件仍在写入，稍后重试")
                 val metadata = inspect(target)
-                val start = suggestedStart(metadata.date, null, metadata.duration) ?: document.modified
+                val recorded = suggestedStart(metadata.date, null, metadata.duration)
+                val start = if (kind == ImportKind.Call) CallFileNames.parse(document.name,document.modified.takeIf { it > 0 },recorded,
+                    metadata.duration,kotlinx.datetime.TimeZone.currentSystemDefault()).startAt ?: startOverride ?: document.modified
+                    else recorded ?: startOverride ?: document.modified
                 val item = PendingImport(id, ImportInfo(document.name, metadata.duration, start))
                 synchronized(this@AndroidAudioImporter) {
                     if (queuedFingerprint(expected)) return@withLock false
                     entries += ImportEntry(item, startAt = start, kind = kind, source = document.uri.toString(),
-                        channels = metadata.channels, fingerprint = expected)
+                        channels = metadata.channels, fingerprint = expected, backfill = backfill)
                     try { save(); saved = true } catch (e: Exception) { entries.removeAll { it.pending.id == id }; throw e }
                 }
                 rememberQueued()
@@ -239,7 +242,7 @@ class AndroidAudioImporter internal constructor(
         }
         return result
     }
-    @Synchronized internal fun next(): ImportEntry? = entries.firstOrNull { it.startAt != null }
+    @Synchronized internal fun next(): ImportEntry? = entries.firstOrNull { it.startAt != null && !it.backfill } ?: entries.firstOrNull { it.startAt != null }
     @Synchronized internal fun cancel(id: String) {
         val index = entries.indexOfFirst { it.pending.id == id }
         if (index >= 0) { entries[index] = entries[index].copy(cancelled = true); save() }

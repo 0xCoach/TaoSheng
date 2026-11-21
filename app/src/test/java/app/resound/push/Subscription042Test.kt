@@ -140,7 +140,7 @@ class Subscription042Test {
         Server().use { f ->
             val p = prefs(); val secrets = Secrets(); val r = repo(f, secrets, p)
             val sub = subscription.copy(trigger = RecordTrigger.Manual)
-            assertEquals("先在数据备份里连接云端存储，或改为单独配置", r.saveWithSubscription(null, PushKind.MarkdownFolder, "资料", emptyMap(), sub, PushFormat.Markdown, true).exceptionOrNull()?.message)
+            assertEquals("先在备份恢复里连接云端存储，或改为单独配置", r.saveWithSubscription(null, PushKind.MarkdownFolder, "资料", emptyMap(), sub, PushFormat.Markdown, true).exceptionOrNull()?.message)
             var credentials = folder - "folder"
             val accounts = MutableStateFlow<String?>(credentials["account"])
             r.linkedCredentials = { credentials }; r.linkedAccount = accounts
@@ -317,7 +317,8 @@ class Subscription042Test {
             r.source = { _, _ -> snapshot }
             r.configure(c, true); r.run(1).getOrThrow()
             snapshot = snapshot.copy(events = listOf(event(title = "尚未手动推送的新标题")), reviews = listOf(snapshot.reviews.first().copy(brief = "新回顾")))
-            clock += 1000; r.changed(c, summary = true); assertFalse(r.scheduled(1))
+            // 卡 210：摘要按间隔合并（手动触发至少隔 15 分钟），到点后同步
+            clock += 15 * 60_000 + 1000; r.changed(c, summary = true); assertFalse(r.scheduled(1))
             val body = f.files.getValue("/dav/Resound-Memory/${MemoryFolder.dailyPath(date)}")
             assertTrue(body.contains("新回顾")); assertFalse(body.contains("尚未手动推送的新标题")); assertTrue(body.contains("讨论测试方案"))
             r.run(1, rebuild = true).getOrThrow()

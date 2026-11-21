@@ -144,7 +144,7 @@ private fun Welcome(suggestions: List<String>, onAsk: (String) -> Unit) {
 }
 
 @Composable
-private fun UserBubble(text: String) {
+internal fun UserBubble(text: String) {
     val c = Rs.colors
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Text(text, style = RsType.body, color = c.onAccent,
@@ -153,7 +153,7 @@ private fun UserBubble(text: String) {
 }
 
 @Composable
-private fun AnswerCard(m: AskMessage, onConfirm: () -> Unit, onCancel: () -> Unit) {
+internal fun AnswerCard(m: AskMessage, onConfirm: () -> Unit, onCancel: () -> Unit) {
     val c = Rs.colors
     var openSource by remember(m.id) { mutableStateOf<Int?>(null) }
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {

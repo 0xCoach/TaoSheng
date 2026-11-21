@@ -149,7 +149,7 @@ object CalendarDraftRules {
 
     fun notes(item: MemoryItem): String = buildList {
         val type = item.kind ?: item.category
-        add("来自涛声 · $type")
+        add("来自声声不息 · $type")
         item.who?.takeIf { it.isNotBlank() && it != "我" }?.let { add("和谁：$it") }
         item.dueText?.takeIf { it.isNotBlank() }?.let { add("原定时间：$it") }
     }.joinToString("\n")

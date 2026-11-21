@@ -21,7 +21,7 @@ enum class UsagePurpose(val title: String) {
 data class LlmUsageRow(val date: LocalDate, val purpose: UsagePurpose, val promptTokens: Long, val completionTokens: Long, val calls: Int)
 
 /** 某天云端转写用了多久（本地转写不计） */
-data class AsrUsageRow(val date: LocalDate, val cloudMillis: Long)
+data class AsrUsageRow(val date: LocalDate, val cloudMillis: Long, val inputTokens: Long = 0, val outputTokens: Long = 0)
 
 /** 单价（人民币），用来估算花费；null 表示没设，界面不显示花费 */
 data class UsagePrice(

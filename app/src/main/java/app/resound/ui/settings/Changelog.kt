@@ -99,7 +99,7 @@ internal fun ChangelogCard(current: String) {
 @Composable
 internal fun ChangelogSheet(entry: ChangelogRules.Entry, onDismiss: () -> Unit) {
     val c = Rs.colors
-    RsSheet("涛声 ${displayVersion(entry.version)} 更新了什么", entry.date, onDismiss = onDismiss) {
+    RsSheet("声声不息 ${displayVersion(entry.version)} 更新了什么", entry.date, onDismiss = onDismiss) {
         app.resound.ui.ask.AnswerText(entry.body)
         Spacer(Modifier.height(4.dp))
         Text("以后可在“设置 → 版本更新 → 更新日志”回看。", style = RsType.caption, color = c.textTertiary)

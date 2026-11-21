@@ -35,7 +35,7 @@ class SkillExecution(
     private suspend fun runDays(s: Skill, kind: String, skipGap: Boolean = false) {
         val today = SkillSchedule.date(now())
         if (s.scope.range == SkillRange.SinceLastRun) {
-            val last = dao.runsOf(s.id).lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL }?.at
+            val last = dao.runsOf(s.id).lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.kind != SkillSchedule.EVENT_MANUAL }?.at
             if (last != null) dao.newEventStarts(last, now()).map(SkillSchedule::date).distinct().filter { it < today }.sorted()
                 .forEach { day -> isolated { run(s.id, day, kind, skipGap = skipGap) } }
         }
@@ -47,7 +47,7 @@ class SkillExecution(
             /* 单个技能失败不阻断后续技能。 */ }
     }
     suspend fun run(id: String, date: LocalDate, kind: String, promptOverride: String? = null, background: Boolean = false, canRetry: Boolean = true,
-        skipGap: Boolean = false): SkillAttempt = gate.withLock {
+        skipGap: Boolean = false, sourceOverride: SkillSource? = null, skipGate: Boolean = false): SkillAttempt = gate.withLock {
         val skill = files.skills.value.find { it.id == id } ?: return@withLock SkillAttempt(SkillRunResult.Failed("技能不存在"))
         if (skill.origin == SkillOrigin.Core) return@withLock SkillAttempt(SkillRunResult.Nothing("请使用原来的整理或回顾设置"))
         var started = now(); val history = dao.runsOf(id)
@@ -57,6 +57,7 @@ class SkillExecution(
             return@withLock SkillAttempt(SkillRunResult.Nothing(it))
         }
         running(id, true)
+        var sourceEvents = emptyList<app.resound.digest.core.MemoryEventData>()
         var tokens = 0L; var retryable = false; var gateDiscarded = 0
         try {
             // 每周回顾实际是内置 weekly 技能；通过共用入口覆盖自动、手动和试跑。
@@ -65,10 +66,11 @@ class SkillExecution(
                 val model = models(skill.presetId)
                 if (!model.ready) SkillRunResult.Failed("还没填写大模型密钥") else {
                     // 每个归属日各记各的进度，别的日子的运行不算。
-                    val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }?.at
-                    val source = SkillInputs.source(dao, skill, date, since, started)
-                    val gateLines = SkillInputs.gateLines(source.lines, skill.scope.speakers)
-                    val gateFailure = SkillGateRules.failure(skill.gate, gateLines)
+                    val since = history.lastOrNull { it.ok && it.kind != SkillSchedule.TRIAL && it.kind != SkillSchedule.EVENT_MANUAL && it.date == date.toEpochDay() }?.at
+                    val source = sourceOverride ?: SkillInputs.source(dao, skill, date, since, started)
+                    sourceEvents = source.events
+                    val gateLines = SkillInputs.gateLines(source.lines, skill.scope.speakers, source.events)
+                    val gateFailure = if (skipGate) null else SkillGateRules.failure(skill.gate, gateLines)
                     if (gateFailure != null) SkillRunResult.Nothing(gateFailure) else {
                         val input = SkillInputs.prepare(dao, skill, date, started, source)
                         if (skill.scope.speakers == SkillSpeakers.MeOnly && skill.scope.includeLines && input.lines.isEmpty()) {
@@ -92,8 +94,18 @@ class SkillExecution(
                             val output = requireNotNull(parsed)
                             val cards = mutableListOf<SkillCard>()
                             var skippedReason = output.reason
-                            val rows = output.rows.filter { row ->
-                                val reason = SkillGateRules.cardFailure(skill.gate, gateLines, row.at, row.endAt)
+                            val rows = output.rows.map { if (skill.gate == null) it else SkillCardTiming.complete(it, source.lines, source.events) }.filter { row ->
+                                if (sourceOverride != null && sourceOverride.events.none {
+                                    val lastLineEnd = source.lines.filter { line ->
+                                        line.startAt >= it.startAt && line.startAt <= it.endAt
+                                    }.maxOfOrNull { line -> line.endAt } ?: it.endAt
+                                    row.at >= it.startAt && row.at <= it.endAt &&
+                                        (row.endAt ?: row.at) <= maxOf(it.endAt, lastLineEnd)
+                                }) {
+                                    skippedReason = "整理出的内容超出会议事件范围"
+                                    return@filter false
+                                }
+                                val reason = if (skipGate) null else SkillGateRules.cardFailure(skill.gate, gateLines, row.at, row.endAt)
                                 if (reason != null) {
                                     if (gateDiscarded == 0) skippedReason = reason
                                     gateDiscarded++
@@ -134,6 +146,14 @@ class SkillExecution(
                 FailureNotes.record("skills/core/SkillExecution.kt:125", caught)
                 SkillRunResult.Failed("技能运行失败，请重试") }
             record(id, date, started, kind, result, tokens, retryable, gateDiscarded)
+            if (id == "meeting" && !preview) {
+                for (event in sourceEvents.filter { it.scene == "会议" }) {
+                    dao.run(SkillRunData(skillId = "meeting:event:${event.id}", date = date.toEpochDay(),
+                        at = started, ok = result !is SkillRunResult.Failed, tokens = 0,
+                        kind = if (result is SkillRunResult.Nothing) "event_nothing" else "event_result",
+                        result = SkillRunRules.resultText(result, gateDiscarded)))
+                }
+            }
             SkillAttempt(result, retryable)
         } catch (e: CancellationException) {
             // 被系统中断的已计费用量仍留痕；不会被当成成功的增量游标。

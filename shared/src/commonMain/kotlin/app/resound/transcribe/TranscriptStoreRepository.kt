@@ -1,5 +1,6 @@
 package app.resound.transcribe
 
+import kotlinx.coroutines.withContext
 import app.resound.data.TranscribeDao
 import app.resound.platform.*
 import app.resound.scheduling.BackgroundRefreshPolicy
@@ -30,6 +31,13 @@ class TranscriptStoreRepository(
     private val runNowAction: () -> Unit,
     private val deleteFailedAction: suspend (Long) -> Unit,
 ) : TranscriptRepository {
+    override suspend fun editLine(lineId: Long, text: String): Boolean {
+        val value = text.trim()
+        if (value.isEmpty()) return false
+        return withContext(io) { dao.editLineText(lineId, value, now.now()) > 0 }
+    }
+    override suspend fun editedLineCount(segmentIds: List<Long>): Int =
+        if (segmentIds.isEmpty()) 0 else withContext(io) { segmentIds.chunked(500).sumOf { dao.editedLineCount(it) } }
     private val last = MutableStateFlow(initialLast)
     // 仅存本进程当前轮次，进程重启不能恢复旧进度。
     private val progress = MutableStateFlow(0 to 0)
@@ -74,7 +82,7 @@ class TranscriptStoreRepository(
         return combine(dao.day(start, end), clock) { rows, _ -> rows.filter { it.segment.status != "SkippedEnv" }.map { (segment, lines) ->
             SegmentTranscript(segment.id, segment.startAt, segment.endAt, TranscriptStatus.valueOf(segment.status),
                 lines.sortedWith(compareBy({ it.startAt }, { it.id })).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it
-                    .speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) },
+                    .speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), it.textEditedAt != null, it.eventId) },
                 segment.error, segment.sourceId != "voice-input" && isAudioFile(FileRef(segment.path)),
                 playbackHeld = segment.playbackDigest == 1)
         } }.flowOn(io)

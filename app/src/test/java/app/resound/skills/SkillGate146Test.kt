@@ -28,8 +28,10 @@ import java.time.LocalDate
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class SkillGate146Test {
+ @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
     private val day = LocalDate.parse("2026-11-12")
-    private val start = day.atTime(10, 0).atZone(SKILL_ZONE).toInstant().toEpochMilli()
+    private val start = day.atTime(10, 0).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
     private val gate = SkillGate(2, 10, 20, false)
     private lateinit var db: CaptureDatabase
     private lateinit var root: File
@@ -119,8 +121,9 @@ class SkillGate146Test {
 
     @Test fun uncertainLabelsDoNotAddPeople() = runBlocking {
         seed(40, 15, 1, unknown = true)
-        nothing(repo().runNow("meeting", day), "1 个人")
-        assertEquals(0, calls)
+        // 卡 207 裁定：uncertain:* 也参与未知声音门槛，1 人 + 39 句待确认可通过。
+        assertTrue(repo().runNow("meeting", day) is SkillRunResult.Cards)
+        assertEquals(1, calls)
     }
 
     @Test fun realMeetingUsesCompleteLinesBeforeCharacterTrimming() = runBlocking {

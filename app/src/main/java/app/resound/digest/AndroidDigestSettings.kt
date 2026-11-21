@@ -16,6 +16,10 @@ class AndroidDigestSettings internal constructor(
 ) : DigestSettings {
     constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
         this(context, client, AndroidLlmProviders(context, client, recordUsage), recordUsage)
+    private val adaptivePrefs = context.getSharedPreferences("llm-batch-budget", Context.MODE_PRIVATE)
+    val batchBudget = LlmBatchBudget(AndroidLlmAdaptiveStore(adaptivePrefs, "budget:"))
+    val slowStreak = LlmSlowStreak(AndroidLlmAdaptiveStore(adaptivePrefs, "slow:"))
+    val jsonStreamSupport = AndroidJsonStreamSupport(context)
     val failover = LlmFailover(context, providers)
     val failoverEnabled get() = failover.enabled
     fun setFailoverEnabled(enabled: Boolean) = failover.setEnabled(enabled)
@@ -85,7 +89,7 @@ class AndroidDigestSettings internal constructor(
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         if (selected.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
-            val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
+            val reply = client.probeJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
             failover.clear(selected.id)
             val text = runCatching { org.json.JSONObject(reply.content).optString("reply") }.onFailure {
@@ -111,9 +115,9 @@ class AndroidDigestSettings internal constructor(
         }
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
         if (selected.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
-        return Result.success(ModelCheck(
+        val checks = ModelCheck(
             json = { system, user ->
-                client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
+                client.probeJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
             },
             toolResult = { reason ->
                 if (reason == null) compatibility.passed(selected, generation)
@@ -124,7 +128,19 @@ class AndroidDigestSettings internal constructor(
                 try { client.streamChat(selected, key, messages, tools, {}, { p, c -> prompt = p; completion = c }) }
                 finally { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(LlmReply("", prompt, completion)) } }
             },
-        ).run().map { it.copy(lastAskFailure = compatibility.state(selected).lastFailure) })
+        ).run().map { it.copy(lastAskFailure = compatibility.state(selected).lastFailure) }
+        // 独立于兼容性探针，不修改批次预算；失败只影响这一项。
+        val speed = LlmSpeedCheck.run(android.os.SystemClock::elapsedRealtime, { system, user ->
+            try {
+                val reply = client.chatJson(selected, key, system, user, thinking = preferences.deepThinking.value)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
+                LlmSpeedCheck.Reply(reply.content, reply.reasoningChars)
+            } catch (e: LlmException) {
+                e.usage?.let { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }
+                throw e
+            }
+        }, { (it as? LlmException)?.detail ?: "请稍后重试" })
+        return Result.success(checks + ModelCheckItem(LlmSpeedCheck.FEATURE, speed.ok, speed.detail))
     }
 
     companion object {

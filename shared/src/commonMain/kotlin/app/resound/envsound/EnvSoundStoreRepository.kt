@@ -47,7 +47,11 @@ class EnvSoundStoreRepository(
     }
     private var downloading: Job? = null
     override fun downloadModel() {
-        if(!settings.value.enabled || downloading?.isActive == true) return
+        if(settings.value.enabled) downloadForNight()
+    }
+    /** 夜里记录用同一个识别模型，但不要求打开“环境音识别”（否则夜里永远下不到模型、只记曲线） */
+    fun downloadForNight() {
+        if(downloading?.isActive == true) return
         downloading = scope.launch { download() }
     }
     private fun bounds(date: LocalDate, zone: TimeZone): Pair<Long, Long> =

@@ -21,15 +21,15 @@ enum class HealthFix {
     GrantPermissions,
     /** 打开聆听 */
     StartListening,
-    /** 打开“录音与后台”页 */
+    /** 打开“录音管理”页 */
     OpenCapture,
-    /** 打开“原话与转写”页 */
+    /** 打开“语音转写”页 */
     OpenTranscript,
     /** 打开“整理模型”页 */
     OpenModel,
     /** 去充值（服务商有充值页时界面直接打开网页，否则同 OpenModel） */
     TopUp,
-    /** 打开“数据备份”页 */
+    /** 打开“备份恢复”页 */
     OpenBackup,
 }
 

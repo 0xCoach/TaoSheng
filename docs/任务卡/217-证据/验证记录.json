@@ -1,0 +1,465 @@
+{
+  "scoped_suites": [
+    {
+      "suite": "app.resound.topic.TopicRepository177Test",
+      "tests": 2,
+      "failures": 0,
+      "seconds": 0.094,
+      "cases": [
+        {
+          "name": "repositoryMethodsMissingFromTopic135MatchRecordedBytes",
+          "passed": true
+        },
+        {
+          "name": "storeEveryMethodAndFlowMatchRecordedBytes",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.ImportHotwordsTest",
+      "tests": 9,
+      "failures": 0,
+      "seconds": 0.763,
+      "cases": [
+        {
+          "name": "digestInputAddsScopedCorrectionWithoutChangingOriginalLines",
+          "passed": true
+        },
+        {
+          "name": "receiveCopiesBeforeReturningPersistsAndUsesDateBeforeModifiedTime",
+          "passed": true
+        },
+        {
+          "name": "resamplerKeepsPhaseAcrossBuffersAndAveragesStereo",
+          "passed": true
+        },
+        {
+          "name": "badAudioReturnsHumanReasonAndRemovesCopy",
+          "passed": true
+        },
+        {
+          "name": "queueUsesConfirmationOrderAndCancellationDoesNotDropFollowingFiles",
+          "passed": true
+        },
+        {
+          "name": "cloudRequestsIncludePrioritizedHotwordsAndBoundCustomPrompt",
+          "passed": true
+        },
+        {
+          "name": "importedSegmentsKeepOffsetsAndFiveMinuteOverlap",
+          "passed": true
+        },
+        {
+          "name": "hotwordsPersistNormalizeAndTrackPeopleRenamesAndDeletes",
+          "passed": true
+        },
+        {
+          "name": "transcribedImportsFollowRetentionButFailuresWaitAtMostThreeDays",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.CallRecording199AndroidTest",
+      "tests": 12,
+      "failures": 0,
+      "seconds": 1.517,
+      "cases": [
+        {
+          "name": "deletedImportReturnsToListedAndDoesNotRequeue",
+          "passed": true
+        },
+        {
+          "name": "searchSuffixAndPermissionRestore",
+          "passed": true
+        },
+        {
+          "name": "pauseSurvivesRestartAndManualRequestPassesIt",
+          "passed": true
+        },
+        {
+          "name": "onlyNewAndListAllNeverQueueAndNonCallHasNoParty",
+          "passed": true
+        },
+        {
+          "name": "sevenDayAndThirtyDayWindowsQueueOnlyRecent",
+          "passed": true
+        },
+        {
+          "name": "previewThreeHundredFilesCachedAndAddReusesMetadata",
+          "passed": true
+        },
+        {
+          "name": "newFileHasPriorityOverQueuedBackfill",
+          "passed": true
+        },
+        {
+          "name": "legacyPublicAddTrueMapsToThirtyDays",
+          "passed": true
+        },
+        {
+          "name": "migration38ToCurrentPreservesOldDataAndAddsTables",
+          "passed": true
+        },
+        {
+          "name": "backfillOneAtATimeAndOneWholeRoundNotification",
+          "passed": true
+        },
+        {
+          "name": "backfillLinesAreQuietForPush",
+          "passed": true
+        },
+        {
+          "name": "summaryRequestUsesOnlyNameAndNeverRawFilenameNumber",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.ImportKinds077Test",
+      "tests": 12,
+      "failures": 0,
+      "seconds": 0.962,
+      "cases": [
+        {
+          "name": "batchGroupingAndPersistentQueueRespectMergeSwitchAndUnknownTimes",
+          "passed": true
+        },
+        {
+          "name": "incrementalRowsRoundTripImportsAndTemplatesStayHidden",
+          "passed": true
+        },
+        {
+          "name": "waitsForEntireFileAndSpeakerCompletionAndRegeneratesFailure",
+          "passed": true
+        },
+        {
+          "name": "typeChangeDeletesOldCardAndRequeuesOnlyWhenSpeakerModeNeedsAudio",
+          "passed": true
+        },
+        {
+          "name": "suggestionsPreferCallCluesThenLastThenMeeting",
+          "passed": true
+        },
+        {
+          "name": "longRecordingSummarizesEveryChunkAndPreservesBoundaryActions",
+          "passed": true
+        },
+        {
+          "name": "speakerMergeUsesSimilarityAndChannelsOrderWithMeAndOther",
+          "passed": true
+        },
+        {
+          "name": "trainingDisablesSpeakersAndCallPassesFixedTwoToAsr",
+          "passed": true
+        },
+        {
+          "name": "deletionInvalidatesSummaryAndInFlightResponseCannotResurrectIt",
+          "passed": true
+        },
+        {
+          "name": "summaryTodosStayPendingAndMergeWithDigestWithoutRevivingDeletedItems",
+          "passed": true
+        },
+        {
+          "name": "migration25PreservesRowsAndValidatesCurrentSchema",
+          "passed": true
+        },
+        {
+          "name": "channelDecoderKeepsSidesAcrossOddBufferBoundariesAndIgnoresDuplicateStereo",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.data.TableObservers182Test",
+      "tests": 2,
+      "failures": 0,
+      "seconds": 4.673,
+      "cases": [
+        {
+          "name": "currentTopicQueryMatchesOldSelectionAndPendingPolicy",
+          "passed": true
+        },
+        {
+          "name": "checkpointRefreshDoesNotRescanSourcesOrDiscardBlocks",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.FolderProblem210Test",
+      "tests": 2,
+      "failures": 0,
+      "seconds": 0.563,
+      "cases": [
+        {
+          "name": "permissionAndMissingAreDistinguished",
+          "passed": true
+        },
+        {
+          "name": "unsupportedFormatSaysSoAndCanRetry",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.topic.TopicDesignShotsTest",
+      "tests": 1,
+      "failures": 0,
+      "seconds": 6.225,
+      "cases": [
+        {
+          "name": "layoutsAndRetryEntry",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.FolderLoad209Test",
+      "tests": 1,
+      "failures": 0,
+      "seconds": 0.453,
+      "cases": [
+        {
+          "name": "oneDayOfMicrophoneWrites",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.FolderImports117Test",
+      "tests": 10,
+      "failures": 0,
+      "seconds": 0.752,
+      "cases": [
+        {
+          "name": "fingerprintUsesSizeHeadAndTailAndSettingsAreBackedUp",
+          "passed": true
+        },
+        {
+          "name": "permissionLossStopsScanningUntilReselectedAndRestoredSettingsRequireGrant",
+          "passed": true
+        },
+        {
+          "name": "changingSizeAndRecentModificationWaitForTwoStableScans",
+          "passed": true
+        },
+        {
+          "name": "baselineReadFailureDoesNotTreatLaterFilesAsOld",
+          "passed": true
+        },
+        {
+          "name": "newCallEntersQueueAfterTwoManualRefreshes209",
+          "passed": true
+        },
+        {
+          "name": "copyThatChangesAfterHashIsRejectedWithoutPendingOrQueue",
+          "passed": true
+        },
+        {
+          "name": "migrationFrom29PreservesDataAndAddsPersistentFingerprintTables",
+          "passed": true
+        },
+        {
+          "name": "sharedQueuedAndFinishedAudioIsNotImportedAgainAndMetadataWins",
+          "passed": true
+        },
+        {
+          "name": "oldFilesIncludingEmptyGrowingFileAreIgnoredButNewFileImports",
+          "passed": true
+        },
+        {
+          "name": "stableFileImportsOnceEvenAfterRenameAndRepositoryRestart",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.importer.FolderDocuments117Test",
+      "tests": 1,
+      "failures": 0,
+      "seconds": 0.03,
+      "cases": [
+        {
+          "name": "safReadsOnlyVisibleRootAndOneChildLevelWithoutWriting",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.topic.Topic135Test",
+      "tests": 23,
+      "failures": 0,
+      "seconds": 5.285,
+      "cases": [
+        {
+          "name": "startBackfillsTwoMinutesAndClampsToPreviousTopicAndDigestedSpeech",
+          "passed": true
+        },
+        {
+          "name": "pauseReturnsSpeechToOrdinaryDigestAndOldInFlightResultCannotClaimTopic",
+          "passed": true
+        },
+        {
+          "name": "sourceChangingDuringFinalSummaryOnlyRebuildsChangedBlock",
+          "passed": true
+        },
+        {
+          "name": "migration32AndBothBackupFormsKeepTopicsAndOldBackupCompatibility",
+          "passed": true
+        },
+        {
+          "name": "scriptContainsTwoFullVersionsAndLocalWordCountAndReadingTime",
+          "passed": true
+        },
+        {
+          "name": "checkpointRetainsBlocksAcrossSourceChangesButRejectsStaleRevisionAndDeletion",
+          "passed": true
+        },
+        {
+          "name": "twoHourMeetingContinuesAfterRestartWithoutRepeatingCompletedBlocks",
+          "passed": true
+        },
+        {
+          "name": "unmarkRemovesOnlyThatMarkAndRejectsCancelledTopic",
+          "passed": true
+        },
+        {
+          "name": "cutSplitsSpanReleasesOnlyCutSpeechAndCancelDeletesGeneratedArtifacts",
+          "passed": true
+        },
+        {
+          "name": "failedHistoryWithoutEventCanRetryExistingSpeechExactlyOnce",
+          "passed": true
+        },
+        {
+          "name": "retrospectiveRangeSnapsOutwardReplacesEventsPreservesChangedTodosAndStar",
+          "passed": true
+        },
+        {
+          "name": "multipleBatchesBecomeOneEventAndMarksReachReusedSummaryTemplate",
+          "passed": true
+        },
+        {
+          "name": "failedRegenerationKeepsPreviousFinishedEvent",
+          "passed": true
+        },
+        {
+          "name": "truncatedLargeResponseSplitsWithoutCreatingSeveralEvents",
+          "passed": true
+        },
+        {
+          "name": "pausedDeadlineDoesNotMoveAndUnboundedTopicEndsAtFourHours",
+          "passed": true
+        },
+        {
+          "name": "failedGenerationHasFixedMessageAndRevisionRejectsStaleNetworkResult",
+          "passed": true
+        },
+        {
+          "name": "liveTopicsLeadQueueAndSummarizeNowCanSkipRecordingStillBeingSaved",
+          "passed": true
+        },
+        {
+          "name": "liveMeetingWritesOnlyBlockFilesAndEndUsesOnlyTailAndOneSummary",
+          "passed": true
+        },
+        {
+          "name": "rejectedContentStaysIncompleteAndAllOriginalSpeechIsKept",
+          "passed": true
+        },
+        {
+          "name": "trainingUsesHistoricalSpansAndTopicSegmentsLeadTranscriptionCandidates",
+          "passed": true
+        },
+        {
+          "name": "overlappingLiveRetroactiveAndFutureWeeklyReservationsAreRejected",
+          "passed": true
+        },
+        {
+          "name": "quietOnlyRemindsOncePerSilenceAndEndingReminderCanExtendThirtyMinutes",
+          "passed": true
+        },
+        {
+          "name": "weeklyScheduleStartsOnceCreatesNextAndRemindsWithoutTurningRecordingOn",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "suite": "app.resound.topic.TopicBlocks217Test",
+      "tests": 10,
+      "failures": 0,
+      "seconds": 0.367,
+      "cases": [
+        {
+          "name": "pausedSpansUseMeetingTimeAndSpeechNeverMovesBoundaries[jvm]",
+          "passed": true
+        },
+        {
+          "name": "activeWorkCachesOnlyFinishedBlocksEndingOnlyAddsTailAndSummary[jvm]",
+          "passed": true
+        },
+        {
+          "name": "cancellationKeepsValidatedRequestsAndOldCheckpointIsIgnored[jvm]",
+          "passed": true
+        },
+        {
+          "name": "cacheFreezesTodosMiddleEditOnlyRebuildsOneBlockTailEditRebuildsNext[jvm]",
+          "passed": true
+        },
+        {
+          "name": "noProgressShowsReasonAndSummarizeNowSkipsOnlyUnreadyBlock[jvm]",
+          "passed": true
+        },
+        {
+          "name": "offlineProgressDoesNotCallModelAndRecoveryContinues[jvm]",
+          "passed": true
+        },
+        {
+          "name": "failedBlockDoesNotBlockSummaryAndRetryReusesSuccessfulRequests[jvm]",
+          "passed": true
+        },
+        {
+          "name": "readinessRequiresClosedBlockAndTranscriptionButVoiceWaitIsBounded[jvm]",
+          "passed": true
+        },
+        {
+          "name": "summaryUsesOneRequestOrSixWayFanInWithoutRawSpeech[jvm]",
+          "passed": true
+        },
+        {
+          "name": "generationTimeoutIsNotTreatedAsCancellationOrInfiniteRetry[jvm]",
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "retry_only": [
+    {
+      "suite": "app.resound.topic.TopicRepository177Test",
+      "tests": 1,
+      "failures": 0,
+      "seconds": 0.147
+    },
+    {
+      "suite": "app.resound.topic.Topic135Test",
+      "tests": 2,
+      "failures": 0,
+      "seconds": 6.086
+    }
+  ],
+  "release_apk": [
+    {
+      "path": "app/build/outputs/apk/release/app-release.apk",
+      "bytes": 109311325,
+      "sha256": "cc942a927c0681e1ed75cf7cef77d02056eadbe297a6ab9ddc143dc2c2da5b26"
+    }
+  ],
+  "previous_shared_tests": {
+    "passed": 16,
+    "evidence": "首轮26个共用相关用例仅TopicBlocks217Test的5项失败；其他16项首次通过，之后只重跑受影响的新10项。"
+  }
+}

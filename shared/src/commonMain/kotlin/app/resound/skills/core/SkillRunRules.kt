@@ -10,7 +10,7 @@ object SkillRunRules {
             if (kind == SkillSchedule.DAILY && date == SkillSchedule.date(started) && SkillSchedule.next(skill, history, started) != started) return "尚未到运行时间"
             if (kind == SkillSchedule.AFTER) {
                 val trigger = skill.trigger as? SkillTrigger.AfterDigest ?: return "不是整理后技能"
-                val last = history.lastOrNull { it.kind != SkillSchedule.TRIAL && it.date == date.toEpochDay() }
+                val last = history.lastOrNull { it.kind != SkillSchedule.TRIAL && it.kind != SkillSchedule.EVENT_MANUAL && it.date == date.toEpochDay() }
                 if (!skipGap && last != null && started - last.at < trigger.minGapMinutes * 60_000L) return "距离上次运行太近"
             }
         }

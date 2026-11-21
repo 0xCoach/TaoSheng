@@ -1,0 +1,108 @@
+{
+  "positive": [
+    {
+      "split": "tune",
+      "snr": 20,
+      "n": 2,
+      "full_hits": 2,
+      "deferred_hits": 2
+    },
+    {
+      "split": "tune",
+      "snr": 10,
+      "n": 2,
+      "full_hits": 2,
+      "deferred_hits": 2
+    },
+    {
+      "split": "tune",
+      "snr": 5,
+      "n": 2,
+      "full_hits": 2,
+      "deferred_hits": 1
+    },
+    {
+      "split": "tune",
+      "snr": 0,
+      "n": 2,
+      "full_hits": 1,
+      "deferred_hits": 0
+    },
+    {
+      "split": "validation",
+      "snr": 20,
+      "n": 2,
+      "full_hits": 2,
+      "deferred_hits": 2
+    },
+    {
+      "split": "validation",
+      "snr": 10,
+      "n": 2,
+      "full_hits": 2,
+      "deferred_hits": 2
+    },
+    {
+      "split": "validation",
+      "snr": 5,
+      "n": 2,
+      "full_hits": 2,
+      "deferred_hits": 2
+    },
+    {
+      "split": "validation",
+      "snr": 0,
+      "n": 2,
+      "full_hits": 0,
+      "deferred_hits": 0
+    }
+  ],
+  "background": [
+    {
+      "category": "fan",
+      "minutes": 10,
+      "events": 0
+    },
+    {
+      "category": "air_conditioner",
+      "minutes": 10,
+      "events": 0
+    },
+    {
+      "category": "traffic",
+      "minutes": 10,
+      "events": 0
+    },
+    {
+      "category": "rain",
+      "minutes": 10,
+      "events": 0
+    },
+    {
+      "category": "bed_rustle",
+      "minutes": 10,
+      "events": 0
+    },
+    {
+      "category": "mixed",
+      "minutes": 10,
+      "events": 0
+    }
+  ],
+  "background_total": 0,
+  "deferred_background": 0,
+  "candidate_seconds_per_hour": 326,
+  "estimated_8h_opus_bytes": 7824000.0,
+  "breathing": [
+    {
+      "split": "tune",
+      "n": 24,
+      "hits": 0
+    },
+    {
+      "split": "validation",
+      "n": 16,
+      "hits": 0
+    }
+  ]
+}

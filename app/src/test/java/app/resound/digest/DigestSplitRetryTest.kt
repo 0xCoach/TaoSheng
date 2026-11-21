@@ -21,7 +21,7 @@ class DigestSplitRetryTest {
 
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
-        listOf("digest-state", "digest").forEach { context.getSharedPreferences(it, 0).edit().clear().commit() }
+        listOf("digest-state", "digest", "llm-batch-budget").forEach { context.getSharedPreferences(it, 0).edit().clear().commit() }
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         runBlocking {
             db.capture().segment(SegmentEntity(1, 1000, 41_000, "mic", "/synthetic", 0, "Done"))
@@ -91,4 +91,39 @@ class DigestSplitRetryTest {
         assertTrue(saved.take(20).all { it.eventId == null })
         assertTrue(saved.drop(20).all { it.eventId == event.id })
     }
+    @Test fun adaptiveFailuresSplitWithoutFormatPenaltyAndPublishReceivedCounts() = runBlocking {
+        val prefs = context.getSharedPreferences("digest-state", 0)
+        val calls = mutableListOf<Int>()
+        var observed = DigestProgress()
+        lateinit var digest: DigestRunner
+        digest = runner { _, _, _, _ ->
+            val ids = prefs.getString("inflight-lines", "")!!.split(',')
+            calls += ids.size
+            kotlin.coroutines.coroutineContext[app.resound.net.LlmReceiveProgress]?.update(3200, 1800)
+            observed = digest.progress.value
+            if (ids.size == 40) throw LlmException(LlmError.Truncated)
+            reply("成功${ids.first()}")
+        }
+        assertFalse(digest.run())
+        assertEquals(listOf(40, 20, 20), calls)
+        assertEquals(3200, observed.reasoningChars); assertEquals(1800, observed.contentChars)
+        assertEquals(0, prefs.getInt("fail-1", 0)); assertEquals(0, prefs.getInt("fail-21", 0))
+        assertTrue(db.memory().undigestedLines().isEmpty())
+    }
+
+    @Test fun minimumSlowBatchRemainsPendingEvenAfterThreeRunsAndHasSlowModelHint() = runBlocking {
+        val prefs = context.getSharedPreferences("digest-state", 0)
+        val calls = mutableListOf<Int>()
+        val digest = runner { _, _, _, _ ->
+            calls += prefs.getString("inflight-lines", "")!!.split(',').size
+            throw LlmException(LlmError.TooSlow)
+        }
+        repeat(3) { assertTrue(digest.run()) }
+        assertEquals(listOf(40, 20, 40, 20, 40, 20), calls)
+        assertEquals(40, db.memory().undigestedLines().size)
+        assertEquals(0, prefs.getInt("fail-1", 0)); assertFalse(prefs.contains("inflight"))
+        assertEquals(SLOW_MODEL_TEXT, digest.last.value.second)
+        assertTrue(db.memory().pendingDigests().isEmpty())
+    }
+
 }

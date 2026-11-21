@@ -26,7 +26,7 @@ object SkillOutput {
                 // 无门槛的一日总结沿用运行时刻；有门槛的卡保留自己的时段，供原话复核。
                 val at = if (skill.maxCardsPerDay == 1 && skill.gate == null) {
                     val planned = (skill.trigger as? SkillTrigger.Daily)?.let { date.atMillis(LocalTime(it.minutes / 60, it.minutes % 60)) }
-                    val endOfDay = date.plusDays(1).startMillis() - 60_000
+                    val endOfDay = date.endMillis() - 60_000
                     minOf(planned ?: now, now, endOfDay)
                 } else date.atMillis(LocalTime.parse(c.getString("at")))
                 val end = c.nullString("end")?.let { date.atMillis(LocalTime.parse(it)) }

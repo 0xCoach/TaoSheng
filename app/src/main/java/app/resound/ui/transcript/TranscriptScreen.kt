@@ -1,5 +1,6 @@
 package app.resound.ui.transcript
 
+import androidx.compose.ui.text.withStyle
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.map
@@ -63,11 +64,14 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.border
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -155,7 +159,7 @@ fun TranscriptScreen(
     val searchAnchor = app.resound.ui.settings.SettingsHighlight.anchor
     LaunchedEffect(searchAnchor) {
         when (searchAnchor) {
-            "asr", "local-model", "asr-interval", "retry", "audio-retention", "speakers" -> listState.animateScrollToItem(1)
+            "asr", "local-model", "asr-interval", "retry", "speakers" -> listState.animateScrollToItem(1)
             "hotwords" -> if (app.resound.AppGraph.isHotwordsReady) listState.animateScrollToItem(2)
         }
     }
@@ -191,21 +195,24 @@ fun TranscriptScreen(
         item {
             QueueCard(repo, hasKey, realtime, local, settingsShown = true, footer = {
                 if (app.resound.AppGraph.isUsageReady) app.resound.ui.settings.AsrUsageRow(app.resound.AppGraph.usage)
-                if (app.resound.AppGraph.isOriginalAudioReady) OriginalAudioRow(app.resound.AppGraph.originalAudio)
-                RecordingPackRow()
+                // 卡 210：原声保留、录音包挪到“录音管理 → 录音存放”
             }) { settingsOpen = !settingsOpen }
         }
-        item(key = "settings") { Box(Modifier.settingsAnchor("asr", "local-model", "asr-interval", "retry", "audio-retention", "speakers")) { SettingsCard(settings, onSaved = {}) } }
+        item(key = "settings") { Box(Modifier.settingsAnchor("asr", "local-model", "asr-interval", "retry", "speakers")) { SettingsCard(settings, onSaved = {}) } }
         // 热词并进本页（原来是设置首页单独一行）
         if (app.resound.AppGraph.isHotwordsReady) item(key = "hotwords") { Box(Modifier.settingsAnchor("hotwords")) { HotwordCard(app.resound.AppGraph.hotwords) } }
         item {
             val list = segments.orEmpty()
+            Column {
             Section("录音原话", trailing = {
                 if (list.isNotEmpty()) {
                     val done = list.count { it.status == TranscriptStatus.Done || it.status == TranscriptStatus.Empty }
                     Text("${list.size} 段 · 已转 $done", style = RsType.caption, color = c.textTertiary)
                 }
             }) { DaySwitcher(dayOffset) { dayOffset = it } }
+            // 卡 219：最近一次重新转写，关掉任务后也能撤销
+            app.resound.ui.redo.RedoUndoCard(transcribe = true, topGap = 12.dp)
+            }
         }
         // 环境音识别：这天被跳过 / 可跳过 / 疑似影视的录音，点开试听、找回
         item(key = "env-$date") { app.resound.ui.envsound.EnvFlaggedRow(date) }
@@ -398,6 +405,7 @@ private fun ProgressSweep(modifier: Modifier) {
 
 // ---------- 设置 ----------
 
+/** 11-20 改版：按“做什么”拆成四张卡片——转写服务 / 什么时候转 / 外放的声音 / 说话人；测试紧挨着各服务的保存，保存后自动测一次 */
 @Composable
 private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
     val c = Rs.colors
@@ -409,69 +417,100 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
     val local = source == TranscribeSource.Local
     val interval by settings.intervalMinutes.collectAsStateWithLifecycle()
     val wifiOnly by settings.wifiOnly.collectAsStateWithLifecycle()
-    var editing by remember(source) { mutableStateOf(false) }
-    var input by remember(source) { mutableStateOf("") }
+    val plan = advanced?.doubaoPlan?.collectAsStateWithLifecycle()?.value == true && source == TranscribeSource.Doubao
+    var editing by remember(source, plan) { mutableStateOf(false) }
+    var input by remember(source, plan) { mutableStateOf("") }
     var testing by remember { mutableStateOf(false) }
-    var testResult by remember(source) { mutableStateOf<Result<String>?>(null) }
+    var testResult by remember(source, plan) { mutableStateOf<Result<String>?>(null) }
+    val runTest: () -> Unit = {
+        if (!testing) {
+            testing = true; testResult = null
+            scope.launch { testResult = runCatching { settings.test().getOrThrow() }; testing = false }
+        }
+    }
+    val status: @Composable () -> Unit = { TestStatusLine(testing, testResult, local) }
 
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // ① 转写服务
     RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
+        CardTitle("转写服务")
         if (advanced != null) {
-            Text("语音转写", style = RsType.body, color = c.text)
-            Spacer(Modifier.height(10.dp))
             Choice(TranscribeSource.entries.toList(), source, { it.title }) { advanced.setSource(it) }
             Divider()
-            if (local) LocalModelOptions(advanced)
-            if (source == TranscribeSource.Custom) {
-                CustomModelForm(advanced.customEndpoint,advanced.customModel,hasKey,
-                    "自定义音频转写服务",advanced::fetchModels,advanced::saveCustomAll,
-                    app.resound.ui.settings.EndpointModeUi(advanced.customEndpointMode,advanced.customPrompt,advanced::setCustomPrompt,advanced::saveCustomAll))
-
+            if (local) {
+                LocalModelOptions(advanced)
+                if (ready) {
+                    Spacer(Modifier.height(14.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("测试本机模型", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+                        Pill(if (testing) "测试中…" else "测试", filled = false) { runTest() }
+                    }
+                    Spacer(Modifier.height(6.dp)); status()
+                }
             }
-            // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
-            if (!local) app.resound.ui.settings.TranscribeHeaders(source)
+            if (source == TranscribeSource.Custom) CustomTranscribeForm(advanced, hasKey, runTest, testing, status)
+        }
+        // #52：豆包接入方式。Agent Plan 走火山方舟套餐专属地址与 Key，两种 Key 分开存，切换不用重填
+        if (advanced != null && source == TranscribeSource.Doubao) {
+            Text("接入方式", style = RsType.body, color = c.text)
+            Spacer(Modifier.height(8.dp))
+            Choice(listOf(false, true), plan, { if (it) "Agent Plan" else "普通 API" }) { advanced.setDoubaoPlan(it) }
+            Spacer(Modifier.height(6.dp))
+            Text(if (plan) "用火山方舟 Agent Plan 套餐里的豆包语音识别 2.0，填订阅页的专属 API Key。只连套餐地址，失败不会改走按量计费；" +
+                    "套餐额度用完后，若开了超额后付费会自动按量计费，实际扣费以方舟控制台为准。"
+                else "火山引擎豆包语音控制台的 API Key，按用量计费。", style = RsType.caption, color = c.textTertiary)
+            Divider()
         }
         if (!local && source != TranscribeSource.Custom) {
-        Text(if(source == TranscribeSource.Custom) "自定义服务密钥" else "豆包语音密钥", style = RsType.body, color = c.text)
-        Spacer(Modifier.height(8.dp))
-        if (hasKey && !editing) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Dot(c.good, 7.dp)
-                Spacer(Modifier.width(8.dp))
-                Text("已填写", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
-                Pill("更换", filled = false) { editing = true }
-                Spacer(Modifier.width(8.dp))
-                Pill("清除", filled = false) {
-                    settings.clearKey()
-                    testResult = null
+            Text(if (plan) "Agent Plan 专属 API Key" else "豆包语音密钥", style = RsType.body, color = c.text)
+            Spacer(Modifier.height(8.dp))
+            if (hasKey && !editing) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Dot(c.good, 7.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("已填写", style = RsType.subhead, color = c.textSecondary, modifier = Modifier.weight(1f))
+                    Pill(if (testing) "测试中…" else "测试", filled = false) { runTest() }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("更换", filled = false) { editing = true }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("清除", filled = false) {
+                        settings.clearKey()
+                        testResult = null
+                    }
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingsInput(input, { input=it.trim() }, "粘贴 API Key", Modifier.weight(1f), secret=true)
+                    Spacer(Modifier.width(10.dp))
+                    Pill("保存", filled = input.isNotEmpty()) {
+                        if (input.isEmpty()) return@Pill
+                        settings.saveKey(input)
+                        input = ""
+                        editing = false
+                        if(source == TranscribeSource.Doubao) onSaved()
+                        runTest() // 保存后顺带测一次
+                    }
+                }
+                if (editing) {
+                    Text(
+                        "取消",
+                        style = RsType.subhead,
+                        color = c.textSecondary,
+                        modifier = Modifier.padding(top = 8.dp).springClick { editing = false; input = "" },
+                    )
                 }
             }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SettingsInput(input, { input=it.trim() }, "粘贴 API Key", Modifier.weight(1f), secret=true)
-                Spacer(Modifier.width(10.dp))
-                Pill("保存", filled = input.isNotEmpty()) {
-                    if (input.isEmpty()) return@Pill
-                    settings.saveKey(input)
-                    input = ""
-                    editing = false
-                    testResult = null
-                    if(source == TranscribeSource.Doubao) onSaved()
-                }
-            }
-            if (editing) {
-                Text(
-                    "取消",
-                    style = RsType.subhead,
-                    color = c.textSecondary,
-                    modifier = Modifier.padding(top = 8.dp).springClick { editing = false; input = "" },
-                )
-            }
+            Spacer(Modifier.height(6.dp))
+            if (testing || testResult != null) status()
+            Text("只存在这台手机的安全区里，填好后任何地方都不再显示。", style = RsType.caption, color = c.textTertiary)
         }
-        Spacer(Modifier.height(6.dp))
-        Text("只存在这台手机的安全区里，填好后任何地方都不再显示。", style = RsType.caption, color = c.textTertiary)
-        }
-        Divider()
+        // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
+        if (advanced != null && !local) app.resound.ui.settings.TranscribeHeaders(source)
+    }
 
+    // ② 什么时候转
+    RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
+        CardTitle("什么时候转")
         Text("多久转写一次", style = RsType.body, color = c.text)
         Spacer(Modifier.height(10.dp))
         val realtime = advanced?.realtime?.collectAsStateWithLifecycle()?.value
@@ -482,54 +521,52 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
             realtime == true -> "录完一段就上传转写，更及时，也更耗电和流量。电量低或手机发热时改为每 30 分钟一次。"
             else -> "每 $interval 分钟把攒下的录音转写一次。整理成事件另在「整理模型」里设置。"
         }, style = RsType.caption, color = c.textTertiary)
-
-        Divider()
-
-        if (!local) Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("只在 WiFi 下转写", style = RsType.body, color = c.text)
-                Text("关掉后用流量也会上传，每小时录音约 10 MB", style = RsType.caption, color = c.textSecondary)
-            }
-            Toggle(wifiOnly) { settings.setWifiOnly(it) }
-        }
-
-        PlaybackSkipCard(local)
-        PlaybackTitleCard()
-        if (app.resound.AppGraph.isAsrSpeedReady) SpeakerOptions()
-
-        if (ready) {
+        if (!local) {
             Divider()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("测试一下", style = RsType.body, color = c.text)
-                    val r = testResult
-                    Text(
-                        when {
-                            testing -> if(local) "正在本地识别 3 秒测试音频…" else "正在发送 3 秒测试音频…"
-                            r == null -> if(local) "不上传录音；检查本机模型是否可用" else "发一小段测试音频，确认密钥和服务可用"
-                            r.isSuccess -> r.getOrNull().orEmpty()
-                            else -> r.exceptionOrNull()?.message ?: "测试没通过"
-                        },
-                        style = RsType.caption,
-                        color = when {
-                            testing || r == null -> c.textSecondary
-                            r.isSuccess -> c.good
-                            else -> c.critical
-                        },
-                    )
+                    Text("只在 WiFi 下转写", style = RsType.body, color = c.text)
+                    Text("关掉后用流量也会上传，每小时录音约 10 MB", style = RsType.caption, color = c.textSecondary)
                 }
-                Spacer(Modifier.width(10.dp))
-                Pill(if (testing) "测试中" else "测试", filled = false) {
-                    if (testing) return@Pill
-                    testing = true
-                    scope.launch {
-                        testResult = runCatching { settings.test().getOrThrow() }
-                        testing = false
-                    }
-                }
+                Toggle(wifiOnly) { settings.setWifiOnly(it) }
             }
         }
     }
+
+    // ③ 外放的声音
+    RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
+        PlaybackSkipCard(local, topDivider = false)
+        PlaybackTitleCard()
+    }
+
+    // ④ 说话人
+    if (app.resound.AppGraph.isAsrSpeedReady) RsCard(Modifier.animateContentSize(), padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
+        SpeakerOptions(leadingDivider = false)
+    }
+    }
+}
+
+@Composable
+private fun CardTitle(text: String) {
+    Text(text, style = RsType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = Rs.colors.text)
+    Spacer(Modifier.height(10.dp))
+}
+
+/** 测试结果一行：测试中 / 通过（绿）/ 没通过（红）；还没测过时不占地方 */
+@Composable
+private fun TestStatusLine(testing: Boolean, result: Result<String>?, local: Boolean) {
+    val c = Rs.colors
+    val text = when {
+        testing -> if (local) "正在本地识别 3 秒测试音频…" else "正在发送 3 秒测试音频…"
+        result == null -> return
+        result.isSuccess -> result.getOrNull().orEmpty().ifBlank { "测试通过" }
+        else -> result.exceptionOrNull()?.message ?: "测试没通过"
+    }
+    Text(text, style = RsType.caption, color = when {
+        testing -> c.textSecondary
+        result?.isSuccess == true -> c.good
+        else -> c.critical
+    })
 }
 
 @Composable
@@ -657,12 +694,12 @@ private const val REALTIME = -2
 
 /** 区分说话人总开关 + 课堂模式（临时不分人，到点自动恢复） */
 @Composable
-private fun SpeakerOptions() {
+private fun SpeakerOptions(leadingDivider: Boolean = true) {
     val c = Rs.colors
     val speed = app.resound.AppGraph.asrSpeed
     val separate by speed.separateSpeakers.collectAsStateWithLifecycle()
     val classMode by speed.classMode.collectAsStateWithLifecycle()
-    Divider()
+    if (leadingDivider) Divider()
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("区分说话人与认人", style = RsType.body, color = c.text)
@@ -822,12 +859,25 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     var assignFor by remember { mutableStateOf<Long?>(null) }
     var hotwordFrom by remember { mutableStateOf<String?>(null) }
     var appendIdeaFor by remember { mutableStateOf<TranscriptLine?>(null) }
+    // 卡 211：原地修改一句原话；改完已整理过的句子提示“重新整理这件事”
+    var editing by remember { mutableStateOf<Long?>(null) }
+    var draft by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    var redoEvent by remember { mutableStateOf<Long?>(null) }
+    val editScope = rememberCoroutineScope()
     val playSource = LocalPlaySource.current
     // 哪些录音段还有原声：有的在时间旁显示 ▶，点句子就从这句播起
     val playable by androidx.compose.runtime.produceState(emptySet<Long>(), lines) {
         value = if (app.resound.AppGraph.isOriginalAudioReady) runCatching {
             app.resound.AppGraph.originalAudio.available(lines.map { it.segmentId }.filter { it > 0 }.toSet())
         }.getOrDefault(emptySet()) else emptySet()
+    }
+    // 卡 205：外放期间的句子标“外放”（只标记、不过滤），有 App/节目名就带上
+    val playbackLines by androidx.compose.runtime.produceState(emptyMap<Long, app.resound.transcribe.SentencePlayback>(), lines) {
+        val source = runCatching { app.resound.AppGraph.playbackSentences }.getOrNull()
+        value = if (source == null) emptyMap() else lines.map { it.segmentId }.filter { it > 0 }.distinct().flatMap { id ->
+            runCatching { source.forSegment(id) }.getOrDefault(emptyList())
+        }.filter { it.playing }.associateBy { it.lineId }
     }
     fun tap(line: TranscriptLine) {
         when {
@@ -838,6 +888,23 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     }
     hotwordFrom?.let { text -> AddHotwordSheet(text) { hotwordFrom = null } }
     appendIdeaFor?.let { line -> IdeaPickSheet(line) { appendIdeaFor = null } }
+    redoEvent?.let { id -> app.resound.ui.redo.RedoSheet(eventIds = listOf(id)) { redoEvent = null } }
+    fun saveEdit(line: TranscriptLine) {
+        val text = draft.trim()
+        if (text.isEmpty() || saving) return
+        if (text == line.text) { editing = null; return }
+        saving = true
+        editScope.launch {
+            val ok = runCatching { app.resound.AppGraph.transcripts.editLine(line.id, text) }.getOrDefault(false)
+            saving = false
+            if (!ok) { Toast.makeText(context, "没改成，请再试一次", Toast.LENGTH_SHORT).show(); return@launch }
+            editing = null
+            LinePlayer.replaceText(line.id, text)
+            val event = line.eventId
+            if (event != null) app.resound.ui.today.UndoBar.show("原话已修改", 6000L, "重新整理") { redoEvent = event }
+            else Toast.makeText(context, "原话已修改，之后整理会用新的文字", Toast.LENGTH_SHORT).show()
+        }
+    }
     androidx.compose.foundation.text.selection.DisableSelection {
         assignFor?.let { id -> voiceprint?.let { app.resound.ui.voiceprint.AssignPersonDialog(it, id) { assignFor = null } } }
     }
@@ -885,12 +952,28 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             val bg by androidx.compose.animation.animateColorAsState(if (now) c.accentSoft else Color.Transparent, label = "playing")
                             val seen = remember(line.id) { androidx.compose.foundation.relocation.BringIntoViewRequester() }
                             androidx.compose.runtime.LaunchedEffect(now) { if (now) runCatching { seen.bringIntoView() } }
-                            Text(line.text, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
-                                .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
-                                interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
-                                onClick = { tap(line) }, onLongClick = { menuFor = line.id },
-                            ).padding(vertical = 2.dp, horizontal = if (now) 6.dp else 0.dp))
-                            line.voiceInput?.let { VoiceInputContext(it) }
+                            val heard = playbackLines[line.id]
+                            if (editing == line.id) {
+                                LineEditor(draft, { draft = it }, saving, onCancel = { editing = null }, onSave = { saveEdit(line) })
+                            } else {
+                                val shown = androidx.compose.ui.text.buildAnnotatedString {
+                                    if (heard != null) {
+                                        withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize, background = c.fill)) {
+                                            append(" 外放" + (listOfNotNull(heard.appName, heard.title).firstOrNull()?.let { " · ${it.take(12)}" } ?: "") + " ")
+                                        }
+                                        append("  ")
+                                    }
+                                    append(line.text)
+                                    // 卡 211：人工改过的句子末尾标一下
+                                    if (line.edited) withStyle(androidx.compose.ui.text.SpanStyle(color = c.textTertiary, fontSize = RsType.caption.fontSize)) { append("  已修正") }
+                                }
+                                Text(shown, style = RsType.body, color = if (now) c.accent else c.text, modifier = Modifier.fillMaxWidth()
+                                    .bringIntoViewRequester(seen).clip(RoundedCornerShape(8.dp)).background(bg).combinedClickable(
+                                    interactionSource = remember(line.id) { MutableInteractionSource() }, indication = null,
+                                    onClick = { tap(line) }, onLongClick = { menuFor = line.id },
+                                ).padding(vertical = 2.dp, horizontal = if (now) 6.dp else 0.dp))
+                                line.voiceInput?.let { VoiceInputContext(it) }
+                            }
                         }
                     }
                 }
@@ -901,6 +984,10 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                             clipboard.setText(androidx.compose.ui.text.AnnotatedString(selected.text))
                             menuFor = null
                             Toast.makeText(context, "已复制这段原话", Toast.LENGTH_SHORT).show()
+                        })
+                        // 卡 211：认错的字直接改；视同一次只换原话的重新转写，事件不自动变
+                        DropdownMenuItem(text = { Text("修改文字", style = RsType.body, color = c.text) }, onClick = {
+                            draft = selected.text; editing = selected.id; menuFor = null
                         })
                         if (selected.segmentId in playable) DropdownMenuItem(text = { Text("从这里播放", style = RsType.body, color = c.text) }, onClick = {
                             LinePlayer.play(context, lines, lines.indexOf(selected), playSource); menuFor = null
@@ -1076,6 +1163,27 @@ private fun DeleteSegmentsSheet(count: Int, onConfirm: suspend () -> Unit, onDis
     }
 }
 
+/** 卡 211：原地改一句原话。多行输入，下面“取消 / 保存”；空着不能保存 */
+@Composable
+internal fun LineEditor(value: String, onChange: (String) -> Unit, saving: Boolean, onCancel: () -> Unit, onSave: () -> Unit) {
+    val c = Rs.colors
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        androidx.compose.foundation.text.BasicTextField(value, onChange, textStyle = RsType.body.copy(color = c.text),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus).clip(RoundedCornerShape(10.dp)).background(c.fill)
+                .border(1.dp, c.accent.copy(alpha = 0.5f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp))
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("改完之后，已整理的事件不会自动变", style = RsType.caption, color = c.textTertiary, modifier = Modifier.weight(1f))
+            Pill("取消", filled = false, onClick = onCancel)
+            Spacer(Modifier.width(8.dp))
+            Pill(if (saving) "保存中" else "保存", filled = value.isNotBlank() && !saving) { if (value.isNotBlank()) onSave() }
+        }
+    }
+}
+
 /** 把这句原话补进某条已有灵感：列出活跃灵感供点选，补入后计入发展轨迹。 */
 @Composable
 private fun IdeaPickSheet(line: TranscriptLine, onDismiss: () -> Unit) {
@@ -1100,4 +1208,44 @@ private fun IdeaPickSheet(line: TranscriptLine, onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+/** 卡 212：自定义转写分两种接口格式，各存一套地址、模型、密钥；OpenAI 兼容可选说话人格式 */
+@Composable
+private fun CustomTranscribeForm(advanced: app.resound.transcribe.AndroidTranscribeSettings, hasKey: Boolean,
+    test: () -> Unit, testing: Boolean, testStatus: @Composable () -> Unit) {
+    val c = Rs.colors
+    val api by advanced.customApi.collectAsStateWithLifecycle()
+    val keyState by advanced.customKeyState.collectAsStateWithLifecycle()
+    val capability by advanced.customCapability.collectAsStateWithLifecycle()
+    val speaker by advanced.customSpeakerFormat.collectAsStateWithLifecycle()
+    val qwen = api == app.resound.transcribe.CustomAsrApi.Qwen
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("接口格式", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+        app.resound.ui.skills.Segments(listOf("OpenAI 兼容", "阿里百炼"), if (qwen) 1 else 0) {
+            advanced.setCustomApi(if (it == 1) app.resound.transcribe.CustomAsrApi.Qwen else app.resound.transcribe.CustomAsrApi.OpenAi)
+        }
+    }
+    val speakerRow: (@Composable () -> Unit)? = if (qwen) null else { {
+        val diarized = speaker == app.resound.transcribe.CustomSpeakerFormat.Diarized
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("说话人", style = RsType.body, color = c.text, modifier = Modifier.weight(1f))
+            app.resound.ui.skills.Segments(listOf("自动", "分说话人"), if (diarized) 1 else 0) {
+                advanced.setCustomSpeakerFormat(if (it == 1) app.resound.transcribe.CustomSpeakerFormat.Diarized else app.resound.transcribe.CustomSpeakerFormat.Auto)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(if (diarized) "要 diarized_json 格式，需模型支持（如 OpenAI 的 gpt-4o-transcribe-diarize），不支持时会提示改回自动。"
+            else "按服务默认格式返回；多数模型只出文字，带逐句时间。", style = RsType.caption, color = c.textTertiary)
+    } }
+    Spacer(Modifier.height(14.dp))
+    // 换接口时整张表单按那一套的已存值重新载入，输入框里没保存的内容不带过去
+    key(api) {
+        CustomModelForm(advanced.customEndpoint, advanced.customModel, hasKey,
+            if (qwen) "阿里云百炼千问录音识别（qwen-audio-3.1-asr-flash 等），每段最长 5 分钟，自带说话人区分。" else "自定义音频转写服务（OpenAI 兼容）",
+            advanced::fetchModels, advanced::saveCustomAll,
+            app.resound.ui.settings.EndpointModeUi(advanced.customEndpointMode, advanced.customPrompt, advanced::setCustomPrompt,
+                advanced::saveCustomAll, keyState, capability, qwen, beforeButtons = speakerRow, test = test, testing = testing, testStatus = testStatus))
+    }
+    Spacer(Modifier.height(4.dp))
 }

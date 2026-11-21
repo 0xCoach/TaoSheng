@@ -49,6 +49,7 @@ import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.Pill
 import app.resound.ui.verify.RsCard
+import kotlinx.coroutines.launch
 import app.resound.ui.verify.RsSheet
 import app.resound.ui.verify.springClick
 import app.resound.update.UpdatePopupRule
@@ -63,6 +64,9 @@ fun UpdatePrompt(topGap: Dp = 0.dp) {
     if (!AppGraph.isUpdaterReady) return
     val updater = AppGraph.updater
     val state by updater.state.collectAsStateWithLifecycle()
+    // 卡 210：后台还在下载、备份时首页不出横幅也不弹窗，准备好了再说
+    val prepared by updater.prepared.collectAsStateWithLifecycle()
+    if (!prepared) return
     val info = state.info() ?: return
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("update-popup", Context.MODE_PRIVATE) }
@@ -168,7 +172,7 @@ internal fun BackgroundLimitCard(body: String, onSettings: () -> Unit, onHide: (
 internal fun wakeWordLikelyBlocked(brand: String = android.os.Build.MANUFACTURER): Boolean =
     brand.lowercase() in setOf("xiaomi", "redmi", "poco", "meizu", "oppo", "oneplus", "realme", "vivo", "iqoo")
 
-internal const val WAKE_WORD_TIP = "部分手机（如小米、魅族）在涛声录音时，喊“小爱同学”等唤醒词会没反应：手机不支持同时听唤醒词和录音。可以改用长按电源键唤醒语音助手。"
+internal const val WAKE_WORD_TIP = "部分手机（如小米、魅族）在声声不息录音时，喊“小爱同学”等唤醒词会没反应：手机不支持同时听唤醒词和录音。可以改用长按电源键唤醒语音助手。"
 
 /** 录音时语音助手唤不醒：只对常见受影响品牌、在开始收音后提示一次，点“知道了”不再出现 */
 @Composable
@@ -301,14 +305,14 @@ private fun RemoteNoticeCard(n: app.resound.notice.Notice, image: java.io.File?,
     }
 }
 
-/** 存进相册“Pictures/涛声”，方便用微信扫一扫 → 相册识别二维码；Android 10 起不需要存储权限 */
+/** 存进相册“Pictures/声声不息”，方便用微信扫一扫 → 相册识别二维码；Android 10 起不需要存储权限 */
 private fun saveToGallery(context: Context, image: java.io.File, id: String) {
     val ok = runCatching {
         val ext = image.extension.lowercase().let { if (it == "jpg") "jpeg" else it }
         val values = android.content.ContentValues().apply {
-            put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "涛声-$id.${image.extension}")
+            put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "声声不息-$id.${image.extension}")
             put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/$ext")
-            put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/涛声")
+            put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/声声不息")
         }
         val uri = requireNotNull(context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values))
         context.contentResolver.openOutputStream(uri).use { out -> requireNotNull(out).write(image.readBytes()) }
@@ -327,7 +331,7 @@ internal fun keepAliveHint(context: Context): String =
 
 /**
  * 屏幕时间默认开着，但要用户在系统里亲手给两项权限才真正记录。缺哪项就在首页提醒一次，
- * 每项后面“去开启”直达系统设置；回到涛声自动重查，都开好卡片就消失。
+ * 每项后面“去开启”直达系统设置；回到声声不息自动重查，都开好卡片就消失。
  * 点“暂不需要”就把缺权限的那几项功能关掉，卡片不再出现，不让功能一直悬着。
  */
 @Composable
@@ -364,6 +368,71 @@ fun ScreenTimePermissionNotice(topGap: Dp = 0.dp) {
                 } catch (e: IllegalStateException) { app.resound.diagnostics.FailureNotes.record("ui/screen-permission-skip", e) }
                 dismissed = true
                 prefs.edit().putBoolean("screenPermissionDismissed", true).apply()
+            }
+        }
+    }
+}
+
+
+/** 卡 205：外放默认也转写整理；某天外放转写超过 30 分钟时提示一次，可按 App 关。看过或关掉不再出现 */
+@Composable
+fun PlaybackHintNotice(topGap: Dp = 0.dp) {
+    val context = LocalContext.current
+    val notices = remember { app.resound.notice.RemoteNotices.get(context) }
+    val show by notices.showPlaybackHint.collectAsStateWithLifecycle(initialValue = false)
+    if (!show) return
+    val c = Rs.colors
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("🔊", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("外放的声音也在转写和整理", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("刷视频多的 App 可以单独设成不记", style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    Pill("按 App 设置", filled = true) { notices.playbackHintShown(); ShellNav.openSettings(SettingsPage.Transcript) }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("知道了", filled = false) { notices.playbackHintShown() }
+                }
+            }
+        }
+    }
+}
+
+/** 卡 214：开着推录音、到期录音推不上去被扣满 7 天时提醒；“不等了，直接删”要再点一次 */
+@Composable
+fun HeldRecordingsNotice(topGap: Dp = 0.dp) {
+    if (!AppGraph.isOriginalAudioReady) return
+    val audio = AppGraph.originalAudio
+    val held by audio.heldSummary.collectAsStateWithLifecycle()
+    if (!held.remind || held.segments == 0) return
+    val c = Rs.colors
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var armed by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("📦", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("有 ${held.days} 天录音还没推上去", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("到期了但还没推到网盘或文件夹，先留在手机里（${app.resound.ui.verify.formatBytes(held.bytes)}）。去看看是哪里出错，或者不要了直接删。",
+                    style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill("去看看", filled = true) { ShellNav.openSettings(SettingsPage.Push) }
+                    Pill(if (busy) "正在删除…" else if (armed) "找不回来，再点一次" else "不等了，直接删", filled = false) {
+                        if (busy) return@Pill
+                        if (!armed) { armed = true; scope.launch { kotlinx.coroutines.delay(3_000); armed = false }; return@Pill }
+                        busy = true
+                        scope.launch { runCatching { audio.releaseHeld() }; busy = false; armed = false }
+                    }
+                }
             }
         }
     }

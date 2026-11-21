@@ -24,6 +24,34 @@ class Index183ComparatorTest {
             val after = (1 until rows.size).first { rows[it] > index }
             rows.add(after, index)
         }
+        val triggers=Index183FixtureDelta.spec.optJSONArray("triggers")
+        if (triggers != null) repeat(triggers.length()) { n ->
+            val trigger=triggers.getString(n)
+            val at=(1 until rows.size).first { rows[it] > trigger }
+            rows.add(at,trigger)
+        }
+        for (master in Index183FixtureDelta.tableMasterRows) {
+            val after = (1 until rows.size).first { rows[it] > master }
+            rows.add(after, master)
+        }
+        for (block in Index183FixtureDelta.tableBlocks) {
+            val at = rows.withIndex().first { it.value.startsWith("TABLE ") && it.value > block[0] }.index
+            rows.addAll(at, block)
+        }
+        for (add in Index183FixtureDelta.columnAdds) {
+            val table = add.getString("table")
+            val masterOld = rows.first { it.startsWith("[\"table\",\"$table\"") }
+            val masterAt = rows.indexOf(masterOld)
+            val constraintAt = listOf(", FOREIGN KEY(", ", PRIMARY KEY(").map { masterOld.indexOf(it) }.filter { it >= 0 }.minOrNull()
+            val cut = constraintAt ?: masterOld.lastIndexOf(')')
+            val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
+            rows[masterAt] = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
+            rows[rows.indexOf(add.getString("columnsOldLine"))] = add.getString("columnsNewLine")
+            val dataAt = rows.indexOf("TABLE $table")
+            val dataEnd = (dataAt + 2 until rows.size).firstOrNull { rows[it].isEmpty() || rows[it].startsWith("TABLE ") } ?: rows.size
+            val suffix = add.getString("dataSuffix")
+            for (k in dataAt + 2 until dataEnd) rows[k] = rows[k].dropLast(1) + suffix
+        }
         return rows.joinToString("\n")
     }
     private fun rejected(text: String) {

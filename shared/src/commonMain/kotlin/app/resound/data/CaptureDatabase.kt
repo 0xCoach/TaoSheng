@@ -95,7 +95,7 @@ data class SegmentEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val 
     /** null 为升级前尚未确定；首次转写按录音开始时刻固化。 */
     val separateSpeakers: Boolean? = null, val importRecordId: Long? = null, val importChannel: Int? = null, val speakerCount: Int? = null,
     /** 外放「仍要转写」片段的整理闸：0 正常；1 暂不参与整理；2 用户已放行。 */
-    @ColumnInfo(defaultValue = "0") val playbackDigest: Int = 0)
+    @ColumnInfo(defaultValue = "0") val playbackDigest: Int = 0, val speakerIntervals: String? = null)
 @Entity(tableName = "watchdog", indices = [Index("at")])
 data class EventEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val at: Long, val type: String,
     val detail: String?, val batteryPercent: Int?, val charging: Boolean?, val gapStart: Long? = null, val gapEnd: Long? = null)
@@ -140,7 +140,7 @@ interface CaptureDao {
     fun batteries(start: Long, end: Long): Flow<List<BatteryEntity>>
 }
 
-@Database(entities = [app.resound.marks.MarkRow::class, TopicRow::class, TopicSpanRow::class, TopicMarkRow::class, DeviceTransfer::class, ImportFingerprint::class, FolderObservation::class,
+@Database(entities = [app.resound.night.NightRow::class, app.resound.night.NightEventRow::class, app.resound.night.NightClipRow::class, app.resound.night.NightEnvelopeRow::class, app.resound.night.NightFeedbackRow::class, app.resound.night.NightTagRow::class, app.resound.night.NightTagLink::class, app.resound.night.NightDreamRow::class, app.resound.night.NightPersonalRow::class, app.resound.night.NightWeekRow::class, app.resound.night.NightNoticeRow::class, app.resound.importer.FolderRecordingRow::class, app.resound.marks.MarkRow::class, TopicRow::class, TopicSpanRow::class, TopicMarkRow::class, DeviceTransfer::class, ImportFingerprint::class, FolderObservation::class,
     PrivacyFileCleanup::class, ThingRow::class, ThingRecordRow::class, ThingWatchState::class, ImportRecordRow::class, RedoSnapshotRow::class, SegmentEntity::class,
     EventEntity::class, HeartbeatEntity::class, BatteryEntity::class,
     TranscriptLineEntity::class, AsrUsageEntity::class, AsrAttemptEntity::class,
@@ -159,9 +159,11 @@ abstract class CaptureDatabase : RoomDatabase() {
     /** 由安卓装配入口传入；内存测试库为 null，不从底层连接反查路径。 */
     var filePath: String? = null
 
+    abstract fun night(): app.resound.night.NightDao
     abstract fun marks(): app.resound.marks.MarkDao
     abstract fun topics(): TopicDao
     abstract fun deviceSync(): DeviceSyncStore
+    abstract fun folderRecordings(): app.resound.importer.FolderRecordingDao
     abstract fun folderImports(): FolderImportDao
     abstract fun imports(): ImportRecordDao
     abstract fun things(): ThingDao
@@ -193,7 +195,7 @@ abstract class CaptureDatabase : RoomDatabase() {
     abstract fun sceneSessions(): SceneSessionDao
     companion object {
         /** 当前数据库版本；加迁移时同步改这里 */
-        const val VERSION = 44
+        const val VERSION = 45
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
@@ -484,14 +486,17 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE transcript_lines ADD COLUMN reviewedAt INTEGER")
             }
         }
+        /** 发行线：memory_items.recordedAt + 回填；主干线：文件夹录音表。 */
         val MIGRATION_38_39 = object : Migration(38, 39) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 // 时间语义分离：新增“录音时间”（说出来的时刻），与 dueAt（提及时间）、createdAt（处理时间）分开；
                 // 存量行从原话行回填，手打条目保持 null。
                 db.execSQL("ALTER TABLE memory_items ADD COLUMN recordedAt INTEGER")
                 db.execSQL("UPDATE memory_items SET recordedAt = (SELECT startAt FROM transcript_lines WHERE transcript_lines.id = memory_items.lineId) WHERE lineId IS NOT NULL")
+                app.resound.importer.FolderRecordingSchema.create(db)
             }
         }
+        /** 发行线：memory_items.valueScore + 回填；主干线：夜间表族（39）。 */
         val MIGRATION_39_40 = object : Migration(39, 40) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 // 记忆价值分层：条目存内在分（自身属性）；星标/重点父事件加成查询时另算，不落库。
@@ -503,17 +508,25 @@ abstract class CaptureDatabase : RoomDatabase() {
                     + CASE WHEN dueAt IS NOT NULL THEN 15 ELSE 0 END
                     + CASE WHEN who IS NOT NULL AND who != '' THEN 10 ELSE 0 END
                     + CASE WHEN origin IS NOT NULL AND origin != 'digest' THEN 10 ELSE 0 END)""")
+                app.resound.night.NightSchema.create(db)
             }
         }
+        /** 发行线：scene_sessions；主干线：segments.speakerIntervals。 */
         val MIGRATION_40_41 = object : Migration(40, 41) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS scene_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     kind TEXT NOT NULL, source TEXT NOT NULL, startedAt INTEGER NOT NULL, endedAt INTEGER, reason TEXT)""")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_scene_sessions_startedAt ON scene_sessions(startedAt)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_scene_sessions_kind ON scene_sessions(kind)")
+                val hasSegments = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='segments'").use { it.step() }
+                if (hasSegments) {
+                    val hasSpeaker = db.prepare("SELECT 1 FROM pragma_table_info('segments') WHERE name = 'speakerIntervals'").use { it.step() }
+                    if (!hasSpeaker) db.execSQL("ALTER TABLE segments ADD COLUMN speakerIntervals TEXT")
+                }
             }
         }
 
+        /** 发行线：topics.seriesKey + 回填；主干线：nights.kind/windowId + 唯一索引改组。 */
         val MIGRATION_41_42 = object : Migration(41, 42) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 // 同系列会议回链：seriesKey 缺失才补列，保证迁移可重复执行。
@@ -525,9 +538,22 @@ abstract class CaptureDatabase : RoomDatabase() {
                 // 与 TopicPolicy.seriesKey 同口径：去空白小写；匿名专题保持 NULL。
                 db.execSQL("""UPDATE topics SET seriesKey = REPLACE(REPLACE(LOWER(TRIM(name)), ' ', ''), '　', '')
                     WHERE name IS NOT NULL AND TRIM(name) != ''""")
+                // 老线设备可能尚无 nights 表（夜间表族在 39_40 由 Schema.create 补齐）。
+                val hasNights = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='nights'").use { it.step() }
+                if (hasNights) {
+                    val nightCols = db.prepare("PRAGMA table_info(nights)").use { cursor ->
+                        buildSet { while (cursor.step()) add(cursor.getText(1)) }
+                    }
+                    for (name in listOf("kind", "windowId")) if (name !in nightCols) {
+                        db.execSQL("ALTER TABLE nights ADD COLUMN `$name` TEXT NOT NULL DEFAULT 'night'")
+                    }
+                    db.execSQL("DROP INDEX IF EXISTS index_nights_date")
+                    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_nights_date_kind` ON `nights` (`date`, `kind`)")
+                }
             }
         }
 
+        /** 发行线：idea_entries/noMergeIdsJson/seriesId；主干线：transcript_lines.textEditedAt（卡211）。 */
         val MIGRATION_42_43 = object : Migration(42, 43) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 // 灵感发展轨迹表 + “不相关”标记 + 周期会议链锚；全部幂等，可重复执行。
@@ -544,10 +570,18 @@ abstract class CaptureDatabase : RoomDatabase() {
                 if (!hasNoMerge) db.execSQL("ALTER TABLE ideas ADD COLUMN noMergeIdsJson TEXT NOT NULL DEFAULT '[]'")
                 val hasSeriesId = db.prepare("SELECT 1 FROM pragma_table_info('topics') WHERE name = 'seriesId'").use { it.step() }
                 if (!hasSeriesId) db.execSQL("ALTER TABLE topics ADD COLUMN seriesId INTEGER")
+                // 最小结构库（单测自建）可能无 transcript_lines；缺失时跳过，真实链路由 44_45 兜底。
+                val hasLines = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='transcript_lines'").use { it.step() }
+                if (hasLines) {
+                    val lineCols = db.prepare("PRAGMA table_info(transcript_lines)").use { cursor ->
+                        buildSet { while (cursor.step()) add(cursor.getText(1)) }
+                    }
+                    if ("textEditedAt" !in lineCols) db.execSQL("ALTER TABLE transcript_lines ADD COLUMN `textEditedAt` INTEGER")
+                }
             }
         }
 
-        /** 主干合并：屏幕时间四表、设备播放记录、segments 播放整理闸列、标记表。全部幂等，老线（≤38）已建的对象原样保留。 */
+        /** 主干合并：屏幕时间四表、设备播放记录、segments 播放整理闸列、标记表；主干线：asr_usage token 列。全部幂等，老线（≤38）已建的对象原样保留。 */
         val MIGRATION_43_44 = object : Migration(43, 44) {
             override fun migrate(db: androidx.sqlite.SQLiteConnection) {
                 // 屏幕时间四张表；事件唯一索引（at,pkg,type,cls）让重复拉取靠冲突忽略去重。
@@ -563,9 +597,96 @@ abstract class CaptureDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_playback_rows_fromAt` ON `playback_rows` (`fromAt`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_playback_rows_sessionKey` ON `playback_rows` (`sessionKey`)")
                 // 外放「仍要转写」片段的整理闸列；SQLite 无 ADD COLUMN IF NOT EXISTS，先查列再补。
-                val hasPlaybackDigest = db.prepare("SELECT 1 FROM pragma_table_info('segments') WHERE name = 'playbackDigest'").use { it.step() }
-                if (!hasPlaybackDigest) db.execSQL("ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0")
+                val hasSegments = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='segments'").use { it.step() }
+                if (hasSegments) {
+                    val hasPlaybackDigest = db.prepare("SELECT 1 FROM pragma_table_info('segments') WHERE name = 'playbackDigest'").use { it.step() }
+                    if (!hasPlaybackDigest) db.execSQL("ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0")
+                }
                 app.resound.marks.MarkSchema.create(db)
+                val hasAsr = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='asr_usage'").use { it.step() }
+                if (hasAsr) {
+                    val asrCols = db.prepare("PRAGMA table_info(asr_usage)").use { cursor ->
+                        buildSet { while (cursor.step()) add(cursor.getText(1)) }
+                    }
+                    for (name in listOf("inputTokens", "outputTokens")) if (name !in asrCols) {
+                        db.execSQL("ALTER TABLE asr_usage ADD COLUMN $name INTEGER NOT NULL DEFAULT 0")
+                    }
+                }
+            }
+        }
+
+        /** 合线兜底：两线在 34–44 用同一版本号加了不同对象，真实设备可能停在任一“v34–v44”形态；
+         *  本步把两侧全部变更幂等补齐（表用 IF NOT EXISTS、列走 pragma 守卫、回填按 UPDATE 重算），统一收口到 45。 */
+        val MIGRATION_44_45 = object : Migration(44, 45) {
+            override fun migrate(db: androidx.sqlite.SQLiteConnection) {
+                // 主干表族：各 Schema.create 内部均为 CREATE TABLE IF NOT EXISTS，可重复执行。
+                app.resound.importer.FolderRecordingSchema.create(db)
+                app.resound.night.NightSchema.create(db)
+                app.resound.marks.MarkSchema.create(db)
+                // 场景会话 / 灵感轨迹（与 MIGRATION_40_41 / 42_43 同一 SQL）
+                db.execSQL("""CREATE TABLE IF NOT EXISTS scene_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    kind TEXT NOT NULL, source TEXT NOT NULL, startedAt INTEGER NOT NULL, endedAt INTEGER, reason TEXT)""")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_scene_sessions_startedAt ON scene_sessions(startedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_scene_sessions_kind ON scene_sessions(kind)")
+                db.execSQL("""CREATE TABLE IF NOT EXISTS idea_entries (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    ideaId INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL, origin TEXT NOT NULL,
+                    sourceLineId INTEGER, sourceSegmentId INTEGER, sourceItemId INTEGER, at INTEGER NOT NULL,
+                    FOREIGN KEY(ideaId) REFERENCES ideas(id) ON UPDATE NO ACTION ON DELETE CASCADE)""")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_idea_entries_ideaId ON idea_entries(ideaId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_idea_entries_at ON idea_entries(at)")
+                // 屏幕时间四表 + 播放记录（与 MIGRATION_43_44 同一 SQL）
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL, `type` INTEGER NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_screen_events_at_pkg_type_cls` ON `screen_events` (`at`, `pkg`, `type`, `cls`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_app_names` (`pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`pkg`))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_pull_state` (`source` TEXT NOT NULL, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL, PRIMARY KEY(`source`))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `screen_coverage_gaps` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER NOT NULL, `code` TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_screen_coverage_gaps_source_fromAt` ON `screen_coverage_gaps` (`source`, `fromAt`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `playback_rows` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionKey` TEXT NOT NULL, `pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `title` TEXT, `subtitle` TEXT, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER, `lastSeenAt` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_playback_rows_fromAt` ON `playback_rows` (`fromAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_playback_rows_sessionKey` ON `playback_rows` (`sessionKey`)")
+                // 列：两线全部增量列逐一守卫补齐
+                fun hasColumn(table: String, name: String) = db.prepare(
+                    "SELECT 1 FROM pragma_table_info('$table') WHERE name = '$name'").use { it.step() }
+                fun hasTable(name: String) = db.prepare(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='$name'").use { it.step() }
+                if (hasTable("memory_items")) {
+                    if (!hasColumn("memory_items", "recordedAt")) db.execSQL("ALTER TABLE memory_items ADD COLUMN recordedAt INTEGER")
+                    if (!hasColumn("memory_items", "valueScore")) db.execSQL("ALTER TABLE memory_items ADD COLUMN valueScore INTEGER NOT NULL DEFAULT 0")
+                }
+                if (hasTable("topics")) {
+                    if (!hasColumn("topics", "seriesKey")) db.execSQL("ALTER TABLE topics ADD COLUMN seriesKey TEXT")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_topics_seriesKey` ON `topics` (`seriesKey`)")
+                    if (!hasColumn("topics", "seriesId")) db.execSQL("ALTER TABLE topics ADD COLUMN seriesId INTEGER")
+                }
+                if (hasTable("ideas") && !hasColumn("ideas", "noMergeIdsJson")) db.execSQL("ALTER TABLE ideas ADD COLUMN noMergeIdsJson TEXT NOT NULL DEFAULT '[]'")
+                if (hasTable("segments")) {
+                    if (!hasColumn("segments", "speakerIntervals")) db.execSQL("ALTER TABLE segments ADD COLUMN speakerIntervals TEXT")
+                    if (!hasColumn("segments", "playbackDigest")) db.execSQL("ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0")
+                }
+                if (hasTable("transcript_lines") && !hasColumn("transcript_lines", "textEditedAt")) db.execSQL("ALTER TABLE transcript_lines ADD COLUMN `textEditedAt` INTEGER")
+                if (hasTable("asr_usage")) {
+                    for (name in listOf("inputTokens", "outputTokens")) if (!hasColumn("asr_usage", name)) {
+                        db.execSQL("ALTER TABLE asr_usage ADD COLUMN $name INTEGER NOT NULL DEFAULT 0")
+                    }
+                }
+                // nights 由上方 NightSchema.create 保证存在；老库已建者按列守卫补齐。
+                for (name in listOf("kind", "windowId")) if (!hasColumn("nights", name)) {
+                    db.execSQL("ALTER TABLE nights ADD COLUMN `$name` TEXT NOT NULL DEFAULT 'night'")
+                }
+                // 索引改组与幂等回填（UPDATE 重算结果一致，重复执行安全）
+                db.execSQL("DROP INDEX IF EXISTS index_nights_date")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_nights_date_kind` ON `nights` (`date`, `kind`)")
+                if (hasTable("memory_items") && hasTable("transcript_lines")) {
+                    db.execSQL("UPDATE memory_items SET recordedAt = (SELECT startAt FROM transcript_lines WHERE transcript_lines.id = memory_items.lineId) WHERE lineId IS NOT NULL")
+                }
+                if (hasTable("memory_items")) db.execSQL("""UPDATE memory_items SET valueScore = MIN(100,
+                    CASE category WHEN '约定' THEN 45 WHEN '待办' THEN 40 WHEN '备忘' THEN 25 ELSE 15 END
+                    + CASE WHEN kind IN ('我答应别人','别人答应我') THEN 15 ELSE 0 END
+                    + CASE WHEN dueAt IS NOT NULL THEN 15 ELSE 0 END
+                    + CASE WHEN who IS NOT NULL AND who != '' THEN 10 ELSE 0 END
+                    + CASE WHEN origin IS NOT NULL AND origin != 'digest' THEN 10 ELSE 0 END)""")
+                if (hasTable("topics")) db.execSQL("""UPDATE topics SET seriesKey = REPLACE(REPLACE(LOWER(TRIM(name)), ' ', ''), '　', '')
+                    WHERE name IS NOT NULL AND TRIM(name) != ''""")
             }
         }
 
@@ -574,7 +695,7 @@ abstract class CaptureDatabase : RoomDatabase() {
             MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
             MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
             MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43,
-            MIGRATION_43_44)
+            MIGRATION_43_44, MIGRATION_44_45)
     }
 }
 

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.importer.CallRecording199AndroidTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-11-17T04:18:25.861Z" hostname="CoachdeMacBook-Air.local" time="6.262">
+  <properties/>
+  <testcase name="displayFlowAndFreshSnapshotFollowLabelsWithoutWritingIdentity" classname="app.resound.importer.CallRecording199AndroidTest" time="4.687"/>
+  <testcase name="labelsSearchSuffixAndPermissionRestore" classname="app.resound.importer.CallRecording199AndroidTest" time="0.167"/>
+  <testcase name="deletedImportReturnsToListedAndDoesNotRequeue" classname="app.resound.importer.CallRecording199AndroidTest" time="0.089"/>
+  <testcase name="pauseSurvivesRestartAndManualRequestPassesIt" classname="app.resound.importer.CallRecording199AndroidTest" time="0.074"/>
+  <testcase name="onlyNewAndListAllNeverQueueAndNonCallHasNoParty" classname="app.resound.importer.CallRecording199AndroidTest" time="0.06"/>
+  <testcase name="sevenDayAndThirtyDayWindowsQueueOnlyRecent" classname="app.resound.importer.CallRecording199AndroidTest" time="0.039"/>
+  <testcase name="previewThreeHundredFilesCachedAndAddReusesMetadata" classname="app.resound.importer.CallRecording199AndroidTest" time="0.832"/>
+  <testcase name="newFileHasPriorityOverQueuedBackfill" classname="app.resound.importer.CallRecording199AndroidTest" time="0.061"/>
+  <testcase name="legacyPublicAddTrueMapsToThirtyDays" classname="app.resound.importer.CallRecording199AndroidTest" time="0.057"/>
+  <testcase name="migration38ToCurrentPreservesOldDataAndAddsTables" classname="app.resound.importer.CallRecording199AndroidTest" time="0.065"/>
+  <testcase name="backfillOneAtATimeAndOneWholeRoundNotification" classname="app.resound.importer.CallRecording199AndroidTest" time="0.058"/>
+  <testcase name="summaryRequestUsesOnlyNameAndNeverRawFilenameNumber" classname="app.resound.importer.CallRecording199AndroidTest" time="0.073"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

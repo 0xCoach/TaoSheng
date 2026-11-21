@@ -186,12 +186,12 @@ class TableObservers182Test {
         db.memory().assignLines(db.transcribe().linesForRedo(1).map { it.id },eventId);db.memory().markDigested(db.transcribe().linesForRedo(1).map { it.id },2000)
         assertTrue(withTimeout(3000) { dao.observeLateTranscriptIds().first { it.isEmpty() } }.isEmpty())
     }
-    @Test fun checkpointRefreshReadsOnlyTheObservedTopics() = runBlocking {
+    @Test fun checkpointRefreshDoesNotRescanSourcesOrDiscardBlocks() = runBlocking {
         val reads=mutableListOf<Long>()
-        val files=TopicCheckpointFiles(RuntimeEnvironment.getApplication()) { id -> reads += id; "source$id" }
+        val files=TopicCheckpointFiles(RuntimeEnvironment.getApplication()) { id -> reads += id; 1L }
         try {
-            files.write(1,TopicCheckpoint("source1"));files.write(2,TopicCheckpoint("source2"));reads.clear()
-            files.refresh(setOf(1));assertEquals(listOf(1L),reads)
+            files.remove(1);files.remove(2);files.write(1,TopicCheckpoint(format=3,revision=1));files.write(2,TopicCheckpoint(format=3,revision=1));reads.clear()
+            files.refresh(setOf(1));assertTrue(reads.isEmpty())
             assertNotNull(files.read(2))
         } finally { files.remove(1);files.remove(2) }
     }

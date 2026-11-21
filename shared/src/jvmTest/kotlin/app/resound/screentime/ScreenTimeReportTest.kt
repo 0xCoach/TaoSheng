@@ -41,7 +41,7 @@ class ScreenTimeReportTest {
             gaps = listOf(
                 CoverageGap(GapCode.COVERAGE_LAG, SCREEN_SOURCE, 1, 2, "等待下一次采集"),
                 CoverageGap(GapCode.PULL_FAILED, SCREEN_SOURCE, 3, 4, "等待下一次采集"),
-                CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, 5, 6, "设置 → 使用情况访问 → 涛声 开启"),
+                CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, 5, 6, "设置 → 使用情况访问 → 声声不息 开启"),
             ),
         ), topApps = 5)!!
         assertEquals(161, overHour.totalMinutes)
@@ -58,11 +58,11 @@ class ScreenTimeReportTest {
             overHour.apps,
         )
         assertEquals(
-            "哔哩哔哩 92 分\n微信 40 分\n同十分甲 10 分\n同十分乙 10 分\n第六名 8 分\n部分时段没有数据：等待下一次采集；设置 → 使用情况访问 → 涛声 开启",
+            "哔哩哔哩 92 分\n微信 40 分\n同十分甲 10 分\n同十分乙 10 分\n第六名 8 分\n部分时段没有数据：等待下一次采集；设置 → 使用情况访问 → 声声不息 开启",
             overHour.body,
         )
         assertEquals(
-            "今日共 2 小时 41 分\n\n- 哔哩哔哩 92 分\n- 微信 40 分\n- 同十分甲 10 分\n- 同十分乙 10 分\n- 第六名 8 分\n\n部分时段没有数据：等待下一次采集；设置 → 使用情况访问 → 涛声 开启",
+            "今日共 2 小时 41 分\n\n- 哔哩哔哩 92 分\n- 微信 40 分\n- 同十分甲 10 分\n- 同十分乙 10 分\n- 第六名 8 分\n\n部分时段没有数据：等待下一次采集；设置 → 使用情况访问 → 声声不息 开启",
             overHour.markdown,
         )
         assertTrue(overHour.apps.any { it.name == "垫底" })

@@ -6,7 +6,7 @@ import app.resound.appDisplayName
 import org.json.JSONObject
 import app.resound.skills.core.SkillDrafter as Core
 object SkillDrafter {
- val SYSTEM get() = Core.system(appDisplayName)
+ val SYSTEM get() = Core.system(appDisplayName, app.resound.platform.HistoricalZones.history().label(System.currentTimeMillis()))
  const val MAX_ASKS = Core.MAX_ASKS
  fun user(conversation: List<DraftTurn>) = Core.user(conversation)
  fun step(content: String, id: String, mustFinish: Boolean) = Core.step(JSONObject(content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()).toString(), id, mustFinish)

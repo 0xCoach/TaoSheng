@@ -1,0 +1,17 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        filter {
+            if (project.name == 'shared') {
+                includeTestsMatching('app.resound.net.LlmAdaptive218Test')
+                excludeTestsMatching('app.resound.net.LlmAdaptive218Test.budget*')
+                excludeTestsMatching('app.resound.net.LlmAdaptive218Test.onlyConfirmed*')
+                excludeTestsMatching('app.resound.net.LlmAdaptive218Test.speedCheck*')
+            }
+            if (project.name == 'app') {
+                includeTestsMatching('app.resound.digest.LlmProviders076Test.realClientUsesDocumentedParametersForTemplateModels')
+                includeTestsMatching('app.resound.digest.LlmCancellationAudit087Test')
+                includeTestsMatching('app.resound.digest.LlmSpeed218Test')
+            }
+        }
+    }
+}

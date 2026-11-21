@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.PushLocal067Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-20T03:03:34.617Z" hostname="CoachdeMacBook-Air.local" time="14.824">
+  <properties/>
+  <testcase name="allBrokenIsLocalFailureAndNoRequest" classname="app.resound.push.PushLocal067Test" time="8.357"/>
+  <testcase name="responseOnlyJsonErrorsAreRemote" classname="app.resound.push.PushLocal067Test" time="0.506"/>
+  <testcase name="editAndRestoreNormalizeOldBrokenPoints" classname="app.resound.push.PushLocal067Test" time="5.039"/>
+  <testcase name="corruptRetryIsDiscardedImmediately" classname="app.resound.push.PushLocal067Test" time="0.117"/>
+  <testcase name="diagnosticsHaveChannelsAndThirtyLogsWithoutSecretsOrContents" classname="app.resound.push.PushLocal067Test" time="0.431"/>
+  <testcase name="multipleBrokenFieldsCountOnceAndDoNotBecomeDeltaDeletes" classname="app.resound.push.PushLocal067Test" time="0.079"/>
+  <testcase name="brokenCardIsSkippedAndHealthyRecordDelivered" classname="app.resound.push.PushLocal067Test" time="0.161"/>
+  <testcase name="corruptStateResetsAndContinues" classname="app.resound.push.PushLocal067Test" time="0.131"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

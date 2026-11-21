@@ -93,7 +93,7 @@ internal fun rememberScreenDay(date: LocalDate, active: Boolean = true): ScreenD
     return if (enabled && active) day else null
 }
 
-/** 屏幕时间要的两项系统权限：检测与直达设置页，跳不过去时退到涛声的应用详情页。 */
+/** 屏幕时间要的两项系统权限：检测与直达设置页，跳不过去时退到声声不息的应用详情页。 */
 internal object ScreenPermissions {
     fun usageAccess(context: Context): Boolean = MicHolderGuess(context.applicationContext).permitted()
 
@@ -111,7 +111,7 @@ internal object ScreenPermissions {
         else Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
 
-    /** 依次试；都跳不过去就打开涛声的应用详情页。 */
+    /** 依次试；都跳不过去就打开声声不息的应用详情页。 */
     private fun open(context: Context, vararg intents: Intent) {
         for (intent in intents) {
             try { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return }

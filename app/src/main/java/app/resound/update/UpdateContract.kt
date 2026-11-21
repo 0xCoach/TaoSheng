@@ -38,6 +38,8 @@ interface AppUpdater {
     // ---- 卡 052：预览版通道 ----
 
     /** 是否接收预览版。开着时正式版、预览版都查，取版本号大的；关掉后只等下一个比当前大的正式版 */
+    /** 卡 210：后台自动准备（下载 + 备份）期间为 false，首页横幅和弹窗等它好了再出 */
+    val prepared: StateFlow<Boolean> get() = PREPARED
     val previewChannel: StateFlow<Boolean> get() = NO_PREVIEW
     fun setPreviewChannel(enabled: Boolean) {}
 
@@ -46,6 +48,7 @@ interface AppUpdater {
 }
 
 private val NO_PREVIEW: StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(false)
+private val PREPARED: StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(true)
 
 /** 版本说明文件里给用户看的部分 */
 data class UpdateInfo(

@@ -39,31 +39,32 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=44",
+    "newLine": "user_version=45",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"6220ca50fa5aba7bd798ae170ead50c1\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"f0dfdcd3b8bf2071cd0ebe3893a2c4f7\"}]",
     "extraNewRows": [
       "[{\"integer\":42},{\"text\":\"7ef33a13e9b405d05b6ef5e03862e32a\"}]",
       "[{\"integer\":42},{\"text\":\"f27344c0a85c121d43747ee0c2fb62a9\"}]",
       "[{\"integer\":42},{\"text\":\"5438724529150bca1eabdb742cd747d6\"}]",
-      "[{\"integer\":42},{\"text\":\"851b7b9780e2ecdd26642ebe02048123\"}]"
+      "[{\"integer\":42},{\"text\":\"851b7b9780e2ecdd26642ebe02048123\"}]",
+      "[{\"integer\":42},{\"text\":\"f3a59463fda32166a86b20a4d1cf6695\"}]"
     ],
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "851b7b9780e2ecdd26642ebe02048123",
+  "newIdentityHash": "f0dfdcd3b8bf2071cd0ebe3893a2c4f7",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6220ca50fa5aba7bd798ae170ead50c1')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f0dfdcd3b8bf2071cd0ebe3893a2c4f7')"
   ],
   "changedTables": [
     "memory_items",
@@ -133,6 +134,360 @@
         "orders": [],
         "createSql": "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `${TABLE_NAME}` (`startAt`)"
       }
+    },
+    {
+      "name": "index_screen_events_at_pkg_type_cls",
+      "row": "[\"index\",\"index_screen_events_at_pkg_type_cls\",\"screen_events\",\"CREATE UNIQUE INDEX `index_screen_events_at_pkg_type_cls` ON `screen_events` (`at`, `pkg`, `type`, `cls`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_screen_coverage_gaps_source_fromAt",
+      "row": "[\"index\",\"index_screen_coverage_gaps_source_fromAt\",\"screen_coverage_gaps\",\"CREATE INDEX `index_screen_coverage_gaps_source_fromAt` ON `screen_coverage_gaps` (`source`, `fromAt`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_screen_app_names_1",
+      "row": "[\"index\",\"sqlite_autoindex_screen_app_names_1\",\"screen_app_names\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_screen_pull_state_1",
+      "row": "[\"index\",\"sqlite_autoindex_screen_pull_state_1\",\"screen_pull_state\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_playback_rows_fromAt",
+      "row": "[\"index\",\"index_playback_rows_fromAt\",\"playback_rows\",\"CREATE INDEX `index_playback_rows_fromAt` ON `playback_rows` (`fromAt`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_playback_rows_sessionKey",
+      "row": "[\"index\",\"index_playback_rows_sessionKey\",\"playback_rows\",\"CREATE INDEX `index_playback_rows_sessionKey` ON `playback_rows` (`sessionKey`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_marks_at",
+      "row": "[\"index\",\"index_marks_at\",\"marks\",\"CREATE INDEX `index_marks_at` ON `marks` (`at`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_marks_topicMarkId",
+      "row": "[\"index\",\"index_marks_topicMarkId\",\"marks\",\"CREATE UNIQUE INDEX `index_marks_topicMarkId` ON `marks` (`topicMarkId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_folder_recordings_startAt",
+      "table": "folder_recordings",
+      "row": "[\"index\",\"index_folder_recordings_startAt\",\"folder_recordings\",\"CREATE INDEX `index_folder_recordings_startAt` ON `folder_recordings` (`startAt`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_folder_recordings_number",
+      "table": "folder_recordings",
+      "row": "[\"index\",\"index_folder_recordings_number\",\"folder_recordings\",\"CREATE INDEX `index_folder_recordings_number` ON `folder_recordings` (`number`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_folder_recordings_folderId_documentUri",
+      "table": "folder_recordings",
+      "row": "[\"index\",\"index_folder_recordings_folderId_documentUri\",\"folder_recordings\",\"CREATE UNIQUE INDEX `index_folder_recordings_folderId_documentUri` ON `folder_recordings` (`folderId`, `documentUri`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_clips_nightId",
+      "table": "night_clips",
+      "row": "[\"index\",\"index_night_clips_nightId\",\"night_clips\",\"CREATE INDEX `index_night_clips_nightId` ON `night_clips` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_dreams_nightId",
+      "table": "night_dreams",
+      "row": "[\"index\",\"index_night_dreams_nightId\",\"night_dreams\",\"CREATE INDEX `index_night_dreams_nightId` ON `night_dreams` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_events_nightId",
+      "table": "night_events",
+      "row": "[\"index\",\"index_night_events_nightId\",\"night_events\",\"CREATE INDEX `index_night_events_nightId` ON `night_events` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_feedback_eventId",
+      "table": "night_feedback",
+      "row": "[\"index\",\"index_night_feedback_eventId\",\"night_feedback\",\"CREATE UNIQUE INDEX `index_night_feedback_eventId` ON `night_feedback` (`eventId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_feedback_nightId",
+      "table": "night_feedback",
+      "row": "[\"index\",\"index_night_feedback_nightId\",\"night_feedback\",\"CREATE INDEX `index_night_feedback_nightId` ON `night_feedback` (`nightId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_night_tag_links_tagId",
+      "table": "night_tag_links",
+      "row": "[\"index\",\"index_night_tag_links_tagId\",\"night_tag_links\",\"CREATE INDEX `index_night_tag_links_tagId` ON `night_tag_links` (`tagId`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "index_nights_date_kind",
+      "table": "nights",
+      "row": "[\"index\",\"index_nights_date_kind\",\"nights\",\"CREATE UNIQUE INDEX `index_nights_date_kind` ON `nights` (`date`, `kind`)\"]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_notice_1",
+      "table": "night_notice",
+      "row": "[\"index\",\"sqlite_autoindex_night_notice_1\",\"night_notice\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_personal_1",
+      "table": "night_personal",
+      "row": "[\"index\",\"sqlite_autoindex_night_personal_1\",\"night_personal\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_tag_links_1",
+      "table": "night_tag_links",
+      "row": "[\"index\",\"sqlite_autoindex_night_tag_links_1\",\"night_tag_links\",null]",
+      "occurrences": 1
+    },
+    {
+      "name": "sqlite_autoindex_night_weeks_1",
+      "table": "night_weeks",
+      "row": "[\"index\",\"sqlite_autoindex_night_weeks_1\",\"night_weeks\",null]",
+      "occurrences": 1
+    }
+  ],
+  "tables": [
+    {
+      "name": "screen_app_names",
+      "masterRows": [
+        "[\"table\",\"screen_app_names\",\"screen_app_names\",\"CREATE TABLE `screen_app_names` (`pkg` TEXT NOT NULL PRIMARY KEY, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL)\"]",
+        "[\"table\",\"screen_app_names\",\"screen_app_names\",\"CREATE TABLE `screen_app_names` (`pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`pkg`))\"]"
+      ],
+      "block": [
+        "TABLE screen_app_names",
+        "columns=[\"pkg\",\"name\",\"updatedAt\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "screen_coverage_gaps",
+      "masterRows": [
+        "[\"table\",\"screen_coverage_gaps\",\"screen_coverage_gaps\",\"CREATE TABLE `screen_coverage_gaps` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER NOT NULL, `code` TEXT NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE screen_coverage_gaps",
+        "columns=[\"id\",\"source\",\"fromAt\",\"untilAt\",\"code\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "screen_events",
+      "masterRows": [
+        "[\"table\",\"screen_events\",\"screen_events\",\"CREATE TABLE `screen_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL DEFAULT '', `type` INTEGER NOT NULL)\"]",
+        "[\"table\",\"screen_events\",\"screen_events\",\"CREATE TABLE `screen_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL, `type` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE screen_events",
+        "columns=[\"id\",\"at\",\"pkg\",\"cls\",\"type\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "screen_pull_state",
+      "masterRows": [
+        "[\"table\",\"screen_pull_state\",\"screen_pull_state\",\"CREATE TABLE `screen_pull_state` (`source` TEXT NOT NULL PRIMARY KEY, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL DEFAULT 0)\"]",
+        "[\"table\",\"screen_pull_state\",\"screen_pull_state\",\"CREATE TABLE `screen_pull_state` (`source` TEXT NOT NULL, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL, PRIMARY KEY(`source`))\"]"
+      ],
+      "block": [
+        "TABLE screen_pull_state",
+        "columns=[\"source\",\"coveredUntil\",\"floor\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "playback_rows",
+      "masterRows": [
+        "[\"table\",\"playback_rows\",\"playback_rows\",\"CREATE TABLE `playback_rows` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionKey` TEXT NOT NULL, `pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `title` TEXT, `subtitle` TEXT, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER, `lastSeenAt` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE playback_rows",
+        "columns=[\"id\",\"sessionKey\",\"pkg\",\"name\",\"title\",\"subtitle\",\"fromAt\",\"untilAt\",\"lastSeenAt\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "marks",
+      "masterRows": [
+        "[\"table\",\"marks\",\"marks\",\"CREATE TABLE `marks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `beforeMillis` INTEGER NOT NULL, `afterMillis` INTEGER NOT NULL, `label` TEXT, `source` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `topicMarkId` INTEGER)\"]"
+      ],
+      "block": [
+        "TABLE marks",
+        "columns=[\"id\",\"at\",\"beforeMillis\",\"afterMillis\",\"label\",\"source\",\"createdAt\",\"topicMarkId\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "folder_recordings",
+      "masterRows": [
+        "[\"table\",\"folder_recordings\",\"folder_recordings\",\"CREATE TABLE `folder_recordings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `folderId` TEXT NOT NULL, `documentUri` TEXT NOT NULL, `fingerprint` TEXT, `fileName` TEXT NOT NULL, `size` INTEGER NOT NULL, `modified` INTEGER NOT NULL, `startAt` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL, `number` TEXT, `partyName` TEXT, `direction` TEXT, `state` TEXT NOT NULL, `importRecordId` INTEGER, `createdAt` INTEGER NOT NULL, `kind` TEXT NOT NULL, `pendingId` TEXT, `backfill` INTEGER NOT NULL, `notified` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE folder_recordings",
+        "columns=[\"id\",\"folderId\",\"documentUri\",\"fingerprint\",\"fileName\",\"size\",\"modified\",\"startAt\",\"durationMillis\",\"number\",\"partyName\",\"direction\",\"state\",\"importRecordId\",\"createdAt\",\"kind\",\"pendingId\",\"backfill\",\"notified\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_clips",
+      "masterRows": [
+        "[\"table\",\"night_clips\",\"night_clips\",\"CREATE TABLE `night_clips` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `path` TEXT, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `confirmed` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `candidate` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_clips\",\"night_clips\",\"CREATE TABLE `night_clips` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `path` TEXT, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `confirmed` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `candidate` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_clips",
+        "columns=[\"id\",\"nightId\",\"start\",\"end\",\"path\",\"scores\",\"features\",\"confirmed\",\"expiresAt\",\"candidate\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_dreams",
+      "masterRows": [
+        "[\"table\",\"night_dreams\",\"night_dreams\",\"CREATE TABLE `night_dreams` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `at` INTEGER NOT NULL, `until` INTEGER NOT NULL, `payload` TEXT NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_dreams\",\"night_dreams\",\"CREATE TABLE `night_dreams` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `at` INTEGER NOT NULL, `until` INTEGER NOT NULL, `payload` TEXT NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_dreams",
+        "columns=[\"id\",\"nightId\",\"at\",\"until\",\"payload\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_envelope",
+      "masterRows": [
+        "[\"table\",\"night_envelope\",\"night_envelope\",\"CREATE TABLE `night_envelope` (`nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `points` BLOB NOT NULL, PRIMARY KEY(`nightId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_envelope\",\"night_envelope\",\"CREATE TABLE `night_envelope` (`nightId` INTEGER NOT NULL PRIMARY KEY, `start` INTEGER NOT NULL, `points` BLOB NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_envelope",
+        "columns=[\"nightId\",\"start\",\"points\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_events",
+      "masterRows": [
+        "[\"table\",\"night_events\",\"night_events\",\"CREATE TABLE `night_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `certainty` REAL NOT NULL, `vetoed` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_events\",\"night_events\",\"CREATE TABLE `night_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `certainty` REAL NOT NULL, `vetoed` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_events",
+        "columns=[\"id\",\"nightId\",\"start\",\"end\",\"kind\",\"payload\",\"certainty\",\"vetoed\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_feedback",
+      "masterRows": [
+        "[\"table\",\"night_feedback\",\"night_feedback\",\"CREATE TABLE `night_feedback` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `eventId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `yes` INTEGER NOT NULL, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `at` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_feedback\",\"night_feedback\",\"CREATE TABLE `night_feedback` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nightId` INTEGER NOT NULL, `eventId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `yes` INTEGER NOT NULL, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `at` INTEGER NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_feedback",
+        "columns=[\"id\",\"nightId\",\"eventId\",\"kind\",\"yes\",\"scores\",\"features\",\"at\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_notice",
+      "masterRows": [
+        "[\"table\",\"night_notice\",\"night_notice\",\"CREATE TABLE `night_notice` (`key` TEXT NOT NULL, `at` INTEGER NOT NULL, `muted` INTEGER NOT NULL, PRIMARY KEY(`key`))\"]",
+        "[\"table\",\"night_notice\",\"night_notice\",\"CREATE TABLE `night_notice` (`key` TEXT NOT NULL PRIMARY KEY, `at` INTEGER NOT NULL, `muted` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_notice",
+        "columns=[\"key\",\"at\",\"muted\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_personal",
+      "masterRows": [
+        "[\"table\",\"night_personal\",\"night_personal\",\"CREATE TABLE `night_personal` (`kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `trainedAt` INTEGER NOT NULL, `feedbackCount` INTEGER NOT NULL, PRIMARY KEY(`kind`))\"]",
+        "[\"table\",\"night_personal\",\"night_personal\",\"CREATE TABLE `night_personal` (`kind` TEXT NOT NULL PRIMARY KEY, `payload` TEXT NOT NULL, `trainedAt` INTEGER NOT NULL, `feedbackCount` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_personal",
+        "columns=[\"kind\",\"payload\",\"trainedAt\",\"feedbackCount\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_tag_links",
+      "masterRows": [
+        "[\"table\",\"night_tag_links\",\"night_tag_links\",\"CREATE TABLE `night_tag_links` (`nightId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`nightId`, `tagId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tagId`) REFERENCES `night_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+        "[\"table\",\"night_tag_links\",\"night_tag_links\",\"CREATE TABLE `night_tag_links` (`nightId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`nightId`,`tagId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`tagId`) REFERENCES `night_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)\"]"
+      ],
+      "block": [
+        "TABLE night_tag_links",
+        "columns=[\"nightId\",\"tagId\",\"state\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_tags",
+      "masterRows": [
+        "[\"table\",\"night_tags\",\"night_tags\",\"CREATE TABLE `night_tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `preset` INTEGER NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_tags",
+        "columns=[\"id\",\"name\",\"preset\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "night_weeks",
+      "masterRows": [
+        "[\"table\",\"night_weeks\",\"night_weeks\",\"CREATE TABLE `night_weeks` (`weekStart` TEXT NOT NULL, `payload` TEXT NOT NULL, `pushState` TEXT NOT NULL, PRIMARY KEY(`weekStart`))\"]",
+        "[\"table\",\"night_weeks\",\"night_weeks\",\"CREATE TABLE `night_weeks` (`weekStart` TEXT NOT NULL PRIMARY KEY, `payload` TEXT NOT NULL, `pushState` TEXT NOT NULL)\"]"
+      ],
+      "block": [
+        "TABLE night_weeks",
+        "columns=[\"weekStart\",\"payload\",\"pushState\"]",
+        ""
+      ],
+      "occurrences": 1
+    },
+    {
+      "name": "nights",
+      "masterRows": [
+        "[\"table\",\"nights\",\"nights\",\"CREATE TABLE `nights` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `state` TEXT NOT NULL, `payload` TEXT NOT NULL, `signals` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `kind` TEXT NOT NULL DEFAULT 'night', `windowId` TEXT NOT NULL DEFAULT 'night')\"]"
+      ],
+      "block": [
+        "TABLE nights",
+        "columns=[\"id\",\"date\",\"start\",\"end\",\"state\",\"payload\",\"signals\",\"createdAt\",\"updatedAt\",\"kind\",\"windowId\"]",
+        ""
+      ],
+      "occurrences": 1
     }
   ],
   "querySql": [
@@ -163,6 +518,29 @@
       "oldLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
       "newLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
       "occurrences": 1
+    }
+  ],
+  "columnAdds": {
+    "table": "transcript_lines",
+    "columnsOldLine": "columns=[\"id\",\"segmentId\",\"startAt\",\"endAt\",\"text\",\"speakerTag\",\"speakerName\",\"eventId\",\"digestedAt\",\"speakerScore\",\"speakerPersonId\",\"speakerManual\",\"voiceInputJson\",\"voiceInputPendingUntil\",\"originalText\"]",
+    "columnsNewLine": "columns=[\"id\",\"segmentId\",\"startAt\",\"endAt\",\"text\",\"speakerTag\",\"speakerName\",\"eventId\",\"digestedAt\",\"speakerScore\",\"speakerPersonId\",\"speakerManual\",\"voiceInputJson\",\"voiceInputPendingUntil\",\"originalText\",\"reviewedAt\",\"textEditedAt\"]",
+    "dataSuffix": ",null,null]",
+    "insertSql": "ALTER TABLE transcript_lines ADD COLUMN reviewedAt INTEGER, `textEditedAt` INTEGER",
+    "masterFreshLine": "[\"table\",\"transcript_lines\",\"transcript_lines\",\"CREATE TABLE `transcript_lines` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `segmentId` INTEGER NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `text` TEXT NOT NULL, `speakerTag` TEXT, `speakerName` TEXT, `eventId` INTEGER, `digestedAt` INTEGER, `speakerScore` REAL, `speakerPersonId` INTEGER, `speakerManual` INTEGER NOT NULL DEFAULT 0, `voiceInputJson` TEXT, `voiceInputPendingUntil` INTEGER, `originalText` TEXT, `reviewedAt` INTEGER, `textEditedAt` INTEGER, FOREIGN KEY(`segmentId`) REFERENCES `segments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )\"]",
+    "note": "卡 211 textEditedAt + 发行线 reviewedAt；segments 的 speakerIntervals/playbackDigest 两列序与 ALTER 追加序不同，归 changedTables 整行置换"
+  },
+  "triggers": [
+    "[\"trigger\",\"folder_import_deleted\",\"import_records\",\"CREATE TRIGGER folder_import_deleted AFTER DELETE ON import_records BEGIN UPDATE folder_recordings SET importRecordId = NULL, state = 'Listed', pendingId = NULL, backfill = 0, notified = 1 WHERE importRecordId = OLD.id; END\"]"
+  ],
+  "columnAddsMore": [
+    {
+      "table": "asr_usage",
+      "columnsOldLine": "columns=[\"day\",\"sentMillis\"]",
+      "columnsNewLine": "columns=[\"day\",\"sentMillis\",\"inputTokens\",\"outputTokens\"]",
+      "dataSuffix": ",{\"integer\":0},{\"integer\":0}]",
+      "insertSql": "ALTER TABLE asr_usage ADD COLUMN inputTokens INTEGER NOT NULL DEFAULT 0, outputTokens INTEGER NOT NULL DEFAULT 0",
+      "masterFreshLine": "[\"table\",\"asr_usage\",\"asr_usage\",\"CREATE TABLE `asr_usage` (`day` TEXT NOT NULL, `sentMillis` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL DEFAULT 0, `outputTokens` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`day`))\"]",
+      "note": "卡 212：转写 token 用量，旧数据默认 0"
     }
   ]
 }

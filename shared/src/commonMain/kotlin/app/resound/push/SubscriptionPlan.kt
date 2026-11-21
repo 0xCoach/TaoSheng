@@ -25,8 +25,16 @@ object SubscriptionPlan {
             if (hasRecords(s)) SubscriptionRules.changeAt(trigger, values["lastRecordsAt"]?.takeIf { it > 0 }, now.now())?.let { put("changeAt", it) }
         }
     }
+    /** 卡 210：文档类通道（同步文件夹、Notion）的摘要也按间隔合并，不再每出一张卡就连一次云端；
+     * “有新内容就推”用它的间隔，其他方式至少隔 15 分钟 */
+    fun summaryGap(s: PushSubscription): Long = ((s.trigger as? RecordTrigger.OnChange)?.minGapMinutes ?: 15) * 60_000L
     fun changed(s: PushSubscription, summary: Boolean, values: Map<String, Long>, running: () -> Boolean, now: NowMillis): Map<String, Long?> = buildMap {
-        if (summary && s.summaries) put("summaryAt", now.now())
+        if (summary && s.summaries) {
+            val last = maxOf(values["lastRecordsAt"] ?: 0L, values["lastSummaryAt"] ?: 0L)
+            val at = maxOf(now.now(), last + summaryGap(s))
+            // 已经排着的不往后推；正在跑时排到这次之后
+            if (running() || "summaryAt" !in values) put("summaryAt", if (running()) maxOf(now.now() + 1, at) else at)
+        }
         else if (hasRecords(s)) SubscriptionRules.changeAt(s.trigger, values["lastRecordsAt"]?.takeIf { it > 0 }, now.now())?.let { at ->
             if (running() || "changeAt" !in values) put("changeAt", if (running()) maxOf(now.now() + 1, at) else at)
         }
@@ -36,6 +44,7 @@ object SubscriptionPlan {
         listOf("changeAt", "summaryAt", "batchAt").forEach { key -> if ((values[key] ?: 0) == (due[key] ?: 0)) put(key, null) }
         if (more) put("batchAt", now.now() + 30_000)
         val trigger = s.trigger
+        if (summaryOnly) put("lastSummaryAt", started)
         if (!summaryOnly && !reminderOnly) {
             put("lastRecordsAt", started)
             val changeAt = if (containsKey("changeAt")) get("changeAt") else values["changeAt"]

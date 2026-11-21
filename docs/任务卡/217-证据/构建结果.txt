@@ -1,0 +1,6 @@
+python3 tools/check_shared.py：通过
+:shared:check :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleRelease：BUILD SUCCESSFUL in 1m 11s
+原 tools/check_ios.sh（外层追加 --offline）：shared + devices，iOS 真机与模拟器四个目标通过。
+检查均使用任务卡指定独立 registry 与 skipSigningSecrets；未连接真实模型服务或手机。
+最终安卓仅重跑 3 个此前失败用例，其余 72 个已通过后未重跑。新增共用 10 个通过；旧共用相关 16 个首轮通过。
+APK核验后按要求清理 build，不作为发布包交付。

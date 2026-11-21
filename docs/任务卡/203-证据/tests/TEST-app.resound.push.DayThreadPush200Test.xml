@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.push.DayThreadPush200Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-17T10:03:57.877Z" hostname="CoachdeMacBook-Air.local" time="0.356">
+  <properties/>
+  <testcase name="failedUploadDoesNotAdvanceFingerprint" classname="app.resound.push.DayThreadPush200Test" time="0.057"/>
+  <testcase name="firstUseBackfillsSevenDaysAndChatExcluded" classname="app.resound.push.DayThreadPush200Test" time="0.007"/>
+  <testcase name="dayContextTimesHaveOffsetAndNoZoneCity" classname="app.resound.push.DayThreadPush200Test" time="0.012"/>
+  <testcase name="privacyRemovalRetainsArchivedAppAndPlayback" classname="app.resound.push.DayThreadPush200Test" time="0.009"/>
+  <testcase name="webhookFinalizationSendsSevenOffsetJsonMessagesOnlyOnce" classname="app.resound.push.DayThreadPush200Test" time="0.233"/>
+  <testcase name="sectionPreservedAndLegacyScreenRemoved" classname="app.resound.push.DayThreadPush200Test" time="0.01"/>
+  <testcase name="dawnOnlyPastDaysAndIdenticalContentNotAcknowledgedAgain" classname="app.resound.push.DayThreadPush200Test" time="0.011"/>
+  <testcase name="threeDayCorrectionAndArchiveDoesNotReadExpiredApps" classname="app.resound.push.DayThreadPush200Test" time="0.017"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

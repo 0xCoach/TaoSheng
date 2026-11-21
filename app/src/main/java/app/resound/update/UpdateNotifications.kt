@@ -18,12 +18,13 @@ internal object UpdateNotifications {
     private const val AVAILABLE = 510
     private const val CONFIRM = 511
     private const val VOICE = 512
-    fun available(context: Context, info: UpdateInfo): Boolean = post(context, AVAILABLE,
-        "声声不息 ${info.versionName.replace("-preview.", " 预览版 ")} 可以更新", info.notes.lineSequence().firstOrNull().orEmpty(),
+    fun available(context: Context, info: UpdateInfo, ready: Boolean = false): Boolean = post(context, AVAILABLE,
+        "声声不息 ${info.versionName.replace("-preview.", " 预览版 ")} " + if (ready) "已准备好" else "可以更新",
+        if (ready) "已下载并备份好数据，点一下安装" else info.notes.lineSequence().firstOrNull().orEmpty(),
         Intent(context, MainActivity::class.java).putExtra(EXTRA_OPEN_UPDATE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
 
-    fun confirmation(context: Context, intent: Intent) = post(context, CONFIRM, "声声不息更新等待确认", "点这里继续安装", intent)
+    fun confirmation(context: Context, intent: Intent) = post(context, CONFIRM, "声声不息更新等待确认", "点这里完成安装", intent)
     fun voice(context: Context) = post(context, VOICE, "语音输入记录没在运行，点这里重新打开", "声声不息需要重新连接语音输入服务",
         Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     fun dismiss(context: Context) = context.getSystemService(NotificationManager::class.java).cancel(AVAILABLE)
@@ -31,11 +32,13 @@ internal object UpdateNotifications {
 
     private fun post(context: Context, id: Int, title: String, body: String, intent: Intent): Boolean {
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "版本更新", NotificationManager.IMPORTANCE_DEFAULT))
-        if (!CaptureNotifications.permitted(context) || manager.getNotificationChannel(CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE) return false
+        val channel = if (id == CONFIRM) "app-update-confirm" else CHANNEL
+        val importance = if (id == CONFIRM) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
+        manager.createNotificationChannel(NotificationChannel(channel, if (id == CONFIRM) "安装确认" else "版本更新", importance))
+        if (!CaptureNotifications.permitted(context) || manager.getNotificationChannel(channel)?.importance == NotificationManager.IMPORTANCE_NONE) return false
         val pending = PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return try {
-            manager.notify(id, NotificationCompat.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notify)
+            manager.notify(id, NotificationCompat.Builder(context, channel).setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle(title).setContentText(body).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true).build())
             true
         } catch (caught: SecurityException) {

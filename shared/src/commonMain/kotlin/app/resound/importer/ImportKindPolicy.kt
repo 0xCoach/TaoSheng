@@ -24,7 +24,7 @@ object ImportKindPolicy {
         val path = source.replace('\\', '/').lowercase()
         val phone = Regex("(?<![0-9])(?:\\+?86[- ]?)?1[3-9][0-9]{9}(?![0-9])|(?<![0-9])0[0-9]{2,3}[- ][0-9]{7,8}(?![0-9])")
         return when {
-            path.contains("miui/sound_recorder/call_rec") || "通话" in name || phone.containsMatchIn(name) -> KindSuggestion(ImportKind.Call, KindReason.CallFolder)
+            CallRecordingFolders.looksLikeCallFolder(path) || "通话" in name || phone.containsMatchIn(name) -> KindSuggestion(ImportKind.Call, KindReason.CallFolder)
             dual -> KindSuggestion(ImportKind.Call, KindReason.DualChannel)
             last != null -> KindSuggestion(last, KindReason.LastUsed)
             else -> KindSuggestion(ImportKind.Meeting, KindReason.Default)

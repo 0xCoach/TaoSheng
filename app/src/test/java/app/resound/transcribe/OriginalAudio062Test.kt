@@ -47,6 +47,19 @@ class OriginalAudio062Test {
         MemoryEventEntity(id, now - age * day, now - age * day + 1000, "会议", "旧标题", "旧摘要", "[\"旧要点\"]", "[]",
             null, null, null, false, createdAt = now, model = "test", starred = starred))
 
+    @Test fun card214HoldsExpiredAndReleasePreservesPendingAndManualPreviewCounts() = runBlocking {
+        val held = segment(1, 11); val pending = segment(2, 11, "Pending")
+        val fresh = segment(3, 1)
+        repo = LocalOriginalAudio(db.transcribe(), context.getSharedPreferences("original062", 0), scope,
+            playback = PlaybackCaptureHold(scope, {}), now = { now }, protection = { setOf(1, 2, 3) }, keepChannels = { listOf("S3") })
+        assertEquals(0, repo.cleanup().segments); assertTrue(held.exists())
+        assertEquals(1, repo.heldSummary.value.segments); assertTrue(repo.heldSummary.value.remind)
+        assertEquals(2, repo.previewClear(true).unpushed)
+        assertEquals(1, repo.releaseHeld().segments); assertFalse(held.exists())
+        assertTrue(pending.exists()); assertTrue(fresh.exists()); assertEquals(0, repo.heldSummary.value.segments)
+        assertEquals(1, repo.clear(true).unpushed); assertFalse(fresh.exists())
+    }
+
     @Test fun retentionProtectsRecentStarredAndPending() = runBlocking {
         val recent = segment(1, 2); val expired = segment(2, 4)
         val starred = segment(3, 5); event(age = 5, starred = true)

@@ -68,7 +68,7 @@ class KtorParity151Test {
                 r.headers.indexOfFirst { it.first.equals("Authorization", true) })
         }
     }
-    private val chatBody = """{"model":"test","messages":[{"role":"system","content":"系统\/指令"},{"role":"user","content":"用户"}],"response_format":{"type":"json_object"},"temperature":0.2,"max_tokens":8192}"""
+    private val chatBody = """{"model":"test","messages":[{"role":"system","content":"系统\/指令"},{"role":"user","content":"用户"}],"response_format":{"type":"json_object"},"temperature":0.2,"max_tokens":8192,"stream":true,"stream_options":{"include_usage":true}}""" // 卡 218：JSON 调用改流式接收
     private suspend fun chat(status: Int, body: String, extra: List<HeaderEntry> = emptyList()): Result<LlmReply> = MockWebServer().use { s ->
         s.enqueue(MockResponse().setResponseCode(status).setBody(body))
         val result = runCatching { LlmClient(requestHeaders={extra}).chatJson(preset(s),"fake","系统/指令","用户") }
@@ -103,19 +103,19 @@ class KtorParity151Test {
             s.enqueue(MockResponse().setResponseCode(404)); s.enqueue(MockResponse().setBody("""{"choices":[{"message":{"content":"ok"}}]}"""))
             val p=preset(s).copy(baseUrl=s.url("/proxy").toString())
             assertEquals(LlmReply("ok",0,0),LlmClient().chatJson(p,"","s","u"))
-            val expected="""{"model":"test","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"response_format":{"type":"json_object"},"temperature":0.2,"max_tokens":8192}"""
+            val expected="""{"model":"test","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"response_format":{"type":"json_object"},"temperature":0.2,"max_tokens":8192,"stream":true,"stream_options":{"include_usage":true}}"""
             for(path in listOf("/proxy/v1/chat/completions","/proxy/chat/completions")) {
                 val r=s.takeRequest(); request(r,"POST",path); assertEquals(expected,r.body.readUtf8())
             }
         }
         error(chat(302,""),LlmError.Server,302)
     }
-    @Test fun callTimeoutClassification() = runBlocking {
+    @Test fun jsonCallsAreNotCutByFixedCallTimeout218() = runBlocking {
+        // 卡 218：JSON 调用不再用固定的整次超时（慢的思考模型会被截断），改由 90 秒无字节 / 10 分钟总上限判定（见 LlmAdaptive218Test）。
         MockWebServer().use { s ->
-            s.enqueue(MockResponse().setBody("{}").setBodyDelay(1,TimeUnit.SECONDS))
+            s.enqueue(MockResponse().setBody("""{"choices":[{"message":{"content":"ok"}}]}""").setBodyDelay(1,TimeUnit.SECONDS))
             val h=OkHttpClient.Builder().callTimeout(200,TimeUnit.MILLISECONDS).build()
-            error(runCatching { LlmClient(h).chatJson(preset(s),"","s","u") },LlmError.Network,
-                detail="等待超时：本地模型首次加载可能较慢，稍后再试")
+            assertEquals(LlmReply("ok",0,0), LlmClient(h).chatJson(preset(s),"","s","u"))
         }
     }
     private val stream = "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"思考\",\"content\":\"你\"}}]}\r\n\r\n" +
@@ -202,7 +202,7 @@ class KtorParity151Test {
             try {
                 var count=0
                 val b=CustomAsrProvider(settings){listOf("声声不息")}.recognize(audio,""){count++}
-                assertEquals(AsrResult(listOf(AsrSentence(0,1200,"你好",null)),1200,null),b);assertEquals(1,count)
+                assertEquals(AsrResult(listOf(AsrSentence(0,1200,"你好",null)),1200,null,customCapability=app.resound.transcribe.CustomCapability.TimedText),b);assertEquals(1,count)
                 val r=s.takeRequest(); request(r,"POST","/speech?x=1")
                 val boundary=r.getHeader("Content-Type")!!.substringAfter("boundary=")
                 val expected="--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\nContent-Length: 3\r\n\r\nasr\r\n" +

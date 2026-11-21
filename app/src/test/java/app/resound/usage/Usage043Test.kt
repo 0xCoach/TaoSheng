@@ -36,6 +36,9 @@ import java.time.ZoneId
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class Usage043Test {
+    // 卡 200 起技能按设备历史时区划日；本测试数据按北京时间构造，固定时区，免得 CI（UTC）上会议落到前一天
+    @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+    @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val day = LocalDate.of(2026, 10, 24)
     private val zone = ZoneId.of("Asia/Shanghai")
@@ -198,6 +201,7 @@ class Usage043Test {
         withTimeout(5000) { repo().llm(today.toKotlinLocalDate(), today.toKotlinLocalDate()).first { it.sumOf { r -> r.calls } == 1 } }
         ask.ask("今天做了什么？")
         val row = withTimeout(5000) { repo().llm(today.toKotlinLocalDate(), today.toKotlinLocalDate()).first { it.sumOf { r -> r.calls } == 2 } }.single()
-        assertEquals(UsagePurpose.Ask, row.purpose); assertEquals(30L, row.promptTokens); assertEquals(3L, row.completionTokens)
+        // 卡 218 起推荐问题也走流式接收，这里的假服务对流式请求统一回 20/2。
+        assertEquals(UsagePurpose.Ask, row.purpose); assertEquals(40L, row.promptTokens); assertEquals(4L, row.completionTokens)
     }
 }

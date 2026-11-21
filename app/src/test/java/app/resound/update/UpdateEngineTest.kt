@@ -81,6 +81,8 @@ class UpdateEngineTest {
                 assertEquals(fixtureManifest().apk.sha256, store.string("preBackupFor"))
                 assertTrue(store.long("preBackupAt") > 0)
                 assertTrue(states.any { it is UpdateState.Installing && !it.backingUp })
+                // 用户在确认窗口里取消（确认窗口弹出过），不属于“秒中止”，不自动重提（卡 210）
+                assertTrue(engine.pending(51))
                 engine.installResult(51, cancelled = true)
                 assertTrue(engine.state.value is UpdateState.Ready)
                 val restarted = engine(server, scope, platform, store)
@@ -144,6 +146,136 @@ class UpdateEngineTest {
         }
     }
 
+    @Test fun fallbackRechecksAssembledFileBeforeSharing() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest()
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("update.patch").readBytes())))
+                updater.checkNow()
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                updater.installResult(51, diagnosticStatus = 2)
+                assertEquals(release.versionCode, updater.systemInstallerAvailable.value?.versionCode)
+                val apk = File(temporary.root, "update/${release.apk.sha256}.apk")
+                assertTrue(updater.handToSystem { assertEquals(apk, it) })
+                apk.writeBytes(apk.readBytes().apply { this[0] = this[0].inc() })
+                assertFalse(updater.handToSystem { fail("校验失败的包不能交给系统") })
+                assertEquals(2, server.requestCount)
+            } finally { scope.cancel() }
+        }
+    }
+
+    /** 卡 210：进了“用系统安装器”退路后点“重试”，原先被忽略；现在应重新提交安装且不重新下载 */
+    @Test fun retryFromFallbackReinstallsWithoutDownloading() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow()
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                updater.installResult(51, diagnosticStatus = 2)
+                assertNotNull(updater.systemInstallerAvailable.value)
+                updater.download()
+                withTimeout(5000) { while (platform.installs < 2) delay(20) }
+                assertNull(updater.systemInstallerAvailable.value)
+                assertEquals(2, server.requestCount)
+            } finally { scope.cancel() }
+        }
+    }
+
+    @Test fun unresolvedReturnSurvivesRestartAndIgnoresOldCancellationAfterHandoff() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val store = MemoryUpdateStore()
+            try {
+                val updater = engine(server, scope, platform, store)
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow()
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                assertTrue(updater.pending(51))
+                updater.confirmationReturned(51)
+                val restarted = engine(server, scope, platform, store)
+                restarted.checkNow(startup = true)
+                assertTrue(restarted.handToSystem { assertTrue(it.isFile) })
+                restarted.installResult(51, cancelled = true)
+                assertEquals(release.versionCode, restarted.systemInstallerAvailable.value?.versionCode)
+                assertEquals(2, server.requestCount)
+            } finally { scope.cancel() }
+        }
+    }
+
+    /** 卡 210：提交后几秒内被系统中止、确认窗口没出现过 → 自动重提，并要求系统弹确认 */
+    @Test fun quickAbortWithoutConfirmationRetriesWithRequiredAction() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform()
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow(manual = true)
+                updater.download()
+                updater.awaitState { it is UpdateState.Ready }
+                updater.install()
+                withTimeout(5000) { platform.submitted.await() }
+                platform.nextSession = 52
+                updater.installResult(51, cancelled = true, diagnosticStatus = 3)
+                withTimeout(5000) { while (platform.installs < 2) delay(20) }
+                assertEquals(listOf(false, true), platform.requireActions)
+                assertNull(updater.systemInstallerAvailable.value)
+                // 第二次弹出了确认、用户取消：不再自动重提
+                assertTrue(updater.pending(52))
+                updater.installResult(52, cancelled = true, diagnosticStatus = 3)
+                delay(200); assertEquals(2, platform.installs)
+            } finally { scope.cancel() }
+        }
+    }
+
+    /** 卡 210：自动检查发现新版本，能后台准备就先下载、备份，好了才发“已准备好”通知 */
+    @Test fun automaticCheckPreparesThenNotifiesReady() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val platform = FakePlatform().apply { prepare = true }
+            val updater = engine(server, scope, platform, MemoryUpdateStore())
+            try {
+                val release = fixtureManifest(null)
+                server.enqueue(MockResponse().setBody(release.json()))
+                server.enqueue(MockResponse().setBody(Buffer().write(fixture("new.bin").readBytes())))
+                updater.checkNow()
+                withTimeout(5000) { while (!updater.prepared.value || platform.readyNotifications == 0) delay(20) }
+                assertTrue(updater.state.value is UpdateState.Ready)
+                assertEquals(1, platform.backups)
+                assertEquals(0, platform.notifications)
+                assertEquals(1, platform.readyNotifications)
+            } finally { scope.cancel() }
+        }
+    }
+
     private fun engine(server: MockWebServer, scope: CoroutineScope, platform: FakePlatform, store: MemoryUpdateStore,
         space: () -> Long = { Long.MAX_VALUE / 2 }): UpdateEngine {
         // 生产默认关自动检查；测试默认打开，让 checkNow() 走真实检查路径。
@@ -167,14 +299,26 @@ internal class FakePlatform : UpdatePlatform {
     var backups = 0
     var backupFails = false
     var duringBackup: suspend () -> Unit = {}
+    /** 卡 210：测试从外面报备份进度 */
+    @Volatile var lastProgress: ((String, Float) -> Unit)? = null
     val submitted = CompletableDeferred<Unit>()
     override fun verify(apk: File, manifest: UpdateManifest) {}
     override suspend fun backup(progress: (String, Float) -> Unit) {
         backups++
+        lastProgress = progress
         duringBackup()
         if (backupFails) error("snapshot_failed")
     }
-    override fun install(apk: File, rememberSession: (Int) -> Unit) { rememberSession(51); installs++; submitted.complete(Unit) }
+    val requireActions = mutableListOf<Boolean>()
+    var nextSession = 51
+    override fun install(apk: File, requireUserAction: Boolean, rememberSession: (Int) -> Unit) {
+        requireActions += requireUserAction; rememberSession(nextSession); installs++; submitted.complete(Unit)
+    }
+    /** 卡 210：测试可开后台自动准备，并数“已准备好”通知 */
+    var prepare = false
+    var readyNotifications = 0
+    override fun canPrepare(bytes: Long) = prepare
+    override fun notifyReady(info: UpdateInfo): Boolean { readyNotifications++; return true }
     override fun canInstall() = true
     override fun sessionExists(id: Int) = false
     override fun notifyAvailable(info: UpdateInfo): Boolean { notifications++; return true }

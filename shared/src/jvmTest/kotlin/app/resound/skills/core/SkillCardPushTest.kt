@@ -6,6 +6,8 @@ import org.junit.Test
 import kotlinx.datetime.LocalDate
 
 class SkillCardPushTest {
+ @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
     @Test fun listsFieldsUnderSummaryAndSkipsEmptyOnes() {
         val card = SkillCard(1, "evening", "收工打卡", "moon", LocalDate(2026, 10, 27), 0, null, "周二收工", "推进了省电改造。",
             listOf(

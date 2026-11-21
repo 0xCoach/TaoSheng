@@ -38,6 +38,9 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class PushMoreTest {
+    @org.junit.Before fun currentZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), ZoneId.systemDefault().id) } }
+    @org.junit.After fun resetZoneFixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
+
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val date = LocalDate.parse("2026-10-24")
     private val at = 1_700_000_000_000L
@@ -139,7 +142,7 @@ class PushMoreTest {
             val sender = SmtpSender(object : SmtpSockets() {
                 override fun connect(host: String, port: Int) = Socket(java.net.InetAddress.getLoopbackAddress(), server.localPort).apply { soTimeout = 5000 }
                 override fun tls(socket: Socket, host: String, port: Int): Socket { tlsCalls++; return socket }
-            })
+            }, idleMillis = 0)
             val values = mapOf("host" to "smtp.example.com", "account" to "from@example.com", "password" to "fake-password", "to" to "to@example.com")
             try {
                 sender.send(values + ("port" to "465"), PushFormat.Json, message)
@@ -154,6 +157,50 @@ class PushMoreTest {
             } finally { executor.shutdownNow() }
         }
     }
+    /** 卡 215：20 秒内连发两封只登录一次（RSET 后复用）；限流的 535 带服务器原话、不让人改设置 */
+    @Test fun smtpReusesLoginAndExplainsRateLimit() = kotlinx.coroutines.runBlocking {
+        ServerSocket(0, 2, java.net.InetAddress.getLoopbackAddress()).use { server ->
+            val executor = Executors.newSingleThreadExecutor()
+            val commands = executor.submit<List<String>> {
+                server.accept().use { socket ->
+                    socket.soTimeout = 5000
+                    val reader = socket.getInputStream().bufferedReader(); val writer = socket.getOutputStream().bufferedWriter()
+                    fun reply(s: String) { writer.write(s + "\r\n"); writer.flush() }
+                    val seen = mutableListOf<String>()
+                    reply("220 local")
+                    while (true) {
+                        val line = reader.readLine() ?: break; seen += line
+                        when {
+                            line.startsWith("EHLO") -> reply("250 AUTH LOGIN")
+                            line == "AUTH LOGIN" -> reply("334 user")
+                            seen.size >= 2 && seen[seen.size - 2] == "AUTH LOGIN" -> reply("334 pass")
+                            seen.size >= 3 && seen[seen.size - 3] == "AUTH LOGIN" -> reply("235 ok")
+                            line == "DATA" -> { reply("354 data"); while (reader.readLine() != ".") {}; reply("250 queued") }
+                            line == "QUIT" -> break
+                            else -> reply("250 ok")
+                        }
+                    }
+                    seen
+                }
+            }
+            val sender = SmtpSender(object : SmtpSockets() {
+                override fun connect(host: String, port: Int) = Socket(java.net.InetAddress.getLoopbackAddress(), server.localPort).apply { soTimeout = 5000 }
+                override fun tls(socket: Socket, host: String, port: Int) = socket
+            }, idleMillis = 300)
+            val values = mapOf("host" to "smtp.example.com", "port" to "465", "account" to "from@example.com", "password" to "fake-password", "to" to "to@example.com")
+            try {
+                sender.send(values, PushFormat.Text, message); sender.send(values, PushFormat.Text, message)
+                val seen = commands.get(5, TimeUnit.SECONDS)
+                assertEquals(1, seen.count { it == "AUTH LOGIN" }); assertEquals(2, seen.count { it == "DATA" }); assertTrue("RSET" in seen)
+            } finally { executor.shutdownNow() }
+        }
+        val limited = SmtpReplies.failure(535, "Login fail. login frequency limited. fake-password", mapOf("password" to "fake-password"))
+        assertTrue(limited.contains("限制登录频率")); assertFalse(limited.contains("fake-password"))
+        assertTrue(SmtpReplies.failure(535, "Error: authentication failed", emptyMap()).contains("授权码"))
+        // “separate / generate”里的 rate 不能把授权码错误误判成限流。
+        assertTrue(SmtpReplies.failure(535, "Authentication failed: please use authorization code (separate password)", emptyMap()).contains("授权码"))
+    }
+
     @Test fun notionDiscoversTitleArchivesPreviousDayAndBatchesBlocksWithCache() = runBlocking {
         Fake().use { f ->
             f.reply("""{"properties":{"名称":{"type":"title"}}}""")
@@ -237,7 +284,7 @@ class PushMoreTest {
         val review = DailyReview(date.toKotlinLocalDate(), "简述", listOf(ReviewSection("一句话", listOf("内容"), listOf(1))), at)
         val lines = listOf(TranscriptLineEntity(1, 1, at, at + 1000, "原句", "speaker1", "我"))
         val j = dailyMemoryJson(date, at, "# 文档", review, input, listOf(card()), lines)
-        assertEquals(setOf("type", "version", "app", "date", "generatedAt", "markdown", "data"), j.keys().asSequence().toSet())
+        assertEquals(setOf("type", "version", "app", "date", "generatedAt", "markdown", "data", "utcOffset"), j.keys().asSequence().toSet())
         val data = j.getJSONObject("data")
         assertEquals(setOf("review", "events", "items", "cards", "lines"), data.keys().asSequence().toSet())
         assertEquals(setOf("id", "start", "end", "title", "summary", "scene", "people", "important", "starred"), data.getJSONArray("events").getJSONObject(0).keys().asSequence().toSet())

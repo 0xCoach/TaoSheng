@@ -204,20 +204,38 @@ import java.time.ZoneId
     }
 }
 
-@Composable internal fun TopicProgressContent(progress: TopicProgress, error: String?, busy: Boolean, retry: () -> Unit) {
+@Composable internal fun TopicProgressContent(progress: TopicProgress, error: String?, busy: Boolean, summarizeNow: (() -> Unit)? = null, retry: () -> Unit) {
     val c = Rs.colors
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(if (error != null) if (progress.notes.isNotEmpty()) "部分内容已整理" else "整理暂未完成" else progress.phase.ifBlank { "等待原话处理完成" },
-            style = RsType.headline, color = c.text)
-        if (progress.total > 0) {
+        // 卡 217：按 10 分钟时间块整理，说清楚整理到哪、在等什么
+        val waiting = listOfNotNull(
+            progress.waitingTranscribe.takeIf { it > 0 }?.let { "$it 段转写" },
+            progress.waitingVoiceprint.takeIf { it > 0 }?.let { "$it 段认人" },
+            "网络".takeIf { progress.waitingNetwork })
+        Text(when {
+            error != null -> if (progress.notes.isNotEmpty() || progress.blocksDone > 0) "部分内容已整理" else "整理暂未完成"
+            progress.blocksTotal > 0 && progress.blocksDone >= progress.blocksTotal && waiting.isEmpty() -> "正在汇总纪要"
+            progress.phase.isNotBlank() -> progress.phase
+            waiting.isNotEmpty() -> "等原话处理完成"
+            else -> "正在整理"
+        }, style = RsType.headline, color = c.text)
+        if (progress.blocksTotal > 0) {
+            Text("已整理 ${progress.blocksDone} / ${progress.blocksTotal} 块（每块 10 分钟）" +
+                (progress.blocksFailed.takeIf { it > 0 }?.let { " · $it 块没整理成" } ?: ""), style = RsType.subhead, color = c.textSecondary)
+            ProgressBar(progress.blocksDone, progress.blocksTotal)
+        } else if (progress.total > 0) {
             Text("已完成 ${progress.completed} / ${progress.total} 段", style = RsType.subhead, color = c.textSecondary)
-            Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(c.separator)) {
-                Box(Modifier.fillMaxWidth((progress.completed.toFloat() / progress.total).coerceIn(0f, 1f)).height(3.dp).background(c.accent))
-            }
+            ProgressBar(progress.completed, progress.total)
         }
-        Text(error ?: "已完成的内容会保留，可以先离开这里。", style = RsType.caption, color = if (error != null) c.warning else c.textSecondary)
-        if (error != null) ActionButton("继续整理", ActionKind.Primary, enabled = !busy, onClick = retry)
+        if (waiting.isNotEmpty() && error == null) Text("还在等：" + waiting.joinToString(" · "), style = RsType.subhead, color = c.textSecondary)
+        val stalled = progress.stalledReason
+        Text(error ?: stalled ?: "已完成的内容会保留，可以先离开这里。", style = RsType.caption,
+            color = if (error != null || stalled != null) c.warning else c.textSecondary)
+        if (stalled != null && summarizeNow != null) ActionButton("先整理（剩下的不等了）", ActionKind.Primary, enabled = !busy, onClick = summarizeNow)
+        if (error != null || progress.blocksFailed > 0) ActionButton(if (progress.blocksFailed > 0) "补上没整理成的 ${progress.blocksFailed} 块" else "继续整理",
+            if (stalled != null) ActionKind.Secondary else ActionKind.Primary, enabled = !busy, onClick = retry)
     }
+    TopicBlockNotes(progress.blockNotes, collapsedTitle = "已整理的分段要点")
     val draft = progress.draft
     if (draft != null && error != null) {
         var draftOpen by remember { mutableStateOf(false) }
@@ -237,4 +255,38 @@ import java.time.ZoneId
             }
         } }
     }
+}
+
+@Composable private fun ProgressBar(done: Int, total: Int) {
+    val c = Rs.colors
+    Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(c.separator)) {
+        Box(Modifier.fillMaxWidth((done.toFloat() / total.coerceAtLeast(1)).coerceIn(0f, 1f)).height(3.dp).background(c.accent))
+    }
+}
+
+/** 卡 217：每块的时间、状态、要点；默认收起，开会中也能展开看前面谈了什么 */
+@Composable internal fun TopicBlockNotes(notes: List<app.resound.topic.core.TopicBlockNote>, collapsedTitle: String) {
+    val c = Rs.colors
+    val shown = notes.filter { it.state != app.resound.topic.core.TopicBlockState.Waiting || it.reason != null }
+    if (shown.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    Text(if (open) "收起$collapsedTitle ⌃" else "$collapsedTitle（${shown.count { it.state == app.resound.topic.core.TopicBlockState.Done }} 块） ⌄",
+        style = RsType.subhead, color = c.textSecondary, modifier = Modifier.springClick { open = !open }.padding(vertical = 8.dp))
+    if (!open) return
+    SelectionContainer { Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        shown.forEach { n ->
+            val from = n.ranges.firstOrNull()?.startAt; val to = n.ranges.lastOrNull()?.endAt
+            val time = if (from != null && to != null) "${app.resound.ui.verify.formatClock(from)}–${app.resound.ui.verify.formatClock(to)}" else "第 ${n.index + 1} 块"
+            Column {
+                Text(time + when (n.state) {
+                    app.resound.topic.core.TopicBlockState.Done -> ""
+                    app.resound.topic.core.TopicBlockState.Failed -> " · 没整理成"
+                    app.resound.topic.core.TopicBlockState.Skipped -> " · 已跳过"
+                    app.resound.topic.core.TopicBlockState.Waiting -> " · 等待中"
+                }, style = RsType.caption.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (n.state == app.resound.topic.core.TopicBlockState.Done) c.textTertiary else c.warning)
+                (n.text.takeIf { it.isNotBlank() } ?: n.reason)?.let { Text(it, style = RsType.body, color = c.textSecondary) }
+            }
+        }
+    } }
 }

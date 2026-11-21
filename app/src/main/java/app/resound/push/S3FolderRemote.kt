@@ -7,8 +7,8 @@ import okhttp3.OkHttpClient
 import java.io.File
 
 /** 仅 linkedCredentials 生成 S3 配置；持久化通道仍只存借用标记。 */
-internal fun linkedS3(values: Map<String, String>, client: OkHttpClient = OkHttpClient()): S3Client? =
-    if (values["cloudKind"] != "S3") null else S3Client(s3FromJson(values.getValue("s3")), values.getValue("account"), values.getValue("password"), client)
+internal fun linkedS3(values: Map<String, String>, client: OkHttpClient = OkHttpClient(), cancellation: kotlinx.coroutines.Job? = null): S3Client? =
+    if (values["cloudKind"] != "S3") null else S3Client(s3FromJson(values.getValue("s3")), values.getValue("account"), values.getValue("password"), client, cancellation = cancellation)
 
 internal interface FolderStorage {
     fun directories(path: String = "")
@@ -21,7 +21,11 @@ internal class S3FolderRemote(private val s3: S3Client, private val folder: Stri
     override fun directories(path: String) {} // S3 无实体目录。
     override fun put(path: String, content: String, state: PushSyncState) = s3.putText(key(path), content)
     override fun delete(path: String) = s3.deleteObject(key(path))
-    fun audio(path: String, file: File) = s3.putObject(key(path), file)
+    fun size(path: String): Long? = s3.objectLength(key(path))
+    fun audio(path: String, file: File) {
+        s3.putObject(key(path), file)
+        if (s3.objectLength(key(path)) != file.length()) throw PushFailure("录音大小核对失败，稍后自动重试")
+    }
     fun text(path: String, text: String) = s3.putText(key(path), text)
     fun send(format: PushFormat, message: PushMessage) {
         val daily = message.memory
@@ -39,4 +43,4 @@ internal class S3FolderRemote(private val s3: S3Client, private val folder: Stri
 
 /** 不包含密钥；切换桶或前缀后必须重新推送，不能复用旧目的地的成功指纹。 */
 internal fun folderIdentity(values: Map<String, String>): String = sha256(canonical(org.json.JSONObject(
-    values.filterKeys { it in setOf("account", "url", "folder", "cloudKind", "s3") })))
+    values.filterKeys { it in setOf("account", "url", "folder", "cloudKind", "s3", "treeUri") })))

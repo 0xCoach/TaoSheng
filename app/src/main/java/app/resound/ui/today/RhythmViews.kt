@@ -53,6 +53,7 @@ import app.resound.ui.verify.formatClock
 import app.resound.ui.verify.springClick
 import java.time.Instant
 import java.time.LocalDate
+import androidx.compose.animation.core.animateFloat
 import java.time.ZoneId
 
 /**
@@ -137,9 +138,13 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
                         meetings: List<app.resound.skills.SkillCard> = emptyList(), onMeetings: (List<app.resound.skills.SkillCard>) -> Unit = {},
                         onEnv: (app.resound.envsound.EnvSpan) -> Unit = {},
                         /** 屏幕时间：0..23 点每小时用手机的分钟数；没开屏幕时间或首页不显示时为 null */
-                        screenByHour: List<Int>? = null) {
+                        screenByHour: List<Int>? = null,
+                        /** 卡 202：夜里记录开着时，睡着的小时画成夜空紫，下面色带睡眠和手机合成一条 */
+                        night: app.resound.ui.night.NightRhythmUi? = null,
+                        onScreen: () -> Unit = {}) {
     val c = Rs.colors
-    val r = remember(events, lines) { dayRhythm(events, lines) } ?: return
+    // 还没说话但已经有昨晚的睡眠：照样画图，数字都是 0
+    val r = remember(events, lines) { dayRhythm(events, lines) } ?: if (night?.day != null) EmptyRhythm else return
     val base by remember(date) { if (app.resound.AppGraph.isRhythmReady) app.resound.AppGraph.rhythm.baseline(date.toKotlinLocalDate()) else kotlinx.coroutines.flow.flowOf(null) }
         .collectAsStateWithLifecycle(initialValue = null)
     val rules = if (app.resound.AppGraph.isQuietScheduleReady) app.resound.AppGraph.quietSchedule.rules.collectAsStateWithLifecycle().value else emptyList()
@@ -159,14 +164,15 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
                     maxLines = 1, modifier = Modifier.weight(1f))
                 MiniBars(r, Modifier.padding(end = 8.dp).size(width = 64.dp, height = 16.dp))
             } else Spacer(Modifier.weight(1f))
+            night?.let { app.resound.ui.night.NightChip(it); Spacer(Modifier.size(6.dp)) }
             if (r.speechMinutes >= 5) FoldButton(collapsed)
         }
         if (collapsed && r.speechMinutes >= 5) return@RsCard
         if (r.speechMinutes < 5) {
             Spacer(Modifier.height(4.dp))
             Text("今天说话 ${r.speechMinutes} 分钟 · ${r.events} 件事", style = RsType.subhead, color = c.textSecondary)
-            return@RsCard
-        }
+            if (night?.day == null) return@RsCard
+        } else {
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth().padding(end = 6.dp)) {
             // 说话时长和件数在上面的录音卡里，这里只放它没有的，同一屏每个数字只出现一次
@@ -177,10 +183,21 @@ internal fun RhythmCard(events: List<MemoryEvent>, lines: List<TranscriptLine>, 
             // 会议按今天生成的会议纪要卡数：一张卡一场会，比按事件数准
             Stat("会议", meetings.size, "场", null, Modifier.weight(1f)) { if (meetings.isNotEmpty()) onMeetings(meetings) }
         }
+        }
         Spacer(Modifier.height(12.dp))
-        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour, onEnv, screenByHour) }
+        Box(Modifier.padding(end = 6.dp)) { HourBars(r, date, rules, onHour, onEnv, screenByHour, night?.day, onScreen) }
+        if (night != null) Box(Modifier.padding(end = 6.dp)) {
+            Column {
+                app.resound.ui.night.NightPendingLine(night)
+                app.resound.ui.night.NapLines(night)
+            }
+        }
     }
 }
+
+private val EmptyRhythm = DayRhythm(0, 0, 0, 0, 0, List(24) { 0 }, List(24) { 0 }, 0, 0, null)
+
+private fun openNight(d: kotlinx.datetime.LocalDate) { app.resound.ui.night.NightUi.openDate = LocalDate.of(d.year, d.monthNumber, d.dayOfMonth) }
 
 /** 一格数字：数字大、单位小一号灰色，底部对齐；为 0 时数字变浅灰，格式不变 */
 @Composable
@@ -209,7 +226,7 @@ private fun Stat(label: String, count: Int, unit: String, delta: String?, modifi
  */
 @Composable
 private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHour: (Int) -> Unit, onEnv: (app.resound.envsound.EnvSpan) -> Unit,
-                     screen: List<Int>? = null) {
+                     screen: List<Int>? = null, night: app.resound.night.NightDays.Day? = null, onScreen: () -> Unit = {}) {
     val c = Rs.colors
     val quiet = remember(rules, date) { quietHours(rules, date) }
     val totals = (0..23).map { r.speechByHour[it] + r.mediaByHour[it] }
@@ -234,7 +251,14 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
             .onSizeChanged { width.intValue = it.width }
             .pointerInput(r) {
                 detectTapGestures(
-                    onTap = { o -> val h = hourAt(o.x); if (totals[h] > 0) onHour(h) },
+                    onTap = { o ->
+                        val h = hourAt(o.x)
+                        // 睡着的小时打开那一夜；其余照旧跳到时间线
+                        val nd = night?.hours?.get(h)?.takeIf { it.asleep }?.date
+                        val hs = date.atStartOfDay(java.time.ZoneId.systemDefault()).plusHours(h.toLong()).toInstant().toEpochMilli()
+                        if (nd != null && app.resound.ui.night.NightUi.openNapIn(hs, hs + 3_600_000)) Unit
+                        else if (nd != null) openNight(nd) else if (totals[h] > 0) onHour(h)
+                    },
                     onLongPress = { o -> hover = hourAt(o.x); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) },
                     onPress = { tryAwaitRelease(); hover = null },
                 )
@@ -251,6 +275,16 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 Box(Modifier.weight(1f).fillMaxHeight().graphicsLayer { alpha = fade }.clip(RoundedCornerShape(3.dp))
                     .background(if (h in quiet) c.separator.fade(0.35f) else androidx.compose.ui.graphics.Color.Transparent),
                     contentAlignment = Alignment.BottomCenter) {
+                    val nh = night?.hours?.get(h)
+                    if (nh?.asleep == true) {
+                        // 睡着的小时：说话柱本来是空的，改画夜里——矮柱表示在睡，鼾声越多越高越深
+                        val snore = (nh.snoreMinutes / 60f).coerceIn(0f, 1f)
+                        val nightH = barArea * (0.18f + 0.82f * snore)
+                        Box(Modifier.fillMaxWidth().height(nightH).clip(RoundedCornerShape(2.dp))
+                            .background(androidx.compose.ui.graphics.lerp(app.resound.ui.night.SleepColor, app.resound.ui.night.SnoreColor, (snore * 2f).coerceAtMost(1f))
+                                .copy(alpha = if (h == hover) 1f else 0.85f)))
+                        if (nh.talk) Box(Modifier.padding(bottom = nightH + 2.dp).size(4.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.good))
+                    } else {
                     val barH = if (total == 0) barArea * 0.06f else barArea * (total / max.toFloat()).coerceIn(0.12f, 1f)
                     if (total == 0) Box(Modifier.fillMaxWidth().height(barH).clip(RoundedCornerShape(2.dp)).background(c.separator))
                     else Column(Modifier.fillMaxWidth().height(barH)) {
@@ -260,6 +294,7 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                     }
                     if (env[h]?.sounds?.isNotEmpty() == true)
                         Box(Modifier.padding(bottom = barH + 2.dp).size(4.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.accent))
+                    }
                 }
             }
         }
@@ -270,7 +305,9 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
                 .offset(y = (-34).dp).zIndex(2f)
                 .shadow(if (c.isDark) 0.dp else 8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(androidx.compose.foundation.shape.CircleShape).background(c.accent).padding(horizontal = 12.dp, vertical = 5.dp)) {
-                Text("$h 点 · " + (if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: "") +
+                val nh = night?.hours?.get(h)?.takeIf { it.sleepMinutes > 0 }
+                Text("$h 点 · " + (if (nh != null) "睡着 ${nh.sleepMinutes} 分钟" + (if (nh.snoreMinutes > 0) " · 鼾声 ${nh.snoreMinutes} 分钟" else "") + (if (nh.talk) " · 有梦话" else "") + (if (talk > 0) " · 说话 $talk 分钟" else "")
+                    else if (talk > 0) "说话 $talk 分钟" else "没有说话") + (if (media > 0) " · 媒体 $media 分钟" else "") + (quiet[h]?.let { " · $it" } ?: "") +
                     envHint(h, spans, env).joinToString("") { " · $it" } +
                     (screen?.getOrNull(h)?.takeIf { it > 0 }?.let { " · 手机 $it 分钟" } ?: ""),
                     style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.onAccent, maxLines = 1)
@@ -295,7 +332,8 @@ private fun HourBars(r: DayRhythm, date: LocalDate, rules: List<QuietRule>, onHo
         }
         if (spans.isNotEmpty()) EnvIcons(spans, lit, { lit = it }, onEnv)
         // 屏幕时间：柱子下面一条细色带，每小时一格，手机用得越多颜色越深；和上面的说话柱共用时间轴，按住柱子时一起报分钟数
-        if (screen != null) {
+        if (night != null) NightPhoneBand(date, screen, night, hover, onScreen)
+        else if (screen != null) {
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth().height(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 (0..23).forEach { h ->
@@ -404,3 +442,52 @@ private fun MiniBars(r: DayRhythm, modifier: Modifier) {
 /** 屏幕时间的颜色：沉稳的灰蓝，和说话的橙色分开，夜间略亮 */
 internal fun phoneTint(c: app.resound.ui.theme.RsColors) =
     if (c.isDark) androidx.compose.ui.graphics.Color(0xFF8FA8DA) else androidx.compose.ui.graphics.Color(0xFF6B8AC9)
+
+
+/**
+ * 睡眠和手机合成一条色带：手机按小时一格（越深用得越多），睡眠是连续的夜空紫（鼾声更深），
+ * 半夜醒来那段切成灰蓝。睡着时不会用手机，两样正好互补。看着 6dp，能点的范围上下放宽。
+ * 点紫色段打开那一夜，点灰蓝段打开屏幕使用详情。正在记的那一夜末端轻轻闪。
+ */
+@Composable
+private fun NightPhoneBand(date: LocalDate, screen: List<Int>?, night: app.resound.night.NightDays.Day, hover: Int?, onScreen: () -> Unit) {
+    val c = Rs.colors
+    val zone = ZoneId.systemDefault()
+    val dayStart = remember(date) { date.atStartOfDay(zone).toInstant().toEpochMilli() }
+    val dayEnd = remember(date) { date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() }
+    val phone = phoneTint(c); val empty = c.separator.fade(0.5f)
+    val sleep = app.resound.ui.night.SleepColor; val snore = app.resound.ui.night.SnoreColor
+    val pulse by androidx.compose.animation.core.rememberInfiniteTransition(label = "nightLive").animateFloat(0.45f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable<Float>(androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse), label = "pulse")
+    val live = night.parts.any { it.live }
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(14.dp).pointerInput(night, screen) {
+        detectTapGestures { o ->
+            val at = dayStart + ((o.x / size.width) * (dayEnd - dayStart)).toLong()
+            val nd = night.nightAt(at)
+            if (nd != null && app.resound.ui.night.NightUi.openNapIn(at, at + 1)) Unit
+            else if (nd != null) openNight(nd)
+            else if ((screen?.getOrNull(((o.x / size.width) * 24).toInt().coerceIn(0, 23)) ?: 0) > 0) onScreen()
+        }
+    }) {
+        val w = size.width; val top = 4.dp.toPx(); val bh = 6.dp.toPx(); val gap = 2.dp.toPx()
+        val cell = (w - gap * 23) / 24
+        val r = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+        for (h in 0..23) {
+            val m = screen?.getOrElse(h) { 0 } ?: 0
+            val color = if (m == 0) empty else phone.copy(alpha = if (h == hover) 1f else 0.2f + 0.8f * (m / 30f).coerceIn(0f, 1f))
+            drawRoundRect(color, androidx.compose.ui.geometry.Offset(h * (cell + gap), top), androidx.compose.ui.geometry.Size(cell, bh), r)
+        }
+        fun x(t: Long) = ((t - dayStart).toFloat() / (dayEnd - dayStart) * w).coerceIn(0f, w)
+        val last = night.parts.filter { it.live }.maxOfOrNull { it.end }
+        night.parts.forEach { p ->
+            val a = x(p.start); val b = maxOf(x(p.end), a + 1.5f)
+            val base = when (p.kind) {
+                app.resound.night.NightDays.Kind.Sleep -> sleep
+                app.resound.night.NightDays.Kind.Snore -> snore
+                app.resound.night.NightDays.Kind.Awake -> phone
+            }
+            val alpha = if (live && p.live && p.end == last) pulse else 1f
+            drawRect(base.copy(alpha = base.alpha * alpha), androidx.compose.ui.geometry.Offset(a, top), androidx.compose.ui.geometry.Size(b - a, bh))
+        }
+    }
+}

@@ -74,7 +74,7 @@ internal fun ImportLine(r: ImportRecord, events: List<MemoryEvent>, onOpen: () -
     val first = events.minByOrNull { it.startAt }
     val kindName = r.kind.title.substringBefore(" ")
     val done = r.status == ImportRecordStatus.Done
-    val title = (card?.title ?: first?.title)?.takeIf { done && it.isNotBlank() } ?: "导入的$kindName"
+    val title = (card?.title ?: first?.title)?.takeIf { done && it.isNotBlank() } ?: r.defaultTitle ?: "导入的$kindName"
     val summary = (card?.summary ?: first?.summary)?.takeIf { done && it.isNotBlank() }
     val ink = app.resound.ui.skills.skillInk(kindIcon(r.kind))
     Row(Modifier.fillMaxWidth().springClick(onOpen).padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 12.dp)) {
@@ -131,7 +131,7 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
     var exporting by remember(id) { mutableStateOf(false) }
     if (exporting) app.resound.ui.transcript.ExportSheet(r.segmentIds,
         app.resound.ui.transcript.safeName(r.fileName.substringBeforeLast('.'))) { exporting = false }
-    RsSheet(r.fileName.substringBeforeLast('.'), "${r.kind.title} · ${formatClock(r.startAt)} 开始 · ${length(r.endAt - r.startAt)}" +
+    RsSheet(r.defaultTitle ?: r.fileName.substringBeforeLast('.'), "${r.kind.title} · ${formatClock(r.startAt)} 开始 · ${length(r.endAt - r.startAt)}" +
         (if (r.byChannel) " · 按左右声道分人" else ""), onDismiss = onDismiss) {
         val playingHere = (app.resound.ui.transcript.LinePlayer.source as? app.resound.ui.transcript.PlaySource.Import)?.recordId == r.id
         if (playingHere) app.resound.ui.transcript.InlinePlayer()
@@ -192,7 +192,10 @@ fun ImportRecordSheet(id: Long, onOpenEvent: (MemoryEvent) -> Unit, onDismiss: (
                     if (ok) onDismiss()
                 }
             }
-            Text("录音、原话、整理出的事和待办、纪要会一起删除，无法恢复。", style = RsType.caption, color = c.textTertiary)
+            // 卡 210：删的只是声声不息里的副本和结果；文件夹（如通话录音）只有读权限，原录音从不动，删后回到“未转写”可再转
+            val fromFolder by remember(r.id) { AppGraph.folderRecordings.byImport(r.id) }.collectAsStateWithLifecycle(initialValue = null)
+            Text(if (fromFolder != null) "原话、整理出的事和待办、纪要会删除，声声不息里存的录音副本也删掉。手机里的原录音不动，这条会回到“未转写”，想要可以再转。"
+                else "声声不息里存的录音、原话、整理出的事和待办、纪要会一起删除，无法恢复；你分享进来的原文件不受影响。", style = RsType.caption, color = c.textTertiary)
         }
     }
 }

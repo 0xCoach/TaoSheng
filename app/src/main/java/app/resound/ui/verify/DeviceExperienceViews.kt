@@ -13,7 +13,7 @@ import app.resound.ui.theme.RsType
 internal fun DeviceActivity.text(): String = when (this) {
     DeviceActivity.Disconnected -> "未连接"
     DeviceActivity.Connecting -> "正在连接蓝牙"
-    DeviceActivity.ConnectedIdle -> "蓝牙已连接，涛声未收音"
+    DeviceActivity.ConnectedIdle -> "蓝牙已连接，声声不息未收音"
     DeviceActivity.WaitingForRecording -> "蓝牙已连接，等待设备开始录音"
     DeviceActivity.StartingAudio -> "已连接，等待声音数据"
     DeviceActivity.ReceivingAudio -> "正在接收设备声音"
@@ -35,7 +35,7 @@ internal fun DeviceSyncDetailView(value: DeviceSyncDetail) {
         DeviceSyncPhase.Listing -> "正在读取已保存的录音"
         DeviceSyncPhase.Downloading -> "正在下载录音"
         DeviceSyncPhase.Verifying -> "正在校验完整录音"
-        DeviceSyncPhase.Importing -> "正在导入涛声"
+        DeviceSyncPhase.Importing -> "正在导入声声不息"
         DeviceSyncPhase.Completed -> "离线录音检查完成"
         DeviceSyncPhase.Paused -> "补传已暂停，进度已保留"
         DeviceSyncPhase.Failed -> "部分录音尚未完成，可再次检查"

@@ -5,6 +5,7 @@ import app.resound.diagnostics.FailureNotes
 import app.resound.net.AudioUpload
 import app.resound.net.androidNetwork
 import app.resound.net.customRecognize
+import app.resound.net.qwenRecognize
 import app.resound.net.defaultAndroidHttp
 
 import android.content.Context
@@ -14,13 +15,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
-/** 自定义服务通过共用网络层发送 OpenAI 兼容的 multipart 请求。 */
+/** 自定义服务共用长超时客户端，按接口发送 OpenAI multipart 或千问 JSON。 */
 class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }) : AsrProvider {
     override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult = withContext(Dispatchers.IO) {
+        val api = settings.customApi.value
+        val speakerFormat = settings.customSpeakerFormat.value
+        val attachPrompt = settings.customPrompt.value
+        val headers = settings.headers(TranscribeSource.Custom.name)
         val endpoint = settings.customEndpoint
         val model = settings.customModel
         val mode = settings.customEndpointMode
-        val urls = runCatching { transcriptionEndpoints(endpoint, mode) }.onFailure {
+        val urls = runCatching { if (api == CustomAsrApi.Qwen) listOf(fullEndpoint(endpoint)) else transcriptionEndpoints(endpoint, mode) }.onFailure {
             FailureNotes.record("transcribe/ConfiguredAsrProvider.kt:19", it)
         }.getOrElse { throw AsrException(AsrError.Protocol) }
         // 议题 #46：慢速链路（如约 7 KB/s 的中继）上传一段录音要几十秒，中途偶尔卡住；
@@ -39,15 +44,23 @@ class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private
                     }
                 }
             }
-            val prompt = if(settings.customEndpointMode == CustomEndpointMode.Auto || settings.customPrompt.value) Hotwords.customPrompt(hotwords()) else null
-            customRecognize(network,urls,key,settings.headers(TranscribeSource.Custom.name),upload,audio.durationMillis,model,prompt,java.util.UUID.randomUUID().toString(),beforeAudio, audio.separateSpeakers, settings.customFormats(endpoint, model, mode))
+            if (api == CustomAsrApi.Qwen) {
+                qwenRecognize(network, urls.single(), key, headers, upload, audio.durationMillis, model,
+                    if (attachPrompt) hotwords() else emptyList(), beforeAudio, audio.separateSpeakers)
+            } else {
+                val prompt = if (mode == CustomEndpointMode.Auto || attachPrompt) Hotwords.customPrompt(hotwords()) else null
+                customRecognize(network, urls, key, headers, upload, audio.durationMillis, model, prompt,
+                    java.util.UUID.randomUUID().toString(), beforeAudio, audio.separateSpeakers,
+                    settings.customFormats(endpoint, model, mode), speakerFormat)
+            }
         } catch(e:kotlinx.coroutines.CancellationException){throw e}
         catch(e:AsrException){throw e}
         catch(e:java.io.IOException){throw AsrException(AsrError.Network,detail=modelServiceError(endpoint,e,AsrError.Network.human))}
     }
 }
 class ConfiguredAsrProvider(context:Context,private val settings:AndroidTranscribeSettings, private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
-    private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords, headers = { settings.headers(TranscribeSource.Doubao.name) })
+    private val doubao=DoubaoAsrProvider(AsrAudioReader(context.cacheDir), hotwords = hotwords, headers = { settings.headers(TranscribeSource.Doubao.name) },
+        plan = { settings.doubaoPlan.value })
     private val local=LocalAsrProvider(context,settings,hotwords)
     private val custom=CustomAsrProvider(settings, hotwords)
     override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult = recognize(settings.source.value, audio, key, beforeAudio)

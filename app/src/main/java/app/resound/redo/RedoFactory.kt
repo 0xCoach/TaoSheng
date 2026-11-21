@@ -42,6 +42,7 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
                     db.transcribe().reserveAudio(LocalDate.now().toString(), sent, segment.id)
                 }
             }
+            withContext(NonCancellable) { db.transcribe().recordTokens(LocalDate.now().toString(), result.inputTokens, result.outputTokens) }
             outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
             log = TranscribePolicy.safeLogId(result.logId, key)
             chooser.record(source, segment.endAt - segment.startAt, System.currentTimeMillis() - began)
@@ -60,8 +61,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
             digestSettings.skillCredentials(presetId)
         }
+        val recordings = db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct())
         val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation,
-            db.transcribe().playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis }, db.marks()::overlapping)
+            recordings.associate { it.id to it.playbackMillis }, db.marks()::overlapping, recordings)
         val (text, indexed) = contextPrompt.transcript(lines, unseparated = db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet())
         val input = DigestPrompt.withTodoContext(DigestPrompt.withHotwords(text, hotwords()), db.memory().unfinishedForDigest(), db.memory().ignoredForDigest(System
             .currentTimeMillis() - 60L * 86_400_000))
@@ -70,8 +72,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
         val (events, items) = DigestPrompt.parse(reply.content, indexed, diagnostics = reply.diagnostics)
         val at = System.currentTimeMillis()
-        RedoDigest(events.map { e -> MemoryEventEntity(startAt = e.startAt, endAt = e.endAt,
-            scene = if (db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
+        RedoDigest(events.mapIndexed { eventIndex, e -> MemoryEventEntity(startAt = e.startAt, endAt = e.endAt,
+            scene = if (items.none { it.eventIndex == eventIndex && it.category in setOf("待办", "约定") } && db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
             pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(), place = e.place,
             emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = reply.actualModel ?: preset.model) to e.lineIds },
             { ids -> items.map { i ->
@@ -110,10 +112,10 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         oldCards.groupBy { it.skillId to it.date }.flatMap { (group, _) ->
             val skill = files.skills.value.find { it.id == group.first } ?: error("相关技能已删除，无法重新生成")
             val date = LocalDate.ofEpochDay(group.second)
-            val start = date.atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
-            val end = date.plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli()
+            val start = date.atStartOfDay(SKILL_ZONE(date)).toInstant().toEpochMilli()
+            val end = date.plusDays(1).atStartOfDay(SKILL_ZONE(date)).toInstant().toEpochMilli()
             val raw = lines.filter { it.startAt < end && it.endAt > start }
-            val gateLines = SkillInputs.gateLines(raw.map { it.snapshot() }, skill.scope.speakers)
+            val gateLines = SkillInputs.gateLines(raw.map { it.snapshot() }, skill.scope.speakers, events.map { it.first.snapshot() })
             val gateFailure = SkillGateRules.failure(skill.gate, gateLines)
             if (gateFailure != null) {
                 UpdateDiagnostics.record(context, "重做技能 ${skill.id}：$gateFailure")
@@ -133,7 +135,11 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
                 .id), date), SkillInputs.user(input, hotwords()))
             withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Skill) }
             val rows = SkillOutput.parse(reply.content, skill, date, input, System.currentTimeMillis(), false).rows
-            val accepted = rows.filter { SkillGateRules.cardFailure(skill.gate, gateLines, it.at, it.endAt) == null }
+            val timed = rows.map { row ->
+                if (skill.gate == null) row else app.resound.skills.core.SkillCardTiming.complete(
+                    row.snapshot(), raw.map { it.snapshot() }, events.map { it.first.snapshot() }).android()
+            }
+            val accepted = timed.filter { SkillGateRules.cardFailure(skill.gate, gateLines, it.at, it.endAt) == null }
             if (accepted.size < rows.size) UpdateDiagnostics.record(context,
                 "重做技能 ${skill.id}：门槛复核丢弃 ${rows.size - accepted.size} 张")
             accepted.take(skill.maxCardsPerDay)

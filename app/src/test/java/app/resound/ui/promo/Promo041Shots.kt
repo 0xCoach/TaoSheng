@@ -90,7 +90,7 @@ class Promo041Shots {
         val c = Rs.colors
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
-                Text("今天 · 星期一", style = RsType.subhead, color = c.textSecondary)
+                Text("今天 · 星期" + listOf("一", "二", "三", "四", "五", "六", "日")[today.dayOfWeek.value - 1], style = RsType.subhead, color = c.textSecondary)
                 Text("${today.monthValue}月${today.dayOfMonth}日", style = RsType.largeTitle, color = c.text)
             }
             SearchButton {}; Spacer(Modifier.width(8.dp)); ThemeModePill(if (dark) ThemeMode.Dark else ThemeMode.Light) {}

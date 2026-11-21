@@ -180,7 +180,7 @@ class ScreenTimeQueriesTest {
         // 拉取器与查询用同一授权判据（生产装配传同一实现）：QSource(permitted=false) 走拉取器，queries 的 permitted=false 出缺口。
         val result = Env(on = true).queries(QSource(permitted = false), dao, permitted = false).sessions(f, T)
         assertEquals(listOf(NamedAppSession("com.a", "com.a", f, f + 60_000)), result.sessions)
-        assertEquals(listOf(CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, f, T, "设置 → 使用情况访问 → 涛声 开启")), result.gaps)
+        assertEquals(listOf(CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, f, T, "设置 → 使用情况访问 → 声声不息 开启")), result.gaps)
     }
 
     /** 必测 4：拉取 Failed → 返回已落库数据，并带 pull_failed（区间 [coveredUntil, 此刻) 与查询区间的交集）。 */
@@ -213,7 +213,7 @@ class ScreenTimeQueriesTest {
         assertTrue(result.sessions.isEmpty())
         assertEquals(listOf(
             CoverageGap(GapCode.DISABLED, SCREEN_SOURCE, covered, f + 30 * 60_000, "屏幕时间关闭期间未采集"),
-            CoverageGap(GapCode.COVERAGE_LAG, SCREEN_SOURCE, f, T, "打开涛声，等待下一次采集"),
+            CoverageGap(GapCode.COVERAGE_LAG, SCREEN_SOURCE, f, T, "打开声声不息，等待下一次采集"),
         ), result.gaps)
     }
 
@@ -242,8 +242,8 @@ class ScreenTimeQueriesTest {
         )
         assertEquals(
             listOf(
-                CoverageGap(GapCode.LISTENER_DISCONNECTED, PLAYBACK_SOURCE, f + 12 * 60_000, f + 20 * 60_000, "设置 → 通知使用权 → 涛声 重新开启"),
-                CoverageGap(GapCode.NOTIFICATION_ACCESS_MISSING, PLAYBACK_SOURCE, f + 10 * 60_000, T, "设置 → 通知使用权 → 涛声 开启"),
+                CoverageGap(GapCode.LISTENER_DISCONNECTED, PLAYBACK_SOURCE, f + 12 * 60_000, f + 20 * 60_000, "设置 → 通知使用权 → 声声不息 重新开启"),
+                CoverageGap(GapCode.NOTIFICATION_ACCESS_MISSING, PLAYBACK_SOURCE, f + 10 * 60_000, T, "设置 → 通知使用权 → 声声不息 开启"),
             ),
             result.gaps,
         )

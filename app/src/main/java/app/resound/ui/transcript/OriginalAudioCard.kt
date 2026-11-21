@@ -46,22 +46,25 @@ import kotlinx.coroutines.launch
 
 /** 状态卡里的一行：保留几天 · 重点是否长期保留 · 占用；点开在面板里改 */
 @Composable
-internal fun OriginalAudioRow(audio: OriginalAudio) {
+internal fun OriginalAudioRow(audio: OriginalAudio, first: Boolean = false) {
     val days by audio.retentionDays.collectAsStateWithLifecycle()
     val keepStarred by audio.keepStarred.collectAsStateWithLifecycle()
     val usage by audio.usage().collectAsStateWithLifecycle(initialValue = null)
     var open by remember { mutableStateOf(false) }
-    SettingLine("原声", "保留 $days 天" + (if (keepStarred) " · 重点长期保留" else "") + (usage?.takeIf { it.bytes > 0 }?.let { " · 占用 ${formatBytes(it.bytes)}" } ?: "")) { open = true }
+    val keep by audio.keepStatus.collectAsStateWithLifecycle()
+    SettingLine("原声", first = first, value = "保留 $days 天" + (if (keep.protecting) " · 长期保留中" else "") + (if (keepStarred) " · 重点长期保留" else "") + (usage?.takeIf { it.bytes > 0 }?.let { " · 占用 ${formatBytes(it.bytes)}" } ?: "")) { open = true }
     if (open) RsSheet("原声", usage?.let(::usageLine), onDismiss = { open = false }) { OriginalAudioSettings(audio) }
 }
 
 /** 一行设置：左边固定宽的灰色小标签，右边内容，最后 ›；上方一条细分隔线 */
 @Composable
-internal fun SettingLine(label: String, value: String, onClick: () -> Unit) {
+internal fun SettingLine(label: String, value: String, first: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
-    Spacer(Modifier.height(12.dp))
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
-    Row(Modifier.fillMaxWidth().springClick(onClick).padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    if (!first) {
+        Spacer(Modifier.height(12.dp))
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
+    }
+    Row(Modifier.fillMaxWidth().springClick(onClick).padding(top = if (first) 4.dp else 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary, modifier = Modifier.width(64.dp))
         Text(value, style = RsType.subhead, color = c.textSecondary, maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -119,6 +122,7 @@ private fun OriginalAudioSettings(audio: OriginalAudio) {
         Spacer(Modifier.width(12.dp))
         Toggle(keepStarred) { audio.setKeepStarred(it) }
     }
+    KeepSection(audio)
     ActionButton("清除原声", ActionKind.Danger) { clearing = true }
     shorten?.let { (d, trim) ->
         RsSheet("改成保留 $d 天？", if (trim.bytes > 0) "超过 $d 天的原声会删掉，约 ${formatBytes(trim.bytes)}" else "目前没有超过 $d 天的原声", onDismiss = { shorten = null }) {
@@ -162,7 +166,12 @@ private fun ClearSheet(audio: OriginalAudio, onDismiss: () -> Unit) {
             Toggle(includeStarred) { includeStarred = it }
         }
         if ((p?.keptPending ?: 0) > 0) Text("还有 ${p!!.keptPending} 段等待转写，暂不删除", style = RsType.caption, color = c.textSecondary)
-        ActionButton(if (busy) "正在清除…" else "清除", ActionKind.Danger, enabled = !busy && (p?.bytes ?: 0) > 0) {
+        // 卡 214：其中有还没推上去的，要再确认一次
+        val unpushed = p?.unpushed ?: 0
+        var armed by remember(p) { mutableStateOf(false) }
+        if (unpushed > 0) Text("其中 $unpushed 段还没推上去，删了就找不回来", style = RsType.subhead, color = c.critical)
+        ActionButton(if (busy) "正在清除…" else if (unpushed > 0 && !armed) "清除" else if (unpushed > 0) "仍然清除" else "清除", ActionKind.Danger, enabled = !busy && (p?.bytes ?: 0) > 0) {
+            if (unpushed > 0 && !armed) { armed = true; return@ActionButton }
             busy = true
             scope.launch {
                 LinePlayer.stop()
@@ -192,6 +201,45 @@ internal fun AddHotwordSheet(text: String, onDismiss: () -> Unit) {
             hotwords.setWords(hotwords.words.value + w)
             LinePlayer.notice = "已加入热词：$w"
             onDismiss()
+        }
+    }
+}
+
+/** 卡 214：长期保留（推录音）的状态；没推上去的到期录音被扣着时，可以“不等了，直接删” */
+@Composable
+private fun KeepSection(audio: OriginalAudio) {
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    val keep by audio.keepStatus.collectAsStateWithLifecycle()
+    val held by audio.heldSummary.collectAsStateWithLifecycle()
+    if (!keep.protecting && held.segments == 0) {
+        Text("想长期留着录音：在“推送通道”里加一个网盘或手机文件夹通道，打开推录音。", style = RsType.caption, color = c.textTertiary)
+        return
+    }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.fill).padding(14.dp)) {
+        Text("长期保留", style = RsType.body, color = c.text)
+        Text(if (keep.protecting) "推到 ${keep.channels.joinToString("、")}；没推上去的录音到期也不删" else "推录音已关，录音按天数正常删除",
+            style = RsType.caption, color = c.textSecondary)
+        if (held.segments > 0) {
+            Spacer(Modifier.height(8.dp))
+            Text("有 ${held.segments} 段（${held.days} 天）还没推上去，先留在手机里，占 ${formatBytes(held.bytes)}" +
+                (held.oldestDay?.let { "，最早 $it" } ?: ""), style = RsType.subhead, color = if (held.remind) c.warning else c.text)
+            var armed by remember { mutableStateOf(false) }
+            var busy by remember { mutableStateOf(false) }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                app.resound.ui.verify.Pill("去看看", filled = false) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Push) }
+                app.resound.ui.verify.Pill(if (busy) "正在删除…" else if (armed) "删了找不回来，再点一次" else "不等了，直接删", filled = armed) {
+                    if (busy) return@Pill
+                    if (!armed) { armed = true; scope.launch { kotlinx.coroutines.delay(3_000); armed = false }; return@Pill }
+                    busy = true
+                    scope.launch {
+                        val r = runCatching { audio.releaseHeld() }.getOrNull()
+                        LinePlayer.notice = r?.let { "已删除 ${it.segments} 段，${formatBytes(it.bytes)}" } ?: "删除失败，请稍后再试"
+                        busy = false; armed = false
+                    }
+                }
+            }
         }
     }
 }

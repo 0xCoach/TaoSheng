@@ -32,16 +32,23 @@ internal class RecordingUploadState(private val file: File) {
         val rolling = s.rangeDays?.let { today.minusDays(it - 1L) }
         return listOfNotNull(first, rolling).maxOrNull()
     }
+    val tombstones = json.optJSONObject("tombstones") ?: JSONObject().also { json.put("tombstones", it) }
+    val dailyHash = json.optJSONObject("dailyHash") ?: JSONObject().also { json.put("dailyHash", it) }
+    val dirtyDays = json.optJSONObject("dirtyDays") ?: JSONObject().also { json.put("dirtyDays", it) }
+    fun uploaded(id: Long): Boolean = records.optJSONObject(id.toString())?.let {
+        RecordingKeepRules.verified(it.optBoolean("audio"), if (it.has("verified")) it.optInt("verified") else null)
+    } == true
+    fun successful() = records.keys().asSequence().mapNotNull { it.toLongOrNull() }.filter(::uploaded).toSet()
     fun candidates(rows: List<RecordingSource>, s: PushSubscription, today: LocalDate): List<RecordingSource> {
         if (s.audio == AudioPush.Off) return emptyList()
         val from = since(s, today)
-        return rows.filter { (from == null || it.day >= from) && it.day <= today &&
-            !(s.excludeMedia && it.excluded) && (s.audio != AudioPush.Speech || it.speech) }
+        return rows.filter { !tombstones.has(it.id.toString()) &&
+            RecordingKeepRules.eligible(it.keep(), s, from?.toString(), today.toString()) }
     }
     fun pending(row: RecordingSource, s: PushSubscription): Boolean {
         val r = records.optJSONObject(row.id.toString())
-        return (r?.optBoolean("audio") != true && row.file.isFile) ||
-            (r?.optBoolean("audio") == true && s.audioWithText && row.completed && r.optString("textHash") != sha256(row.text))
+        return (!uploaded(row.id) && row.file.isFile) ||
+            (uploaded(row.id) && RecordingKeepRules.perSegment(s) && row.completed && r.optString("textHash") != sha256(row.text))
     }
     fun status(rows: List<RecordingSource>, s: PushSubscription, now: Long): AudioPushStatus {
         if (s.audio == AudioPush.Off) return AudioPushStatus(0, 0, 0, null, null, null)
@@ -49,7 +56,7 @@ internal class RecordingUploadState(private val file: File) {
         val daily = json.optJSONObject("daily") ?: JSONObject()
         val monthBytes = daily.keys().asSequence().filter { it.startsWith(today.toString().take(7)) }.sumOf { daily.getLong(it) }
         val weekBytes = (0L..6L).sumOf { daily.optLong(today.minusDays(it).toString()) }
-        return AudioPushStatus(records.keys().asSequence().count { records.getJSONObject(it).optBoolean("audio") },
+        return AudioPushStatus(successful().size,
             candidates(rows, s, today).count { pending(it, s) }, monthBytes, (weekBytes * 30.0 / 7).toLong(),
             json.optLong("lastAt").takeIf { it > 0 }, json.optString("error").takeIf { it.isNotBlank() })
     }
@@ -61,9 +68,9 @@ internal class RecordingUploadState(private val file: File) {
     fun path(row: RecordingSource): JSONObject {
         records.optJSONObject(row.id.toString())?.let { return it }
         val used = records.keys().asSequence().map { records.getJSONObject(it).getString("path") }.toSet()
-        val base = "录音/${row.day}/${row.stem}"; var path = "$base.ogg"; var n = 2
-        while (path in used) path = "$base ${n++}.ogg"
-        return JSONObject().put("path", path).also { records.put(row.id.toString(), it); save() }
+        val base = "录音/${row.day}/${row.stem}"; val ext = row.file.extension.lowercase(); var path = "$base.$ext"; var n = 2
+        while (path in used) path = "$base ${n++}.$ext"
+        return JSONObject().put("path", path).put("day", row.day.toString()).also { records.put(row.id.toString(), it); save() }
     }
 }
 
@@ -81,6 +88,9 @@ internal object RecordingUploadErrors {
 internal interface RecordingRemote {
     suspend fun audio(path: String, file: File)
     suspend fun text(path: String, content: String)
+    /** 仅文件确认不存在时返回 null；权限、网络及缺失长度必须抛错。 */
+    suspend fun size(path: String): Long?
+    suspend fun delete(path: String) { error("删除未实现") }
 }
 internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = OkHttpClient()) : RecordingRemote {
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
@@ -94,15 +104,21 @@ internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = 
         parts.forEach { addPathSegment(it) }
     }.build()
     @OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
-    private suspend fun execute(request: Request, allowed: Set<Int> = emptySet()) {
+    private suspend fun execute(request: Request, allowed: Set<Int> = emptySet()): String? {
+        var body = ""
         currentCoroutineContext().ensureActive()
         val call = client.newCall(request)
         // 网络阻塞在 IO 上；取消协程时立即关闭请求。
         val handle = currentCoroutineContext().job.invokeOnCompletion(onCancelling = true, invokeImmediately = true) { if (it != null) call.cancel() }
         try { call.execute().use { response ->
             if (!response.isSuccessful && response.code !in allowed) throw PushFailure(RecordingUploadErrors.status(response.code, response.peekBody(8192).string()))
+            if (request.method in setOf("MOVE", "DELETE") && response.code !in setOf(200, 201, 204, 404))
+                throw PushFailure("远端文件操作尚未确认完成，稍后自动重试")
+            if (request.method == "PROPFIND" && response.code == 404) return null
+            if (request.method == "PROPFIND") body = response.peekBody(65536).string()
         } } finally { handle.dispose() }
         currentCoroutineContext().ensureActive()
+        return body
     }
     private suspend fun put(path: String, body: RequestBody) {
         val parts = folder + path.split('/')
@@ -113,9 +129,40 @@ internal class RecordingDav(values: Map<String, String>, client: OkHttpClient = 
         }
         execute(Request.Builder().url(url(parts)).header("Authorization", auth).put(body).build())
     }
-    override suspend fun audio(path: String, file: File) = put(path, file.asRequestBody("audio/ogg".toMediaType()))
+    override suspend fun audio(path: String, file: File) {
+        val part = path.substringBeforeLast('/') + "/." + path.substringAfterLast('/') + ".part"
+        put(part, file.asRequestBody((if (file.extension == "m4a") "audio/mp4" else "audio/ogg").toMediaType()))
+        if (size(part) != file.length()) throw PushFailure("录音大小核对失败，稍后自动重试")
+        execute(Request.Builder().url(url(folder + part.split('/'))).header("Authorization", auth)
+            .header("Destination", url(folder + path.split('/')).toString()).header("Overwrite", "T").method("MOVE", null).build())
+    }
+    override suspend fun size(path: String): Long? {
+        val xml = execute(Request.Builder().url(url(folder + path.split('/'))).header("Authorization", auth).header("Depth", "0")
+            .method("PROPFIND", "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:getcontentlength/></d:prop></d:propfind>".toRequestBody("application/xml".toMediaType())).build(), setOf(404)) ?: return null
+        return davLength(xml) ?: throw PushFailure("远端未返回文件大小，稍后自动重试")
+    }
+    override suspend fun delete(path: String) {
+        execute(Request.Builder().url(url(folder + path.split('/'))).header("Authorization", auth).delete().build(), setOf(404))
+    }
     override suspend fun text(path: String, content: String) = put(path, content.toRequestBody("text/plain; charset=utf-8".toMediaType()))
 }
+internal fun davLength(xml: String): Long? {
+    val parser = org.xmlpull.v1.XmlPullParserFactory.newInstance().apply { isNamespaceAware = true }.newPullParser()
+    parser.setInput(xml.reader())
+    var length: Long? = null; var status: String? = null
+    while (parser.eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+        if (parser.eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.namespace == "DAV:") when (parser.name) {
+            "propstat" -> { length = null; status = null }
+            "getcontentlength" -> length = parser.nextText().trim().toLongOrNull()
+            "status" -> status = parser.nextText()
+        }
+        if (parser.eventType == org.xmlpull.v1.XmlPullParser.END_TAG && parser.name == "propstat" &&
+            status?.split(' ')?.getOrNull(1) == "200" && length != null && length >= 0) return length
+        parser.next()
+    }
+    return null
+}
+
 internal class RecordingUploader(private val state: RecordingUploadState, private val remote: RecordingRemote) {
     suspend fun run(rows: List<RecordingSource>, s: PushSubscription, now: Long, allowed: () -> Boolean = { true }): Int {
         val today = Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -125,16 +172,40 @@ internal class RecordingUploader(private val state: RecordingUploadState, privat
                 currentCoroutineContext().ensureActive()
                 if (!allowed()) break
                 val record = state.path(row); val path = record.getString("path")
-                if (!record.optBoolean("audio")) {
+                if (!state.uploaded(row.id)) {
                     if (!row.file.isFile) continue
                     val bytes = row.file.length()
+                    record.put("temporary", RecordingPrivacyRules.partPath(path)); state.save()
                     remote.audio(path, row.file)
-                    record.put("audio", true); state.account(bytes, now); state.save(); uploaded++
+                    record.remove("temporary")
+                    record.put("audio", true).put("verified", 1).put("bytes", bytes); state.account(bytes, now); state.save(); uploaded++
                 }
-                if (s.audioWithText && row.completed && record.optString("textHash") != sha256(row.text)) {
+                if (RecordingKeepRules.perSegment(s) && row.completed && record.optString("textHash") != sha256(row.text)) {
                     if (!allowed()) break
-                    remote.text(path.removeSuffix(".ogg") + ".txt", row.text)
+                    val textPath = RecordingPrivacyRules.textPath(path)
+                    record.put("temporary", RecordingPrivacyRules.partPath(textPath)); state.save()
+                    remote.text(textPath, row.text)
+                    record.remove("temporary")
                     record.put("textHash", sha256(row.text)); state.account(row.text.toByteArray().size.toLong(), now); state.save()
+                }
+            }
+            if (RecordingKeepRules.daily(s)) {
+                val documents = RecordingDailyRules.documents(rows.filterNot { state.tombstones.has(it.id.toString()) }.map {
+                    DailyRecording(it.keep(), state.records.optJSONObject(it.id.toString())?.optString("path")?.substringAfterLast('/') ?: "${it.stem}.${it.file.extension}", it.completed, it.dailyLines)
+                }, s, today.toString(), state.candidates(rows, s, today).mapTo(mutableSetOf()) { it.id }, state.successful(),
+                    state.records.keys().asSequence().mapNotNull { it.toLongOrNull() }.toSet(),
+                    state.dailyHash.keys().asSequence().toSet(), state.dirtyDays.keys().asSequence().toSet())
+                for ((day, content) in documents) {
+                    currentCoroutineContext().ensureActive()
+                    if (!allowed()) break
+                    val hash = sha256(content)
+                    if (state.dailyHash.optString(day) != hash || state.dirtyDays.has(day)) {
+                        // 写前登记：服务器收到了但进程未记成功，也必须能在隐私删除时找到这一天。
+                        state.dirtyDays.put(day, true); state.save()
+                        remote.text(RecordingKeepRules.dailyPath(day), content)
+                        state.dailyHash.put(day, hash); state.dirtyDays.remove(day)
+                        state.account(content.toByteArray().size.toLong(), now); state.save()
+                    }
                 }
             }
             state.json.remove("error"); state.save()

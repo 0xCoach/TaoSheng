@@ -5,6 +5,10 @@ import app.resound.AppGraph
 import app.resound.review.DailyReview
 import app.resound.skills.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import java.time.DayOfWeek
 
 /** 仅在显示/导出阶段附加，不写事件摘要、不进入整理或回顾提示词。 */
@@ -23,8 +27,8 @@ object EnvSoundPresentation {
         if(!AppGraph.isEnvSoundReady) return card
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return card
         if(!repo.settings.value.showInSummaries) return card
-        val start = if(card.skillId == "weekly") card.date.toJavaLocalDate().with(DayOfWeek.MONDAY).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.at
-        val end = if(card.skillId == "weekly") card.date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE).toInstant().toEpochMilli() else card.endAt ?: return card
+        val start = if(card.skillId == "weekly") card.date.toJavaLocalDate().with(DayOfWeek.MONDAY).atStartOfDay(SKILL_ZONE(card.date.toJavaLocalDate())).toInstant().toEpochMilli() else card.at
+        val end = if(card.skillId == "weekly") card.date.toJavaLocalDate().plusDays(1).atStartOfDay(SKILL_ZONE(card.date.toJavaLocalDate())).toInstant().toEpochMilli() else card.endAt ?: return card
         val (metadata, sounds) = repo.presentationSnapshot(start, end)
         val events = metadata.filter { it.createdAt <= card.generatedAt }.sortedBy { it.startAt }
         if (card.skillId == "weekly") return weekly(card, events.mapNotNull { sounds[it.id] })
@@ -50,7 +54,23 @@ object EnvSoundPresentation {
         if(eventId == null || !AppGraph.isEnvSoundReady) return ""
         val repo = AppGraph.envSound as? LocalEnvSoundRepository ?: return ""
         if(!repo.settings.value.showInSummaries) return ""
+        currentCoroutineContext()[Prefetch]?.lines?.get(eventId)?.let { return it }
         return repo.eventSound(eventId)?.let(::line).orEmpty()
+    }
+    /** 批量生成（推送记忆文件夹等）时预先查好的环境声音行；不在范围内的事件仍退回逐件查。 */
+    private class Prefetch(val lines: Map<Long, String>) : AbstractCoroutineContextElement(Prefetch) {
+        companion object Key : CoroutineContext.Key<Prefetch>
+    }
+    /**
+     * 把 [start]..[end] 内所有事件的环境声音一次查出（两条查询），再执行 [block]。
+     * 推送每次重建记忆文件夹，旧做法每件事单独查两次库，几千件事就是几千条查询、每分钟一轮。
+     */
+    suspend fun <T> prefetched(start: Long?, end: Long?, block: suspend () -> T): T {
+        val repo = if (AppGraph.isEnvSoundReady) AppGraph.envSound as? LocalEnvSoundRepository else null
+        if (repo == null || start == null || end == null || !repo.settings.value.showInSummaries) return block()
+        val (events, sounds) = repo.presentationSnapshot(start, end)
+        val lines = events.associate { it.id to (sounds[it.id]?.let(::line).orEmpty()) }
+        return withContext(Prefetch(lines)) { block() }
     }
     private fun line(value: EventSounds): String = listOfNotNull(value.tags.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="环境：") { it.title },
             value.sounds.takeIf { it.isNotEmpty() }?.joinToString("、", prefix="期间有") { if(it == SpecialSound.Knock) "敲门声" else it.title }).joinToString("；")

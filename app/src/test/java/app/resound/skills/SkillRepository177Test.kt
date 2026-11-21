@@ -22,6 +22,8 @@ import java.time.LocalDate
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class SkillRepository177Test {
+ @org.junit.Before fun zone200Fixture() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "Asia/Shanghai") } }
+ @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), kotlinx.datetime.TimeZone.currentSystemDefault().id) } }
     @Test fun queryStatusAndSettingsMatchOldRepository() = runBlocking {
         val context: Context = RuntimeEnvironment.getApplication()
         val root = File(context.cacheDir, "skills177").apply { deleteRecursively(); mkdirs() }
@@ -31,7 +33,7 @@ class SkillRepository177Test {
         val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val date = LocalDate.parse("2026-11-01")
-        val now = date.atTime(22, 0).atZone(SKILL_ZONE).toInstant().toEpochMilli()
+        val now = date.atTime(22, 0).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
         val output = mutableListOf<String>()
         try {
             val r = LocalSkillRepository(files, db.skills(), db.memory(), scope,

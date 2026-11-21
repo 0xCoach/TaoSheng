@@ -153,7 +153,15 @@ fun AsrUsageRow(repo: UsageRepository) {
     val monthMs = rows.sumOf { it.cloudMillis }
     if (monthMs <= 0) return
     // money() 自带“约”；一行放得下：分钟写成“分”
-    val cost = price.asrPerHour?.let { " · ${money(monthMs / 3_600_000.0 * it)}" } ?: ""
+    // #52：用 Agent Plan 时不按单价估算，费用以方舟控制台为准
+    val plan = (app.resound.AppGraph.transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings)?.doubaoPlan?.collectAsStateWithLifecycle()?.value == true
+    // 卡 212：按 token 计费的服务（千问）只显示 token，不按每小时单价估算
+    val monthTokens = rows.sumOf { it.inputTokens + it.outputTokens }
+    val cost = when {
+        monthTokens > 0 -> " · ${tokensText(monthTokens)} token"
+        plan -> " · 套餐内"
+        else -> price.asrPerHour?.let { " · ${money(monthMs / 3_600_000.0 * it)}" } ?: ""
+    }
     app.resound.ui.transcript.SettingLine("云端转写", "今天 ${minutes(todayMs)} 分 · 近 30 天 ${minutes(monthMs)} 分$cost") { open = true }
     if (open) app.resound.ui.verify.RsSheet("云端转写用量", "用本地转写不花钱，不计入这里", onDismiss = { open = false }) { AsrUsageCard(repo) }
 }
@@ -181,6 +189,14 @@ fun AsrUsageCard(repo: UsageRepository) {
                 Text("${minutes(monthMs)} 分钟", style = RsType.headline, color = c.text)
                 Text("近 30 天", style = RsType.caption, color = c.textTertiary)
             }
+        }
+        val input = rows.sumOf { it.inputTokens }
+        val output = rows.sumOf { it.outputTokens }
+        if (input + output > 0) {
+            val todayTokens = rows.filter { it.date.toJavaLocalDate() == today }.sumOf { it.inputTokens + it.outputTokens }
+            Text("按 token 计费的服务：今天 ${tokensText(todayTokens)} · 近 30 天 ${tokensText(input + output)} token",
+                style = RsType.subhead, color = c.text, modifier = Modifier.padding(top = 8.dp))
+            Text("输入 ${tokensText(input)} · 输出 ${tokensText(output)}，费用以服务商控制台为准", style = RsType.caption, color = c.textTertiary)
         }
         val perHour = price.asrPerHour
         Text(perHour?.let { "近 30 天花费 ${money(monthMs / 3_600_000.0 * it)}" } ?: "设置单价后显示估算花费 ›", style = RsType.subhead,

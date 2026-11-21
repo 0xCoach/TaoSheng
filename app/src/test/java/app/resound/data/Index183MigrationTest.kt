@@ -65,6 +65,9 @@ class Index183MigrationTest {
                 row.toMutableList().also { it[3] = "<variant-tolerated>" }
             row[0] == "table" && row[1] in defaultDivergentTables ->
                 row.toMutableList().also { it[3] = it[3]?.replace(Regex(" DEFAULT (0|1|'')"), "") }
+            // segments 两个新列由不同版本迁移追加，sqlite_master 文本序与新装声明序不同；列名/类型一致，归一化后比较。
+            row[0] == "table" && row[1] == "segments" ->
+                row.toMutableList().also { it[3] = it[3]?.replace("speakerIntervals TEXT, playbackDigest INTEGER NOT NULL DEFAULT 0", "playbackDigest INTEGER NOT NULL DEFAULT 0, speakerIntervals TEXT") }
             else -> row
         }
     }

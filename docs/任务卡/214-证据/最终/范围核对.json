@@ -1,0 +1,19 @@
+{
+  "baseline": "15c4acc7",
+  "branch": "codex/214-keep-recordings",
+  "protectedPaths": [
+    "app/src/main/java/app/resound/ui",
+    "app/src/main/java/app/resound/MainActivity.kt",
+    "shared/schemas",
+    "app/schemas",
+    "shared/src/commonMain/kotlin/app/resound/data",
+    "app/src/main/java/app/resound/data",
+    "app/build.gradle.kts",
+    "shared/build.gradle.kts",
+    "devices/build.gradle.kts"
+  ],
+  "changedProtectedPaths": [],
+  "deviceOperations": false,
+  "realServiceRequests": false,
+  "pushed": false
+}

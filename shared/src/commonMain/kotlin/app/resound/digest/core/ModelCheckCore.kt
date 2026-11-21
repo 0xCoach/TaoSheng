@@ -14,6 +14,8 @@ private fun human(type: LlmError): String = when(type) {
     LlmError.RateLimit -> "请求太频繁，请稍后再试"
     LlmError.Network -> "网络连接失败，等待重试"
     LlmError.Server -> "大模型服务暂时不可用，等待重试"
+    LlmError.TooSlow -> "模型响应超时，稍后重试"
+    LlmError.Truncated -> "模型输出未完成"
     LlmError.Format -> "大模型返回的格式不对"
 }
 /**

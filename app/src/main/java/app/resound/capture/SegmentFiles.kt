@@ -3,6 +3,8 @@ package app.resound.capture
 import app.resound.diagnostics.FailureNotes
 
 import app.resound.AppGraph
+import app.resound.transcribe.*
+import kotlinx.serialization.json.Json
 
 import android.content.Context
 import app.resound.audio.SegmentEncoder
@@ -21,7 +23,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /** 先持久化完整 PCM 到队列，再串行编码；进程死亡后重试已经完成的片段。 */
-class SegmentFiles(private val context: Context, private val dao: CaptureDao, scope: CoroutineScope) {
+class SegmentFiles(private val context: Context, private val dao: CaptureDao, scope: CoroutineScope,
+    private val settings: PlaybackSettings = playbackSettings(context.getSharedPreferences("transcribe", 0)),
+    private val rows: suspend (Long, Long) -> List<app.resound.screentime.DevicePlayback> = { _, _ -> emptyList() },
+    private val remembered: (Long) -> Boolean = { false },
+) {
     /** 存好一段待转写录音后调用（录完就转）；由 ResoundApp 装配，失败不影响保存 */
     @Volatile var onSaved: (suspend () -> Unit)? = null
     private val spool = File(context.filesDir, "segment-spool").apply { mkdirs() }
@@ -106,12 +112,18 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         val file = listOf(File(base.path + ".ogg"), File(base.path + ".m4a")).firstOrNull { it.exists() && it.length() > 0 }
             ?: SegmentEncoder.encode(pcm, base)
         val metadata = File(spool, pcm.nameWithoutExtension + ".playback")
-        val (rawMillis, skipEnabled, includeDigest) = metadata.takeIf { it.exists() }?.readText()
-            ?.let { app.resound.transcribe.PlaybackDigestSettings.parseFile(it) } ?: Triple(0L, true, false)
-        val playbackMillis = rawMillis.coerceIn(0, end - start)
-        val skip = PlaybackPolicy.skip(end - start, playbackMillis, skipEnabled)
-        val playbackDigest = app.resound.transcribe.PlaybackDigestSettings.initial(end - start, playbackMillis, includeDigest)
+        val text = metadata.takeIf { it.exists() }?.readText().orEmpty()
+        val snapshot = if (text.startsWith("{")) Json.decodeFromString<PlaybackSnapshot>(text) else null
+        val decision = snapshot?.let {
+            decidePlayback(start, end, it.spans, if (it.spans.isEmpty()) emptyList() else rows(start, end), it.preferences)
+        }
+        // 升级前暂存的 PCM 按录音当时写下的决定恢复。
+        val (rawMillis, skipEnabled, includeDigest) = LegacyPlaybackFile.parseFile(text)
+        val playbackMillis = decision?.millis ?: rawMillis.coerceIn(0, end - start)
+        val skip = decision?.skip ?: PlaybackPolicy.skip(end - start, playbackMillis, skipEnabled)
+        val playbackDigest = decision?.digest ?: LegacyPlaybackFile.initial(end - start, playbackMillis, includeDigest)
         dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = readSourceId(pcm), path = file.absolutePath, sizeBytes = file.length(),
+            speakerIntervals = decision?.let { Json.encodeToString(it.intervals) },
             playbackMillis = playbackMillis, status = if (skip) "SkippedPlayback" else "Pending",
             completedAt = if (skip) end else null, playbackDigest = playbackDigest,
             separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
@@ -184,14 +196,21 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         private fun savePlayback() {
             val current = file ?: return
             val ms = playbackSamples * 1000 / CaptureTuning.SAMPLE_RATE
-            val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
-            val skipEnabled = prefs.getBoolean("skipPlayback", true)
-            val includeDigest = prefs.getBoolean(app.resound.transcribe.PlaybackDigestSettings.KEY, false)
+            val snapshot = PlaybackSnapshot(spans, settings.preferences.value)
             val target = android.util.AtomicFile(File(spool, current.nameWithoutExtension + ".playback"))
             val stream = target.startWrite()
-            try { stream.write(app.resound.transcribe.PlaybackDigestSettings.formatFile(ms, skipEnabled, includeDigest).toByteArray()); target.finishWrite(stream) }
+            try { stream.write(Json.encodeToString(snapshot).toByteArray()); target.finishWrite(stream) }
             catch (e: Exception) { target.failWrite(stream); throw e }
             savedMillis = ms
+        }
+        private val spans = mutableListOf<SpeakerInterval>()
+        override fun speakerRange(fromSample: Long, untilSample: Long) {
+            val from = epoch + fromSample * 1000 / CaptureTuning.SAMPLE_RATE
+            val until = epoch + untilSample * 1000 / CaptureTuning.SAMPLE_RATE
+            val keep = remembered(from)
+            val last = spans.lastOrNull()
+            if (last?.until == from && last.remembered == keep) spans[spans.lastIndex] = last.copy(until = until)
+            else spans += SpeakerInterval(from, until, keep)
         }
         override fun playback(samples: Long) {
             playbackSamples = samples
@@ -203,6 +222,7 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
             // 与暂存音频同寿命；进程重启后编码仍能恢复真实 sourceId。
             File(spool, file!!.nameWithoutExtension + ".source").writeText(sourceId)
             output = file!!.outputStream().buffered()
+            spans.clear()
             playbackSamples = 0; savedMillis = -1000
         }
         override fun write(samples: ShortArray) {

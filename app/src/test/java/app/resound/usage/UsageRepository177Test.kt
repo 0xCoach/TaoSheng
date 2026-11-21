@@ -28,7 +28,14 @@ class UsageRepository177Test {
         val asr = Channel<List<AsrUsageRow>>(Channel.UNLIMITED)
         val jobs = listOf(launch { repository.llm(from, to).collect { llm.send(it) } }, launch { repository.asr(from, to).collect { asr.send(it) } })
         val out = StringBuilder()
-        fun record(label: String, value: Any?) { out.appendLine("$label=$value") }
+        fun record(label: String, value: Any?) {
+            // 卡 212 新增 token 另有断言；这里继续逐字锁定原有日期/时长投影，不重录旧夹具。
+            val oldProjection = if (label.startsWith("asr.")) (value as List<*>).map { row ->
+                row as AsrUsageRow
+                "AsrUsageRow(date=${row.date}, cloudMillis=${row.cloudMillis})"
+            } else value
+            out.appendLine("$label=$oldProjection")
+        }
         try {
             record("llm.empty", withTimeout(5000) { llm.receive() }); record("asr.empty", withTimeout(5000) { asr.receive() })
             db.memory().addUsage("2026-11-01", 10, 2, UsagePurpose.Ask)

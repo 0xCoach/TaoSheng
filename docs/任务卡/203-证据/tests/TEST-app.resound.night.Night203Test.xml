@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.night.Night203Test" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-17T10:03:48.871Z" hostname="CoachdeMacBook-Air.local" time="0.047">
+  <properties/>
+  <testcase name="comparisonsRequireBothGroupsAndUseCautiousMedianText[jvm]" classname="app.resound.night.Night203Test" time="0.003"/>
+  <testcase name="evaluatePublicAudioSimulationWithProductionDetector[jvm]" classname="app.resound.night.Night203Test" time="0.017"/>
+  <testcase name="weekNeedsThreeFinishedNightsAndUsesIsoYear[jvm]" classname="app.resound.night.Night203Test" time="0.005"/>
+  <testcase name="suggestionsAreLocalAndDoNotCreateConfirmedTags[jvm]" classname="app.resound.night.Night203Test" time="0.0"/>
+  <testcase name="retrainingWaitsForChargingAndTenFeedbackOrAWeek[jvm]" classname="app.resound.night.Night203Test" time="0.001"/>
+  <testcase name="reminderNeedsThreeValidNightsAndThirtyDayCooldown[jvm]" classname="app.resound.night.Night203Test" time="0.0"/>
+  <testcase name="breaksRequireSilenceBurstRecoveryAndNoMissingAudio[jvm]" classname="app.resound.night.Night203Test" time="0.0"/>
+  <testcase name="personalModelLearnsOnlyWhenEvidenceAndValidationPermit[jvm]" classname="app.resound.night.Night203Test" time="0.016"/>
+  <testcase name="exportSelectsContinuousFifteenSecondsAndDoctorIncludesDisclaimer[jvm]" classname="app.resound.night.Night203Test" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

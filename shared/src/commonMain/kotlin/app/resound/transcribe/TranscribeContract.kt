@@ -53,6 +53,10 @@ data class TranscriptLine(
     val segmentId: Long = 0,
     /** 卡 048：这句来自语音输入（不是录音转写）时的来源和上下文；录音转写的为 null */
     val voiceInput: VoiceInputMeta? = null,
+    /** 卡 211：人工改过文字（显示“已修正”） */
+    val edited: Boolean = false,
+    /** 卡 211：整理进了哪件事；没整理为 null（改完提示“重新整理这件事”用） */
+    val eventId: Long? = null,
 )
 
 /** 卡 048：语音输入的来源与当时屏幕上的上下文 */
@@ -101,6 +105,10 @@ data class TranscribeQueueState(
 )
 
 interface TranscriptRepository {
+    /** 卡 211：人工修改一句原话的文字（视同一次只换原话的重新转写：事件不自动变）；成功返回 true */
+    suspend fun editLine(lineId: Long, text: String): Boolean = false
+    /** 卡 211：这些录音段里人工改过几句 */
+    suspend fun editedLineCount(segmentIds: List<Long>): Int = 0
     /** 某一天的全部录音段（按开始时间倒序），含转写状态和文字 */
     fun day(date: LocalDate): Flow<List<SegmentTranscript>>
 

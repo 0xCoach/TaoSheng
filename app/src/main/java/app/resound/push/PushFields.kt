@@ -44,6 +44,10 @@ internal object PushFields {
                 required("password")
             }
             PushKind.Notion -> { ascii(required("token")); databaseId(required("databaseId")) }
+            PushKind.LocalFolder -> {
+                val uri = android.net.Uri.parse(required("treeUri"))
+                if (uri.scheme != "content" || !android.provider.DocumentsContract.isTreeUri(uri)) throw PushFailure("文件夹不可用，请重新选择")
+            }
             PushKind.MarkdownFolder -> {
                 try {
                     if (values["cloudKind"] == "S3") CloudAddress.s3(s3FromJson(required("s3")))

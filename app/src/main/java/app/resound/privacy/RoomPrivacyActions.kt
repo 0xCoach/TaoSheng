@@ -34,6 +34,8 @@ class RoomPrivacyActions(
     private val scheduleCleanup: () -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
     private val archiveFiles: suspend (Long,Long,suspend (List<String>) -> ForgetResult) -> ForgetResult = { _,_,block -> block(emptyList()) },
+    private val onErased: suspend () -> Unit = {},
+    private val recordingPrivacy: suspend (List<Long>, suspend () -> ForgetResult) -> ForgetResult = { _, block -> block() },
 ) : PrivacyActions, SegmentDeleter {
     private val gate = Mutex()
     private val dao = db.privacy()
@@ -117,9 +119,11 @@ class RoomPrivacyActions(
         return voiceprintGuard {
             onStage(EventDeletionPhase.WaitingForDatabase)
             val files = mutableListOf<Pair<SegmentEntity, List<TranscriptLineEntity>>>()
-            val result = db.writeTransaction {
+            val nightSpeech = mutableListOf<Pair<Long, Long>>()
+            val selected = select()
+            val result = recordingPrivacy(selected.map { it.id }) { db.writeTransaction {
                 onStage(EventDeletionPhase.Records)
-                val segments = select()
+                val segments = selected
                 val explicitRange = explicitEvent?.let { db.memory().event(it) }?.let { it.startAt to it.endAt }
                 for (path in extraFiles.distinct()) dao.queueCleanup(PrivacyFileCleanup(path))
                 val events = mutableSetOf<Long>()
@@ -160,6 +164,11 @@ class RoomPrivacyActions(
                 val ranges = screenRange?.let { listOf(it) }
                     ?: segments.map { it.startAt to it.endAt }.distinct()
                 for ((from, until) in (ranges + listOfNotNull(explicitRange)).distinct()) {
+                    // 夜里记录（睡眠时间、鼾声、咳嗽）不随时间线删除；只有“全部清除”才清夜里。
+                    // 梦话的原话来自被删的录音，提交后按录音是否还在刷新（见下方 nightSpeech）。
+                    if (from == Long.MIN_VALUE && until == Long.MAX_VALUE && app.resound.AppGraph.isNightReady)
+                        (app.resound.AppGraph.night as? app.resound.night.AndroidNight)?.store?.eraseRange(from, until)
+                    else nightSpeech += from to until
                     db.marks().deleteRange(from, until)
                     db.marks().deleteLegacyRange(from, until)
                 }
@@ -186,15 +195,22 @@ class RoomPrivacyActions(
                     else db.screenTime().deleteUnreferencedNames()
                 }
                 ForgetResult(deletedSegments, lines, deletedEvents, items)
+            } }
+            if (nightSpeech.isNotEmpty() && app.resound.AppGraph.isNightReady) runCatching {
+                (app.resound.AppGraph.night as? app.resound.night.AndroidNight)?.store?.forgetSpeech(nightSpeech)
+            }.onFailure { FailureNotes.record("privacy/night-speech", it) }
+            try {
+                onErased()
+            } finally {
+                onStage(EventDeletionPhase.Files)
+                if (files.isNotEmpty() || extraFiles.isNotEmpty()) runCatching { scheduleCleanup() }.onFailure {
+                    FailureNotes.record("privacy/RoomPrivacyActions.kt:147", it)
+                }
+                for ((segment, lines) in files) {
+                    cleanup("声纹缓存删除失败") { removeFeatures(segment, lines) }
+                }
+                if (!retryFileCleanup()) throw FileCleanupPending()
             }
-            onStage(EventDeletionPhase.Files)
-            if (files.isNotEmpty() || extraFiles.isNotEmpty()) runCatching { scheduleCleanup() }.onFailure {
-                FailureNotes.record("privacy/RoomPrivacyActions.kt:147", it)
-            }
-            for ((segment, lines) in files) {
-                cleanup("声纹缓存删除失败") { removeFeatures(segment, lines) }
-            }
-            if (!retryFileCleanup()) throw FileCleanupPending()
             result
         }
     }

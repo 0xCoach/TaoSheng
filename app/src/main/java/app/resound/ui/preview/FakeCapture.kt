@@ -97,7 +97,7 @@ class FakeStatsRepository : CaptureStatsRepository {
         ).sortedByDescending { it.at },
     )
 
-    override suspend fun exportDiagnostics(): File = File.createTempFile("diag", ".txt")
+    override suspend fun exportDiagnostics(includeUpdate: Boolean): File = File.createTempFile("diag", ".txt")
 }
 
 class FakeSetupGuide : SetupGuide {

@@ -22,10 +22,10 @@ fun customTranscription(body: String, duration: Long, separateSpeakers: Boolean)
         fun speaker(key: String) = (row[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() && it != "null" }
         val raw = if (separateSpeakers) speaker("speaker") ?: speaker("speaker_id") else null
         val tag = raw?.let { speakers.getOrPut(it) { speakers.size.toString() } }
-        AsrSentence(start, end, text, tag)
+        AsrSentence(start, end, cleanCustomText(text), tag)
     }.sortedBy { it.startMillis }
     if (sentences.isNotEmpty()) return sentences
-    val text = customTranscriptionText(body)
+    val text = cleanCustomText(customTranscriptionText(body))
     return if (text.isBlank()) emptyList() else listOf(AsrSentence(0, duration, text, null))
 }
 private val speakerPrefix = Regex("^(?:\\[\\d+:\\d{2}\\]\\s*)?说话人\\d+\\s*[:：]\\s*")

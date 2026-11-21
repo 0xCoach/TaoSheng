@@ -185,7 +185,7 @@ internal class DeviceArchiveRepository(
         check(local.isFile && DeviceSourceCache.sha256(local) == record.archiveSha256)
         importArchive(record,local)
         update(id) { it.copy(imported = true) }
-        message(record.deviceIdentity,if(fromIndependentBackup) "已从独立备份完整读回并导入涛声；设备原件状态不变" else "本机完整归档已导入涛声；设备原件状态不变")
+        message(record.deviceIdentity,if(fromIndependentBackup) "已从独立备份完整读回并导入声声不息；设备原件状态不变" else "本机完整归档已导入声声不息；设备原件状态不变")
     } }
     /** Non-destructive same-source check using the user's current BLE / fast-transfer preference. */
     suspend fun verifyDeviceSource(id: String, connection: DriverConnection) = withContext(Dispatchers.IO) {

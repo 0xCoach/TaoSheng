@@ -130,6 +130,9 @@ abstract class MemoryDao {
     @Query("SELECT COUNT(*) FROM segments WHERE id IN (:ids) AND (separateSpeakers IS NULL OR separateSpeakers = 1 OR (importChannel IS NOT NULL AND (speakerCount IS NULL OR speakerCount != 0))) AND voiceprintProcessedAt IS NULL")
     abstract suspend fun voiceprintPending(ids: List<Long>): Int
 
+    @Query("SELECT id FROM segments WHERE id IN (:ids) AND (separateSpeakers IS NULL OR separateSpeakers = 1 OR (importChannel IS NOT NULL AND (speakerCount IS NULL OR speakerCount != 0))) AND voiceprintProcessedAt IS NULL")
+    abstract suspend fun voiceprintPendingIds(ids: List<Long>): List<Long>
+
     @Query("SELECT * FROM transcript_lines WHERE id IN (:ids) ORDER BY startAt, id")
     abstract suspend fun refreshLines(ids: List<Long>): List<TranscriptLineEntity>
 

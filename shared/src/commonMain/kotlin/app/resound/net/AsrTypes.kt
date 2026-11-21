@@ -1,7 +1,8 @@
 package app.resound.transcribe
 
 data class AsrSentence(val startMillis: Long, val endMillis: Long, val text: String, val speakerTag: String?, val originalText: String? = null)
-data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?)
+data class AsrResult(val sentences: List<AsrSentence>, val durationMillis: Long, val logId: String?,
+    val inputTokens: Long? = null, val outputTokens: Long? = null, val customCapability: CustomCapability? = null)
 enum class AsrError(val human: String, val retryable: Boolean = false) {
     Speakers("说话人分段失败，请重新下载分段模型或在人物与声纹中关闭多人分段"),
     ModelMissing("请在转写设置中下载所需的本地模型"), LocalEngine("本机识别失败，可改用 CPU 识别或重新下载模型"), Auth("密钥无效或未开通"), Network("网络连接失败，等待重试", true), Timeout("转写超时，等待重试", true),
@@ -21,6 +22,8 @@ data class DoubaoConfig(
     /** 073 负责人定案默认增量；内部诊断/回退可显式传 false，界面不另加开关。 */
     val incrementalResults: Boolean = true,
 ) {
+    /** #52：火山方舟 Agent Plan 走套餐专属地址（路径多一段 plan/），请求头、资源编号与收发协议不变 */
+    fun plan(): DoubaoConfig = copy(url = url.replace("/api/v3/sauc/", "/api/v3/plan/sauc/"))
     // 短段保留原有 90 秒余量；5 分钟段为 480 秒，单请求不超过 Worker 的 10 分钟窗口。
     fun timeoutFor(durationMillis: Long): Long = timeoutMillis
         ?: maxOf(90_000L, 30_000L + durationMillis.coerceAtLeast(0) * 3 / 2)

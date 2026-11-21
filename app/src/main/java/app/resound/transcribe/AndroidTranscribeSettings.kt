@@ -32,6 +32,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     override fun saveHeaders(presetId: String, headers: List<HeaderEntry>) {
         require(TranscribeSource.entries.any { it.name == presetId }) { "转写服务不存在" }
         headerStore.save(presetId, headers)
+        if (presetId == TranscribeSource.Custom.name) customSettings.invalidateAll()
         refreshReady(); onChanged()
     }
     private val formatPrefs = context.getSharedPreferences("custom-asr-formats", Context.MODE_PRIVATE)
@@ -40,40 +41,87 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         { key -> if (formatPrefs.contains(key)) formatPrefs.getLong(key, 0) else null },
         { key, at ->
             // 设置已改变时，旧请求不能重新写入过期结论。
-            if (customEndpoint == endpoint && customModel == model && customEndpointMode == mode)
+            if (customApi.value == CustomAsrApi.OpenAi && customSpeakerFormat.value == CustomSpeakerFormat.Auto &&
+                customEndpoint == endpoint && customModel == model && customEndpointMode == mode)
                 formatPrefs.edit().putLong(key, at).apply()
         }, System::currentTimeMillis,
     )
     private val localPrefs = context.getSharedPreferences("local-asr", Context.MODE_PRIVATE)
     private val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
+    /** #52：豆包接入方式。true = 火山方舟 Agent Plan（套餐专属地址与 Key），Key 与普通 API 分开存 */
+    private val _plan = MutableStateFlow(prefs.getBoolean("doubaoPlan", false))
+    val doubaoPlan = _plan.asStateFlow()
+    fun setDoubaoPlan(on: Boolean) {
+        check(prefs.edit().putBoolean("doubaoPlan", on).commit()) { "保存失败，请重试" }
+        _plan.value = on
+        refreshReady(); onChanged()
+    }
+    private fun keyFieldFor(source: TranscribeSource) = when {
+        source == TranscribeSource.Custom -> CustomAsrSettings.keyField(customApi.value)
+        _plan.value -> "planEncryptedKey"
+        else -> "encryptedKey"
+    }
+    private val customSettings = CustomAsrSettings(prefs::getString, prefs::getBoolean,
+        { key, value -> check(prefs.edit().putString(key, value).commit()) { "保存失败，请重试" } },
+        { key, value -> check(prefs.edit().putBoolean(key, value).commit()) { "保存失败，请重试" } },
+        { api, endpoint, model, mode ->
+            val qwen = api == CustomAsrApi.Qwen
+            val addressField = if (qwen) "qwenEndpoint" else "endpoint"
+            val modelField = if (qwen) "qwenModel" else "model"
+            val modeField = if (qwen) "qwenEndpointMode" else "endpointMode"
+            val different = prefs.getString(addressField, "") != endpoint || prefs.getString(modelField, "") != model ||
+                prefs.getString(modeField, CustomEndpointMode.Auto.name) != mode.name
+            check(prefs.edit().putString(addressField, endpoint).putString(modelField, model).putString(modeField, mode.name).commit()) {
+                "保存失败，请重试"
+            }
+            if (!qwen && different) formatPrefs.edit().clear().commit()
+        }, ::validateEndpoint,
+        { api -> !prefs.getString(CustomAsrSettings.keyField(api), null).isNullOrBlank() ||
+            runCatching { headers(TranscribeSource.Custom.name).any { it.value.isNotBlank() } }.getOrDefault(false) },
+        { refreshReady(); onChanged() },
+        { api -> verifiedPrefs.getString(api.name, null)?.split('|', limit = 2)?.takeIf { it.size == 2 && it[1] == verifiedFingerprint(api) }
+            ?.let { saved -> CustomCapability.entries.firstOrNull { it.name == saved[0] } } },
+        { api, capability -> verifiedPrefs.edit().apply {
+            if (capability == null) remove(api.name) else putString(api.name, "${capability.name}|${verifiedFingerprint(api)}") }.apply() })
+    /** 卡 212：测试通过的结论按配置指纹存本机，不备份；换配置、换密钥、恢复到新手机都会读回“未验证”。 */
+    private val verifiedPrefs get() = context.getSharedPreferences("custom-asr-verified", Context.MODE_PRIVATE)
+    private fun verifiedFingerprint(api: CustomAsrApi): String = runCatching {
+        val qwen = api == CustomAsrApi.Qwen
+        val parts = listOf(prefs.getString(if (qwen) "qwenEndpoint" else "endpoint", CustomAsrSettings.QWEN_ENDPOINT.takeIf { qwen } ?: "").orEmpty(),
+            prefs.getString(if (qwen) "qwenModel" else "model", CustomAsrSettings.QWEN_MODEL.takeIf { qwen } ?: "").orEmpty(),
+            if (qwen) CustomEndpointMode.Full.name else prefs.getString("endpointMode", CustomEndpointMode.Auto.name).orEmpty(),
+            if (qwen) "" else prefs.getString("customSpeakerFormat", CustomSpeakerFormat.Auto.name).orEmpty(),
+            prefs.getString(CustomAsrSettings.keyField(api), "").orEmpty(),
+            org.json.JSONArray(headers(TranscribeSource.Custom.name).map { listOf(it.name, it.value) }).toString())
+        keyFingerprint(parts.joinToString("\u0000"))
+    }.getOrDefault("")
+    val customApi get() = customSettings.api
+    val customSpeakerFormat get() = customSettings.speakerFormat
+    val customKeyState get() = customSettings.keyState
+    val customCapability get() = customSettings.capability
+    fun setCustomApi(api: CustomAsrApi) = customSettings.setApi(api)
+    fun setCustomSpeakerFormat(format: CustomSpeakerFormat) = customSettings.setSpeakerFormat(format)
     private val preferences = TranscribePreferenceStore(prefs::getString, prefs::getBoolean, prefs::getInt, prefs::contains,
         { key, value -> prefs.edit().putString(key, value).commit() },
         { key, value -> prefs.edit().putBoolean(key, value).commit() },
         { key, value -> prefs.edit().putInt(key, value).commit() }, localPrefs::getString,
         { key, value -> localPrefs.edit().putString(key, value).apply() },
         { localPrefs.edit().remove("npuCheck").apply() },
-        { endpoint, model, mode ->
-            if (app.resound.net.CustomAsrFormats.configurationChanged(
-                    prefs.getString("endpoint", "").orEmpty(), prefs.getString("model", "").orEmpty(),
-                    prefs.getString("endpointMode", CustomEndpointMode.Auto.name).orEmpty(), endpoint, model, mode.name))
-                formatPrefs.edit().clear().commit()
-            prefs.edit().putString("endpoint", endpoint).putString("model", model).putString("endpointMode", mode.name).commit()
-        },
-        ::validateEndpoint, ::saveKey, ::sourceChanged, ::refreshReady)
+        ::sourceChanged, ::refreshReady)
     val source get() = preferences.source
     val backend get() = preferences.backend
     val language get() = preferences.language
     val localStatus get() = preferences.localStatus
     val modelRevision get() = preferences.modelRevision
-    val customEndpoint get() = preferences.customEndpoint
-    val customModel get() = preferences.customModel
-    val endpointMode get() = preferences.endpointMode
-    val customEndpointMode get() = preferences.customEndpointMode
-    val customPrompt get() = preferences.customPrompt
+    val customEndpoint get() = customSettings.endpoint
+    val customModel get() = customSettings.model
+    val endpointMode get() = customSettings.endpointMode
+    val customEndpointMode get() = customSettings.endpointMode.value
+    val customPrompt get() = customSettings.customPrompt
     fun setLanguage(value: LocalAsrLanguage) = preferences.setLanguage(value)
     fun npuCheck(key: String) = preferences.npuCheck(key)
     fun recordNpuCheck(key: String, ok: Boolean) = preferences.recordNpuCheck(key, ok)
-    fun setCustomPrompt(on: Boolean) = preferences.setCustomPrompt(on)
+    fun setCustomPrompt(on: Boolean) = customSettings.setPrompt(on)
     private val _ready = MutableStateFlow(false)
     override val ready = _ready.asStateFlow()
     private val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -86,22 +134,31 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     fun setLocalStatus(value: String) = preferences.setLocalStatus(value)
     fun setSource(value: TranscribeSource) = preferences.setSource(value)
     fun setBackend(value: LocalBackend) = preferences.setBackend(value)
-    fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = endpointMode.value) = preferences.saveCustom(endpoint, model, mode)
+    fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = endpointMode.value) = customSettings.save(endpoint, model, mode)
     private fun sourceChanged() {
         _hasKey.value = runCatching { readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() } }.onFailure {
             FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:73", it)
         }.getOrDefault(false)
     }
-    suspend fun fetchModels(endpoint: String, key: String) = fetchRemoteModels(endpoint, key.trim().ifBlank { readKey() }, headers = headers(TranscribeSource.Custom.name))
-    fun saveCustomAll(endpoint: String, model: String, key: String, mode: CustomEndpointMode = endpointMode.value) =
-        preferences.saveCustomAll(endpoint, model, key, mode)
+    suspend fun fetchModels(endpoint: String, key: String): RemoteModels {
+        require(customApi.value == CustomAsrApi.OpenAi) { "千问接口请直接填写模型名" }
+        return fetchRemoteModels(endpoint, key.trim().ifBlank { readKey(TranscribeSource.Custom) }, headers = headers(TranscribeSource.Custom.name))
+    }
+    fun saveCustomAll(endpoint: String, model: String, key: String, mode: CustomEndpointMode = endpointMode.value): CustomSaveResult {
+        customSettings.validateFields(endpoint, model, mode)
+        val keySaved = key.isNotBlank()
+        if (keySaved) saveKeyFor(TranscribeSource.Custom, key)
+        customSettings.save(endpoint, model, mode)
+        return CustomSaveResult(keySaved, customKeyState.value)
+    }
     /** 完整地址按填写的原样校验；自动模式沿用 OpenAI 兼容的路径规则。 */
     private fun validateEndpoint(endpoint: String, mode: CustomEndpointMode) {
         if (mode == CustomEndpointMode.Full) fullEndpoint(endpoint) else OpenAiEndpoint.bases(endpoint)
     }
-    fun identity() = "${source.value}:${backend.value}:${endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource
+    fun identity() = "${customApi.value}:${customSpeakerFormat.value}:${source.value}:${backend.value}:${endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource
         .Local) "" else readKey())}:${keyFingerprint(org.json.JSONArray(headers(source.value.name).map { listOf(it.name, it.value) }).toString())}" +
-        if (source.value == TranscribeSource.Local) ":${language.value.code}" else ""
+        (if (source.value == TranscribeSource.Local) ":${language.value.code}" else "") +
+        if (source.value == TranscribeSource.Doubao && _plan.value) ":plan" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
         TranscribeSource.Local -> modelReady(if (backend.value == LocalBackend.Npu && LocalModels.npuSupported()) backend.value else LocalBackend.Cpu)
@@ -113,12 +170,13 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         }.getOrDefault(false)
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
-    private fun keyField() = if(source.value==TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey"
+    private fun keyField() = keyFieldFor(source.value)
     fun refreshReady() { _ready.value=if(source.value==TranscribeSource.Local) {
         if(backend.value==LocalBackend.Npu && LocalModels.npuSupported()) modelReady(LocalBackend.Npu)
         else modelReady(LocalBackend.Cpu)
     } else usable()
         _hasKey.value = usable()
+        customSettings.refresh()
     }
     private fun usable() = (source.value == TranscribeSource.Custom && customEndpoint.isNotBlank() && customModel.isNotBlank()) || runCatching {
         readKey().isNotBlank() || headers(source.value.name).any { it.value.isNotBlank() }
@@ -149,7 +207,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     @Synchronized
     internal fun readKey(): String = readKey(source.value)
     @Synchronized internal fun readKey(source: TranscribeSource): String {
-        val encoded = prefs.getString(if (source == TranscribeSource.Custom) "customEncryptedKey" else "encryptedKey", null) ?: return ""
+        val encoded = prefs.getString(keyFieldFor(source), null) ?: return ""
         val bytes = Base64.decode(encoded, Base64.NO_WRAP)
         require(bytes.size > 12)
         return Cipher.getInstance("AES/GCM/NoPadding").run {
@@ -158,7 +216,8 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         }
     }
     @Synchronized
-    override fun saveKey(key: String) {
+    override fun saveKey(key: String): Unit = saveKeyFor(source.value, key)
+    private fun saveKeyFor(source: TranscribeSource, key: String) {
         val value = key.trim()
         if (value.isEmpty()) { clearKey(); return }
         // 请求头不得带换行；任何校验错误均不回显输入。
@@ -167,27 +226,38 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.ENCRYPT_MODE, secret())
             val encrypted = cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8))
-            check(prefs.edit().putString(keyField(), Base64.encodeToString(encrypted, Base64.NO_WRAP)).commit())
+            check(prefs.edit().putString(keyFieldFor(source), Base64.encodeToString(encrypted, Base64.NO_WRAP)).commit())
             _hasKey.value = true
         } catch (caught: Exception) {
             FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:146", caught)
             throw IllegalStateException("密钥安全保存失败，请重试") }
+        if (source == TranscribeSource.Custom) customSettings.invalidate(customApi.value)
         refreshReady(); onChanged()
     }
     @Synchronized
     override fun clearKey() {
         check(prefs.edit().remove(keyField()).commit()) { "密钥清除失败，请重试" }
         _hasKey.value = false
+        if (source.value == TranscribeSource.Custom) customSettings.invalidate(customApi.value)
         refreshReady(); onChanged()
     }
     override fun setIntervalMinutes(minutes: Int) = preferences.setIntervalMinutes(minutes)
     override fun setWifiOnly(value: Boolean) = preferences.setWifiOnly(value)
+    internal var testWithCapability: suspend (String, (CustomCapability) -> Unit) -> Result<String> = { key, _ -> testKey(key) }
     override suspend fun test(): Result<String> = withContext(Dispatchers.IO) {
+        val ticket = customSettings.testTicket()
+        val testedSource = source.value
         val key = try { credential() } catch (caught: Exception) {
             FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:158", caught)
             return@withContext Result.failure(IllegalStateException("密钥安全读取失败，请重新填写")) }
         if (key.isBlank() && headers(source.value.name).isEmpty() && source.value != TranscribeSource.Custom) Result.failure(IllegalStateException("还没填写转写密钥"))
-        else try { testKey(key) } catch (e: CancellationException) { throw e }
+        else try {
+            var capability: CustomCapability? = null
+            val result = testWithCapability(key) { capability = it }
+            if (result.isSuccess && testedSource == TranscribeSource.Custom && source.value == testedSource)
+                capability?.let { customSettings.tested(ticket, it) }
+            result
+        } catch (e: CancellationException) { throw e }
         catch (caught: Exception) {
             FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:161", caught)
             Result.failure(IllegalStateException("转写测试失败，请重试")) }

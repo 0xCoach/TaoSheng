@@ -27,6 +27,8 @@ enum class LlmError(val human: String, val retryable: Boolean) {
     Network("网络连接失败，等待重试", true),
     Server("大模型服务暂时不可用，等待重试", true),
     Format("大模型返回的格式不对", true),
+    TooSlow("模型响应超时，稍后重试", true),
+    Truncated("模型输出未完成，尝试缩小每批内容", true),
 }
 
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
@@ -38,7 +40,7 @@ class LlmException(val type: LlmError, val status: Int = 0, val detail: String =
     }
 }
 
-data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: LlmResponseTrace? = null)
+data class LlmReply(val content: String, val promptTokens: Long, val completionTokens: Long, val actualModel: String? = null, val diagnostics: LlmResponseTrace? = null, val reasoningChars: Int = 0)
 /** 400 类拒收：换个时间重发同样内容也不会成功。 */
 val LlmException.rejected: Boolean get() = type == LlmError.Server && status in LlmClient.REJECTED_STATUS
 
@@ -53,17 +55,19 @@ class LlmClient(
     private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
     private val diagnostics: LlmDiagnostics? = null,
     private val official: OfficialBridge? = null,
+    private val streamSupport: app.resound.net.JsonStreamSupport? = null,
 ) {
-    private suspend fun network(preset: LlmPreset): io.ktor.client.HttpClient {
+    private suspend fun network(preset: LlmPreset, json: Boolean = false): io.ktor.client.HttpClient {
         if (preset.baseUrl.isBlank() || preset.model.isBlank()) throw LlmException(LlmError.Format)
         return androidNetwork(http.newBuilder().followRedirects(false).followSslRedirects(false)
-            .connectTimeout(10, TimeUnit.SECONDS).apply {
-                if (OpenAiEndpoint.kind(preset.baseUrl) == EndpointKind.LocalHttp)
+            .connectTimeout(if (json) 15 else 10, TimeUnit.SECONDS).apply {
+                if (json) { readTimeout(0, TimeUnit.SECONDS); callTimeout(0, TimeUnit.SECONDS) }
+                if (!json && OpenAiEndpoint.kind(preset.baseUrl) == EndpointKind.LocalHttp)
                     readTimeout(maxOf(http.readTimeoutMillis.toLong(), 180_000), TimeUnit.MILLISECONDS)
             }.build())
     }
     private fun core(client: io.ktor.client.HttpClient, preset: LlmPreset) = NetLlmClient(client,
-        OpenAiEndpoint.bases(preset.baseUrl),http.callTimeoutMillis.toLong()) { error ->
+        OpenAiEndpoint.bases(preset.baseUrl),http.callTimeoutMillis.toLong(), streamSupport) { error ->
         modelServiceError(preset.baseUrl, error, LlmError.Network.human)
     }
     private fun trace(value: LlmResponseTrace?) = value?.let { t -> object : NetworkTrace {
@@ -75,7 +79,11 @@ class LlmClient(
         val type = LlmError.valueOf(e.type.name)
         return LlmException(type, e.status, e.detail ?: type.human, e.usage?.let { LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated)
     }
-    suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply = withContext(Dispatchers.IO) {
+    suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply =
+        jsonRequest(preset, key, system, user, thinking, probe = kotlin.coroutines.coroutineContext[app.resound.net.LlmProbeRequest] != null)
+    suspend fun probeJson(preset: LlmPreset, key: String, system: String, user: String): LlmReply =
+        jsonRequest(preset, key, system, user, thinking = false, probe = true)
+    private suspend fun jsonRequest(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean, probe: Boolean): LlmReply = withContext(Dispatchers.IO) {
         val t = kotlin.coroutines.coroutineContext[LlmResponseTrace]
             ?: runCatching { diagnostics?.start("其他/模型检测", preset) }.onFailure {
                 FailureNotes.record("digest/LlmClient.kt:72", it)
@@ -89,10 +97,17 @@ class LlmClient(
                 return@withContext LlmReply(reply.content, reply.promptTokens, reply.completionTokens, reply.actualModel, diagnostics = t)
             }
             if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
-            val client = network(preset)
-            val reply = core(client, preset).chat(preset, key, requestHeaders(preset), system, user, thinking, trace(t))
+            val client = network(preset, json = !probe)
+            var reasoningChars = 0
+            val outer = kotlin.coroutines.coroutineContext[app.resound.net.LlmReceiveProgress]
+            val reply = withContext(app.resound.net.LlmReceiveProgress { reasoning, content ->
+                reasoningChars = reasoning; outer?.update(reasoning, content)
+            }) {
+                if (probe) core(client, preset).probe(preset, key, requestHeaders(preset), system, user, thinking, trace(t))
+                else core(client, preset).chat(preset, key, requestHeaders(preset), system, user, thinking, trace(t))
+            }
             t?.complete()
-            LlmReply(reply.content, reply.promptTokens, reply.completionTokens, diagnostics = t)
+            LlmReply(reply.content, reply.promptTokens, reply.completionTokens, diagnostics = t, reasoningChars = reasoningChars)
         } catch (e: Throwable) {
             val safe = if (e is NetLlmException) error(e) else e
             t?.complete(safe); throw safe

@@ -17,7 +17,24 @@ class LocalOriginalAudio(
     private val guard: suspend (suspend (Set<Long>) -> Unit) -> Unit = { it(emptySet()) },
     private val playback: PlaybackCaptureHold,
     private val now: () -> Long = System::currentTimeMillis,
+    private val protection: suspend () -> Set<Long> = { emptySet() },
+    private val keepChannels: () -> List<String> = { emptyList() },
 ) : OriginalAudio {
+    internal var heldIds: Set<Long> = emptySet()
+        private set
+    override val heldSummary = MutableStateFlow(app.resound.recordings.HeldSummary())
+    override val keepStatus = MutableStateFlow(app.resound.recordings.KeepStatus())
+    /** 仅统计按原规则可清理而被推录音闸门扣住的文件。 */
+    internal suspend fun refreshHeld() { trim(retentionDays.value, !keepStarred.value, false) }
+    private fun publishHeld(rows: List<SegmentEntity>, held: Set<Long>, timestamp: Long, retention: Int) {
+        val data = rows.map { s -> app.resound.recordings.KeepRecording(s.id,
+            Instant.ofEpochMilli(s.startAt).atZone(ZoneId.systemDefault()).toLocalDate().toString(), File(s.path).length(),
+            (s.completedAt ?: s.firstFailedAt ?: timestamp) + retention * 86_400_000L) }
+        heldIds = rows.filter { it.id in held }.mapTo(mutableSetOf()) { it.id }
+        heldSummary.value = app.resound.recordings.RecordingKeepRules.summary(data, held, timestamp)
+        val names = keepChannels()
+        keepStatus.value = app.resound.recordings.KeepStatus(names, names.isNotEmpty())
+    }
     override val retentionDays = MutableStateFlow(prefs.getInt("originalRetentionDays", DEFAULT_RETENTION_DAYS).takeIf { it in RETENTION_DAY_RANGE } ?: DEFAULT_RETENTION_DAYS)
     override val keepStarred = MutableStateFlow(prefs.getBoolean("originalKeepStarred", true))
     override fun setRetentionDays(days: Int) {
@@ -56,7 +73,7 @@ class LocalOriginalAudio(
         }
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
-    private suspend fun trim(retention: Int?, includeStarred: Boolean, delete: Boolean, range: LongRange? = null): AudioTrim {
+    private suspend fun trim(retention: Int?, includeStarred: Boolean, delete: Boolean, range: LongRange? = null, release: Boolean = false): AudioTrim {
         var result = AudioTrim(0, 0, 0, 0)
         val action: suspend (Set<Long>) -> Unit = { reading ->
             val timestamp = now(); dao.refreshFailures(timestamp)
@@ -65,16 +82,26 @@ class LocalOriginalAudio(
                 !pending(s) && s.id !in reading && (includeStarred || s.id !in stars) && (range == null || s.startAt in range) &&
                     (retention == null || originalAudioRemainingDays(s.completedAt ?: s.firstFailedAt ?: timestamp, s.status, retention, false, timestamp) == 0)
             }
+            val protected = protection()
+            if (retention == retentionDays.value && range == null) publishHeld(candidates, protected, timestamp, retention)
+            val unpushed = candidates.count { it.id in protected }
+            val selected = when {
+                release -> candidates.filter { it.id in protected }
+                retention != null -> candidates.filterNot { it.id in protected }
+                else -> candidates
+            }
             var bytes = 0L
-            val removed = candidates.filter { s ->
+            val removed = selected.filter { s ->
                 val file = File(s.path); val size = file.length()
                 (!delete || file.delete()).also { if (it) bytes += size }
             }
-            result = AudioTrim(bytes, days(removed), removed.size, rows.count { pending(it) || it.id in reading })
+            result = AudioTrim(bytes, days(removed), removed.size, rows.count { pending(it) || it.id in reading }, unpushed)
+            if (delete && retention == retentionDays.value) publishHeld(candidates.filterNot { it in removed }, protected, timestamp, retention)
         }
         guard(action)
         return result
     }
+    override suspend fun releaseHeld(): AudioTrim = trim(retentionDays.value, !keepStarred.value, true, release = true)
     internal suspend fun cleanup(): AudioTrim = trim(retentionDays.value, !keepStarred.value, true)
     override suspend fun previewTrim(days: Int): AudioTrim {
         require(days in RETENTION_DAY_RANGE)

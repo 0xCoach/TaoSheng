@@ -182,6 +182,8 @@ data class BackupSummary(
     val includesSecrets: Boolean,
     /** 分卷是加密的 */
     val encrypted: Boolean,
+    /** 卡 210：最早那一天（yyyy-MM-dd）；导入的旧通话录音按当年日期归档，天数会很大，界面要说明 */
+    val firstDay: String? = null,
 )
 
 /** 本机备份：存到手机里用户选的文件夹（系统文件选择器授权），不用坚果云也能备份和恢复 */

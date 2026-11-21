@@ -264,7 +264,8 @@ class LlmProviders076Test {
         val client = LlmClient(http); val p = providers()
         for (id in listOf("deepseek", "kimi", "bigmodel", "minimax", "openai", "siliconflow", "hunyuan")) {
             val t = p.templates.first { it.id == id }
-            client.chatJson(LlmPreset("arbitrary-id", t.name, t.baseUrl, t.models.first()), "fixture", "只输出 JSON", "{}")
+            try { client.chatJson(LlmPreset("arbitrary-id", t.name, t.baseUrl, t.models.first()), "fixture", "只输出 JSON", "{}") }
+            catch (e: LlmException) { throw AssertionError("合成请求 $id 已拦截 ${seen.size} 次；" + app.resound.diagnostics.FailureNotes.dump(), e) }
         }
         assertEquals("disabled", seen[0].getJSONObject("thinking").getString("type"))
         assertFalse(seen[1].has("temperature")); assertEquals("low", seen[1].getString("reasoning_effort")); assertTrue(seen[1].has("max_completion_tokens"))

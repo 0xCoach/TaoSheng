@@ -69,6 +69,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -195,8 +196,14 @@ fun TodayScreen(
         app.resound.topic.core.TopicProcessingRules.pending(it) && it.eventId == null
     }.map { TimelineEntry.TopicPending(it) } else emptyList()
     val importEntries = folded.map { rec -> TimelineEntry.Import(rec, shownEvents.filter { inImport(it) == rec }) }
+    // 卡 199：同步文件夹里列出、还没转写的录音（只在“全部”时显示）
+    val listedEntries = if (filter == TimelineFilter.All && app.resound.AppGraph.isCallRecordingReady) remember(date) {
+        val zone = java.time.ZoneId.systemDefault()
+        app.resound.AppGraph.folderRecordings.between(date.atStartOfDay(zone).toInstant().toEpochMilli(), date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+    }.collectAsStateWithLifecycle(initialValue = emptyList()).value.filter { it.state != app.resound.importer.ListedState.Imported }
+        .map { TimelineEntry.Listed(it) } else emptyList()
     val entries = (shownEvents.filter { inImport(it) == null }.map { TimelineEntry.Event(it) } +
-        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries + pendingTopics)
+        shownCards.filter { c -> folded.none { it.cardId == c.id } }.map { TimelineEntry.Card(it) } + importEntries + pendingTopics + listedEntries)
         .let { l -> if (newestFirst) l.sortedByDescending { it.at } else l.sortedBy { it.at } }
     val groups = entries.groupBy { partOfDay(it.at) }.toList()
 
@@ -234,8 +241,11 @@ fun TodayScreen(
     val screenDay = app.resound.ui.screentime.rememberScreenDay(date, active = screenHome)
     var screenOpen by remember { mutableStateOf(false) }
     if (screenOpen) app.resound.ui.screentime.ScreenTimeSheet(date, memory, onOpenEvent = { screenOpen = false; opened = it }) { screenOpen = false }
+    app.resound.ui.night.NightSheets()
     var boxTop by remember { mutableStateOf(0f) }
-    val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null }
+    // 卡 202：夜里记录开着时，今日节奏里画昨晚（和今晚刚开始）的睡眠；还没说话但有睡眠也显示
+    val nightRhythm = app.resound.ui.night.rememberNightRhythm(date)
+    val rhythmShown = remember(list, dayLines) { dayRhythm(list, dayLines) != null } || nightRhythm?.day != null
     // 时间线标题那一格在列表里的位置（前面几格按是否显示来数），节奏卡片点数字/柱子时滚到这里
     fun pendingIndex() = 2 + (if (rhythmShown) 1 else 0) + (if (importing) 1 else 0)
     fun timelineIndex() = pendingIndex() + (if (pendingCount > 0) 1 else 0)
@@ -263,11 +273,15 @@ fun TodayScreen(
                     app.resound.ui.settings.CrashNotice(topGap = 20.dp)
                     UpdatePrompt(topGap = 16.dp)
                     BackgroundLimitNotice(topGap = 12.dp)
+                    HeldRecordingsNotice(topGap = 12.dp)
                     val captureStatus by capture.status.collectAsStateWithLifecycle()
                     WakeWordNotice(captureStatus.state == CaptureState.Listening || captureStatus.state == CaptureState.Recording, topGap = 12.dp)
                     WhatsNewNotice(topGap = 12.dp)
                     RemoteNoticeCards(topGap = 12.dp)
+                    // 卡 219：最近一次重做/合并，关掉任务后也能撤销
+                    app.resound.ui.redo.RedoUndoCard(transcribe = false, topGap = 12.dp)
                     ScreenTimePermissionNotice(topGap = 12.dp)
+                    PlaybackHintNotice(topGap = 12.dp)
                     // 首次使用：几步设置的清单，做完或关掉就不再出现；只在看今天时显示
                     StartChecklist(capture, hasKey, topGap = 20.dp)
                     app.resound.ui.onboarding.OnboardingTipCard(topGap = 12.dp)
@@ -282,7 +296,7 @@ fun TodayScreen(
                 screenMinutes = screenDay?.totalMinutes, onScreen = { screenOpen = true })
         }
         if (rhythmShown) item(key = "rhythm") {
-            RhythmCard(list, dayLines, date, transcribeQueue.pending, screenByHour = screenDay?.byHour,
+            RhythmCard(list, dayLines, date, transcribeQueue.pending, screenByHour = screenDay?.byHour, night = nightRhythm, onScreen = { screenOpen = true },
                 onFilter = { f -> filter = f; rhythmScope.launch { listState.animateScrollToItem(timelineIndex()) } },
                 onHour = { h ->
                     // 跳到这个小时所在的时段：先回到全部，再滚到那一组
@@ -738,6 +752,8 @@ internal sealed interface TimelineEntry {
     data class Card(val card: app.resound.skills.SkillCard) : TimelineEntry { override val at get() = card.at }
     /** 卡 077：一份导入的录音（一个或几个文件合成一条），整理出的事收在里面 */
     data class Import(val record: app.resound.importer.ImportRecord, val events: List<MemoryEvent>) : TimelineEntry { override val at get() = record.startAt }
+    /** 卡 199：同步文件夹里列出、还没转写的录音 */
+    data class Listed(val recording: app.resound.importer.FolderRecording) : TimelineEntry { override val at get() = recording.startAt }
 }
 
 /** 一个时段一张卡，组内每件事一行，细线分隔：比一事一卡更轻、更紧凑 */
@@ -755,6 +771,9 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
     // 合并过的事可能跨过中间别的事（和 A 聊着、B 插了几句、又接着聊）：这种标一下“中间有插话”
     val events = entries.mapNotNull { (it as? TimelineEntry.Event)?.event }
     val interrupted = events.filter { e -> events.any { o -> o.id != e.id && o.startAt > e.startAt && o.startAt < e.endAt && o.endAt <= e.endAt } }.map { it.id }.toSet()
+    // 卡 207：会议事件旁没有会议速记卡时，下面一行说明原因、可“仍要生成”
+    val meetingCards = entries.mapNotNull { (it as? TimelineEntry.Card)?.card }.filter { it.skillId == "meeting" }
+    fun hasMinutes(e: MemoryEvent) = meetingCards.any { card -> card.at < e.endAt && (card.endAt ?: card.at) >= e.startAt }
     Column(modifier) {
         Text(if (count > 0) "$part · $count 件" else part, style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.textTertiary,
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
@@ -762,7 +781,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
             entries.forEachIndexed { i, e ->
                 when (e) {
                     // 多选中：点一下勾选/取消，长按 = 选到这条；左右滑暂停，避免误删
-                    is TimelineEntry.Event -> if (selection?.active == true) {
+                    is TimelineEntry.Event -> { if (selection?.active == true) {
                         val id = e.event.id
                         TimelineLine(e.event, onLongPress = { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); selection.rangeTo(id, order) },
                             modifier = Modifier.trackRow(selection, id), selected = id in selection.ids, interrupted = id in interrupted) { selection.toggle(id, order) }
@@ -770,6 +789,7 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                         val start = selection?.let { s -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); s.start(e.event.id) } }
                         TimelineLine(e.event, start ?: lp, interrupted = e.event.id in interrupted) { onOpen(e.event) }
                     }
+                    if (selection?.active != true && e.event.scene == "会议" && !e.event.isMedia() && !hasMinutes(e.event)) MeetingMinutesMissing(e.event) }
                     is TimelineEntry.TopicPending -> {
                         val progress by remember(e.topic.id) { app.resound.AppGraph.topics.observeProgress(e.topic.id) }
                             .collectAsStateWithLifecycle(initialValue = app.resound.topic.TopicProgress())
@@ -779,10 +799,40 @@ internal fun TimelineGroup(part: String, entries: List<TimelineEntry>, modifier:
                     }
                     is TimelineEntry.Card -> CardHintLine(e.card) { onOpenCard(e.card) }
                     is TimelineEntry.Import -> app.resound.ui.importer.ImportLine(e.record, e.events) { onOpenImport(e.record) }
+                    is TimelineEntry.Listed -> app.resound.ui.importer.ListedLine(e.recording)
                 }
                 if (i != entries.lastIndex) Box(Modifier.padding(start = 76.dp, end = 18.dp).fillMaxWidth().height(0.5.dp).background(c.separator))
             }
         }
+    }
+}
+
+/** 卡 207：会议没出纪要卡——说一句为什么，点“仍要生成”跳过门槛手动出卡 */
+@Composable
+private fun MeetingMinutesMissing(event: MemoryEvent) {
+    val repo = remember { (if (app.resound.AppGraph.isSkillsReady) app.resound.AppGraph.skills else null) as? app.resound.skills.LocalSkillRepository } ?: return
+    val c = Rs.colors
+    val scope = rememberCoroutineScope()
+    val reason by produceState<String?>(null, event.id) { value = runCatching { repo.meetingNothingReason(event.id) }.getOrNull() }
+    var busy by remember(event.id) { mutableStateOf(false) }
+    var note by remember(event.id) { mutableStateOf<String?>(null) }
+    // 还没跑过技能（也没有原因）时不打扰；有原因或刚点过才显示
+    val text = note ?: reason?.removePrefix("没出卡：")?.let { "没出纪要：$it" } ?: return
+    Row(Modifier.fillMaxWidth().padding(start = 76.dp, end = 18.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, style = RsType.caption, color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        if (note == null || !busy) Text(if (busy) "生成中…" else "仍要生成", style = RsType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+            modifier = Modifier.clip(CircleShape).springClick {
+                if (busy) return@springClick
+                busy = true; note = "正在生成会议纪要…"
+                scope.launch {
+                    note = when (val r = runCatching { repo.generateMeetingEvent(event.id) }.getOrElse { app.resound.skills.SkillRunResult.Failed("没生成出来") }) {
+                        is app.resound.skills.SkillRunResult.Cards -> null
+                        is app.resound.skills.SkillRunResult.Nothing -> "模型觉得不像会议：${r.reason.removePrefix("没出卡：")}"
+                        is app.resound.skills.SkillRunResult.Failed -> "没生成出来：${r.reason}"
+                    }
+                    busy = false
+                }
+            }.padding(horizontal = 10.dp, vertical = 4.dp))
     }
 }
 
@@ -1350,12 +1400,18 @@ object UndoBar {
     var current by mutableStateOf<Pair<String, () -> Unit>?>(null)
         private set
     private var serial = 0
-    fun show(text: String, undo: () -> Unit) { current = text to undo; serial++ }
+    private var duration = 3000L
+    /** 卡 211：按钮文字，默认“撤销”；改原话后是“重新整理” */
+    private var action by mutableStateOf("撤销")
+    /** [durationMs] 默认 3 秒；夜里标“不是”这类改动给 6 秒 */
+    fun show(text: String, durationMs: Long = 3000L, actionLabel: String = "撤销", undo: () -> Unit) {
+        duration = durationMs; action = actionLabel; current = text to undo; serial++
+    }
     @Composable
     fun Host(bottomPadding: Dp) {
         val c = Rs.colors
         val item = current
-        androidx.compose.runtime.LaunchedEffect(item, serial) { if (item != null) { kotlinx.coroutines.delay(3000); current = null } }
+        androidx.compose.runtime.LaunchedEffect(item, serial) { if (item != null) { kotlinx.coroutines.delay(duration); current = null } }
         Box(Modifier.fillMaxSize().padding(bottom = bottomPadding + 20.dp), contentAlignment = Alignment.BottomCenter) {
             androidx.compose.animation.AnimatedVisibility(item != null, enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
                 exit = androidx.compose.animation.fadeOut()) {
@@ -1364,7 +1420,7 @@ object UndoBar {
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(shown.first, style = RsType.subhead.copy(fontWeight = FontWeight.Medium), color = c.background)
                     Spacer(Modifier.width(10.dp))
-                    Text("撤销", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
+                    Text(action, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
                         modifier = Modifier.clip(CircleShape).springClick { shown.second(); current = null }.padding(horizontal = 12.dp, vertical = 6.dp))
                 }
             }

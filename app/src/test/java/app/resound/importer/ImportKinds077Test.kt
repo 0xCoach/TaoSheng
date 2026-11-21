@@ -260,4 +260,19 @@ class ImportKinds077Test {
             for (kind in listOf(ImportKind.Meeting, ImportKind.Training, ImportKind.Call)) assertEquals(SkillTrigger.Manual, template(kind).first.trigger)
         } finally { folder.deleteRecursively() }
     }
+    @Test fun adaptiveImportFailuresSplitBothTypesAndRetainAllActions() = runBlocking {
+        for (type in listOf(app.resound.digest.LlmError.TooSlow, app.resound.digest.LlmError.Truncated)) {
+            val row = record()
+            val lines = (1L..4L).map { TranscriptLineEntity(it, 1, it * 1000, it * 1000 + 500, "合成原话$it", "0", "我") }
+            var calls = 0
+            val result = summary { _, _ ->
+                calls++
+                if (calls == 1) throw app.resound.digest.LlmException(type)
+                reply("行动$calls", "L${calls.coerceAtMost(4)}")
+            }.generate(row, lines)
+            assertEquals(4, calls)
+            assertTrue(result.todos.map { it.content }.containsAll(listOf("行动2", "行动3")))
+        }
+    }
+
 }

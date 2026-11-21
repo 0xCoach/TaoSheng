@@ -24,7 +24,8 @@ internal object DayVolumes {
         val days get() = manifest.getJSONArray("days")
         fun summary() = BackupSummary(days.length(), bytes + entries(days).sumOf { it.getLong("size") } +
             entries(manifest.getJSONArray("features")).distinctBy { it.getString("path") }.sumOf { it.getLong("size") },
-            manifest.getLong("at"), manifest.getLong("uploadedPayloadBytes") + bytes, true, encrypted)
+            manifest.getLong("at"), manifest.getLong("uploadedPayloadBytes") + bytes, true, encrypted,
+            entries(days).minOfOrNull { it.getString("date") })
     }
     private fun entries(array: JSONArray) = (0 until array.length()).map { array.getJSONObject(it) }
     private fun stateName(encrypted: Boolean) = "resound-state.zip" + if (encrypted) ".enc" else ""

@@ -239,7 +239,7 @@ class AndroidLlmProviders internal constructor(
         val p = LlmPreset(id ?: "draft", "测试服务", baseUrl.trim(), model.trim())
         val secret = draftKey(id, key)
         require(p.id == OFFICIAL_PROVIDER_ID || secret.isNotBlank() || p.allowsEmptyKey() || hasHeaderAuth(p.id)) { "还没填写大模型密钥" }
-        val reply = client.chatJson(p, secret, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"你好\"}")
+        val reply = client.probeJson(p, secret, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"你好\"}")
         withContext(NonCancellable) { recordUsage(reply) }
         id?.let(onTestSuccess)
         Result.success("连接成功")

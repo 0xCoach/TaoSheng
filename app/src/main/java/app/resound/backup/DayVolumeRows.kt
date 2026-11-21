@@ -18,7 +18,7 @@ import java.time.ZoneId
 /** 分卷只保存数据，不执行备份中的 SQL；列名、表名始终由当前 App 决定。 */
 internal object DayVolumeRows {
     val dated = linkedMapOf(
-        "marks" to "at", "topics" to "createdAt", "topic_spans" to "startAt", "topic_marks" to "at",
+        "folder_recordings" to "startAt", "marks" to "at", "topics" to "createdAt", "topic_spans" to "startAt", "topic_marks" to "at",
         "import_records" to "startAt", "segments" to "startAt", "transcript_lines" to "startAt", "memory_events" to "startAt",
         "thing_records" to "at", "memory_items" to "createdAt", "skill_cards" to "at", "reviews" to "generatedAt",
         "ask_conversations" to "createdAt", "ask_messages" to "at",
@@ -35,11 +35,15 @@ internal object DayVolumeRows {
         "agent_tasks" to "createdAt", "decisions" to "decidedAt", "followups" to "createdAt",
         "capture_items" to "createdAt", "rule_runs" to "at", "memory_revisions" to "at",
         "scene_sessions" to "startedAt",
+        // 夜间睡眠（卡 202/203/208）：夜晚与其事件、片段、声音包络、反馈、记梦按开始时刻分卷
+        "nights" to "start", "night_events" to "start", "night_clips" to "start", "night_envelope" to "start",
+        "night_feedback" to "at", "night_dreams" to "at",
     )
     val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples",
         "voiceprint_exclusions", "location_places", "screen_app_names", "screen_pull_state", "screen_coverage_gaps",
         "projects", "project_links", "analysis_templates",
-        "agent_endpoints", "workflow_rules", "mcp_clients")
+        "agent_endpoints", "workflow_rules", "mcp_clients",
+        "night_tags", "night_tag_links", "night_personal", "night_weeks", "night_notice")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()
     fun canonical(value: Any?): String = when (value) {

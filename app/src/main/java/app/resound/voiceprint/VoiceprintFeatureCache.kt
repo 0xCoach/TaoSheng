@@ -38,6 +38,9 @@ internal class VoiceprintFeatureCache(private val directory: File?) {
                 require(input.read() == -1)
                 Feature(vector, duration)
             }
+        } catch (_: java.io.FileNotFoundException) {
+            // 卡 210：缓存里还没有是正常情况，不记成错误（原先每次都记，把 200 条失败记录占满）
+            null
         } catch (caught: IOException) {
             FailureNotes.record("voiceprint/VoiceprintFeatureCache.kt:39", caught)
             null } catch (caught: IllegalArgumentException) {

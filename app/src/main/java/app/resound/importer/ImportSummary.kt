@@ -38,10 +38,13 @@ internal class ImportSummary(
     private val request: suspend (String, String) -> LlmReply,
     private val now: () -> Long = System::currentTimeMillis,
     private val session: TopicProcessingSession? = null,
+    private val callName: suspend (Long) -> String? = { null },
 ) {
     suspend fun generate(record: ImportRecordRow, lines: List<TranscriptLineEntity>, existing: List<MemoryItemEntity> = emptyList(), extraContext: String = ""): ImportSummaryResult {
+        val promptFileName = if (record.kind == ImportKind.Call.name) callName(record.id) ?: CallNamePolicy.prompt(
+            CallFileNames.parse(record.fileName,null,null,null,kotlinx.datetime.TimeZone.of(SKILL_ZONE(record.startAt).id)).name) else record.fileName
         val (skill, instructions) = template(ImportKind.valueOf(record.kind))
-        val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE).toLocalDate()
+        val date = Instant.ofEpochMilli(record.startAt).atZone(SKILL_ZONE(record.startAt)).toLocalDate()
         val indexed = lines.associateBy { "L${it.id}" }
         val input = SkillInput("", indexed)
         val existingData = JSONArray(existing.filter { !it.deleted }.map { JSONObject().put("content", it.content).put("status", it.status).put("line", "L${it.lineId}") }).toString()
@@ -85,7 +88,8 @@ internal class ImportSummary(
                 try { parse(text); reply?.diagnostics?.parsed(empty = false) }
                 catch (e: LlmException) { reply?.diagnostics?.parsed(empty = text.isBlank(), error = e.type); throw e }
             }
-            val call: suspend (String, String) -> String = { a, b -> request(a, b).also { reply = it }.content }
+            // 这里会把太慢/截断的一块切小重试（splitRead / splitTopicRead），先不切备用模型。
+            val call: suspend (String, String) -> String = { a, b -> kotlinx.coroutines.withContext(app.resound.digest.LlmSplitsOnSlow) { request(a, b) }.also { reply = it }.content }
             val content = session?.request(system, user, call, validate, ::preview) ?: call(system, user)
             return parse(content)
         }
@@ -95,13 +99,15 @@ internal class ImportSummary(
             val previous = chunks.getOrNull(i - 1)?.lastOrNull()
             val read: suspend (List<TranscriptLineEntity>) -> JSONObject = { part ->
                 val text = buildString {
-                    appendLine("文件：${record.fileName}；第 ${i + 1}/${chunks.size} 块；范围 ${SkillInputs.time(part.first().startAt)}～${SkillInputs.time(part.maxOf { it.endAt })}")
+                    appendLine("文件：${promptFileName}；第 ${i + 1}/${chunks.size} 块；范围 ${SkillInputs.time(part.first().startAt)}～${SkillInputs.time(part.maxOf { it.endAt })}")
                     previous?.let { appendLine("上一块末句（仅供衔接，不重复行动）：[L${it.id}] ${SkillInputs.speaker(it)}：${it.text}") }
                     part.forEach { appendLine("[L${it.id}] ${SkillInputs.time(it.startAt)} ${SkillInputs.speaker(it)}：${it.text}") }
                 }
                 ask(text)
             }
-            leaves += session?.splitRead(chunk, read) ?: listOf(read(chunk))
+            leaves += session?.splitRead(chunk, read) ?: splitTopicRead(chunk, {
+                it is LlmException && it.type in setOf(LlmError.Format, LlmError.TooSlow, LlmError.Truncated)
+            }, read)
             session?.advance()
         }
         // 没有可转写原话仍保存一份明确说明的纪要，不伪造会议内容。

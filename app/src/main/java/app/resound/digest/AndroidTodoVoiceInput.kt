@@ -27,6 +27,7 @@ class AndroidTodoVoiceInput internal constructor(
     private val credential: () -> String,
     private val microphone: () -> TodoMicrophone = { AndroidTodoMicrophone() },
     private val pauseDelayMillis: Long = 500,
+    private val recordTokens: suspend (AsrResult) -> Unit = {},
 ) : TodoVoiceInput {
     private class Session {
         val ready = CompletableDeferred<Boolean>()
@@ -118,6 +119,7 @@ class AndroidTodoVoiceInput internal constructor(
                 if (!app.resound.AppGraph.membership.allowTranscribe()) throw AsrException(AsrError.Quota)
                 val duration = samples.size * 1000L / 16_000
                 val result = provider.recognize(AsrAudio(wav, "wav", duration, separateSpeakers = false), credential()) {}
+                withContext(NonCancellable) { recordTokens(result) }
                 val text = result.sentences.joinToString("\n") { it.text.trim() }.trim()
                 // 语音输入也计转写时长：wav 临时文件名天然唯一，无需重试去重
                 app.resound.AppGraph.membership.recordUsage("voice:${app.resound.AppGraph.auth.store.deviceId}:${wav.name}", duration)

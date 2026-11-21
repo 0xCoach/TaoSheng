@@ -12,6 +12,10 @@ data class RecordingSourceData(override val row: SegmentWithLines, override val 
 
 /** 归档的纯数据展示规则，日期/时区格式仍由平台按旧方式提供。 */
 object RecordingTextRules {
+    /** 与原话页一致：供应商从 0 起的编号展示为从 1 起，不覆盖已认出的名字。 */
+    fun speakerLabel(name: String?, tag: String?): String = name?.takeIf { it.isNotBlank() }
+        ?: if (tag?.startsWith("uncertain:") == true) "待确认" else "说话人${tag?.toIntOrNull()?.plus(1) ?: tag ?: "1"}"
+
     fun duration(source: RecordingSourceFields) = (source.row.segment.endAt - source.row.segment.startAt).coerceAtLeast(0)
     fun durationText(source: RecordingSourceFields) = duration(source).let { "${it / 60000}分${it / 1000 % 60}秒" }
     fun label(source: RecordingSourceFields) = with(source) { (eventTitle?.let { safe(it).take(16) }

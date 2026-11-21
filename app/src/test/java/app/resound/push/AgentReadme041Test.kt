@@ -25,7 +25,7 @@ class AgentReadme041Test {
             val text = readme(s)
             assertTrue(text.contains("## 智能体读取须知"))
             assertTrue(text.contains(MemoryPaths.daily(kotlinx.datetime.LocalDate(2026, 11, 16))))
-            assertTrue(text.contains("北京时间") && text.contains("只读") && text.contains("不要转发"))
+            assertTrue(text.contains("UTC 偏移") && text.contains("只读") && text.contains("不要转发"))
             assertFalse("README 里不能有缩进成代码块的行", text.lines().any { it.startsWith("    ") })
         }
     }

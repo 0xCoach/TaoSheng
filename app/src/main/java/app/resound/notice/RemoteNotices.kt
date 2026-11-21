@@ -1,5 +1,6 @@
 package app.resound.notice
 
+import kotlinx.coroutines.flow.first
 import android.content.Context
 import android.util.AtomicFile
 import androidx.work.Constraints
@@ -50,6 +51,17 @@ class RemoteNotices private constructor(private val context: Context) {
             }
         }.onFailure { FailureNotes.record("notice/RemoteNotices.kt:cache", it) }
     }
+
+    val playbackHintSeen get() = PLAYBACK_HINT in dismissed.value
+    private val hintReady = MutableStateFlow(prefs.getBoolean("heavy-playback", false))
+    val showPlaybackHint = kotlinx.coroutines.flow.combine(hintReady, dismissed) { ready, seen -> ready && PLAYBACK_HINT !in seen }
+    suspend fun watchPlayback(dao: app.resound.data.TranscribeDao) {
+        if (hintReady.value || playbackHintSeen) return
+        dao.hasHeavyPlaybackDay().first { it }
+        check(prefs.edit().putBoolean("heavy-playback", true).commit())
+        hintReady.value = true
+    }
+    fun playbackHintShown() = dismiss(PLAYBACK_HINT)
 
     fun image(notice: Notice): File? = notice.image?.let { File(dir, it.file) }?.takeIf { it.isFile }
 
@@ -111,6 +123,7 @@ class RemoteNotices private constructor(private val context: Context) {
     }
 
     companion object {
+        private const val PLAYBACK_HINT = "local-playback-30m"
         private const val DISMISSED = "notice-dismissed"
         /** 国内先走魔搭，GitHub 备用 */
         val SOURCES = listOf(

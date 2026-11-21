@@ -85,6 +85,13 @@ object LinePlayer {
         scope.launch { startAt(first, first.startAt - leadMillis.coerceAtLeast(0), request) }
     }
 
+    /** 卡 211：边播边改原话时，播放条上的字幕跟着换（播放开始时存了一份句子） */
+    fun replaceText(lineId: Long, text: String) {
+        if (allLines.none { it.id == lineId }) return
+        fun List<TranscriptLine>.swap() = map { if (it.id == lineId) it.copy(text = text, edited = true) else it }
+        queue = queue.swap(); allLines = allLines.swap()
+    }
+
     /** 点正在播的那句：暂停 / 继续 */
     fun toggle() { if (playing) pause() else resume() }
 

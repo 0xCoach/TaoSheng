@@ -49,6 +49,7 @@ class MemoryStoreRepository(
     private val readVoiceInput: (String?) -> VoiceInputMeta?,
     /** 有则记忆的人工改动写 memory_revisions 留痕（编辑/删除/合并/拆分/事件改都可撤销追溯） */
     private val revisions: app.resound.revise.MemoryRevisionDao? = null,
+    private val onEventDeleted: suspend () -> Unit = {},
 ) : MemoryRepository {
 
     private fun snap(content: String, status: String = "", deleted: Boolean = false, mergedInto: Long? = null) =
@@ -126,10 +127,10 @@ class MemoryStoreRepository(
     } }
 
     override suspend fun sourceLines(lineId: Long): List<TranscriptLine> = kotlinx.coroutines.withContext(io) {
-        dao.segmentLinesOf(lineId).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) }
+        dao.segmentLinesOf(lineId).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), it.textEditedAt != null, it.eventId) }
     }
     override fun eventLines(eventId: Long): Flow<List<TranscriptLine>> = dao.eventLines(eventId).map { rows ->
-        rows.map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson)) }
+        rows.map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), it.textEditedAt != null, it.eventId) }
     }.flowOn(io)
 
     override fun pendingItems(): Flow<List<MemoryItem>> = listed(dao.pendingItems())
@@ -210,7 +211,7 @@ class MemoryStoreRepository(
 
     override fun setImportant(eventId: Long, important: Boolean) = setStarred(eventId, important)
 
-    override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId) } }
+    override fun deleteEvent(eventId: Long) { scope.launch { dao.deleteEvent(eventId); onEventDeleted() } }
 
     private val pendingCount = dao.observeUndigestedCount().shareIn(scope, SharingStarted.Eagerly, replay = 1)
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

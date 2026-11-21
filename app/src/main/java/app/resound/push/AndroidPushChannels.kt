@@ -43,7 +43,7 @@ class AndroidPushChannels internal constructor(
             override fun read(ref: String) = store.read(ref)
             override fun write(ref: String, value: String) = store.write(ref, value)
             override fun remove(ref: String) = store.remove(ref)
-        }, PushTransport(), { PushRetryScheduler(context).enqueue(it) }, latestReview,
+        }, PushTransport(localFolder = { LocalFolderStorage(context, it.getValue("treeUri")) }), { PushRetryScheduler(context).enqueue(it) }, latestReview,
         java.io.File(context.filesDir, "push-state"),
         { id, at, continuation -> RecordPushScheduler(context).enqueue(id, at, continuation) },
         { RecordPushScheduler(context).cancel(it) },
@@ -52,10 +52,14 @@ class AndroidPushChannels internal constructor(
     internal var audioPush: RecordingAudioPush? = null
     override fun audioStatus(id: Long): Flow<AudioPushStatus> = audioPush?.status(id)
         ?: flowOf(AudioPushStatus(0, 0, 0, null, null, null))
+    override suspend fun audioOffPreview(id: Long): Int = audioPush?.offPreview(id) ?: 0
+    override val pendingRemoteDeletes: Flow<List<PendingRemoteDelete>> get() = audioPush?.pendingDeletes ?: flowOf(emptyList())
+    override suspend fun dismissRemoteDelete(channelId: Long, path: String) { audioPush?.dismiss(channelId, path) }
     internal fun resolveAudio(id: Long) = resolve(id)
     internal fun recordAudio(channel: PushChannel, count: Int) {
         record(channel, PushMessage("上传录音 $count 段", "", null, null, System.currentTimeMillis()), Result.success(Unit), emptyList())
     }
+    internal val privacyChanges = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
     internal var phoneReminders: PhoneReminders? = null
     internal var memoryDocument: suspend (java.time.LocalDate?, Boolean, Boolean) -> PushMessage? = { _, _, _ -> null }
 
@@ -77,7 +81,7 @@ class AndroidPushChannels internal constructor(
             PushCapabilities(records = false, incremental = false, folder = false, formats = setOf(PushFormat.Text, PushFormat.Markdown))
         PushKind.Telegram, PushKind.Email -> PushCapabilities(records = true, incremental = false, folder = false, formats = setOf(PushFormat.Text, PushFormat.Markdown))
         PushKind.Notion -> PushCapabilities(records = true, incremental = true, folder = false, formats = setOf(PushFormat.Markdown))
-        PushKind.MarkdownFolder -> PushCapabilities(records = true, incremental = true, folder = true, formats = setOf(PushFormat.Markdown), audio = true)
+        PushKind.MarkdownFolder, PushKind.LocalFolder -> PushCapabilities(records = true, incremental = true, folder = true, formats = setOf(PushFormat.Markdown), audio = true)
         PushKind.Webhook -> PushCapabilities(records = true, incremental = true, folder = false, formats = PushFormat.entries.toSet())
     }
     override val linkedNutstoreAccount: Flow<String?> get() = linkedAccount
@@ -89,6 +93,9 @@ class AndroidPushChannels internal constructor(
     }
     override suspend fun pushNow(id: Long): Result<String> {
         val s = channels.value.find { it.id == id }?.subscription ?: return subscriptions.run(id)
+        if (s.audio != AudioPush.Off) audioPush?.refresh()
+        if (s.audio != AudioPush.Off && !s.summaries && !s.reminders && s.records.isEmpty() && s.lines == LinesMode.Off && !s.footprint && !s.screenTime)
+            return Result.success("录音已加入推送队列，将按网络与充电设置执行")
         val other = s.summaries || s.reminders || s.records.isNotEmpty() || s.lines != LinesMode.Off
         val extras = mutableListOf<Result<String>>()
         if (s.footprint) extras += pushFootprintNow(id)
@@ -114,8 +121,8 @@ class AndroidPushChannels internal constructor(
     }
     override suspend fun rebuild(id: Long) = subscriptions.run(id, rebuild = true)
     override fun status(id: Long): Flow<PushChannelStatus> = subscriptions.status(id)
-    internal suspend fun recordsChanged() {
-        val snapshot = if (channels.value.any { it.enabled && it.subscription.reminders }) subscriptions.source(null, false) else null
+    internal suspend fun recordsChanged(reminders: Boolean = true) {
+        val snapshot = if (reminders && channels.value.any { it.enabled && it.subscription.reminders }) (subscriptions.automaticSource ?: subscriptions.source)(null, false) else null
         channels.value.forEach { channel ->
             subscriptions.changed(channel)
             if (snapshot != null) subscriptions.reminderSchedule(channel, snapshot)
@@ -123,7 +130,7 @@ class AndroidPushChannels internal constructor(
     }
     internal fun restoreSubscriptions() { channels.value.forEach { subscriptions.configure(it, false) } }
     override fun topics(kind: PushKind): Set<PushTopic> =
-        if (kind in setOf(PushKind.Webhook, PushKind.Email, PushKind.Notion, PushKind.Telegram, PushKind.MarkdownFolder)) PushTopic.entries.toSet()
+        if (kind in setOf(PushKind.Webhook, PushKind.Email, PushKind.Notion, PushKind.Telegram, PushKind.MarkdownFolder, PushKind.LocalFolder)) PushTopic.entries.toSet()
         else PushTopic.entries.toSet() - PushTopic.DailyMemory
 
     private fun array(key: String) = JSONArray(prefs.getString(key, "[]"))
@@ -150,7 +157,7 @@ class AndroidPushChannels internal constructor(
     private fun publicChannel(row: JSONObject): PushChannel {
         val kind = PushKind.valueOf(row.getString("kind"))
         val refs = row.getJSONObject("secrets")
-        val summary = if (row.optBoolean("useLinkedNutstore")) "使用数据备份中所选的云端存储" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
+        val summary = if (row.optBoolean("useLinkedNutstore")) "使用备份恢复中所选的云端存储" else fields(kind).filter { it.secret }.joinToString(" · ") { field ->
             val present = runCatching { secrets.read(refs.optString(field.key)).isNotBlank() }.onFailure {
                 FailureNotes.record("push/AndroidPushChannels.kt:133", it)
             }.getOrDefault(false)
@@ -171,7 +178,7 @@ class AndroidPushChannels internal constructor(
             }.getOrDefault("")
         } else row.getJSONObject("values").optString(field.key) }
         return if (kind == PushKind.MarkdownFolder && row.optBoolean("useLinkedNutstore")) own +
-            (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else own
+            (linkedCredentials() ?: throw PushFailure("先在备份恢复里连接云端存储，或改为单独配置")) else own
     }
     private fun persist(rows: List<JSONObject>) {
         check(prefs.edit().putString("channels", JSONArray(rows).toString()).commit())
@@ -196,7 +203,7 @@ class AndroidPushChannels internal constructor(
             val merged = fields(kind).associate { field -> field.key to
                 (input[field.key]?.trim().orEmpty().let { if (field.secret && it.isEmpty()) previous[field.key].orEmpty() else it }) }
             val actualLinked = linked && kind == PushKind.MarkdownFolder
-            val effective = if (actualLinked) merged + (linkedCredentials() ?: throw PushFailure("先在数据备份里连接云端存储，或改为单独配置")) else merged
+            val effective = if (actualLinked) merged + (linkedCredentials() ?: throw PushFailure("先在备份恢复里连接云端存储，或改为单独配置")) else merged
             val configured = effective.toMutableMap()
             if (kind == PushKind.MarkdownFolder) {
                 if (configured["folder"].isNullOrBlank()) configured["folder"] = "Resound-Memory"
@@ -211,6 +218,8 @@ class AndroidPushChannels internal constructor(
                 }
                 if (conflict != null) throw PushFailure("这个文件夹已经给“${conflict.getString("name")}”通道用了，换个名字")
             }
+            if (kind == PushKind.LocalFolder && rows.any { it.getLong("id") != id && it.getString("kind") == kind.name &&
+                    values(it)["treeUri"] == configured["treeUri"] }) throw PushFailure("这个文件夹已经给其他通道用了，请重新选择")
             PushFields.validate(kind, configured)
             val chosen = subscription ?: Subscriptions.tighten(Subscriptions.migrate(topics, memoryWithLines), capabilities(kind))
             val channelId = id ?: maxOf(System.currentTimeMillis(), (rows.maxOfOrNull { it.getLong("id") } ?: 0) + 1)
@@ -280,7 +289,7 @@ class AndroidPushChannels internal constructor(
 
     override suspend fun test(id: Long): Result<String> {
         val channel = channels.value.find { it.id == id } ?: return Result.failure(PushFailure("通道不存在，请重新打开"))
-        if (channel.kind == PushKind.MarkdownFolder) return pushNow(id)
+        if (channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder)) return pushNow(id)
         if (channel.subscription.records.isNotEmpty() || channel.subscription.lines != LinesMode.Off) return pushNow(id)
         val review = try { latestReview() }
         catch (e: CancellationException) { throw e }
@@ -308,7 +317,7 @@ class AndroidPushChannels internal constructor(
 
     internal suspend fun dispatchDailyMemory(date: java.time.LocalDate) {
         // 回顾生成入口不再隐式推全量记录，整理结果严格服从各通道触发器。
-        channels.value.filter { it.enabled && it.subscription.summaries && it.kind in setOf(PushKind.MarkdownFolder, PushKind.Notion) }
+        channels.value.filter { it.enabled && it.subscription.summaries && it.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder, PushKind.Notion) }
             .forEach { subscriptions.changed(it, summary = true) }
     }
 
@@ -317,7 +326,7 @@ class AndroidPushChannels internal constructor(
         val reminder = message.topic == PushTopic.TodoReminder
         channels.value.filter { it.enabled && ((summary && it.subscription.summaries) || (reminder && it.subscription.reminders)) }.map { channel -> launch {
             try {
-                if (summary && channel.kind in setOf(PushKind.MarkdownFolder, PushKind.Notion)) subscriptions.changed(channel, summary = true)
+                if (summary && channel.kind in setOf(PushKind.MarkdownFolder, PushKind.LocalFolder, PushKind.Notion)) subscriptions.changed(channel, summary = true)
                 else deliver(channel.id, message)
             } catch (e: CancellationException) { throw e }
             catch (caught: Exception) {
@@ -480,6 +489,9 @@ class AndroidPushChannels internal constructor(
                 }
                 if (conflict != null) throw PushFailure("这个文件夹已经给“${conflict.getString("name")}”通道用了，换个名字")
             }
+            if (channel.kind == PushKind.LocalFolder && readChannels().any { other ->
+                    other.getLong("id") != id && other.getString("kind") == PushKind.LocalFolder.name && values(other)["treeUri"] == resolved["treeUri"] })
+                throw PushFailure("这个文件夹已经给其他通道用了，请重新选择")
             channel to resolved
         }
 

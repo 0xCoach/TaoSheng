@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="app.resound.night.Night202Test" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-17T10:03:48.753Z" hostname="CoachdeMacBook-Air.local" time="0.117">
+  <properties/>
+  <testcase name="boundedSideChannelDropsOldWindowsWithoutWaitingForInference[jvm]" classname="app.resound.night.Night202Test" time="0.081"/>
+  <testcase name="rhythmRejectsFlatAndIsolatedNoiseAndAcceptsPulses[jvm]" classname="app.resound.night.Night202Test" time="0.002"/>
+  <testcase name="deferredCandidatesIncludeBothContextWindowsAndCapAtSixtySeconds[jvm]" classname="app.resound.night.Night202Test" time="0.001"/>
+  <testcase name="legacyDayThreadBytesStayUnchangedAndNightPushContainsNoAudio[jvm]" classname="app.resound.night.Night202Test" time="0.023"/>
+  <testcase name="enterConfirmCancelAndAllBatteryTiers[jvm]" classname="app.resound.night.Night202Test" time="0.003"/>
+  <testcase name="speechNearUseIsAwakePlaybackNeverDreamTalkAndGapsReduceConfidence[jvm]" classname="app.resound.night.Night202Test" time="0.002"/>
+  <testcase name="quietConflictCrossesMidnightAndSleepUsesElapsedTimeAcrossDst[jvm]" classname="app.resound.night.Night202Test" time="0.004"/>
+  <testcase name="normalNightAwakeIntervalsAreMergedAndEditedTimesWin[jvm]" classname="app.resound.night.Night202Test" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

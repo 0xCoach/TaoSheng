@@ -104,7 +104,7 @@ class DigestRunner(
             val chunks = verifiedPendingChunks(preset)
             if (!resolveInFlight(undigested, manual))
                 return needsUser("上次整理结果未能保存，已暂停自动请求；请检查存储后点“现在整理”重试")
-            appendReadyChunks(chunks, undigested, forceNow)
+            appendReadyChunks(chunks, undigested, forceNow, preset)
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
             // 安静后自动整理走 auto_digest：服务端仅 Pro 放行且有独立周期/每日点数上限（计入总池）
             val autoQuiet = !manual && prefs.getLong("quietPendingAt", 0L) > 0L
@@ -151,6 +151,12 @@ class DigestRunner(
         return DigestOutcome.NeedsUser(reason)
     }
 
+    /** 按这一轮预计实际用的模型分批：主模型冷却、实际走备用模型时，用两者中较小的预算。 */
+    private suspend fun batchChars(preset: LlmPreset): Int {
+        val primary = settings.batchBudget.current(preset, settings.deepThinking.value)
+        val actual = settings.failover.expected(preset)
+        return if (actual.id == preset.id) primary else minOf(primary, settings.batchBudget.current(actual, settings.deepThinking.value))
+    }
     private suspend fun replayUnsavedReply() {
         // rememberDigest 可能返回 false（来源已删除）；必须等调用完成后才能清内存与在途状态。
         unsavedReply?.let { dao.rememberDigest(it); unsavedReply = null; clearInFlight() }
@@ -178,11 +184,11 @@ class DigestRunner(
     }
 
     private suspend fun appendReadyChunks(chunks: MutableList<List<TranscriptLineEntity>>,
-                                          undigested: List<TranscriptLineEntity>, force: Boolean) {
+                                          undigested: List<TranscriptLineEntity>, force: Boolean, preset: LlmPreset) {
         val replayIds = chunks.flatten().map { it.id }.toSet()
         for (session in sessions(undigested.filterNot { it.id in replayIds }, gapMillis())) {
             val ready = if (closed(session, force)) session else settledPrefix(session)
-            chunks.addAll(batches(ready))
+            chunks.addAll(DigestBatches.batches(ready, batchChars(preset)) { it.text })
         }
     }
 
@@ -193,12 +199,12 @@ class DigestRunner(
                 record(now(), "等待网络")
                 return DigestOutcome.Retryable("等待网络")
             }
-            _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed())
+            _progress.value = _progress.value.copy(batch = index + 1, batchStartedAt = elapsed(), reasoningChars = 0, contentChars = 0)
             val refreshed = dao.refreshLines(chunk.map { it.id })
             when (val error = if (refreshed.isEmpty()) null else digest(refreshed, preset, key, onEvents)) {
                 null -> _progress.value = _progress.value.copy(done = _progress.value.done + chunk.size)
                 LlmError.Auth, LlmError.Quota -> return needsUser(failureDetail ?: error.human)
-                LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format -> {
+                LlmError.Network, LlmError.Server, LlmError.RateLimit, LlmError.Format, LlmError.TooSlow, LlmError.Truncated -> {
                     val reason = failureDetail ?: error.human
                     record(now(), reason)
                     return if (retryFailure) DigestOutcome.Retryable(reason) else DigestOutcome.NeedsUser(reason)
@@ -236,9 +242,20 @@ class DigestRunner(
         retryFailure = true
         val batchId = identity(lines)
         var storedId = batchId
+        var usedPreset = preset
+        var requested = false
         return try {
+            // 当前轮后续批次也读取最新预算；已经付费并缓存的结果必须直接重放。
+            if (cached(lines, preset) == null) {
+                val resized = DigestBatches.batches(lines, batchChars(preset)) { it.text }
+                if (resized.size > 1) {
+                    for (part in resized) digest(part, preset, key, onEvents)?.let { return it }
+                    return null
+                }
+            }
+            val recordings = playbackMillis(lines.map { it.segmentId }.distinct())
             val contextPrompt = SituationPrompt(settings.includeSituation.value, situation,
-                playbackMillis(lines.map { it.segmentId }.distinct()).associate { it.id to it.playbackMillis }, marks)
+                recordings.associate { it.id to it.playbackMillis }, marks, recordings)
             val (text, indexed) = contextPrompt.transcript(lines, unseparated = unseparated(lines.map { it.segmentId }.distinct()).toSet())
             val unfinished = dao.unfinishedForDigest()
             val candidates = unfinished.map { it.id }.toSet()
@@ -252,9 +269,31 @@ class DigestRunner(
                 val user = (thingBatch?.input?.let { "$it\n\n以下为本次新原话与整理参考：\n" } ?: "") + input
                 check(prefs.edit().putString("inflight", batchId).putString("inflight-lines", lines.joinToString(",") { it.id.toString() }).commit())
                 val received = try {
-                    settings.failover.chat("整理", preset, key, system, user, request) { usage ->
+                    val adaptiveRequest: suspend (LlmPreset, String, String, String) -> LlmReply = { p, secret, a, b ->
+                        usedPreset = p; requested = true
+                        var thinkingChars = 0
+                        _progress.value = _progress.value.copy(reasoningChars = 0, contentChars = 0)
+                        try {
+                            val reply = kotlinx.coroutines.withContext(app.resound.net.LlmReceiveProgress { reasoning, content ->
+                                thinkingChars = reasoning
+                                _progress.value = _progress.value.copy(reasoningChars = reasoning, contentChars = content)
+                            }) { request(p, secret, a, b) }
+                            thinkingChars = maxOf(thinkingChars, reply.reasoningChars)
+                            settings.slowStreak.result(p, false)
+                            reply
+                        } catch (e: LlmException) {
+                            if (thinkingChars > 0) settings.batchBudget.observedThinking(p, settings.deepThinking.value)
+                            settings.batchBudget.failed(p, e.type in setOf(LlmError.TooSlow, LlmError.Truncated))
+                            val hint = settings.slowStreak.result(p, e.type == LlmError.TooSlow)
+                            if (hint != null) throw LlmException(e.type, e.status, hint, e.usage, e.truncated)
+                            throw e
+                        } finally {
+                            if (thinkingChars > 0) settings.batchBudget.observedThinking(p, settings.deepThinking.value)
+                        }
+                    }
+                    kotlinx.coroutines.withContext(LlmSplitsOnSlow) { settings.failover.chat("整理", preset, key, system, user, adaptiveRequest) { usage ->
                         dao.addUsage(LocalDate.now().toString(), usage.promptTokens, usage.completionTokens, app.resound.usage.UsagePurpose.Digest)
-                    }.also { actualModels[batchId] = it.actualModel ?: preset.model
+                    } }.also { actualModels[batchId] = it.actualModel ?: preset.model
                         it.diagnostics?.let { trace -> responseTraces[batchId] = trace } }
                 } catch (e: LlmException) { clearInFlight(); throw e }
                 catch (e: LlmInputLimitException) { clearInFlight(); throw e }
@@ -277,9 +316,9 @@ class DigestRunner(
             val (events, items) = DigestPrompt.parse(reply.content, indexed, diagnostics = trace)
             val at = now()
             val save: suspend () -> Unit = { dao.saveDigest(
-                events = events.map { e ->
+                events = events.mapIndexed { eventIndex, e ->
                     MemoryEventEntity(
-                        startAt = e.startAt, endAt = e.endAt, scene = if (isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
+                        startAt = e.startAt, endAt = e.endAt, scene = if (items.none { it.eventIndex == eventIndex && it.category in setOf("待办", "约定") } && isMedia(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
                         pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(),
                         place = e.place, emotion = e.emotion, intensity = e.intensity, important = e.important,
                         createdAt = at, model = actualModels[stored.id] ?: preset.model,
@@ -316,6 +355,7 @@ class DigestRunner(
             if (events.isNotEmpty()) onEvents()
             runCatching { app.resound.search.EmbeddingScheduler.enqueue(appContext) }
             clearFailures(lines.first().id)
+            if (requested) settings.batchBudget.succeeded(usedPreset)
             null
         } catch (e: CancellationException) {
             throw e
@@ -324,7 +364,8 @@ class DigestRunner(
         } catch (e: LlmException) {
             diagnostics.error(e.type, now())
             failureDetail = e.detail
-            if (e.type == LlmError.Format) {
+            if (e.type == LlmError.Format) settings.batchBudget.failed(usedPreset, shrink = false)
+            if (e.type in setOf(LlmError.Format, LlmError.TooSlow, LlmError.Truncated)) {
                 dao.removePendingDigest(storedId)
                 actualModels.remove(storedId)
                 splitForRetry(lines)?.let { (first, second) ->
@@ -376,7 +417,7 @@ class DigestRunner(
     /** 发一句很短的测试话，分清是内容被拒还是配置被拒；网络等暂时问题返回 null，按原错误稍后重试。 */
     private suspend fun configAccepts(preset: LlmPreset, key: String): Boolean? {
         probe?.let { return it }
-        val result = try { request(preset, key, PROBE_SYSTEM, PROBE_USER); true }
+        val result = try { kotlinx.coroutines.withContext(app.resound.net.LlmProbeRequest()) { request(preset, key, PROBE_SYSTEM, PROBE_USER) }; true }
             catch (e: CancellationException) { throw e }
             catch (e: LlmException) { if (e.rejected) false else null }
             catch (_: Exception) { null }

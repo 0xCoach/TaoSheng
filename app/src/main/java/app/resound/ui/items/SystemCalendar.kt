@@ -17,7 +17,7 @@ import java.time.LocalDate
 
 /**
  * 加到手机日历：打开系统日历的“新建日程”页面并填好内容，用户点保存才算加上。
- * 不申请日历权限，涛声自己不写日历；之后待办改了，日历里那条不会跟着变。
+ * 不申请日历权限，声声不息自己不写日历；之后待办改了，日历里那条不会跟着变。
  */
 internal object SystemCalendar {
     private fun zone() = TimeZone.currentSystemDefault()
@@ -29,8 +29,11 @@ internal object SystemCalendar {
             .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, draft.begin)
             .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, draft.end)
             .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, draft.allDay)
-        if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return try { context.startActivity(intent); true }
+        // 弹出面板里拿到的是包了一层的 Context：找回所在页面再打开，不另开新任务（红米上首次跳转偶有失败）
+        val activity = generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }.firstOrNull { it is android.app.Activity }
+        val launcher = activity ?: context
+        if (launcher !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try { launcher.startActivity(intent); true }
         catch (_: ActivityNotFoundException) {
             // 手机上没有日历应用：提示即可，不算出错
             Toast.makeText(context, "手机上没有可用的日历应用", Toast.LENGTH_SHORT).show(); false

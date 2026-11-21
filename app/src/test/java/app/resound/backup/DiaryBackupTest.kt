@@ -52,6 +52,7 @@ class DiaryBackupTest {
         try {
             val config = BackupConfig(server.url("/dav/").toString())
             context.getSharedPreferences("diary", 0).edit().putBoolean("cloudSync", true).commit()
+            webDavPause = {}
             val repository = AndroidBackupRepository(context, db, config, diary) {
                 WebDavClient(config, "声声不息", "test@example.com", "test-password")
             }
@@ -78,7 +79,9 @@ class DiaryBackupTest {
             assertEquals(listOf(today.minusDays(1), today, today.minusDays(1), today), dates)
             assertEquals(failureAt, diagnostic.getLong("lastFailureAt", 0))
             val uploads = requests.filter { it.method == "PUT" && WebDavClient.DIARY_FOLDER in it.requestUrl!!.pathSegments }
-            assertEquals(listOf("${today.minusDays(1)}.md", "$today.md", "${today.minusDays(1)}.md", "$today.md"),
+            // 服务端 503 时每份先重试 3 次（共 4 次），之后下一晚各成功 1 次
+            val failing = listOf(today.minusDays(1), today).flatMap { d -> List(4) { "$d.md" } }
+            assertEquals(failing + listOf("${today.minusDays(1)}.md", "$today.md"),
                 uploads.map { it.requestUrl!!.pathSegments.last() })
             assertTrue(uploads.all { it.body.clone().readUtf8().startsWith("# 日记 ") })
             assertEquals(1, requests.count { it.method == "MKCOL" && WebDavClient.DIARY_FOLDER in it.requestUrl!!.pathSegments })

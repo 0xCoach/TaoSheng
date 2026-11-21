@@ -1,0 +1,4 @@
+allprojects { tasks.withType(Test).configureEach {
+    if (project.name == 'shared') filter { includeTestsMatching 'app.resound.recordings.RecordingKeep214Test' }
+    if (project.name == 'app') filter { includeTestsMatching 'app.resound.recordings.Recording214Test' }
+} }

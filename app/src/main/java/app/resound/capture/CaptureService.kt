@@ -1,5 +1,6 @@
 package app.resound.capture
 
+import app.resound.transcribe.PlaybackOverride
 import app.resound.digest.DigestMode
 import app.resound.AppGraph
 import app.resound.auth.AuthGate
@@ -75,16 +76,30 @@ class CaptureService : Service() {
             capacityMah = AppPowerModel.capacityMah(charge, percent)))
         threadCpuDiagnostics.record(this, charging.takeIf { epoch == chargeEpoch.get() }, state.name)
     }
+    private var nightCapture: app.resound.night.NightCapture? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
+        nightCapture = (AppGraph.night as? app.resound.night.AndroidNight)?.capture(scope)
         alive = true
         instance = this
         folderImports()?.recordingChanged()
         // 播放状态取 AppGraph 应用级单例；服务存活期间保持订阅，让回调与轮询保持活跃，
         // 判定直接读 state.value；销毁时订阅随 scope.cancel 一起取消。
-        scope.launch { AppGraph.playback.state.collect { } }
+        scope.launch {
+            val current = app.database.invalidationTracker.createFlow("playback_rows").map {
+                app.database.screenTime().openPlaybacks().maxByOrNull { it.lastSeenAt }
+            }
+            kotlinx.coroutines.flow.combine(AppGraph.playback.state, current,
+                AppGraph.playbackSettings.preferences) { state, row, prefs -> Triple(state, row, prefs) }
+                .collect { (state, row, prefs) ->
+                    val before = app.playbackSession.canRemember
+                    app.playbackSession.update(state.playing, state.speakerPlaying, row?.sessionKey,
+                        prefs.rule(row?.pkg), System.currentTimeMillis())
+                    if (initialized && before != app.playbackSession.canRemember) refreshOngoing()
+                }
+        }
         registerReceiver(powerReceiver, android.content.IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(Intent.ACTION_SCREEN_ON)
@@ -139,6 +154,11 @@ class CaptureService : Service() {
     }
     private suspend fun handle(intent: Intent) {
         if (intent.action == RECHECK && (!initialized || !store.prefs.getBoolean("enabled", false))) return
+        if (intent.action == REMEMBER_PLAYBACK) {
+            if (initialized && AppGraph.playback.state.value.speakerPlaying) app.playbackSession.remember(System.currentTimeMillis())
+            refreshOngoing()
+            return
+        }
         if (intent.action == DISCARD_CURRENT) {
             val wasCapturing = capture?.isActive == true
             discardOnFinish = true
@@ -382,6 +402,7 @@ class CaptureService : Service() {
                             timeline?.frameArchiveId ?: source.id, sensitivity.minSpeechSamples),
                             sensitivity.minSpeechSamples).also { segmenter = it }
                         vad.accept(frame) { pcm, speech, level ->
+                            if (route.device.kind == InputKind.Phone) nightCapture?.accept(pcm, speech, System.currentTimeMillis() - pcm.size / 16)
                             cutter.accept(pcm, speech, AppGraph.playback.state.value.speakerPlaying)
                             val next = if (cutter.active) CaptureState.Recording else CaptureState.Listening
                             // 状态和采样在此线程串行；人声状态切换不改变 running 区间。
@@ -439,6 +460,7 @@ class CaptureService : Service() {
     private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null, quietName: String? = null) {
         // MicBusy 边界也要补拍：让麦期间不累计试用，到期任务须挂起重排，不能照跑。
         if (initialized && (running(state) != running(next) || accrues(state) != accrues(next))) beat()
+        nightCapture?.captureState(when(next) { CaptureState.Paused -> if(quietName != null) "停录时段内没有记录" else "已暂停录音"; CaptureState.MicBusy -> "麦克风被占用"; else -> null })
         state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
     }
     private fun folderImports() = if (AppGraph.isFolderImportReady)
@@ -529,8 +551,10 @@ class CaptureService : Service() {
             pending.completion?.completeExceptionally(CancellationException("录音服务已停止"))
         }
         stopLocation()
+        nightCapture?.close(); nightCapture = null
         unregisterReceiver(powerReceiver)
         if (!normalStop && controller.status.value.state != CaptureState.NoPermission) controller.update(CaptureState.Stopped)
+        app.playbackSession.update(false, false, null, PlaybackOverride.Default, System.currentTimeMillis())
         scope.cancel(); dispatcher.close(); releaseWakeLock()
         if (!normalStop && initialized && !plannedPause()) CaptureNotifications.interrupted(this)
         super.onDestroy()
@@ -559,6 +583,7 @@ class CaptureService : Service() {
             service.commands.send(Command(Intent().setAction(DISCARD_CURRENT), done))
             done.await()
         }
+        const val REMEMBER_PLAYBACK = "app.resound.capture.REMEMBER_PLAYBACK"
         const val RECHECK = "app.resound.capture.RECHECK"
         /** R4 隐私暂停：extra "on"=true 进入（不自动恢复），false 恢复 */
         const val PRIVACY = "app.resound.capture.PRIVACY"

@@ -260,7 +260,7 @@ fun EnvSoundPage(repo: EnvSoundRepository, bottomPadding: Dp) {
         Text("只分析已经录下的人声片段，在转写前判断一次；录音方式不变，旧录音不补算。全部在手机上完成，不上传。",
             style = RsType.subhead, color = c.textSecondary, modifier = Modifier.padding(horizontal = 4.dp))
         RsCard(padding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)) {
-            SwitchRow("环境音识别", when (val m = model) {
+            SwitchRow("识别环境声音", when (val m = model) {
                 EnvModelState.NotDownloaded -> if (s.enabled) "准备下载模型（约 27 MB）" else "打开后下载约 27 MB 的识别模型"
                 is EnvModelState.Downloading -> "正在下载模型 ${(m.progress * 100).toInt()}%"
                 EnvModelState.Ready -> if (s.enabled) "已开启" else "模型已下载"

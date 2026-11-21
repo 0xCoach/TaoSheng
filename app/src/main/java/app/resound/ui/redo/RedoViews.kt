@@ -258,3 +258,65 @@ private fun JobBody(repo: RedoService, job: RedoJob, onClose: () -> Unit) {
         }
     }
 }
+
+/**
+ * 卡 219（#61）：一天内最近一次重做的撤销入口。点了“好”关掉任务后也一直在，直到快照过期或被下一次重做顶掉。
+ * 原话页只显示重新转写的（transcribe = true），首页显示整理/合并的；不知道是哪种（0.5.4 关掉的）两边都显示。
+ * 撤销前在卡片里原地确认，不另弹面板。
+ */
+@Composable
+fun RedoUndoCard(transcribe: Boolean, topGap: androidx.compose.ui.unit.Dp = 0.dp) {
+    if (!AppGraph.isRedoReady) return
+    val repo = AppGraph.redo
+    val c = Rs.colors
+    val u by repo.undoable.collectAsStateWithLifecycle()
+    val jobs by repo.jobs.collectAsStateWithLifecycle()
+    val shown = u?.takeIf { x -> x.scope == null || (x.scope == RedoScope.TranscribeOnly) == transcribe }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember { context.getSharedPreferences("redo-ui", android.content.Context.MODE_PRIVATE) }
+    var hidden by remember { mutableStateOf(runCatching { prefs.getString("hidden-undo", null) }.getOrNull()) }
+    var confirming by remember(shown?.jobId) { mutableStateOf(false) }
+    var busy by remember(shown?.jobId) { mutableStateOf(false) }
+    var error by remember(shown?.jobId) { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val busyElsewhere = jobs.any { it.state is RedoJobState.Running }
+    androidx.compose.animation.AnimatedVisibility(shown != null && shown.jobId != hidden, Modifier.padding(top = topGap),
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()) {
+        val x = shown ?: return@AnimatedVisibility
+        val what = x.title ?: if (x.scope == null) "上次重做" else when (x.scope) {
+            RedoScope.TranscribeOnly -> "重新转写"; RedoScope.Merge -> "合并事件"; else -> "重做事件"
+        }
+        val left = ((x.expiresAt - System.currentTimeMillis()) / 3_600_000).coerceAtLeast(0)
+        val at = java.time.Instant.ofEpochMilli(x.at).atZone(java.time.ZoneId.systemDefault())
+        app.resound.ui.verify.RsCard(padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
+            Text("$what 还能撤销", style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+            Text("${at.monthValue}月${at.dayOfMonth}日 ${"%02d:%02d".format(at.hour, at.minute)} 做的 · " +
+                if (left >= 1) "还剩约 $left 小时" else "快到期了",
+                style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 2.dp))
+            Text(if (confirming) "撤销后，这次${if (x.scope == RedoScope.Merge) "合并" else "重做"}换上的内容会换回原来的，撤销后不能再恢复"
+                else "撤销会换回这次${if (x.scope == RedoScope.Merge) "合并" else "重做"}之前的内容；以后再重做一次，这次就撤销不了了",
+                style = RsType.caption, color = if (confirming) c.warning else c.textSecondary, modifier = Modifier.padding(top = 8.dp))
+            if (busyElsewhere) Text("正在做别的重做，做完才能撤销", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 4.dp))
+            error?.let { Text(it, style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 4.dp)) }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (confirming) {
+                    ActionButton(if (busy) "正在撤销…" else "确定撤销", ActionKind.Danger, Modifier.weight(1f), enabled = !busy && !busyElsewhere) {
+                        busy = true; error = null
+                        scope.launch {
+                            repo.undo(x.jobId).onFailure { error = it.message ?: "撤销失败" }
+                            busy = false; confirming = false
+                        }
+                    }
+                    ActionButton("算了", ActionKind.Secondary, Modifier.weight(1f), enabled = !busy) { confirming = false }
+                } else {
+                    ActionButton("撤销", ActionKind.Secondary, Modifier.weight(1f), enabled = !busyElsewhere) { confirming = true; error = null }
+                    ActionButton("收起", ActionKind.Secondary, Modifier.weight(1f)) {
+                        hidden = x.jobId; runCatching { prefs.edit().putString("hidden-undo", x.jobId).apply() }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -40,13 +40,17 @@ internal class AndroidRedoService(
     override val llmOptions = mutableOptions.asStateFlow()
     private val gate = Mutex()
     private val active = mutableMapOf<String, Job>()
+    private val mutableUndoable = MutableStateFlow<RedoUndoable?>(null)
+    override val undoable = mutableUndoable.asStateFlow()
+    /** 撤销后快照被清掉，任务列表可能没变（任务已关掉），靠它重新看一遍 */
+    private val undoChanges = MutableStateFlow(0)
     init {
         if (jobs.value.any { it.state is RedoJobState.Running }) enqueue()
         scope.launch {
             mutableOptions.subscriptionCount.map { it > 0 }.refreshWhileNeeded(1000) { mutableOptions.value = options() }
         }
         scope.launch {
-            combine(jobs, calendarChanges(context)) { rows, _ -> rows }.collectLatest {
+            combine(jobs, calendarChanges(context), undoChanges) { rows, _, _ -> rows }.collectLatest {
                 while (isActive) {
                     var nextExpiry: Long? = null
                     gate.withLock {
@@ -60,6 +64,9 @@ internal class AndroidRedoService(
                                 if (state is RedoJobState.Done) it.copy(state = state.copy(undoable = it.id == undoId)) else it
                             }
                             if (fresh != jobs.value) publish(fresh)
+                            // 只认已生效的快照：新重做一开始就会占用快照位，跑完（applied）之前不能撤
+                            mutableUndoable.value = snapshot?.takeIf { it.jobId == undoId && it.applied }
+                                ?.let { s -> fresh.find { it.id == s.jobId }.let { j -> if (j?.state is RedoJobState.Running) null else undoableOf(s.jobId, s.at, j) } }
                             nextExpiry = (fresh.filter { it.state !is RedoJobState.Running }.map { BackgroundRefreshPolicy.redoDeadline(it.createdAt) } + listOfNotNull(nextExpiry)).minOrNull()
                         }
                     }
@@ -98,7 +105,11 @@ internal class AndroidRedoService(
         RedoNotifications.clear(context, id)
     }
     @Synchronized override fun dismiss(id: String) {
-        if (job(id)?.state is RedoJobState.Running) return
+        val job = job(id)
+        if (job?.state is RedoJobState.Running) return
+        // 卡 219：关掉的任务从列表拿走，但撤销快照还在；留下它是哪种重做，撤销入口好写清楚
+        if ((job?.state as? RedoJobState.Done)?.undoable == true) check(prefs.edit().putString(UNDO_META,
+            JSONObject().put("id", id).put("title", job.title).put("scope", job.request.scope.name).toString()).commit()) { "无法保存重做任务" }
         publish(jobs.value.filterNot { it.id == id }); RedoNotifications.clear(context, id)
     }
     @Synchronized internal fun job(id: String) = jobs.value.find { it.id == id }
@@ -110,7 +121,10 @@ internal class AndroidRedoService(
         if (jobs.value.any { it.state is RedoJobState.Running }) return@withLock Result.failure(IllegalStateException("请等待重做结束后再撤销"))
         var result: Result<Unit> = Result.failure(IllegalStateException("无法撤销"))
         idle { result = engine.undo(id) }
-        if (result.isSuccess) synchronized(this) { publish(jobs.value.map { if (it.id == id) it.copy(state = RedoJobState.Undone) else it }) }
+        if (result.isSuccess) synchronized(this) {
+            publish(jobs.value.map { if (it.id == id) it.copy(state = RedoJobState.Undone) else it })
+            mutableUndoable.value = null; undoChanges.value++
+        }
         result
     }
     internal suspend fun drain(progress: suspend (RedoJob) -> Unit) = gate.withLock {
@@ -176,6 +190,13 @@ internal class AndroidRedoService(
         check(prefs.edit().putString("jobs", json.toString()).commit()) { "无法保存重做任务" }
         mutableJobs.value = value
     }
+    private fun undoableOf(id: String, at: Long, job: RedoJob?): RedoUndoable {
+        val meta = job?.let { it.title to it.request.scope } ?: runCatching {
+            JSONObject(prefs.getString(UNDO_META, null) ?: return@runCatching null).takeIf { it.getString("id") == id }
+                ?.let { it.getString("title") to RedoScope.valueOf(it.getString("scope")) }
+        }.getOrNull()
+        return RedoUndoable(id, at, at + 86_400_000, meta?.first, meta?.second)
+    }
     private fun load(): List<RedoJob> {
         val json = runCatching { JSONArray(prefs.getString("jobs", "[]")) }.onFailure {
             FailureNotes.record("redo/AndroidRedoService.kt:176", it)
@@ -198,6 +219,7 @@ internal class AndroidRedoService(
         }.getOrNull() }
     }
     companion object {
+        private const val UNDO_META = "undo-meta"
         fun enqueue(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork("redo", ExistingWorkPolicy.APPEND_OR_REPLACE,
                 OneTimeWorkRequestBuilder<RedoWorker>().setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST).build())

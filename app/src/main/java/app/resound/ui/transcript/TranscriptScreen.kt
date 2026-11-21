@@ -203,12 +203,16 @@ fun TranscriptScreen(
         if (app.resound.AppGraph.isHotwordsReady) item(key = "hotwords") { Box(Modifier.settingsAnchor("hotwords")) { HotwordCard(app.resound.AppGraph.hotwords) } }
         item {
             val list = segments.orEmpty()
+            Column {
             Section("录音原话", trailing = {
                 if (list.isNotEmpty()) {
                     val done = list.count { it.status == TranscriptStatus.Done || it.status == TranscriptStatus.Empty }
                     Text("${list.size} 段 · 已转 $done", style = RsType.caption, color = c.textTertiary)
                 }
             }) { DaySwitcher(dayOffset) { dayOffset = it } }
+            // 卡 219：最近一次重新转写，关掉任务后也能撤销
+            app.resound.ui.redo.RedoUndoCard(transcribe = true, topGap = 12.dp)
+            }
         }
         // 环境音识别：这天被跳过 / 可跳过 / 疑似影视的录音，点开试听、找回
         item(key = "env-$date") { app.resound.ui.envsound.EnvFlaggedRow(date) }

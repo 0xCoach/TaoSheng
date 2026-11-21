@@ -87,6 +87,12 @@ sealed interface RedoJobState {
 
 data class RedoJob(val id: String, val title: String, val request: RedoRequest, val state: RedoJobState, val createdAt: Long)
 
+/**
+ * 卡 219（#61）：一天内最近一次重做的撤销入口。以数据库里的撤销快照为准，点了“好”关掉任务后也还在，
+ * 快照过期（1 天）或被下一次重做顶掉才消失。scope/title 为 null = 0.5.4 及以前关掉的任务，不知道是哪种重做。
+ */
+data class RedoUndoable(val jobId: String, val at: Long, val expiresAt: Long, val title: String?, val scope: RedoScope?)
+
 interface RedoService {
     val asr: AsrChooser
     val llmOptions: StateFlow<List<LlmOption>>
@@ -99,6 +105,8 @@ interface RedoService {
     /** 恢复到重做前（只保留最近一次）；失败给人看的原因 */
     suspend fun undo(id: String): Result<Unit>
     fun dismiss(id: String)
+    /** 卡 219：还能撤销的最近一次重做（不管任务关没关） */
+    val undoable: StateFlow<RedoUndoable?>
 }
 
 /** 点“重做完成”通知打开 App 时 Intent 里带的任务 id */

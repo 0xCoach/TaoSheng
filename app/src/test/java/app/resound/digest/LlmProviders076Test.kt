@@ -293,4 +293,12 @@ class LlmProviders076Test {
             assertEquals("/v1/chat/completions", server.takeRequest().path)
         }
     }
+
+    /** 官方条目免本地密钥：各密钥门放行、由官方桥报真因（未登录/未同意/点数），
+     *  否则 review/技能/待办等共享路径会误报"还没填写大模型密钥"。 */
+    @Test fun officialAllowsEmptyKey() {
+        assertTrue(LlmPreset(OFFICIAL_PROVIDER_ID, "声声不息官方 AI", "official", "official").allowsEmptyKey())
+        assertTrue(LlmPreset("custom", "自定义", "http://192.168.1.5:11434/v1", "m").allowsEmptyKey())
+        assertFalse(LlmPreset("deepseek", "DeepSeek", "https://api.deepseek.com", "deepseek-flash").allowsEmptyKey())
+    }
 }

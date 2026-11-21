@@ -277,5 +277,6 @@ class AndroidLlmProviders internal constructor(
 
 private fun JSONObject.nullString(key: String) = if (isNull(key)) null else getString(key)
 internal fun SavedProvider.preset() = LlmInputBudget.bind(LlmPreset(id, name, baseUrl, model), templateId)
-/** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权。 */
-fun LlmPreset.allowsEmptyKey() = id == "custom" || OpenAiEndpoint.kind(baseUrl) == EndpointKind.LocalHttp
+/** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权；官方条目走账号令牌计费、从不持本地密钥——
+ *  免密钥放行后由官方桥直接报真因（未登录/未同意/点数不足），比各处"还没填写密钥"的误导文案准确。 */
+fun LlmPreset.allowsEmptyKey() = id == OFFICIAL_PROVIDER_ID || id == "custom" || OpenAiEndpoint.kind(baseUrl) == EndpointKind.LocalHttp

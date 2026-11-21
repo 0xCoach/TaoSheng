@@ -82,7 +82,12 @@ class AuthGate(
     fun ownershipIssue() = when {
         store.boundAccountId == null && store.sessionAccountId != null &&
             store.hasLocalData && !store.ownerVerified -> true
-        store.boundAccountId != null && store.boundAccountId != store.sessionAccountId -> true
+        // 与 AuthGateRules.decide 同口径：仅"已登录且数据归他号"才硬阻断。
+        // 登出态 sessionAccountId==null 时 bound!=session 恒真但无意义——必须放行进登录面板
+        // （登回原绑定账号即 AlreadyBound 自然解除）；否则归属弹层挡住登录页、bindLocalData
+        // 又要求会话，用户永远到不了登录界面，形成死锁。
+        store.boundAccountId != null && store.sessionAccountId != null &&
+            store.boundAccountId != store.sessionAccountId -> true
         else -> false
     }
 

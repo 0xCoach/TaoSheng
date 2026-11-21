@@ -33,6 +33,18 @@ class AuthGatePromptTest {
         assertNotNull("登出态必须仍然发出登录请求", gate.loginRequested.value)
     }
 
+    /** 回归：本机数据已绑定 + 登出态 → ownershipIssue 必须为 false——
+     *  归属弹层曾借此把登录页挡死（bound!=null 恒真、bindLocalData 又要会话，纯死锁）；
+     *  登到异号才真正成立，登回原绑定账号即 AlreadyBound 自然解除。 */
+    @Test fun loggedOutBoundIsNotOwnershipIssue() {
+        inject(boundAccountId = "owner-1")
+        val (_, gate) = newGate()
+        assertFalse("登出态必须先放行登录面板", gate.ownershipIssue())
+        inject(accountId = "other", boundAccountId = "owner-1")
+        val (_, gate2) = newGate()
+        assertTrue("登录到异号才构成数据归他号", gate2.ownershipIssue())
+    }
+
     /** 登出态取消登录面板不记归属冷却（冷却只属于"已登录的归属确认"）。 */
     @Test fun loggedOutDismissDoesNotArmCooldown() {
         inject(boundAccountId = "owner-1")

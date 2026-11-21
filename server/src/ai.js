@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = {
   enabled: false, paused: false,
   free_monthly_points: 100, pro_period_points: 1000,
   max_input_tokens: 32000, max_output_tokens: 4000, task_point_cap: 100,
-  free_daily_tasks: 10, pro_daily_tasks: 60,
+  free_daily_tasks: 0, pro_daily_tasks: 0, // 仅按点数使用；管理员可另设每日次数
   auto_period_points: 300, auto_daily_points: 40,
   budget_daily_milli: 0, budget_monthly_milli: 0, // 0 = 不限
   allowed_hosts: DEFAULT_HOSTS,
@@ -231,6 +231,8 @@ export async function handleAi(req, env, H) {
         return json({ request_id: reqKey, content: dup.result || "", points: dup.points, duplicated: true, balance: pv });
       }
       if (dup && dup.status === "reserved") return err("request in flight", 409);
+      // 超时可能已在上游执行，不能以同一凭据再次发起并造成重复调用。
+      if (dup?.error_code?.startsWith("UNKNOWN_PROVIDER_OUTCOME")) return err("UNKNOWN_PROVIDER_OUTCOME", 504);
 
       const inChars = system.length + userText.length;
       const tin = estTokens(inChars);
@@ -247,7 +249,12 @@ export async function handleAi(req, env, H) {
       const todayCount = await env.DB.prepare(
         "SELECT COUNT(*) n FROM ai_usage_requests WHERE user_id=? AND status='settled' AND created_at>=?").bind(uid, dayStart(t)).first();
       const dailyCap = period.plan === "pro" ? cfg.pro_daily_tasks : cfg.free_daily_tasks;
-      if ((todayCount?.n || 0) >= dailyCap) return err("RATE_LIMITED", 429);
+      // 0 表示仅按点数使用；每日额度与上游短时限流必须区分。
+      if (dailyCap > 0 && (todayCount?.n || 0) >= dailyCap) {
+        await audit(env, uid, "ai.daily_task_limit", `${period.plan}:${dailyCap}`, req);
+        return json({ error: "DAILY_TASK_LIMIT", source: "daily_task_limit", limit: dailyCap,
+          used: todayCount.n, reset_at: dayStart(t) + 86400 }, 429);
+      }
 
       // 自动整理独立额度（仅 Pro 可发起；上限另计且计入总池）
       if (task === "auto_digest") {
@@ -274,10 +281,14 @@ export async function handleAi(req, env, H) {
 
       // 原子预留：条件 UPDATE 保证不超扣；0 行即额度不足
       const adj = await periodAdjust(env, period.id);
-      const reqId = uuid();
-      const ins = await env.DB.prepare(
-        "INSERT INTO ai_usage_requests(id,user_id,request_key,task_type,status,provider_id,model,reserved_points,created_at) VALUES(?,?,?,?,?,?,?,?,?)")
-        .bind(reqId, uid, reqKey, task, "reserved", provider.id, provider.model, reservePts, t).run();
+      const reqId = dup?.id || uuid();
+      // 已明确失败/拒绝的任务可以恢复；比较状态抢占，只有一个调用能预留和访问上游。
+      const ins = dup ? await env.DB.prepare(
+        "UPDATE ai_usage_requests SET status='reserved',error_code=NULL,provider_id=?,model=?,reserved_points=?,created_at=? WHERE id=? AND status IN ('failed','rejected')")
+        .bind(provider.id, provider.model, reservePts, t, reqId).run()
+        : await env.DB.prepare(
+          "INSERT OR IGNORE INTO ai_usage_requests(id,user_id,request_key,task_type,status,provider_id,model,reserved_points,created_at) VALUES(?,?,?,?,?,?,?,?,?)")
+          .bind(reqId, uid, reqKey, task, "reserved", provider.id, provider.model, reservePts, t).run();
       if (!ins.meta.changes) return err("request in flight", 409);
       const rs = await env.DB.prepare(
         "UPDATE ai_quota_periods SET reserved=reserved+? WHERE id=? AND ? - used - reserved >= ?")
@@ -304,6 +315,7 @@ export async function handleAi(req, env, H) {
           return await okCall(resp, text);
         } finally { clearTimeout(timer); }
       };
+      let settled = false, released = false;
       const settle = async (pts, tin2, tout2, content, estimated, costMilli) => {
         const pv = await env.DB.batch([
           env.DB.prepare("UPDATE ai_quota_periods SET used=used+?, reserved=reserved-? WHERE id=?").bind(pts, reservePts, period.id),
@@ -312,20 +324,28 @@ export async function handleAi(req, env, H) {
           env.DB.prepare("INSERT INTO ai_usage_ledger(id,user_id,period_id,request_id,kind,delta,actor,at) VALUES(?,?,?,?,?,?,?,?)")
             .bind(uuid(), uid, period.id, reqId, "charge", -pts, "system", nowS()),
         ]);
+        settled = true;
         return pv;
       };
       const release = async (code, detail) => {
+        // 结算后的余额查询/审计失败不能撤销成功记录；一次失败也只能释放一次。
+        if (settled || released) return;
         await env.DB.batch([
           env.DB.prepare("UPDATE ai_quota_periods SET reserved=MAX(0,reserved-?) WHERE id=?").bind(reservePts, period.id),
           env.DB.prepare("UPDATE ai_usage_requests SET status='failed',error_code=? WHERE id=?").bind(`${code}${detail ? ":" + String(detail).slice(0, 60) : ""}`, reqId),
           env.DB.prepare("INSERT INTO ai_usage_ledger(id,user_id,period_id,request_id,kind,delta,actor,at) VALUES(?,?,?,?,?,?,?,?)")
             .bind(uuid(), uid, period.id, reqId, "release", reservePts, "system", nowS()),
         ]);
+        released = true;
       };
 
       try {
         return await finish(async (resp, text) => {
-          if (resp.status === 429) { await release("RATE_LIMITED"); return err("RATE_LIMITED", 429); }
+          if (resp.status === 429) {
+            await release("RATE_LIMITED");
+            await audit(env, uid, "ai.provider_rate_limited", provider.id, req);
+            return json({ error: "RATE_LIMITED", source: "upstream" }, 429);
+          }
           if (!resp.ok) { await release("PROVIDER_UNAVAILABLE", resp.status); await audit(env, uid, "ai.provider_error", `${provider.id}:${resp.status}`, req); return err("PROVIDER_UNAVAILABLE", 503); }
           let obj; try { obj = JSON.parse(text); } catch { await release("TASK_FAILED", "bad_json"); return err("TASK_FAILED", 502); }
           const content = obj?.choices?.[0]?.message?.content;
@@ -439,6 +459,9 @@ export async function handleAi(req, env, H) {
     if (req.method === "GET") return json({ rules: await settings(env), key_configured: !!env.AI_KEY_SECRET });
     if (req.method === "PATCH") {
       const b = await req.json().catch(() => ({}));
+      for (const k of ["free_daily_tasks", "pro_daily_tasks"]) {
+        if (b[k] !== undefined && (!Number.isSafeInteger(b[k]) || b[k] < 0)) return err(`${k} must be a non-negative integer`);
+      }
       const allow = ["enabled", "paused", "free_monthly_points", "pro_period_points", "max_input_tokens", "max_output_tokens",
         "task_point_cap", "free_daily_tasks", "pro_daily_tasks", "auto_period_points", "auto_daily_points",
         "budget_daily_milli", "budget_monthly_milli", "allowed_hosts"];

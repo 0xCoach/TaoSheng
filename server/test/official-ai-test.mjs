@@ -16,6 +16,7 @@ const T = { users: [], sessions: [], licenses: [], audit_log: [], login_attempts
   plans: [], entitlements: [], admin_sessions: [],
   ai_settings: [], ai_provider_configs: [], ai_quota_periods: [], ai_usage_requests: [],
   ai_usage_ledger: [], ai_point_adjustments: [], ai_consents: [] };
+let failBalanceAfterCharge = null;
 
 class Stmt {
   constructor(sql) { this.sql = sql.replace(/\s+/g, " "); this.args = []; }
@@ -46,7 +47,13 @@ class Stmt {
     }
     if (s.includes("UPDATE ai_quota_periods SET used=used+?")) { const r = this._row("ai_quota_periods", x => x.id === a[2]); if (!r) return 0; r.used += a[0]; r.reserved -= a[1]; return 1; }
     if (s.includes("UPDATE ai_quota_periods SET reserved=MAX(0,reserved-?")) { const r = this._row("ai_quota_periods", x => x.id === a[1]); if (!r) return 0; r.reserved = Math.max(0, r.reserved - a[0]); return 1; }
-    if (s.includes("INSERT INTO ai_usage_requests")) {
+    if (s.includes("UPDATE ai_usage_requests SET status='reserved'")) {
+      const r = this._row("ai_usage_requests", x => x.id === a[4] && ["failed", "rejected"].includes(x.status));
+      if (!r) return 0;
+      Object.assign(r, { status: "reserved", error_code: null, provider_id: a[0], model: a[1], reserved_points: a[2], created_at: a[3] });
+      return 1;
+    }
+    if (s.includes("INSERT INTO ai_usage_requests") || s.includes("INSERT OR IGNORE INTO ai_usage_requests")) {
       if (this._row("ai_usage_requests", x => x.user_id === a[1] && x.request_key === a[2])) return 0;
       T.ai_usage_requests.push({ id: a[0], user_id: a[1], request_key: a[2], task_type: a[3], status: a[4], provider_id: a[5], model: a[6], reserved_points: a[7], points: 0, input_tokens: 0, output_tokens: 0, estimated: 0, cost_milli: 0, error_code: null, result: null, created_at: a[8], settled_at: null }); return 1;
     }
@@ -101,7 +108,14 @@ class Stmt {
     }
     if (s.includes("FROM ai_settings WHERE key='official'")) return this._row("ai_settings", x => x.key === "official") || null;
     if (s.includes("FROM ai_consents WHERE user_id=?")) return this._row("ai_consents", x => x.user_id === a[0]) || null;
-    if (s.includes("FROM ai_quota_periods WHERE id=?")) return this._row("ai_quota_periods", x => x.id === a[0]) || null;
+    if (s.includes("FROM ai_quota_periods WHERE id=?")) {
+      if (failBalanceAfterCharge && T.ai_usage_ledger.some(x => x.kind === "charge" &&
+          x.request_id === T.ai_usage_requests.find(r => r.request_key === failBalanceAfterCharge)?.id)) {
+        failBalanceAfterCharge = null;
+        throw new Error("injected post-settlement balance read failure");
+      }
+      return this._row("ai_quota_periods", x => x.id === a[0]) || null;
+    }
     if (s.includes("ai_quota_periods WHERE user_id=? AND plan='pro' AND period_start<=?")) return this._rows("ai_quota_periods", x => x.user_id === a[0] && x.plan === "pro" && x.period_start <= a[1] && x.period_end > a[2]).sort((x, y) => y.period_start - x.period_start)[0] || null;
     if (s.includes("ai_quota_periods WHERE user_id=? AND plan='pro' ORDER BY period_end DESC")) return this._rows("ai_quota_periods", x => x.user_id === a[0] && x.plan === "pro").sort((x, y) => y.period_end - x.period_end)[0] || null;
     if (s.includes("SUM(points)") && s.includes("FROM ai_point_adjustments")) return { p: this._rows("ai_point_adjustments", x => x.period_id === a[0]).reduce((t, x) => t + x.points, 0) };
@@ -144,9 +158,11 @@ const env = { DB, ADMIN_TOKEN, AI_KEY_SECRET: "test-ai-key-secret", LICENSE_PRIV
 
 // ---------- mock 服务商 fetch ----------
 let mockMode = "ok"; // ok / fail500 / rate429 / badjson / nousage / timeout
+let providerCalls = 0;
 const origFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
   if (String(url).includes("chat/completions")) {
+    providerCalls++;
     if (mockMode === "timeout") return new Promise((_, rj) => setTimeout(() => rj(Object.assign(new Error("aborted"), { name: "AbortError" })), 100));
     if (mockMode === "fail500") return new Response("oops", { status: 500 });
     if (mockMode === "rate429") return new Response("rate", { status: 429 });
@@ -232,7 +248,8 @@ qb = await j(await call(req("/ai/official/quota", "GET", null, authH), env));
 ok(qb.used === 4 && qb.reserved === 0, "失败释放预留不扣点");
 mockMode = "rate429";
 r = await call(req("/ai/official/generate", "POST", { request_id: "g3", task_type: "digest", user: "x".repeat(4000) }, authH), env);
-ok(r.status === 429, "服务商 429 -> RATE_LIMITED");
+const rateError = await j(r);
+ok(r.status === 429 && rateError.error === "RATE_LIMITED" && rateError.source === "upstream", "服务商 429 明确为上游限流");
 qb = await j(await call(req("/ai/official/quota", "GET", null, authH), env));
 ok(qb.used === 4, "429 后仍不扣");
 mockMode = "badjson";
@@ -307,14 +324,63 @@ ok(r.status === 503, "一键暂停 -> PROVIDER_UNAVAILABLE");
 await call(req("/console/api/ai/rules", "PATCH", { paused: false }, ah), env);
 
 // ===== 12. 每日任务上限 =====
-await call(req("/console/api/ai/rules", "PATCH", { pro_daily_tasks: 0 }, ah), env);
+await call(req("/console/api/ai/rules", "PATCH", { pro_daily_tasks: 1 }, ah), env);
 r = await call(req("/ai/official/generate", "POST", { request_id: "g8", task_type: "digest", user: "x".repeat(100) }, authH), env);
-ok(r.status === 429, "每日任务上限 -> RATE_LIMITED");
+const dayError = await j(r);
+ok(r.status === 429 && dayError.error === "DAILY_TASK_LIMIT" && dayError.reset_at > nowS(), "每日上限与上游限流分开，返回重置时间");
+r = await call(req("/ai/official/generate", "POST", { request_id: "g1", task_type: "digest", user: "x".repeat(4000) }, authH), env);
+ok(r.status === 200 && (await j(r)).duplicated, "达到每日上限仍可回放已成功请求");
 await call(req("/console/api/ai/rules", "PATCH", { pro_daily_tasks: 60 }, ah), env);
 
 // ===== 13. 管理台未授权 =====
 r = await call(req("/console/api/ai/providers", "GET"), env);
 ok(r.status === 401, "无会话管理 API -> 401");
+
+// ===== 14. 复现 Free 跨任务累计 10 次：0 关闭次数限制，点数仍照扣 =====
+eRow.expires_at = nowS() - 60;
+await call(req("/console/api/ai/rules", "PATCH", { free_daily_tasks: 10 }, ah), env);
+const fillers = Array.from({ length: 10 }, (_, i) => ({ id: `fixture-${i}`, user_id: uid,
+  request_key: `fixture-${i}`, status: "settled", points: 0, created_at: nowS() }));
+T.ai_usage_requests.push(...fillers);
+const blockedCalls = providerCalls;
+r = await call(req("/ai/official/generate", "POST", { request_id: "eleventh-review", task_type: "review", user: "合成回顾" }, authH), env);
+ok(r.status === 429 && (await j(r)).error === "DAILY_TASK_LIMIT" && providerCalls === blockedCalls, "10次跨功能成功后回顾在网关被拦，与后台AI无关");
+await call(req("/console/api/ai/rules", "PATCH", { free_daily_tasks: 0 }, ah), env);
+const beforeEleventh = await j(await call(req("/ai/official/quota", "GET", null, authH), env));
+r = await call(req("/ai/official/generate", "POST", { request_id: "eleventh-review", task_type: "review", user: "合成回顾" }, authH), env);
+const eleventh = await j(r);
+ok(r.status === 200 && eleventh.balance.used === beforeEleventh.used + eleventh.points, "取消每日次数后第11次成功，仍按原规则扣点");
+
+// ===== 15. 已失败凭据恢复：并发只允许一个成功，再回放不重复扣费 =====
+const retryBody = { request_id: "g3", task_type: "digest", user: "x".repeat(4000) };
+const retryResults = await Promise.all([call(req("/ai/official/generate", "POST", retryBody, authH), env), call(req("/ai/official/generate", "POST", retryBody, authH), env)]);
+ok(retryResults.filter(x => x.status === 200).length === 1 && retryResults.filter(x => x.status === 409).length === 1, "失败后同凭据并发重试：一个恢复，一个在途拒绝");
+const afterRetry = await j(await call(req("/ai/official/quota", "GET", null, authH), env));
+r = await call(req("/ai/official/generate", "POST", retryBody, authH), env);
+ok((await j(r)).duplicated && T.ai_usage_ledger.filter(x => x.kind === "charge" && x.request_id === T.ai_usage_requests.find(x => x.request_key === "g3").id).length === 1, "恢复成功再回放只存在一次扣费");
+ok(afterRetry.reserved === 0 && T.ai_usage_requests.filter(x => x.request_key === "g3").length === 1, "重试复用原记录，预留归零");
+
+// ===== 16. 超时结果未知时禁止以同一凭据再次访问上游 =====
+mockMode = "timeout";
+const timeoutBody = { request_id: "timeout-once", task_type: "review", user: "合成回顾" };
+r = await call(req("/ai/official/generate", "POST", timeoutBody, authH), env);
+const callsAfterTimeout = providerCalls;
+const timeoutRetry = await call(req("/ai/official/generate", "POST", timeoutBody, authH), env);
+ok(r.status === 504 && timeoutRetry.status === 504 && providerCalls === callsAfterTimeout, "未知结果保留原凭据，不重复调用上游");
+mockMode = "ok";
+
+// 已成功结算后即使余额读取失败，也不能把任务改回 failed 或重复释放/扣费。
+failBalanceAfterCharge = "settled-read-failure";
+const settledBody = { request_id: failBalanceAfterCharge, task_type: "review", user: "合成回顾" };
+r = await call(req("/ai/official/generate", "POST", settledBody, authH), env);
+const saved = T.ai_usage_requests.find(x => x.request_key === settledBody.request_id);
+const settledReplay = await call(req("/ai/official/generate", "POST", settledBody, authH), env);
+ok(r.status === 503 && saved.status === "settled" && (await j(settledReplay)).duplicated &&
+  T.ai_usage_ledger.filter(x => x.request_id === saved.id && x.kind === "charge").length === 1 &&
+  !T.ai_usage_ledger.some(x => x.request_id === saved.id && x.kind === "release"), "结算后读取失败保留成功结果，重发回放而不重复扣点");
+
+r = await call(req("/console/api/ai/rules", "PATCH", { free_daily_tasks: -1 }, ah), env);
+ok(r.status === 400, "每日次数不接受负数，避免错误配置静默取消限制");
 
 console.log(`\n${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

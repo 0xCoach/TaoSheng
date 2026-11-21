@@ -96,7 +96,8 @@ class ResoundApp : Application() {
                 is app.resound.auth.OfficialAi.GenOutcome.Denied -> throw when (out.code) {
                     "CONSENT_REQUIRED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Auth, detail = "请先在设置里同意使用声声不息官方 AI", terminal = true)
                     "QUOTA_EXHAUSTED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Quota, detail = "官方 AI 点数已用完，请等下周期或升级 Pro", terminal = true)
-                    "RATE_LIMITED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.RateLimit, detail = "官方 AI 请求过于频繁，请稍后再试", terminal = true)
+                    "DAILY_TASK_LIMIT" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Quota, detail = "今日官方 AI 次数已达上限，每日北京时间 08:00 重置", terminal = true)
+                    "RATE_LIMITED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.RateLimit, detail = "官方 AI 上游服务繁忙，请稍后重试（未扣点）", terminal = true)
                     "REQUEST_TOO_LARGE" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Format, detail = "内容超出官方 AI 单次上限", terminal = true)
                     "TASK_FAILED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Format, detail = "官方 AI 处理失败（未扣点）", terminal = true)
                     "UNKNOWN_PROVIDER_OUTCOME" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Network, detail = "官方服务响应超时，结果待确认（未扣点）", terminal = true)

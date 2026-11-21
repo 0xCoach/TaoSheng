@@ -21,10 +21,11 @@ class PromptParity152Test {
     private val event = MemoryEventData(2, at, at + 1000, "工作", "标题/测试", "摘要", "[\"要点\"]", "[\"小王\"]", null, null, null, true, createdAt = at, model = "test")
     private val item = MemoryItemData(3, 2, "待办", "我要做", "交报告", null, null, null, 7, "Pending", at)
     private fun same(name: String, actual: String) {
-        val expected = checkNotNull(javaClass.getResource("/parity152/$name.txt")).readText()
+        // 录制文件在 Windows 检出会变成 CRLF：归一化后比较，与平台无关
+        val expected = checkNotNull(javaClass.getResource("/parity152/$name.txt")).readText().replace("\r\n", "\n")
         assertEquals(name, expected, actual)
     }
-    @Test fun digestSystem() = same("digest-system", NewDigest.system("{{APP_NAME}}\n{{CALENDAR}}", day, "涛声"))
+    @Test fun digestSystem() = same("digest-system", NewDigest.system("{{APP_NAME}}\n{{CALENDAR}}", day, "声声不息"))
     @Test fun digestYearBoundary() = same("digest-year", NewDigest.calendar(LocalDate(2027,1,1)))
     @Test fun transcriptVoice() {
         val lines = listOf(line.copy(voiceInputJson = """{"app":"聊天","package_name":"test","title":"A/B","before":"你好","after":null}"""), line.copy(segmentId = 2))
@@ -36,7 +37,7 @@ class PromptParity152Test {
     }
     @Test fun todoContextNull() = same("todo-null", NewDigest.withTodoContext("原话", listOf(item), emptyList()))
     @Test fun todoContextEscapes() = same("todo-escape", NewDigest.withTodoContext("原话", listOf(item.copy(who="A/B", dueText="2026-10-29")), listOf(item)))
-    @Test fun mergeSystem() = same("merge-system", NewMerge.system("{{APP_NAME}}\n{{CALENDAR}}", day, "涛声"))
+    @Test fun mergeSystem() = same("merge-system", NewMerge.system("{{APP_NAME}}\n{{CALENDAR}}", day, "声声不息"))
     @Test fun mergeInput() = same("merge-input", NewMerge.input(listOf(event.copy(startAt=at+2000), event), zone, mapOf(2L to "【周围：音乐】")))
     @Test fun manualNoon() = same("manual-noon", NewManual.system(day))
     @Test fun manualMidnight() = same("manual-midnight", NewManual.system(day, LocalTime(23,59)))
@@ -48,7 +49,7 @@ class PromptParity152Test {
         val date = LocalDate(2026,3,8); val tz = TimeZone.of("America/New_York"); val input = ReviewInput(emptyList(), emptyList())
         same("review-dst", NewReview.input(date,input,tz,150))
     }
-    @Test fun reviewSystem() = same("review-system", NewReview.system("{{APP_NAME}} 回顾", "涛声"))
+    @Test fun reviewSystem() = same("review-system", NewReview.system("{{APP_NAME}} 回顾", "声声不息"))
     @Test fun reviewSections() {
         val sections = listOf(ReviewSection("一句话", listOf("A/B\n你好😀"), listOf(null)))
         same("review-sections", NewReview.encode(sections))

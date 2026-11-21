@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """结果完整性验收；不重新推理。"""
 import argparse,csv,json,pathlib,hashlib,math,collections
-P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio');a=P.parse_args();R=a.root;O=R/'results';m=json.loads((R/'manifest.json').read_text());ids={r['id'] for r in m};assert len(ids)==len(m)
+P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio');a=P.parse_args();R=a.root;O=R/'results';m=json.loads((R/'manifest.json').read_text());ids={r['id'] for r in m};assert len(ids)==len(m)
 parents={}
 for r in m:
  assert pathlib.Path(r['path']).is_file()

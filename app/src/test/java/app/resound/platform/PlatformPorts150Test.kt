@@ -29,11 +29,11 @@ class PlatformPorts150Test {
     @Test fun writesRoundTripAcrossAdaptersAndNullRemovesString() {
         val prefs = prefs("platform-values")
         val writer = PrefsKeyValueStore(prefs)
-        writer.putString("text", "涛声")
+        writer.putString("text", "声声不息")
         writer.putLong("time", 123L)
         writer.putBoolean("enabled", false)
         val reader = PrefsKeyValueStore(prefs)
-        assertEquals("涛声", reader.getString("text"))
+        assertEquals("声声不息", reader.getString("text"))
         assertEquals(123L, reader.getLong("time", 0L))
         assertFalse(reader.getBoolean("enabled", true))
         writer.putString("text", null)

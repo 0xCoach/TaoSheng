@@ -66,9 +66,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** 夜间整个应用只用黑白灰，品牌橙只留在首页主卡：暖光、圆点、声波、“现在整理”、★ */
-private val BrandOrange = Color(0xFFD47A44)
-private val BrandOrangeSoft = Color(0xFF3A2618)
+/** 品牌紫罗兰只用在首页主卡与深色下的点缀：暖光、圆点、声波、“现在整理”、★ */
+private val BrandViolet = Color(0xFF7B4BE0)
+private val BrandVioletSoft = Color(0xFF2A1F42)
 
 /** 主卡用色：日间是暖橙渐变上的白字；夜间是深灰卡片 + 左上角一束淡淡暖光，橙色只做点缀 */
 private class CardInk(
@@ -84,12 +84,12 @@ private fun cardInk(): CardInk {
     return if (c.isDark) CardInk(
         text = c.text, soft = c.textSecondary, faint = c.textTertiary,
         pill = c.elevated, pillText = c.text,
-        primary = BrandOrange, primaryText = Color.White,
-        wave = BrandOrange, dot = BrandOrange, divider = c.separator,
+        primary = BrandViolet, primaryText = Color.White,
+        wave = BrandViolet, dot = BrandViolet, divider = c.separator,
     ) else CardInk(
         text = Color.White, soft = Color.White.copy(alpha = 0.85f), faint = Color.White.copy(alpha = 0.7f),
         pill = Color.White.copy(alpha = 0.2f), pillText = Color.White,
-        primary = Color.White, primaryText = Color(0xFFD2511F),
+        primary = Color.White, primaryText = Color(0xFF4A1FA8),
         wave = Color.White, dot = Color.White, divider = Color.White.copy(alpha = 0.3f),
     )
 }
@@ -129,17 +129,17 @@ internal fun OverviewCard(
     val background = if (c.isDark) Modifier
         .clip(shape)
         .background(c.card)
-        .background(Brush.radialGradient(listOf(BrandOrange.copy(alpha = 0.22f), BrandOrange.copy(alpha = 0.06f), Color.Transparent),
+        .background(Brush.radialGradient(listOf(BrandViolet.copy(alpha = 0.22f), BrandViolet.copy(alpha = 0.06f), Color.Transparent),
             center = Offset(0f, 0f), radius = 900f))
         .border(0.5.dp, c.hairline, shape)
     else Modifier
-        .shadow(14.dp, shape, ambientColor = Color(0xFFE2632A), spotColor = Color(0xFFE2632A))
+        .shadow(14.dp, shape, ambientColor = Color(0xFF632ACF), spotColor = Color(0xFF632ACF))
         .clip(shape)
         // 底色保持偏深，保证白字清楚；质感靠三层：左上角柔光、右下角微暗、顶边一圈细亮边（玻璃反光）
-        .background(Brush.linearGradient(listOf(Color(0xFFF59048), Color(0xFFE5672C), Color(0xFFCF4A1E))))
+        .background(Brush.linearGradient(listOf(Color(0xFF9F7BF5), Color(0xFF632ACF), Color(0xFF3D1B8C))))
         .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.08f), Color.Transparent),
             center = Offset(0f, 0f), radius = 760f))
-        .background(Brush.radialGradient(listOf(Color.Transparent, Color(0x1A7A1E00)), center = Offset(260f, 60f), radius = 1400f))
+        .background(Brush.radialGradient(listOf(Color.Transparent, Color(0x1A1A0F33)), center = Offset(260f, 60f), radius = 1400f))
         .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.05f))), shape)
 
     Column(Modifier.fillMaxWidth().then(background).padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 12.dp).animateContentSize()) {
@@ -213,9 +213,11 @@ private fun ColumnScope.LiveCard(
     // 屏幕窄或系统字体调大时先舍弃声波（装饰），把空间全给状态文字，避免“正在聆听”被挤成“正在…”
     val roomy = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 360 &&
         androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
-    Row(Modifier.fillMaxWidth().height(36.dp), verticalAlignment = Alignment.CenterVertically) {
-            // 紧凑时状态文字撑满中间，按钮自然靠右；宽松时与声波分享空档
-            Row(Modifier.weight(1f, fill = !roomy).springClick {
+    // heightIn 而不是固定 height：右侧按钮触摸区 44dp 时行高能跟着撑开，按钮始终与状态文字垂直居中
+    Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
+            // 宽松时状态行按内容宽，声波 weight(1f) 独占剩余空档、按钮贴右缘；
+            // 紧凑时不给声波，状态行 weight 撑满中间同样把按钮顶到右缘
+            Row(Modifier.then(if (roomy) Modifier else Modifier.weight(1f)).springClick {
                 if (topic != null) app.resound.ui.topic.TopicUi.openTopic = topic.id else listenOpen = true
             }, verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(if (active || topic != null) ink.dot else ink.dot.copy(alpha = 0.45f)))
@@ -227,7 +229,10 @@ private fun ColumnScope.LiveCard(
             }
             // 声波只在状态文字和按钮之间的空档里，两头淡出，不压字和按钮；专题进行中不放（那一行按钮多）
             // 平时和专题进行中都显示声波；空档不够时自动变窄
-            if (roomy && controls != HomeControls.None) BreathingWave(micLevel, active, recording,
+            // 专题暂停时声波静下来：麦仍在收音但不归属本专题，"已暂停"卡片不该还在律动
+            if (roomy && controls != HomeControls.None) BreathingWave(micLevel,
+                active && topic?.status != app.resound.topic.TopicStatus.Paused,
+                recording && topic?.status != app.resound.topic.TopicStatus.Paused,
                 Modifier.weight(1f).padding(horizontal = 8.dp).height(22.dp)
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = waveAlpha }
                     .drawWithContent {
@@ -243,9 +248,9 @@ private fun ColumnScope.LiveCard(
                     CardPill("◉ 专题", ink) { buzz(); app.resound.ui.topic.TopicUi.starting =
                         if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.lastTopicKind.value else app.resound.topic.TopicKind.Meeting }
                     Spacer(Modifier.width(8.dp))
-                    if (controls == HomeControls.TopicAndPause) RoundKey(ink, filled = false, glyph = Glyph.Pause, label = "暂停") {
+                    if (controls == HomeControls.TopicAndPause) RoundKey(ink, filled = false, glyph = Glyph.Pause, label = "暂停", end = true) {
                         buzz(); capture.pause(lastPause); onPaused(lastPause)
-                    } else RoundKey(ink, filled = true, glyph = Glyph.Play, label = "现在恢复") { buzz(); capture.resume() }
+                    } else RoundKey(ink, filled = true, glyph = Glyph.Play, label = "现在恢复", end = true) { buzz(); capture.resume() }
                 }
                 HomeControls.StartListening -> CardPill("开始聆听", ink, filled = true) { buzz(); capture.start() }
                 HomeControls.GrantPermission -> CardPill("去开启", ink, filled = true) {
@@ -378,7 +383,7 @@ private fun ColumnScope.LiveCard(
                     .springClick { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Model) }
                     .padding(horizontal = 12.dp, vertical = 5.dp))
             if (model.alertDot) Box(Modifier.align(Alignment.TopEnd).offset(x = 1.dp, y = (-1).dp).size(8.dp).clip(CircleShape)
-                .background(Rs.colors.critical).border(1.5.dp, if (Rs.colors.isDark) Rs.colors.card else Color(0xFFE2632A), CircleShape))
+                .background(Rs.colors.critical).border(1.5.dp, if (Rs.colors.isDark) Rs.colors.card else Color(0xFF632ACF), CircleShape))
         }
     }
     // 整理因余额不足 / 密钥无效失败时，直接给出处理入口（DeepSeek 直达充值页，其他去模型设置）
@@ -454,21 +459,21 @@ private fun Stat(parts: List<NumberPart>, label: String, ink: CardInk, dim: Bool
 
 private enum class Glyph { Pause, Play, Star }
 
-/** 圆形按键：画出来 34dp，可点区域按 44dp 留足 */
+/** 圆形按键：画出来 34dp，可点区域按 44dp 留足；行末的按键让可视圆贴右缘，与下方 pill 按钮右缘对齐 */
 @Composable
-private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String, accent: Boolean = false, badge: Int = 0, onClick: () -> Unit) {
+private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String, accent: Boolean = false, badge: Int = 0, end: Boolean = false, onClick: () -> Unit) {
     val c = Rs.colors
     val bg = when {
         filled -> ink.primary
-        accent && c.isDark -> BrandOrangeSoft
+        accent && c.isDark -> BrandVioletSoft
         else -> ink.pill
     }
     val fg = when {
         filled -> ink.primaryText
-        accent && c.isDark -> BrandOrange
+        accent && c.isDark -> BrandViolet
         else -> ink.pillText
     }
-    Box(Modifier.size(44.dp).springClick(onClick).semanticsLabel(label), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(44.dp).springClick(onClick).semanticsLabel(label), contentAlignment = if (end) Alignment.CenterEnd else Alignment.Center) {
         Box(Modifier.size(34.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Canvas(Modifier.size(12.dp)) {
                 val w = size.width; val h = size.height
@@ -496,7 +501,7 @@ private fun RoundKey(ink: CardInk, filled: Boolean, glyph: Glyph, label: String,
         // 记下了几处重点：右上角小数字，不另占一行
         if (badge > 0) Text(if (badge > 9) "9+" else "$badge", style = RsType.caption.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold),
             color = Color.White, modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 3.dp)
-                .clip(CircleShape).background(if (Rs.colors.isDark) BrandOrange else Rs.colors.accent).padding(horizontal = 4.dp, vertical = 1.dp))
+                .clip(CircleShape).background(if (Rs.colors.isDark) BrandViolet else Rs.colors.accent).padding(horizontal = 4.dp, vertical = 1.dp))
     }
 }
 

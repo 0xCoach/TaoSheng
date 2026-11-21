@@ -115,7 +115,7 @@ class KtorParity151Test {
             s.enqueue(MockResponse().setBody("{}").setBodyDelay(1,TimeUnit.SECONDS))
             val h=OkHttpClient.Builder().callTimeout(200,TimeUnit.MILLISECONDS).build()
             error(runCatching { LlmClient(h).chatJson(preset(s),"","s","u") },LlmError.Network,
-                detail=app.resound.net.WAIT_TIMEOUT_TEXT)
+                detail="等待超时：本地模型首次加载可能较慢，稍后再试")
         }
     }
     private val stream = "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"思考\",\"content\":\"你\"}}]}\r\n\r\n" +
@@ -201,14 +201,14 @@ class KtorParity151Test {
             val audio=audio()
             try {
                 var count=0
-                val b=CustomAsrProvider(settings){listOf("涛声")}.recognize(audio,""){count++}
+                val b=CustomAsrProvider(settings){listOf("声声不息")}.recognize(audio,""){count++}
                 assertEquals(AsrResult(listOf(AsrSentence(0,1200,"你好",null)),1200,null),b);assertEquals(1,count)
                 val r=s.takeRequest(); request(r,"POST","/speech?x=1")
                 val boundary=r.getHeader("Content-Type")!!.substringAfter("boundary=")
                 val expected="--BOUNDARY\r\nContent-Disposition: form-data; name=\"model\"\r\nContent-Length: 3\r\n\r\nasr\r\n" +
                     "--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${audio.file.name}\"\r\nContent-Type: audio/ogg\r\nContent-Length: 3\r\n\r\n" +
                     "\u0001\u0002\u0003\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"response_format\"\r\nContent-Length: 12\r\n\r\nverbose_json\r\n" +
-                    "--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\nContent-Length: 27\r\n\r\n可能出现的词：涛声\r\n--BOUNDARY--\r\n"
+                    "--BOUNDARY\r\nContent-Disposition: form-data; name=\"prompt\"\r\nContent-Length: 33\r\n\r\n可能出现的词：声声不息\r\n--BOUNDARY--\r\n"
                 assertEquals(expected,r.body.clone().readUtf8().replace(boundary,"BOUNDARY"))
                 assertEquals(r.bodySize.toString(),r.getHeader("Content-Length"))
             } finally { audio.file.delete() }
@@ -224,7 +224,7 @@ class KtorParity151Test {
     }
     @Test fun doubaoConfigAndAudioFrameBytes() {
         for(format in listOf("pcm","ogg")) {
-            assertArrayEquals(DoubaoProtocol.config(format,listOf("涛声")),NetDoubaoProtocol.config(format,listOf("涛声")))
+            assertArrayEquals(DoubaoProtocol.config(format,listOf("声声不息")),NetDoubaoProtocol.config(format,listOf("声声不息")))
             for(flag in listOf(0,2)) assertArrayEquals(DoubaoProtocol.frame(2,flag,byteArrayOf(1,2,3)),NetDoubaoProtocol.frame(2,flag,byteArrayOf(1,2,3)))
         }
     }

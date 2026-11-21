@@ -12,7 +12,7 @@ import java.io.File
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class Index183ComparatorTest {
     private val name = "queries-seed.txt"
-    private val old get() = File("src/test/resources/driver175/$name").readText()
+    private val old get() = File("src/test/resources/driver175/$name").readText().replace("\r\n", "\n")
     /** 仅为反例构建合法输入；真实Room快照由原175的全部重放和新迁移用例校验。 */
     private fun allowed(): String {
         val rows = old.split('\n').toMutableList()
@@ -24,26 +24,6 @@ class Index183ComparatorTest {
             val after = (1 until rows.size).first { rows[it] > index }
             rows.add(after, index)
         }
-        for (master in Index183FixtureDelta.tableMasterRows) {
-            val after = (1 until rows.size).first { rows[it] > master }
-            rows.add(after, master)
-        }
-        for (block in Index183FixtureDelta.tableBlocks) {
-            val at = rows.withIndex().first { it.value.startsWith("TABLE ") && it.value > block[0] }.index
-            rows.addAll(at, block)
-        }
-        val add = Index183FixtureDelta.spec.getJSONObject("columnAdds")
-        val masterOld = rows.first { it.startsWith("[\"table\",\"segments\"") }
-        val masterAt = rows.indexOf(masterOld)
-        val fkAt = masterOld.indexOf(", FOREIGN KEY(")
-        val cut = if (fkAt < 0) masterOld.lastIndexOf(')') else fkAt
-        val inserted = "," + add.getString("insertSql").substringAfter("ADD COLUMN")
-        rows[masterAt] = masterOld.substring(0, cut) + inserted + masterOld.substring(cut)
-        rows[rows.indexOf(add.getString("columnsOldLine"))] = add.getString("columnsNewLine")
-        val dataAt = rows.indexOf("TABLE segments")
-        val dataEnd = (dataAt + 2 until rows.size).firstOrNull { rows[it].isEmpty() || rows[it].startsWith("TABLE ") } ?: rows.size
-        val suffix = add.getString("dataSuffix")
-        for (k in dataAt + 2 until dataEnd) rows[k] = rows[k].dropLast(1) + suffix
         return rows.joinToString("\n")
     }
     private fun rejected(text: String) {
@@ -66,7 +46,7 @@ class Index183ComparatorTest {
         val actual = allowed()
         rejected(actual.replaceFirst("user_version=${CaptureDatabase.VERSION}", "user_version=${CaptureDatabase.VERSION + 1}"))
         rejected(actual.substringAfter('\n'))
-        rejected("user_version=34\n$actual")
+        rejected("user_version=${CaptureDatabase.VERSION - 1}\n$actual")
         val identity = Index183FixtureDelta.spec.getJSONObject("identity")
         rejected(actual.replace(identity.getString("newRow"), identity.getString("oldRow")))
         rejected(actual.replace(identity.getString("newRow"), identity.getString("newRow") + "\n" + identity.getString("newRow")))
@@ -77,7 +57,7 @@ class Index183ComparatorTest {
         rejected(actual.replaceFirst("交通发票1", "被改动的一句话"))
     }
     @Test fun sqlDeltaIsLimitedToNamedCasesAndNeverChangesArgumentsOrResults() {
-        val original = File("src/test/resources/driver175/queries.txt").readText()
+        val original = File("src/test/resources/driver175/queries.txt").readText().replace("\r\n", "\n")
         val lines = original.split('\n').toMutableList()
         val rules = Index183FixtureDelta.spec.getJSONArray("querySql")
         repeat(rules.length()) { i ->

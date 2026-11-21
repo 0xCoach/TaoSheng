@@ -37,7 +37,7 @@ class ReviewRepositoryTest {
                 actions += "chat"
                 assertFalse(input.contains("原话"))
                 LlmReply("""{"brief":"今天讨论方案","sections":[{"title":"一句话","lines":[{"text":"今天讨论方案","eventId":1}]},{"title":"发生了什么","lines":[{"text":"讨论了方案","eventId":1}]}]}""", 10, 5)
-            }, { "{{APP_NAME}}" }, "回响", object : Notifier {
+            }, { "{{APP_NAME}}" }, "声声不息", object : Notifier {
                 override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) {
                     assertEquals("今日回顾", title)
                     assertEquals("resound://review?open=review&date=2026-10-23", deepLink)

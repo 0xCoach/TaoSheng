@@ -59,12 +59,12 @@ class HomeNotices188Shots {
                     UpdateBanner("0.3.2", UpdateState.Ready(info)) {}
                     UpdateBanner("0.3.2", UpdateState.Failed("安装没成功", info)) {}
                     Text("后台受限卡片", style = RsType.caption, color = c.textTertiary)
-                    BackgroundLimitCard("把涛声的“应用启动管理”改成手动、三项全开，整理就能按时进行。", {}, {})
+                    BackgroundLimitCard("把声声不息的“应用启动管理”改成手动、三项全开，整理就能按时进行。", {}, {})
                     Text("弹出面板内容（有新版本 / 下载中 / 安装失败）", style = RsType.caption, color = c.textTertiary)
                     for (s in listOf<UpdateState>(UpdateState.Available(info), UpdateState.Downloading(info, 1_200_000, 3_400_000), UpdateState.Failed("系统没让安装，可以用浏览器下载", info)))
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(c.elevated).padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("涛声 0.3.2 来了", style = RsType.title, color = c.text)
+                            Text("声声不息 0.3.2 来了", style = RsType.title, color = c.text)
                             NewVersionBody(info, s, true, updater, {}, previewLines = 5, showVersion = false)
                         }
                 }

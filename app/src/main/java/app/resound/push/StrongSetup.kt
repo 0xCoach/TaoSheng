@@ -15,7 +15,7 @@ import android.provider.Settings
 
 /**
  * 强提醒要靠系统放行几样东西。能查到的直接查（打勾）；查不到的（各家手机自己的开关）标“请确认”，给一个跳转。
- * 跳转都有兜底：专门的设置页打不开，就打开涛声的“应用信息”页。
+ * 跳转都有兜底：专门的设置页打不开，就打开声声不息的“应用信息”页。
  */
 internal object StrongSetup {
     /** [ok] 为 null 表示这台手机查不到，只能请用户自己确认 */
@@ -44,7 +44,7 @@ internal object StrongSetup {
             open(it, Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$pkg")))
         }
         vendor()?.let { brand ->
-            list += Item("应用权限里的“锁屏显示”“后台弹出界面”", "在涛声的应用权限 → 其他权限里，和通知里的“锁屏通知”不是同一个；${brand}手机要开这两项，整屏提醒才能盖在锁屏上",
+            list += Item("应用权限里的“锁屏显示”“后台弹出界面”", "在声声不息的应用权限 → 其他权限里，和通知里的“锁屏通知”不是同一个；${brand}手机要开这两项，整屏提醒才能盖在锁屏上",
                 miuiLockScreenOk(context)) { openVendorPermissions(it) }
         }
         return list

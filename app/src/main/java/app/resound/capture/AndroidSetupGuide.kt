@@ -38,7 +38,7 @@ class AndroidSetupGuide(private val context: Context) : SetupGuide {
             if (!xiaomi) null else SetupItem("powerkeeper", "省电策略：无限制", "将${context.appName}的省电策略设为无限制，设置后请手动确认。", manual("powerkeeper")),
             if (!huawei) null else SetupItem("huawei_startup", "应用启动管理：改成手动", "允许自启动、允许关联启动、允许后台活动三项全开；不同版本叫法略有不同，设置后请手动确认。", manual("huawei_startup")),
             if (!huawei) null else SetupItem("huawei_sleep_network", "休眠时保持网络连接", "设置 → 电池 → 更多电池设置；部分系统版本已取消此开关，设置后请手动确认。", manual("huawei_sleep_network")),
-            if (!container) null else SetupItem("anco_host", "给卓易通本身也改成手动管理", "请在鸿蒙系统设置里检查卓易通，而不是涛声；HarmonyOS 5及以上部分版本已取消启动管理，找不到时不要照搬旧版路径。设置后请手动确认。", manual("anco_host")),
+            if (!container) null else SetupItem("anco_host", "给卓易通本身也改成手动管理", "请在鸿蒙系统设置里检查卓易通，而不是声声不息；HarmonyOS 5及以上部分版本已取消启动管理，找不到时不要照搬旧版路径。设置后请手动确认。", manual("anco_host")),
             SetupItem("lock", "最近任务锁定", "打开最近任务，长按${context.appName}卡片并点锁定（不同手机叫法略有不同）；设置后请手动确认。", manual("lock")))
     }
     override fun open(key: String) {

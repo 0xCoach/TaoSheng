@@ -40,7 +40,7 @@ internal class DirectoryVolumeStore(private val root: File) : VolumeStore {
     override fun put(path: String, source: File) {
         val target = file(path).apply { parentFile!!.mkdirs() }
         val part = File(target.path + ".part")
-        try { source.copyTo(part, true); check(part.renameTo(target)) } finally { part.delete() }
+        try { source.copyTo(part, true); app.resound.util.atomicReplace(part, target) } finally { part.delete() }
     }
     override fun delete(path: String) { val target = file(path); check(!target.exists() || target.delete()) }
     override fun copy(from: String, to: String) = put(to, file(from))

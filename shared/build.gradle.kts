@@ -15,7 +15,7 @@ kotlin {
         compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     }
     // 默认不配置 Native 目标；Xcode 就绪后由负责人显式启用。
-    if (providers.gradleProperty("taosheng.ios").orNull == "true") {
+    if (providers.gradleProperty("soundsound.ios").orNull == "true") {
         iosArm64()
         iosSimulatorArm64()
     }
@@ -32,7 +32,7 @@ kotlin {
         androidMain.dependencies {
             api("io.ktor:ktor-client-okhttp:3.3.3")
         }
-        if (providers.gradleProperty("taosheng.ios").orNull == "true") {
+        if (providers.gradleProperty("soundsound.ios").orNull == "true") {
             // 配置阶段 iosMain 还没由默认层级生成，直接给两个 iOS 目标各自的源码集加 Darwin 引擎
             val iosArm64Main by getting
             val iosSimulatorArm64Main by getting
@@ -50,7 +50,7 @@ kotlin {
 dependencies {
     add("kspAndroid", "androidx.room:room-compiler:2.8.4")
     add("kspJvm", "androidx.room:room-compiler:2.8.4")
-    if (providers.gradleProperty("taosheng.ios").orNull == "true") {
+    if (providers.gradleProperty("soundsound.ios").orNull == "true") {
         add("kspIosArm64", "androidx.room:room-compiler:2.8.4")
         add("kspIosSimulatorArm64", "androidx.room:room-compiler:2.8.4")
     }

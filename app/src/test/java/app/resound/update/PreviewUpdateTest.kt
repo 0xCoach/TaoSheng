@@ -18,14 +18,14 @@ class PreviewUpdateTest {
         _, file -> server.url("/$name/$file").toString()
     }
     private fun remote(official: MockWebServer, preview: MockWebServer) = UpdateRemote(
-        listOf(source(official, "official")), previewSources = listOf(source(preview, "preview")))
+        { listOf(source(official, "official")) }, previewSources = { listOf(source(preview, "preview")) })
 
     @Test fun parsesPreviewAndRejectsPreviewFromOfficialSource() {
         val parsed = UpdateManifest.parse(release(28, true).json())
         assertTrue(parsed.info(null).preview)
         MockWebServer().use { server ->
             server.start(); server.enqueue(MockResponse().setBody(parsed.json()))
-            assertThrows(UpdateFailure::class.java) { UpdateRemote(listOf(source(server, "official"))).check() }
+            assertThrows(UpdateFailure::class.java) { UpdateRemote({ listOf(source(server, "official")) }).check() }
         }
     }
 
@@ -52,7 +52,7 @@ class PreviewUpdateTest {
         MockWebServer().use { official -> MockWebServer().use { preview ->
             official.start(); preview.start()
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-            val store = MemoryUpdateStore()
+            val store = MemoryUpdateStore().apply { save("autoOn" to 1L) }
             val schedules = java.util.concurrent.CopyOnWriteArrayList<Pair<Boolean, Boolean>>()
             val engine = UpdateEngine(26, "0.2.11-preview.1", fixture("old.bin"), temporary.newFolder(), scope,
                 store, remote(official, preview), FakePlatform(), {}, reschedule = { a, p -> schedules.add(a to p) })
@@ -86,7 +86,7 @@ class PreviewUpdateTest {
         MockWebServer().use { official -> MockWebServer().use { preview ->
             official.start(); preview.start()
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-            val store = MemoryUpdateStore().apply { save("previewChannel" to 1L) }
+            val store = MemoryUpdateStore().apply { save("autoOn" to 1L, "previewChannel" to 1L) }
             val directory = temporary.newFolder()
             fun engine() = UpdateEngine(26, "0.2.11", fixture("old.bin"), directory, scope, store,
                 remote(official, preview), FakePlatform(), {})

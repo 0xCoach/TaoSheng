@@ -36,7 +36,7 @@ class ReviewDeliveryTest {
 
     @Test fun notificationUsesOwnChannelAndReviewExtras() = runBlocking {
         val context = RuntimeEnvironment.getApplication() as Context
-        LocalNotifier(context).send("回响 · 今日回顾", "简洁版", "resound://review?open=review&date=2026-10-23")
+        LocalNotifier(context).send("声声不息 · 今日回顾", "简洁版", "resound://review?open=review&date=2026-10-23")
         val manager = context.getSystemService(NotificationManager::class.java)
         assertEquals(NotificationManager.IMPORTANCE_DEFAULT, manager.getNotificationChannel(LocalNotifier.CHANNEL).importance)
         val notification = shadowOf(manager).allNotifications.single()

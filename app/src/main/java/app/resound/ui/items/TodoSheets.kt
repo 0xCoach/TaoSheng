@@ -75,18 +75,20 @@ internal fun EditItemSheet(item: MemoryItem, memory: MemoryRepository, strongOn:
     var content by remember { mutableStateOf(item.content) }
     var day by remember { mutableStateOf(start?.toLocalDate() ?: today.takeIf { strongOn }) }
     var time by remember { mutableStateOf(start?.takeIf { (item.dueText?.length ?: 0) > 10 }?.toLocalTime()) }
+    var who by remember { mutableStateOf(item.who.orEmpty()) }
     var strong by remember { mutableStateOf((item.strongReminder && time != null) || strongOn) }
 
     RsSheet("编辑", "改过的内容以后重新整理也不会被覆盖。", onDismiss = onDismiss, fixedHeight = true) {
         Label("内容")
         SheetInput(content, "要做的事", wrap = true) { content = it }
+        Label("和谁")
+        SheetInput(who, "谁来做、和谁有关；没有就留空") { who = it }
         // 先定重不重要，再定几点：强提醒紧跟在内容下面
         StrongReminderRow(strong) { on -> strong = on; if (on && day == null) day = today }
         DueChoice(day, time, { day = it }, { time = it }, needTime = strong)
         ActionButton("保存", ActionKind.Primary, enabled = content.isNotBlank() && !(strong && time == null)) {
             val at = day?.let { d -> (time?.let { d.atTime(it) } ?: d.atStartOfDay()).atZone(zone).toInstant().toEpochMilli() }
-            // “和谁”不再让改，沿用原来的
-            memory.updateItem(item.id, content.trim(), at, time != null, item.who)
+            memory.updateItem(item.id, content.trim(), at, time != null, who.trim().ifEmpty { null })
             val timed = at != null && time != null
             if (strong != item.strongReminder || (!timed && item.strongReminder)) memory.setStrongReminder(item.id, strong && timed)
             if (strong && timed && item.status == app.resound.digest.ItemStatus.Pending) memory.setItemStatus(item.id, app.resound.digest.ItemStatus.Accepted)

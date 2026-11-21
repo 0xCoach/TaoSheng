@@ -1,7 +1,7 @@
 {
   "argv": [
     "./gradlew",
-    "-Dorg.gradle.daemon.registry.base=/tmp/taosheng-integration-176-183-gradle",
+    "-Dorg.gradle.daemon.registry.base=/tmp/soundsound-integration-176-183-gradle",
     "-PskipSigningSecrets=true",
     "--no-daemon",
     "--console=plain",
@@ -60,8 +60,8 @@
   ],
   "environment": {
     "JAVA_HOME": "/opt/homebrew/opt/openjdk@21",
-    "TAOSHENG_183_MIGRATION_BENCHMARK": "1",
-    "TAOSHENG_LIVE_THINGS": "0",
+    "soundsound_183_MIGRATION_BENCHMARK": "1",
+    "soundsound_LIVE_THINGS": "0",
     "RESOUND_MINIO_ENDPOINT": "unset"
   }
 }

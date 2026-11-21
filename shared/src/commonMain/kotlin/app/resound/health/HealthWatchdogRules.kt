@@ -7,12 +7,16 @@ object HealthWatchdogRules {
     const val LONG_BUSY_MS = 5 * 60_000L
 
     /** 输出每次异常的发生时刻；同一停止后的多条 Killed 缺口及 Recovered 只算一次。 */
-    fun interruptions(events: List<HealthWatchdogEvent>, now: Long, microphoneStillBusy: Boolean): List<Long> {
-        val result = mutableListOf<Long>()
+    fun interruptions(events: List<HealthWatchdogEvent>, now: Long, microphoneStillBusy: Boolean): List<Long> =
+        interruptionsWithKind(events, now, microphoneStillBusy).map { it.first }.distinct()
+
+    /** 与 interruptions 同源，但每条附上原因分类，供「今天中断 N 次」按类型归因展示。 */
+    fun interruptionsWithKind(events: List<HealthWatchdogEvent>, now: Long, microphoneStillBusy: Boolean): List<Pair<Long, InterruptionKind>> {
+        val result = mutableListOf<Pair<Long, InterruptionKind>>()
         var abnormalStop = false
         var busy: HealthWatchdogEvent? = null
         fun finishBusy(end: Long) {
-            busy?.let { if (end - it.at > LONG_BUSY_MS) result += it.at }
+            busy?.let { if (end - it.at > LONG_BUSY_MS) result += it.at to InterruptionKind.MicBusy }
             busy = null
         }
         for (event in events.sortedBy { it.at }.filter { it.at <= now }) {
@@ -26,13 +30,13 @@ object HealthWatchdogRules {
                     finishBusy(event.at)
                     // 仅现有 fail() 的明确标记算异常；未知老日志保守不算。
                     if (event.detail?.contains("等待手动恢复，保留未正常停止标记") == true) {
-                        if (!abnormalStop) result += event.at
+                        if (!abnormalStop) result += event.at to InterruptionKind.AbnormalStop
                         abnormalStop = true
                     } else abnormalStop = false
                 }
                 "Killed" -> {
                     finishBusy(event.at)
-                    if (!abnormalStop) result += event.at
+                    if (!abnormalStop) result += event.at to InterruptionKind.Killed
                     abnormalStop = true
                 }
                 "Recovered", "ServiceStarted", "BootRestart" -> {
@@ -43,6 +47,6 @@ object HealthWatchdogRules {
         }
         // 日志可能在进程退出前未写释放；仅当前仍被占用时把未闭合区间延长到现在。
         if (microphoneStillBusy) finishBusy(now)
-        return result.distinct()
+        return result
     }
 }

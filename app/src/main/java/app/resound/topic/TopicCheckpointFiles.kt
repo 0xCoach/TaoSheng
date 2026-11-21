@@ -42,9 +42,7 @@ internal class TopicCheckpointFiles(context: Context, private val currentSource:
         if (currentSource != null && currentSource.invoke(id) != value.source) throw TopicException("专题原话已变化，请重新整理")
         mutex.withLock {
         check(dir.isDirectory || dir.mkdirs())
-        val atom = AtomicFile(file(id)); val out = atom.startWrite()
-        try { out.write(json.encodeToString(TopicCheckpoint.serializer(), value).toByteArray()); atom.finishWrite(out) }
-        catch (e: Throwable) { atom.failWrite(out); throw e }
+        app.resound.util.atomicWriteFile(file(id)) { out -> out.write(json.encodeToString(TopicCheckpoint.serializer(), value).toByteArray()) }
         changes.value = changes.value + 1
     } }
     override suspend fun remove(id: Long) = withContext(Dispatchers.IO) { mutex.withLock { AtomicFile(file(id)).delete(); changes.value = changes.value + 1 } }

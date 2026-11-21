@@ -32,7 +32,7 @@ interface AppUpdater {
     val autoCheck: StateFlow<Boolean>
     fun setAutoCheck(enabled: Boolean)
 
-    /** 系统设置里是否已允许涛声安装应用；false 时界面引导用户去打开 */
+    /** 系统设置里是否已允许声声不息安装应用；false 时界面引导用户去打开 */
     fun canInstall(): Boolean
 
     // ---- 卡 052：预览版通道 ----

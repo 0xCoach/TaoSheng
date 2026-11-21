@@ -178,7 +178,7 @@ class PushMoreTest {
     }
     @Test fun webdavAppendsCreatesDirectoriesAndDailyOverwriteUsesSeparatePath() = runBlocking {
         Fake().use { f ->
-            val values = mapOf("account" to "user", "password" to "fake", "folder" to "Obsidian/回响")
+            val values = mapOf("account" to "user", "password" to "fake", "folder" to "Obsidian/声声不息")
             f.server.enqueue(MockResponse().setBody("已有内容\n").setHeader("ETag", "\"v1\""))
             repeat(3) { f.reply(code = 405) }; f.reply(code = 204)
             f.transport.send(PushKind.MarkdownFolder, PushFormat.Markdown, values, message).getOrThrow()
@@ -192,7 +192,7 @@ class PushMoreTest {
             repeat(2) { f.reply(code = 405) }; f.reply(code = 204)
             f.transport.send(PushKind.MarkdownFolder, PushFormat.Json, values, document()).getOrThrow()
             repeat(2) { assertEquals("MKCOL", f.take().method) }
-            val daily = f.take(); assertEquals("/dav/Obsidian/回响/$date.md", java.net.URLDecoder.decode(daily.path!!, "UTF-8")); assertEquals(document().memory!!.getString("markdown"), daily.body.readUtf8())
+            val daily = f.take(); assertEquals("/dav/Obsidian/声声不息/$date.md", java.net.URLDecoder.decode(daily.path!!, "UTF-8")); assertEquals(document().memory!!.getString("markdown"), daily.body.readUtf8())
         }
     }
     @Test fun validationRejectsUnsafeInputsButAllowsPrivateWebhookRanges() {
@@ -271,7 +271,7 @@ class PushMoreTest {
             val llm = LlmClient(); val settings = AndroidDigestSettings(context, llm)
             val memory = RoomMemoryRepository(db.memory(), DigestRunner(context, db.memory(), llm, settings, { "" }, { false }), { error("不能触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
             val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("diary-review", 0), scope,
-                { error("不能调用模型") }, { _, _, _, _ -> error("不能调用模型") }, { "" }, "回响", quietNotifier, {}, now = app.resound.platform.SystemNow::now, zone = java.time.ZoneId::systemDefault, io = kotlinx.coroutines.Dispatchers.IO)
+                { error("不能调用模型") }, { _, _, _, _ -> error("不能调用模型") }, { "" }, "声声不息", quietNotifier, {}, now = app.resound.platform.SystemNow::now, zone = java.time.ZoneId::systemDefault, io = kotlinx.coroutines.Dispatchers.IO)
             val diary = LocalDiaryRepository(context, memory, reviews, db.memory(), app.resound.platform.SystemZone, Dispatchers.IO, cards = { d -> db.skills().cards(d.toEpochDay()).first().map { it.card() } })
             val md = diary.markdown(date, date, false)
             assertTrue(md.indexOf("## 卡片") > md.indexOf("## 回顾")); assertTrue(md.contains("会议纪要 ·")); assertTrue(md.contains("- 报价")); assertTrue(md.contains("- [x] 发送")); assertTrue(md.contains("> 下一行"))

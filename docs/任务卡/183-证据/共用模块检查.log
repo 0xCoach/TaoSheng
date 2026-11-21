@@ -83,8 +83,8 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:generateDebugUnitTestLintModel
 
 > Task :shared:compileTestKotlinJvm
-w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
-w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/resound/digest/RulesParity152Test.kt:22:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/soundsound-183/shared/src/jvmTest/kotlin/app/resound/ask/AskParity153Test.kt:84:46 The corresponding parameter in the supertype 'AskSuggestionStore' is named 'count'. This may cause problems when calling this function with named arguments.
+w: file:///Users/coach/Developer/soundsound-183/shared/src/jvmTest/kotlin/app/resound/digest/RulesParity152Test.kt:22:66 The corresponding parameter in the supertype 'FailoverStore' is named 'cooling'. This may cause problems when calling this function with named arguments.
 
 > Task :shared:compileJvmTestJava NO-SOURCE
 > Task :shared:jvmTestClasses
@@ -95,13 +95,13 @@ w: file:///Users/coach/Developer/TaoSheng-183/shared/src/jvmTest/kotlin/app/reso
 > Task :shared:lintAnalyzeDebug
 
 > Task :shared:lintReportDebug
-Wrote HTML report to file:///Users/coach/Developer/TaoSheng-183/shared/build/reports/lint-results-debug.html
+Wrote HTML report to file:///Users/coach/Developer/soundsound-183/shared/build/reports/lint-results-debug.html
 
 > Task :shared:lintDebug
 > Task :shared:lint
 > Task :shared:check
 
-[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-183/build/reports/problems/problems-report.html
+[Incubating] Problems report is available at: file:///Users/coach/Developer/soundsound-183/build/reports/problems/problems-report.html
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
 

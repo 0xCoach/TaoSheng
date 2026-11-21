@@ -27,7 +27,7 @@ object QuickText {
     const val FAILED = "快捷操作失败，请重试"
     const val STALE = "状态已变化，请重新打开快捷菜单"
     const val PERMISSION = "缺少录音或通知权限，请在设置中开启"
-    const val CAPTURE_PENDING = "录音状态尚未确认，请打开涛声查看"
+    const val CAPTURE_PENDING = "录音状态尚未确认，请打开声声不息查看"
     fun success(action: QuickAction, topic: TopicState, minutes: Int, kind: TopicKind): String = when (action) {
         QuickAction.Pause -> if (topic == TopicState.Running) "专题已暂停" else "已暂停 ${duration(minutes)}"
         QuickAction.Resume -> if (topic == TopicState.Paused) "专题已继续" else "已恢复聆听"

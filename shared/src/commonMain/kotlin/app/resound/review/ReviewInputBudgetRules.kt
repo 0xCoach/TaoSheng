@@ -19,7 +19,8 @@ object ReviewInputBudgetRules {
             !e.getBoolean("starred") && !e.getBoolean("important") &&
                 (0 until items.length()).none { i ->
                     val item = items.getJSONObject(i)
-                    item.optString("category") in setOf("待办", "约定") && item.optString("status") in setOf("Pending", "Accepted")
+                    item.optInt("value") >= app.resound.data.MemoryValueRules.TIER_HIGH ||
+                        item.optString("category") in setOf("待办", "约定") && item.optString("status") in setOf("Pending", "Accepted")
                 }
         }
         // 用每个字段的 JSON 编码长度计算差值，避免每删一个字段都重编码整份长输入。

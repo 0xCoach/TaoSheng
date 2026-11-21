@@ -145,9 +145,7 @@ internal object IncrementalBackup {
         }
     }
     private fun atomicCopy(source: File, destination: File) {
-        val atomic = AtomicFile(destination); val stream = atomic.startWrite()
-        try { source.inputStream().use { it.copyTo(stream) }; atomic.finishWrite(stream) }
-        catch (e: Exception) { atomic.failWrite(stream); throw e }
+        app.resound.util.atomicWriteFile(destination) { out -> source.inputStream().use { it.copyTo(out) } }
     }
     internal fun pack(baseName: String, base: File, baseManifest: JSONObject, content: File, current: JSONObject, zip: File) {
         val patch = File(zip.parentFile, "${zip.name}.pages")

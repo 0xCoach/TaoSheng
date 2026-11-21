@@ -163,7 +163,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                     "| ideas.md、decisions-and-facts.md | 最近一年提取项 | 同步时 |\n" +
                     "| archive/ | 一年以前的提取项 | 同步时 |\n" +
                     "| inbox/ | 预留；只建空目录，不读取 | 不处理 |\n" +
-                    "| my-notes/ | 归用户所有 | 涛声永不读写、不删除 |"
+                    "| my-notes/ | 归用户所有 | 声声不息永不读写、不删除 |"
                 ) else ""}
 
             ## 给智能体的用法

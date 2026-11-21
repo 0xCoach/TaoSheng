@@ -43,6 +43,7 @@ data class MemoryItemEntity(
     val category: String,
     val kind: String?,
     val content: String,
+    /** 提及时间：话里说的期限（“明天交”→明天），来自提取。 */
     val dueText: String?,
     val dueAt: Long?,
     val who: String?,
@@ -64,6 +65,10 @@ data class MemoryItemEntity(
     val sourceText: String? = null,
     /** 到点强提醒：弹出、响铃、震动（用户在待办卡或编辑里打开） */
     @ColumnInfo(defaultValue = "0") val strongReminder: Boolean = false,
+    /** 录音时间：这句话被说出来的时刻（取原话行 startAt），与 dueAt（提及）、createdAt（处理）分开；手打为 null。 */
+    val recordedAt: Long? = null,
+    /** 内在价值分（0-100，提取时按条目自身属性算）；父事件星标加成查询时另加，见 MemoryValueRules。 */
+    @ColumnInfo(defaultValue = "0") val valueScore: Int = 0,
 )
 
 data class ItemRepeatCount(val id: Long, val repeats: Int)
@@ -149,6 +154,13 @@ abstract class MemoryDao {
             setItemStatus(id, "Accepted", row.createdAt)
         }
     }
+    /** 单条手动插入并直接接受，返回新条目 id（灵感转待办等程序入口用）。 */
+    @Transaction
+    open suspend fun addManualItem(row: MemoryItemEntity): Long {
+        val id = insertManualItem(row)
+        setItemStatus(id, "Accepted", row.createdAt)
+        return id
+    }
 
     @Query("UPDATE transcript_lines SET eventId = :eventId WHERE id IN (:ids)")
     abstract suspend fun assignLines(ids: List<Long>, eventId: Long)
@@ -193,6 +205,10 @@ abstract class MemoryDao {
     @Query("UPDATE memory_items SET strongReminder = :on WHERE id = :id")
     abstract suspend fun setStrongReminder(id: Long, on: Boolean)
 
+    /** 撤销删除：把软删除的提取项恢复回来（配合 memory_revisions 的 Undo） */
+    @Query("UPDATE memory_items SET deleted = 0 WHERE id = :id AND deleted = 1")
+    abstract suspend fun restoreItem(id: Long): Int
+
     @Query("""UPDATE memory_items SET deleted = 1, doneHintLineId = NULL, doneHintAt = NULL
         WHERE id = :id""")
     abstract suspend fun deleteItem(id: Long)
@@ -220,6 +236,7 @@ abstract class MemoryDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertUsage(row: LlmUsageV2Entity)
     @Query("SELECT * FROM digest_pending") abstract suspend fun pendingDigests(): List<PendingDigest>
+    @Query("SELECT COUNT(*) FROM digest_pending") abstract suspend fun pendingDigestCount(): Int
     @Query("SELECT * FROM digest_pending WHERE id = :id") abstract suspend fun pendingDigest(id: String): PendingDigest?
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun insertPendingDigest(row: PendingDigest): Long
     @Query("DELETE FROM digest_pending WHERE id = :id") abstract suspend fun removePendingDigest(id: String)
@@ -283,8 +300,18 @@ abstract class MemoryDao {
     @Query("SELECT * FROM memory_items WHERE deleted = 0 AND mergedInto IS NULL AND eventId IN (SELECT id FROM memory_events WHERE deleted = 0 AND startAt >= :start AND startAt < :end)")
     abstract fun itemsBetween(start: Long, end: Long): Flow<List<MemoryItemEntity>>
 
+    /** 一批事件的提取项：项目聚合（挂了会议→其待办/约定自动归入项目）用。 */
+    @Transaction
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.eventId IN (:eventIds)
+        ORDER BY i.createdAt DESC, i.id DESC""")
+    abstract suspend fun itemsForEvents(eventIds: List<Long>): List<MemoryItemEntity>
+
     @Query("SELECT id FROM transcript_lines WHERE eventId = :eventId ORDER BY startAt, id LIMIT 1")
     abstract suspend fun firstEventLineId(eventId: Long): Long?
+
+    @Query("SELECT startAt FROM transcript_lines WHERE id = :lineId")
+    abstract suspend fun lineStartAt(lineId: Long): Long?
 
     @Query("SELECT * FROM transcript_lines WHERE segmentId = (SELECT segmentId FROM transcript_lines WHERE id = :lineId) ORDER BY startAt, id")
     abstract suspend fun segmentLinesOf(lineId: Long): List<TranscriptLineEntity>
@@ -307,6 +334,17 @@ abstract class MemoryDao {
            WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.category IN (:categories) ORDER BY i.createdAt DESC, i.id DESC LIMIT 500""",
     )
     abstract fun itemsByCategory(categories: List<String>): Flow<List<MemoryItemEntity>>
+
+    /** 灵感收件箱同步用：全部“灵感”提取项（不含忽略/合并掉的），含各状态。 */
+    @Transaction
+    @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId
+        WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND i.category = '灵感' AND i.status != 'Ignored'
+        ORDER BY i.createdAt, i.id""")
+    abstract suspend fun inspirationItems(): List<MemoryItemEntity>
+
+    /** 按编号取一句原话（灵感/分析溯源用）。 */
+    @Query("SELECT * FROM transcript_lines WHERE id = :id")
+    abstract suspend fun lineById(id: Long): TranscriptLineEntity?
 
     @Transaction
     @Query("""SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId

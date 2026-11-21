@@ -565,7 +565,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
             }
         }
     }
-    Text(if(supported) "从官方 GitHub 下载，建议连 WiFi。CPU 模型作备用，NPU 识别不可用时自动改用。" else "从官方 GitHub 下载，建议连 WiFi。",style=RsType.caption,color=c.textTertiary)
+    if(supported) Text("CPU 模型作备用，NPU 识别不可用时自动改用。",style=RsType.caption,color=c.textTertiary)
 }
 
 /** 进度文字只在任务真的在跑时才可信；排队时说明在等什么，没任务时把过时的“下载 45%”改成可重试 */
@@ -821,6 +821,7 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
     var menuFor by remember { mutableStateOf<Long?>(null) }
     var assignFor by remember { mutableStateOf<Long?>(null) }
     var hotwordFrom by remember { mutableStateOf<String?>(null) }
+    var appendIdeaFor by remember { mutableStateOf<TranscriptLine?>(null) }
     val playSource = LocalPlaySource.current
     // 哪些录音段还有原声：有的在时间旁显示 ▶，点句子就从这句播起
     val playable by androidx.compose.runtime.produceState(emptySet<Long>(), lines) {
@@ -836,6 +837,7 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
         }
     }
     hotwordFrom?.let { text -> AddHotwordSheet(text) { hotwordFrom = null } }
+    appendIdeaFor?.let { line -> IdeaPickSheet(line) { appendIdeaFor = null } }
     androidx.compose.foundation.text.selection.DisableSelection {
         assignFor?.let { id -> voiceprint?.let { app.resound.ui.voiceprint.AssignPersonDialog(it, id) { assignFor = null } } }
     }
@@ -906,6 +908,19 @@ fun SpeakerLines(lines: List<TranscriptLine>) {
                         // 认错的词加进热词：以后转写认得准，整理时也会按热词纠正同音字
                         if (app.resound.AppGraph.isHotwordsReady) DropdownMenuItem(text = { Text("加入热词", style = RsType.body, color = c.text) }, onClick = {
                             hotwordFrom = selected.text; menuFor = null
+                        })
+                        // 手动把这句话收进灵感收件箱（溯源到这句原话）
+                        if (app.resound.AppGraph.isIdeasReady) DropdownMenuItem(text = { Text("标为灵感", style = RsType.body, color = c.text) }, onClick = {
+                            val line = selected
+                            menuFor = null
+                            kotlinx.coroutines.MainScope().launch(kotlinx.coroutines.Dispatchers.IO) {
+                                app.resound.AppGraph.ideas.markFromLine(line.id, line.segmentId, line.text)
+                            }
+                            Toast.makeText(context, "已收进灵感收件箱", Toast.LENGTH_SHORT).show()
+                        })
+                        // 或把这句补进某条已有灵感的发展轨迹
+                        if (app.resound.AppGraph.isIdeasReady) DropdownMenuItem(text = { Text("补到灵感…", style = RsType.body, color = c.text) }, onClick = {
+                            appendIdeaFor = selected; menuFor = null
                         })
                         // 语音输入的句子本来就是你说的，不用纠正说话人
                         if (voiceprint != null && selected.voiceInput == null) {
@@ -1058,5 +1073,31 @@ private fun DeleteSegmentsSheet(count: Int, onConfirm: suspend () -> Unit, onDis
         }
         failure?.let { Text(it, color = Rs.colors.critical, style = RsType.subhead) }
         app.resound.ui.verify.ActionButton("取消", app.resound.ui.verify.ActionKind.Secondary, enabled = !busy) { onDismiss() }
+    }
+}
+
+/** 把这句原话补进某条已有灵感：列出活跃灵感供点选，补入后计入发展轨迹。 */
+@Composable
+private fun IdeaPickSheet(line: TranscriptLine, onDismiss: () -> Unit) {
+    val c = Rs.colors
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val ideas by app.resound.AppGraph.ideas.list(null).collectAsStateWithLifecycle(initialValue = emptyList())
+    app.resound.ui.verify.RsSheet("补到灵感", "这句原话会带出处记入所选灵感的发展轨迹", onDismiss = onDismiss) {
+        if (ideas.isEmpty()) Text("还没有可补充的灵感——先用“标为灵感”建一条", style = RsType.body, color = c.textSecondary)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(ideas.take(30), key = { it.id }) { idea ->
+                RsCard(modifier = Modifier.fillMaxWidth().springClick {
+                    scope.launch {
+                        if (app.resound.AppGraph.ideas.appendFromLine(idea.id, line.id))
+                            Toast.makeText(context, "已补进「${idea.title.ifBlank { idea.content.take(20) }}」", Toast.LENGTH_SHORT).show()
+                        onDismiss()
+                    }
+                }, padding = PaddingValues(14.dp)) {
+                    Text(idea.title, style = RsType.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.text, maxLines = 1)
+                    Text(idea.content, style = RsType.subhead, color = c.textSecondary, maxLines = 2)
+                }
+            }
+        }
     }
 }

@@ -18,7 +18,7 @@ import org.robolectric.annotation.SQLiteMode
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-/** 显式 TAOSHENG_182_BENCHMARK=before/after 才运行；仅合成内存库，无手机/真实数据库。
+/** 显式 soundsound_182_BENCHMARK=before/after 才运行；仅合成内存库，无手机/真实数据库。
  * 所有被审计的常驻 DAO Flow 同时存活，逐次写入后等待有关查询消费完，避免调度合并掩盖读放大。
  * 延迟是从提交前到收到查询结果（包含排队），不能当作各线程 CPU 占比。
  */
@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap
 class TableObservers182Benchmark {
     private data class Measure(var calls: Long = 0, var rows: Long = 0, var nanos: Long = 0)
     @Test fun residentObservers() = runBlocking(Dispatchers.IO) {
-        val mode = System.getenv("TAOSHENG_182_BENCHMARK")
+        val mode = System.getenv("soundsound_182_BENCHMARK")
         assumeTrue(mode == "before" || mode == "after")
         val sqlStats = ConcurrentHashMap<String, Measure>()
         var measuring = false

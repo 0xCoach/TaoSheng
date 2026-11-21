@@ -5,7 +5,7 @@ FAILURE: Build failed with an exception.
 
 * What went wrong:
 Could not determine the dependencies of task ':shared:testDebugUnitTest'.
-> SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable or by setting the sdk.dir path in your project's local properties file at '/Users/coach/Developer/TaoSheng-integration-176-183/local.properties'.
+> SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable or by setting the sdk.dir path in your project's local properties file at '/Users/coach/Developer/soundsound-integration-176-183/local.properties'.
 
 * Try:
 > Run with --stacktrace option to get the stack trace.

@@ -25,4 +25,4 @@ shared/build/test-results/jvmTest: tests=195, failures=0, errors=0, time=1.696s
 生产旧网络标识扫描：0 命中（范围及正则见交付说明）
 禁改文件与 b6d8b96 一致；shared/devices 源码无改动
 git diff --check：通过
-清理：build/、app/build/、shared/build/、devices/build/、/tmp/taosheng-184-gradle 均已删除
+清理：build/、app/build/、shared/build/、devices/build/、/tmp/soundsound-184-gradle 均已删除

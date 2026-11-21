@@ -25,6 +25,7 @@ import app.resound.capture.CaptureNotifications
 import app.resound.capture.CaptureService
 import app.resound.data.CaptureDatabase
 import app.resound.digest.*
+import app.resound.rules.RuleEvent
 import app.resound.skills.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -52,7 +53,7 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
                     app.assets.open("skills/$id/prompt.md").bufferedReader().use { it.readText() }
             }, request = { system, user ->
                 val (preset, key) = settings.skillCredentials(null)
-                if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
+                if (preset.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset)) throw LlmException(LlmError.Auth)
                 val reply = settings.failover.request("专题整理", db.memory(), UsagePurpose.Digest, settings.digestRequest(llm))(preset, key, system, user)
                 withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
                 reply
@@ -60,6 +61,11 @@ internal class TopicFeature(val repository: RoomTopicRepository, val engine: Top
             val engine = TopicEngine(db, repository, generator, app.voiceprintRepository::isReady,
                 app.segmentFiles::pendingInRange, checkpoints = checkpoints, ready = { id -> app.scope.launch {
                     db.topics().get(id)?.row?.let { TopicNotifications.show(app, id, TopicReminder.Ready, TopicKind.valueOf(it.kind)) }
+                    // 纪要落地即同步决定/灵感并广播 topic_done，让规则与记忆不等下次启动。
+                    AppGraph.decisionRepo.syncFromDigest()
+                    AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
+                    AppGraph.followupEngine.scan()
+                    AppGraph.workflowEngine.emit(RuleEvent.TopicDone.key)
                 }
                     EmbeddingScheduler.enqueue(app) })
             repository.onChanged = {

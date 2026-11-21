@@ -152,15 +152,15 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :devices:processDebugJavaRes UP-TO-DATE
 
 > Task :shared:lintReportDebug
-Wrote HTML report to file:///Users/coach/Developer/TaoSheng-177/shared/build/reports/lint-results-debug.html
+Wrote HTML report to file:///Users/coach/Developer/soundsound-177/shared/build/reports/lint-results-debug.html
 
 > Task :shared:lintDebug
 > Task :shared:lint
 > Task :shared:check
 
 > Task :app:compileDebugKotlin
-w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
-w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:831:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/soundsound-177/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/soundsound-177/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:831:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
 
 > Task :app:compileDebugJavaWithJavac UP-TO-DATE
 > Task :app:processDebugJavaRes

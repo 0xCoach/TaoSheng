@@ -60,13 +60,15 @@ import app.resound.ui.voiceprint.LocalVoiceprint
 /** 各组图标色：同组相近色系，整体沉稳；组与组之间靠色相区分 */
 private object Tints {
     // 记录：暖色系
-    val capture = Color(0xFFF07B2E); val devices = Color(0xFFF2994A); val transcript = Color(0xFFE0A030)
-    val voiceprint = Color(0xFFE06A50); val env = Color(0xFFD4A017); val location = Color(0xFFC9643A)
+    val capture = Color(0xFF632ACF); val devices = Color(0xFF8B5CF0); val transcript = Color(0xFF6D4AC8)
+    val voiceprint = Color(0xFF9F7AEA); val env = Color(0xFF108474); val location = Color(0xFF4C1D95)
     val screenTime = Color(0xFFB07048)
     // 整理：紫蓝系
     val model = Color(0xFF7C5CC4); val skills = Color(0xFF5B5BD6); val push = Color(0xFF3B82C4)
     // 数据：绿
     val backup = Color(0xFF34A853)
+    // 账号：紫
+    val account = Color(0xFF7B61E8)
     // 通用：灰系
     val look = Color(0xFF8E8E93); val update = Color(0xFF7A8794); val about = Color(0xFF9A8F86); val advanced = Color(0xFF636366)
 }
@@ -136,6 +138,23 @@ internal fun SettingsList(
         // ---------- 体检 ----------
         report?.let { r -> item { HealthCard(r, capture, onOpen) } }
 
+        // ---------- 账号 ----------
+        if (AppGraph.isAuthReady) item {
+            GroupSection("账号") {
+                val authStatus = AppGraph.auth.status.collectAsStateWithLifecycle().value
+                val accountLine = when (authStatus) {
+                    app.resound.auth.AuthStatus.Authorized -> AppGraph.auth.store.username ?: "已授权"
+                    app.resound.auth.AuthStatus.Authenticated -> "已登录 · 等待授权凭证"
+                    app.resound.auth.AuthStatus.Expired -> "授权已过期"
+                    app.resound.auth.AuthStatus.Disabled -> "账号已停用"
+                    app.resound.auth.AuthStatus.Locked -> "隐私锁已启用"
+                    else -> "未登录"
+                }
+                SRow(SettingsGlyph.People, Tints.account, "账号与会员", accountLine,
+                    alert = if (authStatus == app.resound.auth.AuthStatus.Expired || authStatus == app.resound.auth.AuthStatus.Disabled) c.warning else null) { onOpen(SettingsPage.Account) }
+            }
+        }
+
         // ---------- 记录 ----------
         item {
             GroupSection("记录") {
@@ -151,10 +170,11 @@ internal fun SettingsList(
                 }
                 SRow(SettingsGlyph.Mic, Tints.capture, "录音与后台", captureLine,
                     alert = if (status.state == CaptureState.Stopped || status.state == CaptureState.NoPermission) c.critical else null) { onOpen(SettingsPage.Capture) }
-                if (AppGraph.isDevicesReady) {
-                    Divider()
-                    SRow(SettingsGlyph.Device, Tints.devices, "外接设备", app.resound.ui.verify.devicesSummary()) { onOpen(SettingsPage.Devices) }
-                }
+                // 外接设备驱动均未真机验证（D3200 社区试用/ESP32-C3/Omi 未验证），入口先隐藏；恢复时取消注释即可
+                // if (AppGraph.isDevicesReady) {
+                //     Divider()
+                //     SRow(SettingsGlyph.Device, Tints.devices, "外接设备", app.resound.ui.verify.devicesSummary()) { onOpen(SettingsPage.Devices) }
+                // }
                 Divider()
                 val asr = transcribeSettings as? app.resound.transcribe.AndroidTranscribeSettings
                 val asrSource = asr?.source?.collectAsStateWithLifecycle()?.value?.title ?: "豆包"
@@ -252,7 +272,7 @@ internal fun SettingsList(
                     SRow(SettingsGlyph.Up, Tints.update, "版本更新", summary, alert = if (fresh) c.accent else null) { onOpen(SettingsPage.Update) }
                 }
                 Divider()
-                SRow(SettingsGlyph.Info, Tints.about, "关于涛声", "") { onOpen(SettingsPage.About) }
+                SRow(SettingsGlyph.Info, Tints.about, "关于声声不息", "") { onOpen(SettingsPage.About) }
             }
         }
         item {
@@ -297,7 +317,7 @@ private fun SearchField(value: String, onChange: (String) -> Unit) {
     BasicTextField(value, onChange, singleLine = true, textStyle = RsType.body.copy(color = c.text), cursorBrush = SolidColor(c.accent),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
-            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(if (c.isDark) c.card else Color(0xFFE9E6E1)).padding(horizontal = 12.dp, vertical = 10.dp),
+            Row(Modifier.clip(RoundedCornerShape(12.dp)).background(if (c.isDark) c.card else Color(0xFFEFEBF8)).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 GlyphIcon(SettingsGlyph.Search, c.textTertiary, 16.dp)
                 Spacer(Modifier.width(8.dp))
@@ -347,7 +367,17 @@ private fun HealthCard(r: HealthReport, capture: CaptureController, onOpen: (Set
                 val f = r.facts
                 val facts = listOfNotNull(
                     f.stableDays?.let { "连续稳定 $it 天" },
-                    f.interruptionsToday?.let { "今天中断 $it 次" },
+                    f.interruptionsToday?.let { n ->
+                        val kinds = f.interruptionKindsToday
+                        if (n > 0 && kinds.isNotEmpty()) {
+                            val parts = listOfNotNull(
+                                kinds[app.resound.health.InterruptionKind.MicBusy]?.let { "被抢占 $it" },
+                                kinds[app.resound.health.InterruptionKind.Killed]?.let { "进程被杀 $it" },
+                                kinds[app.resound.health.InterruptionKind.AbnormalStop]?.let { "异常停止 $it" },
+                            ).joinToString("·")
+                            "今天中断 $n 次（$parts）"
+                        } else "今天中断 $n 次"
+                    },
                     f.nextBackupAt?.let { "下次备份 " + nextBackupText(it) },
                 ).joinToString(" · ")
                 Row(verticalAlignment = Alignment.CenterVertically) {

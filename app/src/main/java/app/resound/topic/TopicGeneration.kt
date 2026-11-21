@@ -22,9 +22,12 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import app.resound.digest.snapshot
 import app.resound.skills.android
+import app.resound.topic.core.MeetingOpenItem
+import app.resound.topic.core.MeetingSeriesRules
 import app.resound.topic.core.TopicProcessingSession
 import app.resound.topic.core.TopicProcessingRules
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 internal data class TopicOutput(val event: MemoryEventEntity, val items: List<DigestPrompt.ParsedItem>, val card: SkillCardRow?)
 
@@ -60,11 +63,12 @@ internal class TopicGenerator(
     private val request: suspend (String, String) -> LlmReply,
     private val hotwords: () -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
-    private val appName: String = "涛声",
+    private val appName: String = "声声不息",
     private val marks: (suspend (Long, Long) -> List<app.resound.marks.MarkRow>)? = null,
 ) {
     suspend fun generate(g: TopicGroup, lines: List<TranscriptLineEntity>, unfinished: List<MemoryItemEntity>,
-        ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null): TopicOutput {
+        ignored: List<MemoryItemEntity>, unseparated: Set<Long> = emptySet(), session: TopicProcessingSession? = null,
+        previousContext: String = ""): TopicOutput {
         val row = g.row
         val words = (hotwords() + TopicPolicy.words(row.name)).distinct()
         val kind = TopicKind.valueOf(row.kind)
@@ -112,7 +116,8 @@ internal class TopicGenerator(
                 summary.generate(ImportRecordRow(id = row.id, pendingId = "topic:${row.id}", fileName = row.name ?: kind.title,
                     kind = kind.name, startAt = start, endAt = end, byChannel = false),
                     if (kind == TopicKind.Training) acceptedLines.map { it.copy(speakerName = null, speakerTag = null) } else acceptedLines,
-                    unfinished + ignored, extraContext = DigestPrompt.withHotwords(context(g, acceptedLines), words)).card
+                    unfinished + ignored, extraContext = listOf(previousContext,
+                        DigestPrompt.withHotwords(context(g, acceptedLines), words)).filter { it.isNotBlank() }.joinToString("\n\n")).card
                     .copy(entity = "topic:${row.id}")
             }
         }
@@ -201,7 +206,19 @@ internal class TopicEngine(
                 val retained = dao.items(g.row.retainedIds()).filterNot { it.deleted }
                 val unfinished = (db.memory().unfinishedForDigest() + retained.filter { it.status !in setOf("Done", "Ignored") }).distinctBy { it.id }
                 val ignored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + retained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
-                val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), session)
+                // 同系列上一次纪要：结论/决定/行动项 + 仍未闭环的待办与约定，注入本场资料区。
+                val previousBlock = g.row.takeIf { it.kind != "Normal" && it.kind != "Script" && (it.seriesId != null || it.seriesKey != null) }
+                    ?.let { dao.previousDone(g.row.kind, g.row.seriesKey ?: "", g.row.id, g.row.seriesId) }
+                    ?.let { prev ->
+                        val card = prev.cardId?.let { db.skills().card(it).first() }
+                        val open = prev.eventId?.let { eid -> dao.eventItems(listOf(eid)) }.orEmpty()
+                            .filter { !it.deleted && it.category in setOf("待办", "约定") && it.status in setOf("Pending", "Accepted") }
+                            .map { MeetingOpenItem(it.kind ?: it.category, it.who, it.content, it.dueText) }
+                        val prevStart = dao.get(prev.id)?.spans?.minOfOrNull { it.startAt } ?: prev.createdAt
+                        val date = Instant.ofEpochMilli(prevStart).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                        MeetingSeriesRules.previousContext(prev.name, date, card?.valuesJson, open)
+                    } ?: ""
+                val result = generator.generate(g, lines, unfinished, ignored, db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), session, previousBlock)
                 val saved = db.writeTransaction {
                     val latest = dao.get(g.row.id) ?: return@writeTransaction false
                     if (latest.row.revision != revision || latest.row.status != "Summarizing") return@writeTransaction false
@@ -217,8 +234,16 @@ internal class TopicEngine(
                     val items = result.items.filterNot { item -> existing.any { old ->
                         old.category in setOf(item.category, "待办", "约定", "备忘") &&
                             (item.lineId != null && old.lineId == item.lineId || ImportTodoMerge.same(old.content, item.content))
-                    } }.map { item -> MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
-                        dueText = item.dueText, dueAt = item.dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now()) }
+                    } }.map { item ->
+                        val recordedAt = lines.firstOrNull { it.id == item.lineId }?.startAt
+                        if (app.resound.data.TemporalGuard.dueViolated(item.dueAt, recordedAt))
+                            app.resound.diagnostics.FailureNotes.record("topic/TopicGeneration.kt:dueAt",
+                                IllegalStateException("dueAt=${item.dueAt} vs recordedAt=$recordedAt"))
+                        val dueAt = app.resound.data.TemporalGuard.sanitizeDue(item.dueAt, recordedAt)
+                        MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
+                        dueText = item.dueText, dueAt = dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now(),
+                        recordedAt = recordedAt,
+                        valueScore = app.resound.data.MemoryValueRules.itemScore(item.category, item.kind, dueAt, item.who, "digest")) }
                     db.memory().insertItems(items)
                     db.memory().assignLines(lines.map { it.id }, eventId)
                     db.memory().markDigested(lines.map { it.id }, now())

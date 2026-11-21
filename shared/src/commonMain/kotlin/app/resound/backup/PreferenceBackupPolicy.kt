@@ -35,10 +35,14 @@ object PreferenceBackupPolicy {
         "device-ui" to "用户确认过的关灯提示",
         "playback-title" to "记录播放标题开关及开启时刻",
         "screen-time" to "屏幕时间采集开关及开/关时刻；排除上次拉取节流时间",
+        "assistant" to "助手与本地 MCP 服务开关",
+        "auth" to "授权服务地址、隐私锁选择和本机数据归属；会话令牌、设备号、凭证和运行态不随包走",
+    "official-ai" to "官方 AI 服务同意版本与对应账号；服务端状态可重新拉取",
     )
     val secretPrefs = setOf(
         "transcribe", "digest-secrets", "push-secrets", "backup-secrets",
         "transcribe-header-secrets", "location-secrets", "backup-encryption-secrets",
+        "agent-secrets", "mcp-secrets",
     )
     val excluded = mapOf(
         "custom-asr-formats" to "自定义转写格式能力缓存，30 天重新探测，不备份",
@@ -71,6 +75,8 @@ object PreferenceBackupPolicy {
         "transcribe-queue" to "上次转写运行时间与错误",
         "update-popup" to "当前版本更新弹窗去重时间，真正的跳过/稍后设置在 app-update",
         "update-times" to "更新检查和安装诊断",
+        "auth-secrets" to "设备会话令牌与签名凭证密文绑定本机 Keystore/设备号，换机必须重新登录，备份毫无意义",
+        "membership" to "会员视图缓存与待上报用量队列是本机运行状态；换机不应携带旧设备未上报时长",
     )
     val backedUp: Set<String> get() = settings.keys + secretPrefs
     val asrKeys = setOf("encryptedKey", "customEncryptedKey")
@@ -84,6 +90,8 @@ object PreferenceBackupPolicy {
         "backup-secrets" -> key in setOf("password", "webDavPassword", "s3Secret")
         "location-secrets" -> key == "amap"
         "backup-encryption-secrets" -> key == "passphrase"
+        "agent-secrets" -> key.startsWith("endpoint-")
+        "mcp-secrets" -> key.startsWith("mcp_")
         else -> false
     }
 
@@ -113,6 +121,8 @@ object PreferenceBackupPolicy {
             "llm-balance" -> !key.startsWith("cached") && !key.startsWith("alerted")
             "folder-imports" -> key == "folders"
             "screen-time" -> key != "screenTimeLastPullAt"
+            // AUTH：只带用户选择与数据归属；会话/设备号/凭证/锁态/远端快照是本机状态。
+            "auth" -> key in setOf("server_url", "privacy_lock", "lock_after_min", "bound_account_id")
             else -> true
         }
     }

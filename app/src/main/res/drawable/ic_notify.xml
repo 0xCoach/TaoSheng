@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 通知栏小图标：单色，三道由内向外的弧线，取"回响"之意 -->
+<!-- 通知栏小图标：单色，三道由内向外的弧线，取"声声不息"之意 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

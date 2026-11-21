@@ -175,7 +175,7 @@ class IncrementalBackupTest {
         val full = BackupNames.metadata(BackupNames.create(1000000000000, true))!!
         val inc = BackupNames.metadata(BackupNames.create(full.at + 10000, true, full.name))!!
         val newer = BackupNames.metadata(BackupNames.create(full.at + 20000, false))!!
-        val old = BackupNames.metadata("回响-2000-01-01-0310.zip")!!
+        val old = BackupNames.metadata("声声不息-2000-01-01-0310.zip")!!
         assertFalse(inc.full); assertEquals(full.name, inc.baseName); assertTrue(old.full)
         assertEquals(setOf(full.name, inc.name, newer.name), BackupRetention.names(listOf(old, inc, newer, full), 2))
         assertNull(BackupNames.metadata("resound-inc-2026-10-24-0310-00000-12345678.zip"))
@@ -222,7 +222,7 @@ class IncrementalBackupTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 val name = request.requestUrl!!.pathSegments.last()
                 return when (request.method) {
-                    "PROPFIND" -> if (request.requestUrl!!.pathSegments.contains("回响备份")) MockResponse().setResponseCode(404)
+                    "PROPFIND" -> if (request.requestUrl!!.pathSegments.contains("声声不息备份")) MockResponse().setResponseCode(404)
                     else MockResponse().setResponseCode(207).setBody("<d:multistatus xmlns:d='DAV:'>" + storage.filterKeys { BackupNames.metadata(it) != null }.map { (key, data) ->
                         "<d:response><d:href>/dav/Resound-Backup/$key</d:href><d:propstat><d:prop><d:getcontentlength>${data.size}</d:getcontentlength></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
                     }.joinToString("") + "</d:multistatus>")
@@ -235,7 +235,7 @@ class IncrementalBackupTest {
             }
         }
         try {
-            val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "test@example.com", "test")
+            val client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "声声不息", "test@example.com", "test")
             var restarted = false
             val repository = AndroidBackupRepository(context, db, clientFactory = { client }, restartProcess = { restarted = true })
             val full = generated().also { it.committed() }; change(); val delta = generated(listOf(full))

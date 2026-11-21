@@ -92,14 +92,14 @@ internal object StrongReminders {
                 .putExtra(EXTRA_ID, id).putExtra(EXTRA_TEXT, text),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, LocalNotifier.TODO_CHANNEL)
-            .setSmallIcon(R.drawable.ic_notify).setColor(0xFFE8582A.toInt())
+            .setSmallIcon(R.drawable.ic_notify).setColor(0xFF632ACF.toInt())
             .setContentTitle(if (repeat == 0) "到点了" else "到点了 · 第 ${repeat + 1} 次提醒")
             .setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setFullScreenIntent(full, true)
             // 响着时划不掉，只能点按钮（或按电源键、音量键）
             .setOngoing(true).setOnlyAlertOnce(true)
-            .setContentIntent(full).setDeleteIntent(broadcast(context, ACTION_STOP, id))
+            .setContentIntent(open).setDeleteIntent(broadcast(context, ACTION_STOP, id))
             .addAction(0, "5 分钟后", broadcast(context, ACTION_SNOOZE, id))
             .addAction(0, "已完成", broadcast(context, ACTION_DONE, id))
             .addAction(0, "不再响", broadcast(context, ACTION_STOP, id))
@@ -179,7 +179,7 @@ internal object StrongReminders {
                     else ring(context, id, body, intent.getIntExtra(EXTRA_REPEAT, 0))
                 } catch (caught: Exception) {
                     FailureNotes.record("push/StrongReminders.kt:172", caught)
-                    /* 再响失败只是少响一次，不能让涛声崩掉 */
+                    /* 再响失败只是少响一次，不能让声声不息崩掉 */
                 } finally { finished() }
             }
             else -> finished()

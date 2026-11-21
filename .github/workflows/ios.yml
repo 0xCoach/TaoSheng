@@ -33,7 +33,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     env:
-      TAOSHENG_GRADLE_REGISTRY: /tmp/taosheng-166-gradle
+      soundsound_GRADLE_REGISTRY: /tmp/soundsound-166-gradle
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -43,6 +43,6 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v6.4.1
-      # 脚本自动寻找 /Applications/Xcode*.app，必要时可用 TAOSHENG_XCODE 指定。
+      # 脚本自动寻找 /Applications/Xcode*.app，必要时可用 soundsound_XCODE 指定。
       - name: 检查 iOS 真机与模拟器编译
         run: zsh tools/check_ios.sh

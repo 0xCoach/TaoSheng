@@ -63,7 +63,7 @@ data class DayStats(
     val dischargePerHour: Float?,
     /** 录音文件占用空间 */
     val storageBytes: Long,
-    /** 回响自身的耗电估算（每小时占电池容量的百分点），按 CPU 用时、麦克风开启时长、上传流量估算；数据不够为 null */
+    /** 声声不息自身的耗电估算（每小时占电池容量的百分点），按 CPU 用时、麦克风开启时长、上传流量估算；数据不够为 null */
     val appPowerPerHour: Float? = null,
 )
 

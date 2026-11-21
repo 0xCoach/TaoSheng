@@ -141,14 +141,14 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :app:javaPreCompileDebug UP-TO-DATE
 
 > Task :app:compileDebugKotlin
-w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
-w: file:///Users/coach/Developer/TaoSheng-177/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:831:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/soundsound-177/app/src/main/java/app/resound/ui/today/CopyContent.kt:107:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///Users/coach/Developer/soundsound-177/app/src/main/java/app/resound/ui/transcript/TranscriptScreen.kt:831:50 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
 
 > Task :app:compileDebugJavaWithJavac UP-TO-DATE
 > Task :app:bundleDebugClassesToCompileJar
 
 > Task :app:compileDebugUnitTestKotlin
-w: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/ui/BatchDeleteInvestigationTest.kt:30:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///Users/coach/Developer/soundsound-177/app/src/test/java/app/resound/ui/BatchDeleteInvestigationTest.kt:30:29 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
 
 BUILD SUCCESSFUL in 28s
 98 actionable tasks: 6 executed, 92 up-to-date

@@ -150,7 +150,7 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
             RsCard(color = c.accentSoft) {
                 Text(if (!fg) "需要定位权限" else "建议改成“始终允许”", style = RsType.headline, color = c.text)
                 Spacer(Modifier.height(4.dp))
-                Text(if (!fg) "没有定位权限时不会记录位置。" else "只给“使用时允许”时，手机重启或系统拉起收音后可能记不到位置，需要回到涛声里打开一次。",
+                Text(if (!fg) "没有定位权限时不会记录位置。" else "只给“使用时允许”时，手机重启或系统拉起收音后可能记不到位置，需要回到声声不息里打开一次。",
                     style = RsType.subhead, color = c.textSecondary)
                 Spacer(Modifier.height(10.dp))
                 Text("去授权", style = RsType.headline, color = c.accent, modifier = Modifier.springClick {

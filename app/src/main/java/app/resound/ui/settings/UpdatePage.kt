@@ -70,7 +70,7 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
     ) {
         RsCard(Modifier.animateContentSize()) {
             Text("当前版本", style = RsType.subhead, color = c.textSecondary)
-            Text("涛声 ${displayVersion(updater.currentVersion)}", style = RsType.title, color = c.text)
+            Text("声声不息 ${displayVersion(updater.currentVersion)}", style = RsType.title, color = c.text)
             Spacer(Modifier.height(4.dp))
             Text(
                 when (val s = state) {
@@ -103,7 +103,7 @@ fun UpdatePage(updater: AppUpdater, bottom: Dp) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text("自动检查更新", style = RsType.body, color = c.text)
                     Spacer(Modifier.height(2.dp))
-                    Text(if (auto) "每 6 小时和打开涛声时检查，有新版发通知" else "只在点“检查更新”时检查",
+                    Text(if (auto) "每 6 小时和打开声声不息时检查，有新版发通知" else "只在点“检查更新”时检查",
                         style = RsType.caption, color = c.textTertiary)
                 }
                 app.resound.ui.skills.Toggle(auto) { updater.setAutoCheck(it) }
@@ -165,7 +165,7 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
                 Spacer(Modifier.height(8.dp))
                 Text("数据在下载完后已自动备份。点安装后系统会弹一次确认，请点“更新”或“继续安装”。安装时录音会暂停十几秒，装好后自动继续", style = RsType.caption, color = c.textTertiary)
             } else {
-                Text("需要先允许涛声安装应用", style = RsType.subhead, color = c.warning)
+                Text("需要先允许声声不息安装应用", style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))
                 Pill("去允许", filled = true, onClick = allowInstall)
             }
@@ -179,26 +179,19 @@ internal fun NewVersionBody(info: UpdateInfo, state: UpdateState, canInstall: Bo
             } else {
                 Text("请在系统弹窗里点“更新”或“继续安装”", style = RsType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.accent)
                 Spacer(Modifier.height(6.dp))
-                Text("这一步是系统的安全确认，涛声没法代点。没看到弹窗的话，下拉通知栏点“涛声更新等待确认”", style = RsType.caption, color = c.textTertiary)
+                Text("这一步是系统的安全确认，声声不息没法代点。没看到弹窗的话，下拉通知栏点“声声不息更新等待确认”", style = RsType.caption, color = c.textTertiary)
             }
             is UpdateState.Failed -> {
                 Text(state.message, style = RsType.subhead, color = c.warning)
                 Spacer(Modifier.height(8.dp))
-                // 个别系统（如鸿蒙卓易通）里应用内安装走不通，给一条浏览器下载的退路
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Pill("重试", filled = false) { updater.download() }
-                    Pill("用浏览器下载", filled = false) {
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_PAGE)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    }
                 }
             }
             else -> Unit
         }
     }
 }
-
-/** 魔搭发布页：国内能直接打开，正式版和预览版都在这里 */
-internal const val RELEASES_PAGE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/files"
 
 /** 细长进度条，进度变化时平滑过渡 */
 @Composable

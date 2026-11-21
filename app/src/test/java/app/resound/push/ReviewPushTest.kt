@@ -48,7 +48,7 @@ class ReviewPushTest {
         val requests = Collections.synchronizedList(mutableListOf<JSONObject>())
         val rawBodies = Collections.synchronizedList(mutableListOf<String>())
         var status = 200
-        // 直接在应用拦截器返回响应，绝不访问网络或真实推送服务。
+        // 直接在应用拦截器返声声不息应，绝不访问网络或真实推送服务。
         val transport = PushTransport(OkHttpClient.Builder().addInterceptor { chain ->
             val raw = Buffer().also { chain.request().body!!.writeTo(it) }.readUtf8()
             rawBodies += raw
@@ -77,7 +77,7 @@ class ReviewPushTest {
             }
         }, channels)
         reviews = RoomReviewRepository(db.review(), db.memory(), prefs("review-030"), scope,
-            { error("不应调用大模型") }, { _, _, _, _ -> error("不应调用大模型") }, { "" }, "回响", notifier, {},
+            { error("不应调用大模型") }, { _, _, _, _ -> error("不应调用大模型") }, { "" }, "声声不息", notifier, {},
             { review.generatedAt }, { zone }, io = kotlinx.coroutines.Dispatchers.IO)
         try { block(db, reviews, channels, fake, local) } finally { scope.cancel(); db.close() }
     }

@@ -40,7 +40,8 @@ class BackupHistoryTest {
     private fun work() = File(root,UUID.randomUUID().toString()).apply { mkdirs() }
     @Before fun setup() {
         context=RuntimeEnvironment.getApplication()
-        root=File(context.cacheDir,"history-tests").apply { deleteRecursively();mkdirs() }
+        // 目录名保持短：长测试方法名叠加深层暂存库路径会让 sqlite 超过 Windows MAX_PATH。
+        root=File(context.cacheDir,"h").apply { deleteRecursively();mkdirs() }
         remote=File(root,"remote").apply { mkdirs() };disk=DirectoryVolumeStore(remote)
         (BackupSettings.prefs+BackupSettings.stores.keys+"backup-encryption-secrets").forEach { context.getSharedPreferences(it,0).edit().clear().commit() }
         File(context.applicationInfo.dataDir,BackupArchive.FEATURES).deleteRecursively()
@@ -144,7 +145,7 @@ class BackupHistoryTest {
     @Test fun migratesCurrentVolumesAndDeletesOnlyRecognizedLegacyAfterCommit() {
         DayVolumes.sync(context,db,disk,work(),null,time)
         val english=File(remote,"resound-2026-01-01-0310.zip").apply { writeText("old") }
-        val chinese=File(remote,"回响-2026-01-01-0310.zip").apply { writeText("old") }
+        val chinese=File(remote,"声声不息-2026-01-01-0310.zip").apply { writeText("old") }
         val unrelated=File(remote,"notes.zip").apply { writeText("keep") }
         fail="point";assertTrue(runCatching { sync() }.isFailure)
         assertTrue(english.exists());assertTrue(chinese.exists())

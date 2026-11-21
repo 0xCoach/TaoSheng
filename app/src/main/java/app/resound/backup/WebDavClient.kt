@@ -32,11 +32,18 @@ internal class WebDavClient(
     private val root = config.endpoint.toHttpUrl()
     // 云端目录和文件名用英文，避免中文在各家 WebDAV 里编码不一致；旧的中文目录只读，用于恢复以前的备份
     private val directory = folder(FOLDER)
-    private val legacyDirectory = folder("回响备份")
-    private val legacyPrefix = "回响-"
+    private val legacyDirectory = folder("声声不息备份")
+    private val legacyPrefix = "声声不息-"
+    // 更早的「回响」品牌留下的云端备份：只读保留，恢复列表仍可枚举、可下载，不再写入或清理。
+    private val oldestDirectory = folder("回响备份")
+    private val oldestPrefix = "回响-"
     private val auth = Credentials.basic(account, password, Charsets.UTF_8)
     private fun folder(name: String) = root.newBuilder().addPathSegment(name).addPathSegment("").build()
-    private fun folderOf(name: String) = if (name.startsWith(legacyPrefix)) legacyDirectory else directory
+    private fun folderOf(name: String) = when {
+        name.startsWith(legacyPrefix) -> legacyDirectory
+        name.startsWith(oldestPrefix) -> oldestDirectory
+        else -> directory
+    }
     override fun metadata(name: String, bytes: Long): RemoteBackup? = BackupNames.metadata(name, bytes)
     private fun url(name: String) = folderOf(name).newBuilder().addPathSegment(name).build()
     private fun request(method: String, target: HttpUrl, body: RequestBody? = null, headers: Map<String, String> = emptyMap()): Response {
@@ -63,9 +70,11 @@ internal class WebDavClient(
     /** 新目录 + 旧中文目录里的全部备份（恢复列表用），新的在前；新目录还没建时视为空 */
     override fun backups(): List<RemoteBackup> {
         fun quiet(dir: HttpUrl) = try { listIn(dir) } catch (e: BackupFailure) { if (e.human == "备份目录不存在") emptyList() else throw e }
-        return (quiet(directory) + runCatching { quiet(legacyDirectory) }.onFailure {
+        // 旧目录逐个容错：任一目录缺失或超时都不能拖垮其余目录的列表。
+        fun legacy(dir: HttpUrl) = runCatching { quiet(dir) }.onFailure {
             FailureNotes.record("backup/WebDavClient.kt:64", it)
-        }.getOrDefault(emptyList()))
+        }.getOrDefault(emptyList())
+        return (quiet(directory) + legacy(legacyDirectory) + legacy(oldestDirectory))
             .sortedWith(compareByDescending<RemoteBackup> { it.at }.thenByDescending { it.name })
     }
     private fun listIn(dir: HttpUrl): List<RemoteBackup> = listFilesIn(dir).mapNotNull { item ->
@@ -164,7 +173,7 @@ internal class WebDavClient(
         return files.count { it.name in retained }
     }
     override fun delete(name: String) {
-        require(!name.startsWith(legacyPrefix)) { "旧备份目录只读" }
+        require(!name.startsWith(legacyPrefix) && !name.startsWith(oldestPrefix)) { "旧备份目录只读" }
         request("DELETE", url(name)).close()
     }
     override fun download(name: String, destination: File) {
@@ -227,7 +236,7 @@ internal class WebDavClient(
             fun known(dir: HttpUrl) = try { listIn(dir) } catch(e: BackupFailure) {
                 if(e.human=="备份目录不存在") emptyList() else throw e
             }
-            return (known(directory)+known(legacyDirectory)).map { it.name }
+            return (known(directory)+known(legacyDirectory)+known(oldestDirectory)).map { it.name }
         }
         override fun files(directory: String): List<VolumeFile> {
             require(directory in setOf("history", "objects", "device-archives"))

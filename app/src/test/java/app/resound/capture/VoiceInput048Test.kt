@@ -146,7 +146,7 @@ class VoiceInput048Test {
         assertEquals(1, db.voiceInput().observed().first().size)
         db.capture().segment(SegmentEntity(id = 100, startAt = start, endAt = start + 2000, sourceId = "mic", path = "test.ogg", sizeBytes = 1, status = "Done"))
         db.transcribe().insertLines(listOf(TranscriptLineEntity(segmentId = 100, startAt = start, endAt = start + 1000, text = "请明天下午把合成报告交给我。", speakerTag = null)))
-        // 回响自己也录到了这句：语音输入这条照样存，录音里那句不再单独记
+        // 声声不息自己也录到了这句：语音输入这条照样存，录音里那句不再单独记
         assertNotNull(store.save(record(text = "请明天下午把合成报告交给我！")))
         assertTrue(db.voiceInput().micLines(0, Long.MAX_VALUE).isEmpty())
     }
@@ -206,7 +206,7 @@ class VoiceInput048Test {
         val line = db.voiceprint().line(id)!!
         val prompt = DigestPrompt.transcript(listOf(line)).first
         assertTrue(prompt.contains("上下文资料")); assertTrue(prompt.contains("报告明天能交吗"))
-        assertTrue(DigestPrompt.system("自定义模板", LocalDate.now(), "回响").contains("别人提出要求但我没答应"))
+        assertTrue(DigestPrompt.system("自定义模板", LocalDate.now(), "声声不息").contains("别人提出要求但我没答应"))
         val spec = JSONObject(File("src/main/assets/prompts/ask-sql.json").readText())
         val result = AskTools(db, spec).execute("search_lines", JSONObject("""{"keywords":["明天"]}"""), mutableListOf())
         assertTrue(result.toString().contains("voice_input")); assertTrue(result.toString().contains("报告明天能交吗"))

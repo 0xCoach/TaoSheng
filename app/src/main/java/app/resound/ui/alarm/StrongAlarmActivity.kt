@@ -106,7 +106,7 @@ private fun AlarmScreen(text: String, onSnooze: () -> Unit, onDone: () -> Unit, 
     val swing by pulse.animateFloat(-14f, 14f, infiniteRepeatable(tween(420, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "swing")
     val halo by pulse.animateFloat(0.85f, 1.15f, infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "halo")
     Box(
-        Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFFF59A5B), Color(0xFFE8582A), Color(0xFFC2410C))))
+        Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF8B5CF0), Color(0xFF632ACF), Color(0xFF3D1B8C))))
             .windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 24.dp),
     ) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -146,7 +146,7 @@ private fun AlarmButton(label: String, modifier: Modifier, filled: Boolean, onCl
             .background(if (filled) Color.White else Color.White.copy(alpha = 0.2f)).springClick(onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = if (filled) Color(0xFFE8582A) else Color.White, style = RsType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp))
+        Text(label, color = if (filled) Color(0xFF632ACF) else Color.White, style = RsType.body.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp))
     }
 }
 

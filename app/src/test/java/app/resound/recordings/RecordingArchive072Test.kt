@@ -47,8 +47,8 @@ class RecordingArchive072Test {
             val table = zip.getInputStream(zip.getEntry("原话.txt")).reader().readText()
             assertTrue(table.contains("阿涛：你好")); assertTrue(table.contains("（未转写）")); assertEquals(3, table.lines().filter { it.isNotBlank() }.size)
         }
-        assertEquals("涛声录音 2026-10-28 至 2026-10-29.zip", RecordingZip.name(RecordingRange(today.minusDays(1), today)))
-        assertEquals("涛声录音 2026-10-29.zip", RecordingZip.name(RecordingRange(today, today)))
+        assertEquals("声声不息录音 2026-10-28 至 2026-10-29.zip", RecordingZip.name(RecordingRange(today.minusDays(1), today)))
+        assertEquals("声声不息录音 2026-10-29.zip", RecordingZip.name(RecordingRange(today, today)))
     }
     @Test fun estimateAndSkipMediaOnlyCountExistingOriginals() {
         val rows = listOf(source(1), source(2, excluded = true), source(3).also { it.file.delete() })
@@ -61,7 +61,7 @@ class RecordingArchive072Test {
         val hit = RecordingRange(today, today, LocalTime.of(14, 0), LocalTime.of(14, 10))
         assertEquals(listOf(1L), RecordingZip.select(rows, hit, RecordingPackOptions()).map { it.id })
         assertTrue(RecordingZip.select(rows, hit.copy(fromTime = LocalTime.of(14, 10), toTime = LocalTime.of(23, 59)), RecordingPackOptions()).isEmpty())
-        assertEquals("涛声录音 2026-10-29 14.00 至 14.10.zip", RecordingZip.name(hit))
+        assertEquals("声声不息录音 2026-10-29 14.00 至 14.10.zip", RecordingZip.name(hit))
     }
     @Test fun speechFilteringAndFirstEnableRange() = runBlocking {
         val rows = listOf(source(1), source(2, status = "Pending"), source(3, excluded = true), source(4, text = ""), source(5, day = today.minusDays(31)))
@@ -112,7 +112,7 @@ class RecordingArchive072Test {
         MockWebServer().use { server ->
             server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(201) }
             server.start()
-            val remote = RecordingDav(mapOf("url" to server.url("/dav/").toString(), "folder" to "涛声", "account" to "fake", "password" to "fake"))
+            val remote = RecordingDav(mapOf("url" to server.url("/dav/").toString(), "folder" to "声声不息", "account" to "fake", "password" to "fake"))
             val row = source(1)
             remote.audio("录音/$today/${row.stem}.ogg", row.file)
             remote.text("录音/$today/${row.stem}.txt", row.text)

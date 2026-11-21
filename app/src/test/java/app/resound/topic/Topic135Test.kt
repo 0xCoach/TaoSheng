@@ -70,7 +70,7 @@ class Topic135Test {
     private fun generator(request: suspend (String, String) -> LlmReply = { system, user ->
         if (system.contains("必须恰好输出一张")) cardReply() else digestReply(user)
     }) = TopicGenerator({ "输出 events、items JSON，事件含 from、to、title、summary。" }, ::template, request,
-        hotwords = { listOf("涛声") }, now = { time })
+        hotwords = { listOf("声声不息") }, now = { time })
     private fun engine(generator: TopicGenerator = generator(), ready: (Long) -> Unit = {}) = TopicEngine(db, repo, generator, now = { time }, ready = ready)
     private suspend fun ended(kind: TopicKind = TopicKind.Normal, name: String? = null): Long {
         val id = repo.start(kind, name, 15).topicId!!
@@ -122,7 +122,7 @@ class Topic135Test {
     }
 
     @Test fun startBackfillsTwoMinutesAndClampsToPreviousTopicAndDigestedSpeech() = runBlocking {
-        val first = repo.start(TopicKind.Meeting, "涛声 项目，甲", 15)
+        val first = repo.start(TopicKind.Meeting, "声声不息 项目，甲", 15)
         assertTrue(first.quietOverride); assertTrue(first.recordingDisabled)
         assertTrue(TopicPolicy.overridesQuiet(db.topics().get(first.topicId!!)!!.topic(), time))
         assertEquals(time - 120_000, db.topics().get(first.topicId!!)!!.spans.single().startAt)
@@ -134,7 +134,7 @@ class Topic135Test {
         line(1, time - 10_000, digested = time)
         val last = repo.start(TopicKind.Normal, null).topicId!!
         assertEquals(time - 9000, db.topics().get(last)!!.spans.single().startAt)
-        assertEquals(listOf("涛声", "项目"), TopicPolicy.words("涛声 项目，甲"))
+        assertEquals(listOf("声声不息", "项目"), TopicPolicy.words("声声不息 项目，甲"))
     }
 
     @Test fun pauseReturnsSpeechToOrdinaryDigestAndOldInFlightResultCannotClaimTopic() = runBlocking {

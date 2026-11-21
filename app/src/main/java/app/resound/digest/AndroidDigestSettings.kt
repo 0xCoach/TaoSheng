@@ -83,7 +83,7 @@ class AndroidDigestSettings internal constructor(
     override suspend fun test(): Result<String> {
         val (selected, key) = skillCredentials(null)
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
-        if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (selected.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return try {
             val reply = client.chatJson(selected, key, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"用一句不超过十个字的中文打个招呼\"}")
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(reply) }
@@ -110,7 +110,7 @@ class AndroidDigestSettings internal constructor(
             Triple(preset, secret, compatibility.generation(preset.id))
         }
         if(selected.baseUrl.isBlank() || selected.model.isBlank())return Result.failure(IllegalStateException("请先保存服务地址和模型"))
-        if (key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
+        if (selected.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !canUseWithoutKey(selected)) return Result.failure(IllegalStateException("还没填写大模型密钥"))
         return Result.success(ModelCheck(
             json = { system, user ->
                 client.chatJson(selected, key, system, user).also { kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { recordUsage(it) } }

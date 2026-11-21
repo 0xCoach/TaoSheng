@@ -106,6 +106,10 @@ object AppGraph {
     lateinit var quietSchedule: app.resound.capture.QuietSchedule
     val isQuietScheduleReady: Boolean get() = ::quietSchedule.isInitialized
 
+    // R4：场景感知录音
+    lateinit var scene: app.resound.capture.AndroidScene
+    val isSceneReady: Boolean get() = ::scene.isInitialized
+
     lateinit var problemReports: app.resound.diagnostics.ProblemReports
     val isProblemReportsReady: Boolean get() = ::problemReports.isInitialized
 
@@ -174,6 +178,7 @@ object AppGraph {
     val isBackupReady: Boolean get() = ::backup.isInitialized
 
     lateinit var capture: CaptureController
+    var quietDigest: app.resound.digest.QuietDigestWatcher? = null
     lateinit var stats: CaptureStatsRepository
     lateinit var setup: SetupGuide
 
@@ -186,6 +191,40 @@ object AppGraph {
 
     lateinit var ask: app.resound.ask.AskRepository
     val isAskReady: Boolean get() = ::ask.isInitialized
+
+    lateinit var ideas: app.resound.inbox.IdeaRepository
+    val isIdeasReady: Boolean get() = ::ideas.isInitialized
+
+    lateinit var projects: app.resound.projects.ProjectRepository
+    val isProjectsReady: Boolean get() = ::projects.isInitialized
+
+    lateinit var analysis: app.resound.analysis.AnalysisRepository
+    val isAnalysisReady: Boolean get() = ::analysis.isInitialized
+
+    lateinit var agentBridge: app.resound.agent.AgentBridge
+    val isAgentReady: Boolean get() = ::agentBridge.isInitialized
+
+    // M2+：第二大脑扩展
+    lateinit var decisionRepo: app.resound.decision.DecisionRepository
+    lateinit var followupEngine: app.resound.followup.FollowupEngine
+    lateinit var captureInbox: app.resound.collect.CaptureInbox
+    lateinit var transcriptReview: app.resound.transcribe.TranscriptReviewRepository
+    lateinit var workflowEngine: app.resound.rules.WorkflowEngine
+    lateinit var memoryCorrector: app.resound.revise.MemoryCorrector
+    lateinit var groundedQA: app.resound.qa.GroundedQA
+    lateinit var mcpServer: app.resound.mcp.McpServer
+    // AUTH：登录与授权门禁（最先装配，CaptureService/Worker/MCP 都可能在界面前启动）
+    lateinit var auth: app.resound.auth.AuthGate
+    lateinit var officialAi: app.resound.auth.OfficialAi
+    val isAuthReady: Boolean get() = ::auth.isInitialized
+    val isOfficialAiReady: Boolean get() = ::officialAi.isInitialized
+    // 会员与用量：跟随 auth 装配
+    lateinit var membership: app.resound.auth.MembershipState
+    val isMembershipReady: Boolean get() = ::membership.isInitialized
+    val isAssistantReady: Boolean
+        get() = ::decisionRepo.isInitialized && ::followupEngine.isInitialized && ::captureInbox.isInitialized &&
+            ::workflowEngine.isInitialized && ::memoryCorrector.isInitialized && ::groundedQA.isInitialized && ::mcpServer.isInitialized &&
+            ::transcriptReview.isInitialized
 
     lateinit var voiceprint: app.resound.voiceprint.VoiceprintRepository
     val isVoiceprintReady: Boolean get() = ::voiceprint.isInitialized

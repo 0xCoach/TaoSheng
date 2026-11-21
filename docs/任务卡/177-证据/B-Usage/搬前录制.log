@@ -88,7 +88,7 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:processDebugJavaRes UP-TO-DATE
 
 > Task :app:compileDebugUnitTestKotlin FAILED
-e: file:///Users/coach/Developer/TaoSheng-177/app/src/test/java/app/resound/usage/UsageRepository177Test.kt:22:56 No type arguments expected for static fun getApplication(): Application!.
+e: file:///Users/coach/Developer/soundsound-177/app/src/test/java/app/resound/usage/UsageRepository177Test.kt:22:56 No type arguments expected for static fun getApplication(): Application!.
 
 FAILURE: Build failed with an exception.
 

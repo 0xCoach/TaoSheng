@@ -14,7 +14,8 @@ internal object BackupSettings {
     val stores = mapOf("digest-secrets" to "resound-llm-aes-v1", "push-secrets" to "resound-push-aes-v1",
         "backup-secrets" to "resound-backup-aes-v1", "transcribe" to "resound-asr-aes-v1",
         "transcribe-header-secrets" to "resound-asr-headers-aes-v1", "location-secrets" to "resound-location-aes-v1",
-        "backup-encryption-secrets" to "resound-backup-passphrase-v1")
+        "backup-encryption-secrets" to "resound-backup-passphrase-v1",
+        "agent-secrets" to "agent-bridge-v1", "mcp-secrets" to "resound-mcp-aes-v1")
     private val asrKeys = PreferenceBackupPolicy.asrKeys
     // 默认本机密钥容器有明确键空间；显式注入的读写端口仍保留既有通用键空间约定。
     private class LocalSecretReader(private val context: Context) : (String, String) -> String {

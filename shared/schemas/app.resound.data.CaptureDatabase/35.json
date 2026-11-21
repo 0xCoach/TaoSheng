@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 35,
-    "identityHash": "fe863c01282120a32fb7708de4818567",
+    "identityHash": "147be6feb5b210bef9e782aad5fc9488",
     "entities": [
       {
         "tableName": "topics",
@@ -2874,8 +2874,8 @@
         }
       },
       {
-        "tableName": "screen_events",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL, `type` INTEGER NOT NULL)",
+        "tableName": "ideas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `status` TEXT NOT NULL, `category` TEXT NOT NULL, `tagsJson` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `sourceItemId` INTEGER, `sourceLineId` INTEGER, `sourceSegmentId` INTEGER, `sourceEventId` INTEGER, `sourceText` TEXT, `sourceItemIdsJson` TEXT NOT NULL, `mergedInto` INTEGER, `projectId` INTEGER, `convertedKind` TEXT, `convertedId` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `statusChangedAt` INTEGER, `deleted` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "id",
@@ -2884,26 +2884,296 @@
             "notNull": true
           },
           {
-            "fieldPath": "at",
-            "columnName": "at",
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagsJson",
+            "columnName": "tagsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fingerprint",
+            "columnName": "fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceItemId",
+            "columnName": "sourceItemId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sourceLineId",
+            "columnName": "sourceLineId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sourceSegmentId",
+            "columnName": "sourceSegmentId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sourceEventId",
+            "columnName": "sourceEventId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sourceText",
+            "columnName": "sourceText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceItemIdsJson",
+            "columnName": "sourceItemIdsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mergedInto",
+            "columnName": "mergedInto",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "convertedKind",
+            "columnName": "convertedKind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "convertedId",
+            "columnName": "convertedId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "pkg",
-            "columnName": "pkg",
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statusChangedAt",
+            "columnName": "statusChangedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ideas_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ideas_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_ideas_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ideas_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          },
+          {
+            "name": "index_ideas_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ideas_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_ideas_fingerprint",
+            "unique": false,
+            "columnNames": [
+              "fingerprint"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ideas_fingerprint` ON `${TABLE_NAME}` (`fingerprint`)"
+          },
+          {
+            "name": "index_ideas_sourceLineId",
+            "unique": false,
+            "columnNames": [
+              "sourceLineId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ideas_sourceLineId` ON `${TABLE_NAME}` (`sourceLineId`)"
+          },
+          {
+            "name": "index_ideas_sourceItemId",
+            "unique": false,
+            "columnNames": [
+              "sourceItemId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ideas_sourceItemId` ON `${TABLE_NAME}` (`sourceItemId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "projects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `note` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `archivedAt` INTEGER, `deleted` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "cls",
-            "columnName": "cls",
+            "fieldPath": "note",
+            "columnName": "note",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "type",
-            "columnName": "type",
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archivedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_projects_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_projects_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_projects_updatedAt",
+            "unique": false,
+            "columnNames": [
+              "updatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_projects_updatedAt` ON `${TABLE_NAME}` (`updatedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "project_links",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `refKind` TEXT NOT NULL, `refId` INTEGER NOT NULL, `note` TEXT, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "refKind",
+            "columnName": "refKind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "refId",
+            "columnName": "refId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -2916,26 +3186,139 @@
         },
         "indices": [
           {
-            "name": "index_screen_events_at_pkg_type_cls",
-            "unique": true,
+            "name": "index_project_links_projectId",
+            "unique": false,
             "columnNames": [
-              "at",
-              "pkg",
-              "type",
-              "cls"
+              "projectId"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_screen_events_at_pkg_type_cls` ON `${TABLE_NAME}` (`at`, `pkg`, `type`, `cls`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_links_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_project_links_projectId_refKind_refId",
+            "unique": true,
+            "columnNames": [
+              "projectId",
+              "refKind",
+              "refId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_project_links_projectId_refKind_refId` ON `${TABLE_NAME}` (`projectId`, `refKind`, `refId`)"
+          },
+          {
+            "name": "index_project_links_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_links_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
           }
         ]
       },
       {
-        "tableName": "screen_app_names",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`pkg`))",
+        "tableName": "project_marks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `reason` TEXT, `refKind` TEXT, `refId` INTEGER, `at` INTEGER NOT NULL, `deleted` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
-            "fieldPath": "pkg",
-            "columnName": "pkg",
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "refKind",
+            "columnName": "refKind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "refId",
+            "columnName": "refId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "at",
+            "columnName": "at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_project_marks_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_marks_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_project_marks_at",
+            "unique": false,
+            "columnNames": [
+              "at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_marks_at` ON `${TABLE_NAME}` (`at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "analysis_templates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `name` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL, `userTemplate` TEXT NOT NULL, `builtin` INTEGER NOT NULL DEFAULT 0, `position` INTEGER NOT NULL DEFAULT 0, `updatedAt` INTEGER NOT NULL, `deleted` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -2946,51 +3329,66 @@
             "notNull": true
           },
           {
-            "fieldPath": "updatedAt",
-            "columnName": "updatedAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "pkg"
-          ]
-        }
-      },
-      {
-        "tableName": "screen_pull_state",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`source` TEXT NOT NULL, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL, PRIMARY KEY(`source`))",
-        "fields": [
-          {
-            "fieldPath": "source",
-            "columnName": "source",
+            "fieldPath": "systemPrompt",
+            "columnName": "systemPrompt",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "coveredUntil",
-            "columnName": "coveredUntil",
-            "affinity": "INTEGER"
+            "fieldPath": "userTemplate",
+            "columnName": "userTemplate",
+            "affinity": "TEXT",
+            "notNull": true
           },
           {
-            "fieldPath": "floor",
-            "columnName": "floor",
+            "fieldPath": "builtin",
+            "columnName": "builtin",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           }
         ],
         "primaryKey": {
-          "autoGenerate": false,
+          "autoGenerate": true,
           "columnNames": [
-            "source"
+            "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_analysis_templates_type",
+            "unique": false,
+            "columnNames": [
+              "type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_analysis_templates_type` ON `${TABLE_NAME}` (`type`)"
+          }
+        ]
       },
       {
-        "tableName": "screen_coverage_gaps",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER NOT NULL, `code` TEXT NOT NULL)",
+        "tableName": "analysis_runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `targetKind` TEXT NOT NULL, `targetId` INTEGER NOT NULL, `type` TEXT NOT NULL, `templateId` INTEGER, `templateName` TEXT NOT NULL, `promptText` TEXT NOT NULL, `status` TEXT NOT NULL, `resultText` TEXT NOT NULL, `sourcesJson` TEXT NOT NULL, `projectId` INTEGER, `model` TEXT NOT NULL, `promptTokens` INTEGER NOT NULL, `completionTokens` INTEGER NOT NULL, `error` TEXT, `createdAt` INTEGER NOT NULL, `finishedAt` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -2999,27 +3397,331 @@
             "notNull": true
           },
           {
-            "fieldPath": "source",
-            "columnName": "source",
+            "fieldPath": "targetKind",
+            "columnName": "targetKind",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "fromAt",
-            "columnName": "fromAt",
+            "fieldPath": "targetId",
+            "columnName": "targetId",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "untilAt",
-            "columnName": "untilAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "code",
-            "columnName": "code",
+            "fieldPath": "type",
+            "columnName": "type",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "templateId",
+            "columnName": "templateId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "templateName",
+            "columnName": "templateName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "promptText",
+            "columnName": "promptText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resultText",
+            "columnName": "resultText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourcesJson",
+            "columnName": "sourcesJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "promptTokens",
+            "columnName": "promptTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completionTokens",
+            "columnName": "completionTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "error",
+            "columnName": "error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finishedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_analysis_runs_targetKind_targetId",
+            "unique": false,
+            "columnNames": [
+              "targetKind",
+              "targetId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_analysis_runs_targetKind_targetId` ON `${TABLE_NAME}` (`targetKind`, `targetId`)"
+          },
+          {
+            "name": "index_analysis_runs_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_analysis_runs_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          },
+          {
+            "name": "index_analysis_runs_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_analysis_runs_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_analysis_runs_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_analysis_runs_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "agent_endpoints",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `url` TEXT NOT NULL, `headersJson` TEXT NOT NULL, `secretName` TEXT NOT NULL, `statusUrlTemplate` TEXT NOT NULL, `enabled` INTEGER NOT NULL DEFAULT 1, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "headersJson",
+            "columnName": "headersJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secretName",
+            "columnName": "secretName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statusUrlTemplate",
+            "columnName": "statusUrlTemplate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "agent_tasks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `taskId` TEXT NOT NULL, `endpointId` INTEGER, `type` TEXT NOT NULL, `title` TEXT NOT NULL, `payloadJson` TEXT NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `maxAttempts` INTEGER NOT NULL, `nextRetryAt` INTEGER, `confirmedAt` INTEGER, `dispatchedAt` INTEGER, `finishedAt` INTEGER, `remoteId` TEXT, `receiptJson` TEXT NOT NULL, `resultText` TEXT NOT NULL, `error` TEXT, `sourceKind` TEXT NOT NULL, `sourceId` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "taskId",
+            "columnName": "taskId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endpointId",
+            "columnName": "endpointId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payloadJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxAttempts",
+            "columnName": "maxAttempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextRetryAt",
+            "columnName": "nextRetryAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "confirmedAt",
+            "columnName": "confirmedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dispatchedAt",
+            "columnName": "dispatchedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finishedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "remoteId",
+            "columnName": "remoteId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "receiptJson",
+            "columnName": "receiptJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resultText",
+            "columnName": "resultText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "error",
+            "columnName": "error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceKind",
+            "columnName": "sourceKind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
             "notNull": true
           }
         ],
@@ -3031,21 +3733,56 @@
         },
         "indices": [
           {
-            "name": "index_screen_coverage_gaps_source_fromAt",
-            "unique": false,
+            "name": "index_agent_tasks_taskId",
+            "unique": true,
             "columnNames": [
-              "source",
-              "fromAt"
+              "taskId"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_screen_coverage_gaps_source_fromAt` ON `${TABLE_NAME}` (`source`, `fromAt`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_tasks_taskId` ON `${TABLE_NAME}` (`taskId`)"
+          },
+          {
+            "name": "index_agent_tasks_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_tasks_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_agent_tasks_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_tasks_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          },
+          {
+            "name": "index_agent_tasks_nextRetryAt",
+            "unique": false,
+            "columnNames": [
+              "nextRetryAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_tasks_nextRetryAt` ON `${TABLE_NAME}` (`nextRetryAt`)"
+          },
+          {
+            "name": "index_agent_tasks_endpointId",
+            "unique": false,
+            "columnNames": [
+              "endpointId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_tasks_endpointId` ON `${TABLE_NAME}` (`endpointId`)"
           }
         ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fe863c01282120a32fb7708de4818567')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '147be6feb5b210bef9e782aad5fc9488')"
     ]
   }
 }

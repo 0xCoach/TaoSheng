@@ -18,7 +18,7 @@ import java.net.UnknownHostException
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class PushErrors060Test {
-    private val message = PushMessage("涛声", "测试", null, null, 1)
+    private val message = PushMessage("声声不息", "测试", null, null, 1)
     private fun send(kind: PushKind, values: Map<String, String>, code: Int = 200, body: String = "", error: IOException? = null): String = runBlocking {
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             if (error != null) throw error
@@ -57,6 +57,6 @@ class PushErrors060Test {
     }
     @Test fun folder503ExplainsResumption() {
         assertEquals("坚果云暂时限流，稍后会自动续传", send(PushKind.MarkdownFolder,
-            mapOf("account" to "test@example.com", "password" to "test-password", "folder" to "涛声"), code = 503))
+            mapOf("account" to "test@example.com", "password" to "test-password", "folder" to "声声不息"), code = 503))
     }
 }

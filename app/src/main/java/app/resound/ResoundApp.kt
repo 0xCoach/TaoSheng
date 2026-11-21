@@ -1,6 +1,7 @@
-package app.resound
+﻿package app.resound
 
 import app.resound.data.open
+import app.resound.data.readSql
 
 import app.resound.data.retryFailed
 
@@ -18,7 +19,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import java.io.File
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 class ResoundApp : Application() {
     private lateinit var watchdogPreferences: android.content.SharedPreferences.OnSharedPreferenceChangeListener
@@ -30,6 +33,12 @@ class ResoundApp : Application() {
     val database by lazy { CaptureDatabase.open(this) }
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
+    /** R4 场景感知：决策/隐私暂停/场景会话；决策输出仍走既有暂停通道 */
+    val scene by lazy {
+        app.resound.capture.AndroidScene(this, store.prefs,
+            sessionDao = { database.sceneSessions() }, captureDao = { database.capture() },
+            ideas = { if (AppGraph.isIdeasReady) AppGraph.ideas else null }, battery = { store.battery() })
+    }
     val segmentFiles by lazy { SegmentFiles(this, database.capture(), scope) }
     internal lateinit var topics: app.resound.topic.TopicFeature
     private lateinit var transcribeScheduler: TranscribeScheduler
@@ -71,8 +80,49 @@ class ResoundApp : Application() {
         appDisplayName = appName
         if (getProcessName().endsWith(":local_asr")) return
         registerActivityLifecycleCallbacks(BackgroundTranscribeDiagnostics)
+        app.resound.diagnostics.RenderHeartbeat.install(this) // R4.4 黑屏冻结取证
         app.resound.backup.BackupRestore.applyPending(this)
         AppGraph.quickPrefs = app.resound.quick.AndroidQuickPrefs(this)
+        // AUTH：门禁先于一切受保护组件装配——服务/Worker/MCP 都可能先于界面启动
+        val authStore = app.resound.auth.AuthStore(this)
+        runCatching { assets.open("auth-license-public-key.hex").use { it.readBytes() } }
+            .onSuccess { app.resound.auth.LicenseVerifier.install(it) }
+        authStore.refreshStatus()
+        val authApi = app.resound.auth.AuthApi({ authStore.serverUrl })
+        AppGraph.auth = app.resound.auth.AuthGate(authStore, authApi)
+        AppGraph.officialAi = app.resound.auth.OfficialAi(this, AppGraph.auth, authStore)
+        AppGraph.membership = app.resound.auth.MembershipState(this, authStore, AppGraph.auth)
+        // 官方 AI 桥：服务端点数制网关；错误全部 terminal——点数不足/需同意/服务异常不自动切 BYOK
+        val officialBridge: app.resound.digest.OfficialBridge = { kind, system, user ->
+            when (val out = AppGraph.officialAi.generate(kind, system, user)) {
+                is app.resound.auth.OfficialAi.GenOutcome.Ok ->
+                    app.resound.digest.LlmReply(out.content, 0, 0, actualModel = "official")
+                is app.resound.auth.OfficialAi.GenOutcome.Denied -> throw when (out.code) {
+                    "CONSENT_REQUIRED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Auth, detail = "请先在设置里同意使用声声不息官方 AI", terminal = true)
+                    "QUOTA_EXHAUSTED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Quota, detail = "官方 AI 点数已用完，请等下周期或升级 Pro", terminal = true)
+                    "DAILY_TASK_LIMIT" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Quota, detail = "今日官方 AI 次数已达上限，每日北京时间 08:00 重置", terminal = true)
+                    "RATE_LIMITED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.RateLimit, detail = "官方 AI 上游服务繁忙，请稍后重试（未扣点）", terminal = true)
+                    "REQUEST_TOO_LARGE" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Format, detail = "内容超出官方 AI 单次上限", terminal = true)
+                    "TASK_FAILED" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Format, detail = "官方 AI 处理失败（未扣点）", terminal = true)
+                    "UNKNOWN_PROVIDER_OUTCOME" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Network, detail = "官方服务响应超时，结果待确认（未扣点）", terminal = true)
+                    "PROVIDER_UNAVAILABLE" -> app.resound.digest.LlmException(app.resound.digest.LlmError.Server, detail = "官方 AI 服务暂不可用", terminal = true)
+                    else -> app.resound.digest.LlmException(app.resound.digest.LlmError.Server, detail = "官方 AI 出错（${out.code}）", terminal = true)
+                }
+                is app.resound.auth.OfficialAi.GenOutcome.Network ->
+                    throw app.resound.digest.LlmException(app.resound.digest.LlmError.Network, detail = "网络连接失败", terminal = true)
+                app.resound.auth.OfficialAi.GenOutcome.NeedLogin ->
+                    throw app.resound.digest.LlmException(app.resound.digest.LlmError.Auth, detail = "请登录后使用声声不息官方 AI", terminal = true)
+            }
+        }
+        // 老装升级不锁死：本机是否已有历史数据——同步用文件存在性先判（不依赖异步 DB 查询，
+        // 否则首个 require() 抢在探测前会把老用户判成全新装而拒绝），异步再复核补正。
+        if (authStore.boundAccountId == null && !authStore.hasLocalData) {
+            authStore.hasLocalData = runCatching {
+                java.io.File(filesDir, "segments").list()?.isNotEmpty() == true ||
+                        getDatabasePath("capture.db").exists()
+            }.getOrDefault(true)
+            scope.launch { if (database.capture().latestSpeechEndAt() != null) authStore.hasLocalData = true }
+        }
         val asrSpeed = AndroidAsrSpeedSettings(getSharedPreferences("asr-speed", MODE_PRIVATE), scope).apply { topicTraining = database.topics()::trainingAt }
         AppGraph.asrSpeed = asrSpeed
         // 课堂模式开关、到点结束、总开关变化：刷新常驻通知和下拉磁贴
@@ -105,7 +155,21 @@ class ResoundApp : Application() {
         CaptureNotifications.channels(this)
         controller = AndroidCaptureController(this, store)
         AppGraph.capture = controller
+        // AUTH：登出/会话失效 → 立即停止录音（controller.stop 只在服务活着时发 STOP，安全收尾）
+        AppGraph.auth.onSessionCleared = { controller.stop() }
+        // AUTH：服务端判失效（refresh 401-403）→ 系统通知栏主动告知；点开 App 登录面板已在等（loginRequested 已置位）。
+        AppGraph.auth.onSessionExpired = { reason ->
+            scope.launch {
+                runCatching {
+                    app.resound.push.LocalNotifier(this@ResoundApp, app.resound.push.LocalNotifier.AUTH_CHANNEL)
+                        .send("登录授权已失效", "$reason。录音与个人数据已暂停，重新登录后恢复。", null)
+                }
+            }
+        }
+        // 敲敲手势：开设置后监听加速度计；敲 N 下=录中暂停/停中恢复/未录启动
+        app.resound.capture.KnockGestureController(this, store).start()
         AppGraph.quietSchedule = quietSchedule
+        AppGraph.scene = scene
         AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)
         val settings = AndroidTranscribeSettings(this)
         val scheduler = TranscribeScheduler(this, settings)
@@ -211,14 +275,19 @@ class ResoundApp : Application() {
                     (!settings.wifiOnly.value || network.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
             }
         }
+        // 专题已暂停：录音停，转写也一起冻结（专题继续/结束自动恢复）
+        val topicPaused = { AppGraph.isTopicsReady && AppGraph.topics.current.value?.status == app.resound.topic.TopicStatus.Paused }
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState,
-            sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
+            sourceReady = { src -> settings.ready(src) && AppGraph.membership.allowTranscribe() && !topicPaused() }, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
             recordTiming = { PipelineTimes.recordSegment(this, it) },
             defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers, topicTraining = database.topics()::trainingAt,
             beforeTranscribe = envSound::beforeTranscribe,
             beginBatch = { envSound.beginBatch() }, endBatch = { envSound.endBatch() }, sharedPcm = sharedPcm,
             afterSegment = { segment ->
+                // 成功转写记账（片段 id 幂等；断网持久化，联网去重上报）
+                AppGraph.membership.recordSuccess(segment.id, (segment.endAt - segment.startAt).coerceAtLeast(0))
+                scope.launch { runCatching { AppGraph.membership.flush() } }
                 if (database.transcribe().segment(segment.id).let { it.separateSpeakers != false || (it.importChannel != null && it.speakerCount != 0) }) {
                     PipelineProgress.stage(PipelineProgress.Stage.Voiceprint)
                     try { voiceprintRepository.runSegment(segment.id) }
@@ -226,7 +295,8 @@ class ResoundApp : Application() {
                 }
             },
             afterImport = { voiceprintRepository.cleanupAudio() },
-            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value }, networkAllowed = {
+            afterTest = { millis -> AppGraph.membership.recordUsage("test:${java.util.UUID.randomUUID()}", millis) },
+            updateProgress = { total, done -> transcripts.updateProgress(total, done); if (total > 0) PipelineProgress.progress(done, total) }, identity = settings::identity, ready = { settings.ready.value && AppGraph.membership.allowTranscribe() && !topicPaused() }, networkAllowed = {
                 if (settings.source.value == TranscribeSource.Local) true else {
                 val connectivity = getSystemService(ConnectivityManager::class.java)
                 val network = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
@@ -244,12 +314,20 @@ class ResoundApp : Application() {
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
         val serviceHeaders = app.resound.digest.ServiceHeaders(this)
-        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this))
+        val llm = LlmClient(requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this), official = officialBridge)
         val digestSettings = AndroidDigestSettings(this, llm) { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
         }
         AppGraph.llmFailover = digestSettings.failover
+        digestSettings.providers.officialReady = { AppGraph.officialAi.ready() }
+        digestSettings.providers.officialPlan = { AppGraph.officialAi.status.value?.plan }
+        AppGraph.officialAi.onStatusChanged = { digestSettings.providers.refreshOfficial() }
+        // 登录成功即刷新官方 AI 状态：已同意用户本轮就能自动选中官方（否则要等下次启动）。
+        AppGraph.auth.onAuthSuccess = { scope.launch { AppGraph.officialAi.refreshStatus() } }
+        // 登出/失效：重发布服务商列表，官方条目回到「登录授权后可用」。
+        AppGraph.auth.onSessionCleared = { controller.stop(); AppGraph.officialAi.clearStatus() }
+        scope.launch { runCatching { AppGraph.officialAi.refreshStatus() } }
         val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things
         val skillScheduler = app.resound.skills.SkillScheduler(this)
@@ -257,8 +335,14 @@ class ResoundApp : Application() {
             val connectivity = getSystemService(ConnectivityManager::class.java)
             connectivity.getNetworkCapabilities(connectivity.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         }, unseparated = database.transcribe()::unseparated, playbackMillis = database.transcribe()::playbackMillis,
-            isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged,
-            afterDigest = { manual -> app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual) })
+            isMedia = database.envSound()::media, voiceprintReady = voiceprintRepository::isReady, hotwords = hotwords::merged, afterDigest = { manual ->
+            app.resound.importer.ImportTodoMerge.all(database); skillScheduler.afterDigest(manual)
+            // 整理出新事件后立刻同步下游记忆，不等下次启动或手动“同步提取”。
+            AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
+            AppGraph.decisionRepo.syncFromDigest()
+            AppGraph.followupEngine.scan()
+            AppGraph.workflowEngine.emit(app.resound.rules.RuleEvent.DigestDone.key) })
+        AppGraph.quietDigest = app.resound.digest.QuietDigestWatcher(this, scope, database, scheduler, digestRunner).also { it.start() }
         AppGraph.importKinds = app.resound.importer.AndroidImportKinds.create(this, database,
             AppGraph.importer as app.resound.importer.AndroidAudioImporter, scope, digestSettings, llm,
             app.resound.importer.ImportSpeakers(database, pcmReader::readPcm, { CampPlusEmbedding(this) }),
@@ -266,6 +350,11 @@ class ResoundApp : Application() {
             transcribe = scheduler::runNow, ready = { scheduler.runDigestNow(); voiceprintRepository.cleanupAudio() })
         topics = app.resound.topic.TopicFeature.create(this, database, digestSettings, llm, hotwords::merged)
         AppGraph.topics = topics.repository
+        // 专题暂停 = 录音与转写一起冻结：状态一变就让录音服务重新核对指令（恢复/结束/到期自动解冻）
+        scope.launch {
+            AppGraph.topics.current.map { it?.status }.distinctUntilChanged()
+                .collect { CaptureService.recheck() }
+        }
         val redoEngine = app.resound.redo.createRedoEngine(this, database, asrChooser, settings, digestSettings, llm,
             hotwords::merged, { AppGraph.prompts.text("digest") }, { AppGraph.prompts.text("merge") },
             { ids -> voiceprintRepository.recognizeRedo(ids) }, sourceNetwork, situation = AppGraph.situation)
@@ -277,10 +366,60 @@ class ResoundApp : Application() {
         AppGraph.memory = RoomMemoryRepository(database.memory(), digestRunner, {
             // 手动：等着重试的转写段一并马上重试，再整理
             scope.launch { database.transcribe().retryFailed(); scheduler.runDigestNow() }
-        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        }, scope, appointmentSettings, { app.resound.search.EmbeddingScheduler.enqueue(this, continuation = true) }, AppGraph.platform.zone, AppGraph.platform.now, AppGraph.platform.dispatchers.io, database.revisions())
         AppGraph.rhythm = RoomRhythmStats(database, java.time.ZoneId.of(AppGraph.platform.zone.zoneId()))
         AppGraph.digestSettings = digestSettings
         AppGraph.llmProviders = digestSettings.providers
+        // M2：灵感收件箱 / 项目记忆 / AI 分析 / Agent 桥接（本地能力，未配模型也可用手动功能）
+        AppGraph.ideas = app.resound.inbox.IdeaRepository(database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        AppGraph.projects = app.resound.projects.ProjectRepository(database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        val analysisRepository = app.resound.analysis.AnalysisRepository(database, scope, AppGraph.platform.now,
+            AppGraph.platform.zone, AppGraph.platform.dispatchers.io,
+            { digestSettings.skillCredentials(null) }, digestSettings::canUseWithoutKey,
+            { digestSettings.failover.hasBackup(it) },
+            digestSettings.failover.request("分析", database.memory(), app.resound.usage.UsagePurpose.Analysis, llm::chatJson))
+        AppGraph.analysis = analysisRepository
+        AppGraph.agentBridge = app.resound.agent.AgentBridge(this, database, scope, AppGraph.platform.now, AppGraph.platform.dispatchers.io)
+        AppGraph.agentBridge.startDriver()
+        app.resound.agent.AgentDispatchWork.schedule(this)
+        // M2+：第二大脑扩展——决策/跟进/收集箱/规则/纠错/问答/MCP
+        val assistantNotifier = app.resound.push.LocalNotifier(this)
+        AppGraph.memoryCorrector = app.resound.revise.MemoryCorrector(database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now)
+        AppGraph.decisionRepo = app.resound.decision.DecisionRepository(database.decisions(), database.memory(), database.revisions(), AppGraph.platform.dispatchers.io, AppGraph.platform.now, database.projects())
+        AppGraph.followupEngine = app.resound.followup.FollowupEngine(database.followups(), database.ideas(), database.memory(),
+            AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
+            { t, b, l -> assistantNotifier.send(t, b, l) })
+        AppGraph.captureInbox = app.resound.collect.CaptureInbox(this, database.captureItems(), AppGraph.platform.dispatchers.io, scope, AppGraph.platform.now,
+            { AppGraph.workflowEngine.emit(it) }, dbPath = { database.filePath })
+        AppGraph.transcriptReview = app.resound.transcribe.TranscriptReviewRepository(database.transcribe(), AppGraph.platform.now::now)
+        AppGraph.workflowEngine = app.resound.rules.WorkflowEngine(database.workflowRules(), database.memory(), AppGraph.platform.dispatchers.io, AppGraph.platform.now,
+            { t, b, l -> assistantNotifier.send(t, b, l) }, { AppGraph.analysis }, { AppGraph.agentBridge })
+        AppGraph.groundedQA = app.resound.qa.GroundedQA(app.resound.search.RecordSearch(database), database.decisions(), database.ideas(),
+            database.projects(), database.memory(), database.followups(),
+            AppGraph.platform.dispatchers.io, AppGraph.platform.now,
+            { digestSettings.skillCredentials(null) }, digestSettings::canUseWithoutKey, { digestSettings.failover.hasBackup(it) },
+            digestSettings.failover.request("记忆问答", database.memory(), app.resound.usage.UsagePurpose.Ask, llm::chatJson))
+        val mcpSecrets = app.resound.digest.SecretStore(this, "mcp-secrets", "resound-mcp-aes-v1")
+        AppGraph.mcpServer = app.resound.mcp.McpServer(database, app.resound.search.RecordSearch(database),
+            { id -> runCatching { mcpSecrets.read("mcp_$id") }.getOrNull() },
+            { AppGraph.projects.active().first() })
+        if (getSharedPreferences("assistant", MODE_PRIVATE).getBoolean("mcp_enabled", false)) AppGraph.mcpServer.start()
+        app.resound.followup.FollowupWork.schedule(this)
+        app.resound.rules.WorkflowWork.schedule(this)
+        // 打开库与启动写任务串行在同一个不可取消协程：首连接/打开事务若在可取消调用方手里被掐断，
+        // 会泄漏成永不提交的外层事务、毒化整个连接池（真机实锤：提交返回成功但行不落盘）。
+        scope.launch {
+            runCatching { database.readSql("SELECT 1") { it.step() } }
+            analysisRepository.ensureSeeded()
+            analysisRepository.recoverStaleRunning()
+            AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) }
+            AppGraph.decisionRepo.syncFromDigest()
+            AppGraph.followupEngine.scan()
+            AppGraph.captureInbox.reconcile()
+        }
+        scope.launch {
+            AppGraph.followupEngine.events.collect { AppGraph.workflowEngine.emit(it) }
+        }
         AppGraph.llmBalance = app.resound.usage.LlmBalanceChecker(getSharedPreferences("llm-balance", MODE_PRIVATE), digestSettings.providers, { b, line ->
             app.resound.push.LocalNotifier(this, app.resound.push.LocalNotifier.BALANCE_CHANNEL).send(
                 if (b.available) "整理模型余额不足 ¥%.2f".format(b.total) else "整理模型余额已用完",
@@ -291,12 +430,13 @@ class ResoundApp : Application() {
         digestSettings.timing.onChanged = scheduler::timingChanged
         // 独立 20 秒 HTTP 上限也覆盖响应体读取；不改变日常整理的长请求上限。
         val todoLlm = LlmClient(okhttp3.OkHttpClient.Builder()
-            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = serviceHeaders::forPreset)
+            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build(), requestHeaders = serviceHeaders::forPreset, official = officialBridge)
         AppGraph.manualTodos = RoomManualTodos(database.memory(), scope,
             { digestSettings.skillCredentials(null) }, digestSettings.failover.request("手动待办", database.memory(), app.resound.usage.UsagePurpose.Digest, todoLlm::chatJson), { reply ->
                 database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                     reply.completionTokens, app.resound.usage.UsagePurpose.Digest)
-            }, hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) })
+            }, hasBackup = { digestSettings.canUseWithoutKey(it) || digestSettings.failover.hasBackup(it) },
+            afterAdd = { if (AppGraph.isIdeasReady) AppGraph.ideas.syncFromDigest { if (AppGraph.isAssistantReady) AppGraph.workflowEngine.emit(it) } })
         AppGraph.todoVoice = AndroidTodoVoiceInput(controller, scope, cacheDir,
             ConfiguredAsrProvider(this, settings, hotwords::merged), settings::credential)
         scheduler.digestMinutes = { digestSettings.intervalMinutes.value }

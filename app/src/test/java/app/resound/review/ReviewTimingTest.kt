@@ -47,7 +47,7 @@ class ReviewTimingTest {
                 calls.inputs += json
                 val id = json.getJSONArray("events").getJSONObject(0).getLong("id")
                 LlmReply("""{"brief":"新回顾","sections":[{"title":"一句话","lines":[{"text":"讨论方案","eventId":$id}]},{"title":"发生了什么","lines":[{"text":"讨论方案","eventId":$id}]}]}""", 10, 5)
-            }, { "{{APP_NAME}}" }, "回响", object : Notifier {
+            }, { "{{APP_NAME}}" }, "声声不息", object : Notifier {
                 override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
                     assertEquals(PushTopic.DailyReview, topic)
                     assertEquals("resound://review?open=review&date=$date", deepLink)

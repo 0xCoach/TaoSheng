@@ -35,12 +35,14 @@ object ReviewPrompt {
                     JSONObject().put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
                         .put("content", i.content).put("status", i.status).put("createdAt", time(i.createdAt))
                         .put("dueText", i.dueText ?: JSONObject.NULL).put("dueAt", i.dueAt?.let(::time) ?: JSONObject.NULL)
+                        .put("value", app.resound.data.MemoryValueRules.itemScore(i.category, i.kind, i.dueAt, i.who, i.origin))
                 }))
         })).put("standalone_items", JSONArray(source.items.filter { it.eventId == null }.map { i ->
             JSONObject().put("id", i.id).put("category", i.category).put("kind", i.kind ?: JSONObject.NULL)
                 .put("content", i.content).put("status", i.status).put("createdAt", time(i.createdAt))
                 .put("dueText", i.dueText ?: JSONObject.NULL).put("dueAt", i.dueAt?.let(::time) ?: JSONObject.NULL)
                 .put("who", i.who ?: JSONObject.NULL).put("origin", i.origin).put("sourceText", i.sourceText ?: JSONObject.NULL)
+                .put("value", app.resound.data.MemoryValueRules.itemScore(i.category, i.kind, i.dueAt, i.who, i.origin))
         })).put("starred_stale", JSONArray(source.starredStale.map { e ->
             JSONObject().put("id", e.id).put("title", e.title).put("starred", true)
                 .put("starredAt", time(e.starredAt!!)).put("reminder", staleReminder(e, zone))

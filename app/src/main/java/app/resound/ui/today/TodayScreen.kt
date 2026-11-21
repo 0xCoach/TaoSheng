@@ -1056,7 +1056,7 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
                         app.resound.ask.AskSource("event", event.id, event.startAt, event.title, event.summary),
                         "关于“${event.title}”，还有哪些细节？",
                     )
-                    onClose(); app.resound.ui.ShellNav.go(1)
+                    onClose(); app.resound.ui.ShellNav.go(4)
                 }
                 ActionChip(if (confirmDelete) "确认删除" else "删除", if (confirmDelete) ChipTone.Danger else ChipTone.DangerSoft, Modifier.weight(1f)) {
                     if (!confirmDelete) { confirmDelete = true; return@ActionChip }
@@ -1065,6 +1065,11 @@ internal fun EventSheet(event: MemoryEvent, memory: MemoryRepository, onClose: (
             }
             if (confirmDelete) Text(if (forget) "删除事件、原话和录音；已确认寻物记录、回顾和问问历史保留。无法恢复。" else "会从时间线里删掉这件事。",
                 style = RsType.caption, color = c.critical, modifier = Modifier.padding(top = 6.dp))
+            // 挂到项目：这场会的待办、约定、决定会随它自动归入项目
+            if (app.resound.AppGraph.isProjectsReady) androidx.compose.foundation.text.selection.DisableSelection {
+                Spacer(Modifier.height(12.dp))
+                app.resound.ui.projects.ProjectLinkSection(app.resound.projects.ProjectRefKind.Event, event.id)
+            }
             // 专题：这件事是专题合成的就能看纪要；否则可事后设为专题（可连带前后几件）
             if (app.resound.AppGraph.isTopicsReady) androidx.compose.foundation.text.selection.DisableSelection {
                 val day = remember(event.id) { java.time.Instant.ofEpochMilli(event.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
@@ -1261,6 +1266,22 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                 Text("意思很像的想法会自动并成一条。并错了就点“拆开”，以后不会再并。", style = RsType.caption, color = c.textTertiary,
                     modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
+            // 这条被人工改过的历史：接受/忽略/完成/编辑/删除都留痕（memory_revisions）
+            if (app.resound.AppGraph.isReady) {
+                val revs by remember(item.id) { app.resound.AppGraph.memoryCorrector.history("item", item.id) }.collectAsStateWithLifecycle(initialValue = emptyList())
+                if (revs.isNotEmpty()) {
+                    SheetSection("修订记录")
+                    RsCard(padding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
+                        revs.take(6).forEachIndexed { i, r ->
+                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${friendlyDate(r.at)} ${app.resound.revise.RevisionOp.of(r.op).label}${r.reason?.let { " · $it" } ?: ""}",
+                                    style = RsType.caption, color = c.textSecondary)
+                            }
+                            if (i != revs.take(6).lastIndex) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(22.dp))
             if (item.status == ItemStatus.Pending) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1286,6 +1307,10 @@ internal fun ItemSheet(opened: MemoryItem, memory: MemoryRepository, onOpenEvent
                 }
             }
             if (task) Text("删除只删这一条，那件事和原话都还在。", style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+            if (task && app.resound.AppGraph.isProjectsReady) androidx.compose.foundation.text.selection.DisableSelection {
+                Spacer(Modifier.height(12.dp))
+                app.resound.ui.projects.ProjectLinkSection(app.resound.projects.ProjectRefKind.Item, item.id)
+            }
         }
         }
     }

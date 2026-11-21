@@ -29,6 +29,8 @@ data class HealthInputs(
     val lastInterruptionDay: Long?,
     /** 冷启动时服务状态尚未发布，但已保存的手动暂停仍有效。 */
     val manualPausedUntil: Long? = null,
+    /** 今天中断按原因归类；为空时只展示总数 */
+    val interruptionKindsToday: Map<InterruptionKind, Int> = emptyMap(),
 )
 
 object HealthRules {
@@ -57,7 +59,7 @@ object HealthRules {
             ?.let { (today - it).coerceAtMost(Int.MAX_VALUE.toLong()).toInt() }
         HealthReport(issues.sortedBy { if (it.severity == HealthSeverity.Critical) 0 else 1 }.take(3),
             HealthFacts(stableDays, interruptionsToday,
-                nextBackupAt.takeIf { cloudBackupEnabled || localBackupEnabled }), now)
+                nextBackupAt.takeIf { cloudBackupEnabled || localBackupEnabled }, interruptionKindsToday), now)
     }
 
     private fun money(amount: Double): String {

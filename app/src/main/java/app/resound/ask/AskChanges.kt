@@ -91,9 +91,11 @@ class AskChanges(private val db: CaptureDatabase, private val now: () -> Long = 
                 val eventId = db.memory().insertEvent(MemoryEventEntity(startAt = at, endAt = at, scene = "其他",
                     title = "问问新建", summary = args.getString("content"), pointsJson = "[]", peopleJson = "[]",
                     place = null, emotion = null, intensity = null, important = false, createdAt = at, model = "user-confirmed"))
+                val dueAt = due(args)
                 db.memory().insertItems(listOf(MemoryItemEntity(eventId = eventId, category = args.getString("category"),
-                    kind = null, content = args.getString("content"), dueAt = due(args), dueText = args.optString("due").takeIf { args.has("due") && !args.isNull("due") },
-                    who = null, lineId = null, status = "Accepted", createdAt = at, statusChangedAt = at)))
+                    kind = null, content = args.getString("content"), dueAt = dueAt, dueText = args.optString("due").takeIf { args.has("due") && !args.isNull("due") },
+                    who = null, lineId = null, status = "Accepted", createdAt = at, statusChangedAt = at,
+                    origin = "ask", valueScore = app.resound.data.MemoryValueRules.itemScore(args.getString("category"), null, dueAt, null, "ask"))))
             }
             else -> error("未知改动")
         }

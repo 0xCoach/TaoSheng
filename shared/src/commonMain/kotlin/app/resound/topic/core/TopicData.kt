@@ -9,6 +9,10 @@ data class TopicRow(
     // 下列少量恢复元数据也进备份，避免进程重启丢失用户修改或重复提醒。
     val quietOverride: Boolean = false, val retainedItemIds: String = "[]", val starred: Boolean = false,
     val quietNotifiedAfter: Long? = null, val endingNotifiedAt: Long? = null,
+    /** 同系列归组键（名字去空白小写）；匿名专题为 null，不参与系列跟进。 */
+    val seriesKey: String? = null,
+    /** 周期排期链锚：链上首场的专题 id；不同排期链同名也不串场。手动/单次专题为 null。 */
+    val seriesId: Long? = null,
 )
 data class TopicSpanRow(val id: Long = 0,
     val topicId: Long, val startAt: Long, val endAt: Long? = null)

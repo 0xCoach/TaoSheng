@@ -77,9 +77,14 @@ private fun endOf(t: Topic, now: Long) = t.spans.maxOfOrNull { it.endAt ?: now }
 /**
  * 首页主卡专题行，一行说完不加高卡片：“会议专题 · 23 分”；有计划时长时“会议专题 · 23/60 分”；暂停中带“已暂停”。
  */
+/** 专题有效时长：只算 spans 覆盖的时段，暂停期不计入。 */
+private fun activeMillis(t: Topic, now: Long) =
+    t.spans.sumOf { (minOf(it.endAt ?: now, now) - it.startAt).coerceAtLeast(0) }
+
 fun topicHomeTitle(t: Topic, now: Long = System.currentTimeMillis()): String {
     val start = startOf(t)
-    val m = ((now - start) / 60_000).coerceAtLeast(0)
+    // 计时只算有效时段：暂停期不计入——已暂停的专题分钟数不再上涨
+    val m = (activeMillis(t, now) / 60_000).coerceAtLeast(0)
     val name = t.name?.takeIf { it.isNotBlank() } ?: (t.kind.title + "专题")
     val planned = t.plannedEndAt?.let { ((it - start) / 60_000).coerceAtLeast(1) }
     val time = when {
@@ -94,7 +99,7 @@ fun topicHomeTitle(t: Topic, now: Long = System.currentTimeMillis()): String {
 fun topicLine(t: Topic, now: Long = System.currentTimeMillis()): String = buildString {
     append(topicLabel(t))
     append(if (t.status == TopicStatus.Paused) " · 已暂停" else "中")
-    append(" · 已 ").append(minutesText(now - startOf(t)))
+    append(" · 已 ").append(minutesText(activeMillis(t, now)))
     t.plannedEndAt?.let { append(" · ").append(formatClock(it)).append(" 结束") }
 }
 
@@ -600,7 +605,7 @@ private fun MarkUndoLine(mark: Triple<Long, Long, Long>?, soft: Color, strong: C
 private fun HeroButton(text: String, primary: Boolean, modifier: Modifier, bg: Color? = null, fg: Color? = null, onClick: () -> Unit) {
     val c = Rs.colors
     val b = bg ?: c.accent
-    val f = fg ?: if (c.isDark) c.onAccent else Color(0xFFD2511F)
+    val f = fg ?: if (c.isDark) c.onAccent else Color(0xFF4A1FA8)
     Box(modifier.clip(CircleShape).background(b).springClick(onClick).padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
         Text(text, style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = f, maxLines = 1)
     }

@@ -67,7 +67,8 @@ internal class ImportKindEngine(
                         if (dao.todos(row.id).none { it.lineId == todo.lineId && ImportTodoMerge.same(it.content, todo.content) }) {
                             db.memory().insertItems(listOf(MemoryItemEntity(eventId = source.eventId, category = "待办", kind = "我要做",
                                 content = todo.content, dueText = null, dueAt = null, who = "我", lineId = source.id,
-                                status = "Pending", createdAt = System.currentTimeMillis())))
+                                status = "Pending", createdAt = System.currentTimeMillis(), recordedAt = source.startAt,
+                                origin = "import", valueScore = app.resound.data.MemoryValueRules.itemScore("待办", "我要做", null, "我", "import"))))
                         }
                     }
                     ImportTodoMerge.merge(db, row.id)

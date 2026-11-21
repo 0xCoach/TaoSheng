@@ -68,7 +68,7 @@ class Starred041Test {
         override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {}
     }
     private fun reviews() = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("041-review", 0), scope,
-        { error("禁止云端请求") }, { _, _, _, _ -> error("禁止云端请求") }, { "" }, "回响", quiet, {},
+        { error("禁止云端请求") }, { _, _, _, _ -> error("禁止云端请求") }, { "" }, "声声不息", quiet, {},
         { at + 22 * 3_600_000 }, { zone }, io = kotlinx.coroutines.Dispatchers.IO)
 
     @Test fun migrationThirteenToFourteenPreservesImportantAndClearsUserStars() = runBlocking {

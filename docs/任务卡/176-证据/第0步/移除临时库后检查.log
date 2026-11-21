@@ -136,13 +136,13 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:lintAnalyzeDebug
 
 > Task :shared:lintReportDebug
-Wrote HTML report to file:///Users/coach/Developer/TaoSheng-176/shared/build/reports/lint-results-debug.html
+Wrote HTML report to file:///Users/coach/Developer/soundsound-176/shared/build/reports/lint-results-debug.html
 
 > Task :shared:lintDebug
 > Task :shared:lint
 > Task :shared:check
 
-[Incubating] Problems report is available at: file:///Users/coach/Developer/TaoSheng-176/build/reports/problems/problems-report.html
+[Incubating] Problems report is available at: file:///Users/coach/Developer/soundsound-176/build/reports/problems/problems-report.html
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
 

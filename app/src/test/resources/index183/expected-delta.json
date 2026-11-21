@@ -39,27 +39,70 @@
   ],
   "version": {
     "oldLine": "user_version=33",
-    "newLine": "user_version=38",
+    "newLine": "user_version=44",
     "occurrences": 1
   },
   "identity": {
     "table": "room_master_table",
     "columns": "columns=[\"id\",\"identity_hash\"]",
     "oldRow": "[{\"integer\":42},{\"text\":\"c8e25a89cb4bb9cf5903037158d9d8d3\"}]",
-    "newRow": "[{\"integer\":42},{\"text\":\"30bf4f9dfd3f241be95b43dd32783778\"}]",
+    "newRow": "[{\"integer\":42},{\"text\":\"6220ca50fa5aba7bd798ae170ead50c1\"}]",
+    "extraNewRows": [
+      "[{\"integer\":42},{\"text\":\"7ef33a13e9b405d05b6ef5e03862e32a\"}]",
+      "[{\"integer\":42},{\"text\":\"f27344c0a85c121d43747ee0c2fb62a9\"}]",
+      "[{\"integer\":42},{\"text\":\"5438724529150bca1eabdb742cd747d6\"}]",
+      "[{\"integer\":42},{\"text\":\"851b7b9780e2ecdd26642ebe02048123\"}]"
+    ],
     "occurrences": 1
   },
   "oldIdentityHash": "c8e25a89cb4bb9cf5903037158d9d8d3",
-  "newIdentityHash": "30bf4f9dfd3f241be95b43dd32783778",
+  "newIdentityHash": "851b7b9780e2ecdd26642ebe02048123",
   "oldSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
     "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c8e25a89cb4bb9cf5903037158d9d8d3')"
   ],
   "newSetupQueries": [
     "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '30bf4f9dfd3f241be95b43dd32783778')"
+    "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6220ca50fa5aba7bd798ae170ead50c1')"
+  ],
+  "changedTables": [
+    "memory_items",
+    "segments",
+    "topics",
+    "transcript_lines"
+  ],
+  "droppedTables": [
+    "agent_endpoints",
+    "agent_tasks",
+    "analysis_runs",
+    "analysis_templates",
+    "capture_items",
+    "decisions",
+    "followups",
+    "idea_entries",
+    "ideas",
+    "marks",
+    "mcp_clients",
+    "memory_revisions",
+    "playback_rows",
+    "project_links",
+    "project_marks",
+    "projects",
+    "rule_runs",
+    "scene_sessions",
+    "screen_app_names",
+    "screen_coverage_gaps",
+    "screen_events",
+    "screen_pull_state",
+    "workflow_rules"
   ],
   "indices": [
+    {
+      "name": "index_topics_seriesKey",
+      "table": "topics",
+      "row": "[\"index\",\"index_topics_seriesKey\",\"topics\",\"CREATE INDEX `index_topics_seriesKey` ON `topics` (`seriesKey`)\"]",
+      "occurrences": 1
+    },
     {
       "name": "index_segments_status_voiceprintProcessedAt",
       "table": "segments",
@@ -90,123 +133,6 @@
         "orders": [],
         "createSql": "CREATE INDEX IF NOT EXISTS `index_transcript_lines_startAt` ON `${TABLE_NAME}` (`startAt`)"
       }
-    },
-    {
-      "name": "index_screen_events_at_pkg_type_cls",
-      "row": "[\"index\",\"index_screen_events_at_pkg_type_cls\",\"screen_events\",\"CREATE UNIQUE INDEX `index_screen_events_at_pkg_type_cls` ON `screen_events` (`at`, `pkg`, `type`, `cls`)\"]",
-      "occurrences": 1
-    },
-    {
-      "name": "index_screen_coverage_gaps_source_fromAt",
-      "row": "[\"index\",\"index_screen_coverage_gaps_source_fromAt\",\"screen_coverage_gaps\",\"CREATE INDEX `index_screen_coverage_gaps_source_fromAt` ON `screen_coverage_gaps` (`source`, `fromAt`)\"]",
-      "occurrences": 1
-    },
-    {
-      "name": "sqlite_autoindex_screen_app_names_1",
-      "row": "[\"index\",\"sqlite_autoindex_screen_app_names_1\",\"screen_app_names\",null]",
-      "occurrences": 1
-    },
-    {
-      "name": "sqlite_autoindex_screen_pull_state_1",
-      "row": "[\"index\",\"sqlite_autoindex_screen_pull_state_1\",\"screen_pull_state\",null]",
-      "occurrences": 1
-    },
-    {
-      "name": "index_playback_rows_fromAt",
-      "row": "[\"index\",\"index_playback_rows_fromAt\",\"playback_rows\",\"CREATE INDEX `index_playback_rows_fromAt` ON `playback_rows` (`fromAt`)\"]",
-      "occurrences": 1
-    },
-    {
-      "name": "index_playback_rows_sessionKey",
-      "row": "[\"index\",\"index_playback_rows_sessionKey\",\"playback_rows\",\"CREATE INDEX `index_playback_rows_sessionKey` ON `playback_rows` (`sessionKey`)\"]",
-      "occurrences": 1
-    },
-    {
-      "name": "index_marks_at",
-      "row": "[\"index\",\"index_marks_at\",\"marks\",\"CREATE INDEX `index_marks_at` ON `marks` (`at`)\"]",
-      "occurrences": 1
-    },
-    {
-      "name": "index_marks_topicMarkId",
-      "row": "[\"index\",\"index_marks_topicMarkId\",\"marks\",\"CREATE UNIQUE INDEX `index_marks_topicMarkId` ON `marks` (`topicMarkId`)\"]",
-      "occurrences": 1
-    }
-  ],
-  "tables": [
-    {
-      "name": "screen_app_names",
-      "masterRows": [
-        "[\"table\",\"screen_app_names\",\"screen_app_names\",\"CREATE TABLE `screen_app_names` (`pkg` TEXT NOT NULL PRIMARY KEY, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL)\"]",
-        "[\"table\",\"screen_app_names\",\"screen_app_names\",\"CREATE TABLE `screen_app_names` (`pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`pkg`))\"]"
-      ],
-      "block": [
-        "TABLE screen_app_names",
-        "columns=[\"pkg\",\"name\",\"updatedAt\"]",
-        ""
-      ],
-      "occurrences": 1
-    },
-    {
-      "name": "screen_coverage_gaps",
-      "masterRows": [
-        "[\"table\",\"screen_coverage_gaps\",\"screen_coverage_gaps\",\"CREATE TABLE `screen_coverage_gaps` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `source` TEXT NOT NULL, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER NOT NULL, `code` TEXT NOT NULL)\"]"
-      ],
-      "block": [
-        "TABLE screen_coverage_gaps",
-        "columns=[\"id\",\"source\",\"fromAt\",\"untilAt\",\"code\"]",
-        ""
-      ],
-      "occurrences": 1
-    },
-    {
-      "name": "screen_events",
-      "masterRows": [
-        "[\"table\",\"screen_events\",\"screen_events\",\"CREATE TABLE `screen_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL DEFAULT '', `type` INTEGER NOT NULL)\"]",
-        "[\"table\",\"screen_events\",\"screen_events\",\"CREATE TABLE `screen_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `pkg` TEXT NOT NULL, `cls` TEXT NOT NULL, `type` INTEGER NOT NULL)\"]"
-      ],
-      "block": [
-        "TABLE screen_events",
-        "columns=[\"id\",\"at\",\"pkg\",\"cls\",\"type\"]",
-        ""
-      ],
-      "occurrences": 1
-    },
-    {
-      "name": "screen_pull_state",
-      "masterRows": [
-        "[\"table\",\"screen_pull_state\",\"screen_pull_state\",\"CREATE TABLE `screen_pull_state` (`source` TEXT NOT NULL PRIMARY KEY, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL DEFAULT 0)\"]",
-        "[\"table\",\"screen_pull_state\",\"screen_pull_state\",\"CREATE TABLE `screen_pull_state` (`source` TEXT NOT NULL, `coveredUntil` INTEGER, `floor` INTEGER NOT NULL, PRIMARY KEY(`source`))\"]"
-      ],
-      "block": [
-        "TABLE screen_pull_state",
-        "columns=[\"source\",\"coveredUntil\",\"floor\"]",
-        ""
-      ],
-      "occurrences": 1
-    },
-    {
-      "name": "playback_rows",
-      "masterRows": [
-        "[\"table\",\"playback_rows\",\"playback_rows\",\"CREATE TABLE `playback_rows` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionKey` TEXT NOT NULL, `pkg` TEXT NOT NULL, `name` TEXT NOT NULL, `title` TEXT, `subtitle` TEXT, `fromAt` INTEGER NOT NULL, `untilAt` INTEGER, `lastSeenAt` INTEGER NOT NULL)\"]"
-      ],
-      "block": [
-        "TABLE playback_rows",
-        "columns=[\"id\",\"sessionKey\",\"pkg\",\"name\",\"title\",\"subtitle\",\"fromAt\",\"untilAt\",\"lastSeenAt\"]",
-        ""
-      ],
-      "occurrences": 1
-    },
-    {
-      "name": "marks",
-      "masterRows": [
-        "[\"table\",\"marks\",\"marks\",\"CREATE TABLE `marks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `beforeMillis` INTEGER NOT NULL, `afterMillis` INTEGER NOT NULL, `label` TEXT, `source` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `topicMarkId` INTEGER)\"]"
-      ],
-      "block": [
-        "TABLE marks",
-        "columns=[\"id\",\"at\",\"beforeMillis\",\"afterMillis\",\"label\",\"source\",\"createdAt\",\"topicMarkId\"]",
-        ""
-      ],
-      "occurrences": 1
     }
   ],
   "querySql": [
@@ -238,13 +164,5 @@
       "newLine": "SQL SELECT l.id, l.startAt AS at, COALESCE(l.speakerName,l.speakerTag,'某人') AS title, l.text AS quote, l.voiceInputJson FROM transcript_lines l NOT INDEXED WHERE (l.eventId IS NULL OR EXISTS (SELECT 1 FROM memory_events e WHERE e.id=l.eventId AND e.deleted=0)) AND (l.id IN (SELECT rowid FROM lines_fts WHERE lines_fts MATCH ?)) ORDER BY l.startAt DESC, l.id DESC LIMIT 41",
       "occurrences": 1
     }
-  ],
-  "columnAdds": {
-    "table": "segments",
-    "columnsOldLine": "columns=[\"id\",\"startAt\",\"endAt\",\"sourceId\",\"path\",\"sizeBytes\",\"status\",\"attempts\",\"nextRetryAt\",\"error\",\"completedAt\",\"logId\",\"sentMillis\",\"voiceprintProcessedAt\",\"playbackMillis\",\"firstFailedAt\",\"asrSource\",\"redoPending\",\"separateSpeakers\",\"importRecordId\",\"importChannel\",\"speakerCount\"]",
-    "columnsNewLine": "columns=[\"id\",\"startAt\",\"endAt\",\"sourceId\",\"path\",\"sizeBytes\",\"status\",\"attempts\",\"nextRetryAt\",\"error\",\"completedAt\",\"logId\",\"sentMillis\",\"voiceprintProcessedAt\",\"playbackMillis\",\"firstFailedAt\",\"asrSource\",\"redoPending\",\"separateSpeakers\",\"importRecordId\",\"importChannel\",\"speakerCount\",\"playbackDigest\"]",
-    "dataSuffix": ",{\"integer\":0}]",
-    "insertSql": "ALTER TABLE segments ADD COLUMN playbackDigest INTEGER NOT NULL DEFAULT 0",
-    "masterFreshLine": "[\"table\",\"segments\",\"segments\",\"CREATE TABLE `segments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startAt` INTEGER NOT NULL, `endAt` INTEGER NOT NULL, `sourceId` TEXT NOT NULL, `path` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL DEFAULT 0, `nextRetryAt` INTEGER, `error` TEXT, `completedAt` INTEGER, `logId` TEXT, `sentMillis` INTEGER NOT NULL DEFAULT 0, `voiceprintProcessedAt` INTEGER, `playbackMillis` INTEGER NOT NULL DEFAULT 0, `firstFailedAt` INTEGER, `asrSource` TEXT, `redoPending` INTEGER NOT NULL DEFAULT 0, `separateSpeakers` INTEGER, `importRecordId` INTEGER, `importChannel` INTEGER, `speakerCount` INTEGER, `playbackDigest` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`importRecordId`) REFERENCES `import_records`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )\"]"
-  }
+  ]
 }

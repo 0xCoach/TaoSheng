@@ -49,10 +49,10 @@ internal class UpdateEngine(
     private val gate = Mutex()
     private val mutable = MutableStateFlow<UpdateState>(UpdateState.Idle)
     override val state = mutable.asStateFlow()
-    private val auto = MutableStateFlow(store.long("autoOff") != 1L)
+    private val auto = MutableStateFlow(store.long("autoOn") == 1L)
     override val autoCheck = auto.asStateFlow()
     override fun setAutoCheck(enabled: Boolean) {
-        store.save("autoOff" to if (enabled) 0L else 1L); auto.value = enabled
+        store.save("autoOn" to if (enabled) 1L else 0L); auto.value = enabled
         reschedule(enabled, preview.value)
     }
     private val preview = MutableStateFlow(store.long("previewChannel") == 1L)
@@ -64,7 +64,7 @@ internal class UpdateEngine(
         reschedule(auto.value, enabled)
         scope.launch(Dispatchers.IO) {
             gate.withLock { restore(); discardDisabledPreview() }
-            if (enabled) checkNow()
+            if (enabled) checkNow(manual = true)
         }
     }
     private fun discardDisabledPreview() {
@@ -87,10 +87,18 @@ internal class UpdateEngine(
             restore()
             discardDisabledPreview()
             if (mutable.value is UpdateState.Installing) return@withLock
+            // 自建分支：没配置更新地址就不查任何源；手动点检查给一句实话
+            if (!remote.hasSources()) {
+                if (manual) mutable.value = UpdateState.Failed("还没有配置更新地址", null)
+                return@withLock
+            }
+            // 个人分支默认已关自动检查（见 auto 初始化）；平台层校验签名不一致的安装包会直接判"不适用"并删除
             // 关了自动检查：后台和启动时都不查，只认手动
             if (!manual && !auto.value) return@withLock
             val last = store.long("lastCheck")
             if (startup && !preview.value && last > 0 && now() - last in 0 until HOUR) return@withLock
+            // 开页等自动触发在短时间内只查一次；手动“检查更新”与启动检查（含预览通道每次启动必查的约定）不受限
+            if (!manual && !startup && last > 0 && now() - last in 0 until SHORT_GAP) return@withLock
             val previous = mutable.value
             mutable.value = UpdateState.Checking
             store.save("lastCheck" to now())
@@ -130,6 +138,8 @@ internal class UpdateEngine(
     private fun restore() {
         if (restored) return
         kotlin.check(directory.isDirectory || directory.mkdirs())
+        // 没有配置更新源时清掉历史缓存的 manifest（上游版本残留），避免恢复出陈旧的“有新版本”
+        if (!remote.hasSources()) store.save("manifest" to null, "ready" to null, "manifestPreview" to null)
         val seen = store.long("installedVersion")
         val saved = store.string("manifest")?.let { runCatching { UpdateManifest.parse(it).let { release -> release.copy(previewSource = store.long(
             "manifestPreview") == 1L || release.preview) } }.onFailure {
@@ -342,5 +352,5 @@ internal class UpdateEngine(
         log("update ms=${elapsed(start)} failure=${reason(e)}")
         mutable.value = UpdateState.Failed((e as? UpdateFailure)?.human ?: default, manifest?.let { info() })
     }
-    companion object { private const val HOUR = 60 * 60 * 1000L }
+    companion object { private const val HOUR = 60 * 60 * 1000L; private const val SHORT_GAP = 10 * 60 * 1000L }
 }

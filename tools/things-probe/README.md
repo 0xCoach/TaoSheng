@@ -33,14 +33,14 @@ python3 tools/things-probe/probe.py --run real --reuse-batches --batches 10,25 -
 
 ## 共用整理请求的真实模型回归（卡 081）
 
-`ThingsSharedLiveTest` 用自编生活对话调用真实 DeepSeek，再通过生产 `DigestRunner`、Room 入库与 `FindThingsTool` 验证，不读取手机数据库。默认跳过，显式设置 `TAOSHENG_LIVE_THINGS=1` 才会发送请求；密钥沿用上述本地文件，不输出。
+`ThingsSharedLiveTest` 用自编生活对话调用真实 DeepSeek，再通过生产 `DigestRunner`、Room 入库与 `FindThingsTool` 验证，不读取手机数据库。默认跳过，显式设置 `soundsound_LIVE_THINGS=1` 才会发送请求；密钥沿用上述本地文件，不输出。
 
 ```bash
 mkdir -p app/build/things-live
 git show f87a026:app/src/main/assets/prompts/things.md > app/build/things-live/old-things.md
-TAOSHENG_LIVE_THINGS=1 JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :app:testDebugUnitTest --tests 'app.resound.things.ThingsSharedLiveTest' --rerun-tasks
+soundsound_LIVE_THINGS=1 JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :app:testDebugUnitTest --tests 'app.resound.things.ThingsSharedLiveTest' --rerun-tasks
 ```
 
 三组共 19 句新原话及 1 句旧上下文，预期 11 条事实。初次执行请求 9 次：每组新版共用请求一次、旧版整理及独立寻物各一次。`app/build/things-live/results.json` 保存服务端实际 Token、返回模型名及合成响应。计费缓存折扣和价格不参与这个总 Token 对比，不代表全天节省比例。
 
-需要修正提示词后复验时，先保留原 `results.json` 为 `initial-results.json`，加 `TAOSHENG_LIVE_REUSE_BASELINE=1` 仅重发新版的 3 次请求，沿用未改动的旧版基线；报告将标明 `reusedBaseline`，避免重复花费。
+需要修正提示词后复验时，先保留原 `results.json` 为 `initial-results.json`，加 `soundsound_LIVE_REUSE_BASELINE=1` 仅重发新版的 3 次请求，沿用未改动的旧版基线；报告将标明 `reusedBaseline`，避免重复花费。

@@ -190,7 +190,7 @@ class DayVolumesTest {
         add(1, "2020-01-01") // 数据很老不代表新格式已经稳定运行 7 天。
         val old = File(remote, "resound-2026-01-01-0310.zip").apply { writeText("legacy") }
         val unrelated = File(remote, "notes.zip").apply { writeText("keep") }
-        val chinese = File(remote, "回响-2026-01-01-0310.zip").apply { writeText("keep") }
+        val chinese = File(remote, "声声不息-2026-01-01-0310.zip").apply { writeText("keep") }
         sync(); assertTrue(old.exists()); sync(now + 6 * 86400000L); assertTrue(old.exists())
         sync(now + 7 * 86400000L); assertFalse(old.exists()); assertTrue(unrelated.exists()); assertTrue(chinese.exists())
         assertTrue(File(remote, "days/resound-day-2020-01-01.zip").exists())
@@ -239,7 +239,7 @@ class DayVolumesTest {
         }
         server.start()
         try {
-            store = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "test", "test").volumes()
+            store = WebDavClient(BackupConfig(server.url("/dav/").toString()), "声声不息", "test", "test").volumes()
             add(1, "2026-10-24"); sync(); update(1); sync()
             assertTrue("COPY" in methods); assertTrue("MOVE" in methods); assertEquals(1, state().summary().days)
             assertTrue(File(restore(), BackupArchive.DATABASE).isFile)

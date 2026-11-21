@@ -83,11 +83,11 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :devices:bundleLibCompileToJarDebug UP-TO-DATE
 
 > Task :shared:compileCommonMainKotlinMetadata
-e: file:///Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt:207:120 Unresolved reference 'VoiceInputDedup'.
-e: file:///Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt:208:62 Unresolved reference 'VoiceInputDedup'.
-e: file:///Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt:209:77 Unresolved reference 'VoiceInputDedup'.
-e: file:///Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:23:20 Unresolved reference 'ImportRecord'.
-e: file:///Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:24:9 Unresolved reference 'ImportRecordStatus'.
+e: file:///Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt:207:120 Unresolved reference 'VoiceInputDedup'.
+e: file:///Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt:208:62 Unresolved reference 'VoiceInputDedup'.
+e: file:///Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/data/TranscribeDao.kt:209:77 Unresolved reference 'VoiceInputDedup'.
+e: file:///Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:23:20 Unresolved reference 'ImportRecord'.
+e: file:///Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:24:9 Unresolved reference 'ImportRecordStatus'.
 
 > Task :shared:compileCommonMainKotlinMetadata FAILED
 > Task :shared:kspKotlinJvm
@@ -95,15 +95,15 @@ e: file:///Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/r
 > Task :shared:kspReleaseKotlinAndroid
 
 > Task :shared:kspDebugKotlinAndroid FAILED
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:21: [MissingType]: Element 'app.resound.importer.ImportRecordWithSegments' references a type that is not present
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:21: [MissingType]: Element 'app.resound.importer.ImportRecordWithSegments' references a type that is not present
 e: [ksp] androidx.room.RoomKspProcessor was unable to process 'app.resound.data.CaptureDatabase' because not all of its dependencies could be resolved. Check for compilation errors or a circular dependency with generated code.
 
 > Task :shared:kspReleaseKotlinAndroid FAILED
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:21: [MissingType]: Element 'app.resound.importer.ImportRecordWithSegments' references a type that is not present
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:21: [MissingType]: Element 'app.resound.importer.ImportRecordWithSegments' references a type that is not present
 e: [ksp] androidx.room.RoomKspProcessor was unable to process 'app.resound.data.CaptureDatabase' because not all of its dependencies could be resolved. Check for compilation errors or a circular dependency with generated code.
 
 > Task :shared:kspKotlinJvm FAILED
-e: [ksp] /Users/coach/Developer/TaoSheng-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:21: [MissingType]: Element 'app.resound.importer.ImportRecordWithSegments' references a type that is not present
+e: [ksp] /Users/coach/Developer/soundsound-176/shared/src/commonMain/kotlin/app/resound/importer/ImportRecordDao.kt:21: [MissingType]: Element 'app.resound.importer.ImportRecordWithSegments' references a type that is not present
 e: [ksp] androidx.room.RoomKspProcessor was unable to process 'app.resound.data.CaptureDatabase' because not all of its dependencies could be resolved. Check for compilation errors or a circular dependency with generated code.
 
 > Task :shared:copyRoomSchemas NO-SOURCE

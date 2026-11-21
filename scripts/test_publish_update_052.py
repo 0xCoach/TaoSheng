@@ -41,12 +41,13 @@ class PublishPreviewTest(unittest.TestCase):
                 apk = root / "input.apk"
                 apk.write_bytes(b"local-test-fixture")
                 notes = root / "notes.txt"
-                notes.write_text("本地验证")
+                notes.write_text("本地验证\n【改动】\n· 第一条")
+                (root / "CHANGELOG.md").write_text("# 涛声更新日志\n\n## 0.2.12 · 2026-01-01\n")
                 output = root / "output"
                 output.mkdir()
                 name = "0.2.12-preview.1" if preview else "0.2.12"
                 args = ["publish", str(apk), "--notes", str(notes), "--dry-run"] + (["--preview"] if preview else [])
-                with patch.object(publish, "badging", return_value=(28, name)), \
+                with patch.object(publish, "badging", return_value=(28, name)), patch.object(publish, "ROOT", root), \
                      patch.object(publish, "gh", side_effect=AssertionError("不应联网")), \
                      patch.object(publish.tempfile, "mkdtemp", return_value=str(output)), \
                      patch("sys.argv", args), contextlib.redirect_stdout(io.StringIO()):
@@ -59,6 +60,21 @@ class PublishPreviewTest(unittest.TestCase):
                 self.assertEqual(len(list(output.glob("*.json"))), 1)
                 if preview:
                     self.assertFalse((output / "update.json").exists())
+                    self.assertFalse((output / "modelscope").exists())
+                else:
+                    readme = (output / "modelscope/README.md").read_text()
+                    self.assertIn("## 最新正式版：0.2.12", readme)
+                    self.assertIn("resolve/master/TaoSheng-v0.2.12-arm64.apk", readme)
+                    self.assertIn("- 第一条", readme)
+                    self.assertIn(f"{publish.sha256(apk)}  TaoSheng-v0.2.12-arm64.apk", (output / "modelscope/SHA256SUMS").read_text())
+
+    def test_formal_without_changelog_entry_stops_before_upload(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "CHANGELOG.md").write_text("## 0.2.11 · 2026-01-01\n")
+            manifest = {"versionName": "0.2.12", "versionCode": 28, "notes": "x", "apk": {"file": "a.apk", "size": 1, "sha256": "0"}}
+            with patch.object(publish, "ROOT", root), self.assertRaises(ValueError):
+                publish.modelscope_docs(manifest, {}, root, "2026-01-02")
 
 
 

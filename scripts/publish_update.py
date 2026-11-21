@@ -6,8 +6,9 @@
 真实发布从 GitHub 选最近 5 个正式/预览版本（排除 preview-channel）作差异包基线。
 预览版只传魔搭（快）；正式版魔搭 + GitHub 双平台。App 两边都查、取版本号大的，所以 GitHub 上旧的预览通道不影响更新。
 差异包基线整包缓存在 ~/.cache/taosheng-release-bases，下过一次就不再重复下载。
+正式版还会按 scripts/modelscope-readme.md 生成魔搭说明页，连同 CHANGELOG.md、SHA256SUMS 一起上传；预览版不动。
 """
-import argparse, hashlib, json, os, re, subprocess, sys, tempfile
+import argparse, datetime, hashlib, json, os, re, string, subprocess, sys, tempfile
 from pathlib import Path
 
 REPO_GH = "0xCoach/TaoSheng"
@@ -148,6 +149,30 @@ def prune_modelscope(api, current: str, preview: bool):
         print(f"魔搭：清理旧文件失败（{type(error).__name__}），下次发布会再试")
 
 
+ROOT = Path(__file__).resolve().parent.parent
+README_TEMPLATE = Path(__file__).resolve().parent / "modelscope-readme.md"
+
+
+def modelscope_docs(manifest: dict, files: dict[str, Path], work: Path, date: str) -> list[Path]:
+    """正式版的魔搭说明页、更新日志和校验清单，写进 work 目录"""
+    name = manifest["versionName"]
+    changelog = (ROOT / "CHANGELOG.md").read_text()
+    if f"## {name} ·" not in changelog:
+        raise ValueError(f"CHANGELOG.md 里没有 {name} 的条目，先补更新日志再发布")
+    notes = "\n".join("- " + l[2:] if l.startswith("· ") else l for l in manifest["notes"].splitlines())
+    readme = string.Template(README_TEMPLATE.read_text()).substitute(
+        version=name, code=manifest["versionCode"], date=date, apk=manifest["apk"]["file"],
+        notes=notes, size=f"{manifest['apk']['size']:,}", sha256=manifest["apk"]["sha256"])
+    sums = "".join(f"{sha256(p)}  {n}\n" for n, p in sorted(files.items()))
+    out = []
+    for file_name, text in (("README.md", readme), ("CHANGELOG.md", changelog), ("SHA256SUMS", sums)):
+        (work / "modelscope").mkdir(exist_ok=True)
+        path = work / "modelscope" / file_name
+        path.write_text(text)
+        out.append(path)
+    return out
+
+
 def ensure_prerelease(tag: str, title: str):
     try:
         gh("release", "view", tag, "--json", "tagName")
@@ -212,6 +237,8 @@ def main():
     update = work / manifest_name
     update.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
     print(f"{manifest_name}：{name}（{code}），差异包 {len(patches)} 个，目录 {work}")
+    # 上传前先生成，缺更新日志条目时在动任何线上文件之前就停下
+    docs = [] if a.preview else modelscope_docs(manifest, files, work, datetime.date.today().isoformat())
     if a.dry_run:
         return
 
@@ -233,6 +260,13 @@ def main():
     (CACHE / f"v{name}").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(staged_apk, CACHE / f"v{name}" / apk_name)
     print(f"已发布：{'魔搭' if a.preview else '魔搭和 GitHub'} 的 {manifest_name} 指向", name)
+    # 说明页必须在清理旧整包之前换掉，否则页面上的下载链接会指向已删除的文件
+    for path in docs:
+        try:
+            api.upload_file(path_or_fileobj=str(path), path_in_repo=path.name, repo_id=REPO_MS, commit_message=f"涛声 {name}：{path.name}")
+            print(f"魔搭：已更新 {path.name}")
+        except Exception as error:  # 说明页失败不影响已完成的发布，但要手动补传
+            print(f"魔搭：{path.name} 上传失败（{type(error).__name__}），请手动补传 {path}")
     # 版本说明已指向新版后再清理，正在更新的人不会下载到被删的文件
     prune_modelscope(api, name, a.preview)
 

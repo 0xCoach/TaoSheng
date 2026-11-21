@@ -94,10 +94,12 @@ fun ProvidersCard(providers: LlmProviders) {
             if (i > 0) Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.separator))
             val on = p.id == active
             Row(Modifier.fillMaxWidth().springClick {
-                if (!on) {
+                if (!on || (p.id == OFFICIAL_PROVIDER_ID && !p.hasKey)) {
                     // 官方 AI 未就绪时分流：游客→登录；已登录未同意→同意页（同意后即可用）。
                     // 授权/同意成功后 officialReady 翻转，refreshOfficial 自动把它设为当前。
                     if (p.id == OFFICIAL_PROVIDER_ID && !p.hasKey) {
+                        // 明确点选必须保存选择，不能依赖就绪沿替换当前 BYOK 条目。
+                        providers.activate(p.id)
                         if (authStatus == app.resound.auth.AuthStatus.Guest)
                             app.resound.AppGraph.auth.requestLogin(app.resound.auth.Capability.AiAnalysis, "官方 AI 需要登录授权后使用")
                         else officialConsent = true

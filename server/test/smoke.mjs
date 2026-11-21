@@ -28,7 +28,7 @@ class Stmt {
     if (match(s, "UPDATE users SET status='active'")) { const r = tables.users.find(r => r.id === a[0]); if (r) { r.status = "active"; r.activation_code = null; } return { meta: { changes: r ? 1 : 0 } }; }
     if (match(s, "UPDATE users SET status=?, disabled_at=?")) { const r = tables.users.find(r => r.username === a[2] || r.id === a[3]); if (r) { r.status = a[0]; r.disabled_at = a[1]; } return { meta: { changes: r ? 1 : 0 } }; }
     if (match(s, "UPDATE sessions SET revoked_at=? WHERE user_id=(SELECT")) { const u = tables.users.find(r => r.username === a[1] || r.id === a[2]); let n = 0; for (const r of tables.sessions) if (r.user_id === u?.id && r.revoked_at == null) { r.revoked_at = a[0]; n++; } return { meta: { changes: n } }; }
-    if (match(s, "UPDATE sessions SET refresh_hash=?, expires_at=?, last_seen_at=?")) { const r = tables.sessions.find(r => r.id === a[3]); if (r) { r.refresh_hash = a[0]; r.expires_at = a[1]; r.last_seen_at = a[2]; } return { meta: { changes: r ? 1 : 0 } }; }
+    if (match(s, "UPDATE sessions SET refresh_hash=?, prev_refresh_hash=?")) { const r = tables.sessions.find(r => r.id === a[5]); if (r) { r.refresh_hash = a[0]; r.prev_refresh_hash = a[1]; r.prev_valid_until = a[2]; r.expires_at = a[3]; r.last_seen_at = a[4]; } return { meta: { changes: r ? 1 : 0 } }; }
     if (match(s, "UPDATE sessions SET revoked_at=? WHERE refresh_hash=?")) { const r = tables.sessions.find(r => r.refresh_hash === a[1]); if (r) r.revoked_at = a[0]; return { meta: { changes: r ? 1 : 0 } }; }
     if (match(s, "UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=?")) { const r = tables.sessions.find(r => r.id === a[1] && r.user_id === a[2]); if (r) r.revoked_at = a[0]; return { meta: { changes: r ? 1 : 0 } }; }
     if (match(s, "UPDATE licenses SET revoked_at=?")) { const sess = tables.sessions.find(r => r.id === a[2]); let n = 0; for (const r of tables.licenses) if (r.user_id === a[1] && r.device_id === sess?.device_id) { r.revoked_at = a[0]; n++; } return { meta: { changes: n } }; }
@@ -42,6 +42,7 @@ class Stmt {
     const s = this.sql, a = this.args;
     if (match(s, "FROM users WHERE username=?")) return tables.users.find(r => r.username === a[0]) || null;
     if (match(s, "FROM sessions WHERE refresh_hash=? AND revoked_at IS NULL")) return tables.sessions.find(r => r.refresh_hash === a[0] && r.revoked_at == null) || null;
+    if (match(s, "FROM sessions WHERE prev_refresh_hash=?")) return tables.sessions.find(r => r.prev_refresh_hash === a[0] && r.revoked_at == null && r.prev_valid_until > a[1]) || null;
     if (match(s, "FROM sessions WHERE id=? AND revoked_at IS NULL")) return tables.sessions.find(r => r.id === a[0] && r.revoked_at == null) || null;
     if (match(s, "FROM users WHERE id=? AND status='active'")) return tables.users.find(r => r.id === a[0] && r.status === "active") || null;
     if (match(s, "FROM users WHERE id=?")) return tables.users.find(r => r.id === a[0]) || null;
@@ -113,9 +114,14 @@ t("status 返回账号+会话", st.account.username === "alice" && !!st.session.
 t("status 无令牌 401", (await call("/auth/status")).status === 401);
 
 // 5. 刷新旋转
-const ref = await j(await call("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: login.refresh_token }) }));
+let ref = await j(await call("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: login.refresh_token }) }));
 t("refresh 返回新 token+新 license", !!ref.access_token && !!ref.refresh_token && ref.refresh_token !== login.refresh_token);
-t("旧 refresh token 失效(旋转)", (await call("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: login.refresh_token }) })).status === 401);
+const grace = await call("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: login.refresh_token }) });
+t("旧 refresh token 在宽限期内可恢复丢失响应", grace.status === 200);
+ref = await j(grace);
+const currentSession = tables.sessions.find(r => r.device_id === "dev-1") || tables.sessions[0];
+currentSession.prev_valid_until = 0;
+t("宽限期结束后旧 refresh token 失效", (await call("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: login.refresh_token }) })).status === 401);
 
 // 6. 设备列表/撤销
 const devs = await j(await call("/auth/devices", { headers: { authorization: "Bearer " + ref.access_token } }));

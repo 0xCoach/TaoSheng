@@ -26,6 +26,7 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
 
     /** 最近一次服务端回执的状态；网络失败或登出时保持旧值，不假装可用。 */
     private val _status = MutableStateFlow<OfficialStatus?>(null)
+    private var statusAccountId: String? = null
     val status: StateFlow<OfficialStatus?> = _status.asStateFlow()
 
     /** 状态变化回调（AppGraph 用它刷新服务商条目的可用标记）。 */
@@ -37,11 +38,27 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
 
     /** 本地判定：已登录+服务开启+已同意即可发起；服务端仍是最终裁决（额度/权限以回执为准）。 */
     fun ready(): Boolean = !store.sessionAccountId.isNullOrEmpty() &&
+        statusAccountId == store.sessionAccountId &&
         status.value?.let { it.enabled && it.configured && it.consented } == true
 
-    suspend fun refreshStatus(): OfficialStatus? = when (val r = gate.officialStatus()) {
-        is AuthApi.Result.Ok -> parseStatus(r.body).also { _status.value = it; onStatusChanged(it) }
-        else -> null
+    fun clearStatus() {
+        statusAccountId = null
+        _status.value = null
+        onStatusChanged(null)
+    }
+
+    suspend fun refreshStatus(): OfficialStatus? {
+        val account = store.sessionAccountId ?: run { clearStatus(); return null }
+        val result = gate.officialStatus()
+        if (store.sessionAccountId != account) return null
+        return when (result) {
+            is AuthApi.Result.Ok -> parseStatus(result.body).also {
+                statusAccountId = account
+                _status.value = it
+                onStatusChanged(it)
+            }
+            else -> null
+        }
     }
 
     suspend fun quota(): AuthApi.Result? = gate.officialQuota()
@@ -50,11 +67,12 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
 
     /** 用户明确同意后调用（设置页勾选/弹窗确认）；服务端与本地都记录版本。 */
     suspend fun consent(version: Int = CONSENT_VERSION): AuthApi.Result? = consentMutex.withLock {
+        val account = store.sessionAccountId ?: return@withLock null
         val r = gate.officialConsent(version)
-        if (r is AuthApi.Result.Ok) {
-            prefs.edit().putInt("consentVersion", version).apply()
+        if (r is AuthApi.Result.Ok && store.sessionAccountId == account) {
+            prefs.edit().putInt("consentVersion", version).putString("consentAccountId", account).apply()
             val cur = status.value
-            if (cur == null) {
+            if (cur == null || statusAccountId != account) {
                 // 登录时的状态拉取若失败（弱网/冷启动），同意后必须补拉一次，
                 // 否则 ready() 永远 false、官方条目停在「同意后即可用」形成死锁。
                 refreshStatus()
@@ -66,7 +84,9 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
         r
     }
 
-    fun localConsented() = prefs.getInt("consentVersion", 0) >= CONSENT_VERSION
+    fun localConsented() = store.sessionAccountId != null &&
+        prefs.getString("consentAccountId", null) == store.sessionAccountId &&
+        prefs.getInt("consentVersion", 0) >= CONSENT_VERSION
 
     sealed class GenOutcome {
         data class Ok(val content: String, val points: Long, val remaining: Long?, val duplicated: Boolean) : GenOutcome()
@@ -82,7 +102,9 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
      */
     suspend fun generate(taskType: String, system: String, user: String, maxOutput: Int = 0, nonce: String = ""): GenOutcome {
         if (store.accessToken.isEmpty()) return GenOutcome.NeedLogin
+        val account = store.sessionAccountId ?: return GenOutcome.NeedLogin
         val r0 = send(taskType, system, user, maxOutput, nonce)
+        if (store.sessionAccountId != account) return GenOutcome.NeedLogin
         // 本地同意过但服务端没记上（换设备/重安装）→ 补登记后重试一次。
         if (r0 is GenOutcome.Denied && r0.code == "CONSENT_REQUIRED" && localConsented() &&
             consent() is AuthApi.Result.Ok) return send(taskType, system, user, maxOutput, nonce)
@@ -90,17 +112,25 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
     }
 
     private suspend fun send(taskType: String, system: String, user: String, maxOutput: Int, nonce: String): GenOutcome {
-        val requestId = sha256(listOf(store.sessionAccountId.orEmpty(), taskType, system, user, nonce).joinToString("|"))
-        return when (val r = gate.officialGenerate(requestId, taskType, system, user, maxOutput)) {
+        val account = store.sessionAccountId ?: return GenOutcome.NeedLogin
+        val requestId = sha256(listOf(account, taskType, system, user, nonce).joinToString("|"))
+        val result = gate.officialGenerate(requestId, taskType, system, user, maxOutput)
+        if (store.sessionAccountId != account) return GenOutcome.NeedLogin
+        return when (val r = result) {
             is AuthApi.Result.Ok -> {
                 val bal = r.body["balance"] as? JsonObject
                 GenOutcome.Ok(
                     content = r.body["content"]?.jsonPrimitive?.contentOrNull.orEmpty(),
                     points = r.body["points"]?.jsonPrimitive?.longOrNull ?: 0,
                     remaining = bal?.get("remaining")?.jsonPrimitive?.longOrNull,
-                    duplicated = r.body["duplicated"]?.jsonPrimitive?.content == "true")
+                    duplicated = r.body["duplicated"]?.jsonPrimitive?.content == "true").also { out ->
+                    if (store.sessionAccountId == account && statusAccountId == account && out.remaining != null) {
+                        _status.value = status.value?.copy(remaining = out.remaining)
+                        onStatusChanged(status.value)
+                    }
+                }
             }
-            is AuthApi.Result.Denied -> GenOutcome.Denied(r.code, r.message)
+            is AuthApi.Result.Denied -> if (r.code == 401) GenOutcome.NeedLogin else GenOutcome.Denied(r.code, r.message)
             is AuthApi.Result.Network -> GenOutcome.Network(r.message)
             null -> GenOutcome.NeedLogin
         }
@@ -109,7 +139,7 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
     private fun parseStatus(o: JsonObject) = OfficialStatus(
         enabled = (o["enabled"] as? JsonPrimitive)?.booleanOrNull == true,
         configured = (o["configured"] as? JsonPrimitive)?.booleanOrNull == true,
-        consented = (o["consented"] as? JsonPrimitive)?.booleanOrNull == true || localConsented(),
+        consented = (o["consented"] as? JsonPrimitive)?.booleanOrNull == true,
         plan = o["plan"]?.jsonPrimitive?.contentOrNull.orEmpty(),
         remaining = o["remaining"]?.jsonPrimitive?.longOrNull ?: 0)
 

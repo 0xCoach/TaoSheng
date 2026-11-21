@@ -64,6 +64,38 @@ class AuthGatePromptTest {
         assertNull("冷却期内不再自动弹", gate.loginRequested.value)
     }
 
+    @Test fun ownerVerificationWithoutCompletedBindingOnlyAllowsBackup() {
+        inject(accountId = "u1")
+        val (store, gate) = newGate()
+        store.hasLocalData = true
+        store.ownerVerified = true
+        context.getSharedPreferences("auth", Context.MODE_PRIVATE).edit().putString("license_payload",
+            """{"v":1,"sub":"u1","name":"audit","dev":"${store.deviceId}","caps":["READ_PERSONAL_DATA","EXPORT_BACKUP"],"iat":1,"exp":9999999999}""").commit()
+        assertTrue(gate.ownershipIssue())
+        assertFalse(gate.allowed(Capability.ReadPersonalData))
+        assertTrue(gate.allowed(Capability.ExportBackup))
+        store.logout()
+        assertFalse(store.ownerVerified)
+    }
+
+    @Test fun pendingActionWaitsForBindingAndRunsOnlyOnce() {
+        inject(accountId = "u1")
+        val (store, gate) = newGate()
+        store.hasLocalData = true
+        context.getSharedPreferences("auth", Context.MODE_PRIVATE).edit().putString("license_payload",
+            """{"v":1,"sub":"u1","name":"audit","dev":"${store.deviceId}","caps":["READ_PERSONAL_DATA"],"iat":1,"exp":9999999999}""").commit()
+        var calls = 0
+        assertFalse(gate.requireOrPrompt(Capability.ReadPersonalData) { calls++ })
+        gate.afterAuthSuccess()
+        assertEquals(0, calls)
+        assertNotNull(gate.loginRequested.value)
+        store.bindCurrent()
+        gate.afterAuthSuccess()
+        gate.afterAuthSuccess()
+        assertEquals(1, calls)
+        assertNull(gate.loginRequested.value)
+    }
+
     /**
      * 回归：服务端判会话失效 → 立即主动发登录请求 + 触发系统级通知回调，
      * 不再静默清会话等用户点入口撞墙。SecretStore 依赖 AndroidKeyStore，单测环境

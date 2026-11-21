@@ -63,7 +63,8 @@ class AuthGate(
             else AuthDecision(false, AuthStatus.Guest, "免费试用已用完（录音 ${GUEST_TRIAL_MS / 60000} 分钟），注册/登录后每月免费 1800 分钟")
         }
         // 有数据未绑定但已登录账号：必须通过设备凭据验证机主身份——登录不等于本机数据所有者。
-        if (store.boundAccountId == null && store.sessionAccountId != null && store.hasLocalData && !store.ownerVerified)
+        if (store.boundAccountId == null && store.sessionAccountId != null && store.hasLocalData &&
+            (!store.ownerVerified || cap != Capability.ExportBackup))
             return AuthDecision(false, AuthStatus.Expired, "本机数据待归属确认：验证机主身份后绑定")
         val lic = store.licensePayload
         return AuthGateRules.decide(cap, lic, store.boundAccountId, store.sessionAccountId, store.deviceId, now())
@@ -81,7 +82,7 @@ class AuthGate(
     /** 归属类硬阻断：待确认(已登录+有数据+未绑定+未验机主) 或 数据已归他号——重弹登录面板也解决不了。 */
     fun ownershipIssue() = when {
         store.boundAccountId == null && store.sessionAccountId != null &&
-            store.hasLocalData && !store.ownerVerified -> true
+            store.hasLocalData -> true
         // 与 AuthGateRules.decide 同口径：仅"已登录且数据归他号"才硬阻断。
         // 登出态 sessionAccountId==null 时 bound!=session 恒真但无意义——必须放行进登录面板
         // （登回原绑定账号即 AlreadyBound 自然解除）；否则归属弹层挡住登录页、bindLocalData
@@ -114,6 +115,15 @@ class AuthGate(
 
     /** 登录/刷新成功后：恢复被拦动作。 */
     fun afterAuthSuccess() {
+        val request = _loginRequested.value
+        if (request != null) {
+            val decision = require(request.capability)
+            if (!decision.allowed) {
+                _loginRequested.value = request.copy(reason = decision.reason)
+                onAuthSuccess?.invoke()
+                return
+            }
+        }
         _loginRequested.value = null
         val a = pendingAction; pendingAction = null; a?.invoke()
         onAuthSuccess?.invoke()
@@ -156,7 +166,7 @@ class AuthGate(
      * 备份不可用时拒绝绑定——归属一旦绑定，其他账号立刻被隔离，出错没有回头路。
      */
     suspend fun bindLocalData(): BindOutcome {
-        if (store.sessionAccountId == null) return BindOutcome.NotLoggedIn
+        val account = store.sessionAccountId ?: return BindOutcome.NotLoggedIn
         val bound = store.boundAccountId
         if (bound != null) return if (bound == store.sessionAccountId) BindOutcome.AlreadyBound else BindOutcome.BoundToOther
         if (!app.resound.AppGraph.isBackupReady) return BindOutcome.BackupUnavailable
@@ -181,6 +191,7 @@ class AuthGate(
             }
             if (!ok) return BindOutcome.BackupFailed
         }
+        if (store.sessionAccountId != account) return BindOutcome.NotLoggedIn
         return if (store.bindCurrent()) { store.refreshStatus(); BindOutcome.Bound } else BindOutcome.BoundToOther
     }
 
@@ -198,8 +209,17 @@ class AuthGate(
         val token = store.accessToken
         if (token.isEmpty()) return null
         val r = call(token)
-        if (r is AuthApi.Result.Denied && r.code == 401 && refreshIfNeeded(token) == RefreshOutcome.Refreshed) {
-            return store.accessToken.takeIf { it.isNotEmpty() && it != token }?.let { call(it) } ?: r
+        if (r is AuthApi.Result.Denied && r.code == 401) {
+            return when (refreshIfNeeded(token)) {
+                RefreshOutcome.Refreshed -> {
+                    val retry = store.accessToken.takeIf { it.isNotEmpty() && it != token }?.let { call(it) } ?: r
+                    if (retry is AuthApi.Result.Denied && retry.code == 401)
+                        expireSession("登录授权已失效，请重新登录")
+                    retry
+                }
+                RefreshOutcome.Offline, RefreshOutcome.Failed -> AuthApi.Result.Network("会话续期暂未完成，请联网重试")
+                RefreshOutcome.NoSession, RefreshOutcome.SessionGone -> r
+            }
         }
         return r
     }
@@ -353,12 +373,18 @@ class AuthGate(
     suspend fun checkStatus(): RefreshOutcome {
         val access = store.accessToken
         if (access.isEmpty()) return RefreshOutcome.NoSession
-        return when (val r = api.status(access)) {
+        var response = api.status(access)
+        if (response is AuthApi.Result.Denied && response.code == 401) {
+            val refreshed = refreshIfNeeded(access)
+            if (refreshed != RefreshOutcome.Refreshed) return refreshed
+            response = api.status(store.accessToken)
+        }
+        return when (val r = response) {
             is AuthApi.Result.Ok -> {
                 store.remoteStatus = "active"; store.refreshStatus(); RefreshOutcome.Refreshed
             }
             is AuthApi.Result.Denied -> {
-                if (r.code in 401..403) { store.remoteStatus = "disabled"; expireSession("账号已停用或会话被撤销，请重新登录"); RefreshOutcome.SessionGone }
+                if (r.code == 401) { expireSession("会话已被撤销，请重新登录"); RefreshOutcome.SessionGone }
                 else RefreshOutcome.Failed
             }
             is AuthApi.Result.Network -> RefreshOutcome.Offline

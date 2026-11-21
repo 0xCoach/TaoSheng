@@ -113,6 +113,7 @@ class AuthStore(context: Context) {
     }
 
     fun saveLogin(accountId: String, name: String, access: String, refresh: String, license: LicensePayload, createdAt: Long = 0L) {
+        ownerVerified = false
         sessionAccountId = accountId; username = name
         if (createdAt > 0) accountCreatedAt = createdAt
         accessToken = access; refreshToken = refresh; licensePayload = license
@@ -132,6 +133,7 @@ class AuthStore(context: Context) {
 
     /** 登出：清会话与凭证；不删本地数据、不动绑定。 */
     fun logout() {
+        ownerVerified = false
         sessionAccountId = null; username = null; accountCreatedAt = 0
         accessToken = ""; refreshToken = ""; licensePayload = null
         remoteStatus = "active"; lockedUntilNextUnlock = false
@@ -140,6 +142,7 @@ class AuthStore(context: Context) {
 
     /** 账号被停用/凭证失效时清理会话（保留绑定信息供说明）。 */
     fun invalidate() {
+        ownerVerified = false
         sessionAccountId = null; username = null; accountCreatedAt = 0
         accessToken = ""; refreshToken = ""; licensePayload = null
         refreshStatus()

@@ -38,12 +38,13 @@ import kotlinx.serialization.json.longOrNull
 fun AuthLoginHost() {
     if (!AppGraph.isAuthReady) return
     val req by AppGraph.auth.loginRequested.collectAsState()
+    val authStatus by AppGraph.auth.status.collectAsState()
     req?.let { r ->
         // 跳过半展开：内容三字段+按钮在小屏/折叠屏上半展开会被底栏截断。
         ModalBottomSheet(onDismissRequest = { AppGraph.auth.dismissLogin() },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             // 只有归属硬阻断才弹归属确认；凭证过期等登录态问题仍给登录面板（重新登录即续期）。
-            if (AppGraph.auth.ownershipIssue())
+            if (authStatus != AuthStatus.Guest && AppGraph.auth.ownershipIssue())
                 BindSheet(reason = r.reason, onCancel = { AppGraph.auth.dismissLogin() })
             else
                 LoginSheet(reason = r.reason, onCancel = { AppGraph.auth.dismissLogin() })

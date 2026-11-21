@@ -58,6 +58,17 @@ class ManualReview058Test {
         db.memory().insertEvent(MemoryEventEntity(id, time, time + 1000, "会议", "方案", "讨论方案",
             "[]", "[]", null, null, null, false, false, time, "test"))
     }
+
+    @Test fun officialReviewWithEmptyKeyReachesModelAndKeepsRealError() = runBlocking {
+        seed()
+        key = ""
+        modelId = OFFICIAL_PROVIDER_ID
+        reply = { throw LlmException(LlmError.Auth, detail = "请登录后使用声声不息官方 AI", terminal = true) }
+        val r = repo()
+        r.run(date, false)
+        assertEquals(1, calls)
+        assertEquals("请登录后使用声声不息官方 AI", r.state.value.lastError)
+    }
     private fun assertEnded(r: RoomReviewRepository, error: String?) {
         assertEquals(error, r.state.value.lastError)
         assertEquals(if (error == null) null else date.toKotlinLocalDate(), r.state.value.lastErrorDate)

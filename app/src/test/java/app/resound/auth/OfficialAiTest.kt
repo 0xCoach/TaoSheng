@@ -46,9 +46,43 @@ class OfficialAiTest {
         @Suppress("UNCHECKED_CAST")
         (f.get(ai) as kotlinx.coroutines.flow.MutableStateFlow<OfficialAi.OfficialStatus?>).value =
             OfficialAi.OfficialStatus(enabled = true, configured = true, consented = true, plan = "free", remaining = 100L)
+        OfficialAi::class.java.getDeclaredField("statusAccountId").apply { isAccessible = true }.set(ai, "u1")
         assertFalse(ai.ready()) // 未登录不就绪
         injectAccount("u1")
         assertTrue(ai.ready())
+        injectAccount("u2")
+        assertFalse("另一账号不能沿用旧账号就绪状态", ai.ready())
+    }
+
+    @Test fun localConsentBelongsToAccountAndClearingInvalidatesSnapshot() {
+        injectAccount("u1")
+        val store = AuthStore(context)
+        val ai = OfficialAi(context, AuthGate(store, AuthApi({ "" })), store)
+        context.getSharedPreferences("official-ai", Context.MODE_PRIVATE).edit()
+            .putInt("consentVersion", 1).putString("consentAccountId", "u1").commit()
+        assertTrue(ai.localConsented())
+        injectAccount("u2")
+        assertFalse(ai.localConsented())
+        var notified = false
+        ai.onStatusChanged = { notified = it == null }
+        ai.clearStatus()
+        assertNull(ai.status.value)
+        assertFalse(ai.ready())
+        assertTrue(notified)
+    }
+
+    @Test fun cachedConsentDoesNotOverrideServerRejection() {
+        injectAccount("u1")
+        val store = AuthStore(context)
+        val ai = OfficialAi(context, AuthGate(store, AuthApi({ "" })), store)
+        context.getSharedPreferences("official-ai", Context.MODE_PRIVATE).edit()
+            .putInt("consentVersion", 1).putString("consentAccountId", "u1").commit()
+        val json = kotlinx.serialization.json.Json.parseToJsonElement(
+            """{"enabled":true,"configured":true,"consented":false,"plan":"free","remaining":100}"""
+        ) as kotlinx.serialization.json.JsonObject
+        val parsed = OfficialAi::class.java.getDeclaredMethod("parseStatus", kotlinx.serialization.json.JsonObject::class.java)
+            .apply { isAccessible = true }.invoke(ai, json) as OfficialAi.OfficialStatus
+        assertFalse(parsed.consented)
     }
 
     @Test fun terminalDefaultsFalse() {

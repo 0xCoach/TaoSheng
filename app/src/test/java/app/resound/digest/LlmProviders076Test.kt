@@ -301,4 +301,17 @@ class LlmProviders076Test {
         assertTrue(LlmPreset("custom", "自定义", "http://192.168.1.5:11434/v1", "m").allowsEmptyKey())
         assertFalse(LlmPreset("deepseek", "DeepSeek", "https://api.deepseek.com", "deepseek-flash").allowsEmptyKey())
     }
+
+    @Test fun explicitOfficialSelectionSurvivesNotReadyAndRestart() = runBlocking {
+        val p = providers()
+        val custom = add(p)
+        p.activate(custom)
+        p.activate(OFFICIAL_PROVIDER_ID)
+        assertEquals(OFFICIAL_PROVIDER_ID, p.activeId.value)
+        assertEquals(OFFICIAL_PROVIDER_ID, providers().activeId.value)
+        val settings = AndroidDigestSettings(context, LlmClient(), p)
+        assertTrue("官方选中后免本地密钥，未就绪原因由官方服务裁决", settings.hasKey.value)
+        assertEquals("", settings.readKey())
+        assertEquals(OFFICIAL_PROVIDER_ID, settings.preset.id)
+    }
 }

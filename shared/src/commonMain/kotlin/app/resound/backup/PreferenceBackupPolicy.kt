@@ -74,6 +74,7 @@ object PreferenceBackupPolicy {
         "push-retries" to "发送失败的发件箱队列，恢复后不能重发旧消息",
         "recording-pack" to "录音打包任务及本机 URI",
         "redo-jobs" to "重做任务和执行进度",
+        "redo-ui" to "收起过的撤销提示，跟本机重做快照走",
         "segment-codec" to "本机编码器兼容性探测和崩溃标记",
         "setup" to "本机后台权限的人工确认；不能代替新手机授权",
         "strong-reminders" to "正在响铃的提醒内容和重复响铃状态",

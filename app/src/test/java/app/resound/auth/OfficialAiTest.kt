@@ -42,8 +42,10 @@ class OfficialAiTest {
         injectAccount("")
         val store = AuthStore(context)
         val ai = OfficialAi(context, AuthGate(store, AuthApi({ "" })), store)
-        val f = OfficialAi::class.java.getDeclaredField("status").apply { isAccessible = true }
-        f.set(ai, OfficialAi.OfficialStatus(enabled = true, configured = true, consented = true, plan = "free", remaining = 100L))
+        val f = OfficialAi::class.java.getDeclaredField("_status").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        (f.get(ai) as kotlinx.coroutines.flow.MutableStateFlow<OfficialAi.OfficialStatus?>).value =
+            OfficialAi.OfficialStatus(enabled = true, configured = true, consented = true, plan = "free", remaining = 100L)
         assertFalse(ai.ready()) // 未登录不就绪
         injectAccount("u1")
         assertTrue(ai.ready())

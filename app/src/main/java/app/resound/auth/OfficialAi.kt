@@ -1,6 +1,9 @@
 package app.resound.auth
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
@@ -22,8 +25,8 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
     private val consentMutex = Mutex()
 
     /** 最近一次服务端回执的状态；网络失败或登出时保持旧值，不假装可用。 */
-    var status: OfficialStatus? = null
-        private set
+    private val _status = MutableStateFlow<OfficialStatus?>(null)
+    val status: StateFlow<OfficialStatus?> = _status.asStateFlow()
 
     /** 状态变化回调（AppGraph 用它刷新服务商条目的可用标记）。 */
     var onStatusChanged: (OfficialStatus?) -> Unit = {}
@@ -34,10 +37,10 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
 
     /** 本地判定：已登录+服务开启+已同意即可发起；服务端仍是最终裁决（额度/权限以回执为准）。 */
     fun ready(): Boolean = !store.sessionAccountId.isNullOrEmpty() &&
-        status?.let { it.enabled && it.configured && it.consented } == true
+        status.value?.let { it.enabled && it.configured && it.consented } == true
 
     suspend fun refreshStatus(): OfficialStatus? = when (val r = gate.officialStatus()) {
-        is AuthApi.Result.Ok -> parseStatus(r.body).also { status = it; onStatusChanged(it) }
+        is AuthApi.Result.Ok -> parseStatus(r.body).also { _status.value = it; onStatusChanged(it) }
         else -> null
     }
 
@@ -50,14 +53,14 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
         val r = gate.officialConsent(version)
         if (r is AuthApi.Result.Ok) {
             prefs.edit().putInt("consentVersion", version).apply()
-            val cur = status
+            val cur = status.value
             if (cur == null) {
                 // 登录时的状态拉取若失败（弱网/冷启动），同意后必须补拉一次，
                 // 否则 ready() 永远 false、官方条目停在「同意后即可用」形成死锁。
                 refreshStatus()
             } else {
-                status = cur.copy(consented = true)
-                onStatusChanged(status)
+                _status.value = cur.copy(consented = true)
+                onStatusChanged(status.value)
             }
         }
         r

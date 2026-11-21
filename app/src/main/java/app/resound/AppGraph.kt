@@ -193,6 +193,7 @@ object AppGraph {
     lateinit var auth: app.resound.auth.AuthGate
     lateinit var officialAi: app.resound.auth.OfficialAi
     val isAuthReady: Boolean get() = ::auth.isInitialized
+    val isOfficialAiReady: Boolean get() = ::officialAi.isInitialized
     // 会员与用量：跟随 auth 装配
     lateinit var membership: app.resound.auth.MembershipState
     val isMembershipReady: Boolean get() = ::membership.isInitialized

@@ -104,6 +104,11 @@ class DigestRunner(
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
             // 安静后自动整理走 auto_digest：服务端仅 Pro 放行且有独立周期/每日点数上限（计入总池）
             val autoQuiet = !manual && prefs.getLong("quietPendingAt", 0L) > 0L
+            // Free+官方：auto_digest 必被服务端 402 拦下——提前给明确文案而不是每个重试周期报"点数已用完"；
+            // 有 BYOK 备用时放行（失败可切换），手动「现在整理」不受影响（digest 类 Free 也可用）。
+            if (preset.id == OFFICIAL_PROVIDER_ID && autoQuiet &&
+                settings.providers.officialPlan() != "pro" && !settings.failover.hasBackup(preset))
+                return needsUser("官方 AI 的安静自动整理需要 Pro 会员；可先点「现在整理」，或升级 Pro 后自动整理")
             val result = if (autoQuiet) kotlinx.coroutines.withContext(LlmTaskKind("auto_digest")) {
                 runBatches(chunks, preset, key) { madeEvents = true }
             } else runBatches(chunks, preset, key) { madeEvents = true }

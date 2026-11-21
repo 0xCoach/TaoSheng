@@ -258,6 +258,7 @@ class ResoundApp : Application() {
         }
         AppGraph.llmFailover = digestSettings.failover
         digestSettings.providers.officialReady = { AppGraph.officialAi.ready() }
+        digestSettings.providers.officialPlan = { AppGraph.officialAi.status.value?.plan }
         AppGraph.officialAi.onStatusChanged = { digestSettings.providers.refreshOfficial() }
         // 登录成功即刷新官方 AI 状态：已同意用户本轮就能自动选中官方（否则要等下次启动）。
         AppGraph.auth.onAuthSuccess = { scope.launch { AppGraph.officialAi.refreshStatus() } }

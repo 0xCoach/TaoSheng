@@ -67,6 +67,8 @@ class AndroidLlmProviders internal constructor(
 
     /** 官方条目就绪态由 AppGraph 经 OfficialAi 状态刷新维护：开启+已配置+已同意才算可用。 */
     internal var officialReady: () -> Boolean = { false }
+    /** 官方套餐（free/pro 等），由 AppGraph 挂 officialAi.status?.plan；null=状态未拉到 */
+    internal var officialPlan: () -> String? = { null }
     private fun officialEntry() = SavedProvider(OFFICIAL_PROVIDER_ID, null, "声声不息官方 AI", OFFICIAL_PROVIDER_ID, OFFICIAL_PROVIDER_ID, officialReady())
     private fun withOfficial(list: List<SavedProvider>) = if (list.any { it.id == OFFICIAL_PROVIDER_ID }) list else list + officialEntry()
 

@@ -69,6 +69,10 @@ fun ProvidersCard(providers: LlmProviders) {
     val checker = if (app.resound.AppGraph.isLlmBalanceReady) app.resound.AppGraph.llmBalance else null
     val balance = checker?.state?.collectAsStateWithLifecycle()?.value
     val threshold = checker?.threshold?.collectAsStateWithLifecycle()?.value ?: 0.0
+    // 官方条目文案直接订阅登录态/官方状态流：列表内容不变时 StateFlow 按 equals 去重不 emit，
+    // 若靠 saved 顺带刷新文案会永远停在旧值（注册后仍显示「登录授权后可用」的即此因）。
+    val authStatus by app.resound.AppGraph.auth.status.collectAsStateWithLifecycle()
+    val officialStatus by app.resound.AppGraph.officialAi.status.collectAsStateWithLifecycle()
     // 每次进本页补拉一次官方状态：登录时刻若弱网失败，这里给二次机会（不抛错，失败静默保持现状）。
     LaunchedEffect(Unit) { app.resound.AppGraph.officialAi.refreshStatus() }
     var editingLine by remember { mutableStateOf(false) }
@@ -94,7 +98,7 @@ fun ProvidersCard(providers: LlmProviders) {
                     // 官方 AI 未就绪时分流：游客→登录；已登录未同意→同意页（同意后即可用）。
                     // 授权/同意成功后 officialReady 翻转，refreshOfficial 自动把它设为当前。
                     if (p.id == OFFICIAL_PROVIDER_ID && !p.hasKey) {
-                        if (app.resound.AppGraph.auth.status.value == app.resound.auth.AuthStatus.Guest)
+                        if (authStatus == app.resound.auth.AuthStatus.Guest)
                             app.resound.AppGraph.auth.requestLogin(app.resound.auth.Capability.AiAnalysis, "官方 AI 需要登录授权后使用")
                         else officialConsent = true
                     } else providers.activate(p.id)
@@ -109,8 +113,9 @@ fun ProvidersCard(providers: LlmProviders) {
                     Text(p.name, style = RsType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val rank = backups.indexOf(p.id)
                     Text(p.model + when {
-                        p.id == OFFICIAL_PROVIDER_ID -> if (p.hasKey) " · 点数制·登录即用"
-                            else if (app.resound.AppGraph.auth.status.value == app.resound.auth.AuthStatus.Guest) " · 登录授权后可用"
+                        p.id == OFFICIAL_PROVIDER_ID -> if (p.hasKey)
+                            officialStatus?.let { " · 点数制·剩 ${it.remaining} 点" } ?: " · 点数制·登录即用"
+                            else if (authStatus == app.resound.auth.AuthStatus.Guest) " · 登录授权后可用"
                             else " · 同意后即可用"
                         !p.hasKey -> " · 未填密钥"
                         failoverOn && rank in 0..1 -> " · 备用 ${rank + 1}"

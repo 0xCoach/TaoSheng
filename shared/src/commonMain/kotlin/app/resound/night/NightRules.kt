@@ -76,6 +76,10 @@ object NightRules {
     }
     /** 这一夜结束后（整理中/已整理），同一个早上不再重新开始记录；中断的那一夜可以接着记 */
     fun canReopen(state: NightState?) = state==null || state!=NightState.Processing && state!=NightState.Ready
+    /** #59：中断的一夜在时段结束前先不整理成 Ready，否则重启后当晚就不能再续记（canReopen 不认 Ready）。
+     * 没有 deadline 的旧记录照旧立即整理。 */
+    fun readyToProcess(state: NightState, deadline: Long?, now: Long) =
+        state==NightState.Processing || state==NightState.Interrupted && (deadline ?: Long.MIN_VALUE) <= now
     fun median(values: List<Long>): Long { require(values.isNotEmpty());val v=values.sorted();val i=v.size/2;return if(v.size%2==1)v[i] else v[i-1]+(v[i]-v[i-1])/2 }
     /** 卡 213：“最响的几下”只算睡着时——入睡到起床之间，且不在醒着前后 [NightTuning.LOUD_AWAKE_MARGIN] 内。
      * 显示时筛，不删数据：改了入睡/起床时间会跟着变。还没算出时间（夜里进行中）时不筛。 */

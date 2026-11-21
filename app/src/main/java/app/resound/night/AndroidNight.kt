@@ -28,7 +28,8 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
             val breaks=store.dao.events(row.id).filter { it.kind=="SnoreBreak" }.map { it.id to NightSpan(it.start,it.end) }
             if(SnoreBreaks.duplicates(breaks).isNotEmpty())store.recompute(row.id)
         }
-        for(row in store.dao.all().filter { it.state==NightState.Processing.name || it.state==NightState.Interrupted.name }) {
+        val now=System.currentTimeMillis()
+        for(row in store.dao.all().filter { it.state in setOf(NightState.Processing.name,NightState.Interrupted.name) && NightRules.readyToProcess(NightState.valueOf(it.state),store.session(it).deadline,now) }) {
             val candidates=store.dao.clips(row.id).filter { it.candidate && it.path!=null }
             if(candidates.isNotEmpty() && !(battery.isCharging || !power.isInteractive && battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)>=40))continue
             // 卡 213：事后补做时“现在亮不亮屏”与当晚无关，不按亮屏剔除，靠显示时按醒来时段筛

@@ -53,6 +53,7 @@ class LocalEnvSoundRepository(
     internal suspend fun eventSound(id: Long) = store.eventSound(id)
     @Synchronized override fun update(settings: EnvSoundSettings) = store.update(settings)
     @Synchronized override fun downloadModel() = store.downloadModel()
+    @Synchronized fun downloadForNight() = store.downloadForNight()
     override fun flagged(date: kotlinx.datetime.LocalDate) = store.flagged(date)
     override fun eventSounds(date: kotlinx.datetime.LocalDate) = store.eventSounds(date)
     override fun eventsWith(tag: EnvTag?, sound: SpecialSound?) = store.eventsWith(tag, sound)

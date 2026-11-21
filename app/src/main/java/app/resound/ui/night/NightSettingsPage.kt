@@ -74,10 +74,13 @@ fun NightSettingsPage(bottom: Dp) {
                 when (val m = model) {
                     is EnvModelState.Downloading -> Note("正在下载识别模型 ${(m.progress * 100).toInt()}%")
                     is EnvModelState.Failed -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        Note("识别模型下载失败", Modifier.weight(1f), c.warning)
-                        Text("重试 ›", style = RsType.subhead, color = c.accent, modifier = Modifier.springClick { AppGraph.envSound.downloadModel() })
+                        Note("识别模型下载失败：下好之前夜里只记声音曲线，鼾声、咳嗽先存下来，下好后再识别", Modifier.weight(1f), c.warning)
+                        Text("重试 ›", style = RsType.subhead, color = c.accent, modifier = Modifier.springClick { (AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.downloadForNight() ?: AppGraph.envSound.downloadModel() })
                     }
-                    EnvModelState.NotDownloaded -> Note("准备下载识别模型（约 27 MB）")
+                    EnvModelState.NotDownloaded -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Note("还没下载识别模型（约 27 MB，不用打开环境音识别）。下好之前夜里只记声音曲线", Modifier.weight(1f), c.warning)
+                        Text("下载 ›", style = RsType.subhead, color = c.accent, modifier = Modifier.springClick { (AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.downloadForNight() ?: AppGraph.envSound.downloadModel() })
+                    }
                     EnvModelState.Ready -> Unit
                 }
             }

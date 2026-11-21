@@ -23,6 +23,21 @@ import java.time.ZoneId
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 @SQLiteMode(SQLiteMode.Mode.NATIVE)
 class EnvSoundRepository177Test {
+    @Test fun nightDownloadsModelWithoutEnvSoundSwitch() = runBlocking {
+        // 用户只开了夜里记录、没开环境音识别：夜里也要能下到模型，否则整夜只有曲线（11-21 小米问题记录）
+        val context: Context = RuntimeEnvironment.getApplication()
+        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        var downloads = 0
+        val state = MutableStateFlow<EnvModelState>(EnvModelState.NotDownloaded)
+        try {
+            val r = LocalEnvSoundRepository(db, context.getSharedPreferences("env-night", 0).apply { edit().clear().commit() }, scope, state, { downloads++ },
+                { error("不推理") }, {}, now = { 0L }, zoneProvider = ZoneProvider { "UTC" }, io = Dispatchers.IO)
+            r.downloadModel(); delay(50); assertEquals(0, downloads)
+            r.downloadForNight(); withTimeout(5000) { while (downloads != 1) delay(5) }
+        } finally { scope.cancel(); db.close() }
+    }
+
     @Test fun queriesAtomicSettingsAndCorrectionsMatchOldRepository() = runBlocking {
         val context: Context = RuntimeEnvironment.getApplication()
         val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()

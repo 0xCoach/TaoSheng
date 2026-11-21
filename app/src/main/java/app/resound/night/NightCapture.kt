@@ -240,7 +240,10 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
             else->Unit
         }
         if(at-lastModeAt>=300_000 || mode==NightMode.Off) {
-            val next = NightRules.mode(s,input.battery,input.charging,input.hot)
+            val modelReady = owner.model.model.value == app.resound.envsound.EnvModelState.Ready
+            if (!modelReady && session != null) owner.model.downloadForNight()
+            // 识别模型没下好时整晚识别会每个窗口都失败：改成先存后认，模型好了再补做
+            val next = NightRules.mode(s,input.battery,input.charging,input.hot).let { if (it == NightMode.Full && !modelReady) NightMode.Deferred else it }
             if (mode == NightMode.Full && next != mode && id?.let { owner.store.dao.get(it) } != null) inference.flush()
             mode=next;lastModeAt=at
         }

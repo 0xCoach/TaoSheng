@@ -31,6 +31,8 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
         val now=System.currentTimeMillis()
         for(row in store.dao.all().filter { it.state in setOf(NightState.Processing.name,NightState.Interrupted.name) && NightRules.readyToProcess(NightState.valueOf(it.state),store.session(it).deadline,now) }) {
             val candidates=store.dao.clips(row.id).filter { it.candidate && it.path!=null }
+            // 模型还没下好：候选片段留着，等模型好了再补做，不在这里报错丢掉
+            if(candidates.isNotEmpty() && model.model.value!=app.resound.envsound.EnvModelState.Ready) { model.downloadForNight();continue }
             if(candidates.isNotEmpty() && !(battery.isCharging || !power.isInteractive && battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)>=40))continue
             // 卡 213：事后补做时“现在亮不亮屏”与当晚无关，不按亮屏剔除，靠显示时按醒来时段筛
             val processor=NightSoundProcessor(this,row.id,screenOn={ false })
@@ -66,7 +68,7 @@ class AndroidNight(val context: Context,val store: NightStore,val files: NightFi
             val prefs=context.getSharedPreferences("night",0);val json=Json { ignoreUnknownKeys=true;encodeDefaults=true };val files=NightFiles(context)
             val initial=runCatching { json.decodeFromString<NightSettings>(prefs.getString("settings",null) ?: "{}") }.getOrDefault(NightSettings())
             val app=context.applicationContext as ResoundApp
-            val store=NightStore(db,scope,initial,{ prefs.edit().putString("settings",json.encodeToString(it)).commit() },{ model.downloadModel() },
+            val store=NightStore(db,scope,initial,{ prefs.edit().putString("settings",json.encodeToString(it)).commit() },{ model.downloadForNight() },
                 System::currentTimeMillis,HistoricalZones.history,files::exists,{ FileRef(files.cleanupPath(it)) },{ row->
                     val data=NightFiles.unpack(row.points);val n=data.size/3
                     NightEnvelope(row.start,5_000,ByteArray(n) { data[it*3] },ByteArray(n) { data[it*3+1] },ByteArray(n) { data[it*3+2] })
